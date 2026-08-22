@@ -1,0 +1,6 @@
+{
+  "name": "GMIM Eben Haezer Cikarang - Youth Ecosystem",
+  "description": "Unified digital ecosystem for GMIM Eben Haezer Cikarang Youth Ministry with dynamic CMS, RBAC portal, group monitoring, and multi-tenant foundation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
