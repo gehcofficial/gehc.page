@@ -137,6 +137,8 @@ Pola hybrid: URL file disimpan di kolom TiDB (`bannerUrl`), filenya di Drive.
 
 ## 7. Roadmap Fase 2 (belum dibangun)
 
+> Rencana lengkap kini dipusatkan di **`roadmap.md` → Fase 2½, item 27 "Google Drive Sync"** (enabler + 4 item turunannya). Bagian di bawah tetap valid sebagai ringkasan teknis.
+
 - **Upload dari portal** untuk Marturia (dokumentasi) & Komisi (laporan):
   ganti scope SA menjadi `drive` (bukan readonly), endpoint multipart upload,
   kuota & anti-spam. Struktur folder fase 1 sudah mengantisipasi ini.

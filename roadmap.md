@@ -62,6 +62,72 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 14. **AI Gemini lanjutan** 🚧*(narasi jethro sudah jalan)*📋:
     - Asisten draf warta/renungan mingguan.
     - Ringkasan otomatis laporan monitoring → insight "suhu rohani" antar kelompok.
+    - Insight gabungan absensi + self check-in suhu rohani (lihat item 22) → deteksi dini lebih akurat.
+
+---
+
+## Fase 2½ — Fungsi Pemuridan & Google Drive Sync 🌱
+
+> Selain fitur teknis, fase ini menjawab pertanyaan pastoral: *platform ini menolong pemuda mana, dalam masalah apa?* Enam paket di bawah adalah kelompok kerja — bukan daftar fitur lepas. Kolom **Drive Sync** menunjukkan keterkaitan dengan Google Drive API (`drive-integration.md`).
+
+### 22 · 🌱 Pertumbuhan Personal *(memperkuat DIDASKALIA)*
+
+| Ide | Nilai Pastoral | Drive Sync | Ukuran |
+|---|---|---|---|
+| Self check-in **"suhu rohani" mingguan** — private, skala 1–5 | Mentor membaca *tren*, bukan hanya hadir/tidak → intervensi lebih manusiawi; Jethro dapat sinyal lebih kaya dari absensi saja | — | M |
+| **Journal/devotional pribadi** + reading plan firman dari modul Kurikulum & Pembekalan | Ruang curahan privat; mentor melihat ringkasan *dengan izin*, bukan isi mentah | Arsip opsional ke `Ruang Anggota [MENTEE]` | M |
+| **Sertifikat digital penyelesaian batch/modul** (PDF) | Apresiasi konkret yang bisa ditunjukkan — bahkan untuk CV | Auto-archive ke `Arsip Generasi [ALUMNI]` ⛽ | S |
+
+### 23 · 🤝 Relasi & Kepedulian *(KOINONIA)*
+
+| Ide | Nilai Pastoral | Drive Sync | Ukuran |
+|---|---|---|---|
+| **Prayer wall permohonan doa** per-grup + status "terjawab" | Merawat beban bersama; dokumentasi jawaban doa = bahan syukur retreat berikutnya | — | M |
+| **Birthday & milestone otomatis** → notifikasi ke mentor/grup | Pemuda merasa diperhatikan; momen pastoral yang alami | — | S |
+| **Event calendar personal** (subscribe `.ics` → Google Calendar) | Jadwal grup + warta menyatu di HP mereka tanpa harus buka web | — | S |
+
+### 24 · 💼 Praktis Perantau *(DIAKONIA — spesifik konteks industri Cikarang)*
+
+| Ide | Nilai Pastoral | Drive Sync | Ukuran |
+|---|---|---|---|
+| **Job board lowongan/magang** dari jemaat & rekanan gereja | Nilai tersedialah paling nyata bagi mahasiswa/pekerja muda rantau | — | M |
+| **Info kost & carpool** untuk newcomer BAKU TAU | Menjawab masalah paling mendesak anak rantau: tempat tinggal & transportasi | Lampiran dokumen tips → folder `[PUBLIK]` | S |
+
+### 25 · 📣 Kesaksian *(MARTURIA)*
+
+| Ide | Nilai Pastoral | Drive Sync | Ukuran |
+|---|---|---|---|
+| **Testimoni wall** — draft mentee → approve Komisi → tampil di landing | Kesaksian jadi konten hidup; pemuda dilatih menuliskan karya Tuhan | Foto pendukung ditarik dari folder `[GROUP:x]` ✓ read-only | M |
+| **Referral link personal** ("ajak teman") terhubung funnel BAKU TAU/waitlist | Mengubah setiap pemuda jadi penginjil dengan jejak data yang terukur | — | M |
+
+### 26 · ⚙️ Regenerasi & Kepemimpinan *(memperkuat JETHRO + KSB)*
+
+| Ide | Nilai Pastoral | Drive Sync | Ukuran |
+|---|---|---|---|
+| **Readiness score mentee** — kehadiran + modul + tenure → dasar promosi saat MITOSIS | Split tidak lagi subjektif; calon mentor baru tampak dari data | — | M |
+| **Alumni network hub** — kota, profesi, toggle *"mau jadi mentor?"* | Pipeline mentor masa depan + jejaring karier lintas generasi | — | L |
+| **Agenda builder rapat grup** — mentor susun agenda, mentee melihat | Standarisasi kualitas pemuridan; arsip otomatis untuk evaluasi KSB | Notulen tersimpan ke folder grup ⛽ | S |
+| **Laporan PDF bulanan otomatis per divisi** → KSB/BPMJ | Hemat waktu sekretaris; BPMJ read-only jadi benar-benar terpakai | Arsip otomatis ke `Laporan Internal [KOMISI]` ⛽ | M |
+
+### 27 · 🔗 Google Drive Sync *(enabler lintas-paket)*
+
+| Item | Catatan | Ukuran |
+|---|---|---|
+| Upgrade SA scope → `drive` (write) + share sebagai **Content Manager** | Prasyarat semua baris ⛽ di atas. **Timing: aktifkan tepat sebelum membangun fitur arsip/upload** | S |
+| Upload portal — Marturia dokumentasi & Komisi laporan (multipart) | Menindaklanjuti struktur folder fase 1 yang sudah siap | M |
+| Auto-archive artefak hasil *generate* (laporan/sertifikat/notulen) | Sistem mengikuti zonasi folder — konsisten prinsip §6c | M |
+| Per-group gallery di GroupDetailPage | Read-side murni — tercepat dieksekusi, cukup scope saat ini | S |
+| Dashboard kuota & audit Drive untuk SUPERADMIN | Melengkapi audit sinkronisasi yang sudah ada | M |
+
+> **Ketergantungan**: baris ⛽ menunggu item pertama tabel 27. Sisanya bisa jalan dengan infrastruktur Drive hari ini.
+
+---
+
+## Rekomendasi Prioritas Pasca Go-Live 🎯
+
+1. **Self check-in suhu rohani** (22) — sinyal pastoral terbesar dengan biaya terkecil
+2. **Testimoni wall** (25) — konten hidup untuk landing; cukup Drive read-only
+3. **Birthday + calendar .ics** (23) — cepat dibangun, dampak "diperhatikan" langsung terasa
 
 ---
 
@@ -70,6 +136,9 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 15. **Komunitas & Rekreasional** 📋 — minat, bakat, musik, olahraga.
 16. **Wilayah & Kolom Teritorial 1–12** 📋 — pemetaan jemaat per wilayah Cikarang dengan domain `kolom.gehc.page`.
 17. **Notifikasi & komunikasi** 💡 — WhatsApp/email untuk follow-up idle & broadcast warta.
+    - WA-gateway follow-up idle (Fonnte/official API) — mentor & Komisi otomatis diberi tahu.
+    - Pengingat ulang tahun anggota ke grup masing-masing (lihat item 23).
+    - Digest mingguan per-role: warta untuk MENTEE, ringkasan grup untuk MENTOR, health-score untuk KOMISI/BPMJ.
 
 ---
 
@@ -88,3 +157,5 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 2. **Satu sumber kebenaran data**: TiDB untuk operasional; localStorage hanya fallback demo berversi (`gehc_*_v2`).
 3. **RBAC tidak boleh dilemahkan**: resource baru wajib masuk matriks `canAccess()` + middleware server; izin Drive ikut matriks zona (`gdrive-policy.mjs`).
 4. **Bahasa UI konsisten Indonesia**, istilah gerejawi GMIM dipertahankan.
+5. **Setiap fitur menjawab satu pertanyaan**: *menolong pemuda mana, dalam masalah apa?* — fitur tanpa jawaban pastoral ditunda, sebagus apa pun teknologinya.
+6. **Data yang diprogram → TiDB; berkas yang disentuh manusia → Drive** (konsisten `drive-integration.md` §6c) — artefak hasil *generate* sistem (PDF laporan/sertifikat/notulen) mengikuti zonasi folder yang ada.
