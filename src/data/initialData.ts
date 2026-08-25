@@ -1,4 +1,4 @@
-import {
+﻿import type {
   Tenant,
   User,
   YouthGroup,
@@ -8,6 +8,7 @@ import {
   StrukturMember,
   IntegrationConfig,
   DriveFolder,
+  GroupBatch,
 } from '../types';
 
 export const INITIAL_TENANTS: Tenant[] = [
@@ -58,77 +59,73 @@ export const INITIAL_TENANTS: Tenant[] = [
   },
 ];
 
+/**
+ * Persona fallback lokal — sinkron dengan akun dummy staging (seed-users.ts).
+ * Hanya 9 persona inti per level RBAC; daftar lengkap diambil live dari
+ * /api/demo/personas saat server aktif. Email = akun DB agar impersonate jalan.
+ */
+const demoAvatar = (seed: string) =>
+  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1b1b1b`;
+const YOUTH = 'tenant-youth';
+
 export const INITIAL_USERS: User[] = [
   {
-    id: 'usr-1',
-    name: 'Pnt. Daniel Runtuwene',
-    email: 'daniel.runtuwene@gehc.page',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 812-9843-1101',
+    id: 'usr-tech',
+    name: 'Tim Tech GEHC',
+    email: 'tech@gehc.demo',
+    avatar: demoAvatar('Tim Tech'),
+    roles: [{ tenantId: YOUTH, role: 'SUPERADMIN' }],
+  },
+  {
+    id: 'usr-stevania-hadinda',
+    name: 'Pnt Stevania Hadinda',
+    email: 'stevania.hadinda@gehc.demo',
+    avatar: demoAvatar('Stevania Hadinda'),
     roles: [
-      { tenantId: 'tenant-youth', role: 'SUPERADMIN' },
-      { tenantId: 'tenant-bapak', role: 'SUPERADMIN' },
+      { tenantId: YOUTH, role: 'KOMISI' }, // Ketua Komisi (Penatua Pemuda)
+      { tenantId: YOUTH, role: 'MENTOR', groupId: 'grp-2' }, // demo multi-role
     ],
   },
   {
-    id: 'usr-2',
-    name: 'Sarah Manopo, S.Kom',
-    email: 'sarah.manopo@gehc.page',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 813-7721-9982',
+    id: 'usr-theodore-kowaas',
+    name: 'Theodore Beckham Milano Kowaas',
+    email: 'theodore.kowaas@gehc.demo',
+    avatar: demoAvatar('Theodore Kowaas'),
     roles: [
-      { tenantId: 'tenant-youth', role: 'COMMITTEE' },
+      { tenantId: YOUTH, role: 'COMMITTEE' }, // Ketua Tim Kerja
+      { tenantId: YOUTH, role: 'MENTOR', groupId: 'grp-3' }, // Shalom
     ],
   },
   {
-    id: 'usr-3',
-    name: 'Michael Pangemanan',
-    email: 'michael.p@gehc.page',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 856-1122-3344',
+    id: 'usr-glenity-siauw',
+    name: 'Glenity Siauw',
+    email: 'glenity.siauw@gehc.demo',
+    avatar: demoAvatar('Glenity Siauw'),
     roles: [
-      { tenantId: 'tenant-youth', role: 'MENTOR', groupId: 'grp-6' }, // Logos
+      { tenantId: YOUTH, role: 'KOMISI' }, // Sekretaris Komisi
+      { tenantId: YOUTH, role: 'MENTEE', groupId: 'grp-7' }, // Metanoia — multi-role
     ],
   },
   {
-    id: 'usr-4',
-    name: 'Jessica Tendean',
-    email: 'jessica.t@gehc.page',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 812-4455-6677',
-    roles: [
-      { tenantId: 'tenant-youth', role: 'MENTOR', groupId: 'grp-1' }, // Avodah
-    ],
+    id: 'usr-mighty-rengkung',
+    name: 'Mighty Rengkung',
+    email: 'mighty.rengkung@gehc.demo',
+    avatar: demoAvatar('Mighty Rengkung'),
+    roles: [{ tenantId: YOUTH, role: 'MENTOR', groupId: 'grp-6' }], // Logos
   },
   {
-    id: 'usr-5',
-    name: 'Kevin Wowor',
-    email: 'kevin.wowor@gehc.page',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 818-9900-1122',
-    roles: [
-      { tenantId: 'tenant-youth', role: 'MENTOR', groupId: 'grp-2' }, // Agape
-    ],
+    id: 'usr-yulius-waworuntu',
+    name: 'Yulius Waworuntu',
+    email: 'yulius.waworuntu@gehc.demo',
+    avatar: demoAvatar('Yulius Waworuntu'),
+    roles: [{ tenantId: YOUTH, role: 'ALUMNI' }],
   },
   {
-    id: 'usr-6',
+    id: 'usr-andrea-sondakh',
     name: 'Andrea Sondakh',
-    email: 'andrea.sondakh@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 878-1234-5678',
-    roles: [
-      { tenantId: 'tenant-youth', role: 'MENTI', groupId: 'grp-6' }, // Logos
-    ],
-  },
-  {
-    id: 'usr-7',
-    name: 'Samuel Palit',
-    email: 'samuel.palit@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=400&auto=format&fit=crop',
-    phone: '+62 812-8877-6655',
-    roles: [
-      { tenantId: 'tenant-youth', role: 'MENTI', groupId: 'grp-1' }, // Avodah
-    ],
+    email: 'andrea.sondakh@gehc.demo',
+    avatar: demoAvatar('Andrea Sondakh'),
+    roles: [{ tenantId: YOUTH, role: 'MENTEE', groupId: 'grp-8' }], // Ruach
   },
 ];
 
@@ -139,9 +136,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Avodah',
     meaning: 'Ibadah & Pelayanan yang Nyata dalam Karya',
     scripture: 'Kolose 3:23 — "Apapun juga yang kamu perbuat, perbuatlah dengan segenap hatimu seperti untuk Tuhan dan bukan untuk manusia."',
-    mentorNames: ['Jessica Tendean', 'Andre Rumagit'],
-    mentorUserIds: ['usr-4'],
-    memberCount: 14,
+    mentorNames: ['Zhanon Lausan', 'Farendy Lumintang'],
+    mentorUserIds: [],
+    memberCount: 8,
     meetingSchedule: 'Setiap Jumat, 19:30 WIB',
     meetingLocation: 'Ruang Serbaguna GEHC / Home Fellowship Lippo Cikarang',
     color: '#FF416C',
@@ -154,9 +151,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Agape',
     meaning: 'Kasih yang Tulus dan Tanpa Syarat',
     scripture: '1 Korintus 13:4-7 — "Kasih itu sabar; kasih itu murah hati; ia tidak cemburu. Ia tidak memegahkan diri dan tidak sombong."',
-    mentorNames: ['Kevin Wowor', 'Priscillia Lumempouw'],
-    mentorUserIds: ['usr-5'],
-    memberCount: 16,
+    mentorNames: ['Prichel Kampong', 'Syallomitha Mawitjere'],
+    mentorUserIds: [],
+    memberCount: 8,
     meetingSchedule: 'Setiap Sabtu, 17:00 WIB',
     meetingLocation: 'Fellowship Lounge Lantai 2 GEHC',
     color: '#E94057',
@@ -169,9 +166,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Shalom',
     meaning: 'Damai Sejahtera dan Ketenangan Batin',
     scripture: 'Yohanes 14:27 — "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu."',
-    mentorNames: ['Bryan Kaligis', 'Fabiola Mamahit'],
+    mentorNames: ['Theodore Kowaas', 'Fladyna Mondoringin'],
     mentorUserIds: [],
-    memberCount: 12,
+    memberCount: 8,
     meetingSchedule: 'Setiap Kamis, 19:30 WIB',
     meetingLocation: 'Jababeka Residence Cafe & Home Meeting',
     color: '#2A81FF',
@@ -184,9 +181,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Hesed',
     meaning: 'Kasih Setia Allah yang Kekal & Rahmat Berkelanjutan',
     scripture: 'Ratapan 3:22-23 — "Tak berkesudahan kasih setia TUHAN, tak habis-habisnya rahmat-Nya, selalu baru tiap pagi."',
-    mentorNames: ['Richard Rompas', 'Nathania Polii'],
+    mentorNames: ['Milithya Wuisan', 'Christian Lombogia'],
     mentorUserIds: [],
-    memberCount: 15,
+    memberCount: 8,
     meetingSchedule: 'Setiap Jumat, 20:00 WIB',
     meetingLocation: 'Ruang Doa GEHC Cikarang',
     color: '#8A2387',
@@ -199,9 +196,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Kairos',
     meaning: 'Waktu Perkenanan dan Rencana Indah Tuhan',
     scripture: 'Pengkhotbah 3:11 — "Ia membuat segala sesuatu indah pada waktunya."',
-    mentorNames: ['Glenn Waworuntu', 'Monica Tumewu'],
+    mentorNames: ['Michel Lonteng', 'Artjuna Timbuleng'],
     mentorUserIds: [],
-    memberCount: 13,
+    memberCount: 8,
     meetingSchedule: 'Setiap Rabu, 19:30 WIB',
     meetingLocation: 'Delta Silicon Fellowship Spot',
     color: '#F27121',
@@ -214,9 +211,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Logos',
     meaning: 'Firman Hidup yang Menjadi Landasan Kebenaran',
     scripture: 'Yohanes 1:1 — "Pada mulanya adalah Firman; Firman itu bersama-sama dengan Allah dan Firman itu adalah Allah."',
-    mentorNames: ['Michael Pangemanan', 'Grace Mandagi'],
-    mentorUserIds: ['usr-3'],
-    memberCount: 18,
+    mentorNames: ['Mighty Rengkung', 'Reiner Montolalu'],
+    mentorUserIds: [],
+    memberCount: 8,
     meetingSchedule: 'Setiap Jumat, 19:30 WIB',
     meetingLocation: 'Baitel Room GEHC & Online Hybrid',
     color: '#00B4D8',
@@ -229,9 +226,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Metanoia',
     meaning: 'Pembaruan Budi dan Transformasi Hidup',
     scripture: 'Roma 12:2 — "Berubahlah oleh pembaharuan budimu, sehingga kamu dapat membedakan manakah kehendak Allah."',
-    mentorNames: ['Christian Senduk', 'Stevani Sumual'],
+    mentorNames: ['Stefanus Tambariki', 'Julivie Irot'],
     mentorUserIds: [],
-    memberCount: 11,
+    memberCount: 8,
     meetingSchedule: 'Setiap Sabtu, 16:30 WIB',
     meetingLocation: 'Taman Sehati Wibawa Mukti / Cafe Area',
     color: '#059669',
@@ -244,9 +241,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Ruach',
     meaning: 'Nafas Roh Kudus yang Menghidupkan & Mengobarkan Semangat',
     scripture: 'Yehezkiel 37:9 — "Masuklah nafas hidup ke dalam mereka, sehingga mereka hidup kembali."',
-    mentorNames: ['Yohanes Supit', 'Debora Walangitan'],
+    mentorNames: ['Krisetia Mamoto', 'Filipo Karinda'],
     mentorUserIds: [],
-    memberCount: 14,
+    memberCount: 8,
     meetingSchedule: 'Setiap Selasa, 20:00 WIB',
     meetingLocation: 'Ruang Musik GEHC Studio',
     color: '#7C3AED',
@@ -259,9 +256,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Dunamis',
     meaning: 'Kekuatan dan Kuasa Ilahi yang Dahsyat',
     scripture: 'Kisah Para Rasul 1:8 — "Tetapi kamu akan menerima kuasa, kalau Roh Kudus turun ke atas kamu, dan kamu akan menjadi saksi-Ku."',
-    mentorNames: ['Billy Tampinongkol', 'Eunike Lasut'],
+    mentorNames: ['Jeremiah Mewengkang', 'Patrisha Lengkey'],
     mentorUserIds: [],
-    memberCount: 15,
+    memberCount: 8,
     meetingSchedule: 'Setiap Sabtu, 18:30 WIB',
     meetingLocation: 'Cikarang Baru Center Court',
     color: '#DC2626',
@@ -274,9 +271,9 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     name: 'Echad',
     meaning: 'Kesatuan Sejati dalam Kasih Kristus',
     scripture: 'Efesus 4:3 — "Dan berusahalah memelihara kesatuan Roh oleh ikatan damai sejahtera."',
-    mentorNames: ['Robby Sompie', 'Claudia Paath'],
+    mentorNames: ['Holly Kalele', 'Aditya Wellem'],
     mentorUserIds: [],
-    memberCount: 12,
+    memberCount: 8,
     meetingSchedule: 'Setiap Minggu, 12:30 WIB (Setelah Ibadah II)',
     meetingLocation: 'Konsistori GEHC Cikarang',
     color: '#0D9488',
@@ -365,322 +362,287 @@ export const INITIAL_MEMBERS: GroupMember[] = [
   },
 ];
 
-export const INITIAL_MONITORING: MonitoringRecord[] = [
-  {
-    id: 'mon-1',
-    group_id: 'grp-6',
-    group_name: 'Logos',
-    mentor_id: 'usr-3',
-    mentor_name: 'Michael Pangemanan',
-    date: '2026-08-15',
-    data: {
-      attendanceCount: 15,
-      totalMembers: 18,
-      meetingTopic: 'Kekuatan Doa di Tengah Dinamika Kerja Cikarang (Filipi 4:6-7)',
-      spiritualTemperature: 'Sangat Baik',
-      prayerRequests: '1. Samuel dalam ujian sertifikasi engineering. 2. Timothy yang masuk shift malam. 3. Persiapan retret pemuda September.',
-      followUpsNeeded: 'Kunjungi Timothy di kosan dekat EJIP pada Rabu depan.',
-      fellowshipActivity: 'Makan malam tinutuan bersama setelah PA',
-      offeringAmount: 245000,
-      customNotes: 'Diskusi sangat interaktif, ada 2 anggota baru yang hadir pertama kali.',
-    },
-    created_at: '2026-08-15T21:40:00Z',
-  },
-  {
-    id: 'mon-2',
-    group_id: 'grp-1',
-    group_name: 'Avodah',
-    mentor_id: 'usr-4',
-    mentor_name: 'Jessica Tendean',
-    date: '2026-08-14',
-    data: {
-      attendanceCount: 12,
-      totalMembers: 14,
-      meetingTopic: 'Integritas Kristen dalam Dunia Profesional dan Kampus',
-      spiritualTemperature: 'Baik',
-      prayerRequests: 'Pemuda yang sedang mencari pekerjaan di kawasan industri Cikarang.',
-      followUpsNeeded: 'Follow-up teman-teman yang belum hadir lewat WhatsApp.',
-      fellowshipActivity: 'Akustik fellowship & ice breaking',
-      offeringAmount: 180000,
-      customNotes: 'Semua anggota antusias dalam sesi sharing kelompok kecil.',
-    },
-    created_at: '2026-08-14T22:15:00Z',
-  },
-  {
-    id: 'mon-3',
-    group_id: 'grp-2',
-    group_name: 'Agape',
-    mentor_id: 'usr-5',
-    mentor_name: 'Kevin Wowor',
-    date: '2026-08-16',
-    data: {
-      attendanceCount: 14,
-      totalMembers: 16,
-      meetingTopic: 'Menjadi Teladan Kasih di Tengah Keluarga & Komunitas',
-      spiritualTemperature: 'Sangat Baik',
-      prayerRequests: 'Kesehatan orang tua anggota di kampung halaman Minahasa & Manado.',
-      followUpsNeeded: 'Rencana kunjungan kasih ke RS bagi orang tua salah satu anggota.',
-      fellowshipActivity: 'BBQ & fellowship malam minggu',
-      offeringAmount: 310000,
-    },
-    created_at: '2026-08-16T20:30:00Z',
-  },
-];
+export const INITIAL_MONITORING: MonitoringRecord[] = [];
 
 export const INITIAL_CONTENT: ContentItem[] = [
   {
-    id: 'cnt-1',
+    id: 'cnt-bakutau',
     tenant_id: 'tenant-youth',
-    type: 'WEEKLY_INFO',
-    title: 'Warta Pemuda Minggu IV: "Berakar, Bertumbuh & Berbuah dalam Kebenaran"',
-    subtitle: 'Panduan Ibadah Kreatif Pemuda, Renungan Mingguan, dan Jadwal Kelompok Pemuridan',
-    category: 'Warta Mingguan',
+    type: 'ACTIVITY',
+    title: 'BAKU TAU 4.0 — Bakudapa di Rantau',
+    subtitle: 'Malam penyambutan mahasiswa baru President University — bertemu & terhubung di perantauan',
+    category: 'Welcome Night',
     published_at: '2026-08-20',
+    event_date: '2026-09-05',
+    is_featured_event: true,
+    location_detail: 'President University, Kota Jababeka, Cikarang · 16.00 WIB',
     is_published: true,
-    author: 'Komisi Pelayanan Pemuda GEHC',
-    scripture: 'Kolose 2:6-7 — "Hendaklah kamu berakar di dalam Dia dan dibangun di atas Dia, bertambah teguh dalam iman."',
-    schedule: 'Ibadah Pemuda: Setiap Sabtu, Pkl 18:30 WIB | Ibadah Raya II: Minggu, Pkl 09:00 WIB',
-    location: 'Gedung Gereja GMIM Eben Haezer Cikarang, Jl. Kasuari No. 12 Cikarang Baru',
-    bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop',
-    tags: ['Warta', 'Ibadah Kreatif', 'Renungan', 'Liturgi'],
-    body: `Salam Sejahtera dalam Kasih Kristus Yesus, Kepala Gereja dan Juruselamat kita!
-
-Komisi Pelayanan Pemuda GMIM Eben Haezer Cikarang (GEHC) mengundang seluruh pemuda, remaja, dan profesional muda untuk hadir dalam rangkaian persekutuan minggu ini:
-
-1. **Ibadah Pemuda Kreatif (Sabtu, 18:30 WIB)**
-   - Tema: "Faith in the Fast Lane: Menjaga Api Rohani di Kawasan Industri"
-   - Pelayan Firman: Pdt. Billy Sondakh, M.Th
-   - Tim Musik & Worship: Kelompok Ruach & Tim Musik GEHC
-   - Dresscode: Smart Casual / Touch of Blue
-
-2. **Jadwal Persekutuan 10 Kelompok Pemuda (Small Groups)**
-   - Pertemuan kelompok berlangsung sepanjang hari Rabu hingga Minggu di titik-titik Lippo Cikarang, Jababeka, Delta Silicon, dan Konsistori Gereja. Silakan hubungi mentor kelompok masing-masing.
-
-3. **Pendaftaran Youth Camp & Retreat 2026: 'UNSHAKABLE'**
-   - Retret tahunan akan diadakan pada 18-20 September 2026 di Highland Camp Puncak. Early bird registration dibuka hingga akhir bulan ini!
-
-Marilah kita saling menguatkan, datang bersama dengan hati yang bersukacita, dan menjadi terang di mana pun Tuhan menempatkan kita. Tuhan Yesus memberkati!`,
+    author: 'Komisi Pemuda GEHC',
+    bannerUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=1200&auto=format&fit=crop',
+    tags: ['BAKU TAU', 'Welcome', 'President University', 'Community'],
+    body: `BAKU TAU berasal dari bahasa Manado: BAKUdapa di ranTAU — "saling mengenal di perantauan". Malam perkenalan tahunan ini menyambut mahasiswa baru President University agar tidak sendirian menempuh masa studi di Cikarang. Kenali sepuluh kelompok mentoring kami, temukan rumah pertumbuhan imanmu, dan mulai perjalanan Beyond the Sunday Walk bersama kami.`,
   },
-  {
-    id: 'cnt-2',
-    tenant_id: 'tenant-youth',
-    type: 'WEEKLY_INFO',
-    title: 'Warta Pemuda Minggu III: Refleksi Kebangkitan & Kepedulian Sosial',
-    subtitle: 'Laporan Aksi Diakonia Cikarang Peduli dan Evaluasi Program Pembinaan',
-    category: 'Diakonia & Pelayanan',
-    published_at: '2026-08-13',
-    is_published: true,
-    author: 'Bidang Diakonia Pemuda',
-    scripture: 'Galatia 6:2 — "Bertolong-tolonglah menanggung bebanmu! Demikianlah kamu memenuhi hukum Kristus."',
-    schedule: 'Bakti Sosial & Doa Bersama: Sabtu Pagi, Pkl 08:00 WIB',
-    location: 'Panti Asuhan Kasih & Pos Pelayanan Cikarang Selatan',
-    bannerUrl: 'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=1200&auto=format&fit=crop',
-    tags: ['Diakonia', 'Sosial', 'Warta'],
-    body: `Puji Tuhan atas terlaksananya kegiatan Bakti Sosial Pemuda GEHC ke masyarakat prasejahtera di sekitar Cikarang Selatan. Terima kasih kepada seluruh jemaat dan rekan pemuda yang telah menyumbangkan paket sembako, buku pelajaran, dan pakaian layak pakai. 
 
-Total bantuan yang disalurkan:
-- 120 Paket Sembako Keluarga
-- 45 Paket Perlengkapan Sekolah Remaja
-- Pelayanan Doa dan Konseling Ringan
-
-Semoga kasih Kristus senantiasa terpancar melalui karya nyata generasi muda gereja kita.`,
-  },
-  {
-    id: 'cnt-3',
-    tenant_id: 'tenant-youth',
-    type: 'ACTIVITY',
-    title: 'Youth Creative Night 2026: "Light in the Valley"',
-    subtitle: 'Malam Puji-Pujian, Musik Kontemporer, Seni Tari Rohani & Kesaksian Inspiratif',
-    category: 'Konser & Ibadah',
-    published_at: '2026-08-18',
-    is_published: true,
-    author: 'Panitia Hari Raya Gerejawi Pemuda',
-    scripture: 'Matius 5:14 — "Kamu adalah terang dunia. Kota yang terletak di atas gunung tidak mungkin tersembunyi."',
-    schedule: 'Sabtu, 5 September 2026 | Pkl 18:00 - 21:30 WIB',
-    location: 'Main Sanctuary GEHC Cikarang / Live Stream YouTube GEHC Youth',
-    targetAudience: 'Seluruh Pemuda, Mahasiswa & Jemaat Umum',
-    bannerUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop',
-    tags: ['Praise & Worship', 'Music', 'Fellowship', 'Youth Night'],
-    body: `Youth Creative Night adalah perjumpaan tahunan yang dirancang untuk membangkitkan kreativitas rohani pemuda GEHC. Menampilkan kolaborasi akustik modern, paduan suara kontemporer, teater drama singkat, dan pesan firman Tuhan yang relevan bagi tantangan generasi Z dan milenial.
-
-Fasilitas:
-- Free Entry & Welcome Snack
-- Photobooth Glassmorphic Aesthetic
-- Doorprize & Souvenir Eksklusif
-- Networking Session untuk Pemuda Rantau Baru
-
-Segera daftarkan diri dan kelompok Anda melalui portal pemuda!`,
-  },
-  {
-    id: 'cnt-4',
-    tenant_id: 'tenant-youth',
-    type: 'ACTIVITY',
-    title: 'Bible Study Intensive: "Epistola Roma & Teologi Kasih Karunia"',
-    subtitle: 'Pendalaman Alkitab 4 Sesi Khusus Pemuda, Mahasiswa & Pekerja Muda',
-    category: 'Pemuridan & Teologi',
-    published_at: '2026-08-19',
-    is_published: true,
-    author: 'Bidang Pembinaan & Pemuridan',
-    scripture: 'Roma 1:16 — "Sebab aku mempunyai keyakinan yang kokoh dalam Injil, karena Injil adalah kekuatan Allah yang menyelamatkan."',
-    schedule: 'Setiap Rabu Malam (4 Minggu Berturut-turut), Pkl 19:45 - 21:00 WIB',
-    location: 'Ruang Multimedia GEHC / Hybrid Zoom Interactive',
-    targetAudience: 'Mentor Kelompok, Pengurus & Anggota Pemuda',
-    bannerUrl: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?q=80&w=1200&auto=format&fit=crop',
-    tags: ['Bible Study', 'Teologi', 'Discipleship', 'Growth'],
-    body: `Program pemuridan intensif yang membedah pasal-pasal kunci dalam Kitab Roma. Peserta akan mempelajari doktrin Pembenaran oleh Iman, Karya Roh Kudus, dan aplikasi praktis hidup beretika di lingkungan pekerjaan teknologi, industri, dan pergaulan masa kini. Dilengkapi modul panduan PDF gratis dan sertifikat partisipasi.`,
-  },
-  {
-    id: 'cnt-5',
-    tenant_id: 'tenant-youth',
-    type: 'ACTIVITY',
-    title: 'GEHC Youth Sports Cup: Futsal & Badminton Fellowship',
-    subtitle: 'Turnamen Persahabatan Antar 10 Kelompok Pemuda & Pemuda Wilayah Bekasi-Cikarang',
-    category: 'Olahraga & Minat Bakat',
-    published_at: '2026-08-15',
-    is_published: true,
-    author: 'Bidang Minat & Olahraga',
-    scripture: '1 Timotius 4:8 — "Latihan badani terbatas gunanya, tetapi ibadah itu berguna dalam segala hal."',
-    schedule: 'Sabtu, 12 September 2026 | Pkl 08:00 - 15:00 WIB',
-    location: 'Champion Futsal & Badminton Arena, Lippo Cikarang',
-    targetAudience: '10 Kelompok Pemuda GEHC & Sahabat GMIM se-Jabodetabek',
-    bannerUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200&auto=format&fit=crop',
-    tags: ['Sports', 'Futsal', 'Badminton', 'Fellowship'],
-    body: `Turnamen olahraga tahunan untuk mempererat ikatan persaudaraan antar kelompok: Avodah, Agape, Shalom, Hesed, Kairos, Logos, Metanoia, Ruach, Dunamis, dan Echad. Hadiah piala bergilir, medali, dan fellowship makan bersama setelah pertandingan final!`,
-  },
 ];
+
+/**
+ * Struktur organisasi berbasis PANTATUGAS (Liturgia, Didaskalia, Koinonia,
+ * Diakonia, Marturia) + Penopang.
+ *
+ * Nama ASLI komite retreat 2026 sudah di-seed (BOD + PIC per divisi).
+ * Posisi yang belum ada namanya ditandai isOpenRole: tampil sebagai
+ * struktur terbuka, bukan orang palsu. Sub-divisi extensible via portal.
+ */
+const PERIODE = 'Periode Pelayanan 2025 - 2029';
+const avatar = (seed: string) =>
+  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1b1b1b`;
 
 export const INITIAL_STRUKTUR: StrukturMember[] = [
-  {
-    id: 'st-1',
-    name: 'Pnt. Daniel Runtuwene, S.T.',
-    position: 'Ketua Komisi Pelayanan Pemuda (Kompelka Pemuda)',
-    division: 'Badan Pengurus Inti',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=500&auto=format&fit=crop',
-    bio: 'Memimpin visi strategis, penggembalaan rohani, dan koordinasi lintas komisi di tingkat BPMJ GMIM Eben Haezer Cikarang.',
-    phone: '+62 812-9843-1101',
-    email: 'daniel.runtuwene@gehc.page',
-    order: 1,
-  },
-  {
-    id: 'st-2',
-    name: 'Sarah Manopo, S.Kom',
-    position: 'Wakil Ketua Komisi',
-    division: 'Badan Pengurus Inti',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=500&auto=format&fit=crop',
-    bio: 'Membidangi operasional program kerja pemuda, kemitraan eksternal, dan integrasi digital portal GEHC.',
-    phone: '+62 813-7721-9982',
-    email: 'sarah.manopo@gehc.page',
-    order: 2,
-  },
-  {
-    id: 'st-3',
-    name: 'Kevin Wowor, B.Eng',
-    position: 'Sekretaris Komisi',
-    division: 'Badan Pengurus Inti',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=500&auto=format&fit=crop',
-    bio: 'Bertanggung jawab atas administrasi keanggotaan, warta mingguan, surat-menyurat, dan dokumentasi rapat koordinasi.',
-    phone: '+62 818-9900-1122',
-    email: 'kevin.wowor@gehc.page',
-    order: 3,
-  },
-  {
-    id: 'st-4',
-    name: 'Jessica Tendean, S.E.',
-    position: 'Bendahara Komisi',
-    division: 'Badan Pengurus Inti',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=500&auto=format&fit=crop',
-    bio: 'Mengelola anggaran penerimaan persembahan, kas operasional kegiatan pemuda, dan transparansi laporan keuangan mingguan.',
-    phone: '+62 812-4455-6677',
-    email: 'jessica.t@gehc.page',
-    order: 4,
-  },
-  {
-    id: 'st-5',
-    name: 'Michael Pangemanan',
-    position: 'Koordinator Bidang Teologi, Pembinaan & Pemuridan',
-    division: 'Bidang Pembinaan & Kelompok Kecil',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=500&auto=format&fit=crop',
-    bio: 'Mengkoordinasikan kurikulum 10 Kelompok Pemuda, monitoring mentor, dan program Bible Study intensif.',
-    phone: '+62 856-1122-3344',
-    email: 'michael.p@gehc.page',
-    order: 5,
-  },
-  {
-    id: 'st-6',
-    name: 'Debora Walangitan, S.Ds',
-    position: 'Koordinator Bidang Multimedia, Kreatif & Dokumentasi',
-    division: 'Bidang Kreatif & Digital Media',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=500&auto=format&fit=crop',
-    bio: 'Memimpin produksi konten visual, livestreaming ibadah, pengelolaan Google Drive media, dan branding GEHC Youth.',
-    phone: '+62 812-3344-5566',
-    email: 'debora.w@gehc.page',
-    order: 6,
-  },
-  {
-    id: 'st-7',
-    name: 'Billy Tampinongkol',
-    position: 'Koordinator Bidang Minat, Bakat, Seni & Olahraga',
-    division: 'Bidang Pengembangan Bakat',
-    period: 'Periode Pelayanan 2025 - 2029',
-    photoUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=500&auto=format&fit=crop',
-    bio: 'Mengorganisir kegiatan futsal, badminton, festival seni tari pemuda, dan paduan suara pemuda GEHC.',
-    phone: '+62 856-7788-9900',
-    email: 'billy.t@gehc.page',
-    order: 7,
-  },
+  // ---- BPMJ — Badan Pekerja Majelis Jemaat (nama asli, payung tertinggi) ----
+  { id: 'st-bpmj-1', name: 'Pdt Meyke Poluan Sth Mpdk', position: 'Ketua BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Meyke Poluan'), bio: 'Payung tertinggi pelayanan pemuda; seluruh komisi bertanggung jawab kepada Ketua BPMJ.', phone: '', email: '', order: 1 },
+  { id: 'st-bpmj-2', name: 'Pnt Veky Lengkong', position: 'Wakil Ketua BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Veky Lengkong'), bio: '', phone: '', email: '', order: 2 },
+  { id: 'st-bpmj-3', name: 'Pnt Noldy Wanget', position: 'Sekretaris BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Noldy Wanget'), bio: '', phone: '', email: '', order: 3 },
+  { id: 'st-bpmj-4', name: 'Pnt Nofri Raco', position: 'Wakil Sekretaris BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Nofri Raco'), bio: '', phone: '', email: '', order: 4 },
+  { id: 'st-bpmj-5', name: 'Dkn Selfi Lumbu', position: 'Bendahara BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Selfi Lumbu'), bio: '', phone: '', email: '', order: 5 },
+  { id: 'st-bpmj-6', name: 'Dkn Bonny Rondonuwu', position: 'Anggota Bendahara BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Bonny Rondonuwu'), bio: '', phone: '', email: '', order: 6 },
+
+  // ---- Komisi Pemuda — dipimpin Penatua Pemuda (periode 5 tahun) ----
+  { id: 'st-komisi-1', name: 'Pnt Stevania Hadinda', position: 'Chairperson — Penatua Pemuda / Ketua Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Stevania Hadinda'), bio: 'Memimpin Komisi Pemuda periode 2025–2029 dan mengawal arah pelayanan Beyonders; bertanggung jawab kepada BPMJ.', phone: '', email: '', order: 7 },
+  { id: 'st-komisi-2', name: 'Kevin Moniaga', position: 'Wakil Ketua Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Kevin Moniaga'), bio: 'Menemani ketua dan mengawal operasional program komisi.', phone: '', email: '', order: 8 },
+  { id: 'st-komisi-3', name: 'Glenity Siauw', position: 'Secretary — Sekretaris Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Glenity Siauw'), bio: 'Administrasi, notulen, dan surat-menyurat komisi. Rangkap mentee Metanoia.', phone: '', email: '', order: 9 },
+  { id: 'st-komisi-4', name: 'Rendy Lumintang', position: 'Treasurer — Bendahara Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Rendy Lumintang'), bio: 'Mengelola kas komisi dan pertanggungjawaban keuangan.', phone: '', email: '', order: 10 },
+
+  // ---- BOD Tim Kerja — pelaksara program di bawah Komisi ----
+  { id: 'st-timkerja-1', name: 'Theodore Beckham Milano Kowaas', position: 'Ketua Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Theodore Kowaas'), bio: 'Memimpin Tim Kerja yang mengerjakan program pelayanan pemua; membawahi 5 Panca Tugas + Benzarpreneurship.', phone: '', email: '', order: 11 },
+  { id: 'st-timkerja-2', name: 'Zhanon Varelie Lausan', position: 'Sekretaris Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Zhanon Lausan'), bio: 'Administrasi tim kerja; rangkap mentor Avodah.', phone: '', email: '', order: 12 },
+  { id: 'st-timkerja-3', name: 'Milithya Christy Kerin Wuisan', position: 'Bendahara Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Milithya Wuisan'), bio: 'Keuangan tim kerja; rangkap mentor Hesed.', phone: '', email: '', order: 13 },
+
+  // ---- KOINONIA (termasuk ex-Penopang: acara/rundown & usaha dana dipindah) ----
+  { id: 'st-koi-1', name: 'Program Persekutuan', position: 'Games & Bonding', division: 'KOINONIA', subdivision: 'Program Persekutuan', period: PERIODE, photoUrl: avatar('Persekutuan'), bio: 'Merancang momen persekutuan, games, ice breaking, dan bonding night.', phone: '', email: '', order: 14, isOpenRole: true },
+  { id: 'st-koi-2', name: 'Krisetia Mamoto', position: 'PIC Acara & Rundown', division: 'KOINONIA', subdivision: 'Program Persekutuan', period: PERIODE, photoUrl: avatar('Krisetia Mamoto'), bio: 'Mengkonsep rundown keseluruhan kegiatan pra-during-pasca retreat; koordinator acara di bawah Program Persekutuan.', phone: '', email: '', order: 15 },
+  { id: 'st-koi-3', name: 'Public Relations (PR)', position: 'Follow-up, MC & Media Sosial', division: 'KOINONIA', subdivision: 'Public Relations (PR)', period: PERIODE, photoUrl: avatar('PR Koinonia'), bio: 'Follow-up newcomer & anggota, MC acara, update media sosial, komunikasi internal-eksternal. Jembatan ke Placement Recommender (Jethro Engine).', phone: '', email: '', order: 16, isOpenRole: true },
+
+  // ---- LITURGIA ----
+  { id: 'st-lit-1', name: 'Holly Kalele', position: 'PIC Ibadah — Worship & Personel Liturgi', division: 'LITURGIA', subdivision: 'Liturgi & Musik', period: PERIODE, photoUrl: avatar('Holly Kalele'), bio: 'Mengatur liturgi ibadah, worship leader, pemazmur, dan personel pelayanan ibadah.', phone: '', email: '', order: 17 },
+  { id: 'st-lit-2', name: 'Pendoa', position: 'Koordinator Doa', division: 'LITURGIA', subdivision: 'Pendoa', period: PERIODE, photoUrl: avatar('Pendoa'), bio: 'Doa khusus untuk orang sakit, ulang tahun, dan doa berjenjang pada rangkaian acara.', phone: '', email: '', order: 18, isOpenRole: true },
+  { id: 'st-lit-3', name: 'Intercessor', position: 'Intercessor Pra-During-Pasca', division: 'LITURGIA', subdivision: 'Intercessor', period: PERIODE, photoUrl: avatar('Intercessor'), bio: 'Tim doa yang menaungi seluruh rangkaian retreat dari awal hingga tuntas.', phone: '', email: '', order: 19, isOpenRole: true },
+
+  // ---- DIDASKALIA ----
+  { id: 'st-did-1', name: 'Tim Penyusun Modul', position: 'Penyusun Modul & Kurikulum', division: 'DIDASKALIA', subdivision: 'Kurikulum & Pembekalan', period: PERIODE, photoUrl: avatar('Kurikulum Pembekalan'), bio: 'Menyusun modul pembekalan mentor-comentor dan kurikulum pemuridan.', phone: '', email: '', order: 20, isOpenRole: true },
+  { id: 'st-did-2', name: 'Putri Massie', position: 'Main Speaker — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Kurikulum & Pembekalan', period: PERIODE, photoUrl: avatar('Putri Massie'), bio: 'Fasilitator utama pembekalan mentor, comentor, dan mentee. Rangkap mentee Ruach.', phone: '', email: '', order: 21 },
+  { id: 'st-did-3', name: 'Alvandi Saerang', position: 'Main Speaker — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Kurikulum & Pembekalan', period: PERIODE, photoUrl: avatar('Alvandi Saerang'), bio: 'Fasilitator pembekalan bersama Putri. Rangkap mentee Logos.', phone: '', email: '', order: 22 },
+
+  // ---- DIAKONIA ----
+  { id: 'st-dia-1', name: 'Prichel Kampong', position: 'PIC Logistik — Akomodasi & Peralatan', division: 'DIAKONIA', subdivision: 'Logistik & Akomodasi', period: PERIODE, photoUrl: avatar('Prichel Kampong'), bio: 'Menyediakan akomodasi dan seluruh peralatan kegiatan.', phone: '', email: '', order: 23 },
+  { id: 'st-dia-2', name: 'Artjuna Timbuleng', position: 'PIC Konsumsi — Vendor & Self-Made', division: 'DIAKONIA', subdivision: 'Konsumsi', period: PERIODE, photoUrl: avatar('Artjuna Timbuleng'), bio: 'Skema konsumesi peserta baik melalui vendor maupun mandiri.', phone: '', email: '', order: 24 },
+  { id: 'st-dia-3', name: 'Medis & First Aid', position: 'First Aid & Kesehatan', division: 'DIAKONIA', subdivision: 'Medis & First Aid', period: PERIODE, photoUrl: avatar('Medis First Aid'), bio: 'Tim kesehatan dan pertolongan pertama selama kegiatan berlangsung.', phone: '', email: '', order: 25, isOpenRole: true },
+
+  // ---- MARTURIA ----
+  { id: 'st-mar-1', name: 'Dokumentasi', position: 'Foto & Video', division: 'MARTURIA', subdivision: 'Dokumentasi', period: PERIODE, photoUrl: avatar('Dokumentasi'), bio: 'Merekam kesaksian apa yang Tuhan kerjakan di setiap kegiatan.', phone: '', email: '', order: 26, isOpenRole: true },
+  { id: 'st-mar-2', name: 'Gievara Bogar', position: 'PIC MTDD — Multimedia, Dokumentasi & Publikasi', division: 'MARTURIA', subdivision: 'Desain & Publikasi', period: PERIODE, photoUrl: avatar('Gievara Bogar'), bio: 'Desain promosi, PPT ibadah, dokumentasi, dan publikasi digital di semua fase retreat.', phone: '', email: '', order: 27 },
+  { id: 'st-mar-4', name: 'Penginjilan Praktis', position: 'Perlengkapan & Pelatihan Injili', division: 'MARTURIA', subdivision: 'Penginjilan Praktis', period: PERIODE, photoUrl: avatar('Penginjilan'), bio: 'Memperlengkapi cara menginjil dan mengajak melakukan penginjilan praktis.', phone: '', email: '', order: 28, isOpenRole: true },
+
+  // ---- BENZARPRENEURSHIP (BZP) — usaha & dana di bawah Tim Kerja ----
+  { id: 'st-bzp-1', name: 'Fladyna Mondoringin', position: 'Kepala Benzarpreneurship (BZP)', division: 'BENZARPR', period: PERIODE, photoUrl: avatar('Fladyna Mondoringin'), bio: 'Bertanggung jawab penuh atas BZP: merchandise, fundraising, dan donation. Melapor kepada Bendahara Komisi/Tim Kerja.', phone: '', email: '', order: 29 },
+  { id: 'st-bzp-2', name: 'Merchandise — Eben Haezer Goods', position: 'Produksi & Penjualan Merchandise', division: 'BENZARPR', subdivision: 'Merchandise', period: PERIODE, photoUrl: avatar('Merchandise BZP'), bio: 'Produksi dan penjualan merchandise sebagai identitas & alat kesaksian.', phone: '', email: '', order: 30, isOpenRole: true },
+  { id: 'st-bzp-3', name: 'Fundraising', position: 'Usaha Dana & Penggalangan Dana', division: 'BENZARPR', subdivision: 'Fundraising', period: PERIODE, photoUrl: avatar('Fundraising BZP'), bio: 'Penjualan makan-minum mingguan & penggalangan dana program pelayanan.', phone: '', email: '', order: 31, isOpenRole: true },
+  { id: 'st-bzp-4', name: 'Donation', position: 'Pengelolaan Persembahan & Donasi', division: 'BENZARPR', subdivision: 'Donation', period: PERIODE, photoUrl: avatar('Donation BZP'), bio: 'Pengelolaan persembahan & donasi khusus untuk program pelayanan pemuda.', phone: '', email: '', order: 32, isOpenRole: true },
 ];
 
-export const INITIAL_DRIVE_FOLDERS: DriveFolder[] = [
-  {
-    id: 'fld-root-gehc-01',
-    name: 'GEHC_YOUTH_ECOSYSTEM_MASTER_2026',
-    itemCount: 84,
-    lastModified: '2026-08-20',
-    url: 'https://drive.google.com/drive/folders/gehc_youth_master',
-  },
-  {
-    id: 'fld-warta-bulletins',
-    name: '01_Warta_Pemuda_Bulletins_PDF',
-    itemCount: 36,
-    lastModified: '2026-08-19',
-    url: 'https://drive.google.com/drive/folders/warta_bulletins',
-  },
-  {
-    id: 'fld-event-flyers',
-    name: '02_Activity_Posters_and_Banners',
-    itemCount: 48,
-    lastModified: '2026-08-18',
-    url: 'https://drive.google.com/drive/folders/activity_posters',
-  },
-  {
-    id: 'fld-groups-materials',
-    name: '03_Kelompok_Small_Groups_Material_PA',
-    itemCount: 22,
-    lastModified: '2026-08-15',
-    url: 'https://drive.google.com/drive/folders/small_groups_pa',
-  },
-  {
-    id: 'fld-photos-archive',
-    name: '04_Documentation_Photos_HighRes_Archive',
-    itemCount: 210,
-    lastModified: '2026-08-17',
-    url: 'https://drive.google.com/drive/folders/documentation_archive',
-  },
-];
+export const INITIAL_DRIVE_FOLDERS: DriveFolder[] = [];
 
 export const INITIAL_INTEGRATION_CONFIG: IntegrationConfig = {
-  id: 'cfg-gdrive-1',
+  id: 'int-1',
   tenant_id: 'tenant-youth',
   provider: 'GOOGLE_DRIVE',
-  is_connected: true,
-  account_email: 'multimedia.gehc@gmail.com',
-  root_folder_id: 'fld-root-gehc-01',
-  root_folder_name: 'GEHC_YOUTH_ECOSYSTEM_MASTER_2026',
-  last_synced: '2026-08-21T18:30:00Z',
-};
+  is_connected: false,
+  account_email: '',
+  root_folder_id: '',
+  root_folder_name: 'GEHC Youth — Google Drive',
+  last_synced: new Date().toISOString(),
+  allowed_mime_types: [],
+} as IntegrationConfig;
+
+// Data struktur mentoring asli — sumber: "Retreat Attendance_GEHC YOUTH 2026.xlsx"
+export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
+  {
+    id: 'bat-2026-shalom',
+    group_id: 'grp-3',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Theodore Kowaas',
+    comentor: 'Fladyna Mondoringin',
+    mentees: [
+      { name: 'Jessica Poyoh' },
+      { name: 'Gemma Montol' },
+      { name: 'Riska Sajow' },
+      { name: 'Gabriel Lintong' },
+      { name: 'Kimberly Turambi' },
+      { name: 'Kevin Budianto' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-avodah',
+    group_id: 'grp-1',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Zhanon Lausan',
+    comentor: 'Farendy Lumintang',
+    mentees: [
+      { name: 'Clay Langi' },
+      { name: 'Michelle Watung' },
+      { name: 'Ario Semet' },
+      { name: 'Ivanna Pande' },
+      { name: 'Jeremy Walangitan' },
+      { name: 'Kimmy Casey Liogu' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-echad',
+    group_id: 'grp-10',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Holly Kalele',
+    comentor: 'Aditya Wellem',
+    mentees: [
+      { name: 'Timoty Wewengkang' },
+      { name: 'Virginia Parera' },
+      { name: 'Nicole Naray' },
+      { name: 'Chelsea Tjheuw' },
+      { name: 'Daud Lumanauw' },
+      { name: 'Pnt. Kevin Kamagi', note: '(G)' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-ruach',
+    group_id: 'grp-8',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Krisetia Mamoto',
+    comentor: 'Filipo Karinda',
+    mentees: [
+      { name: 'Lucky Losu' },
+      { name: 'Shien Siauw' },
+      { name: 'Soneta Imanuela' },
+      { name: 'Lorenzo Ricsamana' },
+      { name: 'Mega Welan' },
+      { name: 'Putri Massie', note: '(G)' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-hesed',
+    group_id: 'grp-4',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Milithya Wuisan',
+    comentor: 'Christian Lombogia',
+    mentees: [
+      { name: 'Nelcy Lodarmase' },
+      { name: 'Marhaen Manus' },
+      { name: 'Aurellia Hillary' },
+      { name: 'Yohana Doga' },
+      { name: 'Akwila Gente' },
+      { name: 'Timothy Mewengkang' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-dunamis',
+    group_id: 'grp-9',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Jeremiah Mewengkang',
+    comentor: 'Patrisha Lengkey',
+    mentees: [
+      { name: 'Lovely Pantouw' },
+      { name: 'Agnes Reimas' },
+      { name: 'Thea Sanger' },
+      { name: 'Febrian Evander' },
+      { name: 'Avriel Singal' },
+      { name: 'Imanuel Yimna Esau' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-agape',
+    group_id: 'grp-2',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Prichel Kampong',
+    comentor: 'Syallomitha Mawitjere',
+    mentees: [
+      { name: 'Jilova Pakasi' },
+      { name: 'Jeconia Wanget' },
+      { name: 'Natalie Musak' },
+      { name: 'Cia Worung' },
+      { name: 'Hoky Theos' },
+      { name: 'Kezia Joseph' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-kairos',
+    group_id: 'grp-5',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Michel Lonteng',
+    comentor: 'Artjuna Timbuleng',
+    mentees: [
+      { name: 'Injilia Oroh' },
+      { name: 'Marshal Maramis' },
+      { name: 'Reywin Rengkuan' },
+      { name: 'Angelita Entjaurau' },
+      { name: 'Resty Budianto' },
+      { name: 'David Pesoth' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-metanoia',
+    group_id: 'grp-7',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Stefanus Tambariki',
+    comentor: 'Julivie Irot',
+    mentees: [
+      { name: 'Gievara Bogar' },
+      { name: 'Shanella Mondong' },
+      { name: 'Glenity Siauw' },
+      { name: 'Lingkan Pinontoan' },
+      { name: 'Jonathan Tintingon' },
+      { name: 'Yuen Pajow' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+  {
+    id: 'bat-2026-logos',
+    group_id: 'grp-6',
+    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    period: '2026',
+    mentor: 'Mighty Rengkung',
+    comentor: 'Reiner Montolalu',
+    mentees: [
+      { name: 'Jeconia Luwuk' },
+      { name: 'Trivena Rattu' },
+      { name: 'Diferd Wuri' },
+      { name: 'Gracia Laura' },
+      { name: 'Jacqson Naharia' },
+      { name: 'Alvandi Saerang', note: '(G)' },
+    ],
+    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    isCurrent: true,
+  },
+];
