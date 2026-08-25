@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { MEDIA, IMG_PROPS } from '../../config/media';
 import {
   Sparkles,
   RefreshCw,
@@ -7,7 +8,6 @@ import {
   Radio,
   Heart,
   TrendingUp,
-  FolderSync,
 } from 'lucide-react';
 
 export const VisualCollage: React.FC = () => {
@@ -31,20 +31,19 @@ export const VisualCollage: React.FC = () => {
         >
           <img
             className="w-full h-full object-cover"
-            src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?q=80&w=1000&auto=format&fit=crop"
+            src={MEDIA.collageWorship}
+              loading="lazy"
+              decoding="async"
             alt="Worship Fellowship"
           />
-          <div className="absolute bottom-4 left-4 right-4 bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl p-3.5 shadow-lg">
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-[10px] text-[#1B1B1B] font-bold uppercase tracking-wider flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                Partisipasi 10 Kelompok
-              </span>
-              <span className="text-[10px] text-[#1B1B1B] font-bold">92% Hadir</span>
-            </div>
-            <div className="w-full bg-black/10 rounded-full h-1.5">
-              <div className="bg-[#181818] w-[92%] h-1.5 rounded-full"></div>
-            </div>
+          <div className="absolute bottom-4 left-4 right-4 bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl p-3 shadow-lg text-left">
+            <p className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Ibadah Kreatif Pemuda
+            </p>
+            <p className="text-[11px] text-[#8C8880] mt-0.5 leading-snug">
+              Setiap Sabtu 18:30 WIB — terbuka bagi pelajar & pekerja muda.
+            </p>
           </div>
         </div>
 
@@ -55,7 +54,9 @@ export const VisualCollage: React.FC = () => {
         >
           <img
             className="w-full h-full object-cover"
-            src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1000&auto=format&fit=crop"
+            src={MEDIA.collageCommunity}
+              loading="lazy"
+              decoding="async"
             alt="Youth Choir and Praise"
           />
           <div className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/60 backdrop-blur-md border border-white/70 flex items-center justify-center shadow-md">
@@ -73,18 +74,18 @@ export const VisualCollage: React.FC = () => {
           style={{ left: '2%', top: '38%', width: 'min(280px, 90%)' }}
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#1B1B1B]">Google Drive Sync</span>
-            <div className="w-8 h-4 bg-emerald-500 rounded-full relative shadow-inner">
-              <div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow"></div>
-            </div>
+            <span className="text-xs font-bold text-[#1B1B1B]">Satu Keluarga</span>
+            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-wider">
+              Since 2026
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shadow-md text-white">
-              <FolderSync className="w-4 h-4" />
+              <Heart className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-[#1B1B1B]">GEHC_Media_Drive</span>
-              <span className="text-[10px] text-[#8C8880]">Root Folder Terhubung</span>
+              <span className="text-[11px] font-bold text-[#1B1B1B]">3 Kolom • 5 Fungsi • 10 Grup</span>
+              <span className="text-[10px] text-[#8C8880]">Satu panggilan, banyak wujud pelayanan</span>
             </div>
           </div>
         </div>
@@ -96,7 +97,9 @@ export const VisualCollage: React.FC = () => {
         >
           <img
             className="w-full h-full object-cover"
-            src="https://images.unsplash.com/photo-1465847899084-d164df4dedc6?q=80&w=1000&auto=format&fit=crop"
+            src={MEDIA.collageMusic}
+              loading="lazy"
+              decoding="async"
             alt="Creative Ministry"
           />
           <div className="absolute top-4 left-4 bg-white/70 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-white/60 shadow-sm flex items-center gap-2">
@@ -114,7 +117,9 @@ export const VisualCollage: React.FC = () => {
         >
           <img
             className="w-full h-full object-cover"
-            src="https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=1000&auto=format&fit=crop"
+            src={MEDIA.collageStudy}
+              loading="lazy"
+              decoding="async"
             alt="Small Group Fellowship"
           />
           <div className="absolute bottom-4 left-4 bg-white/70 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-white/60 shadow-sm flex items-center gap-2">
@@ -132,7 +137,9 @@ export const VisualCollage: React.FC = () => {
         >
           <img
             className="w-full h-full object-cover opacity-95"
-            src="https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=1000&auto=format&fit=crop"
+            src={MEDIA.collageFriends}
+              loading="lazy"
+              decoding="async"
             alt="Community Prayer"
           />
           <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-xl p-2 text-white text-left">
@@ -149,7 +156,9 @@ export const VisualCollage: React.FC = () => {
           <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm border border-[#D9D7D0] shrink-0">
             <img
               className="w-full h-full object-cover"
-              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&auto=format&fit=crop"
+              src={MEDIA.collagePortrait}
+              loading="lazy"
+              decoding="async"
               alt="Andrea Sondakh"
             />
           </div>

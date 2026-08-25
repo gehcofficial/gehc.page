@@ -1,4 +1,12 @@
-export type UserRole = 'SUPERADMIN' | 'COMMITTEE' | 'MENTOR' | 'MENTI';
+﻿export type UserRole =
+  | 'SUPERADMIN'
+  | 'BPMJ'
+  | 'KOMISI'
+  | 'COMMITTEE'
+  | 'MENTOR'
+  | 'CO_MENTOR'
+  | 'MENTEE'
+  | 'ALUMNI';
 
 export interface Tenant {
   id: string;
@@ -13,7 +21,7 @@ export interface Tenant {
 export interface UserRoleMapping {
   tenantId: string;
   role: UserRole;
-  groupId?: string; // If role is MENTOR or MENTI, bound to specific group
+  groupId?: string; // If role is MENTOR or MENTEE, bound to specific group
 }
 
 export interface User {
@@ -22,6 +30,8 @@ export interface User {
   name: string;
   avatar: string;
   phone?: string;
+  /** ACTIVE (lolos approval) atau PENDING (menunggu Komisi) */
+  accountStatus?: 'ACTIVE' | 'PENDING' | (string & {});
   roles: UserRoleMapping[];
 }
 
@@ -87,11 +97,15 @@ export interface ContentItem {
   body: string;
   category: string;
   published_at: string;
+  /** Tanggal kegiatan (untuk timeline events); fallback ke published_at */
+  event_date?: string;
+  location?: string;
+  is_featured_event?: boolean;
   is_published: boolean;
   author: string;
   scripture?: string;
   schedule?: string;
-  location?: string;
+  location_detail?: string;
   targetAudience?: string;
   bannerUrl: string;
   pdfUrl?: string;
@@ -103,12 +117,16 @@ export interface StrukturMember {
   name: string;
   position: string;
   division: string;
+  /** Sub-divisi teknis di bawah pantatugas (mis. "Pendoa" di bawah Liturgia) */
+  subdivision?: string;
   period: string;
   photoUrl: string;
   bio: string;
   phone: string;
   email: string;
   order: number;
+  /** true = posisi terbuka (belum ada nama) — tampil sebagai struktur, bukan orang */
+  isOpenRole?: boolean;
 }
 
 export interface DriveFolder {
@@ -128,6 +146,39 @@ export interface IntegrationConfig {
   root_folder_id: string;
   root_folder_name: string;
   last_synced: string;
+  last_synced_at?: string;
+  allowed_mime_types: string[];
+}
+
+export type FamilyRole = 'MENTOR' | 'COMENTOR' | 'MENTEE';
+
+export interface FamilyNode {
+  name: string;
+  role: FamilyRole;
+  note?: string; // contoh: "(G)" guest / online
+}
+
+export interface GroupBatch {
+  id: string;
+  group_id: string;
+  batchLabel: string; // "Batch 2026 — Retreat UNSHAKABLE"
+  period: string; // "2026"
+  mentor: string;
+  comentor: string;
+  mentees: { name: string; note?: string }[];
+  theme?: string;
+  isCurrent?: boolean;
+}
+
+export interface DriveMediaItem {
+  id: string;
+  name: string;
+  mimeType: string;
+  thumbnailLink?: string;
+  webViewLink?: string;
+  iconLink?: string;
+  createdTime?: string;
+  folderName?: string;
 }
 
 export interface ToastMessage {

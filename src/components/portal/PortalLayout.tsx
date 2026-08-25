@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PortalDashboard } from './PortalDashboard';
 import { ManageWeeklyInfo } from './ManageWeeklyInfo';
@@ -7,6 +7,11 @@ import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageUsersRBAC } from './ManageUsersRBAC';
 import { ManageIntegrations } from './ManageIntegrations';
+import { JethroEngine } from './JethroEngine';
+import { PortalAccountSwitcher } from './PortalAccountSwitcher';
+import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { PeopleInvites } from './PeopleInvites';
+import { WaitlistBoard } from './WaitlistBoard';
 import {
   LayoutDashboard,
   BookOpen,
@@ -22,6 +27,9 @@ import {
   Menu,
   X,
   ExternalLink,
+  Sparkles,
+  UsersRound,
+  ClipboardList,
 } from 'lucide-react';
 
 export const PortalLayout: React.FC = () => {
@@ -36,6 +44,10 @@ export const PortalLayout: React.FC = () => {
     allUsers,
     setCurrentUser,
     addToast,
+    demoMode,
+    authUser,
+    ssoClientId,
+    sessionSource,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -46,31 +58,57 @@ export const PortalLayout: React.FC = () => {
       id: 'dashboard',
       label: 'Dashboard & Ringkasan',
       icon: LayoutDashboard,
-      roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTI'],
+      roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'],
+      group: 'Utama',
+    },
+    {
+      id: 'people',
+      label: 'Orang & Undangan',
+      icon: UsersRound,
+      roles: ['SUPERADMIN', 'KOMISI'],
+      group: 'Komunitas',
+    },
+    {
+      id: 'waitlist',
+      label: 'Waitlist Newcomer',
+      icon: ClipboardList,
+      roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'],
+      group: 'Komunitas',
+    },
+    {
+      id: 'groups-monitoring',
+      label: isMentor ? 'Monitoring Kelompok Binaan' : 'Monitoring 10 Kelompok',
+      icon: Users,
+      roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'],
+      group: 'Komunitas',
+    },
+    {
+      id: 'jethro',
+      label: 'Jethro Engine (Regenerasi)',
+      icon: Sparkles,
+      roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'],
+      group: 'Komunitas',
     },
     {
       id: 'content-weekly',
       label: 'Kelola Warta Pemuda',
       icon: BookOpen,
       roles: ['SUPERADMIN', 'COMMITTEE'],
+      group: 'Konten',
     },
     {
       id: 'content-activities',
       label: 'Kelola Agenda Kegiatan',
       icon: Calendar,
       roles: ['SUPERADMIN', 'COMMITTEE'],
-    },
-    {
-      id: 'groups-monitoring',
-      label: isMentor ? 'Monitoring Kelompok Binaan' : 'Monitoring 10 Kelompok',
-      icon: Users,
-      roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTI'],
+      group: 'Konten',
     },
     {
       id: 'struktur',
-      label: 'Kelola Struktur Komisi',
+      label: 'Struktur Organisasi (Org Chart)',
       icon: ShieldCheck,
       roles: ['SUPERADMIN', 'COMMITTEE'],
+      group: 'Struktur',
     },
     {
       id: 'users-rbac',
@@ -78,6 +116,7 @@ export const PortalLayout: React.FC = () => {
       icon: ShieldAlert,
       roles: ['SUPERADMIN'],
       badge: 'Superadmin Only',
+      group: 'Sistem',
     },
     {
       id: 'integrations',
@@ -85,8 +124,20 @@ export const PortalLayout: React.FC = () => {
       icon: FolderSync,
       roles: ['SUPERADMIN'],
       badge: 'Superadmin Only',
+      group: 'Sistem',
     },
   ];
+
+  // Render dengan header grup saat berganti
+  const navWithHeaders: Array<{ type: 'header'; label: string } | { type: 'item'; item: typeof navItems[number] }> = [];
+  let lastGroup = '';
+  for (const item of navItems) {
+    if (item.group && item.group !== lastGroup) {
+      navWithHeaders.push({ type: 'header', label: item.group });
+      lastGroup = item.group;
+    }
+    navWithHeaders.push({ type: 'item', item });
+  }
 
   const handleNavClick = (tabId: string) => {
     setActiveTab(tabId);
@@ -149,12 +200,20 @@ export const PortalLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation Links — dikelompokkan per bagian */}
           <nav className="space-y-1.5">
-            <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider block px-3 mb-2">
-              Modul Portal
-            </span>
-            {navItems.map((item) => {
+            {navWithHeaders.map((row) => {
+              if (row.type === 'header') {
+                return (
+                  <span
+                    key={`h-${row.label}`}
+                    className="block px-3 pt-4 pb-1 text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/70"
+                  >
+                    {row.label}
+                  </span>
+                );
+              }
+              const item = row.item;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               const isAllowed = item.roles.includes(currentRole);
@@ -210,6 +269,27 @@ export const PortalLayout: React.FC = () => {
             </div>
           </div>
 
+          {/* Account Switcher — POV tiap role (demo/staging) */}
+          {(demoMode || authUser) && <PortalAccountSwitcher />}
+
+          {/* Login akun Google lain (kecuali sudah sesi Google) */}
+          {ssoClientId && sessionSource !== 'google' && (
+            <details className="rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] overflow-hidden">
+              <summary className="px-3 py-2.5 text-xs font-bold cursor-pointer select-none hover:bg-white">
+                ＋ Login akun Google
+              </summary>
+              <div className="p-3 flex justify-center">
+                <GoogleLoginButton
+                  clientId={ssoClientId}
+                  onCredential={() => window.location.reload()}
+                  onError={(m: string) =>
+                    addToast({ type: 'error', title: 'Login Google Gagal', description: m })
+                  }
+                />
+              </div>
+            </details>
+          )}
+
           <button
             onClick={() => {
               setActiveView('public');
@@ -235,6 +315,9 @@ export const PortalLayout: React.FC = () => {
         {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
         {activeTab === 'content-activities' && <ManageActivities />}
         {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
+        {activeTab === 'jethro' && <JethroEngine />}
+        {activeTab === 'people' && <PeopleInvites />}
+        {activeTab === 'waitlist' && <WaitlistBoard />}
         {activeTab === 'struktur' && <ManageStruktur />}
         {activeTab === 'users-rbac' && <ManageUsersRBAC />}
         {activeTab === 'integrations' && <ManageIntegrations />}

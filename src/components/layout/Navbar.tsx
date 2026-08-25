@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useLang } from '../../context/LangContext';
+import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { LanguageToggle } from '../public/ui/LanguageToggle';
 import {
   Layers,
   Shield,
@@ -13,6 +16,8 @@ import {
   Menu,
   X,
   Users,
+  LogOut,
+  LogIn,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -22,7 +27,6 @@ export const Navbar: React.FC = () => {
     publicTab,
     setPublicTab,
     currentTenant,
-    allTenants,
     switchTenant,
     currentUser,
     currentRole,
@@ -30,22 +34,39 @@ export const Navbar: React.FC = () => {
     setCurrentUserById,
     groups,
     resetAllData,
+    authUser,
+    ssoClientId,
+    loginWithCredential,
+    logoutSso,
+    addToast,
+    demoMode,
+    sessionSource,
+    myRoleOptions,
+    setActiveUserRole,
   } = useApp();
+  const { t } = useLang();
 
-  const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false);
-  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+    const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
       case 'SUPERADMIN':
         return 'bg-gradient-to-r from-red-600 to-amber-600 text-white';
+      case 'BPMJ':
+        return 'bg-gradient-to-r from-stone-500 to-yellow-700 text-white';
+      case 'KOMISI':
+        return 'bg-gradient-to-r from-fuchsia-600 to-purple-700 text-white';
       case 'COMMITTEE':
         return 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white';
       case 'MENTOR':
         return 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white';
-      case 'MENTI':
+      case 'CO_MENTOR':
+        return 'bg-gradient-to-r from-sky-600 to-blue-700 text-white';
+      case 'MENTEE':
         return 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white';
+      case 'ALUMNI':
+        return 'bg-gradient-to-r from-zinc-600 to-gray-700 text-white';
       default:
         return 'bg-gray-700 text-white';
     }
@@ -61,7 +82,7 @@ export const Navbar: React.FC = () => {
             <button
               onClick={() => {
                 setActiveView('public');
-                setPublicTab('home');
+                setPublicTab('beyonders');
               }}
               className="flex items-center gap-2.5 text-left group"
             >
@@ -75,117 +96,32 @@ export const Navbar: React.FC = () => {
                     {currentTenant.slug}
                   </span>
                 </div>
-                <span className="text-[10px] text-white/50 font-medium leading-none">Cikarang Ecosystem</span>
+                <span className="text-[10px] text-white/50 font-medium leading-none">Beyonders • Youth</span>
               </div>
             </button>
-
-            {/* Tenant Selector Dropdown Trigger */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsTenantMenuOpen(!isTenantMenuOpen);
-                  setIsRoleMenuOpen(false);
-                }}
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-[11px] font-medium border border-white/10 transition-colors"
-                title="Switch Ecosystem Tenant"
-              >
-                <Layers className="w-3 h-3 text-[#FF416C]" />
-                <span className="truncate max-w-[90px]">{currentTenant.name.split(' ')[0]}</span>
-                <ChevronDown className="w-3 h-3 opacity-60" />
-              </button>
-
-              {/* Tenant Dropdown */}
-              {isTenantMenuOpen && (
-                <div className="absolute left-0 mt-3 w-64 bg-[#181818] border border-white/15 rounded-2xl p-2 shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                    Multi-Tenant Ecosystems
-                  </div>
-                  {allTenants.map((tenant) => (
-                    <button
-                      key={tenant.id}
-                      onClick={() => {
-                        switchTenant(tenant.id);
-                        setIsTenantMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-colors ${
-                        currentTenant.id === tenant.id
-                          ? 'bg-white/15 text-white font-semibold'
-                          : 'text-white/70 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span>{tenant.name}</span>
-                        <span className="text-[10px] text-white/40 font-mono">{tenant.domain}</span>
-                      </div>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-                          tenant.is_active
-                            ? 'bg-emerald-500/20 text-emerald-300 font-bold'
-                            : 'bg-white/10 text-white/40'
-                        }`}
-                      >
-                        {tenant.badge}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Navigation Links for Public View */}
           {activeView === 'public' ? (
             <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-              <button
-                onClick={() => setPublicTab('home')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-                  publicTab === 'home'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                Beranda
-              </button>
-              <button
-                onClick={() => setPublicTab('weekly-info')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-                  publicTab === 'weekly-info'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                Warta Pemuda
-              </button>
-              <button
-                onClick={() => setPublicTab('activity')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-                  publicTab === 'activity'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                Kegiatan
-              </button>
-              <button
-                onClick={() => setPublicTab('groups')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-                  publicTab === 'groups'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                10 Kelompok
-              </button>
-              <button
-                onClick={() => setPublicTab('struktur')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-                  publicTab === 'struktur'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                Struktur
-              </button>
+              {([
+                ['beyonders', t.nav.beyonders],
+                ['leaders', t.nav.leaders],
+                ['events', t.nav.events],
+                ['bulletin', t.nav.bulletin],
+              ] as const).map(([tabId, label]) => (
+                <button
+                  key={tabId}
+                  onClick={() => setPublicTab(tabId)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
+                    publicTab === tabId
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </nav>
           ) : (
             <div className="hidden md:flex items-center gap-2 text-white/70 text-xs font-medium bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
@@ -196,29 +132,25 @@ export const Navbar: React.FC = () => {
 
           {/* Right Action Area: Role Persona Switcher + Portal/Web View Switcher */}
           <div className="flex items-center gap-2">
-            
-            {/* Quick Role Switcher Pill */}
+
+            {/* Quick Role Switcher — hanya untuk mode demo / sesi aktif.
+                Tamu produksi melihat navbar bersih tanpa alat testing. */}
+            {(demoMode || authUser) && (
             <div className="relative">
               <button
                 onClick={() => {
                   setIsRoleMenuOpen(!isRoleMenuOpen);
-                  setIsTenantMenuOpen(false);
-                }}
-                className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all text-xs"
-                title="Switch User Persona (RBAC Tester)"
+                  }}
+                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all"
+                title="Persona & konteks akses"
               >
-                <div className="w-5 h-5 rounded-full overflow-hidden border border-white/40">
+                <div className="w-6 h-6 rounded-full overflow-hidden border border-white/40">
                   <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                 </div>
-                <div className="flex flex-col items-start text-left">
-                  <span className="text-[10px] font-bold leading-none truncate max-w-[85px] sm:max-w-[110px]">
-                    {currentUser.name.split(' ')[0]}
-                  </span>
-                  <span className={`text-[8px] font-black px-1 py-0.2 rounded mt-0.5 uppercase ${getRoleBadgeStyle(currentRole)}`}>
-                    {currentRole}
-                  </span>
-                </div>
-                <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${getRoleBadgeStyle(currentRole)}`}>
+                  {currentRole}
+                </span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
               </button>
 
               {/* Persona Switcher Dropdown */}
@@ -228,9 +160,13 @@ export const Navbar: React.FC = () => {
                     <div>
                       <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5 text-[#FF416C]" />
-                        Simulasi Persona & RBAC
+                        {demoMode ? 'Persona — Akun Dummy TiDB' : 'Simulasi Persona & RBAC'}
                       </h4>
-                      <p className="text-[10px] text-white/50">Uji hak akses peran sesuai PRD</p>
+                      <p className="text-[10px] text-white/50">
+                        {demoMode
+                          ? 'Akun dari database staging — klik untuk masuk sungguhan'
+                          : 'Uji hak akses peran sesuai PRD'}
+                      </p>
                     </div>
                     <button
                       onClick={resetAllData}
@@ -241,10 +177,34 @@ export const Navbar: React.FC = () => {
                     </button>
                   </div>
 
+                  {/* Chips multi-role: ganti konteks akses untuk akun rangkap */}
+                  {myRoleOptions.length > 1 && (
+                    <div className="px-2 pb-2">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                        Konteks Akses Aktif
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {myRoleOptions.map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => setActiveUserRole(role)}
+                            className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
+                              role === currentRole
+                                ? getRoleBadgeStyle(role)
+                                : 'bg-white/10 text-white/60 hover:bg-white/20'
+                            }`}
+                          >
+                            {role}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
                     {allUsers.map((user) => {
                       const userRoleMap = user.roles.find((r) => r.tenantId === currentTenant.id) || {
-                        role: 'MENTI' as any,
+                        role: 'MENTEE' as any,
                       };
                       const userGroupName = userRoleMap.groupId
                         ? groups.find((g) => g.id === userRoleMap.groupId)?.name
@@ -291,11 +251,83 @@ export const Navbar: React.FC = () => {
                       );
                     })}
                   </div>
+
+                  {/* Google SSO — sesi nyata dari server (TiDB) */}
+                  <div className="border-t border-white/10 mt-2 pt-2 px-1">
+                    {authUser && (
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
+                            <Shield className="w-3 h-3" />
+                            {sessionSource === 'demo' ? 'Sesi Demo Aktif' : 'SSO Google Aktif'}
+                          </p>
+                          <p className="text-[10px] text-white/50 truncate">{authUser.email}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            logoutSso();
+                            setIsRoleMenuOpen(false);
+                          }}
+                          title="Logout SSO"
+                          className="p-1.5 text-white/60 hover:text-red-300 rounded-lg hover:bg-white/10 shrink-0"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Login Google selalu tersedia (kecuali sudah sesi Google) —
+                        bisa dipakai kapan pun meski mode demo aktif */}
+                    {ssoClientId && sessionSource !== 'google' && (
+                      <>
+                        {!authUser && (
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1 text-center">
+                            Masuk dengan akun Google
+                          </p>
+                        )}
+                        {authUser && (
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1 text-center">
+                            Masuk dengan akun Google lain
+                          </p>
+                        )}
+                        <GoogleLoginButton
+                          clientId={ssoClientId}
+                          onCredential={(cred) => {
+                            loginWithCredential(cred).catch((err: Error) =>
+                              addToast({
+                                type: 'error',
+                                title: 'Login Google Gagal',
+                                description: err.message,
+                              })
+                            );
+                            setIsRoleMenuOpen(false);
+                          }}
+                        />
+                      </>
+                    )}
+                    {!ssoClientId && !authUser && (
+                      <p className="text-[10px] text-white/40 text-center leading-relaxed">
+                        Login Google belum aktif — set GOOGLE_CLIENT_ID di server.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
+            )}
 
-            {/* Portal / Public Toggle Button */}
+            {/* Language toggle + Masuk (tamu) + Portal / Public Toggle Button */}
+            <LanguageToggle />
+            {activeView === 'public' && !authUser && !demoMode && ssoClientId && (
+              <button
+                onClick={() => setActiveView('portal')}
+                title="Masuk ke portal"
+                className="px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors flex items-center gap-1.5"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Masuk</span>
+              </button>
+            )}
             {activeView === 'public' ? (
               <button
                 onClick={() => setActiveView('portal')}
@@ -338,62 +370,62 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => {
                   setActiveView('public');
-                  setPublicTab('home');
+                  setPublicTab('beyonders');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
                   publicTab === 'home' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
                 }`}
               >
-                Beranda
+                {t.nav.beyonders}
               </button>
               <button
                 onClick={() => {
                   setActiveView('public');
-                  setPublicTab('weekly-info');
+                  setPublicTab('bulletin');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
                   publicTab === 'weekly-info' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
                 }`}
               >
-                Warta Pemuda
+                {t.nav.bulletin}
               </button>
               <button
                 onClick={() => {
                   setActiveView('public');
-                  setPublicTab('activity');
+                  setPublicTab('events');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
                   publicTab === 'activity' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
                 }`}
               >
-                Kegiatan & Agenda
+                {t.nav.events}
               </button>
               <button
                 onClick={() => {
                   setActiveView('public');
-                  setPublicTab('groups');
+                  setPublicTab('beyonders');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
                   publicTab === 'groups' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
                 }`}
               >
-                10 Kelompok Pemuda
+                {t.nav.beyonders}
               </button>
               <button
                 onClick={() => {
                   setActiveView('public');
-                  setPublicTab('struktur');
+                  setPublicTab('leaders');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'struktur' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
+                  publicTab === 'komisi' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
                 }`}
               >
-                Struktur Pengurus
+                {t.nav.leaders}
               </button>
             </div>
           </div>

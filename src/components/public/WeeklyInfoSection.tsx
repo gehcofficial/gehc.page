@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
+import { SectionHeader } from './ui/SectionHeader';
+import { useLang } from '../../context/LangContext';
 import {
   BookOpen,
   Calendar,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export const WeeklyInfoSection: React.FC = () => {
+  const { t } = useLang();
   const { contentItems, addToast } = useApp();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,24 +42,15 @@ export const WeeklyInfoSection: React.FC = () => {
   });
 
   return (
-    <section className="py-12 sm:py-20 px-4 sm:px-8 max-w-[1440px] mx-auto">
+    <section className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6 border-b border-[#D9D7D0]/60 pb-8">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D9D7D0] mb-3">
-            <BookOpen className="w-3.5 h-3.5 text-[#FF416C]" />
-            <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
-              Publikasi Resmi GEHC
-            </span>
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-[#1B1B1B] font-display">
-            Warta Pemuda & Renungan
-          </h2>
-          <p className="text-sm sm:text-base text-[#8C8880] mt-2 max-w-xl">
-            Informasi mingguan, panduan ibadah kreatif, jadwal pelayan firman, dan materi kelompok kecil.
-          </p>
-        </div>
+        <SectionHeader
+          eyebrow={t.bulletin.eyebrow}
+          title={t.bulletin.title}
+          subtitle={t.bulletin.sub}
+        />
 
         {/* Search Input */}
         <div className="relative w-full md:w-80">

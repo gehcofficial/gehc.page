@@ -1,0 +1,104 @@
+﻿import React from 'react';
+import { Crown, Heart, Users } from 'lucide-react';
+import { shortName } from '../../lib/privacy-name';
+
+interface NodeProps {
+  name: string;
+  label: string;
+  color: string;
+  icon?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const initialsOf = (name: string) =>
+  name
+    .replace(/[^A-Za-z\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('') || '?';
+
+export const PersonNode: React.FC<NodeProps> = ({ name, label, color, icon, size = 'md' }) => {
+  const dims =
+    size === 'lg' ? 'w-16 h-16 text-base' : size === 'sm' ? 'w-9 h-9 text-[10px]' : 'w-12 h-12 text-sm';
+  return (
+    <div className="flex flex-col items-center gap-1.5 min-w-[86px]">
+      <div
+        className={`${dims} rounded-full flex items-center justify-center font-black shadow-md border-2 border-white shrink-0`}
+        style={{ backgroundColor: `${color}22`, color }}
+      >
+        {icon ?? initialsOf(name)}
+      </div>
+      <div className="text-center leading-tight">
+        <span className="block text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">{label}</span>
+        <span className={`block font-bold text-[#1B1B1B] ${size === 'sm' ? 'text-[11px]' : 'text-xs'}`}>
+          {shortName(name)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const ConnectorVertical: React.FC<{ color: string }> = ({ color }) => (
+  <div className="flex justify-center py-1">
+    <div className="w-0.5 h-5 rounded-full" style={{ backgroundColor: `${color}66` }} />
+  </div>
+);
+
+/** Pohon keluarga mini: hanya Mentor & Comentor — dipakai di kartu carousel */
+export const MiniFamilyTree: React.FC<{
+  mentor: string;
+  comentor: string;
+  color: string;
+}> = ({ mentor, comentor, color }) => (
+  <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/60">
+    <div className="flex items-center justify-center gap-1 mb-3">
+      <Users className="w-3 h-3" style={{ color }} />
+      <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C8880]">Beyonders Tree</span>
+    </div>
+    <PersonNode name={shortName(mentor)} label="Mentor" color={color} icon={<Crown className="w-4 h-4" />} />
+    <ConnectorVertical color={color} />
+    <PersonNode name={shortName(comentor)} label="Comentor" color={color} icon={<Heart className="w-4 h-4" />} />
+  </div>
+);
+
+interface MenteeNode {
+  name: string;
+  note?: string;
+}
+
+/** Pohon keluarga lengkap: Mentor → Comentor → seluruh Mentee */
+export const FullFamilyTree: React.FC<{
+  mentor: string;
+  comentor: string;
+  mentees: MenteeNode[];
+  color: string;
+}> = ({ mentor, comentor, mentees, color }) => (
+  <div className="relative p-6 sm:p-8 rounded-[28px] bg-white border border-[#D9D7D0]/50 overflow-hidden">
+    {/* dekorasi latar */}
+    <div
+      className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-15 pointer-events-none"
+      style={{ backgroundColor: color }}
+    />
+    <div className="relative flex flex-col items-center">
+      <PersonNode name={shortName(mentor)} label="Mentor" color={color} size="lg" icon={<Crown className="w-6 h-6" />} />
+      <ConnectorVertical color={color} />
+      <PersonNode name={shortName(comentor)} label="Comentor" color={color} icon={<Heart className="w-4 h-4" />} />
+
+      {mentees.length > 0 && (
+        <>
+          <ConnectorVertical color={color} />
+          <div className="w-full max-w-2xl flex flex-col items-center">
+            <div className="w-full h-0.5 rounded-full max-w-md" style={{ backgroundColor: `${color}44` }} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 pt-5 w-full justify-items-center">
+              {mentees.map((m) => (
+                <PersonNode key={m.name} name={shortName(m.name)} label={`Mentee${m.note ? ' ' + m.note : ''}`} color="#8C8880" size="sm" />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+);

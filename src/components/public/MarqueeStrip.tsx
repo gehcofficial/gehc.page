@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 export const MarqueeStrip: React.FC = () => {
@@ -8,7 +8,7 @@ export const MarqueeStrip: React.FC = () => {
     <section className="py-10 border-y border-[#D9D7D0]/50 bg-[#FAF9F5] overflow-hidden">
       <div className="max-w-[1440px] mx-auto px-4 mb-4 text-center">
         <p className="text-[11px] font-bold text-[#8C8880] uppercase tracking-widest">
-          10 Kelompok Persekutuan Pemuda GMIM Eben Haezer Cikarang
+          B E Y O N D E R S
         </p>
       </div>
 

@@ -1,0 +1,143 @@
+﻿import { Dict } from './en';
+
+/** Kamus bahasa INDONESIA — harus mencermati struktur en.ts. */
+export const id: Dict = {
+  nav: {
+    beyonders: 'Beyonders',
+    leaders: 'Pengurus',
+    events: 'Kegiatan',
+    bulletin: 'Warta',
+  },
+  hero: {
+    chip: 'Beyonders • Komunitas Pemuda GMIM Eben Haezer Cikarang',
+    title: 'Beyond the Sunday Walk',
+    subtitle:
+      'Kami mahasiswa dan pekerja muda di Cikarang — jantung industri Indonesia — yang belajar mengikuti Yesus bersama-sama, sepanjang minggu, dalam rumah-rumah pemuridan kecil yang terus bertumbuh dan berlipat.',
+    cta1: 'Kenali Sepuluh Rumah',
+    cta2: 'Warta',
+    cta3: 'Kegiatan',
+    bTag: 'Pertemuan Terdekat',
+    bTitle: 'BAKU TAU 4.0 — Bakudapa di Rantau',
+    bDesc:
+      'Malam penyambutan mahasiswa baru President University. Sabtu, 5 September 2026 · 16.00 WIB.',
+    bCta: 'Lihat Detail',
+  },
+  about: {
+    eyebrow: 'Siapa Kami',
+    title: 'Iman muda di jantung industri Indonesia',
+    intro1:
+      'Cikarang, di sisi timur Jakarta, menjadi rumah beberapa kawasan industri terbesar di Asia Tenggara. Setiap tahun, ribuan mahasiswa dan pekerja muda datang dari seluruh penjuru nusantara — jauh dari kampung halaman mereka.',
+    intro2:
+      'GEHC Youth adalah generasi muda GMIM Eben Haezer, jemaat Protestan yang melayani kota ini. Kami percaya iman tidak pernah dirancang hanya untuk satu pagi dalam seminggu — karena itu kami berjalan bersama dalam segala hal: tugas kuliah, deadline, rindu kampung, dan sukacita.',
+    fact1t: 'Gereja jauh dari rumah',
+    fact1d:
+      'Bagian dari GMIM — salah satu gereja Protestan tertua di Indonesia — hadir di tengah komunitas industri Cikarang.',
+    fact2t: 'Mahasiswa & pekerja muda',
+    fact2d:
+      'Anggota kami kuliah di kampus seperti President University dan bekerja di kawasan Jababeka, Delta Silicon hingga Lippo Cikarang.',
+    fact3t: 'Satu retreat, sepuluh rumah',
+    fact3d:
+      'Setiap anggota tergabung dalam satu rumah pemuridan kecil yang dipimpin sepasang mentor — dan ketika penuh, rumah itu berlipat.',
+    leadTitle: 'Susunan Kepengurusan',
+    leadSoon:
+      'Susunan pengurus baru periode 2026–2029 akan segera diumumkan setelah ditetapkan oleh BPMJ. Struktur di bawah memperlihatkan cara lima fungsi pelayanan kami bekerja bersama.',
+    verse:
+      '“Jangan seorang pun menganggap engkau rendah karena engkau muda. Jadilah teladan bagi orang-orang percaya — dalam perkataanmu, tingkah lakumu, kasihmu, kesetiaanmu dan kesucianmu.”',
+    verseRef: '1 Timotius 4:12',
+  },
+  flow: {
+    eyebrow: 'Cara Kami Bertumbuh',
+    title: 'Satu retreat, seribu generasi',
+    s1t: 'The Retreat',
+    s1d: 'Semuanya bermula dari satu perjumpaan — di sanalah generasi pertama rumah pemuridan dilahirkan.',
+    s2t: 'Sepuluh Rumah',
+    s2d: 'Setiap rumah kecil dan personal: sepasang mentor menemani anggotanya melewati hidup yang nyata.',
+    s3t: 'Orang Baru Datang',
+    s3d: 'Ketika sebuah rumah penuh dan teman-teman baru terus datang, dua anggotanya ditingkatkan untuk membuka rumah berikutnya.',
+    s4t: 'Berlipat Terus',
+    s4d: 'Alumni tetap menjadi bagian dari cerita selamanya. Rumah menjadi keluarga dari keluarga — dan perjalanan itu berlanjut.',
+    close:
+      'Regenerasi bagi kami bukan pengurangan — melainkan perkembangbiakan. Nama tetap terukir di family tree meski rumah-rumah baru lahir.',
+  },
+  groups: {
+    eyebrow: 'Beyonders • Sepuluh Rumah Pemuridan',
+    title: 'Sepuluh Rumah, Satu Keluarga',
+    sub: 'Setiap rumah membawa nama Ibrani dan maknanya — identitas harian yang ditumbuhkan kepada anggotanya. Kenali mereka.',
+    membersSuffix: 'anggota',
+  },
+  serve: {
+    eyebrow: 'Lima Fungsi Klasik Gereja',
+    title: 'Lima Cara Kami Mengasi Allah & Kota Ini',
+    sub: 'Seluruh pelayanan kami mengalir melalui lima panggilan abadi Gereja — dari ibadah dan pengajaran hingga persekutuan, pelayanan, dan kesaksian.',
+    cta: 'Jelajahi Struktur Kami',
+    items: [
+      { label: 'Liturgia', tagline: 'Memuliakan Tuhan dalam ibadah & doa' },
+      { label: 'Didaskalia', tagline: 'Mengajar & memperlengkapi lewat firman' },
+      { label: 'Koinonia', tagline: 'Memelihara persekutuan & relasi' },
+      { label: 'Diakonia', tagline: 'Melayani kebutuhan praktis' },
+      { label: 'Marturia', tagline: 'Menjadi saksi & menginjili' },
+    ],
+  },
+  events: {
+    eyebrow: 'Yang Sedang & Akan Berlangsung',
+    title: 'Momen & Tonggak Perjalanan',
+    featuredBadge: 'Akan Datang',
+    startsIn: 'Dimulai dalam',
+    days: 'hari',
+    hours: 'jam',
+    min: 'mnt',
+    happeningToday: 'Berlangsung hari ini!',
+    pastEyebrow: 'Perjalanan Kami Sejauh Ini',
+    viewAll: 'Semua kegiatan',
+    detailCta: 'Detail',
+    joinCta: 'Gabung Waitlist',
+  },
+  bulletin: {
+    eyebrow: 'Publikasi Resmi',
+    title: 'Warta Pemuda & Renungan',
+    sub: 'Informasi mingguan, panduan ibadah kreatif, jadwal pelayanan firman, dan materi kelompok kecil.',
+  },
+  gallery: {
+    eyebrow: 'Google Drive • Arsip GEHC',
+    title: 'Cerita dalam Gambar',
+    sub: 'Momen perjumpaan, retreat, dan perjalanan sehari-hari kami — tersinkron dari arsip komunitas.',
+    restrictedNote: 'Konten ini terbatas untuk role tertentu.',
+    highlights: 'Sorotan',
+  },
+  leadersPage: {
+    eyebrow: 'Orang-orang Kami',
+    title: 'Komisi & Tim Kerja',
+    treeHeading: 'Hirarki Pelayanan',
+    cardsHeading: 'Kartu Pengurus',
+    announceTitle: 'Segera diumumkan',
+    announceBody:
+      'Nama-nama tim pengurus periode 2026–2029 akan dipublikasikan di sini setelah ditetapkan oleh majelis gereja.',
+    coreLabel: 'Komisi Pemuda',
+    supportLabel: 'Tim Kerja',
+    pillarsLabel: 'Lima Fungsi & Sub-Tim',
+    roleOpen: 'peran terbuka',
+  },
+  groupDetail: {
+    back: 'Semua Rumah',
+    scriptureLabel: 'Landasan Firman',
+    currentBatch: 'Batch Berjalan',
+    history: 'Sejarah Generasi',
+    heritage: 'Heritage',
+  },
+  footer: {
+    desc: 'Ekosistem pemuda GMIM Eben Haezer Cikarang — persekutuan, ibadah kreatif, dan sepuluh rumah pemuridan yang terus berlipat melampaui perjalanan hari Minggu.',
+    badge: 'Beyond the Sunday Walk',
+    menuTitle: 'Jelajahi',
+    schedTitle: 'Bersekutu Bersama',
+    sched1n: 'Ibadah Kreatif Pemuda',
+    sched1d: 'Setiap Sabtu, 16.00 WIB',
+    sched2n: 'Ibadah Raya Minggu',
+    sched2d: 'Sesi I: 06.00 WIB | Sesi II: 09.00 WIB',
+    addr:
+      'Gereja GMIM Eben Haezer, Jl. Kasuari No. 12, Cikarang Baru, Kab. Bekasi, Jawa Barat, Indonesia',
+    portalTitle: 'Administrasi & Portal',
+    portalDesc: 'Perkakas internal untuk warta, laporan pemuridan, dan integrasi cloud.',
+    portalBtn: 'Masuk Portal',
+    lineage: '“Satu retreat, seribu generasi.”',
+  },
+};

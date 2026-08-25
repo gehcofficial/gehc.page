@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
+import { AttendancePanel } from './AttendancePanel';
 import {
   Users,
   TrendingUp,
@@ -9,6 +10,7 @@ import {
   Trash2,
   Calendar,
   Sparkles,
+  CalendarCheck2,
   CheckCircle2,
   AlertCircle,
   FileText,
@@ -49,7 +51,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     isMentor && userAssignedGroupId ? userAssignedGroupId : groups[0]?.id || 'grp-1'
   );
 
-  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members'>('monitoring-form');
+  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'absensi'>('monitoring-form');
 
   // Selected group object
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
@@ -306,6 +308,18 @@ export const ManageGroupsMonitoring: React.FC = () => {
         >
           <Users className="w-3.5 h-3.5 text-emerald-500" />
           <span>Daftar Anggota Kelompok ({groupMembers.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('absensi')}
+          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'absensi'
+              ? 'bg-[#181818] text-white shadow-md'
+              : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+          }`}
+        >
+          <CalendarCheck2 className="w-3.5 h-3.5 text-cyan-500" />
+          <span>Absensi Mingguan</span>
         </button>
       </div>
 
@@ -745,6 +759,15 @@ export const ManageGroupsMonitoring: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* TAB 4: ATTENDANCE (server-backed, TiDB) */}
+      {activeTab === 'absensi' && activeGroup && (
+        <AttendancePanel
+          groupId={activeGroup.id}
+          groupName={activeGroup.name}
+          canWrite={canWriteMonitoring}
+        />
       )}
 
       {/* Record Inspection Modal */}

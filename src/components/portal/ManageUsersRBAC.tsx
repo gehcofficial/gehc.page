@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { User, UserRole } from '../../types';
 import {
@@ -41,7 +41,7 @@ export const ManageUsersRBAC: React.FC = () => {
   }>({
     name: '',
     email: '',
-    role: 'MENTI',
+    role: 'MENTEE',
     tenant_id: 'tenant-youth',
     assignedGroupId: '',
   });
@@ -95,7 +95,7 @@ export const ManageUsersRBAC: React.FC = () => {
     setFormData({
       name: user.name,
       email: user.email,
-      role: youthRole?.role || 'MENTI',
+      role: youthRole?.role || 'MENTEE',
       tenant_id: youthRole?.tenantId || 'tenant-youth',
       assignedGroupId: youthRole?.groupId || '',
     });
@@ -147,7 +147,7 @@ export const ManageUsersRBAC: React.FC = () => {
             Kelola Pengguna & Hak Akses
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            Atur peran SUPERADMIN, COMMITTEE, MENTOR, dan MENTI per tenant dan kelompok binaan.
+            Atur peran SUPERADMIN, BPMJ, KOMISI, COMMITTEE, MENTOR, CO_MENTOR, MENTEE, dan ALUMNI per tenant dan kelompok binaan.
           </p>
         </div>
 
@@ -333,9 +333,13 @@ export const ManageUsersRBAC: React.FC = () => {
                   className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-bold focus:outline-none focus:border-black"
                 >
                   <option value="SUPERADMIN">SUPERADMIN (Akses Penuh Semua Tenant & Database)</option>
-                  <option value="COMMITTEE">COMMITTEE (Pengurus Komisi - CMS & All Groups)</option>
+                  <option value="BPMJ">BPMJ (Badan Pekerja — Read-Only Dasbor)</option>
+                  <option value="KOMISI">KOMISI (Komisi Pemuda — Executive Access)</option>
+                  <option value="COMMITTEE">COMMITTEE (Tim Kerja — CMS & All Groups)</option>
                   <option value="MENTOR">MENTOR (Pendamping Kelompok Khusus)</option>
-                  <option value="MENTI">MENTI (Anggota Terdaftar / Jemaat Pemuda)</option>
+                  <option value="CO_MENTOR">CO_MENTOR (Wakil Pendamping Kelompok)</option>
+                  <option value="MENTEE">MENTEE (Anggota Terdaftar / Jemaat Pemuda)</option>
+                  <option value="ALUMNI">ALUMNI (Idle / Inaktif / Lulus)</option>
                 </select>
               </div>
 

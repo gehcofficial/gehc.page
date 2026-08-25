@@ -1,9 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useLang } from '../../context/LangContext';
 import { MapPin, Phone, Mail, Globe, ArrowUpRight } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { setPublicTab, setActiveView, currentTenant } = useApp();
+  const { setPublicTab, setActiveView } = useApp();
+  const { t } = useLang();
 
   return (
     <footer className="bg-[#151515] text-white pt-16 sm:pt-24 pb-12 px-4 sm:px-8 rounded-t-[44px] sm:rounded-t-[64px] relative z-20 mt-16">
@@ -18,17 +20,17 @@ export const Footer: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-white">GMIM EBEN HAEZER</h4>
-                <p className="text-xs text-white/50">Cikarang Digital Ecosystem</p>
+                <p className="text-xs text-white/50">Beyonders • GEHC Youth</p>
               </div>
             </div>
 
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Ekosistem digital terpadu Komisi Pelayanan Pemuda GMIM Eben Haezer Cikarang. Menghubungkan persekutuan, ibadah kreatif, dan 10 kelompok sel pemuda.
+              {t.footer.desc}
             </p>
 
             <div className="flex items-center gap-3 pt-2">
-              <span className="text-[10px] px-2.5 py-1 rounded-full bg-white/10 text-emerald-400 font-bold">
-                ● Tenant Active: youth.gehc.page
+              <span className="text-[10px] px-2.5 py-1 rounded-full bg-white/10 text-white/70 font-bold">
+                Beyond the Sunday Walk
               </span>
             </div>
           </div>
@@ -36,48 +38,38 @@ export const Footer: React.FC = () => {
           {/* Navigation Links */}
           <div>
             <h4 className="text-[10px] font-bold text-white uppercase tracking-widest mb-6">
-              Menu Publik
+              {t.footer.menuTitle}
             </h4>
             <ul className="flex flex-col gap-3 text-xs sm:text-sm">
               <li>
                 <button
                   onClick={() => setPublicTab('home')}
                   className="text-white/60 hover:text-white transition-colors"
-                >
-                  Beranda Utama
-                </button>
+                >{t.nav.beyonders}</button>
               </li>
               <li>
                 <button
-                  onClick={() => setPublicTab('weekly-info')}
+                  onClick={() => setPublicTab('bulletin')}
                   className="text-white/60 hover:text-white transition-colors"
-                >
-                  Warta Pemuda & Renungan
-                </button>
+                >{t.nav.bulletin}</button>
               </li>
               <li>
                 <button
-                  onClick={() => setPublicTab('activity')}
+                  onClick={() => setPublicTab('events')}
                   className="text-white/60 hover:text-white transition-colors"
-                >
-                  Agenda & Kegiatan Pemuda
-                </button>
+                >{t.nav.events}</button>
               </li>
               <li>
                 <button
-                  onClick={() => setPublicTab('groups')}
+                  onClick={() => setPublicTab('beyonders')}
                   className="text-white/60 hover:text-white transition-colors"
-                >
-                  Direktori 10 Kelompok
-                </button>
+                >{t.nav.beyonders}</button>
               </li>
               <li>
                 <button
-                  onClick={() => setPublicTab('struktur')}
+                  onClick={() => setPublicTab('leaders')}
                   className="text-white/60 hover:text-white transition-colors"
-                >
-                  Struktur Pengurus Komisi
-                </button>
+                >{t.nav.leaders}</button>
               </li>
             </ul>
           </div>
@@ -93,8 +85,8 @@ export const Footer: React.FC = () => {
                 <p className="text-white/60">Setiap Sabtu, Pkl 18:30 WIB</p>
               </div>
               <div>
-                <p className="font-bold text-white">Ibadah Raya Minggu</p>
-                <p className="text-white/60">Sesi I: 06:30 WIB | Sesi II: 09:00 WIB</p>
+                <p className="font-bold text-white">{t.footer.sched2n}</p>
+                <p className="text-white/60">{t.footer.sched2d}</p>
               </div>
               <div className="pt-2 flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#FF416C] mt-0.5 shrink-0" />
@@ -111,13 +103,13 @@ export const Footer: React.FC = () => {
               Administrasi & Portal
             </h4>
             <p className="text-xs text-white/60 mb-4 leading-relaxed">
-              Akses modul pengelolaan warta, monitoring kelompok kecil oleh mentor, dan pengaturan integrasi cloud.
+              {t.footer.portalDesc}
             </p>
             <button
               onClick={() => setActiveView('portal')}
               className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all"
             >
-              <span>Masuk User Portal</span>
+              <span>{t.footer.portalBtn}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
@@ -127,11 +119,7 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-white/40">
           <p>© {new Date().getFullYear()} GMIM Eben Haezer Cikarang (GEHC). All rights reserved.</p>
-          <div className="flex gap-6">
-            <span>Multi-Tenant Architecture</span>
-            <span>Vite + React</span>
-            <span>RBAC Security Matrix</span>
-          </div>
+          <p className="italic">{t.footer.lineage}</p>
         </div>
       </div>
     </footer>

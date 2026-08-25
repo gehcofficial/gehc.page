@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,19 +10,27 @@ import { Navbar } from './components/layout/Navbar';
 import { HeroSection } from './components/public/HeroSection';
 import { MarqueeStrip } from './components/public/MarqueeStrip';
 import { VisualCollage } from './components/public/VisualCollage';
-import { ManifestoSection } from './components/public/ManifestoSection';
-import { EcosystemPillars } from './components/public/EcosystemPillars';
+import { AboutSection } from './components/public/AboutSection';
+import { RegenerationFlowSection } from './components/public/RegenerationFlowSection';
+import { GroupsCarousel } from './components/public/GroupsCarousel';
+import { PantatugasShowcase } from './components/public/PantatugasShowcase';
+import { EventsTimeline } from './components/public/EventsTimeline';
 import { WeeklyInfoSection } from './components/public/WeeklyInfoSection';
-import { ActivitiesSection } from './components/public/ActivitiesSection';
-import { GroupsSection } from './components/public/GroupsSection';
-import { StrukturSection } from './components/public/StrukturSection';
+import { GroupDetailPage } from './components/public/GroupDetailPage';
+import { JoinPage } from './components/public/JoinPage';
+import { PortalLogin } from './components/portal/PortalLogin';
+import { PendingPortal } from './components/portal/PendingPortal';
+import { KomisiSection } from './components/public/KomisiSection';
+import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
 import { PortalLayout } from './components/portal/PortalLayout';
 
 const MainAppContent: React.FC = () => {
-  const { activeView, publicTab } = useApp();
+  const { activeView, publicTab, demoMode, authUser } = useApp();
 
   if (activeView === 'portal') {
+    // Belum masuk & bukan mode demo → layar login portal (cached accounts)
+    if (!authUser && !demoMode) return <PortalLogin />;
     return <PortalLayout />;
   }
 
@@ -31,26 +39,37 @@ const MainAppContent: React.FC = () => {
       {/* Navbar with Tenant & Role Switcher */}
       <Navbar />
 
-      {/* Public Pages View Router */}
+      {/* Public Pages View Router (hash: #/beyonders · #/leaders · #/events · #/bulletin) */}
       <main className="flex-grow">
-        {publicTab === 'home' && (
+        {publicTab === 'group-detail' && <GroupDetailPage />}
+        {publicTab === 'join' && <JoinPage />}
+
+        {publicTab === 'beyonders' && (
           <>
             <HeroSection />
             <MarqueeStrip />
+            <GroupsCarousel />
+            <RegenerationFlowSection />
             <VisualCollage />
-            <ManifestoSection />
-            <WeeklyInfoSection />
-            <EcosystemPillars />
           </>
         )}
 
-        {publicTab === 'weekly-info' && <WeeklyInfoSection />}
+        {publicTab === 'leaders' && (
+          <>
+            <AboutSection />
+            <PantatugasShowcase />
+            <KomisiSection />
+          </>
+        )}
 
-        {publicTab === 'activity' && <ActivitiesSection />}
+        {publicTab === 'events' && (
+          <>
+            <EventsTimeline condensed={false} showHeader={false} />
+            <MediaGallery />
+          </>
+        )}
 
-        {publicTab === 'groups' && <GroupsSection />}
-
-        {publicTab === 'struktur' && <StrukturSection />}
+        {publicTab === 'bulletin' && <WeeklyInfoSection />}
       </main>
 
       {/* Editorial Dark Curved Footer */}

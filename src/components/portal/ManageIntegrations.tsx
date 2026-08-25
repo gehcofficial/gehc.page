@@ -11,7 +11,163 @@ import {
   Shield,
   ExternalLink,
   Settings2,
+  GitCompareArrows,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
+
+interface AuditResult {
+  generatedAt: string;
+  totalFoldersScanned: number;
+  groups: { items: { name: string; ok: boolean; hint: string }[]; missing: number };
+  pillars: { items: { pillar: string; name: string; ok: boolean }[]; missing: number };
+  extraGroupFolders: string[];
+  untaggedFolders: string[];
+}
+
+/** Panel audit: folder Drive vs entitas DB (grup & subdivisi pantatugas). */
+const DriveAuditPanel: React.FC = () => {
+  const [audit, setAudit] = useState<AuditResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const runAudit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/drive/audit', { credentials: 'include' });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error((b as { error?: string }).error || `HTTP ${res.status}`);
+      }
+      setAudit(await res.json());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-[32px] border border-[#D9D7D0]/50 shadow-sm p-6 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
+            <GitCompareArrows className="w-3.5 h-3.5 text-[#FF416C]" />
+            <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
+              Audit Sinkronisasi
+            </span>
+          </div>
+          <h3 className="text-xl font-bold text-[#1B1B1B]">Struktur TiDB ↔ Folder Google Drive</h3>
+          <p className="text-xs text-[#8C8880] mt-1 max-w-2xl leading-relaxed">
+            Membandingkan grup aktif & sub-divisi pantatugas di database dengan folder aktual di
+            Drive. Buat folder yang ditandai HILANG langsung di Google Drive, lalu jalankan audit ulang.
+          </p>
+        </div>
+        <button
+          onClick={runAudit}
+          disabled={busy}
+          className="px-4 py-2.5 rounded-full bg-[#181818] text-white text-xs font-bold flex items-center gap-2 disabled:opacity-50 shrink-0 self-start"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+          Jalankan Audit
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold">
+          {error}
+        </div>
+      )}
+
+      {audit && (
+        <div className="space-y-5 mt-2">
+          <p className="text-[11px] text-[#8C8880]">
+            Dipindai {audit.totalFoldersScanned} folder • {new Date(audit.generatedAt).toLocaleString('id-ID')}
+          </p>
+
+          {/* Grup */}
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-[#1B1B1B] mb-2 flex items-center gap-2">
+              Kelompok Mentoring
+              {audit.groups.missing > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">{audit.groups.missing} hilang</span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">lengkap</span>
+              )}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {audit.groups.items.map((g) => (
+                <div
+                  key={g.name}
+                  className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border ${
+                    g.ok ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'
+                  }`}
+                  title={g.ok ? 'Folder ditemukan' : `Buat folder: ${g.hint}`}
+                >
+                  {g.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="truncate">{g.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Subdivisi */}
+          {audit.pillars.items.length > 0 && (
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-[#1B1B1B] mb-2 flex items-center gap-2">
+                Sub-Divisi Pantatugas
+                {audit.pillars.missing > 0 ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">{audit.pillars.missing} hilang</span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">lengkap</span>
+                )}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {audit.pillars.items.map((p) => (
+                  <div
+                    key={`${p.pillar}-${p.name}`}
+                    className={`flex items-center gap-2 text-[11px] font-semibold px-3 py-2 rounded-xl border ${
+                      p.ok ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'
+                    }`}
+                  >
+                    {p.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                    <span className="uppercase text-[9px] opacity-70">{p.pillar}</span>
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(audit.extraGroupFolders.length > 0 || audit.untaggedFolders.length > 0) && (
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 space-y-2">
+              {audit.extraGroupFolders.length > 0 && (
+                <p className="text-[11px] text-amber-800 font-semibold flex items-start gap-2">
+                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  Folder [GROUP:] tidak dikenali database (periksa ejaan): {audit.extraGroupFolders.join(', ')}
+                </p>
+              )}
+              {audit.untaggedFolders.length > 0 && (
+                <p className="text-[11px] text-amber-800 font-semibold flex items-start gap-2">
+                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  Folder tanpa tag zona — tidak dapat diakses siapa pun hingga diberi tag:
+                  {' '}{audit.untaggedFolders.join(', ')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!audit && !error && (
+        <p className="text-xs text-[#8C8880]">
+          Belum ada audit berjalan. Panduan penamaan folder: lihat <code>drive-integration.md</code>.
+        </p>
+      )}
+    </div>
+  );
+};
 
 export const ManageIntegrations: React.FC = () => {
   const { isSuperAdmin, currentRole, integrationConfig, updateIntegrationConfig, addToast } =
@@ -203,6 +359,9 @@ export const ManageIntegrations: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* Audit Sinkronisasi TiDB ↔ Drive + Matriks Akses */}
+      <DriveAuditPanel />
 
     </div>
   );
