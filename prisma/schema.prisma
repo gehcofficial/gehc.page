@@ -1,0 +1,326 @@
+// GEHC Youth Ecosystem — Prisma schema untuk TiDB Cloud (MySQL-compatible)
+// Referensi: https://www.prisma.io/docs/orm/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id          String   @id @db.VarChar(64)
+  name        String   @db.VarChar(150)
+  slug        String   @unique @db.VarChar(80)
+  domain      String?  @db.VarChar(150)
+  description String?  @db.Text
+  isActive    Boolean  @default(false) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  users  UserRole[]
+  groups Group[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @db.VarChar(64)
+  email     String   @unique @db.VarChar(190)
+  name      String   @db.VarChar(150)
+  avatar    String?  @db.Text
+  phone     String?  @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  // Profil lanjutan (join flow / waitlist promote)
+  address       String? @db.Text
+  origin        String? @map("origin") @db.VarChar(190)
+  giftsTop5     Json?   @map("gifts_top5")
+  giftsScores   Json?   @map("gifts_scores")
+  talents       Json?
+  accountStatus String  @default("ACTIVE") @map("account_status") // ACTIVE | PENDING
+
+  // Auth lokal (opsi selain Google SSO)
+  passwordHash String? @map("password_hash") @db.Text
+  authProvider String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
+
+  roles           UserRole[]
+  monitoring      MonitoringRecord[]
+  groupMembers    GroupMember[]
+  attendanceTaken AttendanceRecord[] @relation("AttendanceRecorder")
+
+  @@map("users")
+}
+
+/// Kode undangan: link personal sekali-pakai atau link tim multi-use.
+model InviteCode {
+  code        String    @id @db.VarChar(16)
+  type        String    @default("SINGLE") // SINGLE | TEAM
+  defaultRole Role      @default(MENTEE)
+  maxUses     Int       @default(1)
+  uses        Int       @default(0)
+  expiresAt   DateTime? @map("expires_at")
+  createdBy   String?   @map("created_by") @db.VarChar(190)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@map("invite_codes")
+}
+
+/// Waitlist newcomer (cth. BAKU TAU) — dua tahap: daftar cepat → profil lengkap.
+model WaitlistEntry {
+  id              String   @id @db.VarChar(64)
+  name            String   @db.VarChar(150)
+  phone           String   @db.VarChar(40)
+  email           String?  @db.VarChar(190)
+  origin          String?  @map("origin") @db.VarChar(190)
+  address         String?  @db.Text
+  giftsTop5       Json?    @map("gifts_top5")
+  giftsScores     Json?    @map("gifts_scores")
+  talents         Json?
+  notes           String?  @db.Text
+  status          String   @default("WAITLISTED") // WAITLISTED | PROFILED | ASSIGNED
+  sourceEventId   String?  @map("source_event_id") @db.VarChar(64)
+  assignedGroupId String?  @map("assigned_group_id") @db.VarChar(64)
+  promoteToken    String   @unique @map("promote_token") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([status])
+  @@map("waitlist_entries")
+}
+
+model UserRole {
+  id       BigInt  @id @default(autoincrement())
+  userId   String  @map("user_id") @db.VarChar(64)
+  tenantId String  @map("tenant_id") @db.VarChar(64)
+  role     Role
+  groupId  String? @map("group_id") @db.VarChar(64)
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Multi-role: satu orang boleh rangkap jabatan (mis. KOMISI + MENTOR).
+  // "Effective role" ditentukan aplikasi via precedensi (src/lib/roles.ts).
+  @@index([userId, tenantId])
+  @@index([groupId])
+  @@map("user_roles")
+}
+
+enum Role {
+  SUPERADMIN
+  BPMJ
+  KOMISI
+  COMMITTEE
+  MENTOR
+  CO_MENTOR
+  MENTEE
+  ALUMNI
+}
+
+model Group {
+  id              String      @id @db.VarChar(64)
+  tenantId        String      @map("tenant_id") @db.VarChar(64)
+  name            String      @db.VarChar(100)
+  meaning         String?     @db.VarChar(255)
+  scripture       String?     @db.Text
+  meetingSchedule String?     @map("meeting_schedule") @db.VarChar(150)
+  meetingLocation String?     @map("meeting_location") @db.VarChar(255)
+  color           String?     @db.VarChar(20)
+  icon            String?     @db.VarChar(60)
+  description     String?     @db.Text
+  memberCount     Int         @default(0) @map("member_count")
+  parentGroupId   String?     @map("parent_group_id") @db.VarChar(64)
+  foundedPeriod   String?     @map("founded_period") @db.VarChar(10)
+  status          GroupStatus @default(ACTIVE)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  batches    GroupBatch[]
+  members    GroupMember[]
+  parent     Group?             @relation("GroupLineage", fields: [parentGroupId], references: [id])
+  children   Group[]            @relation("GroupLineage")
+  attendance AttendanceRecord[]
+
+  @@index([tenantId])
+  @@index([parentGroupId])
+  @@map("groups")
+}
+
+enum GroupStatus {
+  ACTIVE
+  DORMANT
+  MERGED
+  ARCHIVED
+}
+
+/// Family tree per batch / regenerasi (sumber: Retreat Attendance GEHC YOUTH 2026.xlsx)
+model GroupBatch {
+  id           String   @id @db.VarChar(64)
+  groupId      String   @map("group_id") @db.VarChar(64)
+  period       String   @db.VarChar(10) // "2026"
+  batchLabel   String?  @map("batch_label") @db.VarChar(190)
+  mentorName   String   @map("mentor_name") @db.VarChar(150)
+  comentorName String?  @map("comentor_name") @db.VarChar(150)
+  theme        String?  @db.VarChar(255)
+  isCurrent    Boolean  @default(false) @map("is_current")
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@unique([groupId, period])
+  @@index([groupId, period])
+  @@map("group_batches")
+}
+
+model GroupMember {
+  id             String       @id @db.VarChar(64)
+  groupId        String       @map("group_id") @db.VarChar(64)
+  batchPeriod    String?      @map("batch_period") @db.VarChar(10)
+  userId         String?      @map("user_id") @db.VarChar(64)
+  name           String       @db.VarChar(150)
+  email          String?      @db.VarChar(190)
+  phone          String?      @db.VarChar(40)
+  familyRole     FamilyRole   @default(MENTEE) @map("family_role")
+  status         MemberStatus @default(ACTIVE)
+  joinedDate     DateTime?    @map("joined_date") @db.Date
+  alumniDate     DateTime?    @map("alumni_date") @db.Date
+  alumniNote     String?      @map("alumni_note") @db.VarChar(255)
+  attendanceRate Int          @default(0) @map("attendance_rate")
+  notes          String?      @db.Text
+
+  group      Group              @relation(fields: [groupId], references: [id])
+  user       User?              @relation(fields: [userId], references: [id])
+  attendance AttendanceRecord[]
+
+  @@index([groupId])
+  @@index([groupId, batchPeriod])
+  @@index([userId])
+  @@map("group_members")
+}
+
+enum FamilyRole {
+  MENTOR
+  COMENTOR
+  MENTEE
+}
+
+enum MemberStatus {
+  ACTIVE
+  ALUMNI
+}
+
+model MonitoringRecord {
+  id        String   @id @db.VarChar(64)
+  groupId   String   @map("group_id") @db.VarChar(64)
+  mentorId  String?  @map("mentor_id") @db.VarChar(64)
+  date      DateTime @db.Date
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  mentor User? @relation(fields: [mentorId], references: [id])
+
+  @@index([groupId, date])
+  @@map("monitoring_records")
+}
+
+model ContentItem {
+  id            String      @id @db.VarChar(64)
+  tenantId      String      @map("tenant_id") @db.VarChar(64)
+  type          ContentType
+  title         String      @db.VarChar(255)
+  subtitle      String?     @db.VarChar(255)
+  body          String?     @db.MediumText
+  category      String?     @db.VarChar(100)
+  publishedAt   DateTime?   @map("published_at") @db.Date
+  eventDate     DateTime?   @map("event_date") @db.Date
+  locationDetail String?    @map("location_detail") @db.VarChar(190)
+  isFeaturedEvent Boolean   @default(false) @map("is_featured_event")
+  isPublished   Boolean     @default(true) @map("is_published")
+  author        String?     @db.VarChar(150)
+  bannerUrl     String?     @map("banner_url") @db.Text
+  pdfUrl        String?     @map("pdf_url") @db.Text
+  tags          Json?
+  driveFolderId String?     @map("drive_folder_id") @db.VarChar(64)
+
+  @@index([tenantId, type, publishedAt])
+  @@map("content_items")
+}
+
+enum ContentType {
+  WEEKLY_INFO
+  ACTIVITY
+}
+
+model StrukturMember {
+  id          String  @id @db.VarChar(64)
+  name        String  @db.VarChar(150)
+  position    String? @db.VarChar(190)
+  division    String? @db.VarChar(150)
+  subdivision String? @map("subdivision") @db.VarChar(100)
+  period      String? @db.VarChar(60)
+  photoUrl    String? @map("photo_url") @db.Text
+  bio         String? @db.Text
+  phone       String? @db.VarChar(40)
+  email       String? @db.VarChar(190)
+  sortOrder   Int     @default(0) @map("sort_order")
+  isOpenRole  Boolean @default(false) @map("is_open_role")
+
+  @@index([division])
+  @@map("struktur_members")
+}
+
+/// Absensi per anggota per pertemuan — sumber aturan idle 4 minggu (Parameter 3)
+model AttendanceRecord {
+  id            String           @id @db.VarChar(64)
+  groupId       String           @map("group_id") @db.VarChar(64)
+  groupMemberId String           @map("group_member_id") @db.VarChar(64)
+  date          DateTime         @db.Date
+  status        AttendanceStatus @default(HADIR)
+  note          String?          @db.VarChar(255)
+  recordedById  String?          @map("recorded_by_id") @db.VarChar(64)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+
+  group    Group       @relation(fields: [groupId], references: [id])
+  member   GroupMember @relation(fields: [groupMemberId], references: [id])
+  recorder User?       @relation("AttendanceRecorder", fields: [recordedById], references: [id])
+
+  @@unique([groupMemberId, date])
+  @@index([groupId, date])
+  @@map("attendance_records")
+}
+
+enum AttendanceStatus {
+  HADIR
+  IZIN
+  SAKIT
+  TANPA_KABAR
+}
+
+/// Auto-flag idle, alert mitosis, saran merger — dasbor Komisi ("Jethro" engine)
+model Notification {
+  id         String             @id @db.VarChar(64)
+  type       NotificationType
+  groupId    String?            @map("group_id") @db.VarChar(64)
+  memberId   String?            @map("member_id") @db.VarChar(64)
+  title      String             @db.VarChar(190)
+  message    String?            @db.Text
+  payload    Json?
+  status     NotificationStatus @default(OPEN)
+  createdAt  DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  resolvedAt DateTime?          @map("resolved_at") @db.DateTime(3)
+
+  @@index([type, status])
+  @@index([groupId])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  IDLE_FLAG
+  MITOSIS_ALERT
+  MERGER_SUGGESTION
+}
+
+enum NotificationStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
