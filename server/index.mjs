@@ -1259,22 +1259,29 @@ if (serveFrontend && process.env.NODE_ENV !== 'production') {
   app.use(viteDev.middlewares);
 }
 
-app.listen(PORT, () => {
-  const mode = process.env.NODE_ENV === 'production'
-    ? 'produksi (dist/)'
-    : viteDev
-      ? 'development (Vite middleware — hot-reload aktif)'
-      : 'API-only';
-  console.log(`GEHC server berjalan di http://localhost:${PORT} [${mode}]`);
-  console.log(`Google Drive mode: ${getDriveMode() ?? 'BELUM DIKONFIGURASI'}`);
-  console.log(`TiDB Cloud: ${isDbConfigured() ? 'terkonfigurasi' : 'belum dikonfigurasi'}`);
+// Di Vercel serverless: jangan listen — app diekspor via api/index.mjs.
+// Di lokal (npm run dev / npm run server): jalankan HTTP listener seperti biasa.
+if (!process.env.VERCEL) {
+  // eslint-disable-next-line no-inner-declarations
+  app.listen(PORT, () => {
+    const mode = process.env.NODE_ENV === 'production'
+      ? 'produksi (dist/)'
+      : viteDev
+        ? 'development (Vite middleware — hot-reload aktif)'
+        : 'API-only';
+    console.log(`GEHC server berjalan di http://localhost:${PORT} [${mode}]`);
+    console.log(`Google Drive mode: ${getDriveMode() ?? 'BELUM DIKONFIGURASI'}`);
+    console.log(`TiDB Cloud: ${isDbConfigured() ? 'terkonfigurasi' : 'belum dikonfigurasi'}`);
 
-  // Peringatan dini untuk developer — agar login/daftar Google tidak "diam" tanpa penjelasan
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    console.warn('⚠️  GOOGLE_CLIENT_ID belum diisi — Login/Daftar via Google NONAKTIF.');
-    console.warn('    Panduan: drive-integration.md §8 (Setup Google Auth).');
-  }
-  if (!process.env.SUPERADMIN_EMAILS) {
-    console.warn('ℹ️  SUPERADMIN_EMAILS kosong — tidak ada email yang otomatis menjadi SUPERADMIN saat login pertama.');
-  }
-});
+    // Peringatan dini untuk developer — agar login/daftar Google tidak "diam" tanpa penjelasan
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.warn('⚠️  GOOGLE_CLIENT_ID belum diisi — Login/Daftar via Google NONAKTIF.');
+      console.warn('    Panduan: drive-integration.md §8 (Setup Google Auth).');
+    }
+    if (!process.env.SUPERADMIN_EMAILS) {
+      console.warn('ℹ️  SUPERADMIN_EMAILS kosong — tidak ada email yang otomatis menjadi SUPERADMIN saat login pertama.');
+    }
+  });
+}
+
+export default app;

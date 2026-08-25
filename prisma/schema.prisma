@@ -2,7 +2,9 @@
 // Referensi: https://www.prisma.io/docs/orm/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // native = lokal dev; rhel-openssl-3.0.x = runtime Amazon Linux (Vercel serverless)
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
