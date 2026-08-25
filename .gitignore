@@ -7,6 +7,10 @@ coverage/
 .env*
 !.env.example
 
+# Kredensial Google Service Account — JANGAN pernah commit
+gehc-*.json
+*service-account*.json
+
 # Playwright
 /test-results/
 /playwright-report/
