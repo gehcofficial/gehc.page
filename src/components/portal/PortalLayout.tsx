@@ -7,6 +7,7 @@ import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageUsersRBAC } from './ManageUsersRBAC';
 import { ManageIntegrations } from './ManageIntegrations';
+import { MediaGuidePanel } from './MediaGuidePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
@@ -30,6 +31,7 @@ import {
   Sparkles,
   UsersRound,
   ClipboardList,
+  Images,
 } from 'lucide-react';
 
 export const PortalLayout: React.FC = () => {
@@ -101,6 +103,13 @@ export const PortalLayout: React.FC = () => {
       label: 'Kelola Agenda Kegiatan',
       icon: Calendar,
       roles: ['SUPERADMIN', 'COMMITTEE'],
+      group: 'Konten',
+    },
+    {
+      id: 'media-guide',
+      label: 'Panduan Media (Drive)',
+      icon: Images,
+      roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'],
       group: 'Konten',
     },
     {
@@ -314,6 +323,7 @@ export const PortalLayout: React.FC = () => {
         {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
         {activeTab === 'content-activities' && <ManageActivities />}
+        {activeTab === 'media-guide' && <MediaGuidePanel />}
         {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
         {activeTab === 'jethro' && <JethroEngine />}
         {activeTab === 'people' && <PeopleInvites />}

@@ -21,5 +21,11 @@ if (!url) {
 }
 console.log(`> deployment : ${url}`);
 console.log(`> alias → https://${ALIAS} …`);
-run(`vercel alias set ${url} ${ALIAS} --scope ${SCOPE}`);
+try {
+  run(`vercel alias set ${url} ${ALIAS} --scope ${SCOPE}`);
+} catch (e) {
+  // Retry sekali — kadang transient (network / token refresh)
+  console.warn('  percobaan pertama gagal, mengulang…');
+  run(`vercel alias set ${url} ${ALIAS} --scope ${SCOPE}`);
+}
 console.log(`\n✓ Staging siap : https://${ALIAS}`);
