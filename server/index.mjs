@@ -632,17 +632,25 @@ app.get('/api/events', wrap(async (req, res) => {
         })) : [],
       }));
     } catch (sqlErr) {
-      return res.status(500).json({ error: `Event query gagal: ${String(sqlErr.message || sqlErr).slice(0, 200)}` });
+      // Tabel belum ada → return empty (bukan error)
+      const msg = String(sqlErr.message || sqlErr);
+      if (msg.includes("doesn't exist") || msg.includes('does not exist') || msg.includes('Table') || msg.includes('Undefined table')) {
+        return res.json({ events: [] });
+      }
+      return res.status(500).json({ error: `Event query gagal: ${msg.slice(0, 200)}` });
     }
   }
 
   // Filter berdasarkan role
   const roles = (req.authUser?.roles || []).map((r) => r.role);
   const isKomsaOrBod = roles.includes('SUPERADMIN') || roles.includes('KOMISI');
-  const isBodTimkerja = roles.includes('COMMITTEE') && await (async () => {
-    const sm = await prisma.strukturMember.findFirst({ where: { email: req.authUser?.email || '' } });
-    return !(sm?.division) || sm.division.toUpperCase() === 'TIMKERJA';
-  })();
+  let isBodTimkerja = false;
+  try {
+    isBodTimkerja = roles.includes('COMMITTEE') && await (async () => {
+      const sm = await prisma.strukturMember.findFirst({ where: { email: req.authUser?.email || '' } });
+      return !(sm?.division) || sm.division.toUpperCase() === 'TIMKERJA';
+    })();
+  } catch { /* strukturMember query failed, skip */ }
 
   if (isKomsaOrBod || isBodTimkerja) {
     return res.json({ events });
@@ -650,14 +658,16 @@ app.get('/api/events', wrap(async (req, res) => {
 
   // Filter: hanya event yang punya division yang bisa diakses user
   const accessible = [];
-  for (const ev of events) {
-    for (const d of ev.divisions) {
-      if (await canSeeEventDivision(req.authUser, d.division)) {
-        accessible.push(ev);
-        break;
+  try {
+    for (const ev of events) {
+      for (const d of ev.divisions) {
+        if (await canSeeEventDivision(req.authUser, d.division)) {
+          accessible.push(ev);
+          break;
+        }
       }
     }
-  }
+  } catch { /* canSeeEventDivision failed, return empty */ }
   res.json({ events: accessible });
 }));
 
@@ -758,7 +768,11 @@ app.get('/api/events/:id', wrap(async (req, res) => {
         })),
       };
     } catch (sqlErr) {
-      return res.status(500).json({ error: `Event detail gagal: ${String(sqlErr.message || sqlErr).slice(0, 200)}` });
+      const msg = String(sqlErr.message || sqlErr);
+      if (msg.includes("doesn't exist") || msg.includes('does not exist') || msg.includes('Table') || msg.includes('Undefined table')) {
+        return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      }
+      return res.status(500).json({ error: `Event detail gagal: ${msg.slice(0, 200)}` });
     }
   }
   if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
