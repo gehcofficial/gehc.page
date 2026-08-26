@@ -436,6 +436,40 @@ app.post('/api/db/sync-batches', wrap(async (req, res) => {
   res.json({ synced });
 }));
 
+// ---------- Event Workspace Migration (ad hoc) ----------
+app.post('/api/migrate/events', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL tidak tersedia.' });
+
+  // Jalankan perintah DDL per baris — aman untuk tabel baru.
+  const ddl = [
+    "CREATE TABLE IF NOT EXISTS `EventProgram` (`id` VARCHAR(64) NOT NULL,`tenant_id` VARCHAR(16) NOT NULL,`slug` VARCHAR(60) NOT NULL,`name` VARCHAR(160) NOT NULL,`description` TEXT NULL,`status` VARCHAR(16) NOT NULL DEFAULT 'PLANNING',`start_date` DATETIME(3) NULL,`end_date` DATETIME(3) NULL,`drive_folder_id` VARCHAR(128) NULL,`gmeet_link` VARCHAR(512) NULL,`created_by_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, UNIQUE INDEX `EventProgram_slug_key`(`slug`), INDEX `EventProgram_tenant_id_idx`(`tenant_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `EventDivision` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`division` VARCHAR(24) NOT NULL,`drive_folder_id` VARCHAR(128) NULL,`extra_user_ids` JSON NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), UNIQUE INDEX `EventDivision_event_id_division_key`(`event_id`, `division`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `EventMeeting` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`division` VARCHAR(24) NULL,`title` VARCHAR(200) NOT NULL,`scheduled_at` DATETIME(3) NOT NULL,`gmeet_link` VARCHAR(512) NULL,`notes` TEXT NULL,`created_by_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `EventMeeting_event_id_idx`(`event_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `EventUpdate` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`author_id` VARCHAR(64) NOT NULL,`body` TEXT NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `EventUpdate_event_division_id_idx`(`event_division_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "ALTER TABLE `EventDivision` ADD CONSTRAINT `EventDivision_event_id_fkey` FOREIGN KEY (`event_id`) REFERENCES `EventProgram`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    "ALTER TABLE `EventMeeting` ADD CONSTRAINT `EventMeeting_event_id_fkey` FOREIGN KEY (`event_id`) REFERENCES `EventProgram`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    "ALTER TABLE `EventUpdate` ADD CONSTRAINT `EventUpdate_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+  ];
+
+  let applied = 0;
+  const errors = [];
+  for (const stmt of ddl) {
+    try {
+      await prisma.$executeRawUnsafe(stmt);
+      applied++;
+    } catch (e) {
+      // Tabel/index sudah ada → skip
+      if (!String(e.message || '').includes('already exists')) {
+        errors.push({ stmt: stmt.slice(0, 80) + '...', error: String(e.message || e).slice(0, 120) });
+      } else {
+        applied++;
+      }
+    }
+  }
+  res.json({ applied, errors, total: ddl.length });
+}));
+
 // ---------- Absensi (Parameter 3) ----------
 // Mentor/Co-Mentor hanya boleh untuk grup binaannya; L1/L3/L4 bebas.
 app.post('/api/db/attendance', wrap(async (req, res) => {

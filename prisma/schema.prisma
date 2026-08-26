@@ -297,6 +297,67 @@ enum AttendanceStatus {
   TANPA_KABAR
 }
 
+model EventProgram {
+  id            String   @id @db.VarChar(64)
+  tenantId      String   @map("tenant_id") @db.VarChar(16)
+  slug          String   @unique @db.VarChar(60)   // untuk tag Drive [EV:<slug>:<DIV>]
+  name          String   @db.VarChar(160)
+  description   String?  @db.Text
+  status        String   @default("PLANNING") @db.VarChar(16) // PLANNING|ACTIVE|DONE|ARCHIVED
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
+  driveFolderId String?  @map("drive_folder_id") @db.VarChar(128)
+  gmeetLink     String?  @map("gmeet_link") @db.VarChar(512)
+  createdById   String   @map("created_by_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  divisions     EventDivision[]
+  meetings      EventMeeting[]
+  @@index([tenantId])
+}
+
+model EventDivision {
+  id            String   @id @db.VarChar(64)
+  eventId       String   @map("event_id") @db.VarChar(64)
+  division      String   @db.VarChar(24)   // LITURGIA…MARTURIA | BENZARPR | KOMISI | TIMKERJA
+  driveFolderId String?  @map("drive_folder_id") @db.VarChar(128)
+  extraUserIds  Json?    @map("extra_user_ids")   // [{userId}] manual
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  event   EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  updates EventUpdate[]
+
+  @@unique([eventId, division])
+}
+
+model EventMeeting {
+  id          String   @id @db.VarChar(64)
+  eventId     String   @map("event_id") @db.VarChar(64)
+  division    String?  @db.VarChar(24)      // null = rapat gabungan
+  title       String   @db.VarChar(200)
+  scheduledAt DateTime @map("scheduled_at")
+  gmeetLink   String?  @map("gmeet_link") @db.VarChar(512)
+  notes       String?  @db.Text
+  createdById String   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  event EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model EventUpdate {
+  id              String   @id @db.VarChar(64)
+  eventDivisionId String   @map("event_division_id") @db.VarChar(64)
+  authorId        String   @map("author_id") @db.VarChar(64)
+  body            String   @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
+
+  @@index([eventDivisionId])
+}
+
 /// Auto-flag idle, alert mitosis, saran merger — dasbor Komisi ("Jethro" engine)
 model Notification {
   id         String             @id @db.VarChar(64)
