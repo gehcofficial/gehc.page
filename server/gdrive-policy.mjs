@@ -106,6 +106,15 @@ async function zoneAllows(tag, authUser) {
 
   if (zoneKey === 'PUBLIK') return { allowed: true, reason: 'zona publik' };
 
+  // Galeri grup = publik read-only (keputusan pemilik): foto kegiatan tiap
+  // kelompok tampil di halaman detail grup untuk semua pengunjung web.
+  // Login tetap diperlukan untuk operasi selain baca (masa depan).
+  if (isGuest && zoneKey === 'GROUP') {
+    return groupName
+      ? { allowed: true, reason: 'galeri grup publik (read-only)' }
+      : { allowed: false, reason: 'tag GROUP tidak lengkap' };
+  }
+
   if (isGuest) return { allowed: false, reason: 'perlu login untuk konten ini' };
 
   if (zoneKey === 'GROUP') {

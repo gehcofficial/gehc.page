@@ -80,7 +80,7 @@ Aturan penting:
 | `[KOMISI]` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
 | `[BPMJ]` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 | `[ALUMNI]` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✓ |
-| `[GROUP:<grp>]` | ✗ | grp sendiri | grp binaan | ✓ | ✓ | ✗ | ✗ |
+| `[GROUP:<grp>]` | ✓ (read-only galeri) | grp sendiri | grp binaan | ✓ | ✓ | ✗ | ✗ |
 
 SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 

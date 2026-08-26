@@ -27,14 +27,15 @@ export const GroupDetailPage: React.FC = () => {
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
 
   // Galeri grup — foto dari folder [GROUP:<NAMA>] di Google Drive.
-  // Akses mengikuti matriks zona (server-side): tamu tidak dilayani.
+  // Publik read-only: semua pengunjung dapat melihat (keputusan pemilik);
+  // server tetap menegakkan 403 bila suatu saat kebijakan berubah.
   const [gallery, setGallery] = useState<DriveMediaItem[] | null>(null);
   const [galleryState, setGalleryState] = useState<'loading' | 'ready' | 'restricted' | 'empty'>(
-    authUser ? 'loading' : 'restricted'
+    'loading'
   );
 
   useEffect(() => {
-    if (!selectedGroupId || !authUser) return;
+    if (!selectedGroupId) return;
     let cancelled = false;
     setGalleryState('loading');
     (async () => {
@@ -65,7 +66,7 @@ export const GroupDetailPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedGroupId, authUser?.id, groups]);
+  }, [selectedGroupId, groups]);
 
   const group = groups.find((g) => g.id === selectedGroupId);
 

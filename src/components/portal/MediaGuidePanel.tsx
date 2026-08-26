@@ -160,7 +160,7 @@ export const MediaGuidePanel: React.FC = () => {
                 ['Event Gallery [PUBLIK]', 'Semua pengunjung web (tanpa login)'],
                 ['Warta Publik [PUBLIK]', 'Semua pengunjung web'],
                 ['Ruang Anggota [MENTEE]', 'Hanya yang login'],
-                ['Kelompok Mentoring [MENTOR]', 'Mentor/co-mentor grup terkait'],
+                ['Kelompok Mentoring [MENTOR]', 'Semua pengunjung web — galeri grup publik'],
                 ['Laporan Internal [KOMISI]', 'Komisi & Superadmin saja'],
               ].map(([f, w]) => (
                 <tr key={f} className="border-t border-[#D9D7D0]/40">
