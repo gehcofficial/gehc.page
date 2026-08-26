@@ -12,7 +12,15 @@ function run(cmd) {
 }
 
 console.log('> vercel deploy (preview)…');
-const out = run('vercel');
+let out = '';
+for (let attempt = 1; attempt <= 2 && !out; attempt++) {
+  try {
+    out = run('vercel.cmd deploy');
+  } catch (e) {
+    console.warn(`  percobaan ${attempt} gagal:`, e.message?.slice(0, 120));
+  }
+}
+if (!out) process.exit(1);
 const urls = [...out.matchAll(/https:\/\/[a-z0-9-]+\.vercel\.app/g)].map((m) => m[0]);
 const url = urls[urls.length - 1];
 if (!url) {
