@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
-import { resolveAccess, matrixForUser } from './gdrive-policy.mjs';
+import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb } from './db.mjs';
 import {
   attachUser,
@@ -195,6 +195,39 @@ app.get('/api/drive/files', wrap(async (req, res) => {
       pageSize: Number(req.query.pageSize || 24),
     });
     res.json({ files });
+  } catch (err) {
+    res.status(502).json({ error: `Gagal membaca Drive: ${err.message}` });
+  }
+}));
+
+// Galeri grup publik — kurasi khusus: tamu tidak perlu menelusuri parent
+// [MENTOR]; policy dievaluasi pada folder tujuan (tag GROUP terdekat menang).
+app.get('/api/drive/group-files/:groupName', wrap(async (req, res) => {
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+  const groupName = String(req.params.groupName || '').trim();
+  if (!groupName) return res.status(400).json({ error: 'Nama grup wajib diisi.' });
+  try {
+    // 1) Folder kontainer "Kelompok Mentoring [MENTOR]" di root.
+    const rootFolders = await listFolders();
+    const container = rootFolders.find((f) => /^kelompok mentoring/i.test(f.name));
+    if (!container) return res.status(404).json({ error: 'Folder Kelompok Mentoring tidak ditemukan.' });
+
+    // 2) Folder grup: tag [GROUP:<NAMA>] atau nama mengandung [nama].
+    const kids = await listFolders(container.id);
+    const target = kids.find(
+      (k) =>
+        (parseTag(k.name) || '').toUpperCase() === `GROUP:${groupName.toUpperCase()}` ||
+        k.name.toLowerCase().includes(`[${groupName.toLowerCase()}]`)
+    );
+    if (!target) return res.status(404).json({ error: `Folder galeri untuk grup "${groupName}" belum dibuat.` });
+
+    // 3) Policy pada folder tujuan — nearest tag wins, GROUP mengizinkan tamu baca.
+    const chain = await getFolderChain(target.id);
+    const verdict = await resolveAccess(chain, req.authUser);
+    if (!verdict.allowed) return res.status(403).json({ error: verdict.reason });
+
+    const files = await listFiles({ folderId: target.id, pageSize: 24 });
+    res.json({ folder: { id: target.id, name: target.name }, files });
   } catch (err) {
     res.status(502).json({ error: `Gagal membaca Drive: ${err.message}` });
   }

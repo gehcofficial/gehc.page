@@ -40,27 +40,23 @@ export const GroupDetailPage: React.FC = () => {
     setGalleryState('loading');
     (async () => {
       try {
-        const fs = await fetchDriveFolders();
-        if (cancelled) return;
         const groupName = groups.find((g) => g.id === selectedGroupId)?.name || '';
-        const folder = fs.find(
-          (f) =>
-            f.zoneTag?.toUpperCase() === `GROUP:${groupName}`.toUpperCase() ||
-            f.name.toLowerCase().startsWith(`[${groupName.toLowerCase()}]`) ||
-            f.name.toLowerCase().includes(`[${groupName.toLowerCase()}]`)
+        // Endpoint kurasi: server menemukan folder [GROUP:x] secara internal
+        // (tamu tak perlu traversal parent [MENTOR]) + policy tetap server-side.
+        const r = await fetch(
+          `/api/drive/group-files/${encodeURIComponent(groupName)}`,
+          { credentials: 'include' }
         );
-        if (!folder || folder.accessAllowed === false) {
-          setGalleryState('restricted');
+        if (cancelled) return;
+        if (!r.ok) {
+          setGalleryState(r.status === 403 ? 'restricted' : 'empty');
           return;
         }
-        const items = await fetchDriveFiles({ folderId: folder.id, pageSize: 24 });
-        if (cancelled) return;
-        setGallery(items);
-        setGalleryState(items.length > 0 ? 'ready' : 'empty');
-      } catch (e) {
-        const err = e as Error & { status?: number };
-        if (cancelled) return;
-        setGalleryState(err.status === 403 ? 'restricted' : 'empty');
+        const d = await r.json();
+        setGallery(d.files || []);
+        setGalleryState((d.files || []).length > 0 ? 'ready' : 'empty');
+      } catch {
+        if (!cancelled) setGalleryState('empty');
       }
     })();
     return () => {
