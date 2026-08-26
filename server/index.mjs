@@ -514,6 +514,48 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
   res.json(result);
 }));
 
+// POST /api/seed/events — seed BAKU TAU 4.0 via raw SQL (idempotent)
+app.post('/api/seed/events', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  try {
+    // Cek apakah sudah ada event
+    const rows = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as cnt FROM EventProgram`);
+    const cnt = Number(rows[0]?.cnt ?? 0);
+    if (cnt > 0) return res.json({ ok: true, message: `Sudah ada ${cnt} event, skip seed.` });
+
+    // Insert BAKU TAU 4.0
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO EventProgram (id, tenant_id, slug, name, description, status, start_date, end_date, created_by_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+      'evt-baku-tau-4-0', 'tenant-youth', 'baku-tau-4-0', 'BAKU TAU 4.0',
+      'Program Kerja & Event Tahunan GEHC 2026 — 5 divisi, kick-off & diskusi aktif.',
+      'ACTIVE', '2026-01-01', '2026-12-31', 'usr-tech'
+    );
+
+    const divisions = ['LITURGIA', 'BENZARPR', 'KOMISI', 'TIMKERJA', 'MARTURIA'];
+    for (const div of divisions) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO EventDivision (id, event_id, division, created_at) VALUES (?, ?, ?, NOW(3))`,
+        `evd-baku-tau-4-0-${div}`, 'evt-baku-tau-4-0', div
+      );
+    }
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO EventMeeting (id, event_id, title, scheduled_at, notes, created_by_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(3))`,
+      'evtmt-baku-tau-4-0-kickoff', 'evt-baku-tau-4-0',
+      'Kick-Off BAKU TAU 4.0', '2026-01-15T09:00:00',
+      'Pertemuan awal seluruh divisi — preview program tahunan.', 'usr-tech'
+    );
+
+    res.json({ ok: true, seeded: { event: 'evt-baku-tau-4-0', divisions: 5, meetings: 1 } });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+}));
+
 // ---------- Event Workspace ----------
 // Slug util: lower-case hyphen, max 50 char
 function slugify(text) {
