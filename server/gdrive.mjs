@@ -1,6 +1,11 @@
 import { google } from 'googleapis';
 
 const DRIVE_READONLY_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+const DRIVE_WRITE_SCOPE   = 'https://www.googleapis.com/auth/drive';
+
+function getDriveScope() {
+  return process.env.GDRIVE_WRITE === '1' ? DRIVE_WRITE_SCOPE : DRIVE_READONLY_SCOPE;
+}
 
 /**
  * Dua mode koneksi Google Drive:
@@ -43,7 +48,7 @@ async function getDrive() {
     const auth = new google.auth.JWT({
       email: credentials.client_email,
       key: credentials.private_key,
-      scopes: [DRIVE_READONLY_SCOPE],
+      scopes: [getDriveScope()],
       subject: process.env.GDRIVE_IMPERSONATE || undefined,
     });
     cachedClient = google.drive({ version: 'v3', auth });

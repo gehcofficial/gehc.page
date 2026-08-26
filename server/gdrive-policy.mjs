@@ -58,7 +58,7 @@ export const ZONES = {
   },
 };
 
-const TAG_RE = /\[([A-Z]+(?::[^\]]+)?)\]/i;
+const TAG_RE = /\[([A-Za-z][A-Za-z0-9-]*(?::[^\]]+)?)\]/i;
 
 /** Ambil tag zona dari sebuah nama folder, mis. "RUACH [GROUP:RUACH]" → "GROUP:RUACH". */
 export function parseTag(folderName) {
@@ -131,6 +131,50 @@ async function zoneAllows(tag, authUser) {
     return scoped
       ? { allowed: true, reason: `anggota/pembina grup ${groupName}` }
       : { allowed: false, reason: `bukan pembina/anggota grup ${groupName}` };
+  }
+
+  // [EV:<slug>:<DIV>] — Workspace Program & Event
+  if (tag?.startsWith('EV:')) {
+    const parts = tag.split(':');
+    const eventSlug = parts[1];
+    const division  = (parts[2] || '').toUpperCase();
+    if (!eventSlug || !division) return { allowed: false, reason: 'tag EV tidak lengkap' };
+
+    // SUPERADMIN / KOMISI → akses semua event
+    if (roles.includes('SUPERADMIN') || roles.includes('KOMISI')) {
+      return { allowed: true, reason: 'SUPERADMIN/KOMISI' };
+    }
+
+    // COMMITTEE — bedakan BOD vs PIC berdasarkan struktur.division
+    if (roles.includes('COMMITTEE')) {
+      const prisma = getPrisma();
+      if (!prisma) return { allowed: true, reason: 'committee (DB offline, izinkan)' };
+      // Ambil struktur user untuk lihat division-nya
+      const sm = await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } });
+      const smDiv = (sm?.division || '').toUpperCase();
+      // BOD = COMMITTEE dengan struktur division TIMKERJA (atau kosong) → full view
+      if (!smDiv || smDiv === 'TIMKERJA') {
+        return { allowed: true, reason: 'BOD Tim Kerja (committe全部 event)' };
+      }
+      // PIC divisi → scoped ke divisinya
+      if (smDiv === division) {
+        return { allowed: true, reason: `PIC divisi ${division}` };
+      }
+      return { allowed: false, reason: `PIC ${smDiv} tidak akses ${division}` };
+    }
+
+    // MENTOR / CO_MENTOR / MENTEE — cek struktur members
+    if (['MENTOR', 'CO_MENTOR', 'MENTEE'].some((r) => roles.includes(r))) {
+      const prisma = getPrisma();
+      if (!prisma) return { allowed: false, reason: 'DB offline' };
+      const sm = await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } });
+      if ((sm?.division || '').toUpperCase() === division) {
+        return { allowed: true, reason: `anggota divisi ${division}` };
+      }
+      return { allowed: false, reason: `bukan anggota divisi ${division}` };
+    }
+
+    return { allowed: false, reason: 'role tidak diizinkan untuk event' };
   }
 
   const zone = ZONES[zoneKey];
