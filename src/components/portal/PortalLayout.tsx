@@ -8,6 +8,7 @@ import { ManageStruktur } from './ManageStruktur';
 import { ManageUsersRBAC } from './ManageUsersRBAC';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
+import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
@@ -118,6 +119,13 @@ export const PortalLayout: React.FC = () => {
       icon: ShieldCheck,
       roles: ['SUPERADMIN', 'COMMITTEE'],
       group: 'Struktur',
+    },
+    {
+      id: 'events',
+      label: 'Program & Event',
+      icon: Calendar,
+      roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'],
+      group: 'Kerja',
     },
     {
       id: 'users-rbac',
@@ -329,6 +337,7 @@ export const PortalLayout: React.FC = () => {
         {activeTab === 'people' && <PeopleInvites />}
         {activeTab === 'waitlist' && <WaitlistBoard />}
         {activeTab === 'struktur' && <ManageStruktur />}
+        {activeTab === 'events' && <EventWorkspacePanel />}
         {activeTab === 'users-rbac' && <ManageUsersRBAC />}
         {activeTab === 'integrations' && <ManageIntegrations />}
       </main>
