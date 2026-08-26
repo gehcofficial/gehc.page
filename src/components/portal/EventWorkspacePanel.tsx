@@ -71,7 +71,7 @@ export const EventWorkspacePanel: React.FC = () => {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/events');
+      const r = await fetch('/api/events', { credentials: 'include' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setEvents(d.events || []);
@@ -87,7 +87,7 @@ export const EventWorkspacePanel: React.FC = () => {
   const openDetail = async (ev: EventItem) => {
     setDetailLoading(true);
     try {
-      const r = await fetch(`/api/events/${ev.id}`);
+      const r = await fetch(`/api/events/${ev.id}`, { credentials: 'include' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setSelected(d.event);
@@ -97,7 +97,7 @@ export const EventWorkspacePanel: React.FC = () => {
       const disc: Record<string, any[]> = {};
       for (const div of d.event.divisions || []) {
         try {
-          const dr = await fetch(`/api/events/${d.event.id}/divisions/${div.division}/updates`);
+          const dr = await fetch(`/api/events/${d.event.id}/divisions/${div.division}/updates`, { credentials: 'include' });
           if (dr.ok) {
             const dd = await dr.json();
             disc[div.division] = dd.updates || [];
@@ -120,6 +120,7 @@ export const EventWorkspacePanel: React.FC = () => {
       const r = await fetch(`/api/events/${selected.id}/divisions/${div}/updates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ body: text }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -141,6 +142,7 @@ export const EventWorkspacePanel: React.FC = () => {
       const r = await fetch(`/api/events/${selected.id}/meetings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(meetingForm),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -158,7 +160,7 @@ export const EventWorkspacePanel: React.FC = () => {
 
   const downloadICS = async (mid: string) => {
     try {
-      const r = await fetch(`/api/events/meetings/${mid}/ics`);
+      const r = await fetch(`/api/events/meetings/${mid}/ics`, { credentials: 'include' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);

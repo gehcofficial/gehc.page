@@ -482,7 +482,8 @@ function slugify(text) {
 
 // Helper: divisi yang bisa diakses user berdasarkan struktur_members
 async function canSeeEventDivision(authUser, division) {
-  const roles = (authUser?.roles || []).map((r) => r.role);
+  if (!authUser) return false;
+  const roles = (authUser.roles || []).map((r) => r.role);
   if (roles.includes('SUPERADMIN') || roles.includes('KOMISI')) return true;
 
   // COMMITTEE — bedakan BOD vs PIC

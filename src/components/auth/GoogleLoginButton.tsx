@@ -27,6 +27,7 @@ interface Props {
 }
 
 let gsiScriptLoaded = false;
+let gsiInitialized = false;
 
 function loadGsiScript(): Promise<void> {
   if (gsiScriptLoaded && window.google?.accounts?.id) return Promise.resolve();
@@ -62,10 +63,13 @@ const GoogleLoginButton: React.FC<Props> = ({ clientId, onCredential, onError })
     loadGsiScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: (response) => onCredential(response.credential),
-        });
+        if (!gsiInitialized) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: (response) => onCredential(response.credential),
+          });
+          gsiInitialized = true;
+        }
         window.google.accounts.id.renderButton(containerRef.current, {
           theme: 'filled_black',
           size: 'medium',
