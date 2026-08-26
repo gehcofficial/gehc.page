@@ -119,6 +119,17 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 | Per-group gallery di GroupDetailPage | Read-side murni — tercepat dieksekusi, cukup scope saat ini | S |
 | Dashboard kuota & audit Drive untuk SUPERADMIN | Melengkapi audit sinkronisasi yang sudah ada | M |
 
+### 28 · 🗂️ Workspace Program & Event *(Fase 2½ — ministry work)*
+
+| Item | Catatan | Ukuran |
+|---|---|---|
+| CRUD event: buat, edit, status (PLANNING → ACTIVE → DONE → ARCHIVED) | Panel "Program & Event" di sidebar Kerja — KOMISI, COMMITTEE, SUPERADMIN | M |
+| Zona Drive `[EV:<slug>:<DIV>]` per divisi event + auto-provision folder | Folder induk per divisi pillar; sub-folder Rapat; idempotent provisioning | M |
+| Discussion thread per divisi-event (text posts, author + timestamp) | Thread ringan — file/foto tetap di Drive | S |
+| Meeting CRUD + `.ics` download + link Google Meet | MVP .ics manual; auto-GMeet via SA eksperimen (Fase C) | M |
+| Visibilitas: BOD (COMMITTEE + TIMKERJA) lihat semua; PIC scoped ke divisi; anggota scoped | Derivatif dari struktur_members.division — tanpa migrasi RBAC | S |
+| Seed contoh "BAKU TAU 4.0" (5 divisi, 1 rapat, 5 diskusi) | Validasi end-to-end di staging | S |
+
 > **Ketergantungan**: baris ⛽ menunggu item pertama tabel 27. Sisanya bisa jalan dengan infrastruktur Drive hari ini.
 >
 > **Catatan performa**: cache TTL in-memory untuk listing Drive sudah aktif (`gdrive.mjs`) — kunjungan berulang instan tanpa infrastruktur tambahan. **Upstash Redis ditunda**: baru dipasang bila trafik naik/multi-instance; gambar tetap via CDN Google (thumbnail `=s1200`), bukan lewat Redis.

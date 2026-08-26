@@ -81,8 +81,15 @@ Aturan penting:
 | `[BPMJ]` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 | `[ALUMNI]` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✓ |
 | `[GROUP:<grp>]` | ✓ (read-only galeri) | grp sendiri | grp binaan | ✓ | ✓ | ✗ | ✗ |
+| `[EV:<slug>:<DIV>]` | ✓ | ✓ (semua event) | ✓ (PIC divisinya) | ✓ (BOD all; PIC scoped) | ✓ | ✗ | ✗ |
 
 SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
+
+**Catatan EV zone**:
+- `DIV` harus salah satu dari: `LITURGIA`, `KOMUNIKASI`, `SOSIAL`, `EKONOMI`, `LOGISTIK`, `KOMISI`, `TIMKERJA`, `DIAKONIA`, `MARTURIA`, `BENZARPR`.
+- BOD Tim Kerja = COMMITTEE + `struktur_members.division = 'TIMKERJA'` (atau kosong) → akses semua event.
+- PIC = COMMITTEE + `struktur_members.division` tertentu → akses hanya event dengan divisi yang sama.
+- Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk.
 
 ## 5. Endpoint
 
@@ -142,6 +149,8 @@ Pola hybrid: URL file disimpan di kolom TiDB (`bannerUrl`), filenya di Drive.
 - **Upload dari portal** untuk Marturia (dokumentasi) & Komisi (laporan):
   ganti scope SA menjadi `drive` (bukan readonly), endpoint multipart upload,
   kuota & anti-spam. Struktur folder fase 1 sudah mengantisipasi ini.
+  - **Flag `GDRIVE_WRITE=1`** di env mengaktifkan scope `drive` (write). Tanpa flag ini, SA tetap readonly.
+  - Prasyarat sisi user: share folder induk (Liturgia…Marturia, Benzarpreneurship, Laporan Internal [KOMISI]) ke SA sebagai **Content Manager**.
 - Preview PDF modul Didaskalia langsung di halaman monitoring mentor.
 
 ## 8. Setup Google Auth (Client ID untuk SSO)
