@@ -470,6 +470,255 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
   res.json({ applied, errors, total: ddl.length });
 }));
 
+// ---------- Event Workspace ----------
+// Slug util: lower-case hyphen, max 50 char
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+}
+
+// Helper: divisi yang bisa diakses user berdasarkan struktur_members
+async function canSeeEventDivision(authUser, division) {
+  const roles = (authUser?.roles || []).map((r) => r.role);
+  if (roles.includes('SUPERADMIN') || roles.includes('KOMISI')) return true;
+
+  // COMMITTEE — bedakan BOD vs PIC
+  if (roles.includes('COMMITTEE')) {
+    const prisma = getPrisma();
+    const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
+    const smDiv = (sm?.division || '').toUpperCase();
+    // BOD = struktur division TIMKERJA (atau kosong) → semua event
+    if (!smDiv || smDiv === 'TIMKERJA') return true;
+    // PIC → scoped
+    return smDiv === division;
+  }
+
+  // MENTOR / CO_MENTOR / MENTEE → cek struktur
+  const prisma = getPrisma();
+  const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
+  return (sm?.division || '').toUpperCase() === division;
+}
+
+// GET /api/events — daftar event (filtered by visibility)
+app.get('/api/events', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const events = await prisma.eventProgram.findMany({
+    orderBy: { startDate: 'desc' },
+    include: { divisions: true },
+  });
+
+  // Filter berdasarkan role
+  const roles = (req.authUser?.roles || []).map((r) => r.role);
+  const isKomsaOrBod = roles.includes('SUPERADMIN') || roles.includes('KOMISI');
+  const isBodTimkerja = roles.includes('COMMITTEE') && await (async () => {
+    const sm = await prisma.strukturMember.findFirst({ where: { email: req.authUser?.email || '' } });
+    return !(sm?.division) || sm.division.toUpperCase() === 'TIMKERJA';
+  })();
+
+  if (isKomsaOrBod || isBodTimkerja) {
+    return res.json({ events });
+  }
+
+  // Filter: hanya event yang punya division yang bisa diakses user
+  const accessible = [];
+  for (const ev of events) {
+    for (const d of ev.divisions) {
+      if (await canSeeEventDivision(req.authUser, d.division)) {
+        accessible.push(ev);
+        break;
+      }
+    }
+  }
+  res.json({ events: accessible });
+}));
+
+// POST /api/events — buat event baru + provision folder
+app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { name, description, divisions, startDate, endDate } = req.body || {};
+  if (!name || !Array.isArray(divisions) || divisions.length === 0) {
+    return res.status(400).json({ error: 'name dan divisions[] wajib.' });
+  }
+
+  const slug = slugify(name) + '-' + Date.now().toString(36);
+  const id = `evt-${slug}`;
+  const createdById = req.authUser?.id || 'unknown';
+
+  const ev = await prisma.eventProgram.create({
+    data: {
+      id,
+      tenantId: 'tenant-youth',
+      slug,
+      name,
+      description: description || null,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      createdById,
+    },
+  });
+
+  // Buat divisi + provision folder di Drive
+  const provisioned = [];
+  for (const div of divisions) {
+    const divId = `evd-${slug}-${div}`;
+    await prisma.eventDivision.create({
+      data: {
+        id: divId,
+        eventId: ev.id,
+        division: div,
+      },
+    });
+    // Provision Drive folder jika write mode aktif
+    if (process.env.GDRIVE_WRITE === '1' && process.env.GDRIVE_ROOT_FOLDER_ID) {
+      try {
+        const { createEventFolder } = await import('./gdrive-events.mjs');
+        const fid = await createEventFolder(ev, div);
+        if (fid) {
+          await prisma.eventDivision.update({ where: { id: divId }, data: { driveFolderId: fid } });
+          provisioned.push({ division: div, folderId: fid });
+        }
+      } catch (e) {
+        console.warn(`[event] provisioning ${div} gagal:`, e.message);
+      }
+    }
+  }
+
+  res.status(201).json({ event: ev, provisioned });
+}));
+
+// GET /api/events/:id — detail event + divisi
+app.get('/api/events/:id', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const ev = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } } },
+  });
+  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  res.json({ event: ev });
+}));
+
+// PATCH /api/events/:id — edit meta + divisions
+app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { name, description, startDate, endDate, status, divisions } = req.body || {};
+  const data = {};
+  if (name !== undefined) data.name = name;
+  if (description !== undefined) data.description = description;
+  if (startDate !== undefined) data.startDate = startDate ? new Date(startDate) : null;
+  if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null;
+  if (status !== undefined) data.status = status;
+
+  const ev = await prisma.eventProgram.update({ where: { id: req.params.id }, data });
+  res.json({ event: ev });
+}));
+
+// POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres
+app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { body: text } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'body wajib.' });
+
+  const div = await prisma.eventDivision.findUnique({ where: { eventId_division: { eventId: req.params.id, division: req.params.div.toUpperCase() } } });
+  if (!div) return res.status(404).json({ error: 'Divisi event tidak ditemukan.' });
+
+  const canSee = await canSeeEventDivision(req.authUser, req.params.div.toUpperCase());
+  if (!canSee) return res.status(403).json({ error: 'Tidak punya akses ke divisi ini.' });
+
+  const update = await prisma.eventUpdate.create({
+    data: {
+      id: `evu-${Date.now().toString(36)}`,
+      eventDivisionId: div.id,
+      authorId: req.authUser?.id || 'unknown',
+      body: text,
+    },
+  });
+  res.status(201).json({ update });
+}));
+
+// GET /api/events/:id/divisions/:div/updates — baca diskusi
+app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const canSee = await canSeeEventDivision(req.authUser, req.params.div.toUpperCase());
+  if (!canSee) return res.status(403).json({ error: 'Tidak punya akses ke divisi ini.' });
+
+  const div = await prisma.eventDivision.findUnique({ where: { eventId_division: { eventId: req.params.id, division: req.params.div.toUpperCase() } } });
+  if (!div) return res.status(404).json({ error: 'Divisi event tidak ditemukan.' });
+
+  const updates = await prisma.eventUpdate.findMany({ where: { eventDivisionId: div.id }, orderBy: { createdAt: 'asc' } });
+  res.json({ updates });
+}));
+
+// POST /api/events/:id/meetings — tambah rapat
+app.post('/api/events/:id/meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { title, scheduledAt, gmeetLink, notes, division } = req.body || {};
+  if (!title || !scheduledAt) return res.status(400).json({ error: 'title dan scheduledAt wajib.' });
+
+  const meeting = await prisma.eventMeeting.create({
+    data: {
+      id: `evm-${Date.now().toString(36)}`,
+      eventId: req.params.id,
+      division: division || null,
+      title,
+      scheduledAt: new Date(scheduledAt),
+      gmeetLink: gmeetLink || null,
+      notes: notes || null,
+      createdById: req.authUser?.id || 'unknown',
+    },
+  });
+  res.status(201).json({ meeting });
+}));
+
+// GET /api/events/:id/meetings — daftar rapat
+app.get('/api/events/:id/meetings', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const meetings = await prisma.eventMeeting.findMany({ where: { eventId: req.params.id }, orderBy: { scheduledAt: 'desc' } });
+  res.json({ meetings });
+}));
+
+// GET /api/events/meetings/:mid/ics — generate .ics file
+app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const m = await prisma.eventMeeting.findUnique({ where: { id: req.params.mid } });
+  if (!m) return res.status(404).json({ error: 'Meeting tidak ditemukan.' });
+
+  const dtStart = new Date(m.scheduledAt).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const dtEnd   = new Date(new Date(m.scheduledAt).getTime() + 60 * 60 * 1000).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const uid = `${m.id}@gehc.page`;
+
+  let ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//GEHC//Event\n`;
+  ics += `BEGIN:VEVENT\nDTSTART:${dtStart}\nDTEND:${dtEnd}\n`;
+  ics += `SUMMARY:${m.title.replace(/\n/g, '\\n')}\n`;
+  if (m.notes) ics += `DESCRIPTION:${m.notes.replace(/\n/g, '\\n')}\n`;
+  if (m.gmeetLink) ics += `URL:${m.gmeetLink}\nLOCATION:${m.gmeetLink}\n`;
+  ics += `UID:${uid}\nEND:VEVENT\nEND:VCALENDAR`;
+
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${(m.title || 'meeting').replace(/[^a-zA-Z0-9]/g, '-')}.ics"`);
+  res.send(ics);
+}));
+
 // ---------- Absensi (Parameter 3) ----------
 // Mentor/Co-Mentor hanya boleh untuk grup binaannya; L1/L3/L4 bebas.
 app.post('/api/db/attendance', wrap(async (req, res) => {
