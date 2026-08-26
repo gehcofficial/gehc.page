@@ -818,9 +818,9 @@ export const ManageGroupsMonitoring: React.FC = () => {
                       {currentBatch.theme && <span className="text-[11px] text-[#8C8880]">— {currentBatch.theme}</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-[#8C8880]">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span>Mentor: <strong>{currentBatch.mentor}</strong></span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-500"></span>Comentor: <strong>{currentBatch.comentor}</strong></span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span>Mentee: <strong>{currentBatch.mentees.length}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span>Mentor: <strong>{currentBatch.mentor || '-'}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-500"></span>Comentor: <strong>{currentBatch.comentor || '-'}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span>Mentee: <strong>{currentBatch.mentees?.length || 0}</strong></span>
                     </div>
                   </div>
 
@@ -829,31 +829,31 @@ export const ManageGroupsMonitoring: React.FC = () => {
                     <div className="relative flex flex-col items-center">
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white text-base font-black" style={{ backgroundColor: `${activeGroup.color}22`, color: activeGroup.color }}>
-                          {currentBatch.mentor.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                          {(currentBatch.mentor || '').split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'}
                         </div>
                         <div className="text-center">
                           <span className="block text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">Mentor</span>
-                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.mentor}</span>
+                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.mentor || '-'}</span>
                         </div>
                       </div>
                       <div className="w-0.5 h-5 rounded-full my-1" style={{ backgroundColor: `${activeGroup.color}66` }} />
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white text-sm font-black" style={{ backgroundColor: `${activeGroup.color}22`, color: activeGroup.color }}>
-                          {currentBatch.comentor.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                          {(currentBatch.comentor || '').split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'}
                         </div>
                         <div className="text-center">
                           <span className="block text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">Comentor</span>
-                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.comentor}</span>
+                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.comentor || '-'}</span>
                         </div>
                       </div>
                       <div className="w-0.5 h-5 rounded-full my-1" style={{ backgroundColor: `${activeGroup.color}66` }} />
                       <div className="w-full max-w-2xl flex flex-col items-center">
                         <div className="w-full h-0.5 rounded-full max-w-md mb-4" style={{ backgroundColor: `${activeGroup.color}44` }} />
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 w-full justify-items-center">
-                          {currentBatch.mentees.map((m) => (
+                          {(currentBatch.mentees || []).map((m) => (
                             <div key={m.name} className="flex flex-col items-center gap-1.5">
                               <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm border-2 border-white bg-gray-100 text-gray-600">
-                                {m.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                                {(m.name || '').split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'}
                               </div>
                               <div className="text-center">
                                 <span className="block text-[10px] font-bold text-[#8C8880]">Mentee{m.note ? ` ${m.note}` : ''}</span>
