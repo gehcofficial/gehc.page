@@ -467,7 +467,51 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
       }
     }
   }
-  res.json({ applied, errors, total: ddl.length });
+  const result = { applied, errors, total: ddl.length };
+
+  // Auto-seed: jika tabel kosong, buat BAKU TAU 4.0
+  try {
+    const count = await prisma.eventProgram.count();
+    if (count === 0) {
+      const slug = 'baku-tau-4-0';
+      const id = 'evt-baku-tau-4-0';
+      const ev = await prisma.eventProgram.create({
+        data: {
+          id,
+          tenantId: 'tenant-youth',
+          slug,
+          name: 'BAKU TAU 4.0',
+          description: 'Program Kerja & Event Tahunan GEHC 2026 — 5 divisi, kick-off & diskusi aktif.',
+          status: 'ACTIVE',
+          startDate: new Date('2026-01-01'),
+          endDate: new Date('2026-12-31'),
+          createdById: 'usr-tech',
+        },
+      });
+      const divisions = ['LITURGIA', 'BENZARPR', 'KOMISI', 'TIMKERJA', 'MARTURIA'];
+      for (const div of divisions) {
+        await prisma.eventDivision.create({
+          data: { id: `evd-${slug}-${div}`, eventId: ev.id, division: div },
+        });
+      }
+      // Kick-off meeting
+      await prisma.eventMeeting.create({
+        data: {
+          id: `evtmt-${slug}-kickoff`,
+          eventId: ev.id,
+          title: 'Kick-Off BAKU TAU 4.0',
+          scheduledAt: new Date('2026-01-15T09:00:00+07:00'),
+          notes: 'Pertemuan awal seluruh divisi — preview program tahunan.',
+          createdById: 'usr-tech',
+        },
+      });
+      result.seeded = { event: ev.id, divisions: divisions.length, meetings: 1 };
+    }
+  } catch (e) {
+    result.seedError = String(e.message || e).slice(0, 120);
+  }
+
+  res.json(result);
 }));
 
 // ---------- Event Workspace ----------
