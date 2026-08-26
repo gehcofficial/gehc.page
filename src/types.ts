@@ -61,6 +61,8 @@ export interface GroupMember {
   joinedDate: string;
   attendanceRate: number; // e.g. 92%
   notes?: string;
+  familyRole?: string;
+  batchPeriod?: string;
 }
 
 export interface MonitoringData {

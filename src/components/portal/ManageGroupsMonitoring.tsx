@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
 import { AttendancePanel } from './AttendancePanel';
+import { MiniFamilyTree } from '../public/FamilyTree';
+import { DatePicker } from '../ui/DatePicker';
 import {
   Users,
   TrendingUp,
@@ -21,12 +23,14 @@ import {
   X,
   ArrowRight,
   Filter,
+  TreePine,
 } from 'lucide-react';
 
 export const ManageGroupsMonitoring: React.FC = () => {
   const {
     groups,
     members,
+    groupBatches,
     monitoringRecords,
     currentUser,
     currentRole,
@@ -51,7 +55,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     isMentor && userAssignedGroupId ? userAssignedGroupId : groups[0]?.id || 'grp-1'
   );
 
-  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'absensi'>('monitoring-form');
+  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi'>('monitoring-form');
 
   // Selected group object
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
@@ -311,6 +315,18 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('family-tree')}
+          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'family-tree'
+              ? 'bg-[#181818] text-white shadow-md'
+              : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+          }`}
+        >
+          <TreePine className="w-3.5 h-3.5 text-amber-500" />
+          <span>Family Tree</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('absensi')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'absensi'
@@ -350,12 +366,10 @@ export const ManageGroupsMonitoring: React.FC = () => {
                   <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">
                     Tanggal Pertemuan *
                   </label>
-                  <input
-                    type="date"
-                    required
+                  <DatePicker
                     value={monitoringDate}
-                    onChange={(e) => setMonitoringDate(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                    onChange={setMonitoringDate}
+                    placeholder="Pilih tanggal pertemuan"
                   />
                 </div>
 
@@ -700,6 +714,9 @@ export const ManageGroupsMonitoring: React.FC = () => {
                   onChange={(e) => setMemberFormData({ ...memberFormData, email: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
                 />
+                {memberFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberFormData.email) && (
+                  <p className="text-[10px] text-red-500 mt-1">Format email tidak valid</p>
+                )}
               </div>
 
               <div>
@@ -707,12 +724,15 @@ export const ManageGroupsMonitoring: React.FC = () => {
                   Nomor WhatsApp
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   placeholder="+62 812-xxxx-xxxx"
                   value={memberFormData.phone}
                   onChange={(e) => setMemberFormData({ ...memberFormData, phone: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
                 />
+                {memberFormData.phone && !/^[\d\s\-\+\(\)]{8,}$/.test(memberFormData.phone) && (
+                  <p className="text-[10px] text-red-500 mt-1">Format nomor telepon tidak valid</p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-1">
@@ -761,12 +781,104 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: ATTENDANCE (server-backed, TiDB) */}
+      {/* TAB 4: FAMILY TREE (same data source as landing page) */}
+      {activeTab === 'family-tree' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <TreePine className="w-5 h-5 text-amber-500" />
+              <h3 className="text-lg font-bold text-[#1B1B1B]">
+                Family Tree — {activeGroup.name}
+              </h3>
+            </div>
+            <p className="text-xs text-[#8C8880] mb-6">
+              Struktur mentoring dari data yang sama dengan halaman publik (landing page).
+            </p>
+
+            {(() => {
+              const currentBatch = groupBatches.find(
+                (b) => b.group_id === activeGroup.id && b.isCurrent
+              );
+              if (!currentBatch) {
+                return (
+                  <div className="text-center py-12 bg-[#FAF9F5] rounded-2xl border border-[#D9D7D0]/50">
+                    <TreePine className="w-10 h-10 text-[#8C8880] mx-auto mb-2 opacity-50" />
+                    <h4 className="text-sm font-bold text-[#1B1B1B]">Belum Ada Batch Aktif</h4>
+                    <p className="text-xs text-[#8C8880] mt-1">Batch mentoring belum ditentukan.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-6">
+                  <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/60">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="px-2.5 py-1 rounded-full bg-black text-white text-[10px] font-bold">{currentBatch.period}</span>
+                      <span className="text-sm font-bold text-[#1B1B1B]">{currentBatch.batchLabel}</span>
+                      {currentBatch.theme && <span className="text-[11px] text-[#8C8880]">— {currentBatch.theme}</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-[#8C8880]">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span>Mentor: <strong>{currentBatch.mentor}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-500"></span>Comentor: <strong>{currentBatch.comentor}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span>Mentee: <strong>{currentBatch.mentees.length}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="p-6 sm:p-8 rounded-[28px] bg-white border border-[#D9D7D0]/50 relative overflow-hidden">
+                    <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ backgroundColor: activeGroup.color }} />
+                    <div className="relative flex flex-col items-center">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white text-base font-black" style={{ backgroundColor: `${activeGroup.color}22`, color: activeGroup.color }}>
+                          {currentBatch.mentor.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                        </div>
+                        <div className="text-center">
+                          <span className="block text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">Mentor</span>
+                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.mentor}</span>
+                        </div>
+                      </div>
+                      <div className="w-0.5 h-5 rounded-full my-1" style={{ backgroundColor: `${activeGroup.color}66` }} />
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white text-sm font-black" style={{ backgroundColor: `${activeGroup.color}22`, color: activeGroup.color }}>
+                          {currentBatch.comentor.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                        </div>
+                        <div className="text-center">
+                          <span className="block text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">Comentor</span>
+                          <span className="block text-xs font-bold text-[#1B1B1B]">{currentBatch.comentor}</span>
+                        </div>
+                      </div>
+                      <div className="w-0.5 h-5 rounded-full my-1" style={{ backgroundColor: `${activeGroup.color}66` }} />
+                      <div className="w-full max-w-2xl flex flex-col items-center">
+                        <div className="w-full h-0.5 rounded-full max-w-md mb-4" style={{ backgroundColor: `${activeGroup.color}44` }} />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 w-full justify-items-center">
+                          {currentBatch.mentees.map((m) => (
+                            <div key={m.name} className="flex flex-col items-center gap-1.5">
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm border-2 border-white bg-gray-100 text-gray-600">
+                                {m.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                              </div>
+                              <div className="text-center">
+                                <span className="block text-[10px] font-bold text-[#8C8880]">Mentee{m.note ? ` ${m.note}` : ''}</span>
+                                <span className="block text-[11px] font-bold text-[#1B1B1B]">{m.name}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: ATTENDANCE (server-backed, TiDB) */}
       {activeTab === 'absensi' && activeGroup && (
         <AttendancePanel
           groupId={activeGroup.id}
           groupName={activeGroup.name}
           canWrite={canWriteMonitoring}
+          members={groupMembers}
         />
       )}
 

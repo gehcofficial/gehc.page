@@ -341,10 +341,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
+        // Build members array from groupBatches (same source as landing page family tree)
+        // This ensures panel & landing page show identical data
+        const membersFromBatches: GroupMember[] = [];
+        for (const b of bMapped) {
+          // Mentor
+          if (b.mentor) {
+            membersFromBatches.push({
+              id: `${b.id}-mentor`,
+              group_id: b.group_id,
+              name: b.mentor,
+              email: '',
+              phone: '',
+              is_mentor: true,
+              joinedDate: '',
+              attendanceRate: 0,
+              familyRole: 'MENTOR',
+              batchPeriod: b.period,
+            });
+          }
+          // Comentor
+          if (b.comentor) {
+            membersFromBatches.push({
+              id: `${b.id}-comentor`,
+              group_id: b.group_id,
+              name: b.comentor,
+              email: '',
+              phone: '',
+              is_mentor: true,
+              joinedDate: '',
+              attendanceRate: 0,
+              familyRole: 'COMENTOR',
+              batchPeriod: b.period,
+            });
+          }
+          // Mentees
+          for (let i = 0; i < b.mentees.length; i++) {
+            const mt = b.mentees[i];
+            membersFromBatches.push({
+              id: `${b.id}-m${i + 1}`,
+              group_id: b.group_id,
+              name: mt.name,
+              email: '',
+              phone: '',
+              is_mentor: false,
+              joinedDate: '',
+              attendanceRate: 0,
+              notes: mt.note,
+              familyRole: 'MENTEE',
+              batchPeriod: b.period,
+            });
+          }
+        }
+        // Merge with any extra members from group_members (non-mentee, alumni, etc.)
+        const batchIds = new Set(membersFromBatches.map((m) => m.id));
+        for (const m of mMap.values() as IterableIterator<any>) {
+          if (!batchIds.has(m.id)) {
+            membersFromBatches.push(m);
+          }
+        }
+
         if (cancelled) return;
         setGroups(gMapped);
         setGroupBatches(bMapped);
-        setMembers(Array.from(mMap.values()) as GroupMember[]);
+        setMembers(membersFromBatches);
       } catch {
         /* offline → pertahankan data lokal */
       }
