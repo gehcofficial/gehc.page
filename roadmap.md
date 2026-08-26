@@ -120,6 +120,8 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 | Dashboard kuota & audit Drive untuk SUPERADMIN | Melengkapi audit sinkronisasi yang sudah ada | M |
 
 > **Ketergantungan**: baris ⛽ menunggu item pertama tabel 27. Sisanya bisa jalan dengan infrastruktur Drive hari ini.
+>
+> **Catatan performa**: cache TTL in-memory untuk listing Drive sudah aktif (`gdrive.mjs`) — kunjungan berulang instan tanpa infrastruktur tambahan. **Upstash Redis ditunda**: baru dipasang bila trafik naik/multi-instance; gambar tetap via CDN Google (thumbnail `=s1200`), bukan lewat Redis.
 
 ---
 
