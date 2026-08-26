@@ -56,27 +56,59 @@ async function getDrive() {
 }
 
 function mapFile(file) {
+  // Drive memberi thumbnail ±220px (=s220) → buram bila diregangkan.
+  // lh3.googleusercontent.com mendukung parameter ukuran: naikkan ke 1200px
+  // (tetap disajikan CDN Google — cepat & tanpa biaya bandwidth kita).
+  const hiRes = (file.thumbnailLink || '').replace(/=s\d+.*$/, '=s1200');
   return {
     id: file.id,
     name: file.name,
     mimeType: file.mimeType,
     thumbnailLink: file.thumbnailLink,
+    thumbnailUrl: file.thumbnailLink ? hiRes : undefined,
     webViewLink: file.webViewLink,
     iconLink: file.iconLink,
     createdTime: file.createdTime,
   };
 }
 
+// ---------- Cache TTL in-memory utk listing (hemat kuota & latensi) ----------
+// Serverless instance hidup beberapa menit — kunjungan berulang instan.
+// Redis/Upstash baru dipertimbangkan bila trafik multi-instance naik (roadmap 27).
+const LIST_TTL_MS = 90_000;
+const listCache = new Map(); // key -> { at, data }
+function withCache(key, fn) {
+  const hit = listCache.get(key);
+  if (hit && Date.now() - hit.at < LIST_TTL_MS) return Promise.resolve(hit.data);
+  return Promise.resolve()
+    .then(fn)
+    .then((data) => {
+      listCache.set(key, { at: Date.now(), data });
+      if (listCache.size > 100) {
+        // buang entri tertua agar memori tetap ramping
+        const oldest = listCache.keys().next().value;
+        listCache.delete(oldest);
+      }
+      return data;
+    });
+}
+export function clearListCache() {
+  listCache.clear();
+}
+
 export async function listFolders(parentId, pageSize = 50) {
   const drive = await getDrive();
   const target = parentId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';
-  const res = await drive.files.list({
-    q: `'${target}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-    pageSize: Math.min(pageSize, 100),
-    orderBy: 'name',
-    fields: 'nextPageToken, files(id, name, mimeType)',
+  const key = `folders:${target}:${pageSize}`;
+  return withCache(key, async () => {
+    const res = await drive.files.list({
+      q: `'${target}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      pageSize: Math.min(pageSize, 100),
+      orderBy: 'name',
+      fields: 'nextPageToken, files(id, name, mimeType)',
+    });
+    return res.data.files || [];
   });
-  return res.data.files || [];
 }
 
 export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
@@ -86,17 +118,19 @@ export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
   let q = `'${target}' in parents and trashed = false`;
   if (query) q += ` and name contains '${query.replace(/'/g, "\\'")}'`;
 
-  const res = await drive.files.list({
-    q,
-    pageSize: Math.min(pageSize, 50),
-    orderBy: 'createdTime desc',
-    fields:
-      'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
+  const key = `files:${target}:${pageSize}:${query || ''}`;
+  return withCache(key, async () => {
+    const res = await drive.files.list({
+      q,
+      pageSize: Math.min(pageSize, 50),
+      orderBy: 'createdTime desc',
+      fields:
+        'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    return (res.data.files || []).map(mapFile);
   });
-
-  return (res.data.files || []).map(mapFile);
 }
 
 export async function getFileStream(fileId) {

@@ -1,9 +1,11 @@
-﻿import React, { useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { shortName } from '../../lib/privacy-name';
 import { FullFamilyTree } from './FamilyTree';
 import { HeritageSection } from './HeritageSection';
+import { fetchDriveFiles, fetchDriveFolders } from '../../services/driveApi';
+import type { DriveMediaItem } from '../../types';
 import {
   ArrowLeft,
   Crown,
@@ -15,12 +17,55 @@ import {
   Users,
   Sparkles,
   ImageOff,
+  Images,
+  Lock,
 } from 'lucide-react';
 
 export const GroupDetailPage: React.FC = () => {
-  const { groups, groupBatches, selectedGroupId, closeGroupDetail, openGroupDetail } = useApp();
+  const { groups, groupBatches, selectedGroupId, closeGroupDetail, openGroupDetail, authUser } = useApp();
   const { t } = useLang();
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
+
+  // Galeri grup — foto dari folder [GROUP:<NAMA>] di Google Drive.
+  // Akses mengikuti matriks zona (server-side): tamu tidak dilayani.
+  const [gallery, setGallery] = useState<DriveMediaItem[] | null>(null);
+  const [galleryState, setGalleryState] = useState<'loading' | 'ready' | 'restricted' | 'empty'>(
+    authUser ? 'loading' : 'restricted'
+  );
+
+  useEffect(() => {
+    if (!selectedGroupId || !authUser) return;
+    let cancelled = false;
+    setGalleryState('loading');
+    (async () => {
+      try {
+        const fs = await fetchDriveFolders();
+        if (cancelled) return;
+        const groupName = groups.find((g) => g.id === selectedGroupId)?.name || '';
+        const folder = fs.find(
+          (f) =>
+            f.zoneTag?.toUpperCase() === `GROUP:${groupName}`.toUpperCase() ||
+            f.name.toLowerCase().startsWith(`[${groupName.toLowerCase()}]`) ||
+            f.name.toLowerCase().includes(`[${groupName.toLowerCase()}]`)
+        );
+        if (!folder || folder.accessAllowed === false) {
+          setGalleryState('restricted');
+          return;
+        }
+        const items = await fetchDriveFiles({ folderId: folder.id, pageSize: 24 });
+        if (cancelled) return;
+        setGallery(items);
+        setGalleryState(items.length > 0 ? 'ready' : 'empty');
+      } catch (e) {
+        const err = e as Error & { status?: number };
+        if (cancelled) return;
+        setGalleryState(err.status === 403 ? 'restricted' : 'empty');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGroupId, authUser?.id, groups]);
 
   const group = groups.find((g) => g.id === selectedGroupId);
 
@@ -141,6 +186,61 @@ export const GroupDetailPage: React.FC = () => {
             )}
           </section>
         )}
+
+        {/* Galeri Grup — foto dari Drive folder [GROUP:<NAMA>] (sesuai matriks akses) */}
+        <section>
+          <div className="flex items-center gap-2 mb-5">
+            <Images className="w-4 h-4" style={{ color: group.color }} />
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1B1B1B]">
+              Galeri {group.name}
+            </h2>
+          </div>
+
+          {galleryState === 'restricted' ? (
+            <div className="rounded-[24px] bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 text-xs font-semibold flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              Galeri grup bersifat internal — login sebagai anggota grup, mentor, atau pengurus
+              untuk melihat.
+            </div>
+          ) : galleryState === 'loading' ? (
+            <p className="text-xs text-[#8C8880]">Memuat galeri…</p>
+          ) : galleryState === 'empty' || !gallery ? (
+            <div className="rounded-[24px] border border-dashed border-[#D9D7D0] bg-[#FAF9F5]/60 p-5 flex items-center gap-3 text-xs text-[#8C8880]">
+              <ImageOff className="w-4 h-4 shrink-0 opacity-60" />
+              <p>
+                Belum ada foto. Pengurus dapat mengunggah ke folder
+                <span className="font-mono"> [GROUP:{group.name}] </span>
+                di Google Drive — foto tampil otomatis di sini.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {gallery.slice(0, 12).map((item) => (
+                <a
+                  key={item.id}
+                  href={item.webViewLink || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square overflow-hidden rounded-[24px] bg-[#F0EFEB] border border-[#D9D7D0]/40 hover:shadow-xl transition-all duration-300"
+                >
+                  {item.thumbnailLink ? (
+                    <img
+                      src={item.thumbnailUrl || item.thumbnailLink}
+                      alt={item.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Images className="w-8 h-8 text-[#8C8880]/40" />
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Heritage: alumni + lineage (live dari TiDB) */}
         <HeritageSection

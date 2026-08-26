@@ -175,6 +175,8 @@ export interface DriveMediaItem {
   name: string;
   mimeType: string;
   thumbnailLink?: string;
+  /** Versi resolusi tinggi (±1200px) hasil rewrite parameter ukuran Google. */
+  thumbnailUrl?: string;
   webViewLink?: string;
   iconLink?: string;
   createdTime?: string;

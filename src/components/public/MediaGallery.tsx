@@ -3,14 +3,7 @@ import { useLang } from '../../context/LangContext';
 import { SectionHeader } from './ui/SectionHeader';
 import { fetchApiStatus, fetchDriveFiles, fetchDriveFolders, DEMO_MEDIA, ApiStatus } from '../../services/driveApi';
 import { DriveMediaItem } from '../../types';
-import { Images, Loader2, ExternalLink, Lock } from 'lucide-react';
-
-interface FolderDto {
-  id: string;
-  name: string;
-  accessAllowed?: boolean;
-  zoneTag?: string | null;
-}
+import { Images, Loader2, ExternalLink } from 'lucide-react';
 
 /**
  * Galeri publik — menarik media dari Google Drive via API.
@@ -21,10 +14,8 @@ export const MediaGallery: React.FC = () => {
   const { t } = useLang();
   const [status, setStatus] = useState<ApiStatus | null>(null);
   const [files, setFiles] = useState<DriveMediaItem[]>([]);
-  const [folders, setFolders] = useState<FolderDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [restricted, setRestricted] = useState<string | null>(null);
-  const [activeFolderId, setActiveFolderId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,12 +30,12 @@ export const MediaGallery: React.FC = () => {
 
         const fs = await fetchDriveFolders();
         if (cancelled) return;
-        setFolders(fs);
 
+        // Terkunci ke folder Event Gallery [PUBLIK] — satu sumber foto Events.
         const target =
-          (activeFolderId && fs.find((f) => f.id === activeFolderId)?.id) ||
-          fs.find((f) => f.zoneTag === 'PUBLIK')?.id ||
-          fs[0]?.id;
+          fs.find(
+            (f) => f.zoneTag === 'PUBLIK' && f.name.toLowerCase().startsWith('event gallery')
+          )?.id || fs.find((f) => f.zoneTag === 'PUBLIK')?.id;
 
         if (!target) {
           setFiles(DEMO_MEDIA);
@@ -71,7 +62,7 @@ export const MediaGallery: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFolderId]);
+  }, []);
 
   return (
     <section className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
@@ -80,29 +71,8 @@ export const MediaGallery: React.FC = () => {
         <SectionHeader eyebrow={t.gallery.eyebrow} title={t.gallery.title} subtitle={t.gallery.sub} />
       </div>
 
-      {/* Folder Filter — hanya yang boleh diakses user ini */}
-      {folders.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-8">
-          {folders.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => f.accessAllowed !== false && setActiveFolderId(f.id)}
-              disabled={f.accessAllowed === false}
-              title={f.accessAllowed === false ? t.gallery.restrictedNote : f.name}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                activeFolderId === f.id
-                  ? 'bg-[#181818] text-white border-black shadow-md'
-                  : f.accessAllowed === false
-                  ? 'bg-[#F3F1EC] text-[#8C8880]/50 border-[#D9D7D0]/40 cursor-not-allowed'
-                  : 'bg-white text-[#1B1B1B] border-[#D9D7D0] hover:border-black'
-              }`}
-            >
-              {f.name}
-              {f.accessAllowed === false && <Lock className="inline w-3 h-3 ml-1.5 -mt-0.5" />}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Folder Filter — dihapus: Events terkunci ke Event Gallery [PUBLIK].
+          Folder lain punya permukaannya masing-masing (detail grup, warta, dst). */}
 
       {/* Restricted notice */}
       {restricted && (
@@ -131,7 +101,7 @@ export const MediaGallery: React.FC = () => {
             >
               {item.thumbnailLink ? (
                 <img
-                  src={item.thumbnailLink}
+                  src={item.thumbnailUrl || item.thumbnailLink}
                   alt={item.name}
                   loading="lazy"
                   decoding="async"
