@@ -29,7 +29,7 @@ export const MarqueeStrip: React.FC = () => {
                 {grp.name}
               </span>
               <span className="text-xs text-[#8C8880] hidden sm:inline truncate max-w-[160px]">
-                {grp.meaning.split('&')[0]}
+                {(grp.meaning || '').split('&')[0]}
               </span>
             </div>
           ))}

@@ -285,7 +285,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
             <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/40 hover:border-[#D9D7D0] transition-colors">
               <div className="min-w-0 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[10px] font-bold text-[#8C8880] shrink-0">
-                  {m.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                  {(m.name || '').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold truncate">{m.name}</p>

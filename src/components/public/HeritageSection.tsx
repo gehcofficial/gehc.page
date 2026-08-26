@@ -93,7 +93,7 @@ export const HeritageSection: React.FC<{
                       className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0"
                       style={{ backgroundColor: color }}
                     >
-                      {a.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
+                      {(a.name || '').split(' ').map((w) => w[0]).slice(0, 2).join('')}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-[#1B1B1B] truncate">{shortName(a.name)}</p>
