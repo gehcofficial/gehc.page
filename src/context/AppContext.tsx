@@ -279,6 +279,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  // Hydration API-first: kelompok + batch mentoring + anggota dari TiDB.
+  // Menimpa localStorage lama agar panel Monitoring/family tree selalu sinkron
+  // dengan seed terbaru (nama orang asli tetap dari database).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/db/groups');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (cancelled || !Array.isArray(d.groups)) return;
+
+        const gMapped: YouthGroup[] = [];
+        const bMapped: GroupBatch[] = [];
+        const mMap = new Map<string, any>();
+
+        for (const g of d.groups) {
+          gMapped.push({
+            ...(g as any),
+            tenant_id: g.tenantId || 'tenant-youth',
+            mentorNames: [],
+            mentorUserIds: [],
+          });
+          for (const b of g.batches || []) {
+            bMapped.push({
+              id: b.id,
+              group_id: g.id,
+              batchLabel: b.batchLabel ?? '',
+              period: String(b.period ?? ''),
+              mentor: b.mentorName ?? '',
+              comentor: b.comentorName ?? '',
+              theme: b.theme ?? '',
+              isCurrent: !!b.isCurrent,
+              mentees: [],
+            });
+          }
+          for (const m of g.members || []) {
+            mMap.set(m.id, {
+              id: m.id,
+              group_id: g.id,
+              name: m.name,
+              email: m.email || undefined,
+              phone: m.phone || undefined,
+              is_mentor: String(m.familyRole || '').toUpperCase() !== 'MENTEE',
+              joinedDate: String(m.createdAt || '').slice(0, 10),
+              attendanceRate: m.attendanceRate ?? 0,
+              notes: m.notes || undefined,
+              familyRole: m.familyRole,
+              batchPeriod: m.batchPeriod ? String(m.batchPeriod) : undefined,
+            });
+          }
+        }
+
+        // Sisipkan mentee ke batch-nya (kunci: groupId|period)
+        const byKey = new Map(bMapped.map((b) => [`${b.group_id}|${b.period}`, b]));
+        for (const m of mMap.values() as IterableIterator<any>) {
+          if (String(m.familyRole || '').toUpperCase() === 'MENTEE' && m.batchPeriod) {
+            const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
+            if (b) b.mentees.push({ name: m.name, note: undefined });
+          }
+        }
+
+        if (cancelled) return;
+        setGroups(gMapped);
+        setGroupBatches(bMapped);
+        setMembers(Array.from(mMap.values()) as GroupMember[]);
+      } catch {
+        /* offline → pertahankan data lokal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.INTEGRATION, JSON.stringify(integrationConfig));
   }, [integrationConfig]);

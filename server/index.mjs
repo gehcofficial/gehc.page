@@ -356,6 +356,7 @@ app.get('/api/db/groups', wrap(async (req, res) => {
     orderBy: { name: 'asc' },
     include: {
       batches: { orderBy: { period: 'desc' } },
+      members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }] },
     },
   });
   res.json({ groups });
