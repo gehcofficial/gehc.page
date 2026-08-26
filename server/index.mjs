@@ -523,7 +523,11 @@ app.post('/api/seed/events', wrap(async (req, res) => {
     // Cek apakah sudah ada event
     const rows = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as cnt FROM EventProgram`);
     const cnt = Number(rows[0]?.cnt ?? 0);
-    if (cnt > 0) return res.json({ ok: true, message: `Sudah ada ${cnt} event, skip seed.` });
+    if (cnt > 0) {
+      // Show existing
+      const existing = await prisma.$queryRawUnsafe(`SELECT id, name, status FROM EventProgram`);
+      return res.json({ ok: true, message: `Sudah ada ${cnt} event, skip seed.`, existing });
+    }
 
     // Insert BAKU TAU 4.0
     await prisma.$executeRawUnsafe(
@@ -594,10 +598,43 @@ app.get('/api/events', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const events = await prisma.eventProgram.findMany({
-    orderBy: { startDate: 'desc' },
-    include: { divisions: true },
-  });
+  let events;
+  try {
+    events = await prisma.eventProgram.findMany({
+      orderBy: { startDate: 'desc' },
+      include: { divisions: true },
+    });
+  } catch (prismaErr) {
+    // Fallback: Prisma model belum ada → raw SQL
+    try {
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT e.*, 
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',d.id,'eventId',d.event_id,'division',d.division,'driveFolderId',d.drive_folder_id,'createdAt',d.created_at))
+           FROM EventDivision d WHERE d.event_id = e.id) as divisions
+         FROM EventProgram e ORDER BY e.start_date DESC`
+      );
+      events = (rows || []).map((r) => ({
+        id: r.id,
+        tenantId: r.tenant_id,
+        slug: r.slug,
+        name: r.name,
+        description: r.description,
+        status: r.status,
+        startDate: r.start_date,
+        endDate: r.end_date,
+        driveFolderId: r.drive_folder_id,
+        gmeetLink: r.gmeet_link,
+        createdById: r.created_by_id,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        divisions: Array.isArray(r.divisions) ? r.divisions.map((d) => ({
+          id: d.id, eventId: d.eventId, division: d.division, driveFolderId: d.driveFolderId, createdAt: d.createdAt,
+        })) : [],
+      }));
+    } catch (sqlErr) {
+      return res.status(500).json({ error: `Event query gagal: ${String(sqlErr.message || sqlErr).slice(0, 200)}` });
+    }
+  }
 
   // Filter berdasarkan role
   const roles = (req.authUser?.roles || []).map((r) => r.role);
@@ -685,10 +722,45 @@ app.get('/api/events/:id', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const ev = await prisma.eventProgram.findUnique({
-    where: { id: req.params.id },
-    include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } } },
-  });
+  let ev;
+  try {
+    ev = await prisma.eventProgram.findUnique({
+      where: { id: req.params.id },
+      include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } } },
+    });
+  } catch (prismaErr) {
+    // Fallback: raw SQL
+    try {
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT * FROM EventProgram WHERE id = ?`, req.params.id
+      );
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      const r = rows[0];
+      const divRows = await prisma.$queryRawUnsafe(
+        `SELECT * FROM EventDivision WHERE event_id = ?`, r.id
+      );
+      const mtRows = await prisma.$queryRawUnsafe(
+        `SELECT * FROM EventMeeting WHERE event_id = ? ORDER BY scheduled_at DESC`, r.id
+      );
+      ev = {
+        id: r.id, tenantId: r.tenant_id, slug: r.slug, name: r.name, description: r.description,
+        status: r.status, startDate: r.start_date, endDate: r.end_date,
+        driveFolderId: r.drive_folder_id, gmeetLink: r.gmeet_link,
+        createdById: r.created_by_id, createdAt: r.created_at, updatedAt: r.updated_at,
+        divisions: (divRows || []).map((d) => ({
+          id: d.id, eventId: d.event_id, division: d.division, driveFolderId: d.drive_folder_id,
+          extraUserIds: d.extra_user_ids, createdAt: d.created_at,
+        })),
+        meetings: (mtRows || []).map((m) => ({
+          id: m.id, eventId: m.event_id, division: m.division, title: m.title,
+          scheduledAt: m.scheduled_at, gmeetLink: m.gmeet_link, notes: m.notes,
+          createdById: m.created_by_id, createdAt: m.created_at,
+        })),
+      };
+    } catch (sqlErr) {
+      return res.status(500).json({ error: `Event detail gagal: ${String(sqlErr.message || sqlErr).slice(0, 200)}` });
+    }
+  }
   if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
   res.json({ event: ev });
 }));
