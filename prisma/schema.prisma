@@ -451,7 +451,8 @@ model Product {
   id          String   @id @db.VarChar(64)
   name        String   @db.VarChar(200)
   description String?  @db.Text
-  price       Int      // rupiah
+  price       Int      // harga jual (rupiah)
+  buyPrice    Int?     @map("buy_price") // harga beli/modal (rupiah), null untuk non-merchandise
   stock       Int      @default(0)
   images      Json     @default("[]") // [{driveFileId, url, caption}]
   category    String   @db.VarChar(20) // MERCHANDISE | FUNDRAISING | DONATION

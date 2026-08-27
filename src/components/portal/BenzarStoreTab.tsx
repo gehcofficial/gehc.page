@@ -139,14 +139,15 @@ export default function BenzarStoreTab({ eventId, division }: Props) {
                   <tr className="border-b border-[#D9D7D0]/50 text-left text-[10px] uppercase tracking-wider text-[#8C8880]">
                     <th className="px-4 py-3">Produk</th>
                     <th className="px-4 py-3">Kategori</th>
-                    <th className="px-4 py-3 text-right">Harga</th>
+                    <th className="px-4 py-3 text-right">Harga Jual</th>
+                    <th className="px-4 py-3 text-right">Modal</th>
                     <th className="px-4 py-3 text-right">Stok</th>
                     <th className="px-4 py-3 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProducts.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-[#8C8880]">Belum ada produk</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-[#8C8880]">Belum ada produk</td></tr>
                   ) : filteredProducts.map(p => (
                     <tr key={p.id} className="border-b border-[#D9D7D0]/30 hover:bg-[#FAF9F5]">
                       <td className="px-4 py-3">
@@ -160,6 +161,13 @@ export default function BenzarStoreTab({ eventId, division }: Props) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-bold">{formatRupiah(p.price)}</td>
+                      <td className="px-4 py-3 text-right text-xs">
+                        {p.buyPrice ? (
+                          <span className="text-[#8C8880]">{formatRupiah(p.buyPrice)}</span>
+                        ) : (
+                          <span className="text-[#D9D7D0]">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`font-bold ${p.stock <= 5 ? 'text-red-500' : ''}`}>{p.stock}</span>
                       </td>
@@ -301,6 +309,7 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || 0,
+    buyPrice: product?.buyPrice || 0,
     stock: product?.stock || 0,
     category: (product?.category || 'MERCHANDISE') as ProductCategory,
   });
@@ -311,9 +320,11 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
     try {
       const method = product ? 'PATCH' : 'POST';
       const url = product ? `/api/benzar/products/${product.id}` : '/api/benzar/products';
+      const body: any = { ...form };
+      if (!body.buyPrice) body.buyPrice = null;
       await fetch(url, {
         method, headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
       onSaved();
     } finally { setSaving(false); }
@@ -336,7 +347,7 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Harga (Rp)</label>
+              <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Harga Jual (Rp)</label>
               <input type="number" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })}
                 className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
             </div>
@@ -346,6 +357,18 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
                 className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
             </div>
           </div>
+          {form.category === 'MERCHANDISE' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Harga Modal / Buy Price (Rp)</label>
+              <input type="number" value={form.buyPrice} onChange={e => setForm({ ...form, buyPrice: Number(e.target.value) })}
+                className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
+              {form.buyPrice > 0 && form.price > 0 && (
+                <p className="text-[10px] text-emerald-600 mt-1">
+                  Margin: {formatRupiah(form.price - form.buyPrice)} ({Math.round(((form.price - form.buyPrice) / form.price) * 100)}%)
+                </p>
+              )}
+            </div>
+          )}
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Kategori</label>
             <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as ProductCategory })}

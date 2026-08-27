@@ -2683,12 +2683,13 @@ app.patch('/api/benzar/orders/:id/status', requireRole('SUPERADMIN', 'KOMISI', '
 app.get('/api/benzar/qris', wrap(async (req, res) => {
   // Static QRIS config — admin ganti di Drive, ini fallback
   res.json({
-    imageUrl: process.env.QRIS_IMAGE_URL || '/qris.png',
+    imageUrl: process.env.QRIS_IMAGE_URL || '/Gopay QRIS.png',
     merchantName: process.env.QRIS_MERCHANT_NAME || 'GEHC Benzarpreneurship',
     merchantId: process.env.QRIS_MERCHANT_ID || '',
     bankName: process.env.QRIS_BANK_NAME || 'GoPay',
     accountNumber: process.env.QRIS_ACCOUNT_NUMBER || '',
-    instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, konfirmasi ke admin.',
+    whatsapp: '081288646114',
+    instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, kirim bukti transfer ke WA: 081288646114.',
   });
 }));
 

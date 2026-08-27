@@ -3,6 +3,7 @@ export interface Product {
   name: string;
   description?: string | null;
   price: number;
+  buyPrice?: number | null;
   stock: number;
   images: ProductImage[];
   category: 'MERCHANDISE' | 'FUNDRAISING' | 'DONATION';
@@ -51,6 +52,7 @@ export interface QRISInfo {
   merchantId: string;
   bankName: string;
   accountNumber: string;
+  whatsapp: string;
   instructions: string;
 }
 
