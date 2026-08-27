@@ -129,6 +129,14 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const [replyBody, setReplyBody] = useState('');
   const [posting, setPosting] = useState(false);
 
+  // Members management
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState<any[]>([]);
+  const [memberRole, setMemberRole] = useState('MEMBER');
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+  const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
@@ -256,6 +264,83 @@ export const DivisionWorkspacePanel: React.FC = () => {
       addToast({ type: 'error', title: 'Gagal membalas', description: e.message });
     } finally {
       setPosting(false);
+    }
+  };
+
+  // Search users for adding to division
+  const searchUsers = async (q: string) => {
+    setMemberSearch(q);
+    if (!q.trim()) { setMemberSearchResults([]); return; }
+    setMemberSearchLoading(true);
+    try {
+      const r = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        setMemberSearchResults(d.users || []);
+      }
+    } catch { /* skip */ }
+    finally { setMemberSearchLoading(false); }
+  };
+
+  // Add member to division
+  const handleAddMember = async (userId: string) => {
+    if (!selectedEvent || !currentDiv) return;
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/members`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, role: memberRole }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Anggota ditambahkan' });
+      setShowAddMember(false);
+      setMemberSearch('');
+      setMemberSearchResults([]);
+      await fetchMembers();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal menambahkan', description: e.message });
+    }
+  };
+
+  // Remove member from division
+  const handleRemoveMember = async (userId: string) => {
+    if (!selectedEvent || !currentDiv) return;
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/members/${userId}`,
+        { method: 'DELETE', credentials: 'include' }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Anggota dihapus' });
+      setRemoveConfirm(null);
+      await fetchMembers();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal menghapus', description: e.message });
+    }
+  };
+
+  // Change member role
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!selectedEvent || !currentDiv) return;
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/members`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, role: newRole }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Role diperbarui' });
+      await fetchMembers();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal memperbarui role', description: e.message });
     }
   };
 
@@ -607,13 +692,29 @@ export const DivisionWorkspacePanel: React.FC = () => {
 
             {detailTab === 'members' && (
               <div className="space-y-4">
+                {/* Add member button */}
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-semibold text-[#8C8880]">
+                    {members.length} Anggota
+                  </p>
+                  <button
+                    onClick={() => setShowAddMember(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black transition-colors"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Tambah Anggota
+                  </button>
+                </div>
+
                 {membersLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin text-[#8C8880]" />
                   </div>
                 ) : members.length === 0 ? (
                   <div className="text-center py-8 text-sm text-[#8C8880]">
-                    Belum ada anggota divisi ini.
+                    <Users className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                    <p>Belum ada anggota divisi ini.</p>
+                    <p className="text-xs mt-1">Klik "Tambah Anggota" untuk mulai.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -627,6 +728,26 @@ export const DivisionWorkspacePanel: React.FC = () => {
                             <p className="text-xs font-bold text-[#1B1B1B]">{m.userId}</p>
                             <p className="text-[10px] text-[#8C8880]">{ROLE_LABELS[m.role] || m.role}</p>
                           </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {/* Role change dropdown */}
+                          <select
+                            value={m.role}
+                            onChange={(e) => handleRoleChange(m.userId, e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-white border border-[#D9D7D0] text-[10px] font-semibold text-[#8C8880] focus:outline-none focus:border-black"
+                          >
+                            <option value="LEAD">Ketua Divisi</option>
+                            <option value="CO_LEAD">Wakil Ketua</option>
+                            <option value="MEMBER">Anggota</option>
+                            <option value="VIEWER">Pengamat</option>
+                          </select>
+                          {/* Remove button */}
+                          <button
+                            onClick={() => handleRemoveMember(m.userId)}
+                            className="p-1.5 rounded-lg text-[#8C8880] hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -835,6 +956,99 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1B1B1B]">Tambah Anggota Divisi</h3>
+              <button onClick={() => { setShowAddMember(false); setMemberSearch(''); setMemberSearchResults([]); }} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={memberSearch}
+                onChange={(e) => searchUsers(e.target.value)}
+                placeholder="Cari nama atau email..."
+                className="w-full px-4 py-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+                autoFocus
+              />
+              {memberSearchLoading && (
+                <Loader2 className="w-4 h-4 animate-spin text-[#8C8880] absolute right-3 top-1/2 -translate-y-1/2" />
+              )}
+            </div>
+
+            {/* Role selector */}
+            <div>
+              <label className="text-xs font-semibold text-[#8C8880] mb-1 block">Role</label>
+              <select
+                value={memberRole}
+                onChange={(e) => setMemberRole(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs focus:outline-none focus:border-black"
+              >
+                <option value="LEAD">Ketua Divisi (LEAD)</option>
+                <option value="CO_LEAD">Wakil Ketua (CO_LEAD)</option>
+                <option value="MEMBER">Anggota (MEMBER)</option>
+                <option value="VIEWER">Pengamat (VIEWER)</option>
+              </select>
+            </div>
+
+            {/* Search results */}
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {memberSearchResults.length === 0 && memberSearch ? (
+                <p className="text-xs text-[#8C8880] text-center py-4">Tidak ditemukan.</p>
+              ) : (
+                memberSearchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => handleAddMember(user.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#D9D7D0] flex items-center justify-center text-[10px] font-bold text-[#8C8880] shrink-0">
+                      {(user.name || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#1B1B1B] truncate">{user.name}</p>
+                      <p className="text-[10px] text-[#8C8880] truncate">{user.email}{user.division ? ` • ${user.division}` : ''}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {removeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl space-y-4">
+            <h3 className="text-lg font-bold text-[#1B1B1B]">Hapus Anggota?</h3>
+            <p className="text-sm text-[#8C8880]">
+              Anggota <span className="font-bold text-[#1B1B1B]">{removeConfirm}</span> akan dihapus dari divisi ini.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setRemoveConfirm(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8C8880] hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleRemoveMember(removeConfirm)}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600"
+              >
+                Hapus
+              </button>
             </div>
           </div>
         </div>
