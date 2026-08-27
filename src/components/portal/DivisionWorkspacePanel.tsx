@@ -20,6 +20,7 @@ import {
   Eye,
   Edit2,
   X,
+  FileText,
 } from 'lucide-react';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
@@ -136,6 +137,17 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const [memberRole, setMemberRole] = useState('MEMBER');
   const [memberSearchLoading, setMemberSearchLoading] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+
+  // Drive browser
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [driveFolders, setDriveFolders] = useState<any[]>([]);
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveFolderId, setDriveFolderId] = useState<string | null>(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -341,6 +353,88 @@ export const DivisionWorkspacePanel: React.FC = () => {
       await fetchMembers();
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal memperbarui role', description: e.message });
+    }
+  };
+
+  // Fetch Drive files
+  const fetchDrive = useCallback(async () => {
+    if (!selectedEvent || !currentDiv) return;
+    setDriveLoading(true);
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/drive`,
+        { credentials: 'include' }
+      );
+      if (r.ok) {
+        const d = await r.json();
+        setDriveFiles(d.files || []);
+        setDriveFolders(d.folders || []);
+        setDriveFolderId(d.folderId);
+      }
+    } catch { /* skip */ }
+    finally { setDriveLoading(false); }
+  }, [selectedEvent, currentDiv, selectedDiv]);
+
+  useEffect(() => { if (detailTab === 'drive') fetchDrive(); }, [detailTab, fetchDrive]);
+
+  // Create folder
+  const handleCreateFolder = async () => {
+    if (!selectedEvent || !currentDiv || !newFolderName.trim()) return;
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/drive/folder`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newFolderName.trim() }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Folder dibuat' });
+      setShowCreateFolder(false);
+      setNewFolderName('');
+      await fetchDrive();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal membuat folder', description: e.message });
+    }
+  };
+
+  // Upload file
+  const handleUpload = async () => {
+    if (!selectedEvent || !currentDiv || !uploadFile) return;
+    setUploading(true);
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(uploadFile);
+      });
+
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/drive/upload`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: uploadFile.name,
+            mimetype: uploadFile.type,
+            data: base64,
+          }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'File berhasil diupload' });
+      setShowUpload(false);
+      setUploadFile(null);
+      await fetchDrive();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal upload', description: e.message });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -881,9 +975,98 @@ export const DivisionWorkspacePanel: React.FC = () => {
             )}
 
             {detailTab === 'drive' && (
-              <div className="text-center py-8 text-sm text-[#8C8880]">
-                <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
-                <p>Drive folder browser — coming soon di Phase 3.</p>
+              <div className="space-y-4">
+                {/* Drive actions */}
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-semibold text-[#8C8880]">
+                    {driveFolders.length} Folder, {driveFiles.length} File
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowCreateFolder(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#8C8880] hover:bg-gray-100 transition-colors"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      Folder Baru
+                    </button>
+                    <button
+                      onClick={() => setShowUpload(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Upload
+                    </button>
+                  </div>
+                </div>
+
+                {!driveFolderId ? (
+                  <div className="text-center py-8 text-sm text-[#8C8880]">
+                    <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                    <p>Belum ada folder Drive untuk divisi ini.</p>
+                    <p className="text-xs mt-1">Hubungi admin untuk membuat folder Drive.</p>
+                  </div>
+                ) : driveLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#8C8880]" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Folders */}
+                    {driveFolders.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">Folder</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {driveFolders.map((f) => (
+                            <div key={f.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors cursor-pointer">
+                              <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
+                              <span className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Files */}
+                    {driveFiles.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">File</p>
+                        <div className="space-y-2">
+                          {driveFiles.map((f) => (
+                            <a
+                              key={f.id}
+                              href={f.webViewLink || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors"
+                            >
+                              {f.thumbnailUrl ? (
+                                <img src={f.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center shrink-0">
+                                  <FileText className="w-5 h-5 text-[#8C8880]" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</p>
+                                <p className="text-[10px] text-[#8C8880]">
+                                  {f.createdTime ? new Date(f.createdTime).toLocaleDateString('id-ID') : ''}
+                                </p>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-[#8C8880] shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {driveFolders.length === 0 && driveFiles.length === 0 && (
+                      <div className="text-center py-8 text-sm text-[#8C8880]">
+                        <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                        <p>Folder kosong.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1048,6 +1231,92 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600"
               >
                 Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Folder Modal */}
+      {showCreateFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1B1B1B]">Buat Folder Baru</h3>
+              <button onClick={() => { setShowCreateFolder(false); setNewFolderName(''); }} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Nama folder..."
+              className="w-full px-4 py-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowCreateFolder(false); setNewFolderName(''); }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8C8880] hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleCreateFolder}
+                disabled={!newFolderName.trim()}
+                className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black disabled:opacity-50"
+              >
+                Buat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1B1B1B]">Upload File</h3>
+              <button onClick={() => { setShowUpload(false); setUploadFile(null); }} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="border-2 border-dashed border-[#D9D7D0] rounded-xl p-6 text-center">
+              {uploadFile ? (
+                <div className="space-y-2">
+                  <FileText className="w-8 h-8 mx-auto text-[#8C8880]" />
+                  <p className="text-xs font-bold text-[#1B1B1B]">{uploadFile.name}</p>
+                  <p className="text-[10px] text-[#8C8880]">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                </div>
+              ) : (
+                <label className="cursor-pointer block">
+                  <FileText className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                  <p className="text-xs text-[#8C8880]">Klik untuk pilih file</p>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowUpload(false); setUploadFile(null); }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8C8880] hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={!uploadFile || uploading}
+                className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black disabled:opacity-50"
+              >
+                {uploading ? 'Mengupload...' : 'Upload'}
               </button>
             </div>
           </div>

@@ -488,6 +488,129 @@ app.post('/api/db/sync-batches', wrap(async (req, res) => {
   res.json({ synced });
 }));
 
+// ---------- Division Drive Browser ----------
+import { createFolder as gdriveCreateFolder, uploadFile as gdriveUploadFile, deleteFile as gdriveDeleteFile, getFileInfo as gdriveGetFileInfo } from './gdrive.mjs';
+
+// GET /api/events/:eventId/divisions/:div/drive — list files in division's Drive folder
+app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  if (!division.driveFolderId) {
+    return res.json({ files: [], folders: [], folderId: null, message: 'Belum ada folder Drive untuk divisi ini.' });
+  }
+
+  try {
+    const [files, folders] = await Promise.all([
+      listFiles({ folderId: division.driveFolderId, pageSize: 50 }),
+      listFolders(division.driveFolderId, 50),
+    ]);
+    res.json({ files, folders, folderId: division.driveFolderId });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal memuat Drive: ${e.message}` });
+  }
+}));
+
+// POST /api/events/:eventId/divisions/:div/drive/folder — create subfolder
+app.post('/api/events/:eventId/divisions/:div/drive/folder', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+
+  const { eventId, div } = req.params;
+  const { name } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name wajib.' });
+
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  if (!division.driveFolderId) {
+    return res.status(400).json({ error: 'Divisi belum memiliki folder Drive.' });
+  }
+
+  try {
+    const folder = await gdriveCreateFolder(division.driveFolderId, name);
+    res.status(201).json({ folder });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal membuat folder: ${e.message}` });
+  }
+}));
+
+// POST /api/events/:eventId/divisions/:div/drive/upload — upload file
+app.post('/api/events/:eventId/divisions/:div/drive/upload', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+  if (process.env.GDRIVE_WRITE !== '1') return res.status(403).json({ error: 'Upload belum diaktifkan (GDRIVE_WRITE != 1).' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  if (!division.driveFolderId) {
+    return res.status(400).json({ error: 'Divisi belum memiliki folder Drive.' });
+  }
+
+  // Expect multipart form data — use multer or manual parse
+  // For now, expect JSON with base64 file data
+  const { filename, mimetype, data } = req.body || {};
+  if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
+
+  try {
+    const buffer = Buffer.from(data, 'base64');
+    const file = await gdriveUploadFile(division.driveFolderId, {
+      originalname: filename,
+      mimetype: mimetype || 'application/octet-stream',
+      buffer,
+    });
+    res.status(201).json({ file });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal upload: ${e.message}` });
+  }
+}));
+
+// DELETE /api/drive/files/:fileId — delete file/folder
+app.delete('/api/drive/files/:fileId', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+  if (process.env.GDRIVE_WRITE !== '1') return res.status(403).json({ error: 'Delete belum diaktifkan (GDRIVE_WRITE != 1).' });
+
+  try {
+    await gdriveDeleteFile(req.params.fileId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal menghapus: ${e.message}` });
+  }
+}));
+
+// GET /api/drive/files/:fileId — get file info
+app.get('/api/drive/files/:fileId', wrap(async (req, res) => {
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+
+  try {
+    const info = await gdriveGetFileInfo(req.params.fileId);
+    res.json({ file: info });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal memuat info file: ${e.message}` });
+  }
+}));
+
 // ---------- Event Workspace Migration (ad hoc) ----------
 app.post('/api/migrate/events', wrap(async (req, res) => {
   const prisma = getPrisma();

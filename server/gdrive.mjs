@@ -214,3 +214,73 @@ export async function testConnection() {
   await drive.files.list({ pageSize: 1, fields: 'files(id)' });
   return true;
 }
+
+// ---------- Write operations (requires GDRIVE_WRITE=1) ----------
+
+/**
+ * Create a new folder under parentId.
+ */
+export async function createFolder(parentId, name) {
+  const drive = await getDrive();
+  const res = await drive.files.create({
+    requestBody: {
+      name,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [parentId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root'],
+    },
+    fields: 'id, name, mimeType, createdTime',
+    supportsAllDrives: true,
+  });
+  clearListCache();
+  return res.data;
+}
+
+/**
+ * Upload a file to a folder.
+ * @param {string} parentId - Target folder ID
+ * @param {object} file - { filename, mimetype, buffer } (from multer/memoryStorage)
+ * @returns {object} Created file metadata
+ */
+export async function uploadFile(parentId, file) {
+  const drive = await getDrive();
+  const res = await drive.files.create({
+    requestBody: {
+      name: file.originalname || file.filename,
+      parents: [parentId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root'],
+    },
+    media: {
+      mimeType: file.mimetype || 'application/octet-stream',
+      body: file.buffer ? require('stream').Readable.from(file.buffer) : file.stream,
+    },
+    fields: 'id, name, mimeType, thumbnailLink, webViewLink, createdTime, size',
+    supportsAllDrives: true,
+  });
+  clearListCache();
+  return mapFile(res.data);
+}
+
+/**
+ * Delete a file/folder by ID.
+ */
+export async function deleteFile(fileId) {
+  const drive = await getDrive();
+  await drive.files.delete({
+    fileId,
+    supportsAllDrives: true,
+  });
+  clearListCache();
+  return true;
+}
+
+/**
+ * Get file metadata by ID.
+ */
+export async function getFileInfo(fileId) {
+  const drive = await getDrive();
+  const res = await drive.files.get({
+    fileId,
+    fields: 'id, name, mimeType, size, createdTime, modifiedTime, webViewLink, thumbnailLink, parents',
+    supportsAllDrives: true,
+  });
+  return res.data;
+}
