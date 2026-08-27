@@ -9,6 +9,7 @@ import { ManageUsersRBAC } from './ManageUsersRBAC';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
+import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
@@ -73,6 +74,7 @@ export const PortalLayout: React.FC = () => {
     { id: 'media-guide', label: 'Panduan Media (Drive)', icon: Images, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Konten' },
     { id: 'struktur', label: 'Struktur Organisasi (Org Chart)', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
     { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja' },
+    { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja' },
     { id: 'users-rbac', label: 'Pengguna & Matrix RBAC', icon: ShieldAlert, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
     { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
   ];
@@ -351,6 +353,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'waitlist' && <WaitlistBoard />}
           {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}
+          {activeTab === 'divisions' && <DivisionWorkspacePanel />}
           {activeTab === 'users-rbac' && <ManageUsersRBAC />}
           {activeTab === 'integrations' && <ManageIntegrations />}
         </main>
