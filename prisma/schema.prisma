@@ -432,6 +432,7 @@ enum NotificationType {
   IDLE_FLAG
   MITOSIS_ALERT
   MERGER_SUGGESTION
+  MENTION
 }
 
 enum NotificationStatus {

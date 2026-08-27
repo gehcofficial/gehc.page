@@ -141,6 +141,191 @@ app.get('/api/users', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(asy
   res.json({ users });
 }));
 
+// ---------- Notifications ----------
+// GET /api/notifications — get current user's notifications
+app.get('/api/notifications', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  try {
+    // Get notifications where user is mentioned (payload.authorId != user AND user is mentioned)
+    const notifications = await prisma.notification.findMany({
+      where: {
+        OR: [
+          // MENTION notifications where user was mentioned
+          {
+            type: 'MENTION',
+            status: 'OPEN',
+            // Check if the mentioned user ID is in the payload or title contains user name
+          },
+          // Other notification types
+          {
+            type: { not: 'MENTION' },
+            status: 'OPEN',
+          },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Filter MENTION notifications to only show ones relevant to current user
+    const filtered = notifications.filter((n) => {
+      if (n.type !== 'MENTION') return true;
+      const payload = n.payload || {};
+      // Show if user was mentioned (not the author)
+      return payload.authorId !== req.authUser.id;
+    });
+
+    const unread = filtered.filter((n) => n.status === 'OPEN').length;
+    res.json({ notifications: filtered, unread });
+  } catch (e) {
+    res.json({ notifications: [], unread: 0 });
+  }
+}));
+
+// PATCH /api/notifications/:id/read — mark as read
+app.patch('/api/notifications/:id/read', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  try {
+    await prisma.notification.update({
+      where: { id: req.params.id },
+      data: { status: 'ACKNOWLEDGED', resolvedAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Gagal update notifikasi.' });
+  }
+}));
+
+// POST /api/notifications/read-all — mark all as read
+app.post('/api/notifications/read-all', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  try {
+    await prisma.notification.updateMany({
+      where: { status: 'OPEN' },
+      data: { status: 'ACKNOWLEDGED', resolvedAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Gagal update notifikasi.' });
+  }
+}));
+
+// ---------- Division Analytics ----------
+// GET /api/events/:eventId/analytics — get analytics for an event
+app.get('/api/events/:eventId/analytics', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId } = req.params;
+
+  try {
+    const divisions = await prisma.eventDivision.findMany({
+      where: { eventId },
+      include: {
+        members: true,
+        updates: true,
+        approvalLogs: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    const meetings = await prisma.eventMeeting.findMany({
+      where: { eventId },
+    });
+
+    const stats = {
+      totalDivisions: divisions.length,
+      totalMembers: divisions.reduce((sum, d) => sum + d.members.length, 0),
+      totalUpdates: divisions.reduce((sum, d) => sum + d.updates.length, 0),
+      totalMeetings: meetings.length,
+      statusBreakdown: {
+        DRAFT: divisions.filter((d) => d.approvalStatus === 'DRAFT').length,
+        IN_REVIEW: divisions.filter((d) => d.approvalStatus === 'IN_REVIEW').length,
+        APPROVED: divisions.filter((d) => d.approvalStatus === 'APPROVED').length,
+        REJECTED: divisions.filter((d) => d.approvalStatus === 'REJECTED').length,
+        PUBLISHED: divisions.filter((d) => d.approvalStatus === 'PUBLISHED').length,
+      },
+      divisionStats: divisions.map((d) => ({
+        division: d.division,
+        status: d.approvalStatus,
+        members: d.members.length,
+        updates: d.updates.length,
+        lastActivity: d.updates.length > 0
+          ? d.updates[d.updates.length - 1].createdAt
+          : d.createdAt,
+      })),
+      recentActivity: divisions
+        .flatMap((d) =>
+          d.updates.map((u) => ({
+            ...u,
+            division: d.division,
+          }))
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10),
+    };
+
+    res.json({ stats });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal memuat analytics: ${e.message}` });
+  }
+}));
+
+// GET /api/events/:eventId/divisions/:div/analytics — get analytics for a specific division
+app.get('/api/events/:eventId/divisions/:div/analytics', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+
+  try {
+    const division = await prisma.eventDivision.findUnique({
+      where: { eventId_division: { eventId, division: div.toUpperCase() } },
+      include: {
+        members: true,
+        updates: true,
+        approvalLogs: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+    const meetings = await prisma.eventMeeting.findMany({
+      where: { eventId, division: div.toUpperCase() },
+    });
+
+    const stats = {
+      division: div.toUpperCase(),
+      status: division.approvalStatus,
+      totalMembers: division.members.length,
+      totalUpdates: division.updates.length,
+      totalMeetings: meetings.length,
+      memberRoles: {
+        LEAD: division.members.filter((m) => m.role === 'LEAD').length,
+        CO_LEAD: division.members.filter((m) => m.role === 'CO_LEAD').length,
+        MEMBER: division.members.filter((m) => m.role === 'MEMBER').length,
+        VIEWER: division.members.filter((m) => m.role === 'VIEWER').length,
+      },
+      recentUpdates: division.updates.slice(-5),
+      recentApprovals: division.approvalLogs.slice(0, 5),
+    };
+
+    res.json({ stats });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal memuat analytics: ${e.message}` });
+  }
+}));
+
 // ---------- Demo personas (STAGING ONLY) ----------
 // Aktif hanya jika ENABLE_DEMO_PERSONAS=true — JANGAN pernah diaktifkan di produksi.
 const demoEnabled = () => process.env.ENABLE_DEMO_PERSONAS === 'true';
@@ -641,6 +826,8 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     // Phase 3: Reply threading for discussions
     "ALTER TABLE `EventUpdate` ADD COLUMN `parent_update_id` VARCHAR(64) NULL AFTER `body`;",
     "ALTER TABLE `EventUpdate` ADD INDEX `EventUpdate_parent_update_id_idx`(`parent_update_id`);",
+    // Phase 7: MENTION notification type (enum value added in schema)
+    "ALTER TABLE `Notification` MODIFY COLUMN `type` ENUM('IDLE_FLAG','MITOSIS_ALERT','MERGER_SUGGESTION','MENTION') NOT NULL;",
   ];
 
   let applied = 0;
@@ -1045,6 +1232,50 @@ app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KO
     const user = await prisma.user.findUnique({ where: { id: update.authorId }, select: { name: true } });
     if (user?.name) authorName = user.name;
   } catch { /* skip */ }
+
+  // Extract @mentions and create notifications
+  try {
+    const mentionRegex = /@(\w[\w\s]*?\w(?=\s|$|[^a-zA-Z0-9]))/g;
+    const mentionNames = [];
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+      mentionNames.push(match[1].trim());
+    }
+
+    if (mentionNames.length > 0) {
+      // Find mentioned users by name
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          OR: mentionNames.map((name) => ({ name: { contains: name } })),
+        },
+        select: { id: true, name: true },
+      });
+
+      // Create notifications for each mentioned user (skip author)
+      for (const mu of mentionedUsers) {
+        if (mu.id === update.authorId) continue; // don't notify self
+
+        await prisma.notification.create({
+          data: {
+            id: `notif-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+            type: 'MENTION',
+            title: `Anda di-mention oleh ${authorName}`,
+            message: `di divisi ${req.params.div.toUpperCase()}: "${text.slice(0, 100)}${text.length > 100 ? '...' : ''}"`,
+            payload: {
+              eventId: req.params.id,
+              division: req.params.div.toUpperCase(),
+              updateId: update.id,
+              authorId: update.authorId,
+              authorName,
+            },
+            status: 'OPEN',
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.error('[MENTION] Failed to create notifications:', e.message);
+  }
 
   res.status(201).json({ update: { ...update, authorName } });
 }));

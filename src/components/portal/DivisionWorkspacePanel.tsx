@@ -21,6 +21,9 @@ import {
   Edit2,
   X,
   FileText,
+  Video,
+  CalendarPlus,
+  Download,
 } from 'lucide-react';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
@@ -148,6 +151,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Meetings
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
+  const [showMeetingForm, setShowMeetingForm] = useState(false);
+  const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+  const [creatingMeeting, setCreatingMeeting] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -436,6 +446,80 @@ export const DivisionWorkspacePanel: React.FC = () => {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Fetch meetings
+  const fetchMeetings = useCallback(async () => {
+    if (!selectedEvent) return;
+    setMeetingsLoading(true);
+    try {
+      const r = await fetch(`/api/events/${selectedEvent.id}`, { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        const allMeetings = d.event?.meetings || [];
+        // Filter by division or show all for overview
+        const divMeetings = allMeetings.filter((m: any) => !m.division || m.division === selectedDiv);
+        setMeetings(divMeetings);
+      }
+    } catch { /* skip */ }
+    finally { setMeetingsLoading(false); }
+  }, [selectedEvent, selectedDiv]);
+
+  useEffect(() => { fetchMeetings(); }, [fetchMeetings]);
+
+  // Create meeting
+  const handleCreateMeeting = async () => {
+    if (!selectedEvent || !meetingForm.title || !meetingForm.scheduledAt) return;
+    setCreatingMeeting(true);
+    try {
+      const r = await fetch(`/api/events/${selectedEvent.id}/meetings`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...meetingForm,
+          division: selectedDiv,
+        }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Rapat berhasil dibuat' });
+      setShowMeetingForm(false);
+      setMeetingForm({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+      await fetchMeetings();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal membuat rapat', description: e.message });
+    } finally {
+      setCreatingMeeting(false);
+    }
+  };
+
+  // Generate .ics for a meeting
+  const generateICS = (meeting: any) => {
+    const dt = new Date(meeting.scheduledAt);
+    const dtEnd = new Date(dt.getTime() + 60 * 60 * 1000); // 1 hour
+    const formatDT = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//GEHC Youth//Division Meeting//ID',
+      'BEGIN:VEVENT',
+      `DTSTART:${formatDT(dt)}`,
+      `DTEND:${formatDT(dtEnd)}`,
+      `SUMMARY:${meeting.title}`,
+      `DESCRIPTION:${meeting.notes || ''}`,
+      meeting.gmeetLink ? `URL:${meeting.gmeetLink}` : '',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${meeting.title.replace(/[^a-zA-Z0-9]/g, '-')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Action: Submit for review
@@ -767,10 +851,8 @@ export const DivisionWorkspacePanel: React.FC = () => {
                     <p className="text-sm font-bold text-[#1B1B1B] mt-1">{members.length}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-white border border-[#D9D7D0]">
-                    <p className="text-[10px] font-bold text-[#8C8880] uppercase">Dibuat</p>
-                    <p className="text-sm font-bold text-[#1B1B1B] mt-1">
-                      {new Date(currentDiv.createdAt).toLocaleDateString('id-ID')}
-                    </p>
+                    <p className="text-[10px] font-bold text-[#8C8880] uppercase">Diskusi</p>
+                    <p className="text-sm font-bold text-[#1B1B1B] mt-1">{discussions.length}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-white border border-[#D9D7D0]">
                     <p className="text-[10px] font-bold text-[#8C8880] uppercase">Approved</p>
@@ -780,6 +862,71 @@ export const DivisionWorkspacePanel: React.FC = () => {
                         : '—'}
                     </p>
                   </div>
+                </div>
+
+                {/* Recent Activity */}
+                {discussions.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]">
+                    <h4 className="text-xs font-bold text-[#8C8880] uppercase tracking-wider mb-3">Aktivitas Terakhir</h4>
+                    <div className="space-y-2">
+                      {discussions.slice(-3).reverse().map((post) => (
+                        <div key={post.id} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#FF416C] mt-1.5 shrink-0" />
+                          <div>
+                            <p className="text-xs text-[#1B1B1B]">{post.body.slice(0, 80)}{post.body.length > 80 ? '...' : ''}</p>
+                            <p className="text-[10px] text-[#8C8880]">
+                              {post.authorName} • {new Date(post.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Meetings */}
+                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Rapat</h4>
+                    <button
+                      onClick={() => setShowMeetingForm(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#1B1B1B] text-white text-[10px] font-bold hover:bg-black"
+                    >
+                      <CalendarPlus className="w-3 h-3" />
+                      Buat Rapat
+                    </button>
+                  </div>
+                  {meetingsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#8C8880]" />
+                  ) : meetings.length === 0 ? (
+                    <p className="text-xs text-[#8C8880]">Belum ada rapat.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {meetings.slice(0, 3).map((m) => (
+                        <div key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#D9D7D0]">
+                          <div className="flex items-center gap-2">
+                            <Video className="w-4 h-4 text-[#FF416C] shrink-0" />
+                            <div>
+                              <p className="text-xs font-bold text-[#1B1B1B]">{m.title}</p>
+                              <p className="text-[10px] text-[#8C8880]">
+                                {new Date(m.scheduledAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {m.gmeetLink && (
+                              <a href={m.gmeetLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-gray-100">
+                                <ExternalLink className="w-3 h-3 text-[#8C8880]" />
+                              </a>
+                            )}
+                            <button onClick={() => generateICS(m)} className="p-1 rounded hover:bg-gray-100">
+                              <Download className="w-3 h-3 text-[#8C8880]" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1317,6 +1464,80 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black disabled:opacity-50"
               >
                 {uploading ? 'Mengupload...' : 'Upload'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Form Modal */}
+      {showMeetingForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1B1B1B]">Buat Rapat Baru</h3>
+              <button onClick={() => { setShowMeetingForm(false); setMeetingForm({ title: '', scheduledAt: '', gmeetLink: '', notes: '' }); }} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#8C8880] mb-1 block">Judul Rapat *</label>
+                <input
+                  type="text"
+                  value={meetingForm.title}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
+                  placeholder="Contoh: Kick-off BAKU TAU"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#8C8880] mb-1 block">Tanggal & Waktu *</label>
+                <input
+                  type="datetime-local"
+                  value={meetingForm.scheduledAt}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, scheduledAt: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#8C8880] mb-1 block">Google Meet Link</label>
+                <input
+                  type="url"
+                  value={meetingForm.gmeetLink}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, gmeetLink: e.target.value })}
+                  placeholder="https://meet.google.com/..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#8C8880] mb-1 block">Catatan</label>
+                <textarea
+                  value={meetingForm.notes}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
+                  placeholder="Agenda atau catatan rapat..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black resize-none h-20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowMeetingForm(false); setMeetingForm({ title: '', scheduledAt: '', gmeetLink: '', notes: '' }); }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8C8880] hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleCreateMeeting}
+                disabled={creatingMeeting || !meetingForm.title || !meetingForm.scheduledAt}
+                className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black disabled:opacity-50"
+              >
+                {creatingMeeting ? 'Membuat...' : 'Buat Rapat'}
               </button>
             </div>
           </div>

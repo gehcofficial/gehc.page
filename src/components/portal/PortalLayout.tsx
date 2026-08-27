@@ -33,6 +33,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronRight,
+  Bell,
 } from 'lucide-react';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
@@ -58,10 +59,30 @@ export const PortalLayout: React.FC = () => {
     return saved === 'true';
   });
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   }, [collapsed]);
+
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const r = await fetch('/api/notifications', { credentials: 'include' });
+        if (r.ok) {
+          const d = await r.json();
+          setUnreadCount(d.unread || 0);
+          setNotifications(d.notifications || []);
+        }
+      } catch { /* skip */ }
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'], group: 'Utama' },
@@ -161,6 +182,22 @@ export const PortalLayout: React.FC = () => {
                   title="Tutup sidebar"
                 >
                   <PanelLeftClose className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Notification Bell */}
+              {!collapsed && (
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 rounded-lg text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm transition-all duration-200 shrink-0"
+                  title="Notifikasi"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF416C] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -340,6 +377,60 @@ export const PortalLayout: React.FC = () => {
             )}
           </div>
         </aside>
+
+        {/* Notification Dropdown */}
+        {showNotifications && (
+          <div className="fixed top-16 right-4 z-50 w-80 bg-white rounded-2xl border border-[#D9D7D0] shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[#D9D7D0]">
+              <h3 className="text-sm font-bold text-[#1B1B1B]">Notifikasi</h3>
+              <button
+                onClick={() => setShowNotifications(false)}
+                className="p-1 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-xs text-[#8C8880]">
+                  Tidak ada notifikasi
+                </div>
+              ) : (
+                notifications.slice(0, 10).map((n) => (
+                  <div
+                    key={n.id}
+                    className="p-3 border-b border-[#D9D7D0]/50 hover:bg-[#FAF9F5] cursor-pointer"
+                    onClick={async () => {
+                      await fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH', credentials: 'include' });
+                      setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+                      setUnreadCount((prev) => Math.max(0, prev - 1));
+                    }}
+                  >
+                    <p className="text-xs font-bold text-[#1B1B1B]">{n.title}</p>
+                    <p className="text-[10px] text-[#8C8880] mt-0.5">{n.message}</p>
+                    <p className="text-[9px] text-[#D9D7D0] mt-1">
+                      {new Date(n.createdAt).toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            {notifications.length > 0 && (
+              <div className="p-2 border-t border-[#D9D7D0]">
+                <button
+                  onClick={async () => {
+                    await fetch('/api/notifications/read-all', { method: 'POST', credentials: 'include' });
+                    setNotifications([]);
+                    setUnreadCount(0);
+                  }}
+                  className="w-full py-2 text-[10px] font-semibold text-[#8C8880] hover:bg-gray-100 rounded-lg"
+                >
+                  Tandai semua sudah dibaca
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
