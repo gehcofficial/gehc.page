@@ -16,7 +16,9 @@ import {
   Eye,
   Send,
   RotateCcw,
+  Share2,
 } from 'lucide-react';
+import WartaExportModal from './WartaExportModal';
 
 const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
 const STATUS_LABELS = {
@@ -45,6 +47,7 @@ export default function WartaPublikTab({ division }: { division: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWarta, setEditingWarta] = useState(null);
   const [showDetail, setShowDetail] = useState(null);
+  const [exportWarta, setExportWarta] = useState(null);
 
   const fetchWarta = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -288,6 +291,15 @@ export default function WartaPublikTab({ division }: { division: string }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Export Modal */}
+      {exportWarta && (
+        <WartaExportModal
+          warta={exportWarta}
+          isOpen={!!exportWarta}
+          onClose={() => setExportWarta(null)}
+        />
       )}
     </div>
   );

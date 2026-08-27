@@ -8,6 +8,7 @@ export const en = {
     leaders: 'Leaders',
     events: 'Events',
     bulletin: 'Bulletin',
+    gallery: 'Gallery',
     benzarpreneurship: 'Store',
   },
   hero: {

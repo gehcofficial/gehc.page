@@ -7,6 +7,7 @@ export const id: Dict = {
     leaders: 'Pengurus',
     events: 'Kegiatan',
     bulletin: 'Warta',
+    gallery: 'Galeri',
     benzarpreneurship: 'Toko',
   },
   hero: {

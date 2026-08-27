@@ -19,6 +19,7 @@ import {
   LogOut,
   LogIn,
   Store,
+  Image,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -110,6 +111,7 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
+                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -122,6 +124,7 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   {tabId === 'benzarpreneurship' && <Store className="w-3 h-3" />}
+                  {tabId === 'gallery' && <Image className="w-3 h-3" />}
                   {label}
                 </button>
               ))}
