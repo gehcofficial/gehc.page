@@ -23,10 +23,14 @@ import {
   FileText,
   Video,
   CalendarPlus,
+  Calendar,
+  ClipboardList,
   Download,
   Store,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
+import PenatalayanCalendar from './PenatalayanCalendar';
+import DivisionPlanningTab from './DivisionPlanningTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
@@ -93,7 +97,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -809,6 +813,8 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 { id: 'members' as DetailTab, label: 'Anggota', icon: <Users className="w-3.5 h-3.5" /> },
                 { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
                 { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
+                { id: 'planning' as DetailTab, label: 'Rencana', icon: <ClipboardList className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Toko', icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
@@ -1217,6 +1223,20 @@ export const DivisionWorkspacePanel: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Planning Tab (all divisions) */}
+            {detailTab === 'planning' && (
+              <div>
+                <DivisionPlanningTab division={selectedDiv} />
+              </div>
+            )}
+
+            {/* Penatalayan Tab (Liturgia only) */}
+            {detailTab === 'penatalayan' && selectedDiv === 'LITURGIA' && (
+              <div>
+                <PenatalayanCalendar division={selectedDiv} />
               </div>
             )}
 
