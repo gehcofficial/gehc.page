@@ -5,6 +5,14 @@ import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as 
 import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb } from './db.mjs';
 import {
+  sendPushNotification,
+  broadcastPushNotification,
+  notifyNewWarta,
+  notifyNewGallery,
+  notifyNewSchedule,
+  notifyOrderUpdate,
+} from './push.mjs';
+import {
   attachUser,
   requireRole,
   setSessionCookie,
@@ -2923,6 +2931,44 @@ app.post('/api/warta', requireRole(), wrap(async (req, res) => {
   res.status(201).json({ warta });
 }));
 
+// PATCH /api/warta/:id — update content or advance status
+app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, contentJson, title, pdfUrl, pngUrl, rejectReason, driveFolderId } = req.body;
+  const data = {};
+  if (title) data.title = title;
+  if (contentJson !== undefined) data.contentJson = contentJson;
+  if (pdfUrl !== undefined) data.pdfUrl = pdfUrl;
+  if (pngUrl !== undefined) data.pngUrl = pngUrl;
+  if (rejectReason !== undefined) data.rejectReason = rejectReason;
+  if (driveFolderId !== undefined) data.driveFolderId = driveFolderId;
+  let oldStatus = null;
+  if (status) {
+    const current = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
+    if (!current) return res.status(404).json({ error: 'Warta tidak ditemukan' });
+    oldStatus = current.status;
+    const curIdx = WARTA_STATUS_FLOW.indexOf(current.status);
+    const nextIdx = WARTA_STATUS_FLOW.indexOf(status);
+    if (nextIdx < 0) return res.status(400).json({ error: 'Status tidak valid' });
+    if (nextIdx > curIdx + 1 && status !== 'APPROVED' && status !== 'PUBLISHED') {
+      return res.status(400).json({ error: 'Tidak bisa skip status kecuali APPROVED/PUBLISHED dari REVIEW' });
+    }
+    data.status = status;
+    if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
+    if (status === 'PUBLISHED') data.publishedAt = new Date();
+    if (status !== 'REJECTED') data.rejectReason = null;
+    data.reviewedById = req.authUser?.id;
+  }
+  const warta = await prisma.wartaPublik.update({ where: { id: req.params.id }, data });
+  
+  // Send push notification when warta is published
+  if (status === 'PUBLISHED' && oldStatus !== 'PUBLISHED') {
+    notifyNewWarta(prisma, warta).catch(console.error);
+  }
+  
+  res.json({ warta });
+}));
+
 // GET /api/warta/:id — get single warta
 app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3021,10 +3067,19 @@ app.patch('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return res.status(400).json({ error: 'status harus APPROVED atau REJECTED' });
   }
+  const oldItem = await prisma.eventGallery.findUnique({ where: { id: req.params.id }, select: { status: true } });
+  if (!oldItem) return res.status(404).json({ error: 'Item tidak ditemukan' });
+  
   const data = { status, approvedById: req.authUser?.id, approvedAt: new Date() };
   if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
   else data.rejectReason = null;
   const item = await prisma.eventGallery.update({ where: { id: req.params.id }, data });
+  
+  // Send push notification when gallery item is approved
+  if (status === 'APPROVED' && oldItem.status !== 'APPROVED') {
+    notifyNewGallery(prisma, item).catch(console.error);
+  }
+  
   res.json({ item });
 }));
 
