@@ -21,6 +21,7 @@ import {
   Edit2,
   X,
 } from 'lucide-react';
+import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
 const ALL_DIVISIONS = [...PANTATUGAS.map((p) => p.name), BENZARPR_ENUM];
 
@@ -642,17 +643,16 @@ export const DivisionWorkspacePanel: React.FC = () => {
                     {(authUser?.name || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'U'}
                   </div>
                   <div className="flex-1">
-                    <textarea
+                    <MentionInput
                       value={newPost}
-                      onChange={(e) => setNewPost(e.target.value)}
-                      placeholder="Tulis pesan atau update progres..."
+                      onChange={setNewPost}
+                      onSubmit={handlePost}
+                      placeholder="Tulis pesan atau update progres... Ketik @ untuk mention orang."
                       className="w-full px-4 py-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black resize-none h-20"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePost();
-                      }}
+                      disabled={posting}
                     />
                     <div className="flex justify-between items-center mt-2">
-                      <p className="text-[10px] text-[#8C8880]">Ctrl+Enter untuk kirim</p>
+                      <p className="text-[10px] text-[#8C8880]">Ctrl+Enter untuk kirim, ketik @ untuk mention</p>
                       <button
                         onClick={handlePost}
                         disabled={posting || !newPost.trim()}
@@ -690,7 +690,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                                 {new Date(post.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <p className="text-sm text-[#1B1B1B] mt-1 whitespace-pre-wrap">{post.body}</p>
+                            <p className="text-sm text-[#1B1B1B] mt-1 whitespace-pre-wrap">{renderMentionText(post.body)}</p>
                             <button
                               onClick={() => { setReplyTo(post.id); setReplyBody(''); }}
                               className="text-[10px] text-[#8C8880] hover:text-[#1B1B1B] mt-1 font-semibold"
@@ -746,7 +746,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                                       {new Date(reply.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   </div>
-                                  <p className="text-xs text-[#1B1B1B] mt-0.5 whitespace-pre-wrap">{reply.body}</p>
+                                  <p className="text-xs text-[#1B1B1B] mt-0.5 whitespace-pre-wrap">{renderMentionText(reply.body)}</p>
                                 </div>
                               </div>
                             ))}

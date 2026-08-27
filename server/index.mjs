@@ -89,6 +89,58 @@ app.get('/api/auth/admin-check', requireRole('SUPERADMIN'), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
 });
 
+// GET /api/users/search?q=... — search users for @mention
+app.get('/api/users/search', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ users: [] });
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: q } },
+          { email: { contains: q } },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      take: 10,
+    });
+
+    // Enrich with division info from struktur_members
+    const enriched = await Promise.all(
+      users.map(async (u) => {
+        let division = null;
+        try {
+          const sm = await prisma.strukturMember.findFirst({ where: { email: u.email || '' } });
+          if (sm?.division) division = sm.division;
+        } catch { /* skip */ }
+        return { ...u, division };
+      })
+    );
+
+    res.json({ users: enriched });
+  } catch (e) {
+    res.json({ users: [] });
+  }
+}));
+
+// GET /api/users — list all users (for admin panels)
+app.get('/api/users', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, avatar: true, accountStatus: true },
+    orderBy: { name: 'asc' },
+  });
+
+  res.json({ users });
+}));
+
 // ---------- Demo personas (STAGING ONLY) ----------
 // Aktif hanya jika ENABLE_DEMO_PERSONAS=true — JANGAN pernah diaktifkan di produksi.
 const demoEnabled = () => process.env.ENABLE_DEMO_PERSONAS === 'true';
