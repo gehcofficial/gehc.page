@@ -86,7 +86,7 @@ Aturan penting:
 SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 
 **Catatan EV zone**:
-- `DIV` harus salah satu dari: `LITURGIA`, `KOMUNIKASI`, `SOSIAL`, `EKONOMI`, `LOGISTIK`, `KOMISI`, `TIMKERJA`, `DIAKONIA`, `MARTURIA`, `BENZARPR`.
+- `DIV` harus salah satu dari: `LITURGIA`, `DIDASKALIA`, `KOINONIA`, `DIAKONIA`, `MARTURIA`, `BENZARPR`.
 - BOD Tim Kerja = COMMITTEE + `struktur_members.division = 'TIMKERJA'` (atau kosong) → akses semua event.
 - PIC = COMMITTEE + `struktur_members.division` tertentu → akses hanya event dengan divisi yang sama.
 - Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk.

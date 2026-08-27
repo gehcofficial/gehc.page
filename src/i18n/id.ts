@@ -66,9 +66,9 @@ export const id: Dict = {
     membersSuffix: 'anggota',
   },
   serve: {
-    eyebrow: 'Lima Fungsi Klasik Gereja',
-    title: 'Lima Cara Kami Mengasi Allah & Kota Ini',
-    sub: 'Seluruh pelayanan kami mengalir melalui lima panggilan abadi Gereja — dari ibadah dan pengajaran hingga persekutuan, pelayanan, dan kesaksian.',
+    eyebrow: 'Enam Pelayanan Kami',
+    title: 'Cara Kami Mengasi Allah & Kota Ini',
+    sub: 'Seluruh pelayanan kami mengalir melalui panggilan abadi Gereja — ibadah, pengajaran, persekutuan, pelayanan, kesaksian, dan usaha yang memuliakan Tuhan.',
     cta: 'Jelajahi Struktur Kami',
     items: [
       { label: 'Liturgia', tagline: 'Memuliakan Tuhan dalam ibadah & doa' },
@@ -76,6 +76,7 @@ export const id: Dict = {
       { label: 'Koinonia', tagline: 'Memelihara persekutuan & relasi' },
       { label: 'Diakonia', tagline: 'Melayani kebutuhan praktis' },
       { label: 'Marturia', tagline: 'Menjadi saksi & menginjili' },
+      { label: 'Benzarpreneurship', tagline: 'Usaha & dana: Merchandise · Fundraising · Donation' },
     ],
   },
   events: {

@@ -28,6 +28,7 @@ const PANTATUGAS = [
   { name: 'KOINONIA', label: 'Koinonia' },
   { name: 'DIAKONIA', label: 'Diakonia' },
   { name: 'MARTURIA', label: 'Marturia' },
+  { name: 'BENZARPR', label: 'Benzarpreneurship' },
 ];
 
 const WRITE_SCOPE = 'https://www.googleapis.com/auth/drive';

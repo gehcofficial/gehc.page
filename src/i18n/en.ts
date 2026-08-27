@@ -67,9 +67,9 @@ export const en = {
     membersSuffix: 'members',
   },
   serve: {
-    eyebrow: 'Five Classic Ministries',
-    title: 'Five Ways We Love God & Our City',
-    sub: 'Everything we do flows through five timeless callings of the Church — from worship and teaching to fellowship, service, and witness.',
+    eyebrow: 'Our Six Ministries',
+    title: 'How We Love God & Our City',
+    sub: 'Everything we do flows through the timeless callings of the Church — worship, teaching, fellowship, service, witness, and enterprise that glorifies God.',
     cta: 'Explore Our Structure',
     items: [
       { label: 'Liturgia', tagline: 'Honoring God in worship & prayer' },
@@ -77,6 +77,7 @@ export const en = {
       { label: 'Koinonia', tagline: 'Keeping fellowship & relationships alive' },
       { label: 'Diakonia', tagline: 'Serving practical needs' },
       { label: 'Marturia', tagline: 'Being witnesses & sharing the gospel' },
+      { label: 'Benzarpreneurship', tagline: 'Enterprise: Merchandise · Fundraising · Donation' },
     ],
   },
   events: {

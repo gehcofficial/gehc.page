@@ -548,7 +548,7 @@ export const ManageStruktur: React.FC = () => {
                     <option value="KOINONIA">KOINONIA — Persekutuan & PR</option>
                     <option value="DIAKONIA">DIAKONIA — Logistik, Konsumsi, Medis</option>
                     <option value="MARTURIA">MARTURIA — Multimedia, Dokumentasi, Injili</option>
-                    <option value="BENZARPR">BENZARPR (BZP) — Merchandise, Fundraising, Donation</option>
+                    <option value="BENZARPR">Benzarpreneurship — Merchandise, Fundraising, Donation</option>
                   </select>
                 </div>
                 <div className="sm:col-span-2">
