@@ -612,3 +612,57 @@ model DivisionAgendaItem {
   @@index([division, status])
   @@map("division_agenda_items")
 }
+
+// ============================================================
+// WARTA PUBLIK (Weekly Bulletin Workflow)
+// ============================================================
+
+model WartaPublik {
+  id            String   @id @db.VarChar(64)
+  eventId       String?  @map("event_id") @db.VarChar(64)
+  weekDate      DateTime @db.Date @map("week_date")
+  title         String   @db.VarChar(200)
+  status        String   @default("DRAFT") @db.VarChar(20)
+  contentJson   Json?    @map("content_json")
+  pdfUrl        String?  @map("pdf_url") @db.VarChar(500)
+  pngUrl        String?  @map("png_url") @db.VarChar(500)
+  driveFolderId String?  @map("drive_folder_id") @db.VarChar(64)
+  rejectReason  String?  @map("reject_reason") @db.Text
+  createdById   String?  @map("created_by_id") @db.VarChar(64)
+  reviewedById  String?  @map("reviewed_by_id") @db.VarChar(64)
+  publishedAt   DateTime? @map("published_at") @db.DateTime(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([weekDate])
+  @@index([status])
+  @@map("warta_publik")
+}
+
+// ============================================================
+// EVENT GALLERY (Photo/Video Upload with Approval)
+// ============================================================
+
+model EventGallery {
+  id              String   @id @db.VarChar(64)
+  eventId         String   @map("event_id") @db.VarChar(64)
+  title           String   @db.VarChar(200)
+  description     String?  @db.Text
+  mediaUrl        String   @map("media_url") @db.VarChar(500)
+  mediaType       String   @map("media_type") @db.VarChar(20)
+  thumbUrl        String?  @map("thumb_url") @db.VarChar(500)
+  uploadedById    String   @map("uploaded_by_id") @db.VarChar(64)
+  division        String?  @map("division") @db.VarChar(20)
+  status          String   @default("PENDING") @db.VarChar(20)
+  approvedById    String?  @map("approved_by_id") @db.VarChar(64)
+  approvedAt      DateTime? @map("approved_at") @db.DateTime(3)
+  rejectReason    String?  @map("reject_reason") @db.Text
+  driveFileId     String?  @map("drive_file_id") @db.VarChar(64)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([eventId, status])
+  @@index([division, status])
+  @@map("event_gallery")
+}

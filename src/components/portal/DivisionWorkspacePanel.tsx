@@ -27,10 +27,14 @@ import {
   ClipboardList,
   Download,
   Store,
+  Image,
+  Newspaper,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import DivisionPlanningTab from './DivisionPlanningTab';
+import WartaPublikTab from './WartaPublikTab';
+import EventGalleryTab from './EventGalleryTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
@@ -97,7 +101,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -814,6 +818,8 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
                 { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
                 { id: 'planning' as DetailTab, label: 'Rencana', icon: <ClipboardList className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: 'Warta', icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: 'Galeri', icon: <Image className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Toko', icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
@@ -1237,6 +1243,20 @@ export const DivisionWorkspacePanel: React.FC = () => {
             {detailTab === 'penatalayan' && selectedDiv === 'LITURGIA' && (
               <div>
                 <PenatalayanCalendar division={selectedDiv} />
+              </div>
+            )}
+
+            {/* Warta Publik Tab (Didaskalia only) */}
+            {detailTab === 'warta' && selectedDiv === 'DIDASKALIA' && (
+              <div>
+                <WartaPublikTab division={selectedDiv} />
+              </div>
+            )}
+
+            {/* Event Gallery Tab (Marturia only) */}
+            {detailTab === 'gallery' && selectedDiv === 'MARTURIA' && (
+              <div>
+                <EventGalleryTab division={selectedDiv} eventId={eventId} />
               </div>
             )}
 

@@ -839,6 +839,9 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     "CREATE TABLE IF NOT EXISTS `service_schedules` (`id` VARCHAR(64) NOT NULL,`service_role_id` VARCHAR(64) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NULL,`date` DATE NOT NULL,`time_start` VARCHAR(10) NULL,`time_end` VARCHAR(10) NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',`notes` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `service_schedules_date_status_idx`(`date`, `status`), INDEX `service_schedules_user_id_date_idx`(`user_id`, `date`), INDEX `service_schedules_service_role_id_date_idx`(`service_role_id`, `date`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `division_meetings` (`id` VARCHAR(64) NOT NULL,`division` VARCHAR(20) NOT NULL,`meeting_date` DATE NOT NULL,`title` VARCHAR(200) NULL,`agenda` JSON NULL,`attendees` JSON NULL,`notes` TEXT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'PLANNED',`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `division_meetings_division_meeting_date_idx`(`division`, `meeting_date`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `division_agenda_items` (`id` VARCHAR(64) NOT NULL,`meeting_id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`division` VARCHAR(20) NOT NULL,`component` VARCHAR(100) NULL,`person_in_charge_id` VARCHAR(64) NULL,`deadline` DATE NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'TODO',`drive_folder_id` VARCHAR(64) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `division_agenda_items_meeting_id_status_idx`(`meeting_id`, `status`), INDEX `division_agenda_items_division_status_idx`(`division`, `status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    // Warta Publik & Event Gallery
+    "CREATE TABLE IF NOT EXISTS `warta_publik` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NULL,`week_date` DATE NOT NULL,`title` VARCHAR(200) NOT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',`content_json` JSON NULL,`pdf_url` VARCHAR(500) NULL,`png_url` VARCHAR(500) NULL,`drive_folder_id` VARCHAR(64) NULL,`reject_reason` TEXT NULL,`created_by_id` VARCHAR(64) NULL,`reviewed_by_id` VARCHAR(64) NULL,`published_at` DATETIME(3) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `warta_publik_week_date_idx`(`week_date`), INDEX `warta_publik_status_idx`(`status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `event_gallery` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`media_url` VARCHAR(500) NOT NULL,`media_type` VARCHAR(20) NOT NULL,`thumb_url` VARCHAR(500) NULL,`uploaded_by_id` VARCHAR(64) NOT NULL,`division` VARCHAR(20) NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',`approved_by_id` VARCHAR(64) NULL,`approved_at` DATETIME(3) NULL,`reject_reason` TEXT NULL,`drive_file_id` VARCHAR(64) NULL,`sort_order` INT NOT NULL DEFAULT 0,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `event_gallery_event_id_status_idx`(`event_id`, `status`), INDEX `event_gallery_division_status_idx`(`division`, `status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
   ];
 
   let applied = 0;
@@ -2877,6 +2880,200 @@ app.patch('/api/division-meetings/agenda/:id', requireRole(), wrap(async (req, r
 }));
 
 // ---------- End Penatalayan & Division Meetings ----------
+
+// ============================================================
+// WARTA PUBLIK (Weekly Bulletin Workflow)
+// ============================================================
+
+// Status flow: DRAFT → CONTENT_READY (Didaskalia) → COPY_EDIT (Koinonia PR) → DESIGN (Marturia) → REVIEW (KOMISI) → APPROVED → PUBLISHED
+const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
+
+// GET /api/warta — list warta by status or date range
+app.get('/api/warta', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, from, to, limit: lim } = req.query;
+  const where = {};
+  if (status) where.status = status;
+  if (from || to) {
+    where.weekDate = {};
+    if (from) where.weekDate.gte = new Date(from);
+    if (to) where.weekDate.lte = new Date(to);
+  }
+  const warta = await prisma.wartaPublik.findMany({
+    where,
+    orderBy: { weekDate: 'desc' },
+    take: parseInt(lim) || 20,
+  });
+  res.json({ warta });
+}));
+
+// POST /api/warta — create new warta (DRAFT)
+app.post('/api/warta', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { weekDate, title, contentJson } = req.body;
+  if (!weekDate || !title) return res.status(400).json({ error: 'weekDate & title wajib' });
+  const id = 'warta-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const warta = await prisma.wartaPublik.create({
+    data: {
+      id, weekDate: new Date(weekDate), title,
+      contentJson: contentJson || {},
+      createdById: req.authUser?.id,
+    },
+  });
+  res.status(201).json({ warta });
+}));
+
+// GET /api/warta/:id — get single warta
+app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id } });
+  if (!warta) return res.status(404).json({ error: 'Warta tidak ditemukan' });
+  res.json({ warta });
+}));
+
+// PATCH /api/warta/:id — update content or advance status
+app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, contentJson, title, pdfUrl, pngUrl, rejectReason, driveFolderId } = req.body;
+  const data = {};
+  if (title) data.title = title;
+  if (contentJson !== undefined) data.contentJson = contentJson;
+  if (pdfUrl !== undefined) data.pdfUrl = pdfUrl;
+  if (pngUrl !== undefined) data.pngUrl = pngUrl;
+  if (rejectReason !== undefined) data.rejectReason = rejectReason;
+  if (driveFolderId !== undefined) data.driveFolderId = driveFolderId;
+  if (status) {
+    // Validate status transition
+    const current = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
+    if (!current) return res.status(404).json({ error: 'Warta tidak ditemukan' });
+    const curIdx = WARTA_STATUS_FLOW.indexOf(current.status);
+    const nextIdx = WARTA_STATUS_FLOW.indexOf(status);
+    if (nextIdx < 0) return res.status(400).json({ error: 'Status tidak valid' });
+    // Allow: forward 1 step, or skip to APPROVED/PUBLISHED from REVIEW
+    if (nextIdx > curIdx + 1 && status !== 'APPROVED' && status !== 'PUBLISHED') {
+      return res.status(400).json({ error: 'Tidak bisa skip status kecuali APPROVED/PUBLISHED dari REVIEW' });
+    }
+    data.status = status;
+    if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
+    if (status === 'PUBLISHED') data.publishedAt = new Date();
+    if (status !== 'REJECTED') data.rejectReason = null;
+    data.reviewedById = req.authUser?.id;
+  }
+  const warta = await prisma.wartaPublik.update({ where: { id: req.params.id }, data });
+  res.json({ warta });
+}));
+
+// DELETE /api/warta/:id — delete draft warta
+app.delete('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
+  if (!warta) return res.status(404).json({ error: 'Warta tidak ditemukan' });
+  if (warta.status !== 'DRAFT') return res.status(400).json({ error: 'Hanya warta DRAFT yang bisa dihapus' });
+  await prisma.wartaPublik.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+// ============================================================
+// EVENT GALLERY (Photo/Video Upload & Approval)
+// ============================================================
+
+// GET /api/gallery — list gallery items by event
+app.get('/api/gallery', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { eventId, division, status, approvedOnly } = req.query;
+  const where = {};
+  if (eventId) where.eventId = eventId;
+  if (division) where.division = division;
+  if (approvedOnly === '1') {
+    where.status = 'APPROVED';
+  } else if (status) {
+    where.status = status;
+  }
+  const items = await prisma.eventGallery.findMany({
+    where,
+    orderBy: { sortOrder: 'asc' },
+  });
+  res.json({ items });
+}));
+
+// POST /api/gallery — upload media (creates PENDING entry)
+app.post('/api/gallery', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { eventId, title, description, mediaUrl, mediaType, thumbUrl, division, driveFileId } = req.body;
+  if (!eventId || !title || !mediaUrl || !mediaType) {
+    return res.status(400).json({ error: 'eventId, title, mediaUrl, mediaType wajib' });
+  }
+  const id = 'gal-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const item = await prisma.eventGallery.create({
+    data: {
+      id, eventId, title, description, mediaUrl, mediaType,
+      thumbUrl, division, driveFileId,
+      uploadedById: req.authUser?.id,
+    },
+  });
+  res.status(201).json({ item });
+}));
+
+// PATCH /api/gallery/:id — approve/reject
+app.patch('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, rejectReason } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    return res.status(400).json({ error: 'status harus APPROVED atau REJECTED' });
+  }
+  const data = { status, approvedById: req.authUser?.id, approvedAt: new Date() };
+  if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
+  else data.rejectReason = null;
+  const item = await prisma.eventGallery.update({ where: { id: req.params.id }, data });
+  res.json({ item });
+}));
+
+// DELETE /api/gallery/:id — delete gallery item
+app.delete('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  await prisma.eventGallery.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+// ============================================================
+// PAW NOTIFICATIONS (Web Push / In-App)
+// ============================================================
+
+// POST /api/paw/subscribe — save notification subscription
+app.post('/api/paw/subscribe', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { endpoint, keys } = req.body;
+  if (!endpoint) return res.status(400).json({ error: 'endpoint wajib' });
+  const userId = req.authUser?.id;
+  if (!userId) return res.status(401).json({ error: 'User tidak ditemukan' });
+  const id = 'pawsub-' + Date.now().toString(36);
+  try {
+    await prisma.notification.create({
+      data: {
+        id, memberId: userId,
+        type: 'IDLE_FLAG', title: 'Push Subscription', message: JSON.stringify({ endpoint, keys }),
+      },
+    });
+  } catch { /* skip duplicate */ }
+  res.json({ ok: true });
+}));
+
+// POST /api/paw/send — send notification to user(s)
+app.post('/api/paw/send', requireRole(), wrap(async (req, res) => {
+  const { userId, title, message, url } = req.body;
+  if (!userId || !title || !message) return res.status(400).json({ error: 'userId, title, message wajib' });
+  const prisma = getPrisma();
+  const id = 'paw-' + Date.now().toString(36);
+  await prisma.notification.create({
+    data: {
+      id, memberId: userId,
+      type: 'IDLE_FLAG', title, message,
+    },
+  });
+  res.json({ ok: true, notificationId: id });
+}));
+
+// ---------- End Warta Publik & Event Gallery & PAW ----------
 
 // ---------- End Benzarpreneurship E-commerce ----------
 
