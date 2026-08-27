@@ -317,16 +317,28 @@ model EventProgram {
 }
 
 model EventDivision {
-  id            String   @id @db.VarChar(64)
-  eventId       String   @map("event_id") @db.VarChar(64)
-  division      String   @db.VarChar(24)   // LITURGIA…MARTURIA | BENZARPR | KOMISI | TIMKERJA
-  driveFolderId String?  @map("drive_folder_id") @db.VarChar(128)
-  extraUserIds  Json?    @map("extra_user_ids")   // [{userId}] manual
-  createdAt     DateTime @default(now()) @map("created_at")
+  id              String    @id @db.VarChar(64)
+  eventId         String    @map("event_id") @db.VarChar(64)
+  division        String    @db.VarChar(24)   // LITURGIA…MARTURIA | BENZARPR | KOMISI | TIMKERJA
+  driveFolderId   String?   @map("drive_folder_id") @db.VarChar(128)
+  extraUserIds    Json?     @map("extra_user_ids")   // [{userId}] manual
 
-  event   EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  updates EventUpdate[]
+  // Approval workflow
+  approvalStatus  String    @default("DRAFT") @map("approval_status") @db.VarChar(16) // DRAFT|IN_REVIEW|APPROVED|REJECTED|PUBLISHED
+  approvedById    String?   @map("approved_by_id") @db.VarChar(64)
+  approvedAt      DateTime? @map("approved_at")
+  rejectReason    String?   @db.Text
+  publishedAt     DateTime? @map("published_at")
+  contentItemId   String?   @unique @map("content_item_id") @db.VarChar(64) // link to ContentItem when published
 
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  event           EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  updates         EventUpdate[]
+  members         EventDivisionMember[]
+  approvalLogs    EventApprovalLog[]
+
+  @@index([approvalStatus])
   @@unique([eventId, division])
 }
 
@@ -356,6 +368,44 @@ model EventUpdate {
   division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
 
   @@index([eventDivisionId])
+}
+
+/// Role-based access per division member
+model EventDivisionMember {
+  id                String       @id @db.VarChar(64)
+  eventDivisionId   String       @map("event_division_id") @db.VarChar(64)
+  userId            String       @db.VarChar(64)
+  role              DivisionRole @default(MEMBER)
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
+
+  @@unique([eventDivisionId, userId])
+  @@index([userId])
+  @@map("event_division_members")
+}
+
+enum DivisionRole {
+  LEAD
+  CO_LEAD
+  MEMBER
+  VIEWER
+}
+
+/// Audit trail for approval actions
+model EventApprovalLog {
+  id                String   @id @db.VarChar(64)
+  eventDivisionId   String   @map("event_division_id") @db.VarChar(64)
+  action            String   @db.VarChar(20) // SUBMIT|APPROVE|REJECT|PUBLISH|UNPUBLISH
+  actorId           String   @map("actor_id") @db.VarChar(64)
+  actorRole         String   @map("actor_role") @db.VarChar(30)
+  comment           String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
+
+  @@index([eventDivisionId])
+  @@map("event_approval_logs")
 }
 
 /// Auto-flag idle, alert mitosis, saran merger — dasbor Komisi ("Jethro" engine)

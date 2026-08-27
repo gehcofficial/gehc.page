@@ -450,6 +450,19 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     "ALTER TABLE `EventDivision` ADD CONSTRAINT `EventDivision_event_id_fkey` FOREIGN KEY (`event_id`) REFERENCES `EventProgram`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
     "ALTER TABLE `EventMeeting` ADD CONSTRAINT `EventMeeting_event_id_fkey` FOREIGN KEY (`event_id`) REFERENCES `EventProgram`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
     "ALTER TABLE `EventUpdate` ADD CONSTRAINT `EventUpdate_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    // Phase 1: Approval workflow columns
+    "ALTER TABLE `EventDivision` ADD COLUMN `approval_status` VARCHAR(16) NOT NULL DEFAULT 'DRAFT' AFTER `extra_user_ids`;",
+    "ALTER TABLE `EventDivision` ADD COLUMN `approved_by_id` VARCHAR(64) NULL AFTER `approval_status`;",
+    "ALTER TABLE `EventDivision` ADD COLUMN `approved_at` DATETIME(3) NULL AFTER `approved_by_id`;",
+    "ALTER TABLE `EventDivision` ADD COLUMN `reject_reason` TEXT NULL AFTER `approved_at`;",
+    "ALTER TABLE `EventDivision` ADD COLUMN `published_at` DATETIME(3) NULL AFTER `reject_reason`;",
+    "ALTER TABLE `EventDivision` ADD COLUMN `content_item_id` VARCHAR(64) NULL AFTER `published_at`, ADD UNIQUE INDEX `EventDivision_content_item_id_key`(`content_item_id`);",
+    "ALTER TABLE `EventDivision` ADD INDEX `EventDivision_approval_status_idx`(`approval_status`);",
+    // Phase 1: New tables — EventDivisionMember, EventApprovalLog
+    "CREATE TABLE IF NOT EXISTS `EventDivisionMember` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`role` VARCHAR(16) NOT NULL DEFAULT 'MEMBER',`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), UNIQUE INDEX `EventDivisionMember_event_division_id_user_id_key`(`event_division_id`, `user_id`), INDEX `EventDivisionMember_user_id_idx`(`user_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `EventApprovalLog` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`action` VARCHAR(20) NOT NULL,`actor_id` VARCHAR(64) NOT NULL,`actor_role` VARCHAR(30) NOT NULL,`comment` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `EventApprovalLog_event_division_id_idx`(`event_division_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "ALTER TABLE `EventDivisionMember` ADD CONSTRAINT `EventDivisionMember_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    "ALTER TABLE `EventApprovalLog` ADD CONSTRAINT `EventApprovalLog_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
   ];
 
   let applied = 0;
@@ -469,7 +482,7 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
   }
   const result = { applied, errors, total: ddl.length };
 
-  // Auto-seed: jika tabel kosong, buat BAKU TAU 4.0
+  // Auto-seed: jika tabel kosong, buat BAKU TAU 4.0 dengan 6 divisi
   try {
     const count = await prisma.eventProgram.count();
     if (count === 0) {
@@ -481,17 +494,26 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
           tenantId: 'tenant-youth',
           slug,
           name: 'BAKU TAU 4.0',
-          description: 'Program Kerja & Event Tahunan GEHC 2026 — 5 divisi, kick-off & diskusi aktif.',
+          description: 'Program Kerja & Event Tahunan GEHC 2026 — 6 divisi, kick-off & diskusi aktif.',
           status: 'ACTIVE',
           startDate: new Date('2026-01-01'),
           endDate: new Date('2026-12-31'),
           createdById: 'usr-tech',
         },
       });
-      const divisions = ['LITURGIA', 'BENZARPR', 'KOMISI', 'TIMKERJA', 'MARTURIA'];
+      // 6 divisi: 5 Panca Tugas + Benzarpreneurship
+      const divisions = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
       for (const div of divisions) {
         await prisma.eventDivision.create({
-          data: { id: `evd-${slug}-${div}`, eventId: ev.id, division: div },
+          data: {
+            id: `evd-${slug}-${div}`,
+            eventId: ev.id,
+            division: div,
+            approvalStatus: 'APPROVED',
+            approvedById: 'usr-tech',
+            approvedAt: new Date(),
+            publishedAt: new Date(),
+          },
         });
       }
       // Kick-off meeting
@@ -534,14 +556,16 @@ app.post('/api/seed/events', wrap(async (req, res) => {
       `INSERT INTO EventProgram (id, tenant_id, slug, name, description, status, start_date, end_date, created_by_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
       'evt-baku-tau-4-0', 'tenant-youth', 'baku-tau-4-0', 'BAKU TAU 4.0',
-      'Program Kerja & Event Tahunan GEHC 2026 — 5 divisi, kick-off & diskusi aktif.',
+      'Program Kerja & Event Tahunan GEHC 2026 — 6 divisi, kick-off & diskusi aktif.',
       'ACTIVE', '2026-01-01', '2026-12-31', 'usr-tech'
     );
 
-    const divisions = ['LITURGIA', 'BENZARPR', 'KOMISI', 'TIMKERJA', 'MARTURIA'];
+    // 6 divisi: 5 Panca Tugas + Benzarpreneurship
+    const divisions = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
     for (const div of divisions) {
       await prisma.$executeRawUnsafe(
-        `INSERT INTO EventDivision (id, event_id, division, created_at) VALUES (?, ?, ?, NOW(3))`,
+        `INSERT INTO EventDivision (id, event_id, division, approval_status, approved_by_id, approved_at, published_at, created_at)
+         VALUES (?, ?, ?, 'APPROVED', 'usr-tech', NOW(3), NOW(3), NOW(3))`,
         `evd-baku-tau-4-0-${div}`, 'evt-baku-tau-4-0', div
       );
     }
@@ -554,7 +578,7 @@ app.post('/api/seed/events', wrap(async (req, res) => {
       'Pertemuan awal seluruh divisi — preview program tahunan.', 'usr-tech'
     );
 
-    res.json({ ok: true, seeded: { event: 'evt-baku-tau-4-0', divisions: 5, meetings: 1 } });
+    res.json({ ok: true, seeded: { event: 'evt-baku-tau-4-0', divisions: divisions.length, meetings: 1 } });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -602,15 +626,17 @@ app.get('/api/events', wrap(async (req, res) => {
   try {
     events = await prisma.eventProgram.findMany({
       orderBy: { startDate: 'desc' },
-      include: { divisions: true },
+      include: { divisions: true, meetings: true },
     });
   } catch (prismaErr) {
     // Fallback: Prisma model belum ada → raw SQL
     try {
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT e.*, 
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',d.id,'eventId',d.event_id,'division',d.division,'driveFolderId',d.drive_folder_id,'createdAt',d.created_at))
-           FROM EventDivision d WHERE d.event_id = e.id) as divisions
+        `SELECT e.*,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',d.id,'eventId',d.event_id,'division',d.division,'driveFolderId',d.drive_folder_id,'approvalStatus',d.approval_status,'publishedAt',d.published_at,'createdAt',d.created_at))
+           FROM EventDivision d WHERE d.event_id = e.id) as divisions,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',m.id,'title',m.title,'scheduledAt',m.scheduled_at,'division',m.division))
+           FROM EventMeeting m WHERE m.event_id = e.id) as meetings
          FROM EventProgram e ORDER BY e.start_date DESC`
       );
       events = (rows || []).map((r) => ({
@@ -628,7 +654,11 @@ app.get('/api/events', wrap(async (req, res) => {
         createdAt: r.created_at,
         updatedAt: r.updated_at,
         divisions: Array.isArray(r.divisions) ? r.divisions.map((d) => ({
-          id: d.id, eventId: d.eventId, division: d.division, driveFolderId: d.driveFolderId, createdAt: d.createdAt,
+          id: d.id, eventId: d.eventId, division: d.division, driveFolderId: d.driveFolderId,
+          approvalStatus: d.approvalStatus, publishedAt: d.publishedAt, createdAt: d.createdAt,
+        })) : [],
+        meetings: Array.isArray(r.meetings) ? r.meetings.map((m) => ({
+          id: m.id, title: m.title, scheduledAt: m.scheduledAt, division: m.division,
         })) : [],
       }));
     } catch (sqlErr) {
@@ -759,7 +789,10 @@ app.get('/api/events/:id', wrap(async (req, res) => {
         createdById: r.created_by_id, createdAt: r.created_at, updatedAt: r.updated_at,
         divisions: (divRows || []).map((d) => ({
           id: d.id, eventId: d.event_id, division: d.division, driveFolderId: d.drive_folder_id,
-          extraUserIds: d.extra_user_ids, createdAt: d.created_at,
+          extraUserIds: d.extra_user_ids, approvalStatus: d.approval_status,
+          approvedById: d.approved_by_id, approvedAt: d.approved_at,
+          rejectReason: d.reject_reason, publishedAt: d.published_at,
+          contentItemId: d.content_item_id, createdAt: d.created_at,
         })),
         meetings: (mtRows || []).map((m) => ({
           id: m.id, eventId: m.event_id, division: m.division, title: m.title,
@@ -890,6 +923,261 @@ app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${(m.title || 'meeting').replace(/[^a-zA-Z0-9]/g, '-')}.ics"`);
   res.send(ics);
+}));
+
+// ---------- Division Approval Workflow ----------
+import {
+  canSubmitDivision, canApproveDivision, canPublishDivision,
+  canEditDivision, isValidTransition, logApprovalAction,
+} from './division-rbac.mjs';
+
+// POST /api/events/:eventId/divisions/:div/submit — submit division for review
+app.post('/api/events/:eventId/divisions/:div/submit', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const allowed = await canSubmitDivision(req.authUser, division);
+  if (!allowed) return res.status(403).json({ error: 'Tidak punya hak submit divisi ini.' });
+
+  const updated = await prisma.eventDivision.update({
+    where: { id: division.id },
+    data: { approvalStatus: 'IN_REVIEW' },
+  });
+
+  await logApprovalAction(division.id, 'SUBMIT', req.authUser, req.body?.comment);
+  res.json({ division: updated });
+}));
+
+// POST /api/events/:eventId/divisions/:div/approve — approve division
+app.post('/api/events/:eventId/divisions/:div/approve', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const allowed = await canApproveDivision(req.authUser, division);
+  if (!allowed) return res.status(403).json({ error: 'Tidak punya hak approve divisi ini.' });
+
+  const updated = await prisma.eventDivision.update({
+    where: { id: division.id },
+    data: {
+      approvalStatus: 'APPROVED',
+      approvedById: req.authUser.id,
+      approvedAt: new Date(),
+      rejectReason: null,
+    },
+  });
+
+  await logApprovalAction(division.id, 'APPROVE', req.authUser, req.body?.comment);
+  res.json({ division: updated });
+}));
+
+// POST /api/events/:eventId/divisions/:div/reject — reject division
+app.post('/api/events/:eventId/divisions/:div/reject', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const allowed = await canApproveDivision(req.authUser, division);
+  if (!allowed) return res.status(403).json({ error: 'Tidak punya hak reject divisi ini.' });
+
+  const reason = req.body?.reason || null;
+  const updated = await prisma.eventDivision.update({
+    where: { id: division.id },
+    data: {
+      approvalStatus: 'REJECTED',
+      rejectReason: reason,
+      approvedById: null,
+      approvedAt: null,
+    },
+  });
+
+  await logApprovalAction(division.id, 'REJECT', req.authUser, reason);
+  res.json({ division: updated });
+}));
+
+// POST /api/events/:eventId/divisions/:div/publish — publish division to website
+app.post('/api/events/:eventId/divisions/:div/publish', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+    include: { event: true },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const allowed = await canPublishDivision(req.authUser, division);
+  if (!allowed) return res.status(403).json({ error: 'Tidak punya hak publish divisi ini.' });
+
+  // Auto-sync: create/update ContentItem from division
+  let contentItemId = division.contentItemId;
+  try {
+    const contentData = {
+      tenantId: division.event.tenantId,
+      type: 'ACTIVITY',
+      title: `${division.event.name} — ${div}`,
+      subtitle: division.event.description || '',
+      category: `Program Kerja — ${div}`,
+      schedule: division.event.startDate ? new Date(division.event.startDate).toLocaleDateString('id-ID') : '',
+      location: 'GEHC Youth Portal',
+      targetAudience: 'Seluruh Pemuda & Jemaat',
+      tags: [div, division.event.name, 'Program Kerja'],
+      isPublished: true,
+      author: 'Komisi Pelayanan Pemuda',
+      driveFolderId: division.driveFolderId,
+    };
+
+    if (contentItemId) {
+      // Update existing
+      await prisma.contentItem.update({
+        where: { id: contentItemId },
+        data: contentData,
+      });
+    } else {
+      // Create new
+      const ci = await prisma.contentItem.create({
+        data: { id: `ci-${div.toLowerCase()}-${Date.now()}`, ...contentData },
+      });
+      contentItemId = ci.id;
+    }
+  } catch (e) {
+    console.error('[PUBLISH] ContentItem sync failed:', e.message);
+  }
+
+  const updated = await prisma.eventDivision.update({
+    where: { id: division.id },
+    data: {
+      approvalStatus: 'PUBLISHED',
+      publishedAt: new Date(),
+      contentItemId,
+    },
+  });
+
+  await logApprovalAction(division.id, 'PUBLISH', req.authUser, 'Published to website');
+  res.json({ division: updated, contentItemId });
+}));
+
+// GET /api/events/:eventId/divisions/:div/approval-logs — get approval history
+app.get('/api/events/:eventId/divisions/:div/approval-logs', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const logs = await prisma.eventApprovalLog.findMany({
+    where: { eventDivisionId: division.id },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  res.json({ logs });
+}));
+
+// ---------- Division Members ----------
+// GET /api/events/:eventId/divisions/:div/members
+app.get('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const members = await prisma.eventDivisionMember.findMany({
+    where: { eventDivisionId: division.id },
+  });
+
+  res.json({ members });
+}));
+
+// POST /api/events/:eventId/divisions/:div/members — add/update member
+app.post('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const roles = (req.authUser.roles || []).map((r) => r.role);
+  if (!roles.includes('SUPERADMIN') && !roles.includes('KOMISI') && !roles.includes('COMMITTEE')) {
+    return res.status(403).json({ error: 'Hanya Superadmin/Komisi/BOD yang bisa mengelola anggota divisi.' });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  const { userId, role } = req.body;
+  if (!userId || !['LEAD', 'CO_LEAD', 'MEMBER', 'VIEWER'].includes(role)) {
+    return res.status(400).json({ error: 'userId dan role valid diperlukan.' });
+  }
+
+  const member = await prisma.eventDivisionMember.upsert({
+    where: {
+      eventDivisionId_userId: { eventDivisionId: division.id, userId },
+    },
+    create: {
+      id: `edm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      eventDivisionId: division.id,
+      userId,
+      role,
+    },
+    update: { role },
+  });
+
+  res.json({ member });
+}));
+
+// DELETE /api/events/:eventId/divisions/:div/members/:userId — remove member
+app.delete('/api/events/:eventId/divisions/:div/members/:userId', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const roles = (req.authUser.roles || []).map((r) => r.role);
+  if (!roles.includes('SUPERADMIN') && !roles.includes('KOMISI') && !roles.includes('COMMITTEE')) {
+    return res.status(403).json({ error: 'Hanya Superadmin/Komisi/BOD yang bisa mengelola anggota divisi.' });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+
+  const { eventId, div, userId } = req.params;
+  const division = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: div.toUpperCase() } },
+  });
+  if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
+
+  await prisma.eventDivisionMember.deleteMany({
+    where: { eventDivisionId: division.id, userId },
+  });
+
+  res.json({ ok: true });
 }));
 
 // ---------- Absensi (Parameter 3) ----------
