@@ -111,6 +111,23 @@ export const DivisionWorkspacePanel: React.FC = () => {
   // Action loading
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Discussion threads
+  interface DiscussionPost {
+    id: string;
+    authorId: string;
+    authorName: string;
+    body: string;
+    parentUpdateId?: string;
+    createdAt: string;
+    replies?: DiscussionPost[];
+  }
+  const [discussions, setDiscussions] = useState<DiscussionPost[]>([]);
+  const [discussionsLoading, setDiscussionsLoading] = useState(false);
+  const [newPost, setNewPost] = useState('');
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState('');
+  const [posting, setPosting] = useState(false);
+
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
@@ -170,6 +187,76 @@ export const DivisionWorkspacePanel: React.FC = () => {
       }
     } catch { /* skip */ }
   }, [selectedEvent, currentDiv, selectedDiv]);
+
+  // Fetch discussions
+  const fetchDiscussions = useCallback(async () => {
+    if (!selectedEvent || !currentDiv) return;
+    setDiscussionsLoading(true);
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/updates`,
+        { credentials: 'include' }
+      );
+      if (r.ok) {
+        const d = await r.json();
+        setDiscussions(d.updates || []);
+      }
+    } catch { /* skip */ }
+    finally { setDiscussionsLoading(false); }
+  }, [selectedEvent, currentDiv, selectedDiv]);
+
+  useEffect(() => { fetchDiscussions(); }, [fetchDiscussions]);
+
+  // Post new discussion
+  const handlePost = async () => {
+    if (!selectedEvent || !currentDiv || !newPost.trim()) return;
+    setPosting(true);
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/updates`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: newPost.trim() }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setNewPost('');
+      addToast({ type: 'success', title: 'Pesan terkirim' });
+      await fetchDiscussions();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal mengirim', description: e.message });
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  // Post reply
+  const handleReply = async (parentId: string) => {
+    if (!selectedEvent || !currentDiv || !replyBody.trim()) return;
+    setPosting(true);
+    try {
+      const r = await fetch(
+        `/api/events/${selectedEvent.id}/divisions/${selectedDiv}/updates`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: replyBody.trim(), parentUpdateId: parentId }),
+        }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setReplyBody('');
+      setReplyTo(null);
+      addToast({ type: 'success', title: 'Balasan terkirim' });
+      await fetchDiscussions();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal membalas', description: e.message });
+    } finally {
+      setPosting(false);
+    }
+  };
 
   // Action: Submit for review
   const handleSubmit = async () => {
@@ -548,9 +635,127 @@ export const DivisionWorkspacePanel: React.FC = () => {
             )}
 
             {detailTab === 'discussions' && (
-              <div className="text-center py-8 text-sm text-[#8C8880]">
-                <MessageSquare className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
-                <p>Thread diskusi divisi — coming soon di Phase 3.</p>
+              <div className="space-y-4">
+                {/* Post input */}
+                <div className="flex gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#1B1B1B] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {(authUser?.name || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={newPost}
+                      onChange={(e) => setNewPost(e.target.value)}
+                      placeholder="Tulis pesan atau update progres..."
+                      className="w-full px-4 py-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black resize-none h-20"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePost();
+                      }}
+                    />
+                    <div className="flex justify-between items-center mt-2">
+                      <p className="text-[10px] text-[#8C8880]">Ctrl+Enter untuk kirim</p>
+                      <button
+                        onClick={handlePost}
+                        disabled={posting || !newPost.trim()}
+                        className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black transition-colors disabled:opacity-50"
+                      >
+                        {posting ? 'Mengirim...' : 'Kirim'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Discussion thread */}
+                {discussionsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#8C8880]" />
+                  </div>
+                ) : discussions.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-[#8C8880]">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                    <p>Belum ada diskusi. Mulai percakapan pertama!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {discussions.map((post) => (
+                      <div key={post.id} className="space-y-3">
+                        {/* Main post */}
+                        <div className="flex gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#D9D7D0] flex items-center justify-center text-[#8C8880] text-xs font-bold shrink-0">
+                            {(post.authorName || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-xs font-bold text-[#1B1B1B]">{post.authorName}</span>
+                              <span className="text-[10px] text-[#8C8880]">
+                                {new Date(post.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-[#1B1B1B] mt-1 whitespace-pre-wrap">{post.body}</p>
+                            <button
+                              onClick={() => { setReplyTo(post.id); setReplyBody(''); }}
+                              className="text-[10px] text-[#8C8880] hover:text-[#1B1B1B] mt-1 font-semibold"
+                            >
+                              Balas
+                            </button>
+
+                            {/* Reply input */}
+                            {replyTo === post.id && (
+                              <div className="mt-3 flex gap-2">
+                                <input
+                                  type="text"
+                                  value={replyBody}
+                                  onChange={(e) => setReplyBody(e.target.value)}
+                                  placeholder="Tulis balasan..."
+                                  className="flex-1 px-3 py-2 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-xs focus:outline-none focus:border-black"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleReply(post.id);
+                                    if (e.key === 'Escape') setReplyTo(null);
+                                  }}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleReply(post.id)}
+                                  disabled={posting || !replyBody.trim()}
+                                  className="px-3 py-2 rounded-lg bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+                                >
+                                  Kirim
+                                </button>
+                                <button
+                                  onClick={() => setReplyTo(null)}
+                                  className="px-3 py-2 rounded-lg text-xs text-[#8C8880] hover:bg-gray-100"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Replies */}
+                        {post.replies && post.replies.length > 0 && (
+                          <div className="ml-12 space-y-3 border-l-2 border-[#D9D7D0] pl-4">
+                            {post.replies.map((reply) => (
+                              <div key={reply.id} className="flex gap-3">
+                                <div className="w-7 h-7 rounded-full bg-[#D9D7D0] flex items-center justify-center text-[#8C8880] text-[10px] font-bold shrink-0">
+                                  {(reply.authorName || '').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-[11px] font-bold text-[#1B1B1B]">{reply.authorName}</span>
+                                    <span className="text-[10px] text-[#8C8880]">
+                                      {new Date(reply.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-[#1B1B1B] mt-0.5 whitespace-pre-wrap">{reply.body}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

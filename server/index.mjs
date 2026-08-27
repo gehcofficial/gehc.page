@@ -463,6 +463,9 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     "CREATE TABLE IF NOT EXISTS `EventApprovalLog` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`action` VARCHAR(20) NOT NULL,`actor_id` VARCHAR(64) NOT NULL,`actor_role` VARCHAR(30) NOT NULL,`comment` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `EventApprovalLog_event_division_id_idx`(`event_division_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "ALTER TABLE `EventDivisionMember` ADD CONSTRAINT `EventDivisionMember_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
     "ALTER TABLE `EventApprovalLog` ADD CONSTRAINT `EventApprovalLog_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    // Phase 3: Reply threading for discussions
+    "ALTER TABLE `EventUpdate` ADD COLUMN `parent_update_id` VARCHAR(64) NULL AFTER `body`;",
+    "ALTER TABLE `EventUpdate` ADD INDEX `EventUpdate_parent_update_id_idx`(`parent_update_id`);",
   ];
 
   let applied = 0;
@@ -829,12 +832,12 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   res.json({ event: ev });
 }));
 
-// POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres
+// POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres (supports replies)
 app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { body: text } = req.body || {};
+  const { body: text, parentUpdateId } = req.body || {};
   if (!text) return res.status(400).json({ error: 'body wajib.' });
 
   const div = await prisma.eventDivision.findUnique({ where: { eventId_division: { eventId: req.params.id, division: req.params.div.toUpperCase() } } });
@@ -843,18 +846,35 @@ app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KO
   const canSee = await canSeeEventDivision(req.authUser, req.params.div.toUpperCase());
   if (!canSee) return res.status(403).json({ error: 'Tidak punya akses ke divisi ini.' });
 
+  // Validate parent if reply
+  if (parentUpdateId) {
+    const parent = await prisma.eventUpdate.findUnique({ where: { id: parentUpdateId } });
+    if (!parent || parent.eventDivisionId !== div.id) {
+      return res.status(400).json({ error: 'Parent update tidak valid.' });
+    }
+  }
+
   const update = await prisma.eventUpdate.create({
     data: {
-      id: `evu-${Date.now().toString(36)}`,
+      id: `evu-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       eventDivisionId: div.id,
       authorId: req.authUser?.id || 'unknown',
       body: text,
+      parentUpdateId: parentUpdateId || null,
     },
   });
-  res.status(201).json({ update });
+
+  // Resolve author name
+  let authorName = update.authorId;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: update.authorId }, select: { name: true } });
+    if (user?.name) authorName = user.name;
+  } catch { /* skip */ }
+
+  res.status(201).json({ update: { ...update, authorName } });
 }));
 
-// GET /api/events/:id/divisions/:div/updates — baca diskusi
+// GET /api/events/:id/divisions/:div/updates — baca diskusi (threaded)
 app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -865,8 +885,33 @@ app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
   const div = await prisma.eventDivision.findUnique({ where: { eventId_division: { eventId: req.params.id, division: req.params.div.toUpperCase() } } });
   if (!div) return res.status(404).json({ error: 'Divisi event tidak ditemukan.' });
 
-  const updates = await prisma.eventUpdate.findMany({ where: { eventDivisionId: div.id }, orderBy: { createdAt: 'asc' } });
-  res.json({ updates });
+  const updates = await prisma.eventUpdate.findMany({
+    where: { eventDivisionId: div.id },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  // Resolve author names
+  const authorIds = [...new Set(updates.map((u) => u.authorId))];
+  const authorMap = new Map();
+  for (const aid of authorIds) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: aid }, select: { name: true, email: true } });
+      authorMap.set(aid, user?.name || user?.email || aid);
+    } catch {
+      authorMap.set(aid, aid);
+    }
+  }
+
+  // Build threaded structure
+  const enriched = updates.map((u) => ({ ...u, authorName: authorMap.get(u.authorId) || u.authorId }));
+  const topLevel = enriched.filter((u) => !u.parentUpdateId);
+  const replies = enriched.filter((u) => u.parentUpdateId);
+  const threaded = topLevel.map((t) => ({
+    ...t,
+    replies: replies.filter((r) => r.parentUpdateId === t.id),
+  }));
+
+  res.json({ updates: threaded, total: updates.length });
 }));
 
 // POST /api/events/:id/meetings — tambah rapat

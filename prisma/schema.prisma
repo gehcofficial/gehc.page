@@ -363,11 +363,13 @@ model EventUpdate {
   eventDivisionId String   @map("event_division_id") @db.VarChar(64)
   authorId        String   @map("author_id") @db.VarChar(64)
   body            String   @db.Text
+  parentUpdateId  String?  @map("parent_update_id") @db.VarChar(64) // null = top-level, set = reply
   createdAt       DateTime @default(now()) @map("created_at")
 
   division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
 
   @@index([eventDivisionId])
+  @@index([parentUpdateId])
 }
 
 /// Role-based access per division member
