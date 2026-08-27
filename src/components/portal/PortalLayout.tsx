@@ -13,7 +13,7 @@ import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
-import { PeopleInvites } from './PeopleInvites';
+import { NotificationPermissionBanner, PWASettingsPanel } from '../pwa';
 import { WaitlistBoard } from './WaitlistBoard';
 import {
   LayoutDashboard,
@@ -98,6 +98,7 @@ export const PortalLayout: React.FC = () => {
     { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja' },
     { id: 'users-rbac', label: 'Pengguna & Matrix RBAC', icon: ShieldAlert, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
     { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
+    { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'MENTEE'], group: 'Sistem' },
   ];
 
   const navWithHeaders: Array<{ type: 'header'; label: string } | { type: 'item'; item: typeof navItems[number] }> = [];
@@ -434,6 +435,7 @@ export const PortalLayout: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
+          <NotificationPermissionBanner compact onDismiss={() => {}} />
           {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
           {activeTab === 'content-activities' && <ManageActivities />}
@@ -447,6 +449,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
           {activeTab === 'users-rbac' && <ManageUsersRBAC />}
           {activeTab === 'integrations' && <ManageIntegrations />}
+          {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
         </main>
       </div>
     </div>
