@@ -87,8 +87,13 @@ async function buildTargetSpec(prisma) {
     orderBy: { name: 'asc' },
     select: { name: true },
   });
+  const GROUP_SUBFOLDERS = ['Absensi', 'Materi PA', 'Foto Kegiatan', 'Dokumen Lainnya'];
   for (const g of groups) {
-    spec.push({ name: `${g.name} [GROUP:${g.name.toUpperCase()}]`, parent: 'KELOMPOK' });
+    const groupKey = `group:${g.name.toUpperCase()}`;
+    spec.push({ name: `${g.name} [GROUP:${g.name.toUpperCase()}]`, parent: 'KELOMPOK', key: groupKey });
+    for (const sub of GROUP_SUBFOLDERS) {
+      spec.push({ name: sub, parent: groupKey });
+    }
   }
 
   return spec;
