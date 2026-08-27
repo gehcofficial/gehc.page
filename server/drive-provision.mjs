@@ -75,9 +75,14 @@ async function buildTargetSpec(prisma) {
     if (set && s.subdivision?.trim()) set.add(s.subdivision.trim());
   }
   for (const p of PANTATUGAS) {
-    spec.push({ name: `${p.label} [MENTOR]`, parent: 'ROOT', key: `pillar:${p.name}` });
+    const pillarKey = `pillar:${p.name}`;
+    spec.push({ name: `${p.label} [MENTOR]`, parent: 'ROOT', key: pillarKey });
+    // _Template Mingguan untuk setiap divisi
+    spec.push({ name: '_Template Mingguan', parent: pillarKey, key: `tmpl:${p.name}` });
+    spec.push({ name: 'Rundown', parent: `tmpl:${p.name}` });
+    spec.push({ name: 'Checklist', parent: `tmpl:${p.name}` });
     for (const sub of byPillar.get(p.name)) {
-      spec.push({ name: sub, parent: `pillar:${p.name}` });
+      spec.push({ name: sub, parent: pillarKey });
     }
   }
 
@@ -87,7 +92,7 @@ async function buildTargetSpec(prisma) {
     orderBy: { name: 'asc' },
     select: { name: true },
   });
-  const GROUP_SUBFOLDERS = ['Absensi', 'Materi PA', 'Foto Kegiatan', 'Dokumen Lainnya'];
+  const GROUP_SUBFOLDERS = ['Absensi', 'Materi PA', 'Foto Kegiatan', 'Dokumen Lainnya', 'Agenda Mandiri'];
   for (const g of groups) {
     const groupKey = `group:${g.name.toUpperCase()}`;
     spec.push({ name: `${g.name} [GROUP:${g.name.toUpperCase()}]`, parent: 'KELOMPOK', key: groupKey });

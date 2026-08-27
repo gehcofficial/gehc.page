@@ -834,6 +834,11 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     "CREATE TABLE IF NOT EXISTS `order_items` (`id` VARCHAR(64) NOT NULL,`order_id` VARCHAR(64) NOT NULL,`product_id` VARCHAR(64) NOT NULL,`qty` INT NOT NULL,`price` INT NOT NULL,`name` VARCHAR(200) NOT NULL, PRIMARY KEY (`id`), UNIQUE INDEX `order_items_order_id_product_id_key`(`order_id`, `product_id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
     "ALTER TABLE `order_items` ADD CONSTRAINT `order_items_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE CASCADE;",
+    // Penatalayan & Division Meetings
+    "CREATE TABLE IF NOT EXISTS `service_roles` (`id` VARCHAR(64) NOT NULL,`name` VARCHAR(100) NOT NULL,`division` VARCHAR(20) NOT NULL,`description` TEXT NULL,`is_active` BOOLEAN NOT NULL DEFAULT true,`sort_order` INT NOT NULL DEFAULT 0,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, UNIQUE INDEX `service_roles_name_key`(`name`), INDEX `service_roles_division_active_idx`(`division`, `is_active`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `service_schedules` (`id` VARCHAR(64) NOT NULL,`service_role_id` VARCHAR(64) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NULL,`date` DATE NOT NULL,`time_start` VARCHAR(10) NULL,`time_end` VARCHAR(10) NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',`notes` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `service_schedules_date_status_idx`(`date`, `status`), INDEX `service_schedules_user_id_date_idx`(`user_id`, `date`), INDEX `service_schedules_service_role_id_date_idx`(`service_role_id`, `date`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `division_meetings` (`id` VARCHAR(64) NOT NULL,`division` VARCHAR(20) NOT NULL,`meeting_date` DATE NOT NULL,`title` VARCHAR(200) NULL,`agenda` JSON NULL,`attendees` JSON NULL,`notes` TEXT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'PLANNED',`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `division_meetings_division_meeting_date_idx`(`division`, `meeting_date`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `division_agenda_items` (`id` VARCHAR(64) NOT NULL,`meeting_id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`division` VARCHAR(20) NOT NULL,`component` VARCHAR(100) NULL,`person_in_charge_id` VARCHAR(64) NULL,`deadline` DATE NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'TODO',`drive_folder_id` VARCHAR(64) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `division_agenda_items_meeting_id_status_idx`(`meeting_id`, `status`), INDEX `division_agenda_items_division_status_idx`(`division`, `status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
   ];
 
   let applied = 0;
@@ -2692,6 +2697,186 @@ app.get('/api/benzar/qris', wrap(async (req, res) => {
     instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, kirim bukti transfer ke WA: 081288646114.',
   });
 }));
+
+// ---------- PENATALAYAN SCHEDULING ----------
+
+// GET /api/penatalayan/roles — list all service roles
+app.get('/api/penatalayan/roles', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { division } = req.query;
+  const where = { isActive: true };
+  if (division) where.division = division;
+  const roles = await prisma.serviceRole.findMany({ where, orderBy: { sortOrder: 'asc' } });
+  res.json({ roles });
+}));
+
+// POST /api/penatalayan/roles — create service role (admin only)
+app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { name, division, description, sortOrder } = req.body;
+  if (!name || !division) return res.status(400).json({ error: 'name & division wajib' });
+  const id = 'sr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const role = await prisma.serviceRole.create({ data: { id, name, division, description, sortOrder: sortOrder || 0 } });
+  res.status(201).json({ role });
+}));
+
+// GET /api/penatalayan/schedules — list schedules (filter by date range)
+app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { from, to, userId, eventId } = req.query;
+  const where = {};
+  if (from || to) {
+    where.date = {};
+    if (from) where.date.gte = new Date(from);
+    if (to) where.date.lte = new Date(to);
+  }
+  if (userId) where.userId = userId;
+  if (eventId) where.eventId = eventId;
+  const schedules = await prisma.serviceSchedule.findMany({
+    where,
+    include: { serviceRole: true, user: { select: { id: true, name: true, email: true } } },
+    orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
+  });
+  res.json({ schedules });
+}));
+
+// POST /api/penatalayan/schedules — create schedule (assign person to role)
+app.post('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { serviceRoleId, userId, eventId, date, timeStart, timeEnd, notes } = req.body;
+  if (!serviceRoleId || !userId || !date) return res.status(400).json({ error: 'serviceRoleId, userId, date wajib' });
+  const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const schedule = await prisma.serviceSchedule.create({
+    data: { id, serviceRoleId, userId, eventId: eventId || null, date: new Date(date), timeStart, timeEnd, notes },
+    include: { serviceRole: true, user: { select: { id: true, name: true } } },
+  });
+  res.status(201).json({ schedule });
+}));
+
+// PATCH /api/penatalayan/schedules/:id — update status
+app.patch('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, notes } = req.body;
+  const data = {};
+  if (status) data.status = status;
+  if (notes !== undefined) data.notes = notes;
+  const schedule = await prisma.serviceSchedule.update({ where: { id: req.params.id }, data, include: { serviceRole: true, user: true } });
+  res.json({ schedule });
+}));
+
+// DELETE /api/penatalayan/schedules/:id — remove schedule
+app.delete('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  await prisma.serviceSchedule.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+}));
+
+// POST /api/penatalayan/schedules/bulk — bulk create for a date range (recurring ibadah)
+app.post('/api/penatalayan/schedules/bulk', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { serviceRoleId, userIds, dates, timeStart, timeEnd } = req.body;
+  if (!serviceRoleId || !userIds?.length || !dates?.length) {
+    return res.status(400).json({ error: 'serviceRoleId, userIds[], dates[] wajib' });
+  }
+  const created = [];
+  for (const userId of userIds) {
+    for (const dateStr of dates) {
+      const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const s = await prisma.serviceSchedule.create({
+        data: { id, serviceRoleId, userId, date: new Date(dateStr), timeStart, timeEnd },
+      });
+      created.push(s);
+    }
+  }
+  res.status(201).json({ count: created.length });
+}));
+
+// ---------- DIVISION MEETINGS & AGENDAS ----------
+
+// GET /api/division-meetings — list meetings by division
+app.get('/api/division-meetings', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { division, status } = req.query;
+  const where = {};
+  if (division) where.division = division;
+  if (status) where.status = status;
+  const meetings = await prisma.divisionMeeting.findMany({
+    where,
+    include: { agendaItems: true },
+    orderBy: { meetingDate: 'desc' },
+  });
+  res.json({ meetings });
+}));
+
+// POST /api/division-meetings — create meeting
+app.post('/api/division-meetings', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { division, meetingDate, title, agenda, attendees } = req.body;
+  if (!division || !meetingDate) return res.status(400).json({ error: 'division & meetingDate wajib' });
+  const id = 'dm-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const meeting = await prisma.divisionMeeting.create({
+    data: {
+      id, division, meetingDate: new Date(meetingDate), title,
+      agenda: agenda || [], attendees: attendees || [],
+    },
+  });
+  res.status(201).json({ meeting });
+}));
+
+// GET /api/division-meetings/:id — get meeting with agenda items
+app.get('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const meeting = await prisma.divisionMeeting.findUnique({
+    where: { id: req.params.id },
+    include: { agendaItems: { orderBy: { createdAt: 'asc' } } },
+  });
+  if (!meeting) return res.status(404).json({ error: 'Meeting tidak ditemukan' });
+  res.json({ meeting });
+}));
+
+// PATCH /api/division-meetings/:id — update meeting
+app.patch('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { title, agenda, attendees, notes, status } = req.body;
+  const data = {};
+  if (title) data.title = title;
+  if (agenda) data.agenda = agenda;
+  if (attendees) data.attendees = attendees;
+  if (notes !== undefined) data.notes = notes;
+  if (status) data.status = status;
+  const meeting = await prisma.divisionMeeting.update({ where: { id: req.params.id }, data });
+  res.json({ meeting });
+}));
+
+// POST /api/division-meetings/:id/agenda — add agenda item
+app.post('/api/division-meetings/:id/agenda', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { title, description, division, component, personInChargeId, deadline } = req.body;
+  if (!title) return res.status(400).json({ error: 'title wajib' });
+  const id = 'dai-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const item = await prisma.divisionAgendaItem.create({
+    data: {
+      id, meetingId: req.params.id, title, description, division: division || 'LITURGIA',
+      component, personInChargeId, deadline: deadline ? new Date(deadline) : null,
+    },
+  });
+  res.status(201).json({ item });
+}));
+
+// PATCH /api/division-meetings/agenda/:id — update agenda item status
+app.patch('/api/division-meetings/agenda/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { status, personInChargeId, deadline, driveFolderId } = req.body;
+  const data = {};
+  if (status) data.status = status;
+  if (personInChargeId !== undefined) data.personInChargeId = personInChargeId;
+  if (deadline) data.deadline = new Date(deadline);
+  if (driveFolderId !== undefined) data.driveFolderId = driveFolderId;
+  const item = await prisma.divisionAgendaItem.update({ where: { id: req.params.id }, data });
+  res.json({ item });
+}));
+
+// ---------- End Penatalayan & Division Meetings ----------
 
 // ---------- End Benzarpreneurship E-commerce ----------
 

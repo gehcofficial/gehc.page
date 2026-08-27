@@ -107,6 +107,7 @@ export async function attachUser(req, _res, next) {
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+    if (roles.length === 0) return next(); // no role restriction, just require auth
     const userRoles = (req.authUser.roles || []).map((r) => r.role);
     const ok = roles.some((r) => userRoles.includes(r));
     if (!ok) return res.status(403).json({ error: 'Akses ditolak untuk role Anda.' });
