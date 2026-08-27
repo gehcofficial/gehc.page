@@ -18,6 +18,7 @@ import {
   Users,
   LogOut,
   LogIn,
+  Store,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -109,16 +110,18 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
+                ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
                   key={tabId}
                   onClick={() => setPublicTab(tabId)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all flex items-center gap-1.5 ${
                     publicTab === tabId
                       ? 'bg-white text-black shadow-sm'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
+                  {tabId === 'benzarpreneurship' && <Store className="w-3 h-3" />}
                   {label}
                 </button>
               ))}
@@ -426,6 +429,19 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 {t.nav.leaders}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveView('public');
+                  setPublicTab('benzarpreneurship');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold flex items-center gap-2 ${
+                  publicTab === 'benzarpreneurship' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                {t.nav.benzarpreneurship}
               </button>
             </div>
           </div>

@@ -38,8 +38,8 @@ interface AppContextType {
   switchTenant: (tenantId: string) => void;
   activeView: string;
   setActiveView: (view: string) => void;
-  publicTab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail';
-  setPublicTab: (tab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'group-detail') => void;
+  publicTab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail' | 'benzarpreneurship';
+  setPublicTab: (tab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'group-detail' | 'benzarpreneurship') => void;
   selectedGroupId: string | null;
   openGroupDetail: (groupId: string) => void;
   closeGroupDetail: () => void;
@@ -136,7 +136,7 @@ const STORAGE_KEYS = {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
   const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
-  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join'] as const;
+  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join', 'benzarpreneurship'] as const;
   const LEGACY_MAP: Record<string, PublicTab> = {
     home: 'beyonders',
     groups: 'beyonders',

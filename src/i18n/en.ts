@@ -8,6 +8,7 @@ export const en = {
     leaders: 'Leaders',
     events: 'Events',
     bulletin: 'Bulletin',
+    benzarpreneurship: 'Store',
   },
   hero: {
     chip: 'Beyonders • Youth Community of GMIM Eben Haezer, Cikarang',

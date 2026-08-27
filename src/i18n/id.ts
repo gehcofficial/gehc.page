@@ -7,6 +7,7 @@ export const id: Dict = {
     leaders: 'Pengurus',
     events: 'Kegiatan',
     bulletin: 'Warta',
+    benzarpreneurship: 'Toko',
   },
   hero: {
     chip: 'Beyonders • Komunitas Pemuda GMIM Eben Haezer Cikarang',

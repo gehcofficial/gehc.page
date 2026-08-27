@@ -24,6 +24,7 @@ import { KomisiSection } from './components/public/KomisiSection';
 import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
 import { PortalLayout } from './components/portal/PortalLayout';
+import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 
 const MainAppContent: React.FC = () => {
   const { activeView, publicTab, demoMode, authUser } = useApp();
@@ -70,6 +71,7 @@ const MainAppContent: React.FC = () => {
         )}
 
         {publicTab === 'bulletin' && <WeeklyInfoSection />}
+        {publicTab === 'benzarpreneurship' && <BenzarpreneurshipPage />}
       </main>
 
       {/* Editorial Dark Curved Footer */}

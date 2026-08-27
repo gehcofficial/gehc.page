@@ -51,6 +51,8 @@ model User {
   monitoring      MonitoringRecord[]
   groupMembers    GroupMember[]
   attendanceTaken AttendanceRecord[] @relation("AttendanceRecorder")
+  products        Product[]
+  orders          Order[]
 
   @@map("users")
 }
@@ -439,4 +441,87 @@ enum NotificationStatus {
   OPEN
   ACKNOWLEDGED
   RESOLVED
+}
+
+// ============================================
+// Benzarpreneurship E-commerce
+// ============================================
+
+model Product {
+  id          String   @id @db.VarChar(64)
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+  price       Int      // rupiah
+  stock       Int      @default(0)
+  images      Json     @default("[]") // [{driveFileId, url, caption}]
+  category    String   @db.VarChar(20) // MERCHANDISE | FUNDRAISING | DONATION
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdById String   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  createdBy User        @relation(fields: [createdById], references: [id])
+  orderItems OrderItem[]
+
+  @@index([category, isActive])
+  @@map("products")
+}
+
+enum ProductCategory {
+  MERCHANDISE
+  FUNDRAISING
+  DONATION
+}
+
+model Order {
+  id           String   @id @db.VarChar(64)
+  orderCode    String   @unique @map("order_code") @db.VarChar(20) // BZP-20260827-001
+  userId       String   @map("user_id") @db.VarChar(64)
+  items        Json     // [{productId, qty, price, nameSnapshot}]
+  total        Int
+  status       String   @default("PENDING") @db.VarChar(16) // PENDING|PAID|VERIFIED|PROCESSING|READY|COMPLETED|CANCELLED
+  shipping     String   @default("PICKUP") @db.VarChar(16)  // PICKUP | DELIVERY
+  shippingAddr Json?    @map("shipping_addr") // {name, phone, address}
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user      User        @relation(fields: [userId], references: [id])
+  itemsRel  OrderItem[] @relation("OrderItems")
+
+  @@index([userId, status])
+  @@index([status])
+  @@index([orderCode])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @db.VarChar(64)
+  orderId   String @map("order_id") @db.VarChar(64)
+  productId String @map("product_id") @db.VarChar(64)
+  qty       Int
+  price     Int    // harga saat beli (snapshot)
+  name      String @db.VarChar(200) // nama produk saat beli (snapshot)
+
+  order   Order   @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId])
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  VERIFIED
+  PROCESSING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum ShippingMethod {
+  PICKUP
+  DELIVERY
 }

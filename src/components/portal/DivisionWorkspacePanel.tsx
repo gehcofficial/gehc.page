@@ -24,7 +24,9 @@ import {
   Video,
   CalendarPlus,
   Download,
+  Store,
 } from 'lucide-react';
+import BenzarStoreTab from './BenzarStoreTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
@@ -91,7 +93,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -800,13 +802,14 @@ export const DivisionWorkspacePanel: React.FC = () => {
               )}
             </div>
 
-            {/* Sub-tabs: Overview | Members | Discussions | Drive */}
+            {/* Sub-tabs: Overview | Members | Discussions | Drive | Store (Benzarpreneurship only) */}
             <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
               {([
                 { id: 'overview' as DetailTab, label: 'Ringkasan', icon: <ChevronRight className="w-3.5 h-3.5" /> },
                 { id: 'members' as DetailTab, label: 'Anggota', icon: <Users className="w-3.5 h-3.5" /> },
                 { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
                 { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Toko', icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.id}
@@ -1214,6 +1217,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Store Tab (Benzarpreneurship only) */}
+            {detailTab === 'store' && selectedDiv === 'BENZARPR' && (
+              <div>
+                <BenzarStoreTab eventId={eventId} division={selectedDiv} />
               </div>
             )}
           </div>

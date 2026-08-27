@@ -828,6 +828,12 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     "ALTER TABLE `EventUpdate` ADD INDEX `EventUpdate_parent_update_id_idx`(`parent_update_id`);",
     // Phase 7: MENTION notification type (enum value added in schema)
     "ALTER TABLE `Notification` MODIFY COLUMN `type` ENUM('IDLE_FLAG','MITOSIS_ALERT','MERGER_SUGGESTION','MENTION') NOT NULL;",
+    // Benzarpreneurship E-commerce: Products, Orders, OrderItems
+    "CREATE TABLE IF NOT EXISTS `products` (`id` VARCHAR(64) NOT NULL,`name` VARCHAR(200) NOT NULL,`description` TEXT NULL,`price` INT NOT NULL,`stock` INT NOT NULL DEFAULT 0,`images` JSON NULL,`category` VARCHAR(20) NOT NULL,`is_active` BOOLEAN NOT NULL DEFAULT true,`sort_order` INT NOT NULL DEFAULT 0,`created_by_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), PRIMARY KEY (`id`), INDEX `products_category_active_idx`(`category`, `is_active`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `orders` (`id` VARCHAR(64) NOT NULL,`order_code` VARCHAR(20) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`items` JSON NOT NULL,`total` INT NOT NULL,`status` VARCHAR(16) NOT NULL DEFAULT 'PENDING',`shipping` VARCHAR(16) NOT NULL DEFAULT 'PICKUP',`shipping_addr` JSON NULL,`notes` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), PRIMARY KEY (`id`), UNIQUE INDEX `orders_order_code_key`(`order_code`), INDEX `orders_user_id_status_idx`(`user_id`, `status`), INDEX `orders_status_idx`(`status`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `order_items` (`id` VARCHAR(64) NOT NULL,`order_id` VARCHAR(64) NOT NULL,`product_id` VARCHAR(64) NOT NULL,`qty` INT NOT NULL,`price` INT NOT NULL,`name` VARCHAR(200) NOT NULL, PRIMARY KEY (`id`), UNIQUE INDEX `order_items_order_id_product_id_key`(`order_id`, `product_id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    "ALTER TABLE `order_items` ADD CONSTRAINT `order_items_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE CASCADE;",
   ];
 
   let applied = 0;
@@ -2458,6 +2464,235 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
   res.status(400).json({ error: 'scope tidak dikenal.' });
 }));
+
+// ---------- Benzarpreneurship E-commerce ----------
+const VALID_CATEGORIES = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
+const VALID_ORDER_STATUSES = ['PENDING', 'PAID', 'VERIFIED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED'];
+const VALID_SHIPPING = ['PICKUP', 'DELIVERY'];
+
+function generateOrderCode() {
+  const d = new Date();
+  const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(Math.random() * 9000 + 1000);
+  return `BZP-${dateStr}-${rand}`;
+}
+
+// GET /api/benzar/products — public katalog produk
+app.get('/api/benzar/products', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { category } = req.query;
+  const where = { isActive: true };
+  if (category && VALID_CATEGORIES.includes(category.toUpperCase())) {
+    where.category = category.toUpperCase();
+  }
+  const products = await prisma.product.findMany({ where, orderBy: { sortOrder: 'asc' } });
+  res.json({ products });
+}));
+
+// GET /api/benzar/products/:id — detail produk
+app.get('/api/benzar/products/:id', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+  res.json({ product });
+}));
+
+// POST /api/benzar/products — buat produk (BZP LEAD/CO_LEAD)
+app.post('/api/benzar/products', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { name, description, price, stock, images, category, sortOrder } = req.body || {};
+  if (!name || price == null || !category) {
+    return res.status(400).json({ error: 'name, price, category wajib.' });
+  }
+  if (!VALID_CATEGORIES.includes(category.toUpperCase())) {
+    return res.status(400).json({ error: `category harus salah satu dari: ${VALID_CATEGORIES.join(', ')}` });
+  }
+  const id = `prod-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`;
+  const product = await prisma.product.create({
+    data: {
+      id, name, description: description || null, price: Number(price),
+      stock: Number(stock) || 0, images: images || [], category: category.toUpperCase(),
+      sortOrder: Number(sortOrder) || 0, createdById: req.authUser?.id || 'unknown',
+    },
+  });
+  res.status(201).json({ product });
+}));
+
+// PATCH /api/benzar/products/:id — update produk
+app.patch('/api/benzar/products/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+  const { name, description, price, stock, images, category, sortOrder, isActive } = req.body || {};
+  const data = {};
+  if (name !== undefined) data.name = name;
+  if (description !== undefined) data.description = description;
+  if (price !== undefined) data.price = Number(price);
+  if (stock !== undefined) data.stock = Number(stock);
+  if (images !== undefined) data.images = images;
+  if (category !== undefined) {
+    if (!VALID_CATEGORIES.includes(category.toUpperCase())) {
+      return res.status(400).json({ error: `category harus salah satu dari: ${VALID_CATEGORIES.join(', ')}` });
+    }
+    data.category = category.toUpperCase();
+  }
+  if (sortOrder !== undefined) data.sortOrder = Number(sortOrder);
+  if (isActive !== undefined) data.isActive = Boolean(isActive);
+  const product = await prisma.product.update({ where: { id: req.params.id }, data });
+  res.json({ product });
+}));
+
+// DELETE /api/benzar/products/:id — soft delete
+app.delete('/api/benzar/products/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+  await prisma.product.update({ where: { id: req.params.id }, data: { isActive: false } });
+  res.json({ ok: true });
+}));
+
+// POST /api/benzar/orders — buat pesanan
+app.post('/api/benzar/orders', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { items: rawItems, shipping, shippingAddr, notes } = req.body || {};
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    return res.status(400).json({ error: 'items[] wajib minimal 1 produk.' });
+  }
+  // Validate & build order items
+  const orderItems = [];
+  let total = 0;
+  for (const item of rawItems) {
+    const product = await prisma.product.findUnique({ where: { id: item.productId } });
+    if (!product || !product.isActive) {
+      return res.status(400).json({ error: `Produk ${item.productId} tidak tersedia.` });
+    }
+    const qty = Number(item.qty) || 1;
+    if (product.stock > 0 && qty > product.stock) {
+      return res.status(400).json({ error: `Stok ${product.name} tidak cukup (tersisa ${product.stock}).` });
+    }
+    orderItems.push({ productId: product.id, qty, price: product.price, name: product.name });
+    total += product.price * qty;
+  }
+  if (shipping && !VALID_SHIPPING.includes(shipping.toUpperCase())) {
+    return res.status(400).json({ error: `shipping harus PICKUP atau DELIVERY.` });
+  }
+  const orderId = `ord-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`;
+  const orderCode = generateOrderCode();
+  const order = await prisma.order.create({
+    data: {
+      id: orderId, orderCode, userId: req.authUser.id, items: orderItems, total,
+      status: 'PENDING', shipping: (shipping || 'PICKUP').toUpperCase(),
+      shippingAddr: shippingAddr || null, notes: notes || null,
+    },
+  });
+  // Create order items in relation table
+  for (const oi of orderItems) {
+    await prisma.orderItem.create({
+      data: { id: `oi-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`, orderId: order.id, ...oi },
+    });
+  }
+  // Deduct stock
+  for (const oi of orderItems) {
+    await prisma.product.update({
+      where: { id: oi.productId },
+      data: { stock: { decrement: oi.qty } },
+    });
+  }
+  res.status(201).json({ order, orderCode });
+}));
+
+// GET /api/benzar/orders — list orders (BZP staff)
+app.get('/api/benzar/orders', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { status } = req.query;
+  const where = {};
+  if (status && VALID_ORDER_STATUSES.includes(status.toUpperCase())) {
+    where.status = status.toUpperCase();
+  }
+  const orders = await prisma.order.findMany({
+    where, orderBy: { createdAt: 'desc' }, take: 100,
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+  res.json({ orders });
+}));
+
+// GET /api/benzar/orders/my — list orders milik user login
+app.get('/api/benzar/orders/my', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const orders = await prisma.order.findMany({
+    where: { userId: req.authUser.id }, orderBy: { createdAt: 'desc' },
+  });
+  res.json({ orders });
+}));
+
+// GET /api/benzar/orders/:id — detail order
+app.get('/api/benzar/orders/:id', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const order = await prisma.order.findUnique({
+    where: { id: req.params.id },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+  if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+  // Only owner or staff can view
+  const isOwner = order.userId === req.authUser.id;
+  const roles = (req.authUser.roles || []).map((r) => r.role);
+  const isStaff = roles.includes('SUPERADMIN') || roles.includes('KOMISI') || roles.includes('COMMITTEE');
+  if (!isOwner && !isStaff) return res.status(403).json({ error: 'Akses ditolak.' });
+  res.json({ order });
+}));
+
+// PATCH /api/benzar/orders/:id/status — update status order (BZP staff)
+app.patch('/api/benzar/orders/:id/status', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { status } = req.body || {};
+  if (!status || !VALID_ORDER_STATUSES.includes(status.toUpperCase())) {
+    return res.status(400).json({ error: `status harus salah satu dari: ${VALID_ORDER_STATUSES.join(', ')}` });
+  }
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+  // If cancelling, restore stock
+  if (status.toUpperCase() === 'CANCELLED' && order.status !== 'CANCELLED') {
+    const items = order.items;
+    for (const item of items) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.qty } },
+      });
+    }
+  }
+  const updated = await prisma.order.update({
+    where: { id: req.params.id }, data: { status: status.toUpperCase() },
+  });
+  res.json({ order: updated });
+}));
+
+// GET /api/benzar/qris — return QRIS info (public)
+app.get('/api/benzar/qris', wrap(async (req, res) => {
+  // Static QRIS config — admin ganti di Drive, ini fallback
+  res.json({
+    imageUrl: process.env.QRIS_IMAGE_URL || '/qris.png',
+    merchantName: process.env.QRIS_MERCHANT_NAME || 'GEHC Benzarpreneurship',
+    merchantId: process.env.QRIS_MERCHANT_ID || '',
+    bankName: process.env.QRIS_BANK_NAME || 'GoPay',
+    accountNumber: process.env.QRIS_ACCOUNT_NUMBER || '',
+    instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, konfirmasi ke admin.',
+  });
+}));
+
+// ---------- End Benzarpreneurship E-commerce ----------
 
 // ---------- Fallback ----------
 app.use('/api', (req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
