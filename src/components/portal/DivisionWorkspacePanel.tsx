@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
-import { PANTATUGAS, BENZARPR_ENUM, pillarByName } from '../../lib/pantatugas';
+import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
 import {
   Users,
   FolderOpen,
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 
-const ALL_DIVISIONS = [...PANTATUGAS.map((p) => p.name), BENZARPR_ENUM];
+const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   DRAFT: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' },

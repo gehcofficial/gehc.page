@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { PANTATUGAS, SUPPORT_DIVISION, subDivisions, pillarByName } from '../../lib/pantatugas';
 
-// Daftar nama divisi structural (termasuk Benzarpreneurship di luar 5 panta tugas)
+// Daftar nama divisi structural
 const structuralNames = ['BPMJ', 'KOMISI', 'LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 
 // Warna per divisi struktur (BPMJ, Komisi, dll)
@@ -223,30 +223,13 @@ export const OrgTreeSection: React.FC = () => {
     (m) => m.division && m.division.toUpperCase() === 'TIMKERJA'
   );
 
-  // --- Level 3: 5 Panca Tugas (Liturgia..Marturia) + Sub-divisi ---
-  // Anggota dengan division LITURGIA, DIDASKALIA, KOINONIA, DIAKONIA, MARTURIA
+  // --- Level 3: 6 Divisi (Panca Tugas + Benzarpreneurship) + Sub-divisi ---
   const structuralMembers = structuralNames.reduce((acc, pName) => {
     const pillarMembers = sorted.filter(
       (m) => m.division && m.division.toUpperCase() === pName
     );
     return acc.concat(pillarMembers);
   }, [] as Member[]);
-
-  // --- Benzarpreneurship members ( division = BENZARPR ) ---
-  const benzarprMembers = sorted.filter(
-    (m) => m.division && m.division.toUpperCase() === 'BENZARPR'
-  );
-
-  // Grouping BZP per sub-divisi; anggota tanpa subdivisi = "Kepala" (ditampilkan duluan)
-  const benzarGroups = (() => {
-    const map = new Map<string, Member[]>();
-    for (const m of benzarprMembers) {
-      const key = m.subdivision?.trim() || 'Kepala';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(m);
-    }
-    return [...map.entries()].sort(([a]) => (a === 'Kepala' ? -1 : 1));
-  })();
 
   return (
     <section className="max-w-[1200px] mx-auto">
@@ -344,8 +327,8 @@ export const OrgTreeSection: React.FC = () => {
         </div>
       )}
 
-      {/* Level 3: Lima Panca Tugas + Sub-divisi */}
-      <div className="grid md:grid-cols-2 gap-4 pt-2">
+      {/* Level 3: Enam Divisi (5 Panca Tugas + Benzarpreneurship) + Sub-divisi */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
         {PANTATUGAS.map((p) => {
           const pillar: PillarDef = { name: p.name, tagline: p.tagline, icon: p.icon, color: p.color };
           const pillarMembers = structuralMembers.filter(
@@ -369,53 +352,6 @@ export const OrgTreeSection: React.FC = () => {
         </p>
         <p className="text-[11px] text-[#8C8880] leading-relaxed">{BEYONDERS_NOTE}</p>
       </div>
-
-      {/* Benzarpreneurship box (di luar 5 panta tugas, di bawah Tim Kerja) */}
-      {benzarprMembers.length > 0 && (
-        <div className="rounded-3xl border border-[#F6AE4A]/30 bg-[#FAFAF0] p-4 my-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#F6AE4A] mb-3">
-            Benzarpreneurship (BZP) — Usaha & Dana · Kepala: Fladyna Mondoringin
-          </p>
-          <div className="space-y-3">
-            {benzarGroups.map(([sub, list]) => (
-              <div key={sub}>
-                {sub !== 'Kepala' && (
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-1.5">{sub}</p>
-                )}
-                <div className="space-y-1.5">
-                  {list.map((m) => (
-                    <div key={m.id} className="flex items-center gap-2">
-                      <img
-                        src={m.photoUrl || initialsAvatar(m.name)}
-                        alt={m.name}
-                        className={`w-7 h-7 rounded-full object-cover bg-white ${
-                          m.isOpenRole
-                            ? 'border border-dashed border-[#8C8880]/50'
-                            : 'border border-[#F6AE4A]'
-                        }`}
-                      />
-                      <div className="min-w-0">
-                        {m.isOpenRole ? (
-                          <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
-                            {m.position || m.name} — terbuka
-                          </span>
-                        ) : (
-                          <>
-                            <p className="text-xs font-black truncate">{m.name}</p>
-                            {m.position && sub === 'Kepala' && (
-                              <p className="text-[10px] text-[#8C8880] truncate">{m.position}</p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <p className="text-center text-[11px] text-[#8C8880] mt-10 italic max-w-lg mx-auto leading-relaxed">
         Sub-divisi bersifat hidup: dapat bertambah sewaktu-waktu sesuai kebutuhan pelayanan —

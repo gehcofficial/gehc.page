@@ -1,10 +1,9 @@
-import { Flame, BookOpen, Heart, HandHeart, Megaphone } from 'lucide-react';
+import { Flame, BookOpen, Heart, HandHeart, Megaphone, Store } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 /**
- * Meta lima fungsi gereja klasik (pantatugas) — payung struktur pelayanan
+ * Meta lima fungsi gereja klasik (panca tugas) + Benzarpreneurship — payung struktur pelayanan
  * GEHC Youth. Dipakai StrukturSection, PantatugasShowcase, dan portal.
- * Detail keputusan: pandangan terbaru inklusi Benzarpreneurship & penugasan orang.
  * Reference: pantatugas.md
  */
 export interface PillarMeta {
@@ -17,7 +16,7 @@ export interface PillarMeta {
   icon: ComponentType<{ className?: string }>;
 }
 
-// 5 Panca Tugas + 1 Divisi tambahan (Benzarpreneurship)
+// 6 Divisi: 5 Panca Tugas + Benzarpreneurship
 export const PANTATUGAS: PillarMeta[] = [
   {
     name: 'LITURGIA',
@@ -54,9 +53,16 @@ export const PANTATUGAS: PillarMeta[] = [
     color: '#DC2626',
     icon: Megaphone,
   },
+  {
+    name: 'BENZARPR',
+    label: 'Benzarpreneurship',
+    tagline: 'Usaha & dana: Merchandise · Fundraising · Donation',
+    color: '#F6AE4A',
+    icon: Store,
+  },
 ];
 
-// Divisi tambahan di luar 5 panta tugas
+// Backward compat — gunakan PANTATUGAS[5].name untuk BENZARPR
 export const BENZARPR_ENUM = 'BENZARPR';
 
 export interface SubDivisionMeta {

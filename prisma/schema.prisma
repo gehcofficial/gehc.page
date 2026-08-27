@@ -327,7 +327,7 @@ model EventDivision {
   approvalStatus  String    @default("DRAFT") @map("approval_status") @db.VarChar(16) // DRAFT|IN_REVIEW|APPROVED|REJECTED|PUBLISHED
   approvedById    String?   @map("approved_by_id") @db.VarChar(64)
   approvedAt      DateTime? @map("approved_at")
-  rejectReason    String?   @db.Text
+  rejectReason    String?   @map("reject_reason") @db.Text
   publishedAt     DateTime? @map("published_at")
   contentItemId   String?   @unique @map("content_item_id") @db.VarChar(64) // link to ContentItem when published
 
@@ -376,7 +376,7 @@ model EventUpdate {
 model EventDivisionMember {
   id                String       @id @db.VarChar(64)
   eventDivisionId   String       @map("event_division_id") @db.VarChar(64)
-  userId            String       @db.VarChar(64)
+  userId            String       @map("user_id") @db.VarChar(64)
   role              DivisionRole @default(MEMBER)
   createdAt         DateTime     @default(now()) @map("created_at")
 

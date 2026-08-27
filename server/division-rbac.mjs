@@ -10,11 +10,7 @@
  *   DIVISION VIEWER       → read only
  */
 
-import { prisma as defaultPrisma } from './prisma-singleton.mjs';
-
-function getPrisma() {
-  return defaultPrisma;
-}
+import { getPrisma } from './db.mjs';
 
 /** Get user's global roles */
 export function globalRoles(authUser) {

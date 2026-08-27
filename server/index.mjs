@@ -1062,7 +1062,7 @@ app.get('/api/events', wrap(async (req, res) => {
         }
       }
     }
-  } catch { /* canSeeEventDivision failed, return empty */ }
+  } catch(e) { /* canSeeEventDivision failed, return empty */ }
   res.json({ events: accessible });
 }));
 
