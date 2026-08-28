@@ -33,7 +33,16 @@ import {
   shuffleRole,
   markAlumni,
 } from './engine.mjs';
-import { narrateDashboard } from './jethro-ai.mjs';
+import { narrateDashboard, analyzePlacementRecommendations } from './jethro-ai.mjs';
+import {
+  createPlacementBatch,
+  getPlacementBatch,
+  listPlacementBatches,
+  updatePlacementItem,
+  bulkApprovePlacementBatch,
+  commitPlacementBatch,
+  getEligibleNewcomers,
+} from './jethro-placement.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8787);
@@ -84,7 +93,7 @@ app.post('/api/auth/google', wrap(async (req, res) => {
 app.get('/api/auth/me', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const u = req.authUser;
-  res.json({ user: { id: u.id, email: u.email, name: u.name, avatar: u.avatar, accountStatus: u.accountStatus, roles: u.roles } });
+  res.json({ user: { id: u.id, email: u.email, name: u.name, avatar: u.avatar, accountStatus: u.accountStatus, onboardingStatus: u.onboardingStatus, giftsTop5: u.giftsTop5, roles: u.roles } });
 }));
 
 app.post('/api/auth/logout', (req, res) => {
@@ -874,7 +883,7 @@ app.post('/api/regeneration/preview', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
     userId: m.id,
     name: m.name,
     giftsTop5: Array.isArray(m.giftsTop5) ? m.giftsTop5 : [],
-    giftsScores: (m.giftsScores as Record<string, number>) || {},
+    giftsScores: m.giftsScores || {},
   }));
 
   // Fetch groups with current members
@@ -894,12 +903,12 @@ app.post('/api/regeneration/preview', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
     'Craftsmanship', 'Shepherding', 'Apostleship', 'Exhortation', 'Service',
   ];
 
-  function calculateGiftDiversity(groupGifts: Record<string, number>): number {
+  function calculateGiftDiversity(groupGifts) {
     const represented = Object.keys(groupGifts).filter((g) => groupGifts[g] > 0).length;
     return represented / ALL_GIFTS.length;
   }
 
-  function calculateGiftContribution(userGifts: string[], groupGifts: Record<string, number>): number {
+  function calculateGiftContribution(userGifts, groupGifts) {
     let score = 0;
     for (const gift of userGifts) {
       const current = groupGifts[gift] || 0;
@@ -909,7 +918,7 @@ app.post('/api/regeneration/preview', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
   }
 
   const groupAssignments = groups.map((g) => {
-    const memberGifts: Record<string, number> = {};
+    const memberGifts = {};
     for (const m of g.members) {
       if (m.user?.giftsTop5) {
         for (const gift of m.user.giftsTop5) {
@@ -921,14 +930,14 @@ app.post('/api/regeneration/preview', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
       groupId: g.id,
       groupName: g.name,
       currentMembers: g.members.length,
-      suggestedMembers: [] as string[],
+      suggestedMembers: [],
       giftCoverage: memberGifts,
       diversityScore: calculateGiftDiversity(memberGifts),
     };
   });
 
   // Calculate gift frequency for rarity sorting
-  const giftFrequency: Record<string, number> = {};
+  const giftFrequency = {};
   for (const mg of menteeGifts) {
     for (const gift of mg.giftsTop5) {
       giftFrequency[gift] = (giftFrequency[gift] || 0) + 1;
@@ -2123,6 +2132,28 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
 // ---------- Jethro Engine (Dashboard Komisi) ----------
 const KOMISION = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
+// ---------- Groups List (for Jethro Placement Review) ----------
+app.get('/api/groups', requireRole(...KOMISION, 'BPMJ', 'COMMITTEE', 'MENTOR'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const groups = await prisma.group.findMany({
+    where: { status: 'ACTIVE' },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      icon: true,
+      description: true,
+      memberCount: true,
+      foundedPeriod: true,
+      parentGroupId: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ groups });
+}));
+
 app.get('/api/jethro/dashboard', requireRole(...KOMISION, 'BPMJ'), wrap(async (req, res) => {
   res.json(await getDashboard());
 }));
@@ -2145,6 +2176,157 @@ app.get('/api/jethro/placement', requireRole(...KOMISION), wrap(async (req, res)
     return res.status(400).json({ error: 'query count harus angka 1-500.' });
   }
   res.json(await recommendPlacement(Math.floor(count)));
+}));
+
+/** Advanced placement with 4-factor scoring for specific newcomers */
+app.get('/api/jethro/placement/advanced', requireRole(...KOMISION), wrap(async (req, res) => {
+  const ids = (req.query.ids || '').split(',').filter(Boolean);
+  if (ids.length === 0) return res.status(400).json({ error: 'query ids (comma-separated) wajib.' });
+  // Fetch newcomer details from WaitingPool - accept both WaitingPool IDs and User IDs
+  const newcomers = await getEligibleNewcomers();
+  // Try to match by userId first, then by WaitingPool ID (p.id)
+  const filtered = newcomers.filter((n) => ids.includes(n.id));
+  // If no matches by userId, try matching by WaitingPool ID via a separate query
+  if (filtered.length === 0) {
+    const poolEntries = await prisma.waitingPool.findMany({
+      where: { id: { in: ids }, status: 'PROFILE_COMPLETED', giftTestDone: true, gender: { not: null } },
+      select: { id: true, userId: true, name: true, email: true, gender: true, giftsTop5: true, giftsScores: true },
+    });
+    const filtered2 = poolEntries
+      .filter(p => p.userId && p.giftTestDone && p.gender)
+      .map(p => ({
+        id: p.userId,
+        name: p.name,
+        gender: p.gender,
+        giftsTop5: Array.isArray(p.giftsTop5) ? p.giftsTop5 : [],
+        giftsScores: p.giftsScores || {},
+        maturityScore: 0,
+      }));
+    if (filtered2.length > 0) {
+      res.json(await recommendPlacementAdvanced(filtered2));
+      return;
+    }
+  }
+  if (filtered.length === 0) return res.status(404).json({ error: 'Tidak ada newcomer valid.' });
+  res.json(await recommendPlacementAdvanced(filtered));
+}));
+
+/** AI Analysis for placement recommendations */
+app.post('/api/jethro/placement/ai-analysis', requireRole(...KOMISION), wrap(async (req, res) => {
+  const { recommendations, batchId } = req.body || {};
+  if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    return res.status(400).json({ error: 'recommendations array wajib.' });
+  }
+
+  // Fetch group states for context
+  const prisma = getPrisma();
+  const groups = await prisma.group.findMany({
+    where: { status: 'ACTIVE' },
+    include: {
+      members: {
+        where: { status: 'ACTIVE' },
+        include: { user: { select: { id: true, gender: true, giftsTop5: true, giftsScores: true } } },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  const groupStates = groups.map((g) => {
+    const activeMembers = g.members.filter((m) => m.status === 'ACTIVE');
+    const capacity = capacityOf(g);
+    let laki = 0, perempuan = 0;
+    for (const m of activeMembers) {
+      const gdr = m.user?.gender || m.gender;
+      if (gdr === 'LAKI-LAKI') laki++;
+      else if (gdr === 'PEREMPUAN') perempuan++;
+    }
+    const giftCoverage = {};
+    for (const m of activeMembers) {
+      const gifts = m.user?.giftsTop5 || [];
+      for (const gift of gifts) {
+        giftCoverage[gift] = (giftCoverage[gift] || 0) + 1;
+      }
+    }
+    let mentorCount = 0, comentorCount = 0;
+    for (const m of activeMembers) {
+      if (m.familyRole === 'MENTOR') mentorCount++;
+      else if (m.familyRole === 'COMENTOR') comentorCount++;
+    }
+    return {
+      id: g.id,
+      name: g.name,
+      freeSlots: capacity.freeSlots,
+      activeCount: capacity.activeCount,
+      genderRatio: { laki, perempuan },
+      diversityScore: calculateGiftDiversity(giftCoverage),
+      mentorCount,
+      comentorCount,
+    };
+  });
+
+  try {
+    const result = await analyzePlacementRecommendations(recommendations, groupStates);
+    res.json(result);
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+}));
+
+/** Create placement batch from recommendations */
+app.post('/api/jethro/placement/batch', requireRole(...KOMISION), wrap(async (req, res) => {
+  const { recommendations } = req.body || {};
+  if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    return res.status(400).json({ error: 'recommendations array wajib.' });
+  }
+  const batch = await createPlacementBatch({ createdBy: req.authUser.id, recommendations });
+  res.json(batch);
+}));
+
+/** List placement batches */
+app.get('/api/jethro/placement/batches', requireRole(...KOMISION, 'BPMJ'), wrap(async (req, res) => {
+  const { status, limit = '50', offset = '0' } = req.query;
+  const data = await listPlacementBatches({ status, limit: Number(limit), offset: Number(offset) });
+  res.json(data);
+}));
+
+/** Get single batch with items */
+app.get('/api/jethro/placement/batch/:id', requireRole(...KOMISION), wrap(async (req, res) => {
+  const batch = await getPlacementBatch(req.params.id);
+  if (!batch) return res.status(404).json({ error: 'Batch tidak ditemukan.' });
+  res.json(batch);
+}));
+
+/** Update single placement item (approve/revise/reject/individu) */
+app.patch('/api/jethro/placement/item/:id', requireRole(...KOMISION), wrap(async (req, res) => {
+  const { status, finalGroupId, finalRole, finalIsIndividu } = req.body || {};
+  if (!status) return res.status(400).json({ error: 'status wajib.' });
+  const item = await updatePlacementItem({
+    itemId: req.params.id,
+    status,
+    finalGroupId,
+    finalRole,
+    finalIsIndividu,
+    reviewedBy: req.authUser.id,
+  });
+  res.json(item);
+}));
+
+/** Bulk approve all pending items in batch */
+app.patch('/api/jethro/placement/batch/:id/bulk-approve', requireRole(...KOMISION), wrap(async (req, res) => {
+  const result = await bulkApprovePlacementBatch({ batchId: req.params.id, reviewedBy: req.authUser.id });
+  res.json(result);
+}));
+
+/** Commit batch → create RoleAssignments */
+app.post('/api/jethro/placement/batch/:id/commit', requireRole(...KOMISION), wrap(async (req, res) => {
+  const result = await commitPlacementBatch({ batchId: req.params.id, committedBy: req.authUser.id });
+  res.json(result);
+}));
+
+/** Get eligible newcomers for placement */
+app.get('/api/jethro/placement/eligible', requireRole(...KOMISION), wrap(async (req, res) => {
+  const newcomers = await getEligibleNewcomers();
+  res.json({ newcomers });
 }));
 
 app.post('/api/jethro/split', requireRole(...KOMISION), wrap(async (req, res) => {
@@ -2866,6 +3048,340 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   }
 
   res.status(400).json({ error: 'action tidak dikenal.' });
+}));
+
+// ============================================================
+// WAITING POOL & ONBOARDING PIPELINE
+// ============================================================
+
+/** Generate 64-char hex ID */
+function genId64() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/** GET /api/waiting-pool — List users in Waiting Pool (belum profil lengkap) */
+app.get('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const pool = await prisma.waitingPool.findMany({
+    where: { status: 'WAITING_POOL' },
+    orderBy: { registeredAt: 'desc' },
+  });
+  res.json({ pool });
+}));
+
+/** GET /api/pending-approval — List users with profile completed, awaiting role */
+app.get('/api/pending-approval', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const pending = await prisma.waitingPool.findMany({
+    where: { status: 'PROFILE_COMPLETED' },
+    orderBy: { profileCompletedAt: 'desc' },
+  });
+  res.json({ pending });
+}));
+
+/** GET /api/youth-gehc — List all users with roles (active Youth GEHC) */
+app.get('/api/youth-gehc', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const youth = await prisma.user.findMany({
+    where: {
+      OR: [
+        { roles: { some: {} } },
+        { roleAssignments: { some: { isActive: true } } },
+      ],
+    },
+    include: {
+      roles: true,
+      roleAssignments: { where: { isActive: true }, include: { group: true } },
+    },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ youth });
+}));
+
+/** POST /api/waiting-pool/:id/reminder — Send reminder to user */
+app.post('/api/waiting-pool/:id/reminder', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const entry = await prisma.waitingPool.findUnique({ where: { id: req.params.id } });
+  if (!entry) return res.status(404).json({ error: 'Entry tidak ditemukan.' });
+
+  const updated = await prisma.waitingPool.update({
+    where: { id: req.params.id },
+    data: {
+      lastReminder: new Date(),
+      reminderCount: { increment: 1 },
+    },
+  });
+
+  // TODO: integrate with WhatsApp/SMS/Email service
+  res.json({ ok: true, entry: updated, message: 'Reminder terkirim (placeholder).' });
+}));
+
+/** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
+app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { userId, role, position, division, subdivision, groupId, familyRole, note } = req.body || {};
+  const assignerId = req.authUser?.id;
+  if (!assignerId) return res.status(401).json({ error: 'Belum login.' });
+
+  if (!userId || !role) {
+    return res.status(400).json({ error: 'userId dan role wajib.' });
+  }
+
+  const validRoles = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: 'Role tidak valid.' });
+  }
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  // Create RoleAssignment
+  const assignment = await prisma.roleAssignment.create({
+    data: {
+      id: genId64(),
+      userId,
+      role,
+      position: position || null,
+      division: division || null,
+      subdivision: subdivision || null,
+      groupId: groupId || null,
+      familyRole: familyRole || null,
+      assignedBy: assignerId,
+      note: note || null,
+    },
+  });
+
+  // Dual-write: create/update UserRole for backward compatibility
+  const existingUserRole = await prisma.userRole.findFirst({
+    where: { userId, role, groupId: groupId || null },
+  });
+
+  let userRole;
+  if (existingUserRole) {
+    userRole = await prisma.userRole.update({
+      where: { id: existingUserRole.id },
+      data: { assignmentId: assignment.id },
+    });
+  } else {
+    userRole = await prisma.userRole.create({
+      data: {
+        userId,
+        tenantId: 'tenant-youth',
+        role,
+        groupId: groupId || null,
+        assignmentId: assignment.id,
+      },
+    });
+  }
+
+  // If groupId provided and role is MENTOR/CO_MENTOR/MENTEE, create/update GroupMember
+  if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
+    const familyRoleMap = { MENTOR: 'MENTOR', CO_MENTOR: 'COMENTOR', MENTEE: 'MENTEE' };
+    const memberFamilyRole = familyRoleMap[role] || 'MENTEE';
+
+    const existingMember = await prisma.groupMember.findFirst({
+      where: { userId, groupId },
+    });
+
+    if (!existingMember) {
+      await prisma.groupMember.create({
+        data: {
+          id: genId64(),
+          groupId,
+          userId,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          familyRole: memberFamilyRole,
+          assignmentId: assignment.id,
+        },
+      });
+    }
+
+    // Update user isBeyonders flag
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isBeyonders: true },
+    });
+  }
+
+  // Update WaitingPool status if exists
+  await prisma.waitingPool.updateMany({
+    where: { userId },
+    data: { status: 'ROLE_ASSIGNED' },
+  });
+
+  // Update user onboardingStatus
+  await prisma.user.update({
+    where: { id: userId },
+    data: { onboardingStatus: 'ACTIVE' },
+  });
+
+  res.json({ ok: true, assignment, userRole });
+}));
+
+/** POST /api/role-assignments/bulk-individu — Bulk assign MENTEE without group (Individu) */
+app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { userIds } = req.body || {};
+  const assignerId = req.authUser?.id;
+  if (!assignerId) return res.status(401).json({ error: 'Belum login.' });
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds array wajib.' });
+  }
+
+  const results = { created: 0, errors: [] };
+
+  for (const userId of userIds) {
+    try {
+      // Check user exists
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        results.errors.push(`${userId}: User tidak ditemukan`);
+        continue;
+      }
+
+      // Create RoleAssignment as MENTEE without group (Individu)
+      const assignment = await prisma.roleAssignment.create({
+        data: {
+          id: genId64(),
+          userId,
+          role: 'MENTEE',
+          position: null,
+          division: null,
+          subdivision: null,
+          groupId: null,
+          familyRole: 'MENTEE',
+          assignedBy: assignerId,
+          note: 'Individu (tanpa kelompok mentoring)',
+          isActive: true,
+        },
+      });
+
+      // Dual-write UserRole
+      const existingUserRole = await prisma.userRole.findFirst({
+        where: { userId, role: 'MENTEE', groupId: null },
+      });
+
+      if (existingUserRole) {
+        await prisma.userRole.update({
+          where: { id: existingUserRole.id },
+          data: { assignmentId: assignment.id },
+        });
+      } else {
+        await prisma.userRole.create({
+          data: {
+            userId,
+            tenantId: 'tenant-youth',
+            role: 'MENTEE',
+            groupId: null,
+            assignmentId: assignment.id,
+          },
+        });
+      }
+
+      // Update WaitingPool status
+      await prisma.waitingPool.updateMany({
+        where: { userId },
+        data: { status: 'ROLE_ASSIGNED' },
+      });
+
+      // Update user
+      await prisma.user.update({
+        where: { id: userId },
+        data: { onboardingStatus: 'ACTIVE', isBeyonders: false },
+      });
+
+      results.created++;
+    } catch (e) {
+      results.errors.push(`${userId}: ${e.message}`);
+    }
+  }
+
+  res.json(results);
+}));
+
+/** PATCH /api/role-assignments/:id — Update sub-role detail */
+app.patch('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { position, division, subdivision, groupId, familyRole, note, isActive } = req.body || {};
+
+  const assignment = await prisma.roleAssignment.findUnique({ where: { id: req.params.id } });
+  if (!assignment) return res.status(404).json({ error: 'Assignment tidak ditemukan.' });
+
+  const updated = await prisma.roleAssignment.update({
+    where: { id: req.params.id },
+    data: {
+      position: position !== undefined ? position : assignment.position,
+      division: division !== undefined ? division : assignment.division,
+      subdivision: subdivision !== undefined ? subdivision : assignment.subdivision,
+      groupId: groupId !== undefined ? groupId : assignment.groupId,
+      familyRole: familyRole !== undefined ? familyRole : assignment.familyRole,
+      note: note !== undefined ? note : assignment.note,
+      isActive: isActive !== undefined ? isActive : assignment.isActive,
+    },
+  });
+
+  res.json({ ok: true, assignment: updated });
+}));
+
+/** DELETE /api/role-assignments/:id — Revoke role assignment */
+app.delete('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const assignment = await prisma.roleAssignment.findUnique({ where: { id: req.params.id } });
+  if (!assignment) return res.status(404).json({ error: 'Assignment tidak ditemukan.' });
+
+  // Soft delete: mark as inactive
+  await prisma.roleAssignment.update({
+    where: { id: req.params.id },
+    data: { isActive: false },
+  });
+
+  // Remove corresponding UserRole
+  await prisma.userRole.deleteMany({
+    where: { userId: assignment.userId, role: assignment.role, groupId: assignment.groupId },
+  });
+
+  // If Beyonders role, remove GroupMember
+  if (assignment.groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(assignment.role)) {
+    await prisma.groupMember.deleteMany({
+      where: { userId: assignment.userId, groupId: assignment.groupId },
+    });
+  }
+
+  res.json({ ok: true });
+}));
+
+/** GET /api/users/:id/roles — List user's role assignments */
+app.get('/api/users/:id/roles', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const assignments = await prisma.roleAssignment.findMany({
+    where: { userId: req.params.id, isActive: true },
+    include: { group: true },
+    orderBy: { assignedAt: 'desc' },
+  });
+
+  res.json({ assignments });
 }));
 
 // ---------- GiftTest ----------
@@ -3641,7 +4157,10 @@ if (serveFrontend && process.env.NODE_ENV !== 'production') {
   const { createServer: createViteServer } = await import('vite');
   viteDev = await createViteServer({
     appType: 'spa',
-    server: { middlewareMode: true, hmr: { port: 24678 } },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-dom/client'],
+    },
+    server: { middlewareMode: true },
   });
   app.use(viteDev.middlewares);
 }

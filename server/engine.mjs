@@ -230,6 +230,227 @@ export async function recommendPlacement(newcomerCount) {
 }
 
 // ------------------------------------------------------------------
+// Advanced Placement Recommender — 4-factor scoring
+// Even Distribution (30%) + Gender Balance (25%) + Gift Diversity (30%) + Maturity Fit (15%)
+// ------------------------------------------------------------------
+export async function recommendPlacementAdvanced(newcomerInputs) {
+  assertDb();
+  const prisma = getPrisma();
+
+  // Fetch all active groups with members
+  const groups = await prisma.group.findMany({
+    where: { status: 'ACTIVE' },
+    include: {
+      members: {
+        where: { status: 'ACTIVE' },
+        include: { user: { select: { id: true, gender: true, giftsTop5: true, giftsScores: true } } },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  // Build group states
+  const groupStates = groups.map((g) => {
+    const activeMembers = g.members.filter((m) => m.status === 'ACTIVE');
+    const capacity = capacityOf(g);
+
+    // Gender ratio
+    let laki = 0, perempuan = 0;
+    for (const m of activeMembers) {
+      const gdr = m.user?.gender || m.gender;
+      if (gdr === 'LAKI-LAKI') laki++;
+      else if (gdr === 'PEREMPUAN') perempuan++;
+    }
+
+    // Gift coverage
+    const giftCoverage = {};
+    for (const m of activeMembers) {
+      const gifts = m.user?.giftsTop5 || [];
+      for (const gift of gifts) {
+        giftCoverage[gift] = (giftCoverage[gift] || 0) + 1;
+      }
+    }
+
+    // Mentor/Co-Mentor count
+    let mentorCount = 0, comentorCount = 0;
+    for (const m of activeMembers) {
+      if (m.familyRole === 'MENTOR') mentorCount++;
+      else if (m.familyRole === 'COMENTOR') comentorCount++;
+    }
+
+    return {
+      id: g.id,
+      name: g.name,
+      freeSlots: capacity.freeSlots,
+      totalSlots: capacity.threshold,
+      activeCount: capacity.activeCount,
+      genderRatio: { laki, perempuan },
+      giftCoverage,
+      diversityScore: calculateGiftDiversity(giftCoverage),
+      mentorCount,
+      comentorCount,
+      members: activeMembers,
+    };
+  }).filter((gs) => gs.freeSlots > 0);
+
+  // Calculate global gift frequency across all groups (for rarity scoring)
+  const globalGiftFreq = {};
+  for (const gs of groupStates) {
+    for (const [gift, count] of Object.entries(gs.giftCoverage)) {
+      globalGiftFreq[gift] = (globalGiftFreq[gift] || 0) + count;
+    }
+  }
+
+  const recommendations = [];
+
+  for (const newcomer of newcomerInputs) {
+    const { id, name, gender, giftsTop5, giftsScores, maturityScore = 0 } = newcomer;
+
+    // Score each group for this newcomer
+    const scoredGroups = groupStates.map((gs) => {
+      // 1. Even Distribution (30%) - more free slots = higher score
+      const evenDistScore = Math.min(gs.freeSlots / gs.totalSlots, 1);
+
+      // 2. Gender Balance (25%) - minority gender gets boost
+      const totalGender = gs.genderRatio.laki + gs.genderRatio.perempuan;
+      let genderScore = 0.5; // neutral
+      if (totalGender > 0) {
+        if (gender === 'LAKI-LAKI') {
+          // Boost if group has more women (minority gender = men)
+          genderScore = gs.genderRatio.perempuan / totalGender;
+        } else if (gender === 'PEREMPUAN') {
+          // Boost if group has more men
+          genderScore = gs.genderRatio.laki / totalGender;
+        }
+      }
+
+      // 3. Gift Diversity (30%) - newcomer's rare gifts that group lacks
+      let giftScore = 0;
+      if (giftsTop5?.length) {
+        for (const gift of giftsTop5) {
+          const groupHas = gs.giftCoverage[gift] || 0;
+          const globalFreq = globalGiftFreq[gift] || 1;
+          const rarity = 1 / globalFreq; // rarer gift = higher weight
+          if (groupHas === 0) {
+            giftScore += rarity * 2; // group completely missing this gift
+          } else if (groupHas === 1) {
+            giftScore += rarity * 1; // only one person has it
+          } else {
+            giftScore += rarity * 0.2; // already represented
+          }
+        }
+        giftScore = Math.min(giftScore / giftsTop5.length, 1);
+      }
+
+      // 4. Maturity Fit (15%) - high maturity → Mentor/Co-Mentor if slot available
+      let maturityScoreNorm = 0;
+      let recommendedRole = 'MENTEE';
+      if (maturityScore >= 0.8) {
+        if (gs.mentorCount === 0) {
+          recommendedRole = 'MENTOR';
+          maturityScoreNorm = 1;
+        } else if (gs.comentorCount === 0) {
+          recommendedRole = 'COMENTOR';
+          maturityScoreNorm = 0.8;
+        } else {
+          recommendedRole = 'MENTEE';
+          maturityScoreNorm = 0.3;
+        }
+      } else if (maturityScore >= 0.6) {
+        if (gs.comentorCount === 0) {
+          recommendedRole = 'COMENTOR';
+          maturityScoreNorm = 0.7;
+        } else {
+          recommendedRole = 'MENTEE';
+          maturityScoreNorm = 0.4;
+        }
+      } else {
+        recommendedRole = 'MENTEE';
+        maturityScoreNorm = 0.2;
+      }
+
+      // Weighted total score
+      const totalScore =
+        evenDistScore * 0.30 +
+        genderScore * 0.25 +
+        giftScore * 0.30 +
+        maturityScoreNorm * 0.15;
+
+      // Reasons for transparency
+      const reasons = [];
+      if (evenDistScore > 0.7) reasons.push('Even distribution (many free slots)');
+      else if (evenDistScore > 0.3) reasons.push('Even distribution');
+      if (genderScore > 0.6) reasons.push(`Gender balance (${gender === 'LAKI-LAKI' ? 'men needed' : 'women needed'} in group)`);
+      if (giftScore > 0.5) reasons.push('Gift diversity (unique gifts for group)');
+      if (maturityScoreNorm > 0.7) reasons.push(`Maturity fit (recommended as ${recommendedRole})`);
+
+      return {
+        groupId: gs.id,
+        groupName: gs.name,
+        score: totalScore,
+        recommendedRole,
+        reasons,
+        scoreBreakdown: {
+          evenDistribution: evenDistScore,
+          genderBalance: genderScore,
+          giftDiversity: giftScore,
+          maturityFit: maturityScoreNorm,
+        },
+      };
+    });
+
+    // Sort by score descending
+    scoredGroups.sort((a, b) => b.score - a.score);
+
+    const best = scoredGroups[0];
+    if (!best) {
+      recommendations.push({
+        newcomerId: id,
+        newcomerName: name,
+        recommendedGroupId: null,
+        recommendedGroupName: null,
+        recommendedRole: 'MENTEE',
+        confidence: 0,
+        reasons: ['No groups with available slots'],
+        alternatives: [],
+      });
+      continue;
+    }
+
+    recommendations.push({
+      newcomerId: id,
+      newcomerName: name,
+      recommendedGroupId: best.groupId,
+      recommendedGroupName: best.groupName,
+      recommendedRole: best.recommendedRole,
+      confidence: Math.round(best.score * 100) / 100,
+      reasons: best.reasons,
+      scoreBreakdown: best.scoreBreakdown,
+      alternatives: scoredGroups.slice(1, 4).map((g) => ({
+        groupId: g.groupId,
+        groupName: g.groupName,
+        score: Math.round(g.score * 100) / 100,
+        recommendedRole: g.recommendedRole,
+      })),
+    });
+  }
+
+  return { recommendations };
+}
+
+function calculateGiftDiversity(groupGifts) {
+  const representedGifts = Object.keys(groupGifts).filter((g) => groupGifts[g] > 0).length;
+  const ALL_GIFTS = [
+    'Wisdom', 'Knowledge', 'Faith', 'Healing', 'Miracles',
+    'Prophecy', 'Discernment', 'Tongues', 'Interpretation',
+    'Administration', 'Leadership', 'Mercy', 'Helps',
+    'Giving', 'Evangelism', 'Pastoring', 'Teaching',
+    'Exhortation', 'Hospitality', 'Missionary',
+  ];
+  return representedGifts / ALL_GIFTS.length;
+}
+
+// ------------------------------------------------------------------
 // Aksi: SPLIT (mitosis) — Parameter 1 step 2-3
 // ------------------------------------------------------------------
 export async function executeSplit({ groupId, newName, mentorMemberId, comentorMemberId }) {

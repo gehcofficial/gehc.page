@@ -1,7 +1,7 @@
 // Service Worker for GEHC Youth Portal PWA
 // Handles: caching, push notifications, background sync, offline support
 
-const CACHE_NAME = 'gehc-v1';
+const CACHE_NAME = 'gehc-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -39,6 +39,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
+
+  // In development (localhost), always go to network — never cache Vite chunks
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // Skip API calls - let them go to network
   if (event.request.url.includes('/api/')) {

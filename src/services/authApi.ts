@@ -12,6 +12,8 @@ export interface AuthConfig {
 
 interface ApiUser {
   accountStatus?: string;
+  onboardingStatus?: string;
+  giftsTop5?: string[];
   id: string;
   email: string;
   name: string;
@@ -26,6 +28,8 @@ function mapUser(u: ApiUser): User {
     name: u.name,
     avatar: u.avatar || '',
     accountStatus: u.accountStatus,
+    onboardingStatus: u.onboardingStatus,
+    giftsTop5: u.giftsTop5,
     roles: (u.roles || []).map(
       (r): UserRoleMapping => ({
         tenantId: r.tenantId,

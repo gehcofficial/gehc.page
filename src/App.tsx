@@ -20,6 +20,7 @@ import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
 import { PortalLogin } from './components/portal/PortalLogin';
 import { PendingPortal } from './components/portal/PendingPortal';
+import { RestrictedPortal } from './components/portal/RestrictedPortal';
 import { KomisiSection } from './components/public/KomisiSection';
 import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
@@ -33,6 +34,12 @@ const MainAppContent: React.FC = () => {
   if (activeView === 'portal') {
     // Belum masuk & bukan mode demo → layar login portal (cached accounts)
     if (!authUser && !demoMode) return <PortalLogin />;
+
+    // Onboarding flow: WAITING_POOL → RestrictedPortal, PENDING → PendingPortal
+    const onboardingStatus = authUser?.onboardingStatus;
+    if (onboardingStatus === 'WAITING_POOL') return <RestrictedPortal />;
+    if (authUser?.accountStatus === 'PENDING') return <PendingPortal />;
+
     return <PortalLayout />;
   }
 

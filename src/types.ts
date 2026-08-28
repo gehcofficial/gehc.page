@@ -32,6 +32,10 @@ export interface User {
   phone?: string;
   /** ACTIVE (lolos approval) atau PENDING (menunggu Komisi) */
   accountStatus?: 'ACTIVE' | 'PENDING' | (string & {});
+  /** Onboarding pipeline status */
+  onboardingStatus?: 'WAITING_POOL' | 'PENDING' | 'ACTIVE' | (string & {});
+  /** Gift test top 5 results */
+  giftsTop5?: string[];
   roles: UserRoleMapping[];
 }
 

@@ -43,26 +43,33 @@ model User {
   talents       Json?
   accountStatus String  @default("ACTIVE") @map("account_status") // ACTIVE | PENDING
 
+  // Onboarding flow (Phase 1)
+  onboardingStatus String  @default("ACTIVE") @map("onboarding_status") @db.VarChar(30) // WAITING_POOL | PENDING | ACTIVE
+  isBeyonders      Boolean @default(false) @map("is_beyonders")
+
   // Gender & Emergency Contact
-  gender                    String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
-  emergencyContactName      String?   @map("emergency_contact_name") @db.VarChar(150)
-  emergencyContactRelation  String?   @map("emergency_contact_relation") @db.VarChar(50) // ORANG_TUA | SAUDARA | TEMAN | LAINNYA
-  emergencyContactPhone     String?   @map("emergency_contact_phone") @db.VarChar(40)
-  emergencyContactAddress   String?   @map("emergency_contact_address") @db.Text
-  lastProfileUpdate         DateTime? @map("last_profile_update") @db.DateTime(3)
-  profileReminderDays       Int       @default(60) @map("profile_reminder_days")
+  gender                   String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
+  emergencyContactName     String?   @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactRelation String?   @map("emergency_contact_relation") @db.VarChar(50) // ORANG_TUA | SAUDARA | TEMAN | LAINNYA
+  emergencyContactPhone    String?   @map("emergency_contact_phone") @db.VarChar(40)
+  emergencyContactAddress  String?   @map("emergency_contact_address") @db.Text
+  lastProfileUpdate        DateTime? @map("last_profile_update") @db.DateTime(3)
+  profileReminderDays      Int       @default(60) @map("profile_reminder_days")
 
   // Auth lokal (opsi selain Google SSO)
   passwordHash String? @map("password_hash") @db.Text
   authProvider String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
 
-  roles           UserRole[]
-  monitoring      MonitoringRecord[]
-  groupMembers    GroupMember[]
-  attendanceTaken AttendanceRecord[] @relation("AttendanceRecorder")
-  products        Product[]
-  orders          Order[]
-  serviceSchedules  ServiceSchedule[]
+  roles                     UserRole[]
+  roleAssignments           RoleAssignment[]
+  assignedBy                RoleAssignment[]   @relation("RoleAssignmentAssigner")
+  waitingPool               WaitingPool?
+  monitoring                MonitoringRecord[]
+  groupMembers              GroupMember[]
+  attendanceTaken           AttendanceRecord[] @relation("AttendanceRecorder")
+  products                  Product[]
+  orders                    Order[]
+  serviceSchedules          ServiceSchedule[]
   mentorTransitionsOutgoing MentorTransition[] @relation("MentorTransitionOutgoing")
   mentorTransitionsIncoming MentorTransition[] @relation("MentorTransitionIncoming")
   mentorTransitionsCreated  MentorTransition[] @relation("MentorTransitionCreatedBy")
@@ -103,22 +110,23 @@ model WaitlistEntry {
   createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   // Gender & Emergency Contact (tahap B profil lengkap)
-  gender                    String? @map("gender") @db.VarChar(20)
-  emergencyContactName      String? @map("emergency_contact_name") @db.VarChar(150)
-  emergencyContactRelation  String? @map("emergency_contact_relation") @db.VarChar(50)
-  emergencyContactPhone     String? @map("emergency_contact_phone") @db.VarChar(40)
-  emergencyContactAddress   String? @map("emergency_contact_address") @db.Text
+  gender                   String? @map("gender") @db.VarChar(20)
+  emergencyContactName     String? @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactRelation String? @map("emergency_contact_relation") @db.VarChar(50)
+  emergencyContactPhone    String? @map("emergency_contact_phone") @db.VarChar(40)
+  emergencyContactAddress  String? @map("emergency_contact_address") @db.Text
 
   @@index([status])
   @@map("waitlist_entries")
 }
 
 model UserRole {
-  id       BigInt  @id @default(autoincrement())
-  userId   String  @map("user_id") @db.VarChar(64)
-  tenantId String  @map("tenant_id") @db.VarChar(64)
-  role     Role
-  groupId  String? @map("group_id") @db.VarChar(64)
+  id           BigInt  @id @default(autoincrement())
+  userId       String  @map("user_id") @db.VarChar(64)
+  tenantId     String  @map("tenant_id") @db.VarChar(64)
+  role         Role
+  groupId      String? @map("group_id") @db.VarChar(64)
+  assignmentId String? @map("assignment_id") @db.VarChar(64)
 
   user   User   @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -157,13 +165,14 @@ model Group {
   foundedPeriod   String?     @map("founded_period") @db.VarChar(10)
   status          GroupStatus @default(ACTIVE)
 
-  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
   batches           GroupBatch[]
   members           GroupMember[]
   mentorTransitions MentorTransition[]
-  parent            Group?               @relation("GroupLineage", fields: [parentGroupId], references: [id])
-  children          Group[]              @relation("GroupLineage")
+  parent            Group?             @relation("GroupLineage", fields: [parentGroupId], references: [id])
+  children          Group[]            @relation("GroupLineage")
   attendance        AttendanceRecord[]
+  roleAssignments   RoleAssignment[]
 
   @@index([tenantId])
   @@index([parentGroupId])
@@ -198,22 +207,22 @@ model GroupBatch {
 
 /// Mentor/Comentor transition history (resign → mentee, batch change)
 model MentorTransition {
-  id                String             @id @db.VarChar(64)
-  groupId           String             @map("group_id") @db.VarChar(64)
-  outgoingUserId    String             @map("outgoing_user_id") @db.VarChar(64)
-  incomingUserId    String?            @map("incoming_user_id") @db.VarChar(64)
-  outgoingRole      FamilyRole         @map("outgoing_role")
-  incomingRole      FamilyRole?        @map("incoming_role")
-  effectiveDate     DateTime           @map("effective_date") @db.Date
-  reason            String?            @db.Text
-  note              String?            @db.Text
-  createdById       String             @map("created_by_id") @db.VarChar(64)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  id             String      @id @db.VarChar(64)
+  groupId        String      @map("group_id") @db.VarChar(64)
+  outgoingUserId String      @map("outgoing_user_id") @db.VarChar(64)
+  incomingUserId String?     @map("incoming_user_id") @db.VarChar(64)
+  outgoingRole   FamilyRole  @map("outgoing_role")
+  incomingRole   FamilyRole? @map("incoming_role")
+  effectiveDate  DateTime    @map("effective_date") @db.Date
+  reason         String?     @db.Text
+  note           String?     @db.Text
+  createdById    String      @map("created_by_id") @db.VarChar(64)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.DateTime(3)
 
-  group           Group             @relation(fields: [groupId], references: [id])
-  outgoingUser    User              @relation("MentorTransitionOutgoing", fields: [outgoingUserId], references: [id])
-  incomingUser    User?             @relation("MentorTransitionIncoming", fields: [incomingUserId], references: [id])
-  createdBy       User              @relation("MentorTransitionCreatedBy", fields: [createdById], references: [id])
+  group        Group @relation(fields: [groupId], references: [id])
+  outgoingUser User  @relation("MentorTransitionOutgoing", fields: [outgoingUserId], references: [id])
+  incomingUser User? @relation("MentorTransitionIncoming", fields: [incomingUserId], references: [id])
+  createdBy    User  @relation("MentorTransitionCreatedBy", fields: [createdById], references: [id])
 
   @@index([groupId, effectiveDate])
   @@map("mentor_transitions")
@@ -234,6 +243,7 @@ model GroupMember {
   alumniNote     String?      @map("alumni_note") @db.VarChar(255)
   attendanceRate Int          @default(0) @map("attendance_rate")
   notes          String?      @db.Text
+  assignmentId   String?      @map("assignment_id") @db.VarChar(64)
 
   group      Group              @relation(fields: [groupId], references: [id])
   user       User?              @relation(fields: [userId], references: [id])
@@ -271,23 +281,23 @@ model MonitoringRecord {
 }
 
 model ContentItem {
-  id            String      @id @db.VarChar(64)
-  tenantId      String      @map("tenant_id") @db.VarChar(64)
-  type          ContentType
-  title         String      @db.VarChar(255)
-  subtitle      String?     @db.VarChar(255)
-  body          String?     @db.MediumText
-  category      String?     @db.VarChar(100)
-  publishedAt   DateTime?   @map("published_at") @db.Date
-  eventDate     DateTime?   @map("event_date") @db.Date
-  locationDetail String?    @map("location_detail") @db.VarChar(190)
-  isFeaturedEvent Boolean   @default(false) @map("is_featured_event")
-  isPublished   Boolean     @default(true) @map("is_published")
-  author        String?     @db.VarChar(150)
-  bannerUrl     String?     @map("banner_url") @db.Text
-  pdfUrl        String?     @map("pdf_url") @db.Text
-  tags          Json?
-  driveFolderId String?     @map("drive_folder_id") @db.VarChar(64)
+  id              String      @id @db.VarChar(64)
+  tenantId        String      @map("tenant_id") @db.VarChar(64)
+  type            ContentType
+  title           String      @db.VarChar(255)
+  subtitle        String?     @db.VarChar(255)
+  body            String?     @db.MediumText
+  category        String?     @db.VarChar(100)
+  publishedAt     DateTime?   @map("published_at") @db.Date
+  eventDate       DateTime?   @map("event_date") @db.Date
+  locationDetail  String?     @map("location_detail") @db.VarChar(190)
+  isFeaturedEvent Boolean     @default(false) @map("is_featured_event")
+  isPublished     Boolean     @default(true) @map("is_published")
+  author          String?     @db.VarChar(150)
+  bannerUrl       String?     @map("banner_url") @db.Text
+  pdfUrl          String?     @map("pdf_url") @db.Text
+  tags            Json?
+  driveFolderId   String?     @map("drive_folder_id") @db.VarChar(64)
 
   @@index([tenantId, type, publishedAt])
   @@map("content_items")
@@ -313,11 +323,11 @@ model StrukturMember {
   isOpenRole  Boolean @default(false) @map("is_open_role")
 
   // Role hierarchy & multi-role support
-  role          Role      @default(MENTEE) @map("role")          // MENTOR | COMENTOR | MENTEE | KOMISI | COMMITTEE | BPMJ | SUPERADMIN | ALUMNI
-  roleOrder     Int       @default(0) @map("role_order")        // hierarchy within division
-  isDoubleRole  Boolean   @default(false) @map("is_double_role") // rangkap jabatan
-  subRoleId     String?   @map("sub_role_id") @db.VarChar(64)   // reference to another StrukturMember as sub-role
-  groupId       String?   @map("group_id") @db.VarChar(64)      // mentoring group if applicable
+  role         Role    @default(MENTEE) @map("role") // MENTOR | COMENTOR | MENTEE | KOMISI | COMMITTEE | BPMJ | SUPERADMIN | ALUMNI
+  roleOrder    Int     @default(0) @map("role_order") // hierarchy within division
+  isDoubleRole Boolean @default(false) @map("is_double_role") // rangkap jabatan
+  subRoleId    String? @map("sub_role_id") @db.VarChar(64) // reference to another StrukturMember as sub-role
+  groupId      String? @map("group_id") @db.VarChar(64) // mentoring group if applicable
 
   @@index([division])
   @@index([groupId])
@@ -352,54 +362,55 @@ enum AttendanceStatus {
 }
 
 model EventProgram {
-  id            String   @id @db.VarChar(64)
-  tenantId      String   @map("tenant_id") @db.VarChar(16)
-  slug          String   @unique @db.VarChar(60)   // untuk tag Drive [EV:<slug>:<DIV>]
-  name          String   @db.VarChar(160)
-  description   String?  @db.Text
-  status        String   @default("PLANNING") @db.VarChar(16) // PLANNING|ACTIVE|DONE|ARCHIVED
-  startDate     DateTime? @map("start_date")
-  endDate       DateTime? @map("end_date")
-  driveFolderId String?  @map("drive_folder_id") @db.VarChar(128)
-  gmeetLink     String?  @map("gmeet_link") @db.VarChar(512)
-  createdById   String   @map("created_by_id") @db.VarChar(64)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id            String          @id @db.VarChar(64)
+  tenantId      String          @map("tenant_id") @db.VarChar(16)
+  slug          String          @unique @db.VarChar(60) // untuk tag Drive [EV:<slug>:<DIV>]
+  name          String          @db.VarChar(160)
+  description   String?         @db.Text
+  status        String          @default("PLANNING") @db.VarChar(16) // PLANNING|ACTIVE|DONE|ARCHIVED
+  startDate     DateTime?       @map("start_date")
+  endDate       DateTime?       @map("end_date")
+  driveFolderId String?         @map("drive_folder_id") @db.VarChar(128)
+  gmeetLink     String?         @map("gmeet_link") @db.VarChar(512)
+  createdById   String          @map("created_by_id") @db.VarChar(64)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
   divisions     EventDivision[]
   meetings      EventMeeting[]
+
   @@index([tenantId])
 }
 
 model EventDivision {
-  id              String    @id @db.VarChar(64)
-  eventId         String    @map("event_id") @db.VarChar(64)
-  division        String    @db.VarChar(24)   // LITURGIA…MARTURIA | BENZARPR | KOMISI | TIMKERJA
-  driveFolderId   String?   @map("drive_folder_id") @db.VarChar(128)
-  extraUserIds    Json?     @map("extra_user_ids")   // [{userId}] manual
+  id            String  @id @db.VarChar(64)
+  eventId       String  @map("event_id") @db.VarChar(64)
+  division      String  @db.VarChar(24) // LITURGIA…MARTURIA | BENZARPR | KOMISI | TIMKERJA
+  driveFolderId String? @map("drive_folder_id") @db.VarChar(128)
+  extraUserIds  Json?   @map("extra_user_ids") // [{userId}] manual
 
   // Approval workflow
-  approvalStatus  String    @default("DRAFT") @map("approval_status") @db.VarChar(16) // DRAFT|IN_REVIEW|APPROVED|REJECTED|PUBLISHED
-  approvedById    String?   @map("approved_by_id") @db.VarChar(64)
-  approvedAt      DateTime? @map("approved_at")
-  rejectReason    String?   @map("reject_reason") @db.Text
-  publishedAt     DateTime? @map("published_at")
-  contentItemId   String?   @unique @map("content_item_id") @db.VarChar(64) // link to ContentItem when published
+  approvalStatus String    @default("DRAFT") @map("approval_status") @db.VarChar(16) // DRAFT|IN_REVIEW|APPROVED|REJECTED|PUBLISHED
+  approvedById   String?   @map("approved_by_id") @db.VarChar(64)
+  approvedAt     DateTime? @map("approved_at")
+  rejectReason   String?   @map("reject_reason") @db.Text
+  publishedAt    DateTime? @map("published_at")
+  contentItemId  String?   @unique @map("content_item_id") @db.VarChar(64) // link to ContentItem when published
 
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  event           EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  updates         EventUpdate[]
-  members         EventDivisionMember[]
-  approvalLogs    EventApprovalLog[]
+  event        EventProgram          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  updates      EventUpdate[]
+  members      EventDivisionMember[]
+  approvalLogs EventApprovalLog[]
 
-  @@index([approvalStatus])
   @@unique([eventId, division])
+  @@index([approvalStatus])
 }
 
 model EventMeeting {
   id          String   @id @db.VarChar(64)
   eventId     String   @map("event_id") @db.VarChar(64)
-  division    String?  @db.VarChar(24)      // null = rapat gabungan
+  division    String?  @db.VarChar(24) // null = rapat gabungan
   title       String   @db.VarChar(200)
   scheduledAt DateTime @map("scheduled_at")
   gmeetLink   String?  @map("gmeet_link") @db.VarChar(512)
@@ -428,11 +439,11 @@ model EventUpdate {
 
 /// Role-based access per division member
 model EventDivisionMember {
-  id                String       @id @db.VarChar(64)
-  eventDivisionId   String       @map("event_division_id") @db.VarChar(64)
-  userId            String       @map("user_id") @db.VarChar(64)
-  role              DivisionRole @default(MEMBER)
-  createdAt         DateTime     @default(now()) @map("created_at")
+  id              String       @id @db.VarChar(64)
+  eventDivisionId String       @map("event_division_id") @db.VarChar(64)
+  userId          String       @map("user_id") @db.VarChar(64)
+  role            DivisionRole @default(MEMBER)
+  createdAt       DateTime     @default(now()) @map("created_at")
 
   division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
 
@@ -450,13 +461,13 @@ enum DivisionRole {
 
 /// Audit trail for approval actions
 model EventApprovalLog {
-  id                String   @id @db.VarChar(64)
-  eventDivisionId   String   @map("event_division_id") @db.VarChar(64)
-  action            String   @db.VarChar(20) // SUBMIT|APPROVE|REJECT|PUBLISH|UNPUBLISH
-  actorId           String   @map("actor_id") @db.VarChar(64)
-  actorRole         String   @map("actor_role") @db.VarChar(30)
-  comment           String?  @db.Text
-  createdAt         DateTime @default(now()) @map("created_at")
+  id              String   @id @db.VarChar(64)
+  eventDivisionId String   @map("event_division_id") @db.VarChar(64)
+  action          String   @db.VarChar(20) // SUBMIT|APPROVE|REJECT|PUBLISH|UNPUBLISH
+  actorId         String   @map("actor_id") @db.VarChar(64)
+  actorRole       String   @map("actor_role") @db.VarChar(30)
+  comment         String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
 
   division EventDivision @relation(fields: [eventDivisionId], references: [id], onDelete: Cascade)
 
@@ -503,10 +514,10 @@ model Product {
   id          String   @id @db.VarChar(64)
   name        String   @db.VarChar(200)
   description String?  @db.Text
-  price       Int      // harga jual (rupiah)
+  price       Int // harga jual (rupiah)
   buyPrice    Int?     @map("buy_price") // harga beli/modal (rupiah), null untuk non-merchandise
   stock       Int      @default(0)
-  images      Json     @default("[]") // [{driveFileId, url, caption}]
+  images      Json     // [{driveFileId, url, caption}]
   category    String   @db.VarChar(20) // MERCHANDISE | FUNDRAISING | DONATION
   isActive    Boolean  @default(true) @map("is_active")
   sortOrder   Int      @default(0) @map("sort_order")
@@ -514,7 +525,7 @@ model Product {
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  createdBy User        @relation(fields: [createdById], references: [id])
+  createdBy  User        @relation(fields: [createdById], references: [id])
   orderItems OrderItem[]
 
   @@index([category, isActive])
@@ -531,17 +542,17 @@ model Order {
   id           String   @id @db.VarChar(64)
   orderCode    String   @unique @map("order_code") @db.VarChar(20) // BZP-20260827-001
   userId       String   @map("user_id") @db.VarChar(64)
-  items        Json     // [{productId, qty, price, nameSnapshot}]
+  items        Json // [{productId, qty, price, nameSnapshot}]
   total        Int
   status       String   @default("PENDING") @db.VarChar(16) // PENDING|PAID|VERIFIED|PROCESSING|READY|COMPLETED|CANCELLED
-  shipping     String   @default("PICKUP") @db.VarChar(16)  // PICKUP | DELIVERY
+  shipping     String   @default("PICKUP") @db.VarChar(16) // PICKUP | DELIVERY
   shippingAddr Json?    @map("shipping_addr") // {name, phone, address}
   notes        String?  @db.Text
   createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  user      User        @relation(fields: [userId], references: [id])
-  itemsRel  OrderItem[] @relation("OrderItems")
+  user     User        @relation(fields: [userId], references: [id])
+  itemsRel OrderItem[] @relation("OrderItems")
 
   @@index([userId, status])
   @@index([status])
@@ -554,7 +565,7 @@ model OrderItem {
   orderId   String @map("order_id") @db.VarChar(64)
   productId String @map("product_id") @db.VarChar(64)
   qty       Int
-  price     Int    // harga saat beli (snapshot)
+  price     Int // harga saat beli (snapshot)
   name      String @db.VarChar(200) // nama produk saat beli (snapshot)
 
   order   Order   @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
@@ -585,8 +596,8 @@ enum ShippingMethod {
 
 model ServiceRole {
   id          String   @id @db.VarChar(64)
-  name        String   @db.VarChar(100) @unique
-  division    String   @db.VarChar(20)  // LITURGIA | MARTURIA (mostly)
+  name        String   @unique @db.VarChar(100)
+  division    String   @db.VarChar(20) // LITURGIA | MARTURIA (mostly)
   description String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
   sortOrder   Int      @default(0) @map("sort_order")
@@ -606,7 +617,7 @@ model ServiceSchedule {
   eventId       String?  @map("event_id") @db.VarChar(64) // null = ibadah mingguan
   date          DateTime @db.Date
   timeStart     String?  @map("time_start") @db.VarChar(10) // "13:00"
-  timeEnd       String?  @map("time_end") @db.VarChar(10)   // "15:00"
+  timeEnd       String?  @map("time_end") @db.VarChar(10) // "15:00"
   status        String   @default("SCHEDULED") @db.VarChar(20) // SCHEDULED|CONFIRMED|DONE|CANCELLED
   notes         String?  @db.Text
   createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
@@ -630,8 +641,8 @@ model DivisionMeeting {
   division    String   @db.VarChar(20) // LITURGIA | DIDASKALIA | etc
   meetingDate DateTime @map("meeting_date") @db.Date
   title       String?  @db.VarChar(200)
-  agenda      Json     @default("[]") // [{topic, lead, output, deadline}]
-  attendees   Json     @default("[]") // [{userId, role}]
+  agenda      Json     // [{topic, lead, output, deadline}]
+  attendees   Json     // [{userId, role}]
   notes       String?  @db.Text
   status      String   @default("PLANNED") @db.VarChar(20) // PLANNED|IN_PROGRESS|DONE
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
@@ -644,18 +655,18 @@ model DivisionMeeting {
 }
 
 model DivisionAgendaItem {
-  id               String   @id @db.VarChar(64)
-  meetingId        String   @map("meeting_id") @db.VarChar(64)
-  title            String   @db.VarChar(200)
-  description      String?  @db.Text
-  division         String   @db.VarChar(20)
-  component        String?  @db.VarChar(100) // "Rundown", "Slide", "Konsumsi", "PR Copy"
-  personInChargeId String?  @map("person_in_charge_id") @db.VarChar(64)
+  id               String    @id @db.VarChar(64)
+  meetingId        String    @map("meeting_id") @db.VarChar(64)
+  title            String    @db.VarChar(200)
+  description      String?   @db.Text
+  division         String    @db.VarChar(20)
+  component        String?   @db.VarChar(100) // "Rundown", "Slide", "Konsumsi", "PR Copy"
+  personInChargeId String?   @map("person_in_charge_id") @db.VarChar(64)
   deadline         DateTime? @db.Date
-  status           String   @default("TODO") @db.VarChar(20) // TODO|IN_PROGRESS|REVIEW|DONE
-  driveFolderId    String?  @map("drive_folder_id") @db.VarChar(64) // link ke Drive
-  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  status           String    @default("TODO") @db.VarChar(20) // TODO|IN_PROGRESS|REVIEW|DONE
+  driveFolderId    String?   @map("drive_folder_id") @db.VarChar(64) // link ke Drive
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
   meeting DivisionMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
@@ -669,21 +680,21 @@ model DivisionAgendaItem {
 // ============================================================
 
 model WartaPublik {
-  id            String   @id @db.VarChar(64)
-  eventId       String?  @map("event_id") @db.VarChar(64)
-  weekDate      DateTime @db.Date @map("week_date")
-  title         String   @db.VarChar(200)
-  status        String   @default("DRAFT") @db.VarChar(20)
-  contentJson   Json?    @map("content_json")
-  pdfUrl        String?  @map("pdf_url") @db.VarChar(500)
-  pngUrl        String?  @map("png_url") @db.VarChar(500)
-  driveFolderId String?  @map("drive_folder_id") @db.VarChar(64)
-  rejectReason  String?  @map("reject_reason") @db.Text
-  createdById   String?  @map("created_by_id") @db.VarChar(64)
-  reviewedById  String?  @map("reviewed_by_id") @db.VarChar(64)
+  id            String    @id @db.VarChar(64)
+  eventId       String?   @map("event_id") @db.VarChar(64)
+  weekDate      DateTime  @map("week_date") @db.Date
+  title         String    @db.VarChar(200)
+  status        String    @default("DRAFT") @db.VarChar(20)
+  contentJson   Json?     @map("content_json")
+  pdfUrl        String?   @map("pdf_url") @db.VarChar(500)
+  pngUrl        String?   @map("png_url") @db.VarChar(500)
+  driveFolderId String?   @map("drive_folder_id") @db.VarChar(64)
+  rejectReason  String?   @map("reject_reason") @db.Text
+  createdById   String?   @map("created_by_id") @db.VarChar(64)
+  reviewedById  String?   @map("reviewed_by_id") @db.VarChar(64)
   publishedAt   DateTime? @map("published_at") @db.DateTime(3)
-  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@index([weekDate])
   @@index([status])
@@ -695,25 +706,164 @@ model WartaPublik {
 // ============================================================
 
 model EventGallery {
-  id              String   @id @db.VarChar(64)
-  eventId         String   @map("event_id") @db.VarChar(64)
-  title           String   @db.VarChar(200)
-  description     String?  @db.Text
-  mediaUrl        String   @map("media_url") @db.VarChar(500)
-  mediaType       String   @map("media_type") @db.VarChar(20)
-  thumbUrl        String?  @map("thumb_url") @db.VarChar(500)
-  uploadedById    String   @map("uploaded_by_id") @db.VarChar(64)
-  division        String?  @map("division") @db.VarChar(20)
-  status          String   @default("PENDING") @db.VarChar(20)
-  approvedById    String?  @map("approved_by_id") @db.VarChar(64)
-  approvedAt      DateTime? @map("approved_at") @db.DateTime(3)
-  rejectReason    String?  @map("reject_reason") @db.Text
-  driveFileId     String?  @map("drive_file_id") @db.VarChar(64)
-  sortOrder       Int      @default(0) @map("sort_order")
-  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  id           String    @id @db.VarChar(64)
+  eventId      String    @map("event_id") @db.VarChar(64)
+  title        String    @db.VarChar(200)
+  description  String?   @db.Text
+  mediaUrl     String    @map("media_url") @db.VarChar(500)
+  mediaType    String    @map("media_type") @db.VarChar(20)
+  thumbUrl     String?   @map("thumb_url") @db.VarChar(500)
+  uploadedById String    @map("uploaded_by_id") @db.VarChar(64)
+  division     String?   @map("division") @db.VarChar(20)
+  status       String    @default("PENDING") @db.VarChar(20)
+  approvedById String?   @map("approved_by_id") @db.VarChar(64)
+  approvedAt   DateTime? @map("approved_at") @db.DateTime(3)
+  rejectReason String?   @map("reject_reason") @db.Text
+  driveFileId  String?   @map("drive_file_id") @db.VarChar(64)
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@index([eventId, status])
   @@index([division, status])
   @@map("event_gallery")
+}
+
+// ============================================================
+// ROLE ASSIGNMENT (Hierarchical role tracking)
+// Source of truth for admin role assignments with sub-role context.
+// Dual-written to UserRole for backward compatibility.
+// ============================================================
+
+model RoleAssignment {
+  id     String @id @db.VarChar(64)
+  userId String @map("user_id") @db.VarChar(64)
+  role   Role // SUPERADMIN | BPMJ | KOMISI | COMMITTEE | MENTEE
+
+  // === Context: BPMJ / KOMISI ===
+  position String? @db.VarChar(100) // "Ketua BPMJ", "Wakil Ketua Komisi", etc.
+
+  // === Context: COMMITTEE ===
+  division    String? @db.VarChar(150) // "LITURGIA", "DIDASKALIA", etc.
+  subdivision String? @db.VarChar(100) // "Pendoa", "Konsumsi", etc.
+
+  // === Context: BEYONDERS (MENTEE with group) ===
+  groupId    String? @map("group_id") @db.VarChar(64)
+  familyRole String? @db.VarChar(20) // "MENTOR" | "CO_MENTOR" | "MENTEE"
+
+  // === Metadata ===
+  assignedBy String    @map("assigned_by") @db.VarChar(64)
+  assignedAt DateTime  @default(now()) @map("assigned_at")
+  expiresAt  DateTime? @map("expires_at")
+  isActive   Boolean   @default(true) @map("is_active")
+  note       String?   @db.Text
+
+  user     User   @relation(fields: [userId], references: [id])
+  assigner User   @relation("RoleAssignmentAssigner", fields: [assignedBy], references: [id])
+  group    Group? @relation(fields: [groupId], references: [id])
+
+  @@index([userId])
+  @@index([role])
+  @@index([groupId])
+  @@index([assignedBy])
+  @@map("role_assignments")
+}
+
+// ============================================================
+// WAITING POOL (Onboarding pipeline)
+// Tracks newcomers from registration through profile completion
+// to role assignment. Replaces WaitlistEntry for active pipeline.
+// ============================================================
+
+model WaitingPool {
+  id     String  @id @db.VarChar(64)
+  userId String? @map("user_id") @db.VarChar(64)
+  name   String  @db.VarChar(150)
+  email  String? @db.VarChar(190)
+  phone  String? @db.VarChar(40)
+  gender String? @db.VarChar(20)
+  origin String? @db.VarChar(190)
+
+  // Onboarding status
+  status String @default("WAITING_POOL") @db.VarChar(30)
+  // WAITING_POOL | PROFILE_COMPLETED | ROLE_ASSIGNED
+
+  // Gift test tracking
+  giftTestDone Boolean @default(false) @map("gift_test_done")
+  giftsTop5    Json?   @map("gifts_top5")
+  giftsScores  Json?   @map("gifts_scores")
+  talents      Json?
+
+  // Profile completion
+  profileCompleted   Boolean   @default(false) @map("profile_completed")
+  profileCompletedAt DateTime? @map("profile_completed_at")
+
+  // Metadata
+  sourceEvent   String?   @db.VarChar(100) // "BAKUTAU 4.0"
+  registeredAt  DateTime  @default(now()) @map("registered_at")
+  lastReminder  DateTime? @map("last_reminder")
+  reminderCount Int       @default(0) @map("reminder_count")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([userId])
+  @@index([status])
+  @@map("waiting_pool")
+}
+
+// ============================================================
+// JETHRO PLACEMENT REVIEW
+// Tracks auto-assignment recommendations from Jethro Engine
+// through admin review to final commit.
+// ============================================================
+
+model PlacementBatch {
+  id          String   @id @default(cuid())
+  status      String   @default("DRAFT") @db.VarChar(30)
+  // DRAFT | GENERATED | REVIEWING | APPROVED | COMMITTED | REJECTED
+  createdBy   String   @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at")
+  generatedAt DateTime? @map("generated_at")
+  reviewedAt  DateTime? @map("reviewed_at")
+  reviewedBy  String?   @db.VarChar(64)
+  committedAt DateTime? @map("committed_at")
+  committedBy String?   @db.VarChar(64)
+  items       PlacementItem[]
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("placement_batches")
+}
+
+model PlacementItem {
+  id                    String   @id @default(cuid())
+  batchId               String   @map("batch_id")
+  newcomerId            String   @map("newcomer_id") @db.VarChar(64)
+  newcomerName          String   @map("newcomer_name") @db.VarChar(150)
+  newcomerGender        String   @map("newcomer_gender") @db.VarChar(20)
+  newcomerGiftsTop5     Json     @map("newcomer_gifts_top5")
+  newcomerMaturityScore Float?   @map("newcomer_maturity_score")
+
+  recommendedGroupId    String?  @map("recommended_group_id") @db.VarChar(64)
+  recommendedGroupName  String?  @map("recommended_group_name") @db.VarChar(150)
+  recommendedRole       String?  @map("recommended_role") @db.VarChar(30)
+  confidence            Float
+  reasons               Json
+  scoreBreakdown        Json?    @map("score_breakdown")
+
+  status                String   @default("PENDING") @db.VarChar(30)
+  // PENDING | APPROVED | REVISED | REJECTED | INDIVIDU
+  finalGroupId          String?  @map("final_group_id") @db.VarChar(64)
+  finalRole             String?  @map("final_role") @db.VarChar(30)
+  finalIsIndividu       Boolean  @default(false) @map("final_is_individu")
+
+  reviewedBy            String?  @map("reviewed_by") @db.VarChar(64)
+  reviewedAt            DateTime? @map("reviewed_at")
+
+  batch                 PlacementBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([newcomerId])
+  @@index([status])
+  @@map("placement_items")
 }
