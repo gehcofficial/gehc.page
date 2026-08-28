@@ -21,8 +21,11 @@ export const GroupsCarousel: React.FC = () => {
   const currentBatchFor = (groupId: string) =>
     groupBatches.find((b) => b.group_id === groupId && b.isCurrent);
 
-  // Privasi & kerapian: hanya rumah dengan data batch yang tampil
-  const visibleGroups = groups.filter((g) => currentBatchFor(g.id));
+  // Regeneration naming: only show parent groups (no parentGroupId) on landing
+  // Child groups (regenerasi) are shown in detail page via HeritageSection
+  const visibleGroups = groups
+    .filter((g) => !g.parentGroupId && currentBatchFor(g.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <section className="py-14 sm:py-20 bg-[#F3F1EC] border-y border-[#D9D7D0]/50 overflow-hidden">
