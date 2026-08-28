@@ -15,6 +15,7 @@ import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { NotificationPermissionBanner, PWASettingsPanel } from '../pwa';
 import { WaitlistBoard } from './WaitlistBoard';
+import { PeopleInvites } from './PeopleInvites';
 import {
   LayoutDashboard,
   BookOpen,
