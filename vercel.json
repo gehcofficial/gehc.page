@@ -2,22 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "prisma generate && vite build",
   "outputDirectory": "dist",
-  "alias": ["staging-gehcpage.vercel.app"],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "staging-gehcpage.vercel.app" }],
-      "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
-      ]
-    }
-  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
     "api/index.mjs": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": ["server/**"]
     }
   }
 }
