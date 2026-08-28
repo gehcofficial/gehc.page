@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import express from 'express';
-import { getPrisma, isDbConfigured } from '../server/db.mjs';
-import { attachUser, requireRole, setSessionCookie, clearSessionCookie, loginWithGoogleCredential, verifyGoogleCredential, isSuperadminEmail, loginLocal } from '../server/auth.mjs';
+import { getPrisma, isDbConfigured, testConnection } from '../server/db.mjs';
+import { attachUser, requireRole, setSessionCookie, clearSessionCookie, loginWithGoogleCredential, loginLocal } from '../server/auth.mjs';
 
 const app = express();
 
@@ -33,7 +33,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOSt
 app.get('/api/config', wrap(async (req, res) => {
   let dbConnected = false;
   if (isDbConfigured()) {
-    try { dbConnected = await testDb(); } catch { dbConnected = false; }
+    try { dbConnected = await testConnection(); } catch { dbConnected = false; }
   }
   res.json({
     driveConfigured: false,
@@ -140,6 +140,16 @@ app.patch('/api/me', wrap(async (req, res) => {
 }));
 
 // ---------- Waitlist ----------
+function wlPublic(w) {
+  return {
+    id: w.id, name: w.name, phone: w.phone, email: w.email, origin: w.origin, address: w.address,
+    gender: w.gender, emergencyContactName: w.emergencyContactName, emergencyContactRelation: w.emergencyContactRelation,
+    emergencyContactPhone: w.emergencyContactPhone, emergencyContactAddress: w.emergencyContactAddress,
+    giftsTop5: w.giftsTop5, talents: w.talents, status: w.status, sourceEventId: w.sourceEventId,
+    assignedGroupId: w.assignedGroupId, promoteToken: w.promoteToken, createdAt: w.createdAt,
+  };
+}
+
 app.post('/api/waitlist', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -324,111 +334,5 @@ app.post('/api/db/sync-batches', wrap(async (req, res) => {
   }
   res.json({ synced });
 }));
-
-app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const list = Array.isArray(req.body?.members) ? req.body.members : [];
-  for (const [i, m] of list.entries()) {
-    if (!m?.id || !m?.name) continue;
-    const data = {
-      name: m.name,
-      position: m.position ?? null,
-      division: m.division ?? null,
-      subdivision: m.subdivision ?? null,
-      period: m.period ?? null,
-      photoUrl: m.photoUrl ?? null,
-      bio: m.bio ?? null,
-      phone: m.phone ?? null,
-      email: m.email ?? null,
-      sortOrder: Number.isFinite(m.order) ? m.order : i,
-      isOpenRole: Boolean(m.isOpenRole ?? m.is_open_role),
-      role: m.role ?? null,
-      roleOrder: Number.isFinite(m.roleOrder) ? m.roleOrder : 0,
-      isDoubleRole: Boolean(m.isDoubleRole ?? false),
-      subRoleId: m.subRoleId ?? null,
-      groupId: m.groupId ?? null,
-    };
-    await prisma.strukturMember.upsert({ where: { id: m.id }, create: { id: m.id, ...data }, update: data });
-  }
-  const keepIds = list.map((m) => m.id).filter(Boolean);
-  const removed = await prisma.strukturMember.deleteMany({
-    where: keepIds.length ? { id: { notIn: keepIds } } : {},
-  });
-  res.json({ synced: list.length, removed: removed.count });
-}));
-
-// ---------- Waitlist ----------
-app.post('/api/waitlist', wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { name, phone, email, origin, sourceEventId, gender, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body || {};
-  if (!name?.trim() || !phone?.trim() || !gender || !emergencyContactName?.trim() || !emergencyContactRelation || !emergencyContactPhone?.trim() || !emergencyContactAddress?.trim()) {
-    return res.status(400).json({ error: 'Nama, WhatsApp, jenis kelamin, dan kontak darurat wajib diisi.' });
-  }
-  const entry = await prisma.waitlistEntry.create({
-    data: {
-      id: `wl-${crypto.randomUUID()}`,
-      name: String(name).trim().slice(0, 150),
-      phone: String(phone).trim().slice(0, 40),
-      email: email ? String(email).toLowerCase().trim() : null,
-      origin: origin ? String(origin).slice(0, 190) : null,
-      status: 'WAITLISTED',
-      sourceEventId: sourceEventId ? String(sourceEventId).slice(0, 64) : null,
-      promoteToken: crypto.randomBytes(24).toString('hex'),
-      gender: gender ? String(gender).slice(0, 20) : null,
-      emergencyContactName: emergencyContactName ? String(emergencyContactName).trim().slice(0, 150) : null,
-      emergencyContactRelation: emergencyContactRelation ? String(emergencyContactRelation).slice(0, 50) : null,
-      emergencyContactPhone: emergencyContactPhone ? String(emergencyContactPhone).trim().slice(0, 40) : null,
-      emergencyContactAddress: emergencyContactAddress ? String(emergencyContactAddress).trim() : null,
-    },
-  });
-  res.json({ ok: true, entry: wlPublic(entry) });
-}));
-
-app.get('/api/waitlist/by-token/:token', wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const w = await prisma.waitlistEntry.findUnique({ where: { promoteToken: req.params.token } });
-  if (!w) return res.status(404).json({ error: 'Link tidak valid atau sudah kedaluwarsa.' });
-  res.json({ entry: wlPublic(w) });
-}));
-
-app.patch('/api/waitlist/by-token/:token', wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const w = await prisma.waitlistEntry.findUnique({ where: { promoteToken: req.params.token } });
-  if (!w) return res.status(404).json({ error: 'Link tidak valid.' });
-  const b = req.body || {};
-  const updated = await prisma.waitlistEntry.update({
-    where: { id: w.id },
-    data: {
-      address: b.address ?? w.address,
-      origin: b.origin ?? w.origin,
-      email: b.email ?? w.email,
-      gender: b.gender ?? w.gender,
-      emergencyContactName: b.emergencyContactName ?? w.emergencyContactName,
-      emergencyContactRelation: b.emergencyContactRelation ?? w.emergencyContactRelation,
-      emergencyContactPhone: b.emergencyContactPhone ?? w.emergencyContactPhone,
-      emergencyContactAddress: b.emergencyContactAddress ?? w.emergencyContactAddress,
-      giftsTop5: b.giftsTop5 ?? undefined,
-      giftsScores: b.giftsScores ?? undefined,
-      talents: b.talents ?? undefined,
-      status: w.status === 'WAITLISTED' && (b.address || b.giftsTop5) ? 'PROFILED' : w.status,
-    },
-  });
-  res.json({ ok: true, entry: wlPublic(updated) });
-}));
-
-// Helper
-function wlPublic(w) {
-  return {
-    id: w.id, name: w.name, phone: w.phone, email: w.email, origin: w.origin, address: w.address,
-    gender: w.gender, emergencyContactName: w.emergencyContactName, emergencyContactRelation: w.emergencyContactRelation,
-    emergencyContactPhone: w.emergencyContactPhone, emergencyContactAddress: w.emergencyContactAddress,
-    giftsTop5: w.giftsTop5, talents: w.talents, status: w.status, sourceEventId: w.sourceEventId,
-    assignedGroupId: w.assignedGroupId, promoteToken: w.promoteToken, createdAt: w.createdAt,
-  };
-}
 
 export default app;
