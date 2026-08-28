@@ -122,6 +122,44 @@ app.post('/api/demo/impersonate', wrap(async (req, res) => {
   res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, roles: user.roles } });
 }));
 
+// ---------- Notifications ----------
+app.get('/api/notifications', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.json({ notifications: [], unread: 0 });
+  try {
+    const notifications = await prisma.notification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const unread = await prisma.notification.count({ where: { status: 'UNREAD' } });
+    res.json({ notifications, unread });
+  } catch {
+    res.json({ notifications: [], unread: 0 });
+  }
+}));
+
+app.get('/api/notifications/:id', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const n = await prisma.notification.findUnique({ where: { id: req.params.id } });
+  if (!n) return res.status(404).json({ error: 'Notifikasi tidak ditemukan.' });
+  res.json({ notification: n });
+}));
+
+app.patch('/api/notifications/:id/read', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.notification.update({ where: { id: req.params.id }, data: { status: 'READ' } });
+  res.json({ ok: true });
+}));
+
+app.post('/api/notifications/read-all', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.notification.updateMany({ where: { status: 'UNREAD' }, data: { status: 'READ' } });
+  res.json({ ok: true });
+}));
+
 // ---------- Profil diri sendiri ----------
 app.patch('/api/me', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
