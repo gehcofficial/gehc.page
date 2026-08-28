@@ -14,7 +14,9 @@ import {
   UserPlus,
   Sparkles,
   Crown,
+  AlertTriangle,
 } from 'lucide-react';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 const byDivision = (list: StrukturMember[], division: string) =>
   list.filter((m) => (m.division || '').toUpperCase() === division);
@@ -67,6 +69,7 @@ export const ManageStruktur: React.FC = () => {
   const [editingMember, setEditingMember] = useState<StrukturMember | null>(null);
   const [formData, setFormData] = useState<FormState>(emptyForm());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteData, setConfirmDeleteData] = useState<{ id: string; name: string; hasDependencies: boolean } | null>(null);
 
   const sorted = useMemo(
     () => [...strukturMembers].sort((a, b) => a.order - b.order),
@@ -162,7 +165,10 @@ export const ManageStruktur: React.FC = () => {
           <Edit2 className="w-3.5 h-3.5 text-[#1B1B1B]" />
         </button>
         <button
-          onClick={() => setConfirmDeleteId(m.id)}
+          onClick={() => {
+            const hasDeps = false; // Could check: m.isOpenRole, or if mentor in group, etc.
+            setConfirmDeleteData({ id: m.id, name: m.name, hasDependencies: hasDeps });
+          }}
           title="Hapus"
           className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"
         >
@@ -293,9 +299,11 @@ export const ManageStruktur: React.FC = () => {
             </div>
           </div>
 
-          {/* Level 3: Lima Pantatugas */}
+          {/* Level 3: Lima Panca Tugas (tanpa BENZARPR yang sudah punya section sendiri) */}
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {pillars.map(({ meta: p, members }) => {
+            {pillars
+              .filter(({ meta }) => meta.name !== 'BENZARPR')
+              .map(({ meta: p, members }) => {
               const subs = new Map<string, StrukturMember[]>();
               for (const m of members) {
                 const k = m.subdivision?.trim() || 'Anggota';
@@ -428,7 +436,10 @@ export const ManageStruktur: React.FC = () => {
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => setConfirmDeleteId(m.id)}
+                    onClick={() => {
+                      const hasDeps = false;
+                      setConfirmDeleteData({ id: m.id, name: m.name, hasDependencies: hasDeps });
+                    }}
                     className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"
                     title="Hapus"
                   >
@@ -441,35 +452,24 @@ export const ManageStruktur: React.FC = () => {
         </div>
       )}
 
-      {/* Konfirmasi hapus */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] p-6 w-full max-w-sm text-center">
-            <Trash2 className="w-8 h-8 text-red-500 mx-auto mb-2" />
-            <h4 className="text-base font-bold">Hapus entri ini?</h4>
-            <p className="text-xs text-[#8C8880] mt-1">
-              Entri akan hilang dari panel dan landing page (tersinkron TiDB).
-            </p>
-            <div className="flex justify-center gap-2 mt-5">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="px-4 py-2 rounded-full border border-[#D9D7D0] text-xs font-bold"
-              >
-                Batal
-              </button>
-              <button
-                onClick={() => {
-                  deleteStrukturMember(confirmDeleteId);
-                  setConfirmDeleteId(null);
-                }}
-                className="px-5 py-2 rounded-full bg-red-600 text-white text-xs font-bold"
-              >
-                Ya, Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Konfirmasi hapus - using reusable ConfirmationModal */}
+      <ConfirmationModal
+        isOpen={!!confirmDeleteData}
+        onClose={() => setConfirmDeleteData(null)}
+        onConfirm={() => {
+          if (confirmDeleteData) {
+            deleteStrukturMember(confirmDeleteData.id);
+            setConfirmDeleteData(null);
+          }
+        }}
+        title="Hapus Entri Struktur"
+        message={`Apakah yakin ingin menghapus <strong>${confirmDeleteData?.name || 'entri ini'}</strong>? Data akan hilang dari panel dan landing page (tersinkron ke TiDB).`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+        requireTypeConfirmation={confirmDeleteData?.hasDependencies ?? false}
+        typeConfirmationText="HAPUS"
+      />
 
       {/* Modal Edit/Tambah */}
       {isModalOpen && (

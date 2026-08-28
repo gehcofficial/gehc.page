@@ -850,6 +850,32 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
     // Warta Publik & Event Gallery
     "CREATE TABLE IF NOT EXISTS `warta_publik` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NULL,`week_date` DATE NOT NULL,`title` VARCHAR(200) NOT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',`content_json` JSON NULL,`pdf_url` VARCHAR(500) NULL,`png_url` VARCHAR(500) NULL,`drive_folder_id` VARCHAR(64) NULL,`reject_reason` TEXT NULL,`created_by_id` VARCHAR(64) NULL,`reviewed_by_id` VARCHAR(64) NULL,`published_at` DATETIME(3) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `warta_publik_week_date_idx`(`week_date`), INDEX `warta_publik_status_idx`(`status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `event_gallery` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`media_url` VARCHAR(500) NOT NULL,`media_type` VARCHAR(20) NOT NULL,`thumb_url` VARCHAR(500) NULL,`uploaded_by_id` VARCHAR(64) NOT NULL,`division` VARCHAR(20) NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',`approved_by_id` VARCHAR(64) NULL,`approved_at` DATETIME(3) NULL,`reject_reason` TEXT NULL,`drive_file_id` VARCHAR(64) NULL,`sort_order` INT NOT NULL DEFAULT 0,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `event_gallery_event_id_status_idx`(`event_id`, `status`), INDEX `event_gallery_division_status_idx`(`division`, `status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    // User & WaitlistEntry new columns
+    "ALTER TABLE `users` ADD COLUMN `gender` VARCHAR(20) NULL AFTER `account_status`;",
+    "ALTER TABLE `users` ADD COLUMN `emergency_contact_name` VARCHAR(150) NULL AFTER `gender`;",
+    "ALTER TABLE `users` ADD COLUMN `emergency_contact_relation` VARCHAR(50) NULL AFTER `emergency_contact_name`;",
+    "ALTER TABLE `users` ADD COLUMN `emergency_contact_phone` VARCHAR(40) NULL AFTER `emergency_contact_relation`;",
+    "ALTER TABLE `users` ADD COLUMN `emergency_contact_address` TEXT NULL AFTER `emergency_contact_phone`;",
+    "ALTER TABLE `users` ADD COLUMN `last_profile_update` DATETIME(3) NULL AFTER `emergency_contact_address`;",
+    "ALTER TABLE `users` ADD COLUMN `profile_reminder_days` INT NOT NULL DEFAULT 60 AFTER `last_profile_update`;",
+    "ALTER TABLE `waitlist_entries` ADD COLUMN `gender` VARCHAR(20) NULL AFTER `status`;",
+    "ALTER TABLE `waitlist_entries` ADD COLUMN `emergency_contact_name` VARCHAR(150) NULL AFTER `gender`;",
+    "ALTER TABLE `waitlist_entries` ADD COLUMN `emergency_contact_relation` VARCHAR(50) NULL AFTER `emergency_contact_name`;",
+    "ALTER TABLE `waitlist_entries` ADD COLUMN `emergency_contact_phone` VARCHAR(40) NULL AFTER `emergency_contact_relation`;",
+    "ALTER TABLE `waitlist_entries` ADD COLUMN `emergency_contact_address` TEXT NULL AFTER `emergency_contact_phone`;",
+    // StrukturMember new columns
+    "ALTER TABLE `struktur_members` ADD COLUMN `role` VARCHAR(20) NOT NULL DEFAULT 'MENTEE' AFTER `is_open_role`;",
+    "ALTER TABLE `struktur_members` ADD COLUMN `role_order` INT NOT NULL DEFAULT 0 AFTER `role`;",
+    "ALTER TABLE `struktur_members` ADD COLUMN `is_double_role` BOOLEAN NOT NULL DEFAULT false AFTER `role_order`;",
+    "ALTER TABLE `struktur_members` ADD COLUMN `sub_role_id` VARCHAR(64) NULL AFTER `is_double_role`;",
+    "ALTER TABLE `struktur_members` ADD COLUMN `group_id` VARCHAR(64) NULL AFTER `sub_role_id`;",
+    // Group new columns (relation handled by Prisma)
+    // MentorTransition table
+    "CREATE TABLE IF NOT EXISTS `mentor_transitions` (`id` VARCHAR(64) NOT NULL,`group_id` VARCHAR(64) NOT NULL,`outgoing_user_id` VARCHAR(64) NOT NULL,`incoming_user_id` VARCHAR(64) NULL,`outgoing_role` VARCHAR(20) NOT NULL,`incoming_role` VARCHAR(20) NULL,`effective_date` DATE NOT NULL,`reason` TEXT NULL,`note` TEXT NULL,`created_by_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `mentor_transitions_group_id_effective_date_idx`(`group_id`, `effective_date`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "ALTER TABLE `mentor_transitions` ADD CONSTRAINT `mentor_transitions_group_id_fkey` FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
+    "ALTER TABLE `mentor_transitions` ADD CONSTRAINT `mentor_transitions_outgoing_user_id_fkey` FOREIGN KEY (`outgoing_user_id`) REFERENCES `users`(`id`) ON UPDATE CASCADE;",
+    "ALTER TABLE `mentor_transitions` ADD CONSTRAINT `mentor_transitions_incoming_user_id_fkey` FOREIGN KEY (`incoming_user_id`) REFERENCES `users`(`id`) ON UPDATE CASCADE;",
+    "ALTER TABLE `mentor_transitions` ADD CONSTRAINT `mentor_transitions_created_by_id_fkey` FOREIGN KEY (`created_by_id`) REFERENCES `users`(`id`) ON UPDATE CASCADE;",
   ];
 
   let applied = 0;
@@ -2479,6 +2505,75 @@ app.post('/api/gifttest', wrap(async (req, res) => {
   }
 
   res.status(400).json({ error: 'scope tidak dikenal.' });
+}));
+
+// ---------- Admin: Clean Staging TiDB (keep 83 demo accounts, remove generated data) ----------
+app.post('/api/admin/clean-staging', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+
+  const demoPattern = '%@gehc.demo%';
+
+  const removed = { attendanceRecords: 0, waitlistEntries: 0 };
+
+  try {
+    removed.attendanceRecords = await prisma.$executeRawUnsafe(
+      "DELETE FROM `attendance_records` WHERE `user_id` NOT IN (SELECT `id` FROM `users` WHERE `email` LIKE ?)",
+      demoPattern
+    );
+  } catch (e) { /* skip */ }
+
+  try {
+    removed.waitlistEntries = await prisma.$executeRawUnsafe(
+      "DELETE FROM `waitlist_entries` WHERE `email` NOT LIKE ?",
+      demoPattern
+    );
+  } catch (e) { /* skip */ }
+
+  res.json({ ok: true, removed });
+}));
+
+// ---------- Admin: Seed Gift Test Data ----------
+app.post('/api/admin/seed-gifts', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+
+  const ALL_GIFTS = [
+    'Teaching', 'Administration', 'Hospitality', 'Music', 'Mercy',
+    'Evangelism', 'Prophecy', 'Discernment', 'Faith', 'Healing',
+    'Wisdom', 'Knowledge', 'Speaking in Tongues', 'Intercession', 'Giving',
+    'Craftsmanship', 'Shepherding', 'Apostleship', 'Exhortation', 'Service',
+  ];
+
+  const profiles = await prisma.user.findMany({
+    where: { accountStatus: 'ACTIVE' },
+    select: { id: true, giftsTop5: true },
+  });
+
+  let updated = 0;
+  for (const u of profiles) {
+    if (u.giftsTop5 && Array.isArray(u.giftsTop5) && u.giftsTop5.length > 0) continue;
+
+    const shuffled = [...ALL_GIFTS].sort(() => Math.random() - 0.5);
+    const top5 = shuffled.slice(0, 5);
+    const scores = {};
+    for (const g of shuffled) {
+      scores[g] = g === top5[0] ? 90 + Math.floor(Math.random() * 11)
+        : g === top5[1] ? 80 + Math.floor(Math.random() * 11)
+        : g === top5[2] ? 70 + Math.floor(Math.random() * 11)
+        : 30 + Math.floor(Math.random() * 40);
+    }
+    const talents = top5.slice(0, 3).map(g => `${g} (gift level: high)`);
+
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { giftsTop5: top5, giftsScores: scores, talents },
+    });
+    updated++;
+  }
+  res.json({ ok: true, updated });
 }));
 
 // ---------- Benzarpreneurship E-commerce ----------

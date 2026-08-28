@@ -43,6 +43,15 @@ model User {
   talents       Json?
   accountStatus String  @default("ACTIVE") @map("account_status") // ACTIVE | PENDING
 
+  // Gender & Emergency Contact
+  gender                    String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
+  emergencyContactName      String?   @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactRelation  String?   @map("emergency_contact_relation") @db.VarChar(50) // ORANG_TUA | SAUDARA | TEMAN | LAINNYA
+  emergencyContactPhone     String?   @map("emergency_contact_phone") @db.VarChar(40)
+  emergencyContactAddress   String?   @map("emergency_contact_address") @db.Text
+  lastProfileUpdate         DateTime? @map("last_profile_update") @db.DateTime(3)
+  profileReminderDays       Int       @default(60) @map("profile_reminder_days")
+
   // Auth lokal (opsi selain Google SSO)
   passwordHash String? @map("password_hash") @db.Text
   authProvider String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
@@ -53,7 +62,10 @@ model User {
   attendanceTaken AttendanceRecord[] @relation("AttendanceRecorder")
   products        Product[]
   orders          Order[]
-  serviceSchedules ServiceSchedule[]
+  serviceSchedules  ServiceSchedule[]
+  mentorTransitionsOutgoing MentorTransition[] @relation("MentorTransitionOutgoing")
+  mentorTransitionsIncoming MentorTransition[] @relation("MentorTransitionIncoming")
+  mentorTransitionsCreated  MentorTransition[] @relation("MentorTransitionCreatedBy")
 
   @@map("users")
 }
@@ -89,6 +101,13 @@ model WaitlistEntry {
   assignedGroupId String?  @map("assigned_group_id") @db.VarChar(64)
   promoteToken    String   @unique @map("promote_token") @db.VarChar(64)
   createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  // Gender & Emergency Contact (tahap B profil lengkap)
+  gender                    String? @map("gender") @db.VarChar(20)
+  emergencyContactName      String? @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactRelation  String? @map("emergency_contact_relation") @db.VarChar(50)
+  emergencyContactPhone     String? @map("emergency_contact_phone") @db.VarChar(40)
+  emergencyContactAddress   String? @map("emergency_contact_address") @db.Text
 
   @@index([status])
   @@map("waitlist_entries")
@@ -138,12 +157,13 @@ model Group {
   foundedPeriod   String?     @map("founded_period") @db.VarChar(10)
   status          GroupStatus @default(ACTIVE)
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id])
-  batches    GroupBatch[]
-  members    GroupMember[]
-  parent     Group?             @relation("GroupLineage", fields: [parentGroupId], references: [id])
-  children   Group[]            @relation("GroupLineage")
-  attendance AttendanceRecord[]
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  batches           GroupBatch[]
+  members           GroupMember[]
+  mentorTransitions MentorTransition[]
+  parent            Group?               @relation("GroupLineage", fields: [parentGroupId], references: [id])
+  children          Group[]              @relation("GroupLineage")
+  attendance        AttendanceRecord[]
 
   @@index([tenantId])
   @@index([parentGroupId])
@@ -161,7 +181,7 @@ enum GroupStatus {
 model GroupBatch {
   id           String   @id @db.VarChar(64)
   groupId      String   @map("group_id") @db.VarChar(64)
-  period       String   @db.VarChar(10) // "2026"
+  period       String   @db.VarChar(10) // "2026-07" format YYYY-MM
   batchLabel   String?  @map("batch_label") @db.VarChar(190)
   mentorName   String   @map("mentor_name") @db.VarChar(150)
   comentorName String?  @map("comentor_name") @db.VarChar(150)
@@ -174,6 +194,29 @@ model GroupBatch {
   @@unique([groupId, period])
   @@index([groupId, period])
   @@map("group_batches")
+}
+
+/// Mentor/Comentor transition history (resign → mentee, batch change)
+model MentorTransition {
+  id                String             @id @db.VarChar(64)
+  groupId           String             @map("group_id") @db.VarChar(64)
+  outgoingUserId    String             @map("outgoing_user_id") @db.VarChar(64)
+  incomingUserId    String?            @map("incoming_user_id") @db.VarChar(64)
+  outgoingRole      FamilyRole         @map("outgoing_role")
+  incomingRole      FamilyRole?        @map("incoming_role")
+  effectiveDate     DateTime           @map("effective_date") @db.Date
+  reason            String?            @db.Text
+  note              String?            @db.Text
+  createdById       String             @map("created_by_id") @db.VarChar(64)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+
+  group           Group             @relation(fields: [groupId], references: [id])
+  outgoingUser    User              @relation("MentorTransitionOutgoing", fields: [outgoingUserId], references: [id])
+  incomingUser    User?             @relation("MentorTransitionIncoming", fields: [incomingUserId], references: [id])
+  createdBy       User              @relation("MentorTransitionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([groupId, effectiveDate])
+  @@map("mentor_transitions")
 }
 
 model GroupMember {
@@ -269,7 +312,15 @@ model StrukturMember {
   sortOrder   Int     @default(0) @map("sort_order")
   isOpenRole  Boolean @default(false) @map("is_open_role")
 
+  // Role hierarchy & multi-role support
+  role          Role      @default(MENTEE) @map("role")          // MENTOR | COMENTOR | MENTEE | KOMISI | COMMITTEE | BPMJ | SUPERADMIN | ALUMNI
+  roleOrder     Int       @default(0) @map("role_order")        // hierarchy within division
+  isDoubleRole  Boolean   @default(false) @map("is_double_role") // rangkap jabatan
+  subRoleId     String?   @map("sub_role_id") @db.VarChar(64)   // reference to another StrukturMember as sub-role
+  groupId       String?   @map("group_id") @db.VarChar(64)      // mentoring group if applicable
+
   @@index([division])
+  @@index([groupId])
   @@map("struktur_members")
 }
 
