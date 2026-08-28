@@ -3,12 +3,31 @@
   "buildCommand": "prisma generate && vite build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/groups/(.*)", "destination": "/api/groups" },
+    { "source": "/api/struktur/(.*)", "destination": "/api/struktur" },
+    { "source": "/api/mentor-transitions/(.*)", "destination": "/api/mentor-transitions" },
+    { "source": "/api/regeneration/(.*)", "destination": "/api/regeneration" },
+    { "source": "/api/drive/(.*)", "destination": "/api/drive" },
+    { "source": "/api/events/(.*)", "destination": "/api/events" },
+    { "source": "/api/benzar/(.*)", "destination": "/api/benzar" },
+    { "source": "/api/warta/(.*)", "destination": "/api/warta" },
+    { "source": "/api/gallery/(.*)", "destination": "/api/gallery" },
+    { "source": "/api/paw/(.*)", "destination": "/api/push" },
     { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
-    "api/index.mjs": {
-      "maxDuration": 30,
-      "includeFiles": "server/**"
-    }
+    "api/index.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/groups.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/struktur.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/mentor-transitions.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/regeneration.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/drive.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/events.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/benzar.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/warta.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/gallery.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
+    "api/push.mjs": { "maxDuration": 30, "includeFiles": "server/**" }
+  }
+}
   }
 }
