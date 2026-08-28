@@ -181,7 +181,7 @@ const GoogleRegister: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [registered, setRegistered] = useState<{ status: string; division?: string; subdivision?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (registered) {
+if (registered) {
     const pillarColor = {
       LITURGIA: '#7C3AED',
       DIDASKALIA: '#0EA5E9',
@@ -191,7 +191,7 @@ const GoogleRegister: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }[registered.division] || '#181818';
 
     return (
-<div className="space-y-5">
+      <div className="space-y-5">
         <div className="rounded-[28px] p-5 text-white bg-[${pillarColor}]/20"
           style={{ backgroundImage: `linear-gradient(135deg, ${pillarColor}20 0, transparent 50%)` }}>
           <h3 className="text-lg font-black">
@@ -205,6 +205,14 @@ const GoogleRegister: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
           <Field label="No. WhatsApp" value="" onChange={() => {}} placeholder="08xxxxxxxxxx" />
           <Field label="Asal (kampus / kantor)" value="" onChange={() => {}} placeholder="President University / PT …" />
+          <Field label="Jenis Kelamin *" type="select" value="" onChange={() => {}} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
+          <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
+            <Field label="Nama Kontak Darurat *" value="" onChange={() => {}} placeholder="Nama orang tua / wali / saudara" required />
+            <Field label="Hubungan *" type="select" value="" onChange={() => {}} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
+            <Field label="No. Telepon Kontak Darurat *" value="" onChange={() => {}} placeholder="08xxxxxxxxxx" required />
+            <Field label="Alamat Kontak Darurat *" value="" onChange={() => {}} placeholder="Alamat lengkap" textarea required />
+          </div>
           <GiftTestWizard onFinish={async (result) => {
             setBusy(true);
             try {
@@ -246,13 +254,16 @@ const GoogleRegister: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
 // ---------------- Tahap A — waitlist cepat (tanpa akun) ----------------
 const StageA: React.FC<{ onSuccess: (e: any) => void }> = ({ onSuccess }) => {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', origin: '' });
+  const [form, setForm] = useState({
+    name: '', phone: '', email: '', origin: '',
+    gender: '', emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '', emergencyContactAddress: '',
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.phone.trim()) return;
+    if (!form.name.trim() || !form.phone.trim() || !form.gender || !form.emergencyContactName || !form.emergencyContactRelation || !form.emergencyContactPhone || !form.emergencyContactAddress) return;
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/waitlist', {
@@ -276,6 +287,14 @@ const StageA: React.FC<{ onSuccess: (e: any) => void }> = ({ onSuccess }) => {
       <Field label="No. WhatsApp *" value={form.phone} onChange={(v)=>setForm({...form,phone:v})} placeholder="08xxxxxxxxxx" required />
       <Field label="Email" type="email" value={form.email} onChange={(v)=>setForm({...form,email:v})} placeholder="opsional" />
       <Field label="Asal (kampus / kantor)" value={form.origin} onChange={(v)=>setForm({...form,origin:v})} placeholder="cth. President University" />
+      <Field label="Jenis Kelamin *" type="select" value={form.gender} onChange={(v)=>setForm({...form,gender:v})} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
+      <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
+        <Field label="Nama Kontak Darurat *" value={form.emergencyContactName} onChange={(v)=>setForm({...form,emergencyContactName:v})} placeholder="Nama orang tua / wali / saudara" required />
+        <Field label="Hubungan *" type="select" value={form.emergencyContactRelation} onChange={(v)=>setForm({...form,emergencyContactRelation:v})} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
+        <Field label="No. Telepon Kontak Darurat *" value={form.emergencyContactPhone} onChange={(v)=>setForm({...form,emergencyContactPhone:v})} placeholder="08xxxxxxxxxx" required />
+        <Field label="Alamat Kontak Darurat *" value={form.emergencyContactAddress} onChange={(v)=>setForm({...form,emergencyContactAddress:v})} placeholder="Alamat lengkap" textarea required />
+      </div>
       {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
       <button disabled={busy} className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
         {busy && <Loader2 className="w-4 h-4 animate-spin" />} Daftar Sekarang
@@ -295,6 +314,11 @@ const StageB: React.FC<{ token: string }> = ({ token }) => {
   const [address, setAddress] = useState('');
   const [origin, setOrigin] = useState('');
   const [talents, setTalents] = useState<string[]>([]);
+  const [gender, setGender] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [emergencyContactAddress, setEmergencyContactAddress] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -303,6 +327,11 @@ const StageB: React.FC<{ token: string }> = ({ token }) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Link tidak valid.');
         setEntry(d.entry);
+        if (d.entry?.gender) setGender(d.entry.gender);
+        if (d.entry?.emergencyContactName) setEmergencyContactName(d.entry.emergencyContactName);
+        if (d.entry?.emergencyContactRelation) setEmergencyContactRelation(d.entry.emergencyContactRelation);
+        if (d.entry?.emergencyContactPhone) setEmergencyContactPhone(d.entry.emergencyContactPhone);
+        if (d.entry?.emergencyContactAddress) setEmergencyContactAddress(d.entry.emergencyContactAddress);
         setState('profile');
       })
       .catch((e) => { setError(e.message); setState('error'); });
@@ -325,8 +354,16 @@ const StageB: React.FC<{ token: string }> = ({ token }) => {
 
       {state === 'profile' && (
         <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
+          <Field label="Jenis Kelamin *" type="select" value={gender} onChange={setGender} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
           <Field label="Alamat sekarang" value={address} onChange={setAddress} placeholder="Kost / domisili…" textarea />
           <Field label="Asal (kampus / kantor)" value={origin} onChange={setOrigin} placeholder="President University / PT …" />
+          <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
+            <Field label="Nama Kontak Darurat *" value={emergencyContactName} onChange={setEmergencyContactName} placeholder="Nama orang tua / wali / saudara" required />
+            <Field label="Hubungan *" type="select" value={emergencyContactRelation} onChange={setEmergencyContactRelation} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
+            <Field label="No. Telepon Kontak Darurat *" value={emergencyContactPhone} onChange={setEmergencyContactPhone} placeholder="08xxxxxxxxxx" required />
+            <Field label="Alamat Kontak Darurat *" value={emergencyContactAddress} onChange={setEmergencyContactAddress} placeholder="Alamat lengkap" textarea required />
+          </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider mb-2">Pemetaan Bakat — pilih yang punyalah</p>
             <div className="flex flex-wrap gap-1.5">
@@ -344,7 +381,7 @@ const StageB: React.FC<{ token: string }> = ({ token }) => {
                 await fetch(`/api/waitlist/by-token/${encodeURIComponent(token)}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ address, origin, talents }),
+                  body: JSON.stringify({ address, origin, talents, gender, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress }),
                 });
                 setState('gifttest');
               } finally {
@@ -384,9 +421,17 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
   const [address, setAddress] = useState('');
   const [origin, setOrigin] = useState('');
   const [talents, setTalents] = useState<string[]>([]);
+  const [gender, setGender] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [emergencyContactAddress, setEmergencyContactAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', origin: '' });
+  const [form, setForm] = useState({
+    name: '', email: '', password: '', phone: '', origin: '',
+    gender: '', emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '', emergencyContactAddress: '',
+  });
 
   const toggleTalent = (t2: string) =>
     setTalents((prev) => (prev.includes(t2) ? prev.filter((x) => x !== t2) : [...prev, t2]));
@@ -395,7 +440,7 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
     await fetch('/api/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, origin, talents }),
+      body: JSON.stringify({ address, origin, talents, gender, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress }),
     });
   };
 
@@ -412,8 +457,16 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
         </div>
 
         <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
+          <Field label="Jenis Kelamin *" type="select" value={gender} onChange={setGender} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
           <Field label="Alamat sekarang" value={address} onChange={setAddress} placeholder="Kost / domisili…" textarea />
           <Field label="Asal (kampus / kantor)" value={origin} onChange={setOrigin} placeholder="President University / PT …" />
+          <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
+            <Field label="Nama Kontak Darurat *" value={emergencyContactName} onChange={setEmergencyContactName} placeholder="Nama orang tua / wali / saudara" required />
+            <Field label="Hubungan *" type="select" value={emergencyContactRelation} onChange={setEmergencyContactRelation} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
+            <Field label="No. Telepon Kontak Darurat *" value={emergencyContactPhone} onChange={setEmergencyContactPhone} placeholder="08xxxxxxxxxx" required />
+            <Field label="Alamat Kontak Darurat *" value={emergencyContactAddress} onChange={setEmergencyContactAddress} placeholder="Alamat lengkap" textarea required />
+          </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider mb-2">Pemetaan Bakat</p>
             <div className="flex flex-wrap gap-1.5">
@@ -476,6 +529,14 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
           <Field label="Password * (min. 8 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required />
           <Field label="No. WhatsApp" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
           <Field label="Asal (kampus / kantor)" value={form.origin} onChange={(v) => setForm({ ...form, origin: v })} />
+          <Field label="Jenis Kelamin *" type="select" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
+          <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
+            <Field label="Nama Kontak Darurat *" value={form.emergencyContactName} onChange={(v) => setForm({ ...form, emergencyContactName: v })} placeholder="Nama orang tua / wali / saudara" required />
+            <Field label="Hubungan *" type="select" value={form.emergencyContactRelation} onChange={(v) => setForm({ ...form, emergencyContactRelation: v })} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
+            <Field label="No. Telepon Kontak Darurat *" value={form.emergencyContactPhone} onChange={(v) => setForm({ ...form, emergencyContactPhone: v })} placeholder="08xxxxxxxxxx" required />
+            <Field label="Alamat Kontak Darurat *" value={form.emergencyContactAddress} onChange={(v) => setForm({ ...form, emergencyContactAddress: v })} placeholder="Alamat lengkap" textarea required />
+          </div>
           <button
             onClick={() => {
               setBusy(true); setError('');

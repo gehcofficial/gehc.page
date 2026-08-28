@@ -1850,6 +1850,11 @@ const wlPublic = (w) => ({
   email: w.email,
   origin: w.origin,
   address: w.address,
+  gender: w.gender,
+  emergencyContactName: w.emergencyContactName,
+  emergencyContactRelation: w.emergencyContactRelation,
+  emergencyContactPhone: w.emergencyContactPhone,
+  emergencyContactAddress: w.emergencyContactAddress,
   giftsTop5: w.giftsTop5,
   talents: w.talents,
   status: w.status,
@@ -1863,9 +1868,9 @@ const wlPublic = (w) => ({
 app.post('/api/waitlist', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { name, phone, email, origin, sourceEventId } = req.body || {};
-  if (!name?.trim() || !phone?.trim()) {
-    return res.status(400).json({ error: 'Nama dan nomor WhatsApp wajib diisi.' });
+  const { name, phone, email, origin, sourceEventId, gender, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body || {};
+  if (!name?.trim() || !phone?.trim() || !gender || !emergencyContactName?.trim() || !emergencyContactRelation || !emergencyContactPhone?.trim() || !emergencyContactAddress?.trim()) {
+    return res.status(400).json({ error: 'Nama, WhatsApp, jenis kelamin, dan kontak darurat wajib diisi.' });
   }
   const entry = await prisma.waitlistEntry.create({
     data: {
@@ -1877,6 +1882,11 @@ app.post('/api/waitlist', wrap(async (req, res) => {
       status: 'WAITLISTED',
       sourceEventId: sourceEventId ? String(sourceEventId).slice(0, 64) : null,
       promoteToken: crypto.randomBytes(24).toString('hex'),
+      gender: gender ? String(gender).slice(0, 20) : null,
+      emergencyContactName: emergencyContactName ? String(emergencyContactName).trim().slice(0, 150) : null,
+      emergencyContactRelation: emergencyContactRelation ? String(emergencyContactRelation).slice(0, 50) : null,
+      emergencyContactPhone: emergencyContactPhone ? String(emergencyContactPhone).trim().slice(0, 40) : null,
+      emergencyContactAddress: emergencyContactAddress ? String(emergencyContactAddress).trim() : null,
     },
   });
   res.json({ ok: true, entry: wlPublic(entry) });
@@ -1904,6 +1914,11 @@ app.patch('/api/waitlist/by-token/:token', wrap(async (req, res) => {
       address: b.address ?? w.address,
       origin: b.origin ?? w.origin,
       email: b.email ?? w.email,
+      gender: b.gender ?? w.gender,
+      emergencyContactName: b.emergencyContactName ?? w.emergencyContactName,
+      emergencyContactRelation: b.emergencyContactRelation ?? w.emergencyContactRelation,
+      emergencyContactPhone: b.emergencyContactPhone ?? w.emergencyContactPhone,
+      emergencyContactAddress: b.emergencyContactAddress ?? w.emergencyContactAddress,
       giftsTop5: b.giftsTop5 ?? undefined,
       giftsScores: b.giftsScores ?? undefined,
       talents: b.talents ?? undefined,
@@ -2109,6 +2124,11 @@ app.post('/api/join/local', wrap(async (req, res) => {
         phone: b.phone ? String(b.phone).slice(0, 40) : null,
         address: b.address ? String(b.address).slice(0, 1000) : null,
         origin: b.origin ? String(b.origin).slice(0, 190) : null,
+        gender: b.gender ? String(b.gender).slice(0, 20) : null,
+        emergencyContactName: b.emergencyContactName ? String(b.emergencyContactName).trim().slice(0, 150) : null,
+        emergencyContactRelation: b.emergencyContactRelation ? String(b.emergencyContactRelation).slice(0, 50) : null,
+        emergencyContactPhone: b.emergencyContactPhone ? String(b.emergencyContactPhone).trim().slice(0, 40) : null,
+        emergencyContactAddress: b.emergencyContactAddress ? String(b.emergencyContactAddress).trim() : null,
         talents: Array.isArray(b.talents) ? b.talents : undefined,
         giftsTop5: Array.isArray(b.giftsTop5) ? b.giftsTop5 : undefined,
         authProvider: 'LOCAL',
@@ -2140,9 +2160,10 @@ app.patch('/api/me', wrap(async (req, res) => {
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const b = req.body || {};
   const data = {};
-  for (const k of ['phone', 'address', 'origin']) {
+  for (const k of ['phone', 'address', 'origin', 'gender', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone', 'emergencyContactAddress']) {
     if (b[k] !== undefined) data[k] = String(b[k]).slice(0, 1000);
   }
+  if (b.profileReminderDays !== undefined) data.profileReminderDays = Number(b.profileReminderDays);
   if (Array.isArray(b.talents)) data.talents = b.talents;
   if (Array.isArray(b.giftsTop5)) data.giftsTop5 = b.giftsTop5;
   if (b.giftsScores && typeof b.giftsScores === 'object') data.giftsScores = b.giftsScores;
@@ -2182,6 +2203,11 @@ app.post('/api/register/google', wrap(async (req, res) => {
     const profile = {
       phone: req.body?.phone ? String(req.body.phone).slice(0, 40) : null,
       origin: req.body?.origin ? String(req.body.origin).slice(0, 190) : null,
+      gender: req.body?.gender ? String(req.body.gender).slice(0, 20) : null,
+      emergencyContactName: req.body?.emergencyContactName ? String(req.body.emergencyContactName).trim().slice(0, 150) : null,
+      emergencyContactRelation: req.body?.emergencyContactRelation ? String(req.body.emergencyContactRelation).slice(0, 50) : null,
+      emergencyContactPhone: req.body?.emergencyContactPhone ? String(req.body.emergencyContactPhone).trim().slice(0, 40) : null,
+      emergencyContactAddress: req.body?.emergencyContactAddress ? String(req.body.emergencyContactAddress).trim() : null,
       talents: Array.isArray(req.body?.talents) ? req.body.talents : undefined,
       giftsTop5: Array.isArray(req.body?.giftsTop5) ? req.body.giftsTop5 : undefined,
     };
