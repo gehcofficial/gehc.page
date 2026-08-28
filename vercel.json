@@ -3,12 +3,12 @@
   "buildCommand": "prisma generate && vite build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
+    { "source": "/api/db/struktur(.*)", "destination": "/api/db/struktur$1" },
+    { "source": "/api/db/groups(.*)", "destination": "/api/db/groups$1" },
+    { "source": "/api/db/sync-(.*)", "destination": "/api/db/sync$1" },
+    { "source": "/api/(.*)", "destination": "/api$1" }
   ],
   "functions": {
-    "api/index.mjs": {
-      "maxDuration": 30,
-      "includeFiles": "server/**"
-    }
+    "api/index.mjs": { "maxDuration": 30, "includeFiles": "server/**" }
   }
 }
