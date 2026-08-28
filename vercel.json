@@ -3,33 +3,12 @@
   "buildCommand": "prisma generate && vite build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/db/struktur(.*)", "destination": "/api/struktur$1" },
-    { "source": "/api/db/groups(.*)", "destination": "/api/groups$1" },
-    { "source": "/api/db/sync-(.*)", "destination": "/api/struktur$1" },
-    { "source": "/api/struktur/(.*)", "destination": "/api/struktur$1" },
-    { "source": "/api/groups/(.*)", "destination": "/api/groups$1" },
-    { "source": "/api/mentor-transitions/(.*)", "destination": "/api/mentor-transitions$1" },
-    { "source": "/api/groups/(.*)/mentor-transitions(.*)", "destination": "/api/mentor-transitions$1" },
-    { "source": "/api/regeneration/(.*)", "destination": "/api/regeneration$1" },
-    { "source": "/api/drive/(.*)", "destination": "/api/drive$1" },
-    { "source": "/api/events/(.*)", "destination": "/api/events$1" },
-    { "source": "/api/benzar/(.*)", "destination": "/api/benzar$1" },
-    { "source": "/api/warta/(.*)", "destination": "/api/warta$1" },
-    { "source": "/api/gallery/(.*)", "destination": "/api/gallery$1" },
-    { "source": "/api/paw/(.*)", "destination": "/api/push$1" },
-    { "source": "/api/(.*)", "destination": "/api$1" }
+    { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
-    "api/index.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/groups.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/struktur.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/mentor-transitions.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/regeneration.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/drive.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/events.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/benzar.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/warta.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/gallery.mjs": { "maxDuration": 30, "includeFiles": "server/**" },
-    "api/push.mjs": { "maxDuration": 30, "includeFiles": "server/**" }
+    "api/index.mjs": {
+      "maxDuration": 30,
+      "includeFiles": "server/**"
+    }
   }
 }
