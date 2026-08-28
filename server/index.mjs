@@ -1746,6 +1746,11 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
       email: m.email ?? null,
       sortOrder: Number.isFinite(m.order) ? m.order : i,
       isOpenRole: Boolean(m.isOpenRole ?? m.is_open_role),
+      role: m.role ?? null,
+      roleOrder: Number.isFinite(m.roleOrder) ? m.roleOrder : 0,
+      isDoubleRole: Boolean(m.isDoubleRole ?? false),
+      subRoleId: m.subRoleId ?? null,
+      groupId: m.groupId ?? null,
     };
     await prisma.strukturMember.upsert({ where: { id: m.id }, create: { id: m.id, ...data }, update: data });
   }

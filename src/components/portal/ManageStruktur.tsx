@@ -35,6 +35,12 @@ type FormState = {
   bio: string;
   order: number;
   isOpenRole: boolean;
+  // Role hierarchy fields
+  role: 'MENTOR' | 'CO_MENTOR' | 'MENTEE' | 'ALUMNI' | 'COMMITTEE' | 'KOMISI' | 'BPMJ';
+  roleOrder: number;
+  isDoubleRole: boolean;
+  subRoleId: string;
+  groupId: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -48,6 +54,11 @@ const emptyForm = (): FormState => ({
   bio: '',
   order: 99,
   isOpenRole: false,
+  role: 'MENTEE',
+  roleOrder: 0,
+  isDoubleRole: false,
+  subRoleId: '',
+  groupId: '',
 });
 
 /**
@@ -115,6 +126,11 @@ export const ManageStruktur: React.FC = () => {
       bio: m.bio || '',
       order: m.order,
       isOpenRole: Boolean(m.isOpenRole),
+      role: m.role || 'MENTEE',
+      roleOrder: m.roleOrder || 0,
+      isDoubleRole: Boolean(m.isDoubleRole),
+      subRoleId: m.subRoleId || '',
+      groupId: m.groupId || '',
     });
     setIsModalOpen(true);
   };
@@ -134,6 +150,11 @@ export const ManageStruktur: React.FC = () => {
       bio: formData.bio,
       order: Number(formData.order),
       isOpenRole: formData.isOpenRole,
+      role: formData.isOpenRole ? undefined : formData.role,
+      roleOrder: formData.isOpenRole ? 0 : formData.roleOrder,
+      isDoubleRole: formData.isOpenRole ? false : formData.isDoubleRole,
+      subRoleId: formData.isOpenRole ? undefined : (formData.subRoleId.trim() || undefined),
+      groupId: formData.isOpenRole ? undefined : (formData.groupId.trim() || undefined),
     };
 
     if (editingMember) updateStrukturMember(editingMember.id, payload);
@@ -429,6 +450,40 @@ export const ManageStruktur: React.FC = () => {
               {m.bio && (
                 <p className="text-xs text-[#8C8880] line-clamp-2 mb-4 leading-relaxed">{m.bio}</p>
               )}
+              {!m.isOpenRole && m.role && (
+                <div className="mb-3 p-2 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0]/50">
+                  <div className="flex flex-wrap gap-2 text-[10px]">
+                    <span className="px-2 py-0.5 rounded-full bg-white border border-[#D9D7D0] font-bold text-[#181818]">
+                      {m.role}
+                    </span>
+                    {m.roleOrder !== undefined && m.roleOrder !== null && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#E5E7EB] text-[#6B7280] font-mono">
+                        H#{m.roleOrder}
+                      </span>
+                    )}
+                    {m.isDoubleRole && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#B45309] font-bold">
+                        Dobel
+                      </span>
+                    )}
+                    {m.subRoleId && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8] font-mono text-[9px]">
+                        {m.subRoleId}
+                      </span>
+                    )}
+                    {m.groupId && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#FCE7F3] text-[#BE185D] font-mono text-[9px]">
+                        {m.groupId}
+                      </span>
+                    )}
+                    {m.role === 'ALUMNI' && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[#9CA3AF] font-bold">
+                        ALUMNI
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="pt-3 border-t border-[#D9D7D0]/40 flex items-center justify-between">
                 <span className="text-[10px] text-[#8C8880] font-mono">#{m.order}</span>
                 <div className="flex items-center gap-1.5">
@@ -564,6 +619,80 @@ export const ManageStruktur: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Role Hierarchy Fields */}
+              {!formData.isOpenRole && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#D9D7D0]/40">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                      Peran Organisasi <span className="normal-case text-[#8C8880]">(hirarki)</span>
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as FormState['role'] })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                    >
+                      <option value="BPMJ">BPMJ — Badan Pekerja Majelis Jemaat</option>
+                      <option value="KOMISI">KOMISI — Komisi Pemuda</option>
+                      <option value="COMMITTEE">COMMITTEE — Tim Kerja Pusat</option>
+                      <option value="MENTOR">MENTOR — Pembimbing Kelompok</option>
+                      <option value="CO_MENTOR">CO_MENTOR — Co-Pembimbing</option>
+                      <option value="MENTEE">MENTEE — Anggota / Mentee</option>
+                      <option value="ALUMNI">ALUMNI — Alumni / Bekas Pengurus</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                      Urutan Hirarki <span className="normal-case text-[#8C8880]">(semakin kecil = semakin atas)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.roleOrder}
+                      onChange={(e) => setFormData({ ...formData, roleOrder: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                      Dobel Peran <span className="normal-case text-[#8C8880]">(mis. Mentor + PIC Sub-Divisi)</span>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-[#D9D7D0] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isDoubleRole}
+                        onChange={(e) => setFormData({ ...formData, isDoubleRole: e.target.checked })}
+                        className="w-4 h-4 accent-[#FF416C]"
+                      />
+                      <span className="text-xs font-bold">Ya, memegang dobel peran</span>
+                    </label>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                      Sub-Role ID <span className="normal-case text-[#8C8880]">(ID sub-jabatan spesifik, opsional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="cth. sub-role-konsumsi, sub-role-pendoa"
+                      value={formData.subRoleId}
+                      onChange={(e) => setFormData({ ...formData, subRoleId: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-mono text-[11px] focus:outline-none focus:border-black"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                      Grup Mentoring ID <span className="normal-case text-[#8C8880]">(hanya untuk MENTOR/CO_MENTOR, opsional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="cth. grp-agape-2026"
+                      value={formData.groupId}
+                      onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-mono text-[11px] focus:outline-none focus:border-black"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider block mb-1">

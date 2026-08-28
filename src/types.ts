@@ -129,6 +129,18 @@ export interface StrukturMember {
   order: number;
   /** true = posisi terbuka (belum ada nama) — tampil sebagai struktur, bukan orang */
   isOpenRole?: boolean;
+
+  // NEW: Role hierarchy fields (Phase 6)
+  /** Peran organisasi: MENTOR, CO_MENTOR, MENTEE, ALUMNI, COMMITTEE, KOMISI, BPMJ */
+  role?: 'MENTOR' | 'CO_MENTOR' | 'MENTEE' | 'ALUMNI' | 'COMMITTEE' | 'KOMISI' | 'BPMJ';
+  /** Urutan dalam hirarki peran (semakin kecil = semakin atas) */
+  roleOrder?: number;
+  /** Apakah memegang dobel peran (mis. Mentor + PIC Sub-Divisi) */
+  isDoubleRole?: boolean;
+  /** ID sub-role jika ada (mis. PIC Konsumsi di bawah DIAKONIA) */
+  subRoleId?: string;
+  /** ID grup mentoring (jika peran MENTOR/CO_MENTOR) */
+  groupId?: string;
 }
 
 export interface DriveFolder {
