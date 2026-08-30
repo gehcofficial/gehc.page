@@ -74,7 +74,7 @@ export function reminderDue(user: {
 export function profileSegments(user: Record<string, unknown>) {
   const statuses = Array.isArray(user?.lifeStatuses) ? (user.lifeStatuses as string[]) : [];
   const scope = user?.addressScope === 'INTL' ? 'INTL' : 'ID';
-  const contactBase = Boolean(user?.phone && user?.gender);
+  const contactBase = Boolean(user?.phone && user?.gender && user?.birthDate);
   const contactAddr =
     scope === 'INTL'
       ? Boolean(user?.addressCountry && user.addressCountry !== 'ID' && user?.city && user?.addressLine)
@@ -94,5 +94,5 @@ export function profileSegments(user: Record<string, unknown>) {
     ? (user.recreational as unknown[]).length > 0
     : Array.isArray(user?.recreationalIds) && (user.recreationalIds as unknown[]).length > 0;
   const emergency = Boolean(user?.emergencyContactName && user?.emergencyContactPhone);
-  return { contact: contact && uniOk && workOk && schoolOk, life, gifts, recreational: rec, emergency };
+  return { contact: contact && uniOk && workOk && schoolOk, birthDate: Boolean(user?.birthDate), life, gifts, recreational: rec, emergency };
 }

@@ -51,8 +51,13 @@ interface AppContextType {
   userAssignedGroupId?: string;
   isSuperAdmin: boolean;
   isCommittee: boolean;
+  isKomisi: boolean;
+  isBpmj: boolean;
   isMentor: boolean;
+  isCoMentor: boolean;
+  isGroupMentor: boolean;
   isMentee: boolean;
+  isAlumni: boolean;
   canAccess: (resource: 'settings_users' | 'settings_integrations' | 'content_manage' | 'groups_all' | 'group_monitoring_write' | 'struktur_manage', groupId?: string) => boolean;
 
   // Google SSO nyata (server-backed)
@@ -571,7 +576,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isCommittee = currentRole === 'COMMITTEE';
   const isMentor = currentRole === 'MENTOR';
   const isCoMentor = currentRole === 'CO_MENTOR';
+  const isGroupMentor = isMentor || isCoMentor;
   const isMentee = currentRole === 'MENTEE';
+  const isAlumni = currentRole === 'ALUMNI';
 
   // Strict RBAC Access Checker per revision-v2-beyonders.md (L1–L8)
   const canAccess = (
@@ -587,7 +594,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switch (resource) {
       case 'settings_users':
       case 'settings_integrations':
-        return isSuperAdmin; // L1
+        return isSuperAdmin || isKomisi; // L1 + Komisi integrasi
       case 'content_manage':
       case 'struktur_manage':
         return isSuperAdmin || isCommittee || isKomisi; // L1, L3, L4
@@ -934,8 +941,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userAssignedGroupId,
         isSuperAdmin,
         isCommittee,
+        isKomisi,
+        isBpmj,
         isMentor,
+        isCoMentor,
+        isGroupMentor,
         isMentee,
+        isAlumni,
         canAccess,
 
         authUser,

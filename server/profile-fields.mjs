@@ -56,7 +56,7 @@ export function reminderDue(user) {
 }
 
 function contactComplete(user) {
-  if (!user?.phone || !user?.gender) return false;
+  if (!user?.phone || !user?.gender || !user?.birthDate) return false;
   const scope = user.addressScope === 'INTL' ? 'INTL' : 'ID';
   if (scope === 'INTL') {
     return Boolean(user.addressCountry && user.addressCountry !== 'ID' && user.city && user.addressLine);
@@ -83,6 +83,7 @@ export function profileSegments(user) {
   const emergency = Boolean(user?.emergencyContactName && user?.emergencyContactPhone);
   return {
     contact: contact && uniOk && workOk && schoolOk,
+    birthDate: Boolean(user?.birthDate),
     life,
     gifts,
     recreational: rec,

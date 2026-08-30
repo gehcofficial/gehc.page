@@ -123,7 +123,7 @@ export const JoinPage: React.FC = () => {
   const params = new URLSearchParams(hashQuery);
   const tokenFromUrl = params.get('token');
   const invFromUrl = params.get('inv');
-  const [entryMode, setEntryMode] = useState<'waitlist' | 'google'>('waitlist');
+  const [entryMode, setEntryMode] = useState<'waitlist' | 'google'>('google');
 
   return (
     <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto">
@@ -135,12 +135,11 @@ export const JoinPage: React.FC = () => {
           ? 'Lengkapi Profil'
           : invFromUrl
           ? 'Gabung Tim Pelayanan'
-          : 'Gabung Waitlist'}
+          : 'Gabung GEHC Youth'}
       </h1>
       <p className="text-sm text-[#8C8880] mb-8 leading-relaxed">
-        Sabtu 5 September 2026 · 16.00 WIB · President University, Cikarang.
-        Daftar dulu — kamu akan mendapat info khusus agenda dan dipertemukan
-        dengan rumah pemuridan yang cocok.
+        Daftar dengan Google atau link undangan untuk masuk pipeline onboarding lengkap.
+        Profil, tes karunia, dan penempatan role akan ditangani admin.
       </p>
 
       {tokenFromUrl ? (
@@ -156,12 +155,12 @@ export const JoinPage: React.FC = () => {
             <button onClick={() => setEntryMode('google')}
               className="text-left p-5 rounded-[24px] bg-[#181818] text-white border border-transparent hover:border-white/30 transition-all">
               <p className="text-sm font-black flex items-center gap-2">⚡ Daftar dengan Google</p>
-              <p className="text-xs text-white/60 mt-1">Satu klik, tanpa password — langsung punya akun.</p>
+              <p className="text-xs text-white/60 mt-1">Rekomendasi — masuk WaitingPool & onboarding penuh.</p>
             </button>
             <button onClick={() => setEntryMode('waitlist')}
-              className="text-left p-5 rounded-[24px] bg-white border border-[#D9D7D0] hover:border-black transition-all">
-              <p className="text-sm font-black">Gabung Waitlist</p>
-              <p className="text-xs text-[#8C8880] mt-1">Nama + WhatsApp dulu, akun menyusul.</p>
+              className="text-left p-5 rounded-[24px] bg-white border border-[#D9D7D0] hover:border-black transition-all opacity-60">
+              <p className="text-sm font-black">Waitlist legacy (deprecated)</p>
+              <p className="text-xs text-[#8C8880] mt-1">Hanya untuk data lama — gunakan Google/undangan.</p>
             </button>
           </div>
           <StageA onSuccess={(entry) => {

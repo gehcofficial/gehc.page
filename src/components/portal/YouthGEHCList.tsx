@@ -62,6 +62,13 @@ interface YouthUser {
   authProvider?: string;
   recreational?: Array<{ id: string; slug: string; name: string; kind?: string; parentId?: string | null }>;
   recreationalIds?: string[];
+  birthDate?: string | null;
+  demographics?: {
+    age?: number | null;
+    daysToBirthday?: number | null;
+    bipraMismatch?: boolean;
+    bipraSuggest?: { suggested?: string | null; reason?: string; needsConfirm?: boolean };
+  };
   roles: UserRoleLegacy[];
   roleAssignments: RoleAssignment[];
 }
@@ -76,6 +83,7 @@ interface EditForm {
   bipra: string;
   kolomId: string;
   recreationalIds: string[];
+  birthDate: string;
 }
 
 type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ';
@@ -315,10 +323,11 @@ export const YouthGEHCList: React.FC = () => {
   const [subFilter, setSubFilter] = useState<string | null>(null);
   const [assignWizardUser, setAssignWizardUser] = useState<{ id: string; name: string; email: string } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [] };
+  const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
+  const [birthdayFilter, setBirthdayFilter] = useState(false);
   const [kolomFilter, setKolomFilter] = useState('');
   const [domicileFilter, setDomicileFilter] = useState('');
   const [recFilter, setRecFilter] = useState('');
@@ -357,7 +366,49 @@ export const YouthGEHCList: React.FC = () => {
       bipra: user.bipra || 'PEMUDA',
       kolomId: user.kolomId || '',
       recreationalIds: user.recreationalIds || user.recreational?.map((g) => g.id) || [],
+      birthDate: user.birthDate ? String(user.birthDate).slice(0, 10) : '',
     });
+  };
+
+  const approveBipraSuggest = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/jemaat/${userId}/bipra-suggest`, { method: 'PATCH', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal');
+      addToast({ type: 'success', title: 'BIPRA diperbarui', description: 'Kategorial disesuaikan dengan usulan demografi.' });
+      fetchData();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    }
+  };
+
+  const renderBipraBanner = (y: YouthUser) => {
+    const suggest = y.demographics?.bipraSuggest;
+    const mismatch =
+      y.demographics?.bipraMismatch ||
+      (suggest?.suggested && y.bipra && suggest.suggested !== y.bipra);
+    if (!mismatch || !suggest?.suggested) return null;
+    const currentLabel = BIPRA_TABS.find((t) => t.id === y.bipra)?.label || y.bipra || '—';
+    const suggestedLabel =
+      BIPRA_TABS.find((t) => t.id === suggest.suggested)?.label || suggest.suggested;
+    return (
+      <div className="mb-3 rounded-xl bg-amber-50 border border-amber-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="text-[11px] text-amber-900">
+          <p className="font-bold">Konfirmasi kategorial BIPRA</p>
+          <p className="mt-0.5">
+            Saat ini: {currentLabel}. Usulan: {suggestedLabel}.
+            {suggest.reason ? ` ${suggest.reason}` : ''}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => approveBipraSuggest(y.id)}
+          className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold"
+        >
+          Setujui {suggestedLabel}
+        </button>
+      </div>
+    );
   };
 
   const openCreateModal = () => {
@@ -395,6 +446,7 @@ export const YouthGEHCList: React.FC = () => {
             kolomId: editForm.kolomId || null,
             isBeyonders: editForm.isBeyonders,
             recreationalIds: editForm.recreationalIds,
+            birthDate: editForm.birthDate || null,
           }),
         });
         if (!res.ok) {
@@ -417,6 +469,7 @@ export const YouthGEHCList: React.FC = () => {
             bipra: editForm.bipra,
             kolomId: editForm.kolomId || null,
             recreationalIds: editForm.recreationalIds,
+            birthDate: editForm.birthDate || null,
           }),
         });
         if (!res.ok) {
@@ -443,6 +496,7 @@ export const YouthGEHCList: React.FC = () => {
       if (kolomFilter) qs.set('kolomId', kolomFilter);
       if (domicileFilter) qs.set('addressScope', domicileFilter);
       if (recFilter) qs.set('recreational', recFilter);
+      if (birthdayFilter) qs.set('birthdayWithin', '30');
       const res = await fetch(`/api/jemaat?${qs.toString()}`, { credentials: 'include' });
       if (res.ok) {
         const d = await res.json();
@@ -453,7 +507,7 @@ export const YouthGEHCList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [bipraFilter, kolomFilter, domicileFilter, recFilter]);
+  }, [bipraFilter, kolomFilter, domicileFilter, recFilter, birthdayFilter]);
 
   const fetchMeta = useCallback(async () => {
     try {
@@ -845,6 +899,15 @@ export const YouthGEHCList: React.FC = () => {
             ))}
           </select>
         )}
+        <button
+          type="button"
+          onClick={() => setBirthdayFilter((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+            birthdayFilter ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'
+          }`}
+        >
+          Ulang tahun 30 hari
+        </button>
       </div>
 
       {/* Search */}
@@ -1058,6 +1121,10 @@ export const YouthGEHCList: React.FC = () => {
                         <p className="text-[10px] text-[#8C8880] truncate">
                           {y.email || 'Belum ada email'}
                           {y.kolom ? ` · ${y.kolom.name}` : ''}
+                          {y.demographics?.age != null ? ` · ${y.demographics.age} th` : ''}
+                          {y.demographics?.daysToBirthday != null && y.demographics.daysToBirthday <= 30
+                            ? ` · HUT ${y.demographics.daysToBirthday}h`
+                            : ''}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-1 shrink-0 max-w-[220px] justify-end">
@@ -1123,6 +1190,7 @@ export const YouthGEHCList: React.FC = () => {
                   {isExpanded && (
                     <div className="px-4 pb-4 border-t border-[#D9D7D0]/40">
                       <div className="pt-3 space-y-2">
+                        {renderBipraBanner(y)}
                         {roles.length === 0 ? (
                           <p className="text-xs text-[#8C8880]">Tidak ada role aktif.</p>
                         ) : (
@@ -1190,6 +1258,10 @@ export const YouthGEHCList: React.FC = () => {
                         <p className="text-[10px] text-[#8C8880] truncate">
                           {y.email || 'Belum ada email'}
                           {y.kolom ? ` · ${y.kolom.name}` : ''}
+                          {y.demographics?.age != null ? ` · ${y.demographics.age} th` : ''}
+                          {y.demographics?.daysToBirthday != null && y.demographics.daysToBirthday <= 30
+                            ? ` · HUT ${y.demographics.daysToBirthday}h`
+                            : ''}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-1 shrink-0 max-w-[220px] justify-end">
@@ -1254,6 +1326,7 @@ export const YouthGEHCList: React.FC = () => {
                   {isExpanded && (
                     <div className="px-4 pb-4 border-t border-[#D9D7D0]/40">
                       <div className="pt-3 space-y-2">
+                        {renderBipraBanner(y)}
                         {roles.length === 0 ? (
                           <p className="text-xs text-[#8C8880]">Tidak ada role aktif.</p>
                         ) : (
@@ -1452,6 +1525,16 @@ export const YouthGEHCList: React.FC = () => {
                   <option value="LAKI-LAKI">Laki-laki</option>
                   <option value="PEREMPUAN">Perempuan</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Tanggal lahir</label>
+                <input
+                  type="date"
+                  value={editForm.birthDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setEditForm({ ...editForm, birthDate: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                />
               </div>
               <div>
                 <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Telepon</label>

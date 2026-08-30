@@ -59,6 +59,7 @@ import {
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from './onboarding-sync.mjs';
 import { assignRoleToUser } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
+import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8787);
@@ -201,6 +202,7 @@ app.get('/api/me/profile', wrap(async (req, res) => {
   } catch { /* table may not exist yet */ }
   res.json({
     user: view,
+    demographics: enrichUserDemographics(view),
     reminderDue: reminderDue(user),
     segments: profileSegments({ ...view, recreationalIds }),
     recreationalSuggestions,
@@ -216,6 +218,11 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const data = {};
   if (body.gender !== undefined) data.gender = body.gender ? String(body.gender) : null;
   if (body.phone !== undefined) data.phone = body.phone ? String(body.phone) : null;
+  if (body.birthDate !== undefined) {
+    const parsed = parseBirthDateInput(body.birthDate);
+    if (body.birthDate && !parsed) return res.status(400).json({ error: 'Tanggal lahir tidak valid.' });
+    data.birthDate = parsed;
+  }
   const err = applyLifeAddressFields(body, data);
   if (err) return res.status(400).json({ error: err });
   if (body.giftsTop5 !== undefined) {
@@ -242,7 +249,12 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const recreationalIds = (user.recreational || []).map((m) => m.groupId);
   const view = { ...user, recreational: (user.recreational || []).map((m) => m.group), recreationalIds };
   try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
-  res.json({ user: view, reminderDue: false, segments: profileSegments({ ...view, recreationalIds }) });
+  res.json({
+    user: view,
+    demographics: enrichUserDemographics(view),
+    reminderDue: false,
+    segments: profileSegments({ ...view, recreationalIds }),
+  });
 }));
 
 app.post('/api/me/profile/confirm', wrap(async (req, res) => {
@@ -2785,46 +2797,12 @@ app.get('/api/waitlist', requireRole(...KOMISION), wrap(async (req, res) => {
   res.json({ entries: entries.map(wlPublic) });
 }));
 
-// Panel: assign ke rumah (mentee baru)
-app.post('/api/waitlist/:id/assign', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const groupId = req.body?.groupId;
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
-  if (!group) return res.status(400).json({ error: 'Grup tujuan tidak ditemukan.' });
-  const w = await prisma.waitlistEntry.findUnique({ where: { id: req.params.id } });
-  if (!w) return res.status(404).json({ error: 'Entri waitlist tidak ditemukan.' });
-
-  await prisma.groupMember.create({
-    data: {
-      id: `gm-wl-${w.id.slice(-8)}`,
-      groupId,
-      name: w.name,
-      email: w.email,
-      phone: w.phone,
-      familyRole: 'MENTEE',
-      status: 'ACTIVE',
-      batchPeriod: String(new Date().getFullYear()),
-    },
+// Panel: assign ke rumah (mentee baru) — deprecated, gunakan Onboarding Pipeline
+app.post('/api/waitlist/:id/assign', requireRole(...KOMISION_CORE), wrap(async (_req, res) => {
+  res.status(410).json({
+    error: 'Waitlist assign sudah tidak dipakai. Gunakan Onboarding Pipeline → Jethro Placement Review.',
+    redirect: 'onboarding',
   });
-  const count = await prisma.groupMember.count({ where: { groupId, status: 'ACTIVE' } });
-  await prisma.group.update({ where: { id: groupId }, data: { memberCount: count } });
-
-  // Bila pendaftar ternyata sudah punya akun (pernah SSO), tautkan + beri role MENTEE
-  if (w.email) {
-    const u = await prisma.user.findUnique({ where: { email: w.email } });
-    if (u) {
-      await prisma.groupMember.updateMany({ where: { id: `gm-wl-${w.id.slice(-8)}` }, data: { userId: u.id } });
-      const has = await prisma.userRole.findFirst({ where: { userId: u.id, role: 'MENTEE' } });
-      if (!has) await prisma.userRole.create({ data: { userId: u.id, tenantId: 'tenant-youth', role: 'MENTEE', groupId } });
-    }
-  }
-
-  const updated = await prisma.waitlistEntry.update({
-    where: { id: w.id },
-    data: { status: 'ASSIGNED', assignedGroupId: groupId },
-  });
-  res.json({ ok: true, entry: wlPublic(updated) });
 }));
 
 // ---------- Invites ----------
@@ -3515,11 +3493,12 @@ function jemaatInclude() {
 }
 
 function serializeJemaat(u) {
-  return {
+  const base = {
     ...u,
     recreationalIds: (u.recreational || []).map((m) => m.groupId),
     recreational: (u.recreational || []).map((m) => m.group),
   };
+  return { ...base, demographics: enrichUserDemographics(base) };
 }
 
 function collectRecreationalLeafIds(all, rootId) {
@@ -3537,7 +3516,7 @@ function collectRecreationalLeafIds(all, rootId) {
   return ids;
 }
 
-async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope }) {
+async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope, birthdayWithin }) {
   const where = {};
   if (bipra && BIPRA_VALUES.includes(bipra)) where.bipra = bipra;
   if (kolomId === 'none') where.kolomId = null;
@@ -3558,7 +3537,12 @@ async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope 
     include: jemaatInclude(),
     orderBy: { name: 'asc' },
   });
-  return youth.map(serializeJemaat);
+  let rows = youth.map(serializeJemaat);
+  if (birthdayWithin) {
+    const days = Number(birthdayWithin) || 30;
+    rows = rows.filter((u) => u.birthDate && isBirthdayWithinDays(u.birthDate, days));
+  }
+  return rows;
 }
 
 app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
@@ -3769,8 +3753,35 @@ app.get('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
     kolomId: String(req.query.kolomId || ''),
     recreational: String(req.query.recreational || ''),
     addressScope: String(req.query.addressScope || ''),
+    birthdayWithin: req.query.birthdayWithin ? String(req.query.birthdayWithin) : '',
   });
   res.json({ youth });
+}));
+
+app.get('/api/jemaat/birthdays/upcoming', requireRole(...KOMISION, 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const days = Number(req.query.days || 7);
+  const all = await queryJemaat(prisma, { birthdayWithin: String(days) });
+  const sorted = all
+    .map((u) => ({ id: u.id, name: u.name, birthDate: u.birthDate, daysToBirthday: u.demographics?.daysToBirthday }))
+    .sort((a, b) => (a.daysToBirthday ?? 999) - (b.daysToBirthday ?? 999))
+    .slice(0, 10);
+  res.json({ birthdays: sorted });
+}));
+
+app.patch('/api/jemaat/:id/bipra-suggest', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+  const { suggested } = enrichUserDemographics(user).bipraSuggest;
+  if (!suggested) return res.status(400).json({ error: 'Tidak ada usulan BIPRA.' });
+  const data = { bipra: suggested };
+  if (suggested !== 'PEMUDA') data.isBeyonders = false;
+  await prisma.user.update({ where: { id: user.id }, data });
+  const updated = await prisma.user.findUnique({ where: { id: user.id }, include: jemaatInclude() });
+  res.json({ ok: true, user: serializeJemaat(updated) });
 }));
 
 app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
@@ -3839,14 +3850,6 @@ app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (r
   res.json({ user });
 }));
 
-/** GET /api/youth-gehc — alias Pemuda (kompatibel UI lama) */
-app.get('/api/youth-gehc', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const youth = await queryJemaat(prisma, { bipra: 'PEMUDA', kolomId: '', recreational: '' });
-  res.json({ youth });
-}));
-
 /** PATCH /api/admin/users/:id — Admin edit profil jemaat */
 app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3863,6 +3866,11 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   }
   if (gender !== undefined) data.gender = gender ? String(gender) : null;
   if (phone !== undefined) data.phone = phone ? String(phone) : null;
+  if (req.body?.birthDate !== undefined) {
+    const parsed = parseBirthDateInput(req.body.birthDate);
+    if (req.body.birthDate && !parsed) return res.status(400).json({ error: 'Tanggal lahir tidak valid.' });
+    data.birthDate = parsed;
+  }
   const fieldErr = applyLifeAddressFields(req.body || {}, data);
   if (fieldErr) return res.status(400).json({ error: fieldErr });
   if (giftsTop5 !== undefined) {

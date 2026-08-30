@@ -101,7 +101,8 @@ interface EligibleNewcomer {
 }
 
 export const JethroPlacementReview: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, currentRole } = useApp();
+  const canWritePlacement = currentRole !== 'BPMJ';
 
   // State
   const [eligibleNewcomers, setEligibleNewcomers] = useState<EligibleNewcomer[]>([]);
@@ -321,13 +322,21 @@ export const JethroPlacementReview: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Jethro Placement Review</h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
             Review rekomendasi penempatan newcomer ke kelompok mentoring.
+            {!canWritePlacement && ' Mode baca-saja untuk BPMJ.'}
           </p>
         </div>
+
+        {!canWritePlacement && (
+          <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-xs text-blue-800 mb-4">
+            Anda login sebagai BPMJ — dapat melihat batch penempatan, tetapi approve/commit hanya untuk Komisi.
+          </div>
+        )}
 
         {/* Eligible Newcomers */}
         <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">Newcomer Eligible ({eligibleNewcomers.length})</h3>
+            {canWritePlacement && (
             <button
               onClick={handleGenerate}
               disabled={eligibleNewcomers.length === 0 || generating}
@@ -336,6 +345,7 @@ export const JethroPlacementReview: React.FC = () => {
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               {generating ? 'Menganalisis...' : 'Generate Rekomendasi'}
             </button>
+            )}
           </div>
 
           {eligibleNewcomers.length === 0 ? (
@@ -398,6 +408,7 @@ export const JethroPlacementReview: React.FC = () => {
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Jethro Placement Review</h2>
             <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
               Review & approve rekomendasi penempatan newcomer ke kelompok mentoring.
+              {!canWritePlacement && ' Mode baca-saja untuk BPMJ.'}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -407,6 +418,12 @@ export const JethroPlacementReview: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {!canWritePlacement && (
+        <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-xs text-blue-800">
+          Anda login sebagai BPMJ — dapat melihat batch penempatan, tetapi approve/commit hanya untuk Komisi.
+        </div>
+      )}
 
       {/* Batch Selector + Stats */}
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
@@ -479,7 +496,7 @@ export const JethroPlacementReview: React.FC = () => {
         </div>
 
         {/* Bulk Actions */}
-        {currentBatch && (
+        {currentBatch && canWritePlacement && (
           <div className="flex gap-2">
             <button
               onClick={handleAiAnalysis}
@@ -546,6 +563,7 @@ export const JethroPlacementReview: React.FC = () => {
               item={item}
               groups={groups}
               onUpdate={handleUpdateItem}
+              readOnly={!canWritePlacement}
             />
           ))
         )}
@@ -558,7 +576,8 @@ const PlacementItemCard: React.FC<{
   item: PlacementItem;
   groups: { id: string; name: string }[];
   onUpdate: (id: string, status: string, overrides?: any) => void;
-}> = ({ item, groups, onUpdate }) => {
+  readOnly?: boolean;
+}> = ({ item, groups, onUpdate, readOnly = false }) => {
   const [expanded, setExpanded] = useState(false);
   const [overrideGroup, setOverrideGroup] = useState(item.finalGroupId || item.recommendedGroupId || '');
   const [overrideRole, setOverrideRole] = useState(item.finalRole || item.recommendedRole || 'MENTEE');
@@ -719,7 +738,7 @@ const PlacementItemCard: React.FC<{
             </div>
 
             {/* Override Controls */}
-            {isPending && (
+            {!readOnly && isPending && (
               <div className="rounded-xl bg-white border border-[#D9D7D0]/50 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-[#1B1B1B] flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-[#FF416C]" />
@@ -771,7 +790,7 @@ const PlacementItemCard: React.FC<{
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2">
-              {isPending && (
+              {!readOnly && isPending && (
                 <>
                   <button onClick={handleApprove} className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 flex items-center justify-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Approve

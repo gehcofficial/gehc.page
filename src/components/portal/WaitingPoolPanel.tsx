@@ -43,10 +43,10 @@ function daysSince(dateStr: string): number {
 
 export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }) => {
   const { addToast } = useApp();
-  const [tab, setTab] = useState<'waiting' | 'pending' | 'youth'>('waiting');
+  const [tab, setTab] = useState<'waiting' | 'pending'>('waiting');
   const [waitingPool, setWaitingPool] = useState<WaitingPoolEntry[] | null>(null);
   const [pendingApproval, setPendingApproval] = useState<WaitingPoolEntry[] | null>(null);
-  const [youthGeHc, setYouthGeHc] = useState<WaitingPoolEntry[] | null>(null);
+  const [roleAssignedCount, setRoleAssignedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [assignWizardUser, setAssignWizardUser] = useState<{ id: string; name: string } | null>(null);
@@ -57,7 +57,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [wpRes, paRes, ygRes] = await Promise.all([
+      const [wpRes, paRes, raRes] = await Promise.all([
         fetch('/api/waiting-pool', { credentials: 'include' }),
         fetch('/api/pending-approval', { credentials: 'include' }),
         fetch('/api/waiting-pool?status=ROLE_ASSIGNED', { credentials: 'include' }),
@@ -71,9 +71,9 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         const d = await paRes.json();
         setPendingApproval(d.pending || []);
       }
-      if (ygRes.ok) {
-        const d = await ygRes.json();
-        setYouthGeHc(d.pool || []);
+      if (raRes.ok) {
+        const d = await raRes.json();
+        setRoleAssignedCount((d.pool || []).length);
       }
     } catch (err) {
       console.error('Failed to fetch onboarding data:', err);
@@ -234,7 +234,6 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         {([
           ['waiting', `Menunggu Profil (${(waitingPool || []).length})`],
           ['pending', `Menunggu Role (${(pendingApproval || []).length})`],
-          ['youth', `Youth GEHC (${(youthGeHc || []).length})`],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -501,46 +500,16 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         </div>
       )}
 
-      {/* YOUTH GEHC */}
-      {tab === 'youth' && (
-        <div className="space-y-2">
-          {(youthGeHc || []).length === 0 ? (
-            <EmptyState
-              icon={<UserCheck className="w-8 h-8 text-[#8C8880]" />}
-              title="Belum ada Youth GEHC"
-              desc="Role assignment belum dilakukan."
-            />
-          ) : (
-            (youthGeHc || []).map((entry) => (
-              <div key={entry.id} className="bg-white rounded-2xl border border-emerald-200 p-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={initialsAvatar(entry.name)}
-                    alt={entry.name}
-                    className="w-10 h-10 rounded-full object-cover border border-emerald-200"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold truncate">{entry.name}</p>
-                    <p className="text-[10px] text-[#8C8880] truncate">
-                      {entry.email || entry.phone || 'No contact'}
-                    </p>
-                  </div>
-                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase">
-                    Active
-                  </span>
-                </div>
-                {entry.user && (
-                  <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-emerald-100">
-                    {(entry.user.roles || []).map((r, i) => (
-                      <span key={i} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 uppercase">
-                        {r.role}{r.groupId ? `@${r.groupId}` : ''}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+      {/* Link to Jemaat for role-assigned */}
+      {roleAssignedCount > 0 && onNavigate && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-xs text-emerald-800">{roleAssignedCount} jemaat sudah dapat role — lihat di Direktori Jemaat.</p>
+          <button
+            onClick={() => onNavigate('youth-gehc')}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shrink-0"
+          >
+            Lihat di Jemaat →
+          </button>
         </div>
       )}
 

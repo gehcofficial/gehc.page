@@ -176,6 +176,7 @@ model User {
 
   // Gender & Emergency Contact
   gender                   String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
+  birthDate                DateTime? @map("birth_date") @db.Date
   emergencyContactName     String?   @map("emergency_contact_name") @db.VarChar(150)
   emergencyContactRelation String?   @map("emergency_contact_relation") @db.VarChar(50) // ORANG_TUA | SAUDARA | TEMAN | LAINNYA
   emergencyContactPhone    String?   @map("emergency_contact_phone") @db.VarChar(40)

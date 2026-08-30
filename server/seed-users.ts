@@ -242,6 +242,25 @@ async function main() {
   }
   console.log(`✓ konten ACTIVITY tersinkron: ${INITIAL_CONTENT.filter((x) => x.type === 'ACTIVITY').length} entri`);
 
+  // ---------- 8. Demo birthDate untuk HUT/BIPRA testing ----------
+  const birthDateSamples: Array<[string, string, string]> = [
+    ['stevania.hadinda', '1995-03-15', 'PEMUDA'],
+    ['kevin.moniaga', '1998-07-22', 'PEMUDA'],
+    ['theodore.kowaas', '1994-11-08', 'PEMUDA'],
+    ['meyke.poluan', '1975-05-12', 'BAPAK'],
+    ['glenity.siauw', '2001-09-03', 'PEMUDA'],
+    ['putri.massie', '2003-04-18', 'REMAJA'],
+  ];
+  let birthDatesSet = 0;
+  for (const [slug, birthDate, bipra] of birthDateSamples) {
+    const updated = await prisma.user.updateMany({
+      where: { email: `${slug}${DOMAIN}` },
+      data: { birthDate: new Date(birthDate), bipra },
+    });
+    birthDatesSet += updated.count;
+  }
+  console.log(`✓ birthDate demo: ${birthDatesSet} akun @gehc.demo`);
+
   const totalUsers = await prisma.user.count();
   const totalRoles = await prisma.userRole.count();
   const totalStruktur = await prisma.strukturMember.count();

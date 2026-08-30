@@ -17,6 +17,8 @@
     "db:migrate:profile": "node server/_migrate-profile-phase1.cjs",
     "db:migrate:church-request": "node server/_migrate-profile-church-request.cjs",
     "db:migrate:placement": "node server/_migrate-jethro-placement.cjs",
+    "db:migrate:birth-date": "node server/_migrate-birth-date.cjs",
+    "db:bridge:waitlist": "node server/_bridge-waitlist-to-pool.cjs",
     "db:seed": "tsx server/seed.ts",
     "db:seed:onboarding": "tsx server/seed-onboarding.ts",
     "db:push:staging": "dotenv -e .env.staging -- prisma db push",

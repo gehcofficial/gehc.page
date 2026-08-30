@@ -14,6 +14,7 @@ import {
   WORK_INDUSTRIES,
   type LifeStatus,
 } from '../../lib/profile';
+import { ageFromBirthDate, daysUntilBirthday, formatBirthDateInput, suggestBipra } from '../../lib/demographics';
 import type { RecreationalNode } from '../../lib/recreational';
 
 export type ProfileSectionId = 'contact' | 'life' | 'gifts' | 'recreational' | 'emergency';
@@ -46,6 +47,7 @@ export const MyProfilePanel: React.FC<{
   const [form, setForm] = useState({
     gender: '',
     phone: '',
+    birthDate: '',
     address: emptyAddress(),
     lifeStatuses: [] as string[],
     schoolLevel: '',
@@ -103,6 +105,7 @@ export const MyProfilePanel: React.FC<{
       setForm({
         gender: u.gender || '',
         phone: u.phone || '',
+        birthDate: formatBirthDateInput(u.birthDate),
         address: addressFromUser(u),
         lifeStatuses: Array.isArray(u.lifeStatuses) ? u.lifeStatuses : [],
         schoolLevel: u.schoolLevel || '',
@@ -139,6 +142,7 @@ export const MyProfilePanel: React.FC<{
         body: JSON.stringify({
           gender: form.gender || null,
           phone: form.phone || null,
+          birthDate: form.birthDate || null,
           ...addr,
           lifeStatuses: form.lifeStatuses,
           schoolLevel: form.schoolLevel || null,
@@ -210,9 +214,13 @@ export const MyProfilePanel: React.FC<{
     );
   }
 
-  const segs = profileSegments({ ...user, ...form, ...form.address, recreational: form.recreationalIds });
+  const segs = profileSegments({ ...user, ...form, birthDate: form.birthDate || user?.birthDate, ...form.address, recreational: form.recreationalIds });
+  const age = ageFromBirthDate(form.birthDate || user?.birthDate);
+  const daysToBday = daysUntilBirthday(form.birthDate || user?.birthDate);
+  const bipraHint = suggestBipra(form.birthDate || user?.birthDate, form.gender || user?.gender);
+  const bipraMismatch = user?.bipra && bipraHint.suggested && user.bipra !== bipraHint.suggested;
   const sections: { id: ProfileSectionId; title: string; hint: string; done: boolean }[] = [
-    { id: 'contact', title: 'Kontak & alamat', hint: 'Wajib aktif — HP, gender, alamat rumah', done: segs.contact },
+    { id: 'contact', title: 'Kontak & alamat', hint: 'Wajib — HP, gender, tanggal lahir, alamat', done: segs.contact },
     { id: 'life', title: 'Status hidup', hint: 'Sekolah / kuliah / kerja — boleh lebih dari satu', done: segs.life },
     { id: 'gifts', title: 'Karunia rohani', hint: 'Tes karunia untuk placement', done: segs.gifts },
     { id: 'recreational', title: 'Minat (Sports & Arts)', hint: 'Boleh dilewati dulu', done: segs.recreational },
@@ -260,6 +268,24 @@ export const MyProfilePanel: React.FC<{
           onSubmitted={load}
           addToast={addToast}
         />
+
+        {bipraMismatch && (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-bold">Usulan kategorial: {bipraHint.suggested}</p>
+            <p className="mt-1 text-[10px]">{bipraHint.reason}. Saat ini: {user?.bipra}. Ajukan perubahan lewat formulir data gereja di atas.</p>
+          </div>
+        )}
+
+        {age !== null && (
+          <p className="mt-3 text-[10px] text-[#8C8880]">
+            Umur {age} tahun
+            {daysToBday !== null && daysToBday <= 60 && (
+              <span className="ml-2 text-[#FF416C] font-bold">
+                · HUT {daysToBday === 0 ? 'hari ini!' : `${daysToBday} hari lagi`}
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {due && (
@@ -299,6 +325,16 @@ export const MyProfilePanel: React.FC<{
               <option value="LAKI-LAKI">Laki-laki</option>
               <option value="PEREMPUAN">Perempuan</option>
             </select>
+            <div>
+              <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Tanggal lahir</label>
+              <input
+                type="date"
+                className={field}
+                value={form.birthDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))}
+              />
+            </div>
             <input className={field} placeholder="Nomor HP" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
             <AddressForm value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
           </>

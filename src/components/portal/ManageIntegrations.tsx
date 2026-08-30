@@ -170,7 +170,7 @@ const DriveAuditPanel: React.FC = () => {
 };
 
 export const ManageIntegrations: React.FC = () => {
-  const { isSuperAdmin, currentRole, integrationConfig, updateIntegrationConfig, addToast } =
+  const { isSuperAdmin, isKomisi, currentRole, integrationConfig, updateIntegrationConfig, addToast } =
     useApp();
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -181,7 +181,7 @@ export const ManageIntegrations: React.FC = () => {
   );
 
   // 403 Forbidden Gatekeeper check
-  if (!isSuperAdmin) {
+  if (!isSuperAdmin && !isKomisi) {
     return (
       <div className="bg-white rounded-[32px] p-8 sm:p-16 border border-red-200 text-center max-w-2xl mx-auto my-8 shadow-sm">
         <div className="w-16 h-16 rounded-3xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-100">
@@ -191,10 +191,10 @@ export const ManageIntegrations: React.FC = () => {
           HTTP 403 • Akses Ditolak
         </span>
         <h3 className="text-2xl font-bold text-[#1B1B1B] mt-2 mb-3">
-          Integrasi Khusus SUPERADMIN
+          Integrasi Khusus Admin
         </h3>
         <p className="text-xs sm:text-sm text-[#8C8880] leading-relaxed max-w-md mx-auto">
-          Halaman konfigurasi Google Drive OAuth & folder repository ini hanya dapat dikelola oleh Superadmin GEHC.
+          Halaman konfigurasi Google Drive OAuth & folder repository ini hanya dapat dikelola oleh Superadmin atau Komisi.
           Peran aktif Anda: <strong className="text-[#1B1B1B] uppercase">[{currentRole}]</strong>.
         </p>
       </div>

@@ -5,7 +5,6 @@ import { ManageWeeklyInfo } from './ManageWeeklyInfo';
 import { ManageActivities } from './ManageActivities';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { ManageStruktur } from './ManageStruktur';
-import { ManageUsersRBAC } from './ManageUsersRBAC';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
@@ -15,7 +14,6 @@ import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import NotificationPermissionBanner from '../pwa/NotificationPermissionBanner';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
-import { WaitlistBoard } from './WaitlistBoard';
 import { PeopleInvites } from './PeopleInvites';
 import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
@@ -28,7 +26,6 @@ import {
   User,
   Users,
   ShieldCheck,
-  ShieldAlert,
   FolderSync,
   LogOut,
   Menu,
@@ -50,7 +47,8 @@ export const PortalLayout: React.FC = () => {
     currentTenant,
     currentUser,
     currentRole,
-    isMentor,
+    isGroupMentor,
+    isMentee,
     setActiveView,
     addToast,
     demoMode,
@@ -91,26 +89,34 @@ export const PortalLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const navItems = [
+  const allNavItems = [
     { id: 'my-profile', label: 'Profil saya', icon: User, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-    { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'], group: 'Utama' },
-    { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
-    { id: 'waitlist', label: 'Waitlist Newcomer', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Komunitas' },
-    { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
-    { id: 'jethro-placement', label: 'Jethro Placement Review', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas' },
-    { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
-    { id: 'groups-monitoring', label: isMentor ? 'Monitoring Kelompok Binaan' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'], group: 'Komunitas' },
-    { id: 'jethro', label: 'Jethro Engine (Regenerasi)', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas' },
-    { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten' },
-    { id: 'content-activities', label: 'Kelola Agenda Kegiatan', icon: Calendar, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten' },
+    { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
+    { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Akun & link undangan' },
+    { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
+    { id: 'jethro-placement', label: 'Review Penempatan', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
+    { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
+    { id: 'groups-monitoring', label: isGroupMentor ? 'Monitoring Kelompok Binaan' : isMentee ? 'Monitoring Kelompok Saya' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
+    { id: 'jethro', label: 'Regenerasi Kelompok', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
+    { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS publikasi warta' },
+    { id: 'content-activities', label: 'Kelola Agenda Kegiatan', icon: Calendar, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS agenda publik' },
     { id: 'media-guide', label: 'Panduan Media (Drive)', icon: Images, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Konten' },
-    { id: 'struktur', label: 'Struktur Organisasi (Org Chart)', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
-    { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja' },
-    { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja' },
-    { id: 'users-rbac', label: 'Pengguna & Matrix RBAC', icon: ShieldAlert, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
-    { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN'], badge: 'Superadmin Only', group: 'Sistem' },
-    { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'MENTEE'], group: 'Sistem' },
+    { id: 'struktur', label: 'Struktur Organisasi', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
+    { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace per event' },
+    { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace permanen divisi' },
+    { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN', 'KOMISI'], group: 'Sistem' },
+    { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Sistem' },
   ];
+
+  const navItems = allNavItems.filter((item) => item.roles.includes(currentRole));
+
+  const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
+
+  useEffect(() => {
+    if (!isTabAllowed(activeTab)) {
+      setActiveTab(navItems[0]?.id || 'my-profile');
+    }
+  }, [currentRole]);
 
   const navWithHeaders: Array<{ type: 'header'; label: string } | { type: 'item'; item: typeof navItems[number] }> = [];
   let lastGroup = '';
@@ -123,6 +129,10 @@ export const PortalLayout: React.FC = () => {
   }
 
   const handleNavClick = (tabId: string) => {
+    if (!isTabAllowed(tabId)) {
+      addToast({ type: 'error', title: 'Akses ditolak', description: 'Menu ini tidak tersedia untuk role kamu.' });
+      return;
+    }
     setActiveTab(tabId);
     setIsMobileMenuOpen(false);
     setHoveredItem(null);
@@ -242,7 +252,7 @@ export const PortalLayout: React.FC = () => {
               const item = row.item;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-              const isAllowed = item.roles.includes(currentRole);
+              const isAllowed = true;
 
               if (collapsed) {
                 return (
@@ -455,16 +465,17 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
           {activeTab === 'jethro' && <JethroEngine />}
           {activeTab === 'jethro-placement' && <JethroPlacementReview />}
-          {activeTab === 'people' && <PeopleInvites />}
-          {activeTab === 'waitlist' && <WaitlistBoard />}
+          {activeTab === 'people' && <PeopleInvites onNavigate={handleNavClick} />}
           {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
           {activeTab === 'youth-gehc' && <YouthGEHCList />}
           {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
-          {activeTab === 'users-rbac' && <ManageUsersRBAC />}
           {activeTab === 'integrations' && <ManageIntegrations />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
+          {!isTabAllowed(activeTab) && (
+            <div className="py-20 text-center text-sm text-[#8C8880]">Menu tidak tersedia untuk role ini.</div>
+          )}
         </main>
       </div>
     </div>
