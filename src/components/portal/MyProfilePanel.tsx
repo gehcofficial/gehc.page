@@ -60,6 +60,7 @@ export const MyProfilePanel: React.FC<{
     emergencyContactName: '',
     emergencyContactRelation: '',
     emergencyContactPhone: '',
+    emergencyContactAddress: '',
   });
   const [due, setDue] = useState(false);
 
@@ -111,6 +112,7 @@ export const MyProfilePanel: React.FC<{
         emergencyContactName: u.emergencyContactName || '',
         emergencyContactRelation: u.emergencyContactRelation || '',
         emergencyContactPhone: u.emergencyContactPhone || '',
+        emergencyContactAddress: u.emergencyContactAddress || '',
       });
     } catch {
       addToast({ type: 'error', title: 'Gagal memuat', description: 'Gagal memuat profil.' });
@@ -146,6 +148,7 @@ export const MyProfilePanel: React.FC<{
           emergencyContactName: form.emergencyContactName || null,
           emergencyContactRelation: form.emergencyContactRelation || null,
           emergencyContactPhone: form.emergencyContactPhone || null,
+          emergencyContactAddress: form.emergencyContactAddress || null,
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -287,12 +290,12 @@ export const MyProfilePanel: React.FC<{
       <div className="bg-white rounded-[28px] border border-[#D9D7D0]/50 p-6 space-y-4">
         {open === 'contact' && (
           <>
-            <select className={field} value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+            <select className={field} value={form.gender} onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}>
               <option value="">Gender</option>
               <option value="LAKI-LAKI">Laki-laki</option>
               <option value="PEREMPUAN">Perempuan</option>
             </select>
-            <input className={field} placeholder="Nomor HP" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input className={field} placeholder="Nomor HP" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
             <AddressForm value={form.address} onChange={(address) => setForm((f) => ({ ...f, address }))} />
           </>
         )}
@@ -312,23 +315,23 @@ export const MyProfilePanel: React.FC<{
             </div>
             {form.lifeStatuses.includes('SCHOOL') && (
               <div className="grid sm:grid-cols-2 gap-2">
-                <select className={field} value={form.schoolLevel} onChange={(e) => setForm({ ...form, schoolLevel: e.target.value })}>
+                <select className={field} value={form.schoolLevel} onChange={(e) => setForm((f) => ({ ...f, schoolLevel: e.target.value }))}>
                   <option value="">Jenjang</option>
                   <option value="SD">SD</option>
                   <option value="SMP">SMP</option>
                   <option value="SMA">SMA / SMK</option>
                 </select>
-                <input className={field} placeholder="Nama sekolah" value={form.schoolName} onChange={(e) => setForm({ ...form, schoolName: e.target.value })} />
+                <input className={field} placeholder="Nama sekolah" value={form.schoolName} onChange={(e) => setForm((f) => ({ ...f, schoolName: e.target.value }))} />
               </div>
             )}
             {form.lifeStatuses.includes('UNIVERSITY') && (
               <div className="space-y-2">
                 <div className="grid sm:grid-cols-2 gap-2">
-                  <select className={field} value={form.institutionId} onChange={(e) => setForm({ ...form, institutionId: e.target.value })}>
+                  <select className={field} value={form.institutionId} onChange={(e) => setForm((f) => ({ ...f, institutionId: e.target.value }))}>
                     <option value="">Universitas</option>
                     {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                   </select>
-                  <select className={field} value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })}>
+                  <select className={field} value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}>
                     <option value="">Jurusan</option>
                     {majors.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -338,7 +341,7 @@ export const MyProfilePanel: React.FC<{
                     className={field}
                     placeholder="Tulis jurusan kamu"
                     value={form.majorOther}
-                    onChange={(e) => setForm({ ...form, majorOther: e.target.value })}
+                    onChange={(e) => setForm((f) => ({ ...f, majorOther: e.target.value }))}
                   />
                 )}
               </div>
@@ -349,9 +352,9 @@ export const MyProfilePanel: React.FC<{
                   className={field}
                   placeholder="Nama kantor / instansi (contoh: PT ABC, Kawasan MM210)"
                   value={form.workplaceName}
-                  onChange={(e) => setForm({ ...form, workplaceName: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, workplaceName: e.target.value }))}
                 />
-                <select className={field} value={form.workIndustry} onChange={(e) => setForm({ ...form, workIndustry: e.target.value })}>
+                <select className={field} value={form.workIndustry} onChange={(e) => setForm((f) => ({ ...f, workIndustry: e.target.value }))}>
                   <option value="">Industri / sektor</option>
                   {WORK_INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
                 </select>
@@ -359,7 +362,7 @@ export const MyProfilePanel: React.FC<{
                   className={field}
                   placeholder="Jabatan / role (opsional)"
                   value={form.workRole}
-                  onChange={(e) => setForm({ ...form, workRole: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, workRole: e.target.value }))}
                 />
               </div>
             )}
@@ -390,15 +393,16 @@ export const MyProfilePanel: React.FC<{
 
         {open === 'emergency' && (
           <>
-            <input className={field} placeholder="Nama kontak darurat" value={form.emergencyContactName} onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} />
-            <select className={field} value={form.emergencyContactRelation} onChange={(e) => setForm({ ...form, emergencyContactRelation: e.target.value })}>
+            <input className={field} placeholder="Nama kontak darurat" value={form.emergencyContactName} onChange={(e) => setForm((f) => ({ ...f, emergencyContactName: e.target.value }))} />
+            <select className={field} value={form.emergencyContactRelation} onChange={(e) => setForm((f) => ({ ...f, emergencyContactRelation: e.target.value }))}>
               <option value="">Hubungan</option>
               <option value="ORANG_TUA">Orang tua</option>
               <option value="SAUDARA">Saudara</option>
               <option value="TEMAN">Teman</option>
               <option value="LAINNYA">Lainnya</option>
             </select>
-            <input className={field} placeholder="HP darurat" value={form.emergencyContactPhone} onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} />
+            <input className={field} placeholder="HP darurat" value={form.emergencyContactPhone} onChange={(e) => setForm((f) => ({ ...f, emergencyContactPhone: e.target.value }))} />
+            <input className={field} placeholder="Alamat kontak darurat (opsional)" value={form.emergencyContactAddress} onChange={(e) => setForm((f) => ({ ...f, emergencyContactAddress: e.target.value }))} />
           </>
         )}
 

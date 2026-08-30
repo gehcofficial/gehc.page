@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "env:sync": "node scripts/sync-env-from-staging.mjs",
+    "env:check": "node scripts/check-env-parity.mjs",
     "dev": "node server/index.mjs",
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:all": "node dev-all.mjs",
@@ -12,6 +14,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:profile": "node server/_migrate-profile-phase1.cjs",
     "db:seed": "tsx server/seed.ts",
     "db:seed:onboarding": "tsx server/seed-onboarding.ts",
     "db:push:staging": "dotenv -e .env.staging -- prisma db push",

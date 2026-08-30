@@ -11,49 +11,55 @@ When context hits **~70–80%** or you start a **new episode** (different featur
 
 ---
 
-## 2. Current priority — Test & polish Wilayah.id address
+## 2. Current priority — Profil Saya Phase 1 UX (full)
 
-**Goal:** Verifikasi alur domisili end-to-end, perbaiki bug jika ada. **No Google Maps/Places.**
+**Goal:** Profil self-service lengkap — header, status hidup, karunia wizard, minat search, domisili Wilayah.id.
 
-### Done (episode A — test & fix)
-- Cascade Wilayah.id: provinsi → kab/kota → kecamatan → kelurahan (verified)
-- Save ID + INTL, persist after reload
-- Filter Domisili Indonesia / Luar negeri + badge (Indonesia / Singapura)
-- Bugs fixed: profile infinite reload (`addToast` deps), demo session never bound, stale `setForm({...form, address})`, toast signature, trim nama wilayah
+### Done
+- **Header:** avatar + email read-only, pisah data gereja (admin) vs self-service
+- **Kontak & alamat:** gender, HP, `AddressForm` Wilayah.id (ID + luar negeri)
+- **Status hidup:** sekolah / kuliah / kerja (multi); kerja = nama + industri + jabatan; jurusan "Lainnya" = input bebas
+- **Karunia:** `ProfileGiftsSection` + `GiftTestWizard` (bukan textarea JSON); CTA di `RestrictedPortal`
+- **Minat:** search + chip + **Lainnya…** → admin approve di Direktori Jemaat
+- **Kontak darurat:** nama, hubungan, HP, alamat opsional
+- **DB:** `work_industry`, `work_role`, `major_other`, `recreational_suggestions`
+- **Env:** `npm run env:sync` / `env:check`, `npm run db:migrate:profile`
+- **Tests:** `tests/profile-phase1.spec.ts`
 
 ### Next (optional)
-- E2E Playwright for address flow
+- E2E alamat cascade di Profil + Direktori admin
 - Filter provinsi di dashboard
-- Admin edit alamat di Direktori (sudah wired, belum diuji mendalam)
+- Institution suggest dari profil (user)
 
 ### Key files
 | File | Role |
 |---|---|
-| `src/components/portal/AddressForm.tsx` | UI domisili ID/INTL |
-| `server/profile-fields.mjs` | Validasi + compose address |
-| `server/index.mjs` | Wilayah proxy, jemaat filter |
-| `src/components/portal/YouthGEHCList.tsx` | Admin direktori |
-| `src/components/portal/MyProfilePanel.tsx` | Profil self-service |
+| `src/components/portal/MyProfilePanel.tsx` | Profil utama (5 segmen) |
+| `src/components/portal/ProfileGiftsSection.tsx` | Tes karunia wizard |
+| `src/components/portal/ProfileRecreationalSection.tsx` | Minat + suggest |
+| `src/components/portal/AddressForm.tsx` | Domisili ID/INTL |
+| `server/profile-fields.mjs` | Validasi + segments |
+| `server/_migrate-profile-phase1.cjs` | Migration kolom phase 1 |
+| `src/components/portal/YouthGEHCList.tsx` | Admin direktori + approve minat |
 
 ### Quick start new chat — **COPY INI**
 
 ```
 GEHC Youth Portal handoff — fresh context.
 
-Episode: test & polish Wilayah.id address flow
-Goal: Verifikasi domisili ID/INTL end-to-end, perbaiki bug jika ada
+Episode: test Profil Saya Phase 1 end-to-end
+Goal: Verifikasi 5 segmen profil + suggest minat + admin approve
 Done last session:
-- AddressForm (Wilayah.id cascade + luar negeri) selesai
-- MyProfilePanel + YouthGEHCList wired, filter domisili + badge
-- Migration + prisma generate + dev server OK
-Blocked on: [isi jika ada error saat test]
-Next step: Test Profil saya + Direktori Jemaat, fix bug yang muncul
+- Merge PR #1 Phase 1 UX ke branch lokal
+- ProfileGiftsSection, ProfileRecreationalSection, migration phase 1
+- env:sync scripts + db:migrate:profile
+Blocked on: [isi jika migration/DB error]
+Next step: npm run db:migrate:profile → npm run dev → test semua segmen
 
-Stack: Vite/React/TS + Express (server/index.mjs) + TiDB/Prisma
-Priority: Wilayah.id (NOT Google Maps). Baca HANDOFF.md
-Credentials: tech@gehc.demo / password123 | tenant: tenant-bapak
-Run: npm run dev → http://localhost:8787
-Attach: AddressForm.tsx, profile-fields.mjs (jika bug alamat)
+Stack: Vite/React/TS + Express + TiDB/Prisma
+Credentials: tech@gehc.demo / password123
+Run: npm run env:sync && npm run dev → http://localhost:8787
+Attach: MyProfilePanel.tsx, profile-fields.mjs
 ```
 
 ---
