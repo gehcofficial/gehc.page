@@ -1,0 +1,44 @@
+# GEHC Youth Portal — Cursor Rules
+
+## Tech Stack
+- Frontend: Vite + React + TypeScript
+- Backend: Express.js (ESM .mjs) + Prisma ORM
+- Database: TiDB Cloud (MySQL-compatible, serverless)
+- AI: Vercel AI SDK (OpenAI gpt-4o-mini + Groq fallback)
+- Auth: Google SSO + session cookies (JWT)
+
+## CRITICAL: TiDB Cloud Quirks
+- TiDB Cloud Serverless DROPS TCP connections after ~2-5 sequential queries
+- NEVER use sequential Prisma/user.update() in for-loops — it WILL hang
+- ALWAYS use single CASE WHEN UPDATE for bulk operations (1 SQL statement)
+- Prisma ESM import hangs — use CJS (.cjs) for standalone scripts
+- Prisma JSON null filter broken — use raw SQL: `WHERE gifts_top5 IS NULL`
+- Connection pool exhaustion after ~80 sequential operations
+
+## Project Structure
+- `server/index.mjs` — All API endpoints (~4350 lines, DO NOT split)
+- `server/auth.mjs` — Auth (Google SSO, local login, session cookies)
+- `server/engine.mjs` — Placement algorithm
+- `server/jethro-ai.mjs` — AI analysis
+- `src/components/portal/` — React components (flat imports, no lazy loading)
+- `prisma/schema.prisma` — Database schema
+
+## Conventions
+- API endpoints use `wrap(async (req, res) => {...})` pattern
+- Auth check: `if (!req.authUser) return res.status(401).json({...})`
+- Role check: `requireRole('SUPERADMIN', 'KOMISI')` middleware
+- Admin endpoints: manual `req.authUser` check (no middleware)
+- Frontend: TypeScript, no comments unless asked, concise
+
+## Test Credentials
+- Superadmin: tech@gehc.demo / password123
+- Tenant: tenant-bapak
+
+## Commands
+```bash
+node server/index.mjs          # Start dev server (port 8787)
+npm run build                  # Vite production build
+npx playwright test            # E2E tests
+node server/seed-youth-gehc.cjs  # Seed DB (CJS, works)
+node server/_dbstate.cjs       # Check DB state
+```

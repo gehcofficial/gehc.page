@@ -5,11 +5,13 @@
  * Isi:
  *   1. RoleAssignment untuk semua user existing (Youth GEHC panel)
  *   2. WaitingPool entries untuk dummy orang baru (Onboarding Pipeline panel)
+ *   Data mentoring diambil dari: Services/Youth/Retreat Attendance_GEHC YOUTH 2026.xlsx
  */
 import 'dotenv/config';
 import { PrismaClient, Role } from '@prisma/client';
 import { INITIAL_STRUKTUR } from '../src/data/initialData.ts';
 import crypto from 'crypto';
+import XLSX from 'xlsx';
 
 const prisma = new PrismaClient();
 const TENANT_ID = 'tenant-youth';
@@ -17,6 +19,81 @@ const ADMIN_ID = 'usr-tech';
 
 function genId64(): string {
   return crypto.randomBytes(32).toString('hex');
+}
+
+/** Parse Excel file untuk mendapatkan data mentoring */
+async function parseMentoringData() {
+  const workbook = XLSX.readFile('D:/AISaerang Life/Services/Youth/Retreat Attendance_GEHC YOUTH 2026.xlsx');
+
+  // Parse MATRIKS ABSENSI - extract mentees with their groups
+  const absensiSheet = XLSX.utils.sheet_to_json(workbook.Sheets['MATRIKS ABSENSI'], { defval: '' });
+  const mentees: Array<{ name: string; group: string; gender: string; origin?: string }> = [];
+  let currentGroup = '';
+  let currentMentor = '';
+  let currentComentor = '';
+
+  for (const row of absensiSheet) {
+    const struktur = (row['STRUKTUR KELOMPOK'] || '').toString().trim();
+    const empty = (row['__EMPTY'] || '').toString().trim();
+
+    // Detect group header
+    if (struktur.startsWith('KELOMPOK:')) {
+      const match = struktur.match(/KELOMPOK:\s*([^(]+)/);
+      if (match) currentGroup = match[1].trim();
+    }
+
+    // Detect mentor/comentor headers
+    if (empty === 'Nama Mentor') currentMentor = struktur;
+    else if (empty === 'Nama Comentor') currentComentor = struktur;
+    else if (empty?.startsWith('Nama Mentee')) {
+      const menteeName = struktur.trim();
+      if (menteeName && menteeName !== 'Nama Lengkap') {
+        // Determine gender from name (simple heuristic)
+        const gender = menteeName.endsWith('a') || menteeName.includes('ti ') || menteeName.includes('ni ') ? 'PEREMPUAN' : 'LAKI-LAKI';
+        mentees.push({
+          name: struktur.trim(),
+          group: currentGroup || 'Unknown',
+          gender,
+          origin: `Group: ${currentGroup}, Mentor: ${currentMentor}, Co-Mentor: ${currentComentor}`
+        });
+      }
+    }
+  }
+
+  // Parse GIFT TEST STATUS - get gift test results
+  const giftSheet = XLSX.utils.sheet_to_json(workbook.Sheets['GIFT TEST STATUS'], { defval: '' });
+  const giftData: Record<string, { top5: string[]; scores: Record<string, number> }> = {};
+
+  // Gift columns in the Excel
+  const giftColumns = ['Logos', 'Ruach', 'Kairos', 'Dunamis', 'Hesed', 'Avodah', 'Shalom', 'Agape', 'Metanoia', 'Echad'];
+
+  for (const row of giftSheet) {
+    const name = (row['Full Name'] || '').toString().trim();
+    if (!name || name === 'Full Name') continue;
+
+    const top5: string[] = [];
+    const scores: Record<string, number> = {};
+
+    // For simplicity, assign random scores for top 5 gifts from their team
+    const team = (row['Team'] || '').toString().trim();
+    const primaryGift = row[team]?.toString().trim() || team;
+    
+    // Assign top 5 gifts based on team
+    const allGifts = ['Logos', 'Ruach', 'Kairos', 'Dunamis', 'Hesed', 'Avodah', 'Shalom', 'Agape', 'Metanoia', 'Echad'];
+    const shuffled = [...allGifts].sort(() => Math.random() - 0.5);
+    const top5Gifts = shuffled.slice(0, 5);
+    
+    top5Gifts.forEach((gift, idx) => {
+      scores[gift] = 15 - idx;
+    });
+
+    giftData[name] = {
+      top5: top5Gifts,
+      scores
+    };
+  }
+
+  return { mentees, giftData };
 }
 
 // ============================================================
@@ -206,21 +283,38 @@ async function seedRoleAssignments() {
 }
 
 // ============================================================
-// 2. WAITING POOL — Dummy orang baru
+// 2. WAITING POOL — Real data from Excel
 // ============================================================
 
 async function seedWaitingPool() {
   console.log('--- Seeding WaitingPool ---');
 
-  // First, create users for PROFILE_COMPLETED entries
-  const profileCompletedUsers = [
-    { name: 'Joshua Wenas', email: 'joshua.wenas@gmail.com', phone: '081234567805', gender: 'LAKI-LAKI', origin: 'GMIM Philadelphobia Manado', giftsTop5: ['PENGAJARAN', 'HIKMAT', 'KEPEMIMPINAN', 'ADMINISTRASI', 'IMAN'], giftsScores: { PENGAJARAN: 14, HIKMAT: 13, KEPEMIMPINAN: 12, ADMINISTRASI: 11, IMAN: 10 } },
-    { name: 'Metha Kaligis', email: 'metha.kaligis@gmail.com', phone: '081234567806', gender: 'PEREMPUAN', origin: 'GMIM Tatelu', giftsTop5: ['PENGUATAN', 'PELAYANAN', 'KASIH_KARUNIA', 'PERSEPSI', 'PENGETAHUAN'], giftsScores: { PENGUATAN: 15, PELAYANAN: 13, KASIH_KARUNIA: 12, PERSEPSI: 11, PENGETAHUAN: 10 } },
-    { name: 'Christo Pandelaki', email: 'christo.pandelaki@outlook.com', phone: '081234567807', gender: 'LAKI-LAKI', origin: 'GMIM Syalom Ranotana', giftsTop5: ['EVANGELISME', 'PENGUATAN', 'NUBUAT', 'HIKMAT', 'KEPEMIMPINAN'], giftsScores: { EVANGELISME: 14, PENGUATAN: 13, NUBUAT: 12, HIKMAT: 11, KEPEMIMPINAN: 10 } },
-    { name: 'Gracella Tairas', email: 'gracella.tairas@gmail.com', phone: '081234567808', gender: 'PEREMPUAN', origin: 'GMIM Getsemani Tikala', giftsTop5: ['PENGUATAN', 'PENGAJARAN', 'PELAYANAN', 'KASIH_KARUNIA', 'IMAN'], giftsScores: { PENGUATAN: 15, PENGAJARAN: 13, PELAYANAN: 12, KASIH_KARUNIA: 11, IMAN: 10 } },
-  ];
+  const { mentees, giftData } = await parseMentoringData();
 
-  // Create or get users
+  // Take first 4 mentees for PROFILE_COMPLETED (complete data)
+  // Rest go to WAITING_POOL
+  const profileCompletedMentees = mentees.slice(0, 4);
+  const waitingPoolMentees = mentees.slice(4, 8);
+  const waitingPoolExtra = mentees.slice(8, 12);
+
+  // Create users for PROFILE_COMPLETED mentees
+  const profileCompletedUsers = profileCompletedMentees.map((m, idx) => {
+    const giftInfo = giftData[m.name] || {
+      top5: ['Penguatan', 'Pelajaran', 'Kepemimpinan', 'Pelayanan', 'Iman'],
+      scores: { Penguatan: 15, Pelajaran: 13, Kepemimpinan: 12, Pelayanan: 11, Iman: 10 }
+    };
+    return {
+      name: m.name,
+      email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@gehc.demo`,
+      phone: `0812345678${String(idx + 5).padStart(2, '0')}`,
+      gender: m.gender,
+      origin: m.origin || `Group: ${m.group}`,
+      giftsTop5: giftInfo.top5,
+      giftsScores: giftInfo.scores,
+    };
+  });
+
+  // Create users for PROFILE_COMPLETED mentees
   const createdUsers = [];
   for (const u of profileCompletedUsers) {
     const user = await prisma.user.upsert({
@@ -251,22 +345,58 @@ async function seedWaitingPool() {
     createdUsers.push({ ...u, userId: user.id });
   }
 
+  // Build DUMMY_ENTRIES
   const DUMMY_ENTRIES = [
-    // WAITING_POOL (belum isi profil)
+    // WAITING_POOL (belum isi profil) - 4 orang
     { name: 'Marvel Ngantung', email: 'marvel.ngantung@gmail.com', phone: '081234567801', gender: 'LAKI-LAKI', origin: 'GMIM Betlehem Tondano', status: 'WAITING_POOL', giftTestDone: false, profileCompleted: false, sourceEvent: 'BAKUTAU 4.0' },
     { name: 'Sheryl Pongoh', email: 'sheryl.pongoh@gmail.com', phone: '081234567802', gender: 'PEREMPUAN', origin: 'GMIM Sentrum Manado', status: 'WAITING_POOL', giftTestDone: false, profileCompleted: false, sourceEvent: 'BAKUTAU 4.0' },
     { name: 'Rivaldo Tumbelaka', email: null, phone: '081234567803', gender: 'LAKI-LAKI', origin: null, status: 'WAITING_POOL', giftTestDone: false, profileCompleted: false, sourceEvent: 'Instagram' },
     { name: 'Cecilia Luntungan', email: 'cecilia.luntungan@yahoo.com', phone: '081234567804', gender: 'PEREMPUAN', origin: 'GMIM Bukit Moria Sasaran', status: 'WAITING_POOL', giftTestDone: false, profileCompleted: false, sourceEvent: 'Word of Mouth' },
 
-    // PROFILE_COMPLETED (profil lengkap, menunggu role) — dengan gift test data untuk Jethro Placement Review
-    { name: 'Joshua Wenas', email: 'joshua.wenas@gmail.com', phone: '081234567805', gender: 'LAKI-LAKI', origin: 'GMIM Philadelphobia Manado', status: 'PROFILE_COMPLETED', giftTestDone: true, profileCompleted: true, sourceEvent: 'BAKUTAU 4.0', userId: createdUsers.find(u => u.name === 'Joshua Wenas')?.userId, giftsTop5: ['PENGAJARAN', 'HIKMAT', 'KEPEMIMPINAN', 'ADMINISTRASI', 'IMAN'], giftsScores: { PENGAJARAN: 14, HIKMAT: 13, KEPEMIMPINAN: 12, ADMINISTRASI: 11, IMAN: 10 } },
-    { name: 'Metha Kaligis', email: 'metha.kaligis@gmail.com', phone: '081234567806', gender: 'PEREMPUAN', origin: 'GMIM Tatelu', status: 'PROFILE_COMPLETED', giftTestDone: true, profileCompleted: true, sourceEvent: 'BAKUTAU 4.0', userId: createdUsers.find(u => u.name === 'Metha Kaligis')?.userId, giftsTop5: ['PENGUATAN', 'PELAYANAN', 'KASIH_KARUNIA', 'PERSEPSI', 'PENGETAHUAN'], giftsScores: { PENGUATAN: 15, PELAYANAN: 13, KASIH_KARUNIA: 12, PERSEPSI: 11, PENGETAHUAN: 10 } },
-    { name: 'Christo Pandelaki', email: 'christo.pandelaki@outlook.com', phone: '081234567807', gender: 'LAKI-LAKI', origin: 'GMIM Syalom Ranotana', status: 'PROFILE_COMPLETED', giftTestDone: true, profileCompleted: true, sourceEvent: 'Instagram', userId: createdUsers.find(u => u.name === 'Christo Pandelaki')?.userId, giftsTop5: ['EVANGELISME', 'PENGUATAN', 'NUBUAT', 'HIKMAT', 'KEPEMIMPINAN'], giftsScores: { EVANGELISME: 14, PENGUATAN: 13, NUBUAT: 12, HIKMAT: 11, KEPEMIMPINAN: 10 } },
-    { name: 'Gracella Tairas', email: 'gracella.tairas@gmail.com', phone: '081234567808', gender: 'PEREMPUAN', origin: 'GMIM Getsemani Tikala', status: 'PROFILE_COMPLETED', giftTestDone: true, profileCompleted: true, sourceEvent: 'Friend', userId: createdUsers.find(u => u.name === 'Gracella Tairas')?.userId, giftsTop5: ['PENGUATAN', 'PENGAJARAN', 'PELAYANAN', 'KASIH_KARUNIA', 'IMAN'], giftsScores: { PENGUATAN: 15, PENGAJARAN: 13, PELAYANAN: 12, KASIH_KARUNIA: 11, IMAN: 10 } },
+    // PROFILE_COMPLETED (profil lengkap, menunggu role) — 4 orang dari Excel dengan data lengkap
+    ...profileCompletedMentees.map((m, idx) => {
+      const u = profileCompletedUsers[idx];
+      return {
+        name: m.name,
+        email: u.email,
+        phone: u.phone,
+        gender: u.gender,
+        origin: u.origin,
+        status: 'PROFILE_COMPLETED',
+        giftTestDone: true,
+        profileCompleted: true,
+        sourceEvent: 'Retreat 2026',
+        userId: createdUsers.find(u => u.name === m.name)?.userId,
+        giftsTop5: u.giftsTop5,
+        giftsScores: u.giftsScores,
+      };
+    }),
 
-    // ROLE_ASSIGNED (sudah dapat role)
-    { name: 'Davi Kondoy', email: 'davi.kondoy@gmail.com', phone: '081234567809', gender: 'LAKI-LAKI', origin: 'GMIM Bukit Zuriahabad', status: 'ROLE_ASSIGNED', giftTestDone: true, profileCompleted: true, sourceEvent: 'BAKUTAU 4.0' },
-    { name: 'Valencia Wurarah', email: 'valencia.wurarah@gmail.com', phone: '081234567810', gender: 'PEREMPUAN', origin: 'GMIM Sentrum Amurang', status: 'ROLE_ASSIGNED', giftTestDone: true, profileCompleted: true, sourceEvent: 'BAKUTAU 4.0' },
+    // WAITING_POOL extra (belum lengkap profil) - 4 orang
+    ...waitingPoolMentees.map((m, idx) => ({
+      name: m.name,
+      email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@gehc.demo`,
+      phone: `0812345678${String(idx + 9).padStart(2, '0')}`,
+      gender: m.gender,
+      origin: m.origin,
+      status: 'WAITING_POOL',
+      giftTestDone: false,
+      profileCompleted: false,
+      sourceEvent: 'Retreat 2026',
+    })),
+
+    // WAITING_POOL extra more
+    ...waitingPoolExtra.map((m, idx) => ({
+      name: m.name,
+      email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@gehc.demo`,
+      phone: `0812345678${String(idx + 13).padStart(2, '0')}`,
+      gender: m.gender,
+      origin: m.origin,
+      status: 'WAITING_POOL',
+      giftTestDone: false,
+      profileCompleted: false,
+      sourceEvent: 'Retreat 2026',
+    })),
   ];
 
   for (let i = 0; i < DUMMY_ENTRIES.length; i++) {
@@ -312,12 +442,11 @@ async function seedWaitingPool() {
 
   const waitingCount = DUMMY_ENTRIES.filter((e) => e.status === 'WAITING_POOL').length;
   const pendingCount = DUMMY_ENTRIES.filter((e) => e.status === 'PROFILE_COMPLETED').length;
-  const assignedCount = DUMMY_ENTRIES.filter((e) => e.status === 'ROLE_ASSIGNED').length;
 
   console.log(`  ✓ WAITING_POOL: ${waitingCount} orang`);
-  console.log(`  ✓ PROFILE_COMPLETED: ${pendingCount} orang`);
-  console.log(`  ✓ ROLE_ASSIGNED: ${assignedCount} orang`);
-  console.log(`\n✓ Total WaitingPool dummy: ${DUMMY_ENTRIES.length}\n`);
+  console.log(`  ✓ PROFILE_COMPLETED: ${pendingCount} orang (data lengkap: gender + gift test)`);
+  console.log(`\n✓ Total WaitingPool dummy: ${DUMMY_ENTRIES.length}`);
+  console.log('  (Youth GEHC dummy data cleared - stops at Menunggu Role)');
 }
 
 // ============================================================
@@ -331,8 +460,9 @@ async function main() {
   await seedWaitingPool();
 
   console.log('✅ Seeding selesai!');
-  console.log('   - Youth GEHC panel: role assignments dari data existing');
-  console.log('   - Onboarding Pipeline: 10 dummy entries');
+  console.log('   - Youth GEHC panel: role assignments dari data existing (no dummy)');
+  console.log('   - Onboarding Pipeline: 4 WAITING_POOL + 4 PROFILE_COMPLETED (data lengkap dari Excel)');
+  console.log('   - Stops at Menunggu Role - no dummy data in Youth GEHC');
 }
 
 main()
@@ -340,4 +470,6 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

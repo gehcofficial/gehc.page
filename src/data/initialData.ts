@@ -54,7 +54,7 @@ export const INITIAL_TENANTS: Tenant[] = [
     slug: 'teritorial',
     domain: 'kolom.gehc.page',
     badge: 'Planned',
-    description: 'Pemetaan Kolom 1 - 12 Teritorial Cikarang & Sekitarnya',
+    description: 'Pemetaan Kolom teritorial (saat ini 5 Kolom; bisa disesuaikan ulang)',
     is_active: false,
   },
 ];

@@ -438,7 +438,7 @@ export async function recommendPlacementAdvanced(newcomerInputs) {
   return { recommendations };
 }
 
-function calculateGiftDiversity(groupGifts) {
+export function calculateGiftDiversity(groupGifts) {
   const representedGifts = Object.keys(groupGifts).filter((g) => groupGifts[g] > 0).length;
   const ALL_GIFTS = [
     'Wisdom', 'Knowledge', 'Faith', 'Healing', 'Miracles',

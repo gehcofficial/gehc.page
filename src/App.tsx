@@ -24,6 +24,7 @@ import { RestrictedPortal } from './components/portal/RestrictedPortal';
 import { KomisiSection } from './components/public/KomisiSection';
 import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
+import { ClaimPage } from './components/public/ClaimPage';
 import { PortalLayout } from './components/portal/PortalLayout';
 import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 import EventGalleryPublic from './pages/EventGalleryPublic';
@@ -31,6 +32,9 @@ import EventGalleryPublic from './pages/EventGalleryPublic';
 const MainAppContent: React.FC = () => {
   const { activeView, publicTab, demoMode, authUser } = useApp();
 
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
+    return <ClaimPage />;
+  }
   if (activeView === 'portal') {
     // Belum masuk & bukan mode demo → layar login portal (cached accounts)
     if (!authUser && !demoMode) return <PortalLogin />;

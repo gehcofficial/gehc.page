@@ -482,7 +482,7 @@ export const JethroPlacementReview: React.FC = () => {
           <div className="flex gap-2">
             <button
               onClick={handleAiAnalysis}
-              disabled={aiAnalyzing || pendingCount === 0}
+              disabled={aiAnalyzing}
               className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-700 text-xs font-bold hover:bg-purple-200 disabled:opacity-50 flex items-center gap-1"
             >
               {aiAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}

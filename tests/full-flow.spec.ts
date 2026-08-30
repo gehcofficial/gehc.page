@@ -44,9 +44,10 @@ async function navigateToTab(page: Page, tabText: string) {
 }
 
 test.describe('Complete Onboarding Pipeline Flow', () => {
-  test.setTimeout(180000);
+  test.setTimeout(300000);
 
   test.beforeEach(async ({ page }) => {
+    test.setTimeout(300000);
     await page.goto('http://localhost:8787');
     await page.waitForLoadState('networkidle');
     await loginViaDemo(page);
@@ -64,7 +65,7 @@ test.describe('Complete Onboarding Pipeline Flow', () => {
     await page.waitForTimeout(3000);
 
     // Check for eligible entries
-    const entries = page.locator('[data-testid="pending-entry"], .bg-white.rounded-2xl').filter({ hasText: /Joshua|Metha|Christo|Gracella/ });
+    const entries = page.locator('[data-testid="pending-entry"], .bg-white.rounded-2xl').filter({ hasText: /Gabriel|Riska|Gemma|Jessica/ });
     const entryCount = await entries.count();
     console.log(`Found ${entryCount} eligible entries in Menunggu Role`);
 

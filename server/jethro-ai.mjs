@@ -3,9 +3,10 @@
  * untuk rapat Komisi Pemuda. Murni lapisan teks di atas data engine yang sudah
  * deterministik; keputusan akhir tetap di tangan manusia.
  *
- * Env: GEMINI_API_KEY (Google AI Studio)
+ * Provider: Vercel AI SDK (OpenAI primary, Groq fallback)
+ * Env: OPENAI_API_KEY, GROQ_API_KEY, AI_MODEL_MAIN, AI_MODEL_FALLBACK
  */
-import { GoogleGenAI } from '@google/genai';
+import { jethroGenerateText } from './ai-provider.mjs';
 import { getDashboard } from './engine.mjs';
 
 /**
@@ -13,8 +14,8 @@ import { getDashboard } from './engine.mjs';
  * Analyzes Jethro's placement recommendations and provides natural language insights
  */
 export async function analyzePlacementRecommendations(recommendations, groupStates) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY belum dikonfigurasi — analisis AI nonaktif.');
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY belum dikonfigurasi — analisis AI nonaktif.');
   }
 
   const facts = {
@@ -39,8 +40,9 @@ export async function analyzePlacementRecommendations(recommendations, groupStat
     })),
   };
 
+  const system = 'Kamu adalah asisten "Jethro" untuk Komisi Pemuda gereja (GMIM Eben Haezer Cikarang / GEHC Youth "Beyonders").';
+
   const prompt = [
-    'Kamu adalah asisten "Jethro" untuk Komisi Pemuda gereja (GMIM Eben Haezer Cikarang / GEHC Youth "Beyonders").',
     'Berdasarkan data JSON berikut (hasil rekomendasi penempatan newcomer ke kelompok mentoring), tulis ANALISIS MENGENAI REKOMENDASI PENEMPATAN untuk review Admin/Komisi.',
     '',
     'ATURAN:',
@@ -53,22 +55,18 @@ export async function analyzePlacementRecommendations(recommendations, groupStat
     JSON.stringify(facts),
   ].join('\n');
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const res = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-    contents: prompt,
-  });
+  const analysis = await jethroGenerateText({ system, prompt, maxTokens: 1024 });
 
   return {
-    analysis: res.text?.trim() || '(tidak ada keluaran)',
+    analysis: analysis || '(tidak ada keluaran)',
     basedOn: { recommendations: recommendations.length, groups: groupStates.length },
     generatedAt: new Date().toISOString(),
   };
 }
 
 export async function narrateDashboard() {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY belum dikonfigurasi — narasi AI nonaktif.');
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY belum dikonfigurasi — narasi AI nonaktif.');
   }
 
   const dash = await getDashboard();
@@ -94,8 +92,9 @@ export async function narrateDashboard() {
     })),
   };
 
+  const system = 'Kamu adalah asisten "Jethro" untuk Komisi Pemuda gereja (GMIM Eben Haezer Cikarang / GEHC Youth "Beyonders").';
+
   const prompt = [
-    'Kamu adalah asisten "Jethro" untuk Komisi Pemuda gereja (GMIM Eben Haezer Cikarang / GEHC Youth "Beyonders").',
     'Berdasarkan data JSON berikut (hasil analisis engine regenerasi kelompok), tulis RINGKASAN EKSEKUTIF untuk rapat Komisi.',
     '',
     'ATURAN:',
@@ -108,14 +107,10 @@ export async function narrateDashboard() {
     JSON.stringify(facts),
   ].join('\n');
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const res = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-    contents: prompt,
-  });
+  const summary = await jethroGenerateText({ system, prompt, maxTokens: 768 });
 
   return {
-    summary: res.text?.trim() || '(tidak ada keluaran)',
+    summary: summary || '(tidak ada keluaran)',
     basedOn: { groups: dash.groups.length, notifications: dash.notifications.length },
     generatedAt: new Date().toISOString(),
   };
