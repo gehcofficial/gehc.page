@@ -61,9 +61,9 @@ export const PortalAccountSwitcher: React.FC = () => {
             Konteks Peran Aktif
           </p>
           <div className="flex flex-wrap gap-1">
-            {myRoleOptions.map((role) => (
+            {myRoleOptions.map((role, idx) => (
               <button
-                key={role}
+                key={`${role}-${idx}`}
                 onClick={() => setActiveUserRole(role)}
                 title={role}
                 className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
@@ -127,7 +127,7 @@ export const PortalAccountSwitcher: React.FC = () => {
                       <button
                         key={u.id}
                         onClick={() => {
-                          if (!active) setCurrentUserById(u.id);
+                          setCurrentUserById(u.id);
                           setOpen(false);
                           setQ('');
                         }}

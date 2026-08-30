@@ -1,0 +1,68 @@
+/** Negara umum untuk jemaat diaspora GEHC (ISO 3166-1 alpha-2). */
+export const COUNTRIES = [
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'SG', name: 'Singapura' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'BN', name: 'Brunei Darussalam' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'PH', name: 'Filipina' },
+  { code: 'VN', name: 'Vietnam' },
+  { code: 'KH', name: 'Kamboja' },
+  { code: 'LA', name: 'Laos' },
+  { code: 'MM', name: 'Myanmar' },
+  { code: 'TL', name: 'Timor Leste' },
+  { code: 'JP', name: 'Jepang' },
+  { code: 'KR', name: 'Korea Selatan' },
+  { code: 'CN', name: 'Tiongkok' },
+  { code: 'TW', name: 'Taiwan' },
+  { code: 'HK', name: 'Hong Kong' },
+  { code: 'MO', name: 'Makau' },
+  { code: 'IN', name: 'India' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'NZ', name: 'Selandia Baru' },
+  { code: 'US', name: 'Amerika Serikat' },
+  { code: 'CA', name: 'Kanada' },
+  { code: 'GB', name: 'Britania Raya' },
+  { code: 'IE', name: 'Irlandia' },
+  { code: 'NL', name: 'Belanda' },
+  { code: 'DE', name: 'Jerman' },
+  { code: 'FR', name: 'Prancis' },
+  { code: 'BE', name: 'Belgia' },
+  { code: 'CH', name: 'Swiss' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'IT', name: 'Italia' },
+  { code: 'ES', name: 'Spanyol' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'SE', name: 'Swedia' },
+  { code: 'NO', name: 'Norwegia' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'FI', name: 'Finlandia' },
+  { code: 'PL', name: 'Polandia' },
+  { code: 'CZ', name: 'Ceko' },
+  { code: 'HU', name: 'Hungaria' },
+  { code: 'RO', name: 'Rumania' },
+  { code: 'GR', name: 'Yunani' },
+  { code: 'TR', name: 'Turki' },
+  { code: 'AE', name: 'Uni Emirat Arab' },
+  { code: 'SA', name: 'Arab Saudi' },
+  { code: 'QA', name: 'Qatar' },
+  { code: 'KW', name: 'Kuwait' },
+  { code: 'BH', name: 'Bahrain' },
+  { code: 'OM', name: 'Oman' },
+  { code: 'EG', name: 'Mesir' },
+  { code: 'ZA', name: 'Afrika Selatan' },
+  { code: 'BR', name: 'Brasil' },
+  { code: 'AR', name: 'Argentina' },
+  { code: 'MX', name: 'Meksiko' },
+  { code: 'RU', name: 'Rusia' },
+  { code: 'UA', name: 'Ukraina' },
+] as const;
+
+export type CountryCode = (typeof COUNTRIES)[number]['code'];
+
+export function countryName(code: string | null | undefined): string {
+  if (!code) return '';
+  return COUNTRIES.find((c) => c.code === code)?.name || code;
+}
+
+export const COUNTRIES_INTL = COUNTRIES.filter((c) => c.code !== 'ID');

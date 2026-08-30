@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Tenant,
   User,
@@ -27,7 +27,7 @@ import {
   INITIAL_GROUP_BATCHES,
 } from '../data/initialData';
 import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi, fetchPersonas, impersonate as impersonateApi } from '../services/authApi';
-import { effectiveRole, sortRoles } from '../lib/roles';
+import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
 
 type PublicTab = 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail' | 'gallery' | 'benzarpreneurship';
 
@@ -500,11 +500,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (cancelled || list.length === 0) return;
         setAllUsers(list);
         setDemoMode(true);
-        setCurrentUserId((prev) =>
-          list.some((u) => u.id === prev)
-            ? prev
-            : list.find((u) => u.roles.some((r) => r.role === 'SUPERADMIN'))?.id ?? list[0].id
-        );
+        const fallback = list.find((u) => u.roles.some((r) => r.role === 'SUPERADMIN')) ?? list[0];
+        setCurrentUserId((prev) => (list.some((u) => u.id === prev) ? prev : fallback.id));
+        const existing = await fetchMe().catch(() => null);
+        if (cancelled || existing) return;
+        const target = list.find((u) => u.email === fallback.email) ?? fallback;
+        const u = await impersonateApi(target.email);
+        if (cancelled) return;
+        setAuthUser(u);
+        setSessionSource('demo');
       } catch {
         // Server mati / fitur nonaktif → tetap pakai data lokal hardcoded
       }
@@ -539,7 +543,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Semua peran milik user di tenant aktif, terurut precedensi
   const myRoleMappings = sortRoles(
-    currentUser.roles.filter((r) => r.tenantId === currentTenantId)
+    uniqueRolesByName(
+      currentUser.roles.filter((r) => r.tenantId === currentTenantId || r.role === 'SUPERADMIN')
+    )
   );
   const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
 
@@ -623,17 +629,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Toast System
-  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const addToast = useCallback((toast: Omit<ToastMessage, 'id'>) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     setToasts((prev) => [...prev, { ...toast, id }]);
     setTimeout(() => {
       removeToast(id);
     }, 4500);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, [removeToast]);
 
   // Content Operations (CMS)
   const addContentItem = (item: Omit<ContentItem, 'id' | 'published_at'>) => {
