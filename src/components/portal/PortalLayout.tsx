@@ -18,6 +18,7 @@ import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import { WaitlistBoard } from './WaitlistBoard';
 import { PeopleInvites } from './PeopleInvites';
 import { WaitingPoolPanel } from './WaitingPoolPanel';
+import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
 import { MyProfilePanel } from './MyProfilePanel';
 import {
@@ -456,7 +457,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'jethro-placement' && <JethroPlacementReview />}
           {activeTab === 'people' && <PeopleInvites />}
           {activeTab === 'waitlist' && <WaitlistBoard />}
-          {activeTab === 'onboarding' && <WaitingPoolPanel />}
+          {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
           {activeTab === 'youth-gehc' && <YouthGEHCList />}
           {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}

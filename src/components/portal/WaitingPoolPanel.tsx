@@ -20,6 +20,16 @@ interface WaitingPoolEntry {
   registeredAt: string;
   lastReminder: string | null;
   reminderCount: number;
+  user?: {
+    id: string;
+    name: string;
+    email: string | null;
+    roles?: { role: string; groupId: string | null; tenantId?: string }[];
+  };
+}
+
+interface WaitingPoolPanelProps {
+  onNavigate?: (tabId: string) => void;
 }
 
 const initialsAvatar = (n: string) =>
@@ -31,7 +41,7 @@ function daysSince(dateStr: string): number {
   return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export const WaitingPoolPanel: React.FC = () => {
+export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }) => {
   const { addToast } = useApp();
   const [tab, setTab] = useState<'waiting' | 'pending' | 'youth'>('waiting');
   const [waitingPool, setWaitingPool] = useState<WaitingPoolEntry[] | null>(null);
@@ -42,6 +52,7 @@ export const WaitingPoolPanel: React.FC = () => {
   const [assignWizardUser, setAssignWizardUser] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showJethroHint, setShowJethroHint] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -49,7 +60,7 @@ export const WaitingPoolPanel: React.FC = () => {
       const [wpRes, paRes, ygRes] = await Promise.all([
         fetch('/api/waiting-pool', { credentials: 'include' }),
         fetch('/api/pending-approval', { credentials: 'include' }),
-        fetch('/api/youth-gehc', { credentials: 'include' }),
+        fetch('/api/waiting-pool?status=ROLE_ASSIGNED', { credentials: 'include' }),
       ]);
 
       if (wpRes.ok) {
@@ -62,7 +73,7 @@ export const WaitingPoolPanel: React.FC = () => {
       }
       if (ygRes.ok) {
         const d = await ygRes.json();
-        setYouthGeHc(d.youth || []);
+        setYouthGeHc(d.pool || []);
       }
     } catch (err) {
       console.error('Failed to fetch onboarding data:', err);
@@ -149,6 +160,7 @@ export const WaitingPoolPanel: React.FC = () => {
       if (!batchRes.ok) throw new Error('Gagal buat batch placement');
       
       addToast({ type: 'success', title: 'Beyonders Diajukan', description: `${validEntries.length} newcomer dikirim ke Jethro Placement Review.` });
+      setShowJethroHint(true);
       setSelectedIds(new Set());
       fetchData();
     } catch (e) {
@@ -269,6 +281,11 @@ export const WaitingPoolPanel: React.FC = () => {
                         <Gift className="w-2.5 h-2.5 inline mr-0.5" /> Gift
                       </span>
                     )}
+                    {entry.profileCompleted && (
+                      <span className="ml-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        Profil
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#D9D7D0]/40">
@@ -304,6 +321,19 @@ export const WaitingPoolPanel: React.FC = () => {
       {/* PENDING APPROVAL - NEW UI with inline actions + bulk */}
       {tab === 'pending' && (
         <div className="space-y-3">
+          {showJethroHint && onNavigate && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-xs text-emerald-800 font-medium">
+                Batch placement sudah dibuat. Review dan commit di Jethro Placement Review.
+              </p>
+              <button
+                onClick={() => { onNavigate('jethro-placement'); setShowJethroHint(false); }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shrink-0"
+              >
+                Buka Jethro Review →
+              </button>
+            </div>
+          )}
           {(pendingApproval || []).length === 0 ? (
             <EmptyState
               icon={<Clock className="w-8 h-8 text-[#8C8880]" />}
@@ -427,6 +457,16 @@ export const WaitingPoolPanel: React.FC = () => {
                                 <User className="w-3 h-3" /> Individu
                               </button>
                             )}
+                            {entry.userId && (
+                              <button
+                                onClick={() => setAssignWizardUser({ id: entry.userId!, name: entry.name })}
+                                disabled={isProcessing}
+                                className="px-2.5 py-1.5 rounded-lg bg-[#181818] text-white text-[9px] font-bold hover:bg-black disabled:opacity-50 flex items-center gap-1"
+                                title="Assign role manual via wizard"
+                              >
+                                <ShieldCheck className="w-3 h-3" /> Role
+                              </button>
+                            )}
                             {!canBeyonders && !canIndividu && (
                               <span className="px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-400 text-[9px] font-bold">
                                 Belum Siap
@@ -491,7 +531,7 @@ export const WaitingPoolPanel: React.FC = () => {
                 </div>
                 {entry.user && (
                   <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-emerald-100">
-                    {(entry.user as any).roles?.map((r: any, i: number) => (
+                    {(entry.user.roles || []).map((r, i) => (
                       <span key={i} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 uppercase">
                         {r.role}{r.groupId ? `@${r.groupId}` : ''}
                       </span>

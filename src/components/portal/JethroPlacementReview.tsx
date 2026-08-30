@@ -74,6 +74,7 @@ interface PlacementItem {
   } | null;
   status: string;
   finalGroupId: string | null;
+  finalGroupName?: string | null;
   finalRole: string | null;
   finalIsIndividu: boolean;
 }

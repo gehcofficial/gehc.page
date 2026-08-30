@@ -4,11 +4,21 @@
  */
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
+import { assignRoleToUser, mapPlacementRoleToPrisma } from './role-assign.mjs';
+import { normalizeGiftsTop5, normalizeGiftsScores } from './gift-normalize.mjs';
 
 const uid = (prefix) => `${prefix}-${crypto.randomUUID()}`;
 
 function assertDb() {
   if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
+}
+
+function serializeItem(item, groupNames = new Map()) {
+  const finalGroupId = item.finalGroupId || item.recommendedGroupId;
+  return {
+    ...item,
+    finalGroupName: finalGroupId ? (groupNames.get(finalGroupId) || item.recommendedGroupName) : null,
+  };
 }
 
 /** Create a new placement batch from recommendations. */
@@ -27,8 +37,8 @@ export async function createPlacementBatch({ createdBy, recommendations }) {
           id: uid('pli'),
           newcomerId: rec.newcomerId,
           newcomerName: rec.newcomerName,
-          newcomerGender: rec.newcomerGender,
-          newcomerGiftsTop5: rec.newcomerGiftsTop5,
+          newcomerGender: rec.newcomerGender || '',
+          newcomerGiftsTop5: rec.newcomerGiftsTop5 || [],
           newcomerMaturityScore: rec.newcomerMaturityScore ?? null,
           recommendedGroupId: rec.recommendedGroupId ?? null,
           recommendedGroupName: rec.recommendedGroupName ?? null,
@@ -51,10 +61,29 @@ export async function getPlacementBatch(batchId) {
   assertDb();
   const prisma = getPrisma();
 
-  return prisma.placementBatch.findUnique({
+  const batch = await prisma.placementBatch.findUnique({
     where: { id: batchId },
     include: { items: { orderBy: { newcomerName: 'asc' } } },
   });
+  if (!batch) return null;
+
+  const groupIds = [
+    ...new Set(
+      batch.items.flatMap((i) => [i.finalGroupId, i.recommendedGroupId].filter(Boolean)),
+    ),
+  ];
+  const groups = groupIds.length
+    ? await prisma.group.findMany({
+        where: { id: { in: groupIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const groupNames = new Map(groups.map((g) => [g.id, g.name]));
+
+  return {
+    ...batch,
+    items: batch.items.map((item) => serializeItem(item, groupNames)),
+  };
 }
 
 /** List batches with optional status filter. */
@@ -103,7 +132,7 @@ export async function updatePlacementItem({ itemId, status, finalGroupId, finalR
   });
 }
 
-/** Bulk approve all PENDING items in a batch. */
+/** Bulk approve all PENDING items in a batch (single CASE WHEN UPDATE). */
 export async function bulkApprovePlacementBatch({ batchId, reviewedBy }) {
   assertDb();
   const prisma = getPrisma();
@@ -114,25 +143,34 @@ export async function bulkApprovePlacementBatch({ batchId, reviewedBy }) {
   });
   if (!batch) throw new Error('Batch tidak ditemukan.');
 
-  await prisma.placementItem.updateMany({
-    where: { batchId, status: 'PENDING' },
-    data: {
-      status: 'APPROVED',
-      finalGroupId: { set: item => item.recommendedGroupId },
-      finalRole: { set: item => item.recommendedRole },
-      finalIsIndividu: false,
-      reviewedBy,
-      reviewedAt: new Date(),
-    },
-  });
+  const pending = batch.items;
+  if (pending.length > 0) {
+    const esc = (s) => String(s).replace(/'/g, "''");
+    const caseGroup = pending
+      .map((i) => `WHEN '${esc(i.id)}' THEN ${i.recommendedGroupId ? `'${esc(i.recommendedGroupId)}'` : 'NULL'}`)
+      .join(' ');
+    const caseRole = pending
+      .map((i) => `WHEN '${esc(i.id)}' THEN ${i.recommendedRole ? `'${esc(i.recommendedRole)}'` : `'MENTEE'`}`)
+      .join(' ');
 
-  // Update batch status
+    await prisma.$executeRawUnsafe(`
+      UPDATE placement_items SET
+        status = 'APPROVED',
+        final_group_id = CASE id ${caseGroup} ELSE final_group_id END,
+        final_role = CASE id ${caseRole} ELSE final_role END,
+        final_is_individu = false,
+        reviewed_by = '${esc(reviewedBy)}',
+        reviewed_at = NOW(3)
+      WHERE batch_id = '${esc(batchId)}' AND status = 'PENDING'
+    `);
+  }
+
   await prisma.placementBatch.update({
     where: { id: batchId },
     data: { status: 'APPROVED', reviewedBy, reviewedAt: new Date() },
   });
 
-  return { updated: batch.items.length };
+  return { updated: pending.length };
 }
 
 /** Commit batch → create RoleAssignments + update WaitingPool. */
@@ -145,7 +183,6 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
     include: {
       items: {
         where: { status: { in: ['APPROVED', 'REVISED'] } },
-        include: { batch: true },
       },
     },
   });
@@ -154,7 +191,6 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
 
   const results = {
     created: 0,
-    updated: 0,
     individu: 0,
     errors: [],
   };
@@ -162,89 +198,34 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
   for (const item of batch.items) {
     try {
       if (item.finalIsIndividu || item.status === 'INDIVIDU') {
-        // Create RoleAssignment as INDIVIDU (MENTEE, no group)
-        await prisma.roleAssignment.create({
-          data: {
-            id: uid('ra'),
-            userId: item.newcomerId,
-            role: 'MENTEE',
-            position: null,
-            division: null,
-            subdivision: null,
-            groupId: null,
-            familyRole: 'MENTEE',
-            assignedBy: committedBy,
-            note: 'Individu (tanpa kelompok mentoring)',
-            isActive: true,
-          },
+        await assignRoleToUser(prisma, {
+          userId: item.newcomerId,
+          role: 'MENTEE',
+          groupId: null,
+          familyRole: 'MENTEE',
+          assignedBy: committedBy,
+          note: 'Individu (tanpa kelompok mentoring)',
         });
         results.individu++;
       } else if (item.finalGroupId && item.finalRole) {
-        // Create RoleAssignment with group
-        await prisma.roleAssignment.create({
-          data: {
-            id: uid('ra'),
-            userId: item.newcomerId,
-            role: item.finalRole,
-            position: item.finalRole === 'MENTOR' || item.finalRole === 'COMENTOR' ? item.finalRole : null,
-            division: null,
-            subdivision: null,
-            groupId: item.finalGroupId,
-            familyRole: item.finalRole,
-            assignedBy: committedBy,
-            note: `Jethro placement: ${item.recommendedGroupName} → ${item.finalRole}`,
-            isActive: true,
-          },
+        const prismaRole = mapPlacementRoleToPrisma(item.finalRole);
+        await assignRoleToUser(prisma, {
+          userId: item.newcomerId,
+          role: prismaRole,
+          groupId: item.finalGroupId,
+          position: ['MENTOR', 'CO_MENTOR'].includes(prismaRole) ? prismaRole : null,
+          assignedBy: committedBy,
+          note: `Jethro placement: ${item.recommendedGroupName || item.finalGroupId} → ${item.finalRole}`,
         });
         results.created++;
       } else {
         results.errors.push({ newcomerId: item.newcomerId, error: 'Missing final group/role' });
-        continue;
       }
-
-      // Dual-write UserRole
-      const existingUserRole = await prisma.userRole.findFirst({
-        where: {
-          userId: item.newcomerId,
-          role: item.finalIsIndividu ? 'MENTEE' : item.finalRole,
-          groupId: item.finalIsIndividu ? null : item.finalGroupId,
-        },
-      });
-
-      if (existingUserRole) {
-        await prisma.userRole.update({
-          where: { id: existingUserRole.id },
-          data: { assignmentId: `placeholder-${item.newcomerId}-${Date.now()}` }, // will be updated after RoleAssignment created
-        });
-      } else {
-        await prisma.userRole.create({
-          data: {
-            userId: item.newcomerId,
-            tenantId: 'tenant-youth',
-            role: item.finalIsIndividu ? 'MENTEE' : item.finalRole,
-            groupId: item.finalIsIndividu ? null : item.finalGroupId,
-          },
-        });
-      }
-
-      // Update WaitingPool status
-      await prisma.waitingPool.updateMany({
-        where: { userId: item.newcomerId },
-        data: { status: 'ROLE_ASSIGNED' },
-      });
-
-      // Update User.onboardingStatus
-      await prisma.user.update({
-        where: { id: item.newcomerId },
-        data: { onboardingStatus: 'ACTIVE' },
-      });
-
     } catch (e) {
       results.errors.push({ newcomerId: item.newcomerId, error: e.message });
     }
   }
 
-  // Mark batch as committed
   await prisma.placementBatch.update({
     where: { id: batchId },
     data: { status: 'COMMITTED', committedBy, committedAt: new Date() },
@@ -258,7 +239,6 @@ export async function getEligibleNewcomers() {
   assertDb();
   const prisma = getPrisma();
 
-  // Get users from WaitingPool with PROFILE_COMPLETED + gift test done + gender
   const pool = await prisma.waitingPool.findMany({
     where: {
       status: 'PROFILE_COMPLETED',
@@ -281,8 +261,8 @@ export async function getEligibleNewcomers() {
     id: p.userId || p.id,
     name: p.name,
     gender: p.gender,
-    giftsTop5: Array.isArray(p.giftsTop5) ? p.giftsTop5 : [],
-    giftsScores: p.giftsScores || {},
-    maturityScore: 0, // could be calculated from attendance if user existed before
+    giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
+    giftsScores: normalizeGiftsScores(p.giftsScores || {}),
+    maturityScore: 0,
   }));
 }

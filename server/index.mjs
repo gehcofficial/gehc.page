@@ -56,6 +56,9 @@ import {
   profileSegments,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
+import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from './onboarding-sync.mjs';
+import { assignRoleToUser } from './role-assign.mjs';
+import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8787);
@@ -238,6 +241,7 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.authUser.id }, include: meInclude() });
   const recreationalIds = (user.recreational || []).map((m) => m.groupId);
   const view = { ...user, recreational: (user.recreational || []).map((m) => m.group), recreationalIds };
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
   res.json({ user: view, reminderDue: false, segments: profileSegments({ ...view, recreationalIds }) });
 }));
 
@@ -249,6 +253,7 @@ app.post('/api/me/profile/confirm', wrap(async (req, res) => {
     where: { id: req.authUser.id },
     data: { lastProfileUpdate: new Date() },
   });
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
   res.json({ ok: true, reminderDue: false });
 }));
 
@@ -2496,7 +2501,7 @@ app.get('/api/jethro/placement/advanced', requireRole(...KOMISION), wrap(async (
         id: p.userId,
         name: p.name,
         gender: p.gender,
-        giftsTop5: Array.isArray(p.giftsTop5) ? p.giftsTop5 : [],
+        giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
         giftsScores: p.giftsScores || {},
         maturityScore: 0,
       }));
@@ -2922,6 +2927,10 @@ app.post('/api/join', wrap(async (req, res) => {
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
+    if (invite.defaultRole === 'MENTEE') {
+      try { await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: `Invite ${code}` }); } catch { /* non-blocking */ }
+    }
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
       status: user.accountStatus,
@@ -2989,6 +2998,10 @@ app.post('/api/join/local', wrap(async (req, res) => {
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
+    if (invite.defaultRole === 'MENTEE') {
+      try { await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: `Invite ${code}` }); } catch { /* non-blocking */ }
+    }
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({ status: user.accountStatus, role: invite.defaultRole, user });
   } catch (err) {
@@ -3012,6 +3025,7 @@ app.patch('/api/me', wrap(async (req, res) => {
   if (Array.isArray(b.giftsTop5)) data.giftsTop5 = b.giftsTop5;
   if (b.giftsScores && typeof b.giftsScores === 'object') data.giftsScores = b.giftsScores;
   const u = await prisma.user.update({ where: { id: req.authUser.id }, data });
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
   res.json({ ok: true, name: u.name });
 }));
 
@@ -3360,16 +3374,47 @@ function genId64() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-/** GET /api/waiting-pool — List users in Waiting Pool (belum profil lengkap) */
+/** GET /api/waiting-pool — List WaitingPool entries (default: WAITING_POOL) */
 app.get('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
+  const status = req.query.status ? String(req.query.status) : 'WAITING_POOL';
+  const includeUser = status === 'ROLE_ASSIGNED';
+
   const pool = await prisma.waitingPool.findMany({
-    where: { status: 'WAITING_POOL' },
-    orderBy: { registeredAt: 'desc' },
+    where: { status },
+    orderBy: status === 'ROLE_ASSIGNED' ? { profileCompletedAt: 'desc' } : { registeredAt: 'desc' },
+    include: includeUser
+      ? {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              roles: { select: { role: true, groupId: true, tenantId: true } },
+            },
+          },
+        }
+      : undefined,
   });
   res.json({ pool });
+}));
+
+/** POST /api/waiting-pool — Komisi tambah user ke pipeline manual */
+app.post('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { userId, sourceEvent } = req.body || {};
+  if (!userId) return res.status(400).json({ error: 'userId wajib.' });
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  const entry = await ensureWaitingPoolForNewPemuda(userId, { sourceEvent: sourceEvent || 'Manual add' });
+  const synced = await syncWaitingPoolFromUser(userId);
+  res.json({ ok: true, entry: synced || entry });
 }));
 
 /** GET /api/pending-approval — List users with profile completed, awaiting role */
@@ -3898,86 +3943,16 @@ app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
 
-  // Create RoleAssignment
-  const assignment = await prisma.roleAssignment.create({
-    data: {
-      id: genId64(),
-      userId,
-      role,
-      position: position || null,
-      division: division || null,
-      subdivision: subdivision || null,
-      groupId: groupId || null,
-      familyRole: familyRole || null,
-      assignedBy: assignerId,
-      note: note || null,
-    },
-  });
-
-  // Dual-write: create/update UserRole for backward compatibility
-  const existingUserRole = await prisma.userRole.findFirst({
-    where: { userId, role, groupId: groupId || null },
-  });
-
-  let userRole;
-  if (existingUserRole) {
-    userRole = await prisma.userRole.update({
-      where: { id: existingUserRole.id },
-      data: { assignmentId: assignment.id },
-    });
-  } else {
-    userRole = await prisma.userRole.create({
-      data: {
-        userId,
-        tenantId: 'tenant-youth',
-        role,
-        groupId: groupId || null,
-        assignmentId: assignment.id,
-      },
-    });
-  }
-
-  // If groupId provided and role is MENTOR/CO_MENTOR/MENTEE, create/update GroupMember
-  if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
-    const familyRoleMap = { MENTOR: 'MENTOR', CO_MENTOR: 'COMENTOR', MENTEE: 'MENTEE' };
-    const memberFamilyRole = familyRoleMap[role] || 'MENTEE';
-
-    const existingMember = await prisma.groupMember.findFirst({
-      where: { userId, groupId },
-    });
-
-    if (!existingMember) {
-      await prisma.groupMember.create({
-        data: {
-          id: genId64(),
-          groupId,
-          userId,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          familyRole: memberFamilyRole,
-          assignmentId: assignment.id,
-        },
-      });
-    }
-
-    // Update user isBeyonders flag
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isBeyonders: true },
-    });
-  }
-
-  // Update WaitingPool status if exists
-  await prisma.waitingPool.updateMany({
-    where: { userId },
-    data: { status: 'ROLE_ASSIGNED' },
-  });
-
-  // Update user onboardingStatus
-  await prisma.user.update({
-    where: { id: userId },
-    data: { onboardingStatus: 'ACTIVE' },
+  const { assignment, userRole } = await assignRoleToUser(prisma, {
+    userId,
+    role,
+    groupId: groupId || null,
+    position: position || null,
+    division: division || null,
+    subdivision: subdivision || null,
+    familyRole: familyRole || null,
+    assignedBy: assignerId,
+    note: note || null,
   });
 
   res.json({ ok: true, assignment, userRole });
@@ -4277,6 +4252,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
       where: { id: req.authUser.id },
       data: { giftsTop5, giftsScores, talents },
     });
+    try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
     return res.json({ ok: true });
   }
 

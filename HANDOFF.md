@@ -11,56 +11,55 @@ When context hits **~70–80%** or you start a **new episode** (different featur
 
 ---
 
-## 2. Current priority — Profil Saya Phase 1 UX (full)
+## 2. Current priority — Onboarding Pipeline + Jethro Placement Review
 
-**Goal:** Profil self-service lengkap — header, status hidup, karunia wizard, minat search, domisili Wilayah.id.
+**Goal:** End-to-end newcomer flow: WaitingPool sync → admin pipeline → Jethro batch review → commit = role-assign parity → Youth GEHC tab.
 
 ### Done
-- **Header:** avatar + email read-only, pisah data gereja (admin) vs self-service
-- **Kontak & alamat:** gender, HP, `AddressForm` Wilayah.id (ID + luar negeri)
-- **Status hidup:** sekolah / kuliah / kerja (multi); kerja = nama + industri + jabatan; jurusan "Lainnya" = input bebas
-- **Karunia:** `ProfileGiftsSection` + `GiftTestWizard` (bukan textarea JSON); CTA di `RestrictedPortal`
-- **Minat:** search + chip + **Lainnya…** → admin approve di Direktori Jemaat
-- **Kontak darurat:** nama, hubungan, HP, alamat opsional
-- **DB:** `work_industry`, `work_role`, `major_other`, `recreational_suggestions`
-- **Env:** `npm run env:sync` / `env:check`, `npm run db:migrate:profile`, `npm run db:migrate:church-request`
-- **Request data gereja:** user ajukan ubah nama/BIPRA/kolom → admin approve di Direktori
-- **Tests:** `tests/profile-phase1.spec.ts`
+- **Migration:** `placement_batches` / `placement_items` — `npm run db:migrate:placement`
+- **Jethro UI:** import `JethroPlacementReview` di `PortalLayout.tsx`
+- **Bulk approve:** TiDB-safe CASE WHEN SQL di `jethro-placement.mjs`
+- **Commit parity:** `GroupMember`, `isBeyonders`, `COMENTOR`→`CO_MENTOR`, real `assignmentId` via `role-assign.mjs`
+- **WaitingPool sync:** `onboarding-sync.mjs` hooks on profile/gifttest/join
+- **Portal gating:** `onboardingStatus=WAITING_POOL` → `RestrictedPortal` (App.tsx + sync on signup)
+- **Admin UI:** Youth GEHC tab pakai `GET /api/waiting-pool?status=ROLE_ASSIGNED`; wizard Role + link Jethro
+- **Engine metadata:** `newcomerGender`, `newcomerGiftsTop5`, `newcomerMaturityScore` + gift normalize ID→EN
+- **Tests:** `tests/onboarding-jethro.spec.ts` (API assertions)
 
 ### Next (optional)
-- E2E alamat cascade di Profil + Direktori admin
-- Filter provinsi di dashboard
-- Institution suggest dari profil (user)
+- Bridge legacy `WaitlistEntry` → `WaitingPool`
+- WhatsApp reminder integration (masih placeholder)
+- Real `maturityScore` dari absensi
 
 ### Key files
 | File | Role |
 |---|---|
-| `src/components/portal/MyProfilePanel.tsx` | Profil utama (5 segmen) |
-| `src/components/portal/ProfileGiftsSection.tsx` | Tes karunia wizard |
-| `src/components/portal/ProfileRecreationalSection.tsx` | Minat + suggest |
-| `src/components/portal/AddressForm.tsx` | Domisili ID/INTL |
-| `server/profile-fields.mjs` | Validasi + segments |
-| `server/_migrate-profile-phase1.cjs` | Migration kolom phase 1 |
-| `src/components/portal/YouthGEHCList.tsx` | Admin direktori + approve minat |
+| `server/onboarding-sync.mjs` | Sync WaitingPool dari user profile/gifts |
+| `server/jethro-placement.mjs` | Batch CRUD, bulk approve, commit |
+| `server/role-assign.mjs` | Shared role-assign + GroupMember |
+| `server/gift-normalize.mjs` | Map karunia ID (giftBank) → EN (engine) |
+| `src/components/portal/WaitingPoolPanel.tsx` | 3-tab onboarding admin |
+| `src/components/portal/JethroPlacementReview.tsx` | Review + commit batch |
+| `server/_migrate-jethro-placement.cjs` | Migration placement tables |
 
 ### Quick start new chat — **COPY INI**
 
 ```
 GEHC Youth Portal handoff — fresh context.
 
-Episode: test Profil Saya Phase 1 end-to-end
-Goal: Verifikasi 5 segmen profil + suggest minat + admin approve
+Episode: verify onboarding + Jethro placement end-to-end
+Goal: Seed → pipeline → Jethro batch → commit → Youth GEHC tab
 Done last session:
-- Merge PR #1 Phase 1 UX ke branch lokal
-- ProfileGiftsSection, ProfileRecreationalSection, migration phase 1
-- env:sync scripts + db:migrate:profile
+- db:migrate:placement + jethro bulk approve/commit fix
+- onboarding-sync hooks + WaitingPoolPanel tab alignment
+- engine metadata + gift normalize + onboarding-jethro.spec.ts
 Blocked on: [isi jika migration/DB error]
-Next step: npm run db:migrate:profile → npm run dev → test semua segmen
+Next step: npm run db:migrate:placement && npm run db:seed:onboarding → npm run dev → test pipeline
 
 Stack: Vite/React/TS + Express + TiDB/Prisma
 Credentials: tech@gehc.demo / password123
 Run: npm run env:sync && npm run dev → http://localhost:8787
-Attach: MyProfilePanel.tsx, profile-fields.mjs
+Attach: jethro-placement.mjs, WaitingPoolPanel.tsx
 ```
 
 ---
@@ -79,48 +78,53 @@ Attach: MyProfilePanel.tsx, profile-fields.mjs
 
 | Layer | Tech |
 |---|---|
-| Frontend | Vite + React + TypeScript (`src/`) |
-| Backend | Express ESM (`server/index.mjs`, `server/auth.mjs`) |
-| DB | TiDB Cloud + Prisma (`prisma/schema.prisma`) |
-| AI | Vercel AI SDK (gpt-4o-mini + Groq fallback) |
-| Auth | Google SSO + JWT session cookies |
+| Frontend | Vite + React + TypeScript |
+| Backend | Express ESM (`server/index.mjs`) |
+| DB | TiDB Cloud (MySQL) + Prisma |
+| AI | Vercel AI SDK (OpenAI + Groq fallback) |
 
-```bash
-npm run dev                    # dev server → :8787
-node server/index.mjs          # alt start
-npm run build                  # production build
-npx playwright test            # E2E
-node server/_seed-address-scope.cjs
-npx prisma generate
-node server/_dbstate.cjs       # check DB state
+```powershell
+npm run env:sync && npm run env:check
+npm run db:migrate:placement
+npm run db:seed:onboarding
+npm run dev                    # http://localhost:8787
+npx playwright test tests/onboarding-jethro.spec.ts
 ```
 
-**Conventions:** `wrap(async (req,res)=>{})` handlers · `if (!req.authUser)` for auth · `requireRole('SUPERADMIN','KOMISI')` middleware · portal components in `src/components/portal/` (flat imports, no lazy load).
+Demo login: `tech@gehc.demo` / `password123`
 
 ---
 
-## 5. TiDB quirks (critical)
+## 5. Branch conventions
 
-- Serverless **drops TCP** after ~2–5 sequential queries → hangs.
-- **Never** `prisma.user.update()` in for-loops — use single `CASE WHEN` bulk UPDATE.
-- Standalone scripts: use **CJS** (`.cjs`) — Prisma ESM import hangs.
-- JSON null filter broken → raw SQL: `WHERE gifts_top5 IS NULL`.
-- Pool exhaustion after ~80 sequential ops.
+- Feature branches: `cursor/<feature>-<hash>`
+- Base: `staging`
+- Don't force-push `main`/`staging`
 
 ---
 
-## Historical
+## 6. TiDB / Prisma quirks (CRITICAL)
 
-<details>
-<summary>Gift seeding & placement (archived — not current focus)</summary>
+- Serverless TiDB drops TCP after ~2–5 sequential queries
+- **Never** sequential `user.update()` in for-loops — use CASE WHEN bulk SQL
+- Prisma ESM import hangs in standalone scripts — use `.cjs` for migrations/seeds
+- JSON null filter broken — raw SQL: `WHERE gifts_top5 IS NULL`
+- Stop dev server before `npx prisma generate` on Windows (EPERM)
 
-Earlier work on youth gift/placement data and bulk DB scripts. Useful for reference only.
+---
 
-- Seed scripts: `server/seed-youth-gehc.cjs`, `server/_gifts*.cjs` (MySQL/Prisma experiments)
-- Placement: `server/engine.mjs`, `server/jethro-ai.mjs`
-- E2E: `tests/full-flow.spec.ts`
-- Check state: `node server/_dbstate.cjs`
+## 7. Test credentials
 
-TiDB rules above apply to all bulk gift/placement updates — never loop sequential Prisma writes.
+| Role | Email | Password |
+|---|---|---|
+| Superadmin | tech@gehc.demo | password123 |
+| Tenant | tenant-bapak | — |
 
-</details>
+---
+
+## 8. Episode log (recent)
+
+| Date | Episode | Outcome |
+|---|---|---|
+| 2026-08 | Profil Phase 1 UX | Full profile segments, church data request |
+| 2026-08 | Onboarding + Jethro | WaitingPool sync, placement commit parity, E2E |
