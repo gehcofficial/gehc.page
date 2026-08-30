@@ -6,6 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+!.env.staging.example
 
 # Kredensial Google Service Account — JANGAN pernah commit
 gehc-*.json

@@ -161,10 +161,14 @@ Pola hybrid: URL file disimpan di kolom TiDB (`bannerUrl`), filenya di Drive.
 2. Credentials → Create Credentials → OAuth client ID
    • Application type: Web application
    • Authorized JavaScript origins:
-       http://localhost:3000        (dev)
+       http://localhost:8787        (npm run dev — Vite middleware)
+       http://localhost:3000        (npm run dev:frontend / dev:all)
+       https://staging-gehcpage.vercel.app
        https://<domain-produksi>    (nanti)
    Authorized redirect URIs:        ← WAJIB untuk alur "pilih akun"
+       http://localhost:8787/api/auth/google/callback
        http://localhost:3000/api/auth/google/callback
+       https://staging-gehcpage.vercel.app/api/auth/google/callback
        https://<domain-produksi>/api/auth/google/callback
 5. Salin Client ID + Client Secret → .env:
    GOOGLE_CLIENT_ID=...apps.googleusercontent.com
