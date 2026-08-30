@@ -4,38 +4,17 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  applyLocalOverrides,
+  looksLikeProductionDb,
+  readEnvMap,
+  writeEnvFile,
+  LOCAL_OVERRIDES,
+} from './env-config.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const stagingPath = path.join(root, '.env.staging');
 const envPath = path.join(root, '.env');
-
-const LOCAL_OVERRIDES = {
-  PORT: '8787',
-  CORS_ORIGIN: 'http://localhost:8787,http://localhost:3000',
-  APP_URL: 'http://localhost:8787',
-};
-
-function parseEnv(content) {
-  const map = new Map();
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    map.set(key, value);
-  }
-  return map;
-}
-
-function formatValue(value) {
-  if (/[\s#"'=]/.test(value)) return `"${value.replace(/"/g, '\\"')}"`;
-  return value;
-}
 
 if (!fs.existsSync(stagingPath)) {
   console.error('❌ .env.staging tidak ditemukan.');
@@ -43,26 +22,32 @@ if (!fs.existsSync(stagingPath)) {
   process.exit(1);
 }
 
-const staging = parseEnv(fs.readFileSync(stagingPath, 'utf8'));
-const merged = new Map(staging);
+const staging = readEnvMap(stagingPath);
+const dbUrl = staging.get('DATABASE_URL') ?? '';
 
-for (const [key, value] of Object.entries(LOCAL_OVERRIDES)) {
-  merged.set(key, value);
+if (dbUrl && looksLikeProductionDb(dbUrl)) {
+  console.error('❌ DATABASE_URL di .env.staging terlihat production — sync dibatalkan.');
+  console.error('   Lokal harus mengarah ke branch staging (gehc_staging / youthgehc_staging).');
+  process.exit(1);
 }
 
-if (!merged.get('ENABLE_DEMO_PERSONAS')) {
-  merged.set('ENABLE_DEMO_PERSONAS', 'true');
+if (fs.existsSync(envPath)) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  fs.copyFileSync(envPath, path.join(root, `.env.backup.${stamp}`));
 }
 
-const header = `# Di-generate otomatis dari .env.staging + override lokal (${new Date().toISOString().slice(0, 10)})\n# Jalankan ulang: npm run env:sync\n\n`;
-const body = [...merged.entries()]
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([key, value]) => `${key}=${formatValue(value)}`)
-  .join('\n');
+const merged = applyLocalOverrides(new Map(staging));
 
-fs.writeFileSync(envPath, `${header}${body}\n`, 'utf8');
+writeEnvFile(envPath, merged, [
+  `# Di-generate otomatis dari .env.staging + override lokal (${new Date().toISOString().slice(0, 10)})`,
+  '# Jalankan ulang: npm run env:sync',
+  `# Backup sebelumnya: .env.backup.* (gitignored)`,
+]);
 
 console.log('✓ .env dibuat dari .env.staging');
+if (fs.readdirSync(root).some((f) => f.startsWith('.env.backup.'))) {
+  console.log('  Backup .env lama disimpan sebagai .env.backup.*');
+}
 console.log('  Override lokal:', Object.keys(LOCAL_OVERRIDES).join(', '));
 console.log('  ENABLE_DEMO_PERSONAS:', merged.get('ENABLE_DEMO_PERSONAS'));
 console.log('\nLangkah berikutnya: npm run env:check && npm run dev');

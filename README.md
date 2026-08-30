@@ -14,8 +14,8 @@ cp .env.staging.example .env.staging   # isi secret TiDB/Google/Drive
 npm run env:sync                       # .env.staging → .env + override localhost
 npm run env:check                      # audit DATABASE_URL, demo flag, dll.
 
-npm run dev      # server + Vite middleware (port 8787)
-# atau: npm run dev:staging  # langsung baca .env.staging (tanpa salin ke .env)
+npm run dev          # server + Vite middleware (port 8787) — baca .env
+npm run dev:staging  # sama secret staging, override localhost otomatis
 ```
 
 Verifikasi: buka `http://localhost:8787/api/health` → `{"ok":true}`.
