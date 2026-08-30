@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node server/index.mjs",
+    "dev:staging": "dotenv -e .env.staging -- node server/index.mjs",
+    "env:sync": "node scripts/sync-env-from-staging.mjs",
+    "env:check": "node scripts/check-env-parity.mjs",
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:all": "node dev-all.mjs",
     "deploy:staging": "node scripts/deploy-staging.mjs",
