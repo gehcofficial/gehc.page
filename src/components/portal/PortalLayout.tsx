@@ -19,11 +19,12 @@ import { WaitlistBoard } from './WaitlistBoard';
 import { PeopleInvites } from './PeopleInvites';
 import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { YouthGEHCList } from './YouthGEHCList';
-import { JethroPlacementReview } from './JethroPlacementReview';
+import { MyProfilePanel } from './MyProfilePanel';
 import {
   LayoutDashboard,
   BookOpen,
   Calendar,
+  User,
   Users,
   ShieldCheck,
   ShieldAlert,
@@ -90,12 +91,13 @@ export const PortalLayout: React.FC = () => {
   }, []);
 
   const navItems = [
+    { id: 'my-profile', label: 'Profil saya', icon: User, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
     { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'], group: 'Utama' },
     { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
     { id: 'waitlist', label: 'Waitlist Newcomer', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Komunitas' },
     { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
     { id: 'jethro-placement', label: 'Jethro Placement Review', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas' },
-    { id: 'youth-gehc', label: 'Youth GEHC', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
+    { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas' },
     { id: 'groups-monitoring', label: isMentor ? 'Monitoring Kelompok Binaan' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'MENTEE'], group: 'Komunitas' },
     { id: 'jethro', label: 'Jethro Engine (Regenerasi)', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas' },
     { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten' },
@@ -444,6 +446,7 @@ export const PortalLayout: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
           <NotificationPermissionBanner compact onDismiss={() => {}} />
+          {activeTab === 'my-profile' && <MyProfilePanel />}
           {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
           {activeTab === 'content-activities' && <ManageActivities />}

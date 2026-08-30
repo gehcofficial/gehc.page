@@ -8,7 +8,7 @@
  */
 import crypto from 'node:crypto';
 import { Auth } from 'googleapis';
-import { getPrisma, isDbConfigured } from './db.mjs';
+import { getPrisma, isDbConfigured, resetPrisma, isTransientDbError } from './db.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -72,14 +72,55 @@ export function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 }
 
+function dedupeRoles(roles) {
+  const seen = new Set();
+  return (roles || []).filter((r) => {
+    const key = `${r.role}::${r.tenantId || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function applySuperadminSession(user) {
+  if (!user) return user;
+  if (isSuperadminEmail(user.email) && !(user.roles || []).some((r) => r.role === 'SUPERADMIN')) {
+    const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
+    user.roles = [...(user.roles || []), { userId: user.id, tenantId, role: 'SUPERADMIN' }];
+  }
+  user.roles = dedupeRoles(user.roles);
+  return user;
+}
+
+export async function persistSuperadminRole(user) {
+  if (!user || !isSuperadminEmail(user.email)) return applySuperadminSession(user);
+  if ((user.roles || []).some((r) => r.role === 'SUPERADMIN')) return applySuperadminSession(user);
+  const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      await prisma.userRole.create({
+        data: { userId: user.id, tenantId, role: 'SUPERADMIN' },
+      });
+      user.roles = [...(user.roles || []), { userId: user.id, tenantId, role: 'SUPERADMIN' }];
+    } catch {
+      /* DB belum siap — fallback session-only */
+    }
+  }
+  return applySuperadminSession(user);
+}
+
+export const ensureSuperadminRole = persistSuperadminRole;
+
 /** Muat User + roles dari DB berdasarkan uid di sesi. */
 async function loadUserByUid(uid) {
   const prisma = getPrisma();
   if (!prisma) return null;
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: uid },
     include: { roles: true },
   });
+  return applySuperadminSession(user);
 }
 
 /** Middleware: pasang req.authUser (atau null) dari cookie sesi. */
@@ -87,11 +128,11 @@ export async function attachUser(req, _res, next) {
   req.authUser = null;
   const session = verifySession(parseCookies(req)[COOKIE_NAME]);
   if (session && isDbConfigured()) {
-    // Retry sekali — jaringan ke TiDB kadang bergetar (Serverless wake-up).
     for (let attempt = 0; attempt < 2 && !req.authUser; attempt++) {
       try {
         req.authUser = await loadUserByUid(session.uid);
       } catch (err) {
+        if (isTransientDbError(err)) await resetPrisma();
         if (attempt === 0) {
           await new Promise((r) => setTimeout(r, 500));
         } else {
@@ -107,8 +148,10 @@ export async function attachUser(req, _res, next) {
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
-    if (roles.length === 0) return next(); // no role restriction, just require auth
+    if (roles.length === 0) return next();
+    if (isSuperadminEmail(req.authUser.email)) return next();
     const userRoles = (req.authUser.roles || []).map((r) => r.role);
+    if (userRoles.includes('SUPERADMIN')) return next();
     const ok = roles.some((r) => userRoles.includes(r));
     if (!ok) return res.status(403).json({ error: 'Akses ditolak untuk role Anda.' });
     next();
@@ -116,7 +159,7 @@ export function requireRole(...roles) {
 }
 
 export function isSuperadminEmail(email) {
-  return superadminEmails().includes(String(email).toLowerCase());
+  return superadminEmails().includes(String(email || '').toLowerCase());
 }
 
 function superadminEmails() {
@@ -153,7 +196,7 @@ export async function loginLocal(emailRaw, password) {
   if (!u || !u.passwordHash || !verifyPassword(password, u.passwordHash)) {
     throw new Error('Email atau kata sandi salah.');
   }
-  return u;
+  return persistSuperadminRole(u);
 }
 
 /** Verifikasi ID token Google → payload {sub,email,name,picture,...} (dipakai login & join). */
@@ -180,34 +223,129 @@ export async function loginWithGoogleCredential(credential) {
     throw new Error('DATABASE_URL belum dikonfigurasi.');
   }
   const p = await verifyGoogleCredential(credential);
-
   const email = p.email;
   const prisma = getPrisma();
-  const userId = p.sub;
 
-  const user = await prisma.user.upsert({
-    where: { id: userId },
-    create: {
-      id: userId,
-      email,
-      name: p.name || email.split('@')[0],
-      avatar: p.picture || null,
-    },
-    update: {
-      name: p.name || undefined,
-      avatar: p.picture || undefined,
-    },
+  let user = await prisma.user.findFirst({
+    where: { googleSub: p.sub },
     include: { roles: true },
   });
 
-  // Role awal saat pertama kali login
+  if (user) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email,
+        name: p.name || undefined,
+        avatar: p.picture || undefined,
+        linkStatus: 'LINKED',
+        authProvider: 'GOOGLE',
+      },
+      include: { roles: true },
+    });
+  } else {
+    const byEmail = await prisma.user.findUnique({
+      where: { email },
+      include: { roles: true },
+    });
+    if (byEmail) {
+      if (byEmail.googleSub && byEmail.googleSub !== p.sub) {
+        throw new Error('Email ini sudah tertaut ke akun Google lain.');
+      }
+      user = await prisma.user.update({
+        where: { id: byEmail.id },
+        data: {
+          googleSub: p.sub,
+          linkStatus: 'LINKED',
+          email,
+          name: p.name || undefined,
+          avatar: p.picture || undefined,
+          authProvider: 'GOOGLE',
+        },
+        include: { roles: true },
+      });
+    }
+  }
+
+  if (!user) {
+    user = await prisma.user.upsert({
+      where: { id: p.sub },
+      create: {
+        id: p.sub,
+        email,
+        name: p.name || email.split('@')[0],
+        avatar: p.picture || null,
+        googleSub: p.sub,
+        linkStatus: 'LINKED',
+        bipra: 'PEMUDA',
+        authProvider: 'GOOGLE',
+      },
+      update: {
+        email,
+        name: p.name || undefined,
+        avatar: p.picture || undefined,
+        googleSub: p.sub,
+        linkStatus: 'LINKED',
+        authProvider: 'GOOGLE',
+      },
+      include: { roles: true },
+    });
+  }
+
   if ((user.roles || []).length === 0) {
     const initialRole = superadminEmails().includes(email) ? 'SUPERADMIN' : 'MENTEE';
     await prisma.userRole.create({
-      data: { userId, tenantId: 'tenant-youth', role: initialRole },
+      data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
     });
-    user.roles.push({ userId, tenantId: 'tenant-youth', role: initialRole });
+    user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
   }
 
-  return user;
+  return persistSuperadminRole(user);
+}
+
+export function newClaimToken() {
+  return crypto.randomBytes(24).toString('base64url');
+}
+
+export async function claimWithGoogleCredential(credential, tokenRaw) {
+  if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
+  const token = String(tokenRaw || '').trim();
+  if (!token) throw new Error('Token taut wajib.');
+  const p = await verifyGoogleCredential(credential);
+  const prisma = getPrisma();
+
+  const taken = await prisma.user.findFirst({ where: { googleSub: p.sub } });
+  const target = await prisma.user.findFirst({
+    where: { claimToken: token },
+    include: { roles: true },
+  });
+  if (!target) throw new Error('Taut tidak valid.');
+  if (!target.claimTokenExpiresAt || target.claimTokenExpiresAt < new Date()) {
+    throw new Error('Taut sudah kedaluwarsa. Minta taut baru dari admin.');
+  }
+  if (taken && taken.id !== target.id) {
+    throw new Error('Akun Google ini sudah tertaut ke jemaat lain.');
+  }
+  if (p.email) {
+    const emailOwner = await prisma.user.findUnique({ where: { email: p.email } });
+    if (emailOwner && emailOwner.id !== target.id) {
+      throw new Error('Email Google ini sudah dipakai jemaat lain.');
+    }
+  }
+
+  const user = await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      googleSub: p.sub,
+      linkStatus: 'LINKED',
+      email: p.email,
+      name: p.name || target.name,
+      avatar: p.picture || target.avatar,
+      claimToken: null,
+      claimTokenExpiresAt: null,
+      authProvider: 'GOOGLE',
+    },
+    include: { roles: true },
+  });
+  return persistSuperadminRole(user);
 }

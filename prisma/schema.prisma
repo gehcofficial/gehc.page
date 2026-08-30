@@ -27,9 +27,60 @@ model Tenant {
   @@map("tenants")
 }
 
+enum Bipra {
+  BAPAK
+  IBU
+  PEMUDA
+  REMAJA
+  ANAK
+}
+
+/// Kolom teritorial (satu jemaat satu Kolom). Campur BIPRA. Jumlah bisa berubah (simulasi: 5).
+model Kolom {
+  id     String  @id @db.VarChar(64)
+  number Int     @unique
+  name   String  @db.VarChar(120)
+  area   String? @db.VarChar(190)
+
+  users User[]
+
+  @@map("kolom")
+}
+
+/// Minat rekreasional — hierarki: Sports/Arts → subkategori → minat (leaf, bisa banyak per orang).
+model RecreationalGroup {
+  id         String  @id @db.VarChar(64)
+  slug       String  @unique @db.VarChar(40)
+  name       String  @db.VarChar(80)
+  kind       String  @db.VarChar(24) // SPORTS | ARTS
+  parentId   String? @map("parent_id") @db.VarChar(64)
+  selectable Boolean @default(true) @map("selectable")
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  parent      RecreationalGroup?  @relation("RecTree", fields: [parentId], references: [id])
+  children    RecreationalGroup[] @relation("RecTree")
+  memberships RecreationalMembership[]
+
+  @@index([parentId])
+  @@index([kind])
+  @@map("recreational_groups")
+}
+
+model RecreationalMembership {
+  userId  String @map("user_id") @db.VarChar(64)
+  groupId String @map("group_id") @db.VarChar(64)
+
+  user  User               @relation(fields: [userId], references: [id])
+  group RecreationalGroup  @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+  @@index([groupId])
+  @@map("recreational_memberships")
+}
+
 model User {
   id        String   @id @db.VarChar(64)
-  email     String   @unique @db.VarChar(190)
+  email     String?  @unique @db.VarChar(190)
   name      String   @db.VarChar(150)
   avatar    String?  @db.Text
   phone     String?  @db.VarChar(40)
@@ -38,14 +89,47 @@ model User {
   // Profil lanjutan (join flow / waitlist promote)
   address       String? @db.Text
   origin        String? @map("origin") @db.VarChar(190)
+  addressLine   String?  @map("address_line") @db.VarChar(255)
+  village       String?  @map("village") @db.VarChar(120)
+  district      String?  @map("district") @db.VarChar(120)
+  city          String?  @map("city") @db.VarChar(120)
+  province      String?  @map("province") @db.VarChar(80)
+  postalCode    String?  @map("postal_code") @db.VarChar(12)
+  lat           Float?
+  lng           Float?
+  placeId       String?  @map("place_id") @db.VarChar(255)
+  addressNote   String?  @map("address_note") @db.VarChar(255)
+  addressScope     String  @default("ID") @map("address_scope") @db.VarChar(8) // ID | INTL
+  addressCountry   String  @default("ID") @map("address_country") @db.VarChar(2) // ISO 3166-1 alpha-2
+  provinceCode     String? @map("province_code") @db.VarChar(8)
+  cityCode         String? @map("city_code") @db.VarChar(12)
+  districtCode     String? @map("district_code") @db.VarChar(16)
+  villageCode      String? @map("village_code") @db.VarChar(20)
+
+  lifeStatuses     Json?   @map("life_statuses")
+  schoolLevel      String? @map("school_level") @db.VarChar(24)
+  schoolName       String? @map("school_name") @db.VarChar(190)
+  institutionId    String? @map("institution_id") @db.VarChar(64)
+  major            String? @map("major") @db.VarChar(150)
+  workplaceName    String? @map("workplace_name") @db.VarChar(190)
+  workplacePlaceId String? @map("workplace_place_id") @db.VarChar(255)
+
   giftsTop5     Json?   @map("gifts_top5")
   giftsScores   Json?   @map("gifts_scores")
   talents       Json?
   accountStatus String  @default("ACTIVE") @map("account_status") // ACTIVE | PENDING
 
-  // Onboarding flow (Phase 1)
+  // Kategorial gereja (satu BIPRA) + program Pemuda
   onboardingStatus String  @default("ACTIVE") @map("onboarding_status") @db.VarChar(30) // WAITING_POOL | PENDING | ACTIVE
   isBeyonders      Boolean @default(false) @map("is_beyonders")
+  bipra            Bipra   @default(PEMUDA)
+  kolomId          String? @map("kolom_id") @db.VarChar(64)
+
+  // Taut akun Google (direktori dulu, bind belakangan)
+  googleSub            String?   @unique @map("google_sub") @db.VarChar(64)
+  linkStatus           String    @default("UNLINKED") @map("link_status") @db.VarChar(16) // UNLINKED | LINKED
+  claimToken           String?   @unique @map("claim_token") @db.VarChar(64)
+  claimTokenExpiresAt  DateTime? @map("claim_token_expires_at") @db.DateTime(3)
 
   // Gender & Emergency Contact
   gender                   String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
@@ -60,6 +144,9 @@ model User {
   passwordHash String? @map("password_hash") @db.Text
   authProvider String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
 
+  kolom                     Kolom?                     @relation(fields: [kolomId], references: [id])
+  institution               Institution?               @relation(fields: [institutionId], references: [id])
+  recreational              RecreationalMembership[]
   roles                     UserRole[]
   roleAssignments           RoleAssignment[]
   assignedBy                RoleAssignment[]   @relation("RoleAssignmentAssigner")
@@ -74,7 +161,26 @@ model User {
   mentorTransitionsIncoming MentorTransition[] @relation("MentorTransitionIncoming")
   mentorTransitionsCreated  MentorTransition[] @relation("MentorTransitionCreatedBy")
 
+  @@index([kolomId])
+  @@index([bipra])
+  @@index([institutionId])
+  @@index([addressScope])
+  @@index([addressCountry])
   @@map("users")
+}
+
+/// Kampus / sekolah (katalog + bisa ditambah dari portal)
+model Institution {
+  id     String @id @db.VarChar(64)
+  slug   String @unique @db.VarChar(80)
+  name   String @db.VarChar(190)
+  kind   String @db.VarChar(24) // UNIVERSITY | SCHOOL
+  city   String? @db.VarChar(120)
+
+  users User[]
+
+  @@index([kind])
+  @@map("institutions")
 }
 
 /// Kode undangan: link personal sekali-pakai atau link tim multi-use.
@@ -766,6 +872,7 @@ model RoleAssignment {
   @@index([role])
   @@index([groupId])
   @@index([assignedBy])
+  @@unique([userId, role, groupId], map: "unique_user_role_group")
   @@map("role_assignments")
 }
 

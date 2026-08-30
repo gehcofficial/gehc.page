@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Clock, LogOut, Gift, User, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { MyProfilePanel } from './MyProfilePanel';
 
 /**
  * Portal TERBATAS untuk akun berstatus WAITING_POOL:
@@ -14,14 +15,11 @@ export const RestrictedPortal: React.FC = () => {
 
   useEffect(() => {
     // Cek status tes karunia dari /api/auth/me
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch('/api/me/profile', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
-        const g = d.user?.giftsTop5;
-        setGiftDone(Array.isArray(g) && g.length > 0);
-        // Cek profil lengkap
-        const u = d.user;
-        setProfileDone(!!(u?.phone && u?.gender && u?.origin));
+        setGiftDone(Boolean(d.segments?.gifts) || (Array.isArray(d.user?.giftsTop5) && d.user.giftsTop5.length > 0));
+        setProfileDone(Boolean(d.segments?.contact));
       })
       .catch(() => {
         setGiftDone(null);
@@ -40,7 +38,7 @@ export const RestrictedPortal: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg space-y-5">
+      <div className="w-full max-w-2xl space-y-5">
         {/* Header */}
         <div className="rounded-[32px] bg-gradient-to-br from-[#181818] to-[#262626] p-7 text-white">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-widest mb-3">
@@ -74,36 +72,6 @@ export const RestrictedPortal: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          {!profileDone && (
-            <a
-              href="#/join"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.hash = '#/join';
-                window.location.reload();
-              }}
-              className="block w-full py-3 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider text-center flex items-center justify-center gap-2"
-            >
-              <User className="w-4 h-4" /> Lengkapi Profil Sekarang
-              <ArrowRight className="w-4 h-4" />
-            </a>
-          )}
-
-          {profileDone && !giftDone && (
-            <a
-              href="#/join"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.hash = '#/join';
-                window.location.reload();
-              }}
-              className="block w-full py-3 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider text-center flex items-center justify-center gap-2"
-            >
-              <Gift className="w-4 h-4" /> Lengkapi Tes Karunia Sekarang
-              <ArrowRight className="w-4 h-4" />
-            </a>
-          )}
-
           {allDone && (
             <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
@@ -112,6 +80,8 @@ export const RestrictedPortal: React.FC = () => {
             </div>
           )}
         </div>
+
+        <MyProfilePanel />
 
         {/* Info Box */}
         <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6">
