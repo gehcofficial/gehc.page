@@ -1,5 +1,22 @@
 export const LIFE_STATUSES = ['SCHOOL', 'UNIVERSITY', 'WORK', 'HOMEMAKER', 'UNEMPLOYED', 'CHILD'];
 
+export const WORK_INDUSTRIES = [
+  'Manufaktur',
+  'Logistik & Supply Chain',
+  'Retail & FMCG',
+  'F&B / Hospitality',
+  'Kesehatan',
+  'Pendidikan',
+  'IT & Teknologi',
+  'Konstruksi',
+  'Perbankan & Keuangan',
+  'Otomotif',
+  'Properti & Real Estate',
+  'Pemerintahan & BUMN',
+  'Wirausaha / UMKM',
+  'Lainnya',
+];
+
 export const COMMON_MAJORS = [
   'Teknik Informatika / Ilmu Komputer',
   'Sistem Informasi',
@@ -55,8 +72,9 @@ export function profileSegments(user) {
   const statuses = Array.isArray(user?.lifeStatuses) ? user.lifeStatuses : [];
   const contact = contactComplete(user);
   const life = statuses.length > 0;
-  const uniOk = !statuses.includes('UNIVERSITY') || Boolean(user?.institutionId || user?.origin);
-  const workOk = !statuses.includes('WORK') || Boolean(user?.workplaceName);
+  const majorVal = user?.major === 'Lainnya' ? user?.majorOther : user?.major;
+  const uniOk = !statuses.includes('UNIVERSITY') || Boolean((user?.institutionId || user?.origin) && majorVal);
+  const workOk = !statuses.includes('WORK') || Boolean(user?.workplaceName && user?.workIndustry);
   const schoolOk = !statuses.includes('SCHOOL') || Boolean(user?.schoolName);
   const gifts = Array.isArray(user?.giftsTop5) && user.giftsTop5.length > 0;
   const rec = Array.isArray(user?.recreationalIds)
@@ -124,7 +142,10 @@ export function applyLifeAddressFields(body, data) {
   if (body.schoolName !== undefined) data.schoolName = str(body.schoolName);
   if (body.institutionId !== undefined) data.institutionId = str(body.institutionId);
   if (body.major !== undefined) data.major = str(body.major);
+  if (body.majorOther !== undefined) data.majorOther = str(body.majorOther);
   if (body.workplaceName !== undefined) data.workplaceName = str(body.workplaceName);
+  if (body.workIndustry !== undefined) data.workIndustry = str(body.workIndustry);
+  if (body.workRole !== undefined) data.workRole = str(body.workRole);
   if (body.workplacePlaceId !== undefined) data.workplacePlaceId = str(body.workplacePlaceId);
   if (body.emergencyContactName !== undefined) data.emergencyContactName = str(body.emergencyContactName);
   if (body.emergencyContactRelation !== undefined) data.emergencyContactRelation = str(body.emergencyContactRelation);

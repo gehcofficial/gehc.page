@@ -10,6 +10,23 @@ export const LIFE_STATUS_LABEL: Record<LifeStatus, string> = {
   CHILD: 'Anak / belum sekolah',
 };
 
+export const WORK_INDUSTRIES = [
+  'Manufaktur',
+  'Logistik & Supply Chain',
+  'Retail & FMCG',
+  'F&B / Hospitality',
+  'Kesehatan',
+  'Pendidikan',
+  'IT & Teknologi',
+  'Konstruksi',
+  'Perbankan & Keuangan',
+  'Otomotif',
+  'Properti & Real Estate',
+  'Pemerintahan & BUMN',
+  'Wirausaha / UMKM',
+  'Lainnya',
+] as const;
+
 export const COMMON_MAJORS = [
   'Teknik Informatika / Ilmu Komputer',
   'Sistem Informasi',
@@ -68,8 +85,9 @@ export function profileSegments(user: Record<string, unknown>) {
         );
   const contact = contactBase && contactAddr;
   const life = statuses.length > 0;
-  const uniOk = !statuses.includes('UNIVERSITY') || Boolean(user?.institutionId || user?.origin);
-  const workOk = !statuses.includes('WORK') || Boolean(user?.workplaceName);
+  const majorVal = user?.major === 'Lainnya' ? user?.majorOther : user?.major;
+  const uniOk = !statuses.includes('UNIVERSITY') || Boolean((user?.institutionId || user?.origin) && majorVal);
+  const workOk = !statuses.includes('WORK') || Boolean(user?.workplaceName && user?.workIndustry);
   const schoolOk = !statuses.includes('SCHOOL') || Boolean(user?.schoolName);
   const gifts = Array.isArray(user?.giftsTop5) && (user.giftsTop5 as unknown[]).length > 0;
   const rec = Array.isArray(user?.recreational)
