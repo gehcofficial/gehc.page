@@ -23,7 +23,8 @@ When context hits **~70–80%** or you start a **new episode** (different featur
 - **Minat:** search + chip + **Lainnya…** → admin approve di Direktori Jemaat
 - **Kontak darurat:** nama, hubungan, HP, alamat opsional
 - **DB:** `work_industry`, `work_role`, `major_other`, `recreational_suggestions`
-- **Env:** `npm run env:sync` / `env:check`, `npm run db:migrate:profile`
+- **Env:** `npm run env:sync` / `env:check`, `npm run db:migrate:profile`, `npm run db:migrate:church-request`
+- **Request data gereja:** user ajukan ubah nama/BIPRA/kolom → admin approve di Direktori
 - **Tests:** `tests/profile-phase1.spec.ts`
 
 ### Next (optional)

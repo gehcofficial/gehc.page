@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
 import { ProfileGiftsSection } from './ProfileGiftsSection';
 import { ProfileRecreationalSection } from './ProfileRecreationalSection';
+import { ProfileChurchDataRequestPanel, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { initialsAvatar } from '../../lib/avatar';
 import {
   COMMON_MAJORS,
@@ -14,10 +15,6 @@ import {
   type LifeStatus,
 } from '../../lib/profile';
 import type { RecreationalNode } from '../../lib/recreational';
-
-const BIPRA_LABEL: Record<string, string> = {
-  BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
-};
 
 export type ProfileSectionId = 'contact' | 'life' | 'gifts' | 'recreational' | 'emergency';
 
@@ -42,6 +39,9 @@ export const MyProfilePanel: React.FC<{
   const [majors, setMajors] = useState<string[]>(COMMON_MAJORS);
   const [recFlat, setRecFlat] = useState<RecreationalNode[]>([]);
   const [pendingSuggestions, setPendingSuggestions] = useState<PendingSuggestion[]>([]);
+  const [churchDataRequest, setChurchDataRequest] = useState<ChurchDataRequest | null>(null);
+  const [kolomList, setKolomList] = useState<Array<{ id: string; number: number; name: string }>>([]);
+  const [bipraOptions, setBipraOptions] = useState<string[]>(['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK']);
   const [open, setOpen] = useState<ProfileSectionId>(defaultOpenSection || 'contact');
   const [form, setForm] = useState({
     gender: '',
@@ -71,16 +71,20 @@ export const MyProfilePanel: React.FC<{
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, instRes, recRes] = await Promise.all([
+      const [pRes, instRes, recRes, kolomRes] = await Promise.all([
         fetch('/api/me/profile', { credentials: 'include' }),
         fetch('/api/institutions?kind=UNIVERSITY', { credentials: 'include' }),
         fetch('/api/recreational', { credentials: 'include' }),
+        fetch('/api/kolom', { credentials: 'include' }),
       ]);
       const inst = instRes.ok ? await instRes.json() : {};
       const rec = recRes.ok ? await recRes.json() : {};
+      const kolomData = kolomRes.ok ? await kolomRes.json() : {};
       setInstitutions(inst.institutions || []);
       setMajors(inst.majors || COMMON_MAJORS);
       setRecFlat(rec.recreational || []);
+      setKolomList(kolomData.kolom || []);
+      if (Array.isArray(kolomData.bipra) && kolomData.bipra.length) setBipraOptions(kolomData.bipra);
       if (!pRes.ok) {
         const err = await pRes.json().catch(() => ({}));
         addToast({ type: 'error', title: 'Gagal memuat', description: err.error || 'Gagal memuat profil.' });
@@ -94,6 +98,7 @@ export const MyProfilePanel: React.FC<{
       }
       setUser(u);
       setPendingSuggestions(p.recreationalSuggestions || []);
+      setChurchDataRequest(p.churchDataRequest || null);
       setDue(Boolean(p.reminderDue));
       setForm({
         gender: u.gender || '',
@@ -247,15 +252,14 @@ export const MyProfilePanel: React.FC<{
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-dashed border-[#D9D7D0]/60">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1">Data gereja (admin)</p>
-          <p className="text-xs text-[#1B1B1B]">
-            {BIPRA_LABEL[user?.bipra] || user?.bipra}
-            {user?.kolom ? ` · ${user.kolom.name}` : ' · Kolom belum diisi'}
-            {user?.linkStatus === 'LINKED' ? ' · Akun tertaut' : ' · Belum taut Google'}
-          </p>
-          <p className="text-[10px] text-[#8C8880] mt-1">Nama, BIPRA, dan Kolom hanya diubah admin. Salah? Hubungi sekretaris Komisi.</p>
-        </div>
+        <ProfileChurchDataRequestPanel
+          user={user}
+          pendingRequest={churchDataRequest}
+          kolomList={kolomList}
+          bipraOptions={bipraOptions}
+          onSubmitted={load}
+          addToast={addToast}
+        />
       </div>
 
       {due && (

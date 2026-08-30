@@ -95,6 +95,29 @@ model RecreationalSuggestion {
   @@map("recreational_suggestions")
 }
 
+model ProfileChurchDataRequest {
+  id               String    @id @db.VarChar(64)
+  userId           String    @map("user_id") @db.VarChar(64)
+  changeName       Boolean   @default(false) @map("change_name")
+  changeBipra      Boolean   @default(false) @map("change_bipra")
+  changeKolom      Boolean   @default(false) @map("change_kolom")
+  requestedName    String?   @map("requested_name") @db.VarChar(150)
+  requestedBipra   String?   @map("requested_bipra") @db.VarChar(16)
+  requestedKolomId String?   @map("requested_kolom_id") @db.VarChar(64)
+  reason           String?   @db.Text
+  status           String    @default("PENDING") @db.VarChar(16)
+  adminNote        String?   @map("admin_note") @db.Text
+  reviewedById     String?   @map("reviewed_by_id") @db.VarChar(64)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  reviewedAt       DateTime? @map("reviewed_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("profile_church_data_requests")
+}
+
 model User {
   id        String   @id @db.VarChar(64)
   email     String?  @unique @db.VarChar(190)
@@ -168,6 +191,7 @@ model User {
   institution               Institution?               @relation(fields: [institutionId], references: [id])
   recreational              RecreationalMembership[]
   recreationalSuggestions   RecreationalSuggestion[]
+  churchDataRequests        ProfileChurchDataRequest[]
   roles                     UserRole[]
   roleAssignments           RoleAssignment[]
   assignedBy                RoleAssignment[]   @relation("RoleAssignmentAssigner")

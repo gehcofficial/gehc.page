@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
+import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { countryName } from '../../lib/countries';
 
 interface RoleAssignment {
@@ -337,7 +338,11 @@ export const YouthGEHCList: React.FC = () => {
     kind: string;
     user?: { name?: string; email?: string | null };
   }>>([]);
+  const [pendingChurchRequests, setPendingChurchRequests] = useState<Array<
+    ChurchDataRequest & { user?: { name?: string; email?: string | null; bipra?: string; kolom?: { name: string } | null } }
+  >>([]);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
+  const [churchRequestBusy, setChurchRequestBusy] = useState<string | null>(null);
 
   const openEditModal = (user: YouthUser) => {
     setCreating(false);
@@ -458,6 +463,7 @@ export const YouthGEHCList: React.FC = () => {
       setKolomList(d.kolom || []);
       setRecFlat(d.recreational || []);
       setPendingSuggestions(d.pendingSuggestions || []);
+      setPendingChurchRequests(d.pendingChurchRequests || []);
     } catch { /* skip */ }
   }, []);
 
@@ -524,6 +530,43 @@ export const YouthGEHCList: React.FC = () => {
       addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Gagal menolak' });
     } finally {
       setSuggestionBusy(null);
+    }
+  };
+
+  const approveChurchRequest = async (id: string) => {
+    setChurchRequestBusy(id);
+    try {
+      const res = await fetch(`/api/profile/church-data-requests/${id}/approve`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menyetujui');
+      addToast({ type: 'success', title: 'Data gereja diperbarui', description: d.user?.name || 'Permintaan disetujui' });
+      await fetchMeta();
+      await fetchData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Gagal menyetujui' });
+    } finally {
+      setChurchRequestBusy(null);
+    }
+  };
+
+  const rejectChurchRequest = async (id: string) => {
+    setChurchRequestBusy(id);
+    try {
+      const res = await fetch(`/api/profile/church-data-requests/${id}/reject`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menolak');
+      addToast({ type: 'success', title: 'Permintaan ditolak', description: 'Data gereja tidak diubah.' });
+      await fetchMeta();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Gagal menolak permintaan' });
+    } finally {
+      setChurchRequestBusy(null);
     }
   };
 
@@ -662,6 +705,40 @@ export const YouthGEHCList: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {pendingChurchRequests.length > 0 && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-wider text-sky-800">
+            Permintaan ubah data gereja ({pendingChurchRequests.length})
+          </p>
+          {pendingChurchRequests.map((r) => (
+            <div key={r.id} className="flex flex-wrap items-center gap-2 py-1.5 border-b border-sky-100 last:border-0">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-sky-950">
+                  {churchRequestSummaryForAdmin(r, kolomList)}
+                </p>
+                {r.reason && <p className="text-[10px] text-sky-800 mt-0.5">Alasan: {r.reason}</p>}
+              </div>
+              <button
+                type="button"
+                disabled={churchRequestBusy === r.id}
+                onClick={() => approveChurchRequest(r.id)}
+                className="px-2.5 py-1 rounded-lg bg-[#181818] text-white text-[9px] font-bold disabled:opacity-50"
+              >
+                Setujui
+              </button>
+              <button
+                type="button"
+                disabled={churchRequestBusy === r.id}
+                onClick={() => rejectChurchRequest(r.id)}
+                className="px-2.5 py-1 rounded-lg bg-white border border-sky-200 text-[9px] font-bold text-sky-900 disabled:opacity-50"
+              >
+                Tolak
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {pendingSuggestions.length > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
