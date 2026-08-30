@@ -78,6 +78,23 @@ model RecreationalMembership {
   @@map("recreational_memberships")
 }
 
+model RecreationalSuggestion {
+  id        String   @id @db.VarChar(64)
+  userId    String   @map("user_id") @db.VarChar(64)
+  name      String   @db.VarChar(80)
+  kind      String   @db.VarChar(24)
+  parentId  String?  @map("parent_id") @db.VarChar(64)
+  status    String   @default("PENDING") @db.VarChar(16)
+  groupId   String?  @map("group_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("recreational_suggestions")
+}
+
 model User {
   id        String   @id @db.VarChar(64)
   email     String?  @unique @db.VarChar(190)
@@ -111,7 +128,10 @@ model User {
   schoolName       String? @map("school_name") @db.VarChar(190)
   institutionId    String? @map("institution_id") @db.VarChar(64)
   major            String? @map("major") @db.VarChar(150)
+  majorOther       String? @map("major_other") @db.VarChar(150)
   workplaceName    String? @map("workplace_name") @db.VarChar(190)
+  workIndustry     String? @map("work_industry") @db.VarChar(80)
+  workRole         String? @map("work_role") @db.VarChar(120)
   workplacePlaceId String? @map("workplace_place_id") @db.VarChar(255)
 
   giftsTop5     Json?   @map("gifts_top5")
@@ -147,6 +167,7 @@ model User {
   kolom                     Kolom?                     @relation(fields: [kolomId], references: [id])
   institution               Institution?               @relation(fields: [institutionId], references: [id])
   recreational              RecreationalMembership[]
+  recreationalSuggestions   RecreationalSuggestion[]
   roles                     UserRole[]
   roleAssignments           RoleAssignment[]
   assignedBy                RoleAssignment[]   @relation("RoleAssignmentAssigner")

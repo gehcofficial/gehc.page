@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Loader2, User } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Mail, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
+import { ProfileGiftsSection } from './ProfileGiftsSection';
+import { ProfileRecreationalSection } from './ProfileRecreationalSection';
+import { initialsAvatar } from '../../lib/avatar';
 import {
   COMMON_MAJORS,
   LIFE_STATUS_LABEL,
   LIFE_STATUSES,
   profileSegments,
+  WORK_INDUSTRIES,
   type LifeStatus,
 } from '../../lib/profile';
 import type { RecreationalNode } from '../../lib/recreational';
@@ -15,17 +19,30 @@ const BIPRA_LABEL: Record<string, string> = {
   BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
 };
 
-type SectionId = 'contact' | 'life' | 'gifts' | 'recreational' | 'emergency';
+export type ProfileSectionId = 'contact' | 'life' | 'gifts' | 'recreational' | 'emergency';
 
-export const MyProfilePanel: React.FC = () => {
+type PendingSuggestion = {
+  id: string;
+  name: string;
+  kind: string;
+  parentId?: string | null;
+  status: string;
+};
+
+export const MyProfilePanel: React.FC<{
+  defaultOpenSection?: ProfileSectionId;
+  onGiftSaved?: () => void;
+}> = ({ defaultOpenSection, onGiftSaved }) => {
   const { addToast, authUser } = useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [suggestBusy, setSuggestBusy] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
   const [majors, setMajors] = useState<string[]>(COMMON_MAJORS);
   const [recFlat, setRecFlat] = useState<RecreationalNode[]>([]);
-  const [open, setOpen] = useState<SectionId>('contact');
+  const [pendingSuggestions, setPendingSuggestions] = useState<PendingSuggestion[]>([]);
+  const [open, setOpen] = useState<ProfileSectionId>(defaultOpenSection || 'contact');
   const [form, setForm] = useState({
     gender: '',
     phone: '',
@@ -35,14 +52,20 @@ export const MyProfilePanel: React.FC = () => {
     schoolName: '',
     institutionId: '',
     major: '',
+    majorOther: '',
     workplaceName: '',
-    giftsTop5: '[]',
+    workIndustry: '',
+    workRole: '',
     recreationalIds: [] as string[],
     emergencyContactName: '',
     emergencyContactRelation: '',
     emergencyContactPhone: '',
   });
   const [due, setDue] = useState(false);
+
+  useEffect(() => {
+    if (defaultOpenSection) setOpen(defaultOpenSection);
+  }, [defaultOpenSection]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +92,7 @@ export const MyProfilePanel: React.FC = () => {
         return;
       }
       setUser(u);
+      setPendingSuggestions(p.recreationalSuggestions || []);
       setDue(Boolean(p.reminderDue));
       setForm({
         gender: u.gender || '',
@@ -79,8 +103,10 @@ export const MyProfilePanel: React.FC = () => {
         schoolName: u.schoolName || '',
         institutionId: u.institutionId || '',
         major: u.major || '',
+        majorOther: u.majorOther || '',
         workplaceName: u.workplaceName || '',
-        giftsTop5: JSON.stringify(u.giftsTop5 || [], null, 2),
+        workIndustry: u.workIndustry || '',
+        workRole: u.workRole || '',
         recreationalIds: u.recreationalIds || [],
         emergencyContactName: u.emergencyContactName || '',
         emergencyContactRelation: u.emergencyContactRelation || '',
@@ -95,14 +121,9 @@ export const MyProfilePanel: React.FC = () => {
 
   useEffect(() => { load(); }, [authUser?.id]);
 
-  const save = async (extra?: Record<string, unknown>) => {
+  const save = async () => {
     setSaving(true);
     try {
-      let giftsTop5: string[] = [];
-      try {
-        giftsTop5 = JSON.parse(form.giftsTop5);
-        if (!Array.isArray(giftsTop5)) giftsTop5 = [];
-      } catch { giftsTop5 = []; }
       const addr = form.address;
       const res = await fetch('/api/me/profile', {
         method: 'PATCH',
@@ -117,13 +138,14 @@ export const MyProfilePanel: React.FC = () => {
           schoolName: form.schoolName || null,
           institutionId: form.institutionId || null,
           major: form.major || null,
+          majorOther: form.major === 'Lainnya' ? (form.majorOther || null) : null,
           workplaceName: form.workplaceName || null,
-          giftsTop5,
+          workIndustry: form.workIndustry || null,
+          workRole: form.workRole || null,
           recreationalIds: form.recreationalIds,
           emergencyContactName: form.emergencyContactName || null,
           emergencyContactRelation: form.emergencyContactRelation || null,
           emergencyContactPhone: form.emergencyContactPhone || null,
-          ...extra,
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -135,6 +157,34 @@ export const MyProfilePanel: React.FC = () => {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal menyimpan' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const suggestRecreational = async (payload: { name: string; kind: string; parentId?: string }) => {
+    setSuggestBusy(true);
+    try {
+      const res = await fetch('/api/recreational/suggest', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal mengirim saran');
+      addToast({
+        type: 'success',
+        title: 'Saran terkirim',
+        description: 'Admin akan meninjau minat baru ini.',
+      });
+      setPendingSuggestions((prev) => [d.suggestion, ...prev]);
+    } catch (e) {
+      addToast({
+        type: 'error',
+        title: 'Gagal',
+        description: e instanceof Error ? e.message : 'Gagal mengirim saran',
+      });
+    } finally {
+      setSuggestBusy(false);
     }
   };
 
@@ -153,10 +203,10 @@ export const MyProfilePanel: React.FC = () => {
   }
 
   const segs = profileSegments({ ...user, ...form, ...form.address, recreational: form.recreationalIds });
-  const sections: { id: SectionId; title: string; hint: string; done: boolean }[] = [
+  const sections: { id: ProfileSectionId; title: string; hint: string; done: boolean }[] = [
     { id: 'contact', title: 'Kontak & alamat', hint: 'Wajib aktif — HP, gender, alamat rumah', done: segs.contact },
     { id: 'life', title: 'Status hidup', hint: 'Sekolah / kuliah / kerja — boleh lebih dari satu', done: segs.life },
-    { id: 'gifts', title: 'Karunia rohani', hint: 'Untuk Pemuda / placement', done: segs.gifts },
+    { id: 'gifts', title: 'Karunia rohani', hint: 'Tes karunia untuk placement', done: segs.gifts },
     { id: 'recreational', title: 'Minat (Sports & Arts)', hint: 'Boleh dilewati dulu', done: segs.recreational },
     { id: 'emergency', title: 'Kontak darurat', hint: 'Nanti — orang tua / saudara', done: segs.emergency },
   ];
@@ -173,17 +223,36 @@ export const MyProfilePanel: React.FC = () => {
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-          <User className="w-3.5 h-3.5 text-[#FF416C]" />
-          <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Profil saya</span>
+        <div className="flex items-start gap-4">
+          <img
+            src={user?.avatar || initialsAvatar(user?.name || '?')}
+            alt={user?.name || 'Profil'}
+            className="w-16 h-16 rounded-full object-cover border-2 border-[#D9D7D0] shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
+              <User className="w-3.5 h-3.5 text-[#FF416C]" />
+              <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Profil saya</span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight truncate">{user?.name}</h2>
+            {user?.email && (
+              <p className="text-xs text-[#8C8880] mt-1 flex items-center gap-1.5 truncate">
+                <Mail className="w-3 h-3 shrink-0" />
+                {user.email}
+              </p>
+            )}
+          </div>
         </div>
-        <h2 className="text-2xl font-bold tracking-tight">{user?.name}</h2>
-        <p className="text-xs text-[#8C8880] mt-1">
-          {BIPRA_LABEL[user?.bipra] || user?.bipra}
-          {user?.kolom ? ` · ${user.kolom.name}` : ' · Kolom belum diisi (hubungi sekretaris)'}
-          {user?.linkStatus === 'LINKED' ? ' · Akun tertaut' : ' · Belum taut Google'}
-        </p>
-        <p className="text-[10px] text-[#8C8880] mt-2">BIPRA dan Kolom hanya diubah admin. Salah? Hubungi sekretaris Komisi.</p>
+
+        <div className="mt-4 pt-4 border-t border-dashed border-[#D9D7D0]/60">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1">Data gereja (admin)</p>
+          <p className="text-xs text-[#1B1B1B]">
+            {BIPRA_LABEL[user?.bipra] || user?.bipra}
+            {user?.kolom ? ` · ${user.kolom.name}` : ' · Kolom belum diisi'}
+            {user?.linkStatus === 'LINKED' ? ' · Akun tertaut' : ' · Belum taut Google'}
+          </p>
+          <p className="text-[10px] text-[#8C8880] mt-1">Nama, BIPRA, dan Kolom hanya diubah admin. Salah? Hubungi sekretaris Komisi.</p>
+        </div>
       </div>
 
       {due && (
@@ -253,61 +322,70 @@ export const MyProfilePanel: React.FC = () => {
               </div>
             )}
             {form.lifeStatuses.includes('UNIVERSITY') && (
-              <div className="grid sm:grid-cols-2 gap-2">
-                <select className={field} value={form.institutionId} onChange={(e) => setForm({ ...form, institutionId: e.target.value })}>
-                  <option value="">Universitas</option>
-                  {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                </select>
-                <select className={field} value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })}>
-                  <option value="">Jurusan</option>
-                  {majors.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+              <div className="space-y-2">
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <select className={field} value={form.institutionId} onChange={(e) => setForm({ ...form, institutionId: e.target.value })}>
+                    <option value="">Universitas</option>
+                    {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                  </select>
+                  <select className={field} value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })}>
+                    <option value="">Jurusan</option>
+                    {majors.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                {form.major === 'Lainnya' && (
+                  <input
+                    className={field}
+                    placeholder="Tulis jurusan kamu"
+                    value={form.majorOther}
+                    onChange={(e) => setForm({ ...form, majorOther: e.target.value })}
+                  />
+                )}
               </div>
             )}
             {form.lifeStatuses.includes('WORK') && (
-              <input className={field} placeholder="Nama kantor / instansi (bisa cari di Maps pada alamat)" value={form.workplaceName} onChange={(e) => setForm({ ...form, workplaceName: e.target.value })} />
+              <div className="space-y-2">
+                <input
+                  className={field}
+                  placeholder="Nama kantor / instansi (contoh: PT ABC, Kawasan MM210)"
+                  value={form.workplaceName}
+                  onChange={(e) => setForm({ ...form, workplaceName: e.target.value })}
+                />
+                <select className={field} value={form.workIndustry} onChange={(e) => setForm({ ...form, workIndustry: e.target.value })}>
+                  <option value="">Industri / sektor</option>
+                  {WORK_INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
+                </select>
+                <input
+                  className={field}
+                  placeholder="Jabatan / role (opsional)"
+                  value={form.workRole}
+                  onChange={(e) => setForm({ ...form, workRole: e.target.value })}
+                />
+              </div>
             )}
           </>
         )}
 
         {open === 'gifts' && (
-          <textarea className={`${field} font-mono`} rows={5} value={form.giftsTop5} onChange={(e) => setForm({ ...form, giftsTop5: e.target.value })} />
+          <ProfileGiftsSection
+            giftsTop5={user?.giftsTop5}
+            addToast={addToast}
+            onSaved={() => {
+              load();
+              onGiftSaved?.();
+            }}
+          />
         )}
 
         {open === 'recreational' && (
-          <div className="space-y-3">
-            {(['SPORTS', 'ARTS'] as const).map((kind) => {
-              const cats = recFlat.filter((r) => !r.parentId && r.kind === kind);
-              return (
-                <div key={kind}>
-                  <p className="text-[10px] font-black uppercase text-[#8C8880] mb-2">{kind === 'SPORTS' ? 'Sports' : 'Arts'}</p>
-                  {cats.map((cat) => (
-                    <div key={cat.id} className="mb-2">
-                      <p className="text-[10px] font-bold mb-1">{cat.name}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {recFlat.filter((r) => r.parentId === cat.id).map((leaf) => {
-                          const on = form.recreationalIds.includes(leaf.id);
-                          return (
-                            <button
-                              key={leaf.id}
-                              type="button"
-                              onClick={() => setForm({
-                                ...form,
-                                recreationalIds: on ? form.recreationalIds.filter((id) => id !== leaf.id) : [...form.recreationalIds, leaf.id],
-                              })}
-                              className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${on ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC] text-[#8C8880]'}`}
-                            >
-                              {leaf.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+          <ProfileRecreationalSection
+            recFlat={recFlat}
+            selectedIds={form.recreationalIds}
+            pendingSuggestions={pendingSuggestions}
+            onChange={(recreationalIds) => setForm((f) => ({ ...f, recreationalIds }))}
+            onSuggest={suggestRecreational}
+            suggestBusy={suggestBusy}
+          />
         )}
 
         {open === 'emergency' && (
@@ -324,15 +402,17 @@ export const MyProfilePanel: React.FC = () => {
           </>
         )}
 
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => save()}
-          className="w-full py-2.5 rounded-2xl bg-[#181818] text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-          Simpan segmen ini
-        </button>
+        {open !== 'gifts' && (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => save()}
+            className="w-full py-2.5 rounded-2xl bg-[#181818] text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            Simpan segmen ini
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Clock, LogOut } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, LogOut, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MyProfilePanel } from './MyProfilePanel';
 
@@ -12,9 +12,9 @@ export const RestrictedPortal: React.FC = () => {
   const { authUser, setActiveView } = useApp();
   const [giftDone, setGiftDone] = useState<boolean | null>(null);
   const [profileDone, setProfileDone] = useState<boolean | null>(null);
+  const [openGifts, setOpenGifts] = useState(false);
 
-  useEffect(() => {
-    // Cek status tes karunia dari /api/auth/me
+  const refreshStatus = () => {
     fetch('/api/me/profile', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
@@ -25,7 +25,9 @@ export const RestrictedPortal: React.FC = () => {
         setGiftDone(null);
         setProfileDone(null);
       });
-  }, []);
+  };
+
+  useEffect(() => { refreshStatus(); }, []);
 
   const steps = [
     { key: 'register', label: 'Daftar akun', done: true },
@@ -39,7 +41,6 @@ export const RestrictedPortal: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-2xl space-y-5">
-        {/* Header */}
         <div className="rounded-[32px] bg-gradient-to-br from-[#181818] to-[#262626] p-7 text-white">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-widest mb-3">
             <Clock className="w-3 h-3" /> Menunggu Penugasan
@@ -53,7 +54,6 @@ export const RestrictedPortal: React.FC = () => {
           </p>
         </div>
 
-        {/* Onboarding Progress */}
         <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-[#8C8880] mb-1">
             Status Onboarding
@@ -70,20 +70,32 @@ export const RestrictedPortal: React.FC = () => {
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          {allDone && (
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-              <p className="text-xs font-bold text-emerald-700">Profil dan tes karunia sudah lengkap!</p>
-              <p className="text-[10px] text-emerald-600 mt-1">Admin akan segera menetapkan role kamu.</p>
-            </div>
-          )}
-        </div>
+        {!giftDone && giftDone !== null && (
+          <button
+            type="button"
+            onClick={() => setOpenGifts(true)}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" /> Mulai Tes Karunia Rohani
+          </button>
+        )}
 
-        <MyProfilePanel />
+        {allDone && (
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+            <p className="text-xs font-bold text-emerald-700">Profil dan tes karunia sudah lengkap!</p>
+            <p className="text-[10px] text-emerald-600 mt-1">Admin akan segera menetapkan role kamu.</p>
+          </div>
+        )}
 
-        {/* Info Box */}
+        <MyProfilePanel
+          defaultOpenSection={openGifts ? 'gifts' : undefined}
+          onGiftSaved={() => {
+            setOpenGifts(false);
+            refreshStatus();
+          }}
+        />
+
         <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6">
           <p className="text-xs font-black uppercase tracking-widest text-[#8C8880] flex items-center gap-2 mb-3">
             <Clock className="w-3.5 h-3.5 text-[#FF416C]" /> Apa Selanjutnya?
