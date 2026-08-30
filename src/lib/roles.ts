@@ -16,6 +16,14 @@ export const ROLE_PRECEDENCE: Record<UserRole, number> = {
   ALUMNI: 8,
 };
 
+export function uniqueRolesByName<T extends { role: UserRole }>(roles: T[]): T[] {
+  const byRole = new Map<UserRole, T>();
+  for (const r of roles) {
+    if (!byRole.has(r.role)) byRole.set(r.role, r);
+  }
+  return [...byRole.values()];
+}
+
 export function sortRoles<T extends { role: UserRole }>(roles: T[]): T[] {
   return [...roles].sort((a, b) => ROLE_PRECEDENCE[a.role] - ROLE_PRECEDENCE[b.role]);
 }
