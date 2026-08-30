@@ -11,20 +11,26 @@ When context hits **~70–80%** or you start a **new episode** (different featur
 
 ---
 
-## 2. Current priority — Test & polish Wilayah.id address
+## 2. Current priority — pick next episode
 
-**Goal:** Verifikasi alur domisili end-to-end, perbaiki bug jika ada. **No Google Maps/Places.**
+**Last shipped (episode B):** E2E Playwright alur alamat — Profil + filter Direktori domisili.
 
-### Done (episode A — test & fix)
-- Cascade Wilayah.id: provinsi → kab/kota → kecamatan → kelurahan (verified)
-- Save ID + INTL, persist after reload
-- Filter Domisili Indonesia / Luar negeri + badge (Indonesia / Singapura)
-- Bugs fixed: profile infinite reload (`addToast` deps), demo session never bound, stale `setForm({...form, address})`, toast signature, trim nama wilayah
+- `tests/address-flow.spec.ts` — cascade Wilayah.id, save ID/INTL, filter domisili Jemaat
+- `tests/helpers/portal.ts` — shared login/portal helpers
+- `npx playwright test tests/address-flow.spec.ts` — 3/3 pass (~30s)
 
-### Next (optional)
-- E2E Playwright for address flow
-- Filter provinsi di dashboard
-- Admin edit alamat di Direktori (sudah wired, belum diuji mendalam)
+**Previous (episode A):** Wilayah.id address flow — tested, bugfixed, pushed.
+
+- Cascade ID + save INTL verified in browser
+- `main` + `origin/staging` @ `c05fbc6` (Vercel fix: export `uniqueRolesByName`)
+- Tim Tech demo restored to Indonesia (Jawa Barat / Kabupaten Bekasi)
+
+### Next (pilih SATU episode)
+1. Admin edit alamat di Direktori Jemaat (sudah wired, belum diuji mendalam)
+2. Filter provinsi di dashboard
+3. Atau fitur lain — jangan campur di chat yang sama
+
+**Jangan:** Google Maps/Places. Leftover lokal (gift scripts, AddressPlacesPicker, AI/xlsx deps) sengaja tidak di-commit.
 
 ### Key files
 | File | Role |
@@ -34,26 +40,27 @@ When context hits **~70–80%** or you start a **new episode** (different featur
 | `server/index.mjs` | Wilayah proxy, jemaat filter |
 | `src/components/portal/YouthGEHCList.tsx` | Admin direktori |
 | `src/components/portal/MyProfilePanel.tsx` | Profil self-service |
+| `tests/address-flow.spec.ts` | E2E alamat (Profil + Direktori) |
 
 ### Quick start new chat — **COPY INI**
 
 ```
 GEHC Youth Portal handoff — fresh context.
 
-Episode: test & polish Wilayah.id address flow
-Goal: Verifikasi domisili ID/INTL end-to-end, perbaiki bug jika ada
-Done last session:
-- AddressForm (Wilayah.id cascade + luar negeri) selesai
-- MyProfilePanel + YouthGEHCList wired, filter domisili + badge
-- Migration + prisma generate + dev server OK
-Blocked on: [isi jika ada error saat test]
-Next step: Test Profil saya + Direktori Jemaat, fix bug yang muncul
+Episode: [isi 1 saja — contoh: Admin edit alamat Direktori]
+Goal: [satu kalimat]
+Done last session (episode B — closed):
+- E2E Playwright: Profil cascade Wilayah.id + save ID, INTL round-trip, filter domisili Direktori
+- `tests/address-flow.spec.ts` + `tests/helpers/portal.ts` — 3/3 pass
+Blocked on: none
+Next step: [pilih 1 dari HANDOFF.md §2]
 
 Stack: Vite/React/TS + Express (server/index.mjs) + TiDB/Prisma
 Priority: Wilayah.id (NOT Google Maps). Baca HANDOFF.md
 Credentials: tech@gehc.demo / password123 | tenant: tenant-bapak
 Run: npm run dev → http://localhost:8787
-Attach: AddressForm.tsx, profile-fields.mjs (jika bug alamat)
+Branch: staging (synced with origin/staging)
+Attach: HANDOFF.md + 1–2 file terkait episode baru saja
 ```
 
 ---
@@ -62,6 +69,7 @@ Attach: AddressForm.tsx, profile-fields.mjs (jika bug alamat)
 
 - **One chat per episode** — placement algo, address form, auth fix = separate chats.
 - **New chat at ~70–80% context** — don't wait until the model forgets earlier decisions.
+- **Agent must proactively warn at ~80%** — interrupt whatever is in progress (after finishing the current save/commit step), tell the user to update this file (§2), and paste the filled **Quick start new chat** block below.
 - **Don't paste huge logs** — summarize errors in 3–5 lines; attach the relevant file only.
 - **Don't split `server/index.mjs`** — all API routes stay in one file (~4800 lines).
 - **TiDB: no sequential Prisma loops** — use bulk SQL (see §6).

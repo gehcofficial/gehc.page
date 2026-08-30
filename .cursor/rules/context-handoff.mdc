@@ -1,0 +1,21 @@
+---
+description: At ~80% context usage, remind to update HANDOFF.md and start a new chat
+alwaysApply: true
+---
+
+# Context handoff (~80%)
+
+When you estimate this chat is at **~80% context usage** (long thread, many files read, large diffs, or user mentions token/context limits):
+
+1. **Stop expanding scope** — finish the current atomic step only, then hand off.
+2. **Tell the user clearly** (in Indonesian if they write in Indonesian):
+   - Context sudah ~80% — segera **update `HANDOFF.md`** (§2 current priority + quick-start template).
+   - Mulai **chat baru**; jangan lanjut thread ini untuk episode berikutnya.
+3. **Provide a ready-to-paste prompt** from `HANDOFF.md` §2 "Quick start new chat", filled with:
+   - Episode + goal for the *next* step (not the whole backlog)
+   - Done last session (3–5 bullets)
+   - Blocked on / next step
+   - Branch + last commit if known
+4. **Do not wait** for the user to ask — surface this even mid-task (after saving/commit if in progress).
+
+Reference: `HANDOFF.md` sections 2–3. One chat = one episode.
