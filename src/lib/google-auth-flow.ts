@@ -1,7 +1,7 @@
 import { fetchAuthConfig } from '../services/authApi';
-import { applyPendingBakutauRegistration } from './bakutau-pending';
+import { finishAuthRedirect } from './auth-redirect';
 
-export async function registerWithGoogleCredential(credential: string): Promise<void> {
+export async function registerWithGoogleCredential(credential: string, next?: string | null): Promise<void> {
   const res = await fetch('/api/register/google', {
     method: 'POST',
     credentials: 'include',
@@ -23,9 +23,7 @@ export async function registerWithGoogleCredential(credential: string): Promise<
       throw new Error((data as { error?: string }).error || 'Pendaftaran Google gagal.');
     }
   }
-  await applyPendingBakutauRegistration();
-  window.location.hash = '#/portal';
-  window.location.reload();
+  await finishAuthRedirect(next);
 }
 
 export async function joinWithGoogleCredential(credential: string, code: string): Promise<void> {

@@ -60,6 +60,11 @@ const STEPS = [
     label: 'BAKU TAU venue (GMIM Eben Haezer, 12 Sep 2026)',
     required: true,
   },
+  {
+    script: 'server/_migrate-event-attendees.cjs',
+    label: 'Event attendees (event_attendees)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

@@ -1,6 +1,37 @@
 # GEHC Portal — Handoff
 
-## Current priority — Episode E10: BAKU TAU 4.0 + Org Hardening
+## Current priority — Auth route split + EventAttendee
+
+**Goal:** Pisah Login / Register / Event signup; generic event API; `event_attendees` table.
+
+### Done
+
+- Routes: `#/login`, `#/register`, `#/event/bakutau`; redirect legacy `#/join`
+- Navbar: **Masuk** + **Daftar** (CTA event hanya di halaman Kegiatan)
+- `RegisterPage`, `BakutauEventPage`, `InviteJoinPage`; `event-pending.ts`
+- `GET /api/events/bakutau`; `EventAttendee` model + migration
+- Event archived hides CTA di `EventsTimeline`
+- Kehadiran event tab di `EventWorkspacePanel` (BAKU TAU)
+- E2E `tests/e2e/auth-routes.spec.ts`
+
+### Commands
+
+```powershell
+npm run db:migrate:local
+npm run dev:all
+npm run test
+npm run test:e2e
+```
+
+npm run db:archive:bakutau        # setelah 12 Sep 2026
+npm run test:e2e
+```
+
+QRIS / event URL: `https://gehcpage.vercel.app/#/event/bakutau`
+
+---
+
+## Episode E10: BAKU TAU 4.0 + Org Hardening
 
 **Goal:** Funnel pendaftaran cepat BAKU TAU, domisili preset, portal WA group CTA, fix join/onboarding blockers, revoke symmetry + backfill org.
 
@@ -29,7 +60,7 @@ npm run test
 
 Env opsional: `BAKU_TAU_WA_GROUP_URL=https://chat.whatsapp.com/...`
 
-QRIS URL: `https://gehcpage.vercel.app/#/join?event=bakutau`
+QRIS URL: `https://gehcpage.vercel.app/#/event/bakutau`
 
 ---
 

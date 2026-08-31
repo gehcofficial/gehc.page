@@ -94,7 +94,7 @@ export const en = {
     pastEyebrow: 'Our Journey So Far',
     viewAll: 'All events',
     detailCta: 'Details',
-    joinCta: 'Join the Waitlist',
+    joinCta: 'Register attendance',
   },
   bulletin: {
     eyebrow: 'Official Publications',

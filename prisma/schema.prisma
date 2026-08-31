@@ -216,6 +216,7 @@ model User {
   mentorTransitionsCreated  MentorTransition[] @relation("MentorTransitionCreatedBy")
   orgAssignments            OrgAssignment[]
   orgAssignmentsGiven       OrgAssignment[] @relation("OrgAssignmentAssigner")
+  eventAttendees            EventAttendee[]
 
   @@index([kolomId])
   @@index([bipra])
@@ -541,8 +542,24 @@ model EventProgram {
   updatedAt     DateTime        @updatedAt @map("updated_at")
   divisions     EventDivision[]
   meetings      EventMeeting[]
+  attendees     EventAttendee[]
 
   @@index([tenantId])
+}
+
+model EventAttendee {
+  id           String   @id @db.VarChar(64)
+  eventId      String   @map("event_id") @db.VarChar(64)
+  userId       String   @map("user_id") @db.VarChar(64)
+  registeredAt DateTime @default(now()) @map("registered_at")
+  metadata     Json?
+
+  event EventProgram @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@map("event_attendees")
 }
 
 model EventDivision {

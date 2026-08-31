@@ -19,6 +19,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
   const { contentItems, setPublicTab } = useApp();
   const { t } = useLang();
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
+  const [eventClosed, setEventClosed] = useState(false);
   const [venue, setVenue] = useState<{
     venueName?: string;
     locationDetail?: string;
@@ -28,10 +29,11 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/events/baku-tau-4-0')
+    fetch('/api/events/bakutau')
       .then((r) => r.json())
       .then((d) => {
         setRegisteredCount(d.stats?.registered ?? null);
+        setEventClosed(d.status === 'ARCHIVED');
         setVenue({
           venueName: d.venueName,
           locationDetail: d.locationDetail,
@@ -134,21 +136,26 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 </div>
 
                 <div className="shrink-0 space-y-3 self-start lg:self-end">
-                  <Countdown />
+                  {!eventClosed && <Countdown />}
                   {registeredCount !== null && (
                     <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">
                       <Users className="w-3.5 h-3.5" /> {registeredCount} peserta terdaftar
                     </p>
                   )}
+                  {!eventClosed ? (
                   <button
                     onClick={() => {
-                      setPublicTab('join');
-                      window.location.hash = '#/join?event=bakutau';
+                      setPublicTab('event-signup', { eventSlug: 'bakutau' });
                     }}
                     className="w-full px-4 py-2.5 rounded-full bg-[#FF416C] hover:bg-[#ff2d5e] text-white text-xs font-black uppercase tracking-wider shadow-lg transition-colors"
                   >
                     {t.events.joinCta}
                   </button>
+                  ) : (
+                    <p className="text-[10px] font-bold text-white/50 text-center uppercase tracking-wider">
+                      Pendaftaran ditutup
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

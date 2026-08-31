@@ -15,13 +15,31 @@ import { emptyDomicileStats, isValidDomicileKind, DOMICILE_DETAIL_REQUIRED } fro
 import { claimWaitingPoolByPhone, ensureWaitingPoolForNewPemuda } from '../onboarding-sync.mjs';
 
 const wpId = () => `wp-${crypto.randomUUID()}`;
+const eaId = () => `ea-${crypto.randomUUID()}`;
+
+async function upsertBakutauAttendee(prisma, userId, metadata) {
+  const existing = await prisma.eventAttendee.findUnique({
+    where: { eventId_userId: { eventId: BAKU_TAU_EVENT_ID, userId } },
+  });
+  if (existing) {
+    return prisma.eventAttendee.update({
+      where: { id: existing.id },
+      data: { metadata: metadata ?? existing.metadata },
+    });
+  }
+  return prisma.eventAttendee.create({
+    data: { id: eaId(), eventId: BAKU_TAU_EVENT_ID, userId, metadata: metadata ?? undefined },
+  });
+}
 
 async function resolveEventInfo(prisma) {
   const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
   const whatsappGroupUrl = event?.whatsappGroupUrl || whatsappGroupUrlFromEnv();
   return {
     id: BAKU_TAU_EVENT_ID,
+    slug: 'bakutau',
     name: event?.name || BAKU_TAU_SOURCE_EVENT,
+    status: event?.status || 'ACTIVE',
     eventDate: BAKU_TAU_EVENT_DATE_ISO,
     venueName: BAKU_TAU_VENUE_NAME,
     locationDetail: BAKU_TAU_LOCATION_DETAIL,
@@ -54,13 +72,16 @@ async function bakuTauStats(prisma) {
 
 /** BAKU TAU 4.0 public registration & stats */
 export function registerBakuTauRoutes(app, { wrap }) {
-  app.get('/api/events/baku-tau-4-0', wrap(async (_req, res) => {
+  const sendEventPayload = async (res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     const info = await resolveEventInfo(prisma);
     const stats = await bakuTauStats(prisma);
     res.json({ ...info, stats });
-  }));
+  };
+
+  app.get('/api/events/baku-tau-4-0', wrap(async (_req, res) => sendEventPayload(res)));
+  app.get('/api/events/bakutau', wrap(async (_req, res) => sendEventPayload(res)));
 
   app.get('/api/events/baku-tau-4-0/stats', wrap(async (_req, res) => {
     const prisma = getPrisma();
@@ -71,6 +92,11 @@ export function registerBakuTauRoutes(app, { wrap }) {
   app.post('/api/events/baku-tau-4-0/register', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const eventRow = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+    if (eventRow?.status === 'ARCHIVED') {
+      return res.status(410).json({ error: 'Pendaftaran BAKU TAU sudah ditutup.' });
+    }
 
     const { name, phone, gender, origin, domicileKind, domicileDetail } = req.body || {};
     const authUser = req.authUser;
@@ -112,6 +138,14 @@ export function registerBakuTauRoutes(app, { wrap }) {
           },
         });
       }
+
+      try {
+        await upsertBakutauAttendee(prisma, user.id, {
+          origin: origin || user.origin,
+          domicileKind: domicileKind || user.domicileKind,
+          domicileDetail: domicileDetail || user.domicileDetail,
+        });
+      } catch { /* table may not exist on old DB */ }
 
       return res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
     }

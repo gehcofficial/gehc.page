@@ -28,6 +28,10 @@ import { PortalLayout } from './components/portal/PortalLayout';
 import { ApplyPendingBakutau } from './components/portal/ApplyPendingBakutau';
 import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 import EventGalleryPublic from './pages/EventGalleryPublic';
+import { RegisterPage } from './components/public/auth/RegisterPage';
+import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
+
+const AUTH_PUBLIC_TABS = new Set(['login']);
 
 const MainAppContent: React.FC = () => {
   const { activeView, publicTab, demoMode, authUser } = useApp();
@@ -35,13 +39,15 @@ const MainAppContent: React.FC = () => {
   if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
     return <ClaimPage />;
   }
+
+  if (publicTab === 'login') {
+    return <PortalLogin />;
+  }
+
   if (activeView === 'portal') {
-    // Belum masuk & bukan mode demo → layar login portal (cached accounts)
     if (!authUser && !demoMode) return <PortalLogin />;
 
     const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
-
-    // Onboarding flow: WAITING_POOL or PENDING account
     const onboardingStatus = authUser?.onboardingStatus;
     if (onboardingStatus === 'WAITING_POOL') {
       return <>{pendingSync}<OnboardingGatePortal mode="WAITING_POOL" /></>;
@@ -53,15 +59,20 @@ const MainAppContent: React.FC = () => {
     return <>{pendingSync}<PortalLayout /></>;
   }
 
-  return (
-    <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] flex flex-col justify-between selection:bg-[#FF416C] selection:text-white">
-      {/* Navbar with Tenant & Role Switcher */}
-      <Navbar />
+  const authShell = AUTH_PUBLIC_TABS.has(publicTab);
 
-      {/* Public Pages View Router (hash: #/beyonders · #/leaders · #/events · #/bulletin) */}
+  return (
+    <div className={`min-h-screen flex flex-col justify-between selection:bg-[#FF416C] selection:text-white ${
+      authShell ? 'bg-[#FAF9F5] text-[#1B1B1B]' : 'bg-[#FAF9F5] text-[#1B1B1B]'
+    }`}>
+      {!authShell && <Navbar />}
+
       <main className="flex-grow">
-        {publicTab === 'group-detail' && <GroupDetailPage />}
+        {publicTab === 'register' && <RegisterPage />}
+        {publicTab === 'event-signup' && <EventSignupRouter />}
         {publicTab === 'join' && <JoinPage />}
+
+        {publicTab === 'group-detail' && <GroupDetailPage />}
 
         {publicTab === 'beyonders' && (
           <>
@@ -93,8 +104,7 @@ const MainAppContent: React.FC = () => {
         {publicTab === 'gallery' && <EventGalleryPublic />}
       </main>
 
-      {/* Editorial Dark Curved Footer */}
-      <Footer />
+      {!authShell && <Footer />}
     </div>
   );
 };
@@ -107,4 +117,3 @@ export default function App() {
     </AppProvider>
   );
 }
-

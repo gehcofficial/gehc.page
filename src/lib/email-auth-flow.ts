@@ -1,4 +1,4 @@
-import { applyPendingBakutauRegistration } from './bakutau-pending';
+import { finishAuthRedirect } from './auth-redirect';
 
 export type EmailRegisterPayload = {
   name: string;
@@ -9,7 +9,7 @@ export type EmailRegisterPayload = {
   gender?: string;
 };
 
-export async function registerWithEmail(payload: EmailRegisterPayload): Promise<void> {
+export async function registerWithEmail(payload: EmailRegisterPayload, next?: string | null): Promise<void> {
   const res = await fetch('/api/register/local', {
     method: 'POST',
     credentials: 'include',
@@ -20,7 +20,5 @@ export async function registerWithEmail(payload: EmailRegisterPayload): Promise<
   if (!res.ok) {
     throw new Error((data as { error?: string }).error || 'Pendaftaran email gagal.');
   }
-  await applyPendingBakutauRegistration();
-  window.location.hash = '#/portal';
-  window.location.reload();
+  await finishAuthRedirect(next);
 }

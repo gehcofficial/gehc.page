@@ -1,8 +1,10 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { useApp } from '../../context/AppContext';
 import { getCachedAccounts, CachedAccount } from '../../lib/cachedAccounts';
-import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { getNextFromHash, resolvePostAuthHash } from '../../lib/hash-routes';
+import { finishAuthRedirect } from '../../lib/auth-redirect';
 
 /**
  * Layar masuk portal — dua metode:
@@ -29,7 +31,16 @@ export const PortalLogin: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const afterAuth = async () => window.location.reload();
+  const afterAuth = async () => {
+    const next = getNextFromHash();
+    if (next) {
+      await finishAuthRedirect(next);
+      return;
+    }
+    setActiveView('portal');
+    window.location.hash = '#/portal';
+    window.location.reload();
+  };
 
   const onCredential = (credential: string) => {
     fetch('/api/auth/google', {
@@ -171,28 +182,16 @@ export const PortalLogin: React.FC = () => {
         {/* Footer */}
         <div className="mt-8 text-center space-y-3">
           <a
-            href="#/join?event=bakutau"
+            href="#/register"
             onClick={(e) => {
               e.preventDefault();
               setActiveView('public');
-              window.location.hash = '#/join?event=bakutau';
+              window.location.hash = '#/register';
             }}
             className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-            Belum punya akun? Daftar BAKU TAU 4.0
-          </a>
-          <a
-            href="#/join"
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveView('public');
-              window.location.hash = '#/join';
-            }}
-            className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-            Punya link undangan? Daftar di sini
+            Belum punya akun? Daftar Beyonders
           </a>
           <div>
             <button

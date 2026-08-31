@@ -29,9 +29,21 @@ import {
 import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi, fetchPersonas, impersonate as impersonateApi } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
 import { useRoleFlags } from '../hooks/useRoleFlags';
-import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP } from '../app/routes';
+import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP, eventSlugFromHash } from '../app/routes';
+import { parseHashRoute } from '../lib/hash-routes';
 
-type PublicTab = 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail' | 'gallery' | 'benzarpreneurship';
+type PublicTab =
+  | 'beyonders'
+  | 'leaders'
+  | 'events'
+  | 'bulletin'
+  | 'join'
+  | 'login'
+  | 'register'
+  | 'event-signup'
+  | 'group-detail'
+  | 'gallery'
+  | 'benzarpreneurship';
 
 interface AppContextType {
   // Navigation & Tenant
@@ -40,8 +52,9 @@ interface AppContextType {
   switchTenant: (tenantId: string) => void;
   activeView: string;
   setActiveView: (view: string) => void;
-  publicTab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail' | 'gallery' | 'benzarpreneurship';
-  setPublicTab: (tab: 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'group-detail' | 'gallery' | 'benzarpreneurship') => void;
+  publicTab: PublicTab;
+  setPublicTab: (tab: PublicTab, opts?: { eventSlug?: string }) => void;
+  eventSlug?: string;
   selectedGroupId: string | null;
   openGroupDetail: (groupId: string) => void;
   closeGroupDetail: () => void;
@@ -143,29 +156,34 @@ const STORAGE_KEYS = {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
   const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
-  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'benzarpreneurship'] as const;
+  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship'] as const;
   const tabFromHash = (): PublicTab => {
-    const path = window.location.hash.replace(/^#\/?/, '').split('?')[0];
-    if (path === 'group-detail') return 'group-detail';
-    if ((TAB_IDS as readonly string[]).includes(path)) return path as PublicTab;
-    if (LEGACY_HASH_MAP[path]) return LEGACY_HASH_MAP[path] as PublicTab;
+    const parsed = parseHashRoute();
+    if (parsed.tab === 'group-detail') return 'group-detail';
+    if ((TAB_IDS as readonly string[]).includes(parsed.tab)) return parsed.tab as PublicTab;
     return tabFromHashRoute(window.location.hash) as PublicTab;
   };
 
   const [publicTab, setPublicTabState] = useState<PublicTab>(tabFromHash);
+  const [eventSlug, setEventSlug] = useState<string | undefined>(() => eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
 
-  // setPublicTab menulis hash (kecuali overlay group-detail yang internal)
-  const setPublicTab = (tab: PublicTab) => {
+  const setPublicTab = (tab: PublicTab, opts?: { eventSlug?: string }) => {
     setPublicTabState(tab);
-    if (tab !== 'group-detail') {
+    if (tab === 'event-signup') {
+      const slug = opts?.eventSlug || eventSlug || 'bakutau';
+      setEventSlug(slug);
+      window.location.hash = `#/event/${slug}`;
+    } else if (tab !== 'group-detail') {
       window.location.hash = `#/${tab}`;
-      window.scrollTo({ top: 0 });
     }
+    window.scrollTo({ top: 0 });
   };
 
-  // Back/forward browser
   useEffect(() => {
-    const onHash = () => setPublicTabState(tabFromHash());
+    const onHash = () => {
+      setPublicTabState(tabFromHash());
+      setEventSlug(eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -928,6 +946,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveView,
         publicTab,
         setPublicTab,
+        eventSlug,
         selectedGroupId,
         openGroupDetail,
         closeGroupDetail,

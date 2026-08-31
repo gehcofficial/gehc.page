@@ -324,19 +324,34 @@ export const Navbar: React.FC = () => {
 
             {/* Language toggle + Masuk (tamu) + Portal / Public Toggle Button */}
             <LanguageToggle />
-            {activeView === 'public' && !authUser && !demoMode && ssoClientId && (
-              <button
-                onClick={() => setActiveView('portal')}
-                title="Masuk ke portal"
-                className="px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors flex items-center gap-1.5"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Masuk</span>
-              </button>
+            {activeView === 'public' && !authUser && !demoMode && (
+              <>
+                <button
+                  onClick={() => { window.location.hash = '#/login'; }}
+                  title="Masuk ke portal"
+                  className="px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Masuk</span>
+                </button>
+                <button
+                  onClick={() => { window.location.hash = '#/register'; }}
+                  title="Daftar Beyonders"
+                  className="px-3 h-[34px] rounded-full bg-white text-[#181818] text-[11px] font-black transition-colors hidden sm:flex items-center gap-1.5"
+                >
+                  Daftar
+                </button>
+              </>
             )}
             {activeView === 'public' ? (
               <button
-                onClick={() => setActiveView('portal')}
+                onClick={() => {
+                  if (authUser) {
+                    setActiveView('portal');
+                  } else {
+                    window.location.hash = '#/login';
+                  }
+                }}
                 className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
               >
                 <span>Portal</span>
@@ -450,9 +465,28 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="pt-6 border-t border-white/10 flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      window.location.hash = '#/register';
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white"
+                  >
+                    Daftar Beyonders
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.location.hash = '#/login';
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white/80"
+                  >
+                    Masuk
+                  </button>
             <button
               onClick={() => {
-                setActiveView(activeView === 'public' ? 'portal' : 'public');
+                if (authUser) setActiveView('portal');
+                else window.location.hash = '#/login';
                 setIsMobileMenuOpen(false);
               }}
               className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"

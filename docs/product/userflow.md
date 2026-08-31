@@ -150,30 +150,39 @@ Simpan = auto-sync TiDB & landing page.
 
 ---
 
-## 7. Join Flow — BAKU TAU 4.0 + Unified Onboarding
+## 7. Auth & Onboarding — Login · Register · Event
 
-### BAKU TAU 4.0 (QRIS / publik)
+### Route map (hash)
 
-`#/join?event=bakutau` → **Step 1: daftar cepat** (nama, WA, gender, asal, domisili SBH/NBH/Elvis/Lainnya)
-  → counter publik + stats domisili
-  → **Step 2: Google** atau login portal → `#/portal`
-  → `BakuTauWelcomeCard` + CTA grup WhatsApp (`EventProgram.whatsappGroupUrl` / env `BAKU_TAU_WA_GROUP_URL`)
-  → `OnboardingGatePortal` (profil + karunia) → Komisi assign role
+| Route | Fungsi |
+|-------|--------|
+| `#/login` | Masuk portal (Google / email+password) |
+| `#/register` | Daftar membership Beyonders → `WAITING_POOL` |
+| `#/event/bakutau` | Daftar kehadiran BAKU TAU (kontekstual) |
+| `#/join?inv=CODE` | Undangan panitia (role dari invite) |
+| `#/join?token=` | Legacy waitlist bridge |
 
-API: `POST /api/events/baku-tau-4-0/register`, `GET …/stats`, `POST …/claim`, `GET /api/me/baku-tau-registration`
+Redirect: `#/join` → `#/register`; `#/join?event=bakutau` → `#/event/bakutau`.
+
+### Register (membership umum)
+
+`#/register` → Google atau Email → `POST /api/register/google|local`
+  → `onboardingStatus: WAITING_POOL` + **WaitingPool**
+  → portal gate (profil + karunia) → Komisi assign role
+
+Flag `REGISTRATION_OPEN=false` menutup pendaftaran.
+
+### BAKU TAU 4.0 (event kontekstual)
+
+CTA dari `#/events` → `#/event/bakutau`
+
+- **Sudah login:** form asal/domisili → `POST /api/events/baku-tau-4-0/register` (+ `EventAttendee` jika tabel ada)
+- **Belum login:** counter panitia → pending session → buat akun → auto-sync
+- **Event archived:** form ditutup, CTA disembunyikan
+
+API: `GET /api/events/bakutau`, `POST …/register`, `POST …/claim`, `GET /api/me/baku-tau-registration`
 
 Tanggal resmi: **12 September 2026, 15:00 WIB**
-
-### Pendaftar Baru (single pipe → WaitingPool)
-
-Landing/Events → `#/join` → **Daftar dengan Google** (atau link undangan)
-  1. SSO Google → `onboardingStatus: WAITING_POOL` + entry **WaitingPool**
-  2. Portal gate — lengkapi profil + tes karunia
-  3. Status → `PROFILE_COMPLETED` → Komisi assign role
-  4. Setelah role → portal penuh sesuai RBAC
-
-Legacy waitlist (`WaitlistEntry`) — **retired** di UI; data lama di-bridge via `npm run db:bridge:waitlist`.
-Link token lama `#/join?token=` tetap didukung sementara (Stage B bridge).
 
 ### Invite Link (komite/komisi):
 
@@ -187,11 +196,9 @@ Komisi setujui di tab "Menunggu Persetujuan" → ACTIVE.
 akun yang pernah dipakai di perangkat tampil di layar login portal
 & dropdown persona (maks 5, LRU).
 
-### Daftar Mandiri via Google (publik, tanpa undangan):
+### Daftar Mandiri via Google / Email (publik):
 
-`#/join` → **Daftar dengan Google** → SSO → akun `PENDING` + **WaitingPool**
-→ portal gate (profil + tes karunia) → Komisi approve/assign di pipeline.
-Flag env `REGISTRATION_OPEN=false` menutup pendaftaran.
+`#/register` → Google atau Email → akun `PENDING` + **WaitingPool** → portal gate.
 
 ### Akun Lokal (email+sandi):
 

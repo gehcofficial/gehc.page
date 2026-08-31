@@ -51,6 +51,39 @@ interface EventItem {
 
 type ViewMode = 'list' | 'detail';
 
+const EventAttendeesBlock: React.FC<{ slug: string }> = ({ slug }) => {
+  const [rows, setRows] = useState<{ id: string; user?: { name: string; email: string; phone?: string } }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/events/${encodeURIComponent(slug)}/attendees`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setRows(d.attendees || []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-black text-[#1B1B1B]">Kehadiran Event ({rows.length})</h3>
+      {loading ? (
+        <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-[#8C8880]">Belum ada peserta dengan akun terhubung.</p>
+      ) : (
+        <div className="rounded-2xl border border-[#D9D7D0] bg-white divide-y divide-[#D9D7D0]/60 max-h-64 overflow-y-auto">
+          {rows.map((row) => (
+            <div key={row.id} className="px-4 py-2.5 text-xs">
+              <p className="font-bold text-[#1B1B1B]">{row.user?.name || '—'}</p>
+              <p className="text-[#8C8880]">{row.user?.email}{row.user?.phone ? ` · ${row.user.phone}` : ''}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const EventWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -260,6 +293,11 @@ export const EventWorkspacePanel: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Kehadiran event (EventAttendee) */}
+        {(selected.slug === 'bakutau' || selected.slug === 'baku-tau-4-0') && (
+          <EventAttendeesBlock slug="bakutau" />
+        )}
 
         {/* Meetings */}
         <div className="space-y-3">

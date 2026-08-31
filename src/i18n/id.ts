@@ -93,7 +93,7 @@ export const id: Dict = {
     pastEyebrow: 'Perjalanan Kami Sejauh Ini',
     viewAll: 'Semua kegiatan',
     detailCta: 'Detail',
-    joinCta: 'Gabung Waitlist',
+    joinCta: 'Daftar Kehadiran',
   },
   bulletin: {
     eyebrow: 'Publikasi Resmi',

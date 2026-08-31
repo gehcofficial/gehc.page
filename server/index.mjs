@@ -64,7 +64,7 @@ import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } fro
 import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
-import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
+import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME } from './lib/baku-tau.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -3306,7 +3306,7 @@ app.get('/api/auth/google/start', wrap(async (req, res) => {
 
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     const fallback = mode === 'register'
-      ? '#/join?event=bakutau'
+      ? '#/register'
       : mode === 'join' && inviteCode
         ? `#/join?inv=${encodeURIComponent(inviteCode)}`
         : next;
@@ -4424,7 +4424,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
-registerBakuTauRoutes(app, { wrap });
+registerEventsPublicRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 
