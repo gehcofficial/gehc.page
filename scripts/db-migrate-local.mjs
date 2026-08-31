@@ -41,6 +41,16 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-waiting-pool.cjs',
+    label: 'Waiting pool onboarding table (waiting_pool)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-event-workspace.cjs',
+    label: 'Event workspace (EventProgram, EventDivision, EventMeeting)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-e10-bakutau.cjs',
     label: 'E10 BAKU TAU (domicile, whatsapp_group_url, claim_token)',
     required: true,

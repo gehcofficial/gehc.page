@@ -16,6 +16,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:local": "node scripts/db-migrate-local.mjs",
     "db:migrate:local:staging": "dotenv -e .env.staging -- node scripts/db-migrate-local.mjs",
+    "db:migrate:local:prod": "dotenv -e .env.production -- node scripts/db-migrate-local.mjs",
     "db:schema:check": "node scripts/check-db-schema.mjs",
     "db:migrate:profile": "node server/_migrate-profile-phase1.cjs",
     "db:migrate:church-request": "node server/_migrate-profile-church-request.cjs",

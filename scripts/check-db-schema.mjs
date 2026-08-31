@@ -16,6 +16,8 @@ const REQUIRED_USER_COLUMNS = [
   'work_role',
   'birth_date',
   'membership_kind',
+  'domicile_kind',
+  'domicile_detail',
 ];
 
 const REQUIRED_TABLES = [
@@ -23,7 +25,10 @@ const REQUIRED_TABLES = [
   'recreational_suggestions',
   'org_nodes',
   'org_assignments',
+  'waiting_pool',
 ];
+
+const REQUIRED_WAITING_POOL_COLUMNS = ['domicile_kind', 'domicile_detail', 'claim_token'];
 
 const quiet = process.argv.includes('--quiet');
 
@@ -62,6 +67,15 @@ export async function checkDbSchema() {
         [table],
       );
       if (!rows.length) missing.tables.push(table);
+    }
+
+    for (const col of REQUIRED_WAITING_POOL_COLUMNS) {
+      const [rows] = await conn.query(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'waiting_pool' AND COLUMN_NAME = ?`,
+        [col],
+      );
+      if (!rows.length) missing.columns.push(`waiting_pool.${col}`);
     }
   } finally {
     await conn.end();

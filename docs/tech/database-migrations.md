@@ -31,6 +31,7 @@ npm run dev:all
 |----------|--------|
 | `npm run db:migrate:local` | Jalankan semua `server/_migrate-*.cjs` + `prisma generate` |
 | `npm run db:migrate:local:staging` | Sama, pakai `.env.staging` |
+| `npm run db:migrate:local:prod` | Sama, pakai `.env.production` |
 | `npm run db:schema:check` | Cek read-only — kolom/tabel wajib ada? |
 | `npm run db:migrate:profile` | Hanya profil fase 1 (`major_other`, dll.) |
 | `npm run db:migrate:church-request` | Tabel permintaan ubah data gereja |
@@ -48,7 +49,9 @@ npm run dev:all
 3. `_migrate-jethro-placement.cjs` — placement batches *(opsional)*
 4. `_migrate-birth-date.cjs` — `users.birth_date`
 5. `_migrate-org-hierarchy.cjs` — org tree + `membership_kind`
-6. `_migrate-e10-bakutau.cjs` — domisili, `whatsapp_group_url`, `claim_token`
+6. `_migrate-waiting-pool.cjs` — tabel `waiting_pool` (onboarding pipeline)
+7. `_migrate-e10-bakutau.cjs` — domisili, `whatsapp_group_url`, `claim_token`
+8. `_migrate-bakutau-venue.cjs` — patch lokasi BAKU TAU di `content_items`
 
 Scripts tambahan:
 
