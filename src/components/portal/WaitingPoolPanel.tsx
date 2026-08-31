@@ -62,7 +62,6 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         fetch('/api/pending-approval', { credentials: 'include' }),
         fetch('/api/waiting-pool?status=ROLE_ASSIGNED', { credentials: 'include' }),
       ]);
-      ]);
 
       if (wpRes.ok) {
         const d = await wpRes.json();
