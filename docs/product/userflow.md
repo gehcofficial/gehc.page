@@ -168,9 +168,16 @@ Redirect: `#/join` → `#/register`; `#/join?event=bakutau` → `#/event/bakutau
 
 `#/register` → Google atau Email → `POST /api/register/google|local`
   → `onboardingStatus: WAITING_POOL` + **WaitingPool**
-  → portal gate (profil + karunia) → Komisi assign role
+  → **Portal terbatas** (Profil + Info Event) + banner onboarding → Komisi assign role
 
-Flag `REGISTRATION_OPEN=false` menutup pendaftaran.
+Saat onboarding (`WAITING_POOL`): nama KTP, BIPRA, dan kolom **diisi langsung** di profil.
+Setelah `ACTIVE`: perubahan data gereja lewat permintaan → admin approve di **Jemaat**.
+
+**Admin:**
+- **Onboarding Pipeline** — assign role (tab Menunggu Role)
+- **Jemaat** — approve permintaan ubah nama/BIPRA/kolom (anggota aktif)
+
+Env opsional: `BAKU_TAU_WA_GROUP_URL=https://chat.whatsapp.com/...` (CTA grup WA di event + portal)
 
 ### BAKU TAU 4.0 (event kontekstual)
 

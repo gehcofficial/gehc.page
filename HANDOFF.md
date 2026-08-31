@@ -1,33 +1,34 @@
 # GEHC Portal — Handoff
 
-## Current priority — Auth route split + EventAttendee
+## Current priority — Onboarding UX staging fixes
 
-**Goal:** Pisah Login / Register / Event signup; generic event API; `event_attendees` table.
+**Goal:** WA group CTA, portal terbatas saat onboarding, Google link fix, nama KTP langsung.
 
 ### Done
 
-- Routes: `#/login`, `#/register`, `#/event/bakutau`; redirect legacy `#/join`
-- Navbar: **Masuk** + **Daftar** (CTA event hanya di halaman Kegiatan)
-- `RegisterPage`, `BakutauEventPage`, `InviteJoinPage`; `event-pending.ts`
-- `GET /api/events/bakutau`; `EventAttendee` model + migration
-- Event archived hides CTA di `EventsTimeline`
-- Kehadiran event tab di `EventWorkspacePanel` (BAKU TAU)
-- E2E `tests/e2e/auth-routes.spec.ts`
+- Portal **terbatas** untuk `WAITING_POOL`: banner + tab Profil & Info Event
+- `OnboardingBanner`, `EventInfoPanel`; WA CTA di event page + counter flow
+- `POST /api/register/google` set `googleSub` + `LINKED`; backfill script
+- Nama/BIPRA/kolom editable langsung saat onboarding (`PATCH /api/me/profile`)
+- `WaitingPoolPanel`: kolom BIPRA/kolom + flag profil belum lengkap
+- Env: `BAKU_TAU_WA_GROUP_URL` di `.env.example`
 
 ### Commands
 
 ```powershell
 npm run db:migrate:local
+npm run db:backfill:google-link    # user Google lama di staging
 npm run dev:all
 npm run test
-npm run test:e2e
 ```
 
-npm run db:archive:bakutau        # setelah 12 Sep 2026
-npm run test:e2e
-```
+**Staging:** set `BAKU_TAU_WA_GROUP_URL` di Vercel Environment Variables.
 
 QRIS / event URL: `https://gehcpage.vercel.app/#/event/bakutau`
+
+---
+
+## Prior — Auth route split + EventAttendee
 
 ---
 

@@ -19,7 +19,6 @@ import { WeeklyInfoSection } from './components/public/WeeklyInfoSection';
 import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
 import { PortalLogin } from './components/portal/PortalLogin';
-import { OnboardingGatePortal } from './components/portal/OnboardingGatePortal';
 import { KomisiSection } from './components/public/KomisiSection';
 import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
@@ -48,14 +47,6 @@ const MainAppContent: React.FC = () => {
     if (!authUser && !demoMode) return <PortalLogin />;
 
     const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
-    const onboardingStatus = authUser?.onboardingStatus;
-    if (onboardingStatus === 'WAITING_POOL') {
-      return <>{pendingSync}<OnboardingGatePortal mode="WAITING_POOL" /></>;
-    }
-    if (authUser?.accountStatus === 'PENDING') {
-      return <>{pendingSync}<OnboardingGatePortal mode="PENDING" /></>;
-    }
-
     return <>{pendingSync}<PortalLayout /></>;
   }
 

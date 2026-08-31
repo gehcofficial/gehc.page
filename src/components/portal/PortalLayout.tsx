@@ -19,7 +19,9 @@ import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
-import { MyProfilePanel } from './MyProfilePanel';
+import { MyProfilePanel, type ProfileSectionId } from './MyProfilePanel';
+import { OnboardingBanner } from './OnboardingBanner';
+import { EventInfoPanel } from './EventInfoPanel';
 import {
   LayoutDashboard,
   BookOpen,
@@ -59,7 +61,11 @@ export const PortalLayout: React.FC = () => {
     sessionSource,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL'
+    || authUser?.accountStatus === 'PENDING';
+
+  const [activeTab, setActiveTab] = useState<string>(() => (isOnboarding ? 'my-profile' : 'dashboard'));
+  const [profileSection, setProfileSection] = useState<ProfileSectionId | undefined>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
@@ -91,8 +97,17 @@ export const PortalLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (isOnboarding && activeTab !== 'my-profile' && activeTab !== 'event-info') {
+      setActiveTab('my-profile');
+    }
+  }, [isOnboarding, authUser?.id]);
+
+  const ONBOARDING_TAB_IDS = new Set(['my-profile', 'event-info']);
+
   const allNavItems = [
     { id: 'my-profile', label: 'Profil saya', icon: User, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
+    { id: 'event-info', label: 'Info Event', icon: Calendar, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama', subtitle: 'BAKU TAU & grup WA' },
     { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
     { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Akun & link undangan' },
     { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
@@ -111,7 +126,12 @@ export const PortalLayout: React.FC = () => {
     { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Sistem' },
   ];
 
-  const navItems = allNavItems.filter((item) => item.roles.includes(currentRole));
+  const navItems = allNavItems.filter((item) => {
+    if (!item.roles.includes(currentRole)) return false;
+    if (isOnboarding) return ONBOARDING_TAB_IDS.has(item.id);
+    if (item.id === 'event-info') return false;
+    return true;
+  });
 
   const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
 
@@ -460,7 +480,25 @@ export const PortalLayout: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
           <NotificationPermissionBanner compact onDismiss={() => {}} />
-          {activeTab === 'my-profile' && <MyProfilePanel />}
+          {isOnboarding && (
+            <OnboardingBanner
+              onCompleteProfile={() => {
+                setProfileSection('contact');
+                setActiveTab('my-profile');
+              }}
+              onStartGiftTest={() => {
+                setProfileSection('gifts');
+                setActiveTab('my-profile');
+              }}
+            />
+          )}
+          {activeTab === 'my-profile' && (
+            <MyProfilePanel
+              defaultOpenSection={profileSection}
+              onGiftSaved={() => setProfileSection(undefined)}
+            />
+          )}
+          {activeTab === 'event-info' && <EventInfoPanel />}
           {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
           {activeTab === 'content-activities' && <ManageActivities />}

@@ -12,7 +12,7 @@ export function registerOnboardingRoutes(app, { wrap }) {
     const status = req.query.status ? String(req.query.status) : 'WAITING_POOL';
     const sourceEvent = req.query.sourceEvent ? String(req.query.sourceEvent) : undefined;
     const domicileKind = req.query.domicileKind ? String(req.query.domicileKind) : undefined;
-    const includeUser = status === 'ROLE_ASSIGNED' || status === 'REGISTERED';
+    const includeUser = true;
 
     const where = { status };
     if (sourceEvent) where.sourceEvent = sourceEvent;
@@ -27,6 +27,9 @@ export function registerOnboardingRoutes(app, { wrap }) {
                 id: true,
                 name: true,
                 email: true,
+                bipra: true,
+                kolomId: true,
+                kolom: { select: { id: true, name: true } },
                 roles: { select: { role: true, groupId: true, tenantId: true } },
               },
             },

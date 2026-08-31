@@ -29,6 +29,9 @@ interface WaitingPoolEntry {
     id: string;
     name: string;
     email: string | null;
+    bipra?: string | null;
+    kolomId?: string | null;
+    kolom?: { id: string; name: string } | null;
     roles?: { role: string; groupId: string | null; tenantId?: string }[];
   };
 }
@@ -574,6 +577,10 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   );
 };
 
+const BIPRA_SHORT: Record<string, string> = {
+  BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
+};
+
 const PoolList: React.FC<{
   entries: WaitingPoolEntry[];
   emptyTitle: string;
@@ -590,11 +597,22 @@ const PoolList: React.FC<{
           <div className="flex items-center gap-3">
             <img src={initialsAvatar(entry.name)} alt={entry.name} className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold truncate">{entry.name}</p>
+              <p className="text-xs font-bold truncate">{entry.user?.name || entry.name}</p>
               <p className="text-[10px] text-[#8C8880] truncate">{entry.email || entry.phone || 'No contact'}</p>
               {(entry.origin || entry.domicileKind) && (
                 <p className="text-[9px] text-[#8C8880] mt-0.5 truncate">
                   {entry.origin || '—'} · {domicileLabel(entry.domicileKind, entry.domicileDetail)}
+                </p>
+              )}
+              {entry.user && (
+                <p className="text-[9px] mt-0.5 truncate">
+                  <span className={entry.user.bipra ? 'text-[#5C5850]' : 'text-red-600 font-bold'}>
+                    {entry.user.bipra ? BIPRA_SHORT[entry.user.bipra] || entry.user.bipra : 'BIPRA kosong'}
+                  </span>
+                  {' · '}
+                  <span className={entry.user.kolom ? 'text-[#5C5850]' : 'text-red-600 font-bold'}>
+                    {entry.user.kolom?.name || 'Kolom kosong'}
+                  </span>
                 </p>
               )}
             </div>
@@ -602,6 +620,9 @@ const PoolList: React.FC<{
               <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full block mb-1">
                 {entry.status}
               </span>
+              {!entry.profileCompleted && entry.status !== 'REGISTERED' && (
+                <span className="text-[9px] font-bold text-red-600 block mb-1">Profil belum lengkap</span>
+              )}
               <span className="text-[10px] font-bold text-[#8C8880]">{daysSince(entry.registeredAt)} hari</span>
             </div>
           </div>

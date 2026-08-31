@@ -198,8 +198,27 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existingUser = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!existingUser) return res.status(404).json({ error: 'User tidak ditemukan.' });
   const body = req.body || {};
   const data = {};
+  const isOnboarding = existingUser.onboardingStatus === 'WAITING_POOL';
+
+  if (body.name !== undefined) {
+    if (!isOnboarding) {
+      return res.status(403).json({ error: 'Ubah nama lewat permintaan admin (Jemaat).' });
+    }
+    const name = String(body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Nama wajib diisi.' });
+    data.name = name.slice(0, 150);
+  }
+  if (body.bipra !== undefined || body.kolomId !== undefined) {
+    if (!isOnboarding) {
+      return res.status(403).json({ error: 'Ubah BIPRA/kolom lewat permintaan admin (Jemaat).' });
+    }
+    if (body.bipra !== undefined) data.bipra = body.bipra ? String(body.bipra) : null;
+    if (body.kolomId !== undefined) data.kolomId = body.kolomId ? String(body.kolomId) : null;
+  }
   if (body.gender !== undefined) data.gender = body.gender ? String(body.gender) : null;
   if (body.phone !== undefined) data.phone = body.phone ? String(body.phone) : null;
   if (body.birthDate !== undefined) {
@@ -2890,6 +2909,9 @@ app.post('/api/join', wrap(async (req, res) => {
           name: p.name || p.email.split('@')[0],
           avatar: p.picture || null,
           accountStatus: 'PENDING',
+          googleSub: p.sub,
+          linkStatus: 'LINKED',
+          authProvider: 'GOOGLE',
           ...profile,
         },
         include: { roles: true },
@@ -2900,6 +2922,9 @@ app.post('/api/join', wrap(async (req, res) => {
         data: {
           name: p.name || user.name,
           avatar: p.picture || user.avatar,
+          googleSub: p.sub,
+          linkStatus: 'LINKED',
+          authProvider: 'GOOGLE',
           phone: profile.phone ?? user.phone,
           address: profile.address ?? user.address,
           origin: profile.origin ?? user.origin,
@@ -3066,13 +3091,15 @@ app.post('/api/register/google', wrap(async (req, res) => {
 
     let user;
     if (existing) {
-      // akun yatim (tanpa role) — lengkapi & aktifkan alur pendaftaran
       user = await prisma.user.update({
         where: { id: existing.id },
         data: {
-          name: p.name || user?.name || email.split('@')[0],
+          name: p.name || existing.name || email.split('@')[0],
           avatar: p.picture || existing.avatar,
           accountStatus: status,
+          googleSub: p.sub,
+          linkStatus: 'LINKED',
+          authProvider: 'GOOGLE',
           ...profile,
         },
         include: { roles: true },
@@ -3085,6 +3112,9 @@ app.post('/api/register/google', wrap(async (req, res) => {
           name: p.name || email.split('@')[0],
           avatar: p.picture || null,
           accountStatus: status,
+          googleSub: p.sub,
+          linkStatus: 'LINKED',
+          authProvider: 'GOOGLE',
           ...profile,
         },
         include: { roles: true },

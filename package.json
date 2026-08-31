@@ -24,6 +24,7 @@
     "db:migrate:birth-date": "node server/_migrate-birth-date.cjs",
     "db:migrate:org-hierarchy": "node server/_migrate-org-hierarchy.cjs",
     "db:migrate:e10-bakutau": "node server/_migrate-e10-bakutau.cjs",
+    "db:backfill:google-link": "node server/_backfill-google-link.cjs",
     "db:archive:bakutau": "node server/_archive-bakutau-event.cjs",
     "db:archive:bakutau:staging": "dotenv -e .env.staging -- node server/_archive-bakutau-event.cjs",
     "db:backfill:org-assignments": "node server/backfill-org-assignments.cjs",

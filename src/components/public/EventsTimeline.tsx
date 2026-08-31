@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
+import { CalendarDays, MapPin, ArrowRight, Users, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
@@ -20,6 +20,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
   const { t } = useLang();
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [eventClosed, setEventClosed] = useState(false);
+  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
   const [venue, setVenue] = useState<{
     venueName?: string;
     locationDetail?: string;
@@ -34,6 +35,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       .then((d) => {
         setRegisteredCount(d.stats?.registered ?? null);
         setEventClosed(d.status === 'ARCHIVED');
+        setWhatsappGroupUrl(d.whatsappGroupUrl || null);
         setVenue({
           venueName: d.venueName,
           locationDetail: d.locationDetail,
@@ -143,6 +145,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                     </p>
                   )}
                   {!eventClosed ? (
+                  <div className="space-y-2">
                   <button
                     onClick={() => {
                       setPublicTab('event-signup', { eventSlug: 'bakutau' });
@@ -151,6 +154,17 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                   >
                     {t.events.joinCta}
                   </button>
+                  {whatsappGroupUrl && (
+                    <a
+                      href={whatsappGroupUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-emerald-400/40 text-emerald-300 text-[10px] font-bold"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> Grup WA Peserta
+                    </a>
+                  )}
+                  </div>
                   ) : (
                     <p className="text-[10px] font-bold text-white/50 text-center uppercase tracking-wider">
                       Pendaftaran ditutup

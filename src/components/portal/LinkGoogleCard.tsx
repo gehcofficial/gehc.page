@@ -7,6 +7,8 @@ export const LinkGoogleCard: React.FC<{ compact?: boolean }> = ({ compact }) => 
   const { ssoClientId } = useApp();
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
   const [authProvider, setAuthProvider] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [googleSub, setGoogleSub] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -17,11 +19,15 @@ export const LinkGoogleCard: React.FC<{ compact?: boolean }> = ({ compact }) => 
       .then((d) => {
         setLinkStatus(d.user?.linkStatus ?? null);
         setAuthProvider(d.user?.authProvider ?? null);
+        setUserId(d.user?.id ?? null);
+        setGoogleSub(d.user?.googleSub ?? null);
       })
       .catch(() => {});
   }, [ok]);
 
-  const linked = ok || (linkStatus === 'LINKED' && authProvider === 'GOOGLE');
+  const linked = ok
+    || (linkStatus === 'LINKED' && authProvider === 'GOOGLE')
+    || (authProvider === 'GOOGLE' && userId && googleSub && userId === googleSub);
   if (linked) {
     if (compact) return null;
     return (

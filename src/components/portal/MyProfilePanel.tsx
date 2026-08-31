@@ -266,6 +266,7 @@ export const MyProfilePanel: React.FC<{
           pendingRequest={churchDataRequest}
           kolomList={kolomList}
           bipraOptions={bipraOptions}
+          onboardingMode={authUser?.onboardingStatus === 'WAITING_POOL'}
           onSubmitted={load}
           addToast={addToast}
         />
@@ -321,7 +322,7 @@ export const MyProfilePanel: React.FC<{
       <div className="bg-white rounded-[28px] border border-[#D9D7D0]/50 p-6 space-y-4">
         {open === 'contact' && (
           <>
-            <LinkGoogleCard compact />
+            {!authUser || authUser.onboardingStatus !== 'WAITING_POOL' ? <LinkGoogleCard compact /> : null}
             <select className={field} value={form.gender} onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}>
               <option value="">Gender</option>
               <option value="LAKI-LAKI">Laki-laki</option>

@@ -16,6 +16,7 @@ import {
 import { saveEventPending } from '../../../lib/event-pending';
 import { EmailRegisterPanel, GoogleRegisterPanel } from './shared/AuthPanels';
 import { BakutauRegisterCard } from '../../portal/BakutauRegisterCard';
+import { BakuTauWelcomeCard } from '../../portal/BakuTauWelcomeCard';
 
 type Stats = {
   registered: number;
@@ -128,23 +129,23 @@ export const BakutauEventPage: React.FC = () => {
 
       {authUser ? (
         registered ? (
-          <div className="rounded-[28px] bg-white border border-emerald-200 p-6 text-center space-y-3">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-            <h3 className="text-lg font-black">Terdaftar untuk BAKU TAU 4.0!</h3>
-            {whatsappGroupUrl && (
-              <a href={whatsappGroupUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 py-2.5 px-4 rounded-full bg-emerald-600 text-white text-xs font-black uppercase">
-                <MessageCircle className="w-4 h-4" /> Gabung Grup WhatsApp
-              </a>
-            )}
-            <a href="#/portal" onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
-              className="block text-[10px] text-[#8C8880] font-semibold">Ke portal →</a>
-          </div>
+          <BakuTauWelcomeCard
+            whatsappGroupUrl={whatsappGroupUrl}
+            eventDate={venue?.eventDate}
+            venueName={venue?.venueName}
+            locationDetail={venue?.locationDetail}
+            mapUrl={venue?.mapUrl}
+            mapEmbedQuery={venue?.mapEmbedQuery}
+            onCompleteProfile={() => { window.location.hash = '#/portal'; }}
+          />
         ) : (
           <BakutauRegisterCard onRegistered={() => setRegistered(true)} />
         )
       ) : (
-        <GuestBakutauFlow />
+        <GuestBakutauFlow
+          whatsappGroupUrl={whatsappGroupUrl}
+          venue={venue}
+        />
       )}
 
       {venue?.venueName && (
@@ -166,7 +167,16 @@ export const BakutauEventPage: React.FC = () => {
   );
 };
 
-const GuestBakutauFlow: React.FC = () => {
+const GuestBakutauFlow: React.FC<{
+  whatsappGroupUrl?: string | null;
+  venue?: {
+    venueName?: string;
+    locationDetail?: string;
+    mapUrl?: string;
+    mapEmbedQuery?: string;
+    eventDate?: string;
+  } | null;
+}> = ({ whatsappGroupUrl, venue }) => {
   const [pathMode, setPathMode] = useState<'google' | 'email' | 'quick'>('google');
   const [step, setStep] = useState<'form' | 'account'>('form');
   const [busy, setBusy] = useState(false);
@@ -235,17 +245,28 @@ const GuestBakutauFlow: React.FC = () => {
 
   if (step === 'account') {
     return (
-      <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
-        <div className="text-center">
-          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-          <h3 className="text-lg font-black">Data counter tersimpan!</h3>
-          <p className="text-xs text-[#8C8880] mt-1">Buat akun untuk sinkron ke portal.</p>
+      <div className="space-y-4">
+        <BakuTauWelcomeCard
+          whatsappGroupUrl={whatsappGroupUrl}
+          eventDate={venue?.eventDate}
+          venueName={venue?.venueName}
+          locationDetail={venue?.locationDetail}
+          mapUrl={venue?.mapUrl}
+          mapEmbedQuery={venue?.mapEmbedQuery}
+          compact
+        />
+        <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
+          <div className="text-center">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+            <h3 className="text-lg font-black">Data counter tersimpan!</h3>
+            <p className="text-xs text-[#8C8880] mt-1">Buat akun untuk sinkron ke portal.</p>
+          </div>
+          <GoogleRegisterPanel hint="Data pendaftaran tersinkron otomatis." next={registerNext} loginHref={loginHref} />
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-[#8C8880]">
+            <span className="flex-1 h-px bg-[#D9D7D0]" /> atau <span className="flex-1 h-px bg-[#D9D7D0]" />
+          </div>
+          <EmailRegisterPanel hint="Buat akun email & kata sandi." next={registerNext} loginHref={loginHref} />
         </div>
-        <GoogleRegisterPanel hint="Data pendaftaran tersinkron otomatis." next={registerNext} loginHref={loginHref} />
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-[#8C8880]">
-          <span className="flex-1 h-px bg-[#D9D7D0]" /> atau <span className="flex-1 h-px bg-[#D9D7D0]" />
-        </div>
-        <EmailRegisterPanel hint="Buat akun email & kata sandi." next={registerNext} loginHref={loginHref} />
       </div>
     );
   }
