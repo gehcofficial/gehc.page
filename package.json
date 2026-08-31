@@ -10,6 +10,7 @@
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:all": "node dev-all.mjs",
     "deploy:staging": "node scripts/deploy-staging.mjs",
+    "env:sync-bakutau-wa": "node scripts/sync-bakutau-wa-vercel.mjs",
     "server": "node server/index.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
