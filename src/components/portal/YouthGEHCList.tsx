@@ -55,6 +55,7 @@ interface YouthUser {
   villageCode?: string | null;
   giftsTop5?: string[] | null;
   isBeyonders?: boolean;
+  membershipKind?: 'JEMAAT' | 'SIMPATISAN';
   bipra?: string;
   kolomId?: string | null;
   kolom?: { id: string; number: number; name: string } | null;
@@ -84,6 +85,7 @@ interface EditForm {
   kolomId: string;
   recreationalIds: string[];
   birthDate: string;
+  membershipKind: 'JEMAAT' | 'SIMPATISAN';
 }
 
 type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ';
@@ -130,9 +132,9 @@ const ROLE_LABELS: Record<string, string> = {
   COMMUNITY: 'Community',
 };
 
-// Tim Kerja groupings
-const TIMKERJA_GROUPS = [
-  { key: 'BOD', label: 'BOD', divisions: ['TIMKERJA'] },
+// Tim Kerja groupings — fallback if org tree not loaded
+const TIMKERJA_GROUPS_FALLBACK = [
+  { key: 'TIMKERJA_BOD', label: 'BOD', divisions: ['TIMKERJA'] },
   { key: 'PANCA_TUGAS', label: 'Panca Tugas', divisions: ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'] },
   { key: 'BENZARPR', label: 'Benzarpreneurship', divisions: ['BENZARPR'] },
 ];
@@ -175,7 +177,7 @@ function matchesMainFilter(y: YouthUser, filter: MainFilter): boolean {
   return hasRoleInAssignment(y, filter) || hasRoleInLegacy(y, filter);
 }
 
-function buildSubFilters(y: YouthUser[], filter: MainFilter): Array<{ key: string; label: string; count: number }> {
+function buildSubFilters(y: YouthUser[], filter: MainFilter, timKerjaGroups: Array<{ key: string; label: string; divisions: string[] }>): Array<{ key: string; label: string; count: number }> {
   if (filter === 'ALL') return [];
 
   const usersWithFilter = y.filter((u) => matchesMainFilter(u, filter));
@@ -196,18 +198,18 @@ function buildSubFilters(y: YouthUser[], filter: MainFilter): Array<{ key: strin
 
   if (filter === 'TIMKERJA') {
     const groupCounts: Record<string, number> = {};
-    TIMKERJA_GROUPS.forEach((g) => { groupCounts[g.key] = 0; });
+    timKerjaGroups.forEach((g) => { groupCounts[g.key] = 0; });
     usersWithFilter.forEach((u) => {
       u.roleAssignments
         .filter((ra) => ra.isActive && ra.role === 'COMMITTEE')
         .forEach((ra) => {
-          const grp = TIMKERJA_GROUPS.find((g) => g.divisions.includes(ra.division || ''));
+          const grp = timKerjaGroups.find((g) => g.divisions.includes(ra.division || ''));
           if (grp) {
             groupCounts[grp.key] = (groupCounts[grp.key] || 0) + 1;
           }
         });
     });
-    return TIMKERJA_GROUPS
+    return timKerjaGroups
       .map((g) => ({ key: g.key, label: g.label, count: groupCounts[g.key] || 0 }))
       .filter((g) => g.count > 0);
   }
@@ -228,7 +230,7 @@ function buildSubFilters(y: YouthUser[], filter: MainFilter): Array<{ key: strin
   return [];
 }
 
-function matchesSubFilter(y: YouthUser, filter: MainFilter, subKey: string | null): boolean {
+function matchesSubFilter(y: YouthUser, filter: MainFilter, subKey: string | null, timKerjaGroups: Array<{ key: string; label: string; divisions: string[] }>): boolean {
   if (!subKey) return true;
 
   if (filter === 'BPMJ' || filter === 'KOMISI') {
@@ -239,7 +241,7 @@ function matchesSubFilter(y: YouthUser, filter: MainFilter, subKey: string | nul
   }
 
   if (filter === 'TIMKERJA') {
-    const grp = TIMKERJA_GROUPS.find((g) => g.key === subKey);
+    const grp = timKerjaGroups.find((g) => g.key === subKey);
     if (!grp) return false;
     return y.roleAssignments.some(
       (ra) => ra.isActive && ra.role === 'COMMITTEE' && grp.divisions.includes(ra.division || '')
@@ -323,10 +325,11 @@ export const YouthGEHCList: React.FC = () => {
   const [subFilter, setSubFilter] = useState<string | null>(null);
   const [assignWizardUser, setAssignWizardUser] = useState<{ id: string; name: string; email: string } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '' };
+  const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
+  const [membershipFilter, setMembershipFilter] = useState<'ALL' | 'JEMAAT' | 'SIMPATISAN'>('ALL');
   const [birthdayFilter, setBirthdayFilter] = useState(false);
   const [kolomFilter, setKolomFilter] = useState('');
   const [domicileFilter, setDomicileFilter] = useState('');
@@ -335,6 +338,8 @@ export const YouthGEHCList: React.FC = () => {
   const [recCategoryFilter, setRecCategoryFilter] = useState('');
   const [recLeafFilter, setRecLeafFilter] = useState('');
   const [kolomList, setKolomList] = useState<Array<{ id: string; number: number; name: string }>>([]);
+  const [kolomLeaders, setKolomLeaders] = useState<Record<string, { diaken?: { name: string }; penatua?: { name: string } }>>({});
+  const [timKerjaGroups, setTimKerjaGroups] = useState(TIMKERJA_GROUPS_FALLBACK);
   const [recFlat, setRecFlat] = useState<RecreationalNode[]>([]);
   const [creating, setCreating] = useState(false);
   const [claimInfo, setClaimInfo] = useState<string | null>(null);
@@ -367,6 +372,7 @@ export const YouthGEHCList: React.FC = () => {
       kolomId: user.kolomId || '',
       recreationalIds: user.recreationalIds || user.recreational?.map((g) => g.id) || [],
       birthDate: user.birthDate ? String(user.birthDate).slice(0, 10) : '',
+      membershipKind: user.membershipKind || 'JEMAAT',
     });
   };
 
@@ -470,6 +476,7 @@ export const YouthGEHCList: React.FC = () => {
             kolomId: editForm.kolomId || null,
             recreationalIds: editForm.recreationalIds,
             birthDate: editForm.birthDate || null,
+            membershipKind: editForm.membershipKind,
           }),
         });
         if (!res.ok) {
@@ -494,6 +501,7 @@ export const YouthGEHCList: React.FC = () => {
       const qs = new URLSearchParams();
       if (bipraFilter) qs.set('bipra', bipraFilter);
       if (kolomFilter) qs.set('kolomId', kolomFilter);
+      if (membershipFilter !== 'ALL') qs.set('membershipKind', membershipFilter);
       if (domicileFilter) qs.set('addressScope', domicileFilter);
       if (recFilter) qs.set('recreational', recFilter);
       if (birthdayFilter) qs.set('birthdayWithin', '30');
@@ -507,7 +515,7 @@ export const YouthGEHCList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [bipraFilter, kolomFilter, domicileFilter, recFilter, birthdayFilter]);
+  }, [bipraFilter, kolomFilter, domicileFilter, recFilter, birthdayFilter, membershipFilter]);
 
   const fetchMeta = useCallback(async () => {
     try {
@@ -515,6 +523,10 @@ export const YouthGEHCList: React.FC = () => {
       if (!r.ok) return;
       const d = await r.json();
       setKolomList(d.kolom || []);
+      setKolomLeaders(d.kolomLeaders || {});
+      if (Array.isArray(d.timKerjaBranches) && d.timKerjaBranches.length) {
+        setTimKerjaGroups(d.timKerjaBranches);
+      }
       setRecFlat(d.recreational || []);
       setPendingSuggestions(d.pendingSuggestions || []);
       setPendingChurchRequests(d.pendingChurchRequests || []);
@@ -672,11 +684,11 @@ export const YouthGEHCList: React.FC = () => {
     return counts;
   }, [allFiltered]);
 
-  const subFilters = useMemo(() => buildSubFilters(allFiltered, mainFilter), [allFiltered, mainFilter]);
+  const subFilters = useMemo(() => buildSubFilters(allFiltered, mainFilter, timKerjaGroups), [allFiltered, mainFilter, timKerjaGroups]);
 
   const displayed = useMemo(() => {
-    return allFiltered.filter((y) => matchesMainFilter(y, mainFilter) && matchesSubFilter(y, mainFilter, subFilter));
-  }, [allFiltered, mainFilter, subFilter]);
+    return allFiltered.filter((y) => matchesMainFilter(y, mainFilter) && matchesSubFilter(y, mainFilter, subFilter, timKerjaGroups));
+  }, [allFiltered, mainFilter, subFilter, timKerjaGroups]);
 
   // Build Beyonders grouped data
   const beyondersGrouped = useMemo((): BeyondersGroupData[] => {
@@ -843,6 +855,23 @@ export const YouthGEHCList: React.FC = () => {
         ))}
       </div>
 
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        {(['ALL', 'JEMAAT', 'SIMPATISAN'] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMembershipFilter(id)}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+              membershipFilter === id
+                ? id === 'SIMPATISAN' ? 'bg-violet-600 text-white' : 'bg-[#181818] text-white'
+                : 'bg-[#F3F1EC] text-[#8C8880]'
+            }`}
+          >
+            {id === 'ALL' ? 'Semua Keanggotaan' : id === 'JEMAAT' ? 'Jemaat' : 'Simpatisan'}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <select
           value={kolomFilter}
@@ -851,9 +880,15 @@ export const YouthGEHCList: React.FC = () => {
         >
           <option value="">Semua Kolom</option>
           <option value="none">Belum di-assign</option>
-          {kolomList.map((k) => (
-            <option key={k.id} value={k.id}>{k.name}</option>
-          ))}
+          {kolomList.map((k) => {
+            const leaders = kolomLeaders[k.id];
+            const leaderHint = leaders?.diaken || leaders?.penatua
+              ? ` (${[leaders.diaken ? `Diaken: ${leaders.diaken.name}` : null, leaders.penatua ? `Penatua: ${leaders.penatua.name}` : null].filter(Boolean).join(', ')})`
+              : '';
+            return (
+              <option key={k.id} value={k.id}>{k.name}{leaderHint}</option>
+            );
+          })}
         </select>
         <select
           value={domicileFilter}
@@ -1136,6 +1171,9 @@ export const YouthGEHCList: React.FC = () => {
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
                           {domicileLabel(y)}
                         </span>
+                        {y.membershipKind === 'SIMPATISAN' ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Simpatisan</span>
+                        ) : null}
                         {roles.slice(0, 3).map((r) => (
                           <span key={r.key} className={`text-[8px] font-black px-1.5 py-0.5 rounded ${r.color}`}>
                             {r.label}
@@ -1273,6 +1311,9 @@ export const YouthGEHCList: React.FC = () => {
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
                           {domicileLabel(y)}
                         </span>
+                        {y.membershipKind === 'SIMPATISAN' ? (
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Simpatisan</span>
+                        ) : null}
                         {roles.slice(0, 3).map((r) => (
                           <span key={r.key} className={`text-[8px] font-black px-1.5 py-0.5 rounded ${r.color}`}>
                             {r.label}
@@ -1398,6 +1439,17 @@ export const YouthGEHCList: React.FC = () => {
                   {BIPRA_TABS.filter((t) => t.id).map((t) => (
                     <option key={t.id} value={t.id}>{t.label}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Keanggotaan</label>
+                <select
+                  value={editForm.membershipKind}
+                  onChange={(e) => setEditForm({ ...editForm, membershipKind: e.target.value as 'JEMAAT' | 'SIMPATISAN' })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                >
+                  <option value="JEMAAT">Jemaat</option>
+                  <option value="SIMPATISAN">Simpatisan (direktori saja)</option>
                 </select>
               </div>
               <div>

@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current priority — Master Plan Episodes E0–E8
+## Current priority — Episode E9: Jemaat Org Hierarchy
+
+**Goal:** Configurable org tree (`OrgNode`/`OrgAssignment`), tree-driven role wizard, simpatisan filter, Kolom leader slots.
+
+### Done (E9)
+
+- **E9a** — Prisma `OrgNode`, `OrgAssignment`, `User.membershipKind`; migration `14_org_hierarchy`; `db:migrate:org-hierarchy`; `seed-org-tree.ts`
+- **E9b** — `server/routes/org.mjs`, `server/services/org-assign.mjs` (dual-write `RoleAssignment`), `tests/unit/org-assign.test.ts`
+- **E9c** — `OrgHierarchyPanel.tsx` (Komisi nav tab)
+- **E9d** — Tree-driven `RoleAssignmentWizard`; Jemaat simpatisan filter + kolom leaders from org assignments
+- **E9e** — `userflow.md` §8, `pantatugas.md` §11, `rbac-admin.md` multi-domain model
+
+### Commands (E9)
+
+```powershell
+npm run db:migrate:org-hierarchy
+npm run db:seed:org-tree          # or db:seed:org-tree:staging
+npm run dev:all
+```
+
+---
+
+## Prior — Master Plan Episodes E0–E8
 
 **Goal:** Repo hygiene, design tokens, modular API, unified onboarding, RBAC contract tests, client data layer, React Router bridge, Cursor rules, Jemaat RBAC, Drive upload.
 

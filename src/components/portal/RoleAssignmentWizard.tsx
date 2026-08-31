@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Loader2, X, ChevronDown, Users, User, Building, BookOpen, Heart, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ShieldCheck, Loader2, X, Building } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { PANTATUGAS, SUB_DIVISIONS } from '../../lib/pantatugas';
 
 interface UserSearchResult {
   id: string;
@@ -12,6 +11,18 @@ interface UserSearchResult {
   onboardingStatus: string;
 }
 
+interface OrgNode {
+  id: string;
+  domain: string;
+  parentId: string | null;
+  slug: string;
+  label: string;
+  nodeKind: string;
+  metadata?: Record<string, unknown> | null;
+  sortOrder: number;
+  children?: OrgNode[];
+}
+
 interface RoleAssignmentWizardProps {
   userId?: string;
   userName?: string;
@@ -19,7 +30,7 @@ interface RoleAssignmentWizardProps {
   onAssigned: () => void;
 }
 
-type RoleTab = 'superadmin' | 'bpmj' | 'komisi' | 'komite';
+type WizardMode = 'superadmin' | 'org';
 
 const GROUPS = [
   { id: 'grp-1', name: 'Avodah', color: '#FF416C' },
@@ -34,13 +45,35 @@ const GROUPS = [
   { id: 'grp-10', name: 'Echad', color: '#0D9488' },
 ];
 
-const BPMJ_POSITIONS = ['Ketua BPMJ', 'Wakil Ketua BPMJ', 'Sekretaris', 'Wakil Sekretaris', 'Bendahara', 'Anggota'];
-const KOMISI_POSITIONS = ['Ketua Komisi', 'Wakil Ketua Komisi', 'Sekretaris', 'Bendahara', 'Anggota'];
 const FAMILY_ROLES = [
   { value: 'MENTOR', label: 'Mentor' },
   { value: 'CO_MENTOR', label: 'Co-Mentor' },
   { value: 'MENTEE', label: 'Mentee' },
 ];
+
+const DOMAINS = [
+  { id: 'YOUTH', label: 'Pemuda (YOUTH)' },
+  { id: 'KOLOM', label: 'Kolom (KOLOM)' },
+];
+
+function flattenBranches(nodes: OrgNode[]): OrgNode[] {
+  return nodes.filter((n) => n.nodeKind === 'BRANCH' || n.nodeKind === 'GROUP_REF');
+}
+
+function collectAssignableSlots(node: OrgNode | null): OrgNode[] {
+  if (!node) return [];
+  const out: OrgNode[] = [];
+  const walk = (n: OrgNode, prefix: string) => {
+    const label = prefix ? `${prefix} → ${n.label}` : n.label;
+    if (n.nodeKind === 'POSITION_SLOT' || n.nodeKind === 'GROUP_REF') {
+      out.push({ ...n, label });
+      return;
+    }
+    (n.children || []).forEach((c) => walk(c, label));
+  };
+  walk(node, '');
+  return out.sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
+}
 
 export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   userId: initialUserId,
@@ -49,7 +82,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   onAssigned,
 }) => {
   const { addToast } = useApp();
-  const [activeTab, setActiveTab] = useState<RoleTab>('superadmin');
+  const [mode, setMode] = useState<WizardMode>('org');
   const [userSearch, setUserSearch] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(
@@ -58,15 +91,50 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
-  // BPMJ
-  const [bpmjPosition, setBpmjPosition] = useState(BPMJ_POSITIONS[0]);
+  const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
+  const [treeLoading, setTreeLoading] = useState(false);
+  const [domain, setDomain] = useState('YOUTH');
+  const [selectedBranch, setSelectedBranch] = useState<OrgNode | null>(null);
+  const [selectedSubBranch, setSelectedSubBranch] = useState<OrgNode | null>(null);
+  const [selectedDeepBranch, setSelectedDeepBranch] = useState<OrgNode | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<OrgNode | null>(null);
+  const [groupId, setGroupId] = useState(GROUPS[0].id);
+  const [familyRole, setFamilyRole] = useState('MENTEE');
 
-  // KOMISI
-  const [komisiPosition, setKomisiPosition] = useState(KOMISI_POSITIONS[0]);
+  const loadTree = useCallback(async (d: string) => {
+    setTreeLoading(true);
+    try {
+      const res = await fetch(`/api/org/nodes?domain=${d}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setOrgTree(data.tree || []);
+      }
+    } catch { /* skip */ }
+    finally { setTreeLoading(false); }
+  }, []);
 
-  // KOMITE
-  const [komiteDivision, setKomiteDivision] = useState(PANTATUGAS[0].name);
-  const [komiteSubdivision, setKomiteSubdivision] = useState('');
+  useEffect(() => { loadTree(domain); }, [domain, loadTree]);
+
+  useEffect(() => {
+    setSelectedBranch(null);
+    setSelectedSubBranch(null);
+    setSelectedDeepBranch(null);
+    setSelectedSlot(null);
+  }, [domain]);
+
+  const topBranches = useMemo(() => flattenBranches(orgTree), [orgTree]);
+  const subBranches = useMemo(() => {
+    if (!selectedBranch?.children) return [];
+    return selectedBranch.children.filter((c) => c.nodeKind === 'BRANCH');
+  }, [selectedBranch]);
+  const deepBranches = useMemo(() => {
+    if (!selectedSubBranch?.children) return [];
+    return selectedSubBranch.children.filter((c) => c.nodeKind === 'BRANCH');
+  }, [selectedSubBranch]);
+  const slotSource = selectedDeepBranch || selectedSubBranch || selectedBranch;
+  const slots = useMemo(() => collectAssignableSlots(slotSource), [slotSource]);
+
+  const isBeyondersSlot = selectedSlot?.nodeKind === 'GROUP_REF' || selectedSlot?.slug === 'BEYONDERS';
 
   const searchUser = useCallback(async (q: string) => {
     if (!q || q.length < 2) { setSearchResults([]); return; }
@@ -90,40 +158,40 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     if (!selectedUser) { addToast({ type: 'error', title: 'Pilih user dulu' }); return; }
     setAssigning(true);
     try {
-      const body: Record<string, unknown> = { userId: selectedUser.id };
-
-      switch (activeTab) {
-        case 'superadmin':
-          body.role = 'SUPERADMIN';
-          break;
-        case 'bpmj':
-          body.role = 'BPMJ';
-          body.position = bpmjPosition;
-          break;
-        case 'komisi':
-          body.role = 'KOMISI';
-          body.position = komisiPosition;
-          break;
-        case 'komite':
-          body.role = 'COMMITTEE';
-          body.division = komiteDivision;
-          body.subdivision = komiteSubdivision || null;
-          break;
+      if (mode === 'superadmin') {
+        const res = await fetch('/api/role-assignments', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: selectedUser.id, role: 'SUPERADMIN' }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+      } else {
+        if (!selectedSlot) {
+          addToast({ type: 'error', title: 'Pilih slot posisi' });
+          return;
+        }
+        const res = await fetch('/api/org/assignments', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            orgNodeId: selectedSlot.id,
+            groupId: isBeyondersSlot ? groupId : null,
+            familyRole: isBeyondersSlot ? familyRole : null,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
       }
 
-      const res = await fetch('/api/role-assignments', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-
-      addToast({ type: 'success', title: 'Role Ditugaskan', description: `${selectedUser.name} berhasil ditugaskan sebagai ${activeTab}.` });
+      addToast({ type: 'success', title: 'Role Ditugaskan', description: `${selectedUser.name} berhasil ditugaskan.` });
       onAssigned();
       onClose();
     } catch (e) {
@@ -133,22 +201,19 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     }
   };
 
-  const tabs: { id: RoleTab; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: WizardMode; label: string; icon: React.ReactNode }[] = [
+    { id: 'org', label: 'Struktur Org', icon: <Building className="w-4 h-4" /> },
     { id: 'superadmin', label: 'Superadmin', icon: <ShieldCheck className="w-4 h-4" /> },
-    { id: 'bpmj', label: 'BPMJ', icon: <Building className="w-4 h-4" /> },
-    { id: 'komisi', label: 'Komisi', icon: <Users className="w-4 h-4" /> },
-    { id: 'komite', label: 'Komite', icon: <BookOpen className="w-4 h-4" /> },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white rounded-[32px] w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className="sticky top-0 bg-white rounded-t-[32px] border-b border-[#D9D7D0]/50 p-6 pb-4 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black">Assign Role</h2>
-              <p className="text-xs text-[#8C8880] mt-0.5">Pilih role dan sub-detail untuk user</p>
+              <p className="text-xs text-[#8C8880] mt-0.5">Pilih slot dari pohon organisasi</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100">
               <X className="w-5 h-5 text-[#8C8880]" />
@@ -157,7 +222,6 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
         </div>
 
         <div className="p-6 space-y-5">
-          {/* User Search/Select */}
           {!selectedUser ? (
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#1B1B1B]">Cari User</label>
@@ -205,14 +269,13 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
             </div>
           )}
 
-          {/* Role Tabs */}
           <div className="flex gap-1 border-b border-[#D9D7D0]/60 pb-2 overflow-x-auto">
             {tabs.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setActiveTab(t.id)}
+                onClick={() => setMode(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ${
-                  activeTab === t.id ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC] text-[#8C8880] hover:bg-gray-200'
+                  mode === t.id ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC] text-[#8C8880] hover:bg-gray-200'
                 }`}
               >
                 {t.icon} {t.label}
@@ -220,80 +283,139 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
             ))}
           </div>
 
-          {/* Tab Content */}
-          <div className="space-y-4">
-            {/* SUPERADMIN */}
-            {activeTab === 'superadmin' && (
-              <div className="rounded-2xl bg-purple-50 border border-purple-200 p-4">
-                <p className="text-xs font-bold text-purple-700 mb-2">Superadmin</p>
-                <p className="text-[10px] text-purple-600">
-                  Akses penuh ke seluruh sistem. Hanya bisa ditambah oleh Superadmin yang sudah ada.
-                </p>
-              </div>
-            )}
+          {mode === 'superadmin' && (
+            <div className="rounded-2xl bg-purple-50 border border-purple-200 p-4">
+              <p className="text-xs font-bold text-purple-700 mb-2">Superadmin</p>
+              <p className="text-[10px] text-purple-600">
+                Akses penuh ke seluruh sistem. Hanya bisa ditambah oleh Superadmin yang sudah ada.
+              </p>
+            </div>
+          )}
 
-            {/* BPMJ */}
-            {activeTab === 'bpmj' && (
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-[#1B1B1B]">Posisi di BPMJ</label>
+          {mode === 'org' && (
+            <div className="space-y-3">
+              {treeLoading && (
+                <div className="flex items-center gap-2 text-xs text-[#8C8880]">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Memuat pohon organisasi…
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Domain</label>
                 <select
-                  value={bpmjPosition}
-                  onChange={(e) => setBpmjPosition(e.target.value)}
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
                 >
-                  {BPMJ_POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {DOMAINS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
-            )}
 
-            {/* KOMISI */}
-            {activeTab === 'komisi' && (
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-[#1B1B1B]">Posisi di Komisi</label>
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Cabang</label>
                 <select
-                  value={komisiPosition}
-                  onChange={(e) => setKomisiPosition(e.target.value)}
+                  value={selectedBranch?.id || ''}
+                  onChange={(e) => {
+                    const b = topBranches.find((n) => n.id === e.target.value) || null;
+                    setSelectedBranch(b);
+                    setSelectedSubBranch(null);
+                    setSelectedDeepBranch(null);
+                    setSelectedSlot(null);
+                  }}
                   className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
                 >
-                  {KOMISI_POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  <option value="">— Pilih cabang —</option>
+                  {topBranches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
                 </select>
               </div>
-            )}
 
-            {/* KOMITE */}
-            {activeTab === 'komite' && (
-              <div className="space-y-3">
+              {subBranches.length > 0 && (
                 <div>
-                  <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Divisi</label>
+                  <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Sub-cabang</label>
                   <select
-                    value={komiteDivision}
-                    onChange={(e) => { setKomiteDivision(e.target.value); setKomiteSubdivision(''); }}
+                    value={selectedSubBranch?.id || ''}
+                    onChange={(e) => {
+                      const b = subBranches.find((n) => n.id === e.target.value) || null;
+                      setSelectedSubBranch(b);
+                      setSelectedDeepBranch(null);
+                      setSelectedSlot(null);
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
                   >
-                    {PANTATUGAS.map((p) => <option key={p.name} value={p.name}>{p.label}</option>)}
+                    <option value="">— Pilih sub-cabang —</option>
+                    {subBranches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
                   </select>
                 </div>
-                {SUB_DIVISIONS[komiteDivision] && SUB_DIVISIONS[komiteDivision].length > 0 && (
+              )}
+
+              {deepBranches.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Divisi / Unit</label>
+                  <select
+                    value={selectedDeepBranch?.id || ''}
+                    onChange={(e) => {
+                      const b = deepBranches.find((n) => n.id === e.target.value) || null;
+                      setSelectedDeepBranch(b);
+                      setSelectedSlot(null);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
+                  >
+                    <option value="">— Pilih divisi —</option>
+                    {deepBranches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {slots.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Posisi / Slot</label>
+                  <select
+                    value={selectedSlot?.id || ''}
+                    onChange={(e) => setSelectedSlot(slots.find((s) => s.id === e.target.value) || null)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
+                  >
+                    <option value="">— Pilih posisi —</option>
+                    {slots.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {isBeyondersSlot && (
+                <>
                   <div>
-                    <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Sub-Divisi</label>
+                    <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Grup Beyonders</label>
                     <select
-                      value={komiteSubdivision}
-                      onChange={(e) => setKomiteSubdivision(e.target.value)}
+                      value={groupId}
+                      onChange={(e) => setGroupId(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
                     >
-                      <option value="">— Pilih Sub-Divisi —</option>
-                      {SUB_DIVISIONS[komiteDivision].map((s) => <option key={s.name} value={s.name}>{s.label}</option>)}
+                      {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Peran Keluarga</label>
+                    <select
+                      value={familyRole}
+                      onChange={(e) => setFamilyRole(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
+                    >
+                      {FAMILY_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
 
-          {/* Submit */}
+              {!treeLoading && topBranches.length === 0 && (
+                <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  Pohon organisasi belum di-seed. Jalankan <code>npm run db:seed:org-tree</code>.
+                </p>
+              )}
+            </div>
+          )}
+
           <button
             onClick={assignRole}
-            disabled={!selectedUser || assigning}
+            disabled={!selectedUser || assigning || (mode === 'org' && !selectedSlot)}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}

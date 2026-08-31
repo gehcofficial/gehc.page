@@ -1,20 +1,39 @@
 # RBAC Admin — Role Management
 
-Role assignment is managed through **Jemaat** (`YouthGEHCList`), not a separate localStorage demo panel.
+Role assignment is managed through **Jemaat** (`YouthGEHCList`) and the **org hierarchy** (`OrgNode` / `OrgAssignment`), not a separate localStorage demo panel.
+
+## Three layers
+
+| Layer | Model | Purpose |
+|-------|--------|---------|
+| Portal RBAC | `UserRole` / `RoleAssignment` | Feature access (8 roles) |
+| Org tree | `OrgNode` + `OrgAssignment` | Church structure slots (BOD, Panca, Kolom leaders) |
+| Directory | `User.membershipKind` | `JEMAAT` vs `SIMPATISAN` — filter/label only, no portal gate |
 
 ## Where to manage roles
 
 | Task | Location |
 |------|----------|
-| Assign / revoke portal roles | Jemaat → expanded row → Assign Role wizard |
+| Assign user to org slot (+ dual-write RBAC) | Jemaat → Assign Role wizard (tree-driven) |
+| Configure org tree | Kelola Hirarki (`OrgHierarchyPanel`) — Komisi only |
+| Revoke role assignment | Jemaat → expanded row → revoke |
 | Approve BIPRA suggest | Jemaat → Konfirmasi kategorial banner |
+| Mark simpatisan | Jemaat → edit profil → Keanggotaan |
 | Account invites | Orang & Undangan |
 | Onboarding pipeline | Onboarding Pipeline (WaitingPool + pending approval) |
+
+## API
+
+| Endpoint | Role | Notes |
+|----------|------|-------|
+| `GET /api/org/nodes?domain=YOUTH` | KOMISI+ | Read tree |
+| `POST/PATCH/DELETE /api/org/nodes` | KOMISI | CRUD nodes |
+| `POST /api/org/assignments` | KOMISI | Assign slot + dual-write `RoleAssignment` |
+| `DELETE /api/org/assignments/:id` | KOMISI | Revoke slot |
+| `PATCH /api/jemaat/:id` | KOMISI | `membershipKind` only |
+
+Seed default tree: `npm run db:seed:org-tree` (staging: `db:seed:org-tree:staging`).
 
 ## Removed
 
 - `ManageUsersRBAC.tsx` — deprecated localStorage demo (deleted Episode E0)
-
-## Future
-
-Episode E7+ may add bulk role tools in Jemaat or `/api/role-assignments` UI enhancements.

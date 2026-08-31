@@ -15,11 +15,14 @@ const REQUIRED_USER_COLUMNS = [
   'work_industry',
   'work_role',
   'birth_date',
+  'membership_kind',
 ];
 
 const REQUIRED_TABLES = [
   'profile_church_data_requests',
   'recreational_suggestions',
+  'org_nodes',
+  'org_assignments',
 ];
 
 const quiet = process.argv.includes('--quiet');

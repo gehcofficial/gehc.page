@@ -18,6 +18,7 @@ import { PeopleInvites } from './PeopleInvites';
 import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
+import { OrgHierarchyPanel } from './OrgHierarchyPanel';
 import { MyProfilePanel } from './MyProfilePanel';
 import {
   LayoutDashboard,
@@ -38,6 +39,7 @@ import {
   PanelLeftOpen,
   ChevronRight,
   Bell,
+  Network,
 } from 'lucide-react';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
@@ -96,6 +98,7 @@ export const PortalLayout: React.FC = () => {
     { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
     { id: 'jethro-placement', label: 'Review Penempatan', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
     { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
+    { id: 'org-hierarchy', label: 'Kelola Hirarki', icon: Network, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
     { id: 'groups-monitoring', label: isGroupMentor ? 'Monitoring Kelompok Binaan' : isMentee ? 'Monitoring Kelompok Saya' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
     { id: 'jethro', label: 'Regenerasi Kelompok', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
     { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS publikasi warta' },
@@ -468,6 +471,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'people' && <PeopleInvites onNavigate={handleNavClick} />}
           {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
           {activeTab === 'youth-gehc' && <YouthGEHCList />}
+          {activeTab === 'org-hierarchy' && <OrgHierarchyPanel />}
           {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}

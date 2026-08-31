@@ -35,6 +35,11 @@ const STEPS = [
     label: 'Tanggal lahir (birth_date)',
     required: true,
   },
+  {
+    script: 'server/_migrate-org-hierarchy.cjs',
+    label: 'Org hierarchy (org_nodes, org_assignments, membership_kind)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

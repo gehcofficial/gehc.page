@@ -184,3 +184,25 @@ Flag env `REGISTRATION_OPEN=false` menutup pendaftaran.
 ### Akun Lokal (email+sandi):
 
  dibuat via link undangan; login lewat tab Email & Password di layar masuk portal.
+
+---
+
+## 8. Jemaat — Direktori & Hirarki Organisasi
+
+Portal → **Jemaat** (Komisi):
+
+- Filter BIPRA, kolom, domisili, minat, ulang tahun
+- Filter **Jemaat | Simpatisan | Semua** (`membershipKind` — label direktori saja, tidak memblokir portal)
+- Sub-filter Tim Kerja membaca cabang dari pohon `OrgNode` (BOD / Panca Tugas / BZP)
+- Dropdown kolom menampilkan Diaken/Penatua dari `OrgAssignment`
+
+Portal → **Kelola Hirarki** (Komisi):
+
+- CRUD pohon per domain: `YOUTH`, `KOLOM`, `CHURCH` (future)
+- Seed default: `npm run db:seed:org-tree`
+
+Assign role (onboarding / Jemaat):
+
+1. Wizard → domain → cabang → slot posisi
+2. Beyonders: pilih grup + familyRole
+3. API `POST /api/org/assignments` dual-write ke `RoleAssignment` (RBAC backward compat)

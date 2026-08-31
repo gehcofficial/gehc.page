@@ -35,6 +35,11 @@ enum Bipra {
   ANAK
 }
 
+enum MembershipKind {
+  JEMAAT
+  SIMPATISAN
+}
+
 /// Kolom teritorial (satu jemaat satu Kolom). Campur BIPRA. Jumlah bisa berubah (simulasi: 5).
 model Kolom {
   id     String  @id @db.VarChar(64)
@@ -167,6 +172,7 @@ model User {
   isBeyonders      Boolean @default(false) @map("is_beyonders")
   bipra            Bipra   @default(PEMUDA)
   kolomId          String? @map("kolom_id") @db.VarChar(64)
+  membershipKind   MembershipKind @default(JEMAAT) @map("membership_kind")
 
   // Taut akun Google (direktori dulu, bind belakangan)
   googleSub            String?   @unique @map("google_sub") @db.VarChar(64)
@@ -206,9 +212,12 @@ model User {
   mentorTransitionsOutgoing MentorTransition[] @relation("MentorTransitionOutgoing")
   mentorTransitionsIncoming MentorTransition[] @relation("MentorTransitionIncoming")
   mentorTransitionsCreated  MentorTransition[] @relation("MentorTransitionCreatedBy")
+  orgAssignments            OrgAssignment[]
+  orgAssignmentsGiven       OrgAssignment[] @relation("OrgAssignmentAssigner")
 
   @@index([kolomId])
   @@index([bipra])
+  @@index([membershipKind])
   @@index([institutionId])
   @@index([addressScope])
   @@index([addressCountry])
@@ -920,6 +929,51 @@ model RoleAssignment {
   @@index([assignedBy])
   @@unique([userId, role, groupId], map: "unique_user_role_group")
   @@map("role_assignments")
+}
+
+// ============================================================
+// ORG HIERARCHY — configurable church structure (YOUTH / KOLOM / CHURCH)
+// ============================================================
+
+model OrgNode {
+  id       String  @id @db.VarChar(64)
+  domain   String  @db.VarChar(24) // YOUTH | KOLOM | CHURCH
+  parentId String? @map("parent_id") @db.VarChar(64)
+  slug     String  @db.VarChar(80)
+  label    String  @db.VarChar(150)
+  nodeKind String  @map("node_kind") @db.VarChar(24) // BRANCH | POSITION_SLOT | GROUP_REF
+  metadata Json?
+  sortOrder Int    @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  parent      OrgNode?        @relation("OrgTree", fields: [parentId], references: [id])
+  children    OrgNode[]       @relation("OrgTree")
+  assignments OrgAssignment[]
+
+  @@unique([domain, slug])
+  @@index([domain])
+  @@index([parentId])
+  @@map("org_nodes")
+}
+
+model OrgAssignment {
+  id               String   @id @db.VarChar(64)
+  userId           String   @map("user_id") @db.VarChar(64)
+  orgNodeId        String   @map("org_node_id") @db.VarChar(64)
+  position         String?  @db.VarChar(150)
+  roleAssignmentId String?  @map("role_assignment_id") @db.VarChar(64)
+  assignedBy       String   @map("assigned_by") @db.VarChar(64)
+  assignedAt       DateTime @default(now()) @map("assigned_at") @db.DateTime(3)
+  isActive         Boolean  @default(true) @map("is_active")
+
+  user     User    @relation(fields: [userId], references: [id])
+  orgNode  OrgNode @relation(fields: [orgNodeId], references: [id])
+  assigner User    @relation("OrgAssignmentAssigner", fields: [assignedBy], references: [id])
+
+  @@index([userId])
+  @@index([orgNodeId])
+  @@index([assignedBy])
+  @@map("org_assignments")
 }
 
 // ============================================================

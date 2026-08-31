@@ -61,6 +61,7 @@ import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
+import { registerOrgRoutes } from './routes/org.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
 
@@ -3411,6 +3412,10 @@ function jemaatInclude() {
   return {
     roles: true,
     roleAssignments: { where: { isActive: true }, include: { group: true } },
+    orgAssignments: {
+      where: { isActive: true },
+      include: { orgNode: true },
+    },
     kolom: true,
     institution: true,
     recreational: { include: { group: true } },
@@ -3441,12 +3446,15 @@ function collectRecreationalLeafIds(all, rootId) {
   return ids;
 }
 
-async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope, birthdayWithin }) {
+async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope, birthdayWithin, membershipKind }) {
   const where = {};
   if (bipra && BIPRA_VALUES.includes(bipra)) where.bipra = bipra;
   if (kolomId === 'none') where.kolomId = null;
   else if (kolomId) where.kolomId = kolomId;
   if (addressScope === 'ID' || addressScope === 'INTL') where.addressScope = addressScope;
+  if (membershipKind === 'JEMAAT' || membershipKind === 'SIMPATISAN') {
+    where.membershipKind = membershipKind;
+  }
   if (recreational) {
     const all = await prisma.recreationalGroup.findMany();
     const start = all.find((g) => g.slug === recreational || g.id === recreational);
@@ -3473,7 +3481,7 @@ async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope,
 app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const [kolom, recreationalFlat, pendingSuggestions, pendingChurchRequests] = await Promise.all([
+  const [kolom, recreationalFlat, pendingSuggestions, pendingChurchRequests, orgNodes, kolomAssignments] = await Promise.all([
     prisma.kolom.findMany({ orderBy: { number: 'asc' } }),
     prisma.recreationalGroup.findMany({ orderBy: [{ kind: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }] }),
     prisma.recreationalSuggestion.findMany({
@@ -3488,6 +3496,17 @@ app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res)
       orderBy: { createdAt: 'desc' },
       take: 50,
     }).catch(() => []),
+    prisma.orgNode.findMany({
+      where: { domain: 'YOUTH', isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+    }).catch(() => []),
+    prisma.orgAssignment.findMany({
+      where: { isActive: true, orgNode: { domain: 'KOLOM', isActive: true } },
+      include: {
+        orgNode: true,
+        user: { select: { id: true, name: true, avatar: true } },
+      },
+    }).catch(() => []),
   ]);
   const byId = new Map(recreationalFlat.map((r) => [r.id, { ...r, children: [] }]));
   const recreationalTree = [];
@@ -3495,7 +3514,41 @@ app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res)
     if (r.parentId && byId.has(r.parentId)) byId.get(r.parentId).children.push(r);
     else if (!r.parentId) recreationalTree.push(r);
   }
-  res.json({ kolom, recreational: recreationalFlat, recreationalTree, bipra: BIPRA_VALUES, pendingSuggestions, pendingChurchRequests });
+
+  const timkerjaNode = orgNodes.find((n) => n.slug === 'TIMKERJA');
+  const timKerjaBranches = timkerjaNode
+    ? orgNodes
+      .filter((n) => n.parentId === timkerjaNode.id && n.nodeKind === 'BRANCH')
+      .map((n) => {
+        const meta = n.metadata && typeof n.metadata === 'object' ? n.metadata : {};
+        const divisions = meta.division ? [meta.division] : [];
+        if (n.slug === 'PANCA_TUGAS') {
+          divisions.push('LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA');
+        }
+        return { key: n.slug, label: n.label, divisions };
+      })
+    : [];
+
+  const kolomLeaders = {};
+  for (const a of kolomAssignments) {
+    const meta = a.orgNode?.metadata && typeof a.orgNode.metadata === 'object' ? a.orgNode.metadata : {};
+    const kid = meta.linkedKolomId;
+    if (!kid) continue;
+    if (!kolomLeaders[kid]) kolomLeaders[kid] = {};
+    if (meta.leaderKind === 'DIAKEN') kolomLeaders[kid].diaken = a.user;
+    if (meta.leaderKind === 'PENATUA') kolomLeaders[kid].penatua = a.user;
+  }
+
+  res.json({
+    kolom,
+    recreational: recreationalFlat,
+    recreationalTree,
+    bipra: BIPRA_VALUES,
+    pendingSuggestions,
+    pendingChurchRequests,
+    timKerjaBranches,
+    kolomLeaders,
+  });
 }));
 
 function slugifyRec(name) {
@@ -3679,6 +3732,7 @@ app.get('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
     recreational: String(req.query.recreational || ''),
     addressScope: String(req.query.addressScope || ''),
     birthdayWithin: req.query.birthdayWithin ? String(req.query.birthdayWithin) : '',
+    membershipKind: String(req.query.membershipKind || ''),
   });
   res.json({ youth });
 }));
@@ -3705,6 +3759,24 @@ app.patch('/api/jemaat/:id/bipra-suggest', requireRole(...KOMISION_CORE), wrap(a
   const data = { bipra: suggested };
   if (suggested !== 'PEMUDA') data.isBeyonders = false;
   await prisma.user.update({ where: { id: user.id }, data });
+  const updated = await prisma.user.findUnique({ where: { id: user.id }, include: jemaatInclude() });
+  res.json({ ok: true, user: serializeJemaat(updated) });
+}));
+
+/** PATCH /api/jemaat/:id — update membership kind (simpatisan) */
+app.patch('/api/jemaat/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  const { membershipKind } = req.body || {};
+  if (!membershipKind || !['JEMAAT', 'SIMPATISAN'].includes(membershipKind)) {
+    return res.status(400).json({ error: 'membershipKind harus JEMAAT atau SIMPATISAN.' });
+  }
+
+  await prisma.user.update({ where: { id: user.id }, data: { membershipKind } });
   const updated = await prisma.user.findUnique({ where: { id: user.id }, include: jemaatInclude() });
   res.json({ ok: true, user: serializeJemaat(updated) });
 }));
@@ -3783,7 +3855,7 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
 
-  const { name, gender, phone, giftsTop5, isBeyonders, bipra, kolomId, recreationalIds } = req.body || {};
+  const { name, gender, phone, giftsTop5, isBeyonders, bipra, kolomId, recreationalIds, membershipKind } = req.body || {};
   const data = {};
   if (name !== undefined) {
     if (!String(name).trim()) return res.status(400).json({ error: 'name tidak boleh kosong.' });
@@ -3807,6 +3879,12 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
     data.bipra = bipra;
   }
   if (kolomId !== undefined) data.kolomId = kolomId || null;
+  if (membershipKind !== undefined) {
+    if (!['JEMAAT', 'SIMPATISAN'].includes(membershipKind)) {
+      return res.status(400).json({ error: 'membershipKind tidak valid.' });
+    }
+    data.membershipKind = membershipKind;
+  }
   const nextBipra = data.bipra || existing.bipra;
   if (isBeyonders !== undefined) data.isBeyonders = nextBipra === 'PEMUDA' ? Boolean(isBeyonders) : false;
   else if (data.bipra && data.bipra !== 'PEMUDA') data.isBeyonders = false;
@@ -4138,6 +4216,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
+registerOrgRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
 app.post('/api/admin/seed-gifts', requireRole('SUPERADMIN'), wrap(async (req, res) => {

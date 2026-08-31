@@ -175,4 +175,27 @@ BPMJ → Komisi Pemuda → Tim Kerja
 
 ⭐ = PR menangkap data newcomer pasca-retreat → Placement Recommender (Jethro Engine).
 
+---
+
+## 11. Multi-domain Org Tree (`OrgNode`)
+
+Configurable hierarchy — separate from portal RBAC:
+
+```
+YOUTH domain
+  BPMJ → Komisi → Tim Kerja
+    ├─ BOD (Ketua / Sekre / Bendahara, division=TIMKERJA)
+    ├─ Panca Tugas → 5 divisi → sub-divisi slots
+    ├─ Benzarpreneurship
+    └─ Beyonders (GROUP_REF → grup + familyRole)
+
+KOLOM domain
+  per Kolom → Diaken (max 1) + Penatua (max 1) + Anggota
+
+CHURCH domain (future)
+  flat or custom ministry trees
+```
+
+Admin: Portal → **Kelola Hirarki**. Seed: `npm run db:seed:org-tree`.
+
 (End of file)
