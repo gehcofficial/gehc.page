@@ -79,6 +79,25 @@ export function registerOrgRoutes(app, { wrap }) {
     res.json({ node });
   }));
 
+  app.patch('/api/org/nodes/reorder', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const items = req.body?.items;
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ error: 'items array wajib.' });
+    }
+
+    for (const item of items) {
+      if (!item?.id || item.sortOrder === undefined) continue;
+      await prisma.orgNode.update({
+        where: { id: String(item.id) },
+        data: { sortOrder: Number(item.sortOrder) },
+      });
+    }
+    res.json({ ok: true, updated: items.length });
+  }));
+
   app.patch('/api/org/nodes/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });

@@ -120,3 +120,31 @@ export async function assignRoleToUser(prisma, {
 
   return { assignment, userRole };
 }
+
+/** Revoke role assignment + UserRole + GroupMember + linked OrgAssignment. */
+export async function revokeRoleAssignment(prisma, roleAssignmentId) {
+  const assignment = await prisma.roleAssignment.findUnique({ where: { id: roleAssignmentId } });
+  if (!assignment) throw new Error('Assignment tidak ditemukan.');
+
+  await prisma.roleAssignment.update({
+    where: { id: roleAssignmentId },
+    data: { isActive: false },
+  });
+
+  await prisma.userRole.deleteMany({
+    where: { userId: assignment.userId, role: assignment.role, groupId: assignment.groupId },
+  });
+
+  if (assignment.groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(assignment.role)) {
+    await prisma.groupMember.deleteMany({
+      where: { userId: assignment.userId, groupId: assignment.groupId },
+    });
+  }
+
+  await prisma.orgAssignment.updateMany({
+    where: { roleAssignmentId, isActive: true },
+    data: { isActive: false },
+  });
+
+  return { ok: true, assignment };
+}

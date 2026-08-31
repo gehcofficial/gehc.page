@@ -134,6 +134,8 @@ model User {
   // Profil lanjutan (join flow / waitlist promote)
   address       String? @db.Text
   origin        String? @map("origin") @db.VarChar(190)
+  domicileKind   String? @map("domicile_kind") @db.VarChar(20)
+  domicileDetail String? @map("domicile_detail") @db.VarChar(190)
   addressLine   String?  @map("address_line") @db.VarChar(255)
   village       String?  @map("village") @db.VarChar(120)
   district      String?  @map("district") @db.VarChar(120)
@@ -532,8 +534,9 @@ model EventProgram {
   startDate     DateTime?       @map("start_date")
   endDate       DateTime?       @map("end_date")
   driveFolderId String?         @map("drive_folder_id") @db.VarChar(128)
-  gmeetLink     String?         @map("gmeet_link") @db.VarChar(512)
-  createdById   String          @map("created_by_id") @db.VarChar(64)
+  gmeetLink         String?         @map("gmeet_link") @db.VarChar(512)
+  whatsappGroupUrl  String?         @map("whatsapp_group_url") @db.VarChar(512)
+  createdById       String          @map("created_by_id") @db.VarChar(64)
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
   divisions     EventDivision[]
@@ -989,11 +992,14 @@ model WaitingPool {
   email  String? @db.VarChar(190)
   phone  String? @db.VarChar(40)
   gender String? @db.VarChar(20)
-  origin String? @db.VarChar(190)
+  origin         String? @db.VarChar(190)
+  domicileKind   String? @map("domicile_kind") @db.VarChar(20)
+  domicileDetail String? @map("domicile_detail") @db.VarChar(190)
+  claimToken     String? @unique @map("claim_token") @db.VarChar(64)
 
   // Onboarding status
   status String @default("WAITING_POOL") @db.VarChar(30)
-  // WAITING_POOL | PROFILE_COMPLETED | ROLE_ASSIGNED
+  // REGISTERED | WAITING_POOL | PROFILE_COMPLETED | ROLE_ASSIGNED
 
   // Gift test tracking
   giftTestDone Boolean @default(false) @map("gift_test_done")

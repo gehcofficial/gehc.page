@@ -171,6 +171,18 @@ export const PortalLogin: React.FC = () => {
         {/* Footer */}
         <div className="mt-8 text-center space-y-3">
           <a
+            href="#/join?event=bakutau"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveView('public');
+              window.location.hash = '#/join?event=bakutau';
+            }}
+            className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+            Belum punya akun? Daftar BAKU TAU 4.0
+          </a>
+          <a
             href="#/join"
             onClick={(e) => {
               e.preventDefault();

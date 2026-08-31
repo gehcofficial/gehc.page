@@ -47,6 +47,17 @@ npm run dev:all
 2. `_migrate-profile-church-request.cjs` — `profile_church_data_requests`
 3. `_migrate-jethro-placement.cjs` — placement batches *(opsional)*
 4. `_migrate-birth-date.cjs` — `users.birth_date`
+5. `_migrate-org-hierarchy.cjs` — org tree + `membership_kind`
+6. `_migrate-e10-bakutau.cjs` — domisili, `whatsapp_group_url`, `claim_token`
+
+Scripts tambahan:
+
+| Script | Fungsi |
+|--------|--------|
+| `npm run db:migrate:org-hierarchy` | Org nodes saja |
+| `npm run db:migrate:e10-bakutau` | Kolom BAKU TAU / domisili |
+| `npm run db:seed:org-tree` | Seed pohon YOUTH + KOLOM |
+| `npm run db:backfill:org-assignments` | Link RoleAssignment lama → OrgAssignment |
 5. `prisma generate`
 
 Semua script CJS **idempotent**: aman dijalankan berulang; hanya menambah yang belum ada.

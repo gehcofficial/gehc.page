@@ -19,6 +19,7 @@ import {
   clearSessionCookie,
   loginWithGoogleCredential,
   claimWithGoogleCredential,
+  linkGoogleToSessionUser,
   newClaimToken,
   verifyGoogleCredential,
   hashPassword,
@@ -56,13 +57,16 @@ import {
   profileSegments,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
-import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from './onboarding-sync.mjs';
-import { assignRoleToUser } from './role-assign.mjs';
+import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
+import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
+import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
+import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME } from './lib/baku-tau.mjs';
+import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
 
@@ -370,6 +374,30 @@ app.post('/api/auth/claim', wrap(async (req, res) => {
     const user = await claimWithGoogleCredential(credential, token);
     setSessionCookie(res, { uid: user.id, email: user.email || '' });
     res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, roles: user.roles } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.post('/api/me/link-google', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const { credential } = req.body || {};
+  if (!credential) return res.status(400).json({ error: 'credential wajib.' });
+  try {
+    const user = await linkGoogleToSessionUser(req.authUser.id, credential);
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        linkStatus: user.linkStatus,
+        authProvider: user.authProvider,
+        accountStatus: user.accountStatus,
+        roles: user.roles,
+      },
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -1599,6 +1627,16 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
           title: 'Kick-Off BAKU TAU 4.0',
           scheduledAt: new Date('2026-01-15T09:00:00+07:00'),
           notes: 'Pertemuan awal seluruh divisi — preview program tahunan.',
+          createdById: 'usr-tech',
+        },
+      });
+      await prisma.eventMeeting.create({
+        data: {
+          id: `evtmt-${slug}-welcome-night`,
+          eventId: ev.id,
+          title: 'BAKU TAU 4.0 — Bakudapa di Rantau',
+          scheduledAt: new Date('2026-09-12T15:00:00+07:00'),
+          notes: 'Malam penyambutan mahasiswa baru — GMIM Eben Haezer Cikarang, 15.00 WIB',
           createdById: 'usr-tech',
         },
       });
@@ -3068,7 +3106,14 @@ app.post('/api/register/google', wrap(async (req, res) => {
     }
 
     if (!trusted) {
-      await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: 'google-register' });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingStatus: 'WAITING_POOL' },
+      });
+      try {
+        await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
+        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+      } catch { /* non-blocking */ }
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
@@ -3090,20 +3135,37 @@ app.post('/api/register/google', wrap(async (req, res) => {
 app.get('/api/events/upcoming', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const items = await prisma.contentItem.findMany({
     where: { type: 'ACTIVITY', isPublished: true },
-    orderBy: { publishedAt: 'desc' },
-    take: 6,
+    orderBy: [{ eventDate: 'asc' }, { publishedAt: 'desc' }],
+    take: 12,
   });
-  res.json({
-    events: items.map((c) => ({
+
+  const mapped = items.map((c) => {
+    const eventDay = c.eventDate || c.publishedAt;
+    return {
       id: c.id,
       title: c.title,
       subtitle: c.subtitle,
-      date: c.publishedAt,
+      date: eventDay,
+      eventDateTime: c.id === 'cnt-bakutau' ? BAKU_TAU_EVENT_DATE_ISO : null,
       locationDetail: c.locationDetail ?? null,
+      mapUrl: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_URL : null,
+      mapEmbedQuery: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_EMBED_QUERY : null,
+      venueName: c.id === 'cnt-bakutau' ? BAKU_TAU_VENUE_NAME : null,
       bannerUrl: c.bannerUrl,
-    })),
+      _sort: eventDay ? new Date(eventDay).getTime() : 0,
+    };
+  }).filter((e) => e._sort >= today.getTime() || e.id === 'cnt-bakutau');
+
+  mapped.sort((a, b) => a._sort - b._sort);
+
+  res.json({
+    events: mapped.slice(0, 6).map(({ _sort, ...rest }) => rest),
   });
 }));
 
@@ -3235,6 +3297,17 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
       });
       roleInfo = trusted ? 'SUPERADMIN' : 'MENTEE';
 
+      if (!trusted) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { onboardingStatus: 'WAITING_POOL' },
+        });
+        try {
+          await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
+          await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+        } catch { /* non-blocking */ }
+      }
+
       const wl = await prisma.waitlistEntry.findFirst({ where: { email } });
       if (wl && wl.status === 'WAITLISTED') {
         await prisma.waitlistEntry.update({ where: { id: wl.id }, data: { status: 'PROFILED' } });
@@ -3254,6 +3327,16 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
       roleInfo = inv.defaultRole;
 
       await prisma.inviteCode.update({ where: { code: intent.code }, data: { uses: { increment: 1 } } });
+
+      try {
+        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: `Invite ${intent.code}` });
+        if (inv.defaultRole === 'MENTEE') {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { onboardingStatus: 'WAITING_POOL' },
+          });
+        }
+      } catch { /* non-blocking */ }
     } else {
       // login biasa
       user = await upsertGoogleUser(prisma, idp, {
@@ -3265,7 +3348,17 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
-    res.redirect(302, `/${intent.next}`);
+
+    let next = intent.next || '#/beyonders';
+    if (intent.mode === 'register' && !isSuperadminEmail(email)) {
+      next = '#/portal';
+    } else {
+      const bakuPool = await prisma.waitingPool.findFirst({
+        where: { userId: user.id, sourceEvent: BAKU_TAU_SOURCE_EVENT },
+      });
+      if (bakuPool) next = '#/portal';
+    }
+    res.redirect(302, `/${next}`);
   } catch (err) {
     console.error('[oauth-callback]', err.message);
     sendErr(err.message);
@@ -3967,14 +4060,28 @@ app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), w
 
   for (const userId of userIds) {
     try {
-      // Check user exists
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
         results.errors.push(`${userId}: User tidak ditemukan`);
         continue;
       }
 
-      // Create RoleAssignment as MENTEE without group (Individu)
+      const individuNode = await prisma.orgNode.findFirst({
+        where: { domain: 'YOUTH', slug: 'INDIVIDU', isActive: true },
+      });
+
+      if (individuNode) {
+        await assignOrgSlot(prisma, {
+          userId,
+          orgNodeId: individuNode.id,
+          assignedBy: assignerId,
+          note: 'Individu (tanpa kelompok mentoring)',
+          updateOnboarding: true,
+        });
+        results.created++;
+        continue;
+      }
+
       const assignment = await prisma.roleAssignment.create({
         data: {
           id: genId64(),
@@ -4065,28 +4172,12 @@ app.delete('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(asyn
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const assignment = await prisma.roleAssignment.findUnique({ where: { id: req.params.id } });
-  if (!assignment) return res.status(404).json({ error: 'Assignment tidak ditemukan.' });
-
-  // Soft delete: mark as inactive
-  await prisma.roleAssignment.update({
-    where: { id: req.params.id },
-    data: { isActive: false },
-  });
-
-  // Remove corresponding UserRole
-  await prisma.userRole.deleteMany({
-    where: { userId: assignment.userId, role: assignment.role, groupId: assignment.groupId },
-  });
-
-  // If Beyonders role, remove GroupMember
-  if (assignment.groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(assignment.role)) {
-    await prisma.groupMember.deleteMany({
-      where: { userId: assignment.userId, groupId: assignment.groupId },
-    });
+  try {
+    await revokeRoleAssignment(prisma, req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
   }
-
-  res.json({ ok: true });
 }));
 
 /** GET /api/users/:id/roles — List user's role assignments */
@@ -4216,6 +4307,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
+registerBakuTauRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 

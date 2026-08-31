@@ -21,7 +21,7 @@ export const id: Dict = {
     bTag: 'Pertemuan Terdekat',
     bTitle: 'BAKU TAU 4.0 — Bakudapa di Rantau',
     bDesc:
-      'Malam penyambutan mahasiswa baru President University. Sabtu, 5 September 2026 · 16.00 WIB.',
+      'Malam penyambutan mahasiswa baru President University. Sabtu, 12 September 2026 · 15.00 WIB.',
     bCta: 'Lihat Detail',
   },
   about: {

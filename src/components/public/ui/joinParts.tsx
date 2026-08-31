@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Input teks standar form publik. */
+/** Input teks / select standar form publik. */
 export const Field: React.FC<{
   label: string;
   value: string;
@@ -9,18 +9,46 @@ export const Field: React.FC<{
   required?: boolean;
   type?: string;
   textarea?: boolean;
-}> = ({ label, value, onChange, placeholder, required, type = 'text', textarea }) => (
+  options?: { value: string; label: string }[];
+  hint?: string;
+  onBlur?: () => void;
+}> = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required,
+  type = 'text',
+  textarea,
+  options,
+  hint,
+  onBlur,
+}) => (
   <div>
     <label className="text-xs font-bold uppercase tracking-wider block mb-1">
       {label} {required && '*'}
     </label>
-    {textarea ? (
+    {type === 'select' && options ? (
+      <select
+        value={value}
+        required={required}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+      >
+        {options.map((o) => (
+          <option key={o.value || '__empty'} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    ) : textarea ? (
       <textarea
         rows={2}
         value={value}
         required={required}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         className="w-full p-3 rounded-xl bg-white border border-[#D9D7D0] text-xs leading-relaxed focus:outline-none focus:border-black"
       />
     ) : (
@@ -30,9 +58,11 @@ export const Field: React.FC<{
         required={required}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
       />
     )}
+    {hint && <p className="text-[10px] text-[#8C8880] mt-1 leading-relaxed">{hint}</p>}
   </div>
 );
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { useLang } from '../../../context/LangContext';
 
-const TARGET_ISO = '2026-09-05T16:00:00+07:00'; // Sabtu 5 Sep 2026, 16:00 WIB
+const TARGET_ISO = '2026-09-12T15:00:00+07:00'; // Sabtu 12 Sep 2026, 15:00 WIB
 
 function diffParts(target: Date, now: Date) {
   const ms = Math.max(0, target.getTime() - now.getTime());
@@ -12,7 +12,7 @@ function diffParts(target: Date, now: Date) {
   return { days, hours, min, past: ms === 0 };
 }
 
-/** Countdown menuju BAKU TAU 4.0 — 5 Sep 2026 16:00 WIB. */
+/** Countdown menuju BAKU TAU 4.0 — 12 Sep 2026 15:00 WIB. */
 export const Countdown: React.FC = () => {
   const { t } = useLang();
   const target = new Date(TARGET_ISO);

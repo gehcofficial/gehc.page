@@ -25,6 +25,7 @@ import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
 import { ClaimPage } from './components/public/ClaimPage';
 import { PortalLayout } from './components/portal/PortalLayout';
+import { ApplyPendingBakutau } from './components/portal/ApplyPendingBakutau';
 import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 import EventGalleryPublic from './pages/EventGalleryPublic';
 
@@ -38,12 +39,18 @@ const MainAppContent: React.FC = () => {
     // Belum masuk & bukan mode demo → layar login portal (cached accounts)
     if (!authUser && !demoMode) return <PortalLogin />;
 
+    const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
+
     // Onboarding flow: WAITING_POOL or PENDING account
     const onboardingStatus = authUser?.onboardingStatus;
-    if (onboardingStatus === 'WAITING_POOL') return <OnboardingGatePortal mode="WAITING_POOL" />;
-    if (authUser?.accountStatus === 'PENDING') return <OnboardingGatePortal mode="PENDING" />;
+    if (onboardingStatus === 'WAITING_POOL') {
+      return <>{pendingSync}<OnboardingGatePortal mode="WAITING_POOL" /></>;
+    }
+    if (authUser?.accountStatus === 'PENDING') {
+      return <>{pendingSync}<OnboardingGatePortal mode="PENDING" /></>;
+    }
 
-    return <PortalLayout />;
+    return <>{pendingSync}<PortalLayout /></>;
   }
 
   return (

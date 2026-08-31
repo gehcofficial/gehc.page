@@ -38,8 +38,18 @@ export const OrgHierarchyPanel: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<OrgNodeRow | null>(null);
   const [parentForNew, setParentForNew] = useState<OrgNodeRow | null>(null);
-  const [form, setForm] = useState({ label: '', slug: '', nodeKind: 'BRANCH', sortOrder: 0 });
+  const [form, setForm] = useState({
+    label: '',
+    slug: '',
+    nodeKind: 'BRANCH',
+    sortOrder: 0,
+    portalRole: '',
+    division: '',
+    maxAssignees: 1,
+    leaderKind: '',
+  });
   const [saving, setSaving] = useState(false);
+  const [assignments, setAssignments] = useState<Array<{ orgNodeId: string; user?: { name: string } }>>([]);
 
   const flatNodes = useMemo(() => {
     const out: OrgNodeRow[] = [];
@@ -70,6 +80,23 @@ export const OrgHierarchyPanel: React.FC = () => {
 
   useEffect(() => { fetchTree(); }, [fetchTree]);
 
+  useEffect(() => {
+    fetch(`/api/org/assignments?domain=${domain}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setAssignments(d.assignments || []))
+      .catch(() => setAssignments([]));
+  }, [domain, tree]);
+
+  const assigneesByNode = useMemo(() => {
+    const map = new Map<string, string[]>();
+    assignments.forEach((a) => {
+      const list = map.get(a.orgNodeId) || [];
+      list.push(a.user?.name || '?');
+      map.set(a.orgNodeId, list);
+    });
+    return map;
+  }, [assignments]);
+
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -82,15 +109,68 @@ export const OrgHierarchyPanel: React.FC = () => {
   const openCreate = (parent: OrgNodeRow | null) => {
     setEditing(null);
     setParentForNew(parent);
-    setForm({ label: '', slug: '', nodeKind: parent ? 'POSITION_SLOT' : 'BRANCH', sortOrder: (parent?.children?.length || 0) + 1 });
+    setForm({
+      label: '',
+      slug: '',
+      nodeKind: parent ? 'POSITION_SLOT' : 'BRANCH',
+      sortOrder: (parent?.children?.length || 0) + 1,
+      portalRole: '',
+      division: '',
+      maxAssignees: 1,
+      leaderKind: '',
+    });
     setModalOpen(true);
   };
 
   const openEdit = (node: OrgNodeRow) => {
     setEditing(node);
     setParentForNew(null);
-    setForm({ label: node.label, slug: node.slug, nodeKind: node.nodeKind, sortOrder: node.sortOrder });
+    const m = (node.metadata && typeof node.metadata === 'object' ? node.metadata : {}) as Record<string, unknown>;
+    setForm({
+      label: node.label,
+      slug: node.slug,
+      nodeKind: node.nodeKind,
+      sortOrder: node.sortOrder,
+      portalRole: String(m.portalRole || (Array.isArray(m.portalRoles) ? m.portalRoles[0] : '') || ''),
+      division: String(m.division || ''),
+      maxAssignees: Number(m.maxAssignees ?? 1),
+      leaderKind: String(m.leaderKind || ''),
+    });
     setModalOpen(true);
+  };
+
+  const buildMetadata = () => {
+    if (form.nodeKind !== 'POSITION_SLOT' && !editing) return {};
+    const meta: Record<string, unknown> = {};
+    if (form.portalRole) meta.portalRole = form.portalRole;
+    if (form.division) meta.division = form.division;
+    if (form.maxAssignees) meta.maxAssignees = form.maxAssignees;
+    if (form.leaderKind) meta.leaderKind = form.leaderKind;
+    if (form.portalRole === 'MENTEE') meta.requiresGroup = false;
+    return meta;
+  };
+
+  const moveNode = async (node: OrgNodeRow, dir: -1 | 1) => {
+    const siblings = flatNodes.filter((n) => n.parentId === node.parentId).sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = siblings.findIndex((n) => n.id === node.id);
+    const swap = siblings[idx + dir];
+    if (!swap) return;
+    try {
+      await fetch('/api/org/nodes/reorder', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [
+            { id: node.id, sortOrder: swap.sortOrder },
+            { id: swap.id, sortOrder: node.sortOrder },
+          ],
+        }),
+      });
+      fetchTree();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: (e as Error).message });
+    }
   };
 
   const saveNode = async () => {
@@ -106,7 +186,11 @@ export const OrgHierarchyPanel: React.FC = () => {
           method: 'PATCH',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ label: form.label.trim(), sortOrder: form.sortOrder }),
+          body: JSON.stringify({
+            label: form.label.trim(),
+            sortOrder: form.sortOrder,
+            metadata: { ...(editing.metadata as object || {}), ...buildMetadata() },
+          }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -124,7 +208,7 @@ export const OrgHierarchyPanel: React.FC = () => {
             label: form.label.trim(),
             nodeKind: form.nodeKind,
             sortOrder: form.sortOrder,
-            metadata: form.nodeKind === 'POSITION_SLOT' ? { maxAssignees: 1 } : {},
+            metadata: { ...buildMetadata(), ...(form.nodeKind === 'POSITION_SLOT' && !buildMetadata().maxAssignees ? { maxAssignees: 1 } : {}) },
           }),
         });
         if (!res.ok) {
@@ -174,8 +258,13 @@ export const OrgHierarchyPanel: React.FC = () => {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold truncate">{node.label}</p>
             <p className="text-[9px] text-[#8C8880]">{kindLabel} · {node.slug}</p>
+            {assigneesByNode.get(node.id)?.length ? (
+              <p className="text-[9px] text-emerald-700 truncate">{assigneesByNode.get(node.id)!.join(', ')}</p>
+            ) : null}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button type="button" onClick={() => moveNode(node, -1)} className="p-1.5 rounded-lg hover:bg-white text-[10px] font-bold" title="Naik">↑</button>
+            <button type="button" onClick={() => moveNode(node, 1)} className="p-1.5 rounded-lg hover:bg-white text-[10px] font-bold" title="Turun">↓</button>
             {node.nodeKind === 'BRANCH' && (
               <button type="button" onClick={() => openCreate(node)} className="p-1.5 rounded-lg hover:bg-white" title="Tambah child">
                 <Plus className="w-3.5 h-3.5" />
@@ -297,6 +386,15 @@ export const OrgHierarchyPanel: React.FC = () => {
                   className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs"
                 />
               </div>
+              {(form.nodeKind === 'POSITION_SLOT' || editing?.nodeKind === 'POSITION_SLOT') && (
+                <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">Metadata slot</p>
+                  <input value={form.portalRole} onChange={(e) => setForm({ ...form, portalRole: e.target.value })} placeholder="portalRole (MENTEE, KOMISI…)" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs" />
+                  <input value={form.division} onChange={(e) => setForm({ ...form, division: e.target.value })} placeholder="division" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs" />
+                  <input type="number" value={form.maxAssignees} onChange={(e) => setForm({ ...form, maxAssignees: Number(e.target.value) })} placeholder="maxAssignees" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs" />
+                  <input value={form.leaderKind} onChange={(e) => setForm({ ...form, leaderKind: e.target.value })} placeholder="leaderKind (DIAKEN, PENATUA…)" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs" />
+                </div>
+              )}
             </div>
             <button
               type="button"

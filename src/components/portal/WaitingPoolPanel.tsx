@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ClipboardList, Clock, Gift, Send, UserCheck, Loader2, Phone, Mail, AlertCircle, ShieldCheck, CheckSquare, Square, MinusSquare, Users, User, X } from 'lucide-react';
+import { ClipboardList, Clock, Gift, Send, UserCheck, Loader2, Phone, Mail, AlertCircle, ShieldCheck, CheckSquare, Square, MinusSquare, Users, User, X, Download } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
+import { DOMICILE_OPTIONS, domicileLabel } from '../../lib/domicile';
+
+const BAKU_TAU_EVENT = 'BAKU TAU 4.0';
 
 interface WaitingPoolEntry {
   id: string;
@@ -11,6 +14,8 @@ interface WaitingPoolEntry {
   phone: string | null;
   gender: string | null;
   origin: string | null;
+  domicileKind: string | null;
+  domicileDetail: string | null;
   status: string;
   giftTestDone: boolean;
   giftsTop5: unknown;
@@ -43,7 +48,11 @@ function daysSince(dateStr: string): number {
 
 export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }) => {
   const { addToast } = useApp();
-  const [tab, setTab] = useState<'waiting' | 'pending'>('waiting');
+  const [tab, setTab] = useState<'registered' | 'waiting' | 'pending'>('registered');
+  const [bakuTauOnly, setBakuTauOnly] = useState(true);
+  const [domicileFilter, setDomicileFilter] = useState<string>('');
+  const [registeredPool, setRegisteredPool] = useState<WaitingPoolEntry[] | null>(null);
+  const [eventStats, setEventStats] = useState<{ registered: number; withAccount: number; profileComplete: number; byDomicile?: Record<string, number> } | null>(null);
   const [waitingPool, setWaitingPool] = useState<WaitingPoolEntry[] | null>(null);
   const [pendingApproval, setPendingApproval] = useState<WaitingPoolEntry[] | null>(null);
   const [roleAssignedCount, setRoleAssignedCount] = useState(0);
@@ -54,35 +63,84 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showJethroHint, setShowJethroHint] = useState(false);
 
+  const poolQuery = (status: string) => {
+    const params = new URLSearchParams({ status });
+    if (bakuTauOnly) params.set('sourceEvent', BAKU_TAU_EVENT);
+    if (domicileFilter) params.set('domicileKind', domicileFilter);
+    return `/api/waiting-pool?${params.toString()}`;
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [wpRes, paRes, raRes] = await Promise.all([
-        fetch('/api/waiting-pool', { credentials: 'include' }),
-        fetch('/api/pending-approval', { credentials: 'include' }),
+      const [regRes, wpRes, paRes, raRes, statsRes] = await Promise.all([
+        fetch(poolQuery('REGISTERED'), { credentials: 'include' }),
+        fetch(poolQuery('WAITING_POOL'), { credentials: 'include' }),
+        fetch(poolQuery('PROFILE_COMPLETED'), { credentials: 'include' }),
         fetch('/api/waiting-pool?status=ROLE_ASSIGNED', { credentials: 'include' }),
+        fetch('/api/events/baku-tau-4-0/stats', { credentials: 'include' }),
       ]);
 
+      if (regRes.ok) {
+        const d = await regRes.json();
+        setRegisteredPool(d.pool || []);
+      }
       if (wpRes.ok) {
         const d = await wpRes.json();
         setWaitingPool(d.pool || []);
       }
       if (paRes.ok) {
         const d = await paRes.json();
-        setPendingApproval(d.pending || []);
+        setPendingApproval(d.pool || d.pending || []);
       }
       if (raRes.ok) {
         const d = await raRes.json();
         setRoleAssignedCount((d.pool || []).length);
+      }
+      if (statsRes.ok) {
+        setEventStats(await statsRes.json());
       }
     } catch (err) {
       console.error('Failed to fetch onboarding data:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bakuTauOnly, domicileFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const exportCsv = () => {
+    const rows = [
+      ...(registeredPool || []),
+      ...(waitingPool || []),
+      ...(pendingApproval || []),
+    ].filter((e) => !bakuTauOnly || e.sourceEvent === BAKU_TAU_EVENT);
+    if (!rows.length) {
+      addToast({ type: 'error', title: 'Kosong', description: 'Tidak ada data untuk diekspor.' });
+      return;
+    }
+    const header = ['nama', 'wa', 'gender', 'asal', 'domicileKind', 'domicileDetail', 'status'];
+    const lines = [header.join(',')];
+    for (const e of rows) {
+      lines.push([
+        e.name,
+        e.phone || '',
+        e.gender || '',
+        e.origin || '',
+        e.domicileKind || '',
+        e.domicileDetail || '',
+        e.status,
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'baku-tau-registrations.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
 
   const sendReminder = async (entry: WaitingPoolEntry) => {
     setSendingReminder(entry.id);
@@ -227,11 +285,50 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
           Pantau pipeline onboarding dari registrasi sampai role assignment.
         </p>
+        {eventStats && bakuTauOnly && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0]">
+              Terdaftar: {eventStats.registered}
+            </span>
+            <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700">
+              Punya akun: {eventStats.withAccount}
+            </span>
+            <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700">
+              Profil lengkap: {eventStats.profileComplete}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Tabs — only Menunggu Profil + Menunggu Role */}
-      <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setBakuTauOnly((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${bakuTauOnly ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0]'}`}
+        >
+          BAKU TAU 4.0
+        </button>
+        {DOMICILE_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            onClick={() => setDomicileFilter((f) => (f === o.value ? '' : o.value))}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${domicileFilter === o.value ? 'bg-[#181818] text-white' : 'bg-white border border-[#D9D7D0]'}`}
+          >
+            {o.value}
+            {eventStats?.byDomicile?.[o.value] != null ? ` (${eventStats.byDomicile[o.value]})` : ''}
+          </button>
+        ))}
+        <button
+          onClick={exportCsv}
+          className="ml-auto px-3 py-1.5 rounded-full text-[10px] font-bold bg-white border border-[#D9D7D0] flex items-center gap-1"
+        >
+          <Download className="w-3 h-3" /> CSV
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3 flex-wrap">
         {([
+          ['registered', `Quick Register (${(registeredPool || []).length})`],
           ['waiting', `Menunggu Profil (${(waitingPool || []).length})`],
           ['pending', `Menunggu Role (${(pendingApproval || []).length})`],
         ] as const).map(([id, label]) => (
@@ -247,74 +344,25 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         ))}
       </div>
 
+      {tab === 'registered' && (
+        <PoolList
+          entries={registeredPool || []}
+          emptyTitle="Belum ada quick register"
+          emptyDesc="Peserta yang daftar via QRIS/form cepat akan muncul di sini."
+          onReminder={sendReminder}
+          sendingReminder={sendingReminder}
+        />
+      )}
+
       {/* WAITING POOL */}
       {tab === 'waiting' && (
-        <div className="space-y-2">
-          {(waitingPool || []).length === 0 ? (
-            <EmptyState
-              icon={<ClipboardList className="w-8 h-8 text-[#8C8880]" />}
-              title="Belum ada yang menunggu profil"
-              desc="Semua pendaftar sudah melengkapi profil."
-            />
-          ) : (
-            (waitingPool || []).map((entry) => (
-              <div key={entry.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={initialsAvatar(entry.name)}
-                    alt={entry.name}
-                    className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold truncate">{entry.name}</p>
-                    <p className="text-[10px] text-[#8C8880] truncate">
-                      {entry.email || entry.phone || 'No contact'}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                      {daysSince(entry.registeredAt)} hari
-                    </span>
-                    {entry.giftTestDone && (
-                      <span className="ml-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        <Gift className="w-2.5 h-2.5 inline mr-0.5" /> Gift
-                      </span>
-                    )}
-                    {entry.profileCompleted && (
-                      <span className="ml-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                        Profil
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#D9D7D0]/40">
-                  <div className="flex gap-1 text-[9px] text-[#8C8880]">
-                    {entry.sourceEvent && (
-                      <span className="bg-gray-100 px-2 py-0.5 rounded-full">{entry.sourceEvent}</span>
-                    )}
-                    {entry.reminderCount > 0 && (
-                      <span className="bg-gray-100 px-2 py-0.5 rounded-full">
-                        <Send className="w-2.5 h-2.5 inline mr-0.5" /> {entry.reminderCount}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => sendReminder(entry)}
-                    disabled={sendingReminder === entry.id}
-                    className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {sendingReminder === entry.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Send className="w-3 h-3" />
-                    )}
-                    Kirim Reminder
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <PoolList
+          entries={waitingPool || []}
+          emptyTitle="Belum ada yang menunggu profil"
+          emptyDesc="Semua pendaftar sudah melengkapi profil."
+          onReminder={sendReminder}
+          sendingReminder={sendingReminder}
+        />
       )}
 
       {/* PENDING APPROVAL - NEW UI with inline actions + bulk */}
@@ -525,6 +573,59 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
     </div>
   );
 };
+
+const PoolList: React.FC<{
+  entries: WaitingPoolEntry[];
+  emptyTitle: string;
+  emptyDesc: string;
+  onReminder: (e: WaitingPoolEntry) => void;
+  sendingReminder: string | null;
+}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => (
+  <div className="space-y-2">
+    {entries.length === 0 ? (
+      <EmptyState icon={<ClipboardList className="w-8 h-8 text-[#8C8880]" />} title={emptyTitle} desc={emptyDesc} />
+    ) : (
+      entries.map((entry) => (
+        <div key={entry.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
+          <div className="flex items-center gap-3">
+            <img src={initialsAvatar(entry.name)} alt={entry.name} className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate">{entry.name}</p>
+              <p className="text-[10px] text-[#8C8880] truncate">{entry.email || entry.phone || 'No contact'}</p>
+              {(entry.origin || entry.domicileKind) && (
+                <p className="text-[9px] text-[#8C8880] mt-0.5 truncate">
+                  {entry.origin || '—'} · {domicileLabel(entry.domicileKind, entry.domicileDetail)}
+                </p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full block mb-1">
+                {entry.status}
+              </span>
+              <span className="text-[10px] font-bold text-[#8C8880]">{daysSince(entry.registeredAt)} hari</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#D9D7D0]/40">
+            <div className="flex gap-1 text-[9px] text-[#8C8880] flex-wrap">
+              {entry.sourceEvent && <span className="bg-gray-100 px-2 py-0.5 rounded-full">{entry.sourceEvent}</span>}
+              {entry.giftTestDone && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Gift</span>}
+            </div>
+            {entry.status !== 'REGISTERED' && (
+              <button
+                onClick={() => onReminder(entry)}
+                disabled={sendingReminder === entry.id}
+                className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white disabled:opacity-50 flex items-center gap-1"
+              >
+                {sendingReminder === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                Reminder
+              </button>
+            )}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+);
 
 const EmptyState: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
   <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-12 text-center">

@@ -10,10 +10,15 @@ export function registerOnboardingRoutes(app, { wrap }) {
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     const status = req.query.status ? String(req.query.status) : 'WAITING_POOL';
-    const includeUser = status === 'ROLE_ASSIGNED';
+    const sourceEvent = req.query.sourceEvent ? String(req.query.sourceEvent) : undefined;
+    const domicileKind = req.query.domicileKind ? String(req.query.domicileKind) : undefined;
+    const includeUser = status === 'ROLE_ASSIGNED' || status === 'REGISTERED';
 
+    const where = { status };
+    if (sourceEvent) where.sourceEvent = sourceEvent;
+    if (domicileKind) where.domicileKind = domicileKind;
     const pool = await prisma.waitingPool.findMany({
-      where: { status },
+      where,
       orderBy: status === 'ROLE_ASSIGNED' ? { profileCompletedAt: 'desc' } : { registeredAt: 'desc' },
       include: includeUser
         ? {

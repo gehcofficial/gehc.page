@@ -22,6 +22,8 @@
     "db:migrate:placement": "node server/_migrate-jethro-placement.cjs",
     "db:migrate:birth-date": "node server/_migrate-birth-date.cjs",
     "db:migrate:org-hierarchy": "node server/_migrate-org-hierarchy.cjs",
+    "db:migrate:e10-bakutau": "node server/_migrate-e10-bakutau.cjs",
+    "db:backfill:org-assignments": "node server/backfill-org-assignments.cjs",
     "db:bridge:waitlist": "node server/_bridge-waitlist-to-pool.cjs",
     "db:seed": "tsx server/seed.ts",
     "db:seed:onboarding": "tsx server/seed-onboarding.ts",

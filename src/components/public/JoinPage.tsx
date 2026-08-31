@@ -1,7 +1,21 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, MessageCircle, Users } from 'lucide-react';
 import { GIFT_BANK, TALENT_OPTIONS, scoreAnswers } from '../../data/giftBank';
 import { Field, Center, DoneCard } from './ui/joinParts';
+import { DOMICILE_OPTIONS, domicileDetailConfig, type DomicileKind } from '../../lib/domicile';
+import {
+  ORIGIN_REGION_OPTIONS,
+  SULUT_PLACES,
+  TITLE_CASE_HINT,
+  buildOriginString,
+  titleCaseWords,
+  validateOriginForm,
+  type OriginRegion,
+} from '../../lib/origin';
+import { saveBakutauPending } from '../../lib/bakutau-pending';
+import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { loadGoogleClientId, registerWithGoogleCredential } from '../../lib/google-auth-flow';
+import { EventVenueMap } from './ui/EventVenueMap';
 
 /**
  * Wizard Tes Karunia Rohani — 22 karunia × 3 pernyataan (Likert 1–5).
@@ -116,12 +130,14 @@ export const GiftTestWizard: React.FC<{
   );
 };
 
-/** Halaman Join — Google register & invite link (unified onboarding pipeline). */
+/** Halaman Join — BAKU TAU quick register, Google register & invite link. */
 export const JoinPage: React.FC = () => {
   const hashQuery = window.location.hash.split('?')[1] || '';
   const params = new URLSearchParams(hashQuery);
   const tokenFromUrl = params.get('token');
   const invFromUrl = params.get('inv');
+  const eventFromUrl = params.get('event');
+  const isBakutau = eventFromUrl === 'bakutau' || (!tokenFromUrl && !invFromUrl);
 
   return (
     <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto">
@@ -133,17 +149,20 @@ export const JoinPage: React.FC = () => {
           ? 'Lengkapi Profil'
           : invFromUrl
           ? 'Gabung Tim Pelayanan'
-          : 'Gabung GEHC Youth'}
+          : 'Daftar BAKU TAU 4.0'}
       </h1>
       <p className="text-sm text-[#8C8880] mb-8 leading-relaxed">
-        Daftar dengan Google atau link undangan untuk masuk pipeline onboarding lengkap.
-        Profil, tes karunia, dan penempatan role akan ditangani admin.
+        {isBakutau && !invFromUrl && !tokenFromUrl
+          ? 'Pilih langsung masuk dengan Google, atau daftar cepat di counter panitia lalu otomatis lanjut ke Google.'
+          : 'Daftar dengan Google atau link undangan untuk masuk pipeline onboarding lengkap.'}
       </p>
 
       {tokenFromUrl ? (
         <StageB token={tokenFromUrl} />
       ) : invFromUrl ? (
         <InviteJoin code={invFromUrl} />
+      ) : isBakutau ? (
+        <BakutauJoinFlow />
       ) : (
         <GoogleRegister />
       )}
@@ -151,81 +170,366 @@ export const JoinPage: React.FC = () => {
   );
 };
 
-// ---------------- Daftar mandiri via Google (PENDING → approval Komisi) ----------------
-const GoogleRegister: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const [registered, setRegistered] = useState<{ status: string; division?: string; subdivision?: string } | null>(null);
+type Stats = {
+  registered: number;
+  withAccount: number;
+  profileComplete: number;
+  byDomicile?: Record<string, number>;
+};
+
+const GoogleRegisterPanel: React.FC<{ title?: string; hint?: string }> = ({ title, hint }) => {
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-if (registered) {
-    const pillarColor = {
-      LITURGIA: '#7C3AED',
-      DIDASKALIA: '#0EA5E9',
-      KOINONIA: '#059669',
-      DIAKONIA: '#EA580C',
-      MARTURIA: '#DC2626',
-    }[registered.division] || '#181818';
+  useEffect(() => {
+    loadGoogleClientId().then(setClientId);
+  }, []);
 
+  const onCredential = async (credential: string) => {
+    setBusy(true);
+    setErr('');
+    try {
+      await registerWithGoogleCredential(credential);
+    } catch (e) {
+      setErr((e as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {title && <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">{title}</p>}
+      {hint && <p className="text-xs text-[#8C8880] leading-relaxed">{hint}</p>}
+      {err && <p className="text-xs text-red-600 font-semibold">{err}</p>}
+      {busy && (
+        <p className="text-xs text-[#8C8880] flex items-center justify-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Membuat akun…
+        </p>
+      )}
+      {clientId && !busy && (
+        <div className="flex justify-center">
+          <GoogleLoginButton clientId={clientId} onCredential={onCredential} onError={setErr} />
+        </div>
+      )}
+      {!clientId && (
+        <p className="text-[10px] text-[#8C8880] text-center">
+          Google SSO belum dikonfigurasi — hubungi panitia atau gunakan counter panitia.
+        </p>
+      )}
+    </div>
+  );
+};
+
+const BakutauJoinFlow: React.FC = () => {
+  const [pathMode, setPathMode] = useState<'google' | 'quick'>('google');
+  const [step, setStep] = useState<'form' | 'google'>('form');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    gender: '',
+    originRegion: '' as OriginRegion | '',
+    originSulutPlace: '',
+    originSulutOther: '',
+    originNonSulut: '',
+    domicileKind: '',
+    domicileDetail: '',
+  });
+
+  const domicileDetailCfg = domicileDetailConfig(form.domicileKind as DomicileKind | '');
+
+  const submitQuick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+
+    const originErr = validateOriginForm(form);
+    if (originErr) {
+      setError(originErr);
+      setBusy(false);
+      return;
+    }
+    const origin = buildOriginString(form);
+    if (!origin) {
+      setError('Lengkapi asal daerah.');
+      setBusy(false);
+      return;
+    }
+    if (domicileDetailCfg?.required && !form.domicileDetail.trim()) {
+      setError('Lengkapi perincian domisili.');
+      setBusy(false);
+      return;
+    }
+
+    const domicileDetail = form.domicileDetail.trim()
+      ? titleCaseWords(form.domicileDetail)
+      : '';
+
+    try {
+      const res = await fetch('/api/events/baku-tau-4-0/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          gender: form.gender,
+          origin,
+          domicileKind: form.domicileKind,
+          domicileDetail: domicileDetail || undefined,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Gagal mendaftar.');
+      setStats(d.stats || stats);
+
+      const payload = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        gender: form.gender,
+        origin,
+        domicileKind: form.domicileKind,
+        domicileDetail: domicileDetail || undefined,
+      };
+      saveBakutauPending(payload);
+      setStep('google');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const [venue, setVenue] = useState<{
+    venueName?: string;
+    locationDetail?: string;
+    mapUrl?: string;
+    mapEmbedQuery?: string;
+    eventDate?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/events/baku-tau-4-0')
+      .then((r) => r.json())
+      .then((d) => {
+        setStats(d.stats || null);
+        setWhatsappGroupUrl(d.whatsappGroupUrl || null);
+        setVenue({
+          venueName: d.venueName,
+          locationDetail: d.locationDetail,
+          mapUrl: d.mapUrl,
+          mapEmbedQuery: d.mapEmbedQuery,
+          eventDate: d.eventDate,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  if (step === 'google') {
     return (
-      <div className="space-y-5">
-        <div className="rounded-[28px] p-5 text-white bg-[${pillarColor}]/20"
-          style={{ backgroundImage: `linear-gradient(135deg, ${pillarColor}20 0, transparent 50%)` }}>
-          <h3 className="text-lg font-black">
-            {registered.status === 'PENDING' ? 'Terdaftar! Menunggu persetujuan Komisi' : 'Akun aktif!'}
-          </h3>
-          <p className="text-xs text-white/80 mt-1 leading-relaxed">
-            Satu langkah terakhir — lengkapi profil & tes karunia rohanimu.
-          </p>
+      <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
+        <div className="text-center">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+          <h3 className="text-lg font-black">Data counter tersimpan!</h3>
+          <p className="text-xs text-[#8C8880] mt-1">Satu langkah lagi — buat akun dengan Google.</p>
         </div>
-
-        <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
-          <Field label="No. WhatsApp" value="" onChange={() => {}} placeholder="08xxxxxxxxxx" />
-          <Field label="Asal (kampus / kantor)" value="" onChange={() => {}} placeholder="President University / PT …" />
-          <Field label="Jenis Kelamin *" type="select" value="" onChange={() => {}} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
-          <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
-            <Field label="Nama Kontak Darurat *" value="" onChange={() => {}} placeholder="Nama orang tua / wali / saudara" required />
-            <Field label="Hubungan *" type="select" value="" onChange={() => {}} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
-            <Field label="No. Telepon Kontak Darurat *" value="" onChange={() => {}} placeholder="08xxxxxxxxxx" required />
-            <Field label="Alamat Kontak Darurat *" value="" onChange={() => {}} placeholder="Alamat lengkap" textarea required />
-          </div>
-          <GiftTestWizard onFinish={async (result) => {
-            setBusy(true);
-            try {
-              await fetch('/api/gifttest', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scope: 'user', giftsTop5: result.top5, giftsScores: result.scores }),
-              });
-            } finally {
-              setBusy(false);
-            }
-          }} />
-        </div>
+        <GoogleRegisterPanel hint="Data pendaftaran akan otomatis tersinkron ke portal." />
       </div>
     );
   }
 
+  const eventDateLabel = venue?.eventDate
+    ? new Date(venue.eventDate).toLocaleString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    })
+    : null;
+
   return (
-    <form onSubmit={(e) => e.preventDefault()} className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
-      <Field label="No. WhatsApp" value="" onChange={() => {}} placeholder="08xxxxxxxxxx" />
-      <Field label="Asal (kampus / kantor)" value="" onChange={() => {}} placeholder="President University / PT …" />
-      {/* Redirect server-side: layar pilih akun Google muncul native */}
-      <a
-        href={`/api/auth/google/start?mode=register&next=${encodeURIComponent('#/join')}`}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-white text-[#1B1B1B] border border-[#D9D7D0] text-xs font-black hover:border-black transition-colors"
-      >
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.9 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-4z"/></svg>
-        Daftar dengan Google
-      </a>
-      <p className="text-[10px] text-[#8C8880] text-center">
-        Tanpa password — identitas diverifikasi langsung oleh Google.
+    <div className="space-y-4">
+      <div className="flex rounded-2xl bg-[#F3F1EC] p-1 gap-1">
+        <button
+          type="button"
+          onClick={() => setPathMode('google')}
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
+            pathMode === 'google' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
+          }`}
+        >
+          Langsung Google
+        </button>
+        <button
+          type="button"
+          onClick={() => setPathMode('quick')}
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
+            pathMode === 'quick' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
+          }`}
+        >
+          Counter panitia
+        </button>
+      </div>
+
+      {stats && (
+        <div className="rounded-2xl bg-[#181818] text-white p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#FF416C]" />
+            <span className="text-xs font-bold">{stats.registered} peserta terdaftar</span>
+          </div>
+          {whatsappGroupUrl && (
+            <a href={whatsappGroupUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
+              <MessageCircle className="w-3 h-3" /> Grup WA
+            </a>
+          )}
+        </div>
+      )}
+
+      {pathMode === 'google' ? (
+        <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6 space-y-4">
+          <GoogleRegisterPanel
+            title="Masuk langsung ke portal"
+            hint="Buat akun dengan Google, lengkapi profil dan pendaftaran BAKU TAU di portal — tanpa isi form dua kali."
+          />
+          <a
+            href="#/portal"
+            onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
+            className="block text-center text-[10px] text-[#8C8880] hover:text-[#1B1B1B] font-semibold"
+          >
+            Sudah punya akun? Masuk portal
+          </a>
+        </div>
+      ) : (
+        <>
+      <form onSubmit={submitQuick} className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">Daftar cepat — counter panitia</p>
+        <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
+        <Field label="No. WhatsApp *" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="08xxxxxxxxxx" required />
+        <Field
+          label="Jenis Kelamin *"
+          type="select"
+          value={form.gender}
+          onChange={(v) => setForm({ ...form, gender: v })}
+          options={[
+            { value: '', label: 'Pilih...' },
+            { value: 'LAKI-LAKI', label: 'Laki-laki' },
+            { value: 'PEREMPUAN', label: 'Perempuan' },
+          ]}
+          required
+        />
+        <Field
+          label="Asal daerah *"
+          type="select"
+          value={form.originRegion}
+          onChange={(v) => setForm({
+            ...form,
+            originRegion: v as OriginRegion | '',
+            originSulutPlace: '',
+            originSulutOther: '',
+            originNonSulut: '',
+          })}
+          options={[{ value: '', label: 'Pilih Sulut atau Luar Sulut...' }, ...ORIGIN_REGION_OPTIONS]}
+          required
+        />
+        {form.originRegion === 'SULUT' && (
+          <>
+            <Field
+              label="Kota / kabupaten di Sulut *"
+              type="select"
+              value={form.originSulutPlace}
+              onChange={(v) => setForm({ ...form, originSulutPlace: v, originSulutOther: '' })}
+              options={[{ value: '', label: 'Pilih kota/kabupaten...' }, ...SULUT_PLACES]}
+              required
+            />
+            {form.originSulutPlace === 'LAINNYA_SULUT' && (
+              <Field
+                label="Tulis kota/kabupaten di Sulut *"
+                value={form.originSulutOther}
+                onChange={(v) => setForm({ ...form, originSulutOther: v })}
+                placeholder="Tondano"
+                hint={TITLE_CASE_HINT}
+                onBlur={() => setForm((f) => ({ ...f, originSulutOther: titleCaseWords(f.originSulutOther) }))}
+                required
+              />
+            )}
+          </>
+        )}
+        {form.originRegion === 'NON_SULUT' && (
+          <Field
+            label="Kota / kabupaten asal *"
+            value={form.originNonSulut}
+            onChange={(v) => setForm({ ...form, originNonSulut: v })}
+            placeholder="Jakarta Selatan"
+            hint={TITLE_CASE_HINT}
+            onBlur={() => setForm((f) => ({ ...f, originNonSulut: titleCaseWords(f.originNonSulut) }))}
+            required
+          />
+        )}
+        <Field
+          label="Domisili saat ini *"
+          type="select"
+          value={form.domicileKind}
+          onChange={(v) => setForm({ ...form, domicileKind: v, domicileDetail: '' })}
+          options={[{ value: '', label: 'Pilih tempat tinggal...' }, ...DOMICILE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))]}
+          required
+        />
+        {domicileDetailCfg?.show && (
+          <Field
+            label={domicileDetailCfg.label}
+            value={form.domicileDetail}
+            onChange={(v) => setForm({ ...form, domicileDetail: v })}
+            placeholder={domicileDetailCfg.placeholder}
+            hint={TITLE_CASE_HINT}
+            onBlur={() => setForm((f) => ({ ...f, domicileDetail: titleCaseWords(f.domicileDetail) }))}
+            required={domicileDetailCfg.required}
+          />
+        )}
+        {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+          Daftar & lanjut Google
+        </button>
+      </form>
+      <p className="text-[10px] text-[#8C8880] text-center leading-relaxed px-2">
+        Setelah submit, lanjutkan dengan tombol Google — data counter tersinkron otomatis.
       </p>
-      <p className="text-[10px] text-[#8C8880] text-center mt-2">
-        Setelah login, kamu akan diminta memilih Fungsi (Panta Tugas) & Sub-Divisi.
-      </p>
-    </form>
+        </>
+      )}
+
+      {venue?.venueName && (
+        <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-3">Lokasi acara</p>
+          {eventDateLabel && (
+            <p className="text-xs font-bold text-[#1B1B1B] mb-3 capitalize">{eventDateLabel} WIB</p>
+          )}
+          <EventVenueMap
+            venueName={venue.venueName}
+            locationDetail={venue.locationDetail}
+            mapUrl={venue.mapUrl}
+            embedQuery={venue.mapEmbedQuery}
+            compact
+          />
+        </div>
+      )}
+    </div>
   );
 };
+
+// ---------------- Daftar mandiri via Google ----------------
+const GoogleRegister: React.FC<{ onBack?: () => void }> = () => (
+  <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
+    <GoogleRegisterPanel hint="Tanpa password — identitas diverifikasi langsung oleh Google." />
+  </div>
+);
 
 // ---------------- Tahap B — legacy waitlist token (bridge only) ----------------
 const StageB: React.FC<{ token: string }> = ({ token }) => {
@@ -337,6 +641,7 @@ const StageB: React.FC<{ token: string }> = ({ token }) => {
 // ---------------- Join via Invite (Google redirect / Email lokal) ----------------
 const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
   const [method, setMethod] = useState<'google' | 'local'>('google');
+  const [clientId, setClientId] = useState<string | null>(null);
   const [joined, setJoined] = useState<{ status: string; role: string } | null>(null);
   const [profileDone, setProfileDone] = useState(false);
   const [address, setAddress] = useState('');
@@ -356,6 +661,30 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
 
   const toggleTalent = (t2: string) =>
     setTalents((prev) => (prev.includes(t2) ? prev.filter((x) => x !== t2) : [...prev, t2]));
+
+  useEffect(() => {
+    loadGoogleClientId().then(setClientId);
+  }, []);
+
+  const onJoinCredential = async (credential: string) => {
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/join', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, code }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Gabung via Google gagal.');
+      setJoined({ status: d.status, role: d.role });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveSelfProfile = async () => {
     await fetch('/api/me', {
@@ -434,13 +763,20 @@ const InviteJoin: React.FC<{ code: string }> = ({ code }) => {
       </div>
 
       {method === 'google' && (
-        <a
-          href={`/api/auth/google/start?mode=join&code=${encodeURIComponent(code)}&next=${encodeURIComponent(`#/join?inv=${code}`)}`}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-white text-[#1B1B1B] border border-[#D9D7D0] text-xs font-black hover:border-black transition-colors"
-        >
-          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.9 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-4z"/></svg>
-          Daftar dengan Google
-        </a>
+        <div className="space-y-3">
+          {clientId ? (
+            <div className="flex justify-center">
+              <GoogleLoginButton clientId={clientId} onCredential={onJoinCredential} onError={setError} />
+            </div>
+          ) : (
+            <p className="text-[10px] text-[#8C8880] text-center">Google SSO belum dikonfigurasi.</p>
+          )}
+          {busy && (
+            <p className="text-xs text-[#8C8880] flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" /> Memproses…
+            </p>
+          )}
+        </div>
       )}
 
       {method === 'local' && (

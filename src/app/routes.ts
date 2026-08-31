@@ -25,8 +25,8 @@ export const LEGACY_HASH_MAP: Record<string, PublicRouteId> = {
 };
 
 export function tabFromHash(hash: string): PublicRouteId {
-  const h = hash.replace(/^#\/?/, '');
-  if ((PUBLIC_ROUTES as readonly string[]).includes(h)) return h as PublicRouteId;
-  if (LEGACY_HASH_MAP[h]) return LEGACY_HASH_MAP[h];
+  const path = hash.replace(/^#\/?/, '').split('?')[0];
+  if ((PUBLIC_ROUTES as readonly string[]).includes(path)) return path as PublicRouteId;
+  if (LEGACY_HASH_MAP[path]) return LEGACY_HASH_MAP[path];
   return 'beyonders';
 }

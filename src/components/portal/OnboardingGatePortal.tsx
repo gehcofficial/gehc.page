@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Circle, Clock, LogOut, Sparkles, Cake } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MyProfilePanel } from './MyProfilePanel';
+import { BakuTauWelcomeCard } from './BakuTauWelcomeCard';
+import { BakutauRegisterCard } from './BakutauRegisterCard';
+import { LinkGoogleCard } from './LinkGoogleCard';
+import { EventVenueMap } from '../public/ui/EventVenueMap';
 
 type GateMode = 'WAITING_POOL' | 'PENDING';
 
@@ -14,7 +18,26 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
   const [profileDone, setProfileDone] = useState<boolean | null>(null);
   const [birthDone, setBirthDone] = useState<boolean | null>(null);
   const [openGifts, setOpenGifts] = useState(false);
-  const [events, setEvents] = useState<Array<{ id: string; title: string; date?: string | null; locationDetail?: string | null }>>([]);
+  const [events, setEvents] = useState<Array<{
+    id: string;
+    title: string;
+    date?: string | null;
+    eventDateTime?: string | null;
+    locationDetail?: string | null;
+    mapUrl?: string | null;
+    mapEmbedQuery?: string | null;
+    venueName?: string | null;
+  }>>([]);
+  const [bakuTau, setBakuTau] = useState<{
+    registered: boolean;
+    whatsappGroupUrl?: string | null;
+    eventDate?: string;
+    venueName?: string;
+    locationDetail?: string;
+    mapUrl?: string | null;
+    mapEmbedQuery?: string;
+  } | null>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const refreshStatus = () => {
     fetch('/api/me/profile', { credentials: 'include' })
@@ -31,8 +54,16 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
       });
   };
 
+  const refreshBakuTau = () => {
+    fetch('/api/me/baku-tau-registration', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setBakuTau(d))
+      .catch(() => setBakuTau(null));
+  };
+
   useEffect(() => {
     refreshStatus();
+    refreshBakuTau();
     if (mode === 'PENDING') {
       fetch('/api/events/upcoming')
         .then((r) => r.json())
@@ -40,6 +71,12 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
         .catch(() => setEvents([]));
     }
   }, [mode]);
+
+  useEffect(() => {
+    const onApplied = () => refreshBakuTau();
+    window.addEventListener('gehc:bakutau-applied', onApplied);
+    return () => window.removeEventListener('gehc:bakutau-applied', onApplied);
+  }, []);
 
   const isWaitingPool = mode === 'WAITING_POOL';
 
@@ -60,8 +97,7 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-2xl space-y-5">
-        <div className="rounded-[32px] bg-gradient-to-br from-[#181818] to-[#262626] p-7 text-white">
+      <div className="w-full max-w-2xl space-y-5">        <div className="rounded-[32px] bg-gradient-to-br from-[#181818] to-[#262626] p-7 text-white">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-widest mb-3">
             <Clock className="w-3 h-3" />
             {isWaitingPool ? 'Menunggu Penugasan' : 'Menunggu Persetujuan Komisi'}
@@ -76,6 +112,23 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
           </p>
         </div>
 
+        {bakuTau?.registered && (
+          <BakuTauWelcomeCard
+            whatsappGroupUrl={bakuTau.whatsappGroupUrl}
+            eventDate={bakuTau.eventDate}
+            venueName={bakuTau.venueName}
+            locationDetail={bakuTau.locationDetail}
+            mapUrl={bakuTau.mapUrl}
+            mapEmbedQuery={bakuTau.mapEmbedQuery}
+            onCompleteProfile={() => profileRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          />
+        )}
+
+        {bakuTau && !bakuTau.registered && (
+          <BakutauRegisterCard onRegistered={refreshBakuTau} />
+        )}
+
+        <LinkGoogleCard />
         <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-[#8C8880] mb-1">Status Onboarding</p>
           {steps.map((s, i) => (
@@ -109,26 +162,54 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
         )}
 
         {isWaitingPool && (
-          <MyProfilePanel
+          <div ref={profileRef}>
+            <MyProfilePanel
             defaultOpenSection={openGifts ? 'gifts' : !birthDone ? 'contact' : undefined}
             onGiftSaved={() => {
               setOpenGifts(false);
               refreshStatus();
             }}
           />
+          </div>
         )}
 
         {mode === 'PENDING' && events.length > 0 && (
-          <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6">
-            <p className="text-xs font-black uppercase tracking-widest text-[#8C8880] flex items-center gap-2 mb-3">
+          <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
+            <p className="text-xs font-black uppercase tracking-widest text-[#8C8880] flex items-center gap-2 mb-1">
               <Cake className="w-3.5 h-3.5 text-[#FF416C]" /> Agenda Terdekat
             </p>
-            {events.slice(0, 3).map((e) => (
-              <div key={e.id} className="py-2 border-b border-dashed border-[#D9D7D0]/50 last:border-0">
-                <p className="text-xs font-bold">{e.title}</p>
-                {e.locationDetail && <p className="text-[10px] text-[#8C8880]">{e.locationDetail}</p>}
-              </div>
-            ))}
+            {events.slice(0, 3).map((e) => {
+              const when = e.eventDateTime || e.date;
+              const whenLabel = when
+                ? new Date(when.includes('T') ? when : `${when}T00:00:00`).toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  ...(e.eventDateTime ? { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' } : {}),
+                })
+                : null;
+              return (
+                <div key={e.id} className="py-3 border-b border-dashed border-[#D9D7D0]/50 last:border-0 space-y-2">
+                  <p className="text-xs font-bold">{e.title}</p>
+                  {whenLabel && (
+                    <p className="text-[10px] text-[#5C5850] capitalize">
+                      {whenLabel}{e.eventDateTime ? ' WIB' : ''}
+                    </p>
+                  )}
+                  {e.locationDetail && <p className="text-[10px] text-[#8C8880]">{e.locationDetail}</p>}
+                  {e.venueName && e.mapEmbedQuery && (
+                    <EventVenueMap
+                      venueName={e.venueName}
+                      locationDetail={e.locationDetail || undefined}
+                      mapUrl={e.mapUrl}
+                      embedQuery={e.mapEmbedQuery}
+                      compact
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
 import { profileSegments } from './profile-fields.mjs';
+import { normalizePhone } from './lib/baku-tau.mjs';
 
 const wpId = () => `wp-${crypto.randomUUID()}`;
 
@@ -76,6 +77,66 @@ export async function syncWaitingPoolFromUser(userId) {
   });
 }
 
+/** Link quick-register pool entry (by phone) to authenticated user. */
+export async function claimWaitingPoolByPhone(prisma, userId, phone, sourceEvent) {
+  const norm = normalizePhone(phone);
+  if (!norm) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+
+  const orphans = await prisma.waitingPool.findMany({
+    where: { userId: null, sourceEvent, status: 'REGISTERED' },
+  });
+  const match = orphans.find((e) => normalizePhone(e.phone) === norm);
+  if (!match) return null;
+
+  const userPatch = {};
+  if (match.domicileKind && !user.domicileKind) userPatch.domicileKind = match.domicileKind;
+  if (match.domicileDetail && !user.domicileDetail) userPatch.domicileDetail = match.domicileDetail;
+  if (match.origin && !user.origin) userPatch.origin = match.origin;
+  if (match.gender && !user.gender) userPatch.gender = match.gender;
+  if (match.phone && !user.phone) userPatch.phone = match.phone;
+  if (Object.keys(userPatch).length) {
+    await prisma.user.update({ where: { id: userId }, data: userPatch });
+  }
+
+  const existing = await prisma.waitingPool.findUnique({ where: { userId } });
+  if (existing) {
+    await prisma.waitingPool.update({
+      where: { id: existing.id },
+      data: {
+        sourceEvent: sourceEvent || existing.sourceEvent,
+        domicileKind: match.domicileKind || existing.domicileKind,
+        domicileDetail: match.domicileDetail || existing.domicileDetail,
+        origin: match.origin || existing.origin,
+        gender: match.gender || existing.gender,
+        phone: match.phone || existing.phone,
+        status: existing.status === 'ROLE_ASSIGNED' ? 'ROLE_ASSIGNED' : 'WAITING_POOL',
+      },
+    });
+    await prisma.waitingPool.delete({ where: { id: match.id } });
+    return existing;
+  }
+
+  const claimed = await prisma.waitingPool.update({
+    where: { id: match.id },
+    data: {
+      userId,
+      email: user.email,
+      name: user.name,
+      status: 'WAITING_POOL',
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { onboardingStatus: 'WAITING_POOL' },
+  });
+
+  return claimed;
+}
+
 export async function ensureWaitingPoolForNewPemuda(userId, { sourceEvent } = {}) {
   if (!isDbConfigured()) return null;
   const prisma = getPrisma();
@@ -84,6 +145,12 @@ export async function ensureWaitingPoolForNewPemuda(userId, { sourceEvent } = {}
 
   const existing = await prisma.waitingPool.findUnique({ where: { userId } });
   if (existing) return existing;
+
+  const userWithPhone = await prisma.user.findUnique({ where: { id: userId } });
+  if (userWithPhone?.phone && sourceEvent) {
+    const claimed = await claimWaitingPoolByPhone(prisma, userId, userWithPhone.phone, sourceEvent);
+    if (claimed) return claimed;
+  }
 
   const recreationalIds = [];
   const { giftTestDone, profileCompleted } = poolDataFromUser(user, recreationalIds);

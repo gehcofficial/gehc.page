@@ -145,10 +145,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
   const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'benzarpreneurship'] as const;
   const tabFromHash = (): PublicTab => {
-    const h = window.location.hash.replace(/^#\/?/, '');
-    if (h === 'group-detail') return 'group-detail';
-    if ((TAB_IDS as readonly string[]).includes(h)) return h as PublicTab;
-    if (LEGACY_HASH_MAP[h]) return LEGACY_HASH_MAP[h] as PublicTab;
+    const path = window.location.hash.replace(/^#\/?/, '').split('?')[0];
+    if (path === 'group-detail') return 'group-detail';
+    if ((TAB_IDS as readonly string[]).includes(path)) return path as PublicTab;
+    if (LEGACY_HASH_MAP[path]) return LEGACY_HASH_MAP[path] as PublicTab;
     return tabFromHashRoute(window.location.hash) as PublicTab;
   };
 

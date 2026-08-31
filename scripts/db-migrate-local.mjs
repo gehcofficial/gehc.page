@@ -40,6 +40,16 @@ const STEPS = [
     label: 'Org hierarchy (org_nodes, org_assignments, membership_kind)',
     required: true,
   },
+  {
+    script: 'server/_migrate-e10-bakutau.cjs',
+    label: 'E10 BAKU TAU (domicile, whatsapp_group_url, claim_token)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-bakutau-venue.cjs',
+    label: 'BAKU TAU venue (GMIM Eben Haezer, 12 Sep 2026)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

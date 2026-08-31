@@ -1,9 +1,10 @@
-﻿import React from 'react';
-import { CalendarDays, MapPin, ArrowRight } from 'lucide-react';
+﻿import React, { useEffect, useState } from 'react';
+import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 import { Countdown } from './ui/Countdown';
+import { EventVenueMap } from './ui/EventVenueMap';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -17,6 +18,30 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
 }) => {
   const { contentItems, setPublicTab } = useApp();
   const { t } = useLang();
+  const [registeredCount, setRegisteredCount] = useState<number | null>(null);
+  const [venue, setVenue] = useState<{
+    venueName?: string;
+    locationDetail?: string;
+    mapUrl?: string;
+    mapEmbedQuery?: string;
+    eventDate?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/events/baku-tau-4-0')
+      .then((r) => r.json())
+      .then((d) => {
+        setRegisteredCount(d.stats?.registered ?? null);
+        setVenue({
+          venueName: d.venueName,
+          locationDetail: d.locationDetail,
+          mapUrl: d.mapUrl,
+          mapEmbedQuery: d.mapEmbedQuery,
+          eventDate: d.eventDate,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const activities = contentItems
     .filter((c) => c.type === 'ACTIVITY' && c.is_published)
@@ -29,11 +54,26 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
   const pastShown = condensed ? past.slice(0, 3) : past;
 
   const fmtDate = (iso: string) =>
-    new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
+    new Date(iso.includes('T') ? iso : `${iso}T00:00:00`).toLocaleDateString('id-ID', {
+      weekday: 'long',
       day: 'numeric',
-      month: 'short',
+      month: 'long',
       year: 'numeric',
     });
+
+  const featuredDate = featured?.id === 'cnt-bakutau' && venue?.eventDate
+    ? new Date(venue.eventDate).toLocaleString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    })
+    : featured
+      ? fmtDate(featured.event_date || featured.published_at)
+      : null;
 
   return (
     <section className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
@@ -66,25 +106,45 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                     <p className="text-sm text-white/70 mt-2 leading-relaxed">{featured.subtitle}</p>
                   )}
                   <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-4 text-xs text-white/80">
-                    {(featured.event_date || featured.published_at) && (
-                      <span className="flex items-center gap-1.5">
+                    {featuredDate && (
+                      <span className="flex items-center gap-1.5 capitalize">
                         <CalendarDays className="w-3.5 h-3.5 text-[#FF416C]" />
-                        {fmtDate(featured.event_date || featured.published_at)}
+                        {featuredDate}{featured?.id === 'cnt-bakutau' ? ' WIB' : ''}
                       </span>
                     )}
-                    {featured.location_detail && (
+                    {(featured.location_detail || venue?.locationDetail) && (
                       <span className="flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-[#FF416C]" />
-                        {featured.location_detail}
+                        {featured.location_detail || venue?.locationDetail}
                       </span>
                     )}
                   </div>
+                  {featured.id === 'cnt-bakutau' && venue?.venueName && (
+                    <div className="mt-5 rounded-2xl overflow-hidden border border-white/10 bg-black/30 p-3">
+                      <EventVenueMap
+                        venueName={venue.venueName}
+                        locationDetail={venue.locationDetail}
+                        mapUrl={venue.mapUrl}
+                        embedQuery={venue.mapEmbedQuery}
+                        compact
+                        inverted
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="shrink-0 space-y-3 self-start lg:self-end">
                   <Countdown />
+                  {registeredCount !== null && (
+                    <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">
+                      <Users className="w-3.5 h-3.5" /> {registeredCount} peserta terdaftar
+                    </p>
+                  )}
                   <button
-                    onClick={() => setPublicTab('join')}
+                    onClick={() => {
+                      setPublicTab('join');
+                      window.location.hash = '#/join?event=bakutau';
+                    }}
                     className="w-full px-4 py-2.5 rounded-full bg-[#FF416C] hover:bg-[#ff2d5e] text-white text-xs font-black uppercase tracking-wider shadow-lg transition-colors"
                   >
                     {t.events.joinCta}

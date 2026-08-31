@@ -192,6 +192,16 @@ async function seedYouthTree() {
   await upsertNode({
     domain: 'YOUTH',
     parentId: timkerja.id,
+    slug: 'INDIVIDU',
+    label: 'Community · Individu',
+    nodeKind: 'POSITION_SLOT',
+    sortOrder: 5,
+    metadata: { portalRole: 'MENTEE', maxAssignees: 999, requiresGroup: false, position: 'Individu' },
+  });
+
+  await upsertNode({
+    domain: 'YOUTH',
+    parentId: timkerja.id,
     slug: 'BEYONDERS',
     label: 'Beyonders (Kelompok Mentoring)',
     nodeKind: 'GROUP_REF',

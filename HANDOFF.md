@@ -1,6 +1,39 @@
 # GEHC Portal — Handoff
 
-## Current priority — Episode E9: Jemaat Org Hierarchy
+## Current priority — Episode E10: BAKU TAU 4.0 + Org Hardening
+
+**Goal:** Funnel pendaftaran cepat BAKU TAU, domisili preset, portal WA group CTA, fix join/onboarding blockers, revoke symmetry + backfill org.
+
+### Done (E10)
+
+- Hash routing fix (`#/join?inv=` / `?event=bakutau`)
+- OAuth register → `WAITING_POOL` + claim quick register by phone
+- BAKU TAU date **12 Sep 2026 15:00 WIB** (initialData, Countdown, i18n)
+- API `/api/events/baku-tau-4-0/*` + domisili fields + `REGISTERED` status
+- `JoinPage` quick form + live counter; `WaitingPoolPanel` filters + CSV
+- `BakuTauWelcomeCard` di onboarding gate
+- `revokeRoleAssignment` terpusat + `db:backfill:org-assignments`
+- `OrgHierarchyPanel` metadata editor, assignee view, reorder
+- Migrasi `db:migrate:e10-bakutau`
+
+### Commands (E10)
+
+```powershell
+npm run db:migrate:e10-bakutau
+npm run db:migrate:local
+npm run db:seed:org-tree
+npm run db:backfill:org-assignments
+npm run dev:all
+npm run test
+```
+
+Env opsional: `BAKU_TAU_WA_GROUP_URL=https://chat.whatsapp.com/...`
+
+QRIS URL: `https://gehcpage.vercel.app/#/join?event=bakutau`
+
+---
+
+## Episode E9: Jemaat Org Hierarchy
 
 **Goal:** Configurable org tree (`OrgNode`/`OrgAssignment`), tree-driven role wizard, simpatisan filter, Kolom leader slots.
 

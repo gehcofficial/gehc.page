@@ -72,7 +72,7 @@ AboutSection ("Who We Are" + BOD asli: Theodore/Zhanon/Milithya
 
 ### `#/events` [prioritas 3]:
 
-EventsTimeline penuh (featured BAKU TAU 4.0 + countdown 5 Sep 2026
+EventsTimeline penuh (featured BAKU TAU 4.0 + countdown 12 Sep 2026
 16.00 WIB; timeline lampau→kini) · MediaGallery (role-gated)
 
 ### `#/bulletin`:
@@ -150,14 +150,26 @@ Simpan = auto-sync TiDB & landing page.
 
 ---
 
-## 7. Join Flow — Unified Onboarding Pipeline
+## 7. Join Flow — BAKU TAU 4.0 + Unified Onboarding
 
-### BAKU TAU / Pendaftar Baru (single pipe → WaitingPool)
+### BAKU TAU 4.0 (QRIS / publik)
+
+`#/join?event=bakutau` → **Step 1: daftar cepat** (nama, WA, gender, asal, domisili SBH/NBH/Elvis/Lainnya)
+  → counter publik + stats domisili
+  → **Step 2: Google** atau login portal → `#/portal`
+  → `BakuTauWelcomeCard` + CTA grup WhatsApp (`EventProgram.whatsappGroupUrl` / env `BAKU_TAU_WA_GROUP_URL`)
+  → `OnboardingGatePortal` (profil + karunia) → Komisi assign role
+
+API: `POST /api/events/baku-tau-4-0/register`, `GET …/stats`, `POST …/claim`, `GET /api/me/baku-tau-registration`
+
+Tanggal resmi: **12 September 2026, 15:00 WIB**
+
+### Pendaftar Baru (single pipe → WaitingPool)
 
 Landing/Events → `#/join` → **Daftar dengan Google** (atau link undangan)
-  1. SSO Google → akun `PENDING` + entry **WaitingPool** (`WAITING_POOL`)
-  2. Portal gate (`OnboardingGatePortal`) — lengkapi profil + tes karunia
-  3. Status → `PROFILE_COMPLETED` → Komisi assign role di **Onboarding Pipeline** / **Jemaat**
+  1. SSO Google → `onboardingStatus: WAITING_POOL` + entry **WaitingPool**
+  2. Portal gate — lengkapi profil + tes karunia
+  3. Status → `PROFILE_COMPLETED` → Komisi assign role
   4. Setelah role → portal penuh sesuai RBAC
 
 Legacy waitlist (`WaitlistEntry`) — **retired** di UI; data lama di-bridge via `npm run db:bridge:waitlist`.

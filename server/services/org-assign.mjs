@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { assignRoleToUser } from '../role-assign.mjs';
+import { assignRoleToUser, revokeRoleAssignment } from '../role-assign.mjs';
 
 export function genOrgId() {
   return crypto.randomBytes(32).toString('hex');
@@ -115,10 +115,7 @@ export async function deactivateOrgAssignment(prisma, assignmentId) {
     data: { isActive: false },
   });
   if (row.roleAssignmentId) {
-    await prisma.roleAssignment.updateMany({
-      where: { id: row.roleAssignmentId },
-      data: { isActive: false },
-    });
+    await revokeRoleAssignment(prisma, row.roleAssignmentId);
   }
   return { ok: true };
 }
