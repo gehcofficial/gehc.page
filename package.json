@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "env:sync": "node scripts/sync-env-from-staging.mjs",
+    "env:check": "node scripts/check-env-parity.mjs",
     "dev": "node server/index.mjs",
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:all": "node dev-all.mjs",
@@ -12,6 +14,14 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:local": "node scripts/db-migrate-local.mjs",
+    "db:migrate:local:staging": "dotenv -e .env.staging -- node scripts/db-migrate-local.mjs",
+    "db:schema:check": "node scripts/check-db-schema.mjs",
+    "db:migrate:profile": "node server/_migrate-profile-phase1.cjs",
+    "db:migrate:church-request": "node server/_migrate-profile-church-request.cjs",
+    "db:migrate:placement": "node server/_migrate-jethro-placement.cjs",
+    "db:migrate:birth-date": "node server/_migrate-birth-date.cjs",
+    "db:bridge:waitlist": "node server/_bridge-waitlist-to-pool.cjs",
     "db:seed": "tsx server/seed.ts",
     "db:seed:onboarding": "tsx server/seed-onboarding.ts",
     "db:push:staging": "dotenv -e .env.staging -- prisma db push",
@@ -26,7 +36,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test tests/e2e",
+    "ci": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.34",
@@ -34,6 +47,7 @@
     "@google/genai": "^2.4.0",
     "@prisma/client": "^6.19.3",
     "@tailwindcss/vite": "^4.1.14",
+    "@tanstack/react-query": "^5.90.2",
     "@vitejs/plugin-react": "^5.0.4",
     "ai": "^7.0.84",
     "dotenv": "^17.2.3",
@@ -47,6 +61,7 @@
     "pngjs": "^7.0.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-router-dom": "^7.9.1",
     "vite": "^6.2.3",
     "xlsx": "^0.18.5"
   },
@@ -61,6 +76,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^3.2.4"
   }
 }

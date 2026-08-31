@@ -2,12 +2,18 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { LangProvider } from './context/LangContext.tsx';
+import { QueryProvider } from './app/QueryProvider.tsx';
+import { AppHashRouter } from './app/RouterBridge.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LangProvider>
-      <App />
-    </LangProvider>
+    <QueryProvider>
+      <LangProvider>
+        <AppHashRouter>
+          <App />
+        </AppHashRouter>
+      </LangProvider>
+    </QueryProvider>
   </StrictMode>,
 );

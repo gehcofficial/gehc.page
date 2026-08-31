@@ -150,18 +150,18 @@ Simpan = auto-sync TiDB & landing page.
 
 ---
 
-## 7. Join Flow — Waitlist, Invite & Gift Test
+## 7. Join Flow — Unified Onboarding Pipeline
 
-### BAKU TAU 4.0 (5 Sep 2026 · 16.00 WIB)
+### BAKU TAU / Pendaftar Baru (single pipe → WaitingPool)
 
-Landing/Events → [Gabung Waitlist] → #/join
-  Tahap A (publik) : nama + WA + email + asal → status WAITLISTED
-                     konfirmasi berisi link pelengkap profil
-  Panel Waitlist   : panitia menyalin link profil → kirim via WA
-  Tahap B (#/join?token=) : alamat + pemetaan bakat + Tes Karunia
-    (22 karunia × 3 pernyataan, hasil Top-5 otomatis) → PROFILED
-  Panel "Rumahkan" : pilih grup tujuan → GroupMember MENTEE baru
-                   + status ASSIGNED
+Landing/Events → `#/join` → **Daftar dengan Google** (atau link undangan)
+  1. SSO Google → akun `PENDING` + entry **WaitingPool** (`WAITING_POOL`)
+  2. Portal gate (`OnboardingGatePortal`) — lengkapi profil + tes karunia
+  3. Status → `PROFILE_COMPLETED` → Komisi assign role di **Onboarding Pipeline** / **Jemaat**
+  4. Setelah role → portal penuh sesuai RBAC
+
+Legacy waitlist (`WaitlistEntry`) — **retired** di UI; data lama di-bridge via `npm run db:bridge:waitlist`.
+Link token lama `#/join?token=` tetap didukung sementara (Stage B bridge).
 
 ### Invite Link (komite/komisi):
 
@@ -177,11 +177,9 @@ akun yang pernah dipakai di perangkat tampil di layar login portal
 
 ### Daftar Mandiri via Google (publik, tanpa undangan):
 
-#/join → pilih [Daftar dengan Google] → SSO popup (tanpa password)
-→ akun PENDING + role MENTEE → portal TERBATAS:
-  profil diri + tes karunia + info agenda terdekat (BAKU TAU).
-Komisi setujui di Orang & Undangan → portal penuh sesuai role.
-Flag env REGISTRATION_OPEN=false menutup pendaftaran.
+`#/join` → **Daftar dengan Google** → SSO → akun `PENDING` + **WaitingPool**
+→ portal gate (profil + tes karunia) → Komisi approve/assign di pipeline.
+Flag env `REGISTRATION_OPEN=false` menutup pendaftaran.
 
 ### Akun Lokal (email+sandi):
 

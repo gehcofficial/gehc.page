@@ -3,17 +3,21 @@
  * Tujuan: konsistensi lebar kontainer, padding section, dan palet
  * agar semua section landing berbicara dengan bahasa visual yang sama.
  */
+/**
+ * Design tokens — prefer Tailwind `@theme` utilities (`bg-page`, `text-ink`, `text-brand`).
+ * Legacy hex map kept for components not yet migrated.
+ */
 export const THEME = {
-  bg: '#FAF9F5',
+  bg: 'var(--color-page, #FAF9F5)',
   band: '#F3F1EC',
   surface: '#FFFFFF',
-  ink: '#1B1B1B',
-  muted: '#8C8880',
-  line: '#D9D7D0',
+  ink: 'var(--color-ink, #1B1B1B)',
+  muted: 'var(--color-muted, #8C8880)',
+  line: 'var(--color-line, #D9D7D0)',
   dark: '#111111',
   darkFooter: '#151515',
-  accent: '#FF416C',
-  accent2: '#FF4B2B',
+  accent: 'var(--color-brand, #FF416C)',
+  accent2: 'var(--color-brand-end, #FF4B2B)',
 } as const;
 
 /** Kontainer standar seluruh section publik. */

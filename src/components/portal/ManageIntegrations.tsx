@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { DriveUploadPanel } from './DriveUploadPanel';
 import {
   FolderSync,
   Lock,
@@ -170,7 +171,7 @@ const DriveAuditPanel: React.FC = () => {
 };
 
 export const ManageIntegrations: React.FC = () => {
-  const { isSuperAdmin, currentRole, integrationConfig, updateIntegrationConfig, addToast } =
+  const { isSuperAdmin, isKomisi, currentRole, integrationConfig, updateIntegrationConfig, addToast } =
     useApp();
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -179,9 +180,26 @@ export const ManageIntegrations: React.FC = () => {
   const [allowedMimeTypes, setAllowedMimeTypes] = useState(
     integrationConfig.allowed_mime_types.join(', ')
   );
+  const [events, setEvents] = useState<Array<{ id: string; title: string }>>([]);
+  const [uploadEventId, setUploadEventId] = useState('');
+  const [uploadDivision, setUploadDivision] = useState('MARTURIA');
+
+  useEffect(() => {
+    fetch('/api/events', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { events: [] }))
+      .then((d) => {
+        const list = (d.events || []).map((e: { id: string; title?: string; name?: string }) => ({
+          id: e.id,
+          title: e.title || e.name || e.id,
+        }));
+        setEvents(list);
+        if (list[0]?.id) setUploadEventId(list[0].id);
+      })
+      .catch(() => setEvents([]));
+  }, []);
 
   // 403 Forbidden Gatekeeper check
-  if (!isSuperAdmin) {
+  if (!isSuperAdmin && !isKomisi) {
     return (
       <div className="bg-white rounded-[32px] p-8 sm:p-16 border border-red-200 text-center max-w-2xl mx-auto my-8 shadow-sm">
         <div className="w-16 h-16 rounded-3xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-100">
@@ -191,10 +209,10 @@ export const ManageIntegrations: React.FC = () => {
           HTTP 403 • Akses Ditolak
         </span>
         <h3 className="text-2xl font-bold text-[#1B1B1B] mt-2 mb-3">
-          Integrasi Khusus SUPERADMIN
+          Integrasi Khusus Admin
         </h3>
         <p className="text-xs sm:text-sm text-[#8C8880] leading-relaxed max-w-md mx-auto">
-          Halaman konfigurasi Google Drive OAuth & folder repository ini hanya dapat dikelola oleh Superadmin GEHC.
+          Halaman konfigurasi Google Drive OAuth & folder repository ini hanya dapat dikelola oleh Superadmin atau Komisi.
           Peran aktif Anda: <strong className="text-[#1B1B1B] uppercase">[{currentRole}]</strong>.
         </p>
       </div>
@@ -362,6 +380,46 @@ export const ManageIntegrations: React.FC = () => {
 
       {/* Audit Sinkronisasi TiDB ↔ Drive + Matriks Akses */}
       <DriveAuditPanel />
+
+      {/* Drive upload per event division */}
+      <div className="bg-white rounded-[32px] border border-[#D9D7D0]/60 p-6 space-y-4">
+        <h3 className="text-sm font-bold">Upload Aset ke Drive</h3>
+        {events.length === 0 ? (
+          <p className="text-xs text-[#8C8880]">Belum ada event aktif — buat event di portal terlebih dahulu.</p>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs font-bold block">
+                Event
+                <select
+                  value={uploadEventId}
+                  onChange={(e) => setUploadEventId(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] text-xs"
+                >
+                  {events.map((ev) => (
+                    <option key={ev.id} value={ev.id}>{ev.title}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-bold block">
+                Divisi
+                <select
+                  value={uploadDivision}
+                  onChange={(e) => setUploadDivision(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] text-xs"
+                >
+                  {['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'].map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {uploadEventId && (
+              <DriveUploadPanel eventId={uploadEventId} division={uploadDivision} folderLabel={uploadDivision} />
+            )}
+          </>
+        )}
+      </div>
 
     </div>
   );

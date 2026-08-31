@@ -1,6 +1,5 @@
 ﻿import 'dotenv/config';
 import crypto from 'node:crypto';
-import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
 import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb, resetPrisma, isTransientDbError, getDbLabel, getDbTarget } from './db.mjs';
@@ -56,34 +55,17 @@ import {
   profileSegments,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
+import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from './onboarding-sync.mjs';
+import { assignRoleToUser } from './role-assign.mjs';
+import { normalizeGiftsTop5 } from './gift-normalize.mjs';
+import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
+import { registerAdminRoutes } from './routes/admin.mjs';
+import { registerOnboardingRoutes } from './routes/onboarding.mjs';
+import { createApp } from './createApp.mjs';
+import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
 
-const app = express();
+const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
-
-// Prisma memakai BigInt untuk id autoincrement — konversi otomatis ke Number saat serialisasi JSON.
-app.set('json replacer', (_key, value) => (typeof value === 'bigint' ? Number(value) : value));
-
-const CORS_ALLOWED = String(process.env.CORS_ORIGIN || 'http://localhost:8787,http://localhost:3000')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-app.use((req, res, next) => {
-  const reqOrigin = req.headers.origin;
-  if (CORS_ALLOWED.includes('*')) {
-    res.header('Access-Control-Allow-Origin', '*');
-  } else if (reqOrigin && CORS_ALLOWED.includes(reqOrigin)) {
-    res.header('Access-Control-Allow-Origin', reqOrigin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Vary', 'Origin');
-  }
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
-app.use(express.json({ limit: '2mb' }));
-app.use(attachUser);
 
 const wrap = (fn) => (req, res) => fn(req, res).catch(async (err) => {
   console.error(`[api] ${req.method} ${req.path} →`, err.message);
@@ -182,10 +164,27 @@ app.get('/api/me/profile', wrap(async (req, res) => {
   if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
   const recreationalIds = (user.recreational || []).map((m) => m.groupId);
   const view = { ...user, recreational: (user.recreational || []).map((m) => m.group), recreationalIds };
+  let recreationalSuggestions = [];
+  try {
+    recreationalSuggestions = await prisma.recreationalSuggestion.findMany({
+      where: { userId: req.authUser.id, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch { /* table may not exist yet */ }
+  let churchDataRequest = null;
+  try {
+    churchDataRequest = await prisma.profileChurchDataRequest.findFirst({
+      where: { userId: req.authUser.id, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch { /* table may not exist yet */ }
   res.json({
     user: view,
+    demographics: enrichUserDemographics(view),
     reminderDue: reminderDue(user),
     segments: profileSegments({ ...view, recreationalIds }),
+    recreationalSuggestions,
+    churchDataRequest,
   });
 }));
 
@@ -197,6 +196,11 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const data = {};
   if (body.gender !== undefined) data.gender = body.gender ? String(body.gender) : null;
   if (body.phone !== undefined) data.phone = body.phone ? String(body.phone) : null;
+  if (body.birthDate !== undefined) {
+    const parsed = parseBirthDateInput(body.birthDate);
+    if (body.birthDate && !parsed) return res.status(400).json({ error: 'Tanggal lahir tidak valid.' });
+    data.birthDate = parsed;
+  }
   const err = applyLifeAddressFields(body, data);
   if (err) return res.status(400).json({ error: err });
   if (body.giftsTop5 !== undefined) {
@@ -222,7 +226,13 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.authUser.id }, include: meInclude() });
   const recreationalIds = (user.recreational || []).map((m) => m.groupId);
   const view = { ...user, recreational: (user.recreational || []).map((m) => m.group), recreationalIds };
-  res.json({ user: view, reminderDue: false, segments: profileSegments({ ...view, recreationalIds }) });
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
+  res.json({
+    user: view,
+    demographics: enrichUserDemographics(view),
+    reminderDue: false,
+    segments: profileSegments({ ...view, recreationalIds }),
+  });
 }));
 
 app.post('/api/me/profile/confirm', wrap(async (req, res) => {
@@ -233,7 +243,83 @@ app.post('/api/me/profile/confirm', wrap(async (req, res) => {
     where: { id: req.authUser.id },
     data: { lastProfileUpdate: new Date() },
   });
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
   res.json({ ok: true, reminderDue: false });
+}));
+
+const CHURCH_BIPRA_VALUES = ['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK'];
+
+app.post('/api/me/profile/church-data-request', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const user = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  const pending = await prisma.profileChurchDataRequest.findFirst({
+    where: { userId: req.authUser.id, status: 'PENDING' },
+  }).catch(() => null);
+  if (pending) {
+    return res.status(400).json({ error: 'Anda sudah punya permintaan perubahan yang menunggu persetujuan admin.' });
+  }
+
+  const body = req.body || {};
+  let changeName = false;
+  let changeBipra = false;
+  let changeKolom = false;
+  let requestedName = null;
+  let requestedBipra = null;
+  let requestedKolomId = null;
+
+  if (body.requestedName !== undefined && body.requestedName !== null) {
+    const n = String(body.requestedName).trim();
+    if (!n) return res.status(400).json({ error: 'Nama tidak boleh kosong.' });
+    if (n !== user.name) {
+      changeName = true;
+      requestedName = n;
+    }
+  }
+  if (body.requestedBipra !== undefined && body.requestedBipra !== null && body.requestedBipra !== '') {
+    const b = String(body.requestedBipra).toUpperCase();
+    if (!CHURCH_BIPRA_VALUES.includes(b)) return res.status(400).json({ error: 'BIPRA tidak valid.' });
+    if (b !== user.bipra) {
+      changeBipra = true;
+      requestedBipra = b;
+    }
+  }
+  if (body.requestedKolomId !== undefined) {
+    const kid = body.requestedKolomId ? String(body.requestedKolomId) : null;
+    if (kid !== user.kolomId) {
+      if (kid) {
+        const kol = await prisma.kolom.findUnique({ where: { id: kid } });
+        if (!kol) return res.status(404).json({ error: 'Kolom tidak ditemukan.' });
+      }
+      changeKolom = true;
+      requestedKolomId = kid;
+    }
+  }
+
+  if (!changeName && !changeBipra && !changeKolom) {
+    return res.status(400).json({ error: 'Isi minimal satu field yang berbeda dari data saat ini.' });
+  }
+
+  const reason = body.reason ? String(body.reason).trim().slice(0, 500) : null;
+  const churchDataRequest = await prisma.profileChurchDataRequest.create({
+    data: {
+      id: `pcdr-${crypto.randomBytes(6).toString('hex')}`,
+      userId: req.authUser.id,
+      changeName,
+      changeBipra,
+      changeKolom,
+      requestedName,
+      requestedBipra,
+      requestedKolomId,
+      reason,
+      status: 'PENDING',
+    },
+  });
+  res.json({ churchDataRequest });
 }));
 
 app.get('/api/institutions', wrap(async (req, res) => {
@@ -265,6 +351,14 @@ app.post('/api/institutions', requireRole(...['SUPERADMIN', 'KOMISI']), wrap(asy
     },
   });
   res.json({ institution });
+}));
+
+app.get('/api/kolom', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const kolom = await prisma.kolom.findMany({ orderBy: { number: 'asc' } });
+  res.json({ kolom, bipra: ['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK'] });
 }));
 
 app.post('/api/auth/claim', wrap(async (req, res) => {
@@ -2328,7 +2422,6 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
 }));
 
 // ---------- Jethro Engine (Dashboard Komisi) ----------
-const KOMISION = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
 // ---------- Groups List (for Jethro Placement Review) ----------
 app.get('/api/groups', requireRole(...KOMISION, 'BPMJ', 'COMMITTEE', 'MENTOR'), wrap(async (req, res) => {
@@ -2397,7 +2490,7 @@ app.get('/api/jethro/placement/advanced', requireRole(...KOMISION), wrap(async (
         id: p.userId,
         name: p.name,
         gender: p.gender,
-        giftsTop5: Array.isArray(p.giftsTop5) ? p.giftsTop5 : [],
+        giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
         giftsScores: p.giftsScores || {},
         maturityScore: 0,
       }));
@@ -2586,7 +2679,6 @@ app.post('/api/auth/local', wrap(async (req, res) => {
 }));
 
 // ---------- Join Flow: Waitlist · Invites · People · GiftTest ----------
-const KOMISION_CORE = ['SUPERADMIN', 'KOMISI'];
 
 const wlPublic = (w) => ({
   id: w.id,
@@ -2681,46 +2773,12 @@ app.get('/api/waitlist', requireRole(...KOMISION), wrap(async (req, res) => {
   res.json({ entries: entries.map(wlPublic) });
 }));
 
-// Panel: assign ke rumah (mentee baru)
-app.post('/api/waitlist/:id/assign', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const groupId = req.body?.groupId;
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
-  if (!group) return res.status(400).json({ error: 'Grup tujuan tidak ditemukan.' });
-  const w = await prisma.waitlistEntry.findUnique({ where: { id: req.params.id } });
-  if (!w) return res.status(404).json({ error: 'Entri waitlist tidak ditemukan.' });
-
-  await prisma.groupMember.create({
-    data: {
-      id: `gm-wl-${w.id.slice(-8)}`,
-      groupId,
-      name: w.name,
-      email: w.email,
-      phone: w.phone,
-      familyRole: 'MENTEE',
-      status: 'ACTIVE',
-      batchPeriod: String(new Date().getFullYear()),
-    },
+// Panel: assign ke rumah (mentee baru) — deprecated, gunakan Onboarding Pipeline
+app.post('/api/waitlist/:id/assign', requireRole(...KOMISION_CORE), wrap(async (_req, res) => {
+  res.status(410).json({
+    error: 'Waitlist assign sudah tidak dipakai. Gunakan Onboarding Pipeline → Jethro Placement Review.',
+    redirect: 'onboarding',
   });
-  const count = await prisma.groupMember.count({ where: { groupId, status: 'ACTIVE' } });
-  await prisma.group.update({ where: { id: groupId }, data: { memberCount: count } });
-
-  // Bila pendaftar ternyata sudah punya akun (pernah SSO), tautkan + beri role MENTEE
-  if (w.email) {
-    const u = await prisma.user.findUnique({ where: { email: w.email } });
-    if (u) {
-      await prisma.groupMember.updateMany({ where: { id: `gm-wl-${w.id.slice(-8)}` }, data: { userId: u.id } });
-      const has = await prisma.userRole.findFirst({ where: { userId: u.id, role: 'MENTEE' } });
-      if (!has) await prisma.userRole.create({ data: { userId: u.id, tenantId: 'tenant-youth', role: 'MENTEE', groupId } });
-    }
-  }
-
-  const updated = await prisma.waitlistEntry.update({
-    where: { id: w.id },
-    data: { status: 'ASSIGNED', assignedGroupId: groupId },
-  });
-  res.json({ ok: true, entry: wlPublic(updated) });
 }));
 
 // ---------- Invites ----------
@@ -2823,6 +2881,10 @@ app.post('/api/join', wrap(async (req, res) => {
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
+    if (invite.defaultRole === 'MENTEE') {
+      try { await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: `Invite ${code}` }); } catch { /* non-blocking */ }
+    }
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
       status: user.accountStatus,
@@ -2890,6 +2952,10 @@ app.post('/api/join/local', wrap(async (req, res) => {
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
+    if (invite.defaultRole === 'MENTEE') {
+      try { await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: `Invite ${code}` }); } catch { /* non-blocking */ }
+    }
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({ status: user.accountStatus, role: invite.defaultRole, user });
   } catch (err) {
@@ -2913,6 +2979,7 @@ app.patch('/api/me', wrap(async (req, res) => {
   if (Array.isArray(b.giftsTop5)) data.giftsTop5 = b.giftsTop5;
   if (b.giftsScores && typeof b.giftsScores === 'object') data.giftsScores = b.giftsScores;
   const u = await prisma.user.update({ where: { id: req.authUser.id }, data });
+  try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
   res.json({ ok: true, name: u.name });
 }));
 
@@ -2996,6 +3063,10 @@ app.post('/api/register/google', wrap(async (req, res) => {
     const wl = await prisma.waitlistEntry.findFirst({ where: { email } });
     if (wl && wl.status === 'WAITLISTED') {
       await prisma.waitlistEntry.update({ where: { id: wl.id }, data: { status: 'PROFILED' } });
+    }
+
+    if (!trusted) {
+      await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: 'google-register' });
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
@@ -3253,7 +3324,7 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
 }));
 
 // ============================================================
-// WAITING POOL & ONBOARDING PIPELINE
+// WAITING POOL & ONBOARDING PIPELINE (routes/onboarding.mjs)
 // ============================================================
 
 /** Generate 64-char hex ID */
@@ -3261,31 +3332,80 @@ function genId64() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-/** GET /api/waiting-pool — List users in Waiting Pool (belum profil lengkap) */
-app.get('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const pool = await prisma.waitingPool.findMany({
-    where: { status: 'WAITING_POOL' },
-    orderBy: { registeredAt: 'desc' },
-  });
-  res.json({ pool });
-}));
-
-/** GET /api/pending-approval — List users with profile completed, awaiting role */
-app.get('/api/pending-approval', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const pending = await prisma.waitingPool.findMany({
-    where: { status: 'PROFILE_COMPLETED' },
-    orderBy: { profileCompletedAt: 'desc' },
-  });
-  res.json({ pending });
-}));
-
 const BIPRA_VALUES = ['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK'];
+
+function formatChurchRequestSummary(req, kolomById = new Map()) {
+  const parts = [];
+  if (req.changeName && req.requestedName) parts.push(`Nama → ${req.requestedName}`);
+  if (req.changeBipra && req.requestedBipra) parts.push(`BIPRA → ${req.requestedBipra}`);
+  if (req.changeKolom) {
+    parts.push(`Kolom → ${req.requestedKolomId ? (kolomById.get(req.requestedKolomId)?.name || req.requestedKolomId) : 'Belum di-assign'}`);
+  }
+  return parts.join(' · ') || 'Perubahan data gereja';
+}
+
+app.post('/api/profile/church-data-requests/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const record = await prisma.profileChurchDataRequest.findUnique({
+    where: { id: req.params.id },
+  });
+  if (!record) return res.status(404).json({ error: 'Permintaan tidak ditemukan.' });
+  if (record.status !== 'PENDING') return res.status(400).json({ error: 'Permintaan sudah diproses.' });
+
+  const data = {};
+  if (record.changeName && record.requestedName) data.name = record.requestedName;
+  if (record.changeBipra && record.requestedBipra) {
+    if (!BIPRA_VALUES.includes(record.requestedBipra)) {
+      return res.status(400).json({ error: 'BIPRA pada permintaan tidak valid.' });
+    }
+    data.bipra = record.requestedBipra;
+    if (record.requestedBipra !== 'PEMUDA') data.isBeyonders = false;
+  }
+  if (record.changeKolom) data.kolomId = record.requestedKolomId;
+
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'Tidak ada perubahan untuk diterapkan.' });
+  }
+
+  await prisma.user.update({ where: { id: record.userId }, data });
+  await prisma.profileChurchDataRequest.update({
+    where: { id: record.id },
+    data: {
+      status: 'APPROVED',
+      reviewedById: req.authUser.id,
+      reviewedAt: new Date(),
+      adminNote: req.body?.adminNote ? String(req.body.adminNote).trim().slice(0, 500) : null,
+    },
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: record.userId },
+    include: jemaatInclude(),
+  });
+  res.json({ user: serializeJemaat(user) });
+}));
+
+app.post('/api/profile/church-data-requests/:id/reject', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const record = await prisma.profileChurchDataRequest.findUnique({ where: { id: req.params.id } });
+  if (!record) return res.status(404).json({ error: 'Permintaan tidak ditemukan.' });
+  if (record.status !== 'PENDING') return res.status(400).json({ error: 'Permintaan sudah diproses.' });
+
+  await prisma.profileChurchDataRequest.update({
+    where: { id: record.id },
+    data: {
+      status: 'REJECTED',
+      reviewedById: req.authUser.id,
+      reviewedAt: new Date(),
+      adminNote: req.body?.adminNote ? String(req.body.adminNote).trim().slice(0, 500) : null,
+    },
+  });
+  res.json({ ok: true });
+}));
 
 function jemaatInclude() {
   return {
@@ -3298,11 +3418,12 @@ function jemaatInclude() {
 }
 
 function serializeJemaat(u) {
-  return {
+  const base = {
     ...u,
     recreationalIds: (u.recreational || []).map((m) => m.groupId),
     recreational: (u.recreational || []).map((m) => m.group),
   };
+  return { ...base, demographics: enrichUserDemographics(base) };
 }
 
 function collectRecreationalLeafIds(all, rootId) {
@@ -3320,7 +3441,7 @@ function collectRecreationalLeafIds(all, rootId) {
   return ids;
 }
 
-async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope }) {
+async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope, birthdayWithin }) {
   const where = {};
   if (bipra && BIPRA_VALUES.includes(bipra)) where.bipra = bipra;
   if (kolomId === 'none') where.kolomId = null;
@@ -3341,15 +3462,32 @@ async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope 
     include: jemaatInclude(),
     orderBy: { name: 'asc' },
   });
-  return youth.map(serializeJemaat);
+  let rows = youth.map(serializeJemaat);
+  if (birthdayWithin) {
+    const days = Number(birthdayWithin) || 30;
+    rows = rows.filter((u) => u.birthDate && isBirthdayWithinDays(u.birthDate, days));
+  }
+  return rows;
 }
 
 app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const [kolom, recreationalFlat] = await Promise.all([
+  const [kolom, recreationalFlat, pendingSuggestions, pendingChurchRequests] = await Promise.all([
     prisma.kolom.findMany({ orderBy: { number: 'asc' } }),
     prisma.recreationalGroup.findMany({ orderBy: [{ kind: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }] }),
+    prisma.recreationalSuggestion.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }).catch(() => []),
+    prisma.profileChurchDataRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { id: true, name: true, email: true, bipra: true, kolomId: true, kolom: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }).catch(() => []),
   ]);
   const byId = new Map(recreationalFlat.map((r) => [r.id, { ...r, children: [] }]));
   const recreationalTree = [];
@@ -3357,7 +3495,7 @@ app.get('/api/jemaat/meta', requireRole(...KOMISION_CORE), wrap(async (req, res)
     if (r.parentId && byId.has(r.parentId)) byId.get(r.parentId).children.push(r);
     else if (!r.parentId) recreationalTree.push(r);
   }
-  res.json({ kolom, recreational: recreationalFlat, recreationalTree, bipra: BIPRA_VALUES });
+  res.json({ kolom, recreational: recreationalFlat, recreationalTree, bipra: BIPRA_VALUES, pendingSuggestions, pendingChurchRequests });
 }));
 
 function slugifyRec(name) {
@@ -3431,6 +3569,107 @@ app.post('/api/recreational', requireRole(...KOMISION_CORE), wrap(async (req, re
   res.json({ group });
 }));
 
+app.post('/api/recreational/suggest', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Nama minat wajib.' });
+  let kind = String(req.body?.kind || '').toUpperCase();
+  const parentId = req.body?.parentId ? String(req.body.parentId) : null;
+  if (parentId) {
+    const parent = await prisma.recreationalGroup.findUnique({ where: { id: parentId } });
+    if (!parent) return res.status(404).json({ error: 'Kategori tidak ditemukan.' });
+    kind = parent.kind;
+  }
+  if (kind !== 'SPORTS' && kind !== 'ARTS') {
+    return res.status(400).json({ error: 'kind wajib SPORTS atau ARTS.' });
+  }
+  const suggestion = await prisma.recreationalSuggestion.create({
+    data: {
+      id: `recsug-${crypto.randomBytes(6).toString('hex')}`,
+      userId: req.authUser.id,
+      name,
+      kind,
+      parentId,
+      status: 'PENDING',
+    },
+  });
+  res.json({ suggestion });
+}));
+
+app.get('/api/recreational/suggestions', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const status = String(req.query.status || 'PENDING').toUpperCase();
+  const suggestions = await prisma.recreationalSuggestion.findMany({
+    where: status ? { status } : undefined,
+    include: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  res.json({ suggestions });
+}));
+
+app.post('/api/recreational/suggestions/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const sug = await prisma.recreationalSuggestion.findUnique({ where: { id: req.params.id } });
+  if (!sug) return res.status(404).json({ error: 'Saran tidak ditemukan.' });
+  if (sug.status !== 'PENDING') return res.status(400).json({ error: 'Saran sudah diproses.' });
+
+  let parent = null;
+  if (sug.parentId) {
+    parent = await prisma.recreationalGroup.findUnique({ where: { id: sug.parentId } });
+    if (!parent) return res.status(404).json({ error: 'Kategori induk tidak ditemukan.' });
+  }
+
+  const siblings = await prisma.recreationalGroup.findMany({
+    where: sug.parentId ? { parentId: sug.parentId } : { kind: sug.kind, parentId: null },
+    select: { sortOrder: true, slug: true },
+  });
+  let slug = slugifyRec(sug.name);
+  if (siblings.some((s) => s.slug === slug) || await prisma.recreationalGroup.findUnique({ where: { slug } })) {
+    slug = `${slug}-${crypto.randomBytes(2).toString('hex')}`;
+  }
+  const sortOrder = siblings.reduce((m, s) => Math.max(m, s.sortOrder || 0), 0) + 1;
+
+  const group = await prisma.recreationalGroup.create({
+    data: {
+      id: `rec-${crypto.randomBytes(6).toString('hex')}`,
+      slug,
+      name: sug.name,
+      kind: sug.kind,
+      parentId: sug.parentId,
+      selectable: Boolean(sug.parentId),
+      sortOrder,
+    },
+  });
+
+  await prisma.recreationalMembership.upsert({
+    where: { userId_groupId: { userId: sug.userId, groupId: group.id } },
+    create: { userId: sug.userId, groupId: group.id },
+    update: {},
+  });
+
+  await prisma.recreationalSuggestion.update({
+    where: { id: sug.id },
+    data: { status: 'APPROVED', groupId: group.id },
+  });
+
+  res.json({ group, suggestionId: sug.id });
+}));
+
+app.post('/api/recreational/suggestions/:id/reject', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const sug = await prisma.recreationalSuggestion.findUnique({ where: { id: req.params.id } });
+  if (!sug) return res.status(404).json({ error: 'Saran tidak ditemukan.' });
+  if (sug.status !== 'PENDING') return res.status(400).json({ error: 'Saran sudah diproses.' });
+  await prisma.recreationalSuggestion.update({ where: { id: sug.id }, data: { status: 'REJECTED' } });
+  res.json({ ok: true });
+}));
+
 app.get('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3439,8 +3678,35 @@ app.get('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
     kolomId: String(req.query.kolomId || ''),
     recreational: String(req.query.recreational || ''),
     addressScope: String(req.query.addressScope || ''),
+    birthdayWithin: req.query.birthdayWithin ? String(req.query.birthdayWithin) : '',
   });
   res.json({ youth });
+}));
+
+app.get('/api/jemaat/birthdays/upcoming', requireRole(...KOMISION, 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const days = Number(req.query.days || 7);
+  const all = await queryJemaat(prisma, { birthdayWithin: String(days) });
+  const sorted = all
+    .map((u) => ({ id: u.id, name: u.name, birthDate: u.birthDate, daysToBirthday: u.demographics?.daysToBirthday }))
+    .sort((a, b) => (a.daysToBirthday ?? 999) - (b.daysToBirthday ?? 999))
+    .slice(0, 10);
+  res.json({ birthdays: sorted });
+}));
+
+app.patch('/api/jemaat/:id/bipra-suggest', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+  const { suggested } = enrichUserDemographics(user).bipraSuggest;
+  if (!suggested) return res.status(400).json({ error: 'Tidak ada usulan BIPRA.' });
+  const data = { bipra: suggested };
+  if (suggested !== 'PEMUDA') data.isBeyonders = false;
+  await prisma.user.update({ where: { id: user.id }, data });
+  const updated = await prisma.user.findUnique({ where: { id: user.id }, include: jemaatInclude() });
+  res.json({ ok: true, user: serializeJemaat(updated) });
 }));
 
 app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
@@ -3509,14 +3775,6 @@ app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (r
   res.json({ user });
 }));
 
-/** GET /api/youth-gehc — alias Pemuda (kompatibel UI lama) */
-app.get('/api/youth-gehc', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const youth = await queryJemaat(prisma, { bipra: 'PEMUDA', kolomId: '', recreational: '' });
-  res.json({ youth });
-}));
-
 /** PATCH /api/admin/users/:id — Admin edit profil jemaat */
 app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3533,6 +3791,11 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   }
   if (gender !== undefined) data.gender = gender ? String(gender) : null;
   if (phone !== undefined) data.phone = phone ? String(phone) : null;
+  if (req.body?.birthDate !== undefined) {
+    const parsed = parseBirthDateInput(req.body.birthDate);
+    if (req.body.birthDate && !parsed) return res.status(400).json({ error: 'Tanggal lahir tidak valid.' });
+    data.birthDate = parsed;
+  }
   const fieldErr = applyLifeAddressFields(req.body || {}, data);
   if (fieldErr) return res.status(400).json({ error: fieldErr });
   if (giftsTop5 !== undefined) {
@@ -3571,26 +3834,6 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   res.json({ user: serializeJemaat(user) });
 }));
 
-/** POST /api/waiting-pool/:id/reminder — Send reminder to user */
-app.post('/api/waiting-pool/:id/reminder', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const entry = await prisma.waitingPool.findUnique({ where: { id: req.params.id } });
-  if (!entry) return res.status(404).json({ error: 'Entry tidak ditemukan.' });
-
-  const updated = await prisma.waitingPool.update({
-    where: { id: req.params.id },
-    data: {
-      lastReminder: new Date(),
-      reminderCount: { increment: 1 },
-    },
-  });
-
-  // TODO: integrate with WhatsApp/SMS/Email service
-  res.json({ ok: true, entry: updated, message: 'Reminder terkirim (placeholder).' });
-}));
-
 /** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
 app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3613,86 +3856,16 @@ app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
 
-  // Create RoleAssignment
-  const assignment = await prisma.roleAssignment.create({
-    data: {
-      id: genId64(),
-      userId,
-      role,
-      position: position || null,
-      division: division || null,
-      subdivision: subdivision || null,
-      groupId: groupId || null,
-      familyRole: familyRole || null,
-      assignedBy: assignerId,
-      note: note || null,
-    },
-  });
-
-  // Dual-write: create/update UserRole for backward compatibility
-  const existingUserRole = await prisma.userRole.findFirst({
-    where: { userId, role, groupId: groupId || null },
-  });
-
-  let userRole;
-  if (existingUserRole) {
-    userRole = await prisma.userRole.update({
-      where: { id: existingUserRole.id },
-      data: { assignmentId: assignment.id },
-    });
-  } else {
-    userRole = await prisma.userRole.create({
-      data: {
-        userId,
-        tenantId: 'tenant-youth',
-        role,
-        groupId: groupId || null,
-        assignmentId: assignment.id,
-      },
-    });
-  }
-
-  // If groupId provided and role is MENTOR/CO_MENTOR/MENTEE, create/update GroupMember
-  if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
-    const familyRoleMap = { MENTOR: 'MENTOR', CO_MENTOR: 'COMENTOR', MENTEE: 'MENTEE' };
-    const memberFamilyRole = familyRoleMap[role] || 'MENTEE';
-
-    const existingMember = await prisma.groupMember.findFirst({
-      where: { userId, groupId },
-    });
-
-    if (!existingMember) {
-      await prisma.groupMember.create({
-        data: {
-          id: genId64(),
-          groupId,
-          userId,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          familyRole: memberFamilyRole,
-          assignmentId: assignment.id,
-        },
-      });
-    }
-
-    // Update user isBeyonders flag
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isBeyonders: true },
-    });
-  }
-
-  // Update WaitingPool status if exists
-  await prisma.waitingPool.updateMany({
-    where: { userId },
-    data: { status: 'ROLE_ASSIGNED' },
-  });
-
-  // Update user onboardingStatus
-  await prisma.user.update({
-    where: { id: userId },
-    data: { onboardingStatus: 'ACTIVE' },
+  const { assignment, userRole } = await assignRoleToUser(prisma, {
+    userId,
+    role,
+    groupId: groupId || null,
+    position: position || null,
+    division: division || null,
+    subdivision: subdivision || null,
+    familyRole: familyRole || null,
+    assignedBy: assignerId,
+    note: note || null,
   });
 
   res.json({ ok: true, assignment, userRole });
@@ -3932,43 +4105,6 @@ app.post('/api/role-assignments/bulk-delete', requireRole(...KOMISION_CORE), wra
   res.json({ ok: true, deleted });
 }));
 
-/** POST /api/waiting-pool/reset-status — Reset WaitingPool status to PROFILE_COMPLETED */
-app.post('/api/waiting-pool/reset-status', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const { ids } = req.body || {};
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'ids array wajib.' });
-  }
-
-  const updated = await prisma.waitingPool.updateMany({
-    where: { id: { in: ids } },
-    data: {
-      status: 'PROFILE_COMPLETED',
-      profileCompletedAt: new Date(),
-    }
-  });
-
-  res.json({ ok: true, updated: updated.count });
-}));
-
-/** POST /api/waiting-pool/clear-role-assigned — Clear ROLE_ASSIGNED entries back to PROFILE_COMPLETED */
-app.post('/api/waiting-pool/clear-role-assigned', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const updated = await prisma.waitingPool.updateMany({
-    where: { status: 'ROLE_ASSIGNED' },
-    data: {
-      status: 'PROFILE_COMPLETED',
-      profileCompletedAt: new Date(),
-    }
-  });
-
-  res.json({ ok: true, updated: updated.count });
-}));
-
 // ---------- GiftTest ----------
 app.post('/api/gifttest', wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3992,44 +4128,21 @@ app.post('/api/gifttest', wrap(async (req, res) => {
       where: { id: req.authUser.id },
       data: { giftsTop5, giftsScores, talents },
     });
+    try { await syncWaitingPoolFromUser(req.authUser.id); } catch { /* non-blocking */ }
     return res.json({ ok: true });
   }
 
   res.status(400).json({ error: 'scope tidak dikenal.' });
 }));
 
-// ---------- Admin: Clean Staging TiDB (keep 83 demo accounts, remove generated data) ----------
-app.post('/api/admin/clean-staging', wrap(async (req, res) => {
+// ---------- Admin routes (modular) ----------
+registerOnboardingRoutes(app, { wrap });
+registerAdminRoutes(app, { wrap });
+
+// ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
+app.post('/api/admin/seed-gifts', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
-
-  const demoPattern = '%@gehc.demo%';
-
-  const removed = { attendanceRecords: 0, waitlistEntries: 0 };
-
-  try {
-    removed.attendanceRecords = await prisma.$executeRawUnsafe(
-      "DELETE FROM `attendance_records` WHERE `user_id` NOT IN (SELECT `id` FROM `users` WHERE `email` LIKE ?)",
-      demoPattern
-    );
-  } catch (e) { /* skip */ }
-
-  try {
-    removed.waitlistEntries = await prisma.$executeRawUnsafe(
-      "DELETE FROM `waitlist_entries` WHERE `email` NOT LIKE ?",
-      demoPattern
-    );
-  } catch (e) { /* skip */ }
-
-  res.json({ ok: true, removed });
-}));
-
-// ---------- Admin: Seed Gift Test Data ----------
-app.post('/api/admin/seed-gifts', wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
 
   const GIFTS = [
     'Administration','Apostleship','Craftsmanship','Discernment','Evangelism',

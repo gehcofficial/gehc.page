@@ -64,7 +64,7 @@
       "name": "Warta Publik",
       "short_name": "Warta",
       "description": "Lihat warta mingguan",
-      "url": "/#/warta",
+      "url": "/#/bulletin",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {

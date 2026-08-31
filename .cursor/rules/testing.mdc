@@ -1,0 +1,12 @@
+---
+description: Playwright E2E and Vitest unit test conventions
+globs: tests/**,playwright.config.ts
+alwaysApply: false
+---
+
+# Testing
+
+- E2E helpers: `tests/helpers/portal.ts` — `loginViaDemo`, `switchToPortal`, `navigateToMenu`
+- Demo user default: `tech@gehc.demo`
+- Run: `npm run test:e2e`, `npm run test`
+- Role smoke: `tests/e2e/portal-nav-roles.spec.ts`

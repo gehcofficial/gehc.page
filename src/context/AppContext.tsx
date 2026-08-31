@@ -28,6 +28,8 @@ import {
 } from '../data/initialData';
 import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi, fetchPersonas, impersonate as impersonateApi } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
+import { useRoleFlags } from '../hooks/useRoleFlags';
+import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP } from '../app/routes';
 
 type PublicTab = 'beyonders' | 'leaders' | 'events' | 'bulletin' | 'join' | 'group-detail' | 'gallery' | 'benzarpreneurship';
 
@@ -51,8 +53,13 @@ interface AppContextType {
   userAssignedGroupId?: string;
   isSuperAdmin: boolean;
   isCommittee: boolean;
+  isKomisi: boolean;
+  isBpmj: boolean;
   isMentor: boolean;
+  isCoMentor: boolean;
+  isGroupMentor: boolean;
   isMentee: boolean;
+  isAlumni: boolean;
   canAccess: (resource: 'settings_users' | 'settings_integrations' | 'content_manage' | 'groups_all' | 'group_monitoring_write' | 'struktur_manage', groupId?: string) => boolean;
 
   // Google SSO nyata (server-backed)
@@ -137,19 +144,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
   const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
   const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'benzarpreneurship'] as const;
-  const LEGACY_MAP: Record<string, PublicTab> = {
-    home: 'beyonders',
-    groups: 'beyonders',
-    struktur: 'leaders',
-    komisi: 'leaders',
-    'weekly-info': 'bulletin',
-    activity: 'events',
-  };
   const tabFromHash = (): PublicTab => {
     const h = window.location.hash.replace(/^#\/?/, '');
+    if (h === 'group-detail') return 'group-detail';
     if ((TAB_IDS as readonly string[]).includes(h)) return h as PublicTab;
-    if (LEGACY_MAP[h]) return LEGACY_MAP[h];
-    return 'beyonders';
+    if (LEGACY_HASH_MAP[h]) return LEGACY_HASH_MAP[h] as PublicTab;
+    return tabFromHashRoute(window.location.hash) as PublicTab;
   };
 
   const [publicTab, setPublicTabState] = useState<PublicTab>(tabFromHash);
@@ -565,13 +565,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const currentRole: UserRole = currentRoleMapping.role;
   const userAssignedGroupId = currentRoleMapping.groupId;
 
-  const isSuperAdmin = currentRole === 'SUPERADMIN';
-  const isBpmj = currentRole === 'BPMJ';
-  const isKomisi = currentRole === 'KOMISI';
-  const isCommittee = currentRole === 'COMMITTEE';
-  const isMentor = currentRole === 'MENTOR';
-  const isCoMentor = currentRole === 'CO_MENTOR';
-  const isMentee = currentRole === 'MENTEE';
+  const {
+    isSuperAdmin,
+    isBpmj,
+    isKomisi,
+    isCommittee,
+    isMentor,
+    isCoMentor,
+    isGroupMentor,
+    isMentee,
+    isAlumni,
+  } = useRoleFlags(currentRole);
 
   // Strict RBAC Access Checker per revision-v2-beyonders.md (L1–L8)
   const canAccess = (
@@ -587,7 +591,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switch (resource) {
       case 'settings_users':
       case 'settings_integrations':
-        return isSuperAdmin; // L1
+        return isSuperAdmin || isKomisi; // L1 + Komisi integrasi
       case 'content_manage':
       case 'struktur_manage':
         return isSuperAdmin || isCommittee || isKomisi; // L1, L3, L4
@@ -934,8 +938,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userAssignedGroupId,
         isSuperAdmin,
         isCommittee,
+        isKomisi,
+        isBpmj,
         isMentor,
+        isCoMentor,
+        isGroupMentor,
         isMentee,
+        isAlumni,
         canAccess,
 
         authUser,

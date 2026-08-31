@@ -36,7 +36,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
     currentRole,
     isSuperAdmin,
     isCommittee,
-    isMentor,
+    isGroupMentor,
+    isMentee,
     userAssignedGroupId,
     submitMonitoringRecord,
     deleteMonitoringRecord,
@@ -46,13 +47,13 @@ export const ManageGroupsMonitoring: React.FC = () => {
     canAccess,
   } = useApp();
 
-  // Determine allowed groups for current user
-  const availableGroups = isMentor && userAssignedGroupId
+  const hasAssignedGroup = (isGroupMentor || isMentee) && userAssignedGroupId;
+  const availableGroups = hasAssignedGroup
     ? groups.filter((g) => g.id === userAssignedGroupId)
     : groups;
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
-    isMentor && userAssignedGroupId ? userAssignedGroupId : groups[0]?.id || 'grp-1'
+    hasAssignedGroup ? userAssignedGroupId! : groups[0]?.id || 'grp-1'
   );
 
   const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi'>('monitoring-form');
@@ -198,17 +199,19 @@ export const ManageGroupsMonitoring: React.FC = () => {
             Monitoring Kelompok Persekutuan
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            {isMentor
+            {isGroupMentor
               ? `Akses khusus Mentor untuk Kelompok ${activeGroup.name}. Input kehadiran dan dinamika rohani mingguan.`
+              : isMentee
+              ? `Lihat aktivitas dan laporan Kelompok ${activeGroup.name}.`
               : 'Pantau seluruh 10 kelompok persekutuan pemuda GMIM Eben Haezer Cikarang.'}
           </p>
         </div>
 
         {/* Role Scoped Badge */}
-        {isMentor && (
+        {(isGroupMentor || isMentee) && userAssignedGroupId && (
           <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold">
             <Shield className="w-4 h-4 text-blue-600" />
-            <span>Mentor Terikat: Kelompok {activeGroup.name}</span>
+            <span>{isMentee ? 'Anggota' : 'Mentor'} — Kelompok {activeGroup.name}</span>
           </div>
         )}
       </div>

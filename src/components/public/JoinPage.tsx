@@ -116,14 +116,12 @@ export const GiftTestWizard: React.FC<{
   );
 };
 
-/** Halaman Join — dua pintu: Waitlist cepat & Daftar Akun via Google. */
+/** Halaman Join — Google register & invite link (unified onboarding pipeline). */
 export const JoinPage: React.FC = () => {
-  // ?token= → tahap B · ?inv= → gabung via undangan · default: pilihan pintu
   const hashQuery = window.location.hash.split('?')[1] || '';
   const params = new URLSearchParams(hashQuery);
   const tokenFromUrl = params.get('token');
   const invFromUrl = params.get('inv');
-  const [entryMode, setEntryMode] = useState<'waitlist' | 'google'>('waitlist');
 
   return (
     <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto">
@@ -135,42 +133,19 @@ export const JoinPage: React.FC = () => {
           ? 'Lengkapi Profil'
           : invFromUrl
           ? 'Gabung Tim Pelayanan'
-          : 'Gabung Waitlist'}
+          : 'Gabung GEHC Youth'}
       </h1>
       <p className="text-sm text-[#8C8880] mb-8 leading-relaxed">
-        Sabtu 5 September 2026 · 16.00 WIB · President University, Cikarang.
-        Daftar dulu — kamu akan mendapat info khusus agenda dan dipertemukan
-        dengan rumah pemuridan yang cocok.
+        Daftar dengan Google atau link undangan untuk masuk pipeline onboarding lengkap.
+        Profil, tes karunia, dan penempatan role akan ditangani admin.
       </p>
 
       {tokenFromUrl ? (
         <StageB token={tokenFromUrl} />
       ) : invFromUrl ? (
         <InviteJoin code={invFromUrl} />
-      ) : entryMode === 'google' ? (
-        <GoogleRegister onBack={() => setEntryMode('waitlist')} />
       ) : (
-        <>
-          {/* Pilihan pintu */}
-          <div className="grid grid-cols-1 gap-3 mb-6">
-            <button onClick={() => setEntryMode('google')}
-              className="text-left p-5 rounded-[24px] bg-[#181818] text-white border border-transparent hover:border-white/30 transition-all">
-              <p className="text-sm font-black flex items-center gap-2">⚡ Daftar dengan Google</p>
-              <p className="text-xs text-white/60 mt-1">Satu klik, tanpa password — langsung punya akun.</p>
-            </button>
-            <button onClick={() => setEntryMode('waitlist')}
-              className="text-left p-5 rounded-[24px] bg-white border border-[#D9D7D0] hover:border-black transition-all">
-              <p className="text-sm font-black">Gabung Waitlist</p>
-              <p className="text-xs text-[#8C8880] mt-1">Nama + WhatsApp dulu, akun menyusul.</p>
-            </button>
-          </div>
-          <StageA onSuccess={(entry) => {
-            const link = `${window.location.origin}/#/join?token=${entry.promoteToken}`;
-            window.alert(
-              `Terima kasih, ${entry.name}!\n\nSimpan link pelengkap profil berikut (juga dikirim ke panitia):\n\n${link}`
-            );
-          }} />
-        </>
+        <GoogleRegister />
       )}
     </section>
   );
@@ -252,61 +227,7 @@ if (registered) {
   );
 };
 
-// ---------------- Tahap A — waitlist cepat (tanpa akun) ----------------
-const StageA: React.FC<{ onSuccess: (e: any) => void }> = ({ onSuccess }) => {
-  const [form, setForm] = useState({
-    name: '', phone: '', email: '', origin: '',
-    gender: '', emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '', emergencyContactAddress: '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.phone.trim() || !form.gender || !form.emergencyContactName || !form.emergencyContactRelation || !form.emergencyContactPhone || !form.emergencyContactAddress) return;
-    setBusy(true); setError('');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, sourceEventId: 'cnt-bakutau' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal mendaftar.');
-      onSuccess(data.entry);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
-      <Field label="Nama Lengkap *" value={form.name} onChange={(v)=>setForm({...form,name:v})} placeholder="Nama sesuai identitas" required />
-      <Field label="No. WhatsApp *" value={form.phone} onChange={(v)=>setForm({...form,phone:v})} placeholder="08xxxxxxxxxx" required />
-      <Field label="Email" type="email" value={form.email} onChange={(v)=>setForm({...form,email:v})} placeholder="opsional" />
-      <Field label="Asal (kampus / kantor)" value={form.origin} onChange={(v)=>setForm({...form,origin:v})} placeholder="cth. President University" />
-      <Field label="Jenis Kelamin *" type="select" value={form.gender} onChange={(v)=>setForm({...form,gender:v})} options={[{value:'',label:'Pilih...'},{value:'LAKI-LAKI',label:'Laki-laki'},{value:'PEREMPUAN',label:'Perempuan'}]} required />
-      <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/60">
-        <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Kontak Darurat (Wajib)</p>
-        <Field label="Nama Kontak Darurat *" value={form.emergencyContactName} onChange={(v)=>setForm({...form,emergencyContactName:v})} placeholder="Nama orang tua / wali / saudara" required />
-        <Field label="Hubungan *" type="select" value={form.emergencyContactRelation} onChange={(v)=>setForm({...form,emergencyContactRelation:v})} options={[{value:'',label:'Pilih...'},{value:'ORANG_TUA',label:'Orang Tua'},{value:'SAUDARA',label:'Saudara'},{value:'TEMAN',label:'Teman'},{value:'LAINNYA',label:'Lainnya'}]} required />
-        <Field label="No. Telepon Kontak Darurat *" value={form.emergencyContactPhone} onChange={(v)=>setForm({...form,emergencyContactPhone:v})} placeholder="08xxxxxxxxxx" required />
-        <Field label="Alamat Kontak Darurat *" value={form.emergencyContactAddress} onChange={(v)=>setForm({...form,emergencyContactAddress:v})} placeholder="Alamat lengkap" textarea required />
-      </div>
-      {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
-      <button disabled={busy} className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-        {busy && <Loader2 className="w-4 h-4 animate-spin" />} Daftar Sekarang
-      </button>
-      <p className="text-[10px] text-[#8C8880] text-center">
-        Setelah mendaftar, kamu akan diminta melengkapi profil & tes karunia rohani.
-      </p>
-    </form>
-  );
-};
-
-// ---------------- Tahap B — lengkapi profil + gift test via token ----------------
+// ---------------- Tahap B — legacy waitlist token (bridge only) ----------------
 const StageB: React.FC<{ token: string }> = ({ token }) => {
   const [state, setState] = useState<'loading'|'profile'|'gifttest'|'done'|'error'>('loading');
   const [error, setError] = useState('');

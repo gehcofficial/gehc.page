@@ -7,6 +7,7 @@
  */
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
+import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 
 export const THRESHOLD = Number(process.env.GROUP_THRESHOLD || 10);
 const IDLE_WEEKS = 4;
@@ -304,7 +305,8 @@ export async function recommendPlacementAdvanced(newcomerInputs) {
   const recommendations = [];
 
   for (const newcomer of newcomerInputs) {
-    const { id, name, gender, giftsTop5, giftsScores, maturityScore = 0 } = newcomer;
+    const { id, name, gender, giftsScores, maturityScore = 0 } = newcomer;
+    const giftsTop5 = normalizeGiftsTop5(newcomer.giftsTop5 || []);
 
     // Score each group for this newcomer
     const scoredGroups = groupStates.map((gs) => {
@@ -407,6 +409,9 @@ export async function recommendPlacementAdvanced(newcomerInputs) {
       recommendations.push({
         newcomerId: id,
         newcomerName: name,
+        newcomerGender: gender || '',
+        newcomerGiftsTop5: giftsTop5,
+        newcomerMaturityScore: maturityScore,
         recommendedGroupId: null,
         recommendedGroupName: null,
         recommendedRole: 'MENTEE',
@@ -420,6 +425,9 @@ export async function recommendPlacementAdvanced(newcomerInputs) {
     recommendations.push({
       newcomerId: id,
       newcomerName: name,
+      newcomerGender: gender || '',
+      newcomerGiftsTop5: giftsTop5,
+      newcomerMaturityScore: maturityScore,
       recommendedGroupId: best.groupId,
       recommendedGroupName: best.groupName,
       recommendedRole: best.recommendedRole,

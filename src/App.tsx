@@ -19,8 +19,7 @@ import { WeeklyInfoSection } from './components/public/WeeklyInfoSection';
 import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
 import { PortalLogin } from './components/portal/PortalLogin';
-import { PendingPortal } from './components/portal/PendingPortal';
-import { RestrictedPortal } from './components/portal/RestrictedPortal';
+import { OnboardingGatePortal } from './components/portal/OnboardingGatePortal';
 import { KomisiSection } from './components/public/KomisiSection';
 import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
@@ -39,10 +38,10 @@ const MainAppContent: React.FC = () => {
     // Belum masuk & bukan mode demo → layar login portal (cached accounts)
     if (!authUser && !demoMode) return <PortalLogin />;
 
-    // Onboarding flow: WAITING_POOL → RestrictedPortal, PENDING → PendingPortal
+    // Onboarding flow: WAITING_POOL or PENDING account
     const onboardingStatus = authUser?.onboardingStatus;
-    if (onboardingStatus === 'WAITING_POOL') return <RestrictedPortal />;
-    if (authUser?.accountStatus === 'PENDING') return <PendingPortal />;
+    if (onboardingStatus === 'WAITING_POOL') return <OnboardingGatePortal mode="WAITING_POOL" />;
+    if (authUser?.accountStatus === 'PENDING') return <OnboardingGatePortal mode="PENDING" />;
 
     return <PortalLayout />;
   }

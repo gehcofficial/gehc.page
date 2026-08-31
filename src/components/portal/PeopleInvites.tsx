@@ -41,9 +41,9 @@ const authedFetch = async (url: string, method = 'GET', body?: unknown) => {
   return res.json();
 };
 
-export const PeopleInvites: React.FC = () => {
+export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> = ({ onNavigate }) => {
   const { currentRole } = useApp();
-  const [tab, setTab] = useState<'akun' | 'pending' | 'invite'>('akun');
+  const [tab, setTab] = useState<'akun' | 'invite'>('akun');
   const [users, setUsers] = useState<ApiUser[] | null>(null);
   const [invites, setInvites] = useState<InviteDto[] | null>(null);
   const [q, setQ] = useState('');
@@ -109,7 +109,6 @@ export const PeopleInvites: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3">
         {([
           ['akun', `Semua Akun (${(users || []).length})`],
-          ['pending', `Menunggu Persetujuan (${pending.length})`],
           ['invite', 'Link Undangan'],
         ] as const).map(([id, label]) => (
           <button
@@ -123,6 +122,17 @@ export const PeopleInvites: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {pending.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-xs text-amber-900">{pending.length} akun menunggu persetujuan — setujui di tab Semua Akun atau Onboarding Pipeline.</p>
+          {onNavigate && (
+            <button onClick={() => onNavigate('onboarding')} className="px-3 py-1.5 rounded-xl bg-amber-700 text-white text-xs font-bold shrink-0">
+              Buka Onboarding →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* AKUN */}
       {tab === 'akun' && (
@@ -194,32 +204,7 @@ export const PeopleInvites: React.FC = () => {
         </>
       )}
 
-      {/* PENDING */}
-      {tab === 'pending' && (
-        <div className="space-y-2">
-          {pending.length === 0 ? (
-            <p className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-6 text-xs text-[#8C8880]">
-              Tidak ada pendaftar menunggu persetujuan.
-            </p>
-          ) : (
-            pending.map((u) => (
-              <div key={u.id} className="bg-white rounded-2xl border border-amber-200 p-4 flex items-center gap-3">
-                <img src={u.avatar || initialsAvatar(u.name)} alt={u.name} className="w-10 h-10 rounded-full object-cover border border-amber-200" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold truncate">{u.name}</p>
-                  <p className="text-[10px] text-[#8C8880] truncate">{u.email}</p>
-                </div>
-                <button
-                  onClick={() => act(async () => { await authedFetch(`/api/people/${u.id}`, 'PATCH', { action: 'approve' }); })}
-                  className="text-[10px] font-black px-4 py-2 rounded-full bg-emerald-600 text-white shrink-0"
-                >
-                  Setujui
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {/* PENDING — merged into akun tab + onboarding link above */}
 
       {/* INVITE */}
       {tab === 'invite' && (

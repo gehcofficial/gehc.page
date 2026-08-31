@@ -1,0 +1,14 @@
+---
+description: Design tokens — use theme utilities, avoid new raw hex
+globs: src/**/*.tsx,src/index.css
+alwaysApply: false
+---
+
+# Design Tokens
+
+- Tokens in `src/index.css` `@theme` — page, ink, muted, line, brand
+- Prefer `bg-page`, `text-ink`, `text-muted`, `border-line`, `bg-brand` over `#FAF9F5` etc.
+- UI primitives: `src/components/ui/Button`, `Card`, `Modal`, `Badge`
+- Role colors: `src/lib/status-colors.ts`
+- Portal radius: `rounded-card` (28px) / `rounded-card-lg` (32px)
+- Display font: `font-display` (Playfair Display)
