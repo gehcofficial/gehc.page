@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Users,
@@ -10,6 +10,7 @@ import {
   FolderSync,
   ClipboardList,
 } from 'lucide-react';
+import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortalQueries';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const {
@@ -31,6 +32,9 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
 
   const isAdminView = isSuperAdmin || isCommittee || isKomisi;
   const isGroupScoped = (isGroupMentor || isMentee) && userAssignedGroupId;
+
+  const { data: onboardingCount = 0 } = useWaitingPoolCount(isKomisi || isSuperAdmin);
+  const { data: upcomingBirthdays = [] } = useUpcomingBirthdays(7, isAdminView);
 
   const visibleGroups = useMemo(() => {
     if (isAlumni) return [];
@@ -69,28 +73,6 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
   const assignedGroup = userAssignedGroupId
     ? groups.find((g) => g.id === userAssignedGroupId)
     : undefined;
-
-  const [upcomingBirthdays, setUpcomingBirthdays] = useState<Array<{ id: string; name: string; daysToBirthday: number | null }>>([]);
-  const [onboardingCount, setOnboardingCount] = useState(0);
-
-  useEffect(() => {
-    if (!isAdminView) return;
-    fetch('/api/jemaat/birthdays/upcoming?days=7', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setUpcomingBirthdays(d.birthdays || []))
-      .catch(() => setUpcomingBirthdays([]));
-  }, [isAdminView]);
-
-  useEffect(() => {
-    if (!isKomisi && !isSuperAdmin) return;
-    fetch('/api/waiting-pool', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => {
-        const pool = d.pool || d.entries || [];
-        setOnboardingCount(Array.isArray(pool) ? pool.length : 0);
-      })
-      .catch(() => setOnboardingCount(0));
-  }, [isKomisi, isSuperAdmin]);
 
   const portalSubtitle = isAlumni
     ? 'Ringkasan read-only — terima kasih atas pelayananmu.'

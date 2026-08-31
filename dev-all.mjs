@@ -3,7 +3,22 @@
  * Satu perintah: npm run dev:all
  * Ctrl+C sekali → kedua proses ikut mati.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+
+async function warnIfSchemaDrift() {
+  const check = spawnSync(process.execPath, ['scripts/check-db-schema.mjs', '--quiet'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (check.status === 0) return;
+
+  console.warn('\x1b[33m⚠️  Database schema belum sinkron (kolom Prisma hilang di TiDB).\x1b[0m');
+  console.warn('\x1b[33m   Perbaikan: npm run db:migrate:local\x1b[0m');
+  console.warn('\x1b[33m   Detail:    npm run db:schema:check\x1b[0m\n');
+}
+
+await warnIfSchemaDrift();
 
 const children = [];
 

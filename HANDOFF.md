@@ -1,32 +1,50 @@
-# GEHC Portal — Handoff Template
+# GEHC Portal — Handoff
 
-## 2. Current priority — Portal Rationalization + Demographics
+## Current priority — Master Plan Episodes E0–E8
 
-**Goal:** Portal selaras per role, tanggal lahir + usulan BIPRA/HUT, satu pipeline onboarding.
+**Goal:** Repo hygiene, design tokens, modular API, unified onboarding, RBAC contract tests, client data layer, React Router bridge, Cursor rules, Jemaat RBAC, Drive upload.
 
-### Done
-- **birthDate** di User + migration `db:migrate:birth-date`
-- **demographics.mjs** — umur, HUT, suggest BIPRA (Bapak/Ibu suggest-only)
-- **Profil** — input tanggal lahir wajib untuk contact complete; chip usulan BIPRA
-- **OnboardingGatePortal** — gabung WAITING_POOL + PENDING
-- **Nav** — filter per role, hapus Waitlist + RBAC demo, rename Jethro menus
-- **Onboarding** — 2 tab (Menunggu Profil | Menunggu Role), link ke Jemaat
-- **Jemaat** — filter HUT 30 hari, konfirmasi BIPRA suggest, kolom umur
-- **Legacy** — waitlist assign 410, bridge script `db:bridge:waitlist`, JoinPage default Google
-- **Tests** — `tests/birth-date-bipra.spec.ts`
+### Done (Master Plan)
+
+- **E0** — Dead portal components removed; `docs/` + `AGENTS.md`; CI workflow (lint + test + build)
+- **E1** — Tailwind `@theme` tokens, UI primitives (`Button`/`Card`/`Modal`/`Badge`), PWA manifest `#/bulletin`, `font-display`, `animate-fade-in`
+- **E2** — `createApp()` factory, `server/routes/admin.mjs` + `onboarding.mjs`, Vercel parity via `api/index.mjs` re-export
+- **E3** — Google register → `WaitingPool`; waitlist UI retired; `userflow.md` §7 updated
+- **E4** — `docs/tech/nav-api-parity.md`, `tests/e2e/portal-nav-roles.spec.ts`, `/api/admin/*` SUPERADMIN-only
+- **E5** — `QueryProvider`, `usePortalQueries`, `useRoleFlags`, `AuthContext` scaffold
+- **E6** — `HashRouter` bridge in `main.tsx`, shared `src/app/routes.ts`
+- **Cursor** — `.cursor/rules/` (portal-rbac, server-api, design-tokens, prisma-migrations, testing)
+- **E7** — Role admin via Jemaat + `docs/product/rbac-admin.md` (ManageUsersRBAC removed)
+- **E8** — `DriveUploadPanel` wired in Integrations tab
+- **DB** — `db:migrate:local`, `db:schema:check`, `docs/tech/database-migrations.md`, peringatan di `dev:all`
+
+### Prior episode (committed `a3fc247`)
+
+Portal rationalization + birthDate/BIPRA + role-scoped UX.
 
 ### Commands
+
 ```powershell
-npm run db:migrate:birth-date
-npm run db:bridge:waitlist   # optional: migrasi WaitlistEntry lama
-npm run dev
-npx playwright test tests/birth-date-bipra.spec.ts
+npm run db:migrate:local   # setelah clone/pull
+npm run db:schema:check
+npm run dev:all
 ```
 
+Lihat [`docs/tech/database-migrations.md`](docs/tech/database-migrations.md).
+
 ### Key files
+
 | File | Role |
-|---|---|
-| `server/demographics.mjs` | Age, BIPRA suggest, HUT |
-| `src/components/portal/OnboardingGatePortal.tsx` | Unified gate portal |
-| `src/components/portal/PortalLayout.tsx` | Role-based nav |
-| `src/components/portal/YouthGEHCList.tsx` | Jemaat + HUT + BIPRA |
+|------|------|
+| `scripts/db-migrate-local.mjs` | Migrasi TiDB lokal (aggregator) |
+| `scripts/check-db-schema.mjs` | Cek drift schema |
+| `docs/tech/database-migrations.md` | Panduan migrasi |
+| `server/createApp.mjs` | Express factory |
+| `server/routes/onboarding.mjs` | Waiting pool routes |
+
+### Next
+
+- Migrate more `server/index.mjs` domains to `server/routes/*`
+- Full `AuthContext` extraction from `AppContext`
+- Component migration to design tokens (reduce raw hex)
+- Vitest coverage for `roles.ts`, `profile-fields.mjs`

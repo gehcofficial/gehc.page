@@ -1,0 +1,14 @@
+---
+description: Server API conventions — wrap, requireRole, modular routes
+globs: server/**,api/**
+alwaysApply: false
+---
+
+# Server API
+
+- Use `wrap()` for async handlers; DB transient errors → 503 retry in main wrap
+- Role groups: `server/lib/rbac-constants.mjs` — KOMISION, KOMISION_CORE
+- New routes: prefer `server/routes/<domain>.mjs` with `registerXRoutes(app, deps)`
+- App factory: `server/createApp.mjs` — shared CORS + JSON + attachUser
+- Vercel entry re-exports full app: `api/index.mjs`
+- Never expose admin utilities without `requireRole('SUPERADMIN')`

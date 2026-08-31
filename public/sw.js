@@ -126,8 +126,8 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   // Handle different notification types
-  if (data.type === 'warta') {
-    url = '/#/warta';
+  if (data.type === 'warta' || data.type === 'bulletin') {
+    url = '/#/bulletin';
   } else if (data.type === 'gallery') {
     url = '/#/gallery';
   } else if (data.type === 'schedule') {

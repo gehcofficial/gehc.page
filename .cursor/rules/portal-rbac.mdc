@@ -1,0 +1,15 @@
+---
+description: Portal RBAC — nav items must match server requireRole on APIs they call
+globs: src/components/portal/**,server/index.mjs,server/routes/**
+alwaysApply: false
+---
+
+# Portal RBAC
+
+- Nav filter: `PortalLayout.tsx` — `item.roles.includes(currentRole)`
+- Server: always use `requireRole(...)` — UI gating is not security
+- CO_MENTOR = MENTOR for group scoping (`isGroupMentor`)
+- BPMJ: read-only on Jethro placement (no approve/commit in UI)
+- COMMITTEE: no Regenerasi Kelompok nav (placement review only)
+- Parity matrix: `docs/tech/nav-api-parity.md`
+- Demo personas: `npm run db:seed-users:staging`, login `*@gehc.demo`

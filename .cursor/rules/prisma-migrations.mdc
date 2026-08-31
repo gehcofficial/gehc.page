@@ -1,0 +1,32 @@
+---
+description: Prisma TiDB migrations and seed patterns
+globs: prisma/**,server/_migrate*.cjs,scripts/db-migrate-local.mjs,scripts/check-db-schema.mjs,server/seed*.ts
+alwaysApply: false
+---
+
+# Prisma / TiDB
+
+## Lokal (default setelah clone/pull)
+
+```powershell
+npm run db:migrate:local    # semua _migrate-*.cjs + prisma generate
+npm run db:schema:check     # read-only — kolom wajib ada?
+```
+
+Jangan `prisma migrate deploy` pada DB lokal yang belum di-baseline (`_prisma_migrations` kosong).
+
+## Staging / prod
+
+- Staging: `npm run db:migrate:staging` atau `db:migrate:local:staging`
+- Prod: **hanya** `db:migrate:prod` dengan persetujuan eksplisit user
+- Seeds staging: `dotenv -e .env.staging -- tsx server/seed-users.ts`
+
+## Menambah migrasi baru
+
+1. `prisma/schema.prisma` + `prisma/migrations/NN_*/migration.sql`
+2. `server/_migrate-*.cjs` idempotent
+3. Daftarkan di `scripts/db-migrate-local.mjs` STEPS
+4. Kolom boot-critical → `scripts/check-db-schema.mjs`
+5. `npx prisma generate`
+
+Panduan lengkap: `docs/tech/database-migrations.md`

@@ -1,6 +1,5 @@
 ﻿import 'dotenv/config';
 import crypto from 'node:crypto';
-import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
 import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb, resetPrisma, isTransientDbError, getDbLabel, getDbTarget } from './db.mjs';
@@ -60,34 +59,13 @@ import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from './onboar
 import { assignRoleToUser } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
+import { registerAdminRoutes } from './routes/admin.mjs';
+import { registerOnboardingRoutes } from './routes/onboarding.mjs';
+import { createApp } from './createApp.mjs';
+import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
 
-const app = express();
+const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
-
-// Prisma memakai BigInt untuk id autoincrement — konversi otomatis ke Number saat serialisasi JSON.
-app.set('json replacer', (_key, value) => (typeof value === 'bigint' ? Number(value) : value));
-
-const CORS_ALLOWED = String(process.env.CORS_ORIGIN || 'http://localhost:8787,http://localhost:3000')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-app.use((req, res, next) => {
-  const reqOrigin = req.headers.origin;
-  if (CORS_ALLOWED.includes('*')) {
-    res.header('Access-Control-Allow-Origin', '*');
-  } else if (reqOrigin && CORS_ALLOWED.includes(reqOrigin)) {
-    res.header('Access-Control-Allow-Origin', reqOrigin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Vary', 'Origin');
-  }
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
-app.use(express.json({ limit: '2mb' }));
-app.use(attachUser);
 
 const wrap = (fn) => (req, res) => fn(req, res).catch(async (err) => {
   console.error(`[api] ${req.method} ${req.path} →`, err.message);
@@ -2444,7 +2422,6 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
 }));
 
 // ---------- Jethro Engine (Dashboard Komisi) ----------
-const KOMISION = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
 // ---------- Groups List (for Jethro Placement Review) ----------
 app.get('/api/groups', requireRole(...KOMISION, 'BPMJ', 'COMMITTEE', 'MENTOR'), wrap(async (req, res) => {
@@ -2702,7 +2679,6 @@ app.post('/api/auth/local', wrap(async (req, res) => {
 }));
 
 // ---------- Join Flow: Waitlist · Invites · People · GiftTest ----------
-const KOMISION_CORE = ['SUPERADMIN', 'KOMISI'];
 
 const wlPublic = (w) => ({
   id: w.id,
@@ -3089,6 +3065,10 @@ app.post('/api/register/google', wrap(async (req, res) => {
       await prisma.waitlistEntry.update({ where: { id: wl.id }, data: { status: 'PROFILED' } });
     }
 
+    if (!trusted) {
+      await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: 'google-register' });
+    }
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
       status,
@@ -3344,68 +3324,13 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
 }));
 
 // ============================================================
-// WAITING POOL & ONBOARDING PIPELINE
+// WAITING POOL & ONBOARDING PIPELINE (routes/onboarding.mjs)
 // ============================================================
 
 /** Generate 64-char hex ID */
 function genId64() {
   return crypto.randomBytes(32).toString('hex');
 }
-
-/** GET /api/waiting-pool — List WaitingPool entries (default: WAITING_POOL) */
-app.get('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const status = req.query.status ? String(req.query.status) : 'WAITING_POOL';
-  const includeUser = status === 'ROLE_ASSIGNED';
-
-  const pool = await prisma.waitingPool.findMany({
-    where: { status },
-    orderBy: status === 'ROLE_ASSIGNED' ? { profileCompletedAt: 'desc' } : { registeredAt: 'desc' },
-    include: includeUser
-      ? {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              roles: { select: { role: true, groupId: true, tenantId: true } },
-            },
-          },
-        }
-      : undefined,
-  });
-  res.json({ pool });
-}));
-
-/** POST /api/waiting-pool — Komisi tambah user ke pipeline manual */
-app.post('/api/waiting-pool', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const { userId, sourceEvent } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'userId wajib.' });
-
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
-
-  const entry = await ensureWaitingPoolForNewPemuda(userId, { sourceEvent: sourceEvent || 'Manual add' });
-  const synced = await syncWaitingPoolFromUser(userId);
-  res.json({ ok: true, entry: synced || entry });
-}));
-
-/** GET /api/pending-approval — List users with profile completed, awaiting role */
-app.get('/api/pending-approval', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const pending = await prisma.waitingPool.findMany({
-    where: { status: 'PROFILE_COMPLETED' },
-    orderBy: { profileCompletedAt: 'desc' },
-  });
-  res.json({ pending });
-}));
 
 const BIPRA_VALUES = ['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK'];
 
@@ -3909,26 +3834,6 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   res.json({ user: serializeJemaat(user) });
 }));
 
-/** POST /api/waiting-pool/:id/reminder — Send reminder to user */
-app.post('/api/waiting-pool/:id/reminder', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const entry = await prisma.waitingPool.findUnique({ where: { id: req.params.id } });
-  if (!entry) return res.status(404).json({ error: 'Entry tidak ditemukan.' });
-
-  const updated = await prisma.waitingPool.update({
-    where: { id: req.params.id },
-    data: {
-      lastReminder: new Date(),
-      reminderCount: { increment: 1 },
-    },
-  });
-
-  // TODO: integrate with WhatsApp/SMS/Email service
-  res.json({ ok: true, entry: updated, message: 'Reminder terkirim (placeholder).' });
-}));
-
 /** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
 app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -4200,43 +4105,6 @@ app.post('/api/role-assignments/bulk-delete', requireRole(...KOMISION_CORE), wra
   res.json({ ok: true, deleted });
 }));
 
-/** POST /api/waiting-pool/reset-status — Reset WaitingPool status to PROFILE_COMPLETED */
-app.post('/api/waiting-pool/reset-status', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const { ids } = req.body || {};
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'ids array wajib.' });
-  }
-
-  const updated = await prisma.waitingPool.updateMany({
-    where: { id: { in: ids } },
-    data: {
-      status: 'PROFILE_COMPLETED',
-      profileCompletedAt: new Date(),
-    }
-  });
-
-  res.json({ ok: true, updated: updated.count });
-}));
-
-/** POST /api/waiting-pool/clear-role-assigned — Clear ROLE_ASSIGNED entries back to PROFILE_COMPLETED */
-app.post('/api/waiting-pool/clear-role-assigned', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const updated = await prisma.waitingPool.updateMany({
-    where: { status: 'ROLE_ASSIGNED' },
-    data: {
-      status: 'PROFILE_COMPLETED',
-      profileCompletedAt: new Date(),
-    }
-  });
-
-  res.json({ ok: true, updated: updated.count });
-}));
-
 // ---------- GiftTest ----------
 app.post('/api/gifttest', wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -4267,38 +4135,14 @@ app.post('/api/gifttest', wrap(async (req, res) => {
   res.status(400).json({ error: 'scope tidak dikenal.' });
 }));
 
-// ---------- Admin: Clean Staging TiDB (keep 83 demo accounts, remove generated data) ----------
-app.post('/api/admin/clean-staging', wrap(async (req, res) => {
+// ---------- Admin routes (modular) ----------
+registerOnboardingRoutes(app, { wrap });
+registerAdminRoutes(app, { wrap });
+
+// ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
+app.post('/api/admin/seed-gifts', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
-
-  const demoPattern = '%@gehc.demo%';
-
-  const removed = { attendanceRecords: 0, waitlistEntries: 0 };
-
-  try {
-    removed.attendanceRecords = await prisma.$executeRawUnsafe(
-      "DELETE FROM `attendance_records` WHERE `user_id` NOT IN (SELECT `id` FROM `users` WHERE `email` LIKE ?)",
-      demoPattern
-    );
-  } catch (e) { /* skip */ }
-
-  try {
-    removed.waitlistEntries = await prisma.$executeRawUnsafe(
-      "DELETE FROM `waitlist_entries` WHERE `email` NOT LIKE ?",
-      demoPattern
-    );
-  } catch (e) { /* skip */ }
-
-  res.json({ ok: true, removed });
-}));
-
-// ---------- Admin: Seed Gift Test Data ----------
-app.post('/api/admin/seed-gifts', wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
 
   const GIFTS = [
     'Administration','Apostleship','Craftsmanship','Discernment','Evangelism',

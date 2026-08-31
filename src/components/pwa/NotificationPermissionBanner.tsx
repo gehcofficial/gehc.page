@@ -15,18 +15,17 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setPermission(Notification.permission);
-    checkSubscription();
-    registerSW();
+    void ensureServiceWorker().then(() => checkSubscription());
   }, []);
 
-  const registerSW = async () => {
-    if (!('serviceWorker' in navigator)) return;
+  const ensureServiceWorker = async () => {
+    if (!('serviceWorker' in navigator)) return null;
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      const reg = await navigator.serviceWorker.ready;
       setSwRegistered(true);
-      console.log('SW registered:', reg.scope);
-    } catch (err) {
-      console.error('SW registration failed:', err);
+      return reg;
+    } catch {
+      return null;
     }
   };
 
