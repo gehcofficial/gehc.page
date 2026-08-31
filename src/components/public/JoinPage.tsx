@@ -15,6 +15,7 @@ import {
 import { saveBakutauPending } from '../../lib/bakutau-pending';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { loadGoogleClientId, registerWithGoogleCredential } from '../../lib/google-auth-flow';
+import { registerWithEmail } from '../../lib/email-auth-flow';
 import { EventVenueMap } from './ui/EventVenueMap';
 
 /**
@@ -153,8 +154,8 @@ export const JoinPage: React.FC = () => {
       </h1>
       <p className="text-sm text-[#8C8880] mb-8 leading-relaxed">
         {isBakutau && !invFromUrl && !tokenFromUrl
-          ? 'Pilih langsung masuk dengan Google, atau daftar cepat di counter panitia lalu otomatis lanjut ke Google.'
-          : 'Daftar dengan Google atau link undangan untuk masuk pipeline onboarding lengkap.'}
+          ? 'Pilih Google, daftar dengan email, atau isi form cepat di counter panitia.'
+          : 'Daftar dengan Google, email, atau link undangan untuk masuk pipeline onboarding lengkap.'}
       </p>
 
       {tokenFromUrl ? (
@@ -221,8 +222,60 @@ const GoogleRegisterPanel: React.FC<{ title?: string; hint?: string }> = ({ titl
   );
 };
 
+const EmailRegisterPanel: React.FC<{ title?: string; hint?: string }> = ({ title, hint }) => {
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    try {
+      await registerWithEmail({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        phone: form.phone.trim() || undefined,
+      });
+    } catch (ex) {
+      setErr((ex as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {title && <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">{title}</p>}
+      {hint && <p className="text-xs text-[#8C8880] leading-relaxed">{hint}</p>}
+      {err && <p className="text-xs text-red-600 font-semibold">{err}</p>}
+      <form onSubmit={submit} className="space-y-3">
+        <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
+        <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} required />
+        <Field label="Kata sandi * (min. 8 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required />
+        <Field label="No. WhatsApp" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="08xxxxxxxxxx" />
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+          Daftar dengan Email
+        </button>
+      </form>
+      <a
+        href="#/portal"
+        onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
+        className="block text-center text-[10px] text-[#8C8880] hover:text-[#1B1B1B] font-semibold"
+      >
+        Sudah punya akun? Masuk portal
+      </a>
+    </div>
+  );
+};
+
 const BakutauJoinFlow: React.FC = () => {
-  const [pathMode, setPathMode] = useState<'google' | 'quick'>('google');
+  const [pathMode, setPathMode] = useState<'google' | 'email' | 'quick'>('google');
   const [step, setStep] = useState<'form' | 'google'>('form');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -334,9 +387,13 @@ const BakutauJoinFlow: React.FC = () => {
         <div className="text-center">
           <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
           <h3 className="text-lg font-black">Data counter tersimpan!</h3>
-          <p className="text-xs text-[#8C8880] mt-1">Satu langkah lagi — buat akun dengan Google.</p>
+          <p className="text-xs text-[#8C8880] mt-1">Satu langkah lagi — buat akun dengan Google atau email.</p>
         </div>
         <GoogleRegisterPanel hint="Data pendaftaran akan otomatis tersinkron ke portal." />
+        <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-[#8C8880]">
+          <span className="flex-1 h-px bg-[#D9D7D0]" /> atau <span className="flex-1 h-px bg-[#D9D7D0]" />
+        </div>
+        <EmailRegisterPanel hint="Buat akun email & kata sandi — data counter ikut tersinkron." />
       </div>
     );
   }
@@ -363,7 +420,16 @@ const BakutauJoinFlow: React.FC = () => {
             pathMode === 'google' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
           }`}
         >
-          Langsung Google
+          Google
+        </button>
+        <button
+          type="button"
+          onClick={() => setPathMode('email')}
+          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
+            pathMode === 'email' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
+          }`}
+        >
+          Email
         </button>
         <button
           type="button"
@@ -372,7 +438,7 @@ const BakutauJoinFlow: React.FC = () => {
             pathMode === 'quick' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
           }`}
         >
-          Counter panitia
+          Counter
         </button>
       </div>
 
@@ -403,6 +469,13 @@ const BakutauJoinFlow: React.FC = () => {
           >
             Sudah punya akun? Masuk portal
           </a>
+        </div>
+      ) : pathMode === 'email' ? (
+        <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6">
+          <EmailRegisterPanel
+            title="Daftar dengan email"
+            hint="Buat akun email & kata sandi. Setelah masuk, lengkapi profil BAKU TAU di portal."
+          />
         </div>
       ) : (
         <>
@@ -524,10 +597,14 @@ const BakutauJoinFlow: React.FC = () => {
   );
 };
 
-// ---------------- Daftar mandiri via Google ----------------
+// ---------------- Daftar mandiri via Google / Email ----------------
 const GoogleRegister: React.FC<{ onBack?: () => void }> = () => (
   <div className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
     <GoogleRegisterPanel hint="Tanpa password — identitas diverifikasi langsung oleh Google." />
+    <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-[#8C8880]">
+      <span className="flex-1 h-px bg-[#D9D7D0]" /> atau <span className="flex-1 h-px bg-[#D9D7D0]" />
+    </div>
+    <EmailRegisterPanel hint="Atau daftar dengan email & kata sandi." />
   </div>
 );
 

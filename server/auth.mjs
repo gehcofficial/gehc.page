@@ -200,7 +200,8 @@ export async function loginLocal(emailRaw, password) {
 }
 
 /** Verifikasi ID token Google → payload {sub,email,name,picture,...} (dipakai login & join). */
-export async function verifyGoogleCredential(credential) {  if (!process.env.GOOGLE_CLIENT_ID) {
+export async function verifyGoogleCredential(credential) {
+  if (!process.env.GOOGLE_CLIENT_ID) {
     throw new Error('GOOGLE_CLIENT_ID belum dikonfigurasi di server.');
   }
   const client = new Auth.OAuth2Client();
@@ -348,82 +349,6 @@ export async function claimWithGoogleCredential(credential, tokenRaw) {
     include: { roles: true },
   });
   return persistSuperadminRole(user);
-}
-
-/** Tautkan Google ke user yang sudah login (self-service, tanpa claim token). */
-export async function linkGoogleToSessionUser(userId, credential) {
-  if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
-  const p = await verifyGoogleCredential(credential);
-  const prisma = getPrisma();
-
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { roles: true } });
-  if (!user) throw new Error('User tidak ditemukan.');
-  if (user.googleSub && user.linkStatus === 'LINKED' && user.authProvider === 'GOOGLE') {
-    throw new Error('Akun sudah tertaut ke Google.');
-  }
-
-  const taken = await prisma.user.findFirst({ where: { googleSub: p.sub } });
-  if (taken && taken.id !== userId) {
-    throw new Error('Akun Google ini sudah tertaut ke jemaat lain.');
-  }
-  if (p.email) {
-    const emailOwner = await prisma.user.findUnique({ where: { email: p.email } });
-    if (emailOwner && emailOwner.id !== userId) {
-      throw new Error('Email Google ini sudah dipakai jemaat lain.');
-    }
-  }
-
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      googleSub: p.sub,
-      linkStatus: 'LINKED',
-      email: p.email || user.email,
-      name: p.name || user.name,
-      avatar: p.picture || user.avatar,
-      authProvider: 'GOOGLE',
-    },
-    include: { roles: true },
-  });
-  return persistSuperadminRole(updated);
-}
-
-/** Tautkan Google ke user yang sudah login (self-service, tanpa claim token). */
-export async function linkGoogleToSessionUser(userId, credential) {
-  if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
-  const p = await verifyGoogleCredential(credential);
-  const prisma = getPrisma();
-
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { roles: true } });
-  if (!user) throw new Error('User tidak ditemukan.');
-  if (user.googleSub && user.linkStatus === 'LINKED' && user.authProvider === 'GOOGLE') {
-    throw new Error('Akun sudah tertaut ke Google.');
-  }
-
-  const taken = await prisma.user.findFirst({ where: { googleSub: p.sub } });
-  if (taken && taken.id !== userId) {
-    throw new Error('Akun Google ini sudah tertaut ke jemaat lain.');
-  }
-  if (p.email) {
-    const emailOwner = await prisma.user.findUnique({ where: { email: p.email } });
-    if (emailOwner && emailOwner.id !== userId) {
-      throw new Error('Email Google ini sudah dipakai jemaat lain.');
-    }
-  }
-
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      googleSub: p.sub,
-      linkStatus: 'LINKED',
-      email: p.email || user.email,
-      name: p.name || user.name,
-      avatar: p.picture || user.avatar,
-      authProvider: 'GOOGLE',
-    },
-    include: { roles: true },
-  });
-  return persistSuperadminRole(updated);
 }
 
 /** Tautkan Google ke user yang sudah login (self-service, tanpa claim token). */

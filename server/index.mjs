@@ -3131,6 +3131,117 @@ app.post('/api/register/google', wrap(async (req, res) => {
   }
 }));
 
+app.post('/api/register/local', wrap(async (req, res) => {
+  if (!registrationOpen()) {
+    return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup. Ikuti waitlist event terdekat ya!' });
+  }
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  try {
+    const b = req.body || {};
+    const name = String(b.name || '').trim();
+    const email = String(b.email || '').toLowerCase().trim();
+    const password = String(b.password || '');
+    if (!name || !email.includes('@')) {
+      return res.status(400).json({ error: 'Nama dan email valid wajib diisi.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Kata sandi minimal 8 karakter.' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email }, include: { roles: true } });
+    if (existing && (existing.roles || []).length > 0) {
+      return res.status(409).json({
+        error: 'Email sudah terdaftar. Silakan masuk lewat portal dengan email & kata sandi.',
+        existingAccount: true,
+      });
+    }
+
+    const trusted = isSuperadminEmail(email);
+    const status = trusted ? 'ACTIVE' : 'PENDING';
+    const initialRole = trusted ? 'SUPERADMIN' : 'MENTEE';
+
+    const profile = {
+      phone: b.phone ? String(b.phone).slice(0, 40) : null,
+      origin: b.origin ? String(b.origin).slice(0, 190) : null,
+      gender: b.gender ? String(b.gender).slice(0, 20) : null,
+      emergencyContactName: b.emergencyContactName ? String(b.emergencyContactName).trim().slice(0, 150) : null,
+      emergencyContactRelation: b.emergencyContactRelation ? String(b.emergencyContactRelation).slice(0, 50) : null,
+      emergencyContactPhone: b.emergencyContactPhone ? String(b.emergencyContactPhone).trim().slice(0, 40) : null,
+      emergencyContactAddress: b.emergencyContactAddress ? String(b.emergencyContactAddress).trim() : null,
+      talents: Array.isArray(b.talents) ? b.talents : undefined,
+      giftsTop5: Array.isArray(b.giftsTop5) ? b.giftsTop5 : undefined,
+    };
+
+    let user;
+    if (existing) {
+      user = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          accountStatus: status,
+          authProvider: 'LOCAL',
+          passwordHash: hashPassword(password),
+          ...profile,
+        },
+        include: { roles: true },
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          id: `usr-${crypto.randomUUID()}`,
+          email,
+          name,
+          accountStatus: status,
+          bipra: 'PEMUDA',
+          authProvider: 'LOCAL',
+          passwordHash: hashPassword(password),
+          ...profile,
+        },
+        include: { roles: true },
+      });
+    }
+
+    const hasRole = (user.roles || []).some((r) => r.role === initialRole);
+    if (!hasRole) {
+      await prisma.userRole.create({
+        data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
+      });
+      user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
+    }
+
+    const wl = await prisma.waitlistEntry.findFirst({ where: { email } });
+    if (wl && wl.status === 'WAITLISTED') {
+      await prisma.waitlistEntry.update({ where: { id: wl.id }, data: { status: 'PROFILED' } });
+    }
+
+    if (!trusted) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingStatus: 'WAITING_POOL' },
+      });
+      try {
+        await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
+        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+      } catch { /* non-blocking */ }
+    }
+
+    setSessionCookie(res, { uid: user.id, email: user.email });
+    res.json({
+      status,
+      role: initialRole,
+      user: {
+        id: user.id, email: user.email, name: user.name,
+        avatar: user.avatar, accountStatus: status, roles: user.roles,
+      },
+    });
+  } catch (err) {
+    console.error('[register-local] gagal:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+}));
+
 // Agenda terdekat untuk portal terbatas / landing (publik)
 app.get('/api/events/upcoming', wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -3188,13 +3299,19 @@ function googleRedirectUri(req) {
 }
 
 app.get('/api/auth/google/start', wrap(async (req, res) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(503).send('Google OAuth belum dikonfigurasi (CLIENT_ID / SECRET). Panduan: drive-integration.md §8.');
-  }
   const mode = ['login', 'register', 'join'].includes(String(req.query.mode)) ? String(req.query.mode) : 'login';
   const inviteCode = mode === 'join' ? String(req.query.code || '').toUpperCase().slice(0, 16) : undefined;
   const next = typeof req.query.next === 'string' && req.query.next.startsWith('#')
     ? req.query.next : '#/beyonders';
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    const fallback = mode === 'register'
+      ? '#/join?event=bakutau'
+      : mode === 'join' && inviteCode
+        ? `#/join?inv=${encodeURIComponent(inviteCode)}`
+        : next;
+    return res.redirect(302, `/${fallback}`);
+  }
 
   const state = newOAuthState({ mode, code: inviteCode, next });
 
