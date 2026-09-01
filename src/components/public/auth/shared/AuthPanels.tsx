@@ -40,9 +40,9 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
   next,
   loginHref,
   loginLabel = 'Sudah punya akun? Masuk',
-  theme: PanelProps['theme'] = 'light',
+  theme = 'light',
 }) => {
-  const tone = panelTone(theme ?? 'light');
+  const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
   const [clientId, setClientId] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -122,9 +122,9 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
   next,
   loginHref,
   loginLabel = 'Sudah punya akun? Masuk',
-  theme: PanelProps['theme'] = 'light',
+  theme = 'light',
 }) => {
-  const tone = panelTone(theme ?? 'light');
+  const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
