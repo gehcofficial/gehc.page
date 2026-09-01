@@ -8,7 +8,19 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const VISUALS_DIR = join(ROOT, 'public', 'visuals');
+
+function resolveVisualsDir() {
+  const candidates = [
+    join(ROOT, 'public', 'visuals'),
+    join(ROOT, 'dist', 'visuals'),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(join(dir, 'manifest.json'))) return dir;
+  }
+  return candidates[0];
+}
+
+export const VISUALS_DIR = resolveVisualsDir();
 export const MANIFEST_PATH = join(VISUALS_DIR, 'manifest.json');
 
 export function emptySlots() {
