@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-quer
 import { DEFAULT_SLOTS, MEDIA, type LandingMedia, type MediaSlots } from '../config/media';
 
 type SlotsResponse = {
-  source?: 'drive' | 'fallback';
+  source?: 'static' | 'drive' | 'fallback';
   slots?: {
     landing?: Partial<LandingMedia>;
     brand?: { logoGehc?: string };
@@ -37,7 +37,7 @@ function mergeSlots(d: SlotsResponse): MediaSlots {
     kelompok: s.kelompok || {},
     pengurus: s.pengurus || {},
     testimoni: s.testimoni || {},
-    source: d.source === 'drive' ? 'drive' : 'fallback',
+    source: d.source === 'static' || d.source === 'drive' ? d.source : 'fallback',
   };
 }
 
@@ -90,7 +90,7 @@ export function useMediaSlots(): MediaSlots {
 export function MediaSlotsWarmup() {
   const slots = useMediaSlots();
   useEffect(() => {
-    if (slots.source !== 'drive') return;
+    if (slots.source !== 'static' && slots.source !== 'drive') return;
     preloadCriticalMedia(slots);
   }, [slots]);
   return null;

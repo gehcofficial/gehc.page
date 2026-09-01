@@ -131,8 +131,9 @@ export const MediaGuidePanel: React.FC = () => {
         {[
           ['Buka folder visual', 'Klik "Buka Website Visual". Baca _PETA-VISUAL.txt. Nama di Google Drive tetap memakai tag zona; di portal ditampilkan tanpa kurung siku.'],
           ['Timpa file, jangan ganti stem', 'Nama file adalah kunci. Contoh: brand/logo-gehc untuk logo, landing/01-hero-banner untuk Hero (jpg/png boleh).'],
+          ['Publish ke website', 'Setelah update di Drive, Tim Tech jalankan npm run drive:pull-visuals lalu deploy. Visual dilayani CDN (cepat), bukan proxy Drive.'],
           ['Foto warta edisi', 'Marturia menaruh foto di Warta Publik / YYYY-MM-DD-judul / foto — tampil di detail Warta. Didaskalia menulis naskah di CMS.'],
-          ['Selesai', 'Refresh halaman publik (±1 menit cache). Logo & foto pakai file asli Drive, bukan thumbnail Google.'],
+          ['Selesai', 'Refresh halaman publik. Tanpa pull+deploy, fallback Drive API (~1 menit cache).'],
         ].map(([title, desc], i) => (
           <div key={i} className="flex items-start gap-3">
             <span className="w-6 h-6 shrink-0 rounded-full bg-[#181818] text-white text-[10px] font-black flex items-center justify-center mt-0.5">

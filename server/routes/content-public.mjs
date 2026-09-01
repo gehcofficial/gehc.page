@@ -10,6 +10,13 @@ import {
   matchStem,
   slugifyName,
 } from '../lib/website-visuals.mjs';
+import {
+  loadStaticSlots,
+  validateStaticSlots,
+  emptySlots,
+  assignSlot,
+  slotsHasAny,
+} from '../lib/static-visuals.mjs';
 
 const CMS_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
@@ -66,29 +73,16 @@ async function findWebsiteVisualRoot() {
 let slotsCache = { at: 0, data: null };
 const SLOTS_TTL = 60_000;
 
-function emptySlots() {
-  return {
-    landing: {},
-    brand: {},
-    warta: {},
-    kegiatan: {},
-    benzar: {},
-    kelompok: {},
-    pengurus: {},
-    testimoni: {},
-  };
-}
-
-function assignSlot(slots, key, url) {
-  if (!url || !key) return;
-  const [group, rest] = key.split('.');
-  if (!rest) return;
-  if (!slots[group]) slots[group] = {};
-  slots[group][rest] = url;
-}
-
 async function loadDriveSlots() {
   if (slotsCache.data && Date.now() - slotsCache.at < SLOTS_TTL) return slotsCache.data;
+
+  const staticRaw = loadStaticSlots();
+  const staticResult = staticRaw ? validateStaticSlots(staticRaw) : null;
+  if (staticResult) {
+    slotsCache = { at: Date.now(), data: staticResult };
+    return staticResult;
+  }
+
   const slots = emptySlots();
   if (!getDriveMode()) {
     slotsCache = { at: Date.now(), data: { slots, source: 'fallback' } };
@@ -152,7 +146,7 @@ async function loadDriveSlots() {
       }
     }
 
-    const hasAny = Object.values(slots).some((g) => Object.keys(g).length > 0);
+    const hasAny = slotsHasAny(slots);
     slotsCache = { at: Date.now(), data: { slots, source: hasAny ? 'drive' : 'fallback' } };
     return slotsCache.data;
   } catch {

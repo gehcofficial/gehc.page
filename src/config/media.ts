@@ -1,7 +1,7 @@
 /**
  * Pusat media visual landing.
- * Default: placeholder Unsplash. Saat Drive [PUBLIK] tersedia,
- * `useMediaSlots()` / `useLandingMedia()` menimpa URL dari GET /api/media/slots.
+ * Default: placeholder Unsplash. Saat `public/visuals/manifest.json` ada,
+ * `useMediaSlots()` pakai URL CDN statis; fallback Drive API bila belum di-pull.
  */
 export type LandingMedia = {
   heroBanner: string;

@@ -4,9 +4,18 @@ Semua gambar/video publik diikat ke folder Drive lewat **stem nama file tetap**.
 Timpa file dengan stem yang sama (`.jpg` / `.png` / `.webp`); website tidak perlu diubah.
 
 Folder induk: **`Website Visual [PUBLIK]`**  
-Lookup: `GET /api/media/slots` (bukan urutan file).
+Lookup: `GET /api/media/slots` — prioritas **static CDN** (`public/visuals/`) lalu fallback Drive API.
 
 Google One / My Drive **didukung**. Service account hanya **membaca**. Unggah memakai kuota akun Google One (OAuth).
+
+## Alur publish visual (disarankan)
+
+1. Marturia/Komisi **timpa file di Drive** (stem nama tetap).
+2. Tim Tech: `npm run drive:pull-visuals:staging` (atau `:prod`).
+3. Commit `public/visuals/` + push → deploy.
+4. Website langsung pakai `/visuals/...` dari CDN Vercel (cepat, tanpa proxy Drive).
+
+Tanpa langkah 2–3, website tetap bisa baca Drive langsung (~60 detik cache, lebih lambat).
 
 ## Perintah staging / production
 
@@ -15,6 +24,9 @@ npm run drive:provision          # buat folder bila belum ada (SA boleh)
 npm run drive:auth               # sekali — login pemilik Drive (Google One)
 npm run drive:seed-visuals       # unggah ke root STAGING (.env)
 npm run drive:seed-visuals:prod  # unggah ke root PRODUCTION (.env.production)
+npm run drive:pull-visuals       # tarik Drive → public/visuals/ + manifest
+npm run drive:pull-visuals:staging
+npm run drive:pull-visuals:prod
 ```
 
 Redirect URI yang harus ada di OAuth client (salah satu cukup):
