@@ -2,9 +2,9 @@
  * Tarik slot visual dari Google Drive → public/visuals/ + manifest.json.
  * Setelah pull: commit public/visuals/ lalu deploy — website pakai CDN edge (cepat).
  *
- *   npm run drive:pull-visuals           # .env (staging root)
- *   npm run drive:pull-visuals:staging   # .env.staging
- *   npm run drive:pull-visuals:prod      # .env.production
+ *   npm run drive:pull-visuals:staging
+ *   npm run drive:pull-visuals:staging -- --folder=landing
+ *   npm run drive:pull-visuals:staging -- --folder=kelompok
  */
 import 'dotenv/config';
 import { createWriteStream, mkdirSync, statSync, writeFileSync, unlinkSync, renameSync } from 'node:fs';
@@ -15,6 +15,7 @@ import { getUserDrive, hasUserDriveToken } from './lib/gdrive-user-oauth.mjs';
 import {
   VISUAL_SLOTS,
   WEBSITE_VISUAL_FOLDER,
+  WEBSITE_VISUAL_SUBFOLDERS,
   matchStem,
 } from './lib/website-visuals.mjs';
 import {
@@ -26,8 +27,27 @@ import {
   staticUrl,
   localPath,
   writeManifest,
+  loadManifestForMerge,
 } from './lib/static-visuals.mjs';
 import { optimizeImageFile, formatSize } from './lib/visual-optimize.mjs';
+
+const PULLABLE_FOLDERS = [...WEBSITE_VISUAL_SUBFOLDERS, 'pengurus', 'testimoni'];
+
+function parseFolderFilter() {
+  const eq = process.argv.find((a) => a.startsWith('--folder='));
+  const inline =
+    process.argv.includes('--folder') &&
+    process.argv[process.argv.indexOf('--folder') + 1];
+  const raw = eq ? eq.slice('--folder='.length) : inline;
+  if (!raw) return null;
+  const want = String(raw).toLowerCase().trim();
+  if (!PULLABLE_FOLDERS.includes(want)) {
+    console.error(`Folder tidak valid: "${raw}"`);
+    console.error(`Pilihan: ${PULLABLE_FOLDERS.join(', ')}`);
+    process.exit(1);
+  }
+  return want;
+}
 
 function pickSlotFile(files, stem) {
   const matches = (files || []).filter((f) => matchStem(f.name, stem));
@@ -206,8 +226,13 @@ async function main() {
   };
 
   const rootId = process.env.GDRIVE_ROOT_FOLDER_ID || '(root)';
+  const onlyFolder = parseFolderFilter();
   console.log(`Pull visual Drive → ${VISUALS_DIR}`);
-  console.log(`Root folder: ${rootId}\n`);
+  console.log(`Root folder: ${rootId}`);
+  if (onlyFolder) console.log(`Partial sync: folder "${onlyFolder}" (manifest di-merge)\n`);
+  else console.log('Full sync: semua subfolder\n');
+
+  const prevManifest = loadManifestForMerge();
 
   const root = await findNamedFolder(
     undefined,
@@ -221,7 +246,7 @@ async function main() {
 
   const subfolders = await listFoldersFn(root.id, 50);
   const byName = new Map(subfolders.map((f) => [f.name.toLowerCase(), f]));
-  const slots = emptySlots();
+  const slots = prevManifest.slots;
   let downloaded = 0;
 
   const folderNames = new Set([
@@ -229,7 +254,8 @@ async function main() {
     'pengurus',
     'testimoni',
   ]);
-  const foldersToLoad = [...folderNames]
+  const targetFolderNames = onlyFolder ? new Set([onlyFolder]) : folderNames;
+  const foldersToLoad = [...targetFolderNames]
     .map((name) => byName.get(name))
     .filter(Boolean);
 
@@ -242,6 +268,7 @@ async function main() {
   );
 
   for (const slot of VISUAL_SLOTS) {
+    if (onlyFolder && slot.folder.toLowerCase() !== onlyFolder) continue;
     const folder = byName.get(slot.folder.toLowerCase());
     if (!folder) continue;
     const files = filesByFolder.get(folder.id) || [];
@@ -262,7 +289,7 @@ async function main() {
   }
 
   const pengurusFolder = byName.get('pengurus');
-  if (pengurusFolder) {
+  if ((!onlyFolder || onlyFolder === 'pengurus') && pengurusFolder) {
     downloaded += await pullNamedFolder(
       slots,
       oauthDrive,
@@ -273,7 +300,7 @@ async function main() {
   }
 
   const testimoniFolder = byName.get('testimoni');
-  if (testimoniFolder) {
+  if ((!onlyFolder || onlyFolder === 'testimoni') && testimoniFolder) {
     downloaded += await pullNamedFolder(
       slots,
       oauthDrive,
@@ -283,13 +310,20 @@ async function main() {
     );
   }
 
+  if (!downloaded && onlyFolder) {
+    console.error(`\nTidak ada file baru di folder "${onlyFolder}".`);
+    process.exit(1);
+  }
   if (!slotsHasAny(slots)) {
     console.error('\nTidak ada file visual yang berhasil ditarik.');
     process.exit(1);
   }
 
-  const manifest = writeManifest({ slots, rootFolderId: root.id });
-  console.log(`\nSelesai — unduh: ${downloaded} file.`);
+  const manifest = writeManifest({
+    slots,
+    rootFolderId: root.id || prevManifest.rootFolderId,
+  });
+  console.log(`\nSelesai — unduh: ${downloaded} file${onlyFolder ? ` (${onlyFolder})` : ''}.`);
   console.log(`Manifest: ${MANIFEST_PATH}`);
   console.log(`Synced: ${manifest.syncedAt}`);
   console.log('\nLangkah berikutnya:');

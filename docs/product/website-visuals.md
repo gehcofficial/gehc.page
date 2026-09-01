@@ -25,8 +25,8 @@ npm run drive:auth               # sekali — login pemilik Drive (Google One)
 npm run drive:seed-visuals       # unggah ke root STAGING (.env)
 npm run drive:seed-visuals:prod  # unggah ke root PRODUCTION (.env.production)
 npm run drive:pull-visuals       # tarik Drive → public/visuals/ + manifest
-npm run drive:pull-visuals:staging
-npm run drive:pull-visuals:prod
+npm run drive:pull-visuals:staging -- --folder=landing   # partial: satu subfolder saja
+npm run drive:pull-visuals:staging -- --folder=kelompok
 ```
 
 Redirect URI yang harus ada di OAuth client (salah satu cukup):

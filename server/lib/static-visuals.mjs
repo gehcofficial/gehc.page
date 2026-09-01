@@ -79,9 +79,31 @@ export function loadStaticSlots() {
       slots,
       source: 'static',
       syncedAt: manifest.syncedAt || null,
+      rootFolderId: manifest.rootFolderId || null,
     };
   } catch {
     return null;
+  }
+}
+
+/** Muat manifest untuk merge partial pull (tanpa validasi file di disk). */
+export function loadManifestForMerge() {
+  if (!existsSync(MANIFEST_PATH)) {
+    return { slots: emptySlots(), rootFolderId: null, syncedAt: null };
+  }
+  try {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+    const slots = emptySlots();
+    for (const [group, entries] of Object.entries(manifest.slots || {})) {
+      if (entries && typeof entries === 'object') slots[group] = { ...entries };
+    }
+    return {
+      slots,
+      rootFolderId: manifest.rootFolderId || null,
+      syncedAt: manifest.syncedAt || null,
+    };
+  } catch {
+    return { slots: emptySlots(), rootFolderId: null, syncedAt: null };
   }
 }
 
