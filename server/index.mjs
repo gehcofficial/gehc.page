@@ -50,7 +50,9 @@ import {
   bulkApprovePlacementBatch,
   commitPlacementBatch,
   getEligibleNewcomers,
+  resolveNewcomersByIds,
 } from './jethro-placement.mjs';
+import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
 import {
   applyLifeAddressFields,
   reminderDue,
@@ -1868,6 +1870,9 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   res.status(201).json({ event: ev, provisioned });
 }));
 
+// BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
+registerBakuTauRoutes(app, { wrap });
+
 // GET /api/events/:id — detail event + divisi
 app.get('/api/events/:id', wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -2509,34 +2514,9 @@ app.get('/api/jethro/placement', requireRole(...KOMISION), wrap(async (req, res)
 
 /** Advanced placement with 4-factor scoring for specific newcomers */
 app.get('/api/jethro/placement/advanced', requireRole(...KOMISION), wrap(async (req, res) => {
-  const prisma = getPrisma();
   const ids = (req.query.ids || '').split(',').filter(Boolean);
   if (ids.length === 0) return res.status(400).json({ error: 'query ids (comma-separated) wajib.' });
-  // Fetch newcomer details from WaitingPool - accept both WaitingPool IDs and User IDs
-  const newcomers = await getEligibleNewcomers();
-  // Try to match by userId first, then by WaitingPool ID (p.id)
-  const filtered = newcomers.filter((n) => ids.includes(n.id));
-  // If no matches by userId, try matching by WaitingPool ID via a separate query
-  if (filtered.length === 0) {
-    const poolEntries = await prisma.waitingPool.findMany({
-      where: { id: { in: ids }, status: 'PROFILE_COMPLETED', giftTestDone: true, gender: { not: null } },
-      select: { id: true, userId: true, name: true, email: true, gender: true, giftsTop5: true, giftsScores: true },
-    });
-    const filtered2 = poolEntries
-      .filter(p => p.userId && p.giftTestDone && p.gender)
-      .map(p => ({
-        id: p.userId,
-        name: p.name,
-        gender: p.gender,
-        giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
-        giftsScores: p.giftsScores || {},
-        maturityScore: 0,
-      }));
-    if (filtered2.length > 0) {
-      res.json(await recommendPlacementAdvanced(filtered2));
-      return;
-    }
-  }
+  const filtered = await resolveNewcomersByIds(ids);
   if (filtered.length === 0) return res.status(404).json({ error: 'Tidak ada newcomer valid.' });
   res.json(await recommendPlacementAdvanced(filtered));
 }));

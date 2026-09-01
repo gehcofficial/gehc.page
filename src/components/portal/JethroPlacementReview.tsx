@@ -177,7 +177,10 @@ export const JethroPlacementReview: React.FC = () => {
     try {
       const ids = eligibleNewcomers.map((n) => n.id).join(',');
       const res = await fetch(`/api/jethro/placement/advanced?ids=${ids}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal generate rekomendasi');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Gagal generate rekomendasi');
+      }
 
       const { recommendations } = await res.json();
 

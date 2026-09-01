@@ -32,10 +32,19 @@ test.describe('Onboarding + Jethro Placement API flow', () => {
     expect(eligible.length).toBeGreaterThan(0);
 
     const poolId = eligible[0].id;
-    const advRes = await request.get(
+    const userId = eligible[0].userId;
+
+    const advByPool = await request.get(
       `${BASE_URL}/api/jethro/placement/advanced?ids=${poolId}`,
     );
-    expect(advRes.ok()).toBeTruthy();
+    expect(advByPool.ok()).toBeTruthy();
+
+    const advByUser = await request.get(
+      `${BASE_URL}/api/jethro/placement/advanced?ids=${userId}`,
+    );
+    expect(advByUser.ok()).toBeTruthy();
+
+    const advRes = advByUser;
     const { recommendations } = await advRes.json();
     expect(Array.isArray(recommendations)).toBeTruthy();
     expect(recommendations.length).toBeGreaterThan(0);

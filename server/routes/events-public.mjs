@@ -10,7 +10,6 @@ import {
   BAKU_TAU_MAP_EMBED_QUERY,
   whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
-import { registerBakuTauRoutes } from './baku-tau.mjs';
 
 const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
@@ -55,7 +54,7 @@ function hasActiveRole(user) {
 }
 
 export function registerEventsPublicRoutes(app, { wrap }) {
-  registerBakuTauRoutes(app, { wrap });
+  // BAKU TAU exact routes registered early in index.mjs (before /api/events/:id)
 
   app.get('/api/events/:slug', wrap(async (req, res) => {
     const prisma = getPrisma();
