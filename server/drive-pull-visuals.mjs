@@ -7,10 +7,11 @@
  *   npm run drive:pull-visuals:prod      # .env.production
  */
 import 'dotenv/config';
-import { createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createWriteStream, mkdirSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { getDriveMode, listFolders, listFiles, getFileStream } from './gdrive.mjs';
+import { getUserDrive, hasUserDriveToken } from './lib/gdrive-user-oauth.mjs';
 import {
   VISUAL_SLOTS,
   WEBSITE_VISUAL_FOLDER,
@@ -35,8 +36,8 @@ function pickSlotFile(files, stem) {
   )[0];
 }
 
-async function findNamedFolder(parentId, matcher) {
-  const folders = await listFolders(parentId, 100);
+async function findNamedFolder(parentId, matcher, listFn = listFolders) {
+  const folders = await listFn(parentId, 100);
   if (typeof matcher === 'string') {
     const want = matcher.toLowerCase();
     return folders.find((f) => f.name.toLowerCase() === want) || null;
@@ -44,15 +45,73 @@ async function findNamedFolder(parentId, matcher) {
   return folders.find((f) => matcher.test(f.name)) || null;
 }
 
-async function findWebsiteVisualRoot() {
-  return findNamedFolder(undefined, new RegExp(`^${WEBSITE_VISUAL_FOLDER.replace(/[[\]]/g, '\\$&')}$`, 'i'));
+async function findWebsiteVisualRoot(listFn = listFolders) {
+  return findNamedFolder(undefined, new RegExp(`^${WEBSITE_VISUAL_FOLDER.replace(/[[\]]/g, '\\$&')}$`, 'i'), listFn);
 }
 
-async function downloadFile(file, relPath) {
+async function listFolderFiles(drive, folderId, pageSize = 50) {
+  const q = `'${folderId}' in parents and trashed = false`;
+  const res = await drive.files.list({
+    q,
+    pageSize: Math.min(pageSize, 50),
+    orderBy: 'modifiedTime desc',
+    fields:
+      'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, createdTime, modifiedTime)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  return (res.data.files || []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType,
+    modifiedTime: f.modifiedTime,
+  }));
+}
+
+async function streamFile(drive, fileId) {
+  const content = await drive.files.get(
+    { fileId, alt: 'media', supportsAllDrives: true },
+    { responseType: 'stream' }
+  );
+  return content.data;
+}
+
+async function getPullDrive() {
+  const useOAuth = process.argv.includes('--oauth');
+  if (useOAuth || !getDriveMode()) {
+    if (!hasUserDriveToken()) {
+      throw new Error('Drive SA tidak tersedia. Jalankan: npm run drive:auth lalu npm run drive:pull-visuals -- --oauth');
+    }
+    console.log('Mode: OAuth pemilik Drive (Google One)\n');
+    return getUserDrive();
+  }
+  return null;
+}
+
+async function listFoldersVia(drive, parentId, pageSize = 50) {
+  if (!drive) return listFolders(parentId, pageSize);
+  const target = parentId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';
+  const q = `'${target}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = await drive.files.list({
+    q,
+    pageSize: Math.min(pageSize, 100),
+    orderBy: 'name',
+    fields: 'nextPageToken, files(id, name, mimeType)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  return res.data.files || [];
+}
+
+async function downloadFile(drive, file, relPath) {
   const dest = localPath(relPath);
   mkdirSync(dirname(dest), { recursive: true });
-  const { stream } = await getFileStream(file.id);
+  const stream = drive ? await streamFile(drive, file.id) : (await getFileStream(file.id)).stream;
   await pipeline(stream, createWriteStream(dest));
+  const size = statSync(dest).size;
+  if (size > 2_000_000) {
+    console.warn(`  ⚠ ${relPath} — ${Math.round(size / 1024 / 1024)}MB (pertimbangkan kompresi sebelum commit)`);
+  }
   return statSync(dest).mtimeMs;
 }
 
@@ -60,7 +119,7 @@ function relFromFile(folder, fileName) {
   return `${folder}/${fileName}`;
 }
 
-async function pullNamedFolder(slots, folderKey, files, skipPrefix) {
+async function pullNamedFolder(slots, oauthDrive, folderKey, files, skipPrefix) {
   let count = 0;
   for (const f of files) {
     const stem = String(f.name || '').replace(/\.[^.]+$/, '').toLowerCase();
@@ -68,7 +127,7 @@ async function pullNamedFolder(slots, folderKey, files, skipPrefix) {
     if (!f.mimeType?.startsWith('image/') && !f.mimeType?.startsWith('video/')) continue;
     const rel = relFromFile(folderKey, f.name);
     try {
-      const mtime = await downloadFile(f, rel);
+      const mtime = await downloadFile(oauthDrive, f, rel);
       slots[folderKey][stem] = staticUrl(rel, mtime);
       count += 1;
       console.log(`  + ${rel}`);
@@ -80,22 +139,43 @@ async function pullNamedFolder(slots, folderKey, files, skipPrefix) {
 }
 
 async function main() {
-  if (!getDriveMode()) {
+  let oauthDrive = null;
+  try {
+    oauthDrive = await getPullDrive();
+  } catch (e) {
+    if (!getDriveMode()) {
+      console.error(e.message);
+      process.exit(1);
+    }
+  }
+
+  if (!oauthDrive && !getDriveMode()) {
     console.error('Google Drive belum dikonfigurasi (GOOGLE_SERVICE_ACCOUNT_JSON / GOOGLE_APPLICATION_CREDENTIALS).');
     process.exit(1);
   }
+
+  const listFoldersFn = (parentId, size) =>
+    oauthDrive ? listFoldersVia(oauthDrive, parentId, size) : listFolders(parentId, size);
+  const listFilesFn = async (folderId) => {
+    if (oauthDrive) return listFolderFiles(oauthDrive, folderId);
+    return listFiles({ folderId, pageSize: 50, fresh: true });
+  };
 
   const rootId = process.env.GDRIVE_ROOT_FOLDER_ID || '(root)';
   console.log(`Pull visual Drive → ${VISUALS_DIR}`);
   console.log(`Root folder: ${rootId}\n`);
 
-  const root = await findWebsiteVisualRoot();
+  const root = await findNamedFolder(
+    undefined,
+    new RegExp(`^${WEBSITE_VISUAL_FOLDER.replace(/[[\]]/g, '\\$&')}$`, 'i'),
+    listFoldersFn
+  );
   if (!root) {
     console.error(`Folder "${WEBSITE_VISUAL_FOLDER}" tidak ditemukan di root Drive.`);
     process.exit(1);
   }
 
-  const subfolders = await listFolders(root.id, 50);
+  const subfolders = await listFoldersFn(root.id, 50);
   const byName = new Map(subfolders.map((f) => [f.name.toLowerCase(), f]));
   const slots = emptySlots();
   let downloaded = 0;
@@ -112,7 +192,7 @@ async function main() {
   const filesByFolder = new Map();
   await Promise.all(
     foldersToLoad.map(async (folder) => {
-      const files = await listFiles({ folderId: folder.id, pageSize: 50, fresh: true });
+      const files = await listFilesFn(folder.id);
       filesByFolder.set(folder.id, files);
     })
   );
@@ -128,7 +208,7 @@ async function main() {
     }
     const rel = relFromFile(slot.folder, file.name);
     try {
-      const mtime = await downloadFile(file, rel);
+      const mtime = await downloadFile(oauthDrive, file, rel);
       assignSlot(slots, slot.key, staticUrl(rel, mtime));
       downloaded += 1;
       console.log(`  + ${rel}`);
@@ -141,6 +221,7 @@ async function main() {
   if (pengurusFolder) {
     downloaded += await pullNamedFolder(
       slots,
+      oauthDrive,
       'pengurus',
       filesByFolder.get(pengurusFolder.id) || [],
       'contoh-'
@@ -151,6 +232,7 @@ async function main() {
   if (testimoniFolder) {
     downloaded += await pullNamedFolder(
       slots,
+      oauthDrive,
       'testimoni',
       filesByFolder.get(testimoniFolder.id) || [],
       'contoh-'

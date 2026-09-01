@@ -38,7 +38,11 @@ function cacheVersion(file) {
 function publicFileUrl(file) {
   if (!file) return null;
   const v = cacheVersion(file);
-  // Stream via API — thumbnail Google CDN sering stale setelah replace-in-place di Drive.
+  // Gambar: CDN Google (s1200) — proxy penuh via Vercel timeout untuk file besar (>10MB).
+  if (file.mimeType?.startsWith('image/')) {
+    const cdn = file.thumbnailUrl || (file.thumbnailLink || '').replace(/=s\d+.*$/, '=s1200');
+    if (cdn) return `${cdn}${cdn.includes('?') ? '&' : '?'}v=${v}`;
+  }
   return `/api/drive/file/${file.id}/content?v=${v}`;
 }
 

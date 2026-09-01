@@ -30,6 +30,26 @@ export function getDriveMode() {
 
 let cachedClient = null;
 
+function parseServiceAccountJson(raw) {
+  if (!raw) throw new Error('Service account JSON kosong.');
+  try {
+    return JSON.parse(raw);
+  } catch (first) {
+    // .env sering berisi private_key multiline tanpa escape — normalisasi sekali.
+    const fixed = raw
+      .replace(/\r/g, '')
+      .replace(/"private_key"\s*:\s*"([^"]*(?:\\n[^"]*)*)"/s, (_, key) => {
+        const escaped = key.replace(/\n/g, '\\n').replace(/\\n/g, '\\n');
+        return `"private_key":"${escaped}"`;
+      });
+    try {
+      return JSON.parse(fixed);
+    } catch {
+      throw first;
+    }
+  }
+}
+
 async function getDrive() {
   if (cachedClient) return cachedClient;
 
@@ -39,7 +59,7 @@ async function getDrive() {
   if (mode === 'service-account') {
     let credentials;
     if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      credentials = parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     } else {
       const { readFileSync } = await import('node:fs');
       credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
