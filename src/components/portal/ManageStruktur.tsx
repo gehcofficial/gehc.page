@@ -598,12 +598,12 @@ export const ManageStruktur: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, division: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
                   >
-                    <option value="LITURGIA">LITURGIA — Ibadah & Doa</option>
-                    <option value="DIDASKALIA">DIDASKALIA — Kurikulum & Pembekalan</option>
-                    <option value="KOINONIA">KOINONIA — Persekutuan & PR</option>
-                    <option value="DIAKONIA">DIAKONIA — Logistik, Konsumsi, Medis</option>
-                    <option value="MARTURIA">MARTURIA — Multimedia, Dokumentasi, Injili</option>
-                    <option value="BENZARPR">Benzarpreneurship — Merchandise, Fundraising, Donation</option>
+                    <option value="LITURGIA">LITURGIA — Liturgi, Musik & Doa</option>
+                    <option value="DIDASKALIA">DIDASKALIA — Kurikulum & Pembekalan Tim</option>
+                    <option value="KOINONIA">KOINONIA — Acara, Persekutuan & Komunikasi</option>
+                    <option value="DIAKONIA">DIAKONIA — Logistik, Mercy & Perantau</option>
+                    <option value="MARTURIA">MARTURIA — Dokumentasi, Desain & Kesaksian</option>
+                    <option value="BENZARPR">Benzarpreneurship — Merch, Fundraising, Donasi</option>
                   </select>
                 </div>
                 <div className="sm:col-span-2">
@@ -612,7 +612,7 @@ export const ManageStruktur: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="cth. Pendoa / Konsumsi / Merchandise"
+                    placeholder="cth. Doa & Intercession / Kasih Peduli & Benevolence"
                     value={formData.subdivision}
                     onChange={(e) => setFormData({ ...formData, subdivision: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"

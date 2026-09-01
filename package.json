@@ -40,7 +40,7 @@
     "db:seed:attendance:staging": "dotenv -e .env.staging -- tsx server/seed-attendance.ts",
     "db:seed-users:staging": "dotenv -e .env.staging -- tsx server/seed-users.ts",
     "db:seed:org-tree:staging": "dotenv -e .env.staging -- tsx server/seed-org-tree.ts",
-    "db:seed:org-tree": "tsx server/seed-org-tree.ts",
+    "db:migrate:pancatugas": "node server/migrate-pancatugas-subdivisions.cjs",
     "db:migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",
     "drive:auth": "node server/drive-auth.mjs",
     "drive:provision": "node server/drive-provision.mjs",

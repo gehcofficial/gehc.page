@@ -9,7 +9,7 @@
   **Liturgia · Didaskalia · Koinonia · Diakonia · Marturia**
 - **Sub-divisi = unit teknis** di bawah tiap fungsi — *extensible*: bisa bertambah sewaktu-waktu cukup lewat data/portal, tanpa perubahan kode atau migrasi DB.
 - **Divisi Struktur** di luar pantatugas: Badan Pekerja Majelis Jemaat (BPMJ), Komisi Pemuda, dan Tim Kerja — bertanggung jawab kepada Ketua BPMJ.
-- **Benzarpreneurship (BZP)** = divisi terpisah untuk usaha & merchandise, di bawah Tim Kerja, dipimpin Kepala BZP (Fladyna Mondoringin). Sub-divisi: **Merchandise · Fundraising · Donation**.
+- **Benzarpreneurship (BZP)** = divisi operasional usaha & dana di bawah Tim Kerja, **tanpa Kepala Divisi** — langsung ke BOD Tim Kerja. Sub-divisi: **Merchandise & Produk · Penggalangan Dana · Persembahan & Donasi**. PIC Penggalangan Dana: Fladyna Mondoringin.
 - **Beyonders = keseluruhan kelompok mentoring** — target audiens pelayanan Komisi, Tim Kerja, dan segenap Panca Tugas. BUKAN milik salah satu panca tugas dan TIDAK dibagi per-panca-tugas. Detail direktori & regenerasi tampil lewat navbar **`#/beyonders`** (GroupsCarousel + Jethro Engine).
 - Nama personal menyusul; sistem memakai placeholder per-peran
   (email = nama peran, domain `@gehc.demo`, staging only).
@@ -37,14 +37,12 @@ BPMJ (Badan Pekerja Majelis Jemaat)
 
    ├─ BEYONDERS  : kelompok mentoring — target audiens seluruh pelayanan
    │               (direktori lengkap di navbar #/beyonders)
-   ├─ LITURGIA    : Liturgi & Musik · Pendoa · Intercessor
-   ├─ DIDASKALIA  : Kurikulum & Pembekalan (Main Speaker: Putri Massie & Alvandi Saerang)
-   ├─ KOINONIA    : Program Persekutuan (incl. PIC Acara/Rundown — Krisetia Mamoto)
-   │              · Public Relations (PR) ⭐ — follow-up, MC, sosmed
-   ├─ DIAKONIA    : Logistik & Akomodasi · Konsumsi · Medis & First Aid
-   ├─ MARTURIA    : Dokumentasi · Desain & Publikasi · Penginjilan Praktis
-   └─ BZP (Benzarpreneurship) — Kepala: Fladyna Mondoringin
-                : Merchandise · Fundraising · Donation
+   ├─ LITURGIA    : Liturgi & Ibadah · Musik & Vokal · Doa & Intercession — HoD: Holly Kalele
+   ├─ DIDASKALIA  : Kurikulum Pemuridan · Pembekalan Tim — HoD: rekrutmen (Lead Equippers: Putri & Alvandi)
+   ├─ KOINONIA    : Program & Acara · Persekutuan & Integrasi · Hubungan & Komunikasi ⭐
+   ├─ DIAKONIA    : Logistik & Fasilitas · Konsumsi & Keramahan · Kesehatan & Keselamatan · Kasih Peduli & Benevolence · Dukungan Perantau
+   ├─ MARTURIA    : Dokumentasi Visual · Desain & Publikasi · Kesaksian & Story · Penginjilan & Misi — HoD: Gievara Bogar
+   └─ BZP         : Merchandise & Produk · Penggalangan Dana (Fladyna) · Persembahan & Donasi — lapor BOD, tanpa HoD
 
 🆕 = peran baru hasil pemetaan dari divisi retreat.
 ⭐ = PR menangkap data newcomer pasca-retreat → Placement Recommender (Jethro Engine).
@@ -102,37 +100,36 @@ Menambah sub-divisi baru (contoh nyata ke depan: "Tim Medis Mobile", "Kelas Pra-
 
 ## 6. Struktur Divisi & Penugasan Orang (Reference)
 
-| Divisi | Penugasan Utama | Pengurus Kunci |
-|--------|----------------|---------------|
-| **BPMJ** | Payung tertinggi pelayanan pemuda | Ketua: Pdt Meyke Poluan Sth Mpdk |
-| **Komisi Pemuda** | Program pemuda periode 5 tahun | Ketua: Pnt Stevania Hadinda |
-| **Tim Kerja** | Bantuan program pelayanan tahunan | Ketua: Theodore Beckham Milano Kowaas |
-| **Liturgia** | Memuliakan Tuhan dalam ibadah & musik | PIC: Holly Kalele |
-| **Didaskalia** | Mengajar & memperlengkapi lewat firman | Main Speaker: Putri Massie & Alvandi Saerang |
-| **Koinonia** | Memelihara persekutuan & relasi baru | ⭐ PR (follow-up/MC/sosmed); Krisetia Mamoto — PIC Acara |
-| **Diakonia** | Melayani kebutuhan praktis | PIC: Prichel Kampong & Artjuna Timbuleng |
-| **Marturia** | Menjadi saksi & menginjili | MTDD: Gievara Bogar |
-| **Benzarpreneurship (BZP)** | Usaha & dana: Merchandise · Fundraising · Donation | Kepala: Fladyna Mondoringin |
+| Divisi | Kepala Divisi | Pengurus Kunci |
+|--------|---------------|---------------|
+| **Liturgia** | Holly Kalele | Sub: Liturgi & Ibadah, Musik & Vokal, Doa & Intercession |
+| **Didaskalia** | *Rekrutmen berlangsung* | Lead Equippers: Putri Massie & Alvandi Saerang (Pembekalan Tim) |
+| **Koinonia** | *Rekrutmen berlangsung* | PIC Acara: Krisetia Mamoto (Program & Acara); ⭐ Hubungan & Komunikasi → Jethro |
+| **Diakonia** | *Rekrutmen berlangsung* | PIC: Prichel Kampong (Logistik), Artjuna Timbuleng (Konsumsi) |
+| **Marturia** | Gievara Bogar | Sub: Dokumentasi, Desain, Kesaksian, Penginjilan |
+| **BZP** | *(tidak ada — lapor BOD)* | PIC Penggalangan Dana: Fladyna Mondoringin |
 
-## 7. Concern & Penyesuaian
+Runbook lengkap: [`pancatugas-operating-model.md`](pancatugas-operating-model.md).
 
-1. **Intercession / Pendoa**: Difinalisasi menjadi sub-divisi terpisah di bawah LITURGIA dengan definisi tugas jelas.
-2. **Koordinator Program / PIC Acara (Krisetia Mamoto)**: Masuk KOINONIA › Program Persekutuan — tidak lagi divisi PENOPANG terpisah.
-3. **Follow-up Newcomer → Public Relations (PR)**: Tetap di Koinonia; PR menangkap data newcomer → Jethro Engine, sekaligus bertugas MC acara & update sosmed.
-4. **Main Speaker / Pembekal (Putri Massie & Alvandi Saerang)**: Dilebur ke DIDASKALIA › Kurikulum & Pembekalan.
-5. **Usaha & Merchandise & Fundraising & Donation**: Semua di **BZP** di bawah Tim Kerja, dipimpin Kepala BZP Fladyna Mondoringin; melapor kepada Bendahara Komisi/Tim Kerja.
-6. **Setiap Divisi punya Head of Division + Committee Member per sub-divisi**: Struktur diharapkan ditambahkan di dokumentasi §6-§8.
+## 7. Concern & Penyesuaian (v2 — 2026)
 
-## 8. Pillar & Sub-divisi Reference Table (Reference)
+1. **HoD wajib** untuk 5 panca tugas; posisi kosong → `Kepala Divisi — Rekrutmen Berlangsung`.
+2. **BZP tanpa HoD** — Fladyna masuk sub **Penggalangan Dana**, bukan Kepala BZP.
+3. **Koinonia** dipecah: Program & Acara · Persekutuan & Integrasi · Hubungan & Komunikasi (ex-PR).
+4. **Diakonia** diperluas: Kasih Peduli & Benevolence + Dukungan Perantau (Reformed mercy + konteks Cikarang).
+5. **Marturia** diperluas: Kesaksian & Story (witness-first, bukan hanya media).
+6. **Liturgia**: Liturgi & Ibadah + Musik & Vokal + Doa & Intercession (gabung Pendoa/Intercessor).
 
-| Pillar | Contoh Sub-divisi | Warna |
-|--------|-------------------|-------|
-| LITURGIA | Liturgi & Musik, Pendoa, Intercessor | Ungu |
-| DIDASKALIA | Kurikulum & Pembekalan | Biru |
-| KOINONIA | Program Persekutuan, Public Relations (PR) | Hijau |
-| DIAKONIA | Logistik & Akomodasi, Konsumsi, Medis & First Aid | Oranye |
-| MARTURIA | Dokumentasi, Desain & Publikasi, Penginjilan Praktis | Merah |
-| BENZARPR (BZP) | Merchandise, Fundraising, Donation — Kepala: Fladyna Mondoringin | Kuning/Emas |
+## 8. Pillar & Sub-divisi Reference Table
+
+| Pillar | Sub-divisi (v1) | Warna |
+|--------|-----------------|-------|
+| LITURGIA | Liturgi & Ibadah, Musik & Vokal, Doa & Intercession | Ungu |
+| DIDASKALIA | Kurikulum Pemuridan, Pembekalan Tim | Biru |
+| KOINONIA | Program & Acara, Persekutuan & Integrasi, Hubungan & Komunikasi ⭐ | Hijau |
+| DIAKONIA | Logistik & Fasilitas, Konsumsi & Keramahan, Kesehatan & Keselamatan, Kasih Peduli & Benevolence, Dukungan Perantau | Oranye |
+| MARTURIA | Dokumentasi Visual, Desain & Publikasi, Kesaksian & Story, Penginjilan & Misi | Merah |
+| BENZARPR | Merchandise & Produk, Penggalangan Dana, Persembahan & Donasi | Kuning/Emas |
 
 ## 9. Beyonders — Kelompok Mentoring
 
@@ -162,16 +159,32 @@ BPMJ → Komisi Pemuda → Tim Kerja
 
 ---
 
-## 10. Struktur Pillar & Sub-divisi (Reference)
+## 10. Struktur Pillar & Sub-divisi + Migrasi Nama
 
-| Pillar | Sub-divisi | Contoh Warna |
-|--------|------------|-------------|
-| LITURGIA | Liturgi & Musik, Pendoa, Intercessor | Ungu (#7C3AED) |
-| DIDASKALIA | Kurikulum & Pembekalan | Biru (#0EA5E9) |
-| KOINONIA | Program Persekutuan, Public Relations (PR) ⭐ | Hijau (#059669) |
-| DIAKONIA | Logistik & Akomodasi, Konsumsi, Medis & First Aid | Oranye (#EA580C) |
-| MARTURIA | Dokumentasi, Desain & Publikasi, Penginjilan Praktis | Merah (#DC2626) |
-| BENZARPR (BZP) | Merchandise, Fundraising, Donation — Kepala: Fladyna Mondoringin | Kuning/Emas (#F6AE4A) |
+| Divisi | Lama | Baru |
+|--------|------|------|
+| LITURGIA | Liturgi & Musik | Musik & Vokal (+ Liturgi & Ibadah baru) |
+| LITURGIA | Pendoa + Intercessor | Doa & Intercession |
+| DIDASKALIA | Kurikulum & Pembekalan | Kurikulum Pemuridan + Pembekalan Tim |
+| KOINONIA | Program Persekutuan | Program & Acara |
+| KOINONIA | Public Relations (PR) | Hubungan & Komunikasi |
+| DIAKONIA | Logistik & Akomodasi | Logistik & Fasilitas |
+| DIAKONIA | Konsumsi | Konsumsi & Keramahan |
+| DIAKONIA | Medis & First Aid | Kesehatan & Keselamatan |
+| MARTURIA | Dokumentasi | Dokumentasi Visual |
+| MARTURIA | Penginjilan Praktis | Penginjilan & Misi |
+| BENZARPR | Merchandise / Fundraising / Donation | Merchandise & Produk / Penggalangan Dana / Persembahan & Donasi |
+
+Jalankan: `npm run db:migrate:pancatugas` lalu reseed org tree & audit Drive.
+
+| Pillar | Sub-divisi | Warna |
+|--------|------------|-------|
+| LITURGIA | Liturgi & Ibadah, Musik & Vokal, Doa & Intercession | Ungu (#7C3AED) |
+| DIDASKALIA | Kurikulum Pemuridan, Pembekalan Tim | Biru (#0EA5E9) |
+| KOINONIA | Program & Acara, Persekutuan & Integrasi, Hubungan & Komunikasi ⭐ | Hijau (#059669) |
+| DIAKONIA | Logistik & Fasilitas, Konsumsi & Keramahan, Kesehatan & Keselamatan, Kasih Peduli & Benevolence, Dukungan Perantau | Oranye (#EA580C) |
+| MARTURIA | Dokumentasi Visual, Desain & Publikasi, Kesaksian & Story, Penginjilan & Misi | Merah (#DC2626) |
+| BENZARPR | Merchandise & Produk, Penggalangan Dana, Persembahan & Donasi | Kuning (#F6AE4A) |
 
 ⭐ = PR menangkap data newcomer pasca-retreat → Placement Recommender (Jethro Engine).
 

@@ -58,17 +58,18 @@ ROOT_GEHC/
 │   ├── AGAPE [GROUP:AGAPE]/
 │   └── …10 grup…                      (nama = tabel `groups`, case-insensitive)
 ├── Liturgia [MENTOR]/               ← pantatugas (anak = subdivisi)
-│   ├── Liturgi & Musik/  Pendoa/  Intercessor/
+│   ├── Liturgi & Ibadah/  Musik & Vokal/  Doa & Intercession/
 ├── Didaskalia [MENTOR]/
-│   └── Kurikulum & Pembekalan/
+│   └── Kurikulum Pemuridan/  Pembekalan Tim/
 ├── Koinonia [MENTOR]/
-│   └── Program Persekutuan/  Public Relations (PR)/
+│   └── Program & Acara/  Persekutuan & Integrasi/  Hubungan & Komunikasi/
 ├── Diakonia [MENTOR]/
-│   └── Logistik/  Konsumsi/  Medis/
+│   └── Logistik & Fasilitas/  Konsumsi & Keramahan/  Kesehatan & Keselamatan/
+│       Kasih Peduli & Benevolence/  Dukungan Perantau/
 ├── Marturia [MENTOR]/
-│   └── Dokumentasi/  Desain & Publikasi/  Penginjilan/
-├── Benzarpreneurship - BZP [MENTOR]/   ← usaha & dana (Kepala: Fladyna)
-│   └── Merchandise/  Fundraising/  Donation/
+│   └── Dokumentasi Visual/  Desain & Publikasi/  Kesaksian & Story/  Penginjilan & Misi/
+├── Benzarpreneurship - BZP [MENTOR]/   ← lapor BOD (tanpa HoD); PIC Fundraising: Fladyna
+│   └── Merchandise & Produk/  Penggalangan Dana/  Persembahan & Donasi/
 ├── Laporan Internal [KOMISI]/       ← output Jethro, arsip komisi
 ├── Ringkasan BPMJ [BPMJ]/           ← baca-only BPMJ
 └── Arsip Generasi [ALUMNI]/         ← alumni tetap bisa mengunjungi
@@ -141,7 +142,8 @@ npm run drive:seed-visuals
 - Prasyarat: share folder ROOT ke service account sebagai **Content Manager**
   (Viewer tidak bisa membuat folder).
 - Sumber struktur = **database aktif**: grup aktif → `[GROUP:x]`, subdivisi
-  pantatugas → subfolder pillar, plus zona statis. Total ±36 folder.
+  pantatugas → subfolder pillar (20 sub-divisi v1), plus zona statis.
+- Migrasi rename: `npm run db:migrate:pancatugas` → `npm run db:seed-users:staging` → `npm run drive:provision` → Audit di portal.
 - Idempotent — aman diulang kapan pun (misal setelah tambah grup baru).
 - `drive:seed-visuals` mengunggah placeholder + `_PETA-VISUAL.txt` ke root **staging**.
 - `drive:seed-visuals:prod` sama, ke root di `.env.production` (lihat [`website-visuals.md`](../product/website-visuals.md)).

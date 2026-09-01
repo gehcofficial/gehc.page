@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current priority — Drive visual + logo (staging + prod)
+## Current priority — Panca Tugas v2 restructure
+
+**Goal:** 20 sub-divisi (5 pillar + BZP), HoD per panca tugas, BZP tanpa HoD (Fladyna → Penggalangan Dana), label ID/EN, runbook operasional.
+
+### Done
+
+- [`docs/product/pancatugas-operating-model.md`](docs/product/pancatugas-operating-model.md) — RACI + runbook H-21→H+7
+- [`src/lib/pantatugas.ts`](src/lib/pantatugas.ts) — SUB_DIVISIONS v2 + migration map
+- [`src/data/initialData.ts`](src/data/initialData.ts) — struktur seed dengan HoD + open roles
+- [`src/components/public/StrukturSection.tsx`](src/components/public/StrukturSection.tsx) — HoD block + badge rekrutmen
+- `server/seed-org-tree.ts` — slot Kepala Divisi per pillar
+- `server/migrate-pancatugas-subdivisions.cjs` + `npm run db:migrate:pancatugas`
+
+### Commands (apply to staging DB + Drive)
+
+```powershell
+npm run db:migrate:pancatugas
+npm run db:seed-users:staging
+npm run db:seed:org-tree:staging
+npm run drive:provision
+# Portal → Integrasi → Audit Sinkronisasi Drive
+npm run test -- tests/unit/pantatugas.test.ts
+```
+
+---
+
+## Prior — Drive visual + logo (staging + prod)
 
 **Goal:** Slot visual publik (termasuk logo GEHC) di Google One, stem tetap. SA baca; unggah via OAuth. Staging dan production punya root Drive terpisah.
 

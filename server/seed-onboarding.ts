@@ -169,14 +169,14 @@ async function seedRoleAssignments() {
     { userId: 'usr-theodore-kowaas', name: 'Theodore Beckham Milano Kowaas', position: 'Ketua Tim Kerja', division: 'TIMKERJA' },
     { userId: 'usr-zhanon-lausan', name: 'Zhanon Varelie Lausan', position: 'Sekretaris Tim Kerja', division: 'TIMKERJA' },
     { userId: 'usr-milithya-wuisan', name: 'Milithya Christy Kerin Wuisan', position: 'Bendahara Tim Kerja', division: 'TIMKERJA' },
-    { userId: 'usr-krisetia-mamoto', name: 'Krisetia Mamoto', position: 'PIC Acara & Rundown', division: 'KOINONIA', subdivision: 'Program Persekutuan' },
-    { userId: 'usr-fladyna-mondoringin', name: 'Fladyna Mondoringin', position: 'Kepala Benzarpreneurship', division: 'BENZARPR' },
-    { userId: 'usr-holly-kalele', name: 'Holly Kalele', position: 'PIC Ibadah', division: 'LITURGIA', subdivision: 'Liturgi & Musik' },
-    { userId: 'usr-prichel-kampong', name: 'Prichel Kampong', position: 'PIC Logistik', division: 'DIAKONIA', subdivision: 'Logistik & Akomodasi' },
-    { userId: 'usr-gievara-bogar', name: 'Gievara Bogar', position: 'PIC MTDD', division: 'MARTURIA', subdivision: 'Desain & Publikasi' },
-    { userId: 'usr-artjuna-timbuleng', name: 'Artjuna Timbuleng', position: 'PIC Konsumsi', division: 'DIAKONIA', subdivision: 'Konsumsi' },
-    { userId: 'usr-putri-massie', name: 'Putri Massie', position: 'Main Speaker', division: 'DIDASKALIA', subdivision: 'Kurikulum & Pembekalan' },
-    { userId: 'usr-alvandi-saerang', name: 'Alvandi Saerang', position: 'Main Speaker', division: 'DIDASKALIA', subdivision: 'Kurikulum & Pembekalan' },
+    { userId: 'usr-krisetia-mamoto', name: 'Krisetia Mamoto', position: 'PIC Acara & Rundown', division: 'KOINONIA', subdivision: 'Program & Acara' },
+    { userId: 'usr-fladyna-mondoringin', name: 'Fladyna Mondoringin', position: 'Koordinator Penggalangan Dana', division: 'BENZARPR', subdivision: 'Penggalangan Dana' },
+    { userId: 'usr-holly-kalele', name: 'Holly Kalele', position: 'Kepala Divisi', division: 'LITURGIA' },
+    { userId: 'usr-prichel-kampong', name: 'Prichel Kampong', position: 'PIC Logistik & Fasilitas', division: 'DIAKONIA', subdivision: 'Logistik & Fasilitas' },
+    { userId: 'usr-gievara-bogar', name: 'Gievara Bogar', position: 'Kepala Divisi', division: 'MARTURIA' },
+    { userId: 'usr-artjuna-timbuleng', name: 'Artjuna Timbuleng', position: 'PIC Konsumsi & Keramahan', division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan' },
+    { userId: 'usr-putri-massie', name: 'Putri Massie', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim' },
+    { userId: 'usr-alvandi-saerang', name: 'Alvandi Saerang', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim' },
   ];
 
   for (const c of COMMITTEE_MAP) {

@@ -9,7 +9,7 @@ import {
   Flame,
   Loader2,
 } from 'lucide-react';
-import { PANTATUGAS } from '../../lib/pantatugas';
+import { PANTATUGAS, DIVISION_HEAD_POSITION, subDivisions } from '../../lib/pantatugas';
 
 // Daftar nama divisi structural
 const structuralNames = ['BPMJ', 'KOMISI', 'LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
@@ -26,17 +26,10 @@ const STRUCTURAL_COLORS = {
   BENZARPR: '#F6AE4A',
 }
 
-// Count per divisi sesuai permintaan
-const divisionCounts: Record<string, number> = {
-  BPMJ: 3,
-  KOMISI: 2,
-  LITURGIA: 3,
-  DIDASKALIA: 2,
-  KOINONIA: 2,
-  DIAKONIA: 3,
-  MARTURIA: 4,
-  BENZARPR: 1,
-}
+// Jumlah sub-divisi per pillar (HoD ditampilkan terpisah)
+const divisionCounts: Record<string, number> = Object.fromEntries(
+  PANTATUGAS.map((p) => [p.name, subDivisions(p.name).length])
+);
 
 interface Member {
   id: string;
@@ -64,22 +57,29 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const Icon = isStructural ? (structuralNames.includes(pillar.name) ? Crown : Flame) : pillar.icon;
-  const label = (value?: string | null) => trLabel(t.orgTree.labels, value);
+  const tr = (value?: string | null) => trLabel(t.orgTree.labels, value);
   const serveIdx = PANTATUGAS.findIndex((p) => p.name === pillar.name);
   const tagline = t.serve.items[serveIdx]?.tagline ?? pillar.tagline;
   const displayName = t.serve.items[serveIdx]?.label ?? pillar.name;
-  const officerCount = divisionCounts[pillar.name] ?? 0;
-  const officerWord = officerCount === 1 ? t.orgTree.officer : t.orgTree.officers;
+  const subCount = divisionCounts[pillar.name] ?? 0;
+  const officerWord = subCount === 1 ? t.orgTree.officer : t.orgTree.officers;
+  const hasHod = pillar.name !== 'BENZARPR';
+
+  const headMembers = useMemo(
+    () => members.filter((m) => m.position === DIVISION_HEAD_POSITION),
+    [members]
+  );
 
   const groups = useMemo(() => {
     const map = new Map<string, Member[]>();
     for (const m of members) {
-      const key = m.subdivision?.trim() || 'Anggota';
+      if (m.position === DIVISION_HEAD_POSITION) continue;
+      const key = m.subdivision?.trim() || t.orgTree.membersFallback;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(m);
     }
     return [...map.entries()];
-  }, [members]);
+  }, [members, t.orgTree.membersFallback]);
 
   return (
     <div className="rounded-3xl border border-[#D9D7D0]/60 bg-white overflow-hidden shadow-sm">
@@ -102,7 +102,7 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
             <p className="text-[10px] text-[#8C8880] truncate">{tagline}</p>
           )}
           <p className="text-[10px] text-[#8C8880] uppercase tracking-widest">
-            {officerCount} {officerWord}
+            {hasHod ? `${t.orgTree.headDivisionLabel} · ` : ''}{subCount} {officerWord}
           </p>
         </div>
         <span className="text-[10px] font-bold text-[#8C8880] bg-[#F3F1EC] rounded-full px-2 py-0.5 shrink-0">
@@ -117,13 +117,50 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
 
       {open && (
         <div className="border-t border-dashed border-[#D9D7D0]/70 px-4 py-3 space-y-3 bg-[#FAF9F5]/60">
-          {groups.length === 0 && (
+          {hasHod && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-1.5">
+                {t.orgTree.headDivisionLabel}
+              </p>
+              {headMembers.length === 0 && (
+                <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
+                  {t.orgTree.headRecruiting} — {t.orgTree.openSuffix}
+                </span>
+              )}
+              {headMembers.map((m) => (
+                <div key={m.id} className="flex items-center gap-2.5">
+                  <img
+                    src={m.photoUrl || initialsAvatar(m.name)}
+                    alt={m.name}
+                    className={`w-7 h-7 rounded-full object-cover bg-white ${
+                      m.isOpenRole
+                        ? 'border border-dashed border-[#8C8880]/50'
+                        : 'border border-[#D9D7D0]'
+                    }`}
+                  />
+                  <div className="min-w-0">
+                    {m.isOpenRole ? (
+                      <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
+                        {tr(m.name) || m.name} — {t.orgTree.openSuffix}
+                      </span>
+                    ) : (
+                      <>
+                        <p className="text-xs font-bold text-[#1B1B1B] truncate">{m.name}</p>
+                        <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {groups.length === 0 && headMembers.length === 0 && (
             <p className="text-xs text-[#8C8880] italic">{t.orgTree.emptyPillar}</p>
           )}
           {groups.map(([sub, list]) => (
             <div key={sub}>
               <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-1.5">
-                {label(sub) || t.orgTree.membersFallback}
+                {tr(sub) || t.orgTree.membersFallback}
               </p>
               <div className="space-y-1.5">
                 {list.map((m) => (
@@ -140,13 +177,13 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
                     <div className="min-w-0">
                       {m.isOpenRole ? (
                         <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
-                          {label(m.name) || m.name} — {t.orgTree.openSuffix}
+                          {tr(m.name) || m.name} — {t.orgTree.openSuffix}
                         </span>
                       ) : (
                         <>
                           <p className="text-xs font-bold text-[#1B1B1B] truncate">{m.name}</p>
                           {m.position && m.position !== sub && (
-                            <p className="text-[10px] text-[#8C8880] truncate">{label(m.position)}</p>
+                            <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                           )}
                         </>
                       )}
@@ -183,7 +220,7 @@ export const OrgTreeSection: React.FC = () => {
   const { strukturMembers } = useApp();
   const { t } = useLang();
   const [members, setMembers] = useState<Member[] | null>(null);
-  const label = (value?: string | null) => trLabel(t.orgTree.labels, value);
+  const tr = (value?: string | null) => trLabel(t.orgTree.labels, value);
 
   // API-first: ambil dari TiDB; gagal → fallback data lokal
   useEffect(() => {
@@ -259,7 +296,7 @@ export const OrgTreeSection: React.FC = () => {
               <div className="min-w-0">
                 <p className="text-[11px] font-black text-white truncate">{m.name}</p>
                 {m.position && (
-                  <p className="text-[9px] text-white/50 truncate">{label(m.position)}</p>
+                  <p className="text-[9px] text-white/50 truncate">{tr(m.position)}</p>
                 )}
               </div>
             </div>
@@ -286,7 +323,7 @@ export const OrgTreeSection: React.FC = () => {
               <div className="min-w-0">
                 <p className="text-xs font-black truncate">{m.name}</p>
                 {m.position && (
-                  <p className="text-[10px] text-[#8C8880] truncate">{label(m.position)}</p>
+                  <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                 )}
               </div>
             </div>
@@ -317,7 +354,7 @@ export const OrgTreeSection: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-xs font-black truncate">{m.name}</p>
                   {m.position && (
-                    <p className="text-[10px] text-[#8C8880] truncate">{label(m.position)}</p>
+                    <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                   )}
                 </div>
               </div>
