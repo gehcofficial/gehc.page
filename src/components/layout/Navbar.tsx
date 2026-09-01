@@ -81,7 +81,7 @@ export const Navbar: React.FC = () => {
         <div className="pointer-events-auto w-full max-w-[1120px] flex items-center justify-between bg-[#151515]/95 backdrop-blur-2xl rounded-full px-3 py-2 shadow-2xl border border-white/15 h-[58px] transition-all duration-300">
           
           {/* Brand */}
-          <div className="flex items-center gap-2.5 pl-1 shrink-0 mr-5 lg:mr-10 max-w-[11rem] lg:max-w-[12rem]">
+          <div className="flex items-center gap-2.5 pl-1 shrink-0 mr-2 sm:mr-5 lg:mr-10 max-w-[11rem] lg:max-w-[12rem]">
             <button
               onClick={() => {
                 setActiveView('public');
@@ -129,12 +129,12 @@ export const Navbar: React.FC = () => {
           )}
 
           {/* Right Action Area: Role Persona Switcher + Portal/Web View Switcher */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
 
             {/* Quick Role Switcher — hanya untuk mode demo / sesi aktif.
                 Tamu produksi melihat navbar bersih tanpa alat testing. */}
             {(demoMode || authUser) && (
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => {
                   setIsRoleMenuOpen(!isRoleMenuOpen);
@@ -315,13 +315,15 @@ export const Navbar: React.FC = () => {
             )}
 
             {/* Language toggle + Masuk (tamu) + Portal / Public Toggle Button */}
-            <LanguageToggle />
+            <div className="hidden md:block">
+              <LanguageToggle />
+            </div>
             {activeView === 'public' && !authUser && !demoMode && (
               <>
                 <button
                   onClick={() => { window.location.hash = '#/login'; }}
                   title="Masuk ke portal"
-                  className="px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors flex items-center gap-1.5"
+                  className="hidden sm:flex px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors items-center gap-1.5"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Masuk</span>
@@ -374,9 +376,12 @@ export const Navbar: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-xl md:hidden pt-24 px-6 flex flex-col justify-between pb-8">
           <div className="space-y-4">
-            <div className="p-3 bg-white/5 rounded-2xl border border-white/10 mb-4">
-              <span className="text-xs text-white/50 uppercase font-semibold">Tenant Aktif</span>
-              <p className="text-white font-bold text-sm">{currentTenant.name} ({currentTenant.domain})</p>
+            <div className="flex items-center justify-between gap-3 p-3 bg-white/5 rounded-2xl border border-white/10 mb-4">
+              <div className="min-w-0">
+                <span className="text-xs text-white/50 uppercase font-semibold">Tenant Aktif</span>
+                <p className="text-white font-bold text-sm truncate">{currentTenant.name} ({currentTenant.domain})</p>
+              </div>
+              <LanguageToggle />
             </div>
 
             <div className="flex flex-col gap-2">
