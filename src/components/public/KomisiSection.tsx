@@ -3,10 +3,11 @@ import { Landmark, Network, Users2, Loader2, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
-import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
+import { PANTATUGAS } from '../../lib/pantatugas';
 import { OrgTreeSection } from './StrukturSection';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { slugifyPerson } from '../../config/media';
+import { trLabel } from '../../i18n';
 
 interface Member {
   id: string;
@@ -56,7 +57,7 @@ export const KomisiSection: React.FC = () => {
   if (!members) {
     return (
       <section className="py-24 flex items-center justify-center gap-2 text-xs text-[#8C8880]">
-        <Loader2 className="w-4 h-4 animate-spin" /> Memuat…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t.leadersPage.loading}
       </section>
     );
   }
@@ -70,10 +71,11 @@ export const KomisiSection: React.FC = () => {
   const workingTeam = byDiv(sorted, 'TIMKERJA').filter(
     (m) => !m.isOpenRole && !isPlaceholder(m)
   );
-  const pillarGroups = PANTATUGAS.map((pillar) => {
+  const pillarGroups = PANTATUGAS.map((pillar, i) => {
     const all = sorted.filter((m) => (m.division || '').toUpperCase() === pillar.name);
     return {
       pillar,
+      displayLabel: t.serve.items[i]?.label ?? pillar.label,
       filled: all.filter(notOpen),
       open: all.filter((m) => m.isOpenRole),
     };
@@ -147,7 +149,7 @@ export const KomisiSection: React.FC = () => {
                   <h3 className="text-lg sm:text-xl font-bold">{t.leadersPage.pillarsLabel}</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {pillarGroups.map(({ pillar, filled, open }, i) => (
+                  {pillarGroups.map(({ pillar, displayLabel, filled, open }, i) => (
                     <Reveal key={pillar.name} delay={i * 0.05}>
                       <div
                         className="h-full bg-white rounded-[28px] p-6 border-t-4 hover:shadow-xl transition-shadow duration-300"
@@ -158,7 +160,7 @@ export const KomisiSection: React.FC = () => {
                             className="text-sm font-black uppercase tracking-wide"
                             style={{ color: pillar.color }}
                           >
-                            {pillar.label}
+                            {displayLabel}
                           </h4>
                           <span
                             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0"
@@ -188,7 +190,10 @@ export const KomisiSection: React.FC = () => {
                             <div className="min-w-0">
                               <span className="block text-xs font-bold truncate">{m.name}</span>
                               <span className="block text-[10px] text-[#8C8880] truncate">
-                                {[m.subdivision, m.position].filter(Boolean).join(' · ')}
+                                {[m.subdivision, m.position]
+                                  .filter(Boolean)
+                                  .map((s) => trLabel(t.orgTree.labels, s as string))
+                                  .join(' · ')}
                               </span>
                             </div>
                           </div>
@@ -200,11 +205,16 @@ export const KomisiSection: React.FC = () => {
                             {open.map((m) => (
                               <span
                                 key={m.id}
-                                title={[m.subdivision, m.position].filter(Boolean).join(' · ') || m.name}
+                                title={
+                                  [m.subdivision, m.position]
+                                    .filter(Boolean)
+                                    .map((s) => trLabel(t.orgTree.labels, s as string))
+                                    .join(' · ') || trLabel(t.orgTree.labels, m.name)
+                                }
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[9px] font-bold uppercase tracking-wider text-[#8C8880]"
                               >
                                 <Sparkles className="w-2.5 h-2.5" />
-                                {m.subdivision || m.position || m.name}
+                                {trLabel(t.orgTree.labels, m.subdivision || m.position || m.name)}
                               </span>
                             ))}
                           </div>
@@ -224,6 +234,7 @@ export const KomisiSection: React.FC = () => {
 
 /** Kartu profil tanpa kontak publik — privasi anggota dijaga. */
 const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge }) => {
+  const { t } = useLang();
   const slots = useMediaSlots();
   const initialsAvatar = (n: string) =>
     `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
@@ -244,7 +255,11 @@ const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge
       </div>
       <div className="p-5">
         <h4 className="text-base font-bold leading-snug">{member.name}</h4>
-        {member.position && <p className="text-xs font-semibold text-[#FF416C] mt-1">{member.position}</p>}
+        {member.position && (
+          <p className="text-xs font-semibold text-[#FF416C] mt-1">
+            {trLabel(t.orgTree.labels, member.position)}
+          </p>
+        )}
         {member.bio && (
           <p className="text-[11px] text-[#8C8880] mt-2 line-clamp-3 leading-relaxed">{member.bio}</p>
         )}

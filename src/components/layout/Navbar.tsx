@@ -1,6 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
+import { GehcLogo } from '../brand/GehcLogo';
+import { BrandCaption } from '../brand/BrandCaption';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
 import {
@@ -78,33 +80,26 @@ export const Navbar: React.FC = () => {
       <header className="fixed top-[18px] left-0 right-0 z-50 flex items-center justify-center px-4 w-full pointer-events-none">
         <div className="pointer-events-auto w-full max-w-[1120px] flex items-center justify-between bg-[#151515]/95 backdrop-blur-2xl rounded-full px-3 py-2 shadow-2xl border border-white/15 h-[58px] transition-all duration-300">
           
-          {/* Brand & Tenant Indicator */}
-          <div className="flex items-center gap-3 pl-1">
+          {/* Brand */}
+          <div className="flex items-center gap-2.5 pl-1 shrink-0 mr-5 lg:mr-10 max-w-[11rem] lg:max-w-[12rem]">
             <button
               onClick={() => {
                 setActiveView('public');
                 setPublicTab('beyonders');
               }}
-              className="flex items-center gap-2.5 text-left group"
+              className="flex items-center gap-2.5 text-left group min-w-0"
             >
-              <div className="w-[36px] h-[36px] rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shadow-lg border border-white/30 shrink-0 group-hover:scale-105 transition-transform">
-                <span className="text-white font-black text-xs tracking-tight">GEHC</span>
-              </div>
-              <div className="hidden sm:flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white font-bold text-xs tracking-tight">GMIM EBEN HAEZER</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-[#FAF9F5] uppercase tracking-wider">
-                    {currentTenant.slug}
-                  </span>
-                </div>
-                <span className="text-[10px] text-white/50 font-medium leading-none">Beyonders • Youth</span>
-              </div>
+              <GehcLogo
+                size={36}
+                className="group-hover:scale-105 transition-transform"
+              />
+              <BrandCaption className="hidden sm:flex" />
             </button>
           </div>
 
           {/* Navigation Links for Public View */}
           {activeView === 'public' ? (
-            <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+            <nav className="hidden md:flex items-center gap-1 lg:gap-2 flex-1 justify-center min-w-0 px-1">
               {([
                 ['beyonders', t.nav.beyonders],
                 ['leaders', t.nav.leaders],
@@ -134,7 +129,7 @@ export const Navbar: React.FC = () => {
           )}
 
           {/* Right Action Area: Role Persona Switcher + Portal/Web View Switcher */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
 
             {/* Quick Role Switcher — hanya untuk mode demo / sesi aktif.
                 Tamu produksi melihat navbar bersih tanpa alat testing. */}

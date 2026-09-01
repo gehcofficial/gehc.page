@@ -1,9 +1,13 @@
 GEHC Youth — Peta Visual Website
 ================================
-Timpa file dengan NAMA YANG SAMA. Website memakai lookup by filename, bukan urutan folder.
+Timpa file dengan STEM NAMA YANG SAMA (ekstensi .jpg / .png / .webp boleh).
+Website memakai lookup by filename stem, bukan urutan folder.
 Foto/video real: replace in place (hapus placeholder, unggah file baru bernama identik).
 
 Folder ini: Website Visual [PUBLIK]
+
+Unggah ke Google One memakai akun pemilik Drive (npm run drive:auth),
+bukan service account (SA tidak punya kuota My Drive).
 
 -- Slot tetap --
 landing/01-hero-banner.png                    →  Hero Beyonders — HeroSection

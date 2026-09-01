@@ -74,6 +74,7 @@ function mapFile(file) {
     webViewLink: file.webViewLink,
     iconLink: file.iconLink,
     createdTime: file.createdTime,
+    modifiedTime: file.modifiedTime,
   };
 }
 
@@ -118,7 +119,7 @@ export async function listFolders(parentId, pageSize = 50) {
   });
 }
 
-export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
+export async function listFiles({ folderId, query, pageSize = 24, fresh = false } = {}) {
   const drive = await getDrive();
   const target = folderId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';
 
@@ -126,18 +127,20 @@ export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
   if (query) q += ` and name contains '${query.replace(/'/g, "\\'")}'`;
 
   const key = `files:${target}:${pageSize}:${query || ''}`;
-  return withCache(key, async () => {
+  const run = async () => {
     const res = await drive.files.list({
       q,
       pageSize: Math.min(pageSize, 50),
-      orderBy: 'createdTime desc',
+      orderBy: 'modifiedTime desc',
       fields:
-        'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime)',
+        'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime, modifiedTime)',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     });
     return (res.data.files || []).map(mapFile);
-  });
+  };
+  if (fresh) return run();
+  return withCache(key, run);
 }
 
 export async function getFileStream(fileId) {

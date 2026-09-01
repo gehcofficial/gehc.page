@@ -6,8 +6,7 @@ import { PANTATUGAS } from '../../lib/pantatugas';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 
 /**
- * Showcase lima fungsi (pantatugas) — versi publik naratif.
- * Tanpa org-chart & catatan arsitektur; struktur detail ada di tab Pengurus.
+ * Showcase enam pelayanan (5 panca tugas + Benzarpreneurship) — grid 3×2.
  */
 export const PantatugasShowcase: React.FC = () => {
   const { setPublicTab } = useApp();
@@ -22,28 +21,30 @@ export const PantatugasShowcase: React.FC = () => {
         align="center"
       />
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 mt-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="max-w-[1080px] mx-auto px-4 sm:px-8 mt-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {PANTATUGAS.map((p, i) => {
             const Icon = p.icon;
             return (
               <Reveal key={p.name} delay={i * 0.08}>
                 <div
-                  className="h-full rounded-[28px] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl bg-white"
+                  className="h-full rounded-[28px] p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl bg-white flex items-start gap-4"
                   style={{ borderTop: `4px solid ${p.color}` }}
                 >
                   <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 mb-3"
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
                     style={{ backgroundColor: `${p.color}1A`, color: p.color }}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <h3 className="text-sm font-black tracking-wide" style={{ color: p.color }}>
-                    {t.serve.items[i]?.label ?? p.label}
-                  </h3>
-                  <p className="text-[11px] text-[#8C8880] leading-relaxed mt-1">
-                    {t.serve.items[i]?.tagline ?? p.tagline}
-                  </p>
+                  <div className="min-w-0 pt-0.5">
+                    <h3 className="text-sm font-black tracking-wide" style={{ color: p.color }}>
+                      {t.serve.items[i]?.label ?? p.label}
+                    </h3>
+                    <p className="text-[11px] text-[#8C8880] leading-relaxed mt-1">
+                      {t.serve.items[i]?.tagline ?? p.tagline}
+                    </p>
+                  </div>
                 </div>
               </Reveal>
             );

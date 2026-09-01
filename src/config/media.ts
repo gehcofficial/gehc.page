@@ -48,6 +48,7 @@ export const MEDIA_EXTRAS = {
 
 export type MediaSlots = {
   landing: LandingMedia;
+  brand: { logoGehc?: string };
   warta: { bannerDefault: string };
   kegiatan: { bannerDefault: string; bakuTau: string };
   benzar: { hero: string; productPlaceholder: string; qris: string };
@@ -59,6 +60,7 @@ export type MediaSlots = {
 
 export const DEFAULT_SLOTS: MediaSlots = {
   landing: { ...MEDIA },
+  brand: {},
   warta: { bannerDefault: MEDIA_EXTRAS.wartaBanner },
   kegiatan: { bannerDefault: MEDIA_EXTRAS.eventBanner, bakuTau: MEDIA_EXTRAS.bakuTau },
   benzar: {
@@ -84,3 +86,10 @@ export function slugifyPerson(name: string): string {
 
 /** Atribut img standar: lazy + async decode untuk performa. */
 export const IMG_PROPS = { loading: 'lazy' as const, decoding: 'async' as const };
+
+/** Above-the-fold: logo, hero — unduh segera. */
+export const EAGER_IMG_PROPS = {
+  loading: 'eager' as const,
+  decoding: 'async' as const,
+  fetchPriority: 'high' as const,
+};

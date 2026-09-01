@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { fetchApiStatus, fetchDriveFolders } from '../../services/driveApi';
+import { displayFolderName } from '../../lib/driveDisplay';
 
 /** Root staging — ganti saat go-live production (lihat .env.production). */
 const GDRIVE_ROOT_FALLBACK_URL =
@@ -70,7 +71,7 @@ export const MediaGuidePanel: React.FC = () => {
           <div>
             <h3 className="text-sm font-black text-white">Panduan Media — Visual Website</h3>
             <p className="text-[10px] text-white/50">
-              Timpa file di Website Visual [PUBLIK] dengan nama yang sama
+              Timpa file di Website Visual dengan nama (stem) yang sama
             </p>
           </div>
         </div>
@@ -128,10 +129,10 @@ export const MediaGuidePanel: React.FC = () => {
           Langkah Update Foto
         </h4>
         {[
-          ['Buka folder visual', 'Klik "Buka Website Visual" → folder Website Visual [PUBLIK]. Baca _PETA-VISUAL.txt.'],
-          ['Timpa file, jangan ganti nama', 'Nama file adalah kunci. Contoh: landing/01-hero-banner.png untuk Hero Beyonders.'],
-          ['Foto warta edisi', 'Masukkan ke Warta Publik [PUBLIK]/YYYY-MM-DD-judul/foto/ — tampil di detail Warta, bukan halaman Galeri.'],
-          ['Selesai', 'Refresh halaman publik (±1 menit cache). Lihat docs/product/website-visuals.md.'],
+          ['Buka folder visual', 'Klik "Buka Website Visual". Baca _PETA-VISUAL.txt. Nama di Google Drive tetap memakai tag zona; di portal ditampilkan tanpa kurung siku.'],
+          ['Timpa file, jangan ganti stem', 'Nama file adalah kunci. Contoh: brand/logo-gehc untuk logo, landing/01-hero-banner untuk Hero (jpg/png boleh).'],
+          ['Foto warta edisi', 'Marturia menaruh foto di Warta Publik / YYYY-MM-DD-judul / foto — tampil di detail Warta. Didaskalia menulis naskah di CMS.'],
+          ['Selesai', 'Refresh halaman publik (±1 menit cache). Logo & foto pakai file asli Drive, bukan thumbnail Google.'],
         ].map(([title, desc], i) => (
           <div key={i} className="flex items-start gap-3">
             <span className="w-6 h-6 shrink-0 rounded-full bg-[#181818] text-white text-[10px] font-black flex items-center justify-center mt-0.5">
@@ -148,26 +149,30 @@ export const MediaGuidePanel: React.FC = () => {
       {/* Zona & akses */}
       <div className="rounded-[28px] bg-[#FAF9F5] border border-[#D9D7D0]/60 p-6 space-y-3">
         <h4 className="text-xs font-black uppercase tracking-widest text-[#181818]">
-          Zona Folder & Siapa yang Melihat
+          Zona folder & siapa yang mengelola
         </h4>
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
               <tr className="text-left text-[#8C8880] uppercase tracking-wider">
                 <th className="pb-2 pr-4">Folder</th>
+                <th className="pb-2 pr-4">Dikelola oleh</th>
                 <th className="pb-2 pr-4">Tampil untuk</th>
               </tr>
             </thead>
             <tbody className="font-semibold">
               {[
-                ['Website Visual [PUBLIK]', 'Semua pengunjung — slot hero, collage, BZP, cover kelompok'],
-                ['Warta Publik [PUBLIK]', 'Semua pengunjung — banner & foto edisi (pengganti Galeri)'],
-                ['Ruang Anggota [MENTEE]', 'Hanya yang login'],
-                ['Kelompok Mentoring [MENTOR]', 'Galeri per-rumah di halaman detail grup'],
-                ['Laporan Internal [KOMISI]', 'Komisi & Superadmin saja'],
-              ].map(([f, w]) => (
+                ['Website Visual', 'Marturia (Desain) + Komisi (logo & identitas)', 'Semua pengunjung — logo, hero, collage, BZP, cover kelompok'],
+                ['Warta Publik', 'Didaskalia (naskah) · Marturia (foto edisi)', 'Semua pengunjung — banner & album edisi'],
+                ['Ruang Anggota', 'Komisi', 'Hanya yang login'],
+                ['Kelompok Mentoring', 'Mentor rumah (cover & galeri grup)', 'Galeri per-rumah di halaman detail grup'],
+                ['Liturgia / Didaskalia / Koinonia / Diakonia / Marturia / BZP', 'PIC divisi + input silang saat event', 'Pembina ke atas (bukan tamu)'],
+                ['Laporan Internal', 'Komisi', 'Komisi & Superadmin'],
+                ['Arsip Generasi', 'Komisi', 'Alumni & komisi'],
+              ].map(([f, owner, w]) => (
                 <tr key={f} className="border-t border-[#D9D7D0]/40">
-                  <td className="py-2 pr-4 font-mono">{f}</td>
+                  <td className="py-2 pr-4">{f}</td>
+                  <td className="py-2 pr-4 font-medium text-[#1B1B1B]">{owner}</td>
                   <td className="py-2 pr-4">{w}</td>
                 </tr>
               ))}
@@ -175,8 +180,8 @@ export const MediaGuidePanel: React.FC = () => {
           </table>
         </div>
         <p className="text-[10px] text-[#8C8880] leading-relaxed">
-          Aturan nama: tag zona dalam kurung siku wajib ada. Folder tanpa tag tidak dapat dibaca
-          sistem (audit akan menandai).
+          Tag zona seperti [PUBLIK] / [MENTOR] tetap di nama folder Google Drive (ACL). Portal
+          menampilkan {displayFolderName('Liturgia [MENTOR]')} alih-alih nama lengkap.
         </p>
       </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Landmark, GraduationCap, Home } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
+import { trLabel } from '../../i18n';
 
 interface LeaderDto {
   id: string;
@@ -128,7 +129,9 @@ export const AboutSection: React.FC = () => {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white truncate">{l.name}</p>
                       {l.position && (
-                        <p className="text-[10px] text-white/50 truncate">{l.position}</p>
+                        <p className="text-[10px] text-white/50 truncate">
+                          {trLabel(t.orgTree.labels, l.position)}
+                        </p>
                       )}
                     </div>
                   </div>

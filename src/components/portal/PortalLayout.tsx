@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
 import { ManageWeeklyInfo } from './ManageWeeklyInfo';
 import { ManageActivities } from './ManageActivities';
@@ -172,9 +173,7 @@ export const PortalLayout: React.FC = () => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#D9D7D0] sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center text-white font-bold text-xs">
-            GEHC
-          </div>
+          <GehcLogo size={32} />
           <div>
             <h4 className="text-xs font-bold leading-tight">User Portal</h4>
             <span className="text-[10px] text-[#8C8880]">{currentTenant.name}</span>
@@ -207,11 +206,12 @@ export const PortalLayout: React.FC = () => {
                     : 'gap-2.5 p-2 -ml-1 flex-1 min-w-0 hover:bg-white hover:shadow-sm'
                 }`}
               >
-                <div className={`rounded-xl bg-gradient-to-br from-[#FF416C] to-[#FF4B2B] flex items-center justify-center text-white font-black shadow-md shadow-[#FF416C]/20 shrink-0 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-[#FF416C]/30 group-hover:scale-105 ${
-                  collapsed ? 'w-10 h-10 text-sm' : 'w-9 h-9 text-xs'
-                }`}>
-                  {collapsed ? 'GE' : 'GEHC'}
-                </div>
+                <GehcLogo
+                  size={collapsed ? 40 : 36}
+                  rounded="xl"
+                  fallbackLabel={collapsed ? 'GE' : 'GEHC'}
+                  className="shadow-md shadow-[#FF416C]/20 group-hover:shadow-lg group-hover:shadow-[#FF416C]/30 group-hover:scale-105 transition-all duration-200"
+                />
                 {!collapsed && (
                   <div className="min-w-0 text-left">
                     <h4 className="text-[11px] font-black uppercase text-[#1B1B1B] truncate leading-tight">

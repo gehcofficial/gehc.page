@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppProvider, useApp } from './context/AppContext';
+import { MediaSlotsWarmup, prefetchMediaSlots } from './hooks/useMediaSlots';
 import { ToastContainer } from './components/layout/ToastContainer';
 import { Navbar } from './components/layout/Navbar';
 import { HeroSection } from './components/public/HeroSection';
@@ -93,8 +95,15 @@ const MainAppContent: React.FC = () => {
 };
 
 export default function App() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    prefetchMediaSlots(queryClient);
+  }, [queryClient]);
+
   return (
     <AppProvider>
+      <MediaSlotsWarmup />
       <MainAppContent />
       <ToastContainer />
     </AppProvider>

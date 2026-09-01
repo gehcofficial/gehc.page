@@ -2,6 +2,8 @@
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { MapPin, ArrowUpRight, ExternalLink } from 'lucide-react';
+import { GehcLogo } from '../brand/GehcLogo';
+import { BrandCaption } from '../brand/BrandCaption';
 
 const DEFAULT_MAP = 'https://share.google/Ro2jBSuGfrzfg49nP';
 
@@ -26,13 +28,8 @@ export const Footer: React.FC = () => {
           
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shrink-0 shadow-lg">
-                <span className="text-white font-black text-sm leading-none">GEHC</span>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-white">GMIM EBEN HAEZER</h4>
-                <p className="text-xs text-white/50">Beyonders • GEHC Youth</p>
-              </div>
+              <GehcLogo size={40} />
+              <BrandCaption />
             </div>
 
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">

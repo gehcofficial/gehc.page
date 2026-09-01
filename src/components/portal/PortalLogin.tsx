@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { GehcLogo } from '../brand/GehcLogo';
+import { BrandCaption } from '../brand/BrandCaption';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { useApp } from '../../context/AppContext';
 import { getCachedAccounts, CachedAccount } from '../../lib/cachedAccounts';
@@ -96,13 +98,9 @@ export const PortalLogin: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <span className="font-black text-lg">GEHC</span>
-          </div>
+          <GehcLogo size={64} className="mx-auto mb-4 shadow-2xl" />
           <h1 className="text-2xl font-black tracking-tight">Portal Administrasi</h1>
-          <p className="text-xs text-white/50 mt-2 leading-relaxed">
-            Beyonders • GMIM Eben Haezer Cikarang
-          </p>
+          <BrandCaption className="mt-3 items-center" align="center" />
         </div>
 
         {/* Kartu metode */}

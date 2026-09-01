@@ -13,6 +13,11 @@ diskusi konsultasi "service account principle".
   **tag zona di dalam nama folder** — mis. `Event Gallery [PUBLIK]`.
 - Prinsip: *least privilege* tanpa kelola N kredensial; pengurus non-teknis
   cukup menamai folder dengan benar untuk mengatur akses.
+- **Portal** menampilkan nama folder tanpa tag (`displayFolderName`). Nama di
+  Google Drive jangan diubah — tag adalah ACL.
+- **Tulis file (Google One):** SA tidak punya kuota My Drive. Unggah memakai
+  OAuth akun pemilik (`npm run drive:auth` → `npm run drive:seed-visuals`).
+  Shared Drive / Workspace tidak wajib.
 
 ## 2. Setup Console (sekali jalan)
 
@@ -41,7 +46,7 @@ tag eksplisit pada anak me-narrowing.
 ```
 ROOT_GEHC/
 ├── Website Visual [PUBLIK]/         ← slot nama-tetap (hero, collage, BZP, cover)
-│   ├── landing/  warta/  kegiatan/  benzarpreneurship/
+│   ├── brand/  landing/  warta/  kegiatan/  benzarpreneurship/
 │   ├── kelompok/  pengurus/  testimoni/
 │   └── _PETA-VISUAL.txt
 ├── Event Gallery [PUBLIK]/          ← warisan; landing tidak lagi memakai urutan file di sini
@@ -138,7 +143,8 @@ npm run drive:seed-visuals
 - Sumber struktur = **database aktif**: grup aktif → `[GROUP:x]`, subdivisi
   pantatugas → subfolder pillar, plus zona statis. Total ±36 folder.
 - Idempotent — aman diulang kapan pun (misal setelah tambah grup baru).
-- `drive:seed-visuals` mengunggah placeholder berlabel + `_PETA-VISUAL.txt` (lihat [`website-visuals.md`](../product/website-visuals.md)).
+- `drive:seed-visuals` mengunggah placeholder + `_PETA-VISUAL.txt` ke root **staging**.
+- `drive:seed-visuals:prod` sama, ke root di `.env.production` (lihat [`website-visuals.md`](../product/website-visuals.md)).
 - Scope tulis hanya dipakai script ini; runtime aplikasi tetap readonly.
 
 ## 6c. Google Drive vs TiDB — Pembagian Peran
@@ -195,5 +201,8 @@ Sama seperti TiDB (dua cluster), Drive memakai dua root terpisah:
 - Provisi per lingkungan:
   `npm run drive:provision`          → root di .env (staging)
   `npm run drive:provision:prod`     → root di .env.production
+- Seed visual (OAuth pemilik Drive):
+  `npm run drive:seed-visuals`       → staging
+  `npm run drive:seed-visuals:prod`  → production
 - Kedua root wajib di-share ke service account sebagai Content Manager.
 - Script selalu mencetak root mana yang dipakai — cek sebelum Enter.

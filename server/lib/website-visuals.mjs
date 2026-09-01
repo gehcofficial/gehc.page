@@ -7,6 +7,7 @@ export const WEBSITE_VISUAL_FOLDER = 'Website Visual [PUBLIK]';
 export const WARTA_PUBLIK_FOLDER = 'Warta Publik [PUBLIK]';
 
 export const WEBSITE_VISUAL_SUBFOLDERS = [
+  'brand',
   'landing',
   'warta',
   'kegiatan',
@@ -29,10 +30,55 @@ export const TEN_HOMES = [
   'Shalom',
 ];
 
+const U = (id, w = 1200) =>
+  `https://images.unsplash.com/photo-${id}?q=80&w=${w}&auto=format&fit=crop`;
+
+/** Foto Unsplash yang sama dengan fallback website (src/config/media.ts). */
+export const SLOT_SOURCE_URLS = {
+  'landing.heroBanner': U('1511671782779-c97d3d27a1d4', 2000),
+  'landing.collageWorship': U('1529070538774-1843cb3265df', 1000),
+  'landing.collageCommunity': U('1516450360452-9312f5e86fc7', 1000),
+  'landing.collageMusic': U('1465847899084-d164df4dedc6', 1000),
+  'landing.collageStudy': U('1543269865-cbf427effbad', 1000),
+  'landing.collageFriends': U('1517486808906-6ca8b3f04846', 1000),
+  'landing.collagePortrait': U('1494790108377-be9c29b29330', 800),
+  'warta.bannerDefault': U('1511671782779-c97d3d27a1d4', 1200),
+  'kegiatan.bannerDefault': U('1514525253161-7a46d19cd819', 1200),
+  'kegiatan.bakuTau': U('1523580494863-6f3031224c94', 1200),
+  'benzar.hero': U('1556742049-0cfed4f6a45d', 1600),
+  'benzar.productPlaceholder': U('1523275335684-37898b6baf30', 800),
+  'pengurus.contoh': U('1494790108377-be9c29b29330', 800),
+  'testimoni.contoh': U('1494790108377-be9c29b29330', 800),
+};
+
+const HOUSE_COVER_IDS = [
+  '1529156069898-49953e39b3ac',
+  '1514525253161-7a46d19cd819',
+  '1506905925346-21bda4d32df4',
+  '1574629810360-7efbbe195018',
+  '1469571486292-0ba58a3f068b',
+  '1543087903-1ac2ec7aa8c5',
+  '1511671782779-c97d3d27a1d4',
+  '1507692049790-de58290a4334',
+  '1517486808906-6ca8b3f04846',
+  '1543269865-cbf427effbad',
+];
+
+TEN_HOMES.forEach((name, i) => {
+  SLOT_SOURCE_URLS[`kelompok.${name.toLowerCase()}`] = U(HOUSE_COVER_IDS[i], 1200);
+});
+
 /** @typedef {{ folder: string, stem: string, ext: string, key: string, usedAt: string, seed?: boolean }} VisualSlot */
 
 /** @type {VisualSlot[]} */
 export const VISUAL_SLOTS = [
+  {
+    folder: 'brand',
+    stem: 'logo-gehc',
+    ext: 'png',
+    key: 'brand.logoGehc',
+    usedAt: 'Logo GEHC — Navbar, Footer, PortalLogin, PortalLayout',
+  },
   { folder: 'landing', stem: '01-hero-banner', ext: 'png', key: 'landing.heroBanner', usedAt: 'Hero Beyonders — HeroSection' },
   { folder: 'landing', stem: '02-collage-worship', ext: 'png', key: 'landing.collageWorship', usedAt: 'VisualCollage kiri atas — ibadah' },
   { folder: 'landing', stem: '03-collage-community', ext: 'png', key: 'landing.collageCommunity', usedAt: 'VisualCollage kanan atas — komunitas' },
@@ -109,10 +155,14 @@ export function buildPetaVisualText() {
   });
   return `GEHC Youth — Peta Visual Website
 ================================
-Timpa file dengan NAMA YANG SAMA. Website memakai lookup by filename, bukan urutan folder.
+Timpa file dengan STEM NAMA YANG SAMA (ekstensi .jpg / .png / .webp boleh).
+Website memakai lookup by filename stem, bukan urutan folder.
 Foto/video real: replace in place (hapus placeholder, unggah file baru bernama identik).
 
 Folder ini: ${WEBSITE_VISUAL_FOLDER}
+
+Unggah ke Google One memakai akun pemilik Drive (npm run drive:auth),
+bukan service account (SA tidak punya kuota My Drive).
 
 -- Slot tetap --
 ${rows.join('\n')}

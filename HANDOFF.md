@@ -1,28 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current priority — Drive visual website (staging)
+## Current priority — Drive visual + logo (staging + prod)
 
-**Goal:** Slot visual publik di Shared Drive (nama file tetap), hapus Galeri publik, label Toko → Benzarpreneurship.
+**Goal:** Slot visual publik (termasuk logo GEHC) di Google One, stem tetap. SA baca; unggah via OAuth. Staging dan production punya root Drive terpisah.
 
 ### Done
 
-- Folder `Website Visual [PUBLIK]` + subfolder di `drive-provision`
-- `npm run drive:seed-visuals` — placeholder berlabel + `_PETA-VISUAL.txt`
+- Folder `Website Visual [PUBLIK]` + subfolder `brand/` di `drive-provision`
+- Slot `brand/logo-gehc` → Navbar, Footer, PortalLogin, PortalLayout
+- `npm run drive:auth` + `drive:seed-visuals` (staging) + `drive:seed-visuals:prod`
 - `GET /api/media/slots` lookup by filename (bukan urutan Event Gallery)
-- Tab `#/gallery` dialihkan ke `#/bulletin`; foto edisi di Warta
-- Nav/footer/i18n: Benzarpreneurship (bukan Toko/Store)
-- Peta: [`docs/product/website-visuals.md`](docs/product/website-visuals.md)
+- Portal menyembunyikan tag zona `[MENTOR]` dll.; ACL tetap di nama Drive
+- Peta + pemilik aset: [`docs/product/website-visuals.md`](docs/product/website-visuals.md)
 
 ### Commands
 
 ```powershell
 npm run drive:provision
+npm run drive:auth
 npm run drive:seed-visuals
+npm run drive:seed-visuals:prod
 npm run dev:all
-npm run lint
 ```
 
-SA harus Content Manager di **Shared Drive** (folder My Drive yang di-share tidak bisa diunggah file — kuota SA). Jika gagal: `npm run drive:seed-visuals:local` lalu seret `scripts/visual-placeholders/` ke Drive.
+Redirect OAuth: `http://127.0.0.1:8765/drive-auth/callback`. Token: `.gdrive-user-token.json`. Fallback: `npm run drive:seed-visuals:local` lalu seret ke Drive.
 
 ---
 

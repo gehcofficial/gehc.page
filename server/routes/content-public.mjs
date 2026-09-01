@@ -23,17 +23,24 @@ const LANDING_MEDIA_KEYS = [
   'collagePortrait',
 ];
 
-function hiResThumb(link) {
-  return (link || '').replace(/=s\d+.*$/, '=s1200');
+function cacheVersion(file) {
+  if (file?.modifiedTime) return Date.parse(file.modifiedTime) || file.id;
+  return file?.id || '0';
 }
 
 function publicFileUrl(file) {
   if (!file) return null;
-  if (file.mimeType?.startsWith('video/')) {
-    return `/api/drive/file/${file.id}/content`;
-  }
-  const thumb = file.thumbnailUrl || file.thumbnailLink;
-  return thumb ? hiResThumb(thumb) : `/api/drive/file/${file.id}/content`;
+  const v = cacheVersion(file);
+  // Stream via API — thumbnail Google CDN sering stale setelah replace-in-place di Drive.
+  return `/api/drive/file/${file.id}/content?v=${v}`;
+}
+
+function pickSlotFile(files, stem) {
+  const matches = (files || []).filter((f) => matchStem(f.name, stem));
+  if (!matches.length) return null;
+  return matches.sort(
+    (a, b) => Date.parse(b.modifiedTime || 0) - Date.parse(a.modifiedTime || 0)
+  )[0];
 }
 
 async function folderAllowed(folder) {
@@ -62,6 +69,7 @@ const SLOTS_TTL = 60_000;
 function emptySlots() {
   return {
     landing: {},
+    brand: {},
     warta: {},
     kegiatan: {},
     benzar: {},
@@ -98,14 +106,27 @@ async function loadDriveSlots() {
     const byName = new Map(subfolders.map((f) => [f.name.toLowerCase(), f]));
     const filesByFolder = new Map();
 
+    const folderNames = new Set([
+      ...VISUAL_SLOTS.map((s) => s.folder.toLowerCase()),
+      'pengurus',
+      'testimoni',
+    ]);
+    const foldersToLoad = [...folderNames]
+      .map((name) => byName.get(name))
+      .filter(Boolean);
+
+    await Promise.all(
+      foldersToLoad.map(async (folder) => {
+        const files = await listFiles({ folderId: folder.id, pageSize: 50, fresh: true });
+        filesByFolder.set(folder.id, files);
+      })
+    );
+
     for (const slot of VISUAL_SLOTS) {
       const folder = byName.get(slot.folder.toLowerCase());
       if (!folder) continue;
-      if (!filesByFolder.has(folder.id)) {
-        filesByFolder.set(folder.id, await listFiles({ folderId: folder.id, pageSize: 50 }));
-      }
       const files = filesByFolder.get(folder.id) || [];
-      const file = files.find((f) => matchStem(f.name, slot.stem));
+      const file = pickSlotFile(files, slot.stem);
       if (file) assignSlot(slots, slot.key, publicFileUrl(file));
     }
 

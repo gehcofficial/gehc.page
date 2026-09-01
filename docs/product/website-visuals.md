@@ -1,68 +1,91 @@
 # Peta visual website — Google Drive
 
-Semua gambar/video publik diikat ke Shared Drive lewat **nama file tetap**.
-Timpa file di Drive dengan nama yang sama; website tidak perlu diubah.
+Semua gambar/video publik diikat ke folder Drive lewat **stem nama file tetap**.
+Timpa file dengan stem yang sama (`.jpg` / `.png` / `.webp`); website tidak perlu diubah.
 
 Folder induk: **`Website Visual [PUBLIK]`**  
 Lookup: `GET /api/media/slots` (bukan urutan file).
 
-## Perintah staging
+Google One / My Drive **didukung**. Service account hanya **membaca**. Unggah memakai kuota akun Google One (OAuth).
+
+## Perintah staging / production
 
 ```powershell
-npm run drive:provision          # buat folder bila belum ada
-npm run drive:seed-visuals       # unggah placeholder berlabel + _PETA-VISUAL.txt
+npm run drive:provision          # buat folder bila belum ada (SA boleh)
+npm run drive:auth               # sekali — login pemilik Drive (Google One)
+npm run drive:seed-visuals       # unggah ke root STAGING (.env)
+npm run drive:seed-visuals:prod  # unggah ke root PRODUCTION (.env.production)
 ```
 
-Prasyarat: `GDRIVE_ROOT_FOLDER_ID` + service account sebagai **Content Manager** pada **Shared Drive** (bukan folder My Drive yang di-share — SA tidak punya kuota unggah file).
+Redirect URI yang harus ada di OAuth client (salah satu cukup):
 
-Jika unggah Drive gagal, script menulis salinan lokal:
+- `http://localhost:8787/api/auth/google/callback` (dipakai `npm run drive:auth` jika server `dev` jalan)
+- `http://127.0.0.1:8765/drive-auth/callback` (listener cadangan)
+
+Token tersimpan di `.gdrive-user-token.json` (gitignore) atau `GDRIVE_USER_REFRESH_TOKEN`.
+
+Jika OAuth gagal:
 
 ```powershell
 npm run drive:seed-visuals:local
 ```
 
-Lalu seret isi `scripts/visual-placeholders/` ke folder `Website Visual [PUBLIK]` (nama file jangan diubah).
+Lalu seret isi `scripts/visual-placeholders/` ke `Website Visual [PUBLIK]` (stem nama jangan diubah).
 
-Opsional: `GDRIVE_IMPERSONATE` (domain-wide delegation) agar unggah memakai kuota user Workspace.
-
-Salinan peta yang sama ada di Drive: `_PETA-VISUAL.txt`.
+Salinan peta: `_PETA-VISUAL.txt` di folder visual.
 
 ## Slot tetap
 
-| File di Drive | Dipakai di |
+| File di Drive (stem) | Dipakai di |
 |---|---|
-| `landing/01-hero-banner.png` | Hero Beyonders (`HeroSection`) |
-| `landing/02-collage-worship.png` | VisualCollage kiri atas |
-| `landing/03-collage-community.png` | VisualCollage kanan atas |
-| `landing/04-collage-music.png` | VisualCollage tengah kanan |
-| `landing/05-collage-study.png` | VisualCollage kiri bawah |
-| `landing/06-collage-friends.png` | VisualCollage kanan bawah |
-| `landing/07-collage-portrait.png` | Fallback foto testimoni |
-| `landing/08-hero-video.mp4` | Opsional — video Hero (unggah sendiri) |
-| `warta/01-banner-default.png` | Banner warta jika edisi tidak punya PNG |
-| `kegiatan/01-banner-default.png` | Banner kegiatan default |
-| `kegiatan/baku-tau-4.png` | Kartu unggulan BAKU TAU 4.0 |
-| `benzarpreneurship/01-hero.png` | Header halaman Benzarpreneurship |
-| `benzarpreneurship/02-product-placeholder.png` | Produk tanpa foto |
-| `benzarpreneurship/03-qris.png` | QRIS checkout |
-| `kelompok/cover-{nama}.png` | Cover 10 rumah di carousel (`agape` … `shalom`) |
-| `pengurus/{slug}.png` | Foto pengurus (override inisial) |
-| `testimoni/{slug}.png` | Foto penulis testimoni |
+| `brand/logo-gehc` | Logo GEHC (navbar, footer, portal) |
+| `landing/01-hero-banner` | Hero Beyonders (`HeroSection`) |
+| `landing/02-collage-worship` | VisualCollage kiri atas |
+| `landing/03-collage-community` | VisualCollage kanan atas |
+| `landing/04-collage-music` | VisualCollage tengah kanan |
+| `landing/05-collage-study` | VisualCollage kiri bawah |
+| `landing/06-collage-friends` | VisualCollage kanan bawah |
+| `landing/07-collage-portrait` | Fallback foto testimoni |
+| `landing/08-hero-video` | Opsional — video Hero |
+| `warta/01-banner-default` | Banner warta jika edisi tidak punya PNG |
+| `kegiatan/01-banner-default` | Banner kegiatan default |
+| `kegiatan/baku-tau-4` | Kartu unggulan BAKU TAU 4.0 |
+| `benzarpreneurship/01-hero` | Header halaman Benzarpreneurship |
+| `benzarpreneurship/02-product-placeholder` | Produk tanpa foto |
+| `benzarpreneurship/03-qris` | QRIS checkout |
+| `kelompok/cover-{nama}` | Cover 10 rumah di carousel |
+| `pengurus/{slug}` | Foto pengurus (override inisial) |
+| `testimoni/{slug}` | Foto penulis testimoni |
 
 Slug = nama tanpa gelar, huruf kecil, spasi jadi `-`.  
 Contoh: `Pnt Stevania Hadinda` → `stevania-hadinda.png`.
+
+## Siapa mengelola apa
+
+Bukan semua aset landing diurus admin. Tag zona `[PUBLIK]` dll. tetap di nama folder Drive (ACL); portal menampilkan nama tanpa kurung siku.
+
+| Aset | Folder Drive | Dikelola | Input dari |
+|---|---|---|---|
+| Logo GEHC | `Website Visual/brand/` | Komisi | Marturia (file PNG transparan) |
+| Hero, collage | `Website Visual/landing/` | Marturia (Desain) | Komisi (arah identitas) |
+| Banner warta default | `Website Visual/warta/` | Marturia | Didaskalia (jadwal edisi) |
+| Foto edisi warta | `Warta Publik/…/foto/` | Marturia (Dokumentasi) | Didaskalia (judul & tanggal folder) |
+| Naskah warta | CMS TiDB | Didaskalia | Komisi (persetujuan bila perlu) |
+| Banner kegiatan | `Website Visual/kegiatan/` | Marturia | PIC event / Koinonia |
+| Benzarpreneurship | `Website Visual/benzarpreneurship/` | BZP | Bendahara |
+| Cover rumah | `Website Visual/kelompok/` | Mentor rumah | Marturia (bantuan desain) |
+| Foto pengurus | `Website Visual/pengurus/` | Komisi | — |
+| Folder event `[EV:…]` | di bawah pillar | PIC divisi | Rundown Liturgia, konsumsi Diakonia, publikasi Marturia |
 
 ## Warta = pengganti Galeri publik
 
 Halaman `#/gallery` dialihkan ke `#/bulletin`.
 
-Foto/video edisi:
-
 ```
 Warta Publik [PUBLIK]/YYYY-MM-DD-judul-singkat/foto/*
 ```
 
-Tampil di detail kartu Warta. Galeri per-rumah di halaman detail grup **tetap** (folder `Foto Kegiatan` grup). Tab Galeri portal Marturia tetap untuk unggah internal.
+Galeri per-rumah di halaman detail grup tetap. Tab Galeri portal Marturia untuk unggah internal event.
 
 ## Endpoint
 

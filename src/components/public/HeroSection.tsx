@@ -2,7 +2,7 @@
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { useLandingMedia } from '../../hooks/useLandingMedia';
-import { IMG_PROPS } from '../../config/media';
+import { EAGER_IMG_PROPS } from '../../config/media';
 import { Calendar, BookOpen, Users, ArrowUpRight } from 'lucide-react';
 
 export const HeroSection: React.FC = () => {
@@ -100,7 +100,7 @@ export const HeroSection: React.FC = () => {
             alt="Young people worshiping together at GEHC Youth, Cikarang"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             src={media.heroBanner}
-            {...IMG_PROPS}
+            {...EAGER_IMG_PROPS}
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>

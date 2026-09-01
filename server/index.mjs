@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
-import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
+import { resolveAccess, matrixForUser, parseTag, displayFolderName } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb, resetPrisma, isTransientDbError, getDbLabel, getDbTarget } from './db.mjs';
 import {
   sendPushNotification,
@@ -771,6 +771,7 @@ app.get('/api/drive/folders', wrap(async (req, res) => {
       const v = await resolveAccess(childChain, req.authUser);
       enriched.push({
         ...f,
+        displayName: displayFolderName(f.name),
         accessAllowed: v.allowed,
         zoneTag: v.tag,
         reason: v.reason,
@@ -839,7 +840,7 @@ app.get('/api/drive/file/:id/content', wrap(async (req, res) => {
   if (!(await guardDriveFolder(req, res, req.params.id))) return;
   const { meta, stream } = await getFileStream(req.params.id);
   if (meta.mimeType) res.setHeader('Content-Type', meta.mimeType);
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
   stream.pipe(res);
 }));
 
@@ -1423,7 +1424,11 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
       listFiles({ folderId: division.driveFolderId, pageSize: 50 }),
       listFolders(division.driveFolderId, 50),
     ]);
-    res.json({ files, folders, folderId: division.driveFolderId });
+    res.json({
+      files,
+      folders: folders.map((f) => ({ ...f, displayName: displayFolderName(f.name) })),
+      folderId: division.driveFolderId,
+    });
   } catch (e) {
     res.status(500).json({ error: `Gagal memuat Drive: ${e.message}` });
   }
@@ -3375,6 +3380,27 @@ app.get('/api/auth/google/start', wrap(async (req, res) => {
   res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 }));
 
+app.get('/api/drive-auth/start', wrap(async (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(503).send('GOOGLE_CLIENT_ID belum di-set.');
+  }
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  const state = newOAuthState({ mode: 'drive', codeVerifier: verifier });
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: googleRedirectUri(req),
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/drive',
+    access_type: 'offline',
+    prompt: 'consent',
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  });
+  res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+}));
+
 /** Buat/perbarui user dari identitas Google terverifikasi. */
 async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTIVE', initialRole }) {
   const email = p.email.toLowerCase();
@@ -3431,16 +3457,36 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     const intent = takeOAuthState(String(req.query.state || ''));
     if (!intent) throw new Error('Sesi otorisasi kedaluwarsa — coba tombol Google lagi.');
 
-    const prisma = getPrisma();
-    if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
-
-    // Tukar authorization code → token, lalu verifikasi identitas
     const { google } = await import('googleapis');
     const oauth2 = new google.auth.OAuth2({
       client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || undefined,
       redirect_uri: googleRedirectUri(req),
     });
+
+    if (intent.mode === 'drive') {
+      const { saveTokens } = await import('./lib/gdrive-user-oauth.mjs');
+      const { tokens } = await oauth2.getToken({
+        code: String(req.query.code),
+        codeVerifier: intent.codeVerifier,
+      });
+      if (!tokens.refresh_token) {
+        throw new Error(
+          'Google tidak mengirim refresh_token. Cabut akses app di myaccount.google.com/permissions lalu ulangi.'
+        );
+      }
+      saveTokens(tokens);
+      return res.send(
+        `<html><body style="font-family:system-ui;background:#111;color:#fff;text-align:center;padding-top:80px">
+         <h2>Drive terhubung</h2>
+         <p>Token Google One disimpan. Jalankan <code>npm run drive:seed-visuals</code> di terminal.</p>
+         <a href="/#/leaders" style="color:#FF416C">← Kembali</a></body></html>`
+      );
+    }
+
+    const prisma = getPrisma();
+    if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
+
     const { tokens } = await oauth2.getToken(String(req.query.code));
     oauth2.setCredentials(tokens);
     const idp = tokens.id_token ? await verifyGoogleCredential(tokens.id_token) : null;

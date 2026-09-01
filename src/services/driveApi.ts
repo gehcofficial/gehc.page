@@ -62,6 +62,7 @@ export const fetchDriveFolders = (parentId?: string) =>
       /** false bila zona folder di luar role pengguna (dari gdrive-policy) */
       accessAllowed?: boolean;
       zoneTag?: string | null;
+      displayName?: string;
     }[];
   }>(`/drive/folders${parentId ? `?parentId=${encodeURIComponent(parentId)}` : ''}`).then((r) => r.folders);
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useApp } from '../../context/AppContext';
+import { displayFolderName } from '../../lib/driveDisplay';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
+import { useApp } from '../../context/AppContext';
 import {
   Users,
   FolderOpen,
@@ -1181,7 +1182,9 @@ export const DivisionWorkspacePanel: React.FC = () => {
                           {driveFolders.map((f) => (
                             <div key={f.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors cursor-pointer">
                               <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
-                              <span className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</span>
+                              <span className="text-xs font-semibold text-[#1B1B1B] truncate" title={f.name}>
+                                {f.displayName || displayFolderName(f.name)}
+                              </span>
                             </div>
                           ))}
                         </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DriveUploadPanel } from './DriveUploadPanel';
+import { displayFolderName } from '../../lib/driveDisplay';
 import {
   FolderSync,
   Lock,
@@ -62,7 +63,7 @@ const DriveAuditPanel: React.FC = () => {
           <h3 className="text-xl font-bold text-[#1B1B1B]">Struktur TiDB ↔ Folder Google Drive</h3>
           <p className="text-xs text-[#8C8880] mt-1 max-w-2xl leading-relaxed">
             Membandingkan grup aktif & sub-divisi pantatugas di database dengan folder aktual di
-            Drive. Buat folder yang ditandai HILANG langsung di Google Drive, lalu jalankan audit ulang.
+            Drive. Nama di daftar ini tanpa tag zona; arahkan kursor untuk nama Drive lengkap (ACL).
           </p>
         </div>
         <button
@@ -107,7 +108,7 @@ const DriveAuditPanel: React.FC = () => {
                   title={g.ok ? 'Folder ditemukan' : `Buat folder: ${g.hint}`}
                 >
                   {g.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
-                  <span className="truncate">{g.name}</span>
+                  <span className="truncate" title={g.hint || g.name}>{displayFolderName(g.name)}</span>
                 </div>
               ))}
             </div>
@@ -134,7 +135,7 @@ const DriveAuditPanel: React.FC = () => {
                   >
                     {p.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
                     <span className="uppercase text-[9px] opacity-70">{p.pillar}</span>
-                    <span className="truncate">{p.name}</span>
+                    <span className="truncate" title={`${p.pillar} / ${p.name}`}>{displayFolderName(p.name)}</span>
                   </div>
                 ))}
               </div>
@@ -146,14 +147,17 @@ const DriveAuditPanel: React.FC = () => {
               {audit.extraGroupFolders.length > 0 && (
                 <p className="text-[11px] text-amber-800 font-semibold flex items-start gap-2">
                   <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Folder [GROUP:] tidak dikenali database (periksa ejaan): {audit.extraGroupFolders.join(', ')}
+                  Folder GROUP tidak dikenali database (periksa ejaan):{' '}
+                  {audit.extraGroupFolders.map((n) => displayFolderName(n)).join(', ')}
                 </p>
               )}
               {audit.untaggedFolders.length > 0 && (
                 <p className="text-[11px] text-amber-800 font-semibold flex items-start gap-2">
                   <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Folder tanpa tag zona — tidak dapat diakses siapa pun hingga diberi tag:
-                  {' '}{audit.untaggedFolders.join(', ')}
+                  Folder tanpa tag zona — tidak dapat diakses siapa pun hingga diberi tag:{' '}
+                  <span title={audit.untaggedFolders.join(', ')}>
+                    {audit.untaggedFolders.map((n) => displayFolderName(n)).join(', ')}
+                  </span>
                 </p>
               )}
             </div>

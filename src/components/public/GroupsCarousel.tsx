@@ -6,7 +6,6 @@ import { useLang } from '../../context/LangContext';
 import { MiniFamilyTree } from './FamilyTree';
 import { SectionHeader } from './ui/SectionHeader';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
-import { IMG_PROPS } from '../../config/media';
 import type { YouthGroup } from '../../types';
 
 type GroupCardProps = {
@@ -19,6 +18,7 @@ type GroupCardProps = {
   menteeLabel: string;
   onOpen: (id: string) => void;
   coverUrl?: string;
+  priority?: boolean;
 };
 
 const GroupHouseCard: React.FC<GroupCardProps> = ({
@@ -31,6 +31,7 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
   menteeLabel,
   onOpen,
   coverUrl,
+  priority = false,
 }) => (
   <article
     data-card
@@ -39,7 +40,14 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
   >
     {coverUrl ? (
       <div className="h-28 w-full overflow-hidden bg-[#F0EFEB]">
-        <img src={coverUrl} alt={grp.name} className="w-full h-full object-cover" {...IMG_PROPS} />
+        <img
+          src={coverUrl}
+          alt={grp.name}
+          className="w-full h-full object-cover"
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
+        />
       </div>
     ) : null}
     <div className={`px-5 ${coverUrl ? 'pt-1' : 'pt-5'} pb-5 flex flex-col gap-4 flex-1`}>
@@ -198,6 +206,7 @@ export const GroupsCarousel: React.FC = () => {
                 menteeLabel={t.groupDetail.menteeCount}
                 onOpen={openGroupDetail}
                 coverUrl={slots.kelompok[grp.name.toLowerCase()]}
+                priority={sourceIndex < 4}
               />
             );
           })}

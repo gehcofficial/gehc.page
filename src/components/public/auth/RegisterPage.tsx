@@ -1,11 +1,10 @@
 import React from 'react';
+import { BrandCaption } from '../../brand/BrandCaption';
 import { EmailRegisterPanel, GoogleRegisterPanel } from './shared/AuthPanels';
 
 export const RegisterPage: React.FC = () => (
   <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto">
-    <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-2">
-      Beyonders • GMIM Eben Haezer Cikarang
-    </p>
+    <BrandCaption theme="light" className="mb-3" />
     <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight mb-2 font-display">
       Gabung Beyonders
     </h1>
