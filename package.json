@@ -52,6 +52,7 @@
     "drive:pull-visuals": "node server/drive-pull-visuals.mjs",
     "drive:pull-visuals:staging": "dotenv -e .env -e .env.staging --override -- node server/drive-pull-visuals.mjs",
     "drive:pull-visuals:prod": "dotenv -e .env -e .env.production --override -- node server/drive-pull-visuals.mjs",
+    "visuals:optimize": "node server/visuals-optimize.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -81,6 +82,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-router-dom": "^7.9.1",
+    "sharp": "^0.34.5",
     "vite": "^6.2.3",
     "xlsx": "^0.18.5"
   },

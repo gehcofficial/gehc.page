@@ -7,7 +7,7 @@
  *   npm run drive:pull-visuals:prod      # .env.production
  */
 import 'dotenv/config';
-import { createWriteStream, mkdirSync, statSync } from 'node:fs';
+import { createWriteStream, mkdirSync, statSync, writeFileSync, unlinkSync, renameSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { getDriveMode, listFolders, listFiles, getFileStream } from './gdrive.mjs';
@@ -27,6 +27,7 @@ import {
   localPath,
   writeManifest,
 } from './lib/static-visuals.mjs';
+import { optimizeImageFile, formatSize } from './lib/visual-optimize.mjs';
 
 function pickSlotFile(files, stem) {
   const matches = (files || []).filter((f) => matchStem(f.name, stem));
@@ -65,6 +66,7 @@ async function listFolderFiles(drive, folderId, pageSize = 50) {
     name: f.name,
     mimeType: f.mimeType,
     modifiedTime: f.modifiedTime,
+    thumbnailLink: f.thumbnailLink,
   }));
 }
 
@@ -103,16 +105,58 @@ async function listFoldersVia(drive, parentId, pageSize = 50) {
   return res.data.files || [];
 }
 
-async function downloadFile(drive, file, relPath) {
+async function fetchThumbnailBuffer(file, size = 1600) {
+  const link = file.thumbnailLink || file.thumbnailUrl;
+  if (!link) throw new Error('thumbnailLink tidak tersedia');
+  const url = link.replace(/=s\d+.*$/, `=s${size}`);
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'gehc.page-drive-pull/1.0' },
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error(`thumbnail HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < 500) throw new Error('thumbnail terlalu kecil');
+  return buf;
+}
+
+async function downloadFile(drive, file, relPath, slotKey = '') {
   const dest = localPath(relPath);
+  const tmp = `${dest}.pull.tmp`;
   mkdirSync(dirname(dest), { recursive: true });
-  const stream = drive ? await streamFile(drive, file.id) : (await getFileStream(file.id)).stream;
-  await pipeline(stream, createWriteStream(dest));
-  const size = statSync(dest).size;
-  if (size > 2_000_000) {
-    console.warn(`  ⚠ ${relPath} — ${Math.round(size / 1024 / 1024)}MB (pertimbangkan kompresi sebelum commit)`);
+
+  const applySource = async (sourcePath) => {
+    const stats = await optimizeImageFile(sourcePath, relPath, slotKey);
+    try {
+      unlinkSync(dest);
+    } catch {
+      /* ok */
+    }
+    renameSync(sourcePath, dest);
+    console.log(`    ↳ ${formatSize(stats.before)} → ${formatSize(stats.bytes)}`);
+    return statSync(dest).mtimeMs;
+  };
+
+  try {
+    unlinkSync(tmp);
+  } catch {
+    /* ok */
   }
-  return statSync(dest).mtimeMs;
+
+  try {
+    const stream = drive ? await streamFile(drive, file.id) : (await getFileStream(file.id)).stream;
+    await pipeline(stream, createWriteStream(tmp));
+    return await applySource(tmp);
+  } catch (e) {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* ok */
+    }
+    console.warn(`    ↳ file penuh gagal (${String(e.message).split('\n')[0]}), pakai thumbnail Drive s1600…`);
+  }
+
+  writeFileSync(tmp, await fetchThumbnailBuffer(file, 1600));
+  return await applySource(tmp);
 }
 
 function relFromFile(folder, fileName) {
@@ -127,7 +171,7 @@ async function pullNamedFolder(slots, oauthDrive, folderKey, files, skipPrefix) 
     if (!f.mimeType?.startsWith('image/') && !f.mimeType?.startsWith('video/')) continue;
     const rel = relFromFile(folderKey, f.name);
     try {
-      const mtime = await downloadFile(oauthDrive, f, rel);
+      const mtime = await downloadFile(oauthDrive, f, rel, `${folderKey}.${stem}`);
       slots[folderKey][stem] = staticUrl(rel, mtime);
       count += 1;
       console.log(`  + ${rel}`);
@@ -208,7 +252,7 @@ async function main() {
     }
     const rel = relFromFile(slot.folder, file.name);
     try {
-      const mtime = await downloadFile(oauthDrive, file, rel);
+      const mtime = await downloadFile(oauthDrive, file, rel, slot.key);
       assignSlot(slots, slot.key, staticUrl(rel, mtime));
       downloaded += 1;
       console.log(`  + ${rel}`);
