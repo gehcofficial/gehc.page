@@ -5,6 +5,7 @@ import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 import { Countdown } from './ui/Countdown';
 import { EventVenueMap } from './ui/EventVenueMap';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -18,6 +19,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
 }) => {
   const { contentItems, setPublicTab } = useApp();
   const { t } = useLang();
+  const slots = useMediaSlots();
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [eventClosed, setEventClosed] = useState(false);
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
@@ -91,7 +93,11 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
           <Reveal>
             <div className="relative overflow-hidden rounded-[36px] bg-[#111111] text-white shadow-2xl">
               <img
-                src={featured.bannerUrl}
+                src={
+                  featured.id === 'cnt-bakutau'
+                    ? slots.kegiatan.bakuTau || featured.bannerUrl || slots.kegiatan.bannerDefault
+                    : featured.bannerUrl || slots.kegiatan.bannerDefault
+                }
                 alt={featured.title}
                 loading="lazy"
                 decoding="async"

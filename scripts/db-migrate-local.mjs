@@ -65,6 +65,16 @@ const STEPS = [
     label: 'Event attendees (event_attendees)',
     required: true,
   },
+  {
+    script: 'server/_migrate-testimonials.cjs',
+    label: 'Landing testimonials (testimonials)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-must-change-password.cjs',
+    label: 'Local auth must_change_password',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

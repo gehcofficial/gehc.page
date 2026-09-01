@@ -177,7 +177,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[#1B1B1B]">Aktifkan Notifikasi Push</p>
             <p className="text-xs text-[#8C8880] mt-0.5">
-              Dapatkan update real-time: warta baru, jadwal penatalayan, galeri event, & info toko.
+              Dapatkan update real-time: warta baru, jadwal penatalayan, & Benzarpreneurship.
             </p>
           </div>
         </div>
@@ -189,7 +189,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <FeatureIcon icon={<Bell className="w-5 h-5" />} title="Warta Publik" desc="Warta mingguan siap baca" />
         <FeatureIcon icon={<Smartphone className="w-5 h-5" />} title="Penatalayan" desc="Jadwal ibadah & reminder" />
-        <FeatureIcon icon={<Download className="w-5 h-5" />} title="Galeri & Toko" desc="Foto event & promo merchandise" />
+        <FeatureIcon icon={<Download className="w-5 h-5" />} title="Warta & Benzarpreneurship" desc="Foto edisi warta & promo merchandise" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">

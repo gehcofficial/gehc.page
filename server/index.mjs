@@ -55,6 +55,7 @@ import {
   applyLifeAddressFields,
   reminderDue,
   profileSegments,
+  beyondersProfileIncomplete,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
@@ -65,7 +66,8 @@ import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
-import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME } from './lib/baku-tau.mjs';
+import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
+import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME, GEHC_MAP_URL } from './lib/baku-tau.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
@@ -138,10 +140,12 @@ app.post('/api/auth/google', wrap(async (req, res) => {
 app.get('/api/auth/me', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const u = req.authUser;
+  const segments = profileSegments(u);
   res.json({
     user: u,
     reminderDue: reminderDue(u),
-    segments: profileSegments(u),
+    segments,
+    profileIncomplete: beyondersProfileIncomplete(u),
   });
 }));
 
@@ -730,6 +734,9 @@ app.get('/api/config', wrap(async (req, res) => {
     dbTarget: getDbTarget(),
     dbLabel: getDbLabel(),
     rootFolderId: process.env.GDRIVE_ROOT_FOLDER_ID || null,
+    gehcMapUrl: GEHC_MAP_URL,
+    bakuTauMapUrl: BAKU_TAU_MAP_URL,
+    bakuTauMapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
   });
 }));
 
@@ -2730,7 +2737,19 @@ app.post('/api/auth/local', wrap(async (req, res) => {
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
       status: user.accountStatus,
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, roles: user.roles },
+      mustChangePassword: Boolean(user.mustChangePassword),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        roles: user.roles,
+        accountStatus: user.accountStatus,
+        onboardingStatus: user.onboardingStatus,
+        isBeyonders: user.isBeyonders,
+        mustChangePassword: Boolean(user.mustChangePassword),
+        giftsTop5: user.giftsTop5,
+      },
     });
   } catch (err) {
     res.status(401).json({ error: err.message });
@@ -4153,6 +4172,199 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
   res.json({ user: serializeJemaat(user) });
 }));
 
+/** POST /api/groups/:id/members/bulk — Bulk assign users into a mentoring group */
+app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const groupId = req.params.id;
+  const assignerId = req.authUser?.id;
+  if (!assignerId) return res.status(401).json({ error: 'Belum login.' });
+
+  const { userIds, familyRole = 'MENTEE' } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds wajib (array).' });
+  }
+  if (userIds.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 user per bulk assign.' });
+  }
+
+  const fr = String(familyRole || 'MENTEE').toUpperCase();
+  const role = fr === 'MENTOR' ? 'MENTOR' : (fr === 'CO_MENTOR' || fr === 'COMENTOR') ? 'CO_MENTOR' : 'MENTEE';
+  if ((role === 'MENTOR' || role === 'CO_MENTOR') && userIds.length > 1) {
+    return res.status(400).json({ error: 'Mentor/Co-Mentor hanya 1 orang per bulk assign.' });
+  }
+
+  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+
+  const results = [];
+  const errors = [];
+  for (let i = 0; i < userIds.length; i++) {
+    const userId = userIds[i];
+    try {
+      await assignRoleToUser(prisma, {
+        userId,
+        role,
+        groupId,
+        familyRole: role,
+        assignedBy: assignerId,
+        note: 'Bulk assign Beyonders',
+      });
+      results.push({ userId, ok: true });
+    } catch (err) {
+      errors.push({ userId, error: err?.message || String(err) });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.json({
+    ok: true,
+    groupId,
+    assigned: results.length,
+    failed: errors.length,
+    results,
+    errors,
+  });
+}));
+
+/** POST /api/admin/users/provision — Bulk create local email+temp password (mustChangePassword) */
+app.post('/api/admin/users/provision', requireRole(...KOMISION), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { userIds } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds wajib (array).' });
+  }
+  if (userIds.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 user per provision.' });
+  }
+
+  const slugify = (name) =>
+    String(name || 'user')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.|\.$/g, '')
+      .slice(0, 40) || 'user';
+
+  const tempPassword = () => {
+    const raw = crypto.randomBytes(4).toString('hex');
+    return `GehC-${raw}!`;
+  };
+
+  const credentials = [];
+  const errors = [];
+
+  for (let i = 0; i < userIds.length; i++) {
+    const userId = userIds[i];
+    try {
+      const existing = await prisma.user.findUnique({ where: { id: userId } });
+      if (!existing) {
+        errors.push({ userId, error: 'User tidak ditemukan.' });
+        continue;
+      }
+      if (existing.linkStatus === 'LINKED' && existing.googleSub) {
+        errors.push({ userId, error: 'Sudah tertaut Google — lewati.' });
+        continue;
+      }
+
+      let email = existing.email ? String(existing.email).toLowerCase().trim() : null;
+      if (!email) {
+        const base = slugify(existing.name);
+        email = `${base}@gehc.local`;
+        const clash = await prisma.user.findUnique({ where: { email } });
+        if (clash && clash.id !== existing.id) {
+          email = `${base}.${String(existing.id).slice(-6)}@gehc.local`;
+        }
+      }
+
+      const password = tempPassword();
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          email,
+          passwordHash: hashPassword(password),
+          authProvider: 'LOCAL',
+          accountStatus: existing.accountStatus === 'PENDING' ? 'ACTIVE' : existing.accountStatus,
+        },
+      });
+      await prisma.$executeRawUnsafe(
+        'UPDATE users SET must_change_password = 1 WHERE id = ?',
+        userId,
+      );
+      credentials.push({
+        userId,
+        name: existing.name,
+        email,
+        temporaryPassword: password,
+      });
+    } catch (err) {
+      errors.push({ userId, error: err?.message || String(err) });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.json({
+    ok: true,
+    provisioned: credentials.length,
+    failed: errors.length,
+    credentials,
+    errors,
+  });
+}));
+
+/** POST /api/me/password — Ganti password (wajib jika mustChangePassword) */
+app.post('/api/me/password', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { currentPassword, newPassword } = req.body || {};
+  const next = String(newPassword || '');
+  if (next.length < 8) {
+    return res.status(400).json({ error: 'Password baru minimal 8 karakter.' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  const mcpRows = await prisma.$queryRawUnsafe(
+    'SELECT must_change_password AS mcp FROM users WHERE id = ? LIMIT 1',
+    user.id,
+  );
+  const mcpVal = mcpRows?.[0]?.mcp;
+  const mustChange = Buffer.isBuffer(mcpVal)
+    ? mcpVal[0] === 1
+    : Boolean(mcpVal != null ? Number(mcpVal) : user.mustChangePassword);
+  if (user.passwordHash && !mustChange) {
+    if (!currentPassword || !verifyPassword(String(currentPassword), user.passwordHash)) {
+      return res.status(400).json({ error: 'Password lama salah.' });
+    }
+  } else if (user.passwordHash && mustChange && currentPassword) {
+    if (!verifyPassword(String(currentPassword), user.passwordHash)) {
+      return res.status(400).json({ error: 'Password sementara salah.' });
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hashPassword(next),
+      authProvider: user.authProvider === 'GOOGLE' ? user.authProvider : 'LOCAL',
+    },
+  });
+  await prisma.$executeRawUnsafe('UPDATE users SET must_change_password = 0 WHERE id = ?', user.id);
+
+  res.json({ ok: true });
+}));
+
 /** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
 app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -4455,6 +4667,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
 registerEventsPublicRoutes(app, { wrap });
+registerContentPublicRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 
@@ -5066,6 +5279,7 @@ app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   // Send push notification when warta is published
   if (status === 'PUBLISHED' && oldStatus !== 'PUBLISHED') {
     notifyNewWarta(prisma, warta).catch(console.error);
+    syncWartaToContentItem(prisma, warta).catch(console.error);
   }
   
   res.json({ warta });

@@ -148,15 +148,15 @@ export async function notifyNewWarta(prisma, warta) {
 // Trigger notification for new Gallery item (approved)
 export async function notifyNewGallery(prisma, galleryItem) {
   const payload = {
-    title: 'Foto/Video Baru di Galeri',
+    title: 'Foto/Video Baru di Warta',
     body: galleryItem.title,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-72.png',
     image: galleryItem.thumbUrl || galleryItem.mediaUrl,
     tag: `gallery-${galleryItem.id}`,
-    data: { type: 'gallery', url: '/#/gallery', galleryId: galleryItem.id },
+    data: { type: 'bulletin', url: '/#/bulletin', galleryId: galleryItem.id },
     actions: [
-      { action: 'open', title: 'Lihat Galeri' },
+      { action: 'open', title: 'Lihat Warta' },
       { action: 'dismiss', title: 'Nanti' },
     ],
   };
@@ -213,7 +213,7 @@ export async function notifyOrderUpdate(prisma, order, newStatus) {
   const statusLabels = { PENDING: 'Menunggu', CONFIRMED: 'Dikonfirmasi', PREPARING: 'Disiapkan', READY: 'Siap Diambil', COMPLETED: 'Selesai', CANCELLED: 'Dibatalkan' };
   
   const payload = {
-    title: 'Update Pesanan Toko',
+    title: 'Update Pesanan Benzarpreneurship',
     body: `Pesanan #${order.orderCode} - ${statusLabels[newStatus] || newStatus}`,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-72.png',

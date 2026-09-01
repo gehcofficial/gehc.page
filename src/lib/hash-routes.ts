@@ -9,7 +9,6 @@ export type ParsedHashRoute = {
     | 'register'
     | 'event-signup'
     | 'group-detail'
-    | 'gallery'
     | 'benzarpreneurship';
   eventSlug?: string;
   params: URLSearchParams;
@@ -23,6 +22,7 @@ const LEGACY_MAP: Record<string, ParsedHashRoute['tab']> = {
   'weekly-info': 'bulletin',
   activity: 'events',
   warta: 'bulletin',
+  gallery: 'bulletin',
 };
 
 const PUBLIC_TABS = new Set<ParsedHashRoute['tab']>([
@@ -34,7 +34,6 @@ const PUBLIC_TABS = new Set<ParsedHashRoute['tab']>([
   'login',
   'register',
   'event-signup',
-  'gallery',
   'benzarpreneurship',
 ]);
 

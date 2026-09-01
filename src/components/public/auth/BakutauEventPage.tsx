@@ -93,8 +93,8 @@ export const BakutauEventPage: React.FC = () => {
     return (
       <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto text-center">
         <h1 className="text-2xl font-black mb-2">BAKU TAU 4.0 — Arsip</h1>
-        <p className="text-sm text-[#8C8880] mb-6">Acara ini sudah selesai. Lihat dokumentasi di galeri.</p>
-        <a href="#/gallery" className="text-sm font-bold text-[#FF416C]">Buka galeri event →</a>
+        <p className="text-sm text-[#8C8880] mb-6">Acara ini sudah selesai. Lihat dokumentasi di warta.</p>
+        <a href="#/bulletin" className="text-sm font-bold text-[#FF416C]">Buka warta →</a>
       </section>
     );
   }

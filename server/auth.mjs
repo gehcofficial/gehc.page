@@ -112,6 +112,21 @@ export async function persistSuperadminRole(user) {
 
 export const ensureSuperadminRole = persistSuperadminRole;
 
+async function attachMustChangePassword(prisma, user) {
+  if (!user) return user;
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      'SELECT must_change_password AS mcp FROM users WHERE id = ? LIMIT 1',
+      user.id,
+    );
+    const v = rows?.[0]?.mcp;
+    user.mustChangePassword = Buffer.isBuffer(v) ? v[0] === 1 : Boolean(Number(v));
+  } catch {
+    user.mustChangePassword = Boolean(user.mustChangePassword);
+  }
+  return user;
+}
+
 /** Muat User + roles dari DB berdasarkan uid di sesi. */
 async function loadUserByUid(uid) {
   const prisma = getPrisma();
@@ -120,6 +135,7 @@ async function loadUserByUid(uid) {
     where: { id: uid },
     include: { roles: true },
   });
+  await attachMustChangePassword(prisma, user);
   return applySuperadminSession(user);
 }
 
@@ -196,6 +212,7 @@ export async function loginLocal(emailRaw, password) {
   if (!u || !u.passwordHash || !verifyPassword(password, u.passwordHash)) {
     throw new Error('Email atau kata sandi salah.');
   }
+  await attachMustChangePassword(prisma, u);
   return persistSuperadminRole(u);
 }
 

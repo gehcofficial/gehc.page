@@ -51,10 +51,11 @@ Tamu produksi melihat navbar bersih.
 
 ## 3. Flow Pengunjung Publik
 
-### Routing hash 4 route (toggle EN|ID, default English):
+### Routing hash 5 route publik (toggle EN|ID, default English):
 
-- `#/beyonders` (default) · `#/leaders` · `#/events` · `#/bulletin`
-- Label: Beyonders · Leaders/Pengurus · Events/Kegiatan · Bulletin/Warta
+- `#/beyonders` (default) · `#/leaders` · `#/events` · `#/bulletin` · `#/benzarpreneurship`
+- Label: Beyonders · Leaders/Pengurus · Events/Kegiatan · Bulletin/Warta · Benzarpreneurship
+- `#/gallery` dialihkan ke `#/bulletin` (foto publik ada di Warta).
 - Multi-tenant switcher DIHAPUS dari UI publik.
 
 ### Home (`#/beyonders` — default, murni kisah Beyonders):
@@ -73,11 +74,15 @@ AboutSection ("Who We Are" + BOD asli: Theodore/Zhanon/Milithya
 ### `#/events` [prioritas 3]:
 
 EventsTimeline penuh (featured BAKU TAU 4.0 + countdown 12 Sep 2026
-16.00 WIB; timeline lampau→kini) · MediaGallery (role-gated)
+15.00 WIB; timeline lampau→kini). Foto publik ada di Warta, bukan tab Galeri.
 
 ### `#/bulletin`:
 
-WeeklyInfoSection (warta & renungan)
+WeeklyInfoSection (warta & renungan + foto edisi dari Drive)
+
+### `#/benzarpreneurship`:
+
+Katalog merchandise / fundraising / donation (bukan label "Toko").
 
 ### Klik kartu grup → GroupDetailPage (overlay):
 
@@ -92,10 +97,9 @@ Bagian 1: Pohon hirarki (BPMJ → Komisi → Penopang → 5 fungsi accordion)
 Bagian 2: Kartu pengurus (komisi · penopang · lima fungsi & sub-divisi)
 ▼
 
-MediaGallery (home) → foto live dari Google Drive GEHC:
-Zona [PUBLIK] terbuka untuk tamu; zona lain mengikuti role
-(detail matriks: drive-integration.md §4). Konten di luar role
-tampil sebagai badge "Terbatas", bukan error.
+Visual dari Google Drive (`Website Visual [PUBLIK]`) lookup by filename —
+lihat [`website-visuals.md`](website-visuals.md). Tamu hanya zona `[PUBLIK]`.
+Foto di luar role tampil sebagai badge "Terbatas", bukan error.
 
 ---
 

@@ -111,6 +111,8 @@ export async function listFolders(parentId, pageSize = 50) {
       pageSize: Math.min(pageSize, 100),
       orderBy: 'name',
       fields: 'nextPageToken, files(id, name, mimeType)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     return res.data.files || [];
   });

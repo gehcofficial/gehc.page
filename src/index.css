@@ -65,8 +65,20 @@
   animation: marquee 35s linear infinite;
 }
 
-.animate-marquee:hover {
+.animate-marquee-houses {
+  display: flex;
+  width: max-content;
+  animation: marquee 88s linear infinite;
+}
+
+.animate-marquee:hover,
+.animate-marquee-houses:hover,
+.animate-marquee-houses.is-paused {
   animation-play-state: paused;
+}
+
+.animate-marquee-houses.is-reverse {
+  animation-direction: reverse;
 }
 
 .animate-fade-in {
@@ -75,6 +87,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
+  .animate-marquee-houses,
   .animate-fade-in {
     animation: none;
   }

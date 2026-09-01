@@ -34,7 +34,10 @@ export const MediaGuidePanel: React.FC = () => {
         setDriveOk(st.driveConfigured);
         if (!st.driveConfigured) return;
         return fetchDriveFolders().then((fs) => {
-          const publik = fs.find((f) => f.zoneTag === 'PUBLIK');
+          const visual = fs.find(
+            (f) => f.zoneTag === 'PUBLIK' && /website visual/i.test(f.name)
+          );
+          const publik = visual || fs.find((f) => f.zoneTag === 'PUBLIK');
           if (publik) {
             setGalleryUrl(`https://drive.google.com/drive/folders/${publik.id}`);
           }
@@ -65,9 +68,9 @@ export const MediaGuidePanel: React.FC = () => {
         <div className="flex items-center gap-3">
           <Images className="w-6 h-6 text-[#FF416C]" />
           <div>
-            <h3 className="text-sm font-black text-white">Panduan Media — Galeri Publik</h3>
+            <h3 className="text-sm font-black text-white">Panduan Media — Visual Website</h3>
             <p className="text-[10px] text-white/50">
-              Cara memperbarui foto "Stories in Pictures" lewat Google Drive
+              Timpa file di Website Visual [PUBLIK] dengan nama yang sama
             </p>
           </div>
         </div>
@@ -108,7 +111,7 @@ export const MediaGuidePanel: React.FC = () => {
               rel="noreferrer"
               className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#181818] text-white text-[11px] font-bold hover:bg-black transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5" /> Buka Folder Galeri
+              <ExternalLink className="w-3.5 h-3.5" /> Buka Website Visual
             </a>
           </div>
         ) : (
@@ -125,10 +128,10 @@ export const MediaGuidePanel: React.FC = () => {
           Langkah Update Foto
         </h4>
         {[
-          ['Buka folder galery', 'Klik tombol "Buka Folder Galeri" di atas → masuk ke folder Event Gallery [PUBLIK].'],
-          ['Rename dulu, baru upload', 'Nama file menjadi caption di web. Contoh: "Retreat UNSHAKABLE - Highland Camp.jpg". Rename sebelum upload.'],
-          ['Drag & drop foto', 'Format JPG/PNG. 12 foto terbaru yang tampil di website (terurut terbaru).'],
-          ['Selesai', 'Buka halaman Events di web publik → section "Stories in Pictures". Tunggu ±1 menit lalu refresh bila perlu.'],
+          ['Buka folder visual', 'Klik "Buka Website Visual" → folder Website Visual [PUBLIK]. Baca _PETA-VISUAL.txt.'],
+          ['Timpa file, jangan ganti nama', 'Nama file adalah kunci. Contoh: landing/01-hero-banner.png untuk Hero Beyonders.'],
+          ['Foto warta edisi', 'Masukkan ke Warta Publik [PUBLIK]/YYYY-MM-DD-judul/foto/ — tampil di detail Warta, bukan halaman Galeri.'],
+          ['Selesai', 'Refresh halaman publik (±1 menit cache). Lihat docs/product/website-visuals.md.'],
         ].map(([title, desc], i) => (
           <div key={i} className="flex items-start gap-3">
             <span className="w-6 h-6 shrink-0 rounded-full bg-[#181818] text-white text-[10px] font-black flex items-center justify-center mt-0.5">
@@ -157,10 +160,10 @@ export const MediaGuidePanel: React.FC = () => {
             </thead>
             <tbody className="font-semibold">
               {[
-                ['Event Gallery [PUBLIK]', 'Semua pengunjung web (tanpa login)'],
-                ['Warta Publik [PUBLIK]', 'Semua pengunjung web'],
+                ['Website Visual [PUBLIK]', 'Semua pengunjung — slot hero, collage, BZP, cover kelompok'],
+                ['Warta Publik [PUBLIK]', 'Semua pengunjung — banner & foto edisi (pengganti Galeri)'],
                 ['Ruang Anggota [MENTEE]', 'Hanya yang login'],
-                ['Kelompok Mentoring [MENTOR]', 'Semua pengunjung web — galeri grup publik'],
+                ['Kelompok Mentoring [MENTOR]', 'Galeri per-rumah di halaman detail grup'],
                 ['Laporan Internal [KOMISI]', 'Komisi & Superadmin saja'],
               ].map(([f, w]) => (
                 <tr key={f} className="border-t border-[#D9D7D0]/40">

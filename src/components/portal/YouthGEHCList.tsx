@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Loader2, Search, ChevronDown, ChevronUp, Trash2, Edit2, Pencil, X, AlertCircle, UserPlus, Link2, Plus } from 'lucide-react';
+import { Users, Loader2, Search, ChevronDown, ChevronUp, Trash2, Edit2, Pencil, X, AlertCircle, UserPlus, Link2, Plus, KeyRound } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { type RecreationalNode } from '../../lib/recreational';
@@ -140,16 +140,16 @@ const TIMKERJA_GROUPS_FALLBACK = [
 ];
 
 const BEYONDER_GROUPS = [
-  { id: 'grp-1', name: 'Avodah', color: '#FF416C' },
-  { id: 'grp-2', name: 'Agape', color: '#E94057' },
-  { id: 'grp-3', name: 'Shalom', color: '#2A81FF' },
-  { id: 'grp-4', name: 'Hesed', color: '#8A2387' },
-  { id: 'grp-5', name: 'Kairos', color: '#F27121' },
-  { id: 'grp-6', name: 'Logos', color: '#00B4D8' },
-  { id: 'grp-7', name: 'Metanoia', color: '#059669' },
-  { id: 'grp-8', name: 'Koinonia', color: '#0EA5E9' },
-  { id: 'grp-9', name: 'Diakonia', color: '#EA580C' },
-  { id: 'grp-10', name: 'Marturia', color: '#DC2626' },
+  { id: 'grp-avodah', name: 'Avodah', color: '#FF416C' },
+  { id: 'grp-agape', name: 'Agape', color: '#E94057' },
+  { id: 'grp-shalom', name: 'Shalom', color: '#2A81FF' },
+  { id: 'grp-hesed', name: 'Hesed', color: '#8A2387' },
+  { id: 'grp-kairos', name: 'Kairos', color: '#F27121' },
+  { id: 'grp-logos', name: 'Logos', color: '#00B4D8' },
+  { id: 'grp-metanoia', name: 'Metanoia', color: '#059669' },
+  { id: 'grp-ruach', name: 'Ruach', color: '#7C3AED' },
+  { id: 'grp-dunamis', name: 'Dunamis', color: '#DC2626' },
+  { id: 'grp-echad', name: 'Echad', color: '#0D9488' },
 ];
 
 const initialsAvatar = (n: string) =>
@@ -357,6 +357,17 @@ export const YouthGEHCList: React.FC = () => {
   >>([]);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const [churchRequestBusy, setChurchRequestBusy] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [liveGroups, setLiveGroups] = useState<Array<{ id: string; name: string; color: string }>>(BEYONDER_GROUPS);
+  const [bulkGroupId, setBulkGroupId] = useState('');
+  const [bulkFamilyRole, setBulkFamilyRole] = useState<'MENTEE' | 'MENTOR' | 'CO_MENTOR'>('MENTEE');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [provisionCreds, setProvisionCreds] = useState<Array<{
+    userId: string;
+    name: string;
+    email: string;
+    temporaryPassword: string;
+  }> | null>(null);
 
   const openEditModal = (user: YouthUser) => {
     setCreating(false);
@@ -637,7 +648,25 @@ export const YouthGEHCList: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetch('/api/db/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const groups = Array.isArray(d.groups) ? d.groups : [];
+        if (!groups.length) return;
+        setLiveGroups(
+          groups.map((g: { id: string; name: string; color?: string }) => ({
+            id: g.id,
+            name: g.name,
+            color: g.color || '#8C8880',
+          }))
+        );
+        setBulkGroupId((prev) => prev || groups[0]?.id || '');
+      })
+      .catch(() => {});
+  }, []);
   useEffect(() => { setSubFilter(null); }, [mainFilter]);
+  useEffect(() => { setSelectedIds(new Set()); }, [mainFilter, bipraFilter]);
   useEffect(() => {
     setRecCategoryFilter('');
     setRecLeafFilter('');
@@ -692,11 +721,13 @@ export const YouthGEHCList: React.FC = () => {
 
   // Build Beyonders grouped data
   const beyondersGrouped = useMemo((): BeyondersGroupData[] => {
+    const catalog = liveGroups.length ? liveGroups : BEYONDER_GROUPS;
     const groupMap = new Map<string, BeyondersGroupData>();
-    
-    // Initialize all 10 groups
-    BEYONDER_GROUPS.forEach((g) => {
+    const byUpper = new Map<string, string>();
+
+    catalog.forEach((g) => {
       groupMap.set(g.name, { group: g, members: [] });
+      byUpper.set(g.name.toUpperCase(), g.name);
     });
     groupMap.set('Tanpa Group', { group: null, members: [] });
 
@@ -704,10 +735,16 @@ export const YouthGEHCList: React.FC = () => {
       y.roleAssignments
         .filter((ra) => ra.isActive && BEYONDER_ROLES.includes(ra.role))
         .forEach((ra) => {
-          const groupName = ra.group?.name || 'Tanpa Group';
-          const gData = groupMap.get(groupName);
+          const raw = ra.group?.name || 'Tanpa Group';
+          const key = raw === 'Tanpa Group' ? 'Tanpa Group' : (byUpper.get(raw.toUpperCase()) || raw);
+          if (!groupMap.has(key)) {
+            groupMap.set(key, {
+              group: ra.group ? { id: ra.group.id, name: ra.group.name, color: '#8C8880' } : null,
+              members: [],
+            });
+          }
+          const gData = groupMap.get(key);
           if (gData) {
-            // Check if this assignment is pending (from PlacementItem with status PENDING/APPROVED/REVISED)
             const isPending = ra.note?.includes('BEYONDERS: Pending') || false;
             gData.members.push({
               user: y,
@@ -720,7 +757,94 @@ export const YouthGEHCList: React.FC = () => {
     });
 
     return Array.from(groupMap.values()).filter((g) => g.members.length > 0);
-  }, [allFiltered]);
+  }, [allFiltered, liveGroups]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectDisplayed = () => {
+    setSelectedIds(new Set(displayed.map((y) => y.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulkAssign = async () => {
+    if (!bulkGroupId || selectedIds.size === 0) return;
+    if ((bulkFamilyRole === 'MENTOR' || bulkFamilyRole === 'CO_MENTOR') && selectedIds.size > 1) {
+      addToast({ type: 'error', title: 'Pilih 1 orang', description: 'Mentor/Co-Mentor hanya 1 per assign.' });
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const res = await fetch(`/api/groups/${bulkGroupId}/members/bulk`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: Array.from(selectedIds), familyRole: bulkFamilyRole }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Bulk assign gagal');
+      addToast({
+        type: 'success',
+        title: 'Assign selesai',
+        description: `${d.assigned || 0} masuk grup${d.failed ? `, ${d.failed} gagal` : ''}.`,
+      });
+      clearSelection();
+      await fetchData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Bulk assign gagal' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const runBulkProvision = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/admin/users/provision', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: Array.from(selectedIds) }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Provision gagal');
+      setProvisionCreds(d.credentials || []);
+      addToast({
+        type: 'success',
+        title: 'Akun diprovision',
+        description: `${d.provisioned || 0} password sementara dibuat. Simpan CSV sekarang.`,
+      });
+      clearSelection();
+      await fetchData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Provision gagal' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const downloadCredsCsv = () => {
+    if (!provisionCreds?.length) return;
+    const rows = [
+      'name,email,temporaryPassword',
+      ...provisionCreds.map((c) => `"${c.name.replace(/"/g, '""')}","${c.email}","${c.temporaryPassword}"`),
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gehc-provision-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const revokeRole = async (assignmentId: string) => {
     setRevokingId(assignmentId);
@@ -1005,7 +1129,7 @@ export const YouthGEHCList: React.FC = () => {
       )}
 
       {/* Result Count */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[10px] font-bold text-[#8C8880]">
           Menampilkan {displayed.length} dari {mainCounts.ALL} anggota
           {mainFilter !== 'ALL' && (
@@ -1014,7 +1138,74 @@ export const YouthGEHCList: React.FC = () => {
             </button>
           )}
         </p>
+        {(mainFilter === 'ALL' || mainFilter === 'INDIVIDU' || mainFilter === 'BEYONDERS') && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={selectDisplayed}
+              className="text-[10px] font-bold text-[#8C8880] hover:text-[#FF416C]"
+            >
+              Pilih tampilan
+            </button>
+            {selectedIds.size > 0 && (
+              <button type="button" onClick={clearSelection} className="text-[10px] font-bold text-[#FF416C]">
+                Hapus pilihan ({selectedIds.size})
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="sticky top-2 z-20 bg-white border border-[#D9D7D0] rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-end gap-3">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label className="block space-y-1">
+              <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Assign ke grup</span>
+              <select
+                value={bulkGroupId}
+                onChange={(e) => setBulkGroupId(e.target.value)}
+                className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs"
+              >
+                {liveGroups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Peran family</span>
+              <select
+                value={bulkFamilyRole}
+                onChange={(e) => setBulkFamilyRole(e.target.value as 'MENTEE' | 'MENTOR' | 'CO_MENTOR')}
+                className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs"
+              >
+                <option value="MENTEE">Mentee</option>
+                <option value="MENTOR">Mentor (1 orang)</option>
+                <option value="CO_MENTOR">Co-Mentor (1 orang)</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={bulkBusy || !bulkGroupId}
+              onClick={runBulkAssign}
+              className="px-3 py-2 rounded-xl bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+            >
+              {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
+              Assign ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={runBulkProvision}
+              className="px-3 py-2 rounded-xl bg-[#181818] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+            >
+              {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+              Provision akun
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content based on mainFilter */}
       {mainFilter === 'BEYONDERS' ? (
@@ -1070,6 +1261,13 @@ export const YouthGEHCList: React.FC = () => {
                       <div key={member.assignmentId} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
                         member.isPending ? 'bg-amber-50 border-l-4 border-amber-400' : 'bg-[#FAF9F5] hover:bg-[#F3F1EC]'
                       }`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(member.user.id)}
+                          onChange={() => toggleSelect(member.user.id)}
+                          className="rounded border-[#D9D7D0] shrink-0"
+                          aria-label={`Pilih ${member.user.name}`}
+                        />
                         <img
                           src={member.user.avatar || initialsAvatar(member.user.name)}
                           alt={member.user.name}
@@ -1142,6 +1340,13 @@ export const YouthGEHCList: React.FC = () => {
               return (
                 <div key={y.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden">
                   <div className="w-full flex items-center gap-3 p-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(y.id)}
+                      onChange={() => toggleSelect(y.id)}
+                      className="rounded border-[#D9D7D0] shrink-0"
+                      aria-label={`Pilih ${y.name}`}
+                    />
                     <button
                       onClick={() => setExpanded(isExpanded ? null : y.id)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -1266,7 +1471,7 @@ export const YouthGEHCList: React.FC = () => {
           )}
         </div>
       ) : (
-        // ALL tab - Standard list
+        // ALL / INDIVIDU tab - Standard list
         <div className="space-y-2">
           {displayed.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-12 text-center">
@@ -1282,6 +1487,13 @@ export const YouthGEHCList: React.FC = () => {
               return (
                 <div key={y.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden">
                   <div className="w-full flex items-center gap-3 p-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(y.id)}
+                      onChange={() => toggleSelect(y.id)}
+                      className="rounded border-[#D9D7D0] shrink-0"
+                      aria-label={`Pilih ${y.name}`}
+                    />
                     <button
                       onClick={() => setExpanded(isExpanded ? null : y.id)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -1652,6 +1864,52 @@ export const YouthGEHCList: React.FC = () => {
       {claimInfo && (
         <div className="text-[10px] bg-white border border-[#D9D7D0] rounded-2xl px-4 py-2 break-all">
           Link taut: {claimInfo}
+        </div>
+      )}
+
+      {provisionCreds && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#D9D7D0] shadow-xl p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-[#1B1B1B]">Kredensial sementara</p>
+                <p className="text-[11px] text-[#8C8880]">Hanya ditampilkan sekali — unduh CSV sekarang.</p>
+              </div>
+              <button type="button" onClick={() => setProvisionCreds(null)} className="p-1 rounded-lg hover:bg-[#F3F1EC]">
+                <X className="w-4 h-4 text-[#8C8880]" />
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {provisionCreds.length === 0 ? (
+                <p className="text-xs text-[#8C8880]">Tidak ada akun baru (mungkin sudah tertaut Google).</p>
+              ) : (
+                provisionCreds.map((c) => (
+                  <div key={c.userId} className="rounded-xl bg-[#FAF9F5] px-3 py-2 text-[11px]">
+                    <p className="font-bold text-[#1B1B1B]">{c.name}</p>
+                    <p className="text-[#8C8880]">{c.email}</p>
+                    <p className="font-mono text-[#FF416C]">{c.temporaryPassword}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={downloadCredsCsv}
+                disabled={!provisionCreds.length}
+                className="flex-1 py-2.5 rounded-xl bg-[#181818] text-white text-xs font-bold disabled:opacity-50"
+              >
+                Unduh CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => setProvisionCreds(null)}
+                className="px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

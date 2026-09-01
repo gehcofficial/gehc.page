@@ -53,7 +53,7 @@ export const ManageWeeklyInfo: React.FC = () => {
       subtitle: '',
       category: 'Warta Mingguan',
       scripture: '',
-      schedule: 'Ibadah Pemuda: Setiap Sabtu Pkl 18:30 WIB',
+      schedule: 'Ibadah Pemuda: Setiap Minggu Pkl 13:00 WIB',
       location: 'Gereja GMIM Eben Haezer Cikarang',
       bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop',
       tags: 'Warta, Ibadah Kreatif, Pemuda',
@@ -330,7 +330,7 @@ export const ManageWeeklyInfo: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="Contoh: Sabtu, 18:30 WIB"
+                    placeholder="Contoh: Minggu, 13:00 WIB"
                     value={formData.schedule}
                     onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"

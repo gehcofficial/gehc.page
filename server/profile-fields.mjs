@@ -55,6 +55,14 @@ export function reminderDue(user) {
   return Date.now() - new Date(user.lastProfileUpdate).getTime() > days * 86400000;
 }
 
+/** Beyonders may stay ACTIVE without full profile — soft reminder only. */
+export function beyondersProfileIncomplete(user) {
+  if (!user?.isBeyonders) return false;
+  const gifts = Array.isArray(user?.giftsTop5) && user.giftsTop5.length > 0;
+  const addressOk = Boolean(user?.addressLine || user?.address || user?.city);
+  return !user?.birthDate || !user?.phone || !gifts || !addressOk;
+}
+
 function contactComplete(user) {
   if (!user?.phone || !user?.gender || !user?.birthDate) return false;
   const scope = user.addressScope === 'INTL' ? 'INTL' : 'ID';

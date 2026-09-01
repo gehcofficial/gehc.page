@@ -36,6 +36,8 @@ export interface User {
   onboardingStatus?: 'WAITING_POOL' | 'PENDING' | 'ACTIVE' | (string & {});
   /** Gift test top 5 results */
   giftsTop5?: string[];
+  isBeyonders?: boolean;
+  mustChangePassword?: boolean;
   roles: UserRoleMapping[];
 }
 

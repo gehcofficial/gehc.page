@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { PortalDashboard } from './PortalDashboard';
 import { ManageWeeklyInfo } from './ManageWeeklyInfo';
 import { ManageActivities } from './ManageActivities';
+import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageIntegrations } from './ManageIntegrations';
@@ -21,6 +22,8 @@ import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
 import { MyProfilePanel, type ProfileSectionId } from './MyProfilePanel';
 import { OnboardingBanner } from './OnboardingBanner';
+import { ProfileIncompleteBanner } from './ProfileIncompleteBanner';
+import { MustChangePasswordGate } from './MustChangePasswordGate';
 import { EventInfoPanel } from './EventInfoPanel';
 import {
   LayoutDashboard,
@@ -42,6 +45,7 @@ import {
   ChevronRight,
   Bell,
   Network,
+  MessageSquareQuote,
 } from 'lucide-react';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
@@ -118,6 +122,7 @@ export const PortalLayout: React.FC = () => {
     { id: 'jethro', label: 'Regenerasi Kelompok', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
     { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS publikasi warta' },
     { id: 'content-activities', label: 'Kelola Agenda Kegiatan', icon: Calendar, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS agenda publik' },
+    { id: 'content-testimonials', label: 'Kelola Testimoni', icon: MessageSquareQuote, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI'], group: 'Konten', subtitle: 'Collage landing' },
     { id: 'media-guide', label: 'Panduan Media (Drive)', icon: Images, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Konten' },
     { id: 'struktur', label: 'Struktur Organisasi', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
     { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace per event' },
@@ -479,6 +484,7 @@ export const PortalLayout: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
+          <MustChangePasswordGate />
           <NotificationPermissionBanner compact onDismiss={() => {}} />
           {isOnboarding && (
             <OnboardingBanner
@@ -488,6 +494,14 @@ export const PortalLayout: React.FC = () => {
               }}
               onStartGiftTest={() => {
                 setProfileSection('gifts');
+                setActiveTab('my-profile');
+              }}
+            />
+          )}
+          {!isOnboarding && (
+            <ProfileIncompleteBanner
+              onCompleteProfile={() => {
+                setProfileSection('contact');
                 setActiveTab('my-profile');
               }}
             />
@@ -502,6 +516,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
           {activeTab === 'content-activities' && <ManageActivities />}
+          {activeTab === 'content-testimonials' && <ManageTestimonials />}
           {activeTab === 'media-guide' && <MediaGuidePanel />}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
           {activeTab === 'jethro' && <JethroEngine />}

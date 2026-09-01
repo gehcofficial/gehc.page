@@ -5,6 +5,8 @@ import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
 import { OrgTreeSection } from './StrukturSection';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
+import { slugifyPerson } from '../../config/media';
 
 interface Member {
   id: string;
@@ -32,6 +34,7 @@ const initialsAvatar = (name: string) =>
 export const KomisiSection: React.FC = () => {
   const { strukturMembers } = useApp();
   const { t } = useLang();
+  const slots = useMediaSlots();
   const [members, setMembers] = useState<Member[] | null>(null);
 
   useEffect(() => {
@@ -172,7 +175,11 @@ export const KomisiSection: React.FC = () => {
                             className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/40 mb-2"
                           >
                             <img
-                              src={m.photoUrl || initialsAvatar(m.name)}
+                              src={
+                                m.photoUrl ||
+                                slots.pengurus[slugifyPerson(m.name)] ||
+                                initialsAvatar(m.name)
+                              }
                               alt={m.name}
                               loading="lazy"
                               decoding="async"
@@ -217,13 +224,14 @@ export const KomisiSection: React.FC = () => {
 
 /** Kartu profil tanpa kontak publik — privasi anggota dijaga. */
 const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge }) => {
+  const slots = useMediaSlots();
   const initialsAvatar = (n: string) =>
     `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
   return (
     <div className="group h-full bg-white rounded-[32px] overflow-hidden border border-[#D9D7D0]/40 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
       <div className="h-44 w-full relative overflow-hidden bg-[#F0EFEB]">
         <img
-          src={member.photoUrl || initialsAvatar(member.name)}
+          src={member.photoUrl || slots.pengurus[slugifyPerson(member.name)] || initialsAvatar(member.name)}
           alt={member.name}
           loading="lazy"
           decoding="async"

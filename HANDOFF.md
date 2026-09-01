@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current priority — Onboarding UX staging fixes
+## Current priority — Drive visual website (staging)
+
+**Goal:** Slot visual publik di Shared Drive (nama file tetap), hapus Galeri publik, label Toko → Benzarpreneurship.
+
+### Done
+
+- Folder `Website Visual [PUBLIK]` + subfolder di `drive-provision`
+- `npm run drive:seed-visuals` — placeholder berlabel + `_PETA-VISUAL.txt`
+- `GET /api/media/slots` lookup by filename (bukan urutan Event Gallery)
+- Tab `#/gallery` dialihkan ke `#/bulletin`; foto edisi di Warta
+- Nav/footer/i18n: Benzarpreneurship (bukan Toko/Store)
+- Peta: [`docs/product/website-visuals.md`](docs/product/website-visuals.md)
+
+### Commands
+
+```powershell
+npm run drive:provision
+npm run drive:seed-visuals
+npm run dev:all
+npm run lint
+```
+
+SA harus Content Manager di **Shared Drive** (folder My Drive yang di-share tidak bisa diunggah file — kuota SA). Jika gagal: `npm run drive:seed-visuals:local` lalu seret `scripts/visual-placeholders/` ke Drive.
+
+---
+
+## Prior — Onboarding UX staging fixes
 
 **Goal:** WA group CTA, portal terbatas saat onboarding, Google link fix, nama KTP langsung.
 

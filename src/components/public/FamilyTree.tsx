@@ -46,20 +46,26 @@ const ConnectorVertical: React.FC<{ color: string }> = ({ color }) => (
   </div>
 );
 
-/** Pohon keluarga mini: hanya Mentor & Comentor — dipakai di kartu carousel */
+/** Pohon keluarga mini: hanya Mentor & Comentor aktif — kartu carousel */
 export const MiniFamilyTree: React.FC<{
   mentor: string;
   comentor: string;
   color: string;
 }> = ({ mentor, comentor, color }) => (
-  <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/60">
-    <div className="flex items-center justify-center gap-1 mb-3">
+  <div className="relative p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/60 overflow-hidden">
+    <div
+      className="absolute inset-x-0 top-0 h-1 rounded-t-2xl"
+      style={{ background: `linear-gradient(90deg, ${color}, ${color}55)` }}
+    />
+    <div className="flex items-center justify-center gap-1.5 mb-3 mt-1">
       <Users className="w-3 h-3" style={{ color }} />
-      <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C8880]">Beyonders Tree</span>
+      <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C8880]">Active Leaders</span>
     </div>
-    <PersonNode name={shortName(mentor)} label="Mentor" color={color} icon={<Crown className="w-4 h-4" />} />
-    <ConnectorVertical color={color} />
-    <PersonNode name={shortName(comentor)} label="Comentor" color={color} icon={<Heart className="w-4 h-4" />} />
+    <div className="flex flex-col items-center">
+      <PersonNode name={mentor} label="Mentor" color={color} icon={<Crown className="w-4 h-4" />} />
+      <ConnectorVertical color={color} />
+      <PersonNode name={comentor} label="Co-Mentor" color={color} icon={<Heart className="w-4 h-4" />} />
+    </div>
   </div>
 );
 
@@ -76,15 +82,14 @@ export const FullFamilyTree: React.FC<{
   color: string;
 }> = ({ mentor, comentor, mentees, color }) => (
   <div className="relative p-6 sm:p-8 rounded-[28px] bg-white border border-[#D9D7D0]/50 overflow-hidden">
-    {/* dekorasi latar */}
     <div
       className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-15 pointer-events-none"
       style={{ backgroundColor: color }}
     />
     <div className="relative flex flex-col items-center">
-      <PersonNode name={shortName(mentor)} label="Mentor" color={color} size="lg" icon={<Crown className="w-6 h-6" />} />
+      <PersonNode name={mentor} label="Mentor" color={color} size="lg" icon={<Crown className="w-6 h-6" />} />
       <ConnectorVertical color={color} />
-      <PersonNode name={shortName(comentor)} label="Comentor" color={color} icon={<Heart className="w-4 h-4" />} />
+      <PersonNode name={comentor} label="Co-Mentor" color={color} icon={<Heart className="w-4 h-4" />} />
 
       {mentees.length > 0 && (
         <>
@@ -93,7 +98,7 @@ export const FullFamilyTree: React.FC<{
             <div className="w-full h-0.5 rounded-full max-w-md" style={{ backgroundColor: `${color}44` }} />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 pt-5 w-full justify-items-center">
               {mentees.map((m) => (
-                <PersonNode key={m.name} name={shortName(m.name)} label={`Mentee${m.note ? ' ' + m.note : ''}`} color="#8C8880" size="sm" />
+                <PersonNode key={m.name} name={m.name} label={`Mentee${m.note ? ' ' + m.note : ''}`} color="#8C8880" size="sm" />
               ))}
             </div>
           </div>

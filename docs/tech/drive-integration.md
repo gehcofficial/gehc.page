@@ -40,8 +40,13 @@ tag eksplisit pada anak me-narrowing.
 
 ```
 ROOT_GEHC/
-├── Event Gallery [PUBLIK]/          ← MediaGallery landing
-├── Warta Publik [PUBLIK]/
+├── Website Visual [PUBLIK]/         ← slot nama-tetap (hero, collage, BZP, cover)
+│   ├── landing/  warta/  kegiatan/  benzarpreneurship/
+│   ├── kelompok/  pengurus/  testimoni/
+│   └── _PETA-VISUAL.txt
+├── Event Gallery [PUBLIK]/          ← warisan; landing tidak lagi memakai urutan file di sini
+├── Warta Publik [PUBLIK]/           ← PNG/PDF + foto edisi (pengganti Galeri publik)
+│   └── _Template Edisi/foto/
 ├── Ruang Anggota [MENTEE]/          ← semua yang login
 ├── Kelompok Mentoring [MENTOR]/     ← WAJIB ada (audit)
 │   ├── RUACH [GROUP:RUACH]/           ← mentor binaan + mentee grup itu
@@ -100,6 +105,9 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 | `GET /api/drive/file/:id/content` | stream konten; policy dicek via rantai induk file |
 | `GET /api/drive/policy` | matriks zona vs user saat ini |
 | `GET /api/drive/audit` *(SUPERADMIN)* | audit sinkronisasi DB ↔ Drive |
+| `GET /api/media/slots` | lookup visual website by filename di `Website Visual [PUBLIK]` |
+| `GET /api/media/landing` | subset landing (hero + collage) |
+| `GET /api/media/warta-album` | foto edisi di `Warta Publik [PUBLIK]` |
 
 403 dikembalikan dengan alasan manusiawi; frontend menampilkan badge
 **"Terbatas"** alih-alih error mentah.
@@ -122,6 +130,7 @@ Alur kerja rutin pengurus: tambah grup/sub-divisi di portal → jalankan Audit
 
 ```bash
 npm run drive:provision
+npm run drive:seed-visuals
 ```
 
 - Prasyarat: share folder ROOT ke service account sebagai **Content Manager**
@@ -129,6 +138,7 @@ npm run drive:provision
 - Sumber struktur = **database aktif**: grup aktif → `[GROUP:x]`, subdivisi
   pantatugas → subfolder pillar, plus zona statis. Total ±36 folder.
 - Idempotent — aman diulang kapan pun (misal setelah tambah grup baru).
+- `drive:seed-visuals` mengunggah placeholder berlabel + `_PETA-VISUAL.txt` (lihat [`website-visuals.md`](../product/website-visuals.md)).
 - Scope tulis hanya dipakai script ini; runtime aplikasi tetap readonly.
 
 ## 6c. Google Drive vs TiDB — Pembagian Peran

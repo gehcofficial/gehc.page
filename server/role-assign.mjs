@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import { getPrisma } from './db.mjs';
 
 export function genId64() {
   return crypto.randomBytes(32).toString('hex');
@@ -13,6 +12,36 @@ export function mapPlacementRoleToPrisma(role) {
 export function mapFamilyRole(role) {
   const map = { MENTOR: 'MENTOR', CO_MENTOR: 'COMENTOR', COMENTOR: 'COMENTOR', MENTEE: 'MENTEE' };
   return map[role] || 'MENTEE';
+}
+
+/** Ensure group has a current batch; return { id, period }. */
+export async function ensureCurrentBatch(prisma, groupId, { mentorName, comentorName } = {}) {
+  let batch = await prisma.groupBatch.findFirst({
+    where: { groupId, isCurrent: true },
+    orderBy: { period: 'desc' },
+  });
+  if (batch) {
+    const data = {};
+    if (mentorName) data.mentorName = mentorName;
+    if (comentorName) data.comentorName = comentorName;
+    if (Object.keys(data).length) {
+      batch = await prisma.groupBatch.update({ where: { id: batch.id }, data });
+    }
+    return batch;
+  }
+
+  const period = new Date().toISOString().slice(0, 7);
+  return prisma.groupBatch.create({
+    data: {
+      id: `batch-${groupId}-${period}`.slice(0, 64),
+      groupId,
+      period,
+      mentorName: mentorName || 'TBD',
+      comentorName: comentorName || null,
+      batchLabel: `Batch ${period}`,
+      isCurrent: true,
+    },
+  });
 }
 
 export async function assignRoleToUser(prisma, {
@@ -84,6 +113,23 @@ export async function assignRoleToUser(prisma, {
 
   if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
     const memberFamilyRole = mapFamilyRole(role);
+    const batch = await ensureCurrentBatch(prisma, groupId, {
+      mentorName: role === 'MENTOR' ? user.name : undefined,
+      comentorName: role === 'CO_MENTOR' ? user.name : undefined,
+    });
+
+    if (role === 'MENTOR') {
+      await prisma.groupBatch.update({
+        where: { id: batch.id },
+        data: { mentorName: user.name },
+      });
+    } else if (role === 'CO_MENTOR') {
+      await prisma.groupBatch.update({
+        where: { id: batch.id },
+        data: { comentorName: user.name },
+      });
+    }
+
     const existingMember = await prisma.groupMember.findFirst({
       where: { userId, groupId },
     });
@@ -97,10 +143,32 @@ export async function assignRoleToUser(prisma, {
           email: user.email,
           phone: user.phone,
           familyRole: memberFamilyRole,
+          batchPeriod: batch.period,
           assignmentId: assignment.id,
+          status: 'ACTIVE',
+        },
+      });
+    } else {
+      await prisma.groupMember.update({
+        where: { id: existingMember.id },
+        data: {
+          familyRole: memberFamilyRole,
+          batchPeriod: batch.period,
+          assignmentId: assignment.id,
+          status: 'ACTIVE',
+          name: user.name,
         },
       });
     }
+
+    const count = await prisma.groupMember.count({
+      where: { groupId, status: 'ACTIVE' },
+    });
+    await prisma.group.update({
+      where: { id: groupId },
+      data: { memberCount: count },
+    });
+
     await prisma.user.update({
       where: { id: userId },
       data: { isBeyonders: true },

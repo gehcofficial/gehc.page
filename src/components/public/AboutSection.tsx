@@ -26,7 +26,7 @@ export const AboutSection: React.FC = () => {
   const facts = [t.about.fact1t, t.about.fact2t, t.about.fact3t];
   const factDescs = [t.about.fact1d, t.about.fact2d, t.about.fact3d];
 
-  // BOD asli dari TiDB (division kosong = level komisi) — max 3 untuk preview
+  // Tim Kerja (BOD retreat) dari TiDB — max 3 untuk preview About
   useEffect(() => {
     let cancelled = false;
     fetch('/api/db/struktur')
@@ -34,7 +34,9 @@ export const AboutSection: React.FC = () => {
       .then((d: { members: LeaderDto[] }) => {
         if (!cancelled)
           setLeaders(
-            (d.members || []).filter((m) => !m.division).slice(0, 3)
+            (d.members || [])
+              .filter((m) => m.division === 'TIMKERJA')
+              .slice(0, 3)
           );
       })
       .catch(() => {});

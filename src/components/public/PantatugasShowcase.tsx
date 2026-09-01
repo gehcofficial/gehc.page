@@ -53,7 +53,7 @@ export const PantatugasShowcase: React.FC = () => {
         <Reveal delay={0.15}>
           <div className="flex justify-center mt-8">
             <button
-              onClick={() => setPublicTab('komisi')}
+              onClick={() => setPublicTab('leaders')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#181818] text-white text-xs font-bold shadow-lg hover:bg-black transition-colors"
             >
               {t.serve.cta}

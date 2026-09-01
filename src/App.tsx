@@ -8,7 +8,6 @@ import { AppProvider, useApp } from './context/AppContext';
 import { ToastContainer } from './components/layout/ToastContainer';
 import { Navbar } from './components/layout/Navbar';
 import { HeroSection } from './components/public/HeroSection';
-import { MarqueeStrip } from './components/public/MarqueeStrip';
 import { VisualCollage } from './components/public/VisualCollage';
 import { AboutSection } from './components/public/AboutSection';
 import { RegenerationFlowSection } from './components/public/RegenerationFlowSection';
@@ -20,13 +19,11 @@ import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
 import { PortalLogin } from './components/portal/PortalLogin';
 import { KomisiSection } from './components/public/KomisiSection';
-import { MediaGallery } from './components/public/MediaGallery';
 import { Footer } from './components/public/Footer';
 import { ClaimPage } from './components/public/ClaimPage';
 import { PortalLayout } from './components/portal/PortalLayout';
 import { ApplyPendingBakutau } from './components/portal/ApplyPendingBakutau';
 import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
-import EventGalleryPublic from './pages/EventGalleryPublic';
 import { RegisterPage } from './components/public/auth/RegisterPage';
 import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
 
@@ -68,7 +65,6 @@ const MainAppContent: React.FC = () => {
         {publicTab === 'beyonders' && (
           <>
             <HeroSection />
-            <MarqueeStrip />
             <GroupsCarousel />
             <RegenerationFlowSection />
             <VisualCollage />
@@ -84,15 +80,11 @@ const MainAppContent: React.FC = () => {
         )}
 
         {publicTab === 'events' && (
-          <>
-            <EventsTimeline condensed={false} showHeader={false} />
-            <MediaGallery />
-          </>
+          <EventsTimeline condensed={false} showHeader={false} />
         )}
 
         {publicTab === 'bulletin' && <WeeklyInfoSection />}
         {publicTab === 'benzarpreneurship' && <BenzarpreneurshipPage />}
-        {publicTab === 'gallery' && <EventGalleryPublic />}
       </main>
 
       {!authShell && <Footer />}

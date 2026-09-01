@@ -4,6 +4,7 @@
 
 - [User flow & RBAC](product/userflow.md)
 - [Pantatugas structure](product/pantatugas.md)
+- [Website visual Drive map](product/website-visuals.md)
 - [Beyonders revision v2](product/revision-v2-beyonders.md)
 - [Roadmap](product/roadmap.md)
 

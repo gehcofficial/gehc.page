@@ -42,7 +42,6 @@ type PublicTab =
   | 'register'
   | 'event-signup'
   | 'group-detail'
-  | 'gallery'
   | 'benzarpreneurship';
 
 interface AppContextType {
@@ -53,7 +52,7 @@ interface AppContextType {
   activeView: string;
   setActiveView: (view: string) => void;
   publicTab: PublicTab;
-  setPublicTab: (tab: PublicTab, opts?: { eventSlug?: string }) => void;
+  setPublicTab: (tab: PublicTab | string, opts?: { eventSlug?: string }) => void;
   eventSlug?: string;
   selectedGroupId: string | null;
   openGroupDetail: (groupId: string) => void;
@@ -156,7 +155,7 @@ const STORAGE_KEYS = {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
   const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
-  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship'] as const;
+  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail'] as const;
   const tabFromHash = (): PublicTab => {
     const parsed = parseHashRoute();
     if (parsed.tab === 'group-detail') return 'group-detail';
@@ -167,14 +166,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [publicTab, setPublicTabState] = useState<PublicTab>(tabFromHash);
   const [eventSlug, setEventSlug] = useState<string | undefined>(() => eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
 
-  const setPublicTab = (tab: PublicTab, opts?: { eventSlug?: string }) => {
-    setPublicTabState(tab);
-    if (tab === 'event-signup') {
+  const setPublicTab = (tab: PublicTab | string, opts?: { eventSlug?: string }) => {
+    const raw = String(tab);
+    const canonical = (
+      LEGACY_HASH_MAP[raw] ||
+      ((TAB_IDS as readonly string[]).includes(raw) ? raw : 'beyonders')
+    ) as PublicTab;
+    setPublicTabState(canonical);
+    if (canonical === 'event-signup') {
       const slug = opts?.eventSlug || eventSlug || 'bakutau';
       setEventSlug(slug);
       window.location.hash = `#/event/${slug}`;
-    } else if (tab !== 'group-detail') {
-      window.location.hash = `#/${tab}`;
+    } else if (canonical !== 'group-detail') {
+      window.location.hash = `#/${canonical}`;
     }
     window.scrollTo({ top: 0 });
   };
@@ -288,6 +292,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           order: typeof m.order === 'number' ? m.order : Number(m.sortOrder ?? 0),
         }));
         setStrukturMembers(mapped);
+      })
+      .catch(() => {
+        /* server tidak tersedia → pertahankan data lokal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Hydration API-first: warta & kegiatan dari TiDB (content_items).
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/content/public')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        if (cancelled || !Array.isArray(d.items)) return;
+        if (d.items.length > 0) setContentItems(d.items);
       })
       .catch(() => {
         /* server tidak tersedia → pertahankan data lokal */
@@ -663,11 +684,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4500);
   }, [removeToast]);
 
-  // Content Operations (CMS)
+  // Content Operations (CMS) — optimistic local + sync TiDB
   const addContentItem = (item: Omit<ContentItem, 'id' | 'published_at'>) => {
+    const tempId = `cnt-${Date.now()}`;
     const newItem: ContentItem = {
       ...item,
-      id: `cnt-${Date.now()}`,
+      id: tempId,
       published_at: new Date().toISOString().split('T')[0],
     };
     setContentItems((prev) => [newItem, ...prev]);
@@ -676,16 +698,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Konten Berhasil Diterbitkan',
       description: `"${newItem.title}" kini langsung tampil di portal publik!`,
     });
+
+    fetch('/api/content', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newItem),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        if (d.item) {
+          setContentItems((prev) => prev.map((i) => (i.id === tempId ? d.item : i)));
+        }
+      })
+      .catch(() => {
+        addToast({
+          type: 'warning',
+          title: 'Sinkron Server Gagal',
+          description: 'Konten tersimpan lokal — login portal lalu simpan ulang untuk sinkron TiDB.',
+        });
+      });
   };
 
   const updateContentItem = (id: string, updates: Partial<ContentItem>) => {
-    setContentItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
-    );
+    let mergedForSync: ContentItem | undefined;
+    setContentItems((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== id) return item;
+        const merged = { ...item, ...updates };
+        mergedForSync = merged;
+        return merged;
+      });
+      return next;
+    });
     addToast({
       type: 'success',
       title: 'Konten Diperbarui',
       description: 'Perubahan telah disimpan ke database.',
+    });
+
+    if (!mergedForSync) return;
+    fetch(`/api/content/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mergedForSync),
+    }).catch(() => {
+      addToast({
+        type: 'warning',
+        title: 'Sinkron Server Gagal',
+        description: 'Perubahan lokal belum tersinkron ke TiDB.',
+      });
     });
   };
 
@@ -695,6 +758,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'info',
       title: 'Konten Dihapus',
       description: 'Artikel telah dihapus dari sistem.',
+    });
+
+    fetch(`/api/content/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => {
+      addToast({
+        type: 'warning',
+        title: 'Sinkron Server Gagal',
+        description: 'Hapus lokal belum tersinkron ke TiDB.',
+      });
     });
   };
 

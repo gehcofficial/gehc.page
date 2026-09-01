@@ -49,7 +49,7 @@ export const ManageActivities: React.FC = () => {
       title: '',
       subtitle: '',
       category: 'Konser & Ibadah',
-      schedule: 'Sabtu, Pkl 18:30 WIB',
+      schedule: 'Minggu, Pkl 13:00 WIB',
       location: 'Main Sanctuary GEHC Cikarang',
       targetAudience: 'Seluruh Pemuda & Jemaat Umum',
       scripture: '',

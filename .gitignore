@@ -13,6 +13,9 @@ coverage/
 gehc-*.json
 *service-account*.json
 
+# Placeholder visual hasil seed (PNG berlabel, bisa di-generate ulang)
+scripts/visual-placeholders/**/*.png
+
 # Playwright
 /test-results/
 /playwright-report/

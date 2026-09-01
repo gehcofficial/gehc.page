@@ -19,7 +19,6 @@ import {
   LogOut,
   LogIn,
   Store,
-  Image,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -111,7 +110,6 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
-                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -124,7 +122,6 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   {tabId === 'benzarpreneurship' && <Store className="w-3 h-3" />}
-                  {tabId === 'gallery' && <Image className="w-3 h-3" />}
                   {label}
                 </button>
               ))}
@@ -388,79 +385,28 @@ export const Navbar: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('beyonders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'home' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.beyonders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('bulletin');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'weekly-info' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.bulletin}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('events');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'activity' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.events}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('beyonders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'groups' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.beyonders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('leaders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'komisi' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.leaders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('benzarpreneurship');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold flex items-center gap-2 ${
-                  publicTab === 'benzarpreneurship' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                <Store className="w-4 h-4" />
-                {t.nav.benzarpreneurship}
-              </button>
+              {([
+                ['beyonders', t.nav.beyonders],
+                ['leaders', t.nav.leaders],
+                ['events', t.nav.events],
+                ['bulletin', t.nav.bulletin],
+                ['benzarpreneurship', t.nav.benzarpreneurship],
+              ] as const).map(([tabId, label]) => (
+                <button
+                  key={tabId}
+                  onClick={() => {
+                    setActiveView('public');
+                    setPublicTab(tabId);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold flex items-center gap-2 ${
+                    publicTab === tabId && activeView === 'public' ? 'bg-white text-black' : 'text-white'
+                  }`}
+                >
+                  {tabId === 'benzarpreneurship' && <Store className="w-4 h-4" />}
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 

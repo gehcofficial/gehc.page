@@ -821,7 +821,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: 'Warta', icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: 'Galeri', icon: <Image className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Toko', icon: <Store className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Benzarpreneurship', icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.id}

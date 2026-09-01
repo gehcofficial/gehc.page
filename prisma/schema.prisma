@@ -193,8 +193,9 @@ model User {
   profileReminderDays      Int       @default(60) @map("profile_reminder_days")
 
   // Auth lokal (opsi selain Google SSO)
-  passwordHash String? @map("password_hash") @db.Text
-  authProvider String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
+  passwordHash       String? @map("password_hash") @db.Text
+  authProvider       String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
 
   kolom                     Kolom?                     @relation(fields: [kolomId], references: [id])
   institution               Institution?               @relation(fields: [institutionId], references: [id])
@@ -908,6 +909,26 @@ model EventGallery {
   @@index([eventId, status])
   @@index([division, status])
   @@map("event_gallery")
+}
+
+// ============================================================
+// PUBLIC TESTIMONIALS (landing collage rotator)
+// ============================================================
+
+model Testimonial {
+  id          String   @id @db.VarChar(64)
+  tenantId    String   @default("tenant-youth") @map("tenant_id") @db.VarChar(64)
+  authorName  String   @map("author_name") @db.VarChar(150)
+  groupName   String?  @map("group_name") @db.VarChar(100)
+  quote       String   @db.Text
+  photoUrl    String?  @map("photo_url") @db.Text
+  isPublished Boolean  @default(false) @map("is_published")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([tenantId, isPublished, sortOrder])
+  @@map("testimonials")
 }
 
 // ============================================================

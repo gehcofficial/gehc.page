@@ -14,6 +14,8 @@ interface ApiUser {
   accountStatus?: string;
   onboardingStatus?: string;
   giftsTop5?: string[];
+  isBeyonders?: boolean;
+  mustChangePassword?: boolean;
   id: string;
   email: string;
   name: string;
@@ -30,6 +32,8 @@ function mapUser(u: ApiUser): User {
     accountStatus: u.accountStatus,
     onboardingStatus: u.onboardingStatus,
     giftsTop5: u.giftsTop5,
+    isBeyonders: u.isBeyonders,
+    mustChangePassword: Boolean(u.mustChangePassword),
     roles: (u.roles || []).map(
       (r): UserRoleMapping => ({
         tenantId: r.tenantId,
