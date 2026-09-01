@@ -668,39 +668,6 @@ app.get('/api/events/:eventId/divisions/:div/analytics', wrap(async (req, res) =
   }
 }));
 
-// ---------- Demo personas (STAGING ONLY) ----------
-// Aktif hanya jika ENABLE_DEMO_PERSONAS=true — JANGAN pernah diaktifkan di produksi.
-const demoEnabled = () => process.env.ENABLE_DEMO_PERSONAS === 'true';
-
-app.get('/api/demo/personas', wrap(async (req, res) => {
-  if (!demoEnabled()) return res.status(404).json({ error: 'Demo personas tidak aktif.' });
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const all = await prisma.user.findMany({
-    include: { roles: true, _count: { select: { groupMembers: true } } },
-    orderBy: { name: 'asc' },
-  });
-  // Ramping: hanya akun inti (L1-L3) + yang ter-link kelompok (mentor/co-mentor/
-  // mentee/alumni). PIC sub-divisi & penopang tetap ada di DB namun tak memenuhi UI.
-  const CORE = new Set(['SUPERADMIN', 'BPMJ', 'KOMISI']);
-  const users = all
-    .filter((u) => u._count.groupMembers > 0 || (u.roles || []).some((r) => CORE.has(r.role)))
-    .map(({ _count, ...u }) => u);
-  res.json({ users });
-}));
-
-app.post('/api/demo/impersonate', wrap(async (req, res) => {
-  if (!demoEnabled()) return res.status(404).json({ error: 'Demo personas tidak aktif.' });
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const email = String(req.body?.email || '').toLowerCase().trim();
-  const user = await prisma.user.findUnique({ where: { email }, include: { roles: true } });
-  if (!user) return res.status(404).json({ error: 'Akun dummy tidak ditemukan.' });
-  const ready = applySuperadminSession(user);
-  setSessionCookie(res, { uid: ready.id, email: ready.email });
-  res.json({ user: { id: ready.id, email: ready.email, name: ready.name, avatar: ready.avatar, accountStatus: ready.accountStatus, roles: ready.roles } });
-}));
-
 // ---------- Health & Config ----------
 app.get('/api/health', wrap(async (req, res) => {
   let dbConnected = false;

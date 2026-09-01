@@ -26,7 +26,7 @@ import {
   INITIAL_INTEGRATION_CONFIG,
   INITIAL_GROUP_BATCHES,
 } from '../data/initialData';
-import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi, fetchPersonas, impersonate as impersonateApi } from '../services/authApi';
+import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
 import { useRoleFlags } from '../hooks/useRoleFlags';
 import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP, eventSlugFromHash } from '../app/routes';
@@ -80,9 +80,6 @@ interface AppContextType {
   ssoClientId: string | null;
   loginWithCredential: (credential: string) => Promise<void>;
   logoutSso: () => Promise<void>;
-  /** true jika persona switcher memakai akun dummy dari TiDB */
-  demoMode: boolean;
-  sessionSource: 'google' | 'demo' | null;
 
   // Multi-role (rangkap jabatan)
   myRoleOptions: UserRole[];
@@ -490,12 +487,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Google SSO nyata (server-backed) — menimpa persona demo saat aktif
+  // Google SSO nyata (server-backed)
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [ssoClientId, setSsoClientId] = useState<string | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
-  const [sessionSource, setSessionSource] = useState<'google' | 'demo' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -509,7 +504,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!cancelled) setAuthUser(me);
         }
       } catch {
-        // Belum login / server belum jalan → tetap mode demo
+        /* belum login */
       } finally {
         if (!cancelled) setAuthLoading(false);
       }
@@ -522,7 +517,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginWithCredential = async (credential: string) => {
     const user = await loginWithGoogle(credential);
     setAuthUser(user);
-    setSessionSource('google');
     addToast({
       type: 'success',
       title: `Login Google: ${user.name}`,
@@ -530,39 +524,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Akun dummy dari TiDB untuk persona switcher (staging only, gated server)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await fetchPersonas();
-        if (cancelled || list.length === 0) return;
-        setAllUsers(list);
-        setDemoMode(true);
-        const fallback = list.find((u) => u.roles.some((r) => r.role === 'SUPERADMIN')) ?? list[0];
-        setCurrentUserId((prev) => (list.some((u) => u.id === prev) ? prev : fallback.id));
-        const existing = await fetchMe().catch(() => null);
-        if (cancelled || existing) return;
-        const target = list.find((u) => u.email === fallback.email) ?? fallback;
-        const u = await impersonateApi(target.email);
-        if (cancelled) return;
-        setAuthUser(u);
-        setSessionSource('demo');
-      } catch {
-        // Server mati / fitur nonaktif → tetap pakai data lokal hardcoded
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const logoutSso = async () => {
     await logoutApi();
     setAuthUser(null);
-    setSessionSource(null);
     setCurrentUserId('usr-tech');
-    addToast({ type: 'info', title: 'Logout berhasil', description: 'Kembali ke mode simulasi persona.' });
+    addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
   };
 
   const setActiveUserRole = (role: UserRole) => {
@@ -649,26 +615,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setCurrentUserById = (userId: string) => {
     const target = allUsers.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUserId(userId);
-      // Staging: ganti persona = buat sesi server sungguhan sebagai akun dummy itu,
-      // sehingga endpoint ber-RBAC (Jethro, absensi) langsung bisa diuji.
-      if (demoMode && sessionSource !== 'google') {
-        impersonateApi(target.email)
-          .then((u) => {
-            setAuthUser(u);
-            setSessionSource('demo');
-          })
-          .catch(() => {});
-      }
-      const roleMap = target.roles.find((r) => r.tenantId === currentTenantId);
-      const roleName = roleMap ? roleMap.role : 'MENTEE';
-      addToast({
-        type: 'success',
-        title: `Login sebagai: ${target.name}`,
-        description: `Peran aktif: ${roleName} ${roleMap?.groupId ? `(Grup: ${groups.find((g) => g.id === roleMap.groupId)?.name})` : ''}`,
-      });
-    }
+    if (!target) return;
+    setCurrentUserId(userId);
+    const roleMap = target.roles.find((r) => r.tenantId === currentTenantId);
+    const roleName = roleMap ? roleMap.role : 'MENTEE';
+    addToast({
+      type: 'success',
+      title: `Konteks: ${target.name}`,
+      description: `Peran aktif: ${roleName} ${roleMap?.groupId ? `(Grup: ${groups.find((g) => g.id === roleMap.groupId)?.name})` : ''}`,
+    });
   };
 
   // Toast System
@@ -1045,8 +1000,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ssoClientId,
         loginWithCredential,
         logoutSso,
-        demoMode,
-        sessionSource,
 
         myRoleOptions,
         setActiveUserRole,

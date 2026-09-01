@@ -49,5 +49,4 @@ if (fs.readdirSync(root).some((f) => f.startsWith('.env.backup.'))) {
   console.log('  Backup .env lama disimpan sebagai .env.backup.*');
 }
 console.log('  Override lokal:', Object.keys(LOCAL_OVERRIDES).join(', '));
-console.log('  ENABLE_DEMO_PERSONAS:', merged.get('ENABLE_DEMO_PERSONAS'));
 console.log('\nLangkah berikutnya: npm run env:check && npm run dev');

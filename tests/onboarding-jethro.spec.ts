@@ -2,10 +2,11 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:8787';
 const DEMO_USER = 'tech@gehc.demo';
+const DEMO_PASSWORD = 'password123';
 
-async function loginAsDemo(request: import('@playwright/test').APIRequestContext) {
-  const res = await request.post(`${BASE_URL}/api/demo/impersonate`, {
-    data: { email: DEMO_USER },
+async function loginAsAdmin(request: import('@playwright/test').APIRequestContext) {
+  const res = await request.post(`${BASE_URL}/api/auth/local`, {
+    data: { email: DEMO_USER, password: DEMO_PASSWORD },
   });
   expect(res.ok()).toBeTruthy();
 }
@@ -14,7 +15,7 @@ test.describe('Onboarding + Jethro Placement API flow', () => {
   test.setTimeout(120000);
 
   test.beforeEach(async ({ request }) => {
-    await loginAsDemo(request);
+    await loginAsAdmin(request);
   });
 
   test('pending newcomers → batch → bulk approve → commit', async ({ request }) => {

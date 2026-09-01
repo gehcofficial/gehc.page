@@ -29,10 +29,10 @@ import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 import { RegisterPage } from './components/public/auth/RegisterPage';
 import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
 
-const AUTH_PUBLIC_TABS = new Set(['login']);
+const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
 
 const MainAppContent: React.FC = () => {
-  const { activeView, publicTab, demoMode, authUser } = useApp();
+  const { activeView, publicTab, authUser } = useApp();
 
   if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
     return <ClaimPage />;
@@ -42,8 +42,12 @@ const MainAppContent: React.FC = () => {
     return <PortalLogin />;
   }
 
+  if (publicTab === 'register') {
+    return <RegisterPage />;
+  }
+
   if (activeView === 'portal') {
-    if (!authUser && !demoMode) return <PortalLogin />;
+    if (!authUser) return <PortalLogin />;
 
     const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
     return <>{pendingSync}<PortalLayout /></>;
@@ -58,7 +62,6 @@ const MainAppContent: React.FC = () => {
       {!authShell && <Navbar />}
 
       <main className="flex-grow">
-        {publicTab === 'register' && <RegisterPage />}
         {publicTab === 'event-signup' && <EventSignupRouter />}
         {publicTab === 'join' && <JoinPage />}
 

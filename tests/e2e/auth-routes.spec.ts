@@ -25,7 +25,7 @@ test.describe('Auth & event routes (hash)', () => {
 
   test('login page accepts next query param', async ({ page }) => {
     await page.goto('/#/login?next=event/bakutau');
-    await expect(page.getByRole('heading', { name: /Portal Administrasi/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Masuk Beyonders/i })).toBeVisible();
     expect(page.url()).toContain('next=event');
   });
 

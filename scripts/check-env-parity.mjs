@@ -64,12 +64,6 @@ for (const [key, expected] of Object.entries(LOCAL_OVERRIDES)) {
   }
 }
 
-const demo = local.get('ENABLE_DEMO_PERSONAS');
-if (demo !== 'true') {
-  console.log('\n⚠️  ENABLE_DEMO_PERSONAS bukan true — login demo tech@gehc.demo tidak aktif');
-  exitCode = 1;
-}
-
 const db = local.get('DATABASE_URL') ?? '';
 if (!db) {
   console.log('\n❌ DATABASE_URL kosong');

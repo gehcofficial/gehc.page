@@ -60,9 +60,8 @@ export const INITIAL_TENANTS: Tenant[] = [
 ];
 
 /**
- * Persona fallback lokal — sinkron dengan akun dummy staging (seed-users.ts).
- * Hanya 9 persona inti per level RBAC; daftar lengkap diambil live dari
- * /api/demo/personas saat server aktif. Email = akun DB agar impersonate jalan.
+ * Persona fallback lokal untuk preview UI offline — bukan sesi server.
+ * Akun sungguhan dimuat lewat login Google / email+password.
  */
 const demoAvatar = (seed: string) =>
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1b1b1b`;

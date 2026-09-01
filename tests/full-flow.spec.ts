@@ -1,19 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-
-const BASE_URL = 'http://localhost:8787';
-const DEMO_USER = 'tech@gehc.demo';
-
-async function loginViaDemo(page: Page) {
-  const response = await page.request.post(`${BASE_URL}/api/demo/impersonate`, {
-    data: { email: DEMO_USER },
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  console.log('Logged in as:', data.user.name);
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
-}
+import { loginViaLocal, BASE_URL, DEMO_USER } from './helpers/portal';
 
 async function switchToPortal(page: Page) {
   const portalBtn = page.locator('button:has-text("Portal")').first();
@@ -50,7 +36,7 @@ test.describe('Complete Onboarding Pipeline Flow', () => {
     test.setTimeout(300000);
     await page.goto('http://localhost:8787');
     await page.waitForLoadState('networkidle');
-    await loginViaDemo(page);
+    await loginViaLocal(page);
     await switchToPortal(page);
     await waitForPortalSidebar(page);
   });

@@ -13,7 +13,6 @@ import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
-import GoogleLoginButton from '../auth/GoogleLoginButton';
 import NotificationPermissionBanner from '../pwa/NotificationPermissionBanner';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import { PeopleInvites } from './PeopleInvites';
@@ -60,10 +59,7 @@ export const PortalLayout: React.FC = () => {
     isMentee,
     setActiveView,
     addToast,
-    demoMode,
     authUser,
-    ssoClientId,
-    sessionSource,
   } = useApp();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL'
@@ -396,22 +392,7 @@ export const PortalLayout: React.FC = () => {
                   </div>
                 </div>
 
-                {(demoMode || authUser) && <PortalAccountSwitcher />}
-
-                {ssoClientId && sessionSource !== 'google' && (
-                  <details className="rounded-xl border border-[#D9D7D0]/60 bg-white overflow-hidden">
-                    <summary className="px-3 py-2.5 text-xs font-bold cursor-pointer select-none hover:bg-[#FAF9F5] transition-colors">
-                      + Login akun Google
-                    </summary>
-                    <div className="p-3 flex justify-center">
-                      <GoogleLoginButton
-                        clientId={ssoClientId}
-                        onCredential={() => window.location.reload()}
-                        onError={(m: string) => addToast({ type: 'error', title: 'Login Google Gagal', description: m })}
-                      />
-                    </div>
-                  </details>
-                )}
+                {authUser && <PortalAccountSwitcher />}
 
                 <button
                   onClick={() => {

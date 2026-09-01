@@ -2,15 +2,19 @@ import { expect, Page } from '@playwright/test';
 
 export const BASE_URL = 'http://localhost:8787';
 export const DEMO_USER = 'tech@gehc.demo';
+export const DEMO_PASSWORD = 'password123';
 
-export async function loginViaDemo(page: Page, email = DEMO_USER) {
-  const response = await page.request.post(`${BASE_URL}/api/demo/impersonate`, {
-    data: { email },
+export async function loginViaLocal(page: Page, email = DEMO_USER, password = DEMO_PASSWORD) {
+  const response = await page.request.post(`${BASE_URL}/api/auth/local`, {
+    data: { email, password },
   });
   expect(response.ok()).toBeTruthy();
   await page.reload();
   await page.waitForLoadState('networkidle');
 }
+
+/** @deprecated use loginViaLocal */
+export const loginViaDemo = loginViaLocal;
 
 export async function switchToPortal(page: Page) {
   const portalBtn = page.locator('button:has-text("Portal"), button:has-text("Enter Portal")').first();

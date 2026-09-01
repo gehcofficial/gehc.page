@@ -80,28 +80,13 @@ export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
 }
 
-// ---- Demo personas (staging only, gated server-side) ----
-
-export async function fetchPersonas(): Promise<User[]> {
-  const res = await fetch('/api/demo/personas', { credentials: 'include' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = (await res.json()) as { users: ApiUser[] };
-  return data.users.map(mapUser);
-}
-
-export async function impersonate(email: string): Promise<User> {
-  const res = await fetch('/api/demo/impersonate', {
+export async function loginWithLocal(email: string, password: string): Promise<User> {
+  const res = await fetch('/api/auth/local', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || `HTTP ${res.status}`);
-  }
-  const data = (await res.json()) as { user: ApiUser };
-
-  pushCachedAccount({ id: data.user.id, name: data.user.name, email: data.user.email, avatar: data.user.avatar, source: 'demo' });
+  const data = await handle<{ user: ApiUser }>(res);
   return mapUser(data.user);
 }
