@@ -1,48 +1,48 @@
 {
-  "syncedAt": "2026-09-01T11:53:02.311Z",
+  "syncedAt": "2026-09-01T12:04:22.445Z",
   "rootFolderId": "1ooE8nCdw-OLL0iq17bp1CK2cSYEnIACA",
   "slots": {
     "landing": {
-      "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1788263579061.4082",
-      "collageWorship": "/visuals/landing/02-collage-worship.jpg?v=1788263579645.2285",
-      "collageCommunity": "/visuals/landing/03-collage-community.jpg?v=1788263580041.8433",
-      "collageMusic": "/visuals/landing/04-collage-music.jpg?v=1788263580331.5122",
-      "collageStudy": "/visuals/landing/05-collage-study.jpg?v=1788263580763.2507",
-      "collageFriends": "/visuals/landing/06-collage-friends.jpg?v=1788263581190.607",
-      "collagePortrait": "/visuals/landing/07-collage-portrait.jpg?v=1788263581428.9897"
+      "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1788264119784.6833",
+      "collageWorship": "/visuals/landing/02-collage-worship.jpg?v=1788264128309.7217",
+      "collageCommunity": "/visuals/landing/03-collage-community.jpg?v=1788264132320.4592",
+      "collageMusic": "/visuals/landing/04-collage-music.jpg?v=1788264137347.807",
+      "collageStudy": "/visuals/landing/05-collage-study.jpg?v=1788264140420.3137",
+      "collageFriends": "/visuals/landing/06-collage-friends.jpg?v=1788264144112.941",
+      "collagePortrait": "/visuals/landing/07-collage-portrait.jpg?v=1788264145999.4597"
     },
     "brand": {
-      "logoGehc": "/visuals/brand/logo-gehc.png?v=1788263571858.3596"
+      "logoGehc": "/visuals/brand/logo-gehc.png?v=1788264114304.9329"
     },
     "warta": {
-      "bannerDefault": "/visuals/warta/01-banner-default.jpg?v=1788263582303.411"
+      "bannerDefault": "/visuals/warta/01-banner-default.jpg?v=1788264149582.1287"
     },
     "kegiatan": {
-      "bannerDefault": "/visuals/kegiatan/01-banner-default.jpg?v=1788263572562.896",
-      "bakuTau": "/visuals/kegiatan/baku-tau-4.jpg?v=1788263573254.116"
+      "bannerDefault": "/visuals/kegiatan/01-banner-default.jpg?v=1788264155623.1187",
+      "bakuTau": "/visuals/kegiatan/baku-tau-4.jpg?v=1788264161503.635"
     },
     "benzar": {
-      "hero": "/visuals/benzarpreneurship/01-hero.jpg?v=1788263571333.6008",
-      "productPlaceholder": "/visuals/benzarpreneurship/02-product-placeholder.jpg?v=1788263571607.2073",
-      "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788263571765.3237"
+      "hero": "/visuals/benzarpreneurship/01-hero.jpg?v=1788264163683.1453",
+      "productPlaceholder": "/visuals/benzarpreneurship/02-product-placeholder.jpg?v=1788264165743.418",
+      "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788264167658.6074"
     },
     "kelompok": {
-      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788263573943.284",
-      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788263574388.4485",
-      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788263574811.3784",
-      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788263575136.1646",
-      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788263575596.173",
-      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788263576125.6235",
-      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788263532837.1445",
-      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788263539107.0513",
-      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788263545787.7168",
-      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788263551987.1907"
+      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788264180305.167",
+      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788264194437.179",
+      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788264207788.5881",
+      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788264209530.248",
+      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788264218289.109",
+      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788264226575.0923",
+      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788264234959.3755",
+      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788264242587.5923",
+      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788264248767.6533",
+      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788264254884.181"
     },
     "pengurus": {
-      "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788263581783.826"
+      "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
     },
     "testimoni": {
-      "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788263581964.8823"
+      "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788264262442.0808"
     }
   }
 }
