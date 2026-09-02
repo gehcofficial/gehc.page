@@ -72,6 +72,9 @@ export const id: Dict = {
     title: 'Sepuluh Rumah, Satu Keluarga',
     sub: 'Sentuh untuk menjeda, klik untuk masuk ke family tree. Setiap rumah membawa nama Ibrani yang ditumbuhkan kepada anggotanya.',
     membersSuffix: 'anggota',
+    speedLabel: 'Kecepatan carousel',
+    pauseCarousel: 'Jeda carousel',
+    playCarousel: 'Putar carousel',
   },
   serve: {
     eyebrow: 'Enam Pelayanan Kami',

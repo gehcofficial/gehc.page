@@ -4,6 +4,7 @@ import { useLang } from '../../context/LangContext';
 import { shortName } from '../../lib/privacy-name';
 import { FullFamilyTree } from './FamilyTree';
 import { HeritageSection } from './HeritageSection';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 import type { DriveMediaItem } from '../../types';
 import {
   ArrowLeft,
@@ -28,6 +29,7 @@ type DetailTab = 'roster' | 'regen' | 'agenda' | 'docs';
 export const GroupDetailPage: React.FC = () => {
   const { groups, groupBatches, selectedGroupId, closeGroupDetail, openGroupDetail } = useApp();
   const { t } = useLang();
+  const slots = useMediaSlots();
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>('roster');
   const [gallery, setGallery] = useState<DriveMediaItem[] | null>(null);
@@ -103,15 +105,31 @@ export const GroupDetailPage: React.FC = () => {
   ];
 
   const galleryItems = gallery || [];
+  const coverUrl = slots.kelompok[group.name.toLowerCase()];
 
   return (
     <div className="pt-[110px] sm:pt-[130px] pb-24">
       <div className="relative overflow-hidden" style={{ backgroundColor: `${group.color}14` }}>
+        {coverUrl ? (
+          <div className="relative w-full h-44 sm:h-56 md:h-64 overflow-hidden">
+            <img
+              src={coverUrl}
+              alt={group.name}
+              className="w-full h-full object-cover"
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/40 to-transparent"
+              aria-hidden
+            />
+          </div>
+        ) : null}
         <div
           className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-3xl opacity-25 pointer-events-none"
           style={{ backgroundColor: group.color }}
         />
-        <div className="relative max-w-[1200px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
+        <div className={`relative max-w-[1200px] mx-auto px-4 sm:px-8 ${coverUrl ? 'py-8 sm:py-10' : 'py-10 sm:py-14'}`}>
           <button
             onClick={closeGroupDetail}
             className="inline-flex items-center gap-2 text-xs font-bold text-[#1B1B1B] bg-white/80 hover:bg-white border border-[#D9D7D0] rounded-full px-4 py-2 shadow-sm transition-colors mb-8"

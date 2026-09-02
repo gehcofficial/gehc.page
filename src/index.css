@@ -68,7 +68,7 @@
 .animate-marquee-houses {
   display: flex;
   width: max-content;
-  animation: marquee 88s linear infinite;
+  animation: marquee var(--marquee-duration, 88s) linear infinite;
 }
 
 .animate-marquee:hover,

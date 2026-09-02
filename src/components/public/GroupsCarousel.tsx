@@ -8,6 +8,21 @@ import { SectionHeader } from './ui/SectionHeader';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import type { YouthGroup } from '../../types';
 
+const MARQUEE_BASE_SEC = 88;
+const SPEED_OPTIONS = [1, 2, 4] as const;
+type CarouselSpeed = (typeof SPEED_OPTIONS)[number];
+const SPEED_STORAGE_KEY = 'gehc_carousel_speed_v1';
+
+function readStoredSpeed(): CarouselSpeed {
+  try {
+    const n = Number(localStorage.getItem(SPEED_STORAGE_KEY));
+    if (SPEED_OPTIONS.includes(n as CarouselSpeed)) return n as CarouselSpeed;
+  } catch {
+    /* ignore */
+  }
+  return 1;
+}
+
 type GroupCardProps = {
   grp: YouthGroup;
   index: number;
@@ -116,6 +131,17 @@ export const GroupsCarousel: React.FC = () => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const [reverse, setReverse] = useState(false);
+  const [speed, setSpeed] = useState<CarouselSpeed>(() => readStoredSpeed());
+
+  const setCarouselSpeed = (next: CarouselSpeed) => {
+    setSpeed(next);
+    try {
+      localStorage.setItem(SPEED_STORAGE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+    setPaused(false);
+  };
 
   const currentBatchFor = (groupId: string) =>
     groupBatches.find((b) => b.group_id === groupId && b.isCurrent);
@@ -147,16 +173,39 @@ export const GroupsCarousel: React.FC = () => {
         title={t.groups.title}
         subtitle={t.groups.sub}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {canLoop && (
-              <button
-                type="button"
-                onClick={() => setPaused((p) => !p)}
-                aria-label={paused ? 'Play' : 'Pause'}
-                className="w-10 h-10 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[#1B1B1B] hover:bg-black hover:text-white transition-all shadow-sm"
-              >
-                {paused ? <Play className="w-3.5 h-3.5 ml-0.5" /> : <Pause className="w-3.5 h-3.5" />}
-              </button>
+              <>
+                <div
+                  className="flex items-center rounded-full bg-white border border-[#D9D7D0] p-0.5 shadow-sm"
+                  role="group"
+                  aria-label={t.groups.speedLabel}
+                >
+                  {SPEED_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setCarouselSpeed(s)}
+                      aria-pressed={speed === s}
+                      className={`min-w-[2.25rem] px-2 py-1.5 rounded-full text-[10px] font-black transition-all ${
+                        speed === s
+                          ? 'bg-[#181818] text-white shadow-sm'
+                          : 'text-[#8C8880] hover:text-[#1B1B1B]'
+                      }`}
+                    >
+                      {s}×
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaused((p) => !p)}
+                  aria-label={paused ? t.groups.playCarousel : t.groups.pauseCarousel}
+                  className="w-10 h-10 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[#1B1B1B] hover:bg-black hover:text-white transition-all shadow-sm"
+                >
+                  {paused ? <Play className="w-3.5 h-3.5 ml-0.5" /> : <Pause className="w-3.5 h-3.5" />}
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -184,6 +233,7 @@ export const GroupsCarousel: React.FC = () => {
 
         <div
           ref={trackRef}
+          style={{ '--marquee-duration': `${MARQUEE_BASE_SEC / speed}s` } as React.CSSProperties}
           className={
             canLoop
               ? `gap-6 pb-4 pt-2 px-4 sm:px-8 animate-marquee-houses ${paused ? 'is-paused' : ''} ${reverse ? 'is-reverse' : ''}`
