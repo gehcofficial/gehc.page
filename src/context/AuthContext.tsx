@@ -29,22 +29,14 @@ export const AuthProvider: React.FC<{
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        try {
-          const cfg = await fetchAuthConfig();
-          if (!cancelled) setSsoClientId(cfg.clientId);
-        } catch {
-          /* Google SSO opsional */
-        }
-        try {
-          const me = await fetchMe();
-          if (!cancelled) setAuthUser(me);
-        } catch {
-          /* belum login */
-        }
-      } finally {
-        if (!cancelled) setAuthLoading(false);
-      }
+      const [cfgResult, meResult] = await Promise.allSettled([
+        fetchAuthConfig(),
+        fetchMe(),
+      ]);
+      if (cancelled) return;
+      if (cfgResult.status === 'fulfilled') setSsoClientId(cfgResult.value.clientId);
+      if (meResult.status === 'fulfilled') setAuthUser(meResult.value);
+      setAuthLoading(false);
     })();
     return () => {
       cancelled = true;

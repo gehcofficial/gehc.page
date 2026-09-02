@@ -15,6 +15,10 @@ export const id: Dict = {
     city: 'CIKARANG',
     bipra: 'Pemuda',
   },
+  auth: {
+    googleSignIn: 'Masuk dengan Google',
+    googleLoading: 'Memuat tombol Google…',
+  },
   hero: {
     chip: 'Beyonders • Komunitas Pemuda GMIM Eben Haezer Cikarang',
     title: 'Beyond the Sunday Walk',

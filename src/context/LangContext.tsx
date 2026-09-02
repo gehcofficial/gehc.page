@@ -11,15 +11,27 @@ interface LangCtx {
 const Ctx = createContext<LangCtx | undefined>(undefined);
 const KEY = 'gehc_lang_v1';
 
+function readStoredLang(): Lang {
+  if (typeof window === 'undefined') return 'id';
+  const saved = localStorage.getItem(KEY);
+  return saved === 'en' || saved === 'id' ? saved : 'id';
+}
+
+function applyHtmlLang(lang: Lang) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = lang;
+}
+
 export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem(KEY);
-    return saved === 'en' || saved === 'id' ? saved : 'id';
+    const initial = readStoredLang();
+    applyHtmlLang(initial);
+    return initial;
   });
 
   useEffect(() => {
     localStorage.setItem(KEY, lang);
-    document.documentElement.lang = lang;
+    applyHtmlLang(lang);
   }, [lang]);
 
   const setLang = (l: Lang) => setLangState(l);

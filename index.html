@@ -1,7 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var l = localStorage.getItem('gehc_lang_v1');
+          if (l === 'en' || l === 'id') document.documentElement.lang = l;
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BEYONDERS — Beyond the Sunday Walk | GMIM Eben Haezer Cikarang Youth</title>
     <meta name="description" content="Beyonders — sistem mentoring pemuda GMIM Eben Haezer Cikarang. 10 kelompok, mentor & comentor, iman yang berjalan beyond the Sunday walk." />

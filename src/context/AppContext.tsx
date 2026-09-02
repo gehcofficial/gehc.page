@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   Tenant,
   User,
@@ -175,11 +175,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const setActiveView = (view: string) => {
     setActiveViewState(view);
-    if (view === 'portal' && typeof window !== 'undefined' && !isPortalHash(window.location.hash)) {
+    if (typeof window === 'undefined') return;
+    if (view === 'portal' && !isPortalHash(window.location.hash)) {
       window.location.hash = '#/portal';
-    }
-    if (view === 'admin' && typeof window !== 'undefined' && !isAdminHash(window.location.hash)) {
+    } else if (view === 'admin' && !isAdminHash(window.location.hash)) {
       window.location.hash = '#/admin';
+    } else if (view === 'public' && (isPortalHash(window.location.hash) || isAdminHash(window.location.hash))) {
+      window.location.hash = '#/beyonders';
     }
   };
   const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail'] as const;
@@ -210,18 +212,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.scrollTo({ top: 0 });
   };
 
-  useEffect(() => {
-    const onHash = () => {
+  useLayoutEffect(() => {
+    const syncViewFromHash = () => {
+      const hash = window.location.hash;
+      if (isAdminHash(hash)) setActiveViewState('admin');
+      else if (isPortalHash(hash)) setActiveViewState('portal');
+      else setActiveViewState('public');
       setPublicTabState(tabFromHash());
-      setEventSlug(eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
-      if (isAdminHash(window.location.hash)) {
-        setActiveViewState('admin');
-      } else if (isPortalHash(window.location.hash)) {
-        setActiveViewState('portal');
-      }
+      setEventSlug(eventSlugFromHash(hash) || parseHashRoute().eventSlug);
     };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    syncViewFromHash();
+    window.addEventListener('hashchange', syncViewFromHash);
+    return () => window.removeEventListener('hashchange', syncViewFromHash);
   }, []);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -557,6 +559,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isPlatformOperator, setIsPlatformOperator] = useState(false);
   const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
+  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
 
   const refreshPlatformContext = useCallback(async () => {
     try {
@@ -574,29 +577,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        try {
-          const cfg = await fetchAuthConfig();
-          if (!cancelled) setSsoClientId(cfg.clientId);
-        } catch {
-          /* Google SSO opsional — sesi lokal tetap dicek */
-        }
-        try {
-          const me = await fetchMeFull();
-          if (!cancelled) {
-            setAuthUser(me.user);
-            if (me.activeRole) setRoleOverride(me.activeRole);
-            setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
-            setIsPlatformOperator(me.isPlatformOperator);
-            setPlatformCapabilities(me.platformCapabilities || []);
-          }
-        } catch {
-          /* belum login — cookie tidak ada atau kedaluwarsa */
-        }
-        if (!cancelled) await refreshPlatformContext();
-      } finally {
-        if (!cancelled) setAuthLoading(false);
+      const [cfgResult, meResult] = await Promise.allSettled([
+        fetchAuthConfig(),
+        fetchMeFull(),
+      ]);
+      if (cancelled) return;
+      if (cfgResult.status === 'fulfilled') {
+        setSsoClientId(cfgResult.value.clientId);
       }
+      if (meResult.status === 'fulfilled') {
+        const me = meResult.value;
+        setAuthUser(me.user);
+        if (me.activeRole) setRoleOverride(me.activeRole);
+        setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+        setIsPlatformOperator(me.isPlatformOperator);
+        setPlatformCapabilities(me.platformCapabilities || []);
+      }
+      const hash = window.location.hash;
+      if (isAdminHash(hash)) setActiveViewState('admin');
+      else if (isPortalHash(hash)) setActiveViewState('portal');
+      setAuthLoading(false);
+      void refreshPlatformContext();
     })();
     return () => {
       cancelled = true;
@@ -672,10 +673,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
 
-  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
   useEffect(() => {
-    setRoleOverride(null);
-  }, [currentUser.id]);
+    if (!authUser) setRoleOverride(null);
+  }, [authUser]);
 
   useEffect(() => {
     if (!authUser) return;

@@ -16,6 +16,10 @@ export const en = {
     city: 'CIKARANG',
     bipra: 'Youth',
   },
+  auth: {
+    googleSignIn: 'Sign in with Google',
+    googleLoading: 'Loading Google…',
+  },
   hero: {
     chip: 'Beyonders • Youth Community of GMIM Eben Haezer, Cikarang',
     title: 'Beyond the Sunday Walk',

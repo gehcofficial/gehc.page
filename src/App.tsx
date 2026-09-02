@@ -32,6 +32,7 @@ import { RegisterPage } from './components/public/auth/RegisterPage';
 import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { isAdminHash } from './lib/admin-routes';
+import { isPortalHash } from './lib/portal-routes';
 import { Loader2 } from 'lucide-react';
 
 const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
@@ -46,21 +47,32 @@ const SessionRestoreScreen: React.FC = () => (
 
 const MainAppContent: React.FC = () => {
   const { activeView, publicTab, authUser, authLoading } = useApp();
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
 
-  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
+  if (hash.startsWith('#/claim')) {
     return <ClaimPage />;
   }
 
-  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/forgot-password')) {
+  if (hash.startsWith('#/forgot-password')) {
     return <ForgotPasswordPage />;
   }
 
-  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/reset-password')) {
+  if (hash.startsWith('#/reset-password')) {
     return <ResetPasswordPage />;
   }
 
-  if (activeView === 'admin' || (typeof window !== 'undefined' && isAdminHash(window.location.hash))) {
+  if (activeView === 'admin' || isAdminHash(hash)) {
     return <AdminLayout />;
+  }
+
+  // Hash is source of truth: refresh of #/portal/... must stay in the portal shell
+  // even if activeView was left on 'public'.
+  if (isPortalHash(hash) || activeView === 'portal') {
+    if (authLoading) return <SessionRestoreScreen />;
+    if (!authUser) return <PortalLogin />;
+
+    const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
+    return <>{pendingSync}<PortalLayout /></>;
   }
 
   if (publicTab === 'login') {
@@ -69,14 +81,6 @@ const MainAppContent: React.FC = () => {
 
   if (publicTab === 'register') {
     return <RegisterPage />;
-  }
-
-  if (activeView === 'portal') {
-    if (authLoading) return <SessionRestoreScreen />;
-    if (!authUser) return <PortalLogin />;
-
-    const pendingSync = authUser ? <ApplyPendingBakutau /> : null;
-    return <>{pendingSync}<PortalLayout /></>;
   }
 
   const authShell = AUTH_PUBLIC_TABS.has(publicTab);
