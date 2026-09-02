@@ -106,33 +106,43 @@ export const GroupDetailPage: React.FC = () => {
 
   const galleryItems = gallery || [];
   const coverUrl = slots.kelompok[group.name.toLowerCase()];
+  const onPhoto = !!coverUrl;
 
   return (
     <div className="pt-[110px] sm:pt-[130px] pb-24">
-      <div className="relative overflow-hidden" style={{ backgroundColor: `${group.color}14` }}>
-        {coverUrl ? (
-          <div className="relative w-full h-44 sm:h-56 md:h-64 overflow-hidden">
+      <div
+        className={`relative overflow-hidden ${onPhoto ? 'h-80 sm:h-[26rem] md:h-[32rem]' : ''}`}
+        style={!onPhoto ? { backgroundColor: `${group.color}14` } : undefined}
+      >
+        {onPhoto && (
+          <>
             <img
               src={coverUrl}
               alt={group.name}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
               fetchPriority="high"
               decoding="async"
             />
             <div
-              className="absolute inset-0 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/40 to-transparent"
+              className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"
               aria-hidden
             />
-          </div>
-        ) : null}
+          </>
+        )}
+        {!onPhoto && (
+          <div
+            className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-3xl opacity-25 pointer-events-none"
+            style={{ backgroundColor: group.color }}
+          />
+        )}
         <div
-          className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-3xl opacity-25 pointer-events-none"
-          style={{ backgroundColor: group.color }}
-        />
-        <div className={`relative max-w-[1200px] mx-auto px-4 sm:px-8 ${coverUrl ? 'py-8 sm:py-10' : 'py-10 sm:py-14'}`}>
+          className={`relative z-10 h-full flex flex-col justify-end max-w-[1200px] mx-auto px-4 sm:px-8 ${
+            onPhoto ? 'pb-8 sm:pb-10 pt-4' : 'py-10 sm:py-14'
+          }`}
+        >
           <button
             onClick={closeGroupDetail}
-            className="inline-flex items-center gap-2 text-xs font-bold text-[#1B1B1B] bg-white/80 hover:bg-white border border-[#D9D7D0] rounded-full px-4 py-2 shadow-sm transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-xs font-bold bg-white/90 hover:bg-white border border-white/60 rounded-full px-4 py-2 shadow-sm transition-colors mb-6 sm:mb-8 self-start"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             {t.groupDetail.back}
@@ -141,33 +151,64 @@ export const GroupDetailPage: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-end gap-6 justify-between">
             <div className="flex items-start gap-4 sm:gap-5">
               <div
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] flex items-center justify-center text-white shadow-xl font-black text-xl shrink-0"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] flex items-center justify-center text-white shadow-xl font-black text-xl shrink-0 ring-2 ring-white/25"
                 style={{ backgroundColor: group.color }}
               >
                 {group.name.substring(0, 2).toUpperCase()}
               </div>
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: group.color }}>
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-widest ${
+                    onPhoto ? 'text-white/75' : ''
+                  }`}
+                  style={onPhoto ? undefined : { color: group.color }}
+                >
                   Beyonders • Mentoring Home
                 </span>
-                <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-[#1B1B1B] font-display leading-none mt-1">
+                <h1
+                  className={`text-4xl sm:text-6xl font-black tracking-tight font-display leading-none mt-1 ${
+                    onPhoto ? 'text-white' : 'text-[#1B1B1B]'
+                  }`}
+                >
                   {group.name}
                 </h1>
-                <p className="text-sm sm:text-base text-[#8C8880] mt-2 italic">“{group.meaning}”</p>
+                <p
+                  className={`text-sm sm:text-base mt-2 italic ${
+                    onPhoto ? 'text-white/80' : 'text-[#8C8880]'
+                  }`}
+                >
+                  “{group.meaning}”
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-full md:min-w-[380px]">
               {group.meetingSchedule && (
-                <div className="flex items-start gap-2 p-3 rounded-2xl bg-white/85 border border-white text-[11px]">
+                <div
+                  className={`flex items-start gap-2 p-3 rounded-2xl text-[11px] ${
+                    onPhoto
+                      ? 'bg-white/15 border border-white/25 backdrop-blur-md'
+                      : 'bg-white/85 border border-white'
+                  }`}
+                >
                   <Calendar className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: group.color }} />
-                  <span className="text-[#1B1B1B] font-semibold">{group.meetingSchedule}</span>
+                  <span className={`font-semibold ${onPhoto ? 'text-white' : 'text-[#1B1B1B]'}`}>
+                    {group.meetingSchedule}
+                  </span>
                 </div>
               )}
               {group.meetingLocation && (
-                <div className="flex items-start gap-2 p-3 rounded-2xl bg-white/85 border border-white text-[11px]">
-                  <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-500" />
-                  <span className="text-[#1B1B1B] font-semibold">{group.meetingLocation}</span>
+                <div
+                  className={`flex items-start gap-2 p-3 rounded-2xl text-[11px] ${
+                    onPhoto
+                      ? 'bg-white/15 border border-white/25 backdrop-blur-md'
+                      : 'bg-white/85 border border-white'
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-400" />
+                  <span className={`font-semibold ${onPhoto ? 'text-white' : 'text-[#1B1B1B]'}`}>
+                    {group.meetingLocation}
+                  </span>
                 </div>
               )}
             </div>
