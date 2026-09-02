@@ -119,8 +119,8 @@ export const id: Dict = {
   collage: {
     worshipTitle: 'Ibadah Kreatif Pemuda',
     worshipDesc: 'Setiap Minggu 13:00 WIB — terbuka bagi pelajar & pekerja muda.',
-    praiseTitle: 'Praise & Worship Team',
-    praiseSub: 'Ruach Ministry • Musik & Vokal',
+    praiseTitle: 'Suara untuk Tuhan',
+    praiseSub: 'Pujian, musik, dan ibadah kreatif',
     familyTitle: 'Satu Keluarga',
     since: 'Since 2026',
     pillars: '3 Kolom • 5 Fungsi • 10 Grup',

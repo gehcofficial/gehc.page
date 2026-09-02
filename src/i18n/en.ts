@@ -120,8 +120,8 @@ export const en = {
   collage: {
     worshipTitle: 'Creative Youth Worship',
     worshipDesc: 'Every Sunday 1:00 PM WIB — open to students & young workers.',
-    praiseTitle: 'Praise & Worship Team',
-    praiseSub: 'Ruach Ministry • Music & Vocals',
+    praiseTitle: 'Voices for God',
+    praiseSub: 'Praise, music & creative worship',
     familyTitle: 'One Family',
     since: 'Since 2026',
     pillars: '3 Pillars • 5 Functions • 10 Groups',
