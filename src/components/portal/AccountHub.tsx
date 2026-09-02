@@ -27,8 +27,8 @@ export const AccountHub: React.FC<{
   const [localProfileSec, setLocalProfileSec] = useState<ProfileSectionId | undefined>(profileSection);
 
   const go = (sec: AccountSection) => {
-    window.location.hash = buildPortalPath({ namespace: 'account', accountSection: sec }).slice(1);
     onSectionChange?.(sec);
+    window.location.hash = buildPortalPath({ namespace: 'account', accountSection: sec }).slice(1);
   };
 
   return (
@@ -58,12 +58,12 @@ export const AccountHub: React.FC<{
         ))}
       </div>
 
-      {section === 'profile' && (
+      <div className={section === 'profile' ? '' : 'hidden'}>
         <MyProfilePanel
           defaultOpenSection={localProfileSec || profileSection}
           onGiftSaved={() => setLocalProfileSec(undefined)}
         />
-      )}
+      </div>
 
       {section === 'security' && (
         <div className="space-y-4 max-w-xl">

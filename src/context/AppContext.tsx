@@ -41,6 +41,7 @@ import {
 } from '../lib/portal-routes';
 import { isAdminHash } from '../lib/admin-routes';
 import { fetchPlatformContext } from '../services/platformApi';
+import { AUTH_SESSION_EVENT } from '../lib/auth-redirect';
 
 type PublicTab =
   | 'beyonders'
@@ -633,10 +634,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const me = await fetchMeFull();
       setAuthUser(me.user);
+      if (me.activeRole) setRoleOverride(me.activeRole);
+      setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+      setIsPlatformOperator(me.isPlatformOperator);
+      setPlatformCapabilities(me.platformCapabilities || []);
+      setPublicTabState(tabFromHash());
+      if (isAdminHash(window.location.hash)) {
+        setActiveViewState('admin');
+      } else if (isPortalHash(window.location.hash)) {
+        setActiveViewState('portal');
+      } else {
+        setActiveViewState('public');
+      }
     } catch {
       /* keep current session */
     }
   }, []);
+
+  useEffect(() => {
+    const onSession = () => { void refreshAuthUser(); };
+    window.addEventListener(AUTH_SESSION_EVENT, onSession);
+    return () => window.removeEventListener(AUTH_SESSION_EVENT, onSession);
+  }, [refreshAuthUser]);
 
   // User & RBAC Computation (multi-role: satu akun bisa rangkap jabatan)
   const currentUser: User =

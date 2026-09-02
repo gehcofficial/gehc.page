@@ -13,7 +13,8 @@ const KEY = 'gehc_lang_v1';
 
 export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Lang>(() => {
-    return (localStorage.getItem(KEY) as Lang) || 'en'; // default audiens global
+    const saved = localStorage.getItem(KEY);
+    return saved === 'en' || saved === 'id' ? saved : 'id';
   });
 
   useEffect(() => {

@@ -60,23 +60,14 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   };
 
   const measureCache = async () => {
-    if (!('caches' in window)) return;
     try {
-      let total = 0;
-      const names = await caches.keys();
-      for (const name of names) {
-        const cache = await caches.open(name);
-        const keys = await cache.keys();
-        for (const req of keys) {
-          const resp = await cache.match(req);
-          if (resp) {
-            const blob = await resp.blob();
-            total += blob.size;
-          }
-        }
+      const estimate = await navigator.storage?.estimate?.();
+      if (estimate?.usage != null) {
+        setCacheSize(formatBytes(estimate.usage));
+        return;
       }
-      setCacheSize(formatBytes(total));
-    } catch { /* skip */ }
+    } catch { /* fall through */ }
+    setCacheSize('—');
   };
 
   const formatBytes = (bytes: number) => {

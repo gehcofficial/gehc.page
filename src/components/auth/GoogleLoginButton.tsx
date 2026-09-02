@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLang } from '../../context/LangContext';
 
 interface Props {
   clientId: string;
@@ -16,7 +17,15 @@ function loadGsiScript(): Promise<void> {
       'script[src="https://accounts.google.com/gsi/client"]'
     );
     if (existing) {
-      existing.addEventListener('load', () => resolve());
+      if (window.google?.accounts?.id) {
+        gsiScriptLoaded = true;
+        resolve();
+        return;
+      }
+      existing.addEventListener('load', () => {
+        gsiScriptLoaded = true;
+        resolve();
+      });
       existing.addEventListener('error', () => reject(new Error('Gagal memuat Google Identity Services.')));
       return;
     }
@@ -33,41 +42,50 @@ function loadGsiScript(): Promise<void> {
   });
 }
 
-/** Tombol "Sign in with Google" resmi via GIS. */
+/** Tombol "Sign in with Google" resmi via GIS — dirender sekali per clientId+locale. */
 const GoogleLoginButton: React.FC<Props> = ({ clientId, onCredential, onError }) => {
+  const { lang } = useLang();
+  const locale = lang === 'en' ? 'en' : 'id';
   const containerRef = useRef<HTMLDivElement>(null);
+  const onCredentialRef = useRef(onCredential);
+  const onErrorRef = useRef(onError);
   const [ready, setReady] = useState(false);
+
+  onCredentialRef.current = onCredential;
+  onErrorRef.current = onError;
 
   useEffect(() => {
     let cancelled = false;
+    setReady(false);
     loadGsiScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.google) return;
         if (!gsiInitialized) {
           window.google.accounts.id.initialize({
             client_id: clientId,
-            callback: (response) => onCredential(response.credential),
+            callback: (response) => onCredentialRef.current(response.credential),
           });
           gsiInitialized = true;
         }
+        containerRef.current.innerHTML = '';
         window.google.accounts.id.renderButton(containerRef.current, {
           theme: 'filled_black',
           size: 'medium',
           shape: 'pill',
           text: 'signin_with',
-          locale: 'id',
+          locale,
         });
         setReady(true);
       })
-      .catch((err: Error) => onError?.(err.message));
+      .catch((err: Error) => onErrorRef.current?.(err.message));
     return () => {
       cancelled = true;
     };
-  }, [clientId, onCredential, onError]);
+  }, [clientId, locale]);
 
   return (
     <div>
-      <div ref={containerRef} className="flex justify-center min-h-[30px]" />
+      <div ref={containerRef} className="flex justify-center min-h-[40px]" />
       {!ready && (
         <p className="text-[10px] text-white/40 text-center">Memuat tombol Google…</p>
       )}

@@ -35,6 +35,7 @@ import {
   roleToNamespace,
   defaultPageForRole,
   isPortalHash,
+  type AccountSection,
 } from '../../lib/portal-routes';
 import { buildPortalNavItems } from '../../lib/portal-nav-config';
 import {
@@ -90,6 +91,9 @@ export const PortalLayout: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [accountSection, setAccountSection] = useState<AccountSection>(
+    portalRoute?.accountSection || 'profile',
+  );
   const [profileSection, setProfileSection] = useState<ProfileSectionId | undefined>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -129,6 +133,7 @@ export const PortalLayout: React.FC = () => {
       if (!route) return;
       if (route.namespace === 'account') {
         setActiveTab('account');
+        setAccountSection(route.accountSection || 'profile');
         return;
       }
       if (!route.namespace) return;
@@ -218,6 +223,7 @@ export const PortalLayout: React.FC = () => {
     setIsMobileMenuOpen(false);
     setHoveredItem(null);
     if (tabId === 'account') {
+      setAccountSection('profile');
       window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
       return;
     }
@@ -540,11 +546,13 @@ export const PortalLayout: React.FC = () => {
               onCompleteProfile={() => {
                 setProfileSection('contact');
                 setActiveTab('account');
+                setAccountSection('profile');
                 window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
               onStartGiftTest={() => {
                 setProfileSection('gifts');
                 setActiveTab('account');
+                setAccountSection('profile');
                 window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
@@ -554,15 +562,16 @@ export const PortalLayout: React.FC = () => {
               onCompleteProfile={() => {
                 setProfileSection('contact');
                 setActiveTab('account');
+                setAccountSection('profile');
                 window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
           )}
           {(activeTab === 'account' || isAccountRoute) && (
             <AccountHub
-              section={portalRoute?.accountSection || 'profile'}
+              section={accountSection}
               profileSection={profileSection}
-              onProfileNavigate={(sec) => setProfileSection(sec)}
+              onSectionChange={setAccountSection}
             />
           )}
           {activeTab === 'event-info' && <EventInfoPanel />}

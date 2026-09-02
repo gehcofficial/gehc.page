@@ -23,18 +23,13 @@ export const PortalLogin: React.FC = () => {
 
   const afterAuth = async () => {
     const next = getNextFromHash();
-    if (next) {
-      await finishAuthRedirect(next);
-      return;
-    }
-    setActiveView('portal');
-    window.location.hash = '#/portal';
-    window.location.reload();
+    await finishAuthRedirect(next);
   };
 
   const onCredential = (credential: string) => {
     fetch('/api/auth/google', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
     })
@@ -51,6 +46,7 @@ export const PortalLogin: React.FC = () => {
     setErr('');
     fetch('/api/auth/local', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ login: form.login, password: form.password }),
     })
