@@ -1,5 +1,53 @@
 # GEHC Portal — Handoff
 
+## Current — Division ops + check-in (Sep 2026)
+
+**Goal:** Scanner hari H di Koinonia, kanal WhatsApp (tautan saja), auto-provision folder event Drive, schema payung gerejawi.
+
+### Done
+
+- Tab **Check-in** di Panel Divisi → Koinonia (`EventCheckInTab`)
+- API `POST/GET /api/events/:slug/check-in` + walk-in; parse `GEHC-BT|{poolId}|{ms}`
+- Panel **Kanal WhatsApp** + `ChannelLink` CRUD (lapis permanen vs event)
+- Program & Event: payung `ChurchProgram`, buat event operasional (kind + WA + divisi), grid `MinistryMonthPlan`
+- `server/gdrive-events.mjs` — folder `[EV:<slug>:<DIV>]` + subfolder template (termasuk Koinonia `Check-in/`)
+
+### Commands
+
+```powershell
+npm run db:migrate:local
+npm run test -- tests/unit/check-in-code.test.ts
+npm run dev:all
+```
+
+### Next
+
+- STG-05 folder foto kelompok
+- Upload CSV check-in ke Drive (opsional)
+- Auto-seri folder ibadah per bulan
+
+---
+
+## Staging QA — review teman (2 Sep 2026)
+
+**Goal:** Kerjakan temuan PDF di `docs/staging/` (accordion, countdown, hover peran, Our People, QR hari H, popup assign, notifikasi role).
+
+### Done
+
+- Tracker: [`docs/staging/2026-09-02-review-teman.md`](docs/staging/2026-09-02-review-teman.md)
+- STG-01, 02, 03, 04, 06, 07, 08
+- STG-05 (folder foto kelompok) ditunda
+
+### Commands
+
+```powershell
+npm run db:migrate:local
+npm run db:generate
+npm run dev:all
+```
+
+---
+
 ## Platform Operator RBAC (Episode — platform admin split)
 
 **Goal:** Pisahkan operator bootstrap (`#/admin`) dari jemaat; passkey + break-glass; platform admin grant.

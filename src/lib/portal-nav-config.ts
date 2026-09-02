@@ -39,18 +39,19 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten', subtitle: 'Collage landing' },
   { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten' },
   { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur' },
-  { id: 'events', label: 'Program & Event', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace per event' },
+  { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event' },
   { id: 'divisions', label: 'Panel Divisi (6 Divisi)', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace permanen divisi' },
+  { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
   { id: 'pwa-settings', label: 'PWA & Notifikasi', roles: CHURCH_ROLES.all, group: 'Sistem' },
 ];
 
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
-  KOMISI: ['dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'integrations', 'media-guide', 'content-testimonials', 'pwa-settings', 'account'],
-  COMMITTEE: ['dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'media-guide', 'pwa-settings', 'account'],
-  MENTOR: ['dashboard', 'groups-monitoring', 'pwa-settings', 'account'],
+  KOMISI: ['dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'pwa-settings', 'account'],
+  COMMITTEE: ['dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'pwa-settings', 'account'],
+  MENTOR: ['dashboard', 'groups-monitoring', 'wa-channels', 'pwa-settings', 'account'],
   MENTEE: ['dashboard', 'groups-monitoring', 'pwa-settings', 'account'],
-  BPMJ: ['dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'pwa-settings', 'account'],
+  BPMJ: ['dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'pwa-settings', 'account'],
   SUPERADMIN: ['dashboard', 'pwa-settings', 'account'],
 };
 

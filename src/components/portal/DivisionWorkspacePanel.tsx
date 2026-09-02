@@ -30,8 +30,10 @@ import {
   Store,
   Image,
   Newspaper,
+  QrCode,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
+import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
@@ -102,7 +104,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'checkin';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -819,6 +821,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
                 { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
                 { id: 'planning' as DetailTab, label: 'Rencana', icon: <ClipboardList className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: 'Check-in', icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: 'Warta', icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: 'Galeri', icon: <Image className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
@@ -1233,6 +1236,10 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {detailTab === 'checkin' && selectedDiv === 'KOINONIA' && selectedEvent && (
+              <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
             )}
 
             {/* Planning Tab (all divisions) */}

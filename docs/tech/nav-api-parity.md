@@ -16,8 +16,9 @@ Each portal tab must only call endpoints the user's role can access.
 | content-activities | ManageActivities | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | media-guide | MediaGuidePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/drive/*` | content_manage |
 | struktur | ManageStruktur | SUPERADMIN, COMMITTEE | `/api/db/sync-struktur` | KOMISION |
-| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/events/*` | KOMISION |
-| divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs | KOMISION |
+| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/church-programs`, `/api/ministry-plans/*` | KOMISION (+BPMJ payung) |
+| divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` | KOMISI / COMMITTEE + Koinonia or BOD |
+| wa-channels | WhatsAppChannelsPanel | KOMISI, COMMITTEE, MENTOR, CO_MENTOR, BPMJ | `GET/PUT /api/channel-links` | write scoped (mentor group, HoD division, Koinonia event) |
 | integrations | ManageIntegrations | SUPERADMIN, KOMISI | drive config | SUPERADMIN/KOMISI |
 | pwa-settings | PWASettingsPanel | 7 roles | `/api/pwa/*`, push | auth |
 

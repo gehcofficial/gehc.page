@@ -33,6 +33,7 @@ export type PortalPage =
   | 'struktur'
   | 'events'
   | 'divisions'
+  | 'wa-channels'
   | 'integrations'
   | 'pwa-settings';
 

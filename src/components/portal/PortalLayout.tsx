@@ -11,6 +11,7 @@ import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
+import { WhatsAppChannelsPanel } from './WhatsAppChannelsPanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import { displayAvatar } from '../../lib/avatar';
@@ -59,6 +60,7 @@ import {
   Bell,
   Network,
   MessageSquareQuote,
+  MessageCircle,
 } from 'lucide-react';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
@@ -186,6 +188,7 @@ export const PortalLayout: React.FC = () => {
     struktur: ShieldCheck,
     events: Calendar,
     divisions: Users,
+    'wa-channels': MessageCircle,
     integrations: FolderSync,
     'pwa-settings': Bell,
   };
@@ -590,6 +593,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
+          {activeTab === 'wa-channels' && <WhatsAppChannelsPanel />}
           {activeTab === 'integrations' && <ManageIntegrations />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
           {!isTabAllowed(activeTab) && activeTab !== 'account' && (

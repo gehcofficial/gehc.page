@@ -11,6 +11,8 @@ type Props = {
   mapEmbedQuery?: string;
   compact?: boolean;
   onCompleteProfile?: () => void;
+  checkInCode?: string | null;
+  registeredAt?: string | null;
 };
 
 export const BakuTauWelcomeCard: React.FC<Props> = ({
@@ -22,6 +24,8 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
   mapEmbedQuery = 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi',
   compact = false,
   onCompleteProfile,
+  checkInCode,
+  registeredAt,
 }) => {
   const dateLabel = new Date(eventDate).toLocaleString('id-ID', {
     weekday: 'long',
@@ -59,6 +63,30 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
           embedQuery={mapEmbedQuery}
           compact
         />
+      )}
+
+      {checkInCode && (
+        <div className={`rounded-2xl border border-emerald-200 bg-white text-center space-y-2 ${compact ? 'p-3' : 'p-4'}`}>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+            QR daftar ulang hari H
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=${compact ? 120 : 180}x${compact ? 120 : 180}&ecc=M&data=${encodeURIComponent(checkInCode)}`}
+            alt="QR daftar ulang BAKU TAU"
+            width={compact ? 120 : 180}
+            height={compact ? 120 : 180}
+            className="mx-auto rounded-xl border border-emerald-100"
+          />
+          <p className="text-[10px] font-mono text-[#5C5850] break-all">{checkInCode}</p>
+          {registeredAt && (
+            <p className="text-[10px] text-[#8C8880]">
+              Terdaftar {new Date(registeredAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
+            </p>
+          )}
+          <p className="text-[10px] text-[#8C8880] leading-relaxed">
+            Tunjukkan QR ini ke panitia saat daftar ulang di lokasi.
+          </p>
+        </div>
       )}
 
       {whatsappGroupUrl ? (

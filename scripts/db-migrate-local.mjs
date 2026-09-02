@@ -85,6 +85,16 @@ const STEPS = [
     label: 'User avatars (avatar_google, avatar_source) + struktur/testimoni userId',
     required: true,
   },
+  {
+    script: 'server/_migrate-role-assigned-notif.cjs',
+    label: 'Notification type ROLE_ASSIGNED',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-event-checkin.cjs',
+    label: 'Event check-in, channel links, church programs',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

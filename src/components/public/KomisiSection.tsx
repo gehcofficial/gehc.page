@@ -56,7 +56,7 @@ export const KomisiSection: React.FC = () => {
 
   if (!members) {
     return (
-      <section className="py-24 flex items-center justify-center gap-2 text-xs text-[#8C8880]">
+      <section id="our-people" className="py-24 flex items-center justify-center gap-2 text-xs text-[#8C8880] scroll-mt-28">
         <Loader2 className="w-4 h-4 animate-spin" /> {t.leadersPage.loading}
       </section>
     );
@@ -82,7 +82,7 @@ export const KomisiSection: React.FC = () => {
   }).filter((g) => g.filled.length > 0 || g.open.length > 0);
 
   return (
-    <section className="py-12 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
+    <section id="our-people" className="py-12 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto scroll-mt-28">
       <SectionHeader
         eyebrow={t.leadersPage.eyebrow}
         title={t.leadersPage.title}

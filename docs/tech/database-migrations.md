@@ -52,6 +52,7 @@ npm run dev:all
 6. `_migrate-waiting-pool.cjs` — tabel `waiting_pool` (onboarding pipeline)
 7. `_migrate-e10-bakutau.cjs` — domisili, `whatsapp_group_url`, `claim_token`
 8. `_migrate-bakutau-venue.cjs` — patch lokasi BAKU TAU di `content_items`
+9. `_migrate-role-assigned-notif.cjs` — enum `notifications.type` + `ROLE_ASSIGNED`
 
 Scripts tambahan:
 

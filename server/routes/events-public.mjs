@@ -10,12 +10,12 @@ import {
   BAKU_TAU_MAP_EMBED_QUERY,
 } from '../lib/baku-tau.mjs';
 
-const SLUG_TO_EVENT_ID = {
+export const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
   'baku-tau-4-0': BAKU_TAU_EVENT_ID,
 };
 
-async function resolveEventBySlug(prisma, slug) {
+export async function resolveEventBySlug(prisma, slug) {
   const eventId = SLUG_TO_EVENT_ID[slug];
   if (eventId) {
     const event = await prisma.eventProgram.findUnique({ where: { id: eventId } });
@@ -173,4 +173,4 @@ export function registerEventsPublicRoutes(app, { wrap }) {
   }));
 }
 
-export { upsertEventAttendee, resolveEventBySlug };
+export { upsertEventAttendee };

@@ -13,6 +13,8 @@ export const EventInfoPanel: React.FC = () => {
     locationDetail?: string;
     mapUrl?: string | null;
     mapEmbedQuery?: string;
+    checkInCode?: string | null;
+    registeredAt?: string | null;
   } | null>(null);
   const [stats, setStats] = useState<{ registered?: number } | null>(null);
 
@@ -30,6 +32,8 @@ export const EventInfoPanel: React.FC = () => {
           locationDetail: reg.locationDetail || ev.locationDetail,
           mapUrl: reg.mapUrl || ev.mapUrl,
           mapEmbedQuery: reg.mapEmbedQuery || ev.mapEmbedQuery,
+          checkInCode: reg.checkInCode || null,
+          registeredAt: reg.registeredAt || null,
         });
         setStats(ev.stats || null);
       })
@@ -78,6 +82,8 @@ export const EventInfoPanel: React.FC = () => {
           locationDetail={bakuTau.locationDetail}
           mapUrl={bakuTau.mapUrl}
           mapEmbedQuery={bakuTau.mapEmbedQuery}
+          checkInCode={bakuTau.checkInCode}
+          registeredAt={bakuTau.registeredAt}
         />
       ) : (
         <div className="rounded-[28px] border border-dashed border-[#D9D7D0] bg-white p-6 text-center">

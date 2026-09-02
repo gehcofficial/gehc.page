@@ -364,7 +364,7 @@ export const OrgTreeSection: React.FC = () => {
       )}
 
       {/* Level 3: Enam Divisi (5 Panca Tugas + Benzarpreneurship) + Sub-divisi */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 items-start">
         {PANTATUGAS.map((p) => {
           const pillar: PillarDef = { name: p.name, tagline: p.tagline, icon: p.icon, color: p.color };
           const pillarMembers = structuralMembers.filter(

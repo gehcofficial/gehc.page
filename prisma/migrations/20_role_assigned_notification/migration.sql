@@ -1,0 +1,3 @@
+-- Add ROLE_ASSIGNED to notifications.type (MySQL/TiDB enum).
+ALTER TABLE `notifications`
+  MODIFY COLUMN `type` ENUM('IDLE_FLAG', 'MITOSIS_ALERT', 'MERGER_SUGGESTION', 'MENTION', 'ROLE_ASSIGNED') NOT NULL;

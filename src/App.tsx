@@ -33,6 +33,7 @@ import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { isAdminHash } from './lib/admin-routes';
 import { isPortalHash } from './lib/portal-routes';
+import { useOurPeopleUnlock } from './lib/our-people-unlock';
 import { Loader2 } from 'lucide-react';
 
 const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
@@ -47,6 +48,7 @@ const SessionRestoreScreen: React.FC = () => (
 
 const MainAppContent: React.FC = () => {
   const { activeView, publicTab, authUser, authLoading } = useApp();
+  const { unlocked: ourPeopleUnlocked } = useOurPeopleUnlock();
   const hash = typeof window !== 'undefined' ? window.location.hash : '';
 
   if (hash.startsWith('#/claim')) {
@@ -110,7 +112,7 @@ const MainAppContent: React.FC = () => {
           <>
             <AboutSection />
             <PantatugasShowcase />
-            <KomisiSection />
+            {ourPeopleUnlocked && <KomisiSection />}
           </>
         )}
 

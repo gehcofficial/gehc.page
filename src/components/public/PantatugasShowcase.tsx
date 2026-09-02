@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { PANTATUGAS } from '../../lib/pantatugas';
+import { unlockOurPeople } from '../../lib/our-people-unlock';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 
 /**
@@ -54,7 +55,20 @@ export const PantatugasShowcase: React.FC = () => {
         <Reveal delay={0.15}>
           <div className="flex justify-center mt-8">
             <button
-              onClick={() => setPublicTab('leaders')}
+              onClick={() => {
+                unlockOurPeople();
+                setPublicTab('leaders');
+                const start = Date.now();
+                const tryScroll = () => {
+                  const el = document.getElementById('our-people');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                  }
+                  if (Date.now() - start < 2500) requestAnimationFrame(tryScroll);
+                };
+                requestAnimationFrame(tryScroll);
+              }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#181818] text-white text-xs font-bold shadow-lg hover:bg-black transition-colors"
             >
               {t.serve.cta}

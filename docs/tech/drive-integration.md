@@ -101,6 +101,14 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 - BOD Tim Kerja = COMMITTEE + `struktur_members.division = 'TIMKERJA'` (atau kosong) → akses semua event.
 - PIC = COMMITTEE + `struktur_members.division` tertentu → akses hanya event dengan divisi yang sama.
 - Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk.
+- Subfolder template per pillar (idempotent):
+  - Koinonia: `Check-in/` `Welcome/` `Rundown/`
+  - Liturgia: `Rundown ibadah/` `Rehearsal/`
+  - Didaskalia: `Materi/`
+  - Diakonia: `Logistik/` `Konsumsi/`
+  - Marturia: `Dokumentasi/` `Desain/`
+  - BZP: `Kasir/`
+- Data check-in tetap di TiDB; folder `Check-in/` untuk CSV/PDF dan berkas manusia. Provision hanya jika `GDRIVE_WRITE=1`.
 
 ## 5. Endpoint
 

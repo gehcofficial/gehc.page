@@ -4,7 +4,7 @@
 export const id: Dict = {
   nav: {
     beyonders: 'Beyonders',
-    leaders: 'Pengurus',
+    leaders: 'Orang Kami',
     events: 'Kegiatan',
     bulletin: 'Warta',
     gallery: 'Galeri',
@@ -99,6 +99,7 @@ export const id: Dict = {
     days: 'hari',
     hours: 'jam',
     min: 'mnt',
+    sec: 'dtk',
     happeningToday: 'Berlangsung hari ini!',
     pastEyebrow: 'Perjalanan Kami Sejauh Ini',
     viewAll: 'Semua kegiatan',

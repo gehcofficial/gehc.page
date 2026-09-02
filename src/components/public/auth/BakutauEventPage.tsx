@@ -33,6 +33,8 @@ export const BakutauEventPage: React.FC = () => {
   const [registered, setRegistered] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
+  const [checkInCode, setCheckInCode] = useState<string | null>(null);
+  const [registeredAt, setRegisteredAt] = useState<string | null>(null);
   const [venue, setVenue] = useState<{
     venueName?: string;
     locationDetail?: string;
@@ -67,7 +69,11 @@ export const BakutauEventPage: React.FC = () => {
       .then((r) => r.json())
       .then((d) => {
         setRegistered(Boolean(d.registered));
-        if (d.registered) setWhatsappGroupUrl(d.whatsappGroupUrl || null);
+        if (d.registered) {
+          setWhatsappGroupUrl(d.whatsappGroupUrl || null);
+          setCheckInCode(d.checkInCode || null);
+          setRegisteredAt(d.registeredAt || null);
+        }
       })
       .catch(() => {});
   }, [authUser?.id]);
@@ -124,6 +130,8 @@ export const BakutauEventPage: React.FC = () => {
             locationDetail={venue?.locationDetail}
             mapUrl={venue?.mapUrl}
             mapEmbedQuery={venue?.mapEmbedQuery}
+            checkInCode={checkInCode}
+            registeredAt={registeredAt}
             onCompleteProfile={() => { window.location.hash = '#/portal'; }}
           />
         ) : (
@@ -131,7 +139,13 @@ export const BakutauEventPage: React.FC = () => {
             setRegistered(true);
             fetch('/api/me/baku-tau-registration', { credentials: 'include' })
               .then((r) => r.json())
-              .then((d) => { if (d.registered) setWhatsappGroupUrl(d.whatsappGroupUrl || null); })
+              .then((d) => {
+                if (d.registered) {
+                  setWhatsappGroupUrl(d.whatsappGroupUrl || null);
+                  setCheckInCode(d.checkInCode || null);
+                  setRegisteredAt(d.registeredAt || null);
+                }
+              })
               .catch(() => {});
           }} />
         )

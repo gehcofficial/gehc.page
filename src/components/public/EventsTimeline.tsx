@@ -88,7 +88,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       <div className="mt-12 space-y-10">
         {/* Kartu unggulan */}
         {featured && (
-          <Reveal>
+          <div>
             <div className="relative overflow-hidden rounded-[36px] bg-[#111111] text-white shadow-2xl">
               <img
                 src={
@@ -142,7 +142,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 </div>
 
                 <div className="shrink-0 space-y-3 self-start lg:self-end">
-                  {!eventClosed && <Countdown />}
+                  {!eventClosed && <Countdown targetIso={venue?.eventDate} />}
                   {registeredCount !== null && (
                     <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">
                       <Users className="w-3.5 h-3.5" /> {registeredCount} peserta terdaftar
@@ -167,7 +167,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 </div>
               </div>
             </div>
-          </Reveal>
+          </div>
         )}
 
         {/* Garis waktu lampau */}

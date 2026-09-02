@@ -23,6 +23,8 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
     locationDetail?: string;
     mapUrl?: string | null;
     mapEmbedQuery?: string;
+    checkInCode?: string | null;
+    registeredAt?: string | null;
   } | null>(null);
 
   const isWaitingPool = authUser?.onboardingStatus === 'WAITING_POOL';
@@ -120,6 +122,8 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
           locationDetail={bakuTau.locationDetail}
           mapUrl={bakuTau.mapUrl}
           mapEmbedQuery={bakuTau.mapEmbedQuery}
+          checkInCode={bakuTau.checkInCode}
+          registeredAt={bakuTau.registeredAt}
           compact
           onCompleteProfile={onCompleteProfile}
         />

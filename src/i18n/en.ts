@@ -5,7 +5,7 @@
 export const en = {
   nav: {
     beyonders: 'Beyonders',
-    leaders: 'Leaders',
+    leaders: 'Our People',
     events: 'Events',
     bulletin: 'Bulletin',
     gallery: 'Gallery',
@@ -100,6 +100,7 @@ export const en = {
     days: 'days',
     hours: 'hrs',
     min: 'min',
+    sec: 'sec',
     happeningToday: 'Happening today!',
     pastEyebrow: 'Our Journey So Far',
     viewAll: 'All events',

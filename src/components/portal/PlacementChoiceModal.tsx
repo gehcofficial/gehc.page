@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Sparkles, ShieldCheck, User, Users } from 'lucide-react';
 
 export interface PlacementTarget {
@@ -30,8 +31,8 @@ export const PlacementChoiceModal: React.FC<PlacementChoiceModalProps> = ({
   const canManual = targets.every((t) => t.userId);
   const canIndividu = targets.every((t) => t.userId);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         className="bg-white rounded-[28px] w-full max-w-md shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -118,6 +119,7 @@ export const PlacementChoiceModal: React.FC<PlacementChoiceModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

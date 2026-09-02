@@ -69,6 +69,10 @@ import {
   resolveNewcomersByIds,
 } from './jethro-placement.mjs';
 import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
+import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
+import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
+import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
+import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import {
   applyLifeAddressFields,
   reminderDue,
@@ -705,30 +709,16 @@ app.get('/api/notifications', wrap(async (req, res) => {
   try {
     // Get notifications where user is mentioned (payload.authorId != user AND user is mentioned)
     const notifications = await prisma.notification.findMany({
-      where: {
-        OR: [
-          // MENTION notifications where user was mentioned
-          {
-            type: 'MENTION',
-            status: 'OPEN',
-            // Check if the mentioned user ID is in the payload or title contains user name
-          },
-          // Other notification types
-          {
-            type: { not: 'MENTION' },
-            status: 'OPEN',
-          },
-        ],
-      },
+      where: { status: 'OPEN' },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
+      if (n.type === 'ROLE_ASSIGNED') return n.memberId === req.authUser.id;
       if (n.type !== 'MENTION') return true;
       const payload = n.payload || {};
-      // Show if user was mentioned (not the author)
       return payload.authorId !== req.authUser.id;
     });
 
@@ -1953,7 +1943,7 @@ app.get('/api/events', wrap(async (req, res) => {
   try {
     events = await prisma.eventProgram.findMany({
       orderBy: { startDate: 'desc' },
-      include: { divisions: true, meetings: true },
+      include: { divisions: true, meetings: true, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
     // Fallback: Prisma model belum ada → raw SQL
@@ -2034,9 +2024,23 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { name, description, divisions, startDate, endDate } = req.body || {};
+  const { name, description, divisions, startDate, endDate, kind, churchProgramId, whatsappGroupUrl } = req.body || {};
   if (!name || !Array.isArray(divisions) || divisions.length === 0) {
     return res.status(400).json({ error: 'name dan divisions[] wajib.' });
+  }
+
+  const allowedKinds = ['UMUM', 'KHUSUS', 'INTERNAL', 'RECURRING'];
+  const eventKind = String(kind || 'KHUSUS').toUpperCase();
+  if (!allowedKinds.includes(eventKind)) {
+    return res.status(400).json({ error: 'kind harus UMUM, KHUSUS, INTERNAL, atau RECURRING.' });
+  }
+  let waUrl = null;
+  if (whatsappGroupUrl) {
+    const raw = String(whatsappGroupUrl).trim();
+    if (!/^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(raw)) {
+      return res.status(400).json({ error: 'whatsappGroupUrl harus tautan undangan WhatsApp.' });
+    }
+    waUrl = raw;
   }
 
   const slug = slugify(name) + '-' + Date.now().toString(36);
@@ -2050,8 +2054,11 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
       slug,
       name,
       description: description || null,
+      kind: eventKind,
+      churchProgramId: churchProgramId || null,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
+      whatsappGroupUrl: waUrl,
       createdById,
     },
   });
@@ -2082,11 +2089,30 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
     }
   }
 
+  if (waUrl) {
+    await prisma.channelLink.upsert({
+      where: { kind_refId: { kind: 'EVENT', refId: ev.id } },
+      update: { url: waUrl, updatedById: createdById, label: name },
+      create: {
+        id: `cl-${crypto.randomUUID()}`,
+        kind: 'EVENT',
+        refId: ev.id,
+        url: waUrl,
+        label: name,
+        updatedById: createdById,
+      },
+    }).catch(() => null);
+  }
+
   res.status(201).json({ event: ev, provisioned });
 }));
 
 // BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
 registerBakuTauRoutes(app, { wrap });
+registerEventCheckInRoutes(app, { wrap });
+registerChannelLinkRoutes(app, { wrap });
+registerChurchProgramRoutes(app, { wrap });
+registerMinistryPlanRoutes(app, { wrap });
 
 // GET /api/events/:id — detail event + divisi
 app.get('/api/events/:id', wrap(async (req, res) => {
@@ -2097,7 +2123,7 @@ app.get('/api/events/:id', wrap(async (req, res) => {
   try {
     ev = await prisma.eventProgram.findUnique({
       where: { id: req.params.id },
-      include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } } },
+      include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } }, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
     // Fallback: raw SQL
@@ -2149,13 +2175,16 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { name, description, startDate, endDate, status, divisions } = req.body || {};
+  const { name, description, startDate, endDate, status, kind, churchProgramId, whatsappGroupUrl } = req.body || {};
   const data = {};
   if (name !== undefined) data.name = name;
   if (description !== undefined) data.description = description;
   if (startDate !== undefined) data.startDate = startDate ? new Date(startDate) : null;
   if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null;
   if (status !== undefined) data.status = status;
+  if (kind !== undefined) data.kind = String(kind).toUpperCase();
+  if (churchProgramId !== undefined) data.churchProgramId = churchProgramId || null;
+  if (whatsappGroupUrl !== undefined) data.whatsappGroupUrl = whatsappGroupUrl || null;
 
   const ev = await prisma.eventProgram.update({ where: { id: req.params.id }, data });
   res.json({ event: ev });

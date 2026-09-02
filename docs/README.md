@@ -22,3 +22,4 @@
 ## Handoff
 
 - [Current handoff](../HANDOFF.md) (root — updated each episode)
+- [Staging QA tracker](staging/2026-09-02-review-teman.md)

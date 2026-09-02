@@ -263,6 +263,8 @@ export function registerBakuTauRoutes(app, { wrap }) {
       locationDetail: info.locationDetail,
       mapUrl: info.mapUrl,
       mapEmbedQuery: info.mapEmbedQuery,
+      checkInCode: `GEHC-BT|${entry.id}|${new Date(entry.registeredAt).getTime()}`,
+      registeredAt: entry.registeredAt,
       entry,
     });
   }));

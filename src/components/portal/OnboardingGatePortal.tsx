@@ -36,6 +36,8 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
     locationDetail?: string;
     mapUrl?: string | null;
     mapEmbedQuery?: string;
+    checkInCode?: string | null;
+    registeredAt?: string | null;
   } | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +122,8 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
             locationDetail={bakuTau.locationDetail}
             mapUrl={bakuTau.mapUrl}
             mapEmbedQuery={bakuTau.mapEmbedQuery}
+            checkInCode={bakuTau.checkInCode}
+            registeredAt={bakuTau.registeredAt}
             onCompleteProfile={() => profileRef.current?.scrollIntoView({ behavior: 'smooth' })}
           />
         )}

@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 import { ROLE_LABEL } from '../../lib/roles';
+import { ROLE_CHIP_COLORS } from '../../lib/status-colors';
 
 export const PortalAccountSwitcher: React.FC = () => {
   const { myRoleOptions, setActiveUserRole, currentRole } = useApp();
@@ -19,8 +20,12 @@ export const PortalAccountSwitcher: React.FC = () => {
             key={`${role}-${idx}`}
             onClick={() => setActiveUserRole(role)}
             title={ROLE_LABEL[role]}
-            className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
-              role === currentRole ? 'ring-2 ring-[#FF416C]' : ''
+            className={`text-[9px] font-extrabold px-2.5 py-1.5 rounded-full uppercase tracking-wide transition-all duration-200 ${
+              ROLE_CHIP_COLORS[role] || 'bg-gray-100 text-gray-700'
+            } ${
+              role === currentRole
+                ? 'ring-2 ring-[#FF416C] ring-offset-1 shadow-sm'
+                : 'opacity-70 hover:opacity-100 hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-[#181818]/25'
             }`}
           >
             {ROLE_LABEL[role]}

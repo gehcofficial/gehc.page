@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ShieldCheck, Loader2, X, Building } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -206,8 +207,8 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     { id: 'superadmin', label: 'Superadmin', icon: <ShieldCheck className="w-4 h-4" /> },
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white rounded-[32px] w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white rounded-t-[32px] border-b border-[#D9D7D0]/50 p-6 pb-4 z-10">
           <div className="flex items-center justify-between">
@@ -423,6 +424,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

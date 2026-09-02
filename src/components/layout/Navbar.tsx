@@ -152,7 +152,7 @@ export const Navbar: React.FC = () => {
                               className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
                                 role === currentRole
                                   ? getRoleBadgeStyle(role)
-                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                                  : 'bg-white/10 text-white/60 hover:bg-white/25 hover:text-white hover:scale-105'
                               }`}
                             >
                               {role}

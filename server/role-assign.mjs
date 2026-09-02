@@ -186,6 +186,24 @@ export async function assignRoleToUser(prisma, {
     });
   }
 
+  try {
+    const roleLabel = position || role;
+    await prisma.notification.create({
+      data: {
+        id: genId64(),
+        type: 'ROLE_ASSIGNED',
+        memberId: userId,
+        groupId: groupId || null,
+        title: 'Peran baru ditugaskan',
+        message: `Kamu mendapat peran ${roleLabel}. Buka portal untuk melihat konteks peran aktif.`,
+        payload: { role, position, division, subdivision, groupId, assignedBy },
+        status: 'OPEN',
+      },
+    });
+  } catch (e) {
+    console.warn('[role-assign] notifikasi ROLE_ASSIGNED gagal:', e?.message || e);
+  }
+
   return { assignment, userRole };
 }
 
