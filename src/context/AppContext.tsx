@@ -238,7 +238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    return saved || 'usr-tech'; // Default: persona pertama (Tim Tech / SUPERADMIN)
+    return saved || 'usr-tech'; // Default seed user (offline preview)
   });
 
   const [groups, setGroups] = useState<YouthGroup[]>(() => {

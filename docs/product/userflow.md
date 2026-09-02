@@ -23,7 +23,7 @@ Google SSO nyata, dan Jethro Engine.
 (mis. Ketua Komisi sekaligus Mentor). Efektif role = precedensi tertinggi
 (`SUPERADMIN > BPMJ > KOMISI > COMMITTEE > MENTOR > CO_MENTOR > MENTEE > ALUMNI`,
 lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
-**chips peran** di dropdown persona Navbar.
+**chips peran** di menu akun Navbar (saat sudah login).
 
 ---
 
@@ -45,21 +45,17 @@ lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
 
 ### Login Google SSO (jemaat):
 
-Navbar → dropdown persona → tombol "Sign in with Google"
+`#/login` atau Navbar → **Masuk** → Google / email+password
 → GIS ID token → POST /api/auth/google → verifikasi + upsert user ke TiDB
 → cookie sesi httpOnly (7 hari) → role dimuat dari DB.
 `SUPERADMIN_EMAILS` hanya staging/local (disabled di production).
 
-### Mode demo staging (ENABLE_DEMO_PERSONAS=true):
+### Akun demo staging (QA / E2E)
 
-Dropdown persona menampilkan akun inti + yang ter-link kelompok
-(PIC sub-divisi tetap di DB namun tak memenuhi daftar — bisa via
-POST /api/demo/impersonate). Klik persona = sesi server sungguhan,
-sehingga seluruh endpoint RBAC ikut teruji tanpa setup Google.
-JANGAN aktifkan flag ini di produksi!
-
-Visibilitas switcher: hanya tampil saat demoMode aktif atau sudah login.
-Tamu produksi melihat navbar bersih.
+- Seed: `npm run db:seed-users:staging` → akun `*@gehc.demo` di TiDB
+- Login: `#/login` dengan email+password lokal (`password123` default)
+- Playwright: `tests/helpers/portal.ts` → `loginViaLocal()`
+- **Bukan** fitur UI switcher — impersonate persona di navbar sudah dihapus
 
 ---
 
@@ -218,8 +214,8 @@ Komisi setujui di tab "Menunggu Persetujuan" → ACTIVE.
 
 ### Cached Accounts:
 
-akun yang pernah dipakai di perangkat tampil di layar login portal
-& dropdown persona (maks 5, LRU).
+akun yang pernah dipakai di perangkat disimpan di localStorage (maks 5, LRU)
+untuk fitur cached login di masa depan; saat ini hanya ditulis saat login Google.
 
 ### Daftar Mandiri via Google / Email (publik):
 

@@ -12,4 +12,4 @@ alwaysApply: false
 - BPMJ: read-only on Jethro placement (no approve/commit in UI)
 - COMMITTEE: no Regenerasi Kelompok nav (placement review only)
 - Parity matrix: `docs/tech/nav-api-parity.md`
-- Demo personas: `npm run db:seed-users:staging`, login `*@gehc.demo`
+- Staging QA: `npm run db:seed-users:staging`, login `#/login` dengan `*@gehc.demo` / `password123`

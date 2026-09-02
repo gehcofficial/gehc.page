@@ -77,7 +77,7 @@ if (!db) {
 
 const clientId = local.get('GOOGLE_CLIENT_ID') ?? '';
 if (!clientId) {
-  console.log('\n⚠️  GOOGLE_CLIENT_ID kosong — Google SSO nonaktif (demo login masih OK)');
+  console.log('\n⚠️  GOOGLE_CLIENT_ID kosong — Google SSO nonaktif (login lokal masih OK)');
 }
 
 if (exitCode === 0) {

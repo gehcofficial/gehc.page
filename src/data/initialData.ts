@@ -60,7 +60,7 @@ export const INITIAL_TENANTS: Tenant[] = [
 ];
 
 /**
- * Persona fallback lokal untuk preview UI offline — bukan sesi server.
+ * User fallback lokal untuk preview UI offline — bukan sesi server.
  * Akun sungguhan dimuat lewat login Google / email+password.
  */
 const demoAvatar = (seed: string) =>

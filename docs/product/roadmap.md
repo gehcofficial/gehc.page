@@ -39,7 +39,7 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 2. **Autentikasi & RBAC nyata** ✅ *(inti) / 📋 (approval flow)*:
    - ✅ Google SSO via GIS → verifikasi ID token server → cookie sesi HMAC httpOnly.
    - ✅ RBAC 8 level + **multi-role/rangkap jabatan** (precedensi + chips konteks).
-   - ✅ Persona demo staging dari DB (`ENABLE_DEMO_PERSONAS`) + impersonate.
+   - ✅ Akun demo staging (`*@gehc.demo`) untuk QA/E2E via login lokal `#/login`.
    - 📋 Self-registration berstatus PENDING → approval Komisi sebelum ACTIVE.
 3. **Environment Staging** ✅ — branch cluster TiDB + `.env.staging` + script per-env; data dummy/seed hanya di staging.
 4. **Jethro Engine (Regenerasi)** ✅ — kapasitas vs threshold 10, scan idle/mitosis/merger, split & merge dengan lineage, placement recommender, narasi AI Gemini, dasbor Komisi.
