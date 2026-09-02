@@ -65,20 +65,16 @@
   animation: marquee 35s linear infinite;
 }
 
-.animate-marquee-houses {
+.marquee-houses-track {
   display: flex;
   width: max-content;
-  animation: marquee var(--marquee-duration, 88s) linear infinite;
+  will-change: transform;
+  user-select: none;
+  touch-action: pan-y;
 }
 
-.animate-marquee:hover,
-.animate-marquee-houses:hover,
-.animate-marquee-houses.is-paused {
+.animate-marquee:hover {
   animation-play-state: paused;
-}
-
-.animate-marquee-houses.is-reverse {
-  animation-direction: reverse;
 }
 
 .animate-fade-in {
@@ -104,7 +100,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
-  .animate-marquee-houses,
   .animate-fade-in,
   .brand-city-letter {
     animation: none;

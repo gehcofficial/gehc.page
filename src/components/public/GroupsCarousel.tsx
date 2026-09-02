@@ -1,27 +1,13 @@
-import React, { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUpRight, Calendar, MapPin, Users, Pause, Play } from 'lucide-react';
+import React, { useRef } from 'react';
+import { ArrowUpRight, Calendar, MapPin, Users } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { MiniFamilyTree } from './FamilyTree';
 import { SectionHeader } from './ui/SectionHeader';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
+import { useSteerableMarquee } from '../../hooks/useSteerableMarquee';
 import type { YouthGroup } from '../../types';
-
-const MARQUEE_BASE_SEC = 88;
-const SPEED_OPTIONS = [1, 2, 4] as const;
-type CarouselSpeed = (typeof SPEED_OPTIONS)[number];
-const SPEED_STORAGE_KEY = 'gehc_carousel_speed_v1';
-
-function readStoredSpeed(): CarouselSpeed {
-  try {
-    const n = Number(localStorage.getItem(SPEED_STORAGE_KEY));
-    if (SPEED_OPTIONS.includes(n as CarouselSpeed)) return n as CarouselSpeed;
-  } catch {
-    /* ignore */
-  }
-  return 1;
-}
 
 type GroupCardProps = {
   grp: YouthGroup;
@@ -62,7 +48,8 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
         <img
           src={coverUrl}
           alt={grp.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover pointer-events-none"
+          draggable={false}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
           fetchPriority={priority ? 'high' : 'auto'}
@@ -138,20 +125,8 @@ export const GroupsCarousel: React.FC = () => {
   const { t } = useLang();
   const slots = useMediaSlots();
   const reduce = useReducedMotion();
+  const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const [paused, setPaused] = useState(false);
-  const [reverse, setReverse] = useState(false);
-  const [speed, setSpeed] = useState<CarouselSpeed>(() => readStoredSpeed());
-
-  const setCarouselSpeed = (next: CarouselSpeed) => {
-    setSpeed(next);
-    try {
-      localStorage.setItem(SPEED_STORAGE_KEY, String(next));
-    } catch {
-      /* ignore */
-    }
-    setPaused(false);
-  };
 
   const currentBatchFor = (groupId: string) =>
     groupBatches.find((b) => b.group_id === groupId && b.isCurrent);
@@ -163,18 +138,7 @@ export const GroupsCarousel: React.FC = () => {
   const canLoop = !reduce && visibleGroups.length > 2;
   const rendered = canLoop ? [...visibleGroups, ...visibleGroups] : visibleGroups;
 
-  const scrollByCard = (dir: 1 | -1) => {
-    if (canLoop) {
-      setReverse(dir < 0);
-      setPaused(false);
-      return;
-    }
-    const el = trackRef.current;
-    if (!el) return;
-    const card = el.querySelector<HTMLElement>('[data-card]');
-    const step = card ? card.offsetWidth + 24 : 320;
-    el.scrollBy({ left: dir * step, behavior: 'smooth' });
-  };
+  useSteerableMarquee(viewportRef, trackRef, canLoop);
 
   return (
     <section className="py-14 sm:py-20 bg-[#F3F1EC] overflow-hidden">
@@ -182,71 +146,17 @@ export const GroupsCarousel: React.FC = () => {
         eyebrow={t.groups.eyebrow}
         title={t.groups.title}
         subtitle={t.groups.sub}
-        action={
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {canLoop && (
-              <>
-                <div
-                  className="flex items-center rounded-full bg-white border border-[#D9D7D0] p-0.5 shadow-sm"
-                  role="group"
-                  aria-label={t.groups.speedLabel}
-                >
-                  {SPEED_OPTIONS.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setCarouselSpeed(s)}
-                      aria-pressed={speed === s}
-                      className={`min-w-[2.25rem] px-2 py-1.5 rounded-full text-[10px] font-black transition-all ${
-                        speed === s
-                          ? 'bg-[#181818] text-white shadow-sm'
-                          : 'text-[#8C8880] hover:text-[#1B1B1B]'
-                      }`}
-                    >
-                      {s}×
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPaused((p) => !p)}
-                  aria-label={paused ? t.groups.playCarousel : t.groups.pauseCarousel}
-                  className="w-10 h-10 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[#1B1B1B] hover:bg-black hover:text-white transition-all shadow-sm"
-                >
-                  {paused ? <Play className="w-3.5 h-3.5 ml-0.5" /> : <Pause className="w-3.5 h-3.5" />}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => scrollByCard(-1)}
-              aria-label="Scroll left"
-              className="w-10 h-10 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[#1B1B1B] hover:bg-black hover:text-white transition-all shadow-sm"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollByCard(1)}
-              aria-label="Scroll right"
-              className="w-10 h-10 rounded-full bg-white border border-[#D9D7D0] flex items-center justify-center text-[#1B1B1B] hover:bg-black hover:text-white transition-all shadow-sm"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        }
       />
 
-      <div className="relative mt-2">
+      <div ref={viewportRef} className="relative mt-2 overflow-hidden touch-pan-y">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 sm:w-20 bg-gradient-to-r from-[#F3F1EC] to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 sm:w-20 bg-gradient-to-l from-[#F3F1EC] to-transparent" />
 
         <div
           ref={trackRef}
-          style={{ '--marquee-duration': `${MARQUEE_BASE_SEC / speed}s` } as React.CSSProperties}
           className={
             canLoop
-              ? `gap-6 pb-4 pt-2 px-4 sm:px-8 animate-marquee-houses ${paused ? 'is-paused' : ''} ${reverse ? 'is-reverse' : ''}`
+              ? 'marquee-houses-track gap-6 pb-4 pt-2 px-4 sm:px-8'
               : 'flex gap-6 overflow-x-auto pb-4 pt-2 px-4 sm:px-8 snap-x snap-mandatory scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
           }
         >

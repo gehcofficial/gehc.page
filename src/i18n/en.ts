@@ -71,11 +71,8 @@ export const en = {
   groups: {
     eyebrow: 'Beyonders • Ten Mentoring Homes',
     title: 'Ten Homes, One Family',
-    sub: 'Hover to pause, tap to enter the family tree. Each home carries a Hebrew name its members grow into.',
+    sub: 'Move the cursor or swipe to speed up. Tap to enter the family tree. Each home carries a Hebrew name its members grow into.',
     membersSuffix: 'members',
-    speedLabel: 'Carousel speed',
-    pauseCarousel: 'Pause carousel',
-    playCarousel: 'Play carousel',
   },
   serve: {
     eyebrow: 'Our Six Ministries',

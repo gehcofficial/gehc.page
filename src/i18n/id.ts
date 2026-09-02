@@ -70,11 +70,8 @@ export const id: Dict = {
   groups: {
     eyebrow: 'Beyonders • Sepuluh Rumah Pemuridan',
     title: 'Sepuluh Rumah, Satu Keluarga',
-    sub: 'Sentuh untuk menjeda, klik untuk masuk ke family tree. Setiap rumah membawa nama Ibrani yang ditumbuhkan kepada anggotanya.',
+    sub: 'Arahkan kursor atau geser untuk mempercepat. Klik untuk masuk ke family tree. Setiap rumah membawa nama Ibrani yang ditumbuhkan kepada anggotanya.',
     membersSuffix: 'anggota',
-    speedLabel: 'Kecepatan carousel',
-    pauseCarousel: 'Jeda carousel',
-    playCarousel: 'Putar carousel',
   },
   serve: {
     eyebrow: 'Enam Pelayanan Kami',
