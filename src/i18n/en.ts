@@ -128,8 +128,8 @@ export const en = {
     pillarsSub: 'One calling, many expressions of service',
     liturgy: 'Liturgy & Creative Worship',
     scripture: '1 Timothy 4:12 — Be an Example',
-    groups: 'Avodah • Logos • Dunamis',
-    groupsSub: 'Column Fellowship & Small Groups',
+    groups: 'One Church, One Joy',
+    groupsSub: 'Anniversary morning walk — youth and the whole congregation',
     testimonialName: 'Andrea Sondakh (Logos Group)',
     testimonialQuote:
       '"GEHC youth fellowship has strengthened my faith while living in Cikarang!"',

@@ -127,8 +127,8 @@ export const id: Dict = {
     pillarsSub: 'Satu panggilan, banyak wujud pelayanan',
     liturgy: 'Liturgi & Ibadah Kreatif',
     scripture: '1 Timotius 4:12 — Jadi Teladan',
-    groups: 'Avodah • Logos • Dunamis',
-    groupsSub: 'Persekutuan Kolom & Small Groups',
+    groups: 'Satu Gereja, Satu Sukacita',
+    groupsSub: 'Jalan pagi HUT — pemuda dan seluruh jemaat',
     testimonialName: 'Andrea Sondakh (Kelompok Logos)',
     testimonialQuote:
       '"Persekutuan pemuda GEHC sangat menguatkan iman saya di perantauan Cikarang!"',
