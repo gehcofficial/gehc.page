@@ -89,6 +89,7 @@ import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
+import { registerVisualsPublishRoutes } from './routes/visuals-publish.mjs';
 import { registerOperatorRoutes } from './routes/operator.mjs';
 import { requirePlatformRoot, requirePlatformAdmin } from './lib/platform-rbac.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
@@ -5005,6 +5006,7 @@ registerEventsPublicRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
 registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
+registerVisualsPublishRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------

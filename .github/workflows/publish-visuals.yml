@@ -1,0 +1,83 @@
+name: Publish Website Visuals
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder:
+        description: Subfolder Drive (kosong = semua)
+        required: false
+        type: choice
+        default: kelompok
+        options:
+          - ''
+          - kelompok
+          - landing
+          - brand
+          - warta
+          - kegiatan
+          - benzarpreneurship
+          - pengurus
+          - testimoni
+      target_branch:
+        description: Branch commit & deploy
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull visuals from Google Drive
+        env:
+          GDRIVE_ROOT_FOLDER_ID: ${{ secrets.GDRIVE_ROOT_FOLDER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$GDRIVE_ROOT_FOLDER_ID" ] || [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "Missing GDRIVE_ROOT_FOLDER_ID or GOOGLE_SERVICE_ACCOUNT_JSON repository secrets."
+            exit 1
+          fi
+          if [ -n "${{ inputs.folder }}" ]; then
+            node server/drive-pull-visuals.mjs -- --folder=${{ inputs.folder }}
+          else
+            node server/drive-pull-visuals.mjs
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/visuals/
+          if git diff --staged --quiet; then
+            echo "No visual file changes — manifest mungkin sama."
+            exit 0
+          fi
+          FOLDER="${{ inputs.folder }}"
+          if [ -n "$FOLDER" ]; then
+            MSG="chore(visuals): sync $FOLDER from Drive"
+          else
+            MSG="chore(visuals): sync all slots from Drive"
+          fi
+          git commit -m "$MSG"
+          git push origin HEAD:${{ inputs.target_branch }}

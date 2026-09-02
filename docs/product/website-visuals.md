@@ -10,6 +10,24 @@ Google One / My Drive **didukung**. Service account hanya **membaca**. Unggah me
 
 ## Alur publish visual (disarankan)
 
+### Satu tombol dari portal (disarankan)
+
+1. Marturia/Mentor **timpa file di Drive** (stem nama tetap, cth. `kelompok/cover-echad.jpg`).
+2. Portal → **Panduan Media (Drive)** → pilih folder → **Publish ke website**.
+3. GitHub Actions: `drive:pull-visuals` → commit `public/visuals/` → push → Vercel deploy (~1–3 menit).
+
+**Setup sekali (Tim Tech):**
+
+| Lokasi | Variabel |
+|--------|----------|
+| Vercel staging env | `GITHUB_PUBLISH_TOKEN` (PAT: repo + workflow) |
+| Vercel staging env | `GITHUB_REPO=gehcofficial/gehc.page` |
+| GitHub repo secrets | `GDRIVE_ROOT_FOLDER_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+
+Workflow: `.github/workflows/publish-visuals.yml`
+
+### Manual (CLI)
+
 1. Marturia/Komisi **timpa file di Drive** (stem nama tetap).
 2. Tim Tech: `npm run drive:pull-visuals:staging` (atau `:prod`).
 3. Commit `public/visuals/` + push → deploy.
