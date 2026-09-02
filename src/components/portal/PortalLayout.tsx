@@ -536,6 +536,7 @@ export const PortalLayout: React.FC = () => {
           <NotificationPermissionBanner compact onDismiss={() => {}} />
           {isOnboarding && (
             <OnboardingBanner
+              hideEventCard={activeTab === 'event-info'}
               onCompleteProfile={() => {
                 setProfileSection('contact');
                 setActiveTab('account');

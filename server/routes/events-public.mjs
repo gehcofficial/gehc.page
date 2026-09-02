@@ -8,7 +8,6 @@ import {
   BAKU_TAU_LOCATION_DETAIL,
   BAKU_TAU_MAP_URL,
   BAKU_TAU_MAP_EMBED_QUERY,
-  whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
 
 const SLUG_TO_EVENT_ID = {
@@ -66,8 +65,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const resolved = await resolveEventBySlug(prisma, 'bakutau');
       if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-      const { event, isBakutau } = resolved;
-      const whatsappGroupUrl = event.whatsappGroupUrl || whatsappGroupUrlFromEnv();
+      const { event } = resolved;
       const entries = await prisma.waitingPool.findMany({
         where: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
         select: { status: true, userId: true, profileCompleted: true },
@@ -87,7 +85,6 @@ export function registerEventsPublicRoutes(app, { wrap }) {
         locationDetail: BAKU_TAU_LOCATION_DETAIL,
         mapUrl: BAKU_TAU_MAP_URL,
         mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
-        whatsappGroupUrl,
         stats,
       });
     }
@@ -96,7 +93,6 @@ export function registerEventsPublicRoutes(app, { wrap }) {
     if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
     const { event, isBakutau } = resolved;
-    const whatsappGroupUrl = event.whatsappGroupUrl || (isBakutau ? whatsappGroupUrlFromEnv() : null);
 
     let stats = null;
     if (isBakutau) {
@@ -124,7 +120,6 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       locationDetail: isBakutau ? BAKU_TAU_LOCATION_DETAIL : event.description,
       mapUrl: isBakutau ? BAKU_TAU_MAP_URL : null,
       mapEmbedQuery: isBakutau ? BAKU_TAU_MAP_EMBED_QUERY : null,
-      whatsappGroupUrl,
       stats,
     });
   }));

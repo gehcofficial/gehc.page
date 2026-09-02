@@ -24,7 +24,7 @@ export const EventInfoPanel: React.FC = () => {
       .then(([reg, ev]) => {
         setBakuTau({
           registered: reg.registered,
-          whatsappGroupUrl: reg.whatsappGroupUrl || ev.whatsappGroupUrl,
+          whatsappGroupUrl: reg.registered ? (reg.whatsappGroupUrl || null) : null,
           eventDate: reg.eventDate || ev.eventDate,
           venueName: reg.venueName || ev.venueName,
           locationDetail: reg.locationDetail || ev.locationDetail,
@@ -93,7 +93,7 @@ export const EventInfoPanel: React.FC = () => {
         </div>
       )}
 
-      {bakuTau?.venueName && (
+      {!bakuTau?.registered && bakuTau?.venueName && (
         <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6">
           {eventDateLabel && (
             <p className="text-xs font-bold text-[#1B1B1B] mb-3 capitalize">{eventDateLabel} WIB</p>

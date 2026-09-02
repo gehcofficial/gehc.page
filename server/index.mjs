@@ -2019,7 +2019,8 @@ app.get('/api/events', wrap(async (req, res) => {
     for (const ev of events) {
       for (const d of ev.divisions) {
         if (await canSeeEventDivision(req.authUser, d.division)) {
-          accessible.push(ev);
+          const { whatsappGroupUrl: _waHidden, ...safeEv } = ev;
+          accessible.push(safeEv);
           break;
         }
       }
@@ -2139,7 +2140,8 @@ app.get('/api/events/:id', wrap(async (req, res) => {
     }
   }
   if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-  res.json({ event: ev });
+  const { whatsappGroupUrl: _waHidden, ...safeEvent } = ev;
+  res.json({ event: safeEvent });
 }));
 
 // PATCH /api/events/:id — edit meta + divisions

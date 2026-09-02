@@ -48,7 +48,6 @@ export const BakutauEventPage: React.FC = () => {
       .then((r) => r.json())
       .then((d) => {
         setStats(d.stats || null);
-        setWhatsappGroupUrl(d.whatsappGroupUrl || null);
         setVenue({
           venueName: d.venueName,
           locationDetail: d.locationDetail,
@@ -59,23 +58,19 @@ export const BakutauEventPage: React.FC = () => {
         });
         if (d.status === 'ARCHIVED') setArchived(true);
       })
-      .catch(() => {
-        fetch('/api/events/baku-tau-4-0')
-          .then((r) => r.json())
-          .then((d) => {
-            setStats(d.stats || null);
-            setWhatsappGroupUrl(d.whatsappGroupUrl || null);
-            setVenue({
-              venueName: d.venueName,
-              locationDetail: d.locationDetail,
-              mapUrl: d.mapUrl,
-              mapEmbedQuery: d.mapEmbedQuery,
-              eventDate: d.eventDate,
-            });
-          })
-          .catch(() => {});
-      });
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+    fetch('/api/me/baku-tau-registration', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        setRegistered(Boolean(d.registered));
+        if (d.registered) setWhatsappGroupUrl(d.whatsappGroupUrl || null);
+      })
+      .catch(() => {});
+  }, [authUser?.id]);
 
   const eventDateLabel = venue?.eventDate
     ? new Date(venue.eventDate).toLocaleString('id-ID', {
@@ -114,16 +109,9 @@ export const BakutauEventPage: React.FC = () => {
       </p>
 
       {stats && (
-        <div className="rounded-2xl bg-[#181818] text-white p-4 flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#FF416C]" />
-            <span className="text-xs font-bold">{stats.registered} peserta terdaftar</span>
-          </div>
-          {whatsappGroupUrl && (
-            <a href={whatsappGroupUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
-              <MessageCircle className="w-3 h-3" /> Grup WA
-            </a>
-          )}
+        <div className="rounded-2xl bg-[#181818] text-white p-4 flex items-center gap-3 mb-4">
+          <Users className="w-4 h-4 text-[#FF416C]" />
+          <span className="text-xs font-bold">{stats.registered} peserta terdaftar</span>
         </div>
       )}
 
@@ -139,16 +127,19 @@ export const BakutauEventPage: React.FC = () => {
             onCompleteProfile={() => { window.location.hash = '#/portal'; }}
           />
         ) : (
-          <BakutauRegisterCard onRegistered={() => setRegistered(true)} />
+          <BakutauRegisterCard onRegistered={() => {
+            setRegistered(true);
+            fetch('/api/me/baku-tau-registration', { credentials: 'include' })
+              .then((r) => r.json())
+              .then((d) => { if (d.registered) setWhatsappGroupUrl(d.whatsappGroupUrl || null); })
+              .catch(() => {});
+          }} />
         )
       ) : (
-        <GuestBakutauFlow
-          whatsappGroupUrl={whatsappGroupUrl}
-          venue={venue}
-        />
+        <GuestBakutauFlow />
       )}
 
-      {venue?.venueName && (
+      {!(authUser && registered) && venue?.venueName && (
         <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6 mt-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-3">Lokasi acara</p>
           {eventDateLabel && (
@@ -167,20 +158,12 @@ export const BakutauEventPage: React.FC = () => {
   );
 };
 
-const GuestBakutauFlow: React.FC<{
-  whatsappGroupUrl?: string | null;
-  venue?: {
-    venueName?: string;
-    locationDetail?: string;
-    mapUrl?: string;
-    mapEmbedQuery?: string;
-    eventDate?: string;
-  } | null;
-}> = ({ whatsappGroupUrl, venue }) => {
+const GuestBakutauFlow: React.FC = () => {
   const [pathMode, setPathMode] = useState<'google' | 'email' | 'quick'>('google');
   const [step, setStep] = useState<'form' | 'account'>('form');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -227,6 +210,7 @@ const GuestBakutauFlow: React.FC<{
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Gagal mendaftar.');
+      if (d.whatsappGroupUrl) setWhatsappGroupUrl(d.whatsappGroupUrl);
       saveEventPending(SLUG, {
         name: form.name.trim(),
         phone: form.phone.trim(),
@@ -246,21 +230,25 @@ const GuestBakutauFlow: React.FC<{
   if (step === 'account') {
     return (
       <div className="space-y-4">
-        <BakuTauWelcomeCard
-          whatsappGroupUrl={whatsappGroupUrl}
-          eventDate={venue?.eventDate}
-          venueName={venue?.venueName}
-          locationDetail={venue?.locationDetail}
-          mapUrl={venue?.mapUrl}
-          mapEmbedQuery={venue?.mapEmbedQuery}
-          compact
-        />
         <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
           <div className="text-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
             <h3 className="text-lg font-black">Data counter tersimpan!</h3>
-            <p className="text-xs text-[#8C8880] mt-1">Buat akun untuk sinkron ke portal.</p>
+            <p className="text-xs text-[#8C8880] mt-1">Buat akun untuk sinkron ke portal. Grup WhatsApp hanya untuk peserta.</p>
           </div>
+          {whatsappGroupUrl ? (
+            <a
+              href={whatsappGroupUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Gabung Grup WhatsApp
+            </a>
+          ) : (
+            <p className="text-[11px] text-center text-[#8C8880]">Link grup akan dibagikan panitia setelah akun tersinkron.</p>
+          )}
           <GoogleRegisterPanel hint="Data pendaftaran tersinkron otomatis." next={registerNext} loginHref={loginHref} />
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-[#8C8880]">
             <span className="flex-1 h-px bg-[#D9D7D0]" /> atau <span className="flex-1 h-px bg-[#D9D7D0]" />

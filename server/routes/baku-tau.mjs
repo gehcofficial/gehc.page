@@ -32,9 +32,7 @@ async function upsertBakutauAttendee(prisma, userId, metadata) {
   });
 }
 
-async function resolveEventInfo(prisma) {
-  const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
-  const whatsappGroupUrl = event?.whatsappGroupUrl || whatsappGroupUrlFromEnv();
+function publicEventInfo(event) {
   return {
     id: BAKU_TAU_EVENT_ID,
     slug: 'bakutau',
@@ -45,7 +43,14 @@ async function resolveEventInfo(prisma) {
     locationDetail: BAKU_TAU_LOCATION_DETAIL,
     mapUrl: BAKU_TAU_MAP_URL,
     mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
-    whatsappGroupUrl,
+  };
+}
+
+async function resolveEventInfo(prisma) {
+  const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+  return {
+    ...publicEventInfo(event),
+    whatsappGroupUrl: event?.whatsappGroupUrl || whatsappGroupUrlFromEnv(),
   };
 }
 
@@ -75,9 +80,9 @@ export function registerBakuTauRoutes(app, { wrap }) {
   const sendEventPayload = async (res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const info = await resolveEventInfo(prisma);
+    const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
     const stats = await bakuTauStats(prisma);
-    res.json({ ...info, stats });
+    res.json({ ...publicEventInfo(event), stats });
   };
 
   app.get('/api/events/baku-tau-4-0', wrap(async (_req, res) => sendEventPayload(res)));
@@ -147,7 +152,13 @@ export function registerBakuTauRoutes(app, { wrap }) {
         });
       } catch { /* table may not exist on old DB */ }
 
-      return res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+      const info = await resolveEventInfo(prisma);
+      return res.json({
+        ok: true,
+        entry,
+        stats: await bakuTauStats(prisma),
+        whatsappGroupUrl: info.whatsappGroupUrl,
+      });
     }
 
     if (!name?.trim() || !phone?.trim() || !gender || !origin?.trim() || !domicileKind) {
@@ -165,8 +176,15 @@ export function registerBakuTauRoutes(app, { wrap }) {
       where: { sourceEvent: BAKU_TAU_SOURCE_EVENT, userId: null },
     });
     const dup = existing.find((e) => normalizePhone(e.phone) === normPhone);
+    const info = await resolveEventInfo(prisma);
     if (dup) {
-      return res.json({ ok: true, entry: dup, duplicate: true, stats: await bakuTauStats(prisma) });
+      return res.json({
+        ok: true,
+        entry: dup,
+        duplicate: true,
+        stats: await bakuTauStats(prisma),
+        whatsappGroupUrl: info.whatsappGroupUrl,
+      });
     }
 
     const entry = await prisma.waitingPool.create({
@@ -185,7 +203,12 @@ export function registerBakuTauRoutes(app, { wrap }) {
       },
     });
 
-    res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+    res.json({
+      ok: true,
+      entry,
+      stats: await bakuTauStats(prisma),
+      whatsappGroupUrl: info.whatsappGroupUrl,
+    });
   }));
 
   app.post('/api/events/baku-tau-4-0/claim', wrap(async (req, res) => {
@@ -207,7 +230,8 @@ export function registerBakuTauRoutes(app, { wrap }) {
       where: { userId, sourceEvent: BAKU_TAU_SOURCE_EVENT },
     }) || await prisma.waitingPool.findUnique({ where: { userId } });
 
-    res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+    const info = await resolveEventInfo(prisma);
+    res.json({ ok: true, entry, stats: await bakuTauStats(prisma), whatsappGroupUrl: info.whatsappGroupUrl });
   }));
 
   app.get('/api/me/baku-tau-registration', wrap(async (req, res) => {
@@ -223,7 +247,6 @@ export function registerBakuTauRoutes(app, { wrap }) {
     if (!entry) {
       return res.json({
         registered: false,
-        whatsappGroupUrl: info.whatsappGroupUrl,
         eventDate: info.eventDate,
         venueName: info.venueName,
         locationDetail: info.locationDetail,

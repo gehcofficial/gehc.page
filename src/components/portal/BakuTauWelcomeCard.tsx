@@ -40,10 +40,12 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
           <CalendarClock className="w-3 h-3" />
           BAKU TAU 4.0
         </span>
-        <h2 className={`font-black text-[#1B1B1B] ${compact ? 'text-base' : 'text-lg'}`}>
-          Kamu sudah terdaftar!
-        </h2>
-        <p className="text-xs text-[#8C8880] mt-1 capitalize">{dateLabel} WIB</p>
+        {!compact && (
+          <h2 className="font-black text-[#1B1B1B] text-lg">
+            Kamu sudah terdaftar!
+          </h2>
+        )}
+        <p className={`text-xs text-[#8C8880] capitalize ${compact ? '' : 'mt-1'}`}>{dateLabel} WIB</p>
         <p className="text-xs text-[#5C5850] mt-2 leading-relaxed">
           Gabung grup WhatsApp peserta untuk info terbaru, carpool, dan pengumuman event.
         </p>

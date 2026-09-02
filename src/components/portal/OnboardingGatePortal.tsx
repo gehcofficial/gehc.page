@@ -198,7 +198,7 @@ export const OnboardingGatePortal: React.FC<{ mode: GateMode }> = ({ mode }) => 
                     </p>
                   )}
                   {e.locationDetail && <p className="text-[10px] text-[#8C8880]">{e.locationDetail}</p>}
-                  {e.venueName && e.mapEmbedQuery && (
+                  {e.venueName && e.mapEmbedQuery && !(bakuTau?.registered && e.id === 'cnt-bakutau') && (
                     <EventVenueMap
                       venueName={e.venueName}
                       locationDetail={e.locationDetail || undefined}
