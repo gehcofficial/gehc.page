@@ -75,6 +75,11 @@ const STEPS = [
     label: 'Local auth must_change_password',
     required: true,
   },
+  {
+    script: 'server/_migrate-login-username.cjs',
+    label: 'Login username + onboarding_path (dual auth)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

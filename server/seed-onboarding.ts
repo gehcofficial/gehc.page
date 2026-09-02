@@ -403,6 +403,9 @@ async function seedWaitingPool() {
     const e = DUMMY_ENTRIES[i];
     const id = `wp-dummy-${i + 1}`;
     const registeredAt = new Date(Date.now() - (30 - i * 3) * 24 * 60 * 60 * 1000);
+    const giftsTop5 = 'giftsTop5' in e ? e.giftsTop5 || null : null;
+    const giftsScores = 'giftsScores' in e ? e.giftsScores || null : null;
+    const userId = 'userId' in e ? e.userId || null : null;
 
     await prisma.waitingPool.upsert({
       where: { id },
@@ -418,8 +421,8 @@ async function seedWaitingPool() {
         profileCompleted: e.profileCompleted,
         profileCompletedAt: e.profileCompleted ? new Date(Date.now() - (20 - i) * 24 * 60 * 60 * 1000) : null,
         sourceEvent: e.sourceEvent,
-        giftsTop5: e.giftsTop5 || null,
-        giftsScores: e.giftsScores || null,
+        giftsTop5,
+        giftsScores,
         registeredAt,
       },
       update: {
@@ -433,9 +436,9 @@ async function seedWaitingPool() {
         profileCompleted: e.profileCompleted,
         profileCompletedAt: e.profileCompleted ? new Date(Date.now() - (20 - i) * 24 * 60 * 60 * 1000) : null,
         sourceEvent: e.sourceEvent,
-        giftsTop5: e.giftsTop5 || null,
-        giftsScores: e.giftsScores || null,
-        userId: e.userId || null,
+        giftsTop5,
+        giftsScores,
+        userId,
       },
     });
   }

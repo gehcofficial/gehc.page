@@ -23,11 +23,15 @@ import { PortalLogin } from './components/portal/PortalLogin';
 import { KomisiSection } from './components/public/KomisiSection';
 import { Footer } from './components/public/Footer';
 import { ClaimPage } from './components/public/ClaimPage';
+import { ForgotPasswordPage } from './components/public/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/public/auth/ResetPasswordPage';
 import { PortalLayout } from './components/portal/PortalLayout';
 import { ApplyPendingBakutau } from './components/portal/ApplyPendingBakutau';
 import BenzarpreneurshipPage from './pages/BenzarpreneurshipPage';
 import { RegisterPage } from './components/public/auth/RegisterPage';
 import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
+import { AdminLayout } from './components/admin/AdminLayout';
+import { isAdminHash } from './lib/admin-routes';
 
 const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
 
@@ -36,6 +40,18 @@ const MainAppContent: React.FC = () => {
 
   if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
     return <ClaimPage />;
+  }
+
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/forgot-password')) {
+    return <ForgotPasswordPage />;
+  }
+
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/reset-password')) {
+    return <ResetPasswordPage />;
+  }
+
+  if (activeView === 'admin' || (typeof window !== 'undefined' && isAdminHash(window.location.hash))) {
+    return <AdminLayout />;
   }
 
   if (publicTab === 'login') {

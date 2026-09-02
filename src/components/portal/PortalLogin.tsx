@@ -10,7 +10,7 @@ import { finishAuthRedirect } from '../../lib/auth-redirect';
 export const PortalLogin: React.FC = () => {
   const { setActiveView } = useApp();
   const [clientId, setClientId] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ login: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -52,7 +52,7 @@ export const PortalLogin: React.FC = () => {
     fetch('/api/auth/local', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+        body: JSON.stringify({ login: form.login, password: form.password }),
     })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).error || 'Login gagal');
@@ -70,7 +70,7 @@ export const PortalLogin: React.FC = () => {
           <h1 className="text-2xl font-black tracking-tight">Masuk Beyonders</h1>
           <BrandCaption className="mt-3 items-center" align="center" />
           <p className="text-xs text-white/50 mt-3 leading-relaxed">
-            Login ke portal pemuda — Google atau email &amp; kata sandi.
+            Masuk dengan Google, atau username/email + kata sandi.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export const PortalLogin: React.FC = () => {
             </div>
           ) : (
             <p className="text-[11px] text-white/40 text-center leading-relaxed">
-              Login Google sementara tidak tersedia — gunakan Email &amp; Kata Sandi.
+              Login Google sementara tidak tersedia — gunakan username &amp; kata sandi.
             </p>
           )}
 
@@ -91,10 +91,11 @@ export const PortalLogin: React.FC = () => {
 
           <form onSubmit={localLogin} className="space-y-3">
             <input
-              type="email" required placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              type="text" required placeholder="Username atau email"
+              value={form.login}
+              onChange={(e) => setForm({ ...form, login: e.target.value })}
               className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-[#FF416C]"
+              autoComplete="username"
             />
             <input
               type="password" required placeholder="Kata sandi"
@@ -109,6 +110,14 @@ export const PortalLogin: React.FC = () => {
               Masuk
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={() => { window.location.hash = '#/forgot-password'; }}
+            className="w-full text-center text-[11px] font-bold text-white/50 hover:text-white/80"
+          >
+            Lupa kata sandi?
+          </button>
 
           {err && (
             <p className="text-[11px] text-red-400 font-semibold text-center">{err}</p>

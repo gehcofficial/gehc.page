@@ -9,6 +9,8 @@
 import crypto from 'node:crypto';
 import { Auth } from 'googleapis';
 import { getPrisma, isDbConfigured, resetPrisma, isTransientDbError } from './db.mjs';
+import { shouldAutoGrantSuperadminEmail } from './platform-operators.mjs';
+import { roleToNamespace, namespaceToRole } from './portal-namespace.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -29,7 +31,7 @@ function signSession(payload) {
   return `${body}.${sig}`;
 }
 
-function verifySession(token) {
+export function verifySession(token) {
   if (!token || typeof token !== 'string') return null;
   const dot = token.lastIndexOf('.');
   if (dot < 1) return null;
@@ -84,7 +86,7 @@ function dedupeRoles(roles) {
 
 export function applySuperadminSession(user) {
   if (!user) return user;
-  if (isSuperadminEmail(user.email) && !(user.roles || []).some((r) => r.role === 'SUPERADMIN')) {
+  if (shouldAutoGrantSuperadminEmail() && isSuperadminEmail(user.email) && !(user.roles || []).some((r) => r.role === 'SUPERADMIN')) {
     const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
     user.roles = [...(user.roles || []), { userId: user.id, tenantId, role: 'SUPERADMIN' }];
   }
@@ -93,7 +95,7 @@ export function applySuperadminSession(user) {
 }
 
 export async function persistSuperadminRole(user) {
-  if (!user || !isSuperadminEmail(user.email)) return applySuperadminSession(user);
+  if (!user || !shouldAutoGrantSuperadminEmail() || !isSuperadminEmail(user.email)) return applySuperadminSession(user);
   if ((user.roles || []).some((r) => r.role === 'SUPERADMIN')) return applySuperadminSession(user);
   const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
   const prisma = getPrisma();
@@ -139,10 +141,59 @@ async function loadUserByUid(uid) {
   return applySuperadminSession(user);
 }
 
+export function readSession(req) {
+  return verifySession(parseCookies(req)[COOKIE_NAME]);
+}
+
+const ROLE_ORDER = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'];
+
+export function pickDefaultActiveRole(user) {
+  const roles = (user?.roles || []).map((r) => r.role);
+  if (!roles.length) return null;
+  if (roles.length === 1) return roles[0];
+  for (const r of ROLE_ORDER) {
+    if (roles.includes(r)) return r;
+  }
+  return roles[0];
+}
+
+export function resolveSessionActiveRole(session, user) {
+  const owned = (user?.roles || []).map((r) => r.role);
+  if (!owned.length) return null;
+  const fromSession = session?.activeRole;
+  if (fromSession && owned.includes(fromSession)) return fromSession;
+  return pickDefaultActiveRole(user);
+}
+
+export function resolveSessionContext(session, user) {
+  const activeRole = resolveSessionActiveRole(session, user);
+  if (!activeRole) return { activeRole: null, activeNamespace: null };
+  const expectedNs = roleToNamespace(activeRole);
+  let activeNamespace = session?.activeNamespace;
+  if (!activeNamespace || namespaceToRole(activeNamespace) !== activeRole) {
+    activeNamespace = expectedNs;
+  }
+  return { activeRole, activeNamespace };
+}
+
+export function buildSessionPayload(user, overrides = {}) {
+  const activeRole = overrides.activeRole || pickDefaultActiveRole(user);
+  return {
+    uid: user.id,
+    email: user.email || '',
+    activeRole,
+    activeNamespace: overrides.activeNamespace || roleToNamespace(activeRole),
+  };
+}
+
 /** Middleware: pasang req.authUser (atau null) dari cookie sesi. */
 export async function attachUser(req, _res, next) {
   req.authUser = null;
-  const session = verifySession(parseCookies(req)[COOKIE_NAME]);
+  req.sessionMeta = null;
+  req.activeRole = null;
+  req.activeNamespace = null;
+  const session = readSession(req);
+  req.sessionMeta = session;
   if (session && isDbConfigured()) {
     for (let attempt = 0; attempt < 2 && !req.authUser; attempt++) {
       try {
@@ -155,6 +206,11 @@ export async function attachUser(req, _res, next) {
           console.error('[auth] gagal memuat user:', err.message);
         }
       }
+    }
+    if (req.authUser) {
+      const ctx = resolveSessionContext(session, req.authUser);
+      req.activeRole = ctx.activeRole;
+      req.activeNamespace = ctx.activeNamespace;
     }
   }
   next();
@@ -202,15 +258,14 @@ export function verifyPassword(password, stored) {
   return expected.length === test.length && crypto.timingSafeEqual(expected, test);
 }
 
-/** Login email+password → user lengkap dgn roles. */
-export async function loginLocal(emailRaw, password) {
+/** Login username atau email + password → user lengkap dgn roles. */
+export async function loginLocal(identifierRaw, password) {
   if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
-  const email = String(emailRaw || '').toLowerCase().trim();
   const prisma = getPrisma();
-  const u = await prisma.user.findUnique({ where: { email }, include: { roles: true } });
-  // Pesan sengaja sama agar tak membocorkan keberadaan email
+  const { findUserByLoginIdentifier } = await import('./lib/username.mjs');
+  const u = await findUserByLoginIdentifier(prisma, identifierRaw);
   if (!u || !u.passwordHash || !verifyPassword(password, u.passwordHash)) {
-    throw new Error('Email atau kata sandi salah.');
+    throw new Error('Username/email atau kata sandi salah.');
   }
   await attachMustChangePassword(prisma, u);
   return persistSuperadminRole(u);
@@ -311,7 +366,7 @@ export async function loginWithGoogleCredential(credential) {
   }
 
   if ((user.roles || []).length === 0) {
-    const initialRole = superadminEmails().includes(email) ? 'SUPERADMIN' : 'MENTEE';
+    const initialRole = shouldAutoGrantSuperadminEmail() && superadminEmails().includes(email) ? 'SUPERADMIN' : 'MENTEE';
     await prisma.userRole.create({
       data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
     });
@@ -322,6 +377,10 @@ export async function loginWithGoogleCredential(credential) {
 }
 
 export function newClaimToken() {
+  return crypto.randomBytes(24).toString('base64url');
+}
+
+export function newResetToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
 
@@ -361,7 +420,7 @@ export async function claimWithGoogleCredential(credential, tokenRaw) {
       avatar: p.picture || target.avatar,
       claimToken: null,
       claimTokenExpiresAt: null,
-      authProvider: 'GOOGLE',
+      authProvider: target.passwordHash ? target.authProvider : 'GOOGLE',
     },
     include: { roles: true },
   });
@@ -399,7 +458,8 @@ export async function linkGoogleToSessionUser(userId, credential) {
       email: p.email || user.email,
       name: p.name || user.name,
       avatar: p.picture || user.avatar,
-      authProvider: 'GOOGLE',
+      // Keep LOCAL if password exists — dual auth (Google + password backup)
+      authProvider: user.passwordHash ? user.authProvider : 'GOOGLE',
     },
     include: { roles: true },
   });

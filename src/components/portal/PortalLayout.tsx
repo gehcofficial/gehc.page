@@ -20,11 +20,22 @@ import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
-import { MyProfilePanel, type ProfileSectionId } from './MyProfilePanel';
+import { type ProfileSectionId } from './MyProfilePanel';
 import { OnboardingBanner } from './OnboardingBanner';
 import { ProfileIncompleteBanner } from './ProfileIncompleteBanner';
 import { MustChangePasswordGate } from './MustChangePasswordGate';
+import { InvitedWelcomeModal } from './InvitedWelcomeModal';
 import { EventInfoPanel } from './EventInfoPanel';
+import { RolePickerScreen } from './RolePickerScreen';
+import { AccountHub } from './AccountHub';
+import {
+  parsePortalHash,
+  buildPortalPath,
+  roleToNamespace,
+  defaultPageForRole,
+  isPortalHash,
+} from '../../lib/portal-routes';
+import { buildPortalNavItems } from '../../lib/portal-nav-config';
 import {
   LayoutDashboard,
   BookOpen,
@@ -60,12 +71,24 @@ export const PortalLayout: React.FC = () => {
     setActiveView,
     addToast,
     authUser,
+    myRoleOptions,
+    setActiveUserRole,
   } = useApp();
 
-  const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL'
-    || authUser?.accountStatus === 'PENDING';
+  const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
-  const [activeTab, setActiveTab] = useState<string>(() => (isOnboarding ? 'my-profile' : 'dashboard'));
+  const portalRoute = parsePortalHash(typeof window !== 'undefined' ? window.location.hash : '');
+  const isAccountRoute = portalRoute?.namespace === 'account';
+  const showRolePicker = portalRoute?.namespace === null && myRoleOptions.length > 1;
+
+  const initialTab = () => {
+    if (isAccountRoute) return 'account';
+    const page = portalRoute?.page;
+    if (page && page !== 'home') return page === 'my-profile' ? 'account' : page;
+    return isOnboarding ? 'event-info' : 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [profileSection, setProfileSection] = useState<ProfileSectionId | undefined>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -99,47 +122,79 @@ export const PortalLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isOnboarding && activeTab !== 'my-profile' && activeTab !== 'event-info') {
-      setActiveTab('my-profile');
+    const syncFromHash = () => {
+      if (!isPortalHash(window.location.hash)) return;
+      const route = parsePortalHash(window.location.hash);
+      if (!route) return;
+      if (route.namespace === 'account') {
+        setActiveTab('account');
+        return;
+      }
+      if (!route.namespace) return;
+      const page = route.page === 'home' ? defaultPageForRole(currentRole, isOnboarding) : route.page;
+      if (page === 'my-profile') {
+        setActiveTab('account');
+        window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+        return;
+      }
+      setActiveTab(page);
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, [authUser?.id, isOnboarding, currentRole]);
+
+  useEffect(() => {
+    if (isOnboarding && activeTab !== 'my-profile' && activeTab !== 'event-info' && activeTab !== 'account') {
+      setActiveTab('event-info');
     }
   }, [isOnboarding, authUser?.id]);
 
-  const ONBOARDING_TAB_IDS = new Set(['my-profile', 'event-info']);
+  useEffect(() => {
+    if (!authUser || isOnboarding || myRoleOptions.length !== 1) return;
+    const route = parsePortalHash(window.location.hash);
+    if (route?.namespace === null) {
+      const role = myRoleOptions[0];
+      window.location.hash = buildPortalPath({
+        namespace: roleToNamespace(role),
+        page: defaultPageForRole(role, false),
+      }).slice(1);
+    }
+  }, [authUser?.id, myRoleOptions.length, isOnboarding]);
 
-  const allNavItems = [
-    { id: 'my-profile', label: 'Profil saya', icon: User, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-    { id: 'event-info', label: 'Info Event', icon: Calendar, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama', subtitle: 'BAKU TAU & grup WA' },
-    { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-    { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Akun & link undangan' },
-    { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
-    { id: 'jethro-placement', label: 'Review Penempatan', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
-    { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
-    { id: 'org-hierarchy', label: 'Kelola Hirarki', icon: Network, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
-    { id: 'groups-monitoring', label: isGroupMentor ? 'Monitoring Kelompok Binaan' : isMentee ? 'Monitoring Kelompok Saya' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
-    { id: 'jethro', label: 'Regenerasi Kelompok', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
-    { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS publikasi warta' },
-    { id: 'content-activities', label: 'Kelola Agenda Kegiatan', icon: Calendar, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS agenda publik' },
-    { id: 'content-testimonials', label: 'Kelola Testimoni', icon: MessageSquareQuote, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI'], group: 'Konten', subtitle: 'Collage landing' },
-    { id: 'media-guide', label: 'Panduan Media (Drive)', icon: Images, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Konten' },
-    { id: 'struktur', label: 'Struktur Organisasi', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
-    { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace per event' },
-    { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace permanen divisi' },
-    { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN', 'KOMISI'], group: 'Sistem' },
-    { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Sistem' },
-  ];
+  const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    account: User,
+    'event-info': Calendar,
+    dashboard: LayoutDashboard,
+    people: UsersRound,
+    onboarding: ClipboardList,
+    'jethro-placement': Sparkles,
+    'youth-gehc': Users,
+    'org-hierarchy': Network,
+    'groups-monitoring': Users,
+    jethro: Sparkles,
+    'content-weekly': BookOpen,
+    'content-activities': Calendar,
+    'content-testimonials': MessageSquareQuote,
+    'media-guide': Images,
+    struktur: ShieldCheck,
+    events: Calendar,
+    divisions: Users,
+    integrations: FolderSync,
+    'pwa-settings': Bell,
+  };
 
-  const navItems = allNavItems.filter((item) => {
-    if (!item.roles.includes(currentRole)) return false;
-    if (isOnboarding) return ONBOARDING_TAB_IDS.has(item.id);
-    if (item.id === 'event-info') return false;
-    return true;
-  });
+  const navItemDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee }, isOnboarding);
+  const navItems = navItemDefs.map((item) => ({
+    ...item,
+    icon: NAV_ICONS[item.id] || LayoutDashboard,
+  }));
 
   const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
 
   useEffect(() => {
-    if (!isTabAllowed(activeTab)) {
-      setActiveTab(navItems[0]?.id || 'my-profile');
+    if (!isTabAllowed(activeTab) && activeTab !== 'account') {
+      setActiveTab(navItems[0]?.id || 'dashboard');
     }
   }, [currentRole]);
 
@@ -154,14 +209,24 @@ export const PortalLayout: React.FC = () => {
   }
 
   const handleNavClick = (tabId: string) => {
-    if (!isTabAllowed(tabId)) {
+    if (!isTabAllowed(tabId) && tabId !== 'account') {
       addToast({ type: 'error', title: 'Akses ditolak', description: 'Menu ini tidak tersedia untuk role kamu.' });
       return;
     }
     setActiveTab(tabId);
     setIsMobileMenuOpen(false);
     setHoveredItem(null);
+    if (tabId === 'account') {
+      window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+      return;
+    }
+    const ns = roleToNamespace(currentRole);
+    window.location.hash = buildPortalPath({ namespace: ns, page: tabId }).slice(1);
   };
+
+  if (showRolePicker && !isOnboarding) {
+    return <RolePickerScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex flex-col md:flex-row text-[#1B1B1B]">
@@ -466,16 +531,19 @@ export const PortalLayout: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
           <MustChangePasswordGate />
+          <InvitedWelcomeModal />
           <NotificationPermissionBanner compact onDismiss={() => {}} />
           {isOnboarding && (
             <OnboardingBanner
               onCompleteProfile={() => {
                 setProfileSection('contact');
-                setActiveTab('my-profile');
+                setActiveTab('account');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
               onStartGiftTest={() => {
                 setProfileSection('gifts');
-                setActiveTab('my-profile');
+                setActiveTab('account');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
           )}
@@ -483,14 +551,16 @@ export const PortalLayout: React.FC = () => {
             <ProfileIncompleteBanner
               onCompleteProfile={() => {
                 setProfileSection('contact');
-                setActiveTab('my-profile');
+                setActiveTab('account');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
           )}
-          {activeTab === 'my-profile' && (
-            <MyProfilePanel
-              defaultOpenSection={profileSection}
-              onGiftSaved={() => setProfileSection(undefined)}
+          {(activeTab === 'account' || isAccountRoute) && (
+            <AccountHub
+              section={portalRoute?.accountSection || 'profile'}
+              profileSection={profileSection}
+              onProfileNavigate={(sec) => setProfileSection(sec)}
             />
           )}
           {activeTab === 'event-info' && <EventInfoPanel />}
@@ -511,7 +581,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
           {activeTab === 'integrations' && <ManageIntegrations />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
-          {!isTabAllowed(activeTab) && (
+          {!isTabAllowed(activeTab) && activeTab !== 'account' && (
             <div className="py-20 text-center text-sm text-[#8C8880]">Menu tidak tersedia untuk role ini.</div>
           )}
         </main>

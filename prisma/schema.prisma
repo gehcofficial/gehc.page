@@ -40,6 +40,12 @@ enum MembershipKind {
   SIMPATISAN
 }
 
+enum AccountKind {
+  MEMBER
+  SYSTEM_LEGACY
+  INVITED
+}
+
 /// Kolom teritorial (satu jemaat satu Kolom). Campur BIPRA. Jumlah bisa berubah (simulasi: 5).
 model Kolom {
   id     String  @id @db.VarChar(64)
@@ -126,6 +132,7 @@ model ProfileChurchDataRequest {
 model User {
   id        String   @id @db.VarChar(64)
   email     String?  @unique @db.VarChar(190)
+  loginUsername String? @unique @map("login_username") @db.VarChar(40)
   name      String   @db.VarChar(150)
   avatar    String?  @db.Text
   phone     String?  @db.VarChar(40)
@@ -171,6 +178,7 @@ model User {
 
   // Kategorial gereja (satu BIPRA) + program Pemuda
   onboardingStatus String  @default("ACTIVE") @map("onboarding_status") @db.VarChar(30) // WAITING_POOL | PENDING | ACTIVE
+  onboardingPath   String  @default("ORGANIC") @map("onboarding_path") @db.VarChar(16) // ORGANIC | INVITED
   isBeyonders      Boolean @default(false) @map("is_beyonders")
   bipra            Bipra   @default(PEMUDA)
   kolomId          String? @map("kolom_id") @db.VarChar(64)
@@ -181,6 +189,8 @@ model User {
   linkStatus           String    @default("UNLINKED") @map("link_status") @db.VarChar(16) // UNLINKED | LINKED
   claimToken           String?   @unique @map("claim_token") @db.VarChar(64)
   claimTokenExpiresAt  DateTime? @map("claim_token_expires_at") @db.DateTime(3)
+  resetToken           String?   @unique @map("reset_token") @db.VarChar(64)
+  resetTokenExpiresAt  DateTime? @map("reset_token_expires_at") @db.DateTime(3)
 
   // Gender & Emergency Contact
   gender                   String?   @map("gender") @db.VarChar(20) // LAKI-LAKI | PEREMPUAN
@@ -191,11 +201,13 @@ model User {
   emergencyContactAddress  String?   @map("emergency_contact_address") @db.Text
   lastProfileUpdate        DateTime? @map("last_profile_update") @db.DateTime(3)
   profileReminderDays      Int       @default(60) @map("profile_reminder_days")
+  usernameChangedAt        DateTime? @map("username_changed_at") @db.DateTime(3)
 
   // Auth lokal (opsi selain Google SSO)
   passwordHash       String? @map("password_hash") @db.Text
   authProvider       String  @default("GOOGLE") @map("auth_provider") @db.VarChar(16)
   mustChangePassword Boolean @default(false) @map("must_change_password")
+  accountKind        AccountKind @default(MEMBER) @map("account_kind")
 
   kolom                     Kolom?                     @relation(fields: [kolomId], references: [id])
   institution               Institution?               @relation(fields: [institutionId], references: [id])
@@ -218,6 +230,7 @@ model User {
   orgAssignments            OrgAssignment[]
   orgAssignmentsGiven       OrgAssignment[] @relation("OrgAssignmentAssigner")
   eventAttendees            EventAttendee[]
+  platformAdminGrants       PlatformAdminGrant[]
 
   @@index([kolomId])
   @@index([bipra])
@@ -1117,4 +1130,92 @@ model PlacementItem {
   @@index([newcomerId])
   @@index([status])
   @@map("placement_items")
+}
+
+model AccessGroup {
+  id               String   @id @db.VarChar(64)
+  name             String   @db.VarChar(150)
+  slug             String   @unique @db.VarChar(80)
+  description      String?  @db.Text
+  roles            Json
+  orgNodeId        String?  @map("org_node_id") @db.VarChar(64)
+  groupId          String?  @map("group_id") @db.VarChar(64)
+  autoApplyOnLogin Boolean  @default(true) @map("auto_apply_on_login")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdBy        String?  @map("created_by") @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  members          AccessGroupMember[]
+
+  @@index([isActive])
+  @@map("access_groups")
+}
+
+model AccessGroupMember {
+  id        String   @id @db.VarChar(64)
+  groupId   String   @map("group_id") @db.VarChar(64)
+  email     String   @db.VarChar(190)
+  userId    String?  @map("user_id") @db.VarChar(64)
+  status    String   @default("PENDING") @db.VarChar(20)
+  addedBy   String?  @map("added_by") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  group     AccessGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, email])
+  @@index([email])
+  @@index([userId])
+  @@map("access_group_members")
+}
+
+/// Bootstrap platform operator (Tim Tech) — terpisah dari jemaat.
+model PlatformOperator {
+  id                   String    @id @db.VarChar(64)
+  email                String    @unique @db.VarChar(190)
+  displayName          String    @map("display_name") @db.VarChar(150)
+  passwordHash         String?   @map("password_hash") @db.Text
+  webauthnCredentials  Json?     @map("webauthn_credentials")
+  currentChallenge     Json?     @map("current_challenge")
+  challengeExpiresAt   DateTime? @map("challenge_expires_at") @db.DateTime(3)
+  isRoot               Boolean   @default(true) @map("is_root")
+  isProtected          Boolean   @default(true) @map("is_protected")
+  status               String    @default("ACTIVE") @db.VarChar(16)
+  lastLoginAt          DateTime? @map("last_login_at") @db.DateTime(3)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  adminGrantsGranted PlatformAdminGrant[] @relation("GrantByOperator")
+
+  @@index([status])
+  @@map("platform_operators")
+}
+
+/// Delegasi platform admin ke user jemaat (di-assign operator root).
+model PlatformAdminGrant {
+  id                  String    @id @db.VarChar(64)
+  userId              String    @map("user_id") @db.VarChar(64)
+  grantedByOperatorId String    @map("granted_by_operator_id") @db.VarChar(64)
+  grantedAt           DateTime  @default(now()) @map("granted_at") @db.DateTime(3)
+  revokedAt           DateTime? @map("revoked_at") @db.DateTime(3)
+  note                String?   @db.Text
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedByOperator PlatformOperator @relation("GrantByOperator", fields: [grantedByOperatorId], references: [id])
+
+  @@index([userId])
+  @@index([grantedByOperatorId])
+  @@index([revokedAt])
+  @@map("platform_admin_grants")
+}
+
+model PlatformAuditLog {
+  id         String   @id @db.VarChar(64)
+  actorType  String   @map("actor_type") @db.VarChar(16)
+  actorId    String   @map("actor_id") @db.VarChar(64)
+  action     String   @db.VarChar(80)
+  targetType String?  @map("target_type") @db.VarChar(32)
+  targetId   String?  @map("target_id") @db.VarChar(64)
+  meta       Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([actorType, actorId])
+  @@index([createdAt])
+  @@map("platform_audit_logs")
 }

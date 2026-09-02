@@ -30,7 +30,7 @@ export const ClaimPage: React.FC = () => {
         if (!r.ok) throw new Error(d.error || 'Taut gagal');
         setOk(true);
         setTimeout(() => {
-          window.location.hash = '#/beyonders';
+          window.location.hash = '#/portal';
           window.location.reload();
         }, 1200);
       })

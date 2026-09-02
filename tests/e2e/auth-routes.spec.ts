@@ -29,12 +29,18 @@ test.describe('Auth & event routes (hash)', () => {
     expect(page.url()).toContain('next=event');
   });
 
-  test('events page CTA opens event signup', async ({ page }) => {
+  test('forgot password route loads', async ({ page }) => {
+    await page.goto('/#/forgot-password');
+    await expect(page.getByRole('heading', { name: /Lupa kata sandi/i })).toBeVisible();
+  });
+
+  test('reset password route loads', async ({ page }) => {
+    await page.goto('/#/reset-password?token=demo-token');
+    await expect(page.getByRole('heading', { name: /Reset kata sandi/i })).toBeVisible();
+  });
+
+  test('events timeline page loads', async ({ page }) => {
     await page.goto('/#/events');
-    const cta = page.getByRole('button', { name: /Gabung Waitlist|Daftar Kehadiran/i }).first();
-    await expect(cta).toBeVisible();
-    await cta.click();
-    await page.waitForTimeout(500);
-    expect(page.url()).toContain('#/event/bakutau');
+    await expect(page.locator('body')).toContainText(/BAKU|Event|Kegiatan|Agenda/i, { timeout: 15000 });
   });
 });

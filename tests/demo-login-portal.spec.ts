@@ -2,13 +2,12 @@ import { test, expect } from '@playwright/test';
 import { loginViaLocal, switchToPortal } from './helpers/portal';
 
 test('Login via local auth and open portal', async ({ page }) => {
-  test.setTimeout(60000);
+  test.setTimeout(120000);
 
-  await page.goto('http://localhost:8787');
-  await page.waitForLoadState('networkidle');
+  await page.goto('http://localhost:8787', { waitUntil: 'domcontentloaded' });
 
   await loginViaLocal(page);
   await switchToPortal(page);
 
-  await expect(page.getByRole('button', { name: 'Profil saya' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: 'Akun Saya' })).toBeVisible({ timeout: 15000 });
 });

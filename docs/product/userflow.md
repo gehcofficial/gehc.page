@@ -29,12 +29,26 @@ lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
 
 ## 2. Autentikasi
 
-### Login Google SSO (nyata):
+### Platform Operator (`#/admin`) — Tim Tech bootstrap
+
+- Akun di tabel `platform_operators` (bukan jemaat)
+- Login: **passkey/WebAuthn** atau **break-glass password** → cookie `gehc_operator_session`
+- Staging seed: `ops-staging@gehc.demo` (`npm run db:seed:operator:staging`)
+- Production: `npm run operator:bootstrap:prod` (sekali, password di vault)
+- Panduan: [`docs/tech/platform-operator.md`](../tech/platform-operator.md)
+
+### Platform Admin (delegasi)
+
+- User jemaat existing + `PlatformAdminGrant` (di-assign operator root)
+- Login portal biasa (Google) → tombol **Admin** di navbar → `#/admin`
+- Tidak bisa menghapus/mengubah operator root
+
+### Login Google SSO (jemaat):
 
 Navbar → dropdown persona → tombol "Sign in with Google"
 → GIS ID token → POST /api/auth/google → verifikasi + upsert user ke TiDB
 → cookie sesi httpOnly (7 hari) → role dimuat dari DB.
-Email di SUPERADMIN_EMAILS otomatis menjadi SUPERADMIN saat login pertama.
+`SUPERADMIN_EMAILS` hanya staging/local (disabled di production).
 
 ### Mode demo staging (ENABLE_DEMO_PERSONAS=true):
 

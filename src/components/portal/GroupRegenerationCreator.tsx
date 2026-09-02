@@ -11,6 +11,9 @@ interface GroupWithRelations {
   color?: string;
   meetingSchedule?: string;
   meetingLocation?: string;
+  meaning?: string;
+  scripture?: string;
+  foundedPeriod?: string;
 }
 
 type FormState = {

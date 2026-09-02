@@ -1,5 +1,30 @@
 # GEHC Portal — Handoff
 
+## Platform Operator RBAC (Episode — platform admin split)
+
+**Goal:** Pisahkan operator bootstrap (`#/admin`) dari jemaat; passkey + break-glass; platform admin grant.
+
+### Done
+
+- Prisma: `PlatformOperator`, `PlatformAdminGrant`, `PlatformAuditLog`, `User.accountKind`
+- `server/platform-auth.mjs`, `server/lib/platform-rbac.mjs`, `server/routes/operator.mjs`
+- `#/admin` shell (`AdminLayout`, `OperatorLogin`, `PlatformAdminsPanel`)
+- Endpoint audit: `/api/admin/*` → `requirePlatformAdmin` / `requirePlatformRoot`
+- Docs: [`docs/tech/platform-operator.md`](docs/tech/platform-operator.md)
+
+### Commands
+
+```powershell
+npm run db:migrate:platform-operators
+npm run db:generate
+npm run db:seed:operator:staging
+npm run operator:bootstrap:prod   # production once
+npm run test -- tests/unit/platform-rbac.test.ts
+npx playwright test tests/e2e/admin-shell.spec.ts
+```
+
+---
+
 ## Current priority — Panca Tugas v2 restructure
 
 **Goal:** 20 sub-divisi (5 pillar + BZP), HoD per panca tugas, BZP tanpa HoD (Fladyna → Penggalangan Dana), label ID/EN, runbook operasional.

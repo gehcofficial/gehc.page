@@ -161,7 +161,7 @@ export default function DivisionPlanningTab({ division }: Props) {
 }
 
 // Meeting Card Component
-function MeetingCard({ meeting, expanded, onToggle, onStatusChange, onAgendaStatusChange, onAddAgenda, compact }: {
+type MeetingCardProps = {
   meeting: DivisionMeeting;
   expanded: boolean;
   onToggle: () => void;
@@ -169,7 +169,17 @@ function MeetingCard({ meeting, expanded, onToggle, onStatusChange, onAgendaStat
   onAgendaStatusChange: (agendaId: string, status: string) => void;
   onAddAgenda: () => void;
   compact?: boolean;
-}) {
+};
+
+const MeetingCard: React.FC<MeetingCardProps> = ({
+  meeting,
+  expanded,
+  onToggle,
+  onStatusChange,
+  onAgendaStatusChange,
+  onAddAgenda,
+  compact,
+}) => {
   const agendaItems = meeting.agendaItems || [];
   const statusColor = meeting.status === 'DONE' ? 'bg-green-100 text-green-700' :
     meeting.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600';
@@ -303,7 +313,7 @@ function MeetingCard({ meeting, expanded, onToggle, onStatusChange, onAgendaStat
       )}
     </div>
   );
-}
+};
 
 // Create Meeting Modal
 function CreateMeetingModal({ division, onClose, onSaved }: {

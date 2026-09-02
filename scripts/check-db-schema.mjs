@@ -18,6 +18,8 @@ const REQUIRED_USER_COLUMNS = [
   'membership_kind',
   'domicile_kind',
   'domicile_detail',
+  'login_username',
+  'onboarding_path',
 ];
 
 const REQUIRED_TABLES = [
@@ -26,6 +28,8 @@ const REQUIRED_TABLES = [
   'org_nodes',
   'org_assignments',
   'waiting_pool',
+  'platform_operators',
+  'platform_admin_grants',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = ['domicile_kind', 'domicile_detail', 'claim_token'];

@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{
   }, []);
 
   const loginWithCredential = useCallback(async (credential: string) => {
-    const user = await loginWithGoogle(credential);
+    const { user } = await loginWithGoogle(credential);
     setAuthUser(user);
     onToast({
       type: 'success',

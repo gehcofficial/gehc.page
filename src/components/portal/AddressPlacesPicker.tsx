@@ -14,12 +14,6 @@ export type AddressValue = {
   addressNote: string;
 };
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
-
 function parsePlace(place: any): Partial<AddressValue> {
   const comps: any[] = place.address_components || [];
   const get = (...types: string[]) =>

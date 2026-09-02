@@ -1,7 +1,8 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 
-/** Chips konteks peran untuk akun rangkap jabatan (multi-role). */
+import { ROLE_LABEL } from '../../lib/roles';
+
 export const PortalAccountSwitcher: React.FC = () => {
   const { myRoleOptions, setActiveUserRole, currentRole } = useApp();
 
@@ -17,12 +18,12 @@ export const PortalAccountSwitcher: React.FC = () => {
           <button
             key={`${role}-${idx}`}
             onClick={() => setActiveUserRole(role)}
-            title={role}
+            title={ROLE_LABEL[role]}
             className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
               role === currentRole ? 'ring-2 ring-[#FF416C]' : ''
             }`}
           >
-            {role}
+            {ROLE_LABEL[role]}
           </button>
         ))}
       </div>

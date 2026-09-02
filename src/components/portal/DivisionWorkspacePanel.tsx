@@ -1259,14 +1259,14 @@ export const DivisionWorkspacePanel: React.FC = () => {
             {/* Event Gallery Tab (Marturia only) */}
             {detailTab === 'gallery' && selectedDiv === 'MARTURIA' && (
               <div>
-                <EventGalleryTab division={selectedDiv} eventId={eventId} />
+                <EventGalleryTab division={selectedDiv} eventId={selectedEvent?.id ?? ''} />
               </div>
             )}
 
             {/* Store Tab (Benzarpreneurship only) */}
             {detailTab === 'store' && selectedDiv === 'BENZARPR' && (
               <div>
-                <BenzarStoreTab eventId={eventId} division={selectedDiv} />
+                <BenzarStoreTab eventId={selectedEvent?.id ?? ''} division={selectedDiv} />
               </div>
             )}
           </div>

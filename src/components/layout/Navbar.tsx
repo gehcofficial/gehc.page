@@ -29,6 +29,7 @@ export const Navbar: React.FC = () => {
     logoutSso,
     myRoleOptions,
     setActiveUserRole,
+    isPlatformAdmin,
   } = useApp();
   const { t } = useLang();
 
@@ -202,13 +203,24 @@ export const Navbar: React.FC = () => {
             )}
 
             {activeView === 'public' && authUser ? (
-              <button
-                onClick={() => setActiveView('portal')}
-                className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
-              >
-                <span>Portal</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-2">
+                {isPlatformAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => { window.location.hash = '#/admin'; }}
+                    className="border border-white/30 text-white font-bold rounded-full px-3 text-[10px] h-[34px] uppercase tracking-wider hidden sm:block"
+                  >
+                    Admin
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveView('portal')}
+                  className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
+                >
+                  <span>Portal</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             ) : activeView === 'portal' ? (
               <button
                 onClick={() => setActiveView('public')}

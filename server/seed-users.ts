@@ -11,7 +11,7 @@
  */
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Bipra } from '@prisma/client';
 import { INITIAL_STRUKTUR } from '../src/data/initialData.ts';
 
 const prisma = new PrismaClient();
@@ -110,8 +110,17 @@ async function main() {
   }
   console.log(`✓ pembersihan: ${purged} akun placeholder lama dihapus`);
 
-  // ---------- 1. SUPERADMIN ----------
-  await addRole((await upsertRoleAccount('usr-tech', 'Tim Tech GEHC', 'tech')).id, 'SUPERADMIN');
+  // ---------- 1. SUPERADMIN (legacy staging — platform ops pindah ke #/admin) ----------
+  const techUser = await upsertRoleAccount('usr-tech', 'Tim Tech GEHC', 'tech');
+  try {
+    await prisma.user.update({
+      where: { id: techUser.id },
+      data: { accountKind: 'SYSTEM_LEGACY' },
+    });
+  } catch {
+    /* kolom belum dimigrasi */
+  }
+  await addRole(techUser.id, 'SUPERADMIN');
 
   // ---------- 2. BPMJ — Badan Pekerja Majelis Jemaat (nama asli, payung tertinggi) ----------
   const bpmjAccounts: Array<[string, string, string]> = [
@@ -277,7 +286,7 @@ async function main() {
   for (const [slug, birthDate, bipra] of birthDateSamples) {
     const updated = await prisma.user.updateMany({
       where: { email: `${slug}${DOMAIN}` },
-      data: { birthDate: new Date(birthDate), bipra },
+      data: { birthDate: new Date(birthDate), bipra: bipra as Bipra },
     });
     birthDatesSet += updated.count;
   }

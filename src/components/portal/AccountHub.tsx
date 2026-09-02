@@ -1,0 +1,95 @@
+import React, { useState } from 'react';
+import { User, Shield, Bell, Users } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { MyProfilePanel, type ProfileSectionId } from './MyProfilePanel';
+import { LinkGoogleCard } from './LinkGoogleCard';
+import { ChangePasswordCard } from './ChangePasswordCard';
+import { UsernameCard } from './UsernameCard';
+import { LoginMethodsCard } from './LoginMethodsCard';
+import { AccountRolesSection } from './AccountRolesSection';
+import PWASettingsPanel from '../pwa/PWASettingsPanel';
+import type { AccountSection } from '../../lib/portal-routes';
+import { buildPortalPath } from '../../lib/portal-routes';
+
+const TABS: { id: AccountSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'profile', label: 'Profil', icon: <User className="w-4 h-4" /> },
+  { id: 'security', label: 'Keamanan', icon: <Shield className="w-4 h-4" /> },
+  { id: 'roles', label: 'Peran', icon: <Users className="w-4 h-4" /> },
+  { id: 'notifications', label: 'Notifikasi', icon: <Bell className="w-4 h-4" /> },
+];
+
+export const AccountHub: React.FC<{
+  section: AccountSection;
+  profileSection?: ProfileSectionId;
+  onSectionChange?: (section: AccountSection) => void;
+}> = ({ section, profileSection, onSectionChange }) => {
+  const { authUser } = useApp();
+  const [localProfileSec, setLocalProfileSec] = useState<ProfileSectionId | undefined>(profileSection);
+
+  const go = (sec: AccountSection) => {
+    window.location.hash = buildPortalPath({ namespace: 'account', accountSection: sec }).slice(1);
+    onSectionChange?.(sec);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-black text-[#1B1B1B]">Akun Saya</h1>
+        <p className="text-sm text-[#8C8880] mt-1">
+          Profil, keamanan, peran, dan notifikasi — terpisah dari panel kerja.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => go(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+              section === t.id
+                ? 'bg-[#1B1B1B] text-white'
+                : 'bg-white border border-[#D9D7D0] text-[#8C8880] hover:border-[#1B1B1B]'
+            }`}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'profile' && (
+        <MyProfilePanel
+          defaultOpenSection={localProfileSec || profileSection}
+          onGiftSaved={() => setLocalProfileSec(undefined)}
+        />
+      )}
+
+      {section === 'security' && (
+        <div className="space-y-4 max-w-xl">
+          <LoginMethodsCard />
+          <UsernameCard />
+          <ChangePasswordCard allowSkipCurrent={!authUser?.hasPassword} />
+          <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5">
+            <h2 className="text-sm font-bold text-[#1B1B1B] mb-3">Tautkan Google</h2>
+            <p className="text-[11px] text-[#8C8880] mb-3">Login cepat via Google — password tetap bisa dipakai sebagai cadangan.</p>
+            <LinkGoogleCard />
+          </div>
+          <button
+            type="button"
+            onClick={() => { window.location.hash = '#/forgot-password'; }}
+            className="text-xs font-bold text-[#FF416C] hover:underline"
+          >
+            Lupa kata sandi? Reset via username atau email →
+          </button>
+        </div>
+      )}
+
+      {section === 'roles' && <AccountRolesSection />}
+
+      {section === 'notifications' && (
+        <PWASettingsPanel onClose={() => go('profile')} />
+      )}
+    </div>
+  );
+};

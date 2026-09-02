@@ -26,11 +26,21 @@ import {
   INITIAL_INTEGRATION_CONFIG,
   INITIAL_GROUP_BATCHES,
 } from '../data/initialData';
-import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi } from '../services/authApi';
+import { fetchAuthConfig, fetchMeFull, loginWithGoogle, logout as logoutApi, setActiveRole } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
 import { useRoleFlags } from '../hooks/useRoleFlags';
 import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP, eventSlugFromHash } from '../app/routes';
 import { parseHashRoute } from '../lib/hash-routes';
+import {
+  isPortalHash,
+  parsePortalHash,
+  namespaceToRole,
+  roleToNamespace,
+  buildPortalPath,
+  defaultPageForRole,
+} from '../lib/portal-routes';
+import { isAdminHash } from '../lib/admin-routes';
+import { fetchPlatformContext } from '../services/platformApi';
 
 type PublicTab =
   | 'beyonders'
@@ -64,6 +74,10 @@ interface AppContextType {
   setCurrentUserById: (userId: string) => void;
   userAssignedGroupId?: string;
   isSuperAdmin: boolean;
+  isPlatformAdmin: boolean;
+  isPlatformOperator: boolean;
+  platformCapabilities: string[];
+  refreshPlatformContext: () => Promise<void>;
   isCommittee: boolean;
   isKomisi: boolean;
   isBpmj: boolean;
@@ -151,7 +165,21 @@ const STORAGE_KEYS = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
-  const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
+  const [activeView, setActiveViewState] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'public';
+    if (isAdminHash(window.location.hash)) return 'admin';
+    if (isPortalHash(window.location.hash)) return 'portal';
+    return 'public';
+  });
+  const setActiveView = (view: string) => {
+    setActiveViewState(view);
+    if (view === 'portal' && typeof window !== 'undefined' && !isPortalHash(window.location.hash)) {
+      window.location.hash = '#/portal';
+    }
+    if (view === 'admin' && typeof window !== 'undefined' && !isAdminHash(window.location.hash)) {
+      window.location.hash = '#/admin';
+    }
+  };
   const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail'] as const;
   const tabFromHash = (): PublicTab => {
     const parsed = parseHashRoute();
@@ -184,6 +212,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const onHash = () => {
       setPublicTabState(tabFromHash());
       setEventSlug(eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
+      if (isAdminHash(window.location.hash)) {
+        setActiveViewState('admin');
+      } else if (isPortalHash(window.location.hash)) {
+        setActiveViewState('portal');
+      }
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -491,6 +524,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [ssoClientId, setSsoClientId] = useState<string | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [isPlatformOperator, setIsPlatformOperator] = useState(false);
+  const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
+
+  const refreshPlatformContext = useCallback(async () => {
+    try {
+      const ctx = await fetchPlatformContext();
+      setIsPlatformOperator(ctx.isPlatformOperator);
+      setIsPlatformAdmin(ctx.isPlatformAdmin);
+      setPlatformCapabilities(ctx.platformCapabilities || []);
+    } catch {
+      setIsPlatformOperator(false);
+      setIsPlatformAdmin(false);
+      setPlatformCapabilities([]);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -499,9 +548,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const cfg = await fetchAuthConfig();
         if (cancelled) return;
         setSsoClientId(cfg.clientId);
+        await refreshPlatformContext();
         if (cfg.configured) {
-          const me = await fetchMe();
-          if (!cancelled) setAuthUser(me);
+          const me = await fetchMeFull();
+          if (!cancelled) {
+            setAuthUser(me.user);
+            if (me.activeRole) setRoleOverride(me.activeRole);
+            setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+            setIsPlatformOperator(me.isPlatformOperator);
+            setPlatformCapabilities(me.platformCapabilities || []);
+          }
         }
       } catch {
         /* belum login */
@@ -512,11 +568,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshPlatformContext]);
 
   const loginWithCredential = async (credential: string) => {
-    const user = await loginWithGoogle(credential);
+    const { user, activeRole } = await loginWithGoogle(credential);
     setAuthUser(user);
+    if (activeRole) setRoleOverride(activeRole);
+    const ns = activeRole ? roleToNamespace(activeRole) : null;
+    const onboarding = user.onboardingStatus === 'WAITING_POOL';
+    if (ns) {
+      window.location.hash = buildPortalPath({
+        namespace: ns,
+        page: defaultPageForRole(activeRole!, onboarding),
+      }).slice(1);
+    } else {
+      window.location.hash = '#/portal';
+    }
+    setActiveViewState('portal');
     addToast({
       type: 'success',
       title: `Login Google: ${user.name}`,
@@ -528,18 +596,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await logoutApi();
     setAuthUser(null);
     setCurrentUserId('usr-tech');
+    setRoleOverride(null);
     addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
-  };
-
-  const setActiveUserRole = (role: UserRole) => {
-    if (!myRoleOptions.includes(role)) return;
-    setRoleOverride(role);
-    const mapping = myRoleMappings.find((r) => r.role === role);
-    addToast({
-      type: 'info',
-      title: `Konteks aktif: ${role}`,
-      description: mapping?.groupId ? `Scoped ke grup ${groups.find((g) => g.id === mapping.groupId)?.name ?? mapping.groupId}.` : undefined,
-    });
   };
 
   // User & RBAC Computation (multi-role: satu akun bisa rangkap jabatan)
@@ -556,8 +614,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
   useEffect(() => {
-    setRoleOverride(null); // ganti persona/login → kembali ke peran tertinggi
+    setRoleOverride(null);
   }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const route = parsePortalHash(window.location.hash);
+    if (!route?.isPortal || route.namespace === 'account' || !route.namespace) return;
+    const roleFromNs = namespaceToRole(route.namespace);
+    if (roleFromNs && myRoleOptions.includes(roleFromNs)) {
+      setRoleOverride(roleFromNs);
+    }
+  }, [authUser?.id, typeof window !== 'undefined' ? window.location.hash : '']);
+
+  const setActiveUserRole = async (role: UserRole) => {
+    if (!myRoleOptions.includes(role)) return;
+    try {
+      await setActiveRole(role);
+      setRoleOverride(role);
+      const onboarding = authUser?.onboardingStatus === 'WAITING_POOL';
+      window.location.hash = buildPortalPath({
+        namespace: roleToNamespace(role),
+        page: defaultPageForRole(role, onboarding),
+      }).slice(1);
+      addToast({
+        type: 'info',
+        title: `Panel: ${role}`,
+        description: mappingDesc(role),
+      });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal ganti peran', description: (e as Error).message });
+    }
+  };
+
+  const mappingDesc = (role: UserRole) => {
+    const mapping = myRoleMappings.find((r) => r.role === role);
+    return mapping?.groupId
+      ? `Scoped ke grup ${groups.find((g) => g.id === mapping.groupId)?.name ?? mapping.groupId}.`
+      : undefined;
+  };
 
   const effectiveUserRole = effectiveRole(myRoleOptions, roleOverride);
   const currentRoleMapping: UserRoleMapping =
@@ -582,7 +677,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isAlumni,
   } = useRoleFlags(currentRole);
 
-  // Strict RBAC Access Checker per revision-v2-beyonders.md (L1–L8)
+  const platformAdminEffective = isPlatformAdmin || isPlatformOperator;
+
   const canAccess = (
     resource:
       | 'settings_users'
@@ -596,12 +692,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switch (resource) {
       case 'settings_users':
       case 'settings_integrations':
-        return isSuperAdmin || isKomisi; // L1 + Komisi integrasi
+        return platformAdminEffective || isKomisi;
       case 'content_manage':
       case 'struktur_manage':
-        return isSuperAdmin || isCommittee || isKomisi; // L1, L3, L4
+        return isSuperAdmin || isCommittee || isKomisi;
       case 'groups_all':
-        return isSuperAdmin || isCommittee || isKomisi || isBpmj; // BPMJ read-only dasbor
+        return isSuperAdmin || isCommittee || isKomisi || isBpmj;
       case 'group_monitoring_write':
         if (isSuperAdmin || isCommittee || isKomisi) return true;
         if ((isMentor || isCoMentor) && userAssignedGroupId) { // L5, L6
@@ -985,6 +1081,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUserById,
         userAssignedGroupId,
         isSuperAdmin,
+        isPlatformAdmin: platformAdminEffective,
+        isPlatformOperator,
+        platformCapabilities,
+        refreshPlatformContext,
         isCommittee,
         isKomisi,
         isBpmj,

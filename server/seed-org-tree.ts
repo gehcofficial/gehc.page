@@ -4,7 +4,7 @@
  */
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { SUB_DIVISIONS, DIVISION_HEAD_POSITION, PANTA_DIVISIONS } from '../src/lib/pantatugas.ts';
 
 const prisma = new PrismaClient();
@@ -25,7 +25,23 @@ const PANTA_LABELS = {
   MARTURIA: 'Marturia',
 };
 
-async function upsertNode({ domain, parentId, slug, label, nodeKind, metadata, sortOrder }) {
+async function upsertNode({
+  domain,
+  parentId,
+  slug,
+  label,
+  nodeKind,
+  metadata,
+  sortOrder,
+}: {
+  domain: string;
+  parentId?: string | null;
+  slug: string;
+  label: string;
+  nodeKind: string;
+  sortOrder: number;
+  metadata?: Prisma.InputJsonObject;
+}) {
   const existing = await prisma.orgNode.findFirst({ where: { domain, slug } });
   if (existing) {
     return prisma.orgNode.update({

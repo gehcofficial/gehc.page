@@ -63,6 +63,19 @@ export function beyondersProfileIncomplete(user) {
   return !user?.birthDate || !user?.phone || !gifts || !addressOk;
 }
 
+/** Invited users — soft reminder until profile segments complete. */
+export function invitedProfileIncomplete(user) {
+  if (user?.onboardingPath !== 'INVITED') return false;
+  const segments = profileSegments(user);
+  return !segments.contact || !segments.gifts || !segments.birthDate;
+}
+
+export function profileIncompleteForUser(user) {
+  if (!user) return false;
+  if (user.onboardingStatus === 'WAITING_POOL') return false;
+  return invitedProfileIncomplete(user) || beyondersProfileIncomplete(user);
+}
+
 function contactComplete(user) {
   if (!user?.phone || !user?.gender || !user?.birthDate) return false;
   const scope = user.addressScope === 'INTL' ? 'INTL' : 'ID';

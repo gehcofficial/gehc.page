@@ -22,3 +22,15 @@ Each portal tab must only call endpoints the user's role can access.
 | pwa-settings | PWASettingsPanel | 7 roles | `/api/pwa/*`, push | auth |
 
 **Enforcement:** Playwright smoke in `tests/e2e/portal-nav-roles.spec.ts`.
+
+## Admin shell (`#/admin`) — platform RBAC
+
+| Nav ID | Panel | Actor | Primary API | Server guard |
+|--------|-------|-------|-------------|--------------|
+| platform-admins | PlatformAdminsPanel | operator root | `/api/operator/admins` | `requirePlatformRoot` |
+| access-groups | AccessGroupsPanel | platform admin | `/api/admin/access-groups*` | `requirePlatformAdmin` |
+| people | ProvisionInviteWizard | platform admin | `/api/admin/users/*` | `requirePlatformAdmin` |
+| audit | Audit list | operator root | `/api/operator/audit`, `/api/drive/audit` | `requirePlatformRoot` |
+| passkey | PasskeyManagePanel | operator root | `/api/operator/auth/passkey/*` | `requirePlatformRoot` |
+
+Church portal nav no longer includes `SUPERADMIN`; legacy `UserRole.SUPERADMIN` honored when `PLATFORM_RBAC_LEGACY=true`.

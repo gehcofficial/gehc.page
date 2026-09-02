@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Mail, ShieldCheck, Copy, Trash2, UserPlus, CheckCircle2, Loader2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
+import { ProvisionInviteWizard } from './ProvisionInviteWizard';
+import { AccessGroupsPanel } from './AccessGroupsPanel';
 
 const initialsAvatar = (n: string) =>
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
@@ -43,7 +45,7 @@ const authedFetch = async (url: string, method = 'GET', body?: unknown) => {
 
 export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> = ({ onNavigate }) => {
   const { currentRole } = useApp();
-  const [tab, setTab] = useState<'akun' | 'invite'>('akun');
+  const [tab, setTab] = useState<'akun' | 'invite' | 'provision' | 'access-groups'>('akun');
   const [users, setUsers] = useState<ApiUser[] | null>(null);
   const [invites, setInvites] = useState<InviteDto[] | null>(null);
   const [q, setQ] = useState('');
@@ -109,6 +111,8 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
       <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3">
         {([
           ['akun', `Semua Akun (${(users || []).length})`],
+          ['provision', 'Provision & Undang'],
+          ['access-groups', 'Grup Akses'],
           ['invite', 'Link Undangan'],
         ] as const).map(([id, label]) => (
           <button
@@ -205,6 +209,10 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
       )}
 
       {/* PENDING — merged into akun tab + onboarding link above */}
+
+      {tab === 'provision' && <ProvisionInviteWizard />}
+
+      {tab === 'access-groups' && <AccessGroupsPanel />}
 
       {/* INVITE */}
       {tab === 'invite' && (

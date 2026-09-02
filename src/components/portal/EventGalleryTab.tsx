@@ -265,14 +265,16 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
       )}
     </div>
   );
-}
+};
 
-function GalleryCard({ item, onApprove, onDelete, onPreview }: {
+type GalleryCardProps = {
   item: GalleryItem;
   onApprove: (id: string, approve: boolean) => void;
   onDelete: (id: string) => void;
   onPreview: (item: GalleryItem) => void;
-}) {
+};
+
+const GalleryCard: React.FC<GalleryCardProps> = ({ item, onApprove, onDelete, onPreview }) => {
   return (
     <div className="relative group bg-white border border-[#D9D7D0]/50 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onPreview(item)}>
       <div className="aspect-square relative bg-gray-100 overflow-hidden">

@@ -34,6 +34,11 @@ export interface User {
   accountStatus?: 'ACTIVE' | 'PENDING' | (string & {});
   /** Onboarding pipeline status */
   onboardingStatus?: 'WAITING_POOL' | 'PENDING' | 'ACTIVE' | (string & {});
+  /** ORGANIC self-register vs INVITED pre-provision */
+  onboardingPath?: 'ORGANIC' | 'INVITED' | (string & {});
+  loginUsername?: string | null;
+  hasPassword?: boolean;
+  googleLinked?: boolean;
   /** Gift test top 5 results */
   giftsTop5?: string[];
   isBeyonders?: boolean;

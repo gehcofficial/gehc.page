@@ -28,7 +28,23 @@ import {
   isSuperadminEmail,
   ensureSuperadminRole,
   applySuperadminSession,
+  readSession,
+  pickDefaultActiveRole,
+  resolveSessionActiveRole,
+  resolveSessionContext,
+  buildSessionPayload,
+  newResetToken,
 } from './auth.mjs';
+import { roleToNamespace } from './portal-namespace.mjs';
+import {
+  applyGroupEntitlements,
+  listAccessGroups,
+  createAccessGroup,
+  addAccessGroupMembers,
+  deleteAccessGroup,
+  removeAccessGroupMember,
+} from './access-groups.mjs';
+import { createInviteProvisionUser, resolveUniformPassword } from './invite-provision.mjs';
 import {
   getDashboard,
   runScan,
@@ -58,13 +74,23 @@ import {
   reminderDue,
   profileSegments,
   beyondersProfileIncomplete,
+  profileIncompleteForUser,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
+import {
+  normalizeUsername,
+  validateUsername,
+  ensureUniqueUsername,
+  canChangeUsername,
+  findUserByLoginIdentifier,
+} from './lib/username.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
 import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
+import { registerOperatorRoutes } from './routes/operator.mjs';
+import { requirePlatformRoot, requirePlatformAdmin } from './lib/platform-rbac.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
@@ -130,9 +156,20 @@ app.post('/api/auth/google', wrap(async (req, res) => {
   const credential = req.body?.credential;
   if (!credential) return res.status(400).json({ error: 'credential (ID token Google) wajib dikirim.' });
   try {
-    const user = await loginWithGoogleCredential(credential);
-    setSessionCookie(res, { uid: user.id, email: user.email });
-    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, roles: user.roles } });
+    let user = await loginWithGoogleCredential(credential);
+    await applyGroupEntitlements(user.email, user.id);
+    const prisma = getPrisma();
+    if (prisma) {
+      user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+      user = applySuperadminSession(user);
+    }
+    const activeRole = pickDefaultActiveRole(user);
+    setSessionCookie(res, buildSessionPayload(user, { activeRole }));
+    res.json({
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, onboardingStatus: user.onboardingStatus, roles: user.roles },
+      activeRole,
+      activeNamespace: roleToNamespace(activeRole),
+    });
   } catch (err) {
     console.error('[auth] login gagal:', err.message);
     res.status(401).json({ error: err.message });
@@ -143,18 +180,101 @@ app.get('/api/auth/me', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const u = req.authUser;
   const segments = profileSegments(u);
+  const ctx = resolveSessionContext(req.sessionMeta, u);
   res.json({
     user: u,
+    activeRole: ctx.activeRole,
+    activeNamespace: ctx.activeNamespace,
     reminderDue: reminderDue(u),
     segments,
-    profileIncomplete: beyondersProfileIncomplete(u),
+    profileIncomplete: profileIncompleteForUser(u),
+    loginUsername: u.loginUsername || null,
+    hasPassword: Boolean(u.passwordHash),
+    googleLinked: Boolean(u.googleSub && u.linkStatus === 'LINKED'),
+    onboardingPath: u.onboardingPath || 'ORGANIC',
+    platformAdmin: Boolean(req.platformAdmin),
+    platformCapabilities: req.platformCapabilities || [],
+    isPlatformOperator: Boolean(req.platformOperator),
   });
+}));
+
+app.post('/api/auth/active-role', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const role = String(req.body?.role || '').trim();
+  const owned = (req.authUser.roles || []).map((r) => r.role);
+  if (!owned.includes(role)) return res.status(403).json({ error: 'Role tidak dimiliki akun ini.' });
+  const session = req.sessionMeta;
+  if (!session?.uid) return res.status(401).json({ error: 'Sesi tidak valid.' });
+  const activeNamespace = roleToNamespace(role);
+  setSessionCookie(res, buildSessionPayload(req.authUser, { activeRole: role, activeNamespace }));
+  res.json({ ok: true, activeRole: role, activeNamespace });
 }));
 
 app.post('/api/auth/logout', (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+/** POST /api/auth/forgot-password — minta reset token (username atau email) */
+app.post('/api/auth/forgot-password', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const identifier = req.body?.login || req.body?.email || req.body?.username;
+  const generic = { ok: true, message: 'Jika akun terdaftar, taut reset telah dibuat.' };
+  if (!identifier) return res.json(generic);
+
+  const user = await findUserByLoginIdentifier(prisma, identifier);
+  if (!user || !user.passwordHash) return res.json(generic);
+
+  const token = newResetToken();
+  const expires = new Date(Date.now() + 60 * 60 * 1000);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetToken: token, resetTokenExpiresAt: expires },
+  });
+
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const resetUrl = `${origin}/#/reset-password?token=${encodeURIComponent(token)}`;
+  const payload = { ...generic, resetUrl };
+  res.json(payload);
+}));
+
+/** POST /api/auth/reset-password — set password baru via token */
+app.post('/api/auth/reset-password', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const token = String(req.body?.token || '').trim();
+  const newPassword = String(req.body?.newPassword || '');
+  if (!token) return res.status(400).json({ error: 'Token wajib.' });
+  if (newPassword.length < 8) return res.status(400).json({ error: 'Password minimal 8 karakter.' });
+
+  const user = await prisma.user.findFirst({ where: { resetToken: token }, include: { roles: true } });
+  if (!user) return res.status(400).json({ error: 'Taut reset tidak valid.' });
+  if (!user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+    return res.status(400).json({ error: 'Taut reset sudah kedaluwarsa. Minta taut baru.' });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hashPassword(newPassword),
+      mustChangePassword: false,
+      resetToken: null,
+      resetTokenExpiresAt: null,
+      authProvider: user.authProvider === 'GOOGLE' ? 'GOOGLE' : 'LOCAL',
+    },
+  });
+
+  const hydrated = applySuperadminSession({ ...user, mustChangePassword: false });
+  const activeRole = pickDefaultActiveRole(hydrated);
+  setSessionCookie(res, buildSessionPayload(hydrated, { activeRole }));
+  res.json({
+    ok: true,
+    activeRole,
+    activeNamespace: roleToNamespace(activeRole),
+    user: { id: user.id, email: user.email, name: user.name },
+  });
+}));
 
 function meInclude() {
   return {
@@ -429,7 +549,7 @@ app.post('/api/me/link-google', wrap(async (req, res) => {
 }));
 
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
-app.get('/api/auth/admin-check', requireRole('SUPERADMIN'), (req, res) => {
+app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
 });
 
@@ -824,7 +944,7 @@ app.get('/api/drive/policy', wrap(async (req, res) => {
 }));
 
 // Audit sinkronisasi DB ↔ Drive: grup & subdivisi pantatugas vs folder aktual
-app.get('/api/drive/audit', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.get('/api/drive/audit', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -2680,24 +2800,33 @@ app.patch('/api/db/notifications/:id', requireRole(...KOMISION), wrap(async (req
   res.json(updated);
 }));
 
-// Login akun lokal (email + password)
+// Login akun lokal (username, email, atau login + password)
 app.post('/api/auth/local', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const identifier = req.body?.login || req.body?.email || req.body?.username;
   try {
-    const user = await loginLocal(req.body?.email, req.body?.password);
-    setSessionCookie(res, { uid: user.id, email: user.email });
+    let user = await loginLocal(identifier, req.body?.password);
+    if (user.email) await applyGroupEntitlements(user.email, user.id);
+    user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+    user = applySuperadminSession(user);
+    const activeRole = pickDefaultActiveRole(user);
+    setSessionCookie(res, buildSessionPayload(user, { activeRole }));
     res.json({
       status: user.accountStatus,
       mustChangePassword: Boolean(user.mustChangePassword),
+      activeRole,
+      activeNamespace: roleToNamespace(activeRole),
       user: {
         id: user.id,
         email: user.email,
+        loginUsername: user.loginUsername,
         name: user.name,
         avatar: user.avatar,
         roles: user.roles,
         accountStatus: user.accountStatus,
         onboardingStatus: user.onboardingStatus,
+        onboardingPath: user.onboardingPath,
         isBeyonders: user.isBeyonders,
         mustChangePassword: Boolean(user.mustChangePassword),
         giftsTop5: user.giftsTop5,
@@ -3556,6 +3685,9 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
     if (!['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'].includes(role)) {
       return res.status(400).json({ error: 'Role tidak valid.' });
     }
+    if (role === 'SUPERADMIN') {
+      return res.status(403).json({ error: 'Role SUPERADMIN deprecated — gunakan Platform Operator / Admin Grant.' });
+    }
     const dup = await prisma.userRole.findFirst({
       where: { userId: req.params.id, role, groupId: req.body?.groupId ?? null },
     });
@@ -3568,6 +3700,9 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   }
 
   if (action === 'removeRole') {
+    if (req.body?.role === 'SUPERADMIN') {
+      return res.status(403).json({ error: 'Role SUPERADMIN tidak dapat dicabut lewat endpoint ini.' });
+    }
     await prisma.userRole.deleteMany({
       where: { userId: req.params.id, role: req.body?.role, groupId: req.body?.groupId ?? null },
     });
@@ -4070,7 +4205,121 @@ app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => 
   res.json({ user: serializeJemaat(user) });
 }));
 
-app.post('/api/admin/users/:id/claim-link', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+/** POST /api/admin/users/invite-provision — Buat akun + role + password sementara + claim link */
+app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  let uniformPassword = null;
+  try {
+    uniformPassword = resolveUniformPassword(req.body);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  try {
+    const created = await createInviteProvisionUser(prisma, {
+      name: req.body?.name,
+      loginUsername: req.body?.loginUsername || req.body?.username,
+      email: req.body?.email,
+      role: req.body?.role || 'MENTOR',
+      password: uniformPassword,
+      origin,
+      newClaimToken,
+      inviteType: req.body?.inviteType,
+      groupId: req.body?.groupId,
+      familyRole: req.body?.familyRole,
+      orgNodeId: req.body?.orgNodeId,
+      assignedBy,
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    const status = err.status || 400;
+    res.status(status).json({ error: err.message });
+  }
+}));
+
+/** POST /api/admin/users/invite-provision-bulk — Bulk pre-provision (max 40) */
+app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const entries = req.body?.entries;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return res.status(400).json({ error: 'entries wajib (array { name, email, role? }).' });
+  }
+  if (entries.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 entri per bulk provision.' });
+  }
+
+  let uniformPassword = null;
+  try {
+    uniformPassword = resolveUniformPassword(req.body);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  const defaultRole = String(req.body?.defaultRole || 'MENTOR').trim();
+  const defaultInviteType = req.body?.inviteType || 'beyonders';
+  const defaultGroupId = req.body?.groupId || null;
+  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const created = [];
+  const errors = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    const row = entries[i] || {};
+    try {
+      const result = await createInviteProvisionUser(prisma, {
+        name: row.name,
+        loginUsername: row.loginUsername || row.username,
+        email: row.email,
+        role: row.role || defaultRole,
+        password: uniformPassword,
+        origin,
+        newClaimToken,
+        inviteType: row.inviteType || defaultInviteType,
+        groupId: row.groupId || defaultGroupId,
+        familyRole: row.familyRole,
+        orgNodeId: row.orgNodeId,
+        assignedBy,
+      });
+      created.push(result);
+    } catch (err) {
+      errors.push({
+        index: i,
+        name: String(row.name || '').trim(),
+        loginUsername: String(row.loginUsername || row.username || '').trim(),
+        error: err.message,
+      });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.status(created.length ? 201 : 400).json({
+    ok: created.length > 0,
+    provisioned: created.length,
+    failed: errors.length,
+    created,
+    errors,
+  });
+}));
+
+/** GET /api/admin/groups-lite — daftar grup mentoring (platform admin invite UI) */
+app.get('/api/admin/groups-lite', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const groups = await prisma.group.findMany({
+    where: { tenantId: 'tenant-youth', status: 'ACTIVE' },
+    select: { id: true, name: true, color: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ groups });
+}));
+
+app.post('/api/admin/users/:id/claim-link', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
@@ -4088,7 +4337,7 @@ app.post('/api/admin/users/:id/claim-link', requireRole(...KOMISION_CORE), wrap(
   res.json({ token, expiresAt: expires.toISOString(), claimUrl: `${origin}/#/claim?token=${encodeURIComponent(token)}` });
 }));
 
-app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.post('/api/admin/users/:id/unlink', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
@@ -4101,7 +4350,7 @@ app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (r
 }));
 
 /** PATCH /api/admin/users/:id — Admin edit profil jemaat */
-app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+app.patch('/api/admin/users/:id', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -4223,8 +4472,54 @@ app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'CO
   });
 }));
 
+/** Access Groups — RLS-like email bundles */
+app.get('/api/admin/access-groups', requirePlatformAdmin(), wrap(async (_req, res) => {
+  try {
+    const groups = await listAccessGroups();
+    res.json({ groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}));
+
+app.post('/api/admin/access-groups', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    const created = await createAccessGroup(req.body || {}, req.authUser?.id);
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.post('/api/admin/access-groups/:id/members', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    const result = await addAccessGroupMembers(req.params.id, req.body?.emails, req.authUser?.id);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.delete('/api/admin/access-groups/:id', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    await deleteAccessGroup(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.delete('/api/admin/access-groups/members/:memberId', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    await removeAccessGroupMember(req.params.memberId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
 /** POST /api/admin/users/provision — Bulk create local email+temp password (mustChangePassword) */
-app.post('/api/admin/users/provision', requireRole(...KOMISION), wrap(async (req, res) => {
+app.post('/api/admin/users/provision', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -4350,12 +4645,59 @@ app.post('/api/me/password', wrap(async (req, res) => {
     where: { id: user.id },
     data: {
       passwordHash: hashPassword(next),
-      authProvider: user.authProvider === 'GOOGLE' ? user.authProvider : 'LOCAL',
+      ...(user.googleSub && user.linkStatus === 'LINKED' ? {} : { authProvider: 'LOCAL' }),
     },
   });
   await prisma.$executeRawUnsafe('UPDATE users SET must_change_password = 0 WHERE id = ?', user.id);
 
   res.json({ ok: true });
+}));
+
+/** GET /api/me/username — status username login */
+app.get('/api/me/username', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const u = req.authUser;
+  res.json({
+    loginUsername: u.loginUsername || null,
+    canChange: canChangeUsername(u).ok,
+    changeBlockedReason: canChangeUsername(u).ok ? null : canChangeUsername(u).error,
+  });
+}));
+
+/** POST /api/me/username — set / ganti username login */
+app.post('/api/me/username', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const nextRaw = req.body?.loginUsername || req.body?.username;
+  const next = normalizeUsername(nextRaw);
+  const err = validateUsername(next);
+  if (err) return res.status(400).json({ error: err });
+
+  const user = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  if (user.loginUsername && user.loginUsername !== next) {
+    const gate = canChangeUsername(user);
+    if (!gate.ok) return res.status(400).json({ error: gate.error });
+  }
+
+  const taken = await prisma.user.findFirst({
+    where: { loginUsername: next, NOT: { id: user.id } },
+  });
+  if (taken) return res.status(400).json({ error: 'Username sudah dipakai.' });
+
+  const isChange = Boolean(user.loginUsername && user.loginUsername !== next);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      loginUsername: next,
+      ...(isChange ? { usernameChangedAt: new Date() } : {}),
+    },
+  });
+
+  res.json({ ok: true, loginUsername: updated.loginUsername });
 }));
 
 /** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
@@ -4661,11 +5003,12 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 registerOnboardingRoutes(app, { wrap });
 registerEventsPublicRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
+registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
-app.post('/api/admin/seed-gifts', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 

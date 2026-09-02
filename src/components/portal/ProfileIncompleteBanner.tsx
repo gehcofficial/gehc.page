@@ -42,7 +42,7 @@ export const ProfileIncompleteBanner: React.FC<Props> = ({ onCompleteProfile }) 
         <div className="min-w-0">
           <p className="text-sm font-bold text-[#1B1B1B]">Lengkapi data diri</p>
           <p className="text-[11px] text-[#8C8880] mt-0.5">
-            Profil Beyonders belum lengkap (tanggal lahir, kontak, alamat, atau karunia). Akses portal tetap terbuka.
+            Profil belum lengkap. Akses portal tetap terbuka — lengkapi data diri Anda.
           </p>
         </div>
       </div>
