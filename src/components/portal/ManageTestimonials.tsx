@@ -7,6 +7,7 @@ interface TestimonialItem {
   groupName?: string | null;
   quote: string;
   photoUrl?: string | null;
+  userId?: string | null;
   isPublished: boolean;
   sortOrder: number;
 }
@@ -16,6 +17,7 @@ const emptyForm = {
   groupName: '',
   quote: '',
   photoUrl: '',
+  userId: '',
   isPublished: true,
   sortOrder: 0,
 };
@@ -64,6 +66,7 @@ export const ManageTestimonials: React.FC = () => {
       groupName: item.groupName || '',
       quote: item.quote,
       photoUrl: item.photoUrl || '',
+      userId: item.userId || '',
       isPublished: item.isPublished,
       sortOrder: item.sortOrder,
     });
@@ -80,6 +83,7 @@ export const ManageTestimonials: React.FC = () => {
         groupName: form.groupName.trim() || null,
         quote: form.quote.trim(),
         photoUrl: form.photoUrl.trim() || null,
+        userId: form.userId.trim() || null,
         isPublished: form.isPublished,
         sortOrder: Number(form.sortOrder) || 0,
       };
@@ -250,6 +254,15 @@ export const ManageTestimonials: React.FC = () => {
                   value={form.quote}
                   onChange={(e) => setForm({ ...form, quote: e.target.value })}
                   className="w-full p-4 rounded-2xl bg-white border border-[#D9D7D0] text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider block mb-1.5">ID akun portal (opsional)</label>
+                <input
+                  value={form.userId}
+                  onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-mono"
+                  placeholder="Taut ke user — foto mengikuti akun"
                 />
               </div>
               <div>

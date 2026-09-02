@@ -29,6 +29,8 @@ export interface User {
   email: string;
   name: string;
   avatar: string;
+  avatarSource?: 'GOOGLE' | 'CUSTOM' | (string & {});
+  avatarGoogle?: string | null;
   phone?: string;
   /** ACTIVE (lolos approval) atau PENDING (menunggu Komisi) */
   accountStatus?: 'ACTIVE' | 'PENDING' | (string & {});
@@ -74,6 +76,7 @@ export interface GroupMember {
   notes?: string;
   familyRole?: string;
   batchPeriod?: string;
+  avatar?: string;
 }
 
 export interface MonitoringData {
@@ -134,6 +137,7 @@ export interface StrukturMember {
   subdivision?: string;
   period: string;
   photoUrl: string;
+  userId?: string;
   bio: string;
   phone: string;
   email: string;
@@ -190,7 +194,9 @@ export interface GroupBatch {
   period: string; // "2026"
   mentor: string;
   comentor: string;
-  mentees: { name: string; note?: string }[];
+  mentorAvatar?: string;
+  comentorAvatar?: string;
+  mentees: { name: string; note?: string; avatar?: string }[];
   theme?: string;
   isCurrent?: boolean;
 }

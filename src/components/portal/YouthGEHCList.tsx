@@ -6,6 +6,7 @@ import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { countryName } from '../../lib/countries';
+import { displayAvatar } from '../../lib/avatar';
 
 interface RoleAssignment {
   id: string;
@@ -151,9 +152,6 @@ const BEYONDER_GROUPS = [
   { id: 'grp-dunamis', name: 'Dunamis', color: '#DC2626' },
   { id: 'grp-echad', name: 'Echad', color: '#0D9488' },
 ];
-
-const initialsAvatar = (n: string) =>
-  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
 
 function hasRoleInAssignment(y: YouthUser, role: string): boolean {
   return y.roleAssignments?.some((ra) => ra.isActive && ra.role === role) || false;
@@ -1269,7 +1267,7 @@ export const YouthGEHCList: React.FC = () => {
                           aria-label={`Pilih ${member.user.name}`}
                         />
                         <img
-                          src={member.user.avatar || initialsAvatar(member.user.name)}
+                          src={displayAvatar(member.user.name, member.user.avatar)}
                           alt={member.user.name}
                           className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]"
                         />
@@ -1352,7 +1350,7 @@ export const YouthGEHCList: React.FC = () => {
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
                       <img
-                        src={y.avatar || initialsAvatar(y.name)}
+                        src={displayAvatar(y.name, y.avatar)}
                         alt={y.name}
                         className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
                       />
@@ -1499,7 +1497,7 @@ export const YouthGEHCList: React.FC = () => {
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
                       <img
-                        src={y.avatar || initialsAvatar(y.name)}
+                        src={displayAvatar(y.name, y.avatar)}
                         alt={y.name}
                         className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
                       />

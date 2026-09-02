@@ -15,6 +15,7 @@ export const WEBSITE_VISUAL_SUBFOLDERS = [
   'kelompok',
   'pengurus',
   'testimoni',
+  'users',
 ];
 
 export const TEN_HOMES = [
@@ -171,12 +172,14 @@ ${rows.join('\n')}
 ${WARTA_PUBLIK_FOLDER}/YYYY-MM-DD-judul-singkat/foto/*
   →  Foto & video edisi di detail halaman Warta (#/bulletin)
 
--- Pengurus & testimoni --
-pengurus/{slug-nama}.png     →  foto pengurus (override inisial)
-testimoni/{slug-penulis}.png →  foto penulis testimoni
+-- Pengurus, testimoni, foto profil --
+pengurus/{slug-nama}.png     →  foto pengurus tanpa akun portal
+testimoni/{slug-penulis}.png →  foto penulis testimoni tanpa akun
+users/{userId}.jpg           →  foto profil kustom (ganti dari portal)
 
 Slug = nama tanpa gelar, huruf kecil, spasi jadi tanda hubung.
 Contoh: "Pnt Stevania Hadinda" → stevania-hadinda.png
+Foto profil akun: stem = user id (replace in place).
 
 Jangan ubah nama folder. Jangan taruh file slot di luar subfolder yang tertera.
 `;

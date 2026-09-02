@@ -100,6 +100,17 @@ import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
+import {
+  googleAvatarCreate,
+  googleAvatarPatch,
+  decodeAvatarUpload,
+  optimizeAvatarBuffer,
+  uploadUserAvatarToDrive,
+  deleteUserAvatarFromDrive,
+  scheduleUsersVisualsPublish,
+  AVATAR_SOURCE_CUSTOM,
+  AVATAR_SOURCE_GOOGLE,
+} from './lib/user-avatar.mjs';
 
 const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
@@ -167,7 +178,7 @@ app.post('/api/auth/google', wrap(async (req, res) => {
     const activeRole = pickDefaultActiveRole(user);
     setSessionCookie(res, buildSessionPayload(user, { activeRole }));
     res.json({
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, onboardingStatus: user.onboardingStatus, roles: user.roles },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, avatarSource: user.avatarSource, accountStatus: user.accountStatus, onboardingStatus: user.onboardingStatus, roles: user.roles },
       activeRole,
       activeNamespace: roleToNamespace(activeRole),
     });
@@ -318,6 +329,84 @@ app.get('/api/me/profile', wrap(async (req, res) => {
     segments: profileSegments({ ...view, recreationalIds }),
     recreationalSuggestions,
     churchDataRequest,
+  });
+}));
+
+app.post('/api/me/avatar', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  let decoded;
+  try {
+    decoded = decodeAvatarUpload(req.body || {});
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  const jpeg = await optimizeAvatarBuffer(decoded.buffer);
+  const uploaded = await uploadUserAvatarToDrive(existing.id, jpeg);
+  if (existing.avatarDriveFileId && existing.avatarDriveFileId !== uploaded.fileId) {
+    await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      avatar: uploaded.driveUrl || uploaded.staticUrl,
+      avatarSource: AVATAR_SOURCE_CUSTOM,
+      avatarDriveFileId: uploaded.fileId,
+      lastProfileUpdate: new Date(),
+    },
+    include: { roles: true },
+  });
+  const publish = scheduleUsersVisualsPublish();
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      avatarSource: user.avatarSource,
+      avatarGoogle: user.avatarGoogle,
+    },
+    publish,
+  });
+}));
+
+app.delete('/api/me/avatar', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  if (existing.avatarDriveFileId) {
+    await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
+  }
+
+  const restored = existing.avatarGoogle || null;
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      avatar: restored,
+      avatarSource: AVATAR_SOURCE_GOOGLE,
+      avatarDriveFileId: null,
+      lastProfileUpdate: new Date(),
+    },
+    include: { roles: true },
+  });
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      avatarSource: user.avatarSource,
+      avatarGoogle: user.avatarGoogle,
+    },
   });
 }));
 
@@ -571,7 +660,7 @@ app.get('/api/users/search', wrap(async (req, res) => {
           { email: { contains: q } },
         ],
       },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, avatar: true },
       take: 10,
     });
 
@@ -1049,7 +1138,10 @@ app.get('/api/db/groups', wrap(async (req, res) => {
     orderBy: { name: 'asc' },
     include: {
       batches: { orderBy: { period: 'desc' } },
-      members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }] },
+      members: {
+        orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+        include: { user: { select: { id: true, avatar: true, name: true } } },
+      },
     },
   });
   res.json({ groups });
@@ -1073,6 +1165,7 @@ app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   const members = await prisma.groupMember.findMany({
     where: { groupId: req.params.id, ...(req.query.period ? { batchPeriod: req.query.period } : {}) },
     orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+    include: { user: { select: { id: true, avatar: true, name: true } } },
   });
   res.json({ members });
 }));
@@ -2548,7 +2641,31 @@ app.get('/api/db/struktur', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const members = await prisma.strukturMember.findMany({ orderBy: { sortOrder: 'asc' } });
-  res.json({ members });
+  const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))];
+  const emails = [...new Set(members.filter((m) => !m.userId && m.email).map((m) => String(m.email).toLowerCase()))];
+  const users = userIds.length || emails.length
+    ? await prisma.user.findMany({
+        where: {
+          OR: [
+            ...(userIds.length ? [{ id: { in: userIds } }] : []),
+            ...(emails.length ? [{ email: { in: emails } }] : []),
+          ],
+        },
+        select: { id: true, email: true, avatar: true },
+      })
+    : [];
+  const byId = new Map(users.map((u) => [u.id, u]));
+  const byEmail = new Map(users.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
+  res.json({
+    members: members.map((m) => {
+      const linked = (m.userId && byId.get(m.userId)) || (m.email && byEmail.get(String(m.email).toLowerCase())) || null;
+      return {
+        ...m,
+        userId: m.userId || linked?.id || null,
+        photoUrl: linked?.avatar || m.photoUrl,
+      };
+    }),
+  });
 }));
 
 // Sinkronisasi struktur dari portal (replace-all: upsert semua, hapus yang tidak dikirim)
@@ -2568,6 +2685,7 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
       bio: m.bio ?? null,
       phone: m.phone ?? null,
       email: m.email ?? null,
+      userId: m.userId ?? null,
       sortOrder: Number.isFinite(m.order) ? m.order : i,
       isOpenRole: Boolean(m.isOpenRole ?? m.is_open_role),
       role: m.role ?? null,
@@ -3008,7 +3126,7 @@ app.post('/api/join', wrap(async (req, res) => {
           id: p.sub,
           email: p.email,
           name: p.name || p.email.split('@')[0],
-          avatar: p.picture || null,
+          ...googleAvatarCreate(p.picture),
           accountStatus: 'PENDING',
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3022,7 +3140,7 @@ app.post('/api/join', wrap(async (req, res) => {
         where: { id: user.id },
         data: {
           name: p.name || user.name,
-          avatar: p.picture || user.avatar,
+          ...googleAvatarPatch(user, p.picture),
           googleSub: p.sub,
           linkStatus: 'LINKED',
           authProvider: 'GOOGLE',
@@ -3196,7 +3314,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
         where: { id: existing.id },
         data: {
           name: p.name || existing.name || email.split('@')[0],
-          avatar: p.picture || existing.avatar,
+          ...googleAvatarPatch(existing, p.picture),
           accountStatus: status,
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3211,7 +3329,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
           id: p.sub,
           email,
           name: p.name || email.split('@')[0],
-          avatar: p.picture || null,
+          ...googleAvatarCreate(p.picture),
           accountStatus: status,
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3486,9 +3604,10 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
     include: { roles: true },
   });
 
+  const avatarFields = user ? googleAvatarPatch(user, p.picture) : googleAvatarCreate(p.picture);
   const baseData = {
     name: p.name || email.split('@')[0],
-    avatar: p.picture ?? undefined,
+    ...avatarFields,
     phone: profile.phone ?? undefined,
     address: profile.address ?? undefined,
     origin: profile.origin ?? undefined,

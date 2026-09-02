@@ -11,6 +11,7 @@ import { Auth } from 'googleapis';
 import { getPrisma, isDbConfigured, resetPrisma, isTransientDbError } from './db.mjs';
 import { shouldAutoGrantSuperadminEmail } from './platform-operators.mjs';
 import { roleToNamespace, namespaceToRole } from './portal-namespace.mjs';
+import { googleAvatarCreate, googleAvatarPatch } from './lib/user-avatar.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -310,7 +311,7 @@ export async function loginWithGoogleCredential(credential) {
       data: {
         email,
         name: p.name || undefined,
-        avatar: p.picture || undefined,
+        ...googleAvatarPatch(user, p.picture),
         linkStatus: 'LINKED',
         authProvider: 'GOOGLE',
       },
@@ -332,7 +333,7 @@ export async function loginWithGoogleCredential(credential) {
           linkStatus: 'LINKED',
           email,
           name: p.name || undefined,
-          avatar: p.picture || undefined,
+          ...googleAvatarPatch(byEmail, p.picture),
           authProvider: 'GOOGLE',
         },
         include: { roles: true },
@@ -347,7 +348,7 @@ export async function loginWithGoogleCredential(credential) {
         id: p.sub,
         email,
         name: p.name || email.split('@')[0],
-        avatar: p.picture || null,
+        ...googleAvatarCreate(p.picture),
         googleSub: p.sub,
         linkStatus: 'LINKED',
         bipra: 'PEMUDA',
@@ -356,7 +357,7 @@ export async function loginWithGoogleCredential(credential) {
       update: {
         email,
         name: p.name || undefined,
-        avatar: p.picture || undefined,
+        ...googleAvatarPatch(user, p.picture),
         googleSub: p.sub,
         linkStatus: 'LINKED',
         authProvider: 'GOOGLE',
@@ -417,7 +418,7 @@ export async function claimWithGoogleCredential(credential, tokenRaw) {
       linkStatus: 'LINKED',
       email: p.email,
       name: p.name || target.name,
-      avatar: p.picture || target.avatar,
+      ...googleAvatarPatch(target, p.picture),
       claimToken: null,
       claimTokenExpiresAt: null,
       authProvider: target.passwordHash ? target.authProvider : 'GOOGLE',
@@ -457,7 +458,7 @@ export async function linkGoogleToSessionUser(userId, credential) {
       linkStatus: 'LINKED',
       email: p.email || user.email,
       name: p.name || user.name,
-      avatar: p.picture || user.avatar,
+      ...googleAvatarPatch(user, p.picture),
       // Keep LOCAL if password exists — dual auth (Google + password backup)
       authProvider: user.passwordHash ? user.authProvider : 'GOOGLE',
     },

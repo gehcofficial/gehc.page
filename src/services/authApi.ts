@@ -36,6 +36,8 @@ interface ApiUser {
   email: string;
   name: string;
   avatar: string | null;
+  avatarSource?: string | null;
+  avatarGoogle?: string | null;
   roles: { userId?: string; tenantId: string; role: string; groupId?: string | null }[];
 }
 
@@ -45,6 +47,8 @@ function mapUser(u: ApiUser, meta?: { hasPassword?: boolean; googleLinked?: bool
     email: u.email,
     name: u.name,
     avatar: u.avatar || '',
+    avatarSource: (u.avatarSource as User['avatarSource']) || 'GOOGLE',
+    avatarGoogle: u.avatarGoogle,
     accountStatus: u.accountStatus,
     onboardingStatus: u.onboardingStatus,
     onboardingPath: u.onboardingPath as User['onboardingPath'],

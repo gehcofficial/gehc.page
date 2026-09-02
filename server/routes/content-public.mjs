@@ -108,6 +108,7 @@ async function loadDriveSlots() {
       ...VISUAL_SLOTS.map((s) => s.folder.toLowerCase()),
       'pengurus',
       'testimoni',
+      'users',
     ]);
     const foldersToLoad = [...folderNames]
       .map((name) => byName.get(name))
@@ -147,6 +148,17 @@ async function loadDriveSlots() {
         if (stem.startsWith('contoh-') || stem.startsWith('_')) continue;
         const url = publicFileUrl(f);
         if (url) slots.testimoni[stem] = url;
+      }
+    }
+
+    const usersFolder = byName.get('users');
+    if (usersFolder) {
+      const files = filesByFolder.get(usersFolder.id) || (await listFiles({ folderId: usersFolder.id, pageSize: 50 }));
+      for (const f of files) {
+        const stem = String(f.name || '').replace(/\.[^.]+$/, '').toLowerCase();
+        if (stem.startsWith('_')) continue;
+        const url = publicFileUrl(f);
+        if (url) slots.users[stem] = url;
       }
     }
 
@@ -284,13 +296,16 @@ export function registerContentPublicRoutes(app, { wrap }) {
   }));
 
   function mapTestimonial(row) {
+    const userAvatar = row.user?.avatar || null;
+    const userId = row.userId ?? row.user_id ?? row.user?.id ?? null;
     return {
       id: row.id,
       tenantId: row.tenantId ?? row.tenant_id,
       authorName: row.authorName ?? row.author_name,
       groupName: row.groupName ?? row.group_name ?? null,
       quote: row.quote,
-      photoUrl: row.photoUrl ?? row.photo_url ?? null,
+      photoUrl: userAvatar || row.photoUrl || row.photo_url || null,
+      userId,
       isPublished: Boolean(row.isPublished ?? row.is_published),
       sortOrder: Number(row.sortOrder ?? row.sort_order ?? 0),
       createdAt: row.createdAt ?? row.created_at,
@@ -304,6 +319,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
         where: publishedOnly ? { isPublished: true } : undefined,
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         take: publishedOnly ? 50 : 200,
+        include: { user: { select: { id: true, avatar: true, name: true } } },
       });
       return items.map(mapTestimonial);
     }
@@ -343,7 +359,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-    const { authorName, groupName, quote, photoUrl, isPublished, sortOrder } = req.body || {};
+    const { authorName, groupName, quote, photoUrl, userId, isPublished, sortOrder } = req.body || {};
     if (!authorName?.trim() || !quote?.trim()) {
       return res.status(400).json({ error: 'authorName & quote wajib' });
     }
@@ -352,6 +368,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const order = Number(sortOrder) || 0;
     const gName = groupName?.trim() || null;
     const pUrl = photoUrl?.trim() || null;
+    const uid = userId?.trim() || null;
 
     if (prisma.testimonial) {
       const item = await prisma.testimonial.create({
@@ -362,9 +379,11 @@ export function registerContentPublicRoutes(app, { wrap }) {
           groupName: gName,
           quote: quote.trim(),
           photoUrl: pUrl,
+          userId: uid,
           isPublished: pub,
           sortOrder: order,
         },
+        include: { user: { select: { id: true, avatar: true, name: true } } },
       });
       return res.status(201).json({ item: mapTestimonial(item) });
     }
@@ -407,9 +426,14 @@ export function registerContentPublicRoutes(app, { wrap }) {
       if (body.groupName !== undefined) data.groupName = body.groupName?.trim() || null;
       if (body.quote !== undefined) data.quote = String(body.quote).trim();
       if (body.photoUrl !== undefined) data.photoUrl = body.photoUrl?.trim() || null;
+      if (body.userId !== undefined) data.userId = body.userId?.trim() || null;
       if (body.isPublished !== undefined) data.isPublished = Boolean(body.isPublished);
       if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder) || 0;
-      const item = await prisma.testimonial.update({ where: { id: req.params.id }, data });
+      const item = await prisma.testimonial.update({
+        where: { id: req.params.id },
+        data,
+        include: { user: { select: { id: true, avatar: true, name: true } } },
+      });
       return res.json({ item: mapTestimonial(item) });
     }
 

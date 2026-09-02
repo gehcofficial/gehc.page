@@ -4,9 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { ProvisionInviteWizard } from './ProvisionInviteWizard';
 import { AccessGroupsPanel } from './AccessGroupsPanel';
-
-const initialsAvatar = (n: string) =>
-  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
+import { displayAvatar } from '../../lib/avatar';
 
 const ROLES: UserRole[] = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'];
 
@@ -151,7 +149,7 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
             {filtered.map((u) => (
               <div key={u.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
                 <div className="flex items-center gap-3">
-                  <img src={u.avatar || initialsAvatar(u.name)} alt={u.name} loading="lazy" decoding="async"
+                  <img src={displayAvatar(u.name, u.avatar)} alt={u.name} loading="lazy" decoding="async"
                     className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold truncate">{u.name}</p>

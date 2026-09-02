@@ -33,6 +33,7 @@ export function emptySlots() {
     kelompok: {},
     pengurus: {},
     testimoni: {},
+    users: {},
   };
 }
 

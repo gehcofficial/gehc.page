@@ -13,6 +13,7 @@ type SlotsResponse = {
     kelompok?: Record<string, string>;
     pengurus?: Record<string, string>;
     testimoni?: Record<string, string>;
+    users?: Record<string, string>;
   };
 };
 
@@ -37,6 +38,7 @@ function mergeSlots(d: SlotsResponse): MediaSlots {
     kelompok: s.kelompok || {},
     pengurus: s.pengurus || {},
     testimoni: s.testimoni || {},
+    users: s.users || {},
     source: d.source === 'static' || d.source === 'drive' ? d.source : 'fallback',
   };
 }

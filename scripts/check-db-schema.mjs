@@ -20,6 +20,7 @@ const REQUIRED_USER_COLUMNS = [
   'domicile_detail',
   'login_username',
   'onboarding_path',
+  'avatar_source',
 ];
 
 const REQUIRED_TABLES = [

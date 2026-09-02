@@ -18,7 +18,7 @@ export function profileForPath(relPath, slotKey = '') {
     return { maxWidth: 1200, quality: 86 };
   }
   if (folder === 'kelompok') return { maxWidth: 1400, quality: 86 };
-  if (folder === 'pengurus') return { maxWidth: 900, quality: 86 };
+  if (folder === 'pengurus' || folder === 'users') return { maxWidth: 900, quality: 86 };
   if (folder === 'testimoni') return { maxWidth: 700, quality: 85 };
   if (folder === 'benzarpreneurship') return { maxWidth: 1600, quality: 86 };
   if (slotKey === 'warta.bannerDefault') return { maxWidth: 1400, quality: 86 };

@@ -29,6 +29,8 @@ type GroupCardProps = {
   menteeCount: number;
   mentor: string;
   comentor: string;
+  mentorAvatar?: string;
+  comentorAvatar?: string;
   seeFamily: string;
   menteeLabel: string;
   onOpen: (id: string) => void;
@@ -42,6 +44,8 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
   menteeCount,
   mentor,
   comentor,
+  mentorAvatar,
+  comentorAvatar,
   seeFamily,
   menteeLabel,
   onOpen,
@@ -86,7 +90,13 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
       </div>
     </div>
 
-    <MiniFamilyTree mentor={mentor} comentor={comentor || '—'} color={grp.color || '#FF416C'} />
+    <MiniFamilyTree
+      mentor={mentor}
+      comentor={comentor || '—'}
+      color={grp.color || '#FF416C'}
+      mentorAvatar={mentorAvatar}
+      comentorAvatar={comentorAvatar}
+    />
 
     <div className="flex items-center gap-2 text-[11px] text-[#8C8880]">
       <Users className="w-3 h-3 shrink-0" style={{ color: grp.color }} />
@@ -252,6 +262,8 @@ export const GroupsCarousel: React.FC = () => {
                 menteeCount={menteeCount}
                 mentor={batch.mentor}
                 comentor={batch.comentor || '—'}
+                mentorAvatar={batch.mentorAvatar}
+                comentorAvatar={batch.comentorAvatar}
                 seeFamily={t.groupDetail.seeFamily}
                 menteeLabel={t.groupDetail.menteeCount}
                 onOpen={openGroupDetail}

@@ -30,6 +30,7 @@ type FormState = {
   division: string;
   subdivision: string;
   photoUrl: string;
+  userId: string;
   phone: string;
   email: string;
   bio: string;
@@ -49,6 +50,7 @@ const emptyForm = (): FormState => ({
   division: 'LITURGIA',
   subdivision: '',
   photoUrl: '',
+  userId: '',
   phone: '',
   email: '',
   bio: '',
@@ -79,6 +81,8 @@ export const ManageStruktur: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<StrukturMember | null>(null);
   const [formData, setFormData] = useState<FormState>(emptyForm());
+  const [userQuery, setUserQuery] = useState('');
+  const [userHits, setUserHits] = useState<Array<{ id: string; name: string; email: string | null }>>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteData, setConfirmDeleteData] = useState<{ id: string; name: string; hasDependencies: boolean } | null>(null);
 
@@ -110,6 +114,8 @@ export const ManageStruktur: React.FC = () => {
   const openCreate = (preset?: Partial<FormState>) => {
     setEditingMember(null);
     setFormData({ ...emptyForm(), order: strukturMembers.length + 1, ...preset });
+    setUserQuery('');
+    setUserHits([]);
     setIsModalOpen(true);
   };
 
@@ -121,6 +127,7 @@ export const ManageStruktur: React.FC = () => {
       division: m.division || 'LITURGIA',
       subdivision: m.subdivision || '',
       photoUrl: m.photoUrl || '',
+      userId: m.userId || '',
       phone: m.phone || '',
       email: m.email || '',
       bio: m.bio || '',
@@ -132,6 +139,8 @@ export const ManageStruktur: React.FC = () => {
       subRoleId: m.subRoleId || '',
       groupId: m.groupId || '',
     });
+    setUserQuery('');
+    setUserHits([]);
     setIsModalOpen(true);
   };
 
@@ -145,6 +154,7 @@ export const ManageStruktur: React.FC = () => {
       division: formData.division,
       subdivision: formData.subdivision.trim() || undefined,
       photoUrl: formData.photoUrl,
+      userId: formData.userId.trim() || undefined,
       phone: formData.phone,
       email: formData.email,
       bio: formData.bio,
@@ -693,6 +703,62 @@ export const ManageStruktur: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+                  Taut akun portal <span className="normal-case text-[#8C8880]">(foto mengikuti akun)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Cari nama atau email…"
+                  value={userQuery}
+                  onChange={async (e) => {
+                    const q = e.target.value;
+                    setUserQuery(q);
+                    if (q.trim().length < 2) {
+                      setUserHits([]);
+                      return;
+                    }
+                    try {
+                      const r = await fetch(`/api/users/search?q=${encodeURIComponent(q.trim())}`, {
+                        credentials: 'include',
+                      });
+                      const d = await r.json();
+                      setUserHits(d.users || []);
+                    } catch {
+                      setUserHits([]);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                />
+                {formData.userId && (
+                  <p className="text-[10px] text-emerald-700 mt-1 font-bold">Tertaut: {formData.userId}</p>
+                )}
+                {userHits.length > 0 && (
+                  <div className="mt-1 border border-[#D9D7D0] rounded-xl overflow-hidden bg-white">
+                    {userHits.map((u) => (
+                      <button
+                        type="button"
+                        key={u.id}
+                        onClick={() => {
+                          setFormData((f) => ({
+                            ...f,
+                            userId: u.id,
+                            name: f.name || u.name,
+                            email: f.email || u.email || '',
+                          }));
+                          setUserQuery(u.name);
+                          setUserHits([]);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#FAF9F5] border-b border-[#D9D7D0]/40 last:border-0"
+                      >
+                        <span className="font-bold">{u.name}</span>
+                        {u.email ? <span className="text-[#8C8880]"> · {u.email}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider block mb-1">

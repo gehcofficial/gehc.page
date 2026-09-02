@@ -135,6 +135,9 @@ model User {
   loginUsername String? @unique @map("login_username") @db.VarChar(40)
   name      String   @db.VarChar(150)
   avatar    String?  @db.Text
+  avatarGoogle     String?  @map("avatar_google") @db.Text
+  avatarSource     String   @default("GOOGLE") @map("avatar_source") @db.VarChar(16) // GOOGLE | CUSTOM
+  avatarDriveFileId String? @map("avatar_drive_file_id") @db.VarChar(128)
   phone     String?  @db.VarChar(40)
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
@@ -231,6 +234,8 @@ model User {
   orgAssignmentsGiven       OrgAssignment[] @relation("OrgAssignmentAssigner")
   eventAttendees            EventAttendee[]
   platformAdminGrants       PlatformAdminGrant[]
+  strukturMembers           StrukturMember[]
+  testimonials              Testimonial[]
 
   @@index([kolomId])
   @@index([bipra])
@@ -494,6 +499,7 @@ model StrukturMember {
   subdivision String? @map("subdivision") @db.VarChar(100)
   period      String? @db.VarChar(60)
   photoUrl    String? @map("photo_url") @db.Text
+  userId      String? @map("user_id") @db.VarChar(64)
   bio         String? @db.Text
   phone       String? @db.VarChar(40)
   email       String? @db.VarChar(190)
@@ -507,8 +513,11 @@ model StrukturMember {
   subRoleId    String? @map("sub_role_id") @db.VarChar(64) // reference to another StrukturMember as sub-role
   groupId      String? @map("group_id") @db.VarChar(64) // mentoring group if applicable
 
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([division])
   @@index([groupId])
+  @@index([userId])
   @@map("struktur_members")
 }
 
@@ -935,12 +944,16 @@ model Testimonial {
   groupName   String?  @map("group_name") @db.VarChar(100)
   quote       String   @db.Text
   photoUrl    String?  @map("photo_url") @db.Text
+  userId      String?  @map("user_id") @db.VarChar(64)
   isPublished Boolean  @default(false) @map("is_published")
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([tenantId, isPublished, sortOrder])
+  @@index([userId])
   @@map("testimonials")
 }
 

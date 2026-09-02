@@ -271,8 +271,10 @@ export const GroupDetailPage: React.FC = () => {
             <FullFamilyTree
               mentor={activeBatch.mentor}
               comentor={activeBatch.comentor || '—'}
-              mentees={(activeBatch.mentees || []).map((m) => ({ name: m.name, note: m.note }))}
+              mentees={(activeBatch.mentees || []).map((m) => ({ name: m.name, note: m.note, avatar: m.avatar }))}
               color={group.color || '#FF416C'}
+              mentorAvatar={activeBatch.mentorAvatar}
+              comentorAvatar={activeBatch.comentorAvatar}
             />
             {activeBatch.theme && (
               <div className="mt-4 flex items-center gap-2 text-xs text-[#8C8880]">

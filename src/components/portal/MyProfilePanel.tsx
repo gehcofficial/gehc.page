@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Loader2, Mail, User } from 'lucide-react';
+import { CheckCircle2, Circle, Camera, Loader2, Mail, RotateCcw, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
 import { ProfileGiftsSection } from './ProfileGiftsSection';
 import { ProfileRecreationalSection } from './ProfileRecreationalSection';
 import { ProfileChurchDataRequestPanel, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { LinkGoogleCard } from './LinkGoogleCard';
-import { initialsAvatar } from '../../lib/avatar';
+import { displayAvatar } from '../../lib/avatar';
 import {
   COMMON_MAJORS,
   LIFE_STATUS_LABEL,
@@ -32,7 +32,7 @@ export const MyProfilePanel: React.FC<{
   defaultOpenSection?: ProfileSectionId;
   onGiftSaved?: () => void;
 }> = ({ defaultOpenSection, onGiftSaved }) => {
-  const { addToast, authUser } = useApp();
+  const { addToast, authUser, refreshAuthUser } = useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [suggestBusy, setSuggestBusy] = useState(false);
@@ -66,6 +66,87 @@ export const MyProfilePanel: React.FC<{
     emergencyContactAddress: '',
   });
   const [due, setDue] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  const fileToJpegDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const max = 900;
+        const side = Math.min(img.width, img.height, max);
+        const canvas = document.createElement('canvas');
+        canvas.width = side;
+        canvas.height = side;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('Canvas tidak tersedia.'));
+          return;
+        }
+        const sx = (img.width - Math.min(img.width, img.height)) / 2;
+        const sy = (img.height - Math.min(img.width, img.height)) / 2;
+        const crop = Math.min(img.width, img.height);
+        ctx.drawImage(img, sx, sy, crop, crop, 0, 0, side, side);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Gagal membaca foto.'));
+      };
+      img.src = url;
+    });
+
+  const applyAvatarUser = async (next: { avatar?: string | null; avatarSource?: string | null }) => {
+    setUser((u: any) => (u ? { ...u, ...next } : u));
+    await refreshAuthUser();
+  };
+
+  const onPickAvatar = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      addToast({ type: 'error', title: 'Format tidak didukung', description: 'Pakai JPEG, PNG, atau WebP.' });
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      const dataUrl = await fileToJpegDataUrl(file);
+      const res = await fetch('/api/me/avatar', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mimetype: 'image/jpeg', data: dataUrl }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Gagal unggah foto.');
+      await applyAvatarUser(body.user || {});
+      addToast({
+        type: 'success',
+        title: 'Foto profil diperbarui',
+        description: 'Portal memakai foto baru sekarang. Website publik menyusul setelah publish (~1–3 menit).',
+      });
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal ganti foto', description: e.message || 'Coba lagi.' });
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const restoreGoogleAvatar = async () => {
+    setAvatarBusy(true);
+    try {
+      const res = await fetch('/api/me/avatar', { method: 'DELETE', credentials: 'include' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Gagal mengembalikan foto Google.');
+      await applyAvatarUser(body.user || {});
+      addToast({ type: 'success', title: 'Foto Google dikembalikan' });
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal', description: e.message || 'Coba lagi.' });
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (defaultOpenSection) setOpen(defaultOpenSection);
@@ -241,11 +322,27 @@ export const MyProfilePanel: React.FC<{
     <div className="space-y-5 max-w-2xl">
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="flex items-start gap-4">
-          <img
-            src={user?.avatar || initialsAvatar(user?.name || '?')}
-            alt={user?.name || 'Profil'}
-            className="w-16 h-16 rounded-full object-cover border-2 border-[#D9D7D0] shrink-0"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={displayAvatar(user?.name, user?.avatar)}
+              alt={user?.name || 'Profil'}
+              className="w-16 h-16 rounded-full object-cover border-2 border-[#D9D7D0]"
+            />
+            <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#181818] text-white flex items-center justify-center cursor-pointer shadow-md hover:bg-[#FF416C] transition-colors">
+              {avatarBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={avatarBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  void onPickAvatar(f);
+                }}
+              />
+            </label>
+          </div>
           <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
               <User className="w-3.5 h-3.5 text-[#FF416C]" />
@@ -258,6 +355,22 @@ export const MyProfilePanel: React.FC<{
                 {user.email}
               </p>
             )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] text-[#8C8880]">
+                {user?.avatarSource === 'CUSTOM' ? 'Foto sendiri' : 'Foto Google'}
+              </span>
+              {user?.avatarSource === 'CUSTOM' && (
+                <button
+                  type="button"
+                  disabled={avatarBusy}
+                  onClick={() => void restoreGoogleAvatar()}
+                  className="text-[10px] font-bold text-[#FF416C] inline-flex items-center gap-1 hover:underline disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Kembalikan foto Google
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

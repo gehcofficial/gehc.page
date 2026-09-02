@@ -13,6 +13,7 @@ import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
+import { displayAvatar } from '../../lib/avatar';
 import NotificationPermissionBanner from '../pwa/NotificationPermissionBanner';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import { PeopleInvites } from './PeopleInvites';
@@ -427,7 +428,7 @@ export const PortalLayout: React.FC = () => {
               <div className="flex flex-col items-center gap-2">
                 <div className="relative">
                   <img
-                    src={currentUser.avatar}
+                    src={displayAvatar(currentUser.name, currentUser.avatar)}
                     alt={currentUser.name}
                     className="w-9 h-9 rounded-full bg-gray-100 border-2 border-[#D9D7D0]/60 hover:border-[#FF416C]/40 transition-all duration-200"
                   />
@@ -448,7 +449,7 @@ export const PortalLayout: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#D9D7D0]/40">
                   <div className="relative shrink-0">
-                    <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full bg-gray-100 border border-[#D9D7D0]" />
+                    <img src={displayAvatar(currentUser.name, currentUser.avatar)} alt={currentUser.name} className="w-10 h-10 rounded-full bg-gray-100 border border-[#D9D7D0]" />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -15,6 +15,7 @@ import {
   LogIn,
   Store,
 } from 'lucide-react';
+import { displayAvatar } from '../../lib/avatar';
 
 export const Navbar: React.FC = () => {
   const {
@@ -123,7 +124,7 @@ export const Navbar: React.FC = () => {
                   title="Akun & konteks peran"
                 >
                   <div className="w-6 h-6 rounded-full overflow-hidden border border-white/40">
-                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                    <img src={displayAvatar(currentUser.name, currentUser.avatar)} alt={currentUser.name} className="w-full h-full object-cover" />
                   </div>
                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${getRoleBadgeStyle(currentRole)}`}>
                     {currentRole}

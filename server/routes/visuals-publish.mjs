@@ -7,7 +7,7 @@ import {
   getPublishVisualsRun,
 } from '../lib/github-actions.mjs';
 
-export const PULLABLE_VISUAL_FOLDERS = [...WEBSITE_VISUAL_SUBFOLDERS, 'pengurus', 'testimoni'];
+export const PULLABLE_VISUAL_FOLDERS = [...WEBSITE_VISUAL_SUBFOLDERS];
 
 const FOLDER_LABELS = {
   kelompok: 'Cover 10 rumah (kelompok)',
@@ -18,6 +18,7 @@ const FOLDER_LABELS = {
   benzarpreneurship: 'Benzarpreneurship',
   pengurus: 'Foto pengurus',
   testimoni: 'Foto testimoni',
+  users: 'Foto profil user',
 };
 
 /** Portal → publish visual Drive ke CDN via GitHub Actions. */

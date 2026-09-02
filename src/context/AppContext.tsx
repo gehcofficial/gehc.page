@@ -94,6 +94,7 @@ interface AppContextType {
   ssoClientId: string | null;
   loginWithCredential: (credential: string) => Promise<void>;
   logoutSso: () => Promise<void>;
+  refreshAuthUser: () => Promise<void>;
 
   // Multi-role (rangkap jabatan)
   myRoleOptions: UserRole[];
@@ -397,8 +398,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               notes: m.notes || undefined,
               familyRole: m.familyRole,
               batchPeriod: m.batchPeriod ? String(m.batchPeriod) : undefined,
+              avatar: m.user?.avatar || m.avatar || undefined,
             });
           }
+        }
+
+        const allMembers = [...mMap.values()] as Array<{
+          group_id: string;
+          name: string;
+          familyRole?: string;
+          batchPeriod?: string;
+          avatar?: string;
+        }>;
+        const pickAvatar = (groupId: string, role: string, name: string, period?: string) => {
+          const list = allMembers.filter((m) => m.group_id === groupId);
+          const want = String(name || '').toLowerCase().trim();
+          const byRole = list.find(
+            (m) =>
+              String(m.familyRole || '').toUpperCase() === role &&
+              m.avatar &&
+              (!period || !m.batchPeriod || m.batchPeriod === period),
+          );
+          if (byRole?.avatar) return byRole.avatar;
+          return list.find((m) => String(m.name || '').toLowerCase().trim() === want)?.avatar;
+        };
+        for (const b of bMapped) {
+          b.mentorAvatar = pickAvatar(b.group_id, 'MENTOR', b.mentor, b.period);
+          b.comentorAvatar = pickAvatar(b.group_id, 'COMENTOR', b.comentor, b.period);
         }
 
         // Sisipkan mentee ke batch-nya (kunci: groupId|period)
@@ -406,7 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         for (const m of mMap.values() as IterableIterator<any>) {
           if (String(m.familyRole || '').toUpperCase() === 'MENTEE' && m.batchPeriod) {
             const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
-            if (b) b.mentees.push({ name: m.name, note: undefined });
+            if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar });
           }
         }
 
@@ -427,6 +453,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               attendanceRate: 0,
               familyRole: 'MENTOR',
               batchPeriod: b.period,
+              avatar: b.mentorAvatar,
             });
           }
           // Comentor
@@ -442,6 +469,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               attendanceRate: 0,
               familyRole: 'COMENTOR',
               batchPeriod: b.period,
+              avatar: b.comentorAvatar,
             });
           }
           // Mentees
@@ -459,6 +487,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               notes: mt.note,
               familyRole: 'MENTEE',
               batchPeriod: b.period,
+              avatar: mt.avatar,
             });
           }
         }
@@ -599,6 +628,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRoleOverride(null);
     addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
   };
+
+  const refreshAuthUser = useCallback(async () => {
+    try {
+      const me = await fetchMeFull();
+      setAuthUser(me.user);
+    } catch {
+      /* keep current session */
+    }
+  }, []);
 
   // User & RBAC Computation (multi-role: satu akun bisa rangkap jabatan)
   const currentUser: User =
@@ -1100,6 +1138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ssoClientId,
         loginWithCredential,
         logoutSso,
+        refreshAuthUser,
 
         myRoleOptions,
         setActiveUserRole,

@@ -31,7 +31,7 @@ import {
 } from './lib/static-visuals.mjs';
 import { optimizeImageFile, formatSize } from './lib/visual-optimize.mjs';
 
-const PULLABLE_FOLDERS = [...WEBSITE_VISUAL_SUBFOLDERS, 'pengurus', 'testimoni'];
+const PULLABLE_FOLDERS = [...WEBSITE_VISUAL_SUBFOLDERS];
 
 function parseFolderFilter() {
   const eq = process.argv.find((a) => a.startsWith('--folder='));
@@ -253,6 +253,7 @@ async function main() {
     ...VISUAL_SLOTS.map((s) => s.folder.toLowerCase()),
     'pengurus',
     'testimoni',
+    'users',
   ]);
   const targetFolderNames = onlyFolder ? new Set([onlyFolder]) : folderNames;
   const foldersToLoad = [...targetFolderNames]
@@ -307,6 +308,17 @@ async function main() {
       'testimoni',
       filesByFolder.get(testimoniFolder.id) || [],
       'contoh-'
+    );
+  }
+
+  const usersFolder = byName.get('users');
+  if ((!onlyFolder || onlyFolder === 'users') && usersFolder) {
+    downloaded += await pullNamedFolder(
+      slots,
+      oauthDrive,
+      'users',
+      filesByFolder.get(usersFolder.id) || [],
+      '_'
     );
   }
 

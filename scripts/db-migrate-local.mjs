@@ -80,6 +80,11 @@ const STEPS = [
     label: 'Login username + onboarding_path (dual auth)',
     required: true,
   },
+  {
+    script: 'server/_migrate-user-avatars.cjs',
+    label: 'User avatars (avatar_google, avatar_source) + struktur/testimoni userId',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
