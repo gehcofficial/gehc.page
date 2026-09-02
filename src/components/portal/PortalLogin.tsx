@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
@@ -8,18 +8,10 @@ import { getNextFromHash } from '../../lib/hash-routes';
 import { finishAuthRedirect } from '../../lib/auth-redirect';
 
 export const PortalLogin: React.FC = () => {
-  const { setActiveView } = useApp();
-  const [clientId, setClientId] = useState<string | null>(null);
+  const { setActiveView, ssoClientId, authLoading } = useApp();
   const [form, setForm] = useState({ login: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-
-  useEffect(() => {
-    fetch('/api/auth/config')
-      .then((r) => r.json())
-      .then((d) => setClientId(d.clientId))
-      .catch(() => {});
-  }, []);
 
   const afterAuth = async () => {
     const next = getNextFromHash();
@@ -71,9 +63,11 @@ export const PortalLogin: React.FC = () => {
         </div>
 
         <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
-          {clientId ? (
+          {authLoading ? (
+            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masuk…</p>
+          ) : ssoClientId ? (
             <div className="flex justify-center pb-1">
-              <GoogleLoginButton clientId={clientId} onCredential={onCredential} onError={setErr} />
+              <GoogleLoginButton clientId={ssoClientId} onCredential={onCredential} onError={setErr} />
             </div>
           ) : (
             <p className="text-[11px] text-white/40 text-center leading-relaxed">

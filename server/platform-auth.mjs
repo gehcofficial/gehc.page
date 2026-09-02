@@ -9,7 +9,7 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { getPrisma, isDbConfigured } from './db.mjs';
-import { hashPassword, verifyPassword, parseCookies } from './auth.mjs';
+import { hashPassword, verifyPassword, parseCookies, cookieFlags } from './auth.mjs';
 import { writePlatformAudit } from './platform-operators.mjs';
 
 export const OPERATOR_COOKIE_NAME = 'gehc_operator_session';
@@ -63,12 +63,12 @@ export function setOperatorSessionCookie(res, operator) {
   });
   res.setHeader(
     'Set-Cookie',
-    `${OPERATOR_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
+    `${OPERATOR_COOKIE_NAME}=${encodeURIComponent(token)}; ${cookieFlags({ maxAge: Math.floor(SESSION_TTL_MS / 1000) })}`,
   );
 }
 
 export function clearOperatorSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${OPERATOR_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.setHeader('Set-Cookie', `${OPERATOR_COOKIE_NAME}=; ${cookieFlags({ maxAge: 0 })}`);
 }
 
 export function getWebAuthnConfig() {

@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLang } from '../../context/LangContext';
 
 interface Props {
   clientId: string;
@@ -42,13 +41,12 @@ function loadGsiScript(): Promise<void> {
   });
 }
 
-/** Tombol "Sign in with Google" resmi via GIS — dirender sekali per clientId+locale. */
+/** Tombol GIS resmi — locale ID tetap, tidak di-render ulang saat parent re-render. */
 const GoogleLoginButton: React.FC<Props> = ({ clientId, onCredential, onError }) => {
-  const { lang } = useLang();
-  const locale = lang === 'en' ? 'en' : 'id';
   const containerRef = useRef<HTMLDivElement>(null);
   const onCredentialRef = useRef(onCredential);
   const onErrorRef = useRef(onError);
+  const paintedFor = useRef('');
   const [ready, setReady] = useState(false);
 
   onCredentialRef.current = onCredential;
@@ -56,7 +54,6 @@ const GoogleLoginButton: React.FC<Props> = ({ clientId, onCredential, onError })
 
   useEffect(() => {
     let cancelled = false;
-    setReady(false);
     loadGsiScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.google) return;
@@ -67,21 +64,26 @@ const GoogleLoginButton: React.FC<Props> = ({ clientId, onCredential, onError })
           });
           gsiInitialized = true;
         }
+        if (paintedFor.current === clientId && containerRef.current.childElementCount > 0) {
+          setReady(true);
+          return;
+        }
         containerRef.current.innerHTML = '';
         window.google.accounts.id.renderButton(containerRef.current, {
           theme: 'filled_black',
           size: 'medium',
           shape: 'pill',
           text: 'signin_with',
-          locale,
+          locale: 'id',
         });
+        paintedFor.current = clientId;
         setReady(true);
       })
       .catch((err: Error) => onErrorRef.current?.(err.message));
     return () => {
       cancelled = true;
     };
-  }, [clientId, locale]);
+  }, [clientId]);
 
   return (
     <div>

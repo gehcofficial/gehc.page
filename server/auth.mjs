@@ -63,16 +63,19 @@ export function parseCookies(req) {
   return out;
 }
 
+export function cookieFlags({ maxAge } = {}) {
+  const age = maxAge ?? Math.floor(SESSION_TTL_MS / 1000);
+  const secure = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  return `Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure ? '; Secure' : ''}`;
+}
+
 export function setSessionCookie(res, payload) {
   const token = signSession({ ...payload, exp: Date.now() + SESSION_TTL_MS });
-  res.setHeader(
-    'Set-Cookie',
-    `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
-  );
+  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(token)}; ${cookieFlags()}`);
 }
 
 export function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; ${cookieFlags({ maxAge: 0 })}`);
 }
 
 function dedupeRoles(roles) {

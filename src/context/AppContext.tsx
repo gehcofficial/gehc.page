@@ -575,11 +575,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let cancelled = false;
     (async () => {
       try {
-        const cfg = await fetchAuthConfig();
-        if (cancelled) return;
-        setSsoClientId(cfg.clientId);
-        await refreshPlatformContext();
-        if (cfg.configured) {
+        try {
+          const cfg = await fetchAuthConfig();
+          if (!cancelled) setSsoClientId(cfg.clientId);
+        } catch {
+          /* Google SSO opsional — sesi lokal tetap dicek */
+        }
+        try {
           const me = await fetchMeFull();
           if (!cancelled) {
             setAuthUser(me.user);
@@ -588,9 +590,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setIsPlatformOperator(me.isPlatformOperator);
             setPlatformCapabilities(me.platformCapabilities || []);
           }
+        } catch {
+          /* belum login — cookie tidak ada atau kedaluwarsa */
         }
-      } catch {
-        /* belum login */
+        if (!cancelled) await refreshPlatformContext();
       } finally {
         if (!cancelled) setAuthLoading(false);
       }

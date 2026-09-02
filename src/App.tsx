@@ -32,11 +32,20 @@ import { RegisterPage } from './components/public/auth/RegisterPage';
 import { EventSignupRouter } from './components/public/auth/EventSignupRouter';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { isAdminHash } from './lib/admin-routes';
+import { Loader2 } from 'lucide-react';
 
 const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
 
+const SessionRestoreScreen: React.FC = () => (
+  <div className="min-h-screen bg-[#111111] text-white flex items-center justify-center">
+    <p className="text-sm text-white/60 flex items-center gap-2">
+      <Loader2 className="w-4 h-4 animate-spin" /> Memulihkan sesi…
+    </p>
+  </div>
+);
+
 const MainAppContent: React.FC = () => {
-  const { activeView, publicTab, authUser } = useApp();
+  const { activeView, publicTab, authUser, authLoading } = useApp();
 
   if (typeof window !== 'undefined' && window.location.hash.startsWith('#/claim')) {
     return <ClaimPage />;
@@ -63,6 +72,7 @@ const MainAppContent: React.FC = () => {
   }
 
   if (activeView === 'portal') {
+    if (authLoading) return <SessionRestoreScreen />;
     if (!authUser) return <PortalLogin />;
 
     const pendingSync = authUser ? <ApplyPendingBakutau /> : null;

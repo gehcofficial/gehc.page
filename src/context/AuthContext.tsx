@@ -30,15 +30,18 @@ export const AuthProvider: React.FC<{
     let cancelled = false;
     (async () => {
       try {
-        const cfg = await fetchAuthConfig();
-        if (cancelled) return;
-        setSsoClientId(cfg.clientId);
-        if (cfg.configured) {
+        try {
+          const cfg = await fetchAuthConfig();
+          if (!cancelled) setSsoClientId(cfg.clientId);
+        } catch {
+          /* Google SSO opsional */
+        }
+        try {
           const me = await fetchMe();
           if (!cancelled) setAuthUser(me);
+        } catch {
+          /* belum login */
         }
-      } catch {
-        /* belum login */
       } finally {
         if (!cancelled) setAuthLoading(false);
       }
