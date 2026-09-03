@@ -50,7 +50,7 @@ const REQUIRED_WAITING_POOL_COLUMNS = [
 /** Kolom di tabel selain users/waiting_pool yang boot-critical */
 const REQUIRED_TABLE_COLUMNS = {
   event_attendees: ['checked_in_at', 'checked_in_by_id'],
-  EventProgram: ['kind', 'church_program_id'],
+  EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query'],
 };
 
 const quiet = process.argv.includes('--quiet');

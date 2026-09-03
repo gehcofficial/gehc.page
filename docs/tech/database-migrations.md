@@ -37,6 +37,8 @@ npm run dev:all
 | `npm run db:migrate:church-request` | Tabel permintaan ubah data gereja |
 | `npm run db:migrate:placement` | Jethro placement (opsional; bisa gagal FK di DB lama) |
 | `npm run db:migrate:birth-date` | Kolom `users.birth_date` |
+| `npm run db:migrate:church-calendar` | Tabel `church_calendar_entries` |
+| `npm run db:migrate:event-venue` | Venue & `event_date` EventProgram + koreksi zona waktu BAKU TAU |
 | `npm run db:migrate:staging` | Prisma deploy ke staging (**bukan** pengganti local) |
 | `npm run db:migrate:prod` | Prisma deploy ke produksi — **hanya dengan persetujuan eksplisit** |
 

@@ -3,12 +3,8 @@ import { getPrisma } from '../db.mjs';
 import {
   BAKU_TAU_SOURCE_EVENT,
   BAKU_TAU_EVENT_ID,
-  BAKU_TAU_EVENT_DATE_ISO,
-  BAKU_TAU_VENUE_NAME,
-  BAKU_TAU_LOCATION_DETAIL,
-  BAKU_TAU_MAP_URL,
-  BAKU_TAU_MAP_EMBED_QUERY,
 } from '../lib/baku-tau.mjs';
+import { venueOf } from '../lib/event-venue.mjs';
 
 export const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
@@ -80,11 +76,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
         slug: 'bakutau',
         name: event.name,
         status: event.status,
-        eventDate: BAKU_TAU_EVENT_DATE_ISO,
-        venueName: BAKU_TAU_VENUE_NAME,
-        locationDetail: BAKU_TAU_LOCATION_DETAIL,
-        mapUrl: BAKU_TAU_MAP_URL,
-        mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
+        ...venueOf(event, true),
         stats,
       });
     }
@@ -115,11 +107,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       slug: event.slug,
       name: event.name,
       status: event.status,
-      eventDate: isBakutau ? BAKU_TAU_EVENT_DATE_ISO : event.startDate?.toISOString?.() || null,
-      venueName: isBakutau ? BAKU_TAU_VENUE_NAME : null,
-      locationDetail: isBakutau ? BAKU_TAU_LOCATION_DETAIL : event.description,
-      mapUrl: isBakutau ? BAKU_TAU_MAP_URL : null,
-      mapEmbedQuery: isBakutau ? BAKU_TAU_MAP_EMBED_QUERY : null,
+      ...venueOf(event, isBakutau),
       stats,
     });
   }));

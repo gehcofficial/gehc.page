@@ -1,6 +1,38 @@
 # GEHC Portal — Handoff
 
-## Current — Kalender gerejawi + pengerasan check-in (3 Sep 2026)
+## Current — Venue event di DB + form edit (3 Sep 2026)
+
+**Goal:** Tanggal dan tempat BAKU TAU (dan event publik lain) hidup di `EventProgram`, bisa diedit dari portal, konstanta hanya fallback.
+
+### Done
+
+- Migrasi 24: `event_date`, `venue_name`, `location_detail`, `map_url`, `map_embed_query` di `EventProgram`. Backfill BAKU TAU lewat `Date` dari `2026-09-12T15:00:00+07:00` (= `2026-09-12T08:00:00.000Z`), bukan string wall-clock yang terbaca 22:00 WIB.
+- Welcome Night `EventMeeting.scheduled_at` dikoreksi ke instant yang sama. Script lama `_migrate-bakutau-venue.cjs` tidak lagi menimpa jam ke 15:00 naif.
+- `GET /api/events/bakutau` dan payload publik memakai `venueOf()`: DB dulu, konstanta jika kolom kosong (rollback tanpa redeploy).
+- `PATCH /api/events/:id` menerima field venue; `GET` by-id mengembalikan `canEdit`. Form **Edit** di Program & Event (WIB `datetime-local`). Rentang `startDate`/`endDate` tetap program tahunan, terpisah dari hari pelaksanaan.
+- `content_items` `cnt-bakutau` diselaraskan dari EventProgram saat migrasi dan saat PATCH venue.
+- Unit test zona waktu + `venueOf` di `tests/unit/event-venue.test.ts`.
+
+### Commands
+
+```powershell
+npm run db:migrate:local            # termasuk migrasi 24
+npm run db:schema:check
+npm run lint; npm run test
+npm run dev:all
+```
+
+### Next
+
+- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
+- Jalankan `db:migrate:local:staging` (kalender + venue) di staging.
+- Isi Pengucapan Syukur & HUT WKI setelah dikonfirmasi BPMJ.
+- Generate ulang batch Jethro — skor Gift Diversity lama masih salah.
+- Rapikan mismatch UI/API (BPMJ lihat form tulis → 403; tombol runbook; MENTOR kalender tanpa nav).
+
+---
+
+## Prior — Kalender gerejawi + pengerasan check-in (3 Sep 2026)
 
 **Goal:** Kunci jalur check-in sebelum BAKU TAU 12 Sep, lalu ubah "payung gerejawi" yang tanpa tanggal jadi kalender gerejawi bertanggal yang menggerakkan runbook H-21 → H+7 dan timeline publik.
 

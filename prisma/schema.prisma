@@ -611,8 +611,16 @@ model EventProgram {
   status        String          @default("PLANNING") @db.VarChar(16) // PLANNING|ACTIVE|DONE|ARCHIVED
   kind          String          @default("KHUSUS") @db.VarChar(16) // UMUM | KHUSUS | INTERNAL | RECURRING
   churchProgramId String?       @map("church_program_id") @db.VarChar(64)
+  /// Rentang program (BAKU TAU: 1 Jan–31 Des), bukan hari pelaksanaan.
   startDate     DateTime?       @map("start_date")
   endDate       DateTime?       @map("end_date")
+  /// Hari + jam pelaksanaan sesungguhnya. Instant UTC — kolom DATETIME tidak
+  /// menyimpan offset, jadi selalu tulis lewat Date dari ISO beroffset.
+  eventDate       DateTime?     @map("event_date")
+  venueName       String?       @map("venue_name") @db.VarChar(190)
+  locationDetail  String?       @map("location_detail") @db.VarChar(190)
+  mapUrl          String?       @map("map_url") @db.VarChar(512)
+  mapEmbedQuery   String?       @map("map_embed_query") @db.VarChar(190)
   /// Tidak diisi provisioning — folder Drive dibuat per divisi di EventDivision.driveFolderId.
   driveFolderId String?         @map("drive_folder_id") @db.VarChar(128)
   /// Tidak diisi provisioning — tautan Meet per pertemuan ada di EventMeeting.gmeetLink.

@@ -101,7 +101,8 @@ import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
-import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME, GEHC_MAP_URL } from './lib/baku-tau.mjs';
+import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
+import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
@@ -1913,6 +1914,11 @@ function slugify(text) {
 }
 
 // Helper: divisi yang bisa diakses user berdasarkan struktur_members
+/** 5 Panca Tugas + Benzarpreneurship — sinkron dengan src/lib/pantatugas.ts */
+const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
+const EVENT_KINDS = ['UMUM', 'KHUSUS', 'INTERNAL', 'RECURRING'];
+const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
+
 async function canSeeEventDivision(authUser, division) {
   if (!authUser) return false;
   const roles = (authUser.roles || []).map((r) => r.role);
@@ -2029,11 +2035,14 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   if (!name || !Array.isArray(divisions) || divisions.length === 0) {
     return res.status(400).json({ error: 'name dan divisions[] wajib.' });
   }
+  const invalidDiv = divisions.find((d) => !EVENT_DIVISIONS.includes(String(d).toUpperCase()));
+  if (invalidDiv) {
+    return res.status(400).json({ error: `divisi "${invalidDiv}" tidak dikenal. Pilihan: ${EVENT_DIVISIONS.join(', ')}.` });
+  }
 
-  const allowedKinds = ['UMUM', 'KHUSUS', 'INTERNAL', 'RECURRING'];
   const eventKind = String(kind || 'KHUSUS').toUpperCase();
-  if (!allowedKinds.includes(eventKind)) {
-    return res.status(400).json({ error: 'kind harus UMUM, KHUSUS, INTERNAL, atau RECURRING.' });
+  if (!EVENT_KINDS.includes(eventKind)) {
+    return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
   }
   let waUrl = null;
   if (whatsappGroupUrl) {
@@ -2108,6 +2117,46 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   res.status(201).json({ event: ev, provisioned });
 }));
 
+// POST /api/events/:id/divisions — aktifkan satu divisi pada event yang sudah ada.
+// Tanpa ini, event lama (mis. BAKU TAU) tidak punya divisi sama sekali dan seluruh
+// ruang kerja divisi — termasuk tab Check-in — tidak bisa dijangkau dari UI.
+app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const division = String(req.body?.division || '').toUpperCase();
+  if (!EVENT_DIVISIONS.includes(division)) {
+    return res.status(400).json({ error: `division harus salah satu dari ${EVENT_DIVISIONS.join(', ')}.` });
+  }
+
+  const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  const existing = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId: ev.id, division } },
+  });
+  if (existing) return res.json({ division: existing, alreadyActive: true });
+
+  const created = await prisma.eventDivision.create({
+    data: { id: `evd-${ev.slug}-${division}`, eventId: ev.id, division },
+  });
+
+  let driveFolderId = null;
+  if (process.env.GDRIVE_WRITE === '1' && process.env.GDRIVE_ROOT_FOLDER_ID) {
+    try {
+      const { createEventFolder } = await import('./gdrive-events.mjs');
+      driveFolderId = await createEventFolder(ev, division);
+      if (driveFolderId) {
+        await prisma.eventDivision.update({ where: { id: created.id }, data: { driveFolderId } });
+      }
+    } catch (e) {
+      console.warn(`[event] provisioning ${division} gagal:`, e.message);
+    }
+  }
+
+  res.status(201).json({ division: { ...created, driveFolderId }, driveFolderId });
+}));
+
 // BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
 registerBakuTauRoutes(app, { wrap });
 registerEventCheckInRoutes(app, { wrap });
@@ -2144,8 +2193,12 @@ app.get('/api/events/:id', wrap(async (req, res, next) => {
       );
       ev = {
         id: r.id, tenantId: r.tenant_id, slug: r.slug, name: r.name, description: r.description,
-        status: r.status, startDate: r.start_date, endDate: r.end_date,
+        status: r.status, kind: r.kind, churchProgramId: r.church_program_id,
+        startDate: r.start_date, endDate: r.end_date,
+        eventDate: r.event_date, venueName: r.venue_name, locationDetail: r.location_detail,
+        mapUrl: r.map_url, mapEmbedQuery: r.map_embed_query,
         driveFolderId: r.drive_folder_id, gmeetLink: r.gmeet_link,
+        whatsappGroupUrl: r.whatsapp_group_url,
         createdById: r.created_by_id, createdAt: r.created_at, updatedAt: r.updated_at,
         divisions: (divRows || []).map((d) => ({
           id: d.id, eventId: d.event_id, division: d.division, driveFolderId: d.drive_folder_id,
@@ -2169,8 +2222,14 @@ app.get('/api/events/:id', wrap(async (req, res, next) => {
     }
   }
   if (!ev) return next();
-  const { whatsappGroupUrl: _waHidden, ...safeEvent } = ev;
-  res.json({ event: safeEvent });
+  // Flag kemampuan supaya UI tidak menampilkan tombol yang pasti 403.
+  const editorRoles = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
+  const canEdit = (req.authUser?.roles || []).some((r) => editorRoles.includes(r.role));
+  const { whatsappGroupUrl, ...rest } = ev;
+  res.json({
+    event: canEdit ? { ...rest, whatsappGroupUrl } : rest,
+    canEdit,
+  });
 }));
 
 // PATCH /api/events/:id — edit meta + divisions
@@ -2178,19 +2237,107 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { name, description, startDate, endDate, status, kind, churchProgramId, whatsappGroupUrl } = req.body || {};
+  const {
+    name, description, startDate, endDate, status, kind, churchProgramId, whatsappGroupUrl,
+    eventDate, venueName, locationDetail, mapUrl, mapEmbedQuery,
+  } = req.body || {};
+
   const data = {};
-  if (name !== undefined) data.name = name;
-  if (description !== undefined) data.description = description;
+  if (name !== undefined) {
+    const trimmed = String(name).trim();
+    if (!trimmed) return res.status(400).json({ error: 'name tidak boleh kosong.' });
+    data.name = trimmed;
+  }
+  if (description !== undefined) data.description = description || null;
   if (startDate !== undefined) data.startDate = startDate ? new Date(startDate) : null;
   if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null;
-  if (status !== undefined) data.status = status;
-  if (kind !== undefined) data.kind = String(kind).toUpperCase();
+  if (status !== undefined) {
+    const s = String(status).toUpperCase();
+    if (!EVENT_STATUSES.includes(s)) {
+      return res.status(400).json({ error: `status harus salah satu dari ${EVENT_STATUSES.join(', ')}.` });
+    }
+    data.status = s;
+  }
+  if (kind !== undefined) {
+    const k = String(kind).toUpperCase();
+    if (!EVENT_KINDS.includes(k)) {
+      return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
+    }
+    data.kind = k;
+  }
   if (churchProgramId !== undefined) data.churchProgramId = churchProgramId || null;
-  if (whatsappGroupUrl !== undefined) data.whatsappGroupUrl = whatsappGroupUrl || null;
+  if (whatsappGroupUrl !== undefined) {
+    const raw = whatsappGroupUrl ? String(whatsappGroupUrl).trim() : '';
+    if (raw && !/^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(raw)) {
+      return res.status(400).json({ error: 'whatsappGroupUrl harus tautan undangan WhatsApp.' });
+    }
+    data.whatsappGroupUrl = raw || null;
+  }
+  // eventDate diterima sebagai ISO beroffset (mis. 2026-09-12T15:00:00+07:00).
+  if (eventDate !== undefined) {
+    if (!eventDate) {
+      data.eventDate = null;
+    } else {
+      const d = new Date(eventDate);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'eventDate tidak valid.' });
+      data.eventDate = d;
+    }
+  }
+  if (venueName !== undefined) data.venueName = venueName || null;
+  if (locationDetail !== undefined) data.locationDetail = locationDetail || null;
+  if (mapUrl !== undefined) data.mapUrl = mapUrl || null;
+  if (mapEmbedQuery !== undefined) data.mapEmbedQuery = mapEmbedQuery || null;
+
+  if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
+
+  const existing = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
   const ev = await prisma.eventProgram.update({ where: { id: req.params.id }, data });
-  res.json({ event: ev });
+
+  // Jaga ChannelLink tetap sinkron dengan URL WA event.
+  if (data.whatsappGroupUrl !== undefined) {
+    try {
+      if (data.whatsappGroupUrl) {
+        await prisma.channelLink.upsert({
+          where: { kind_refId: { kind: 'EVENT', refId: ev.id } },
+          update: { url: data.whatsappGroupUrl, updatedById: req.authUser.id, label: ev.name },
+          create: {
+            id: `cl-${crypto.randomUUID()}`,
+            kind: 'EVENT',
+            refId: ev.id,
+            url: data.whatsappGroupUrl,
+            label: ev.name,
+            updatedById: req.authUser.id,
+          },
+        });
+      } else {
+        await prisma.channelLink.deleteMany({ where: { kind: 'EVENT', refId: ev.id } });
+      }
+    } catch (e) {
+      console.warn('[event] sinkron ChannelLink gagal:', e.message);
+    }
+  }
+
+  const venueTouched = ['eventDate', 'venueName', 'locationDetail', 'mapUrl', 'mapEmbedQuery']
+    .some((k) => data[k] !== undefined);
+  if (venueTouched && ev.id === BAKU_TAU_EVENT_ID) {
+    try {
+      const venue = venueOf(ev, true);
+      const day = wibDateOnly(ev.eventDate);
+      await prisma.contentItem.update({
+        where: { id: 'cnt-bakutau' },
+        data: {
+          ...(day ? { eventDate: new Date(`${day}T00:00:00.000Z`) } : {}),
+          locationDetail: venue.locationDetail,
+        },
+      });
+    } catch (e) {
+      console.warn('[event] sinkron content_items gagal:', e.message);
+    }
+  }
+
+  res.json({ event: ev, canEdit: true });
 }));
 
 // POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres (supports replies)
@@ -3548,6 +3695,12 @@ app.get('/api/events/upcoming', wrap(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  let bakuVenue = venueOf(null, true);
+  try {
+    const baku = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+    bakuVenue = venueOf(baku, true);
+  } catch { /* konstanta tetap jadi fallback */ }
+
   const items = await prisma.contentItem.findMany({
     where: { type: 'ACTIVITY', isPublished: true },
     orderBy: [{ eventDate: 'asc' }, { publishedAt: 'desc' }],
@@ -3556,16 +3709,17 @@ app.get('/api/events/upcoming', wrap(async (req, res) => {
 
   const mapped = items.map((c) => {
     const eventDay = c.eventDate || c.publishedAt;
+    const isBaku = c.id === 'cnt-bakutau';
     return {
       id: c.id,
       title: c.title,
       subtitle: c.subtitle,
       date: eventDay,
-      eventDateTime: c.id === 'cnt-bakutau' ? BAKU_TAU_EVENT_DATE_ISO : null,
-      locationDetail: c.locationDetail ?? null,
-      mapUrl: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_URL : null,
-      mapEmbedQuery: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_EMBED_QUERY : null,
-      venueName: c.id === 'cnt-bakutau' ? BAKU_TAU_VENUE_NAME : null,
+      eventDateTime: isBaku ? bakuVenue.eventDate : null,
+      locationDetail: isBaku ? (bakuVenue.locationDetail ?? c.locationDetail) : (c.locationDetail ?? null),
+      mapUrl: isBaku ? bakuVenue.mapUrl : null,
+      mapEmbedQuery: isBaku ? bakuVenue.mapEmbedQuery : null,
+      venueName: isBaku ? bakuVenue.venueName : null,
       bannerUrl: c.bannerUrl,
       _sort: eventDay ? new Date(eventDay).getTime() : 0,
     };

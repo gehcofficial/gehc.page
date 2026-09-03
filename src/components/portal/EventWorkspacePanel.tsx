@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Loader2,
   AlertTriangle,
+  Pencil,
+  MapPin,
 } from 'lucide-react';
 import { ChurchCalendarPanel } from './ChurchCalendarPanel';
 import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
@@ -50,6 +52,11 @@ interface EventItem {
   kind?: string;
   churchProgramId?: string | null;
   churchProgram?: { id: string; name: string; scope: string } | null;
+  eventDate?: string | null;
+  venueName?: string | null;
+  locationDetail?: string | null;
+  mapUrl?: string | null;
+  mapEmbedQuery?: string | null;
   createdById: string;
   createdAt: string;
   divisions: EventDivision[];
@@ -60,6 +67,31 @@ type ViewMode = 'list' | 'detail';
 type ListTab = 'events' | 'calendar' | 'umbrella' | 'month';
 
 const ALL_EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
+const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
+
+/**
+ * Waktu acara selalu diinput dan ditampilkan dalam WIB, bukan zona browser.
+ * Kalau memakai zona browser, panitia yang sedang di luar negeri akan melihat
+ * dan menyimpan jam yang bergeser.
+ */
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function isoToWibInput(iso?: string | null): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  return new Date(t + WIB_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+function wibInputToIso(local: string): string {
+  return local ? `${local}:00+07:00` : '';
+}
+
+function isoToDateInput(iso?: string | null): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? '' : new Date(t).toISOString().slice(0, 10);
+}
 const EVENT_KINDS = [
   { id: 'KHUSUS', label: 'Khusus (BAKU TAU, retret)' },
   { id: 'UMUM', label: 'Umum (ibadah jemaat/pemuda)' },
@@ -101,7 +133,7 @@ const EventAttendeesBlock: React.FC<{ slug: string }> = ({ slug }) => {
 };
 
 export const EventWorkspacePanel: React.FC = () => {
-  const { addToast, authUser } = useApp();
+  const { addToast } = useApp();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
@@ -130,6 +162,16 @@ export const EventWorkspacePanel: React.FC = () => {
   // Meetings
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+
+  // Edit event
+  const [canEdit, setCanEdit] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '', description: '', kind: 'KHUSUS', status: 'PLANNING', churchProgramId: '',
+    startDate: '', endDate: '', whatsappGroupUrl: '',
+    eventDate: '', venueName: '', locationDetail: '', mapUrl: '', mapEmbedQuery: '',
+  });
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -203,6 +245,8 @@ export const EventWorkspacePanel: React.FC = () => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setSelected(d.event);
+      setCanEdit(d.canEdit === true);
+      setShowEdit(false);
       setView('detail');
 
       // Load discussions per division
@@ -298,6 +342,82 @@ export const EventWorkspacePanel: React.FC = () => {
 
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+  const formatDateTimeWib = (d?: string | null) => {
+    if (!d) return '';
+    return new Date(d).toLocaleString('id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    });
+  };
+
+  const startEdit = () => {
+    if (!selected) return;
+    setEditForm({
+      name: selected.name,
+      description: selected.description || '',
+      kind: selected.kind || 'KHUSUS',
+      status: selected.status || 'PLANNING',
+      churchProgramId: selected.churchProgramId || '',
+      startDate: isoToDateInput(selected.startDate),
+      endDate: isoToDateInput(selected.endDate),
+      whatsappGroupUrl: selected.whatsappGroupUrl || '',
+      eventDate: isoToWibInput(selected.eventDate),
+      venueName: selected.venueName || '',
+      locationDetail: selected.locationDetail || '',
+      mapUrl: selected.mapUrl || '',
+      mapEmbedQuery: selected.mapEmbedQuery || '',
+    });
+    setShowEdit(true);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected || !editForm.name.trim()) return;
+    setSavingEdit(true);
+    try {
+      const r = await fetch(`/api/events/${selected.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          description: editForm.description || null,
+          kind: editForm.kind,
+          status: editForm.status,
+          churchProgramId: editForm.churchProgramId || null,
+          startDate: editForm.startDate || null,
+          endDate: editForm.endDate || null,
+          whatsappGroupUrl: editForm.whatsappGroupUrl || null,
+          eventDate: wibInputToIso(editForm.eventDate) || null,
+          venueName: editForm.venueName || null,
+          locationDetail: editForm.locationDetail || null,
+          mapUrl: editForm.mapUrl || null,
+          mapEmbedQuery: editForm.mapEmbedQuery || null,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const prog = churchPrograms.find((p) => p.id === d.event.churchProgramId);
+      setSelected((prev) => (prev ? {
+        ...prev,
+        ...d.event,
+        churchProgram: prog ? { id: prog.id, name: prog.name, scope: prog.scope } : null,
+        divisions: prev.divisions,
+        meetings: prev.meetings,
+      } : d.event));
+      setShowEdit(false);
+      await fetchEvents();
+      addToast({ type: 'success', title: 'Event diperbarui' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Gagal menyimpan', description: err.message });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const showVenueFields = editForm.kind === 'KHUSUS' || editForm.kind === 'UMUM';
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-16 text-[#8C8880]">
@@ -334,11 +454,125 @@ export const EventWorkspacePanel: React.FC = () => {
             {selected.description && <p className="text-sm text-[#8C8880] mb-2">{selected.description}</p>}
             <div className="flex flex-wrap gap-4 text-xs text-[#8C8880]">
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(selected.startDate)} — {formatDate(selected.endDate)}</span>
+              {(selected.eventDate || selected.venueName) && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {[formatDateTimeWib(selected.eventDate), selected.venueName].filter(Boolean).join(' · ')}
+                  {selected.eventDate ? ' WIB' : ''}
+                </span>
+              )}
               <span className="flex items-center gap-1"><FolderOpen className="w-3.5 h-3.5" /> {selected.divisions.length} divisi</span>
               <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {(selected.meetings || []).length} rapat</span>
             </div>
           </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => (showEdit ? setShowEdit(false) : startEdit())}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold hover:bg-[#333] transition-colors shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5" /> {showEdit ? 'Tutup' : 'Edit'}
+            </button>
+          )}
         </div>
+
+        {showEdit && canEdit && (
+          <form onSubmit={saveEdit} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+            <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Meta event</p>
+            <input
+              value={editForm.name}
+              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Nama event"
+              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+            />
+            <textarea
+              value={editForm.description}
+              onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Deskripsi"
+              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
+            />
+            <div className="grid sm:grid-cols-3 gap-2">
+              <select
+                value={editForm.kind}
+                onChange={(e) => setEditForm((f) => ({ ...f, kind: e.target.value }))}
+                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+              >
+                {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+              </select>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+              >
+                {EVENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select
+                value={editForm.churchProgramId}
+                onChange={(e) => setEditForm((f) => ({ ...f, churchProgramId: e.target.value }))}
+                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+              >
+                <option value="">Payung Komisi (opsional)</option>
+                {churchPrograms.filter((p) => p.scope === 'KOMISI' || p.scope === 'BPMJ').map((p) => (
+                  <option key={p.id} value={p.id}>{p.scope} · {p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-[#8C8880] mb-1">Rentang program (bukan hari pelaksanaan)</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <input type="date" value={editForm.startDate} onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
+                <input type="date" value={editForm.endDate} onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
+              </div>
+            </div>
+            <input
+              value={editForm.whatsappGroupUrl}
+              onChange={(e) => setEditForm((f) => ({ ...f, whatsappGroupUrl: e.target.value }))}
+              placeholder="WA event (https://chat.whatsapp.com/…)"
+              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+            />
+            {showVenueFields && (
+              <div className="space-y-2 pt-1 border-t border-[#D9D7D0]">
+                <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Waktu & tempat (WIB)</p>
+                <input
+                  type="datetime-local"
+                  value={editForm.eventDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, eventDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+                <input
+                  value={editForm.venueName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, venueName: e.target.value }))}
+                  placeholder="Nama tempat"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+                <input
+                  value={editForm.locationDetail}
+                  onChange={(e) => setEditForm((f) => ({ ...f, locationDetail: e.target.value }))}
+                  placeholder="Detail lokasi (tampil di halaman publik)"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+                <input
+                  value={editForm.mapUrl}
+                  onChange={(e) => setEditForm((f) => ({ ...f, mapUrl: e.target.value }))}
+                  placeholder="Tautan peta"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+                <input
+                  value={editForm.mapEmbedQuery}
+                  onChange={(e) => setEditForm((f) => ({ ...f, mapEmbedQuery: e.target.value }))}
+                  placeholder="Query embed peta"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowEdit(false)} className="text-xs px-3 py-2 rounded-xl text-[#8C8880]">Batal</button>
+              <button type="submit" disabled={savingEdit || !editForm.name.trim()} className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40">
+                {savingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Simpan'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Division Cards */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

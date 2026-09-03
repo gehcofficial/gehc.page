@@ -47,6 +47,7 @@
     "operator:bootstrap:prod": "dotenv -e .env.production -- node scripts/bootstrap-operator.mjs",
     "db:migrate:pancatugas": "node server/migrate-pancatugas-subdivisions.cjs",
     "db:migrate:church-calendar": "node server/_migrate-church-calendar.cjs",
+    "db:migrate:event-venue": "node server/_migrate-event-venue.cjs",
     "db:seed:church-calendar": "node server/seed-church-calendar.mjs",
     "db:seed:church-calendar:staging": "dotenv -e .env.staging -- node server/seed-church-calendar.mjs",
     "db:migrate:prod": "dotenv -e .env.production -- prisma migrate deploy",

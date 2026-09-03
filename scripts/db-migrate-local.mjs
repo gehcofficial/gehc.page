@@ -105,6 +105,11 @@ const STEPS = [
     label: 'Notification type RUNBOOK_DUE',
     required: true,
   },
+  {
+    script: 'server/_migrate-event-venue.cjs',
+    label: 'Venue & waktu acara EventProgram + koreksi zona waktu BAKU TAU',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

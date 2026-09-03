@@ -3,14 +3,10 @@ import { getPrisma } from '../db.mjs';
 import {
   BAKU_TAU_SOURCE_EVENT,
   BAKU_TAU_EVENT_ID,
-  BAKU_TAU_EVENT_DATE_ISO,
-  BAKU_TAU_VENUE_NAME,
-  BAKU_TAU_LOCATION_DETAIL,
-  BAKU_TAU_MAP_URL,
-  BAKU_TAU_MAP_EMBED_QUERY,
   normalizePhone,
   whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
+import { venueOf } from '../lib/event-venue.mjs';
 import { emptyDomicileStats, isValidDomicileKind, DOMICILE_DETAIL_REQUIRED } from '../lib/domicile.mjs';
 import { claimWaitingPoolByPhone, ensureWaitingPoolForNewPemuda } from '../onboarding-sync.mjs';
 
@@ -38,11 +34,7 @@ function publicEventInfo(event) {
     slug: 'bakutau',
     name: event?.name || BAKU_TAU_SOURCE_EVENT,
     status: event?.status || 'ACTIVE',
-    eventDate: BAKU_TAU_EVENT_DATE_ISO,
-    venueName: BAKU_TAU_VENUE_NAME,
-    locationDetail: BAKU_TAU_LOCATION_DETAIL,
-    mapUrl: BAKU_TAU_MAP_URL,
-    mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
+    ...venueOf(event, true),
   };
 }
 
