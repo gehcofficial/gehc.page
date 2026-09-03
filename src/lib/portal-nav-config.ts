@@ -25,7 +25,7 @@ const CHURCH_ROLES = {
 
 const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
-  { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'BAKU TAU & grup WA', onboardingOnly: true },
+  { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'BAKU TAU — QR & grup WA' },
   { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
   { id: 'people', label: 'Orang & Undangan', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Akun & link undangan' },
   { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
@@ -56,11 +56,11 @@ const BASE_NAV: PortalNavItemDef[] = [
  * KOMISI, dan tugas platform ada di shell terpisah `#/admin`.
  */
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
-  KOMISI: ['dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
-  MENTOR: ['dashboard', 'groups-monitoring', 'wa-channels', 'account'],
-  MENTEE: ['dashboard', 'groups-monitoring', 'account'],
-  BPMJ: ['dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
+  KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
+  MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'wa-channels', 'account'],
+  MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'account'],
+  BPMJ: ['event-info', 'dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
 };
 
 function monitoringLabel(ctx: NavBuildContext): string {
@@ -85,9 +85,9 @@ export function buildPortalNavItems(
 
   const filtered = withLabels.filter((item) => {
     if (!item.roles.includes(roleForNav)) return false;
+    // Onboarding: hanya Info Event + Akun (akses penuh belum dibuka).
     if (isOnboarding) return item.id === 'event-info' || item.id === 'account';
     if (item.onboardingOnly) return false;
-    if (item.id === 'event-info') return false;
     return true;
   });
 

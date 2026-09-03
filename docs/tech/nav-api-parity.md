@@ -4,6 +4,7 @@ Each portal tab must only call endpoints the user's role can access.
 
 | Nav ID | Panel | Roles (nav) | Primary API endpoints | Server roles |
 |--------|-------|-------------|----------------------|--------------|
+| event-info | EventInfoPanel | all church roles (+ onboarding) | GET `/api/me/baku-tau-registration`, GET `/api/events/bakutau` | auth (registration); public venue |
 | my-profile | MyProfilePanel | all 8 | GET/PATCH `/api/me/profile` | auth |
 | dashboard | PortalDashboard | 6 roles | GET `/api/groups`, `/api/jemaat/birthdays/upcoming` | varies |
 | people | PeopleInvites | SUPERADMIN, KOMISI | `/api/users`, `/api/invites` | KOMISION_CORE |

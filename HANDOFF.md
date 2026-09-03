@@ -1,6 +1,37 @@
 # GEHC Portal — Handoff
 
-## Current — Form edit event: label + WA + venue jelas (3 Sep 2026)
+## Current — Info Event QR/WA untuk semua peserta (3 Sep 2026)
+
+**Goal:** QR daftar ulang + link WA BAKU TAU tetap terlihat setelah onboarding selesai (bukan hanya WAITING_POOL).
+
+### Done
+
+- Nav **Info Event** tidak lagi `onboardingOnly` — muncul untuk semua peran gereja (MENTEE…BPMJ/SUPERADMIN via KOMISI).
+- `GET /api/me/baku-tau-registration` memakai lookup tangguh (`findBakutauPoolEntry`) + `buildCheckInCode`; register/claim mengembalikan `checkInCode` + WA.
+- `EventInfoPanel`: refresh, copy jelas, lokasi publik tetap tampil sebelum daftar.
+- Unit test `tests/unit/portal-nav-event-info.test.ts`; parity docs diperbarui.
+
+### Commands
+
+```powershell
+npm run lint; npm run test -- tests/unit/portal-nav-event-info.test.ts tests/unit/event-venue.test.ts tests/unit/check-in-code.test.ts
+npm run dev:all
+```
+
+### Cara cek
+
+1. Login akun yang sudah daftar kehadiran BAKU TAU (bukan hanya admin tanpa registrasi).
+2. Portal → **Info Event** → harus ada QR + tombol WA (jika admin sudah isi link di Edit event).
+3. Belum daftar → tombol “Daftar Kehadiran” ke `#/event/bakutau`.
+
+### Next
+
+- Panel pengumuman lintas role (BPMJ/Komisi/Tim Kerja/Mentor) — belum ada; lonceng notifikasi + Warta publik masih jalur terpisah.
+- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
+
+---
+
+## Prior — Form edit event: label + WA + venue jelas (3 Sep 2026)
 
 **Goal:** Form Edit Program & Event tidak lagi “tebak field”; WA & venue punya konteks UI yang proper.
 

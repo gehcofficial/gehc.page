@@ -1,45 +1,72 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { BakuTauWelcomeCard } from './BakuTauWelcomeCard';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
 
+type BakuTauState = {
+  registered: boolean;
+  whatsappGroupUrl?: string | null;
+  eventDate?: string;
+  venueName?: string;
+  locationDetail?: string;
+  mapUrl?: string | null;
+  mapEmbedQuery?: string;
+  checkInCode?: string | null;
+  registeredAt?: string | null;
+};
+
 export const EventInfoPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [bakuTau, setBakuTau] = useState<{
-    registered: boolean;
-    whatsappGroupUrl?: string | null;
-    eventDate?: string;
-    venueName?: string;
-    locationDetail?: string;
-    mapUrl?: string | null;
-    mapEmbedQuery?: string;
-    checkInCode?: string | null;
-    registeredAt?: string | null;
-  } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [bakuTau, setBakuTau] = useState<BakuTauState | null>(null);
   const [stats, setStats] = useState<{ registered?: number } | null>(null);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async (soft = false) => {
+    if (soft) setRefreshing(true);
+    else setLoading(true);
+    setError('');
+    try {
+      const [reg, ev] = await Promise.all([
+        fetch('/api/me/baku-tau-registration', { credentials: 'include' }).then(async (r) => {
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+          return d;
+        }),
+        fetch('/api/events/bakutau').then((r) => r.json()).catch(() => ({})),
+      ]);
+      setBakuTau({
+        registered: Boolean(reg.registered),
+        whatsappGroupUrl: reg.registered ? (reg.whatsappGroupUrl || null) : null,
+        eventDate: reg.eventDate || ev.eventDate,
+        venueName: reg.venueName || ev.venueName,
+        locationDetail: reg.locationDetail || ev.locationDetail,
+        mapUrl: reg.mapUrl || ev.mapUrl,
+        mapEmbedQuery: reg.mapEmbedQuery || ev.mapEmbedQuery,
+        checkInCode: reg.checkInCode || null,
+        registeredAt: reg.registeredAt || null,
+      });
+      setStats(ev.stats || null);
+    } catch (e: any) {
+      setError(e?.message || 'Gagal memuat info event');
+      setBakuTau(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/me/baku-tau-registration', { credentials: 'include' }).then((r) => r.json()),
-      fetch('/api/events/bakutau').then((r) => r.json()).catch(() => ({})),
-    ])
-      .then(([reg, ev]) => {
-        setBakuTau({
-          registered: reg.registered,
-          whatsappGroupUrl: reg.registered ? (reg.whatsappGroupUrl || null) : null,
-          eventDate: reg.eventDate || ev.eventDate,
-          venueName: reg.venueName || ev.venueName,
-          locationDetail: reg.locationDetail || ev.locationDetail,
-          mapUrl: reg.mapUrl || ev.mapUrl,
-          mapEmbedQuery: reg.mapEmbedQuery || ev.mapEmbedQuery,
-          checkInCode: reg.checkInCode || null,
-          registeredAt: reg.registeredAt || null,
-        });
-        setStats(ev.stats || null);
-      })
-      .catch(() => setBakuTau(null))
-      .finally(() => setLoading(false));
-  }, []);
+    load();
+    const onApplied = () => load(true);
+    window.addEventListener('gehc:event-applied', onApplied);
+    const onFocus = () => load(true);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('gehc:event-applied', onApplied);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [load]);
 
   if (loading) {
     return (
@@ -64,14 +91,29 @@ export const EventInfoPanel: React.FC = () => {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
-        <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-1">BAKU TAU 4.0</p>
-        <h2 className="text-2xl font-black tracking-tight">Info Event</h2>
-        <p className="text-sm text-[#8C8880] mt-2 leading-relaxed">
-          Pengumuman, lokasi, dan grup WhatsApp peserta. Portal ini terbuka selama onboarding — lengkapi profil untuk akses fitur mentoring penuh.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-1">BAKU TAU 4.0</p>
+            <h2 className="text-2xl font-black tracking-tight">Info Event</h2>
+            <p className="text-sm text-[#8C8880] mt-2 leading-relaxed">
+              QR daftar ulang hari H, lokasi, dan grup WhatsApp peserta. Link WA mengikuti yang diisi admin di Program & Event.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider text-[#8C8880] hover:bg-[#F3F1EC] disabled:opacity-40"
+            title="Muat ulang"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
         {stats?.registered != null && (
           <p className="text-xs font-bold text-[#1B1B1B] mt-3">{stats.registered} peserta terdaftar</p>
         )}
+        {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
       </div>
 
       {bakuTau?.registered ? (
@@ -87,8 +129,10 @@ export const EventInfoPanel: React.FC = () => {
         />
       ) : (
         <div className="rounded-[28px] border border-dashed border-[#D9D7D0] bg-white p-6 text-center">
-          <p className="text-sm font-bold text-[#1B1B1B]">Belum terdaftar kehadiran</p>
-          <p className="text-xs text-[#8C8880] mt-1">Daftar dulu di halaman event publik.</p>
+          <p className="text-sm font-bold text-[#1B1B1B]">Belum terdaftar kehadiran BAKU TAU</p>
+          <p className="text-xs text-[#8C8880] mt-1 leading-relaxed">
+            QR dan tombol grup WhatsApp muncul setelah Anda daftar kehadiran (bukan hanya membuat akun).
+          </p>
           <a
             href="#/event/bakutau"
             onClick={(e) => { e.preventDefault(); window.location.hash = '#/event/bakutau'; }}
@@ -99,10 +143,13 @@ export const EventInfoPanel: React.FC = () => {
         </div>
       )}
 
-      {!bakuTau?.registered && bakuTau?.venueName && (
+      {bakuTau?.venueName && (
         <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6">
           {eventDateLabel && (
             <p className="text-xs font-bold text-[#1B1B1B] mb-3 capitalize">{eventDateLabel} WIB</p>
+          )}
+          {!bakuTau.registered && (
+            <p className="text-[10px] text-[#8C8880] mb-3">Lokasi publik — daftar kehadiran untuk mendapat QR & link grup.</p>
           )}
           <EventVenueMap
             venueName={bakuTau.venueName}

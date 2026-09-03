@@ -101,8 +101,8 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         </a>
       ) : (
         <div className="rounded-2xl bg-white border border-dashed border-emerald-200 p-3 text-center">
-          <p className="text-[11px] text-emerald-700 font-semibold">
-            Link grup akan segera dibagikan oleh panitia.
+          <p className="text-[11px] text-emerald-700 font-semibold leading-relaxed">
+            Link grup belum tersedia. Admin isi di Program & Event → Edit → Grup WhatsApp peserta, lalu refresh halaman ini.
           </p>
           <button
             type="button"
