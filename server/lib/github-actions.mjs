@@ -1,6 +1,7 @@
 /**
  * Trigger GitHub Actions workflow_dispatch untuk publish visual website.
- * Env: GITHUB_PUBLISH_TOKEN, GITHUB_REPO (owner/name), optional GITHUB_PUBLISH_WORKFLOW
+ * Env (Vercel): GITHUB_PUBLISH_TOKEN, GITHUB_REPO, optional GITHUB_PUBLISH_WORKFLOW.
+ * GitHub Actions secrets: GDRIVE_ROOT_FOLDER_ID (staging), GDRIVE_ROOT_FOLDER_ID_PRODUCTION (main).
  */
 
 const API = 'https://api.github.com';

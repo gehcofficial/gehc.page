@@ -1,4 +1,5 @@
 import { requireRole } from '../auth.mjs';
+import { getDbTarget } from '../db.mjs';
 import { KOMISION_WITH_LEGACY_SUPERADMIN } from '../lib/rbac-constants.mjs';
 import { WEBSITE_VISUAL_SUBFOLDERS } from '../lib/website-visuals.mjs';
 import {
@@ -31,7 +32,7 @@ export function registerVisualsPublishRoutes(app, { wrap }) {
         label: FOLDER_LABELS[id] || id,
       })),
       defaultFolder: 'kelompok',
-      defaultBranch: 'staging',
+      defaultBranch: getDbTarget() === 'production' ? 'main' : 'staging',
       branches: ['staging', 'main'],
     });
   }));

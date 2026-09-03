@@ -130,7 +130,7 @@ export const MediaGuidePanel: React.FC = () => {
       addToast({
         type: 'warning',
         title: 'Belum dikonfigurasi',
-        description: 'Hubungi Tim Tech untuk GITHUB_PUBLISH_TOKEN di server staging.',
+        description: 'Hubungi Tim Tech untuk GITHUB_PUBLISH_TOKEN di Vercel (Preview dan Production).',
       });
       return;
     }
@@ -205,7 +205,8 @@ export const MediaGuidePanel: React.FC = () => {
               Publish otomatis
             </h4>
             <p className="text-[11px] text-[#8C8880] mt-1 max-w-md leading-relaxed">
-              Tarik file terbaru dari Drive → commit → deploy Vercel. Contoh: timpa{' '}
+              Tarik file terbaru dari Drive yang sesuai tujuan: Staging baca Drive staging,
+              Production baca Drive prod. Contoh: timpa{' '}
               <code className="text-[10px] bg-[#FAF9F5] px-1 rounded">cover-echad.jpg</code>{' '}
               di folder <strong>kelompok</strong>, lalu klik publish.
             </p>
@@ -242,8 +243,8 @@ export const MediaGuidePanel: React.FC = () => {
               disabled={publishing || (!canProdBranch && branch === 'main')}
               className="text-xs font-semibold rounded-xl border border-[#D9D7D0] px-3 py-2.5 bg-[#FAF9F5] min-w-[140px]"
             >
-              <option value="staging">Staging</option>
-              {canProdBranch && <option value="main">Production</option>}
+              <option value="staging">Staging (Drive staging)</option>
+              {canProdBranch && <option value="main">Production (Drive prod)</option>}
             </select>
           </label>
 
@@ -397,7 +398,7 @@ export const MediaGuidePanel: React.FC = () => {
           <li>Pastikan stem file benar (cover-echad, bukan echad-cover).</li>
           <li>Publish ulang setelah timpa file di Drive — CDN tidak update otomatis tanpa deploy.</li>
           <li>Jika badge &quot;Token CI belum diset&quot;, Tim Tech perlu menambah GITHUB_PUBLISH_TOKEN di Vercel.</li>
-          <li>GitHub repo secrets: GDRIVE_ROOT_FOLDER_ID + GOOGLE_SERVICE_ACCOUNT_JSON untuk workflow.</li>
+          <li>GitHub repo secrets: GDRIVE_ROOT_FOLDER_ID (staging), GDRIVE_ROOT_FOLDER_ID_PRODUCTION (prod), plus GOOGLE_SERVICE_ACCOUNT_JSON.</li>
         </ul>
       </details>
     </div>

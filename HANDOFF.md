@@ -10,7 +10,8 @@
 - Env Production: APP_URL/CORS `gehcpage.vercel.app`, `GEHC_ENV=production`, Drive root YOUTH GEHC (bukan staging), `DATABASE_URL_PRODUCTION`, operator/WebAuthn secrets; `SUPERADMIN_EMAILS` & `WEBAUTHN_MOCK` tidak di-set.
 - TiDB `gehc`: schema check hijau, 46 entri kalender gerejawi, BAKU TAU 4.0 ACTIVE + venue + WA, 0 user `@gehc.demo`.
 - 2 Platform Operator (`#/admin`): `superadmin@gehc.page`, `admin@gehc.page` — break-glass sudah ada, passkey belum (daftar setelah login pertama).
-- Drive prod di-provision; visual publik disalin dari staging.
+- Drive prod di-provision; `Website Visual [PUBLIK]` di-replace dari staging (`npm run drive:copy-visuals:staging-to-prod` — 28 file, 0 gagal). Seed Unsplash di prod tertimpa.
+- Publish visual: workflow pilih Drive menurut branch. Secret GitHub `GDRIVE_ROOT_FOLDER_ID_PRODUCTION` sudah di-set; `GDRIVE_ROOT_FOLDER_ID` staging tidak diubah. Portal prod default ke `main`. `GITHUB_PUBLISH_*` sudah ada di Vercel Preview + Production.
 
 ### Next (BAKU TAU — 12 Sep)
 
@@ -23,7 +24,7 @@
 
 ### Deferred
 
-- GitHub Actions `GDRIVE_ROOT_FOLDER_ID` satu secret untuk staging+main — jangan ganti ke prod tanpa workflow terpisah (akan merusak sync staging).
+- Folder Drive lain (Warta Publik, Event Gallery, `[GROUP:…]`) belum disalin staging → prod.
 - STG-05 portal foto kelompok (setelah desain + ACL) — Drive `[GROUP:…]` + gallery publik sudah ada.
 - Broadcast lintas role — jangan panel paralel Warta; extend tipe `Notification` hanya jika Warta + WA tidak cukup.
 - Auto-upload CSV check-in ke Drive & auto-seri folder ibadah (setelah Liturgia minta).

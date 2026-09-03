@@ -21,7 +21,9 @@ Filter **Production** (bukan Preview). Wajib beda dari staging:
 | `WEBAUTHN_MOCK` | **jangan** `true` (hapus / `false`) |
 | `SUPERADMIN_EMAILS` | **kosong** (auto-grant mati) |
 | `REGISTRATION_OPEN` | sesuai kebijakan Komisi |
-| Opsional | `GEMINI_API_KEY`, `BAKU_TAU_WA_GROUP_URL`, `GEHC_MAP_URL`, `GITHUB_PUBLISH_*` |
+| Opsional | `GEMINI_API_KEY`, `BAKU_TAU_WA_GROUP_URL`, `GEHC_MAP_URL`, `GITHUB_PUBLISH_*` (tombol Publish di portal) |
+
+GitHub **repo** secrets (bukan Vercel): `GDRIVE_ROOT_FOLDER_ID` tetap staging; tambah `GDRIVE_ROOT_FOLDER_ID_PRODUCTION` untuk publish ke `main`.
 
 Lokal: `.env.production` (gitignore) hanya untuk script `*:prod`.
 
