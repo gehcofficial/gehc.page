@@ -22,14 +22,22 @@ const SCOPE_LABEL: Record<Scope, string> = {
   KOLOM: 'Kolom (teritorial)',
 };
 
+function scopesForRole(role?: string | null): Scope[] {
+  if (role === 'SUPERADMIN') return ['BPMJ', 'KOMISI', 'KOLOM'];
+  if (role === 'BPMJ') return ['BPMJ'];
+  if (role === 'KOMISI') return ['KOMISI', 'KOLOM'];
+  return [];
+}
+
 export const ChurchCalendarPanel: React.FC = () => {
   const { addToast, currentRole } = useApp();
+  const allowedScopes = useMemo(() => scopesForRole(currentRole), [currentRole]);
   const [programs, setPrograms] = useState<ChurchProgram[]>([]);
   const [kolom, setKolom] = useState<Array<{ id: string; number: number; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    scope: 'KOMISI' as Scope,
+    scope: (scopesForRole(currentRole)[0] || 'KOMISI') as Scope,
     parentId: '',
     kolomId: '',
     season: 'REGULAR',
@@ -39,7 +47,8 @@ export const ChurchCalendarPanel: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [edit, setEdit] = useState({ name: '', season: 'REGULAR', year: '', description: '' });
 
-  const canCreate = currentRole === 'KOMISI' || currentRole === 'BPMJ' || currentRole === 'SUPERADMIN';
+  const canCreate = allowedScopes.length > 0;
+  const canMutateScope = (scope: Scope) => allowedScopes.includes(scope);
 
   const load = useCallback(async () => {
     const [pRes, kRes] = await Promise.all([
@@ -57,6 +66,13 @@ export const ChurchCalendarPanel: React.FC = () => {
     setLoading(true);
     load().catch((e) => addToast({ type: 'error', title: e.message })).finally(() => setLoading(false));
   }, [load, addToast]);
+
+  useEffect(() => {
+    setForm((f) => {
+      if (allowedScopes.includes(f.scope) || allowedScopes.length === 0) return f;
+      return { ...f, scope: allowedScopes[0], parentId: '', kolomId: '' };
+    });
+  }, [allowedScopes]);
 
   // Payung Komisi maupun Kolom sama-sama bernaung di bawah payung BPMJ.
   const parents = useMemo(() => programs.filter((p) => p.scope === 'BPMJ'), [programs]);
@@ -169,7 +185,7 @@ export const ChurchCalendarPanel: React.FC = () => {
               onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value as Scope, parentId: '' }))}
               className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
             >
-              {(Object.keys(SCOPE_LABEL) as Scope[]).map((s) => (
+              {allowedScopes.map((s) => (
                 <option key={s} value={s}>{SCOPE_LABEL[s]}</option>
               ))}
             </select>
@@ -298,7 +314,7 @@ export const ChurchCalendarPanel: React.FC = () => {
                           {kolomLabel(p.kolomId) ? ` · ${kolomLabel(p.kolomId)}` : ''}
                         </p>
                       </div>
-                      {canCreate && (
+                      {canMutateScope(scope) && (
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"

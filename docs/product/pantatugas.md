@@ -211,4 +211,6 @@ CHURCH domain (future)
 
 Admin: Portal → **Kelola Hirarki**. Seed: `npm run db:seed:org-tree`.
 
+Ini **bukan** duplikat Struktur Organisasi. `OrgNode` / `OrgAssignment` adalah sumber kebenaran slot RBAC; `struktur_members` (ManageStruktur) adalah CMS halaman Pengurus publik. Keduanya tetap hidup sampai scoping Drive/COMMITTEE pindah ke metadata Org.
+
 (End of file)

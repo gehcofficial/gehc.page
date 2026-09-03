@@ -17,7 +17,7 @@ Each portal tab must only call endpoints the user's role can access.
 | content-activities | ManageActivities | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | media-guide | MediaGuidePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/drive/*` | content_manage |
 | struktur | ManageStruktur | SUPERADMIN, COMMITTEE | `/api/db/sync-struktur` | KOMISION |
-| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*` | Koinonia operator (soal/assign/answers); Komisi approve katalog; BPMJ payung |
+| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*`, `/api/church-calendar` | Create/edit event + monthly write + runbook: KOMISI/COMMITTEE (+SUPERADMIN). BPMJ: read events/plans; payung scope BPMJ only. Church calendar GET: no MENTOR |
 | divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` | KOMISI / COMMITTEE + Koinonia or BOD |
 | wa-channels | WhatsAppChannelsPanel | KOMISI, COMMITTEE, MENTOR, CO_MENTOR, BPMJ | `GET/PUT /api/channel-links` | EVENT layer read-only (tulis di Program & Event); PUT EVENT 400 kecuali KOMISI/SUPERADMIN |
 | integrations | ManageIntegrations | SUPERADMIN, KOMISI | drive config | SUPERADMIN/KOMISI |

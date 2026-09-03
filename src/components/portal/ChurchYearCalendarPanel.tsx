@@ -70,6 +70,7 @@ export const ChurchYearCalendarPanel: React.FC<Props> = ({ onPromote }) => {
 
   const canEdit = currentRole === 'KOMISI' || currentRole === 'BPMJ' || currentRole === 'SUPERADMIN';
   const canSync = currentRole === 'KOMISI' || currentRole === 'SUPERADMIN';
+  const canRunbook = currentRole === 'KOMISI' || currentRole === 'COMMITTEE' || currentRole === 'SUPERADMIN';
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/church-calendar?year=${year}`, { credentials: 'include' });
@@ -340,15 +341,17 @@ export const ChurchYearCalendarPanel: React.FC<Props> = ({ onPromote }) => {
                           {e.notes && <p className="text-[10px] text-[#5C5850] mt-0.5">{e.notes}</p>}
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => generateRunbook(e)}
-                            disabled={saving}
-                            title="Buat checklist runbook H-21 → H+7"
-                            className="p-1 rounded text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-40"
-                          >
-                            <ListChecks className="w-3 h-3" />
-                          </button>
+                          {canRunbook && (
+                            <button
+                              type="button"
+                              onClick={() => generateRunbook(e)}
+                              disabled={saving}
+                              title="Buat checklist runbook H-21 → H+7"
+                              className="p-1 rounded text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-40"
+                            >
+                              <ListChecks className="w-3 h-3" />
+                            </button>
+                          )}
                           {onPromote && (
                             <button
                               type="button"

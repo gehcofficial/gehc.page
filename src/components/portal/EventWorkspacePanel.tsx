@@ -132,9 +132,10 @@ const EVENT_KINDS = [
 ];
 
 export const EventWorkspacePanel: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, currentRole } = useApp();
   const { t } = useLang();
   const ev = t.portal.events;
+  const canCreateEvent = currentRole === 'SUPERADMIN' || currentRole === 'KOMISI' || currentRole === 'COMMITTEE';
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
@@ -738,7 +739,7 @@ export const EventWorkspacePanel: React.FC = () => {
           <h2 className="text-xl font-black text-[#1B1B1B]">{t.portal.nav.events}</h2>
           <p className="text-xs text-[#8C8880] mt-0.5">{t.portal.guides.events.purpose}</p>
         </div>
-        {listTab === 'events' && (
+        {listTab === 'events' && canCreateEvent && (
           <button
             type="button"
             onClick={() => setShowCreate((v) => !v)}
@@ -773,18 +774,18 @@ export const EventWorkspacePanel: React.FC = () => {
 
       {listTab === 'calendar' && (
         <ChurchYearCalendarPanel
-          onPromote={({ name, startDate }) => {
+          onPromote={canCreateEvent ? ({ name, startDate }) => {
             setCreateForm((f) => ({ ...f, name, startDate, endDate: startDate }));
             setShowCreate(true);
             setListTab('events');
-          }}
+          } : undefined}
         />
       )}
       {listTab === 'umbrella' && <ChurchCalendarPanel />}
       {listTab === 'month' && <MonthlyPlanPanel />}
       {listTab === 'events' && (
         <>
-          {showCreate && (
+          {showCreate && canCreateEvent && (
             <form onSubmit={createEvent} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
               <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Komisi merancang payung · Tim Kerja menamai event</p>
               <input

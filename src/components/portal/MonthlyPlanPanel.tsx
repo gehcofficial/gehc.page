@@ -35,7 +35,8 @@ function shortDate(iso?: string) {
 }
 
 export const MonthlyPlanPanel: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, currentRole } = useApp();
+  const canWrite = currentRole === 'KOMISI' || currentRole === 'COMMITTEE' || currentRole === 'SUPERADMIN';
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
   const [theme, setTheme] = useState('');
   const [weeks, setWeeks] = useState<Week[]>([1, 2, 3, 4].map((index) => ({ index })));
@@ -147,20 +148,28 @@ export const MonthlyPlanPanel: React.FC = () => {
       </div>
 
       <div className="flex gap-2">
-        <input
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-          placeholder="Tema bulan"
-          className="flex-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-        />
-        <button
-          type="button"
-          onClick={saveMeta}
-          disabled={saving}
-          className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Simpan tema'}
-        </button>
+        {canWrite ? (
+          <>
+            <input
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              placeholder="Tema bulan"
+              className="flex-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+            />
+            <button
+              type="button"
+              onClick={saveMeta}
+              disabled={saving}
+              className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Simpan tema'}
+            </button>
+          </>
+        ) : (
+          <p className="flex-1 px-3 py-2 rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] text-sm text-[#1B1B1B]">
+            {theme || 'Belum ada tema bulan'}
+          </p>
+        )}
       </div>
 
       {loading ? (
@@ -184,35 +193,51 @@ export const MonthlyPlanPanel: React.FC = () => {
                       W{w.index}
                       {w.date && <span className="ml-1 font-medium text-[#8C8880]">· {shortDate(w.date)}</span>}
                     </p>
-                    <input
-                      value={w.theme || ''}
-                      onChange={(e) => setWeeks((prev) => prev.map((x) => x.index === w.index ? { ...x, theme: e.target.value } : x))}
-                      placeholder="Tema minggu"
-                      className="mt-1 w-full px-2 py-1 rounded-lg border border-[#D9D7D0]"
-                    />
+                    {canWrite ? (
+                      <input
+                        value={w.theme || ''}
+                        onChange={(e) => setWeeks((prev) => prev.map((x) => x.index === w.index ? { ...x, theme: e.target.value } : x))}
+                        placeholder="Tema minggu"
+                        className="mt-1 w-full px-2 py-1 rounded-lg border border-[#D9D7D0]"
+                      />
+                    ) : (
+                      w.theme ? <p className="mt-1 text-[#5C5850]">{w.theme}</p> : null
+                    )}
                   </td>
                   {divisions.map((div) => (
                     <td key={div} className="p-2">
                       <ul className="space-y-1">
                         {itemsFor(w.index, div).map((item) => (
                           <li key={item.id} className="flex items-start gap-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleStatus(item)}
-                              className={`flex-1 text-left rounded-lg px-2 py-1 border ${
-                                item.status === 'DONE' ? 'bg-emerald-50 border-emerald-200 line-through' : 'bg-white border-[#D9D7D0]'
-                              }`}
-                            >
-                              {item.kind ? `${item.kind} · ` : ''}{item.title}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeDeliverable(item)}
-                              title="Hapus"
-                              className="p-1 rounded-lg text-[#8C8880] hover:text-red-600"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            {canWrite ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleStatus(item)}
+                                className={`flex-1 text-left rounded-lg px-2 py-1 border ${
+                                  item.status === 'DONE' ? 'bg-emerald-50 border-emerald-200 line-through' : 'bg-white border-[#D9D7D0]'
+                                }`}
+                              >
+                                {item.kind ? `${item.kind} · ` : ''}{item.title}
+                              </button>
+                            ) : (
+                              <span
+                                className={`flex-1 text-left rounded-lg px-2 py-1 border ${
+                                  item.status === 'DONE' ? 'bg-emerald-50 border-emerald-200 line-through' : 'bg-white border-[#D9D7D0]'
+                                }`}
+                              >
+                                {item.kind ? `${item.kind} · ` : ''}{item.title}
+                              </span>
+                            )}
+                            {canWrite && (
+                              <button
+                                type="button"
+                                onClick={() => removeDeliverable(item)}
+                                title="Hapus"
+                                className="p-1 rounded-lg text-[#8C8880] hover:text-red-600"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -225,7 +250,8 @@ export const MonthlyPlanPanel: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={addDeliverable} className="rounded-2xl border border-[#D9D7D0] bg-white p-3 grid sm:grid-cols-5 gap-2">
+      {canWrite && (
+        <form onSubmit={addDeliverable} className="rounded-2xl border border-[#D9D7D0] bg-white p-3 grid sm:grid-cols-5 gap-2">
         <select
           value={draft.weekIndex}
           onChange={(e) => setDraft((d) => ({ ...d, weekIndex: Number(e.target.value) }))}
@@ -260,7 +286,8 @@ export const MonthlyPlanPanel: React.FC = () => {
         >
           <Plus className="w-3.5 h-3.5" /> Tambah
         </button>
-      </form>
+        </form>
+      )}
     </div>
   );
 };

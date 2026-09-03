@@ -37,7 +37,7 @@ Nomor peringatan = `tahun − tahun basis`.
 - **Pengucapan Syukur** konteks Cikarang — jadwalnya mengikuti wilayah setempat, belum dikonfirmasi.
 - **HUT WKI GMIM** — tanggal pastinya belum ditemukan.
 
-Keduanya bisa ditambahkan kapan saja sebagai entri `source: JEMAAT` lewat Portal → Program & Event → Kalender gerejawi, tanpa mengubah kode.
+Keduanya bisa ditambahkan kapan saja sebagai entri `source: JEMAAT` lewat Portal → Program & Event → Kalender gerejawi, tanpa mengubah kode. GET kalender portal: KOMISI / COMMITTEE / BPMJ (bukan MENTOR).
 
 ## 5. Tema
 
@@ -86,7 +86,7 @@ Sinkron per tahun juga bisa dari UI: Portal → Program & Event → Kalender ger
 | Method | Path | Guard |
 |---|---|---|
 | GET | `/api/church-calendar/public` | publik (`isPublic` saja) |
-| GET | `/api/church-calendar` | KOMISI, COMMITTEE, BPMJ, MENTOR, CO_MENTOR |
+| GET | `/api/church-calendar` | KOMISI, COMMITTEE, BPMJ (bukan MENTOR — tidak ada nav kalender) |
 | POST | `/api/church-calendar` | KOMISI, BPMJ (selalu `source: JEMAAT`) |
 | PATCH | `/api/church-calendar/:id` | KOMISI, BPMJ |
 | DELETE | `/api/church-calendar/:id` | KOMISI, BPMJ (hanya `source: JEMAAT`) |

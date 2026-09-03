@@ -1,6 +1,35 @@
 # GEHC Portal — Handoff
 
-## Current — Bank soal event + form depan tipis (3 Sep 2026)
+## Current — HANDOFF consolidate + RBAC UI/API (3 Sep 2026)
+
+**Goal:** Satu daftar Next aktif (BAKU TAU) + satu Deferred; UI tidak menawarkan aksi yang API tolak; dual-struktur ditutup di docs; runbook production.
+
+### Done
+
+- Staging ops: `db:migrate:local:staging` + `db:seed:church-calendar:staging` + `db:schema:check` (schema hijau).
+- Gate UI selaras API: Buat event (`KOMISI`/`COMMITTEE`/`SUPERADMIN`); rencana bulan tulis; payung default/scope BPMJ vs KOMISI; tombol runbook. MENTOR/CO_MENTOR dihapus dari GET `/api/church-calendar` (nav tidak punya kalender).
+- Dual layer struktur **keputusan ditutup**: `OrgNode`/`OrgAssignment` = slot RBAC; `struktur_members` = CMS Leaders. Bukan duplikat — jangan merge/hapus panel. Guides + [`docs/product/rbac-admin.md`](docs/product/rbac-admin.md).
+- Runbook prod: [`docs/tech/production-golive.md`](docs/tech/production-golive.md)
+
+### Next (BAKU TAU — 12 Sep)
+
+1. Komisi: centang paket soal BAKU TAU 4.0 di Program & Event (staging).
+2. Portal → Review Penempatan → generate ulang batch (skor Gift Diversity lama masih salah).
+3. Dry-run scanner staging + QR asli (perangkat + kartu peserta): scan, walk-in, void, export CSV.
+4. Setelah BPMJ konfirmasi tanggal: isi Pengucapan Syukur (Cikarang) & HUT WKI di Kalender gerejawi — boleh kosong sampai ada tanggal.
+5. Go-live production: ikuti [`docs/tech/production-golive.md`](docs/tech/production-golive.md).
+
+### Deferred
+
+- STG-05 portal foto kelompok (setelah desain + ACL) — Drive `[GROUP:…]` + gallery publik sudah ada.
+- Broadcast lintas role — jangan panel paralel Warta; extend tipe `Notification` hanya jika Warta + WA tidak cukup.
+- Auto-upload CSV check-in ke Drive & auto-seri folder ibadah (setelah Liturgia minta).
+- Migrasi scoping Drive off `struktur_members` → Org (prasyarat deprecate ManageStruktur).
+- Tech debt: split `server/index.mjs` → `server/routes/*`, full `AuthContext`, design tokens, coverage `roles.ts` / `profile-fields.mjs`.
+
+---
+
+## Prior — Bank soal event + form depan tipis (3 Sep 2026)
 
 **Goal:** Counter hanya nama+WA lalu Google. Profil (asal/Sulut, domisili, gender) di Info Event. Soal event opsional (panitia + self-serve). WA grup peserta hanya dari Edit event.
 
@@ -25,11 +54,6 @@ npm run dev:all
 2. Portal → Info Event → lengkapi asal (Sulut muncul dari dropdown asal) + soal panitia jika Tim Kerja sudah centang.
 3. Program & Event → Edit WA → kartu hijau. Centang 2 soal → isi dari daftar peserta → unduh CSV (kolom `asalRegion`).
 4. Kanal WhatsApp → Event: tidak ada tombol Simpan.
-
-### Next
-
-- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
-- Centang paket soal BAKU TAU 4.0 di staging setelah Komisi setuju.
 
 ---
 
@@ -59,11 +83,6 @@ npm run dev:all
 3. Portal → **Info Event** — kartu yang sama.
 
 Pastikan WA tersimpan: Program & Event → Edit → `https://chat.whatsapp.com/...`
-
-### Next
-
-- Panel pengumuman lintas role.
-- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
 
 ---
 
@@ -106,12 +125,6 @@ npm run lint; npm run test
 npm run dev:all
 ```
 
-### Next
-
-- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
-- Jalankan `db:migrate:local:staging` (kalender + venue) di staging.
-- Isi Pengucapan Syukur & HUT WKI setelah dikonfirmasi BPMJ.
-
 ---
 
 ## Prior — Venue event di DB + form edit (3 Sep 2026)
@@ -135,14 +148,6 @@ npm run db:schema:check
 npm run lint; npm run test
 npm run dev:all
 ```
-
-### Next
-
-- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
-- Jalankan `db:migrate:local:staging` (kalender + venue) di staging.
-- Isi Pengucapan Syukur & HUT WKI setelah dikonfirmasi BPMJ.
-- Generate ulang batch Jethro — skor Gift Diversity lama masih salah.
-- Rapikan mismatch UI/API (BPMJ lihat form tulis → 403; tombol runbook; MENTOR kalender tanpa nav).
 
 ---
 
@@ -183,14 +188,6 @@ npm run lint; npm run test
 npm run dev:all
 ```
 
-### Next
-
-- **Dry-run scanner di staging dengan QR asli** sebelum 12 Sep (belum dilakukan — butuh perangkat + kartu peserta).
-- Jalankan `db:migrate:local:staging` + `db:seed:church-calendar:staging`.
-- Isi Pengucapan Syukur (Cikarang) & HUT WKI setelah dikonfirmasi BPMJ.
-- Putuskan `ManageStruktur` vs `OrgHierarchyPanel` — masih dua sumber kebenaran struktur organisasi.
-- Panduan: [`docs/product/church-calendar.md`](docs/product/church-calendar.md)
-
 ---
 
 ## Fix — bentuk data gift (3 Sep 2026)
@@ -208,10 +205,6 @@ Ketidakcocokan kedua: `giftCoverage` kelompok dibangun dari data mentah sementar
 - [`src/lib/gifts.ts`](src/lib/gifts.ts) — `normalizeGifts` / `giftLabels` bersama; dipakai `JethroPlacementReview` (2 titik render) dan `ProfileGiftsSection` (menggantikan salinan lokal).
 - Tipe `giftsTop5` / `newcomerGiftsTop5` dikoreksi dari `string[]` (yang menyembunyikan bug ini dari `tsc`) menjadi `unknown`.
 - Test: `tests/unit/gift-normalize.test.ts`, `tests/unit/gifts.test.ts`.
-
-### Next
-
-- **Generate ulang batch penempatan di staging** — batch yang sudah tersimpan masih memuat skor Gift Diversity lama yang salah. Perbaikan hanya berlaku untuk perhitungan baru. Lakukan dari Portal → Review Penempatan → generate rekomendasi baru.
 
 ---
 
@@ -235,12 +228,6 @@ npm run test -- tests/unit/check-in-code.test.ts
 npm run dev:all
 ```
 
-### Next
-
-- STG-05 folder foto kelompok
-- Upload CSV check-in ke Drive (opsional)
-- Auto-seri folder ibadah per bulan
-
 ---
 
 ## Staging QA — review teman (2 Sep 2026)
@@ -251,7 +238,7 @@ npm run dev:all
 
 - Tracker: [`docs/staging/2026-09-02-review-teman.md`](docs/staging/2026-09-02-review-teman.md)
 - STG-01, 02, 03, 04, 06, 07, 08
-- STG-05 (folder foto kelompok) ditunda
+- STG-05 (folder foto kelompok) — lihat **Deferred** di atas
 
 ### Commands
 
@@ -371,6 +358,8 @@ QRIS / event URL: `https://gehcpage.vercel.app/#/event/bakutau`
 
 ## Prior — Auth route split + EventAttendee
 
+Placeholder — tidak dilanjutkan; tidak ada scope.
+
 ---
 
 ## Episode E10: BAKU TAU 4.0 + Org Hardening
@@ -469,10 +458,3 @@ Lihat [`docs/tech/database-migrations.md`](docs/tech/database-migrations.md).
 | `docs/tech/database-migrations.md` | Panduan migrasi |
 | `server/createApp.mjs` | Express factory |
 | `server/routes/onboarding.mjs` | Waiting pool routes |
-
-### Next
-
-- Migrate more `server/index.mjs` domains to `server/routes/*`
-- Full `AuthContext` extraction from `AppContext`
-- Component migration to design tokens (reduce raw hex)
-- Vitest coverage for `roles.ts`, `profile-fields.mjs`

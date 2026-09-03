@@ -393,10 +393,10 @@ export const portalEn = {
     },
     'org-hierarchy': {
       title: 'Manage Hierarchy',
-      purpose: 'Org-tree nodes and slots (Youth / Kolom) used for assignments.',
-      steps: ['Pick a domain.', 'Add branch, position slot, or group reference.', 'People are assigned to slots from Congregation / Onboarding.'],
-      when: 'The tree itself is wrong or a new slot is needed.',
-      notFor: 'The public leadership chart is Org Chart (Struktur). Do not edit landing photos here.',
+      purpose: 'Source of truth for assignment slots: OrgNode / OrgAssignment (Youth / Kolom). Not the public photo chart.',
+      steps: ['Pick a domain.', 'Add branch, position slot, or group reference.', 'People are assigned to slots from Congregation / Onboarding — not from this tree editor.'],
+      when: 'The tree itself is wrong or a new RBAC slot is needed.',
+      notFor: 'Names and photos on the public Leaders page are Org Chart (Struktur). These are two intentional layers, not duplicates.',
     },
     'groups-monitoring': {
       title: 'Group monitoring',
@@ -442,10 +442,10 @@ export const portalEn = {
     },
     struktur: {
       title: 'Org Chart',
-      purpose: 'People chart for the public Leaders page (BPMJ, Commission, Working Team, open roles).',
-      steps: ['Edit in Chart or Table view.', 'Mark a role as open (dashed chip on the landing).', 'Save syncs to the website.'],
+      purpose: 'Landing CMS: people chart for the public Leaders page (photos, names, open-role badges). Not the RBAC assignment tree.',
+      steps: ['Edit in Chart or Table view.', 'Mark a role as open (dashed chip on the landing).', 'Save syncs to struktur_members on the website.'],
       when: 'Names or photos on gehc.page/leaders must change.',
-      notFor: 'Assignment slots and RBAC tree are Manage Hierarchy.',
+      notFor: 'Assignment slots and portal roles live in Manage Hierarchy. Do not treat this chart as the org-tree source of truth.',
     },
     events: {
       title: 'Programs & Events',

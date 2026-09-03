@@ -88,7 +88,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
 
   app.get(
     '/api/church-calendar',
-    requireRole('KOMISI', 'COMMITTEE', 'BPMJ', 'MENTOR', 'CO_MENTOR'),
+    requireRole('KOMISI', 'COMMITTEE', 'BPMJ'),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });

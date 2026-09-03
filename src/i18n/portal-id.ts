@@ -387,10 +387,10 @@ export const portalId: typeof portalEn = {
     },
     'org-hierarchy': {
       title: 'Kelola Hirarki',
-      purpose: 'Node dan slot pohon org (Pemuda / Kolom) untuk assignment.',
-      steps: ['Pilih domain.', 'Tambah cabang, slot posisi, atau referensi grup.', 'Orang di-assign ke slot dari Jemaat / Onboarding.'],
-      when: 'Pohonnya salah atau perlu slot baru.',
-      notFor: 'Chart pengurus publik adalah Struktur Organisasi. Jangan edit foto landing di sini.',
+      purpose: 'Sumber kebenaran slot assignment: OrgNode / OrgAssignment (Pemuda / Kolom). Bukan chart foto publik.',
+      steps: ['Pilih domain.', 'Tambah cabang, slot posisi, atau referensi grup.', 'Orang di-assign ke slot dari Jemaat / Onboarding — bukan dari editor pohon ini.'],
+      when: 'Pohonnya salah atau perlu slot RBAC baru.',
+      notFor: 'Nama dan foto halaman Pengurus publik ada di Struktur Organisasi. Dua lapisan ini sengaja terpisah, bukan duplikat.',
     },
     'groups-monitoring': {
       title: 'Monitoring kelompok',
@@ -436,10 +436,10 @@ export const portalId: typeof portalEn = {
     },
     struktur: {
       title: 'Struktur Organisasi',
-      purpose: 'Chart orang untuk halaman Pengurus publik (BPMJ, Komisi, Tim Kerja, posisi terbuka).',
-      steps: ['Edit di tampilan Chart atau Tabel.', 'Tandai peran terbuka (chip putus-putus di landing).', 'Simpan menyinkron ke situs.'],
+      purpose: 'CMS landing: chart orang untuk halaman Pengurus publik (foto, nama, badge posisi terbuka). Bukan pohon assignment RBAC.',
+      steps: ['Edit di tampilan Chart atau Tabel.', 'Tandai peran terbuka (chip putus-putus di landing).', 'Simpan menyinkron ke struktur_members di situs.'],
       when: 'Nama atau foto di gehc.page/leaders harus berubah.',
-      notFor: 'Slot assignment dan pohon RBAC ada di Kelola Hirarki.',
+      notFor: 'Slot assignment dan peran portal ada di Kelola Hirarki. Jangan anggap chart ini sumber kebenaran pohon org.',
     },
     events: {
       title: 'Program & Event',

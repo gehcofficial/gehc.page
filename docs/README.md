@@ -20,6 +20,8 @@
 - [Google Drive integration](tech/drive-integration.md)
 - [Database migrations](tech/database-migrations.md)
 - [Nav ↔ API parity matrix](tech/nav-api-parity.md)
+- [Production go-live](tech/production-golive.md)
+- [Platform operator](tech/platform-operator.md)
 
 ## Handoff
 
