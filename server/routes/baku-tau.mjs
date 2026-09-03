@@ -41,9 +41,21 @@ function publicEventInfo(event) {
 
 async function resolveEventInfo(prisma) {
   const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+  let whatsappGroupUrl = event?.whatsappGroupUrl || whatsappGroupUrlFromEnv() || null;
+  if (!whatsappGroupUrl) {
+    try {
+      const link = await prisma.channelLink.findUnique({
+        where: { kind_refId: { kind: 'EVENT', refId: BAKU_TAU_EVENT_ID } },
+      });
+      const url = link?.url?.trim();
+      if (url && /^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(url)) {
+        whatsappGroupUrl = url;
+      }
+    } catch { /* ChannelLink belum ada */ }
+  }
   return {
     ...publicEventInfo(event),
-    whatsappGroupUrl: event?.whatsappGroupUrl || whatsappGroupUrlFromEnv(),
+    whatsappGroupUrl,
   };
 }
 

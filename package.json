@@ -31,6 +31,8 @@
     "db:backfill:google-link": "node server/_backfill-google-link.cjs",
     "db:archive:bakutau": "node server/_archive-bakutau-event.cjs",
     "db:archive:bakutau:staging": "dotenv -e .env.staging -- node server/_archive-bakutau-event.cjs",
+    "db:reset:bakutau-regs": "node server/_reset-bakutau-registrations.cjs",
+    "db:reset:bakutau-regs:staging": "dotenv -e .env.staging -- node server/_reset-bakutau-registrations.cjs",
     "db:backfill:org-assignments": "node server/backfill-org-assignments.cjs",
     "db:bridge:waitlist": "node server/_bridge-waitlist-to-pool.cjs",
     "db:sync-retreat": "node server/_sync-retreat-beyonders.cjs",

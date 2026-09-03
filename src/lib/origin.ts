@@ -78,3 +78,36 @@ export function validateOriginForm(params: {
   }
   return null;
 }
+
+export type OriginFormState = {
+  originRegion: OriginRegion | '';
+  originSulutPlace: string;
+  originSulutOther: string;
+  originNonSulut: string;
+};
+
+export function emptyOriginForm(): OriginFormState {
+  return { originRegion: '', originSulutPlace: '', originSulutOther: '', originNonSulut: '' };
+}
+
+/** Balikkan string tersimpan (`Sulut · Manado`) ke field form. */
+export function parseOriginString(origin?: string | null): OriginFormState {
+  const empty = emptyOriginForm();
+  if (!origin?.trim()) return empty;
+  const s = origin.trim();
+  if (/^sulut\b/i.test(s)) {
+    const place = s.replace(/^sulut\s*·\s*/i, '').trim();
+    const known = SULUT_PLACES.find((p) => p.value === place && p.value !== 'LAINNYA_SULUT');
+    if (known) return { originRegion: 'SULUT', originSulutPlace: known.value, originSulutOther: '', originNonSulut: '' };
+    return { originRegion: 'SULUT', originSulutPlace: 'LAINNYA_SULUT', originSulutOther: place, originNonSulut: '' };
+  }
+  if (/^luar sulut\b/i.test(s)) {
+    return {
+      originRegion: 'NON_SULUT',
+      originSulutPlace: '',
+      originSulutOther: '',
+      originNonSulut: s.replace(/^luar sulut\s*·\s*/i, '').trim(),
+    };
+  }
+  return empty;
+}

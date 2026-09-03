@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2, Ticket } from 'lucide-react';
 import { Field } from '../public/ui/joinParts';
 import { DOMICILE_OPTIONS, domicileDetailConfig, type DomicileKind } from '../../lib/domicile';
@@ -7,31 +7,45 @@ import {
   SULUT_PLACES,
   TITLE_CASE_HINT,
   buildOriginString,
+  emptyOriginForm,
+  parseOriginString,
   titleCaseWords,
   validateOriginForm,
+  type OriginFormState,
   type OriginRegion,
 } from '../../lib/origin';
 
-type OriginForm = {
-  originRegion: OriginRegion | '';
-  originSulutPlace: string;
-  originSulutOther: string;
-  originNonSulut: string;
+export type BakutauRegisterResult = {
+  checkInCode?: string | null;
+  whatsappGroupUrl?: string | null;
+  registeredAt?: string | null;
+  eventDate?: string | null;
+  venueName?: string | null;
+  locationDetail?: string | null;
+  mapUrl?: string | null;
+  mapEmbedQuery?: string | null;
 };
 
-export const BakutauRegisterCard: React.FC<{ onRegistered?: () => void }> = ({ onRegistered }) => {
+export const BakutauRegisterCard: React.FC<{ onRegistered?: (payload?: BakutauRegisterResult) => void }> = ({ onRegistered }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [originForm, setOriginForm] = useState<OriginForm>({
-    originRegion: '',
-    originSulutPlace: '',
-    originSulutOther: '',
-    originNonSulut: '',
-  });
+  const [originForm, setOriginForm] = useState<OriginFormState>(emptyOriginForm());
   const [domicileKind, setDomicileKind] = useState('');
   const [domicileDetail, setDomicileDetail] = useState('');
 
   const domicileDetailCfg = domicileDetailConfig(domicileKind as DomicileKind | '');
+
+  useEffect(() => {
+    fetch('/api/me/profile', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const u = d.user || {};
+        if (u.origin) setOriginForm(parseOriginString(u.origin));
+        if (u.domicileKind) setDomicileKind(u.domicileKind);
+        if (u.domicileDetail) setDomicileDetail(u.domicileDetail);
+      })
+      .catch(() => {});
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +88,7 @@ export const BakutauRegisterCard: React.FC<{ onRegistered?: () => void }> = ({ o
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Gagal mendaftar.');
-      onRegistered?.();
+      onRegistered?.(d);
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -13,6 +13,7 @@ type Props = {
   onCompleteProfile?: () => void;
   checkInCode?: string | null;
   registeredAt?: string | null;
+  showPortalLink?: boolean;
 };
 
 export const BakuTauWelcomeCard: React.FC<Props> = ({
@@ -26,6 +27,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
   onCompleteProfile,
   checkInCode,
   registeredAt,
+  showPortalLink = false,
 }) => {
   const dateLabel = new Date(eventDate).toLocaleString('id-ID', {
     weekday: 'long',
@@ -65,7 +67,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         />
       )}
 
-      {checkInCode && (
+      {checkInCode ? (
         <div className={`rounded-2xl border border-emerald-200 bg-white text-center space-y-2 ${compact ? 'p-3' : 'p-4'}`}>
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
             QR daftar ulang hari H
@@ -84,8 +86,13 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
             </p>
           )}
           <p className="text-[10px] text-[#8C8880] leading-relaxed">
-            Tunjukkan QR ini ke panitia saat daftar ulang di lokasi.
+            Tunjukkan QR ini ke panitia saat daftar ulang di lokasi. Ini bukan QRIS pembayaran.
           </p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-4 text-center">
+          <p className="text-[11px] font-semibold text-emerald-800">QR daftar ulang sedang disiapkan</p>
+          <p className="text-[10px] text-[#8C8880] mt-1">Refresh halaman, atau buka Portal → Info Event.</p>
         </div>
       )}
 
@@ -122,6 +129,15 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         >
           Lengkapi profil dulu
         </button>
+      )}
+      {showPortalLink && (
+        <a
+          href="#/portal"
+          onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
+          className="block text-center text-[11px] font-bold text-[#FF416C] hover:underline"
+        >
+          Buka Info Event di portal →
+        </a>
       )}
     </div>
   );

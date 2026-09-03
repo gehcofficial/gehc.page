@@ -1,6 +1,40 @@
 # GEHC Portal — Handoff
 
-## Current — Info Event QR/WA untuk semua peserta (3 Sep 2026)
+## Current — Alur daftar BAKU TAU + reset regs (3 Sep 2026)
+
+**Goal:** Setelah Google login, kehadiran menempel; QR (bukan QRIS) + WA tampil di halaman event dan portal Info Event. Bisa daftar ulang dari nol.
+
+### Done
+
+- Halaman `#/event/bakutau`: sinkron pending setelah login, tidak flash form; payload register langsung isi QR/WA.
+- Tamu: dua jalur jelas (akun/Google vs counter panitia). Form login-in prefill dari profil.
+- `resolveEventInfo` fallback ChannelLink jika kolom WA event kosong.
+- Kartu welcome: placeholder QR, tautan portal Info Event, copy “bukan QRIS”.
+- `npm run db:reset:bakutau-regs` — hapus kehadiran/scan, lepas `source_event`, akun tetap.
+
+### Coba ulang
+
+```powershell
+npm run db:reset:bakutau-regs
+# jika uji di staging:
+npm run db:reset:bakutau-regs:staging
+npm run dev:all
+```
+
+1. Logout. Buka `#/event/bakutau`.
+2. **Punya akun / Google** → masuk → isi asal/domisili sekali → harus muncul QR + tombol WA (jika tautan sudah di Edit event).
+3. Portal → **Info Event** — kartu yang sama.
+
+Pastikan WA tersimpan: Program & Event → Edit → `https://chat.whatsapp.com/...`
+
+### Next
+
+- Panel pengumuman lintas role.
+- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
+
+---
+
+## Prior — Info Event QR/WA untuk semua peserta (3 Sep 2026)
 
 **Goal:** QR daftar ulang + link WA BAKU TAU tetap terlihat setelah onboarding selesai (bukan hanya WAITING_POOL).
 
@@ -17,17 +51,6 @@
 npm run lint; npm run test -- tests/unit/portal-nav-event-info.test.ts tests/unit/event-venue.test.ts tests/unit/check-in-code.test.ts
 npm run dev:all
 ```
-
-### Cara cek
-
-1. Login akun yang sudah daftar kehadiran BAKU TAU (bukan hanya admin tanpa registrasi).
-2. Portal → **Info Event** → harus ada QR + tombol WA (jika admin sudah isi link di Edit event).
-3. Belum daftar → tombol “Daftar Kehadiran” ke `#/event/bakutau`.
-
-### Next
-
-- Panel pengumuman lintas role (BPMJ/Komisi/Tim Kerja/Mentor) — belum ada; lonceng notifikasi + Warta publik masih jalur terpisah.
-- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
 
 ---
 
