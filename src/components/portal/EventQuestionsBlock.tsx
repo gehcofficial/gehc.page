@@ -2,9 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { EventQuestion } from '../../lib/event-questions';
+import { PANTATUGAS, SUB_DIVISIONS } from '../../lib/pantatugas';
 
 const inputClass =
   'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm';
+
+const DEFAULT_OWNER = { ownerDivision: 'KOINONIA', ownerSubdivision: 'Hubungan & Komunikasi' };
 
 type RequestRow = {
   id: string;
@@ -24,7 +27,12 @@ export const EventQuestionsBlock: React.FC<{ eventId: string }> = ({ eventId }) 
   const [saving, setSaving] = useState(false);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [reqForm, setReqForm] = useState({
-    label: '', type: 'TEXT', options: '', ownerSubdivision: 'Hubungan & Komunikasi', reason: '',
+    label: '',
+    type: 'TEXT',
+    options: '',
+    ownerDivision: DEFAULT_OWNER.ownerDivision,
+    ownerSubdivision: DEFAULT_OWNER.ownerSubdivision,
+    reason: '',
   });
   const [reqBusy, setReqBusy] = useState(false);
 
@@ -84,14 +92,21 @@ export const EventQuestionsBlock: React.FC<{ eventId: string }> = ({ eventId }) 
           label: reqForm.label,
           type: reqForm.type,
           options,
-          ownerDivision: 'KOINONIA',
+          ownerDivision: reqForm.ownerDivision,
           ownerSubdivision: reqForm.ownerSubdivision,
           reason: reqForm.reason,
         }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Gagal mengajukan.');
-      setReqForm({ label: '', type: 'TEXT', options: '', ownerSubdivision: 'Hubungan & Komunikasi', reason: '' });
+      setReqForm({
+        label: '',
+        type: 'TEXT',
+        options: '',
+        ownerDivision: DEFAULT_OWNER.ownerDivision,
+        ownerSubdivision: DEFAULT_OWNER.ownerSubdivision,
+        reason: '',
+      });
       addToast({ type: 'success', title: 'Usulan terkirim ke Komisi' });
       await load();
     } catch (err: any) {
@@ -164,7 +179,25 @@ export const EventQuestionsBlock: React.FC<{ eventId: string }> = ({ eventId }) 
             <option value="SELECT">Pilihan</option>
             <option value="MULTI">Multi</option>
           </select>
-          <input className={inputClass} placeholder="Sub-divisi pemilik" value={reqForm.ownerSubdivision} onChange={(e) => setReqForm((f) => ({ ...f, ownerSubdivision: e.target.value }))} />
+          <select
+            className={inputClass}
+            value={`${reqForm.ownerDivision}::${reqForm.ownerSubdivision}`}
+            onChange={(e) => {
+              const [ownerDivision, ownerSubdivision] = e.target.value.split('::');
+              setReqForm((f) => ({ ...f, ownerDivision, ownerSubdivision }));
+            }}
+            aria-label="Sub-divisi pemilik"
+          >
+            {PANTATUGAS.map((pillar) => (
+              <optgroup key={pillar.name} label={pillar.label}>
+                {(SUB_DIVISIONS[pillar.name] || []).map((sub) => (
+                  <option key={`${pillar.name}-${sub.name}`} value={`${pillar.name}::${sub.name}`}>
+                    {sub.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
         {(reqForm.type === 'SELECT' || reqForm.type === 'MULTI') && (
           <input className={inputClass} placeholder="Opsi, pisahkan koma" value={reqForm.options} onChange={(e) => setReqForm((f) => ({ ...f, options: e.target.value }))} />

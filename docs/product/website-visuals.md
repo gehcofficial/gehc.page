@@ -20,9 +20,11 @@ Google One / My Drive **didukung**. Service account hanya **membaca**. Unggah me
 
 | Lokasi | Variabel |
 |--------|----------|
-| Vercel staging env | `GITHUB_PUBLISH_TOKEN` (PAT: repo + workflow) |
-| Vercel staging env | `GITHUB_REPO=gehcofficial/gehc.page` |
+| Vercel preview + production | `GITHUB_PUBLISH_TOKEN` (PAT: repo + workflow) |
+| Vercel preview + production | `GITHUB_REPO=gehcofficial/gehc.page` |
 | GitHub repo secrets | `GDRIVE_ROOT_FOLDER_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+
+Sync dari `.env` lokal: `npm run env:sync-github-publish` lalu redeploy.
 
 Workflow: `.github/workflows/publish-visuals.yml`
 
