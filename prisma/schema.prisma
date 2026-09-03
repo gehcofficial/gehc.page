@@ -563,13 +563,43 @@ model ChurchProgram {
   createdById String  @map("created_by_id") @db.VarChar(64)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  parent   ChurchProgram?  @relation("ChurchProgramTree", fields: [parentId], references: [id])
-  children ChurchProgram[] @relation("ChurchProgramTree")
-  events   EventProgram[]
+  parent         ChurchProgram?        @relation("ChurchProgramTree", fields: [parentId], references: [id])
+  children       ChurchProgram[]       @relation("ChurchProgramTree")
+  events         EventProgram[]
+  calendarEntries ChurchCalendarEntry[]
 
   @@index([tenantId, scope])
   @@index([parentId])
   @@map("church_programs")
+}
+
+/// Kalender gerejawi bertanggal: hari raya liturgis, tanggal tetap GMIM, agenda jemaat.
+/// Terpisah dari ChurchProgram — kalender menjawab "kapan", payung menjawab "siapa".
+model ChurchCalendarEntry {
+  id              String    @id @db.VarChar(64)
+  tenantId        String    @default("tenant-youth") @map("tenant_id") @db.VarChar(16)
+  startDate       DateTime  @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+  allDay          Boolean   @default(true) @map("all_day")
+  level           String    @db.VarChar(16) // SINODE | WILAYAH | JEMAAT | KOMISI | KOLOM
+  source          String    @db.VarChar(16) // LITURGICAL | GMIM_FIXED | JEMAAT
+  season          String?   @db.VarChar(32) // NATAL | PASKAH | HUT | REGULAR — diturunkan dari tanggal
+  name            String    @db.VarChar(160)
+  nameEn          String?   @map("name_en") @db.VarChar(160)
+  scriptureRef    String?   @map("scripture_ref") @db.VarChar(120)
+  notes           String?   @db.Text
+  isPublic        Boolean   @default(false) @map("is_public")
+  churchProgramId String?   @map("church_program_id") @db.VarChar(64)
+  createdById     String?   @map("created_by_id") @db.VarChar(64)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  churchProgram ChurchProgram? @relation(fields: [churchProgramId], references: [id])
+
+  @@unique([tenantId, source, name, startDate], name: "church_calendar_natural")
+  @@index([tenantId, startDate])
+  @@index([isPublic, startDate])
+  @@map("church_calendar_entries")
 }
 
 model EventProgram {
@@ -583,7 +613,9 @@ model EventProgram {
   churchProgramId String?       @map("church_program_id") @db.VarChar(64)
   startDate     DateTime?       @map("start_date")
   endDate       DateTime?       @map("end_date")
+  /// Tidak diisi provisioning — folder Drive dibuat per divisi di EventDivision.driveFolderId.
   driveFolderId String?         @map("drive_folder_id") @db.VarChar(128)
+  /// Tidak diisi provisioning — tautan Meet per pertemuan ada di EventMeeting.gmeetLink.
   gmeetLink         String?         @map("gmeet_link") @db.VarChar(512)
   whatsappGroupUrl  String?         @map("whatsapp_group_url") @db.VarChar(512)
   createdById       String          @map("created_by_id") @db.VarChar(64)
@@ -622,7 +654,7 @@ model EventCheckIn {
   waitingPoolId  String?  @map("waiting_pool_id") @db.VarChar(64)
   userId         String?  @map("user_id") @db.VarChar(64)
   code           String   @db.VarChar(190)
-  result         String   @db.VarChar(16) // OK | DUPLICATE | UNKNOWN | MISMATCH | WALK_IN
+  result         String   @db.VarChar(16) // OK | DUPLICATE | UNKNOWN | MISMATCH | WALK_IN | VOIDED
   scannedAt      DateTime @default(now()) @map("scanned_at")
   scannedById    String   @map("scanned_by_id") @db.VarChar(64)
 
@@ -653,7 +685,9 @@ model MinistryMonthPlan {
   id          String   @id @db.VarChar(64)
   yearMonth   String   @unique @map("year_month") @db.VarChar(7) // 2026-09
   theme       String?  @db.VarChar(190)
+  /// Diterima PUT /api/ministry-plans/:yearMonth; belum ada field-nya di UI.
   notes       String?  @db.Text
+  /// Satu entri per hari Minggu sebenarnya (lihat sundaysInMonth) — 4 atau 5 baris.
   weeks       Json?
   createdById String   @map("created_by_id") @db.VarChar(64)
   createdAt   DateTime @default(now()) @map("created_at")
@@ -668,10 +702,10 @@ model MinistryWeekDeliverable {
   planId      String  @map("plan_id") @db.VarChar(64)
   weekIndex   Int     @map("week_index")
   division    String  @db.VarChar(24)
-  kind        String? @db.VarChar(24) // MODULE | RUNDOWN | BENZUAR | BENZINEMA | LOGISTICS
+  kind        String? @db.VarChar(24) // MODULE | RUNDOWN | BENZUAR | BENZINEMA | LOGISTICS | DOCS | CASHIER
   title       String  @db.VarChar(190)
   notes       String? @db.Text
-  status      String  @default("TODO") @db.VarChar(16)
+  status      String  @default("TODO") @db.VarChar(16) // TODO | DOING | DONE | BLOCKED
 
   plan MinistryMonthPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
@@ -797,6 +831,7 @@ enum NotificationType {
   MERGER_SUGGESTION
   MENTION
   ROLE_ASSIGNED
+  RUNBOOK_DUE
 }
 
 enum NotificationStatus {

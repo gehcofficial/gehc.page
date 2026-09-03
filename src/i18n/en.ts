@@ -106,6 +106,10 @@ export const en = {
     viewAll: 'All events',
     detailCta: 'Details',
     joinCta: 'Register attendance',
+    churchYearEyebrow: 'Church Calendar',
+    churchYearTitle: 'Feasts & Commemorations',
+    churchYearEmpty: 'The church calendar has not been published yet.',
+    churchYearNext: 'Next',
   },
   bulletin: {
     eyebrow: 'Official Publications',

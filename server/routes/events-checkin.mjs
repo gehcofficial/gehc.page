@@ -8,6 +8,23 @@ import { isKoinoniaOperator } from '../lib/checkin-access.mjs';
 
 const scanId = () => `cin-${crypto.randomUUID()}`;
 
+const SCAN_PAGE_DEFAULT = 100;
+const SCAN_PAGE_MAX = 500;
+const EXPORT_MAX = 20000;
+/** Scan yang benar-benar menandai kehadiran, jadi bisa dibatalkan. */
+const CHECKED_IN_RESULTS = new Set(['OK', 'WALK_IN']);
+
+/**
+ * Format nomor yang lazim tersimpan, supaya pencocokan walk-in bisa lewat
+ * `phone IN (...)` dan tidak perlu memuat seluruh waiting_pool.
+ */
+function phoneVariants(normalized) {
+  if (!normalized) return [];
+  const local = normalized.startsWith('62') ? `0${normalized.slice(2)}` : normalized;
+  const bare = normalized.startsWith('62') ? normalized.slice(2) : normalized;
+  return [...new Set([normalized, `+${normalized}`, local, bare])].filter(Boolean);
+}
+
 async function resolveEvent(prisma, slugOrId) {
   const raw = String(slugOrId || '').trim();
   const lower = raw.toLowerCase();
@@ -80,6 +97,46 @@ async function markAttendee(prisma, eventId, userId, scannedById, at) {
       checkedInById: scannedById,
     },
   });
+}
+
+/** Terdaftar vs sudah masuk — dihitung dari sumber kebenaran, bukan dari daftar scan. */
+async function countRegistration(prisma, resolved) {
+  if (resolved.isBakutau) {
+    const pools = await prisma.waitingPool.findMany({
+      where: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
+      select: { eventCheckedInAt: true },
+    });
+    return {
+      registered: pools.length,
+      checkedIn: pools.filter((p) => p.eventCheckedInAt).length,
+    };
+  }
+  const attendees = await prisma.eventAttendee.findMany({
+    where: { eventId: resolved.id },
+    select: { checkedInAt: true },
+  });
+  return {
+    registered: attendees.length,
+    checkedIn: attendees.filter((a) => a.checkedInAt).length,
+  };
+}
+
+function serializeScan(s) {
+  return {
+    id: s.id,
+    result: s.result,
+    code: s.code,
+    scannedAt: s.scannedAt,
+    scannedById: s.scannedById,
+    waitingPoolId: s.waitingPoolId,
+    userId: s.userId,
+    userName: s.user?.name || null,
+  };
+}
+
+function csvCell(value) {
+  const str = String(value ?? '');
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
 async function requireCheckInOp(req, res) {
@@ -181,11 +238,24 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     const at = new Date();
     let pool = null;
     if (phone) {
+      const base = resolved.isBakutau ? { sourceEvent: BAKU_TAU_SOURCE_EVENT } : {};
       const candidates = await prisma.waitingPool.findMany({
-        where: resolved.isBakutau ? { sourceEvent: BAKU_TAU_SOURCE_EVENT } : undefined,
+        where: { ...base, phone: { in: phoneVariants(phone) } },
         select: { id: true, name: true, phone: true, userId: true, eventCheckedInAt: true },
+        take: 25,
       });
       pool = candidates.find((p) => normalizePhone(p.phone || '') === phone) || null;
+
+      // Nomor dengan spasi/tanda hubung tidak tertangkap `IN`; pindai terbatas.
+      if (!pool) {
+        const loose = await prisma.waitingPool.findMany({
+          where: base,
+          select: { id: true, name: true, phone: true, userId: true, eventCheckedInAt: true },
+          orderBy: { registeredAt: 'desc' },
+          take: 2000,
+        });
+        pool = loose.find((p) => normalizePhone(p.phone || '') === phone) || null;
+      }
     }
 
     if (pool?.eventCheckedInAt) {
@@ -237,54 +307,124 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     const resolved = await resolveEvent(prisma, req.params.slug);
     if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
+    const limit = Math.min(Math.max(Number(req.query.limit) || SCAN_PAGE_DEFAULT, 1), SCAN_PAGE_MAX);
+    const cursor = String(req.query.cursor || '').trim();
+
     const scans = await prisma.eventCheckIn.findMany({
       where: { eventId: resolved.id },
       orderBy: { scannedAt: 'desc' },
-      take: 500,
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { user: { select: { id: true, name: true } } },
     });
 
-    let registered = 0;
-    let checkedIn = 0;
-    if (resolved.isBakutau) {
-      const pools = await prisma.waitingPool.findMany({
-        where: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
-        select: { eventCheckedInAt: true },
-      });
-      registered = pools.length;
-      checkedIn = pools.filter((p) => p.eventCheckedInAt).length;
-    } else {
-      const attendees = await prisma.eventAttendee.findMany({
-        where: { eventId: resolved.id },
-        select: { checkedInAt: true },
-      });
-      registered = attendees.length;
-      checkedIn = attendees.filter((a) => a.checkedInAt).length;
-    }
+    const hasMore = scans.length > limit;
+    const page = hasMore ? scans.slice(0, limit) : scans;
+
+    // Breakdown dihitung di DB — bukan dari halaman yang terpotong.
+    const grouped = await prisma.eventCheckIn.groupBy({
+      by: ['result'],
+      where: { eventId: resolved.id },
+      _count: { _all: true },
+    });
+    const byResult = Object.fromEntries(grouped.map((g) => [g.result, g._count._all]));
+
+    const counts = await countRegistration(prisma, resolved);
 
     const stats = {
-      registered,
-      checkedIn,
-      ok: scans.filter((s) => s.result === 'OK').length,
-      duplicate: scans.filter((s) => s.result === 'DUPLICATE').length,
-      unknown: scans.filter((s) => s.result === 'UNKNOWN').length,
-      mismatch: scans.filter((s) => s.result === 'MISMATCH').length,
-      walkIn: scans.filter((s) => s.result === 'WALK_IN').length,
+      registered: counts.registered,
+      checkedIn: counts.checkedIn,
+      ok: byResult.OK || 0,
+      duplicate: byResult.DUPLICATE || 0,
+      unknown: byResult.UNKNOWN || 0,
+      mismatch: byResult.MISMATCH || 0,
+      walkIn: byResult.WALK_IN || 0,
+      voided: byResult.VOIDED || 0,
+      totalScans: grouped.reduce((sum, g) => sum + g._count._all, 0),
     };
 
     res.json({
       event: { id: resolved.id, slug: resolved.slug, name: resolved.name },
       stats,
-      scans: scans.map((s) => ({
-        id: s.id,
-        result: s.result,
-        code: s.code,
-        scannedAt: s.scannedAt,
-        scannedById: s.scannedById,
-        waitingPoolId: s.waitingPoolId,
-        userId: s.userId,
-        userName: s.user?.name || null,
-      })),
+      scans: page.map(serializeScan),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
     });
+  }));
+
+  app.post('/api/events/:slug/check-in/:scanId/void', requireRole('KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+    if (!(await requireCheckInOp(req, res))) return;
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEvent(prisma, req.params.slug);
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const scan = await prisma.eventCheckIn.findUnique({ where: { id: String(req.params.scanId || '') } });
+    if (!scan || scan.eventId !== resolved.id) {
+      return res.status(404).json({ error: 'Scan tidak ditemukan pada event ini.' });
+    }
+    if (scan.result === 'VOIDED') {
+      return res.status(400).json({ error: 'Scan ini sudah dibatalkan.' });
+    }
+    if (!CHECKED_IN_RESULTS.has(scan.result)) {
+      return res.status(400).json({ error: `Scan ${scan.result} tidak menandai kehadiran, tidak perlu dibatalkan.` });
+    }
+
+    const scannedById = req.authUser.id;
+
+    if (scan.waitingPoolId) {
+      await prisma.waitingPool.updateMany({
+        where: { id: scan.waitingPoolId },
+        data: { eventCheckedInAt: null, eventCheckedInById: null },
+      });
+    }
+    if (scan.userId) {
+      await prisma.eventAttendee.updateMany({
+        where: { eventId: resolved.id, userId: scan.userId },
+        data: { checkedInAt: null, checkedInById: null },
+      });
+    }
+
+    await logScan(prisma, {
+      eventId: resolved.id,
+      waitingPoolId: scan.waitingPoolId,
+      userId: scan.userId,
+      code: scan.code,
+      result: 'VOIDED',
+      scannedById,
+    });
+
+    return res.json({ result: 'VOIDED', message: 'Check-in dibatalkan. Peserta bisa scan ulang.' });
+  }));
+
+  app.get('/api/events/:slug/check-ins/export', requireRole('KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+    if (!(await requireCheckInOp(req, res))) return;
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEvent(prisma, req.params.slug);
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const scans = await prisma.eventCheckIn.findMany({
+      where: { eventId: resolved.id },
+      orderBy: { scannedAt: 'asc' },
+      take: EXPORT_MAX,
+      include: { user: { select: { name: true } } },
+    });
+
+    const header = 'waktu,hasil,nama,waiting_pool_id,user_id,kode,operator';
+    const rows = scans.map((s) => [
+      s.scannedAt.toISOString(),
+      s.result,
+      csvCell(s.user?.name || ''),
+      s.waitingPoolId || '',
+      s.userId || '',
+      csvCell(s.code),
+      s.scannedById,
+    ].join(','));
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="check-in-${resolved.slug}.csv"`);
+    res.send([header, ...rows].join('\n'));
   }));
 }

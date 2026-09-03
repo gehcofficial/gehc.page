@@ -82,6 +82,7 @@ interface DivisionMember {
   id: string;
   eventDivisionId: string;
   userId: string;
+  userName?: string | null;
   role: string;
   createdAt: string;
 }
@@ -985,7 +986,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                             {ROLE_ICONS[m.role] || <Users className="w-3.5 h-3.5" />}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-[#1B1B1B]">{m.userId}</p>
+                            <p className="text-xs font-bold text-[#1B1B1B]">{m.userName || m.userId}</p>
                             <p className="text-[10px] text-[#8C8880]">{ROLE_LABELS[m.role] || m.role}</p>
                           </div>
                         </div>

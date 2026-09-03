@@ -19,5 +19,5 @@ Sumber: [Google Docs](https://docs.google.com/document/d/1tOgvxToOVVkoIhhJzJCkre
 
 ## Notes
 
-- Scanner hari H: tab Check-in Koinonia (QR + walk-in + CSV). Migrasi: `_migrate-event-checkin.cjs`.
+- Scanner hari H: tab Check-in Koinonia (QR + walk-in + batalkan scan). Export CSV lewat `GET /api/events/:slug/check-ins/export` (seluruh riwayat, bukan hanya halaman yang tampil). Migrasi: `_migrate-event-checkin.cjs`.
 - Panel **Kanal WhatsApp** (`#/portal/.../wa-channels`) menyimpan tautan undangan saja (bukan WhatsApp API).

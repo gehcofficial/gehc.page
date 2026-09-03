@@ -105,6 +105,10 @@ export const id: Dict = {
     viewAll: 'Semua kegiatan',
     detailCta: 'Detail',
     joinCta: 'Daftar Kehadiran',
+    churchYearEyebrow: 'Kalender Gerejawi',
+    churchYearTitle: 'Hari Raya & Peringatan',
+    churchYearEmpty: 'Kalender gerejawi belum dipublikasikan.',
+    churchYearNext: 'Berikutnya',
   },
   bulletin: {
     eyebrow: 'Publikasi Resmi',

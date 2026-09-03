@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, ClipboardPaste, Download, Loader2, QrCode, UserPlus, XCircle } from 'lucide-react';
+import { Camera, ClipboardPaste, Download, Loader2, QrCode, Undo2, UserPlus, XCircle } from 'lucide-react';
 
-type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'WALK_IN';
+type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'WALK_IN' | 'VOIDED';
 
 type ScanRow = {
   id: string;
@@ -21,6 +21,8 @@ type Stats = {
   unknown: number;
   mismatch: number;
   walkIn: number;
+  voided: number;
+  totalScans: number;
 };
 
 const RESULT_STYLE: Record<ScanResult, string> = {
@@ -29,7 +31,11 @@ const RESULT_STYLE: Record<ScanResult, string> = {
   UNKNOWN: 'bg-red-50 border-red-200 text-red-800',
   MISMATCH: 'bg-red-50 border-red-200 text-red-800',
   WALK_IN: 'bg-blue-50 border-blue-200 text-blue-800',
+  VOIDED: 'bg-[#EFEDE8] border-[#D9D7D0] text-[#5C5850]',
 };
+
+/** Hanya scan ini yang menandai kehadiran, jadi hanya ini yang bisa dibatalkan. */
+const VOIDABLE: ScanResult[] = ['OK', 'WALK_IN'];
 
 export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> = ({ eventId, eventName }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -44,6 +50,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   const [flash, setFlash] = useState<{ result: ScanResult; message: string; name?: string } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [scans, setScans] = useState<ScanRow[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -52,14 +60,30 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     setStats(d.stats);
     setScans(d.scans || []);
+    setNextCursor(d.nextCursor || null);
   }, [eventId]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor) return;
+    setPaused(true);
+    const url = `/api/events/${encodeURIComponent(eventId)}/check-ins?cursor=${encodeURIComponent(nextCursor)}`;
+    const r = await fetch(url, { credentials: 'include' });
+    const d = await r.json();
+    if (!r.ok) return;
+    setScans((prev) => [...prev, ...(d.scans || [])]);
+    setNextCursor(d.nextCursor || null);
+  }, [eventId, nextCursor]);
 
   useEffect(() => {
     setLoading(true);
     load().catch(() => null).finally(() => setLoading(false));
+  }, [load]);
+
+  useEffect(() => {
+    if (paused) return;
     const t = setInterval(() => { load().catch(() => null); }, 8000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, paused]);
 
   const submitCode = useCallback(async (code: string) => {
     const trimmed = code.trim();
@@ -158,17 +182,29 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
     }
   };
 
-  const downloadCsv = () => {
-    const header = 'waktu,hasil,nama,kode\n';
-    const rows = scans.map((s) =>
-      [s.scannedAt, s.result, s.userName || '', s.code.replace(/,/g, ' ')].join(','),
-    ).join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `check-in-${eventId}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  const voidScan = async (s: ScanRow) => {
+    const who = s.userName || s.code;
+    if (!window.confirm(`Batalkan check-in ${who}? Peserta bisa scan ulang setelah ini.`)) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const r = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/check-in/${encodeURIComponent(s.id)}/void`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const d = await r.json();
+      setFlash({
+        result: r.ok ? 'VOIDED' : 'UNKNOWN',
+        message: d.message || d.error || 'Gagal membatalkan',
+        name: s.userName || undefined,
+      });
+      await load();
+    } catch (e: any) {
+      setFlash({ result: 'UNKNOWN', message: e.message || 'Gagal membatalkan' });
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   };
 
   return (
@@ -178,13 +214,12 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
           <h4 className="text-sm font-bold text-[#1B1B1B]">Check-in hari H</h4>
           <p className="text-xs text-[#8C8880]">{eventName} · Koinonia (Persekutuan & Integrasi)</p>
         </div>
-        <button
-          type="button"
-          onClick={downloadCsv}
+        <a
+          href={`/api/events/${encodeURIComponent(eventId)}/check-ins/export`}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#5C5850]"
         >
           <Download className="w-3.5 h-3.5" /> CSV
-        </button>
+        </a>
       </div>
 
       {stats && (
@@ -277,25 +312,58 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
       </form>
 
       <div className="rounded-2xl border border-[#D9D7D0] overflow-hidden">
-        <div className="px-4 py-2 bg-[#FAF9F5] text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
-          Riwayat scan
+        <div className="px-4 py-2 bg-[#FAF9F5] flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
+            Riwayat scan{stats ? ` · ${stats.totalScans}` : ''}
+          </span>
+          {paused && (
+            <button
+              type="button"
+              onClick={() => { setPaused(false); void load(); }}
+              className="text-[10px] font-bold text-[#5C5850] underline"
+            >
+              Auto-refresh berhenti — aktifkan
+            </button>
+          )}
         </div>
         {loading && <p className="p-4 text-xs text-[#8C8880]">Memuat…</p>}
         {!loading && scans.length === 0 && <p className="p-4 text-xs text-[#8C8880]">Belum ada scan.</p>}
         <ul className="divide-y divide-[#EFEDE8] max-h-80 overflow-y-auto">
-          {scans.slice(0, 80).map((s) => (
+          {scans.map((s) => (
             <li key={s.id} className="px-4 py-2 flex items-center justify-between gap-2 text-xs">
-              <div>
+              <div className="min-w-0">
                 <span className={`inline-block px-1.5 py-0.5 rounded font-bold ${RESULT_STYLE[s.result] || ''}`}>{s.result}</span>
                 <span className="ml-2 text-[#1B1B1B] font-semibold">{s.userName || '—'}</span>
                 <p className="font-mono text-[10px] text-[#8C8880] mt-0.5 break-all">{s.code}</p>
               </div>
-              <span className="text-[10px] text-[#8C8880] shrink-0">
-                {new Date(s.scannedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-[#8C8880]">
+                  {new Date(s.scannedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+                {VOIDABLE.includes(s.result) && (
+                  <button
+                    type="button"
+                    onClick={() => voidScan(s)}
+                    disabled={busy}
+                    title="Batalkan check-in"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] bg-white text-[10px] font-bold text-[#5C5850] disabled:opacity-50"
+                  >
+                    <Undo2 className="w-3 h-3" /> Batalkan
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
+        {nextCursor && (
+          <button
+            type="button"
+            onClick={() => { void loadMore(); }}
+            className="w-full px-4 py-2 bg-[#FAF9F5] border-t border-[#EFEDE8] text-xs font-bold text-[#5C5850]"
+          >
+            Muat lebih banyak
+          </button>
+        )}
       </div>
     </div>
   );

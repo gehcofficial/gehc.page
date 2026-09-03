@@ -4,6 +4,8 @@
 
 - [User flow & RBAC](product/userflow.md)
 - [Pantatugas structure](product/pantatugas.md)
+- [Panca Tugas operating model (RACI + runbook)](product/pancatugas-operating-model.md)
+- [Kalender gerejawi GEHC](product/church-calendar.md)
 - [Website visual Drive map](product/website-visuals.md)
 - [Beyonders revision v2](product/revision-v2-beyonders.md)
 - [Roadmap](product/roadmap.md)

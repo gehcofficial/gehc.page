@@ -43,16 +43,24 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'divisions', label: 'Panel Divisi (6 Divisi)', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace permanen divisi' },
   { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
-  { id: 'pwa-settings', label: 'PWA & Notifikasi', roles: CHURCH_ROLES.all, group: 'Sistem' },
+  // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
+  // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];
 
+/**
+ * Urutan tampil per peran. Item yang lolos filter tapi tidak terdaftar di sini
+ * tetap ikut di belakang (lihat buildPortalNavItems), jadi daftar ini mengatur
+ * urutan — bukan hak akses.
+ *
+ * SUPERADMIN tidak punya entri sendiri: `roleForNav` sudah memetakannya ke
+ * KOMISI, dan tugas platform ada di shell terpisah `#/admin`.
+ */
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
-  KOMISI: ['dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'pwa-settings', 'account'],
-  COMMITTEE: ['dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'pwa-settings', 'account'],
-  MENTOR: ['dashboard', 'groups-monitoring', 'wa-channels', 'pwa-settings', 'account'],
-  MENTEE: ['dashboard', 'groups-monitoring', 'pwa-settings', 'account'],
-  BPMJ: ['dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'pwa-settings', 'account'],
-  SUPERADMIN: ['dashboard', 'pwa-settings', 'account'],
+  KOMISI: ['dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
+  MENTOR: ['dashboard', 'groups-monitoring', 'wa-channels', 'account'],
+  MENTEE: ['dashboard', 'groups-monitoring', 'account'],
+  BPMJ: ['dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
 };
 
 function monitoringLabel(ctx: NavBuildContext): string {

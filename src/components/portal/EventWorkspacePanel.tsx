@@ -12,6 +12,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { ChurchCalendarPanel } from './ChurchCalendarPanel';
+import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
 import { MonthlyPlanPanel } from './MonthlyPlanPanel';
 
 interface EventDivision {
@@ -56,7 +57,7 @@ interface EventItem {
 }
 
 type ViewMode = 'list' | 'detail';
-type ListTab = 'events' | 'umbrella' | 'month';
+type ListTab = 'events' | 'calendar' | 'umbrella' | 'month';
 
 const ALL_EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 const EVENT_KINDS = [
@@ -355,7 +356,7 @@ export const EventWorkspacePanel: React.FC = () => {
               <div className="space-y-2">
                 {(discussions[div.division] || []).slice(-3).map((u, i) => (
                   <div key={u.id || i} className="text-xs bg-[#FAF9F5] rounded-lg p-2">
-                    <span className="font-semibold text-[#1B1B1B]">{u.authorId}</span>: {u.body}
+                    <span className="font-semibold text-[#1B1B1B]">{u.authorName || u.authorId}</span>: {u.body}
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -451,9 +452,10 @@ export const EventWorkspacePanel: React.FC = () => {
         )}
       </div>
 
-      <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
+      <div className="flex flex-wrap gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
         {([
           { id: 'events' as ListTab, label: 'Event Tim Kerja' },
+          { id: 'calendar' as ListTab, label: 'Kalender gerejawi' },
           { id: 'umbrella' as ListTab, label: 'Payung gerejawi' },
           { id: 'month' as ListTab, label: 'Rencana bulan' },
         ]).map((t) => (
@@ -468,6 +470,15 @@ export const EventWorkspacePanel: React.FC = () => {
         ))}
       </div>
 
+      {listTab === 'calendar' && (
+        <ChurchYearCalendarPanel
+          onPromote={({ name, startDate }) => {
+            setCreateForm((f) => ({ ...f, name, startDate, endDate: startDate }));
+            setShowCreate(true);
+            setListTab('events');
+          }}
+        />
+      )}
       {listTab === 'umbrella' && <ChurchCalendarPanel />}
       {listTab === 'month' && <MonthlyPlanPanel />}
       {listTab === 'events' && (

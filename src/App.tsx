@@ -16,6 +16,7 @@ import { RegenerationFlowSection } from './components/public/RegenerationFlowSec
 import { GroupsCarousel } from './components/public/GroupsCarousel';
 import { PantatugasShowcase } from './components/public/PantatugasShowcase';
 import { EventsTimeline } from './components/public/EventsTimeline';
+import { ChurchYearSection } from './components/public/ChurchYearSection';
 import { WeeklyInfoSection } from './components/public/WeeklyInfoSection';
 import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
@@ -117,7 +118,10 @@ const MainAppContent: React.FC = () => {
         )}
 
         {publicTab === 'events' && (
-          <EventsTimeline condensed={false} showHeader={false} />
+          <>
+            <EventsTimeline condensed={false} showHeader={false} />
+            <ChurchYearSection limit={9} />
+          </>
         )}
 
         {publicTab === 'bulletin' && <WeeklyInfoSection />}

@@ -71,3 +71,14 @@ CREATE TABLE IF NOT EXISTS ministry_week_deliverables (
   PRIMARY KEY (id),
   KEY ministry_week_deliverables_plan_week (plan_id, week_index)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Kolom pada tabel yang sudah ada. IF NOT EXISTS didukung TiDB.
+ALTER TABLE `EventProgram` ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'KHUSUS';
+ALTER TABLE `EventProgram` ADD COLUMN IF NOT EXISTS church_program_id VARCHAR(64) NULL;
+ALTER TABLE `EventProgram` ADD INDEX IF NOT EXISTS EventProgram_church_program_idx (church_program_id);
+
+ALTER TABLE event_attendees ADD COLUMN IF NOT EXISTS checked_in_at DATETIME(3) NULL;
+ALTER TABLE event_attendees ADD COLUMN IF NOT EXISTS checked_in_by_id VARCHAR(64) NULL;
+
+ALTER TABLE waiting_pool ADD COLUMN IF NOT EXISTS event_checked_in_at DATETIME(3) NULL;
+ALTER TABLE waiting_pool ADD COLUMN IF NOT EXISTS event_checked_in_by_id VARCHAR(64) NULL;

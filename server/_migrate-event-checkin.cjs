@@ -30,6 +30,24 @@ async function addColumn(conn, table, col, ddl) {
   console.log(`${table}.${col} added`);
 }
 
+async function hasIndex(conn, table, index) {
+  const [rows] = await conn.query(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+    [table, index],
+  );
+  return rows.length > 0;
+}
+
+async function addIndex(conn, table, index, cols) {
+  if (await hasIndex(conn, table, index)) {
+    console.log(`${table}.${index} exists`);
+    return;
+  }
+  await conn.query(`ALTER TABLE \`${table}\` ADD INDEX ${index} (${cols})`);
+  console.log(`${table}.${index} added`);
+}
+
 async function main() {
   const raw = process.env.DATABASE_URL;
   if (!raw) {
@@ -74,6 +92,7 @@ async function main() {
     if (await hasTable(conn, 'EventProgram')) {
       await addColumn(conn, 'EventProgram', 'kind', `kind VARCHAR(16) NOT NULL DEFAULT 'KHUSUS'`);
       await addColumn(conn, 'EventProgram', 'church_program_id', `church_program_id VARCHAR(64) NULL`);
+      await addIndex(conn, 'EventProgram', 'EventProgram_church_program_idx', 'church_program_id');
     }
 
     if (await hasTable(conn, 'event_attendees')) {

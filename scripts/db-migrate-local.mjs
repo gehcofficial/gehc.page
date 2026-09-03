@@ -95,6 +95,16 @@ const STEPS = [
     label: 'Event check-in, channel links, church programs',
     required: true,
   },
+  {
+    script: 'server/_migrate-church-calendar.cjs',
+    label: 'Kalender gerejawi bertanggal (church_calendar_entries)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-runbook-notif.cjs',
+    label: 'Notification type RUNBOOK_DUE',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

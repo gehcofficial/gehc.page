@@ -73,6 +73,7 @@ import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
 import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
+import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
 import {
   applyLifeAddressFields,
   reminderDue,
@@ -119,7 +120,7 @@ import {
 const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
 
-const wrap = (fn) => (req, res) => fn(req, res).catch(async (err) => {
+const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(async (err) => {
   console.error(`[api] ${req.method} ${req.path} →`, err.message);
   if (isTransientDbError(err)) {
     await resetPrisma();
@@ -716,7 +717,7 @@ app.get('/api/notifications', wrap(async (req, res) => {
 
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
-      if (n.type === 'ROLE_ASSIGNED') return n.memberId === req.authUser.id;
+      if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE') return n.memberId === req.authUser.id;
       if (n.type !== 'MENTION') return true;
       const payload = n.payload || {};
       return payload.authorId !== req.authUser.id;
@@ -2113,9 +2114,11 @@ registerEventCheckInRoutes(app, { wrap });
 registerChannelLinkRoutes(app, { wrap });
 registerChurchProgramRoutes(app, { wrap });
 registerMinistryPlanRoutes(app, { wrap });
+registerChurchCalendarRoutes(app, { wrap });
 
-// GET /api/events/:id — detail event + divisi
-app.get('/api/events/:id', wrap(async (req, res) => {
+// GET /api/events/:id — detail event + divisi.
+// Jika id tidak ketemu, next() agar GET /api/events/:slug (events-public) yang menangani.
+app.get('/api/events/:id', wrap(async (req, res, next) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -2131,7 +2134,7 @@ app.get('/api/events/:id', wrap(async (req, res) => {
       const rows = await prisma.$queryRawUnsafe(
         `SELECT * FROM EventProgram WHERE id = ?`, req.params.id
       );
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      if (!rows || rows.length === 0) return next();
       const r = rows[0];
       const divRows = await prisma.$queryRawUnsafe(
         `SELECT * FROM EventDivision WHERE event_id = ?`, r.id
@@ -2165,7 +2168,7 @@ app.get('/api/events/:id', wrap(async (req, res) => {
       return res.status(500).json({ error: `Event detail gagal: ${msg.slice(0, 200)}` });
     }
   }
-  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  if (!ev) return next();
   const { whatsappGroupUrl: _waHidden, ...safeEvent } = ev;
   res.json({ event: safeEvent });
 }));
@@ -2292,16 +2295,18 @@ app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Resolve author names
+  // Resolve author names — satu query, bukan findUnique per id (TiDB memutus
+  // koneksi pada rentetan query sekuensial).
   const authorIds = [...new Set(updates.map((u) => u.authorId))];
   const authorMap = new Map();
-  for (const aid of authorIds) {
+  if (authorIds.length) {
     try {
-      const user = await prisma.user.findUnique({ where: { id: aid }, select: { name: true, email: true } });
-      authorMap.set(aid, user?.name || user?.email || aid);
-    } catch {
-      authorMap.set(aid, aid);
-    }
+      const users = await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, name: true, email: true },
+      });
+      for (const u of users) authorMap.set(u.id, u.name || u.email || u.id);
+    } catch { /* fallback ke id di bawah */ }
   }
 
   // Build threaded structure
@@ -2562,7 +2567,20 @@ app.get('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => 
     where: { eventDivisionId: division.id },
   });
 
-  res.json({ members });
+  // Nama anggota diambil satu query supaya UI tidak menampilkan user id mentah.
+  const userIds = [...new Set(members.map((m) => m.userId))];
+  const nameById = new Map();
+  if (userIds.length) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true },
+    });
+    for (const u of users) nameById.set(u.id, u.name || u.email || u.id);
+  }
+
+  res.json({
+    members: members.map((m) => ({ ...m, userName: nameById.get(m.userId) || m.userId })),
+  });
 }));
 
 // POST /api/events/:eventId/divisions/:div/members — add/update member
@@ -5152,6 +5170,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
+// GET /api/events/:slug — dijangkau lewat next() dari /api/events/:id saat id tidak cocok
 registerEventsPublicRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
 registerOperatorRoutes(app, { wrap });

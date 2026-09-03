@@ -31,9 +31,27 @@ const REQUIRED_TABLES = [
   'waiting_pool',
   'platform_operators',
   'platform_admin_grants',
+  'event_check_ins',
+  'channel_links',
+  'church_programs',
+  'ministry_month_plans',
+  'ministry_week_deliverables',
+  'church_calendar_entries',
 ];
 
-const REQUIRED_WAITING_POOL_COLUMNS = ['domicile_kind', 'domicile_detail', 'claim_token'];
+const REQUIRED_WAITING_POOL_COLUMNS = [
+  'domicile_kind',
+  'domicile_detail',
+  'claim_token',
+  'event_checked_in_at',
+  'event_checked_in_by_id',
+];
+
+/** Kolom di tabel selain users/waiting_pool yang boot-critical */
+const REQUIRED_TABLE_COLUMNS = {
+  event_attendees: ['checked_in_at', 'checked_in_by_id'],
+  EventProgram: ['kind', 'church_program_id'],
+};
 
 const quiet = process.argv.includes('--quiet');
 
@@ -51,36 +69,49 @@ async function getConnection() {
   });
 }
 
+async function columnExists(conn, table, col) {
+  const [rows] = await conn.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [table, col],
+  );
+  return rows.length > 0;
+}
+
+async function tableExists(conn, table) {
+  const [rows] = await conn.query(
+    `SELECT TABLE_NAME FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    [table],
+  );
+  return rows.length > 0;
+}
+
 export async function checkDbSchema() {
   const conn = await getConnection();
   const missing = { columns: [], tables: [] };
 
   try {
     for (const col of REQUIRED_USER_COLUMNS) {
-      const [rows] = await conn.query(
-        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?`,
-        [col],
-      );
-      if (!rows.length) missing.columns.push(`users.${col}`);
+      if (!(await columnExists(conn, 'users', col))) missing.columns.push(`users.${col}`);
     }
 
     for (const table of REQUIRED_TABLES) {
-      const [rows] = await conn.query(
-        `SELECT TABLE_NAME FROM information_schema.TABLES
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
-        [table],
-      );
-      if (!rows.length) missing.tables.push(table);
+      if (!(await tableExists(conn, table))) missing.tables.push(table);
     }
 
     for (const col of REQUIRED_WAITING_POOL_COLUMNS) {
-      const [rows] = await conn.query(
-        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'waiting_pool' AND COLUMN_NAME = ?`,
-        [col],
-      );
-      if (!rows.length) missing.columns.push(`waiting_pool.${col}`);
+      if (!(await columnExists(conn, 'waiting_pool', col))) missing.columns.push(`waiting_pool.${col}`);
+    }
+
+    for (const [table, cols] of Object.entries(REQUIRED_TABLE_COLUMNS)) {
+      if (!(await tableExists(conn, table))) {
+        missing.tables.push(table);
+        continue;
+      }
+      for (const col of cols) {
+        if (!(await columnExists(conn, table, col))) missing.columns.push(`${table}.${col}`);
+      }
     }
   } finally {
     await conn.end();
