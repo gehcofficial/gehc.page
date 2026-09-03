@@ -22,6 +22,7 @@ import {
   Brain,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { giftLabels } from '../../lib/gifts';
 
 const ROLE_LABELS = {
   MENTOR: 'Mentor',
@@ -59,7 +60,8 @@ interface PlacementItem {
   newcomerId: string;
   newcomerName: string;
   newcomerGender: string;
-  newcomerGiftsTop5: string[];
+  // Kolom JSON: bisa string[] atau { key, label, score }[] — normalisasi via giftLabels().
+  newcomerGiftsTop5: unknown;
   newcomerMaturityScore: number | null;
   recommendedGroupId: string | null;
   recommendedGroupName: string | null;
@@ -96,7 +98,8 @@ interface EligibleNewcomer {
   id: string;
   name: string;
   gender: string;
-  giftsTop5: string[];
+  // Kolom JSON: bisa string[] atau { key, label, score }[] — normalisasi via giftLabels().
+  giftsTop5: unknown;
   giftsScores: Record<string, number>;
 }
 
@@ -369,14 +372,14 @@ export const JethroPlacementReview: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {n.giftsTop5.slice(0, 3).map((g, i) => (
+                    {giftLabels(n.giftsTop5).slice(0, 3).map((g, i) => (
                       <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-white text-[#1B1B1B] border border-[#D9D7D0]">
                         {g}
                       </span>
                     ))}
-                    {n.giftsTop5.length > 3 && (
+                    {giftLabels(n.giftsTop5).length > 3 && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                        +{n.giftsTop5.length - 3}
+                        +{giftLabels(n.giftsTop5).length - 3}
                       </span>
                     )}
                   </div>
@@ -632,14 +635,14 @@ const PlacementItemCard: React.FC<{
             <span className="text-xs text-[#8C8880]">{genderIcon} {item.newcomerGender}</span>
           </div>
           <div className="flex flex-wrap gap-1 mt-1">
-            {item.newcomerGiftsTop5.slice(0, 3).map((g, i) => (
+            {giftLabels(item.newcomerGiftsTop5).slice(0, 3).map((g, i) => (
               <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-[#F3F1EC] text-[#1B1B1B] border border-[#D9D7D0]">
                 {g}
               </span>
             ))}
-            {item.newcomerGiftsTop5.length > 3 && (
+            {giftLabels(item.newcomerGiftsTop5).length > 3 && (
               <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                +{item.newcomerGiftsTop5.length - 3}
+                +{giftLabels(item.newcomerGiftsTop5).length - 3}
               </span>
             )}
           </div>

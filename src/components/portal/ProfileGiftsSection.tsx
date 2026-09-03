@@ -1,21 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { GiftTestWizard } from '../public/JoinPage';
-
-type GiftItem = { key?: string; label?: string; score?: number } | string;
-
-function normalizeGifts(raw: unknown): Array<{ key: string; label: string; score?: number }> {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((g, i) => {
-    if (typeof g === 'string') return { key: `gift-${i}`, label: g };
-    const o = g as GiftItem & Record<string, unknown>;
-    return {
-      key: String(o.key || `gift-${i}`),
-      label: String(o.label || o.key || g),
-      score: typeof o.score === 'number' ? o.score : undefined,
-    };
-  });
-}
+import { normalizeGifts } from '../../lib/gifts';
 
 export const ProfileGiftsSection: React.FC<{
   giftsTop5: unknown;

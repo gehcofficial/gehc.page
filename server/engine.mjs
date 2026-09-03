@@ -263,11 +263,12 @@ export async function recommendPlacementAdvanced(newcomerInputs) {
       else if (gdr === 'PEREMPUAN') perempuan++;
     }
 
-    // Gift coverage
+    // Gift coverage — wajib dinormalisasi seperti sisi newcomer, kalau tidak
+    // kuncinya ('BELAS_KASIH' atau '[object Object]') tidak akan pernah cocok
+    // dengan kunci kanonik ('Mercy') dan skor keberagaman jadi salah.
     const giftCoverage = {};
     for (const m of activeMembers) {
-      const gifts = m.user?.giftsTop5 || [];
-      for (const gift of gifts) {
+      for (const gift of normalizeGiftsTop5(m.user?.giftsTop5 || [])) {
         giftCoverage[gift] = (giftCoverage[gift] || 0) + 1;
       }
     }
