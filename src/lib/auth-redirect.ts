@@ -3,6 +3,12 @@ import { getNextFromHash, resolvePostAuthHash } from './hash-routes';
 
 const EVENT_SLUGS = ['bakutau'] as const;
 
+export const AUTH_SESSION_EVENT = 'gehc:auth-session';
+
+export function notifyAuthSession() {
+  window.dispatchEvent(new CustomEvent(AUTH_SESSION_EVENT));
+}
+
 export async function finishAuthRedirect(explicitNext?: string | null) {
   for (const slug of EVENT_SLUGS) {
     if (loadEventPending(slug)) {
@@ -12,5 +18,5 @@ export async function finishAuthRedirect(explicitNext?: string | null) {
   }
   const next = explicitNext ?? getNextFromHash();
   window.location.hash = resolvePostAuthHash(next).replace(/^#/, '');
-  window.location.reload();
+  notifyAuthSession();
 }

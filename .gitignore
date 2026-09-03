@@ -12,6 +12,12 @@ coverage/
 # Kredensial Google Service Account — JANGAN pernah commit
 gehc-*.json
 *service-account*.json
+.gdrive-user-token.json
+
+# Placeholder visual hasil seed (bisa di-generate ulang)
+scripts/visual-placeholders/**/*.png
+scripts/visual-placeholders/**/*.jpg
+scripts/visual-placeholders/**/*.jpeg
 
 # Playwright
 /test-results/

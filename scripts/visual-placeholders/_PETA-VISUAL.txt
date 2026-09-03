@@ -1,0 +1,51 @@
+GEHC Youth — Peta Visual Website
+================================
+Timpa file dengan STEM NAMA YANG SAMA (ekstensi .jpg / .png / .webp boleh).
+Website memakai lookup by filename stem, bukan urutan folder.
+Foto/video real: replace in place (hapus placeholder, unggah file baru bernama identik).
+
+Folder ini: Website Visual [PUBLIK]
+
+Unggah ke Google One memakai akun pemilik Drive (npm run drive:auth),
+bukan service account (SA tidak punya kuota My Drive).
+
+-- Slot tetap --
+landing/01-hero-banner.png                    →  Hero Beyonders — HeroSection
+landing/02-collage-worship.png                →  VisualCollage kiri atas — ibadah
+landing/03-collage-community.png              →  VisualCollage kanan atas — komunitas
+landing/04-collage-music.png                  →  VisualCollage tengah kanan — musik
+landing/05-collage-study.png                  →  VisualCollage kiri bawah — firman
+landing/06-collage-friends.png                →  VisualCollage kanan bawah — kelompok
+landing/07-collage-portrait.png               →  Fallback foto testimoni di VisualCollage
+landing/08-hero-video.mp4                     →  Opsional: video Hero (jika ada, mengganti gambar hero)  [jangan di-seed — unggah sendiri bila perlu]
+warta/01-banner-default.png                 →  Banner warta jika edisi tidak punya PNG
+kegiatan/01-banner-default.png                 →  Banner kegiatan default — EventsTimeline
+kegiatan/baku-tau-4.png                        →  Kartu unggulan BAKU TAU 4.0
+benzarpreneurship/01-hero.png                           →  Header halaman Benzarpreneurship
+benzarpreneurship/02-product-placeholder.png            →  Produk tanpa foto
+benzarpreneurship/03-qris.png                           →  QRIS checkout Benzarpreneurship
+kelompok/cover-agape.png                       →  Cover rumah Agape — GroupsCarousel
+kelompok/cover-avodah.png                      →  Cover rumah Avodah — GroupsCarousel
+kelompok/cover-dunamis.png                     →  Cover rumah Dunamis — GroupsCarousel
+kelompok/cover-echad.png                       →  Cover rumah Echad — GroupsCarousel
+kelompok/cover-hesed.png                       →  Cover rumah Hesed — GroupsCarousel
+kelompok/cover-kairos.png                      →  Cover rumah Kairos — GroupsCarousel
+kelompok/cover-logos.png                       →  Cover rumah Logos — GroupsCarousel
+kelompok/cover-metanoia.png                    →  Cover rumah Metanoia — GroupsCarousel
+kelompok/cover-ruach.png                       →  Cover rumah Ruach — GroupsCarousel
+kelompok/cover-shalom.png                      →  Cover rumah Shalom — GroupsCarousel
+pengurus/contoh-pengurus.png                   →  Contoh: ganti nama file menjadi slug orang (cth. stevania-hadinda.png)
+testimoni/contoh-penulis.png                    →  Contoh: ganti nama file menjadi slug penulis testimoni
+
+-- Warta edisi (pengganti Galeri publik) --
+Warta Publik [PUBLIK]/YYYY-MM-DD-judul-singkat/foto/*
+  →  Foto & video edisi di detail halaman Warta (#/bulletin)
+
+-- Pengurus & testimoni --
+pengurus/{slug-nama}.png     →  foto pengurus (override inisial)
+testimoni/{slug-penulis}.png →  foto penulis testimoni
+
+Slug = nama tanpa gelar, huruf kecil, spasi jadi tanda hubung.
+Contoh: "Pnt Stevania Hadinda" → stevania-hadinda.png
+
+Jangan ubah nama folder. Jangan taruh file slot di luar subfolder yang tertera.

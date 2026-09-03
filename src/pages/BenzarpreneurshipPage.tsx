@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShoppingCart, X, Minus, Plus, Store, CreditCard, CheckCircle, Package } from 'lucide-react';
+import { ShoppingCart, X, Minus, Plus, Store, CheckCircle } from 'lucide-react';
 import type { Product, ProductCategory, QRISInfo } from '../types/benzar';
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../types/benzar';
+import { useMediaSlots } from '../hooks/useMediaSlots';
+import { IMG_PROPS } from '../config/media';
 
 const CATEGORIES: ProductCategory[] = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
 
 export default function BenzarpreneurshipPage() {
+  const slots = useMediaSlots();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<ProductCategory | 'ALL'>('ALL');
@@ -86,8 +89,15 @@ export default function BenzarpreneurshipPage() {
   return (
     <div className="min-h-screen bg-[#FAFAF5]">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1B1B1B] to-[#2D2D2D] text-white py-12 px-4">
-        <div className="max-w-[1200px] mx-auto text-center">
+      <div className="relative bg-[#1B1B1B] text-white py-12 px-4 overflow-hidden">
+        <img
+          src={slots.benzar.hero}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+          {...IMG_PROPS}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1B1B1B] to-[#2D2D2D]/80" />
+        <div className="relative max-w-[1200px] mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Store className="w-8 h-8 text-[#F6AE4A]" />
             <h1 className="text-3xl font-black">Benzarpreneurship</h1>
@@ -159,15 +169,12 @@ export default function BenzarpreneurshipPage() {
               >
                 {/* Image placeholder */}
                 <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-                  {product.images && (product.images as any[]).length > 0 ? (
-                    <img
-                      src={(product.images as any[])[0]?.url}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                  ) : (
-                    <Package className="w-12 h-12 text-gray-300" />
-                  )}
+                  <img
+                    src={(product.images as any[])?.[0]?.url || slots.benzar.productPlaceholder}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    {...IMG_PROPS}
+                  />
                 </div>
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -211,12 +218,12 @@ export default function BenzarpreneurshipPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="h-48 bg-gray-100 rounded-xl mb-4 flex items-center justify-center">
-              {selectedProduct.images && (selectedProduct.images as any[]).length > 0 ? (
-                <img src={(selectedProduct.images as any[])[0]?.url} alt={selectedProduct.name} className="w-full h-full object-cover rounded-xl" />
-              ) : (
-                <Package className="w-16 h-16 text-gray-300" />
-              )}
+            <div className="h-48 bg-gray-100 rounded-xl mb-4 flex items-center justify-center overflow-hidden">
+              <img
+                src={(selectedProduct.images as any[])?.[0]?.url || slots.benzar.productPlaceholder}
+                alt={selectedProduct.name}
+                className="w-full h-full object-cover rounded-xl"
+              />
             </div>
             <p className="text-sm text-[#8C8880] mb-4">{selectedProduct.description}</p>
             <div className="flex items-center justify-between mb-4">
@@ -294,7 +301,7 @@ export default function BenzarpreneurshipPage() {
             <p className="text-sm text-[#8C8880] mb-1">Kode Pesanan: <span className="font-mono font-bold text-[#1B1B1B]">{orderCode}</span></p>
             {qrisInfo && (
               <div className="my-4">
-                <img src={qrisInfo.imageUrl} alt="QRIS" className="w-48 h-48 mx-auto border rounded-xl" />
+                <img src={slots.benzar.qris || qrisInfo.imageUrl} alt="QRIS" className="w-48 h-48 mx-auto border rounded-xl" />
                 <p className="text-xs text-[#8C8880] mt-2">{qrisInfo.instructions}</p>
                 {qrisInfo.whatsapp && (
                   <a

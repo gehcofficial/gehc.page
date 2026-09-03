@@ -1,8 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ClipboardList, Clock, Gift, Send, UserCheck, Loader2, Phone, Mail, AlertCircle, ShieldCheck, CheckSquare, Square, MinusSquare, Users, User, X, Download } from 'lucide-react';
+import { ClipboardList, Clock, Gift, Send, Loader2, X, Download, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
+import { PlacementChoiceModal, PlacementTarget } from './PlacementChoiceModal';
 import { DOMICILE_OPTIONS, domicileLabel } from '../../lib/domicile';
+import { useLang } from '../../context/LangContext';
+import { fmt } from '../../lib/portal-i18n';
+import { PanelGuide } from './PanelGuide';
+import { useListPager } from './ListPager';
 
 const BAKU_TAU_EVENT = 'BAKU TAU 4.0';
 
@@ -51,6 +56,8 @@ function daysSince(dateStr: string): number {
 
 export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }) => {
   const { addToast } = useApp();
+  const { t } = useLang();
+  const o = t.portal.onboarding;
   const [tab, setTab] = useState<'registered' | 'waiting' | 'pending'>('registered');
   const [bakuTauOnly, setBakuTauOnly] = useState(true);
   const [domicileFilter, setDomicileFilter] = useState<string>('');
@@ -65,7 +72,9 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showJethroHint, setShowJethroHint] = useState(false);
+  const [placementTargets, setPlacementTargets] = useState<PlacementTarget[] | null>(null);
 
+  const { pageItems: pagedPending, pager: pendingPager } = useListPager<WaitingPoolEntry>(pendingApproval || []);
   const poolQuery = (status: string) => {
     const params = new URLSearchParams({ status });
     if (bakuTauOnly) params.set('sourceEvent', BAKU_TAU_EVENT);
@@ -178,32 +187,44 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
     });
   };
 
-  const handleBeyonders = async (ids: string[]) => {
+  const openPlacementModal = (poolIds: string[]) => {
+    const entries = (pendingApproval || []).filter((e) => poolIds.includes(e.id));
+    if (entries.length === 0) return;
+    setPlacementTargets(entries.map((e) => ({
+      poolId: e.id,
+      userId: e.userId,
+      name: e.name,
+      giftTestDone: e.giftTestDone,
+      gender: e.gender,
+    })));
+  };
+
+  const handleJethroPlacement = async (poolIds: string[]) => {
+    setPlacementTargets(null);
     setBulkActionLoading(true);
     try {
-      // Fetch details for these entries
-      const entries = (pendingApproval || []).filter(e => ids.includes(e.id));
-      const validEntries = entries.filter(e => e.userId && e.giftTestDone && e.gender);
-      
+      const entries = (pendingApproval || []).filter((e) => poolIds.includes(e.id));
+      const validEntries = entries.filter((e) => e.userId && e.giftTestDone && e.gender);
+
       if (validEntries.length === 0) {
         addToast({ type: 'error', title: 'Tidak Valid', description: 'Pilih newcomer yang sudah lengkap profil + gift test + gender.' });
         return;
       }
 
-      // Get newcomer IDs for Jethro advanced placement
-      const newcomerIds = validEntries.map(e => e.id).join(',');
-      
-      // Call advanced placement
+      const newcomerIds = validEntries.map((e) => e.userId!).join(',');
+
       const placeRes = await fetch(`/api/jethro/placement/advanced?ids=${newcomerIds}`, { credentials: 'include' });
-      if (!placeRes.ok) throw new Error('Gagal dapat rekomendasi Jethro');
+      if (!placeRes.ok) {
+        const err = await placeRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Gagal dapat rekomendasi Jethro');
+      }
       const { recommendations } = await placeRes.json();
 
-      // Create batch
       const batchRes = await fetch('/api/jethro/placement/batch', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recommendations: recommendations.map((r: any) => ({
+        body: JSON.stringify({ recommendations: recommendations.map((r: Record<string, unknown>) => ({
           newcomerId: r.newcomerId,
           newcomerName: r.newcomerName,
           newcomerGender: r.newcomerGender,
@@ -219,8 +240,12 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       });
 
       if (!batchRes.ok) throw new Error('Gagal buat batch placement');
-      
-      addToast({ type: 'success', title: 'Beyonders Diajukan', description: `${validEntries.length} newcomer dikirim ke Jethro Placement Review.` });
+
+      addToast({
+        type: 'success',
+        title: 'Dikirim ke Jethro Review',
+        description: `${validEntries.length} newcomer menunggu review & commit di Jethro Placement Review.`,
+      });
       setShowJethroHint(true);
       setSelectedIds(new Set());
       fetchData();
@@ -231,12 +256,13 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
     }
   };
 
-  const handleIndividu = async (ids: string[]) => {
+  const handleIndividu = async (poolIds: string[]) => {
+    setPlacementTargets(null);
     setBulkActionLoading(true);
     try {
-      const entries = (pendingApproval || []).filter(e => ids.includes(e.id));
-      const validEntries = entries.filter(e => e.userId);
-      
+      const entries = (pendingApproval || []).filter((e) => poolIds.includes(e.id));
+      const validEntries = entries.filter((e) => e.userId);
+
       if (validEntries.length === 0) {
         addToast({ type: 'error', title: 'Tidak Valid', description: 'Tidak ada newcomer valid.' });
         return;
@@ -264,6 +290,25 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
     } finally {
       setBulkActionLoading(false);
     }
+  };
+
+  const handleManualPlacement = (poolIds: string[]) => {
+    const entries = (pendingApproval || []).filter((e) => poolIds.includes(e.id) && e.userId);
+    if (entries.length === 0) {
+      addToast({ type: 'error', title: 'Tidak Valid', description: 'Newcomer harus punya akun terlebih dahulu.' });
+      return;
+    }
+    setPlacementTargets(null);
+    if (entries.length === 1) {
+      setAssignWizardUser({ id: entries[0].userId!, name: entries[0].name });
+      return;
+    }
+    addToast({
+      type: 'info',
+      title: 'Manual satu per satu',
+      description: 'Wizard manual untuk bulk: assign satu newcomer, lalu ulangi untuk yang lain.',
+    });
+    setAssignWizardUser({ id: entries[0].userId!, name: entries[0].name });
   };
 
   if (loading) {
@@ -328,12 +373,16 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         </button>
       </div>
 
+      <PanelGuide
+        guideId={tab === 'registered' ? 'onboarding.registered' : tab === 'waiting' ? 'onboarding.waiting' : 'onboarding.pending'}
+      />
+
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3 flex-wrap">
         {([
-          ['registered', `Quick Register (${(registeredPool || []).length})`],
-          ['waiting', `Menunggu Profil (${(waitingPool || []).length})`],
-          ['pending', `Menunggu Role (${(pendingApproval || []).length})`],
+          ['registered', fmt(o.tabRegistered, { n: (registeredPool || []).length })],
+          ['waiting', fmt(o.tabWaiting, { n: (waitingPool || []).length })],
+          ['pending', fmt(o.tabPending, { n: (pendingApproval || []).length })],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -350,8 +399,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       {tab === 'registered' && (
         <PoolList
           entries={registeredPool || []}
-          emptyTitle="Belum ada quick register"
-          emptyDesc="Peserta yang daftar via QRIS/form cepat akan muncul di sini."
+          emptyTitle={o.emptyRegisteredTitle}
+          emptyDesc={o.emptyRegisteredDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
         />
@@ -361,8 +410,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       {tab === 'waiting' && (
         <PoolList
           entries={waitingPool || []}
-          emptyTitle="Belum ada yang menunggu profil"
-          emptyDesc="Semua pendaftar sudah melengkapi profil."
+          emptyTitle={o.emptyWaitingTitle}
+          emptyDesc={o.emptyWaitingDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
         />
@@ -387,8 +436,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           {(pendingApproval || []).length === 0 ? (
             <EmptyState
               icon={<Clock className="w-8 h-8 text-[#8C8880]" />}
-              title="Belum ada yang menunggu role"
-              desc="Semua sudah melengkapi profil, tapi belum ada yang siap assign role."
+              title={o.emptyPendingTitle}
+              desc={o.emptyPendingDesc}
             />
           ) : (
             <>
@@ -411,18 +460,11 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleBeyonders(Array.from(selectedIds))}
+                      onClick={() => openPlacementModal(Array.from(selectedIds))}
                       disabled={bulkActionLoading}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl bg-[#181818] text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1"
                     >
-                      <Users className="w-3.5 h-3.5" /> Beyonders
-                    </button>
-                    <button
-                      onClick={() => handleIndividu(Array.from(selectedIds))}
-                      disabled={bulkActionLoading}
-                      className="px-3 py-1.5 rounded-xl bg-blue-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <User className="w-3.5 h-3.5" /> Individu
+                      <Sparkles className="w-3.5 h-3.5" /> Penempatan ({selectedIds.size})
                     </button>
                     <button
                       onClick={() => setSelectedIds(new Set())}
@@ -434,12 +476,11 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                 </div>
               )}
 
-              {/* List */}
+              {pendingPager}
               <div className="space-y-2">
-                {(pendingApproval || []).map((entry) => {
+                {pagedPending.map((entry) => {
                   const isSelected = selectedIds.has(entry.id);
-                  const canBeyonders = entry.userId && entry.giftTestDone && entry.gender;
-                  const canIndividu = entry.userId;
+                  const canPlace = entry.userId;
                   const isProcessing = bulkActionLoading && isSelected;
 
                   return (
@@ -487,37 +528,16 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                         {/* Inline Action Dropdown */}
                         <div className="relative shrink-0">
                           <div className="flex gap-1">
-                            {canBeyonders && (
+                            {canPlace ? (
                               <button
-                                onClick={() => handleBeyonders([entry.id])}
-                                disabled={isProcessing}
-                                className="px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white text-[9px] font-bold hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1"
-                                title="Kirim ke Jethro Placement Review"
-                              >
-                                <Users className="w-3 h-3" /> Beyonders
-                              </button>
-                            )}
-                            {canIndividu && (
-                              <button
-                                onClick={() => handleIndividu([entry.id])}
-                                disabled={isProcessing}
-                                className="px-2.5 py-1.5 rounded-lg bg-blue-500 text-white text-[9px] font-bold hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1"
-                                title="Assign langsung sebagai Individu"
-                              >
-                                <User className="w-3 h-3" /> Individu
-                              </button>
-                            )}
-                            {entry.userId && (
-                              <button
-                                onClick={() => setAssignWizardUser({ id: entry.userId!, name: entry.name })}
+                                onClick={() => openPlacementModal([entry.id])}
                                 disabled={isProcessing}
                                 className="px-2.5 py-1.5 rounded-lg bg-[#181818] text-white text-[9px] font-bold hover:bg-black disabled:opacity-50 flex items-center gap-1"
-                                title="Assign role manual via wizard"
+                                title="Pilih: Jethro, manual, atau Individu"
                               >
-                                <ShieldCheck className="w-3 h-3" /> Role
+                                <Sparkles className="w-3 h-3" /> Penempatan
                               </button>
-                            )}
-                            {!canBeyonders && !canIndividu && (
+                            ) : (
                               <span className="px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-400 text-[9px] font-bold">
                                 Belum Siap
                               </span>
@@ -573,6 +593,16 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           onAssigned={fetchData}
         />
       )}
+
+      {placementTargets && placementTargets.length > 0 && (
+        <PlacementChoiceModal
+          targets={placementTargets}
+          onClose={() => setPlacementTargets(null)}
+          onJethro={() => handleJethroPlacement(placementTargets.map((t) => t.poolId))}
+          onManual={() => handleManualPlacement(placementTargets.map((t) => t.poolId))}
+          onIndividu={() => handleIndividu(placementTargets.map((t) => t.poolId))}
+        />
+      )}
     </div>
   );
 };
@@ -587,12 +617,15 @@ const PoolList: React.FC<{
   emptyDesc: string;
   onReminder: (e: WaitingPoolEntry) => void;
   sendingReminder: string | null;
-}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => (
+}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => {
+  const { pageItems, pager } = useListPager<WaitingPoolEntry>(entries);
+  return (
   <div className="space-y-2">
+    {pager}
     {entries.length === 0 ? (
       <EmptyState icon={<ClipboardList className="w-8 h-8 text-[#8C8880]" />} title={emptyTitle} desc={emptyDesc} />
     ) : (
-      entries.map((entry) => (
+      pageItems.map((entry) => (
         <div key={entry.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
           <div className="flex items-center gap-3">
             <img src={initialsAvatar(entry.name)} alt={entry.name} className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]" />
@@ -646,7 +679,8 @@ const PoolList: React.FC<{
       ))
     )}
   </div>
-);
+  );
+};
 
 const EmptyState: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
   <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-12 text-center">

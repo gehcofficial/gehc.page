@@ -35,7 +35,15 @@ const EN_SET = new Set([
 ]);
 
 export function normalizeGiftKey(gift) {
-  if (!gift || typeof gift !== 'string') return gift;
+  if (!gift) return gift;
+  // giftsTop5 bisa berisi { key, label, score } dari gift test (src/data/giftBank.ts).
+  // Tanpa membuka objeknya, nilai ini dipakai sebagai property key dan ter-coerce
+  // jadi "[object Object]" — gift coverage selalu 0 dan skor keberagaman jadi palsu.
+  if (typeof gift === 'object') {
+    const raw = gift.key || gift.label;
+    return raw ? normalizeGiftKey(String(raw)) : null;
+  }
+  if (typeof gift !== 'string') return gift;
   const trimmed = gift.trim();
   if (EN_SET.has(trimmed)) return trimmed;
   const upper = trimmed.toUpperCase().replace(/\s+/g, '_');

@@ -19,7 +19,6 @@ export const STAGING_URL_KEYS = ['APP_URL', 'CORS_ORIGIN'];
 /** Harus identik antara .env dan .env.staging. */
 export const SHARED_KEYS = [
   'DATABASE_URL',
-  'ENABLE_DEMO_PERSONAS',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
   'SESSION_SECRET',
@@ -74,9 +73,6 @@ export function writeEnvFile(filePath, envMap, headerLines = []) {
 export function applyLocalOverrides(envMap) {
   for (const [key, value] of Object.entries(LOCAL_OVERRIDES)) {
     envMap.set(key, value);
-  }
-  if (!envMap.get('ENABLE_DEMO_PERSONAS')) {
-    envMap.set('ENABLE_DEMO_PERSONAS', 'true');
   }
   return envMap;
 }

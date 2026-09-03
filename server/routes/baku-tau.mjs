@@ -3,14 +3,12 @@ import { getPrisma } from '../db.mjs';
 import {
   BAKU_TAU_SOURCE_EVENT,
   BAKU_TAU_EVENT_ID,
-  BAKU_TAU_EVENT_DATE_ISO,
-  BAKU_TAU_VENUE_NAME,
-  BAKU_TAU_LOCATION_DETAIL,
-  BAKU_TAU_MAP_URL,
-  BAKU_TAU_MAP_EMBED_QUERY,
   normalizePhone,
   whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
+import { resolveWhatsAppUrl } from '../lib/event-question-showif.mjs';
+import { venueOf } from '../lib/event-venue.mjs';
+import { buildCheckInCode } from '../lib/check-in-code.mjs';
 import { emptyDomicileStats, isValidDomicileKind, DOMICILE_DETAIL_REQUIRED } from '../lib/domicile.mjs';
 import { claimWaitingPoolByPhone, ensureWaitingPoolForNewPemuda } from '../onboarding-sync.mjs';
 
@@ -32,20 +30,113 @@ async function upsertBakutauAttendee(prisma, userId, metadata) {
   });
 }
 
-async function resolveEventInfo(prisma) {
-  const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
-  const whatsappGroupUrl = event?.whatsappGroupUrl || whatsappGroupUrlFromEnv();
+function publicEventInfo(event) {
   return {
     id: BAKU_TAU_EVENT_ID,
     slug: 'bakutau',
     name: event?.name || BAKU_TAU_SOURCE_EVENT,
     status: event?.status || 'ACTIVE',
-    eventDate: BAKU_TAU_EVENT_DATE_ISO,
-    venueName: BAKU_TAU_VENUE_NAME,
-    locationDetail: BAKU_TAU_LOCATION_DETAIL,
-    mapUrl: BAKU_TAU_MAP_URL,
-    mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
+    ...venueOf(event, true),
+  };
+}
+
+async function resolveEventInfo(prisma) {
+  const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+  let channelUrl = null;
+  try {
+    const link = await prisma.channelLink.findUnique({
+      where: { kind_refId: { kind: 'EVENT', refId: BAKU_TAU_EVENT_ID } },
+    });
+    channelUrl = link?.url || null;
+  } catch { /* ChannelLink belum ada */ }
+  const whatsappGroupUrl = resolveWhatsAppUrl({
+    dbUrl: event?.whatsappGroupUrl,
+    envUrl: whatsappGroupUrlFromEnv(),
+    channelUrl,
+  });
+  return {
+    ...publicEventInfo(event),
     whatsappGroupUrl,
+  };
+}
+
+/**
+ * Cari registrasi BAKU TAU milik user.
+ * Prioritas: waitingPool source BAKU TAU → EventAttendee (+ perbaiki sourceEvent) → null.
+ * Setelah role assign, waitingPool tetap ada (ROLE_ASSIGNED) tapi onboarding UI hilang —
+ * lookup ini harus tetap menemukan QR/WA.
+ */
+async function findBakutauPoolEntry(prisma, userId) {
+  let entry = await prisma.waitingPool.findFirst({
+    where: { userId, sourceEvent: BAKU_TAU_SOURCE_EVENT },
+  });
+  if (entry) return entry;
+
+  let attendee = null;
+  try {
+    attendee = await prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId: BAKU_TAU_EVENT_ID, userId } },
+    });
+  } catch { /* tabel belum ada di DB lama */ }
+
+  if (!attendee) return null;
+
+  entry = await prisma.waitingPool.findUnique({ where: { userId } });
+  if (entry) {
+    if (entry.sourceEvent !== BAKU_TAU_SOURCE_EVENT) {
+      return prisma.waitingPool.update({
+        where: { id: entry.id },
+        data: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
+      });
+    }
+    return entry;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+  return prisma.waitingPool.create({
+    data: {
+      id: wpId(),
+      userId,
+      name: user.name || 'Peserta',
+      email: user.email || null,
+      phone: user.phone || null,
+      gender: user.gender || null,
+      origin: user.origin || null,
+      domicileKind: user.domicileKind || null,
+      domicileDetail: user.domicileDetail || null,
+      sourceEvent: BAKU_TAU_SOURCE_EVENT,
+      status: 'PROFILE_COMPLETED',
+      profileCompleted: true,
+    },
+  });
+}
+
+function registrationPayload(entry, info) {
+  if (!entry) {
+    return {
+      registered: false,
+      eventDate: info.eventDate,
+      venueName: info.venueName,
+      locationDetail: info.locationDetail,
+      mapUrl: info.mapUrl,
+      mapEmbedQuery: info.mapEmbedQuery,
+      whatsappGroupUrl: null,
+      checkInCode: null,
+    };
+  }
+  return {
+    registered: true,
+    status: entry.status,
+    whatsappGroupUrl: info.whatsappGroupUrl || null,
+    eventDate: info.eventDate,
+    venueName: info.venueName,
+    locationDetail: info.locationDetail,
+    mapUrl: info.mapUrl,
+    mapEmbedQuery: info.mapEmbedQuery,
+    checkInCode: buildCheckInCode(entry.id, entry.registeredAt || Date.now()),
+    registeredAt: entry.registeredAt,
+    entry,
   };
 }
 
@@ -75,9 +166,9 @@ export function registerBakuTauRoutes(app, { wrap }) {
   const sendEventPayload = async (res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const info = await resolveEventInfo(prisma);
+    const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
     const stats = await bakuTauStats(prisma);
-    res.json({ ...info, stats });
+    res.json({ ...publicEventInfo(event), stats });
   };
 
   app.get('/api/events/baku-tau-4-0', wrap(async (_req, res) => sendEventPayload(res)));
@@ -147,16 +238,22 @@ export function registerBakuTauRoutes(app, { wrap }) {
         });
       } catch { /* table may not exist on old DB */ }
 
-      return res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+      const info = await resolveEventInfo(prisma);
+      return res.json({
+        ok: true,
+        entry,
+        stats: await bakuTauStats(prisma),
+        ...registrationPayload(entry, info),
+      });
     }
 
-    if (!name?.trim() || !phone?.trim() || !gender || !origin?.trim() || !domicileKind) {
-      return res.status(400).json({ error: 'Nama, WA, gender, asal, dan domisili wajib diisi.' });
+    if (!name?.trim() || !phone?.trim()) {
+      return res.status(400).json({ error: 'Nama dan nomor WhatsApp wajib diisi.' });
     }
-    if (!isValidDomicileKind(String(domicileKind))) {
+    if (domicileKind && !isValidDomicileKind(String(domicileKind))) {
       return res.status(400).json({ error: 'Domisili tidak valid.' });
     }
-    if (DOMICILE_DETAIL_REQUIRED.has(String(domicileKind)) && !domicileDetail?.trim()) {
+    if (domicileKind && DOMICILE_DETAIL_REQUIRED.has(String(domicileKind)) && !domicileDetail?.trim()) {
       return res.status(400).json({ error: 'Perincian domisili wajib untuk pilihan ini.' });
     }
 
@@ -165,8 +262,15 @@ export function registerBakuTauRoutes(app, { wrap }) {
       where: { sourceEvent: BAKU_TAU_SOURCE_EVENT, userId: null },
     });
     const dup = existing.find((e) => normalizePhone(e.phone) === normPhone);
+    const info = await resolveEventInfo(prisma);
     if (dup) {
-      return res.json({ ok: true, entry: dup, duplicate: true, stats: await bakuTauStats(prisma) });
+      return res.json({
+        ok: true,
+        entry: dup,
+        duplicate: true,
+        stats: await bakuTauStats(prisma),
+        ...registrationPayload(dup, info),
+      });
     }
 
     const entry = await prisma.waitingPool.create({
@@ -175,9 +279,9 @@ export function registerBakuTauRoutes(app, { wrap }) {
         userId: null,
         name: String(name).trim(),
         phone: String(phone).trim(),
-        gender: String(gender),
-        origin: String(origin).trim(),
-        domicileKind: String(domicileKind),
+        gender: gender ? String(gender) : null,
+        origin: origin ? String(origin).trim() : null,
+        domicileKind: domicileKind ? String(domicileKind) : null,
         domicileDetail: domicileDetail?.trim() || null,
         sourceEvent: BAKU_TAU_SOURCE_EVENT,
         status: 'REGISTERED',
@@ -185,7 +289,12 @@ export function registerBakuTauRoutes(app, { wrap }) {
       },
     });
 
-    res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+    res.json({
+      ok: true,
+      entry,
+      stats: await bakuTauStats(prisma),
+      ...registrationPayload(entry, info),
+    });
   }));
 
   app.post('/api/events/baku-tau-4-0/claim', wrap(async (req, res) => {
@@ -203,11 +312,14 @@ export function registerBakuTauRoutes(app, { wrap }) {
       await ensureWaitingPoolForNewPemuda(userId, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
     }
 
-    const entry = await prisma.waitingPool.findFirst({
-      where: { userId, sourceEvent: BAKU_TAU_SOURCE_EVENT },
-    }) || await prisma.waitingPool.findUnique({ where: { userId } });
-
-    res.json({ ok: true, entry, stats: await bakuTauStats(prisma) });
+    const entry = await findBakutauPoolEntry(prisma, userId);
+    const info = await resolveEventInfo(prisma);
+    res.json({
+      ok: true,
+      entry,
+      stats: await bakuTauStats(prisma),
+      ...registrationPayload(entry, info),
+    });
   }));
 
   app.get('/api/me/baku-tau-registration', wrap(async (req, res) => {
@@ -216,31 +328,8 @@ export function registerBakuTauRoutes(app, { wrap }) {
     const userId = req.authUser?.id;
     if (!userId) return res.status(401).json({ error: 'Belum login.' });
 
-    const entry = await prisma.waitingPool.findFirst({
-      where: { userId, sourceEvent: BAKU_TAU_SOURCE_EVENT },
-    });
+    const entry = await findBakutauPoolEntry(prisma, userId);
     const info = await resolveEventInfo(prisma);
-    if (!entry) {
-      return res.json({
-        registered: false,
-        whatsappGroupUrl: info.whatsappGroupUrl,
-        eventDate: info.eventDate,
-        venueName: info.venueName,
-        locationDetail: info.locationDetail,
-        mapUrl: info.mapUrl,
-        mapEmbedQuery: info.mapEmbedQuery,
-      });
-    }
-    res.json({
-      registered: true,
-      status: entry.status,
-      whatsappGroupUrl: info.whatsappGroupUrl,
-      eventDate: info.eventDate,
-      venueName: info.venueName,
-      locationDetail: info.locationDetail,
-      mapUrl: info.mapUrl,
-      mapEmbedQuery: info.mapEmbedQuery,
-      entry,
-    });
+    res.json(registrationPayload(entry, info));
   }));
 }

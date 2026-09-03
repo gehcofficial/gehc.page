@@ -34,7 +34,7 @@ export default function EventGalleryPublic() {
 
   const fetchItems = useCallback(async () => {
     try {
-      const r = await fetch(`/api/gallery?eventId=${currentEventId}&approvedOnly=1`, { credentials: 'include' });
+      const r = await fetch(`/api/gallery/public?eventId=${currentEventId}&approvedOnly=1`);
       const d = await r.json();
       const sorted = (d.items || []).sort((a: GalleryItem, b: GalleryItem) => a.sortOrder - b.sortOrder);
       setItems(sorted);
@@ -134,7 +134,7 @@ export default function EventGalleryPublic() {
               </div>
             </div>
             <a href="/#/benzarpreneurship" className="px-4 py-2 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-xs font-bold hover:bg-[#E89B3A] transition-colors">
-              <ExternalLink className="w-3.5 h-3.5 inline mr-1" /> Toko
+              <ExternalLink className="w-3.5 h-3.5 inline mr-1" /> Benzarpreneurship
             </a>
           </div>
         </div>

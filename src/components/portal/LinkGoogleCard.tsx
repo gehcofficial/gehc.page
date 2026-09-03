@@ -26,8 +26,8 @@ export const LinkGoogleCard: React.FC<{ compact?: boolean }> = ({ compact }) => 
   }, [ok]);
 
   const linked = ok
-    || (linkStatus === 'LINKED' && authProvider === 'GOOGLE')
-    || (authProvider === 'GOOGLE' && userId && googleSub && userId === googleSub);
+    || linkStatus === 'LINKED'
+    || Boolean(googleSub);
   if (linked) {
     if (compact) return null;
     return (

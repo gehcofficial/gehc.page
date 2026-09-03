@@ -1,50 +1,27 @@
-﻿import React, { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+﻿import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { GehcLogo } from '../brand/GehcLogo';
+import { BrandCaption } from '../brand/BrandCaption';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { useApp } from '../../context/AppContext';
-import { getCachedAccounts, CachedAccount } from '../../lib/cachedAccounts';
-import { getNextFromHash, resolvePostAuthHash } from '../../lib/hash-routes';
+import { getNextFromHash } from '../../lib/hash-routes';
 import { finishAuthRedirect } from '../../lib/auth-redirect';
 
-/**
- * Layar masuk portal — dua metode:
- *   1. Akun Google   : tanpa password (diverifikasi Google)
- *   2. Email & sandi : akun lokal hasil undangan panitia
- * Plus daftar akun yang pernah dipakai di perangkat ini (cached).
- */
 export const PortalLogin: React.FC = () => {
-  const { setActiveView } = useApp();
-  const [cached] = useState<CachedAccount[]>(() => getCachedAccounts());
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [method, setMethod] = useState<'google' | 'local'>(
-    () => (getCachedAccounts().length ? 'google' : 'google')
-  );
-  const [form, setForm] = useState({ email: '', password: '' });
+  const { setActiveView, ssoClientId, authLoading } = useApp();
+  const [form, setForm] = useState({ login: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [notice, setNotice] = useState('');
-
-  useEffect(() => {
-    fetch('/api/auth/config')
-      .then((r) => r.json())
-      .then((d) => setClientId(d.clientId))
-      .catch(() => {});
-  }, []);
 
   const afterAuth = async () => {
     const next = getNextFromHash();
-    if (next) {
-      await finishAuthRedirect(next);
-      return;
-    }
-    setActiveView('portal');
-    window.location.hash = '#/portal';
-    window.location.reload();
+    await finishAuthRedirect(next);
   };
 
   const onCredential = (credential: string) => {
     fetch('/api/auth/google', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
     })
@@ -61,8 +38,9 @@ export const PortalLogin: React.FC = () => {
     setErr('');
     fetch('/api/auth/local', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+        body: JSON.stringify({ login: form.login, password: form.password }),
     })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).error || 'Login gagal');
@@ -72,50 +50,28 @@ export const PortalLogin: React.FC = () => {
       .finally(() => setBusy(false));
   };
 
-  /** Chip cached: staging/demo → langsung masuk satu-klik; produksi → arahkan ke tombol Google. */
-  const quickCachedLogin = async (acct: CachedAccount) => {
-    setErr('');
-    setBusy(true);
-    try {
-      const res = await fetch('/api/demo/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: acct.email }),
-      });
-      if (!res.ok) throw new Error('Gunakan tombol Google untuk masuk.');
-      await afterAuth();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#111111] text-white flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        {/* Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <span className="font-black text-lg">GEHC</span>
-          </div>
-          <h1 className="text-2xl font-black tracking-tight">Portal Administrasi</h1>
-          <p className="text-xs text-white/50 mt-2 leading-relaxed">
-            Beyonders • GMIM Eben Haezer Cikarang
+          <GehcLogo size={64} className="mx-auto mb-4 shadow-2xl" />
+          <h1 className="text-2xl font-black tracking-tight">Masuk Beyonders</h1>
+          <BrandCaption className="mt-3 items-center" align="center" />
+          <p className="text-xs text-white/50 mt-3 leading-relaxed">
+            Masuk dengan Google, atau username/email + kata sandi.
           </p>
         </div>
 
-        {/* Kartu metode */}
         <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
-          {clientId ? (
+          {authLoading ? (
+            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masuk…</p>
+          ) : ssoClientId ? (
             <div className="flex justify-center pb-1">
-              <GoogleLoginButton clientId={clientId} onCredential={onCredential} onError={setErr} />
+              <GoogleLoginButton clientId={ssoClientId} onCredential={onCredential} onError={setErr} />
             </div>
           ) : (
             <p className="text-[11px] text-white/40 text-center leading-relaxed">
-              Login Google sementara tidak tersedia — gunakan Email &amp; Kata Sandi.
-              <br />
-              <span className="text-white/30">Panduan aktivasi: drive-integration.md §8.</span>
+              Login Google sementara tidak tersedia — gunakan username &amp; kata sandi.
             </p>
           )}
 
@@ -125,10 +81,11 @@ export const PortalLogin: React.FC = () => {
 
           <form onSubmit={localLogin} className="space-y-3">
             <input
-              type="email" required placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              type="text" required placeholder="Username atau email"
+              value={form.login}
+              onChange={(e) => setForm({ ...form, login: e.target.value })}
               className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-[#FF416C]"
+              autoComplete="username"
             />
             <input
               type="password" required placeholder="Kata sandi"
@@ -144,42 +101,19 @@ export const PortalLogin: React.FC = () => {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={() => { window.location.hash = '#/forgot-password'; }}
+            className="w-full text-center text-[11px] font-bold text-white/50 hover:text-white/80"
+          >
+            Lupa kata sandi?
+          </button>
+
           {err && (
             <p className="text-[11px] text-red-400 font-semibold text-center">{err}</p>
           )}
-
-          {/* Cached accounts */}
-          {cached.length > 0 && (
-            <div className="pt-3 border-t border-white/10">
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2.5">
-                Akun pernah dipakai di perangkat ini
-              </p>
-              <div className="space-y-1.5">
-                {cached.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => quickCachedLogin(a)}
-                    disabled={busy}
-                    title={a.source === 'demo' ? 'Masuk cepat' : 'Masuk lewat popup Google'}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 transition-colors text-left disabled:opacity-50"
-                  >
-                    <img src={a.avatar || ''} alt={a.name} loading="lazy" decoding="async"
-                      className="w-8 h-8 rounded-full object-cover shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold truncate">{a.name}</p>
-                      <p className="text-[10px] text-white/40 truncate">{a.email}</p>
-                    </div>
-                    {a.source === 'demo' && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Footer */}
         <div className="mt-8 text-center space-y-3">
           <a
             href="#/register"

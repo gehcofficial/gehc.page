@@ -65,6 +65,71 @@ const STEPS = [
     label: 'Event attendees (event_attendees)',
     required: true,
   },
+  {
+    script: 'server/_migrate-testimonials.cjs',
+    label: 'Landing testimonials (testimonials)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-must-change-password.cjs',
+    label: 'Local auth must_change_password',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-login-username.cjs',
+    label: 'Login username + onboarding_path (dual auth)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-user-avatars.cjs',
+    label: 'User avatars (avatar_google, avatar_source) + struktur/testimoni userId',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-platform-operators.cjs',
+    label: 'Platform operators + admin grants',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-access-groups.cjs',
+    label: 'Access groups',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-password-reset.cjs',
+    label: 'Password reset tokens',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-role-assigned-notif.cjs',
+    label: 'Notification type ROLE_ASSIGNED',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-event-checkin.cjs',
+    label: 'Event check-in, channel links, church programs',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-church-calendar.cjs',
+    label: 'Kalender gerejawi bertanggal (church_calendar_entries)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-runbook-notif.cjs',
+    label: 'Notification type RUNBOOK_DUE',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-event-venue.cjs',
+    label: 'Venue & waktu acara EventProgram + koreksi zona waktu BAKU TAU',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-event-questions.cjs',
+    label: 'Bank soal event + assignment + jawaban',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

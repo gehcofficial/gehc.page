@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   Tenant,
   User,
@@ -26,11 +26,22 @@ import {
   INITIAL_INTEGRATION_CONFIG,
   INITIAL_GROUP_BATCHES,
 } from '../data/initialData';
-import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as logoutApi, fetchPersonas, impersonate as impersonateApi } from '../services/authApi';
+import { fetchAuthConfig, fetchMeFull, loginWithGoogle, logout as logoutApi, setActiveRole } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
 import { useRoleFlags } from '../hooks/useRoleFlags';
 import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP, eventSlugFromHash } from '../app/routes';
 import { parseHashRoute } from '../lib/hash-routes';
+import {
+  isPortalHash,
+  parsePortalHash,
+  namespaceToRole,
+  roleToNamespace,
+  buildPortalPath,
+  defaultPageForRole,
+} from '../lib/portal-routes';
+import { isAdminHash } from '../lib/admin-routes';
+import { fetchPlatformContext } from '../services/platformApi';
+import { AUTH_SESSION_EVENT } from '../lib/auth-redirect';
 
 type PublicTab =
   | 'beyonders'
@@ -42,7 +53,6 @@ type PublicTab =
   | 'register'
   | 'event-signup'
   | 'group-detail'
-  | 'gallery'
   | 'benzarpreneurship';
 
 interface AppContextType {
@@ -53,7 +63,7 @@ interface AppContextType {
   activeView: string;
   setActiveView: (view: string) => void;
   publicTab: PublicTab;
-  setPublicTab: (tab: PublicTab, opts?: { eventSlug?: string }) => void;
+  setPublicTab: (tab: PublicTab | string, opts?: { eventSlug?: string }) => void;
   eventSlug?: string;
   selectedGroupId: string | null;
   openGroupDetail: (groupId: string) => void;
@@ -65,6 +75,10 @@ interface AppContextType {
   setCurrentUserById: (userId: string) => void;
   userAssignedGroupId?: string;
   isSuperAdmin: boolean;
+  isPlatformAdmin: boolean;
+  isPlatformOperator: boolean;
+  platformCapabilities: string[];
+  refreshPlatformContext: () => Promise<void>;
   isCommittee: boolean;
   isKomisi: boolean;
   isBpmj: boolean;
@@ -81,9 +95,7 @@ interface AppContextType {
   ssoClientId: string | null;
   loginWithCredential: (credential: string) => Promise<void>;
   logoutSso: () => Promise<void>;
-  /** true jika persona switcher memakai akun dummy dari TiDB */
-  demoMode: boolean;
-  sessionSource: 'google' | 'demo' | null;
+  refreshAuthUser: () => Promise<void>;
 
   // Multi-role (rangkap jabatan)
   myRoleOptions: UserRole[];
@@ -155,8 +167,24 @@ const STORAGE_KEYS = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
-  const [activeView, setActiveView] = useState<string>('public'); // 'public' | 'portal'
-  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship'] as const;
+  const [activeView, setActiveViewState] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'public';
+    if (isAdminHash(window.location.hash)) return 'admin';
+    if (isPortalHash(window.location.hash)) return 'portal';
+    return 'public';
+  });
+  const setActiveView = (view: string) => {
+    setActiveViewState(view);
+    if (typeof window === 'undefined') return;
+    if (view === 'portal' && !isPortalHash(window.location.hash)) {
+      window.location.hash = '#/portal';
+    } else if (view === 'admin' && !isAdminHash(window.location.hash)) {
+      window.location.hash = '#/admin';
+    } else if (view === 'public' && (isPortalHash(window.location.hash) || isAdminHash(window.location.hash))) {
+      window.location.hash = '#/beyonders';
+    }
+  };
+  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail'] as const;
   const tabFromHash = (): PublicTab => {
     const parsed = parseHashRoute();
     if (parsed.tab === 'group-detail') return 'group-detail';
@@ -167,25 +195,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [publicTab, setPublicTabState] = useState<PublicTab>(tabFromHash);
   const [eventSlug, setEventSlug] = useState<string | undefined>(() => eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
 
-  const setPublicTab = (tab: PublicTab, opts?: { eventSlug?: string }) => {
-    setPublicTabState(tab);
-    if (tab === 'event-signup') {
+  const setPublicTab = (tab: PublicTab | string, opts?: { eventSlug?: string }) => {
+    const raw = String(tab);
+    const canonical = (
+      LEGACY_HASH_MAP[raw] ||
+      ((TAB_IDS as readonly string[]).includes(raw) ? raw : 'beyonders')
+    ) as PublicTab;
+    setPublicTabState(canonical);
+    if (canonical === 'event-signup') {
       const slug = opts?.eventSlug || eventSlug || 'bakutau';
       setEventSlug(slug);
       window.location.hash = `#/event/${slug}`;
-    } else if (tab !== 'group-detail') {
-      window.location.hash = `#/${tab}`;
+    } else if (canonical !== 'group-detail') {
+      window.location.hash = `#/${canonical}`;
     }
     window.scrollTo({ top: 0 });
   };
 
-  useEffect(() => {
-    const onHash = () => {
+  useLayoutEffect(() => {
+    const syncViewFromHash = () => {
+      const hash = window.location.hash;
+      if (isAdminHash(hash)) setActiveViewState('admin');
+      else if (isPortalHash(hash)) setActiveViewState('portal');
+      else setActiveViewState('public');
       setPublicTabState(tabFromHash());
-      setEventSlug(eventSlugFromHash(window.location.hash) || parseHashRoute().eventSlug);
+      setEventSlug(eventSlugFromHash(hash) || parseHashRoute().eventSlug);
     };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    syncViewFromHash();
+    window.addEventListener('hashchange', syncViewFromHash);
+    return () => window.removeEventListener('hashchange', syncViewFromHash);
   }, []);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -204,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    return saved || 'usr-tech'; // Default: persona pertama (Tim Tech / SUPERADMIN)
+    return saved || 'usr-tech'; // Default seed user (offline preview)
   });
 
   const [groups, setGroups] = useState<YouthGroup[]>(() => {
@@ -297,6 +335,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  // Hydration API-first: warta & kegiatan dari TiDB (content_items).
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/content/public')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        if (cancelled || !Array.isArray(d.items)) return;
+        if (d.items.length > 0) setContentItems(d.items);
+      })
+      .catch(() => {
+        /* server tidak tersedia → pertahankan data lokal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Hydration API-first: kelompok + batch mentoring + anggota dari TiDB.
   // Menimpa localStorage lama agar panel Monitoring/family tree selalu sinkron
   // dengan seed terbaru (nama orang asli tetap dari database).
@@ -346,8 +401,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               notes: m.notes || undefined,
               familyRole: m.familyRole,
               batchPeriod: m.batchPeriod ? String(m.batchPeriod) : undefined,
+              avatar: m.user?.avatar || m.avatar || undefined,
             });
           }
+        }
+
+        const allMembers = [...mMap.values()] as Array<{
+          group_id: string;
+          name: string;
+          familyRole?: string;
+          batchPeriod?: string;
+          avatar?: string;
+        }>;
+        const pickAvatar = (groupId: string, role: string, name: string, period?: string) => {
+          const list = allMembers.filter((m) => m.group_id === groupId);
+          const want = String(name || '').toLowerCase().trim();
+          const byRole = list.find(
+            (m) =>
+              String(m.familyRole || '').toUpperCase() === role &&
+              m.avatar &&
+              (!period || !m.batchPeriod || m.batchPeriod === period),
+          );
+          if (byRole?.avatar) return byRole.avatar;
+          return list.find((m) => String(m.name || '').toLowerCase().trim() === want)?.avatar;
+        };
+        for (const b of bMapped) {
+          b.mentorAvatar = pickAvatar(b.group_id, 'MENTOR', b.mentor, b.period);
+          b.comentorAvatar = pickAvatar(b.group_id, 'COMENTOR', b.comentor, b.period);
         }
 
         // Sisipkan mentee ke batch-nya (kunci: groupId|period)
@@ -355,7 +435,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         for (const m of mMap.values() as IterableIterator<any>) {
           if (String(m.familyRole || '').toUpperCase() === 'MENTEE' && m.batchPeriod) {
             const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
-            if (b) b.mentees.push({ name: m.name, note: undefined });
+            if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar });
           }
         }
 
@@ -376,6 +456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               attendanceRate: 0,
               familyRole: 'MENTOR',
               batchPeriod: b.period,
+              avatar: b.mentorAvatar,
             });
           }
           // Comentor
@@ -391,6 +472,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               attendanceRate: 0,
               familyRole: 'COMENTOR',
               batchPeriod: b.period,
+              avatar: b.comentorAvatar,
             });
           }
           // Mentees
@@ -408,6 +490,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               notes: mt.note,
               familyRole: 'MENTEE',
               batchPeriod: b.period,
+              avatar: mt.avatar,
             });
           }
         }
@@ -469,39 +552,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Google SSO nyata (server-backed) — menimpa persona demo saat aktif
+  // Google SSO nyata (server-backed)
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [ssoClientId, setSsoClientId] = useState<string | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
-  const [sessionSource, setSessionSource] = useState<'google' | 'demo' | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [isPlatformOperator, setIsPlatformOperator] = useState(false);
+  const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
+  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
+
+  const refreshPlatformContext = useCallback(async () => {
+    try {
+      const ctx = await fetchPlatformContext();
+      setIsPlatformOperator(ctx.isPlatformOperator);
+      setIsPlatformAdmin(ctx.isPlatformAdmin);
+      setPlatformCapabilities(ctx.platformCapabilities || []);
+    } catch {
+      setIsPlatformOperator(false);
+      setIsPlatformAdmin(false);
+      setPlatformCapabilities([]);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const cfg = await fetchAuthConfig();
-        if (cancelled) return;
-        setSsoClientId(cfg.clientId);
-        if (cfg.configured) {
-          const me = await fetchMe();
-          if (!cancelled) setAuthUser(me);
-        }
-      } catch {
-        // Belum login / server belum jalan → tetap mode demo
-      } finally {
-        if (!cancelled) setAuthLoading(false);
+      const [cfgResult, meResult] = await Promise.allSettled([
+        fetchAuthConfig(),
+        fetchMeFull(),
+      ]);
+      if (cancelled) return;
+      if (cfgResult.status === 'fulfilled') {
+        setSsoClientId(cfgResult.value.clientId);
       }
+      if (meResult.status === 'fulfilled') {
+        const me = meResult.value;
+        setAuthUser(me.user);
+        if (me.activeRole) setRoleOverride(me.activeRole);
+        setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+        setIsPlatformOperator(me.isPlatformOperator);
+        setPlatformCapabilities(me.platformCapabilities || []);
+      }
+      const hash = window.location.hash;
+      if (isAdminHash(hash)) setActiveViewState('admin');
+      else if (isPortalHash(hash)) setActiveViewState('portal');
+      setAuthLoading(false);
+      void refreshPlatformContext();
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshPlatformContext]);
 
   const loginWithCredential = async (credential: string) => {
-    const user = await loginWithGoogle(credential);
+    const { user, activeRole } = await loginWithGoogle(credential);
     setAuthUser(user);
-    setSessionSource('google');
+    if (activeRole) setRoleOverride(activeRole);
+    const ns = activeRole ? roleToNamespace(activeRole) : null;
+    const onboarding = user.onboardingStatus === 'WAITING_POOL';
+    if (ns) {
+      window.location.hash = buildPortalPath({
+        namespace: ns,
+        page: defaultPageForRole(activeRole!, onboarding),
+      }).slice(1);
+    } else {
+      window.location.hash = '#/portal';
+    }
+    setActiveViewState('portal');
     addToast({
       type: 'success',
       title: `Login Google: ${user.name}`,
@@ -509,51 +626,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Akun dummy dari TiDB untuk persona switcher (staging only, gated server)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await fetchPersonas();
-        if (cancelled || list.length === 0) return;
-        setAllUsers(list);
-        setDemoMode(true);
-        const fallback = list.find((u) => u.roles.some((r) => r.role === 'SUPERADMIN')) ?? list[0];
-        setCurrentUserId((prev) => (list.some((u) => u.id === prev) ? prev : fallback.id));
-        const existing = await fetchMe().catch(() => null);
-        if (cancelled || existing) return;
-        const target = list.find((u) => u.email === fallback.email) ?? fallback;
-        const u = await impersonateApi(target.email);
-        if (cancelled) return;
-        setAuthUser(u);
-        setSessionSource('demo');
-      } catch {
-        // Server mati / fitur nonaktif → tetap pakai data lokal hardcoded
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const logoutSso = async () => {
     await logoutApi();
     setAuthUser(null);
-    setSessionSource(null);
     setCurrentUserId('usr-tech');
-    addToast({ type: 'info', title: 'Logout berhasil', description: 'Kembali ke mode simulasi persona.' });
+    setRoleOverride(null);
+    addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
   };
 
-  const setActiveUserRole = (role: UserRole) => {
-    if (!myRoleOptions.includes(role)) return;
-    setRoleOverride(role);
-    const mapping = myRoleMappings.find((r) => r.role === role);
-    addToast({
-      type: 'info',
-      title: `Konteks aktif: ${role}`,
-      description: mapping?.groupId ? `Scoped ke grup ${groups.find((g) => g.id === mapping.groupId)?.name ?? mapping.groupId}.` : undefined,
-    });
-  };
+  const refreshAuthUser = useCallback(async () => {
+    try {
+      const me = await fetchMeFull();
+      setAuthUser(me.user);
+      if (me.activeRole) setRoleOverride(me.activeRole);
+      setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+      setIsPlatformOperator(me.isPlatformOperator);
+      setPlatformCapabilities(me.platformCapabilities || []);
+      setPublicTabState(tabFromHash());
+      if (isAdminHash(window.location.hash)) {
+        setActiveViewState('admin');
+      } else if (isPortalHash(window.location.hash)) {
+        setActiveViewState('portal');
+      } else {
+        setActiveViewState('public');
+      }
+    } catch {
+      /* keep current session */
+    }
+  }, []);
+
+  useEffect(() => {
+    const onSession = () => { void refreshAuthUser(); };
+    window.addEventListener(AUTH_SESSION_EVENT, onSession);
+    return () => window.removeEventListener(AUTH_SESSION_EVENT, onSession);
+  }, [refreshAuthUser]);
 
   // User & RBAC Computation (multi-role: satu akun bisa rangkap jabatan)
   const currentUser: User =
@@ -567,10 +673,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
 
-  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
   useEffect(() => {
-    setRoleOverride(null); // ganti persona/login → kembali ke peran tertinggi
-  }, [currentUser.id]);
+    if (!authUser) setRoleOverride(null);
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const route = parsePortalHash(window.location.hash);
+    if (!route?.isPortal || route.namespace === 'account' || !route.namespace) return;
+    const roleFromNs = namespaceToRole(route.namespace);
+    if (roleFromNs && myRoleOptions.includes(roleFromNs)) {
+      setRoleOverride(roleFromNs);
+    }
+  }, [authUser?.id, typeof window !== 'undefined' ? window.location.hash : '']);
+
+  const setActiveUserRole = async (role: UserRole) => {
+    if (!myRoleOptions.includes(role)) return;
+    try {
+      await setActiveRole(role);
+      setRoleOverride(role);
+      const onboarding = authUser?.onboardingStatus === 'WAITING_POOL';
+      window.location.hash = buildPortalPath({
+        namespace: roleToNamespace(role),
+        page: defaultPageForRole(role, onboarding),
+      }).slice(1);
+      addToast({
+        type: 'info',
+        title: `Panel: ${role}`,
+        description: mappingDesc(role),
+      });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal ganti peran', description: (e as Error).message });
+    }
+  };
+
+  const mappingDesc = (role: UserRole) => {
+    const mapping = myRoleMappings.find((r) => r.role === role);
+    return mapping?.groupId
+      ? `Scoped ke grup ${groups.find((g) => g.id === mapping.groupId)?.name ?? mapping.groupId}.`
+      : undefined;
+  };
 
   const effectiveUserRole = effectiveRole(myRoleOptions, roleOverride);
   const currentRoleMapping: UserRoleMapping =
@@ -595,7 +737,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isAlumni,
   } = useRoleFlags(currentRole);
 
-  // Strict RBAC Access Checker per revision-v2-beyonders.md (L1–L8)
+  const platformAdminEffective = isPlatformAdmin || isPlatformOperator;
+
   const canAccess = (
     resource:
       | 'settings_users'
@@ -609,12 +752,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switch (resource) {
       case 'settings_users':
       case 'settings_integrations':
-        return isSuperAdmin || isKomisi; // L1 + Komisi integrasi
+        return platformAdminEffective || isKomisi;
       case 'content_manage':
       case 'struktur_manage':
-        return isSuperAdmin || isCommittee || isKomisi; // L1, L3, L4
+        return isSuperAdmin || isCommittee || isKomisi;
       case 'groups_all':
-        return isSuperAdmin || isCommittee || isKomisi || isBpmj; // BPMJ read-only dasbor
+        return isSuperAdmin || isCommittee || isKomisi || isBpmj;
       case 'group_monitoring_write':
         if (isSuperAdmin || isCommittee || isKomisi) return true;
         if ((isMentor || isCoMentor) && userAssignedGroupId) { // L5, L6
@@ -628,26 +771,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setCurrentUserById = (userId: string) => {
     const target = allUsers.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUserId(userId);
-      // Staging: ganti persona = buat sesi server sungguhan sebagai akun dummy itu,
-      // sehingga endpoint ber-RBAC (Jethro, absensi) langsung bisa diuji.
-      if (demoMode && sessionSource !== 'google') {
-        impersonateApi(target.email)
-          .then((u) => {
-            setAuthUser(u);
-            setSessionSource('demo');
-          })
-          .catch(() => {});
-      }
-      const roleMap = target.roles.find((r) => r.tenantId === currentTenantId);
-      const roleName = roleMap ? roleMap.role : 'MENTEE';
-      addToast({
-        type: 'success',
-        title: `Login sebagai: ${target.name}`,
-        description: `Peran aktif: ${roleName} ${roleMap?.groupId ? `(Grup: ${groups.find((g) => g.id === roleMap.groupId)?.name})` : ''}`,
-      });
-    }
+    if (!target) return;
+    setCurrentUserId(userId);
+    const roleMap = target.roles.find((r) => r.tenantId === currentTenantId);
+    const roleName = roleMap ? roleMap.role : 'MENTEE';
+    addToast({
+      type: 'success',
+      title: `Konteks: ${target.name}`,
+      description: `Peran aktif: ${roleName} ${roleMap?.groupId ? `(Grup: ${groups.find((g) => g.id === roleMap.groupId)?.name})` : ''}`,
+    });
   };
 
   // Toast System
@@ -663,11 +795,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4500);
   }, [removeToast]);
 
-  // Content Operations (CMS)
+  // Content Operations (CMS) — optimistic local + sync TiDB
   const addContentItem = (item: Omit<ContentItem, 'id' | 'published_at'>) => {
+    const tempId = `cnt-${Date.now()}`;
     const newItem: ContentItem = {
       ...item,
-      id: `cnt-${Date.now()}`,
+      id: tempId,
       published_at: new Date().toISOString().split('T')[0],
     };
     setContentItems((prev) => [newItem, ...prev]);
@@ -676,16 +809,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Konten Berhasil Diterbitkan',
       description: `"${newItem.title}" kini langsung tampil di portal publik!`,
     });
+
+    fetch('/api/content', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newItem),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        if (d.item) {
+          setContentItems((prev) => prev.map((i) => (i.id === tempId ? d.item : i)));
+        }
+      })
+      .catch(() => {
+        addToast({
+          type: 'warning',
+          title: 'Sinkron Server Gagal',
+          description: 'Konten tersimpan lokal — login portal lalu simpan ulang untuk sinkron TiDB.',
+        });
+      });
   };
 
   const updateContentItem = (id: string, updates: Partial<ContentItem>) => {
-    setContentItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
-    );
+    let mergedForSync: ContentItem | undefined;
+    setContentItems((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== id) return item;
+        const merged = { ...item, ...updates };
+        mergedForSync = merged;
+        return merged;
+      });
+      return next;
+    });
     addToast({
       type: 'success',
       title: 'Konten Diperbarui',
       description: 'Perubahan telah disimpan ke database.',
+    });
+
+    if (!mergedForSync) return;
+    fetch(`/api/content/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mergedForSync),
+    }).catch(() => {
+      addToast({
+        type: 'warning',
+        title: 'Sinkron Server Gagal',
+        description: 'Perubahan lokal belum tersinkron ke TiDB.',
+      });
     });
   };
 
@@ -695,6 +869,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'info',
       title: 'Konten Dihapus',
       description: 'Artikel telah dihapus dari sistem.',
+    });
+
+    fetch(`/api/content/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => {
+      addToast({
+        type: 'warning',
+        title: 'Sinkron Server Gagal',
+        description: 'Hapus lokal belum tersinkron ke TiDB.',
+      });
     });
   };
 
@@ -956,6 +1141,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUserById,
         userAssignedGroupId,
         isSuperAdmin,
+        isPlatformAdmin: platformAdminEffective,
+        isPlatformOperator,
+        platformCapabilities,
+        refreshPlatformContext,
         isCommittee,
         isKomisi,
         isBpmj,
@@ -971,8 +1160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ssoClientId,
         loginWithCredential,
         logoutSso,
-        demoMode,
-        sessionSource,
+        refreshAuthUser,
 
         myRoleOptions,
         setActiveUserRole,

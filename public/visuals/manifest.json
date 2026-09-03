@@ -1,0 +1,49 @@
+{
+  "syncedAt": "2026-09-03T17:06:48.313Z",
+  "rootFolderId": "1ooE8nCdw-OLL0iq17bp1CK2cSYEnIACA",
+  "slots": {
+    "landing": {
+      "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1788264721585.4478",
+      "collageWorship": "/visuals/landing/02-collage-worship.jpg?v=1788264726656.4656",
+      "collageCommunity": "/visuals/landing/03-collage-community.jpg?v=1788264730269.3145",
+      "collageMusic": "/visuals/landing/04-collage-music.jpg?v=1788264734235.1926",
+      "collageStudy": "/visuals/landing/05-collage-study.jpg?v=1788264736963.681",
+      "collageFriends": "/visuals/landing/06-collage-friends.jpg?v=1788264739490.4565",
+      "collagePortrait": "/visuals/landing/07-collage-portrait.jpg?v=1788264741058.556"
+    },
+    "brand": {
+      "logoGehc": "/visuals/brand/logo-gehc.png?v=1788264114304.9329"
+    },
+    "warta": {
+      "bannerDefault": "/visuals/warta/01-banner-default.jpg?v=1788264149582.1287"
+    },
+    "kegiatan": {
+      "bannerDefault": "/visuals/kegiatan/01-banner-default.jpg?v=1788264155623.1187",
+      "bakuTau": "/visuals/kegiatan/baku-tau-4.jpg?v=1788264161503.635"
+    },
+    "benzar": {
+      "hero": "/visuals/benzarpreneurship/01-hero.jpg?v=1788264163683.1453",
+      "productPlaceholder": "/visuals/benzarpreneurship/02-product-placeholder.jpg?v=1788264165743.418",
+      "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788264167658.6074"
+    },
+    "kelompok": {
+      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788455173647.0242",
+      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788455178457.0288",
+      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788455183684.034",
+      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788455185400.0356",
+      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788455187801.0378",
+      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788455192892.0427",
+      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788455196452.046",
+      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788455199671.0415",
+      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788455203579.0398",
+      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788455208311.0435"
+    },
+    "pengurus": {
+      "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
+    },
+    "testimoni": {
+      "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788264262442.0808"
+    },
+    "users": {}
+  }
+}

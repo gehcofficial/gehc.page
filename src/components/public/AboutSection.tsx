@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Landmark, GraduationCap, Home } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
+import { trLabel } from '../../i18n';
 
 interface LeaderDto {
   id: string;
@@ -26,7 +27,7 @@ export const AboutSection: React.FC = () => {
   const facts = [t.about.fact1t, t.about.fact2t, t.about.fact3t];
   const factDescs = [t.about.fact1d, t.about.fact2d, t.about.fact3d];
 
-  // BOD asli dari TiDB (division kosong = level komisi) — max 3 untuk preview
+  // Tim Kerja (BOD retreat) dari TiDB — max 3 untuk preview About
   useEffect(() => {
     let cancelled = false;
     fetch('/api/db/struktur')
@@ -34,7 +35,9 @@ export const AboutSection: React.FC = () => {
       .then((d: { members: LeaderDto[] }) => {
         if (!cancelled)
           setLeaders(
-            (d.members || []).filter((m) => !m.division).slice(0, 3)
+            (d.members || [])
+              .filter((m) => m.division === 'TIMKERJA')
+              .slice(0, 3)
           );
       })
       .catch(() => {});
@@ -126,7 +129,9 @@ export const AboutSection: React.FC = () => {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white truncate">{l.name}</p>
                       {l.position && (
-                        <p className="text-[10px] text-white/50 truncate">{l.position}</p>
+                        <p className="text-[10px] text-white/50 truncate">
+                          {trLabel(t.orgTree.labels, l.position)}
+                        </p>
                       )}
                     </div>
                   </div>

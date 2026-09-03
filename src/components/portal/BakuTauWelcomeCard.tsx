@@ -11,17 +11,23 @@ type Props = {
   mapEmbedQuery?: string;
   compact?: boolean;
   onCompleteProfile?: () => void;
+  checkInCode?: string | null;
+  registeredAt?: string | null;
+  showPortalLink?: boolean;
 };
 
 export const BakuTauWelcomeCard: React.FC<Props> = ({
   whatsappGroupUrl,
   eventDate = '2026-09-12T15:00:00+07:00',
   venueName = 'GMIM Eben Haezer Cikarang',
-  locationDetail = 'GMIM Eben Haezer Cikarang · 15.00 WIB',
+  locationDetail = 'Cikarang, Bekasi',
   mapUrl = 'https://share.google/Ro2jBSuGfrzfg49nP',
   mapEmbedQuery = 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi',
   compact = false,
   onCompleteProfile,
+  checkInCode,
+  registeredAt,
+  showPortalLink = false,
 }) => {
   const dateLabel = new Date(eventDate).toLocaleString('id-ID', {
     weekday: 'long',
@@ -40,10 +46,12 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
           <CalendarClock className="w-3 h-3" />
           BAKU TAU 4.0
         </span>
-        <h2 className={`font-black text-[#1B1B1B] ${compact ? 'text-base' : 'text-lg'}`}>
-          Kamu sudah terdaftar!
-        </h2>
-        <p className="text-xs text-[#8C8880] mt-1 capitalize">{dateLabel} WIB</p>
+        {!compact && (
+          <h2 className="font-black text-[#1B1B1B] text-lg">
+            Kamu sudah terdaftar!
+          </h2>
+        )}
+        <p className={`text-xs text-[#8C8880] capitalize ${compact ? '' : 'mt-1'}`}>{dateLabel} WIB</p>
         <p className="text-xs text-[#5C5850] mt-2 leading-relaxed">
           Gabung grup WhatsApp peserta untuk info terbaru, carpool, dan pengumuman event.
         </p>
@@ -59,6 +67,35 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         />
       )}
 
+      {checkInCode ? (
+        <div className={`rounded-2xl border border-emerald-200 bg-white text-center space-y-2 ${compact ? 'p-3' : 'p-4'}`}>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+            QR daftar ulang hari H
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=${compact ? 120 : 180}x${compact ? 120 : 180}&ecc=M&data=${encodeURIComponent(checkInCode)}`}
+            alt="QR daftar ulang BAKU TAU"
+            width={compact ? 120 : 180}
+            height={compact ? 120 : 180}
+            className="mx-auto rounded-xl border border-emerald-100"
+          />
+          <p className="text-[10px] font-mono text-[#5C5850] break-all">{checkInCode}</p>
+          {registeredAt && (
+            <p className="text-[10px] text-[#8C8880]">
+              Terdaftar {new Date(registeredAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
+            </p>
+          )}
+          <p className="text-[10px] text-[#8C8880] leading-relaxed">
+            Tunjukkan QR ini ke panitia saat daftar ulang di lokasi. Ini bukan QRIS pembayaran.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-4 text-center">
+          <p className="text-[11px] font-semibold text-emerald-800">QR daftar ulang sedang disiapkan</p>
+          <p className="text-[10px] text-[#8C8880] mt-1">Refresh halaman, atau buka Portal → Info Event.</p>
+        </div>
+      )}
+
       {whatsappGroupUrl ? (
         <a
           href={whatsappGroupUrl}
@@ -71,8 +108,8 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         </a>
       ) : (
         <div className="rounded-2xl bg-white border border-dashed border-emerald-200 p-3 text-center">
-          <p className="text-[11px] text-emerald-700 font-semibold">
-            Link grup akan segera dibagikan oleh panitia.
+          <p className="text-[11px] text-emerald-700 font-semibold leading-relaxed">
+            Link grup belum tersedia. Admin isi di Program & Event → Edit → Grup WhatsApp peserta, lalu refresh halaman ini.
           </p>
           <button
             type="button"
@@ -92,6 +129,15 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         >
           Lengkapi profil dulu
         </button>
+      )}
+      {showPortalLink && (
+        <a
+          href="#/portal"
+          onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
+          className="block text-center text-[11px] font-bold text-[#FF416C] hover:underline"
+        >
+          Buka Info Event di portal →
+        </a>
       )}
     </div>
   );

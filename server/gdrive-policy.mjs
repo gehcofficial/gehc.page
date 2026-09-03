@@ -66,6 +66,16 @@ export function parseTag(folderName) {
   return m ? m[1].toUpperCase() : null;
 }
 
+/** Nama tampilan tanpa tag ACL, mis. "Liturgia [MENTOR]" → "Liturgia". */
+export function displayFolderName(folderName) {
+  const raw = String(folderName || '');
+  const cleaned = raw
+    .replace(/\s*\[[A-Za-z][A-Za-z0-9-]*(?::[^\]]+)?\]/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return cleaned || raw;
+}
+
 function normalizeRoles(authUser) {
   return (authUser?.roles || []).map((r) => r.role);
 }

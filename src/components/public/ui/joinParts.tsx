@@ -12,6 +12,7 @@ export const Field: React.FC<{
   options?: { value: string; label: string }[];
   hint?: string;
   onBlur?: () => void;
+  theme?: 'light' | 'dark';
 }> = ({
   label,
   value,
@@ -23,9 +24,18 @@ export const Field: React.FC<{
   options,
   hint,
   onBlur,
-}) => (
+  theme = 'light',
+}) => {
+  const labelClass = theme === 'dark' ? 'text-white/60' : 'text-[#1B1B1B]';
+  const inputClass =
+    theme === 'dark'
+      ? 'bg-[#181818] border-white/15 text-white placeholder:text-white/30 focus:border-[#FF416C]'
+      : 'bg-white border-[#D9D7D0] text-[#1B1B1B] focus:border-black';
+  const hintClass = theme === 'dark' ? 'text-white/40' : 'text-[#8C8880]';
+
+  return (
   <div>
-    <label className="text-xs font-bold uppercase tracking-wider block mb-1">
+    <label className={`text-xs font-bold uppercase tracking-wider block mb-1 ${labelClass}`}>
       {label} {required && '*'}
     </label>
     {type === 'select' && options ? (
@@ -33,7 +43,7 @@ export const Field: React.FC<{
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium focus:outline-none ${inputClass}`}
       >
         {options.map((o) => (
           <option key={o.value || '__empty'} value={o.value}>
@@ -49,7 +59,7 @@ export const Field: React.FC<{
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className="w-full p-3 rounded-xl bg-white border border-[#D9D7D0] text-xs leading-relaxed focus:outline-none focus:border-black"
+        className={`w-full p-3 rounded-xl border text-xs leading-relaxed focus:outline-none ${inputClass}`}
       />
     ) : (
       <input
@@ -59,12 +69,13 @@ export const Field: React.FC<{
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium focus:outline-none ${inputClass}`}
       />
     )}
-    {hint && <p className="text-[10px] text-[#8C8880] mt-1 leading-relaxed">{hint}</p>}
+    {hint && <p className={`text-[10px] mt-1 leading-relaxed ${hintClass}`}>{hint}</p>}
   </div>
-);
+  );
+};
 
 export const Center: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <div className="py-20 text-center text-sm text-[#8C8880]">{children}</div>

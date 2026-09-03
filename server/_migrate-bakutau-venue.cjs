@@ -28,6 +28,7 @@ async function main() {
     password: decodeURIComponent(u.password),
     database: u.pathname.replace(/^\//, '').split('?')[0],
     ssl: { rejectUnauthorized: true },
+    timezone: 'Z',
   });
 
   try {
@@ -50,7 +51,7 @@ async function main() {
       const [content] = await conn.query(
         `UPDATE content_items SET
           event_date = '2026-09-12',
-          location_detail = 'GMIM Eben Haezer Cikarang · 15.00 WIB',
+          location_detail = 'Cikarang, Bekasi',
           subtitle = 'Malam penyambutan mahasiswa baru di perantuaan — bertemu & terhubung di GMIM Eben Haezer',
           is_featured_event = true
         WHERE id = 'cnt-bakutau'`,
@@ -71,7 +72,7 @@ async function main() {
           'Welcome Night',
           '2026-08-20',
           '2026-09-12',
-          'GMIM Eben Haezer Cikarang · 15.00 WIB',
+          'Cikarang, Bekasi',
           true,
           true,
           'Komisi Pemuda GEHC',
@@ -120,11 +121,10 @@ async function main() {
       if (mt.length) {
         const [meeting] = await conn.query(
           `UPDATE EventMeeting SET
-            scheduled_at = '2026-09-12 15:00:00',
             notes = 'Malam penyambutan mahasiswa baru — GMIM Eben Haezer Cikarang, 15.00 WIB'
           WHERE id = 'evtmt-baku-tau-4-0-welcome-night'`,
         );
-        console.log(`EventMeeting welcome-night updated: ${meeting.affectedRows ?? 0} baris`);
+        console.log(`EventMeeting welcome-night notes updated: ${meeting.affectedRows ?? 0} baris`);
       } else {
         await conn.query(
           `INSERT INTO EventMeeting
@@ -134,7 +134,7 @@ async function main() {
             'evtmt-baku-tau-4-0-welcome-night',
             'evt-baku-tau-4-0',
             'BAKU TAU 4.0 — Bakudapa di Rantau',
-            '2026-09-12 15:00:00',
+            new Date('2026-09-12T15:00:00+07:00'),
             'Malam penyambutan mahasiswa baru — GMIM Eben Haezer Cikarang, 15.00 WIB',
             'usr-tech',
           ],

@@ -5,12 +5,61 @@
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
 import { assignRoleToUser, mapPlacementRoleToPrisma } from './role-assign.mjs';
+import { assignOrgSlot } from './services/org-assign.mjs';
 import { normalizeGiftsTop5, normalizeGiftsScores } from './gift-normalize.mjs';
 
 const uid = (prefix) => `${prefix}-${crypto.randomUUID()}`;
 
 function assertDb() {
   if (!isDbConfigured()) throw new Error('DATABASE_URL belum dikonfigurasi.');
+}
+
+function poolEntryToNewcomer(p) {
+  return {
+    id: p.userId,
+    poolId: p.id,
+    name: p.name,
+    gender: p.gender,
+    giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
+    giftsScores: normalizeGiftsScores(p.giftsScores || {}),
+    maturityScore: 0,
+  };
+}
+
+function isPoolEntryEligible(p) {
+  if (!p.userId || !p.giftTestDone || !p.gender) return false;
+  if (p.giftsTop5 == null) return false;
+  if (Array.isArray(p.giftsTop5) && p.giftsTop5.length === 0) return false;
+  return true;
+}
+
+/** Assign Individu (no mentoring group) — mirrors bulk-individu API. */
+async function assignIndividuRole(prisma, userId, assignedBy) {
+  const individuNode = await prisma.orgNode.findFirst({
+    where: { domain: 'YOUTH', slug: 'INDIVIDU', isActive: true },
+  });
+  if (individuNode) {
+    await assignOrgSlot(prisma, {
+      userId,
+      orgNodeId: individuNode.id,
+      assignedBy,
+      note: 'Individu (tanpa kelompok mentoring)',
+      updateOnboarding: true,
+    });
+    return;
+  }
+  await assignRoleToUser(prisma, {
+    userId,
+    role: 'MENTEE',
+    groupId: null,
+    familyRole: 'MENTEE',
+    assignedBy,
+    note: 'Individu (tanpa kelompok mentoring)',
+  });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isBeyonders: false },
+  });
 }
 
 function serializeItem(item, groupNames = new Map()) {
@@ -198,14 +247,7 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
   for (const item of batch.items) {
     try {
       if (item.finalIsIndividu || item.status === 'INDIVIDU') {
-        await assignRoleToUser(prisma, {
-          userId: item.newcomerId,
-          role: 'MENTEE',
-          groupId: null,
-          familyRole: 'MENTEE',
-          assignedBy: committedBy,
-          note: 'Individu (tanpa kelompok mentoring)',
-        });
+        await assignIndividuRole(prisma, item.newcomerId, committedBy);
         results.individu++;
       } else if (item.finalGroupId && item.finalRole) {
         const prismaRole = mapPlacementRoleToPrisma(item.finalRole);
@@ -244,7 +286,6 @@ export async function getEligibleNewcomers() {
       status: 'PROFILE_COMPLETED',
       giftTestDone: true,
       gender: { not: null },
-      giftsTop5: { not: null },
     },
     select: {
       id: true,
@@ -254,15 +295,44 @@ export async function getEligibleNewcomers() {
       gender: true,
       giftsTop5: true,
       giftsScores: true,
+      giftTestDone: true,
     },
   });
 
-  return pool.map((p) => ({
-    id: p.userId || p.id,
-    name: p.name,
-    gender: p.gender,
-    giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
-    giftsScores: normalizeGiftsScores(p.giftsScores || {}),
-    maturityScore: 0,
-  }));
+  return pool.filter(isPoolEntryEligible).map(poolEntryToNewcomer);
+}
+
+/** Resolve newcomers by userId or WaitingPool id for Jethro advanced placement. */
+export async function resolveNewcomersByIds(ids) {
+  assertDb();
+  const prisma = getPrisma();
+  if (!ids.length) return [];
+
+  const poolEntries = await prisma.waitingPool.findMany({
+    where: {
+      status: 'PROFILE_COMPLETED',
+      giftTestDone: true,
+      gender: { not: null },
+      OR: [{ userId: { in: ids } }, { id: { in: ids } }],
+    },
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      email: true,
+      gender: true,
+      giftsTop5: true,
+      giftsScores: true,
+      giftTestDone: true,
+    },
+  });
+
+  const seen = new Set();
+  const out = [];
+  for (const p of poolEntries) {
+    if (!isPoolEntryEligible(p) || seen.has(p.userId)) continue;
+    seen.add(p.userId);
+    out.push(poolEntryToNewcomer(p));
+  }
+  return out;
 }

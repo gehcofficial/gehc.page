@@ -5,8 +5,8 @@ export type EventPendingPayload = {
   eventSlug: string;
   name: string;
   phone: string;
-  gender: string;
-  origin: string;
+  gender?: string;
+  origin?: string;
   domicileKind?: string;
   domicileDetail?: string;
 };
@@ -52,15 +52,16 @@ export function clearEventPending(slug: string) {
 }
 
 async function applyBakutauPending(payload: EventPendingPayload) {
+  const patch: Record<string, string> = { phone: payload.phone };
+  if (payload.gender) patch.gender = payload.gender;
+  if (payload.origin) patch.origin = payload.origin;
+  if (payload.domicileKind) patch.domicileKind = payload.domicileKind;
+  if (payload.domicileDetail) patch.domicileDetail = payload.domicileDetail;
   await fetch('/api/me/profile', {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      phone: payload.phone,
-      gender: payload.gender,
-      origin: payload.origin,
-    }),
+    body: JSON.stringify(patch),
   });
 
   const reg = await fetch('/api/events/baku-tau-4-0/register', {

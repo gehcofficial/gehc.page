@@ -20,6 +20,7 @@ import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { google } from 'googleapis';
 import { getPrisma } from './db.mjs';
+import { websiteVisualFolderSpec, WARTA_PUBLIK_FOLDER } from './lib/website-visuals.mjs';
 
 // Mirror src/lib/pantatugas.ts (didefinisikan lokal agar script jalan via node murni)
 const PANTATUGAS = [
@@ -46,6 +47,7 @@ function getWriteDrive() {
     email: credentials.client_email,
     key: credentials.private_key,
     scopes: [WRITE_SCOPE],
+    subject: process.env.GDRIVE_IMPERSONATE || undefined,
   });
   return google.drive({ version: 'v3', auth });
 }
@@ -56,7 +58,10 @@ async function buildTargetSpec(prisma) {
   // Zona statis: [nama, parentId-key]
   const spec = [
     { name: 'Event Gallery [PUBLIK]', parent: 'ROOT' },
-    { name: 'Warta Publik [PUBLIK]', parent: 'ROOT' },
+    { name: WARTA_PUBLIK_FOLDER, parent: 'ROOT', key: 'WARTA_PUBLIK' },
+    { name: '_Template Edisi', parent: 'WARTA_PUBLIK', key: 'WARTA_TMPL' },
+    { name: 'foto', parent: 'WARTA_TMPL' },
+    ...websiteVisualFolderSpec(),
     { name: 'Ruang Anggota [MENTEE]', parent: 'ROOT' },
     { name: 'Kelompok Mentoring [MENTOR]', parent: 'ROOT', key: 'KELOMPOK' },
     { name: 'Laporan Internal [KOMISI]', parent: 'ROOT' },

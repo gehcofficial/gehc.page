@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
-import { resolveAccess, matrixForUser, parseTag } from './gdrive-policy.mjs';
+import { resolveAccess, matrixForUser, parseTag, displayFolderName } from './gdrive-policy.mjs';
 import { getPrisma, isDbConfigured, testConnection as testDb, resetPrisma, isTransientDbError, getDbLabel, getDbTarget } from './db.mjs';
 import {
   sendPushNotification,
@@ -28,7 +28,23 @@ import {
   isSuperadminEmail,
   ensureSuperadminRole,
   applySuperadminSession,
+  readSession,
+  pickDefaultActiveRole,
+  resolveSessionActiveRole,
+  resolveSessionContext,
+  buildSessionPayload,
+  newResetToken,
 } from './auth.mjs';
+import { roleToNamespace } from './portal-namespace.mjs';
+import {
+  applyGroupEntitlements,
+  listAccessGroups,
+  createAccessGroup,
+  addAccessGroupMembers,
+  deleteAccessGroup,
+  removeAccessGroupMember,
+} from './access-groups.mjs';
+import { createInviteProvisionUser, resolveUniformPassword } from './invite-provision.mjs';
 import {
   getDashboard,
   runScan,
@@ -50,30 +66,63 @@ import {
   bulkApprovePlacementBatch,
   commitPlacementBatch,
   getEligibleNewcomers,
+  resolveNewcomersByIds,
 } from './jethro-placement.mjs';
+import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
+import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
+import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
+import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
+import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
+import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
+import { registerEventQuestionRoutes } from './routes/event-questions.mjs';
 import {
   applyLifeAddressFields,
   reminderDue,
   profileSegments,
+  beyondersProfileIncomplete,
+  profileIncompleteForUser,
   COMMON_MAJORS,
 } from './profile-fields.mjs';
+import {
+  normalizeUsername,
+  validateUsername,
+  ensureUniqueUsername,
+  canChangeUsername,
+  findUserByLoginIdentifier,
+} from './lib/username.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
 import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
+import { registerVisualsPublishRoutes } from './routes/visuals-publish.mjs';
+import { registerOperatorRoutes } from './routes/operator.mjs';
+import { requirePlatformRoot, requirePlatformAdmin } from './lib/platform-rbac.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
-import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, BAKU_TAU_VENUE_NAME } from './lib/baku-tau.mjs';
+import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
+import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
+import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
+import {
+  googleAvatarCreate,
+  googleAvatarPatch,
+  decodeAvatarUpload,
+  optimizeAvatarBuffer,
+  uploadUserAvatarToDrive,
+  deleteUserAvatarFromDrive,
+  scheduleUsersVisualsPublish,
+  AVATAR_SOURCE_CUSTOM,
+  AVATAR_SOURCE_GOOGLE,
+} from './lib/user-avatar.mjs';
 
 const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
 
-const wrap = (fn) => (req, res) => fn(req, res).catch(async (err) => {
+const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(async (err) => {
   console.error(`[api] ${req.method} ${req.path} →`, err.message);
   if (isTransientDbError(err)) {
     await resetPrisma();
@@ -126,9 +175,20 @@ app.post('/api/auth/google', wrap(async (req, res) => {
   const credential = req.body?.credential;
   if (!credential) return res.status(400).json({ error: 'credential (ID token Google) wajib dikirim.' });
   try {
-    const user = await loginWithGoogleCredential(credential);
-    setSessionCookie(res, { uid: user.id, email: user.email });
-    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, accountStatus: user.accountStatus, roles: user.roles } });
+    let user = await loginWithGoogleCredential(credential);
+    await applyGroupEntitlements(user.email, user.id);
+    const prisma = getPrisma();
+    if (prisma) {
+      user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+      user = applySuperadminSession(user);
+    }
+    const activeRole = pickDefaultActiveRole(user);
+    setSessionCookie(res, buildSessionPayload(user, { activeRole }));
+    res.json({
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, avatarSource: user.avatarSource, accountStatus: user.accountStatus, onboardingStatus: user.onboardingStatus, roles: user.roles },
+      activeRole,
+      activeNamespace: roleToNamespace(activeRole),
+    });
   } catch (err) {
     console.error('[auth] login gagal:', err.message);
     res.status(401).json({ error: err.message });
@@ -138,17 +198,102 @@ app.post('/api/auth/google', wrap(async (req, res) => {
 app.get('/api/auth/me', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const u = req.authUser;
+  const segments = profileSegments(u);
+  const ctx = resolveSessionContext(req.sessionMeta, u);
   res.json({
     user: u,
+    activeRole: ctx.activeRole,
+    activeNamespace: ctx.activeNamespace,
     reminderDue: reminderDue(u),
-    segments: profileSegments(u),
+    segments,
+    profileIncomplete: profileIncompleteForUser(u),
+    loginUsername: u.loginUsername || null,
+    hasPassword: Boolean(u.passwordHash),
+    googleLinked: Boolean(u.googleSub && u.linkStatus === 'LINKED'),
+    onboardingPath: u.onboardingPath || 'ORGANIC',
+    platformAdmin: Boolean(req.platformAdmin),
+    platformCapabilities: req.platformCapabilities || [],
+    isPlatformOperator: Boolean(req.platformOperator),
   });
+}));
+
+app.post('/api/auth/active-role', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const role = String(req.body?.role || '').trim();
+  const owned = (req.authUser.roles || []).map((r) => r.role);
+  if (!owned.includes(role)) return res.status(403).json({ error: 'Role tidak dimiliki akun ini.' });
+  const session = req.sessionMeta;
+  if (!session?.uid) return res.status(401).json({ error: 'Sesi tidak valid.' });
+  const activeNamespace = roleToNamespace(role);
+  setSessionCookie(res, buildSessionPayload(req.authUser, { activeRole: role, activeNamespace }));
+  res.json({ ok: true, activeRole: role, activeNamespace });
 }));
 
 app.post('/api/auth/logout', (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+/** POST /api/auth/forgot-password — minta reset token (username atau email) */
+app.post('/api/auth/forgot-password', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const identifier = req.body?.login || req.body?.email || req.body?.username;
+  const generic = { ok: true, message: 'Jika akun terdaftar, taut reset telah dibuat.' };
+  if (!identifier) return res.json(generic);
+
+  const user = await findUserByLoginIdentifier(prisma, identifier);
+  if (!user || !user.passwordHash) return res.json(generic);
+
+  const token = newResetToken();
+  const expires = new Date(Date.now() + 60 * 60 * 1000);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetToken: token, resetTokenExpiresAt: expires },
+  });
+
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const resetUrl = `${origin}/#/reset-password?token=${encodeURIComponent(token)}`;
+  const payload = { ...generic, resetUrl };
+  res.json(payload);
+}));
+
+/** POST /api/auth/reset-password — set password baru via token */
+app.post('/api/auth/reset-password', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const token = String(req.body?.token || '').trim();
+  const newPassword = String(req.body?.newPassword || '');
+  if (!token) return res.status(400).json({ error: 'Token wajib.' });
+  if (newPassword.length < 8) return res.status(400).json({ error: 'Password minimal 8 karakter.' });
+
+  const user = await prisma.user.findFirst({ where: { resetToken: token }, include: { roles: true } });
+  if (!user) return res.status(400).json({ error: 'Taut reset tidak valid.' });
+  if (!user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+    return res.status(400).json({ error: 'Taut reset sudah kedaluwarsa. Minta taut baru.' });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hashPassword(newPassword),
+      mustChangePassword: false,
+      resetToken: null,
+      resetTokenExpiresAt: null,
+      authProvider: user.authProvider === 'GOOGLE' ? 'GOOGLE' : 'LOCAL',
+    },
+  });
+
+  const hydrated = applySuperadminSession({ ...user, mustChangePassword: false });
+  const activeRole = pickDefaultActiveRole(hydrated);
+  setSessionCookie(res, buildSessionPayload(hydrated, { activeRole }));
+  res.json({
+    ok: true,
+    activeRole,
+    activeNamespace: roleToNamespace(activeRole),
+    user: { id: user.id, email: user.email, name: user.name },
+  });
+}));
 
 function meInclude() {
   return {
@@ -191,6 +336,84 @@ app.get('/api/me/profile', wrap(async (req, res) => {
     segments: profileSegments({ ...view, recreationalIds }),
     recreationalSuggestions,
     churchDataRequest,
+  });
+}));
+
+app.post('/api/me/avatar', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  let decoded;
+  try {
+    decoded = decodeAvatarUpload(req.body || {});
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  const jpeg = await optimizeAvatarBuffer(decoded.buffer);
+  const uploaded = await uploadUserAvatarToDrive(existing.id, jpeg);
+  if (existing.avatarDriveFileId && existing.avatarDriveFileId !== uploaded.fileId) {
+    await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      avatar: uploaded.driveUrl || uploaded.staticUrl,
+      avatarSource: AVATAR_SOURCE_CUSTOM,
+      avatarDriveFileId: uploaded.fileId,
+      lastProfileUpdate: new Date(),
+    },
+    include: { roles: true },
+  });
+  const publish = scheduleUsersVisualsPublish();
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      avatarSource: user.avatarSource,
+      avatarGoogle: user.avatarGoogle,
+    },
+    publish,
+  });
+}));
+
+app.delete('/api/me/avatar', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  if (existing.avatarDriveFileId) {
+    await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
+  }
+
+  const restored = existing.avatarGoogle || null;
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      avatar: restored,
+      avatarSource: AVATAR_SOURCE_GOOGLE,
+      avatarDriveFileId: null,
+      lastProfileUpdate: new Date(),
+    },
+    include: { roles: true },
+  });
+  res.json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      avatarSource: user.avatarSource,
+      avatarGoogle: user.avatarGoogle,
+    },
   });
 }));
 
@@ -423,7 +646,7 @@ app.post('/api/me/link-google', wrap(async (req, res) => {
 }));
 
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
-app.get('/api/auth/admin-check', requireRole('SUPERADMIN'), (req, res) => {
+app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
 });
 
@@ -444,7 +667,7 @@ app.get('/api/users/search', wrap(async (req, res) => {
           { email: { contains: q } },
         ],
       },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, avatar: true },
       take: 10,
     });
 
@@ -489,30 +712,16 @@ app.get('/api/notifications', wrap(async (req, res) => {
   try {
     // Get notifications where user is mentioned (payload.authorId != user AND user is mentioned)
     const notifications = await prisma.notification.findMany({
-      where: {
-        OR: [
-          // MENTION notifications where user was mentioned
-          {
-            type: 'MENTION',
-            status: 'OPEN',
-            // Check if the mentioned user ID is in the payload or title contains user name
-          },
-          // Other notification types
-          {
-            type: { not: 'MENTION' },
-            status: 'OPEN',
-          },
-        ],
-      },
+      where: { status: 'OPEN' },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
+      if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE') return n.memberId === req.authUser.id;
       if (n.type !== 'MENTION') return true;
       const payload = n.payload || {};
-      // Show if user was mentioned (not the author)
       return payload.authorId !== req.authUser.id;
     });
 
@@ -664,39 +873,6 @@ app.get('/api/events/:eventId/divisions/:div/analytics', wrap(async (req, res) =
   }
 }));
 
-// ---------- Demo personas (STAGING ONLY) ----------
-// Aktif hanya jika ENABLE_DEMO_PERSONAS=true — JANGAN pernah diaktifkan di produksi.
-const demoEnabled = () => process.env.ENABLE_DEMO_PERSONAS === 'true';
-
-app.get('/api/demo/personas', wrap(async (req, res) => {
-  if (!demoEnabled()) return res.status(404).json({ error: 'Demo personas tidak aktif.' });
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const all = await prisma.user.findMany({
-    include: { roles: true, _count: { select: { groupMembers: true } } },
-    orderBy: { name: 'asc' },
-  });
-  // Ramping: hanya akun inti (L1-L3) + yang ter-link kelompok (mentor/co-mentor/
-  // mentee/alumni). PIC sub-divisi & penopang tetap ada di DB namun tak memenuhi UI.
-  const CORE = new Set(['SUPERADMIN', 'BPMJ', 'KOMISI']);
-  const users = all
-    .filter((u) => u._count.groupMembers > 0 || (u.roles || []).some((r) => CORE.has(r.role)))
-    .map(({ _count, ...u }) => u);
-  res.json({ users });
-}));
-
-app.post('/api/demo/impersonate', wrap(async (req, res) => {
-  if (!demoEnabled()) return res.status(404).json({ error: 'Demo personas tidak aktif.' });
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const email = String(req.body?.email || '').toLowerCase().trim();
-  const user = await prisma.user.findUnique({ where: { email }, include: { roles: true } });
-  if (!user) return res.status(404).json({ error: 'Akun dummy tidak ditemukan.' });
-  const ready = applySuperadminSession(user);
-  setSessionCookie(res, { uid: ready.id, email: ready.email });
-  res.json({ user: { id: ready.id, email: ready.email, name: ready.name, avatar: ready.avatar, accountStatus: ready.accountStatus, roles: ready.roles } });
-}));
-
 // ---------- Health & Config ----------
 app.get('/api/health', wrap(async (req, res) => {
   let dbConnected = false;
@@ -730,6 +906,9 @@ app.get('/api/config', wrap(async (req, res) => {
     dbTarget: getDbTarget(),
     dbLabel: getDbLabel(),
     rootFolderId: process.env.GDRIVE_ROOT_FOLDER_ID || null,
+    gehcMapUrl: GEHC_MAP_URL,
+    bakuTauMapUrl: BAKU_TAU_MAP_URL,
+    bakuTauMapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
   });
 }));
 
@@ -764,6 +943,7 @@ app.get('/api/drive/folders', wrap(async (req, res) => {
       const v = await resolveAccess(childChain, req.authUser);
       enriched.push({
         ...f,
+        displayName: displayFolderName(f.name),
         accessAllowed: v.allowed,
         zoneTag: v.tag,
         reason: v.reason,
@@ -832,7 +1012,7 @@ app.get('/api/drive/file/:id/content', wrap(async (req, res) => {
   if (!(await guardDriveFolder(req, res, req.params.id))) return;
   const { meta, stream } = await getFileStream(req.params.id);
   if (meta.mimeType) res.setHeader('Content-Type', meta.mimeType);
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
   stream.pipe(res);
 }));
 
@@ -847,7 +1027,7 @@ app.get('/api/drive/policy', wrap(async (req, res) => {
 }));
 
 // Audit sinkronisasi DB ↔ Drive: grup & subdivisi pantatugas vs folder aktual
-app.get('/api/drive/audit', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.get('/api/drive/audit', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -951,7 +1131,10 @@ app.get('/api/db/groups', wrap(async (req, res) => {
     orderBy: { name: 'asc' },
     include: {
       batches: { orderBy: { period: 'desc' } },
-      members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }] },
+      members: {
+        orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+        include: { user: { select: { id: true, avatar: true, name: true } } },
+      },
     },
   });
   res.json({ groups });
@@ -975,6 +1158,7 @@ app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   const members = await prisma.groupMember.findMany({
     where: { groupId: req.params.id, ...(req.query.period ? { batchPeriod: req.query.period } : {}) },
     orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+    include: { user: { select: { id: true, avatar: true, name: true } } },
   });
   res.json({ members });
 }));
@@ -1416,7 +1600,11 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
       listFiles({ folderId: division.driveFolderId, pageSize: 50 }),
       listFolders(division.driveFolderId, 50),
     ]);
-    res.json({ files, folders, folderId: division.driveFolderId });
+    res.json({
+      files,
+      folders: folders.map((f) => ({ ...f, displayName: displayFolderName(f.name) })),
+      folderId: division.driveFolderId,
+    });
   } catch (e) {
     res.status(500).json({ error: `Gagal memuat Drive: ${e.message}` });
   }
@@ -1727,6 +1915,11 @@ function slugify(text) {
 }
 
 // Helper: divisi yang bisa diakses user berdasarkan struktur_members
+/** 5 Panca Tugas + Benzarpreneurship — sinkron dengan src/lib/pantatugas.ts */
+const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
+const EVENT_KINDS = ['UMUM', 'KHUSUS', 'INTERNAL', 'RECURRING'];
+const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
+
 async function canSeeEventDivision(authUser, division) {
   if (!authUser) return false;
   const roles = (authUser.roles || []).map((r) => r.role);
@@ -1758,7 +1951,7 @@ app.get('/api/events', wrap(async (req, res) => {
   try {
     events = await prisma.eventProgram.findMany({
       orderBy: { startDate: 'desc' },
-      include: { divisions: true, meetings: true },
+      include: { divisions: true, meetings: true, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
     // Fallback: Prisma model belum ada → raw SQL
@@ -1824,7 +2017,8 @@ app.get('/api/events', wrap(async (req, res) => {
     for (const ev of events) {
       for (const d of ev.divisions) {
         if (await canSeeEventDivision(req.authUser, d.division)) {
-          accessible.push(ev);
+          const { whatsappGroupUrl: _waHidden, ...safeEv } = ev;
+          accessible.push(safeEv);
           break;
         }
       }
@@ -1838,9 +2032,26 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { name, description, divisions, startDate, endDate } = req.body || {};
+  const { name, description, divisions, startDate, endDate, kind, churchProgramId, whatsappGroupUrl } = req.body || {};
   if (!name || !Array.isArray(divisions) || divisions.length === 0) {
     return res.status(400).json({ error: 'name dan divisions[] wajib.' });
+  }
+  const invalidDiv = divisions.find((d) => !EVENT_DIVISIONS.includes(String(d).toUpperCase()));
+  if (invalidDiv) {
+    return res.status(400).json({ error: `divisi "${invalidDiv}" tidak dikenal. Pilihan: ${EVENT_DIVISIONS.join(', ')}.` });
+  }
+
+  const eventKind = String(kind || 'KHUSUS').toUpperCase();
+  if (!EVENT_KINDS.includes(eventKind)) {
+    return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
+  }
+  let waUrl = null;
+  if (whatsappGroupUrl) {
+    const raw = String(whatsappGroupUrl).trim();
+    if (!/^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(raw)) {
+      return res.status(400).json({ error: 'whatsappGroupUrl harus tautan undangan WhatsApp.' });
+    }
+    waUrl = raw;
   }
 
   const slug = slugify(name) + '-' + Date.now().toString(36);
@@ -1854,8 +2065,11 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
       slug,
       name,
       description: description || null,
+      kind: eventKind,
+      churchProgramId: churchProgramId || null,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
+      whatsappGroupUrl: waUrl,
       createdById,
     },
   });
@@ -1886,11 +2100,76 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
     }
   }
 
+  if (waUrl) {
+    await prisma.channelLink.upsert({
+      where: { kind_refId: { kind: 'EVENT', refId: ev.id } },
+      update: { url: waUrl, updatedById: createdById, label: name },
+      create: {
+        id: `cl-${crypto.randomUUID()}`,
+        kind: 'EVENT',
+        refId: ev.id,
+        url: waUrl,
+        label: name,
+        updatedById: createdById,
+      },
+    }).catch(() => null);
+  }
+
   res.status(201).json({ event: ev, provisioned });
 }));
 
-// GET /api/events/:id — detail event + divisi
-app.get('/api/events/:id', wrap(async (req, res) => {
+// POST /api/events/:id/divisions — aktifkan satu divisi pada event yang sudah ada.
+// Tanpa ini, event lama (mis. BAKU TAU) tidak punya divisi sama sekali dan seluruh
+// ruang kerja divisi — termasuk tab Check-in — tidak bisa dijangkau dari UI.
+app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const division = String(req.body?.division || '').toUpperCase();
+  if (!EVENT_DIVISIONS.includes(division)) {
+    return res.status(400).json({ error: `division harus salah satu dari ${EVENT_DIVISIONS.join(', ')}.` });
+  }
+
+  const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  const existing = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId: ev.id, division } },
+  });
+  if (existing) return res.json({ division: existing, alreadyActive: true });
+
+  const created = await prisma.eventDivision.create({
+    data: { id: `evd-${ev.slug}-${division}`, eventId: ev.id, division },
+  });
+
+  let driveFolderId = null;
+  if (process.env.GDRIVE_WRITE === '1' && process.env.GDRIVE_ROOT_FOLDER_ID) {
+    try {
+      const { createEventFolder } = await import('./gdrive-events.mjs');
+      driveFolderId = await createEventFolder(ev, division);
+      if (driveFolderId) {
+        await prisma.eventDivision.update({ where: { id: created.id }, data: { driveFolderId } });
+      }
+    } catch (e) {
+      console.warn(`[event] provisioning ${division} gagal:`, e.message);
+    }
+  }
+
+  res.status(201).json({ division: { ...created, driveFolderId }, driveFolderId });
+}));
+
+// BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
+registerBakuTauRoutes(app, { wrap });
+registerEventCheckInRoutes(app, { wrap });
+registerChannelLinkRoutes(app, { wrap });
+registerChurchProgramRoutes(app, { wrap });
+registerMinistryPlanRoutes(app, { wrap });
+registerChurchCalendarRoutes(app, { wrap });
+registerEventQuestionRoutes(app, { wrap });
+
+// GET /api/events/:id — detail event + divisi.
+// Jika id tidak ketemu, next() agar GET /api/events/:slug (events-public) yang menangani.
+app.get('/api/events/:id', wrap(async (req, res, next) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -1898,7 +2177,7 @@ app.get('/api/events/:id', wrap(async (req, res) => {
   try {
     ev = await prisma.eventProgram.findUnique({
       where: { id: req.params.id },
-      include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } } },
+      include: { divisions: true, meetings: { orderBy: { scheduledAt: 'desc' } }, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
     // Fallback: raw SQL
@@ -1906,7 +2185,7 @@ app.get('/api/events/:id', wrap(async (req, res) => {
       const rows = await prisma.$queryRawUnsafe(
         `SELECT * FROM EventProgram WHERE id = ?`, req.params.id
       );
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      if (!rows || rows.length === 0) return next();
       const r = rows[0];
       const divRows = await prisma.$queryRawUnsafe(
         `SELECT * FROM EventDivision WHERE event_id = ?`, r.id
@@ -1916,8 +2195,12 @@ app.get('/api/events/:id', wrap(async (req, res) => {
       );
       ev = {
         id: r.id, tenantId: r.tenant_id, slug: r.slug, name: r.name, description: r.description,
-        status: r.status, startDate: r.start_date, endDate: r.end_date,
+        status: r.status, kind: r.kind, churchProgramId: r.church_program_id,
+        startDate: r.start_date, endDate: r.end_date,
+        eventDate: r.event_date, venueName: r.venue_name, locationDetail: r.location_detail,
+        mapUrl: r.map_url, mapEmbedQuery: r.map_embed_query,
         driveFolderId: r.drive_folder_id, gmeetLink: r.gmeet_link,
+        whatsappGroupUrl: r.whatsapp_group_url,
         createdById: r.created_by_id, createdAt: r.created_at, updatedAt: r.updated_at,
         divisions: (divRows || []).map((d) => ({
           id: d.id, eventId: d.event_id, division: d.division, driveFolderId: d.drive_folder_id,
@@ -1940,8 +2223,15 @@ app.get('/api/events/:id', wrap(async (req, res) => {
       return res.status(500).json({ error: `Event detail gagal: ${msg.slice(0, 200)}` });
     }
   }
-  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-  res.json({ event: ev });
+  if (!ev) return next();
+  // Flag kemampuan supaya UI tidak menampilkan tombol yang pasti 403.
+  const editorRoles = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
+  const canEdit = (req.authUser?.roles || []).some((r) => editorRoles.includes(r.role));
+  const { whatsappGroupUrl, ...rest } = ev;
+  res.json({
+    event: canEdit ? { ...rest, whatsappGroupUrl } : rest,
+    canEdit,
+  });
 }));
 
 // PATCH /api/events/:id — edit meta + divisions
@@ -1949,16 +2239,107 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const { name, description, startDate, endDate, status, divisions } = req.body || {};
+  const {
+    name, description, startDate, endDate, status, kind, churchProgramId, whatsappGroupUrl,
+    eventDate, venueName, locationDetail, mapUrl, mapEmbedQuery,
+  } = req.body || {};
+
   const data = {};
-  if (name !== undefined) data.name = name;
-  if (description !== undefined) data.description = description;
+  if (name !== undefined) {
+    const trimmed = String(name).trim();
+    if (!trimmed) return res.status(400).json({ error: 'name tidak boleh kosong.' });
+    data.name = trimmed;
+  }
+  if (description !== undefined) data.description = description || null;
   if (startDate !== undefined) data.startDate = startDate ? new Date(startDate) : null;
   if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null;
-  if (status !== undefined) data.status = status;
+  if (status !== undefined) {
+    const s = String(status).toUpperCase();
+    if (!EVENT_STATUSES.includes(s)) {
+      return res.status(400).json({ error: `status harus salah satu dari ${EVENT_STATUSES.join(', ')}.` });
+    }
+    data.status = s;
+  }
+  if (kind !== undefined) {
+    const k = String(kind).toUpperCase();
+    if (!EVENT_KINDS.includes(k)) {
+      return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
+    }
+    data.kind = k;
+  }
+  if (churchProgramId !== undefined) data.churchProgramId = churchProgramId || null;
+  if (whatsappGroupUrl !== undefined) {
+    const raw = whatsappGroupUrl ? String(whatsappGroupUrl).trim() : '';
+    if (raw && !/^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(raw)) {
+      return res.status(400).json({ error: 'whatsappGroupUrl harus tautan undangan WhatsApp.' });
+    }
+    data.whatsappGroupUrl = raw || null;
+  }
+  // eventDate diterima sebagai ISO beroffset (mis. 2026-09-12T15:00:00+07:00).
+  if (eventDate !== undefined) {
+    if (!eventDate) {
+      data.eventDate = null;
+    } else {
+      const d = new Date(eventDate);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'eventDate tidak valid.' });
+      data.eventDate = d;
+    }
+  }
+  if (venueName !== undefined) data.venueName = venueName || null;
+  if (locationDetail !== undefined) data.locationDetail = locationDetail || null;
+  if (mapUrl !== undefined) data.mapUrl = mapUrl || null;
+  if (mapEmbedQuery !== undefined) data.mapEmbedQuery = mapEmbedQuery || null;
+
+  if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
+
+  const existing = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
   const ev = await prisma.eventProgram.update({ where: { id: req.params.id }, data });
-  res.json({ event: ev });
+
+  // Jaga ChannelLink tetap sinkron dengan URL WA event.
+  if (data.whatsappGroupUrl !== undefined) {
+    try {
+      if (data.whatsappGroupUrl) {
+        await prisma.channelLink.upsert({
+          where: { kind_refId: { kind: 'EVENT', refId: ev.id } },
+          update: { url: data.whatsappGroupUrl, updatedById: req.authUser.id, label: ev.name },
+          create: {
+            id: `cl-${crypto.randomUUID()}`,
+            kind: 'EVENT',
+            refId: ev.id,
+            url: data.whatsappGroupUrl,
+            label: ev.name,
+            updatedById: req.authUser.id,
+          },
+        });
+      } else {
+        await prisma.channelLink.deleteMany({ where: { kind: 'EVENT', refId: ev.id } });
+      }
+    } catch (e) {
+      console.warn('[event] sinkron ChannelLink gagal:', e.message);
+    }
+  }
+
+  const venueTouched = ['eventDate', 'venueName', 'locationDetail', 'mapUrl', 'mapEmbedQuery']
+    .some((k) => data[k] !== undefined);
+  if (venueTouched && ev.id === BAKU_TAU_EVENT_ID) {
+    try {
+      const venue = venueOf(ev, true);
+      const day = wibDateOnly(ev.eventDate);
+      await prisma.contentItem.update({
+        where: { id: 'cnt-bakutau' },
+        data: {
+          ...(day ? { eventDate: new Date(`${day}T00:00:00.000Z`) } : {}),
+          locationDetail: venue.locationDetail,
+        },
+      });
+    } catch (e) {
+      console.warn('[event] sinkron content_items gagal:', e.message);
+    }
+  }
+
+  res.json({ event: ev, canEdit: true });
 }));
 
 // POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres (supports replies)
@@ -2063,16 +2444,18 @@ app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Resolve author names
+  // Resolve author names — satu query, bukan findUnique per id (TiDB memutus
+  // koneksi pada rentetan query sekuensial).
   const authorIds = [...new Set(updates.map((u) => u.authorId))];
   const authorMap = new Map();
-  for (const aid of authorIds) {
+  if (authorIds.length) {
     try {
-      const user = await prisma.user.findUnique({ where: { id: aid }, select: { name: true, email: true } });
-      authorMap.set(aid, user?.name || user?.email || aid);
-    } catch {
-      authorMap.set(aid, aid);
-    }
+      const users = await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, name: true, email: true },
+      });
+      for (const u of users) authorMap.set(u.id, u.name || u.email || u.id);
+    } catch { /* fallback ke id di bawah */ }
   }
 
   // Build threaded structure
@@ -2333,7 +2716,20 @@ app.get('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => 
     where: { eventDivisionId: division.id },
   });
 
-  res.json({ members });
+  // Nama anggota diambil satu query supaya UI tidak menampilkan user id mentah.
+  const userIds = [...new Set(members.map((m) => m.userId))];
+  const nameById = new Map();
+  if (userIds.length) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true },
+    });
+    for (const u of users) nameById.set(u.id, u.name || u.email || u.id);
+  }
+
+  res.json({
+    members: members.map((m) => ({ ...m, userName: nameById.get(m.userId) || m.userId })),
+  });
 }));
 
 // POST /api/events/:eventId/divisions/:div/members — add/update member
@@ -2443,7 +2839,31 @@ app.get('/api/db/struktur', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const members = await prisma.strukturMember.findMany({ orderBy: { sortOrder: 'asc' } });
-  res.json({ members });
+  const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))];
+  const emails = [...new Set(members.filter((m) => !m.userId && m.email).map((m) => String(m.email).toLowerCase()))];
+  const users = userIds.length || emails.length
+    ? await prisma.user.findMany({
+        where: {
+          OR: [
+            ...(userIds.length ? [{ id: { in: userIds } }] : []),
+            ...(emails.length ? [{ email: { in: emails } }] : []),
+          ],
+        },
+        select: { id: true, email: true, avatar: true },
+      })
+    : [];
+  const byId = new Map(users.map((u) => [u.id, u]));
+  const byEmail = new Map(users.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
+  res.json({
+    members: members.map((m) => {
+      const linked = (m.userId && byId.get(m.userId)) || (m.email && byEmail.get(String(m.email).toLowerCase())) || null;
+      return {
+        ...m,
+        userId: m.userId || linked?.id || null,
+        photoUrl: linked?.avatar || m.photoUrl,
+      };
+    }),
+  });
 }));
 
 // Sinkronisasi struktur dari portal (replace-all: upsert semua, hapus yang tidak dikirim)
@@ -2463,6 +2883,7 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
       bio: m.bio ?? null,
       phone: m.phone ?? null,
       email: m.email ?? null,
+      userId: m.userId ?? null,
       sortOrder: Number.isFinite(m.order) ? m.order : i,
       isOpenRole: Boolean(m.isOpenRole ?? m.is_open_role),
       role: m.role ?? null,
@@ -2530,34 +2951,9 @@ app.get('/api/jethro/placement', requireRole(...KOMISION), wrap(async (req, res)
 
 /** Advanced placement with 4-factor scoring for specific newcomers */
 app.get('/api/jethro/placement/advanced', requireRole(...KOMISION), wrap(async (req, res) => {
-  const prisma = getPrisma();
   const ids = (req.query.ids || '').split(',').filter(Boolean);
   if (ids.length === 0) return res.status(400).json({ error: 'query ids (comma-separated) wajib.' });
-  // Fetch newcomer details from WaitingPool - accept both WaitingPool IDs and User IDs
-  const newcomers = await getEligibleNewcomers();
-  // Try to match by userId first, then by WaitingPool ID (p.id)
-  const filtered = newcomers.filter((n) => ids.includes(n.id));
-  // If no matches by userId, try matching by WaitingPool ID via a separate query
-  if (filtered.length === 0) {
-    const poolEntries = await prisma.waitingPool.findMany({
-      where: { id: { in: ids }, status: 'PROFILE_COMPLETED', giftTestDone: true, gender: { not: null } },
-      select: { id: true, userId: true, name: true, email: true, gender: true, giftsTop5: true, giftsScores: true },
-    });
-    const filtered2 = poolEntries
-      .filter(p => p.userId && p.giftTestDone && p.gender)
-      .map(p => ({
-        id: p.userId,
-        name: p.name,
-        gender: p.gender,
-        giftsTop5: normalizeGiftsTop5(Array.isArray(p.giftsTop5) ? p.giftsTop5 : []),
-        giftsScores: p.giftsScores || {},
-        maturityScore: 0,
-      }));
-    if (filtered2.length > 0) {
-      res.json(await recommendPlacementAdvanced(filtered2));
-      return;
-    }
-  }
+  const filtered = await resolveNewcomersByIds(ids);
   if (filtered.length === 0) return res.status(404).json({ error: 'Tidak ada newcomer valid.' });
   res.json(await recommendPlacementAdvanced(filtered));
 }));
@@ -2721,16 +3117,37 @@ app.patch('/api/db/notifications/:id', requireRole(...KOMISION), wrap(async (req
   res.json(updated);
 }));
 
-// Login akun lokal (email + password)
+// Login akun lokal (username, email, atau login + password)
 app.post('/api/auth/local', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const identifier = req.body?.login || req.body?.email || req.body?.username;
   try {
-    const user = await loginLocal(req.body?.email, req.body?.password);
-    setSessionCookie(res, { uid: user.id, email: user.email });
+    let user = await loginLocal(identifier, req.body?.password);
+    if (user.email) await applyGroupEntitlements(user.email, user.id);
+    user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+    user = applySuperadminSession(user);
+    const activeRole = pickDefaultActiveRole(user);
+    setSessionCookie(res, buildSessionPayload(user, { activeRole }));
     res.json({
       status: user.accountStatus,
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, roles: user.roles },
+      mustChangePassword: Boolean(user.mustChangePassword),
+      activeRole,
+      activeNamespace: roleToNamespace(activeRole),
+      user: {
+        id: user.id,
+        email: user.email,
+        loginUsername: user.loginUsername,
+        name: user.name,
+        avatar: user.avatar,
+        roles: user.roles,
+        accountStatus: user.accountStatus,
+        onboardingStatus: user.onboardingStatus,
+        onboardingPath: user.onboardingPath,
+        isBeyonders: user.isBeyonders,
+        mustChangePassword: Boolean(user.mustChangePassword),
+        giftsTop5: user.giftsTop5,
+      },
     });
   } catch (err) {
     res.status(401).json({ error: err.message });
@@ -2907,7 +3324,7 @@ app.post('/api/join', wrap(async (req, res) => {
           id: p.sub,
           email: p.email,
           name: p.name || p.email.split('@')[0],
-          avatar: p.picture || null,
+          ...googleAvatarCreate(p.picture),
           accountStatus: 'PENDING',
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -2921,7 +3338,7 @@ app.post('/api/join', wrap(async (req, res) => {
         where: { id: user.id },
         data: {
           name: p.name || user.name,
-          avatar: p.picture || user.avatar,
+          ...googleAvatarPatch(user, p.picture),
           googleSub: p.sub,
           linkStatus: 'LINKED',
           authProvider: 'GOOGLE',
@@ -3095,7 +3512,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
         where: { id: existing.id },
         data: {
           name: p.name || existing.name || email.split('@')[0],
-          avatar: p.picture || existing.avatar,
+          ...googleAvatarPatch(existing, p.picture),
           accountStatus: status,
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3110,7 +3527,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
           id: p.sub,
           email,
           name: p.name || email.split('@')[0],
-          avatar: p.picture || null,
+          ...googleAvatarCreate(p.picture),
           accountStatus: status,
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3280,6 +3697,12 @@ app.get('/api/events/upcoming', wrap(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  let bakuVenue = venueOf(null, true);
+  try {
+    const baku = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+    bakuVenue = venueOf(baku, true);
+  } catch { /* konstanta tetap jadi fallback */ }
+
   const items = await prisma.contentItem.findMany({
     where: { type: 'ACTIVITY', isPublished: true },
     orderBy: [{ eventDate: 'asc' }, { publishedAt: 'desc' }],
@@ -3288,16 +3711,17 @@ app.get('/api/events/upcoming', wrap(async (req, res) => {
 
   const mapped = items.map((c) => {
     const eventDay = c.eventDate || c.publishedAt;
+    const isBaku = c.id === 'cnt-bakutau';
     return {
       id: c.id,
       title: c.title,
       subtitle: c.subtitle,
       date: eventDay,
-      eventDateTime: c.id === 'cnt-bakutau' ? BAKU_TAU_EVENT_DATE_ISO : null,
-      locationDetail: c.locationDetail ?? null,
-      mapUrl: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_URL : null,
-      mapEmbedQuery: c.id === 'cnt-bakutau' ? BAKU_TAU_MAP_EMBED_QUERY : null,
-      venueName: c.id === 'cnt-bakutau' ? BAKU_TAU_VENUE_NAME : null,
+      eventDateTime: isBaku ? bakuVenue.eventDate : null,
+      locationDetail: isBaku ? (bakuVenue.locationDetail ?? c.locationDetail) : (c.locationDetail ?? null),
+      mapUrl: isBaku ? bakuVenue.mapUrl : null,
+      mapEmbedQuery: isBaku ? bakuVenue.mapEmbedQuery : null,
+      venueName: isBaku ? bakuVenue.venueName : null,
       bannerUrl: c.bannerUrl,
       _sort: eventDay ? new Date(eventDay).getTime() : 0,
     };
@@ -3356,6 +3780,27 @@ app.get('/api/auth/google/start', wrap(async (req, res) => {
   res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 }));
 
+app.get('/api/drive-auth/start', wrap(async (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(503).send('GOOGLE_CLIENT_ID belum di-set.');
+  }
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  const state = newOAuthState({ mode: 'drive', codeVerifier: verifier });
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: googleRedirectUri(req),
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/drive',
+    access_type: 'offline',
+    prompt: 'consent',
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  });
+  res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+}));
+
 /** Buat/perbarui user dari identitas Google terverifikasi. */
 async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTIVE', initialRole }) {
   const email = p.email.toLowerCase();
@@ -3364,9 +3809,10 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
     include: { roles: true },
   });
 
+  const avatarFields = user ? googleAvatarPatch(user, p.picture) : googleAvatarCreate(p.picture);
   const baseData = {
     name: p.name || email.split('@')[0],
-    avatar: p.picture ?? undefined,
+    ...avatarFields,
     phone: profile.phone ?? undefined,
     address: profile.address ?? undefined,
     origin: profile.origin ?? undefined,
@@ -3412,16 +3858,36 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     const intent = takeOAuthState(String(req.query.state || ''));
     if (!intent) throw new Error('Sesi otorisasi kedaluwarsa — coba tombol Google lagi.');
 
-    const prisma = getPrisma();
-    if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
-
-    // Tukar authorization code → token, lalu verifikasi identitas
     const { google } = await import('googleapis');
     const oauth2 = new google.auth.OAuth2({
       client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || undefined,
       redirect_uri: googleRedirectUri(req),
     });
+
+    if (intent.mode === 'drive') {
+      const { saveTokens } = await import('./lib/gdrive-user-oauth.mjs');
+      const { tokens } = await oauth2.getToken({
+        code: String(req.query.code),
+        codeVerifier: intent.codeVerifier,
+      });
+      if (!tokens.refresh_token) {
+        throw new Error(
+          'Google tidak mengirim refresh_token. Cabut akses app di myaccount.google.com/permissions lalu ulangi.'
+        );
+      }
+      saveTokens(tokens);
+      return res.send(
+        `<html><body style="font-family:system-ui;background:#111;color:#fff;text-align:center;padding-top:80px">
+         <h2>Drive terhubung</h2>
+         <p>Token Google One disimpan. Jalankan <code>npm run drive:seed-visuals</code> di terminal.</p>
+         <a href="/#/leaders" style="color:#FF416C">← Kembali</a></body></html>`
+      );
+    }
+
+    const prisma = getPrisma();
+    if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
+
     const { tokens } = await oauth2.getToken(String(req.query.code));
     oauth2.setCredentials(tokens);
     const idp = tokens.id_token ? await verifyGoogleCredential(tokens.id_token) : null;
@@ -3544,6 +4010,9 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
     if (!['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'].includes(role)) {
       return res.status(400).json({ error: 'Role tidak valid.' });
     }
+    if (role === 'SUPERADMIN') {
+      return res.status(403).json({ error: 'Role SUPERADMIN deprecated — gunakan Platform Operator / Admin Grant.' });
+    }
     const dup = await prisma.userRole.findFirst({
       where: { userId: req.params.id, role, groupId: req.body?.groupId ?? null },
     });
@@ -3556,6 +4025,9 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   }
 
   if (action === 'removeRole') {
+    if (req.body?.role === 'SUPERADMIN') {
+      return res.status(403).json({ error: 'Role SUPERADMIN tidak dapat dicabut lewat endpoint ini.' });
+    }
     await prisma.userRole.deleteMany({
       where: { userId: req.params.id, role: req.body?.role, groupId: req.body?.groupId ?? null },
     });
@@ -4058,7 +4530,121 @@ app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => 
   res.json({ user: serializeJemaat(user) });
 }));
 
-app.post('/api/admin/users/:id/claim-link', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+/** POST /api/admin/users/invite-provision — Buat akun + role + password sementara + claim link */
+app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  let uniformPassword = null;
+  try {
+    uniformPassword = resolveUniformPassword(req.body);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  try {
+    const created = await createInviteProvisionUser(prisma, {
+      name: req.body?.name,
+      loginUsername: req.body?.loginUsername || req.body?.username,
+      email: req.body?.email,
+      role: req.body?.role || 'MENTOR',
+      password: uniformPassword,
+      origin,
+      newClaimToken,
+      inviteType: req.body?.inviteType,
+      groupId: req.body?.groupId,
+      familyRole: req.body?.familyRole,
+      orgNodeId: req.body?.orgNodeId,
+      assignedBy,
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    const status = err.status || 400;
+    res.status(status).json({ error: err.message });
+  }
+}));
+
+/** POST /api/admin/users/invite-provision-bulk — Bulk pre-provision (max 40) */
+app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const entries = req.body?.entries;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return res.status(400).json({ error: 'entries wajib (array { name, email, role? }).' });
+  }
+  if (entries.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 entri per bulk provision.' });
+  }
+
+  let uniformPassword = null;
+  try {
+    uniformPassword = resolveUniformPassword(req.body);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  const defaultRole = String(req.body?.defaultRole || 'MENTOR').trim();
+  const defaultInviteType = req.body?.inviteType || 'beyonders';
+  const defaultGroupId = req.body?.groupId || null;
+  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const created = [];
+  const errors = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    const row = entries[i] || {};
+    try {
+      const result = await createInviteProvisionUser(prisma, {
+        name: row.name,
+        loginUsername: row.loginUsername || row.username,
+        email: row.email,
+        role: row.role || defaultRole,
+        password: uniformPassword,
+        origin,
+        newClaimToken,
+        inviteType: row.inviteType || defaultInviteType,
+        groupId: row.groupId || defaultGroupId,
+        familyRole: row.familyRole,
+        orgNodeId: row.orgNodeId,
+        assignedBy,
+      });
+      created.push(result);
+    } catch (err) {
+      errors.push({
+        index: i,
+        name: String(row.name || '').trim(),
+        loginUsername: String(row.loginUsername || row.username || '').trim(),
+        error: err.message,
+      });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.status(created.length ? 201 : 400).json({
+    ok: created.length > 0,
+    provisioned: created.length,
+    failed: errors.length,
+    created,
+    errors,
+  });
+}));
+
+/** GET /api/admin/groups-lite — daftar grup mentoring (platform admin invite UI) */
+app.get('/api/admin/groups-lite', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const groups = await prisma.group.findMany({
+    where: { tenantId: 'tenant-youth', status: 'ACTIVE' },
+    select: { id: true, name: true, color: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ groups });
+}));
+
+app.post('/api/admin/users/:id/claim-link', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
@@ -4076,7 +4662,7 @@ app.post('/api/admin/users/:id/claim-link', requireRole(...KOMISION_CORE), wrap(
   res.json({ token, expiresAt: expires.toISOString(), claimUrl: `${origin}/#/claim?token=${encodeURIComponent(token)}` });
 }));
 
-app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.post('/api/admin/users/:id/unlink', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
@@ -4089,7 +4675,7 @@ app.post('/api/admin/users/:id/unlink', requireRole('SUPERADMIN'), wrap(async (r
 }));
 
 /** PATCH /api/admin/users/:id — Admin edit profil jemaat */
-app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+app.patch('/api/admin/users/:id', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -4151,6 +4737,292 @@ app.patch('/api/admin/users/:id', requireRole(...KOMISION_CORE), wrap(async (req
 
   const user = await prisma.user.findUnique({ where: { id: req.params.id }, include: jemaatInclude() });
   res.json({ user: serializeJemaat(user) });
+}));
+
+/** POST /api/groups/:id/members/bulk — Bulk assign users into a mentoring group */
+app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const groupId = req.params.id;
+  const assignerId = req.authUser?.id;
+  if (!assignerId) return res.status(401).json({ error: 'Belum login.' });
+
+  const { userIds, familyRole = 'MENTEE' } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds wajib (array).' });
+  }
+  if (userIds.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 user per bulk assign.' });
+  }
+
+  const fr = String(familyRole || 'MENTEE').toUpperCase();
+  const role = fr === 'MENTOR' ? 'MENTOR' : (fr === 'CO_MENTOR' || fr === 'COMENTOR') ? 'CO_MENTOR' : 'MENTEE';
+  if ((role === 'MENTOR' || role === 'CO_MENTOR') && userIds.length > 1) {
+    return res.status(400).json({ error: 'Mentor/Co-Mentor hanya 1 orang per bulk assign.' });
+  }
+
+  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+
+  const results = [];
+  const errors = [];
+  for (let i = 0; i < userIds.length; i++) {
+    const userId = userIds[i];
+    try {
+      await assignRoleToUser(prisma, {
+        userId,
+        role,
+        groupId,
+        familyRole: role,
+        assignedBy: assignerId,
+        note: 'Bulk assign Beyonders',
+      });
+      results.push({ userId, ok: true });
+    } catch (err) {
+      errors.push({ userId, error: err?.message || String(err) });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.json({
+    ok: true,
+    groupId,
+    assigned: results.length,
+    failed: errors.length,
+    results,
+    errors,
+  });
+}));
+
+/** Access Groups — RLS-like email bundles */
+app.get('/api/admin/access-groups', requirePlatformAdmin(), wrap(async (_req, res) => {
+  try {
+    const groups = await listAccessGroups();
+    res.json({ groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}));
+
+app.post('/api/admin/access-groups', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    const created = await createAccessGroup(req.body || {}, req.authUser?.id);
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.post('/api/admin/access-groups/:id/members', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    const result = await addAccessGroupMembers(req.params.id, req.body?.emails, req.authUser?.id);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.delete('/api/admin/access-groups/:id', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    await deleteAccessGroup(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+app.delete('/api/admin/access-groups/members/:memberId', requirePlatformAdmin(), wrap(async (req, res) => {
+  try {
+    await removeAccessGroupMember(req.params.memberId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}));
+
+/** POST /api/admin/users/provision — Bulk create local email+temp password (mustChangePassword) */
+app.post('/api/admin/users/provision', requirePlatformAdmin(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { userIds } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds wajib (array).' });
+  }
+  if (userIds.length > 40) {
+    return res.status(400).json({ error: 'Maksimal 40 user per provision.' });
+  }
+
+  const slugify = (name) =>
+    String(name || 'user')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.|\.$/g, '')
+      .slice(0, 40) || 'user';
+
+  const tempPassword = () => {
+    const raw = crypto.randomBytes(4).toString('hex');
+    return `GehC-${raw}!`;
+  };
+
+  const credentials = [];
+  const errors = [];
+
+  for (let i = 0; i < userIds.length; i++) {
+    const userId = userIds[i];
+    try {
+      const existing = await prisma.user.findUnique({ where: { id: userId } });
+      if (!existing) {
+        errors.push({ userId, error: 'User tidak ditemukan.' });
+        continue;
+      }
+      if (existing.linkStatus === 'LINKED' && existing.googleSub) {
+        errors.push({ userId, error: 'Sudah tertaut Google — lewati.' });
+        continue;
+      }
+
+      let email = existing.email ? String(existing.email).toLowerCase().trim() : null;
+      if (!email) {
+        const base = slugify(existing.name);
+        email = `${base}@gehc.local`;
+        const clash = await prisma.user.findUnique({ where: { email } });
+        if (clash && clash.id !== existing.id) {
+          email = `${base}.${String(existing.id).slice(-6)}@gehc.local`;
+        }
+      }
+
+      const password = tempPassword();
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          email,
+          passwordHash: hashPassword(password),
+          authProvider: 'LOCAL',
+          accountStatus: existing.accountStatus === 'PENDING' ? 'ACTIVE' : existing.accountStatus,
+        },
+      });
+      await prisma.$executeRawUnsafe(
+        'UPDATE users SET must_change_password = 1 WHERE id = ?',
+        userId,
+      );
+      credentials.push({
+        userId,
+        name: existing.name,
+        email,
+        temporaryPassword: password,
+      });
+    } catch (err) {
+      errors.push({ userId, error: err?.message || String(err) });
+    }
+    if (i > 0 && i % 8 === 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  res.json({
+    ok: true,
+    provisioned: credentials.length,
+    failed: errors.length,
+    credentials,
+    errors,
+  });
+}));
+
+/** POST /api/me/password — Ganti password (wajib jika mustChangePassword) */
+app.post('/api/me/password', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const { currentPassword, newPassword } = req.body || {};
+  const next = String(newPassword || '');
+  if (next.length < 8) {
+    return res.status(400).json({ error: 'Password baru minimal 8 karakter.' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  const mcpRows = await prisma.$queryRawUnsafe(
+    'SELECT must_change_password AS mcp FROM users WHERE id = ? LIMIT 1',
+    user.id,
+  );
+  const mcpVal = mcpRows?.[0]?.mcp;
+  const mustChange = Buffer.isBuffer(mcpVal)
+    ? mcpVal[0] === 1
+    : Boolean(mcpVal != null ? Number(mcpVal) : user.mustChangePassword);
+  if (user.passwordHash && !mustChange) {
+    if (!currentPassword || !verifyPassword(String(currentPassword), user.passwordHash)) {
+      return res.status(400).json({ error: 'Password lama salah.' });
+    }
+  } else if (user.passwordHash && mustChange && currentPassword) {
+    if (!verifyPassword(String(currentPassword), user.passwordHash)) {
+      return res.status(400).json({ error: 'Password sementara salah.' });
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hashPassword(next),
+      ...(user.googleSub && user.linkStatus === 'LINKED' ? {} : { authProvider: 'LOCAL' }),
+    },
+  });
+  await prisma.$executeRawUnsafe('UPDATE users SET must_change_password = 0 WHERE id = ?', user.id);
+
+  res.json({ ok: true });
+}));
+
+/** GET /api/me/username — status username login */
+app.get('/api/me/username', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const u = req.authUser;
+  res.json({
+    loginUsername: u.loginUsername || null,
+    canChange: canChangeUsername(u).ok,
+    changeBlockedReason: canChangeUsername(u).ok ? null : canChangeUsername(u).error,
+  });
+}));
+
+/** POST /api/me/username — set / ganti username login */
+app.post('/api/me/username', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const nextRaw = req.body?.loginUsername || req.body?.username;
+  const next = normalizeUsername(nextRaw);
+  const err = validateUsername(next);
+  if (err) return res.status(400).json({ error: err });
+
+  const user = await prisma.user.findUnique({ where: { id: req.authUser.id } });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+  if (user.loginUsername && user.loginUsername !== next) {
+    const gate = canChangeUsername(user);
+    if (!gate.ok) return res.status(400).json({ error: gate.error });
+  }
+
+  const taken = await prisma.user.findFirst({
+    where: { loginUsername: next, NOT: { id: user.id } },
+  });
+  if (taken) return res.status(400).json({ error: 'Username sudah dipakai.' });
+
+  const isChange = Boolean(user.loginUsername && user.loginUsername !== next);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      loginUsername: next,
+      ...(isChange ? { usernameChangedAt: new Date() } : {}),
+    },
+  });
+
+  res.json({ ok: true, loginUsername: updated.loginUsername });
 }));
 
 /** POST /api/role-assignments — Assign role to user (creates RoleAssignment + dual-write to UserRole) */
@@ -4454,12 +5326,16 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
+// GET /api/events/:slug — dijangkau lewat next() dari /api/events/:id saat id tidak cocok
 registerEventsPublicRoutes(app, { wrap });
+registerContentPublicRoutes(app, { wrap });
+registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
+registerVisualsPublishRoutes(app, { wrap });
 registerOrgRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
-app.post('/api/admin/seed-gifts', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -5066,6 +5942,7 @@ app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   // Send push notification when warta is published
   if (status === 'PUBLISHED' && oldStatus !== 'PUBLISHED') {
     notifyNewWarta(prisma, warta).catch(console.error);
+    syncWartaToContentItem(prisma, warta).catch(console.error);
   }
   
   res.json({ warta });

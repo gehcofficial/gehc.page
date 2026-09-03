@@ -2,17 +2,18 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:8787';
 const DEMO_USER = 'tech@gehc.demo';
+const DEMO_PASSWORD = 'password123';
 
-async function loginAsDemo(request: import('@playwright/test').APIRequestContext) {
-  const res = await request.post(`${BASE_URL}/api/demo/impersonate`, {
-    data: { email: DEMO_USER },
+async function loginAsAdmin(request: import('@playwright/test').APIRequestContext) {
+  const res = await request.post(`${BASE_URL}/api/auth/local`, {
+    data: { email: DEMO_USER, password: DEMO_PASSWORD },
   });
   expect(res.ok()).toBeTruthy();
 }
 
 test.describe('Birth date + BIPRA suggest', () => {
   test.beforeEach(async ({ request }) => {
-    await loginAsDemo(request);
+    await loginAsAdmin(request);
   });
 
   test('profile accepts birthDate and returns demographics', async ({ request }) => {
@@ -53,7 +54,7 @@ test.describe('Birth date + BIPRA suggest', () => {
 
 test.describe('Portal nav role gating', () => {
   test('komisi can access onboarding API', async ({ request }) => {
-    await loginAsDemo(request);
+    await loginAsAdmin(request);
     const res = await request.get(`${BASE_URL}/api/waiting-pool`);
     expect(res.ok()).toBeTruthy();
   });

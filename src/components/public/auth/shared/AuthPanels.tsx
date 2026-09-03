@@ -12,15 +12,37 @@ type PanelProps = {
   next?: string | null;
   loginHref?: string;
   loginLabel?: string;
+  theme?: 'light' | 'dark';
 };
+
+const panelTone = (theme: 'light' | 'dark') =>
+  theme === 'dark'
+    ? {
+        label: 'text-white/40',
+        hint: 'text-white/50',
+        err: 'text-red-400',
+        link: 'text-white/50 hover:text-white',
+        input: 'bg-[#181818] border-white/15 text-white placeholder:text-white/30',
+        fieldLabel: 'text-white/60',
+      }
+    : {
+        label: 'text-[#8C8880]',
+        hint: 'text-[#8C8880]',
+        err: 'text-red-600',
+        link: 'text-[#8C8880] hover:text-[#1B1B1B]',
+        input: 'bg-white border-[#D9D7D0] text-[#1B1B1B]',
+        fieldLabel: 'text-[#1B1B1B]',
+      };
 
 export const GoogleRegisterPanel: React.FC<PanelProps> = ({
   title,
   hint,
   next,
-  loginHref = '#/login',
+  loginHref,
   loginLabel = 'Sudah punya akun? Masuk',
+  theme = 'light',
 }) => {
+  const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
   const [clientId, setClientId] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -63,11 +85,11 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
 
   return (
     <div className="space-y-3">
-      {title && <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">{title}</p>}
-      {hint && <p className="text-xs text-[#8C8880] leading-relaxed">{hint}</p>}
-      {err && <p className="text-xs text-red-600 font-semibold">{err}</p>}
+      {title && <p className={`text-[10px] font-black uppercase tracking-widest ${tone.label}`}>{title}</p>}
+      {hint && <p className={`text-xs leading-relaxed ${tone.hint}`}>{hint}</p>}
+      {err && <p className={`text-xs font-semibold ${tone.err}`}>{err}</p>}
       {busy && (
-        <p className="text-xs text-[#8C8880] flex items-center justify-center gap-2">
+        <p className={`text-xs flex items-center justify-center gap-2 ${tone.hint}`}>
           <Loader2 className="w-4 h-4 animate-spin" /> Membuat akun…
         </p>
       )}
@@ -77,7 +99,7 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
         </div>
       )}
       {!clientId && (
-        <p className="text-[10px] text-[#8C8880] text-center">
+        <p className={`text-[10px] text-center ${tone.hint}`}>
           Google SSO belum dikonfigurasi — gunakan email & kata sandi.
         </p>
       )}
@@ -85,7 +107,7 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
         <a
           href={loginHref}
           onClick={(e) => { e.preventDefault(); window.location.hash = loginHref.replace(/^#/, ''); }}
-          className="block text-center text-[10px] text-[#8C8880] hover:text-[#1B1B1B] font-semibold"
+          className={`block text-center text-[10px] font-semibold ${tone.link}`}
         >
           {loginLabel}
         </a>
@@ -98,9 +120,11 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
   title,
   hint,
   next,
-  loginHref = '#/login',
+  loginHref,
   loginLabel = 'Sudah punya akun? Masuk',
+  theme = 'light',
 }) => {
+  const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -133,14 +157,14 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
 
   return (
     <div className="space-y-3">
-      {title && <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">{title}</p>}
-      {hint && <p className="text-xs text-[#8C8880] leading-relaxed">{hint}</p>}
-      {err && <p className="text-xs text-red-600 font-semibold">{err}</p>}
+      {title && <p className={`text-[10px] font-black uppercase tracking-widest ${tone.label}`}>{title}</p>}
+      {hint && <p className={`text-xs leading-relaxed ${tone.hint}`}>{hint}</p>}
+      {err && <p className={`text-xs font-semibold ${tone.err}`}>{err}</p>}
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
-        <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} required />
-        <Field label="Kata sandi * (min. 8 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required />
-        <Field label="No. WhatsApp" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="08xxxxxxxxxx" />
+        <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required theme={theme} />
+        <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} required theme={theme} />
+        <Field label="Kata sandi * (min. 8 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required theme={theme} />
+        <Field label="No. WhatsApp" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="08xxxxxxxxxx" theme={theme} />
         <button
           type="submit"
           disabled={busy}
@@ -154,7 +178,7 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
         <a
           href={loginHref}
           onClick={(e) => { e.preventDefault(); window.location.hash = loginHref.replace(/^#/, ''); }}
-          className="block text-center text-[10px] text-[#8C8880] hover:text-[#1B1B1B] font-semibold"
+          className={`block text-center text-[10px] font-semibold ${tone.link}`}
         >
           {loginLabel}
         </a>

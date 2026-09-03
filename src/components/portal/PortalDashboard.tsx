@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortalQueries';
+import { useLang } from '../../context/LangContext';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const {
@@ -29,6 +30,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
     userAssignedGroupId,
     integrationConfig,
   } = useApp();
+  const { t } = useLang();
 
   const isAdminView = isSuperAdmin || isCommittee || isKomisi;
   const isGroupScoped = (isGroupMentor || isMentee) && userAssignedGroupId;
@@ -58,9 +60,9 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
     return {
       ...grp,
       hasRecentLog: !!latest,
-      latestDate: latest ? latest.date : 'Belum ada data',
+      latestDate: latest ? latest.date : t.portal.dashboard.noData,
       attendanceCount: latest ? latest.data.attendanceCount : 0,
-      spiritualTemp: latest ? latest.data.spiritualTemperature : 'Belum diisi',
+      spiritualTemp: latest ? latest.data.spiritualTemperature : t.portal.dashboard.notFilled,
     };
   });
 
@@ -75,14 +77,12 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
     : undefined;
 
   const portalSubtitle = isAlumni
-    ? 'Ringkasan read-only — terima kasih atas pelayananmu.'
+    ? t.portal.dashboard.subtitleAlumni
     : isGroupMentor
-    ? 'Dashboard kelompok binaan.'
+    ? t.portal.dashboard.subtitleMentor
     : isMentee
-    ? 'Dashboard kelompok persekutuanmu.'
-    : isAdminView
-    ? 'Portal Administrator'
-    : 'Portal GEHC';
+    ? t.portal.dashboard.subtitleMentee
+    : t.portal.dashboard.subtitleDefault;
 
   const showMonitoringCta = !isAlumni;
   const showContentCta = isSuperAdmin || isCommittee;

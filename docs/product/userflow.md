@@ -23,38 +23,49 @@ Google SSO nyata, dan Jethro Engine.
 (mis. Ketua Komisi sekaligus Mentor). Efektif role = precedensi tertinggi
 (`SUPERADMIN > BPMJ > KOMISI > COMMITTEE > MENTOR > CO_MENTOR > MENTEE > ALUMNI`,
 lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
-**chips peran** di dropdown persona Navbar.
+**chips peran** di menu akun Navbar (saat sudah login).
 
 ---
 
 ## 2. Autentikasi
 
-### Login Google SSO (nyata):
+### Platform Operator (`#/admin`) — Tim Tech bootstrap
 
-Navbar → dropdown persona → tombol "Sign in with Google"
+- Akun di tabel `platform_operators` (bukan jemaat)
+- Login: **passkey/WebAuthn** atau **break-glass password** → cookie `gehc_operator_session`
+- Staging seed: `ops-staging@gehc.demo` (`npm run db:seed:operator:staging`)
+- Production: `npm run operator:bootstrap:prod` (sekali, password di vault)
+- Panduan: [`docs/tech/platform-operator.md`](../tech/platform-operator.md)
+
+### Platform Admin (delegasi)
+
+- User jemaat existing + `PlatformAdminGrant` (di-assign operator root)
+- Login portal biasa (Google) → tombol **Admin** di navbar → `#/admin`
+- Tidak bisa menghapus/mengubah operator root
+
+### Login Google SSO (jemaat):
+
+`#/login` atau Navbar → **Masuk** → Google / email+password
 → GIS ID token → POST /api/auth/google → verifikasi + upsert user ke TiDB
 → cookie sesi httpOnly (7 hari) → role dimuat dari DB.
-Email di SUPERADMIN_EMAILS otomatis menjadi SUPERADMIN saat login pertama.
+`SUPERADMIN_EMAILS` hanya staging/local (disabled di production).
 
-### Mode demo staging (ENABLE_DEMO_PERSONAS=true):
+### Akun demo staging (QA / E2E)
 
-Dropdown persona menampilkan akun inti + yang ter-link kelompok
-(PIC sub-divisi tetap di DB namun tak memenuhi daftar — bisa via
-POST /api/demo/impersonate). Klik persona = sesi server sungguhan,
-sehingga seluruh endpoint RBAC ikut teruji tanpa setup Google.
-JANGAN aktifkan flag ini di produksi!
-
-Visibilitas switcher: hanya tampil saat demoMode aktif atau sudah login.
-Tamu produksi melihat navbar bersih.
+- Seed: `npm run db:seed-users:staging` → akun `*@gehc.demo` di TiDB
+- Login: `#/login` dengan email+password lokal (`password123` default)
+- Playwright: `tests/helpers/portal.ts` → `loginViaLocal()`
+- **Bukan** fitur UI switcher — impersonate persona di navbar sudah dihapus
 
 ---
 
 ## 3. Flow Pengunjung Publik
 
-### Routing hash 4 route (toggle EN|ID, default English):
+### Routing hash 5 route publik (toggle EN|ID, default English):
 
-- `#/beyonders` (default) · `#/leaders` · `#/events` · `#/bulletin`
-- Label: Beyonders · Leaders/Pengurus · Events/Kegiatan · Bulletin/Warta
+- `#/beyonders` (default) · `#/leaders` · `#/events` · `#/bulletin` · `#/benzarpreneurship`
+- Label: Beyonders · Leaders/Pengurus · Events/Kegiatan · Bulletin/Warta · Benzarpreneurship
+- `#/gallery` dialihkan ke `#/bulletin` (foto publik ada di Warta).
 - Multi-tenant switcher DIHAPUS dari UI publik.
 
 ### Home (`#/beyonders` — default, murni kisah Beyonders):
@@ -73,11 +84,15 @@ AboutSection ("Who We Are" + BOD asli: Theodore/Zhanon/Milithya
 ### `#/events` [prioritas 3]:
 
 EventsTimeline penuh (featured BAKU TAU 4.0 + countdown 12 Sep 2026
-16.00 WIB; timeline lampau→kini) · MediaGallery (role-gated)
+15.00 WIB; timeline lampau→kini). Foto publik ada di Warta, bukan tab Galeri.
 
 ### `#/bulletin`:
 
-WeeklyInfoSection (warta & renungan)
+WeeklyInfoSection (warta & renungan + foto edisi dari Drive)
+
+### `#/benzarpreneurship`:
+
+Katalog merchandise / fundraising / donation (bukan label "Toko").
 
 ### Klik kartu grup → GroupDetailPage (overlay):
 
@@ -92,10 +107,9 @@ Bagian 1: Pohon hirarki (BPMJ → Komisi → Penopang → 5 fungsi accordion)
 Bagian 2: Kartu pengurus (komisi · penopang · lima fungsi & sub-divisi)
 ▼
 
-MediaGallery (home) → foto live dari Google Drive GEHC:
-Zona [PUBLIK] terbuka untuk tamu; zona lain mengikuti role
-(detail matriks: drive-integration.md §4). Konten di luar role
-tampil sebagai badge "Terbatas", bukan error.
+Visual dari Google Drive (`Website Visual [PUBLIK]`) lookup by filename —
+lihat [`website-visuals.md`](website-visuals.md). Tamu hanya zona `[PUBLIK]`.
+Foto di luar role tampil sebagai badge "Terbatas", bukan error.
 
 ---
 
@@ -200,8 +214,8 @@ Komisi setujui di tab "Menunggu Persetujuan" → ACTIVE.
 
 ### Cached Accounts:
 
-akun yang pernah dipakai di perangkat tampil di layar login portal
-& dropdown persona (maks 5, LRU).
+akun yang pernah dipakai di perangkat disimpan di localStorage (maks 5, LRU)
+untuk fitur cached login di masa depan; saat ini hanya ditulis saat login Google.
 
 ### Daftar Mandiri via Google / Email (publik):
 

@@ -7,7 +7,7 @@ export interface CachedAccount {
   name: string;
   email: string;
   avatar?: string | null;
-  source: 'google' | 'demo';
+  source: 'google' | 'local';
 }
 
 const KEY = 'gehc_recent_accounts_v1';

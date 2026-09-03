@@ -11,7 +11,7 @@
  */
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Bipra } from '@prisma/client';
 import { INITIAL_STRUKTUR } from '../src/data/initialData.ts';
 
 const prisma = new PrismaClient();
@@ -57,6 +57,29 @@ async function upsertRoleAccount(localId: string, displayName: string, emailLoca
   return user;
 }
 
+/** Hapus relasi FK sebelum user placeholder di-delete (org/role assignments, dll.). */
+async function purgePlaceholderUser(userId: string) {
+  await prisma.orgAssignment.deleteMany({
+    where: { OR: [{ userId }, { assignedBy: userId }] },
+  });
+  await prisma.roleAssignment.deleteMany({
+    where: { OR: [{ userId }, { assignedBy: userId }] },
+  });
+  await prisma.userRole.deleteMany({ where: { userId } });
+  await prisma.waitingPool.deleteMany({ where: { userId } });
+  await prisma.monitoringRecord.deleteMany({ where: { mentorId: userId } });
+  await prisma.mentorTransition.deleteMany({
+    where: {
+      OR: [{ outgoingUserId: userId }, { incomingUserId: userId }, { createdById: userId }],
+    },
+  });
+  await prisma.attendanceRecord.updateMany({
+    where: { recordedById: userId },
+    data: { recordedById: null },
+  });
+  await prisma.user.delete({ where: { id: userId } });
+}
+
 /** Tambah role ke akun (multi-role: tidak menghapus role lain). */
 async function addRole(userId: string, role: RoleName, groupId?: string | null) {
   const existing = await prisma.userRole.findFirst({
@@ -82,14 +105,22 @@ async function main() {
   let purged = 0;
   for (const u of placeholders) {
     if (u._count.groupMembers > 0) continue; // mentor/mentee nyata — jangan sentuh
-    await prisma.userRole.deleteMany({ where: { userId: u.id } });
-    await prisma.user.delete({ where: { id: u.id } });
+    await purgePlaceholderUser(u.id);
     purged++;
   }
   console.log(`✓ pembersihan: ${purged} akun placeholder lama dihapus`);
 
-  // ---------- 1. SUPERADMIN ----------
-  await addRole((await upsertRoleAccount('usr-tech', 'Tim Tech GEHC', 'tech')).id, 'SUPERADMIN');
+  // ---------- 1. SUPERADMIN (legacy staging — platform ops pindah ke #/admin) ----------
+  const techUser = await upsertRoleAccount('usr-tech', 'Tim Tech GEHC', 'tech');
+  try {
+    await prisma.user.update({
+      where: { id: techUser.id },
+      data: { accountKind: 'SYSTEM_LEGACY' },
+    });
+  } catch {
+    /* kolom belum dimigrasi */
+  }
+  await addRole(techUser.id, 'SUPERADMIN');
 
   // ---------- 2. BPMJ — Badan Pekerja Majelis Jemaat (nama asli, payung tertinggi) ----------
   const bpmjAccounts: Array<[string, string, string]> = [
@@ -255,7 +286,7 @@ async function main() {
   for (const [slug, birthDate, bipra] of birthDateSamples) {
     const updated = await prisma.user.updateMany({
       where: { email: `${slug}${DOMAIN}` },
-      data: { birthDate: new Date(birthDate), bipra },
+      data: { birthDate: new Date(birthDate), bipra: bipra as Bipra },
     });
     birthDatesSet += updated.count;
   }

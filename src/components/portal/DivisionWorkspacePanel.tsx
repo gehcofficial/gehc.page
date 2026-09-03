@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useApp } from '../../context/AppContext';
+import { displayFolderName } from '../../lib/driveDisplay';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
+import { useApp } from '../../context/AppContext';
 import {
   Users,
   FolderOpen,
@@ -29,13 +30,19 @@ import {
   Store,
   Image,
   Newspaper,
+  QrCode,
+  Plus,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
+import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
 import EventGalleryTab from './EventGalleryTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
+import { ScrollTabBar } from './ScrollTabBar';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -79,6 +86,7 @@ interface DivisionMember {
   id: string;
   eventDivisionId: string;
   userId: string;
+  userName?: string | null;
   role: string;
   createdAt: string;
 }
@@ -101,10 +109,12 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'checkin';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
+  const { t } = useLang();
+  const d = t.portal.divisions;
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
@@ -175,22 +185,57 @@ export const DivisionWorkspacePanel: React.FC = () => {
       const r = await fetch('/api/events', { credentials: 'include' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      setEvents(d.events || []);
-      if (d.events?.length && !selectedEvent) {
-        setSelectedEvent(d.events[0]);
-      }
+      const list: EventItem[] = d.events || [];
+      setEvents(list);
+      // Selalu ambil ulang objek terpilih dari daftar baru; kalau tidak, divisi
+      // yang baru diaktifkan tidak akan pernah terlihat karena objeknya basi.
+      setSelectedEvent((prev) => {
+        if (!prev) return list[0] || null;
+        return list.find((e) => e.id === prev.id) || list[0] || null;
+      });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal memuat event', description: e.message });
     } finally {
       setLoading(false);
     }
-  }, [addToast, selectedEvent]);
+  }, [addToast]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   const currentDiv = selectedEvent?.divisions?.find(
     (d) => d.division === selectedDiv
   );
+
+  const [activating, setActivating] = useState(false);
+  const globalRoles = (authUser?.roles || []).map((r: { role: string }) => r.role);
+  const canActivateDivision = globalRoles.some((r: string) =>
+    ['SUPERADMIN', 'KOMISI', 'COMMITTEE'].includes(r),
+  );
+
+  const handleActivateDivision = async () => {
+    if (!selectedEvent) return;
+    setActivating(true);
+    try {
+      const r = await fetch(`/api/events/${selectedEvent.id}/divisions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division: selectedDiv }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      addToast({
+        type: 'success',
+        title: `Divisi ${selectedDiv} aktif`,
+        description: d.driveFolderId ? 'Folder Drive dibuat' : undefined,
+      });
+      await fetchEvents();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal mengaktifkan divisi', description: e.message });
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const pillarMeta = pillarByName(selectedDiv);
   const divColor = pillarMeta?.color || '#6B7280';
@@ -645,10 +690,12 @@ export const DivisionWorkspacePanel: React.FC = () => {
             Panel Divisi
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            Kelola program, approval workflow, dan tim per divisi.
+            {t.portal.guides.divisions.purpose}
           </p>
         </div>
       </div>
+
+      <PanelGuide guideId="divisions" />
 
       {/* Event Selector */}
       {events.length > 0 && (
@@ -673,7 +720,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
 
       {/* 6 Division Tabs */}
       <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
-        <div className="flex flex-wrap gap-2 mb-6">
+        <ScrollTabBar track={false} gapClass="gap-2" className="mb-6 pb-0.5" active={selectedDiv}>
           {ALL_DIVISIONS.map((div) => {
             const meta = pillarByName(div);
             const divRec = selectedEvent?.divisions?.find((d) => d.division === div);
@@ -684,8 +731,11 @@ export const DivisionWorkspacePanel: React.FC = () => {
             return (
               <button
                 key={div}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => { setSelectedDiv(div); setDetailTab('overview'); }}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
                     ? 'text-white shadow-lg'
                     : 'bg-[#FAF9F5] text-[#8C8880] hover:bg-gray-100 border border-[#D9D7D0]'
@@ -702,7 +752,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
               </button>
             );
           })}
-        </div>
+        </ScrollTabBar>
 
         {/* Division Detail */}
         {currentDiv && (
@@ -811,22 +861,26 @@ export const DivisionWorkspacePanel: React.FC = () => {
             </div>
 
             {/* Sub-tabs: Overview | Members | Discussions | Drive | Store (Benzarpreneurship only) */}
-            <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
+            <ScrollTabBar active={detailTab}>
               {([
-                { id: 'overview' as DetailTab, label: 'Ringkasan', icon: <ChevronRight className="w-3.5 h-3.5" /> },
-                { id: 'members' as DetailTab, label: 'Anggota', icon: <Users className="w-3.5 h-3.5" /> },
-                { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
-                { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
-                { id: 'planning' as DetailTab, label: 'Rencana', icon: <ClipboardList className="w-3.5 h-3.5" /> },
-                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: 'Warta', icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: 'Galeri', icon: <Image className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Toko', icon: <Store className="w-3.5 h-3.5" /> }] : []),
+                { id: 'overview' as DetailTab, label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
+                { id: 'members' as DetailTab, label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
+                { id: 'discussions' as DetailTab, label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                { id: 'drive' as DetailTab, label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+                { id: 'planning' as DetailTab, label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: d.tabStore, icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === tab.id}
                   onClick={() => setDetailTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                     detailTab === tab.id
                       ? 'bg-white text-[#1B1B1B] shadow-sm'
                       : 'text-[#8C8880] hover:text-[#1B1B1B]'
@@ -836,7 +890,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   {tab.label}
                 </button>
               ))}
-            </div>
+            </ScrollTabBar>
 
             {/* Tab Content */}
             {detailTab === 'overview' && (
@@ -981,7 +1035,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                             {ROLE_ICONS[m.role] || <Users className="w-3.5 h-3.5" />}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-[#1B1B1B]">{m.userId}</p>
+                            <p className="text-xs font-bold text-[#1B1B1B]">{m.userName || m.userId}</p>
                             <p className="text-[10px] text-[#8C8880]">{ROLE_LABELS[m.role] || m.role}</p>
                           </div>
                         </div>
@@ -1181,7 +1235,9 @@ export const DivisionWorkspacePanel: React.FC = () => {
                           {driveFolders.map((f) => (
                             <div key={f.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors cursor-pointer">
                               <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
-                              <span className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</span>
+                              <span className="text-xs font-semibold text-[#1B1B1B] truncate" title={f.name}>
+                                {f.displayName || displayFolderName(f.name)}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -1232,6 +1288,10 @@ export const DivisionWorkspacePanel: React.FC = () => {
               </div>
             )}
 
+            {detailTab === 'checkin' && selectedDiv === 'KOINONIA' && selectedEvent && (
+              <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
+            )}
+
             {/* Planning Tab (all divisions) */}
             {detailTab === 'planning' && (
               <div>
@@ -1256,15 +1316,49 @@ export const DivisionWorkspacePanel: React.FC = () => {
             {/* Event Gallery Tab (Marturia only) */}
             {detailTab === 'gallery' && selectedDiv === 'MARTURIA' && (
               <div>
-                <EventGalleryTab division={selectedDiv} eventId={eventId} />
+                <EventGalleryTab division={selectedDiv} eventId={selectedEvent?.id ?? ''} />
               </div>
             )}
 
             {/* Store Tab (Benzarpreneurship only) */}
             {detailTab === 'store' && selectedDiv === 'BENZARPR' && (
               <div>
-                <BenzarStoreTab eventId={eventId} division={selectedDiv} />
+                <BenzarStoreTab eventId={selectedEvent?.id ?? ''} division={selectedDiv} />
               </div>
+            )}
+          </div>
+        )}
+
+        {/*
+          Divisi belum diaktifkan pada event ini. Check-in tetap ditampilkan karena
+          scanner bekerja di level event, bukan level dokumen divisi — tanpa ini
+          scanner hari H tidak bisa dijangkau untuk event tanpa divisi.
+        */}
+        {!currentDiv && selectedEvent && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-2xl bg-[#FAF9F5] border border-dashed border-[#D9D7D0] text-center">
+              <FolderOpen className="w-8 h-8 mx-auto mb-3 text-[#D9D7D0]" />
+              <p className="text-sm font-bold text-[#1B1B1B]">
+                Divisi {pillarMeta?.name || selectedDiv} belum aktif di {selectedEvent.name}
+              </p>
+              <p className="text-xs text-[#8C8880] mt-1 max-w-md mx-auto">
+                Aktifkan divisi untuk membuka ruang kerja: anggota, diskusi, folder Drive, dan alur persetujuan.
+              </p>
+              {canActivateDivision && (
+                <button
+                  type="button"
+                  onClick={handleActivateDivision}
+                  disabled={activating}
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+                >
+                  {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Aktifkan divisi {pillarMeta?.name || selectedDiv}
+                </button>
+              )}
+            </div>
+
+            {selectedDiv === 'KOINONIA' && (
+              <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
             )}
           </div>
         )}

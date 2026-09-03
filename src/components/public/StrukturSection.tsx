@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useLang } from '../../context/LangContext';
+import { trLabel } from '../../i18n';
 import {
   ChevronDown,
   ChevronRight,
@@ -7,7 +9,7 @@ import {
   Flame,
   Loader2,
 } from 'lucide-react';
-import { PANTATUGAS, SUPPORT_DIVISION, subDivisions, pillarByName } from '../../lib/pantatugas';
+import { PANTATUGAS, DIVISION_HEAD_POSITION, subDivisions } from '../../lib/pantatugas';
 
 // Daftar nama divisi structural
 const structuralNames = ['BPMJ', 'KOMISI', 'LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
@@ -24,22 +26,10 @@ const STRUCTURAL_COLORS = {
   BENZARPR: '#F6AE4A',
 }
 
-// Count per divisi sesuai permintaan
-const divisionCounts: Record<string, number> = {
-  BPMJ: 3,
-  KOMISI: 2,
-  LITURGIA: 3,
-  DIDASKALIA: 2,
-  KOINONIA: 2,
-  DIAKONIA: 3,
-  MARTURIA: 4,
-  BENZARPR: 1,
-}
-
-// Config mentoring — Beyonders adalah keseluruhan kelompok mentoring (bukan per-panca-tugas).
-// Detail tampil di navbar #/beyonders; di sini cukup penjelas singkat.
-const BEYONDERS_NOTE =
-  'Beyonders = kelompok mentoring yang menjadi target audiens pelayanan Komisi, Tim Kerja, dan segenap Panca Tugas. Lihat menu Beyonders untuk direktori lengkap.';
+// Jumlah sub-divisi per pillar (HoD ditampilkan terpisah)
+const divisionCounts: Record<string, number> = Object.fromEntries(
+  PANTATUGAS.map((p) => [p.name, subDivisions(p.name).length])
+);
 
 interface Member {
   id: string;
@@ -64,19 +54,32 @@ interface PillarDef {
 }
 
 const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?: boolean }> = ({ pillar, members, isStructural = false }) => {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const Icon = isStructural ? (structuralNames.includes(pillar.name) ? Crown : Flame) : pillar.icon;
+  const tr = (value?: string | null) => trLabel(t.orgTree.labels, value);
+  const serveIdx = PANTATUGAS.findIndex((p) => p.name === pillar.name);
+  const tagline = t.serve.items[serveIdx]?.tagline ?? pillar.tagline;
+  const displayName = t.serve.items[serveIdx]?.label ?? pillar.name;
+  const subCount = divisionCounts[pillar.name] ?? 0;
+  const officerWord = subCount === 1 ? t.orgTree.officer : t.orgTree.officers;
+  const hasHod = pillar.name !== 'BENZARPR';
 
-  // Kelompokkan anggota per subdivisi
+  const headMembers = useMemo(
+    () => members.filter((m) => m.position === DIVISION_HEAD_POSITION),
+    [members]
+  );
+
   const groups = useMemo(() => {
     const map = new Map<string, Member[]>();
     for (const m of members) {
-      const key = m.subdivision?.trim() || 'Anggota';
+      if (m.position === DIVISION_HEAD_POSITION) continue;
+      const key = m.subdivision?.trim() || t.orgTree.membersFallback;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(m);
     }
     return [...map.entries()];
-  }, [members]);
+  }, [members, t.orgTree.membersFallback]);
 
   return (
     <div className="rounded-3xl border border-[#D9D7D0]/60 bg-white overflow-hidden shadow-sm">
@@ -93,12 +96,14 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-black tracking-wide" style={{ color: STRUCTURAL_COLORS[pillar.name] || pillar.color }}>
-            {pillar.name}
+            {displayName}
           </p>
           {isStructural && (
-            <p className="text-[10px] text-[#8C8880] truncate">{pillar.tagline}</p>
+            <p className="text-[10px] text-[#8C8880] truncate">{tagline}</p>
           )}
-          <p className="text-[10px] text-white/50 uppercase tracking-widest">{divisionCounts[pillar.name] ?? 0} penegak</p>
+          <p className="text-[10px] text-[#8C8880] uppercase tracking-widest">
+            {hasHod ? `${t.orgTree.headDivisionLabel} · ` : ''}{subCount} {officerWord}
+          </p>
         </div>
         <span className="text-[10px] font-bold text-[#8C8880] bg-[#F3F1EC] rounded-full px-2 py-0.5 shrink-0">
           {members.length}
@@ -112,13 +117,50 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
 
       {open && (
         <div className="border-t border-dashed border-[#D9D7D0]/70 px-4 py-3 space-y-3 bg-[#FAF9F5]/60">
-          {groups.length === 0 && (
-            <p className="text-xs text-[#8C8880] italic">Belum ada pengurus — nama menyusul.</p>
+          {hasHod && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-1.5">
+                {t.orgTree.headDivisionLabel}
+              </p>
+              {headMembers.length === 0 && (
+                <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
+                  {t.orgTree.headRecruiting} — {t.orgTree.openSuffix}
+                </span>
+              )}
+              {headMembers.map((m) => (
+                <div key={m.id} className="flex items-center gap-2.5">
+                  <img
+                    src={m.photoUrl || initialsAvatar(m.name)}
+                    alt={m.name}
+                    className={`w-7 h-7 rounded-full object-cover bg-white ${
+                      m.isOpenRole
+                        ? 'border border-dashed border-[#8C8880]/50'
+                        : 'border border-[#D9D7D0]'
+                    }`}
+                  />
+                  <div className="min-w-0">
+                    {m.isOpenRole ? (
+                      <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
+                        {tr(m.name) || m.name} — {t.orgTree.openSuffix}
+                      </span>
+                    ) : (
+                      <>
+                        <p className="text-xs font-bold text-[#1B1B1B] truncate">{m.name}</p>
+                        <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {groups.length === 0 && headMembers.length === 0 && (
+            <p className="text-xs text-[#8C8880] italic">{t.orgTree.emptyPillar}</p>
           )}
           {groups.map(([sub, list]) => (
             <div key={sub}>
               <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-1.5">
-                {sub}
+                {tr(sub) || t.orgTree.membersFallback}
               </p>
               <div className="space-y-1.5">
                 {list.map((m) => (
@@ -135,13 +177,13 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
                     <div className="min-w-0">
                       {m.isOpenRole ? (
                         <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[#8C8880]">
-                          {m.name} — terbuka
+                          {tr(m.name) || m.name} — {t.orgTree.openSuffix}
                         </span>
                       ) : (
                         <>
                           <p className="text-xs font-bold text-[#1B1B1B] truncate">{m.name}</p>
                           {m.position && m.position !== sub && (
-                            <p className="text-[10px] text-[#8C8880] truncate">{m.position}</p>
+                            <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                           )}
                         </>
                       )}
@@ -174,17 +216,11 @@ interface PillarDef {
   color: string;
 }
 
-const mapDivisionToLabel = (division: string) => {
-  const d = division.trim().toUpperCase();
-  if (d === 'BPMJ') return 'BPMJ';
-  if (d === 'KOMISI' || d === 'KOMISI PEMUDA') return 'Komisi Pemuda';
-  if (structuralNames.includes(d)) return d;
-  return null;
-};
-
 export const OrgTreeSection: React.FC = () => {
   const { strukturMembers } = useApp();
+  const { t } = useLang();
   const [members, setMembers] = useState<Member[] | null>(null);
+  const tr = (value?: string | null) => trLabel(t.orgTree.labels, value);
 
   // API-first: ambil dari TiDB; gagal → fallback data lokal
   useEffect(() => {
@@ -201,7 +237,7 @@ export const OrgTreeSection: React.FC = () => {
   if (!members) {
     return (
       <section className="py-24 flex items-center justify-center gap-2 text-xs text-[#8C8880]">
-        <Loader2 className="w-4 h-4 animate-spin" /> Memuat struktur organisasi…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t.leadersPage.loadingTree}
       </section>
     );
   }
@@ -235,7 +271,7 @@ export const OrgTreeSection: React.FC = () => {
     <section className="max-w-[1200px] mx-auto">
       <div className="flex items-center gap-2 mb-6">
         <span className="w-8 h-1 rounded-full bg-[#FF416C]" />
-        <h3 className="text-lg sm:text-xl font-bold text-[#1B1B1B]">Pohon Hirarki Pelayanan GEHC Youth</h3>
+        <h3 className="text-lg sm:text-xl font-bold text-[#1B1B1B]">{t.orgTree.heading}</h3>
       </div>
 
       {/* Level 1: BPMJ — Badan Pekerja Majelis Jemaat (nama asli) */}
@@ -245,8 +281,8 @@ export const OrgTreeSection: React.FC = () => {
             <Crown className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-black text-white">BPMJ — Badan Pekerja Majelis Jemaat</p>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest">Payung tertinggi pelayanan pemuda</p>
+            <p className="text-sm font-black text-white">{t.orgTree.bpmjTitle}</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest">{t.orgTree.bpmjSub}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -260,13 +296,13 @@ export const OrgTreeSection: React.FC = () => {
               <div className="min-w-0">
                 <p className="text-[11px] font-black text-white truncate">{m.name}</p>
                 {m.position && (
-                  <p className="text-[9px] text-white/50 truncate">{m.position}</p>
+                  <p className="text-[9px] text-white/50 truncate">{tr(m.position)}</p>
                 )}
               </div>
             </div>
           ))}
           {bpmjMembers.length === 0 && (
-            <p className="text-xs text-white/40 italic col-span-full">Pengurus BPMJ menyusul.</p>
+            <p className="text-xs text-white/40 italic col-span-full">{t.orgTree.bpmjEmpty}</p>
           )}
         </div>
       </div>
@@ -274,7 +310,7 @@ export const OrgTreeSection: React.FC = () => {
       {/* Level 2: Komisi Pemuda */}
       <div className="rounded-3xl border-2 border-[#FF416C]/25 bg-white p-5">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-3">
-          Komisi Pemuda — dipimpin Penatua Pemuda · periode 5 tahun
+          {t.orgTree.komisiTitle}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {komisiMembers.map((m) => (
@@ -287,13 +323,13 @@ export const OrgTreeSection: React.FC = () => {
               <div className="min-w-0">
                 <p className="text-xs font-black truncate">{m.name}</p>
                 {m.position && (
-                  <p className="text-[10px] text-[#8C8880] truncate">{m.position}</p>
+                  <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                 )}
               </div>
             </div>
           ))}
           {komisiMembers.length === 0 && (
-            <p className="text-xs text-[#8C8880] italic col-span-full">Anggota Komisi menyusul.</p>
+            <p className="text-xs text-[#8C8880] italic col-span-full">{t.orgTree.komisiEmpty}</p>
           )}
         </div>
       </div>
@@ -302,10 +338,10 @@ export const OrgTreeSection: React.FC = () => {
       {timKerjaMembers.length > 0 && (
         <div className="rounded-3xl border border-[#D9D7D0]/60 bg-[#FAFAF5] p-5">
           <p className="text-[10px] font-black uppercase tracking-widest text-[#181818] mb-1">
-            Tim Kerja — pelaksana program pelayanan (rotasi tahunan)
+            {t.orgTree.timKerjaTitle}
           </p>
           <p className="text-[10px] text-[#8C8880] mb-3">
-            Membawahi 5 Panca Tugas + Benzarpreneurship, bertanggung jawab kepada Komisi.
+            {t.orgTree.timKerjaSub}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {timKerjaMembers.map((m) => (
@@ -318,7 +354,7 @@ export const OrgTreeSection: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-xs font-black truncate">{m.name}</p>
                   {m.position && (
-                    <p className="text-[10px] text-[#8C8880] truncate">{m.position}</p>
+                    <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
                   )}
                 </div>
               </div>
@@ -328,7 +364,7 @@ export const OrgTreeSection: React.FC = () => {
       )}
 
       {/* Level 3: Enam Divisi (5 Panca Tugas + Benzarpreneurship) + Sub-divisi */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 items-start">
         {PANTATUGAS.map((p) => {
           const pillar: PillarDef = { name: p.name, tagline: p.tagline, icon: p.icon, color: p.color };
           const pillarMembers = structuralMembers.filter(
@@ -348,14 +384,13 @@ export const OrgTreeSection: React.FC = () => {
       {/* Beyonders note — kelompok mentoring (detail di navbar #/beyonders) */}
       <div className="mt-6 p-4 rounded-[20px] border border-[#FF416C]/25 bg-white">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-1">
-          Beyonders — Kelompok Mentoring
+          {t.orgTree.beyondersTitle}
         </p>
-        <p className="text-[11px] text-[#8C8880] leading-relaxed">{BEYONDERS_NOTE}</p>
+        <p className="text-[11px] text-[#8C8880] leading-relaxed">{t.orgTree.beyondersNote}</p>
       </div>
 
       <p className="text-center text-[11px] text-[#8C8880] mt-10 italic max-w-lg mx-auto leading-relaxed">
-        Sub-divisi bersifat hidup: dapat bertambah sewaktu-waktu sesuai kebutuhan pelayanan —
-        cukup dikelola melalui portal administrasi.
+        {t.orgTree.footerNote}
       </p>
     </section>
   );

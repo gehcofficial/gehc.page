@@ -1,26 +1,21 @@
 ﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
-import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { GehcLogo } from '../brand/GehcLogo';
+import { BrandCaption } from '../brand/BrandCaption';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
 import {
-  Layers,
-  Shield,
-  UserCheck,
   ChevronDown,
-  Sparkles,
   ArrowRight,
-  RefreshCw,
   LayoutDashboard,
   Globe,
   Menu,
   X,
-  Users,
   LogOut,
   LogIn,
   Store,
-  Image,
 } from 'lucide-react';
+import { displayAvatar } from '../../lib/avatar';
 
 export const Navbar: React.FC = () => {
   const {
@@ -29,22 +24,13 @@ export const Navbar: React.FC = () => {
     publicTab,
     setPublicTab,
     currentTenant,
-    switchTenant,
     currentUser,
     currentRole,
-    allUsers,
-    setCurrentUserById,
-    groups,
-    resetAllData,
     authUser,
-    ssoClientId,
-    loginWithCredential,
     logoutSso,
-    addToast,
-    demoMode,
-    sessionSource,
     myRoleOptions,
     setActiveUserRole,
+    isPlatformAdmin,
   } = useApp();
   const { t } = useLang();
 
@@ -79,39 +65,31 @@ export const Navbar: React.FC = () => {
       <header className="fixed top-[18px] left-0 right-0 z-50 flex items-center justify-center px-4 w-full pointer-events-none">
         <div className="pointer-events-auto w-full max-w-[1120px] flex items-center justify-between bg-[#151515]/95 backdrop-blur-2xl rounded-full px-3 py-2 shadow-2xl border border-white/15 h-[58px] transition-all duration-300">
           
-          {/* Brand & Tenant Indicator */}
-          <div className="flex items-center gap-3 pl-1">
+          {/* Brand */}
+          <div className="flex items-center gap-2.5 pl-1 shrink-0 mr-2 sm:mr-5 lg:mr-10 max-w-[11rem] lg:max-w-[12rem]">
             <button
               onClick={() => {
                 setActiveView('public');
                 setPublicTab('beyonders');
               }}
-              className="flex items-center gap-2.5 text-left group"
+              className="flex items-center gap-2.5 text-left group min-w-0"
             >
-              <div className="w-[36px] h-[36px] rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shadow-lg border border-white/30 shrink-0 group-hover:scale-105 transition-transform">
-                <span className="text-white font-black text-xs tracking-tight">GEHC</span>
-              </div>
-              <div className="hidden sm:flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white font-bold text-xs tracking-tight">GMIM EBEN HAEZER</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-[#FAF9F5] uppercase tracking-wider">
-                    {currentTenant.slug}
-                  </span>
-                </div>
-                <span className="text-[10px] text-white/50 font-medium leading-none">Beyonders • Youth</span>
-              </div>
+              <GehcLogo
+                size={36}
+                className="group-hover:scale-105 transition-transform"
+              />
+              <BrandCaption className="hidden sm:flex" />
             </button>
           </div>
 
           {/* Navigation Links for Public View */}
           {activeView === 'public' ? (
-            <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+            <nav className="hidden md:flex items-center gap-1 lg:gap-2 flex-1 justify-center min-w-0 px-1">
               {([
                 ['beyonders', t.nav.beyonders],
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
-                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -124,7 +102,6 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   {tabId === 'benzarpreneurship' && <Store className="w-3 h-3" />}
-                  {tabId === 'gallery' && <Image className="w-3 h-3" />}
                   {label}
                 </button>
               ))}
@@ -136,200 +113,82 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
-          {/* Right Action Area: Role Persona Switcher + Portal/Web View Switcher */}
-          <div className="flex items-center gap-2">
+          {/* Right Action Area */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
 
-            {/* Quick Role Switcher — hanya untuk mode demo / sesi aktif.
-                Tamu produksi melihat navbar bersih tanpa alat testing. */}
-            {(demoMode || authUser) && (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsRoleMenuOpen(!isRoleMenuOpen);
-                  }}
-                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all"
-                title="Persona & konteks akses"
-              >
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-white/40">
-                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-                </div>
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${getRoleBadgeStyle(currentRole)}`}>
-                  {currentRole}
-                </span>
-                <ChevronDown className="w-3 h-3 opacity-60" />
-              </button>
-
-              {/* Persona Switcher Dropdown */}
-              {isRoleMenuOpen && (
-                <div className="absolute right-0 mt-3 w-80 bg-[#181818] border border-white/15 rounded-3xl p-3 shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-2">
-                    <div>
-                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Shield className="w-3.5 h-3.5 text-[#FF416C]" />
-                        {demoMode ? 'Persona — Akun Dummy TiDB' : 'Simulasi Persona & RBAC'}
-                      </h4>
-                      <p className="text-[10px] text-white/50">
-                        {demoMode
-                          ? 'Akun dari database staging — klik untuk masuk sungguhan'
-                          : 'Uji hak akses peran sesuai PRD'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={resetAllData}
-                      title="Reset Data"
-                      className="p-1 text-white/40 hover:text-white rounded-lg hover:bg-white/10"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
+            {authUser && (
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+                  className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all"
+                  title="Akun & konteks peran"
+                >
+                  <div className="w-6 h-6 rounded-full overflow-hidden border border-white/40">
+                    <img src={displayAvatar(currentUser.name, currentUser.avatar)} alt={currentUser.name} className="w-full h-full object-cover" />
                   </div>
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${getRoleBadgeStyle(currentRole)}`}>
+                    {currentRole}
+                  </span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
 
-                  {/* Chips multi-role: ganti konteks akses untuk akun rangkap */}
-                  {myRoleOptions.length > 1 && (
-                    <div className="px-2 pb-2">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                        Konteks Akses Aktif
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {myRoleOptions.map((role) => (
-                          <button
-                            key={role}
-                            onClick={() => setActiveUserRole(role)}
-                            className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
-                              role === currentRole
-                                ? getRoleBadgeStyle(role)
-                                : 'bg-white/10 text-white/60 hover:bg-white/20'
-                            }`}
-                          >
-                            {role}
-                          </button>
-                        ))}
-                      </div>
+                {isRoleMenuOpen && (
+                  <div className="absolute right-0 mt-3 w-72 bg-[#181818] border border-white/15 rounded-3xl p-3 shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2 pb-3 border-b border-white/10">
+                      <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+                      <p className="text-[10px] text-white/50 truncate">{authUser.email}</p>
                     </div>
-                  )}
 
-                  <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
-                    {allUsers.map((user) => {
-                      const userRoleMap = user.roles.find((r) => r.tenantId === currentTenant.id) || {
-                        role: 'MENTEE' as any,
-                      };
-                      const userGroupName = userRoleMap.groupId
-                        ? groups.find((g) => g.id === userRoleMap.groupId)?.name
-                        : null;
-                      const isSelected = user.id === currentUser.id;
-
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            setCurrentUserById(user.id);
-                            setIsRoleMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2.5 p-2 rounded-2xl text-left transition-all ${
-                            isSelected
-                              ? 'bg-white/15 border border-white/20'
-                              : 'hover:bg-white/5 text-white/80 hover:text-white'
-                          }`}
-                        >
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-8 h-8 rounded-full object-cover border border-white/30 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-white truncate">{user.name}</span>
-                              <span
-                                className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase ${getRoleBadgeStyle(
-                                  userRoleMap.role
-                                )}`}
-                              >
-                                {userRoleMap.role}
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-white/50 truncate flex items-center gap-1">
-                              <span>{user.email}</span>
-                              {userGroupName && (
-                                <span className="text-cyan-300 font-semibold">• Grup {userGroupName}</span>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Google SSO — sesi nyata dari server (TiDB) */}
-                  <div className="border-t border-white/10 mt-2 pt-2 px-1">
-                    {authUser && (
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
-                            <Shield className="w-3 h-3" />
-                            {sessionSource === 'demo' ? 'Sesi Demo Aktif' : 'SSO Google Aktif'}
-                          </p>
-                          <p className="text-[10px] text-white/50 truncate">{authUser.email}</p>
+                    {myRoleOptions.length > 1 && (
+                      <div className="px-2 py-3 border-b border-white/10">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                          Konteks Peran
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {myRoleOptions.map((role) => (
+                            <button
+                              key={role}
+                              onClick={() => setActiveUserRole(role)}
+                              className={`text-[9px] font-extrabold px-2 py-1 rounded-full uppercase transition-all ${
+                                role === currentRole
+                                  ? getRoleBadgeStyle(role)
+                                  : 'bg-white/10 text-white/60 hover:bg-white/25 hover:text-white hover:scale-105'
+                              }`}
+                            >
+                              {role}
+                            </button>
+                          ))}
                         </div>
-                        <button
-                          onClick={() => {
-                            logoutSso();
-                            setIsRoleMenuOpen(false);
-                          }}
-                          title="Logout SSO"
-                          className="p-1.5 text-white/60 hover:text-red-300 rounded-lg hover:bg-white/10 shrink-0"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     )}
 
-                    {/* Login Google selalu tersedia (kecuali sudah sesi Google) —
-                        bisa dipakai kapan pun meski mode demo aktif */}
-                    {ssoClientId && sessionSource !== 'google' && (
-                      <>
-                        {!authUser && (
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1 text-center">
-                            Masuk dengan akun Google
-                          </p>
-                        )}
-                        {authUser && (
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1 text-center">
-                            Masuk dengan akun Google lain
-                          </p>
-                        )}
-                        <GoogleLoginButton
-                          clientId={ssoClientId}
-                          onCredential={(cred) => {
-                            loginWithCredential(cred).catch((err: Error) =>
-                              addToast({
-                                type: 'error',
-                                title: 'Login Google Gagal',
-                                description: err.message,
-                              })
-                            );
-                            setIsRoleMenuOpen(false);
-                          }}
-                        />
-                      </>
-                    )}
-                    {!ssoClientId && !authUser && (
-                      <p className="text-[10px] text-white/40 text-center leading-relaxed">
-                        Login Google belum aktif — set GOOGLE_CLIENT_ID di server.
-                      </p>
-                    )}
+                    <div className="pt-2 px-1">
+                      <button
+                        onClick={() => {
+                          logoutSso();
+                          setIsRoleMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold text-white/70 hover:text-red-300 hover:bg-white/5 transition-colors"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Keluar
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             )}
 
-            {/* Language toggle + Masuk (tamu) + Portal / Public Toggle Button */}
-            <LanguageToggle />
-            {activeView === 'public' && !authUser && !demoMode && (
+            <div className="hidden md:block">
+              <LanguageToggle />
+            </div>
+
+            {activeView === 'public' && !authUser && (
               <>
                 <button
                   onClick={() => { window.location.hash = '#/login'; }}
                   title="Masuk ke portal"
-                  className="px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors flex items-center gap-1.5"
+                  className="hidden sm:flex px-3 h-[34px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-colors items-center gap-1.5"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Masuk</span>
@@ -343,21 +202,27 @@ export const Navbar: React.FC = () => {
                 </button>
               </>
             )}
-            {activeView === 'public' ? (
-              <button
-                onClick={() => {
-                  if (authUser) {
-                    setActiveView('portal');
-                  } else {
-                    window.location.hash = '#/login';
-                  }
-                }}
-                className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
-              >
-                <span>Portal</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            ) : (
+
+            {activeView === 'public' && authUser ? (
+              <div className="flex items-center gap-2">
+                {isPlatformAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => { window.location.hash = '#/admin'; }}
+                    className="border border-white/30 text-white font-bold rounded-full px-3 text-[10px] h-[34px] uppercase tracking-wider hidden sm:block"
+                  >
+                    Admin
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveView('portal')}
+                  className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
+                >
+                  <span>Portal</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            ) : activeView === 'portal' ? (
               <button
                 onClick={() => setActiveView('public')}
                 className="border border-white/30 hover:bg-white hover:text-black text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] uppercase tracking-wider"
@@ -365,7 +230,7 @@ export const Navbar: React.FC = () => {
                 <Globe className="w-3 h-3" />
                 <span>Web Publik</span>
               </button>
-            )}
+            ) : null}
 
             {/* Mobile Hamburger Button */}
             <button
@@ -382,117 +247,85 @@ export const Navbar: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-xl md:hidden pt-24 px-6 flex flex-col justify-between pb-8">
           <div className="space-y-4">
-            <div className="p-3 bg-white/5 rounded-2xl border border-white/10 mb-4">
-              <span className="text-xs text-white/50 uppercase font-semibold">Tenant Aktif</span>
-              <p className="text-white font-bold text-sm">{currentTenant.name} ({currentTenant.domain})</p>
+            <div className="flex items-center justify-between gap-3 p-3 bg-white/5 rounded-2xl border border-white/10 mb-4">
+              <div className="min-w-0">
+                <span className="text-xs text-white/50 uppercase font-semibold">Tenant Aktif</span>
+                <p className="text-white font-bold text-sm truncate">{currentTenant.name} ({currentTenant.domain})</p>
+              </div>
+              <LanguageToggle />
             </div>
 
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('beyonders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'home' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.beyonders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('bulletin');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'weekly-info' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.bulletin}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('events');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'activity' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.events}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('beyonders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'groups' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.beyonders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('leaders');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold ${
-                  publicTab === 'komisi' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                {t.nav.leaders}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveView('public');
-                  setPublicTab('benzarpreneurship');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold flex items-center gap-2 ${
-                  publicTab === 'benzarpreneurship' && activeView === 'public' ? 'bg-white text-black' : 'text-white'
-                }`}
-              >
-                <Store className="w-4 h-4" />
-                {t.nav.benzarpreneurship}
-              </button>
+              {([
+                ['beyonders', t.nav.beyonders],
+                ['leaders', t.nav.leaders],
+                ['events', t.nav.events],
+                ['bulletin', t.nav.bulletin],
+                ['benzarpreneurship', t.nav.benzarpreneurship],
+              ] as const).map(([tabId, label]) => (
+                <button
+                  key={tabId}
+                  onClick={() => {
+                    setActiveView('public');
+                    setPublicTab(tabId);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-2xl text-base font-semibold flex items-center gap-2 ${
+                    publicTab === tabId && activeView === 'public' ? 'bg-white text-black' : 'text-white'
+                  }`}
+                >
+                  {tabId === 'benzarpreneurship' && <Store className="w-4 h-4" />}
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="pt-6 border-t border-white/10 flex flex-col gap-3">
-                  <button
-                    onClick={() => {
-                      window.location.hash = '#/register';
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white"
-                  >
-                    Daftar Beyonders
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.location.hash = '#/login';
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white/80"
-                  >
-                    Masuk
-                  </button>
-            <button
-              onClick={() => {
-                if (authUser) setActiveView('portal');
-                else window.location.hash = '#/login';
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"
-            >
-              {activeView === 'public' ? 'Buka Dashboard User Portal' : 'Kembali ke Web Publik'}
-            </button>
+            {!authUser && (
+              <>
+                <button
+                  onClick={() => {
+                    window.location.hash = '#/register';
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white"
+                >
+                  Daftar Beyonders
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.hash = '#/login';
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold text-white/80"
+                >
+                  Masuk
+                </button>
+              </>
+            )}
+            {authUser && activeView === 'public' && (
+              <button
+                onClick={() => {
+                  setActiveView('portal');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"
+              >
+                Buka Portal
+              </button>
+            )}
+            {activeView === 'portal' && (
+              <button
+                onClick={() => {
+                  setActiveView('public');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full py-3.5 rounded-full border border-white/30 text-white font-bold text-center text-sm"
+              >
+                Kembali ke Web Publik
+              </button>
+            )}
           </div>
         </div>
       )}

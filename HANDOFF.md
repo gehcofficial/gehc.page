@@ -1,6 +1,334 @@
 # GEHC Portal — Handoff
 
-## Current priority — Onboarding UX staging fixes
+## Current — HANDOFF consolidate + RBAC UI/API (3 Sep 2026)
+
+**Goal:** Satu daftar Next aktif (BAKU TAU) + satu Deferred; UI tidak menawarkan aksi yang API tolak; dual-struktur ditutup di docs; runbook production.
+
+### Done
+
+- Staging ops: `db:migrate:local:staging` + `db:seed:church-calendar:staging` + `db:schema:check` (schema hijau).
+- Gate UI selaras API: Buat event (`KOMISI`/`COMMITTEE`/`SUPERADMIN`); rencana bulan tulis; payung default/scope BPMJ vs KOMISI; tombol runbook. MENTOR/CO_MENTOR dihapus dari GET `/api/church-calendar` (nav tidak punya kalender).
+- Dual layer struktur **keputusan ditutup**: `OrgNode`/`OrgAssignment` = slot RBAC; `struktur_members` = CMS Leaders. Bukan duplikat — jangan merge/hapus panel. Guides + [`docs/product/rbac-admin.md`](docs/product/rbac-admin.md).
+- Runbook prod: [`docs/tech/production-golive.md`](docs/tech/production-golive.md)
+
+### Next (BAKU TAU — 12 Sep)
+
+1. Komisi: centang paket soal BAKU TAU 4.0 di Program & Event (staging).
+2. Portal → Review Penempatan → generate ulang batch (skor Gift Diversity lama masih salah).
+3. Dry-run scanner staging + QR asli (perangkat + kartu peserta): scan, walk-in, void, export CSV.
+4. Setelah BPMJ konfirmasi tanggal: isi Pengucapan Syukur (Cikarang) & HUT WKI di Kalender gerejawi — boleh kosong sampai ada tanggal.
+5. Go-live production: ikuti [`docs/tech/production-golive.md`](docs/tech/production-golive.md).
+
+### Deferred
+
+- STG-05 portal foto kelompok (setelah desain + ACL) — Drive `[GROUP:…]` + gallery publik sudah ada.
+- Broadcast lintas role — jangan panel paralel Warta; extend tipe `Notification` hanya jika Warta + WA tidak cukup.
+- Auto-upload CSV check-in ke Drive & auto-seri folder ibadah (setelah Liturgia minta).
+- Migrasi scoping Drive off `struktur_members` → Org (prasyarat deprecate ManageStruktur).
+- Tech debt: split `server/index.mjs` → `server/routes/*`, full `AuthContext`, design tokens, coverage `roles.ts` / `profile-fields.mjs`.
+
+---
+
+## Prior — Bank soal event + form depan tipis (3 Sep 2026)
+
+**Goal:** Counter hanya nama+WA lalu Google. Profil (asal/Sulut, domisili, gender) di Info Event. Soal event opsional (panitia + self-serve). WA grup peserta hanya dari Edit event.
+
+### Done
+
+- Migrasi 25: `event_question_bank` + requests + assignments + answers; seed katalog (jemaat, moda, kost, konsumsi, dll. — tanpa soal Sulut).
+- API soal event + CSV `asalRegion`/`asalPlace` dari `User.origin`.
+- Form `#/event/bakutau` tipis; register auth/guest tanpa wajib asal/gender.
+- Program & Event: checklist soal, isi jawaban atas nama, CSV. Info Event: lengkapi profil + data panitia.
+- Kanal WA layer Event read-only; DELETE ChannelLink EVENT mengosongkan `EventProgram.whatsappGroupUrl`.
+
+### Coba ulang
+
+```powershell
+npm run db:migrate:local
+npm run lint
+npm run test -- tests/unit/event-questions.test.ts tests/unit/origin-parse.test.ts
+npm run dev:all
+```
+
+1. Logout → `#/event/bakutau` → nama+WA atau Google → konfirmasi daftar → QR.
+2. Portal → Info Event → lengkapi asal (Sulut muncul dari dropdown asal) + soal panitia jika Tim Kerja sudah centang.
+3. Program & Event → Edit WA → kartu hijau. Centang 2 soal → isi dari daftar peserta → unduh CSV (kolom `asalRegion`).
+4. Kanal WhatsApp → Event: tidak ada tombol Simpan.
+
+---
+
+## Prior — Alur daftar BAKU TAU + reset regs (3 Sep 2026)
+
+**Goal:** Setelah Google login, kehadiran menempel; QR (bukan QRIS) + WA tampil di halaman event dan portal Info Event. Bisa daftar ulang dari nol.
+
+### Done
+
+- Halaman `#/event/bakutau`: sinkron pending setelah login, tidak flash form; payload register langsung isi QR/WA.
+- Tamu: dua jalur jelas (akun/Google vs counter panitia). Form login-in prefill dari profil.
+- `resolveEventInfo` fallback ChannelLink jika kolom WA event kosong.
+- Kartu welcome: placeholder QR, tautan portal Info Event, copy “bukan QRIS”.
+- `npm run db:reset:bakutau-regs` — hapus kehadiran/scan, lepas `source_event`, akun tetap.
+
+### Coba ulang
+
+```powershell
+npm run db:reset:bakutau-regs
+# jika uji di staging:
+npm run db:reset:bakutau-regs:staging
+npm run dev:all
+```
+
+1. Logout. Buka `#/event/bakutau`.
+2. **Punya akun / Google** → masuk → isi asal/domisili sekali → harus muncul QR + tombol WA (jika tautan sudah di Edit event).
+3. Portal → **Info Event** — kartu yang sama.
+
+Pastikan WA tersimpan: Program & Event → Edit → `https://chat.whatsapp.com/...`
+
+---
+
+## Prior — Info Event QR/WA untuk semua peserta (3 Sep 2026)
+
+**Goal:** QR daftar ulang + link WA BAKU TAU tetap terlihat setelah onboarding selesai (bukan hanya WAITING_POOL).
+
+### Done
+
+- Nav **Info Event** tidak lagi `onboardingOnly` — muncul untuk semua peran gereja (MENTEE…BPMJ/SUPERADMIN via KOMISI).
+- `GET /api/me/baku-tau-registration` memakai lookup tangguh (`findBakutauPoolEntry`) + `buildCheckInCode`; register/claim mengembalikan `checkInCode` + WA.
+- `EventInfoPanel`: refresh, copy jelas, lokasi publik tetap tampil sebelum daftar.
+- Unit test `tests/unit/portal-nav-event-info.test.ts`; parity docs diperbarui.
+
+### Commands
+
+```powershell
+npm run lint; npm run test -- tests/unit/portal-nav-event-info.test.ts tests/unit/event-venue.test.ts tests/unit/check-in-code.test.ts
+npm run dev:all
+```
+
+---
+
+## Prior — Form edit event: label + WA + venue jelas (3 Sep 2026)
+
+**Goal:** Form Edit Program & Event tidak lagi “tebak field”; WA & venue punya konteks UI yang proper.
+
+### Done
+
+- Form Edit: label + icon + hint per field (meta, rentang program, WA, waktu & tempat).
+- WA field: “Grup WhatsApp peserta” + hint sinkron ke halaman daftar BAKU TAU, kartu portal, dan WA Channels.
+- Venue: bedakan nama tempat / catatan lokasi / tautan Maps / query embed; hint agar tidak mengulang jam.
+- Fallback `locationDetail` BAKU TAU: `Cikarang, Bekasi` (bukan nama+jam). Migrasi idempotent menormalisasi nilai lama di DB.
+
+### Commands
+
+```powershell
+npm run db:migrate:local            # normalisasi location_detail lama
+npm run lint; npm run test
+npm run dev:all
+```
+
+---
+
+## Prior — Venue event di DB + form edit (3 Sep 2026)
+
+**Goal:** Tanggal dan tempat BAKU TAU (dan event publik lain) hidup di `EventProgram`, bisa diedit dari portal, konstanta hanya fallback.
+
+### Done
+
+- Migrasi 24: `event_date`, `venue_name`, `location_detail`, `map_url`, `map_embed_query` di `EventProgram`. Backfill BAKU TAU lewat `Date` dari `2026-09-12T15:00:00+07:00` (= `2026-09-12T08:00:00.000Z`), bukan string wall-clock yang terbaca 22:00 WIB.
+- Welcome Night `EventMeeting.scheduled_at` dikoreksi ke instant yang sama. Script lama `_migrate-bakutau-venue.cjs` tidak lagi menimpa jam ke 15:00 naif.
+- `GET /api/events/bakutau` dan payload publik memakai `venueOf()`: DB dulu, konstanta jika kolom kosong (rollback tanpa redeploy).
+- `PATCH /api/events/:id` menerima field venue; `GET` by-id mengembalikan `canEdit`. Form **Edit** di Program & Event (WIB `datetime-local`). Rentang `startDate`/`endDate` tetap program tahunan, terpisah dari hari pelaksanaan.
+- `content_items` `cnt-bakutau` diselaraskan dari EventProgram saat migrasi dan saat PATCH venue.
+- Unit test zona waktu + `venueOf` di `tests/unit/event-venue.test.ts`.
+
+### Commands
+
+```powershell
+npm run db:migrate:local            # termasuk migrasi 24
+npm run db:schema:check
+npm run lint; npm run test
+npm run dev:all
+```
+
+---
+
+## Prior — Kalender gerejawi + pengerasan check-in (3 Sep 2026)
+
+**Goal:** Kunci jalur check-in sebelum BAKU TAU 12 Sep, lalu ubah "payung gerejawi" yang tanpa tanggal jadi kalender gerejawi bertanggal yang menggerakkan runbook H-21 → H+7 dan timeline publik.
+
+### Done — Fase 0 (pengerasan hari H)
+
+- `scripts/check-db-schema.mjs` kini menutup migrasi 21: 5 tabel baru, kolom check-in `waiting_pool` / `event_attendees`, dan `EventProgram.kind` / `church_program_id`. Sebelumnya `db:schema:check` hijau padahal scanner akan gagal.
+- Drift migrasi 21 ditutup: semua `ALTER TABLE` masuk `migration.sql` (sebelumnya hanya ada di CJS), plus index `EventProgram_church_program_idx` yang **hilang di kedua tempat** dan sekarang benar-benar terbuat.
+- Statistik check-in dihitung via `groupBy` di DB, bukan dari 500 scan terpotong (dulu breakdown diam-diam mengecil setelah 500 scan). Daftar scan dipaginasi (`?limit=`, `?cursor=`, default 100).
+- **Batalkan scan**: `POST /api/events/:slug/check-in/:scanId/void` menulis baris `VOIDED` (audit utuh) dan mengosongkan `eventCheckedInAt` / `checkedInAt`. Tombol di tab Check-in.
+- Walk-in tidak lagi memuat seluruh `waiting_pool`: cocokkan varian nomor lewat `phone IN (...)`, fallback pindaian terbatas.
+- Export CSV pindah ke server (`GET /api/events/:slug/check-ins/export`) — seluruh riwayat, bukan halaman yang tampil.
+- Route shadowing `GET /api/events/:slug`: `:id` sekarang `next()` bila id tidak cocok, jadi kedua bentuk respons tetap hidup (naif memindah urutan justru merusak lookup by-id).
+
+### Done — Fase 1–4 (kalender & bersih-bersih)
+
+- `ChurchCalendarEntry` + migrasi 22; `server/lib/church-year.mjs` menghitung Paskah (Computus) dan seluruh turunannya, tanggal tetap GMIM, serta HUT Jemaat GEHC (23 Mar 2019). 23 unit test.
+- Seeder `db:seed:church-calendar` — 46 entri untuk 2026–2027, idempotent, satu statement `ON DUPLICATE KEY UPDATE`.
+- Tab **Kalender gerejawi** (Program & Event) dengan tampilan 12 bulan, badge sumber/musim, toggle publik, dan **penanda bentrokan tanggal**.
+- Runbook H-21 → H+7 dari RACI: `POST /api/church-calendar/:id/generate-runbook` → `MinistryWeekDeliverable` (lintas bulan), notifikasi `RUNBOOK_DUE` ke pemegang peran divisi.
+- `defaultWeeks()` memakai hari Minggu sebenarnya (4–5 baris); dulu dipaku ke tanggal 7/14/21/28 yang tidak pernah hari Minggu.
+- `church-programs`: PATCH/DELETE + filter `tenantId` (dulu create-only dan tidak ter-scope).
+- Section publik **Kalender Gerejawi** di tab Kegiatan + countdown hari raya berikutnya, label ID/EN.
+- Dihapus 5 komponen orphan: `OnboardingGatePortal`, `AIRegenerationDistributor`, `GroupRegenerationCreator`, `MentorTransitionManager`, `AddressPlacesPicker`.
+- Nama pengguna menggantikan user id mentah di Panel Divisi & diskusi event. Loop `findUnique` per author diganti satu `findMany` (anti-pattern TiDB).
+- Nav: `pwa-settings` dilepas dari sidebar (sudah ada di Akun Saya → Notifikasi); override nav SUPERADMIN yang tidak pernah berefek dihapus.
+
+### Commands
+
+```powershell
+npm run db:migrate:local            # termasuk migrasi 22 + RUNBOOK_DUE
+npm run db:seed:church-calendar
+npm run db:schema:check
+npm run lint; npm run test
+npm run dev:all
+```
+
+---
+
+## Fix — bentuk data gift (3 Sep 2026)
+
+**Gejala:** `#/portal/superadmin/jethro-placement` crash dengan React error #31 (`object with keys {key, label, score}`).
+
+**Akar masalah:** gift test menyimpan `giftsTop5` sebagai `{ key, label, score }` ([`src/data/giftBank.ts`](src/data/giftBank.ts)), tapi `normalizeGiftKey` di server melewatkan non-string apa adanya. Objeknya lalu dipakai sebagai property key di [`server/engine.mjs`](server/engine.mjs) dan ter-coerce jadi `"[object Object]"`, sehingga `giftCoverage` selalu 0 dan `globalFreq` selalu 1 — **skor Gift Diversity selalu 100%**. Jadi bukan hanya crash render, rekomendasi penempatan Jethro ikut salah.
+
+Ketidakcocokan kedua: `giftCoverage` kelompok dibangun dari data mentah sementara gift newcomer dipetakan ke nama Inggris, jadi `BELAS_KASIH` tidak pernah cocok dengan `Mercy` — berlaku juga untuk data lama berbentuk string.
+
+### Done
+
+- `normalizeGiftKey` membuka bentuk objek (`key` → fallback `label`) lalu memetakan ke nama kanonik.
+- `giftCoverage` di `engine.mjs` dinormalisasi, jadi kedua sisi perbandingan memakai kunci yang sama.
+- [`src/lib/gifts.ts`](src/lib/gifts.ts) — `normalizeGifts` / `giftLabels` bersama; dipakai `JethroPlacementReview` (2 titik render) dan `ProfileGiftsSection` (menggantikan salinan lokal).
+- Tipe `giftsTop5` / `newcomerGiftsTop5` dikoreksi dari `string[]` (yang menyembunyikan bug ini dari `tsc`) menjadi `unknown`.
+- Test: `tests/unit/gift-normalize.test.ts`, `tests/unit/gifts.test.ts`.
+
+---
+
+## Prior — Division ops + check-in (Sep 2026)
+
+**Goal:** Scanner hari H di Koinonia, kanal WhatsApp (tautan saja), auto-provision folder event Drive, schema payung gerejawi.
+
+### Done
+
+- Tab **Check-in** di Panel Divisi → Koinonia (`EventCheckInTab`)
+- API `POST/GET /api/events/:slug/check-in` + walk-in; parse `GEHC-BT|{poolId}|{ms}`
+- Panel **Kanal WhatsApp** + `ChannelLink` CRUD (lapis permanen vs event)
+- Program & Event: payung `ChurchProgram`, buat event operasional (kind + WA + divisi), grid `MinistryMonthPlan`
+- `server/gdrive-events.mjs` — folder `[EV:<slug>:<DIV>]` + subfolder template (termasuk Koinonia `Check-in/`)
+
+### Commands
+
+```powershell
+npm run db:migrate:local
+npm run test -- tests/unit/check-in-code.test.ts
+npm run dev:all
+```
+
+---
+
+## Staging QA — review teman (2 Sep 2026)
+
+**Goal:** Kerjakan temuan PDF di `docs/staging/` (accordion, countdown, hover peran, Our People, QR hari H, popup assign, notifikasi role).
+
+### Done
+
+- Tracker: [`docs/staging/2026-09-02-review-teman.md`](docs/staging/2026-09-02-review-teman.md)
+- STG-01, 02, 03, 04, 06, 07, 08
+- STG-05 (folder foto kelompok) — lihat **Deferred** di atas
+
+### Commands
+
+```powershell
+npm run db:migrate:local
+npm run db:generate
+npm run dev:all
+```
+
+---
+
+## Platform Operator RBAC (Episode — platform admin split)
+
+**Goal:** Pisahkan operator bootstrap (`#/admin`) dari jemaat; passkey + break-glass; platform admin grant.
+
+### Done
+
+- Prisma: `PlatformOperator`, `PlatformAdminGrant`, `PlatformAuditLog`, `User.accountKind`
+- `server/platform-auth.mjs`, `server/lib/platform-rbac.mjs`, `server/routes/operator.mjs`
+- `#/admin` shell (`AdminLayout`, `OperatorLogin`, `PlatformAdminsPanel`)
+- Endpoint audit: `/api/admin/*` → `requirePlatformAdmin` / `requirePlatformRoot`
+- Docs: [`docs/tech/platform-operator.md`](docs/tech/platform-operator.md)
+
+### Commands
+
+```powershell
+npm run db:migrate:platform-operators
+npm run db:generate
+npm run db:seed:operator:staging
+npm run operator:bootstrap:prod   # production once
+npm run test -- tests/unit/platform-rbac.test.ts
+npx playwright test tests/e2e/admin-shell.spec.ts
+```
+
+---
+
+## Current priority — Panca Tugas v2 restructure
+
+**Goal:** 20 sub-divisi (5 pillar + BZP), HoD per panca tugas, BZP tanpa HoD (Fladyna → Penggalangan Dana), label ID/EN, runbook operasional.
+
+### Done
+
+- [`docs/product/pancatugas-operating-model.md`](docs/product/pancatugas-operating-model.md) — RACI + runbook H-21→H+7
+- [`src/lib/pantatugas.ts`](src/lib/pantatugas.ts) — SUB_DIVISIONS v2 + migration map
+- [`src/data/initialData.ts`](src/data/initialData.ts) — struktur seed dengan HoD + open roles
+- [`src/components/public/StrukturSection.tsx`](src/components/public/StrukturSection.tsx) — HoD block + badge rekrutmen
+- `server/seed-org-tree.ts` — slot Kepala Divisi per pillar
+- `server/migrate-pancatugas-subdivisions.cjs` + `npm run db:migrate:pancatugas`
+
+### Commands (apply to staging DB + Drive)
+
+```powershell
+npm run db:migrate:pancatugas
+npm run db:seed-users:staging
+npm run db:seed:org-tree:staging
+npm run drive:provision
+# Portal → Integrasi → Audit Sinkronisasi Drive
+npm run test -- tests/unit/pantatugas.test.ts
+```
+
+---
+
+## Prior — Drive visual + logo (staging + prod)
+
+**Goal:** Slot visual publik (termasuk logo GEHC) di Google One, stem tetap. SA baca; unggah via OAuth. Staging dan production punya root Drive terpisah.
+
+### Done
+
+- Folder `Website Visual [PUBLIK]` + subfolder `brand/` di `drive-provision`
+- Slot `brand/logo-gehc` → Navbar, Footer, PortalLogin, PortalLayout
+- `npm run drive:auth` + `drive:seed-visuals` (staging) + `drive:seed-visuals:prod`
+- `GET /api/media/slots` lookup by filename (bukan urutan Event Gallery)
+- Portal menyembunyikan tag zona `[MENTOR]` dll.; ACL tetap di nama Drive
+- Peta + pemilik aset: [`docs/product/website-visuals.md`](docs/product/website-visuals.md)
+
+### Commands
+
+```powershell
+npm run drive:provision
+npm run drive:auth
+npm run drive:seed-visuals
+npm run drive:seed-visuals:prod
+npm run dev:all
+```
+
+Redirect OAuth: `http://127.0.0.1:8765/drive-auth/callback`. Token: `.gdrive-user-token.json`. Fallback: `npm run drive:seed-visuals:local` lalu seret ke Drive.
+
+---
+
+## Prior — Onboarding UX staging fixes
 
 **Goal:** WA group CTA, portal terbatas saat onboarding, Google link fix, nama KTP langsung.
 
@@ -29,6 +357,8 @@ QRIS / event URL: `https://gehcpage.vercel.app/#/event/bakutau`
 ---
 
 ## Prior — Auth route split + EventAttendee
+
+Placeholder — tidak dilanjutkan; tidak ada scope.
 
 ---
 
@@ -128,10 +458,3 @@ Lihat [`docs/tech/database-migrations.md`](docs/tech/database-migrations.md).
 | `docs/tech/database-migrations.md` | Panduan migrasi |
 | `server/createApp.mjs` | Express factory |
 | `server/routes/onboarding.mjs` | Waiting pool routes |
-
-### Next
-
-- Migrate more `server/index.mjs` domains to `server/routes/*`
-- Full `AuthContext` extraction from `AppContext`
-- Component migration to design tokens (reduce raw hex)
-- Vitest coverage for `roles.ts`, `profile-fields.mjs`

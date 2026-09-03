@@ -9,7 +9,6 @@ export const PUBLIC_ROUTES = [
   'join',
   'login',
   'register',
-  'gallery',
   'benzarpreneurship',
 ] as const;
 
@@ -23,10 +22,12 @@ export const LEGACY_HASH_MAP: Record<string, PublicRouteId> = {
   'weekly-info': 'bulletin',
   activity: 'events',
   warta: 'bulletin',
+  gallery: 'bulletin',
 };
 
 export function tabFromHash(hash: string): PublicRouteId {
   const path = hash.replace(/^#\/?/, '').split('?')[0];
+  if (path === 'portal' || path.startsWith('portal/')) return 'beyonders';
   if (path.startsWith('event/')) return 'event-signup';
   if ((PUBLIC_ROUTES as readonly string[]).includes(path)) return path as PublicRouteId;
   if (LEGACY_HASH_MAP[path]) return LEGACY_HASH_MAP[path];

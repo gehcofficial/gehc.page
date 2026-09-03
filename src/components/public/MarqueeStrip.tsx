@@ -18,7 +18,7 @@ export const MarqueeStrip: React.FC = () => {
           {[...groups, ...groups].map((grp, idx) => (
             <div
               key={`${grp.id}-${idx}`}
-              onClick={() => setPublicTab('groups')}
+              onClick={() => setPublicTab('beyonders')}
               className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/70 hover:bg-white border border-[#D9D7D0]/60 shadow-sm shrink-0 transition-all hover:scale-105"
             >
               <div

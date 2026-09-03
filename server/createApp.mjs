@@ -1,5 +1,6 @@
 import express from 'express';
 import { attachUser } from './auth.mjs';
+import { attachPlatformContext } from './lib/platform-rbac.mjs';
 
 /**
  * Factory for Express app with shared middleware.
@@ -32,6 +33,7 @@ export function createApp() {
 
   app.use(express.json({ limit: '2mb' }));
   app.use(attachUser);
+  app.use(attachPlatformContext);
 
   return app;
 }

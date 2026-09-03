@@ -35,8 +35,7 @@ export async function joinWithGoogleCredential(credential: string, code: string)
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error || 'Gabung via Google gagal.');
-  window.location.hash = '#/portal';
-  window.location.reload();
+  await finishAuthRedirect('#/portal');
 }
 
 export async function loadGoogleClientId(): Promise<string | null> {

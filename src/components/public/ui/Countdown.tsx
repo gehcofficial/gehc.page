@@ -2,27 +2,30 @@ import React, { useEffect, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 import { useLang } from '../../../context/LangContext';
 
-const TARGET_ISO = '2026-09-12T15:00:00+07:00'; // Sabtu 12 Sep 2026, 15:00 WIB
+const FALLBACK_ISO = '2026-09-12T15:00:00+07:00';
 
 function diffParts(target: Date, now: Date) {
   const ms = Math.max(0, target.getTime() - now.getTime());
   const days = Math.floor(ms / 86400000);
   const hours = Math.floor((ms % 86400000) / 3600000);
   const min = Math.floor((ms % 3600000) / 60000);
-  return { days, hours, min, past: ms === 0 };
+  const sec = Math.floor((ms % 60000) / 1000);
+  return { days, hours, min, sec, past: ms === 0 };
 }
 
-/** Countdown menuju BAKU TAU 4.0 — 12 Sep 2026 15:00 WIB. */
-export const Countdown: React.FC = () => {
+/** Countdown menuju BAKU TAU 4.0 — tick tiap detik. */
+export const Countdown: React.FC<{ targetIso?: string | null }> = ({ targetIso }) => {
   const { t } = useLang();
-  const target = new Date(TARGET_ISO);
+  const target = new Date(targetIso || FALLBACK_ISO);
   const [parts, setParts] = useState(() => diffParts(target, new Date()));
 
   useEffect(() => {
-    const id = setInterval(() => setParts(diffParts(target, new Date())), 30000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const next = new Date(targetIso || FALLBACK_ISO);
+    const tick = () => setParts(diffParts(next, new Date()));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [targetIso]);
 
   if (parts.past) {
     return (
@@ -36,6 +39,7 @@ export const Countdown: React.FC = () => {
     { v: parts.days, l: t.events.days },
     { v: parts.hours, l: t.events.hours },
     { v: parts.min, l: t.events.min },
+    { v: parts.sec, l: t.events.sec },
   ];
 
   return (

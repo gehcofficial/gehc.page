@@ -78,3 +78,51 @@ export function validateOriginForm(params: {
   }
   return null;
 }
+
+export type OriginFormState = {
+  originRegion: OriginRegion | '';
+  originSulutPlace: string;
+  originSulutOther: string;
+  originNonSulut: string;
+};
+
+export function emptyOriginForm(): OriginFormState {
+  return { originRegion: '', originSulutPlace: '', originSulutOther: '', originNonSulut: '' };
+}
+
+/** Balikkan string tersimpan (`Sulut · Manado`) ke field form. */
+export function parseOriginString(origin?: string | null): OriginFormState {
+  const empty = emptyOriginForm();
+  if (!origin?.trim()) return empty;
+  const s = origin.trim();
+  if (/^sulut\b/i.test(s)) {
+    const place = s.replace(/^sulut\s*·\s*/i, '').trim();
+    const known = SULUT_PLACES.find((p) => p.value === place && p.value !== 'LAINNYA_SULUT');
+    if (known) return { originRegion: 'SULUT', originSulutPlace: known.value, originSulutOther: '', originNonSulut: '' };
+    return { originRegion: 'SULUT', originSulutPlace: 'LAINNYA_SULUT', originSulutOther: place, originNonSulut: '' };
+  }
+  if (/^luar sulut\b/i.test(s)) {
+    return {
+      originRegion: 'NON_SULUT',
+      originSulutPlace: '',
+      originSulutOther: '',
+      originNonSulut: s.replace(/^luar sulut\s*·\s*/i, '').trim(),
+    };
+  }
+  return empty;
+}
+
+export function asalFromOrigin(origin?: string | null): {
+  asalRegion: 'SULUT' | 'NON_SULUT' | 'KOSONG';
+  asalPlace: string;
+} {
+  const parsed = parseOriginString(origin);
+  if (parsed.originRegion === 'SULUT') {
+    const place = parsed.originSulutPlace === 'LAINNYA_SULUT' ? parsed.originSulutOther : parsed.originSulutPlace;
+    return { asalRegion: 'SULUT', asalPlace: place };
+  }
+  if (parsed.originRegion === 'NON_SULUT') {
+    return { asalRegion: 'NON_SULUT', asalPlace: parsed.originNonSulut };
+  }
+  return { asalRegion: 'KOSONG', asalPlace: origin?.trim() || '' };
+}

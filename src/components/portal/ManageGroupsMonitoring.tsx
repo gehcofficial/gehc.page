@@ -25,6 +25,8 @@ import {
   Filter,
   TreePine,
 } from 'lucide-react';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
 
 export const ManageGroupsMonitoring: React.FC = () => {
   const {
@@ -46,6 +48,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
     deleteGroupMember,
     canAccess,
   } = useApp();
+  const { t } = useLang();
+  const mon = t.portal.monitoring;
 
   const hasAssignedGroup = (isGroupMentor || isMentee) && userAssignedGroupId;
   const availableGroups = hasAssignedGroup
@@ -216,6 +220,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         )}
       </div>
 
+      <PanelGuide guideId="groups-monitoring" />
+
       {/* Group Selector Pills (If Superadmin/Committee, can pick from all 10) */}
       {(isSuperAdmin || isCommittee) && (
         <div className="bg-white rounded-[28px] p-4 border border-[#D9D7D0]/50 shadow-sm">
@@ -290,7 +296,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <Plus className="w-3.5 h-3.5 text-[#FF416C]" />
-          <span>Form Input Monitoring Mingguan</span>
+          <span>{mon.tabForm}</span>
         </button>
 
         <button
@@ -302,7 +308,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <FileText className="w-3.5 h-3.5 text-blue-500" />
-          <span>Riwayat Laporan ({groupRecords.length})</span>
+          <span>{mon.tabHistory} ({groupRecords.length})</span>
         </button>
 
         <button
@@ -314,7 +320,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <Users className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Daftar Anggota Kelompok ({groupMembers.length})</span>
+          <span>{mon.tabMembers} ({groupMembers.length})</span>
         </button>
 
         <button
@@ -326,7 +332,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <TreePine className="w-3.5 h-3.5 text-amber-500" />
-          <span>Family Tree</span>
+          <span>{mon.tabTree}</span>
         </button>
 
         <button
@@ -338,7 +344,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <CalendarCheck2 className="w-3.5 h-3.5 text-cyan-500" />
-          <span>Absensi Mingguan</span>
+          <span>{mon.tabAttendance}</span>
         </button>
       </div>
 

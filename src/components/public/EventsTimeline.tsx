@@ -1,10 +1,11 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { CalendarDays, MapPin, ArrowRight, Users, MessageCircle } from 'lucide-react';
+import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 import { Countdown } from './ui/Countdown';
 import { EventVenueMap } from './ui/EventVenueMap';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -18,9 +19,9 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
 }) => {
   const { contentItems, setPublicTab } = useApp();
   const { t } = useLang();
+  const slots = useMediaSlots();
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [eventClosed, setEventClosed] = useState(false);
-  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
   const [venue, setVenue] = useState<{
     venueName?: string;
     locationDetail?: string;
@@ -35,7 +36,6 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       .then((d) => {
         setRegisteredCount(d.stats?.registered ?? null);
         setEventClosed(d.status === 'ARCHIVED');
-        setWhatsappGroupUrl(d.whatsappGroupUrl || null);
         setVenue({
           venueName: d.venueName,
           locationDetail: d.locationDetail,
@@ -88,10 +88,14 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       <div className="mt-12 space-y-10">
         {/* Kartu unggulan */}
         {featured && (
-          <Reveal>
+          <div>
             <div className="relative overflow-hidden rounded-[36px] bg-[#111111] text-white shadow-2xl">
               <img
-                src={featured.bannerUrl}
+                src={
+                  featured.id === 'cnt-bakutau'
+                    ? slots.kegiatan.bakuTau || featured.bannerUrl || slots.kegiatan.bannerDefault
+                    : featured.bannerUrl || slots.kegiatan.bannerDefault
+                }
                 alt={featured.title}
                 loading="lazy"
                 decoding="async"
@@ -138,7 +142,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 </div>
 
                 <div className="shrink-0 space-y-3 self-start lg:self-end">
-                  {!eventClosed && <Countdown />}
+                  {!eventClosed && <Countdown targetIso={venue?.eventDate} />}
                   {registeredCount !== null && (
                     <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">
                       <Users className="w-3.5 h-3.5" /> {registeredCount} peserta terdaftar
@@ -154,16 +158,6 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                   >
                     {t.events.joinCta}
                   </button>
-                  {whatsappGroupUrl && (
-                    <a
-                      href={whatsappGroupUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-emerald-400/40 text-emerald-300 text-[10px] font-bold"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" /> Grup WA Peserta
-                    </a>
-                  )}
                   </div>
                   ) : (
                     <p className="text-[10px] font-bold text-white/50 text-center uppercase tracking-wider">
@@ -173,7 +167,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 </div>
               </div>
             </div>
-          </Reveal>
+          </div>
         )}
 
         {/* Garis waktu lampau */}

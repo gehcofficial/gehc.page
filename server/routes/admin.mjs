@@ -1,9 +1,9 @@
-import { requireRole } from '../auth.mjs';
+import { requirePlatformRoot } from '../lib/platform-rbac.mjs';
 import { getPrisma } from '../db.mjs';
 
 /** Admin utility routes — SUPERADMIN only. */
 export function registerAdminRoutes(app, { wrap }) {
-  app.post('/api/admin/clean-staging', requireRole('SUPERADMIN'), wrap(async (req, res) => {
+  app.post('/api/admin/clean-staging', requirePlatformRoot(), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 

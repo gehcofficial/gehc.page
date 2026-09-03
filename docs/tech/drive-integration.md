@@ -13,6 +13,11 @@ diskusi konsultasi "service account principle".
   **tag zona di dalam nama folder** — mis. `Event Gallery [PUBLIK]`.
 - Prinsip: *least privilege* tanpa kelola N kredensial; pengurus non-teknis
   cukup menamai folder dengan benar untuk mengatur akses.
+- **Portal** menampilkan nama folder tanpa tag (`displayFolderName`). Nama di
+  Google Drive jangan diubah — tag adalah ACL.
+- **Tulis file (Google One):** SA tidak punya kuota My Drive. Unggah memakai
+  OAuth akun pemilik (`npm run drive:auth` → `npm run drive:seed-visuals`).
+  Shared Drive / Workspace tidak wajib.
 
 ## 2. Setup Console (sekali jalan)
 
@@ -40,25 +45,31 @@ tag eksplisit pada anak me-narrowing.
 
 ```
 ROOT_GEHC/
-├── Event Gallery [PUBLIK]/          ← MediaGallery landing
-├── Warta Publik [PUBLIK]/
+├── Website Visual [PUBLIK]/         ← slot nama-tetap (hero, collage, BZP, cover)
+│   ├── brand/  landing/  warta/  kegiatan/  benzarpreneurship/
+│   ├── kelompok/  pengurus/  testimoni/
+│   └── _PETA-VISUAL.txt
+├── Event Gallery [PUBLIK]/          ← warisan; landing tidak lagi memakai urutan file di sini
+├── Warta Publik [PUBLIK]/           ← PNG/PDF + foto edisi (pengganti Galeri publik)
+│   └── _Template Edisi/foto/
 ├── Ruang Anggota [MENTEE]/          ← semua yang login
 ├── Kelompok Mentoring [MENTOR]/     ← WAJIB ada (audit)
 │   ├── RUACH [GROUP:RUACH]/           ← mentor binaan + mentee grup itu
 │   ├── AGAPE [GROUP:AGAPE]/
 │   └── …10 grup…                      (nama = tabel `groups`, case-insensitive)
 ├── Liturgia [MENTOR]/               ← pantatugas (anak = subdivisi)
-│   ├── Liturgi & Musik/  Pendoa/  Intercessor/
+│   ├── Liturgi & Ibadah/  Musik & Vokal/  Doa & Intercession/
 ├── Didaskalia [MENTOR]/
-│   └── Kurikulum & Pembekalan/
+│   └── Kurikulum Pemuridan/  Pembekalan Tim/
 ├── Koinonia [MENTOR]/
-│   └── Program Persekutuan/  Public Relations (PR)/
+│   └── Program & Acara/  Persekutuan & Integrasi/  Hubungan & Komunikasi/
 ├── Diakonia [MENTOR]/
-│   └── Logistik/  Konsumsi/  Medis/
+│   └── Logistik & Fasilitas/  Konsumsi & Keramahan/  Kesehatan & Keselamatan/
+│       Kasih Peduli & Benevolence/  Dukungan Perantau/
 ├── Marturia [MENTOR]/
-│   └── Dokumentasi/  Desain & Publikasi/  Penginjilan/
-├── Benzarpreneurship - BZP [MENTOR]/   ← usaha & dana (Kepala: Fladyna)
-│   └── Merchandise/  Fundraising/  Donation/
+│   └── Dokumentasi Visual/  Desain & Publikasi/  Kesaksian & Story/  Penginjilan & Misi/
+├── Benzarpreneurship - BZP [MENTOR]/   ← lapor BOD (tanpa HoD); PIC Fundraising: Fladyna
+│   └── Merchandise & Produk/  Penggalangan Dana/  Persembahan & Donasi/
 ├── Laporan Internal [KOMISI]/       ← output Jethro, arsip komisi
 ├── Ringkasan BPMJ [BPMJ]/           ← baca-only BPMJ
 └── Arsip Generasi [ALUMNI]/         ← alumni tetap bisa mengunjungi
@@ -90,6 +101,14 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 - BOD Tim Kerja = COMMITTEE + `struktur_members.division = 'TIMKERJA'` (atau kosong) → akses semua event.
 - PIC = COMMITTEE + `struktur_members.division` tertentu → akses hanya event dengan divisi yang sama.
 - Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk.
+- Subfolder template per pillar (idempotent):
+  - Koinonia: `Check-in/` `Welcome/` `Rundown/`
+  - Liturgia: `Rundown ibadah/` `Rehearsal/`
+  - Didaskalia: `Materi/`
+  - Diakonia: `Logistik/` `Konsumsi/`
+  - Marturia: `Dokumentasi/` `Desain/`
+  - BZP: `Kasir/`
+- Data check-in tetap di TiDB; folder `Check-in/` untuk CSV/PDF dan berkas manusia. Provision hanya jika `GDRIVE_WRITE=1`.
 
 ## 5. Endpoint
 
@@ -100,6 +119,9 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 | `GET /api/drive/file/:id/content` | stream konten; policy dicek via rantai induk file |
 | `GET /api/drive/policy` | matriks zona vs user saat ini |
 | `GET /api/drive/audit` *(SUPERADMIN)* | audit sinkronisasi DB ↔ Drive |
+| `GET /api/media/slots` | lookup visual website by filename di `Website Visual [PUBLIK]` |
+| `GET /api/media/landing` | subset landing (hero + collage) |
+| `GET /api/media/warta-album` | foto edisi di `Warta Publik [PUBLIK]` |
 
 403 dikembalikan dengan alasan manusiawi; frontend menampilkan badge
 **"Terbatas"** alih-alih error mentah.
@@ -122,13 +144,17 @@ Alur kerja rutin pengurus: tambah grup/sub-divisi di portal → jalankan Audit
 
 ```bash
 npm run drive:provision
+npm run drive:seed-visuals
 ```
 
 - Prasyarat: share folder ROOT ke service account sebagai **Content Manager**
   (Viewer tidak bisa membuat folder).
 - Sumber struktur = **database aktif**: grup aktif → `[GROUP:x]`, subdivisi
-  pantatugas → subfolder pillar, plus zona statis. Total ±36 folder.
+  pantatugas → subfolder pillar (20 sub-divisi v1), plus zona statis.
+- Migrasi rename: `npm run db:migrate:pancatugas` → `npm run db:seed-users:staging` → `npm run drive:provision` → Audit di portal.
 - Idempotent — aman diulang kapan pun (misal setelah tambah grup baru).
+- `drive:seed-visuals` mengunggah placeholder + `_PETA-VISUAL.txt` ke root **staging**.
+- `drive:seed-visuals:prod` sama, ke root di `.env.production` (lihat [`website-visuals.md`](../product/website-visuals.md)).
 - Scope tulis hanya dipakai script ini; runtime aplikasi tetap readonly.
 
 ## 6c. Google Drive vs TiDB — Pembagian Peran
@@ -185,5 +211,8 @@ Sama seperti TiDB (dua cluster), Drive memakai dua root terpisah:
 - Provisi per lingkungan:
   `npm run drive:provision`          → root di .env (staging)
   `npm run drive:provision:prod`     → root di .env.production
+- Seed visual (OAuth pemilik Drive):
+  `npm run drive:seed-visuals`       → staging
+  `npm run drive:seed-visuals:prod`  → production
 - Kedua root wajib di-share ke service account sebagai Content Manager.
 - Script selalu mencetak root mana yang dipakai — cek sebelum Enter.

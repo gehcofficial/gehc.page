@@ -7,6 +7,7 @@
  * - Algoritma greedy dengan scoring berdasarkan gift diversity
  */
 
+import crypto from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -98,8 +99,10 @@ export async function generateRegenerationPlan(
   const menteeGifts: GiftDistribution[] = mentees.map((m) => ({
     userId: m.id,
     name: m.name,
-    giftsTop5: Array.isArray(m.giftsTop5) ? m.giftsTop5 : [],
-    giftsScores: m.giftsScores as Record<string, number> || {},
+    giftsTop5: Array.isArray(m.giftsTop5)
+      ? m.giftsTop5.filter((g): g is string => typeof g === 'string')
+      : [],
+    giftsScores: (m.giftsScores as Record<string, number>) || {},
   }));
 
   // Fetch current group members and their gifts
@@ -117,9 +120,12 @@ export async function generateRegenerationPlan(
   const groupAssignments: GroupAssignment[] = groups.map((g) => {
     const memberGifts: Record<string, number> = {};
     for (const m of g.members) {
-      if (m.user?.giftsTop5) {
-        for (const gift of m.user.giftsTop5) {
-          memberGifts[gift] = (memberGifts[gift] || 0) + 1;
+      const top5 = m.user?.giftsTop5;
+      if (Array.isArray(top5)) {
+        for (const gift of top5) {
+          if (typeof gift === 'string') {
+            memberGifts[gift] = (memberGifts[gift] || 0) + 1;
+          }
         }
       }
     }
@@ -221,15 +227,27 @@ export async function generateRegenerationPlan(
  * Apply regeneration plan to database
  */
 export async function applyRegenerationPlan(plan: RegenerationPlan, period: string): Promise<void> {
+  const userIds = plan.assignments.flatMap((a) => a.suggestedMembers);
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const userById = new Map(users.map((u) => [u.id, u]));
+
   for (const assignment of plan.assignments) {
     for (const userId of assignment.suggestedMembers) {
+      const user = userById.get(userId);
       await prisma.groupMember.create({
         data: {
           id: `gm-${crypto.randomUUID()}`,
           groupId: assignment.groupId,
           userId,
           batchPeriod: period,
-          role: 'MENTEE',
+          familyRole: 'MENTEE',
+          name: user?.name ?? 'Mentee',
+          email: user?.email ?? null,
         },
       });
     }

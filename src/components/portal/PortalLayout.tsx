@@ -1,17 +1,20 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
 import { ManageWeeklyInfo } from './ManageWeeklyInfo';
 import { ManageActivities } from './ManageActivities';
+import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
+import { WhatsAppChannelsPanel } from './WhatsAppChannelsPanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
-import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { displayAvatar } from '../../lib/avatar';
 import NotificationPermissionBanner from '../pwa/NotificationPermissionBanner';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import { PeopleInvites } from './PeopleInvites';
@@ -19,9 +22,23 @@ import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
-import { MyProfilePanel, type ProfileSectionId } from './MyProfilePanel';
+import { type ProfileSectionId } from './MyProfilePanel';
 import { OnboardingBanner } from './OnboardingBanner';
+import { ProfileIncompleteBanner } from './ProfileIncompleteBanner';
+import { MustChangePasswordGate } from './MustChangePasswordGate';
+import { InvitedWelcomeModal } from './InvitedWelcomeModal';
 import { EventInfoPanel } from './EventInfoPanel';
+import { RolePickerScreen } from './RolePickerScreen';
+import { AccountHub } from './AccountHub';
+import {
+  parsePortalHash,
+  buildPortalPath,
+  roleToNamespace,
+  defaultPageForRole,
+  isPortalHash,
+  type AccountSection,
+} from '../../lib/portal-routes';
+import { buildPortalNavItems } from '../../lib/portal-nav-config';
 import {
   LayoutDashboard,
   BookOpen,
@@ -42,7 +59,15 @@ import {
   ChevronRight,
   Bell,
   Network,
+  MessageSquareQuote,
+  MessageCircle,
+  CircleHelp,
 } from 'lucide-react';
+import { useLang } from '../../context/LangContext';
+import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
+import { PortalHelpDrawer } from './PortalHelpDrawer';
+import { PanelGuide } from './PanelGuide';
+import { LanguageToggle } from '../public/ui/LanguageToggle';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
 
@@ -55,16 +80,29 @@ export const PortalLayout: React.FC = () => {
     isMentee,
     setActiveView,
     addToast,
-    demoMode,
     authUser,
-    ssoClientId,
-    sessionSource,
+    myRoleOptions,
+    setActiveUserRole,
   } = useApp();
+  const { t, lang } = useLang();
 
-  const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL'
-    || authUser?.accountStatus === 'PENDING';
+  const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
-  const [activeTab, setActiveTab] = useState<string>(() => (isOnboarding ? 'my-profile' : 'dashboard'));
+  const portalRoute = parsePortalHash(typeof window !== 'undefined' ? window.location.hash : '');
+  const isAccountRoute = portalRoute?.namespace === 'account';
+  const showRolePicker = portalRoute?.namespace === null && myRoleOptions.length > 1;
+
+  const initialTab = () => {
+    if (isAccountRoute) return 'account';
+    const page = portalRoute?.page;
+    if (page && page !== 'home') return page === 'my-profile' ? 'account' : page;
+    return isOnboarding ? 'event-info' : 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [accountSection, setAccountSection] = useState<AccountSection>(
+    portalRoute?.accountSection || 'profile',
+  );
   const [profileSection, setProfileSection] = useState<ProfileSectionId | undefined>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -74,6 +112,7 @@ export const PortalLayout: React.FC = () => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
@@ -98,46 +137,81 @@ export const PortalLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isOnboarding && activeTab !== 'my-profile' && activeTab !== 'event-info') {
-      setActiveTab('my-profile');
+    const syncFromHash = () => {
+      if (!isPortalHash(window.location.hash)) return;
+      const route = parsePortalHash(window.location.hash);
+      if (!route) return;
+      if (route.namespace === 'account') {
+        setActiveTab('account');
+        setAccountSection(route.accountSection || 'profile');
+        return;
+      }
+      if (!route.namespace) return;
+      const page = route.page === 'home' ? defaultPageForRole(currentRole, isOnboarding) : route.page;
+      if (page === 'my-profile') {
+        setActiveTab('account');
+        window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+        return;
+      }
+      setActiveTab(page);
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, [authUser?.id, isOnboarding, currentRole]);
+
+  useEffect(() => {
+    if (isOnboarding && activeTab !== 'my-profile' && activeTab !== 'event-info' && activeTab !== 'account') {
+      setActiveTab('event-info');
     }
   }, [isOnboarding, authUser?.id]);
 
-  const ONBOARDING_TAB_IDS = new Set(['my-profile', 'event-info']);
+  useEffect(() => {
+    if (!authUser || isOnboarding || myRoleOptions.length !== 1) return;
+    const route = parsePortalHash(window.location.hash);
+    if (route?.namespace === null) {
+      const role = myRoleOptions[0];
+      window.location.hash = buildPortalPath({
+        namespace: roleToNamespace(role),
+        page: defaultPageForRole(role, false),
+      }).slice(1);
+    }
+  }, [authUser?.id, myRoleOptions.length, isOnboarding]);
 
-  const allNavItems = [
-    { id: 'my-profile', label: 'Profil saya', icon: User, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-    { id: 'event-info', label: 'Info Event', icon: Calendar, roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama', subtitle: 'BAKU TAU & grup WA' },
-    { id: 'dashboard', label: 'Dashboard & Ringkasan', icon: LayoutDashboard, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-    { id: 'people', label: 'Orang & Undangan', icon: UsersRound, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Akun & link undangan' },
-    { id: 'onboarding', label: 'Onboarding Pipeline', icon: ClipboardList, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
-    { id: 'jethro-placement', label: 'Review Penempatan', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
-    { id: 'youth-gehc', label: 'Jemaat', icon: Users, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
-    { id: 'org-hierarchy', label: 'Kelola Hirarki', icon: Network, roles: ['SUPERADMIN', 'KOMISI'], group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
-    { id: 'groups-monitoring', label: isGroupMentor ? 'Monitoring Kelompok Binaan' : isMentee ? 'Monitoring Kelompok Saya' : 'Monitoring 10 Kelompok', icon: Users, roles: ['SUPERADMIN', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
-    { id: 'jethro', label: 'Regenerasi Kelompok', icon: Sparkles, roles: ['SUPERADMIN', 'KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
-    { id: 'content-weekly', label: 'Kelola Warta Pemuda', icon: BookOpen, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS publikasi warta' },
-    { id: 'content-activities', label: 'Kelola Agenda Kegiatan', icon: Calendar, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Konten', subtitle: 'CMS agenda publik' },
-    { id: 'media-guide', label: 'Panduan Media (Drive)', icon: Images, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Konten' },
-    { id: 'struktur', label: 'Struktur Organisasi', icon: ShieldCheck, roles: ['SUPERADMIN', 'COMMITTEE'], group: 'Struktur' },
-    { id: 'events', label: 'Program & Event', icon: Calendar, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace per event' },
-    { id: 'divisions', label: 'Panel Divisi (6 Divisi)', icon: Users, roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE'], group: 'Kerja', subtitle: 'Workspace permanen divisi' },
-    { id: 'integrations', label: 'Integrasi Google Drive', icon: FolderSync, roles: ['SUPERADMIN', 'KOMISI'], group: 'Sistem' },
-    { id: 'pwa-settings', label: 'PWA & Notifikasi', icon: Bell, roles: ['SUPERADMIN', 'COMMITTEE', 'KOMISI', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Sistem' },
-  ];
+  const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    account: User,
+    'event-info': Calendar,
+    dashboard: LayoutDashboard,
+    people: UsersRound,
+    onboarding: ClipboardList,
+    'jethro-placement': Sparkles,
+    'youth-gehc': Users,
+    'org-hierarchy': Network,
+    'groups-monitoring': Users,
+    jethro: Sparkles,
+    'content-weekly': BookOpen,
+    'content-activities': Calendar,
+    'content-testimonials': MessageSquareQuote,
+    'media-guide': Images,
+    struktur: ShieldCheck,
+    events: Calendar,
+    divisions: Users,
+    'wa-channels': MessageCircle,
+    integrations: FolderSync,
+    'pwa-settings': Bell,
+  };
 
-  const navItems = allNavItems.filter((item) => {
-    if (!item.roles.includes(currentRole)) return false;
-    if (isOnboarding) return ONBOARDING_TAB_IDS.has(item.id);
-    if (item.id === 'event-info') return false;
-    return true;
-  });
+  const navItemDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee }, isOnboarding);
+  const navItems = navItemDefs.map((item) => ({
+    ...item,
+    icon: NAV_ICONS[item.id] || LayoutDashboard,
+  }));
 
   const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
 
   useEffect(() => {
-    if (!isTabAllowed(activeTab)) {
-      setActiveTab(navItems[0]?.id || 'my-profile');
+    if (!isTabAllowed(activeTab) && activeTab !== 'account') {
+      setActiveTab(navItems[0]?.id || 'dashboard');
     }
   }, [currentRole]);
 
@@ -152,14 +226,25 @@ export const PortalLayout: React.FC = () => {
   }
 
   const handleNavClick = (tabId: string) => {
-    if (!isTabAllowed(tabId)) {
-      addToast({ type: 'error', title: 'Akses ditolak', description: 'Menu ini tidak tersedia untuk role kamu.' });
+    if (!isTabAllowed(tabId) && tabId !== 'account') {
+      addToast({ type: 'error', title: t.portal.common.accessDeniedTitle, description: t.portal.common.accessDeniedBody });
       return;
     }
     setActiveTab(tabId);
     setIsMobileMenuOpen(false);
     setHoveredItem(null);
+    if (tabId === 'account') {
+      setAccountSection('profile');
+      window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+      return;
+    }
+    const ns = roleToNamespace(currentRole);
+    window.location.hash = buildPortalPath({ namespace: ns, page: tabId }).slice(1);
   };
+
+  if (showRolePicker && !isOnboarding) {
+    return <RolePickerScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex flex-col md:flex-row text-[#1B1B1B]">
@@ -167,20 +252,21 @@ export const PortalLayout: React.FC = () => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#D9D7D0] sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center text-white font-bold text-xs">
-            GEHC
-          </div>
+          <GehcLogo size={32} />
           <div>
-            <h4 className="text-xs font-bold leading-tight">User Portal</h4>
+            <h4 className="text-xs font-bold leading-tight">{t.portal.layout.userPortal}</h4>
             <span className="text-[10px] text-[#8C8880]">{currentTenant.name}</span>
           </div>
         </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-xl bg-gray-100 text-[#1B1B1B]"
-        >
-          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageToggle variant="light" />
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-xl bg-gray-100 text-[#1B1B1B]"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-screen">
@@ -202,11 +288,12 @@ export const PortalLayout: React.FC = () => {
                     : 'gap-2.5 p-2 -ml-1 flex-1 min-w-0 hover:bg-white hover:shadow-sm'
                 }`}
               >
-                <div className={`rounded-xl bg-gradient-to-br from-[#FF416C] to-[#FF4B2B] flex items-center justify-center text-white font-black shadow-md shadow-[#FF416C]/20 shrink-0 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-[#FF416C]/30 group-hover:scale-105 ${
-                  collapsed ? 'w-10 h-10 text-sm' : 'w-9 h-9 text-xs'
-                }`}>
-                  {collapsed ? 'GE' : 'GEHC'}
-                </div>
+                <GehcLogo
+                  size={collapsed ? 40 : 36}
+                  rounded="xl"
+                  fallbackLabel={collapsed ? 'GE' : 'GEHC'}
+                  className="shadow-md shadow-[#FF416C]/20 group-hover:shadow-lg group-hover:shadow-[#FF416C]/30 group-hover:scale-105 transition-all duration-200"
+                />
                 {!collapsed && (
                   <div className="min-w-0 text-left">
                     <h4 className="text-[11px] font-black uppercase text-[#1B1B1B] truncate leading-tight">
@@ -224,7 +311,7 @@ export const PortalLayout: React.FC = () => {
                 <button
                   onClick={() => setCollapsed(true)}
                   className="p-2 rounded-lg text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm transition-all duration-200 shrink-0"
-                  title="Tutup sidebar"
+                  title={t.portal.layout.collapseSidebar}
                 >
                   <PanelLeftClose className="w-4 h-4" />
                 </button>
@@ -235,7 +322,7 @@ export const PortalLayout: React.FC = () => {
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="relative p-2 rounded-lg text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm transition-all duration-200 shrink-0"
-                  title="Notifikasi"
+                  title={t.portal.layout.notifications}
                 >
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
@@ -243,6 +330,15 @@ export const PortalLayout: React.FC = () => {
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
+                </button>
+              )}
+              {!collapsed && (
+                <button
+                  onClick={() => setShowHelp(true)}
+                  className="p-2 rounded-lg text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm transition-all duration-200 shrink-0"
+                  title={t.portal.layout.openHelp}
+                >
+                  <CircleHelp className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -253,7 +349,7 @@ export const PortalLayout: React.FC = () => {
                 <button
                   onClick={() => setCollapsed(false)}
                   className="relative p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-[#FF416C] hover:border-[#FF416C]/30 hover:shadow-md hover:shadow-[#FF416C]/10 transition-all duration-200"
-                  title="Buka sidebar"
+                  title={t.portal.layout.expandSidebar}
                 >
                   <PanelLeftOpen className="w-4 h-4" />
                 </button>
@@ -268,7 +364,7 @@ export const PortalLayout: React.FC = () => {
                 if (collapsed) return null;
                 return (
                   <span key={`h-${row.label}`} className="block px-3 pt-4 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/60">
-                    {row.label}
+                    {portalNavGroup(t, row.label)}
                   </span>
                 );
               }
@@ -311,11 +407,11 @@ export const PortalLayout: React.FC = () => {
                         }`} onClick={() => handleNavClick(item.id)}>
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
-                            <span className="text-[13px] font-semibold truncate">{item.label}</span>
+                            <span className="text-[13px] font-semibold truncate">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                           </div>
                           {item.badge && !isAllowed && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400 font-bold shrink-0">
-                              Locked
+                              {t.portal.common.locked}
                             </span>
                           )}
                         </div>
@@ -342,12 +438,12 @@ export const PortalLayout: React.FC = () => {
                     <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${
                       isActive ? 'text-[#FF416C]' : isAllowed ? 'text-[#8C8880]' : 'text-gray-400'
                     }`} />
-                    <span className="truncate text-[13px]">{item.label}</span>
+                    <span className="truncate text-[13px]">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                   </div>
 
                   {item.badge && !isAllowed && (
                     <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400 font-bold shrink-0">
-                      Locked
+                      {t.portal.common.locked}
                     </span>
                   )}
                 </button>
@@ -361,7 +457,7 @@ export const PortalLayout: React.FC = () => {
               <div className="flex flex-col items-center gap-2">
                 <div className="relative">
                   <img
-                    src={currentUser.avatar}
+                    src={displayAvatar(currentUser.name, currentUser.avatar)}
                     alt={currentUser.name}
                     className="w-9 h-9 rounded-full bg-gray-100 border-2 border-[#D9D7D0]/60 hover:border-[#FF416C]/40 transition-all duration-200"
                   />
@@ -371,7 +467,7 @@ export const PortalLayout: React.FC = () => {
                 <button
                   onClick={() => {
                     setActiveView('public');
-                    addToast({ type: 'info', title: 'Sesi Selesai', description: 'Anda telah kembali ke halaman publik.' });
+                    addToast({ type: 'info', title: t.portal.common.sessionDoneTitle, description: t.portal.common.sessionDoneBody });
                   }}
                   className="w-9 h-9 rounded-xl bg-gray-100/80 hover:bg-red-50 flex items-center justify-center text-[#8C8880] hover:text-red-500 transition-all duration-200"
                 >
@@ -382,7 +478,7 @@ export const PortalLayout: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#D9D7D0]/40">
                   <div className="relative shrink-0">
-                    <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full bg-gray-100 border border-[#D9D7D0]" />
+                    <img src={displayAvatar(currentUser.name, currentUser.avatar)} alt={currentUser.name} className="w-10 h-10 rounded-full bg-gray-100 border border-[#D9D7D0]" />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -391,32 +487,22 @@ export const PortalLayout: React.FC = () => {
                   </div>
                 </div>
 
-                {(demoMode || authUser) && <PortalAccountSwitcher />}
+                {authUser && <PortalAccountSwitcher />}
 
-                {ssoClientId && sessionSource !== 'google' && (
-                  <details className="rounded-xl border border-[#D9D7D0]/60 bg-white overflow-hidden">
-                    <summary className="px-3 py-2.5 text-xs font-bold cursor-pointer select-none hover:bg-[#FAF9F5] transition-colors">
-                      + Login akun Google
-                    </summary>
-                    <div className="p-3 flex justify-center">
-                      <GoogleLoginButton
-                        clientId={ssoClientId}
-                        onCredential={() => window.location.reload()}
-                        onError={(m: string) => addToast({ type: 'error', title: 'Login Google Gagal', description: m })}
-                      />
-                    </div>
-                  </details>
-                )}
+                <div className="flex items-center justify-between px-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">EN / ID</span>
+                  <LanguageToggle variant="light" />
+                </div>
 
                 <button
                   onClick={() => {
                     setActiveView('public');
-                    addToast({ type: 'info', title: 'Sesi Selesai', description: 'Anda telah kembali ke halaman publik.' });
+                    addToast({ type: 'info', title: t.portal.common.sessionDoneTitle, description: t.portal.common.sessionDoneBody });
                   }}
                   className="w-full py-2.5 rounded-xl bg-gray-100/80 hover:bg-red-50 text-xs font-bold text-[#8C8880] hover:text-red-500 transition-all duration-200 flex items-center justify-center gap-1.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Keluar Portal</span>
+                  <span>{t.portal.common.logoutPortal}</span>
                 </button>
               </div>
             )}
@@ -427,7 +513,7 @@ export const PortalLayout: React.FC = () => {
         {showNotifications && (
           <div className="fixed top-16 right-4 z-50 w-80 bg-white rounded-2xl border border-[#D9D7D0] shadow-xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[#D9D7D0]">
-              <h3 className="text-sm font-bold text-[#1B1B1B]">Notifikasi</h3>
+              <h3 className="text-sm font-bold text-[#1B1B1B]">{t.portal.layout.notifications}</h3>
               <button
                 onClick={() => setShowNotifications(false)}
                 className="p-1 rounded-lg hover:bg-gray-100"
@@ -438,7 +524,7 @@ export const PortalLayout: React.FC = () => {
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center text-xs text-[#8C8880]">
-                  Tidak ada notifikasi
+                  {t.portal.layout.noNotifications}
                 </div>
               ) : (
                 notifications.slice(0, 10).map((n) => (
@@ -454,7 +540,7 @@ export const PortalLayout: React.FC = () => {
                     <p className="text-xs font-bold text-[#1B1B1B]">{n.title}</p>
                     <p className="text-[10px] text-[#8C8880] mt-0.5">{n.message}</p>
                     <p className="text-[9px] text-[#D9D7D0] mt-1">
-                      {new Date(n.createdAt).toLocaleString('id-ID')}
+                      {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID')}
                     </p>
                   </div>
                 ))
@@ -470,7 +556,7 @@ export const PortalLayout: React.FC = () => {
                   }}
                   className="w-full py-2 text-[10px] font-semibold text-[#8C8880] hover:bg-gray-100 rounded-lg"
                 >
-                  Tandai semua sudah dibaca
+                  {t.portal.common.markAllRead}
                 </button>
               </div>
             )}
@@ -479,47 +565,135 @@ export const PortalLayout: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
+          <MustChangePasswordGate />
+          <InvitedWelcomeModal />
           <NotificationPermissionBanner compact onDismiss={() => {}} />
           {isOnboarding && (
             <OnboardingBanner
+              hideEventCard={activeTab === 'event-info'}
               onCompleteProfile={() => {
                 setProfileSection('contact');
-                setActiveTab('my-profile');
+                setActiveTab('account');
+                setAccountSection('profile');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
               onStartGiftTest={() => {
                 setProfileSection('gifts');
-                setActiveTab('my-profile');
+                setActiveTab('account');
+                setAccountSection('profile');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
           )}
-          {activeTab === 'my-profile' && (
-            <MyProfilePanel
-              defaultOpenSection={profileSection}
-              onGiftSaved={() => setProfileSection(undefined)}
+          {!isOnboarding && (
+            <ProfileIncompleteBanner
+              onCompleteProfile={() => {
+                setProfileSection('contact');
+                setActiveTab('account');
+                setAccountSection('profile');
+                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+              }}
             />
           )}
-          {activeTab === 'event-info' && <EventInfoPanel />}
-          {activeTab === 'dashboard' && <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />}
-          {activeTab === 'content-weekly' && <ManageWeeklyInfo />}
-          {activeTab === 'content-activities' && <ManageActivities />}
-          {activeTab === 'media-guide' && <MediaGuidePanel />}
+          {(activeTab === 'account' || isAccountRoute) && (
+            <AccountHub
+              section={accountSection}
+              profileSection={profileSection}
+              onSectionChange={setAccountSection}
+            />
+          )}
+          {activeTab === 'event-info' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="event-info" />
+              <EventInfoPanel />
+            </div>
+          )}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="dashboard" />
+              <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />
+            </div>
+          )}
+          {activeTab === 'content-weekly' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="content-weekly" />
+              <ManageWeeklyInfo />
+            </div>
+          )}
+          {activeTab === 'content-activities' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="content-activities" />
+              <ManageActivities />
+            </div>
+          )}
+          {activeTab === 'content-testimonials' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="content-testimonials" />
+              <ManageTestimonials />
+            </div>
+          )}
+          {activeTab === 'media-guide' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="media-guide" />
+              <MediaGuidePanel />
+            </div>
+          )}
+          {activeTab === 'jethro' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="jethro" />
+              <JethroEngine />
+            </div>
+          )}
+          {activeTab === 'jethro-placement' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="jethro-placement" />
+              <JethroPlacementReview />
+            </div>
+          )}
+          {activeTab === 'youth-gehc' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="youth-gehc" />
+              <YouthGEHCList />
+            </div>
+          )}
+          {activeTab === 'org-hierarchy' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="org-hierarchy" />
+              <OrgHierarchyPanel />
+            </div>
+          )}
+          {activeTab === 'struktur' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="struktur" />
+              <ManageStruktur />
+            </div>
+          )}
+          {activeTab === 'integrations' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="integrations" />
+              <ManageIntegrations />
+            </div>
+          )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
-          {activeTab === 'jethro' && <JethroEngine />}
-          {activeTab === 'jethro-placement' && <JethroPlacementReview />}
           {activeTab === 'people' && <PeopleInvites onNavigate={handleNavClick} />}
           {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
-          {activeTab === 'youth-gehc' && <YouthGEHCList />}
-          {activeTab === 'org-hierarchy' && <OrgHierarchyPanel />}
-          {activeTab === 'struktur' && <ManageStruktur />}
           {activeTab === 'events' && <EventWorkspacePanel />}
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
-          {activeTab === 'integrations' && <ManageIntegrations />}
+          {activeTab === 'wa-channels' && <WhatsAppChannelsPanel />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
-          {!isTabAllowed(activeTab) && (
-            <div className="py-20 text-center text-sm text-[#8C8880]">Menu tidak tersedia untuk role ini.</div>
+          {!isTabAllowed(activeTab) && activeTab !== 'account' && (
+            <div className="py-20 text-center text-sm text-[#8C8880]">{t.portal.common.tabUnavailable}</div>
           )}
         </main>
       </div>
+      <PortalHelpDrawer
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        navItems={navItemDefs}
+        isGroupMentor={isGroupMentor}
+        isMentee={isMentee}
+        onNavigate={handleNavClick}
+      />
     </div>
   );
 };

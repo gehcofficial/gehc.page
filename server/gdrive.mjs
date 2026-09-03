@@ -30,6 +30,26 @@ export function getDriveMode() {
 
 let cachedClient = null;
 
+function parseServiceAccountJson(raw) {
+  if (!raw) throw new Error('Service account JSON kosong.');
+  try {
+    return JSON.parse(raw);
+  } catch (first) {
+    // .env sering berisi private_key multiline tanpa escape — normalisasi sekali.
+    const fixed = raw
+      .replace(/\r/g, '')
+      .replace(/"private_key"\s*:\s*"([^"]*(?:\\n[^"]*)*)"/s, (_, key) => {
+        const escaped = key.replace(/\n/g, '\\n').replace(/\\n/g, '\\n');
+        return `"private_key":"${escaped}"`;
+      });
+    try {
+      return JSON.parse(fixed);
+    } catch {
+      throw first;
+    }
+  }
+}
+
 async function getDrive() {
   if (cachedClient) return cachedClient;
 
@@ -39,7 +59,7 @@ async function getDrive() {
   if (mode === 'service-account') {
     let credentials;
     if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      credentials = parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     } else {
       const { readFileSync } = await import('node:fs');
       credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
@@ -74,6 +94,7 @@ function mapFile(file) {
     webViewLink: file.webViewLink,
     iconLink: file.iconLink,
     createdTime: file.createdTime,
+    modifiedTime: file.modifiedTime,
   };
 }
 
@@ -111,12 +132,14 @@ export async function listFolders(parentId, pageSize = 50) {
       pageSize: Math.min(pageSize, 100),
       orderBy: 'name',
       fields: 'nextPageToken, files(id, name, mimeType)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     return res.data.files || [];
   });
 }
 
-export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
+export async function listFiles({ folderId, query, pageSize = 24, fresh = false } = {}) {
   const drive = await getDrive();
   const target = folderId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';
 
@@ -124,18 +147,20 @@ export async function listFiles({ folderId, query, pageSize = 24 } = {}) {
   if (query) q += ` and name contains '${query.replace(/'/g, "\\'")}'`;
 
   const key = `files:${target}:${pageSize}:${query || ''}`;
-  return withCache(key, async () => {
+  const run = async () => {
     const res = await drive.files.list({
       q,
       pageSize: Math.min(pageSize, 50),
-      orderBy: 'createdTime desc',
+      orderBy: 'modifiedTime desc',
       fields:
-        'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime)',
+        'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, createdTime, modifiedTime)',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     });
     return (res.data.files || []).map(mapFile);
-  });
+  };
+  if (fresh) return run();
+  return withCache(key, run);
 }
 
 export async function getFileStream(fileId) {

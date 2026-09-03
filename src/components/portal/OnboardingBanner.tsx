@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Clock, MessageCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BakuTauWelcomeCard } from './BakuTauWelcomeCard';
 import { LinkGoogleCard } from './LinkGoogleCard';
@@ -7,9 +7,10 @@ import { LinkGoogleCard } from './LinkGoogleCard';
 type Props = {
   onCompleteProfile: () => void;
   onStartGiftTest?: () => void;
+  hideEventCard?: boolean;
 };
 
-export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGiftTest }) => {
+export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGiftTest, hideEventCard = false }) => {
   const { authUser } = useApp();
   const [giftDone, setGiftDone] = useState<boolean | null>(null);
   const [profileDone, setProfileDone] = useState<boolean | null>(null);
@@ -22,6 +23,8 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
     locationDetail?: string;
     mapUrl?: string | null;
     mapEmbedQuery?: string;
+    checkInCode?: string | null;
+    registeredAt?: string | null;
   } | null>(null);
 
   const isWaitingPool = authUser?.onboardingStatus === 'WAITING_POOL';
@@ -65,7 +68,6 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
       ];
 
   const profileComplete = isWaitingPool && profileDone && giftDone && birthDone;
-  const showWaReminder = bakuTau?.registered && bakuTau?.whatsappGroupUrl;
 
   return (
     <div className="mb-6 space-y-4">
@@ -109,25 +111,10 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
               <Sparkles className="w-3.5 h-3.5" /> Tes Karunia
             </button>
           )}
-          {showWaReminder && (
-            <a
-              href={bakuTau!.whatsappGroupUrl!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
-            >
-              <MessageCircle className="w-3.5 h-3.5" /> Gabung Grup WA
-            </a>
-          )}
         </div>
-        {bakuTau?.registered && !bakuTau?.whatsappGroupUrl && (
-          <p className="text-[10px] text-amber-200/80 mt-3">
-            Jangan lupa gabung grup WhatsApp peserta BAKU TAU — link akan muncul di tab Info Event setelah panitia membagikannya.
-          </p>
-        )}
       </div>
 
-      {bakuTau?.registered && (
+      {bakuTau?.registered && !hideEventCard && (
         <BakuTauWelcomeCard
           whatsappGroupUrl={bakuTau.whatsappGroupUrl}
           eventDate={bakuTau.eventDate}
@@ -135,6 +122,8 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
           locationDetail={bakuTau.locationDetail}
           mapUrl={bakuTau.mapUrl}
           mapEmbedQuery={bakuTau.mapEmbedQuery}
+          checkInCode={bakuTau.checkInCode}
+          registeredAt={bakuTau.registeredAt}
           compact
           onCompleteProfile={onCompleteProfile}
         />

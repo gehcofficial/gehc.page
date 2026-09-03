@@ -3,21 +3,15 @@ import { getPrisma } from '../db.mjs';
 import {
   BAKU_TAU_SOURCE_EVENT,
   BAKU_TAU_EVENT_ID,
-  BAKU_TAU_EVENT_DATE_ISO,
-  BAKU_TAU_VENUE_NAME,
-  BAKU_TAU_LOCATION_DETAIL,
-  BAKU_TAU_MAP_URL,
-  BAKU_TAU_MAP_EMBED_QUERY,
-  whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
-import { registerBakuTauRoutes } from './baku-tau.mjs';
+import { venueOf } from '../lib/event-venue.mjs';
 
-const SLUG_TO_EVENT_ID = {
+export const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
   'baku-tau-4-0': BAKU_TAU_EVENT_ID,
 };
 
-async function resolveEventBySlug(prisma, slug) {
+export async function resolveEventBySlug(prisma, slug) {
   const eventId = SLUG_TO_EVENT_ID[slug];
   if (eventId) {
     const event = await prisma.eventProgram.findUnique({ where: { id: eventId } });
@@ -55,7 +49,7 @@ function hasActiveRole(user) {
 }
 
 export function registerEventsPublicRoutes(app, { wrap }) {
-  registerBakuTauRoutes(app, { wrap });
+  // BAKU TAU exact routes registered early in index.mjs (before /api/events/:id)
 
   app.get('/api/events/:slug', wrap(async (req, res) => {
     const prisma = getPrisma();
@@ -67,8 +61,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const resolved = await resolveEventBySlug(prisma, 'bakutau');
       if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-      const { event, isBakutau } = resolved;
-      const whatsappGroupUrl = event.whatsappGroupUrl || whatsappGroupUrlFromEnv();
+      const { event } = resolved;
       const entries = await prisma.waitingPool.findMany({
         where: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
         select: { status: true, userId: true, profileCompleted: true },
@@ -83,12 +76,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
         slug: 'bakutau',
         name: event.name,
         status: event.status,
-        eventDate: BAKU_TAU_EVENT_DATE_ISO,
-        venueName: BAKU_TAU_VENUE_NAME,
-        locationDetail: BAKU_TAU_LOCATION_DETAIL,
-        mapUrl: BAKU_TAU_MAP_URL,
-        mapEmbedQuery: BAKU_TAU_MAP_EMBED_QUERY,
-        whatsappGroupUrl,
+        ...venueOf(event, true),
         stats,
       });
     }
@@ -97,7 +85,6 @@ export function registerEventsPublicRoutes(app, { wrap }) {
     if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
     const { event, isBakutau } = resolved;
-    const whatsappGroupUrl = event.whatsappGroupUrl || (isBakutau ? whatsappGroupUrlFromEnv() : null);
 
     let stats = null;
     if (isBakutau) {
@@ -120,12 +107,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       slug: event.slug,
       name: event.name,
       status: event.status,
-      eventDate: isBakutau ? BAKU_TAU_EVENT_DATE_ISO : event.startDate?.toISOString?.() || null,
-      venueName: isBakutau ? BAKU_TAU_VENUE_NAME : null,
-      locationDetail: isBakutau ? BAKU_TAU_LOCATION_DETAIL : event.description,
-      mapUrl: isBakutau ? BAKU_TAU_MAP_URL : null,
-      mapEmbedQuery: isBakutau ? BAKU_TAU_MAP_EMBED_QUERY : null,
-      whatsappGroupUrl,
+      ...venueOf(event, isBakutau),
       stats,
     });
   }));
@@ -140,7 +122,14 @@ export function registerEventsPublicRoutes(app, { wrap }) {
 
     const rows = await prisma.eventAttendee.findMany({
       where: { eventId: resolved.eventId },
-      include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+      include: {
+        user: {
+          select: {
+            id: true, name: true, email: true, phone: true,
+            gender: true, origin: true, domicileKind: true, domicileDetail: true,
+          },
+        },
+      },
       orderBy: { registeredAt: 'desc' },
       take: 500,
     });
@@ -179,4 +168,4 @@ export function registerEventsPublicRoutes(app, { wrap }) {
   }));
 }
 
-export { upsertEventAttendee, resolveEventBySlug };
+export { upsertEventAttendee };

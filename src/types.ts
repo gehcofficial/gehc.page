@@ -29,13 +29,22 @@ export interface User {
   email: string;
   name: string;
   avatar: string;
+  avatarSource?: 'GOOGLE' | 'CUSTOM' | (string & {});
+  avatarGoogle?: string | null;
   phone?: string;
   /** ACTIVE (lolos approval) atau PENDING (menunggu Komisi) */
   accountStatus?: 'ACTIVE' | 'PENDING' | (string & {});
   /** Onboarding pipeline status */
   onboardingStatus?: 'WAITING_POOL' | 'PENDING' | 'ACTIVE' | (string & {});
+  /** ORGANIC self-register vs INVITED pre-provision */
+  onboardingPath?: 'ORGANIC' | 'INVITED' | (string & {});
+  loginUsername?: string | null;
+  hasPassword?: boolean;
+  googleLinked?: boolean;
   /** Gift test top 5 results */
   giftsTop5?: string[];
+  isBeyonders?: boolean;
+  mustChangePassword?: boolean;
   roles: UserRoleMapping[];
 }
 
@@ -67,6 +76,7 @@ export interface GroupMember {
   notes?: string;
   familyRole?: string;
   batchPeriod?: string;
+  avatar?: string;
 }
 
 export interface MonitoringData {
@@ -127,6 +137,7 @@ export interface StrukturMember {
   subdivision?: string;
   period: string;
   photoUrl: string;
+  userId?: string;
   bio: string;
   phone: string;
   email: string;
@@ -183,7 +194,9 @@ export interface GroupBatch {
   period: string; // "2026"
   mentor: string;
   comentor: string;
-  mentees: { name: string; note?: string }[];
+  mentorAvatar?: string;
+  comentorAvatar?: string;
+  mentees: { name: string; note?: string; avatar?: string }[];
   theme?: string;
   isCurrent?: boolean;
 }

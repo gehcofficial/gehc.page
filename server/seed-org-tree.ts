@@ -4,8 +4,8 @@
  */
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
-import { SUB_DIVISIONS } from '../src/lib/pantatugas.ts';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { SUB_DIVISIONS, DIVISION_HEAD_POSITION, PANTA_DIVISIONS } from '../src/lib/pantatugas.ts';
 
 const prisma = new PrismaClient();
 
@@ -16,7 +16,7 @@ function id() {
 const BPMJ_POSITIONS = ['Ketua BPMJ', 'Wakil Ketua BPMJ', 'Sekretaris', 'Wakil Sekretaris', 'Bendahara', 'Anggota'];
 const KOMISI_POSITIONS = ['Ketua Komisi', 'Wakil Ketua Komisi', 'Sekretaris', 'Bendahara', 'Anggota'];
 const BOD_POSITIONS = ['Ketua Tim Kerja', 'Sekretaris Tim Kerja', 'Bendahara Tim Kerja'];
-const PANTA = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'];
+const PANTA = [...PANTA_DIVISIONS];
 const PANTA_LABELS = {
   LITURGIA: 'Liturgia',
   DIDASKALIA: 'Didaskalia',
@@ -25,7 +25,23 @@ const PANTA_LABELS = {
   MARTURIA: 'Marturia',
 };
 
-async function upsertNode({ domain, parentId, slug, label, nodeKind, metadata, sortOrder }) {
+async function upsertNode({
+  domain,
+  parentId,
+  slug,
+  label,
+  nodeKind,
+  metadata,
+  sortOrder,
+}: {
+  domain: string;
+  parentId?: string | null;
+  slug: string;
+  label: string;
+  nodeKind: string;
+  sortOrder: number;
+  metadata?: Prisma.InputJsonObject;
+}) {
   const existing = await prisma.orgNode.findFirst({ where: { domain, slug } });
   if (existing) {
     return prisma.orgNode.update({
@@ -148,6 +164,20 @@ async function seedYouthTree() {
       sortOrder: pi,
       metadata: { portalRole: 'COMMITTEE', division: div },
     });
+    await upsertNode({
+      domain: 'YOUTH',
+      parentId: divNode.id,
+      slug: `${div}_HEAD`,
+      label: DIVISION_HEAD_POSITION,
+      nodeKind: 'POSITION_SLOT',
+      sortOrder: -1,
+      metadata: {
+        portalRole: 'COMMITTEE',
+        division: div,
+        position: DIVISION_HEAD_POSITION,
+        maxAssignees: 1,
+      },
+    });
     const subs = SUB_DIVISIONS[div] || [];
     for (let si = 0; si < subs.length; si++) {
       const sub = subs[si];
@@ -177,15 +207,15 @@ async function seedYouthTree() {
     sortOrder: 3,
     metadata: { portalRole: 'COMMITTEE', division: 'BENZARPR' },
   });
-  for (const sub of ['Merchandise', 'Fundraising', 'Donation']) {
+  for (const sub of SUB_DIVISIONS.BENZARPR || []) {
     await upsertNode({
       domain: 'YOUTH',
       parentId: bzp.id,
-      slug: `BENZARPR_${sub.toUpperCase()}`,
-      label: sub,
+      slug: `BENZARPR_${sub.name.replace(/\s+/g, '_').toUpperCase().slice(0, 40)}`,
+      label: sub.label,
       nodeKind: 'POSITION_SLOT',
       sortOrder: 0,
-      metadata: { portalRole: 'COMMITTEE', division: 'BENZARPR', subdivision: sub, maxAssignees: 99 },
+      metadata: { portalRole: 'COMMITTEE', division: 'BENZARPR', subdivision: sub.name, maxAssignees: 99 },
     });
   }
 

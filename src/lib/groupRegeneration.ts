@@ -87,7 +87,7 @@ export function sortGroupsByGeneration(groups: { id: string; name: string; paren
   });
 }
 
-export function getGroupDisplayName(group: { name: string; parentGroupId: string | null }, groups: { id: string; name: string; parentGroupId: string | null }[]): string {
+export function getGroupDisplayName(group: { id: string; name: string; parentGroupId: string | null }, groups: { id: string; name: string; parentGroupId: string | null }[]): string {
   const info = getGroupGenerationInfo(groups, group.id);
   if (info.isParent) {
     return `${group.name} (Induk)`;

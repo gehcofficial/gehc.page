@@ -2,15 +2,52 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Calendar,
+  CalendarClock,
   FolderOpen,
   MessageSquare,
+  MessageCircle,
   Clock,
   Plus,
   ChevronRight,
   ExternalLink,
   Loader2,
   AlertTriangle,
+  Pencil,
+  MapPin,
+  Search,
+  AlignLeft,
 } from 'lucide-react';
+import { ChurchCalendarPanel } from './ChurchCalendarPanel';
+import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
+import { MonthlyPlanPanel } from './MonthlyPlanPanel';
+import { EventQuestionsBlock } from './EventQuestionsBlock';
+import { EventAttendeesBlock } from './EventAttendeesBlock';
+import { ScrollTabBar } from './ScrollTabBar';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
+
+function EditField({
+  label,
+  hint,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
+        {Icon ? <Icon className="w-3 h-3 shrink-0" /> : null}
+        {label}
+      </span>
+      {children}
+      {hint ? <span className="block text-[10px] text-[#8C8880] leading-relaxed">{hint}</span> : null}
+    </label>
+  );
+}
 
 interface EventDivision {
   id: string;
@@ -43,6 +80,15 @@ interface EventItem {
   endDate?: string;
   driveFolderId?: string;
   gmeetLink?: string;
+  whatsappGroupUrl?: string | null;
+  kind?: string;
+  churchProgramId?: string | null;
+  churchProgram?: { id: string; name: string; scope: string } | null;
+  eventDate?: string | null;
+  venueName?: string | null;
+  locationDetail?: string | null;
+  mapUrl?: string | null;
+  mapEmbedQuery?: string | null;
   createdById: string;
   createdAt: string;
   divisions: EventDivision[];
@@ -50,46 +96,64 @@ interface EventItem {
 }
 
 type ViewMode = 'list' | 'detail';
+type ListTab = 'events' | 'calendar' | 'umbrella' | 'month';
 
-const EventAttendeesBlock: React.FC<{ slug: string }> = ({ slug }) => {
-  const [rows, setRows] = useState<{ id: string; user?: { name: string; email: string; phone?: string } }[]>([]);
-  const [loading, setLoading] = useState(true);
+const ALL_EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
+const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
 
-  useEffect(() => {
-    fetch(`/api/events/${encodeURIComponent(slug)}/attendees`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setRows(d.attendees || []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
-  }, [slug]);
+/**
+ * Waktu acara selalu diinput dan ditampilkan dalam WIB, bukan zona browser.
+ * Kalau memakai zona browser, panitia yang sedang di luar negeri akan melihat
+ * dan menyimpan jam yang bergeser.
+ */
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-black text-[#1B1B1B]">Kehadiran Event ({rows.length})</h3>
-      {loading ? (
-        <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>
-      ) : rows.length === 0 ? (
-        <p className="text-xs text-[#8C8880]">Belum ada peserta dengan akun terhubung.</p>
-      ) : (
-        <div className="rounded-2xl border border-[#D9D7D0] bg-white divide-y divide-[#D9D7D0]/60 max-h-64 overflow-y-auto">
-          {rows.map((row) => (
-            <div key={row.id} className="px-4 py-2.5 text-xs">
-              <p className="font-bold text-[#1B1B1B]">{row.user?.name || '—'}</p>
-              <p className="text-[#8C8880]">{row.user?.email}{row.user?.phone ? ` · ${row.user.phone}` : ''}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+function isoToWibInput(iso?: string | null): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  return new Date(t + WIB_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+function wibInputToIso(local: string): string {
+  return local ? `${local}:00+07:00` : '';
+}
+
+function isoToDateInput(iso?: string | null): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? '' : new Date(t).toISOString().slice(0, 10);
+}
+const EVENT_KINDS = [
+  { id: 'KHUSUS', label: 'Khusus (BAKU TAU, retret)' },
+  { id: 'UMUM', label: 'Umum (ibadah jemaat/pemuda)' },
+  { id: 'INTERNAL', label: 'Internal (rapat/pembekalan)' },
+  { id: 'RECURRING', label: 'Berulang (BenZuar, BenZinema)' },
+];
 
 export const EventWorkspacePanel: React.FC = () => {
-  const { addToast, authUser } = useApp();
+  const { addToast, currentRole } = useApp();
+  const { t } = useLang();
+  const ev = t.portal.events;
+  const canCreateEvent = currentRole === 'SUPERADMIN' || currentRole === 'KOMISI' || currentRole === 'COMMITTEE';
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
+  const [listTab, setListTab] = useState<ListTab>('events');
   const [selected, setSelected] = useState<EventItem | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [churchPrograms, setChurchPrograms] = useState<Array<{ id: string; name: string; scope: string }>>([]);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    description: '',
+    kind: 'KHUSUS',
+    churchProgramId: '',
+    startDate: '',
+    endDate: '',
+    whatsappGroupUrl: '',
+    divisions: ['KOINONIA'] as string[],
+  });
   const [detailLoading, setDetailLoading] = useState(false);
 
   // Discussions per division
@@ -100,6 +164,16 @@ export const EventWorkspacePanel: React.FC = () => {
   // Meetings
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+
+  // Edit event
+  const [canEdit, setCanEdit] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '', description: '', kind: 'KHUSUS', status: 'PLANNING', churchProgramId: '',
+    startDate: '', endDate: '', whatsappGroupUrl: '',
+    eventDate: '', venueName: '', locationDetail: '', mapUrl: '', mapEmbedQuery: '',
+  });
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -117,6 +191,55 @@ export const EventWorkspacePanel: React.FC = () => {
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
+  useEffect(() => {
+    fetch('/api/church-programs', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setChurchPrograms(d.programs || []))
+      .catch(() => setChurchPrograms([]));
+  }, []);
+
+  const toggleCreateDiv = (div: string) => {
+    setCreateForm((f) => ({
+      ...f,
+      divisions: f.divisions.includes(div) ? f.divisions.filter((d) => d !== div) : [...f.divisions, div],
+    }));
+  };
+
+  const createEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.name.trim() || createForm.divisions.length === 0) return;
+    setCreating(true);
+    try {
+      const r = await fetch('/api/events', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: createForm.name.trim(),
+          description: createForm.description || undefined,
+          kind: createForm.kind,
+          churchProgramId: createForm.churchProgramId || undefined,
+          startDate: createForm.startDate || undefined,
+          endDate: createForm.endDate || undefined,
+          whatsappGroupUrl: createForm.whatsappGroupUrl || undefined,
+          divisions: createForm.divisions,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      addToast({ type: 'success', title: 'Event dibuat', description: d.provisioned?.length ? `${d.provisioned.length} folder Drive` : undefined });
+      setShowCreate(false);
+      setCreateForm({
+        name: '', description: '', kind: 'KHUSUS', churchProgramId: '', startDate: '', endDate: '', whatsappGroupUrl: '', divisions: ['KOINONIA'],
+      });
+      await fetchEvents();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Gagal membuat event', description: err.message });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const openDetail = async (ev: EventItem) => {
     setDetailLoading(true);
     try {
@@ -124,6 +247,8 @@ export const EventWorkspacePanel: React.FC = () => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setSelected(d.event);
+      setCanEdit(d.canEdit === true);
+      setShowEdit(false);
       setView('detail');
 
       // Load discussions per division
@@ -219,6 +344,82 @@ export const EventWorkspacePanel: React.FC = () => {
 
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+  const formatDateTimeWib = (d?: string | null) => {
+    if (!d) return '';
+    return new Date(d).toLocaleString('id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    });
+  };
+
+  const startEdit = () => {
+    if (!selected) return;
+    setEditForm({
+      name: selected.name,
+      description: selected.description || '',
+      kind: selected.kind || 'KHUSUS',
+      status: selected.status || 'PLANNING',
+      churchProgramId: selected.churchProgramId || '',
+      startDate: isoToDateInput(selected.startDate),
+      endDate: isoToDateInput(selected.endDate),
+      whatsappGroupUrl: selected.whatsappGroupUrl || '',
+      eventDate: isoToWibInput(selected.eventDate),
+      venueName: selected.venueName || '',
+      locationDetail: selected.locationDetail || '',
+      mapUrl: selected.mapUrl || '',
+      mapEmbedQuery: selected.mapEmbedQuery || '',
+    });
+    setShowEdit(true);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected || !editForm.name.trim()) return;
+    setSavingEdit(true);
+    try {
+      const r = await fetch(`/api/events/${selected.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          description: editForm.description || null,
+          kind: editForm.kind,
+          status: editForm.status,
+          churchProgramId: editForm.churchProgramId || null,
+          startDate: editForm.startDate || null,
+          endDate: editForm.endDate || null,
+          whatsappGroupUrl: editForm.whatsappGroupUrl || null,
+          eventDate: wibInputToIso(editForm.eventDate) || null,
+          venueName: editForm.venueName || null,
+          locationDetail: editForm.locationDetail || null,
+          mapUrl: editForm.mapUrl || null,
+          mapEmbedQuery: editForm.mapEmbedQuery || null,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const prog = churchPrograms.find((p) => p.id === d.event.churchProgramId);
+      setSelected((prev) => (prev ? {
+        ...prev,
+        ...d.event,
+        churchProgram: prog ? { id: prog.id, name: prog.name, scope: prog.scope } : null,
+        divisions: prev.divisions,
+        meetings: prev.meetings,
+      } : d.event));
+      setShowEdit(false);
+      await fetchEvents();
+      addToast({ type: 'success', title: 'Event diperbarui' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Gagal menyimpan', description: err.message });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const showVenueFields = editForm.kind === 'KHUSUS' || editForm.kind === 'UMUM';
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-16 text-[#8C8880]">
@@ -238,20 +439,206 @@ export const EventWorkspacePanel: React.FC = () => {
             <ChevronRight className="w-5 h-5 rotate-180" />
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h2 className="text-xl font-black text-[#1B1B1B] truncate">{selected.name}</h2>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${statusColor(selected.status)}`}>
                 {selected.status}
               </span>
+              {selected.kind && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">{selected.kind}</span>
+              )}
+              {selected.churchProgram && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
+                  Payung: {selected.churchProgram.name}
+                </span>
+              )}
             </div>
             {selected.description && <p className="text-sm text-[#8C8880] mb-2">{selected.description}</p>}
             <div className="flex flex-wrap gap-4 text-xs text-[#8C8880]">
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(selected.startDate)} — {formatDate(selected.endDate)}</span>
+              {(selected.eventDate || selected.venueName) && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {[formatDateTimeWib(selected.eventDate), selected.venueName].filter(Boolean).join(' · ')}
+                  {selected.eventDate ? ' WIB' : ''}
+                </span>
+              )}
               <span className="flex items-center gap-1"><FolderOpen className="w-3.5 h-3.5" /> {selected.divisions.length} divisi</span>
               <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {(selected.meetings || []).length} rapat</span>
             </div>
           </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => (showEdit ? setShowEdit(false) : startEdit())}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold hover:bg-[#333] transition-colors shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5" /> {showEdit ? 'Tutup' : 'Edit'}
+            </button>
+          )}
         </div>
+
+        {showEdit && canEdit && (
+          <form onSubmit={saveEdit} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+            <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Meta event</p>
+            <EditField label="Nama event">
+              <input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Contoh: BAKU TAU 4.0"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+              />
+            </EditField>
+            <EditField label="Deskripsi">
+              <textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Ringkasan singkat program"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
+              />
+            </EditField>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <EditField label="Jenis">
+                <select
+                  value={editForm.kind}
+                  onChange={(e) => setEditForm((f) => ({ ...f, kind: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                </select>
+              </EditField>
+              <EditField label="Status">
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  {EVENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </EditField>
+              <EditField label="Payung Komisi" hint="Opsional — tautkan ke program gerejawi.">
+                <select
+                  value={editForm.churchProgramId}
+                  onChange={(e) => setEditForm((f) => ({ ...f, churchProgramId: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  <option value="">— Tidak ada —</option>
+                  {churchPrograms.filter((p) => p.scope === 'KOMISI' || p.scope === 'BPMJ').map((p) => (
+                    <option key={p.id} value={p.id}>{p.scope} · {p.name}</option>
+                  ))}
+                </select>
+              </EditField>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <EditField label="Mulai program" hint="Rentang program tahunan, bukan hari H." icon={Calendar}>
+                <input
+                  type="date"
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+              </EditField>
+              <EditField label="Akhir program" icon={Calendar}>
+                <input
+                  type="date"
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+              </EditField>
+            </div>
+            <EditField
+              label="Grup WhatsApp peserta"
+              icon={MessageCircle}
+              hint="Satu-satunya tempat mengubah tautan grup peserta. Kartu Info Event dan Kanal WhatsApp (layer Event) hanya menampilkan tautan ini."
+            >
+              <input
+                value={editForm.whatsappGroupUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, whatsappGroupUrl: e.target.value }))}
+                placeholder="https://chat.whatsapp.com/…"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                inputMode="url"
+                autoComplete="off"
+              />
+            </EditField>
+            {showVenueFields && (
+              <div className="space-y-3 pt-2 border-t border-[#D9D7D0]">
+                <div>
+                  <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Waktu & tempat (WIB)</p>
+                  <p className="text-[10px] text-[#8C8880] mt-0.5 leading-relaxed">
+                    Hari pelaksanaan & lokasi publik — terpisah dari rentang program di atas.
+                  </p>
+                </div>
+                <EditField
+                  label="Hari & jam pelaksanaan"
+                  icon={CalendarClock}
+                  hint="Zona waktu WIB (bukan zona browser)."
+                >
+                  <input
+                    type="datetime-local"
+                    value={editForm.eventDate}
+                    onChange={(e) => setEditForm((f) => ({ ...f, eventDate: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField label="Nama tempat" icon={MapPin} hint="Judul singkat di kartu lokasi publik.">
+                  <input
+                    value={editForm.venueName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, venueName: e.target.value }))}
+                    placeholder="GMIM Eben Haezer Cikarang"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField
+                  label="Catatan lokasi (opsional)"
+                  icon={AlignLeft}
+                  hint="Subtitle di bawah nama tempat — mis. aula / parkir. Jangan ulang nama + jam; jam sudah dari field di atas."
+                >
+                  <input
+                    value={editForm.locationDetail}
+                    onChange={(e) => setEditForm((f) => ({ ...f, locationDetail: e.target.value }))}
+                    placeholder="Contoh: Aula utama · parkir di utara"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField
+                  label="Tautan Buka Maps"
+                  icon={ExternalLink}
+                  hint="URL yang dibuka saat tombol “Buka Maps” diklik."
+                >
+                  <input
+                    value={editForm.mapUrl}
+                    onChange={(e) => setEditForm((f) => ({ ...f, mapUrl: e.target.value }))}
+                    placeholder="https://maps.app.goo.gl/… atau share.google/…"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                    inputMode="url"
+                    autoComplete="off"
+                  />
+                </EditField>
+                <EditField
+                  label="Query pin peta embed"
+                  icon={Search}
+                  hint="Teks pencarian untuk iframe peta (bukan URL). Kosong = pakai nama tempat."
+                >
+                  <input
+                    value={editForm.mapEmbedQuery}
+                    onChange={(e) => setEditForm((f) => ({ ...f, mapEmbedQuery: e.target.value }))}
+                    placeholder={editForm.venueName ? `${editForm.venueName}, Cikarang, Bekasi` : 'Nama tempat, kota'}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowEdit(false)} className="text-xs px-3 py-2 rounded-xl text-[#8C8880]">Batal</button>
+              <button type="submit" disabled={savingEdit || !editForm.name.trim()} className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40">
+                {savingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Simpan'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <EventQuestionsBlock eventId={selected.id} />
 
         {/* Division Cards */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -269,7 +656,7 @@ export const EventWorkspacePanel: React.FC = () => {
               <div className="space-y-2">
                 {(discussions[div.division] || []).slice(-3).map((u, i) => (
                   <div key={u.id || i} className="text-xs bg-[#FAF9F5] rounded-lg p-2">
-                    <span className="font-semibold text-[#1B1B1B]">{u.authorId}</span>: {u.body}
+                    <span className="font-semibold text-[#1B1B1B]">{u.authorName || u.authorId}</span>: {u.body}
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -295,9 +682,7 @@ export const EventWorkspacePanel: React.FC = () => {
         </div>
 
         {/* Kehadiran event (EventAttendee) */}
-        {(selected.slug === 'bakutau' || selected.slug === 'baku-tau-4-0') && (
-          <EventAttendeesBlock slug="bakutau" />
-        )}
+        <EventAttendeesBlock eventId={selected.id} slug={selected.slug || selected.id} />
 
         {/* Meetings */}
         <div className="space-y-3">
@@ -349,52 +734,167 @@ export const EventWorkspacePanel: React.FC = () => {
   // List View
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-[#1B1B1B]">Program & Event</h2>
-          <p className="text-xs text-[#8C8880] mt-0.5">Daftar program kerja, event, dan kegiatan komisi.</p>
+          <h2 className="text-xl font-black text-[#1B1B1B]">{t.portal.nav.events}</h2>
+          <p className="text-xs text-[#8C8880] mt-0.5">{t.portal.guides.events.purpose}</p>
         </div>
+        {listTab === 'events' && canCreateEvent && (
+          <button
+            type="button"
+            onClick={() => setShowCreate((v) => !v)}
+            className="text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold"
+          >
+            <Plus className="w-3.5 h-3.5 inline mr-1" /> {ev.tabEvents}
+          </button>
+        )}
       </div>
 
-      {events.length === 0 ? (
-        <div className="text-center py-16 text-[#8C8880]">
-          <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-semibold">Belum ada event.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {events.map((ev) => (
-            <button
-              key={ev.id}
-              onClick={() => openDetail(ev)}
-              className="text-left rounded-2xl border border-[#D9D7D0] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#FF416C]/30 transition-all group"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-1">{ev.name}</h3>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusColor(ev.status)}`}>
-                  {ev.status}
-                </span>
+      <PanelGuide guideId={`events.${listTab}`} />
+
+      <ScrollTabBar active={listTab}>
+        {([
+          { id: 'events' as ListTab, label: ev.tabEvents },
+          { id: 'calendar' as ListTab, label: ev.tabCalendar },
+          { id: 'umbrella' as ListTab, label: ev.tabUmbrella },
+          { id: 'month' as ListTab, label: ev.tabMonth },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={listTab === tab.id}
+            onClick={() => setListTab(tab.id)}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${listTab === tab.id ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </ScrollTabBar>
+
+      {listTab === 'calendar' && (
+        <ChurchYearCalendarPanel
+          onPromote={canCreateEvent ? ({ name, startDate }) => {
+            setCreateForm((f) => ({ ...f, name, startDate, endDate: startDate }));
+            setShowCreate(true);
+            setListTab('events');
+          } : undefined}
+        />
+      )}
+      {listTab === 'umbrella' && <ChurchCalendarPanel />}
+      {listTab === 'month' && <MonthlyPlanPanel />}
+      {listTab === 'events' && (
+        <>
+          {showCreate && canCreateEvent && (
+            <form onSubmit={createEvent} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+              <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Komisi merancang payung · Tim Kerja menamai event</p>
+              <input
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Nama operasional (contoh: BAKU TAU 4.0)"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+              />
+              <textarea
+                value={createForm.description}
+                onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Deskripsi singkat"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
+              />
+              <div className="grid sm:grid-cols-2 gap-2">
+                <select
+                  value={createForm.kind}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, kind: e.target.value }))}
+                  className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                </select>
+                <select
+                  value={createForm.churchProgramId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, churchProgramId: e.target.value }))}
+                  className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  <option value="">Payung Komisi (opsional)</option>
+                  {churchPrograms.filter((p) => p.scope === 'KOMISI' || p.scope === 'BPMJ').map((p) => (
+                    <option key={p.id} value={p.id}>{p.scope} · {p.name}</option>
+                  ))}
+                </select>
               </div>
-              {ev.description && <p className="text-xs text-[#8C8880] line-clamp-2 mb-3">{ev.description}</p>}
-              <div className="flex flex-wrap gap-3 text-[11px] text-[#8C8880]">
-                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(ev.startDate)}</span>
-                <span className="flex items-center gap-1"><FolderOpen className="w-3 h-3" /> {ev.divisions.length} divisi</span>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <input type="date" value={createForm.startDate} onChange={(e) => setCreateForm((f) => ({ ...f, startDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
+                <input type="date" value={createForm.endDate} onChange={(e) => setCreateForm((f) => ({ ...f, endDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {ev.divisions.slice(0, 4).map((d) => (
-                  <span key={d.id} className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
-                    {d.division}
-                  </span>
+              <input
+                value={createForm.whatsappGroupUrl}
+                onChange={(e) => setCreateForm((f) => ({ ...f, whatsappGroupUrl: e.target.value }))}
+                placeholder="WA event sementara (https://chat.whatsapp.com/…)"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_EVENT_DIVISIONS.map((div) => (
+                  <button
+                    key={div}
+                    type="button"
+                    onClick={() => toggleCreateDiv(div)}
+                    className={`text-[10px] px-2 py-1 rounded-full font-bold border ${
+                      createForm.divisions.includes(div) ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]'
+                    }`}
+                  >
+                    {div}
+                  </button>
                 ))}
-                {ev.divisions.length > 4 && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
-                    +{ev.divisions.length - 4}
-                  </span>
-                )}
               </div>
-            </button>
-          ))}
-        </div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCreate(false)} className="text-xs px-3 py-2 rounded-xl text-[#8C8880]">Batal</button>
+                <button type="submit" disabled={creating || !createForm.name.trim() || createForm.divisions.length === 0} className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40">
+                  {creating ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Buat event'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {events.length === 0 ? (
+            <div className="text-center py-16 text-[#8C8880]">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-semibold">Belum ada event.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {events.map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={() => openDetail(ev)}
+                  className="text-left rounded-2xl border border-[#D9D7D0] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#FF416C]/30 transition-all group"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-1">{ev.name}</h3>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusColor(ev.status)}`}>
+                      {ev.status}
+                    </span>
+                  </div>
+                  {ev.churchProgram && <p className="text-[10px] font-bold text-[#8C8880] mb-1">{ev.churchProgram.name}</p>}
+                  {ev.description && <p className="text-xs text-[#8C8880] line-clamp-2 mb-3">{ev.description}</p>}
+                  <div className="flex flex-wrap gap-3 text-[11px] text-[#8C8880]">
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(ev.startDate)}</span>
+                    <span className="flex items-center gap-1"><FolderOpen className="w-3 h-3" /> {ev.divisions.length} divisi</span>
+                    {ev.kind && <span className="font-bold">{ev.kind}</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {ev.divisions.slice(0, 4).map((d) => (
+                      <span key={d.id} className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
+                        {d.division}
+                      </span>
+                    ))}
+                    {ev.divisions.length > 4 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
+                        +{ev.divisions.length - 4}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

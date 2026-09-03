@@ -1,8 +1,9 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import { SectionHeader } from './ui/SectionHeader';
 import { useLang } from '../../context/LangContext';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 import {
   BookOpen,
   Calendar,
@@ -20,9 +21,35 @@ import {
 export const WeeklyInfoSection: React.FC = () => {
   const { t } = useLang();
   const { contentItems, addToast } = useApp();
+  const slots = useMediaSlots();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('Semua');
+  const [album, setAlbum] = useState<{ name: string; url: string; mimeType?: string }[]>([]);
+
+  const bannerOf = (item: ContentItem) => item.bannerUrl || slots.warta.bannerDefault;
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setAlbum([]);
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams();
+    if (selectedItem.published_at) params.set('publishedAt', selectedItem.published_at);
+    if (selectedItem.title) params.set('title', selectedItem.title);
+    fetch(`/api/media/warta-album?${params}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        if (!cancelled && Array.isArray(d.files)) setAlbum(d.files);
+      })
+      .catch(() => {
+        if (!cancelled) setAlbum([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedItem]);
 
   const weeklyPosts = contentItems.filter(
     (item) => item.type === 'WEEKLY_INFO' && item.is_published
@@ -100,7 +127,7 @@ export const WeeklyInfoSection: React.FC = () => {
               {/* Card Banner Image */}
               <div className="h-56 w-full relative overflow-hidden bg-[#F0EFEB]">
                 <img
-                  src={item.bannerUrl}
+                  src={bannerOf(item)}
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -177,7 +204,7 @@ export const WeeklyInfoSection: React.FC = () => {
               {/* Banner Image */}
               <div className="h-64 sm:h-80 w-full rounded-[28px] overflow-hidden relative shadow-md">
                 <img
-                  src={selectedItem.bannerUrl}
+                  src={bannerOf(selectedItem)}
                   alt={selectedItem.title}
                   className="w-full h-full object-cover"
                 />
@@ -232,6 +259,31 @@ export const WeeklyInfoSection: React.FC = () => {
               <div className="text-sm sm:text-base text-[#1B1B1B] leading-relaxed whitespace-pre-line space-y-4 pt-2 font-normal">
                 {selectedItem.body}
               </div>
+
+              {album.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-3">
+                    Foto & video edisi
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {album.map((file) => (
+                      <a
+                        key={file.url + file.name}
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="aspect-square rounded-2xl overflow-hidden bg-[#F0EFEB] border border-[#D9D7D0]/40"
+                      >
+                        {file.mimeType?.startsWith('video/') ? (
+                          <video src={file.url} className="w-full h-full object-cover" muted />
+                        ) : (
+                          <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="pt-6 border-t border-[#D9D7D0]/60 flex flex-wrap items-center justify-between gap-4">

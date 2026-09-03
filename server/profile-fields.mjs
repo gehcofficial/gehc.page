@@ -1,3 +1,5 @@
+import { DOMICILE_KINDS } from './lib/domicile.mjs';
+
 export const LIFE_STATUSES = ['SCHOOL', 'UNIVERSITY', 'WORK', 'HOMEMAKER', 'UNEMPLOYED', 'CHILD'];
 
 export const WORK_INDUSTRIES = [
@@ -53,6 +55,27 @@ export function reminderDue(user) {
   if (!user?.lastProfileUpdate) return true;
   const days = Number(user.profileReminderDays || 60);
   return Date.now() - new Date(user.lastProfileUpdate).getTime() > days * 86400000;
+}
+
+/** Beyonders may stay ACTIVE without full profile — soft reminder only. */
+export function beyondersProfileIncomplete(user) {
+  if (!user?.isBeyonders) return false;
+  const gifts = Array.isArray(user?.giftsTop5) && user.giftsTop5.length > 0;
+  const addressOk = Boolean(user?.addressLine || user?.address || user?.city);
+  return !user?.birthDate || !user?.phone || !gifts || !addressOk;
+}
+
+/** Invited users — soft reminder until profile segments complete. */
+export function invitedProfileIncomplete(user) {
+  if (user?.onboardingPath !== 'INVITED') return false;
+  const segments = profileSegments(user);
+  return !segments.contact || !segments.gifts || !segments.birthDate;
+}
+
+export function profileIncompleteForUser(user) {
+  if (!user) return false;
+  if (user.onboardingStatus === 'WAITING_POOL') return false;
+  return invitedProfileIncomplete(user) || beyondersProfileIncomplete(user);
 }
 
 function contactComplete(user) {
@@ -133,6 +156,12 @@ export function applyLifeAddressFields(body, data) {
     data.cityCode = null;
   }
   if (body.origin !== undefined) data.origin = str(body.origin);
+  if (body.domicileKind !== undefined) {
+    const k = str(body.domicileKind);
+    if (k && !DOMICILE_KINDS.includes(k)) return 'Domisili tidak valid.';
+    data.domicileKind = k;
+  }
+  if (body.domicileDetail !== undefined) data.domicileDetail = str(body.domicileDetail);
   if (body.lifeStatuses !== undefined) {
     if (!Array.isArray(body.lifeStatuses)) return 'lifeStatuses harus array.';
     const bad = body.lifeStatuses.filter((s) => !LIFE_STATUSES.includes(s));
