@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Calendar,
+  CalendarClock,
   FolderOpen,
   MessageSquare,
+  MessageCircle,
   Clock,
   Plus,
   ChevronRight,
@@ -12,10 +14,35 @@ import {
   AlertTriangle,
   Pencil,
   MapPin,
+  Search,
+  AlignLeft,
 } from 'lucide-react';
 import { ChurchCalendarPanel } from './ChurchCalendarPanel';
 import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
 import { MonthlyPlanPanel } from './MonthlyPlanPanel';
+
+function EditField({
+  label,
+  hint,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
+        {Icon ? <Icon className="w-3 h-3 shrink-0" /> : null}
+        {label}
+      </span>
+      {children}
+      {hint ? <span className="block text-[10px] text-[#8C8880] leading-relaxed">{hint}</span> : null}
+    </label>
+  );
+}
 
 interface EventDivision {
   id: string;
@@ -479,90 +506,152 @@ export const EventWorkspacePanel: React.FC = () => {
         {showEdit && canEdit && (
           <form onSubmit={saveEdit} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
             <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Meta event</p>
-            <input
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Nama event"
-              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-            />
-            <textarea
-              value={editForm.description}
-              onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Deskripsi"
-              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
-            />
+            <EditField label="Nama event">
+              <input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Contoh: BAKU TAU 4.0"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+              />
+            </EditField>
+            <EditField label="Deskripsi">
+              <textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Ringkasan singkat program"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
+              />
+            </EditField>
             <div className="grid sm:grid-cols-3 gap-2">
-              <select
-                value={editForm.kind}
-                onChange={(e) => setEditForm((f) => ({ ...f, kind: e.target.value }))}
-                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
-              >
-                {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-              </select>
-              <select
-                value={editForm.status}
-                onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
-                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
-              >
-                {EVENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select
-                value={editForm.churchProgramId}
-                onChange={(e) => setEditForm((f) => ({ ...f, churchProgramId: e.target.value }))}
-                className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
-              >
-                <option value="">Payung Komisi (opsional)</option>
-                {churchPrograms.filter((p) => p.scope === 'KOMISI' || p.scope === 'BPMJ').map((p) => (
-                  <option key={p.id} value={p.id}>{p.scope} · {p.name}</option>
-                ))}
-              </select>
+              <EditField label="Jenis">
+                <select
+                  value={editForm.kind}
+                  onChange={(e) => setEditForm((f) => ({ ...f, kind: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                </select>
+              </EditField>
+              <EditField label="Status">
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  {EVENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </EditField>
+              <EditField label="Payung Komisi" hint="Opsional — tautkan ke program gerejawi.">
+                <select
+                  value={editForm.churchProgramId}
+                  onChange={(e) => setEditForm((f) => ({ ...f, churchProgramId: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                >
+                  <option value="">— Tidak ada —</option>
+                  {churchPrograms.filter((p) => p.scope === 'KOMISI' || p.scope === 'BPMJ').map((p) => (
+                    <option key={p.id} value={p.id}>{p.scope} · {p.name}</option>
+                  ))}
+                </select>
+              </EditField>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-[#8C8880] mb-1">Rentang program (bukan hari pelaksanaan)</p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                <input type="date" value={editForm.startDate} onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
-                <input type="date" value={editForm.endDate} onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm" />
-              </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <EditField label="Mulai program" hint="Rentang program tahunan, bukan hari H." icon={Calendar}>
+                <input
+                  type="date"
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, startDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+              </EditField>
+              <EditField label="Akhir program" icon={Calendar}>
+                <input
+                  type="date"
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                />
+              </EditField>
             </div>
-            <input
-              value={editForm.whatsappGroupUrl}
-              onChange={(e) => setEditForm((f) => ({ ...f, whatsappGroupUrl: e.target.value }))}
-              placeholder="WA event (https://chat.whatsapp.com/…)"
-              className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-            />
+            <EditField
+              label="Grup WhatsApp peserta"
+              icon={MessageCircle}
+              hint="Tautan undangan grup event. Sinkron ke halaman daftar BAKU TAU, kartu portal, dan panel WA Channels."
+            >
+              <input
+                value={editForm.whatsappGroupUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, whatsappGroupUrl: e.target.value }))}
+                placeholder="https://chat.whatsapp.com/…"
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                inputMode="url"
+                autoComplete="off"
+              />
+            </EditField>
             {showVenueFields && (
-              <div className="space-y-2 pt-1 border-t border-[#D9D7D0]">
-                <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Waktu & tempat (WIB)</p>
-                <input
-                  type="datetime-local"
-                  value={editForm.eventDate}
-                  onChange={(e) => setEditForm((f) => ({ ...f, eventDate: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-                />
-                <input
-                  value={editForm.venueName}
-                  onChange={(e) => setEditForm((f) => ({ ...f, venueName: e.target.value }))}
-                  placeholder="Nama tempat"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-                />
-                <input
-                  value={editForm.locationDetail}
-                  onChange={(e) => setEditForm((f) => ({ ...f, locationDetail: e.target.value }))}
-                  placeholder="Detail lokasi (tampil di halaman publik)"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-                />
-                <input
-                  value={editForm.mapUrl}
-                  onChange={(e) => setEditForm((f) => ({ ...f, mapUrl: e.target.value }))}
-                  placeholder="Tautan peta"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-                />
-                <input
-                  value={editForm.mapEmbedQuery}
-                  onChange={(e) => setEditForm((f) => ({ ...f, mapEmbedQuery: e.target.value }))}
-                  placeholder="Query embed peta"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
-                />
+              <div className="space-y-3 pt-2 border-t border-[#D9D7D0]">
+                <div>
+                  <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Waktu & tempat (WIB)</p>
+                  <p className="text-[10px] text-[#8C8880] mt-0.5 leading-relaxed">
+                    Hari pelaksanaan & lokasi publik — terpisah dari rentang program di atas.
+                  </p>
+                </div>
+                <EditField
+                  label="Hari & jam pelaksanaan"
+                  icon={CalendarClock}
+                  hint="Zona waktu WIB (bukan zona browser)."
+                >
+                  <input
+                    type="datetime-local"
+                    value={editForm.eventDate}
+                    onChange={(e) => setEditForm((f) => ({ ...f, eventDate: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField label="Nama tempat" icon={MapPin} hint="Judul singkat di kartu lokasi publik.">
+                  <input
+                    value={editForm.venueName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, venueName: e.target.value }))}
+                    placeholder="GMIM Eben Haezer Cikarang"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField
+                  label="Catatan lokasi (opsional)"
+                  icon={AlignLeft}
+                  hint="Subtitle di bawah nama tempat — mis. aula / parkir. Jangan ulang nama + jam; jam sudah dari field di atas."
+                >
+                  <input
+                    value={editForm.locationDetail}
+                    onChange={(e) => setEditForm((f) => ({ ...f, locationDetail: e.target.value }))}
+                    placeholder="Contoh: Aula utama · parkir di utara"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
+                <EditField
+                  label="Tautan Buka Maps"
+                  icon={ExternalLink}
+                  hint="URL yang dibuka saat tombol “Buka Maps” diklik."
+                >
+                  <input
+                    value={editForm.mapUrl}
+                    onChange={(e) => setEditForm((f) => ({ ...f, mapUrl: e.target.value }))}
+                    placeholder="https://maps.app.goo.gl/… atau share.google/…"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                    inputMode="url"
+                    autoComplete="off"
+                  />
+                </EditField>
+                <EditField
+                  label="Query pin peta embed"
+                  icon={Search}
+                  hint="Teks pencarian untuk iframe peta (bukan URL). Kosong = pakai nama tempat."
+                >
+                  <input
+                    value={editForm.mapEmbedQuery}
+                    onChange={(e) => setEditForm((f) => ({ ...f, mapEmbedQuery: e.target.value }))}
+                    placeholder={editForm.venueName ? `${editForm.venueName}, Cikarang, Bekasi` : 'Nama tempat, kota'}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+                  />
+                </EditField>
               </div>
             )}
             <div className="flex justify-end gap-2">

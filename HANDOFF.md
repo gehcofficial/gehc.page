@@ -1,6 +1,33 @@
 # GEHC Portal — Handoff
 
-## Current — Venue event di DB + form edit (3 Sep 2026)
+## Current — Form edit event: label + WA + venue jelas (3 Sep 2026)
+
+**Goal:** Form Edit Program & Event tidak lagi “tebak field”; WA & venue punya konteks UI yang proper.
+
+### Done
+
+- Form Edit: label + icon + hint per field (meta, rentang program, WA, waktu & tempat).
+- WA field: “Grup WhatsApp peserta” + hint sinkron ke halaman daftar BAKU TAU, kartu portal, dan WA Channels.
+- Venue: bedakan nama tempat / catatan lokasi / tautan Maps / query embed; hint agar tidak mengulang jam.
+- Fallback `locationDetail` BAKU TAU: `Cikarang, Bekasi` (bukan nama+jam). Migrasi idempotent menormalisasi nilai lama di DB.
+
+### Commands
+
+```powershell
+npm run db:migrate:local            # normalisasi location_detail lama
+npm run lint; npm run test
+npm run dev:all
+```
+
+### Next
+
+- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
+- Jalankan `db:migrate:local:staging` (kalender + venue) di staging.
+- Isi Pengucapan Syukur & HUT WKI setelah dikonfirmasi BPMJ.
+
+---
+
+## Prior — Venue event di DB + form edit (3 Sep 2026)
 
 **Goal:** Tanggal dan tempat BAKU TAU (dan event publik lain) hidup di `EventProgram`, bisa diedit dari portal, konstanta hanya fallback.
 

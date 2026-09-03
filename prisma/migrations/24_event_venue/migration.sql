@@ -24,13 +24,24 @@ UPDATE `EventProgram`
   SET
     event_date = '2026-09-12 08:00:00.000',
     venue_name = COALESCE(venue_name, 'GMIM Eben Haezer Cikarang'),
-    location_detail = COALESCE(location_detail, 'GMIM Eben Haezer Cikarang · 15.00 WIB'),
+    location_detail = COALESCE(location_detail, 'Cikarang, Bekasi'),
     map_url = COALESCE(map_url, 'https://share.google/Ro2jBSuGfrzfg49nP'),
     map_embed_query = COALESCE(map_embed_query, 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi')
   WHERE id = 'evt-baku-tau-4-0' AND event_date IS NULL;
 
+-- Normalisasi subtitle lama yang mengulang nama + jam (jam sudah di event_date).
+UPDATE `EventProgram`
+  SET location_detail = 'Cikarang, Bekasi'
+  WHERE id = 'evt-baku-tau-4-0'
+    AND location_detail = 'GMIM Eben Haezer Cikarang · 15.00 WIB';
+
 UPDATE `content_items`
   SET
     event_date = '2026-09-12',
-    location_detail = COALESCE(location_detail, 'GMIM Eben Haezer Cikarang · 15.00 WIB')
+    location_detail = COALESCE(location_detail, 'Cikarang, Bekasi')
   WHERE id = 'cnt-bakutau';
+
+UPDATE `content_items`
+  SET location_detail = 'Cikarang, Bekasi'
+  WHERE id = 'cnt-bakutau'
+    AND location_detail = 'GMIM Eben Haezer Cikarang · 15.00 WIB';

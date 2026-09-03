@@ -374,7 +374,7 @@ export const INITIAL_CONTENT: ContentItem[] = [
     published_at: '2026-08-20',
     event_date: '2026-09-12',
     is_featured_event: true,
-    location_detail: 'GMIM Eben Haezer Cikarang · 15.00 WIB',
+    location_detail: 'Cikarang, Bekasi',
     is_published: true,
     author: 'Komisi Pemuda GEHC',
     bannerUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=1200&auto=format&fit=crop',

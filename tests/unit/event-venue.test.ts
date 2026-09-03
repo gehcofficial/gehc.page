@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_VENUE_NAME } from '../../server/lib/baku-tau.mjs';
+import { BAKU_TAU_EVENT_DATE_ISO, BAKU_TAU_VENUE_NAME, BAKU_TAU_LOCATION_DETAIL } from '../../server/lib/baku-tau.mjs';
 import { toWibIso, venueOf, wibDateOnly } from '../../server/lib/event-venue.mjs';
 
 describe('zona waktu BAKU TAU', () => {
@@ -22,10 +22,12 @@ describe('zona waktu BAKU TAU', () => {
 });
 
 describe('venueOf', () => {
-  it('event kosong + BAKU TAU memakai konstanta', () => {
+  it('event kosong + BAKU TAU memakai konstanta tanpa ulang jam di locationDetail', () => {
     const v = venueOf(null, true);
     expect(v.eventDate).toBe(BAKU_TAU_EVENT_DATE_ISO);
     expect(v.venueName).toBe(BAKU_TAU_VENUE_NAME);
+    expect(v.locationDetail).toBe(BAKU_TAU_LOCATION_DETAIL);
+    expect(v.locationDetail).not.toMatch(/WIB|15\.00/);
     expect(v.mapUrl).toBeTruthy();
   });
 

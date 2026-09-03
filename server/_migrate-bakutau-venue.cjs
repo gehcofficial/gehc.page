@@ -51,7 +51,7 @@ async function main() {
       const [content] = await conn.query(
         `UPDATE content_items SET
           event_date = '2026-09-12',
-          location_detail = 'GMIM Eben Haezer Cikarang · 15.00 WIB',
+          location_detail = 'Cikarang, Bekasi',
           subtitle = 'Malam penyambutan mahasiswa baru di perantuaan — bertemu & terhubung di GMIM Eben Haezer',
           is_featured_event = true
         WHERE id = 'cnt-bakutau'`,
@@ -72,7 +72,7 @@ async function main() {
           'Welcome Night',
           '2026-08-20',
           '2026-09-12',
-          'GMIM Eben Haezer Cikarang · 15.00 WIB',
+          'Cikarang, Bekasi',
           true,
           true,
           'Komisi Pemuda GEHC',

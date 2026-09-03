@@ -16,7 +16,7 @@ const mysql = require('mysql2/promise');
 const BAKU_TAU_EVENT_ID = 'evt-baku-tau-4-0';
 const BAKU_TAU_EVENT_DATE_ISO = '2026-09-12T15:00:00+07:00';
 const BAKU_TAU_VENUE_NAME = 'GMIM Eben Haezer Cikarang';
-const BAKU_TAU_LOCATION_DETAIL = 'GMIM Eben Haezer Cikarang · 15.00 WIB';
+const BAKU_TAU_LOCATION_DETAIL = 'Cikarang, Bekasi';
 const BAKU_TAU_MAP_URL = 'https://share.google/Ro2jBSuGfrzfg49nP';
 const BAKU_TAU_MAP_EMBED_QUERY = 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi';
 const WELCOME_NIGHT_MEETING_ID = 'evtmt-baku-tau-4-0-welcome-night';
@@ -87,6 +87,26 @@ async function main() {
         ],
       );
       console.log(`${BAKU_TAU_EVENT_ID} venue backfilled (${new Date(BAKU_TAU_EVENT_DATE_ISO).toISOString()})`);
+    }
+
+    // Rapikan subtitle lama yang mengulang nama tempat + jam (jam sudah di event_date).
+    const [locFix] = await conn.query(
+      `UPDATE EventProgram
+         SET location_detail = ?
+       WHERE id = ? AND location_detail = ?`,
+      [BAKU_TAU_LOCATION_DETAIL, BAKU_TAU_EVENT_ID, 'GMIM Eben Haezer Cikarang · 15.00 WIB'],
+    );
+    if (locFix.affectedRows) {
+      console.log(`${BAKU_TAU_EVENT_ID}.location_detail dinormalisasi → ${BAKU_TAU_LOCATION_DETAIL}`);
+    }
+    const [ciLoc] = await conn.query(
+      `UPDATE content_items
+         SET location_detail = ?
+       WHERE id = 'cnt-bakutau' AND location_detail = ?`,
+      [BAKU_TAU_LOCATION_DETAIL, 'GMIM Eben Haezer Cikarang · 15.00 WIB'],
+    );
+    if (ciLoc.affectedRows) {
+      console.log(`content_items cnt-bakutau.location_detail dinormalisasi → ${BAKU_TAU_LOCATION_DETAIL}`);
     }
 
     // Koreksi 22:00 WIB → 15:00 WIB pada Welcome Night.

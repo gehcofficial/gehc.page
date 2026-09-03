@@ -19,7 +19,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
   whatsappGroupUrl,
   eventDate = '2026-09-12T15:00:00+07:00',
   venueName = 'GMIM Eben Haezer Cikarang',
-  locationDetail = 'GMIM Eben Haezer Cikarang · 15.00 WIB',
+  locationDetail = 'Cikarang, Bekasi',
   mapUrl = 'https://share.google/Ro2jBSuGfrzfg49nP',
   mapEmbedQuery = 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi',
   compact = false,
