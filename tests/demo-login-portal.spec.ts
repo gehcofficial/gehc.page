@@ -9,5 +9,5 @@ test('Login via local auth and open portal', async ({ page }) => {
   await loginViaLocal(page);
   await switchToPortal(page);
 
-  await expect(page.getByRole('button', { name: 'Akun Saya' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: /^(Akun Saya|My Account)$/ })).toBeVisible({ timeout: 15000 });
 });

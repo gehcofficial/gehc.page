@@ -66,11 +66,11 @@ test.describe('Multi-role portal architecture', () => {
   test('account hub sections load', async ({ page }) => {
     await loginViaLocal(page);
     await openAccountHub(page);
-    await expect(page.getByRole('heading', { name: 'Akun Saya' })).toBeVisible();
-    await page.getByRole('button', { name: 'Keamanan', exact: true }).click();
-    await expect(page.getByText('Ganti kata sandi')).toBeVisible();
-    await page.getByRole('button', { name: 'Peran', exact: true }).click();
-    await expect(page.getByText('Peran & Panel Kerja')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^(Akun Saya|My Account)$/ })).toBeVisible();
+    await page.getByRole('button', { name: /^(Keamanan|Security)$/ }).click();
+    await expect(page.getByText(/Ganti kata sandi|Change password/i)).toBeVisible();
+    await page.getByRole('button', { name: /^(Peran|Roles)$/ }).click();
+    await expect(page.getByText(/Peran & panel kerja|Roles & workspaces/i)).toBeVisible();
   });
 
   test('forgot password page loads and accepts email', async ({ page }) => {

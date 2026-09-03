@@ -23,6 +23,8 @@ import { MonthlyPlanPanel } from './MonthlyPlanPanel';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
 import { ScrollTabBar } from './ScrollTabBar';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
 
 function EditField({
   label,
@@ -131,6 +133,8 @@ const EVENT_KINDS = [
 
 export const EventWorkspacePanel: React.FC = () => {
   const { addToast } = useApp();
+  const { t } = useLang();
+  const ev = t.portal.events;
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
@@ -731,8 +735,8 @@ export const EventWorkspacePanel: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-[#1B1B1B]">Program & Event</h2>
-          <p className="text-xs text-[#8C8880] mt-0.5">Payung gerejawi → event Tim Kerja → rencana pelayanan bulan.</p>
+          <h2 className="text-xl font-black text-[#1B1B1B]">{t.portal.nav.events}</h2>
+          <p className="text-xs text-[#8C8880] mt-0.5">{t.portal.guides.events.purpose}</p>
         </div>
         {listTab === 'events' && (
           <button
@@ -740,27 +744,29 @@ export const EventWorkspacePanel: React.FC = () => {
             onClick={() => setShowCreate((v) => !v)}
             className="text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold"
           >
-            <Plus className="w-3.5 h-3.5 inline mr-1" /> Event operasional
+            <Plus className="w-3.5 h-3.5 inline mr-1" /> {ev.tabEvents}
           </button>
         )}
       </div>
 
+      <PanelGuide guideId={`events.${listTab}`} />
+
       <ScrollTabBar active={listTab}>
         {([
-          { id: 'events' as ListTab, label: 'Event Tim Kerja' },
-          { id: 'calendar' as ListTab, label: 'Kalender gerejawi' },
-          { id: 'umbrella' as ListTab, label: 'Payung gerejawi' },
-          { id: 'month' as ListTab, label: 'Rencana bulan' },
-        ]).map((t) => (
+          { id: 'events' as ListTab, label: ev.tabEvents },
+          { id: 'calendar' as ListTab, label: ev.tabCalendar },
+          { id: 'umbrella' as ListTab, label: ev.tabUmbrella },
+          { id: 'month' as ListTab, label: ev.tabMonth },
+        ]).map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
             role="tab"
-            aria-selected={listTab === t.id}
-            onClick={() => setListTab(t.id)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${listTab === t.id ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
+            aria-selected={listTab === tab.id}
+            onClick={() => setListTab(tab.id)}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${listTab === tab.id ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </ScrollTabBar>

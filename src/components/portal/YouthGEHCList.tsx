@@ -7,6 +7,7 @@ import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from '.
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { countryName } from '../../lib/countries';
 import { displayAvatar } from '../../lib/avatar';
+import { useListPager } from './ListPager';
 
 interface RoleAssignment {
   id: string;
@@ -716,6 +717,7 @@ export const YouthGEHCList: React.FC = () => {
   const displayed = useMemo(() => {
     return allFiltered.filter((y) => matchesMainFilter(y, mainFilter) && matchesSubFilter(y, mainFilter, subFilter, timKerjaGroups));
   }, [allFiltered, mainFilter, subFilter, timKerjaGroups]);
+  const { pageItems: pagedYouth, pager: youthPager } = useListPager<YouthUser>(displayed);
 
   // Build Beyonders grouped data
   const beyondersGrouped = useMemo((): BeyondersGroupData[] => {
@@ -1154,6 +1156,8 @@ export const YouthGEHCList: React.FC = () => {
         )}
       </div>
 
+      {youthPager}
+
       {selectedIds.size > 0 && (
         <div className="sticky top-2 z-20 bg-white border border-[#D9D7D0] rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1331,7 +1335,7 @@ export const YouthGEHCList: React.FC = () => {
               </p>
             </div>
           ) : (
-            displayed.map((y) => {
+            pagedYouth.map((y) => {
               const isExpanded = expanded === y.id;
               const roles = displayRoles(y);
 
@@ -1478,7 +1482,7 @@ export const YouthGEHCList: React.FC = () => {
               <p className="text-xs text-[#8C8880] mt-1">Role assignment belum dilakukan.</p>
             </div>
           ) : (
-            displayed.map((y) => {
+            pagedYouth.map((y) => {
               const isExpanded = expanded === y.id;
               const roles = displayRoles(y);
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Shield, Users, Sparkles, ChevronRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ROLE_LABEL } from '../../lib/roles';
+import { useLang } from '../../context/LangContext';
+import { portalRoleLabel } from '../../lib/portal-i18n';
 import { UserRole } from '../../types';
 import { buildPortalPath, roleToNamespace } from '../../lib/portal-routes';
 
@@ -13,16 +14,15 @@ const ROLE_ICONS: Partial<Record<UserRole, React.ReactNode>> = {
 };
 
 export const RolePickerScreen: React.FC = () => {
-  const { myRoleOptions, setActiveUserRole, currentUser } = useApp();
+  const { myRoleOptions, setActiveUserRole } = useApp();
+  const { t } = useLang();
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-black text-[#1B1B1B]">Pilih Panel Kerja</h1>
-          <p className="text-sm text-[#8C8880] mt-2">
-            Halo {currentUser.name} — akun Anda memiliki {myRoleOptions.length} peran. Pilih konteks yang ingin dibuka.
-          </p>
+          <h1 className="text-2xl font-black text-[#1B1B1B]">{t.portal.rolePicker.title}</h1>
+          <p className="text-sm text-[#8C8880] mt-2">{t.portal.rolePicker.subtitle}</p>
         </div>
         <div className="space-y-3">
           {myRoleOptions.map((role) => (
@@ -36,7 +36,7 @@ export const RolePickerScreen: React.FC = () => {
                 {ROLE_ICONS[role] || <Users className="w-5 h-5" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#1B1B1B]">{ROLE_LABEL[role]}</p>
+                <p className="text-sm font-bold text-[#1B1B1B]">{portalRoleLabel(t, role)}</p>
                 <p className="text-[11px] text-[#8C8880] mt-0.5 font-mono">#/portal/{roleToNamespace(role)}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-[#D9D7D0] group-hover:text-[#FF416C] shrink-0" />
@@ -48,7 +48,7 @@ export const RolePickerScreen: React.FC = () => {
           onClick={() => { window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1); }}
           className="mt-6 w-full text-center text-xs font-bold text-[#8C8880] hover:text-[#1B1B1B]"
         >
-          Pengaturan Akun →
+          {t.portal.layout.accountSettings}
         </button>
       </div>
     </div>

@@ -41,6 +41,8 @@ import WartaPublikTab from './WartaPublikTab';
 import EventGalleryTab from './EventGalleryTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 import { ScrollTabBar } from './ScrollTabBar';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -111,6 +113,8 @@ type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'p
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
+  const { t } = useLang();
+  const d = t.portal.divisions;
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
@@ -686,10 +690,12 @@ export const DivisionWorkspacePanel: React.FC = () => {
             Panel Divisi
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            Kelola program, approval workflow, dan tim per divisi.
+            {t.portal.guides.divisions.purpose}
           </p>
         </div>
       </div>
+
+      <PanelGuide guideId="divisions" />
 
       {/* Event Selector */}
       {events.length > 0 && (
@@ -857,16 +863,16 @@ export const DivisionWorkspacePanel: React.FC = () => {
             {/* Sub-tabs: Overview | Members | Discussions | Drive | Store (Benzarpreneurship only) */}
             <ScrollTabBar active={detailTab}>
               {([
-                { id: 'overview' as DetailTab, label: 'Ringkasan', icon: <ChevronRight className="w-3.5 h-3.5" /> },
-                { id: 'members' as DetailTab, label: 'Anggota', icon: <Users className="w-3.5 h-3.5" /> },
-                { id: 'discussions' as DetailTab, label: 'Diskusi', icon: <MessageSquare className="w-3.5 h-3.5" /> },
-                { id: 'drive' as DetailTab, label: 'Drive', icon: <FolderOpen className="w-3.5 h-3.5" /> },
-                { id: 'planning' as DetailTab, label: 'Rencana', icon: <ClipboardList className="w-3.5 h-3.5" /> },
-                ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: 'Check-in', icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: 'Warta', icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: 'Galeri', icon: <Image className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: 'Penatalayan', icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: 'Benzarpreneurship', icon: <Store className="w-3.5 h-3.5" /> }] : []),
+                { id: 'overview' as DetailTab, label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
+                { id: 'members' as DetailTab, label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
+                { id: 'discussions' as DetailTab, label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                { id: 'drive' as DetailTab, label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+                { id: 'planning' as DetailTab, label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
+                ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: d.tabStore, icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.id}

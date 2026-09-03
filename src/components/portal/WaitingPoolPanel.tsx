@@ -4,6 +4,10 @@ import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { PlacementChoiceModal, PlacementTarget } from './PlacementChoiceModal';
 import { DOMICILE_OPTIONS, domicileLabel } from '../../lib/domicile';
+import { useLang } from '../../context/LangContext';
+import { fmt } from '../../lib/portal-i18n';
+import { PanelGuide } from './PanelGuide';
+import { useListPager } from './ListPager';
 
 const BAKU_TAU_EVENT = 'BAKU TAU 4.0';
 
@@ -52,6 +56,8 @@ function daysSince(dateStr: string): number {
 
 export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }) => {
   const { addToast } = useApp();
+  const { t } = useLang();
+  const o = t.portal.onboarding;
   const [tab, setTab] = useState<'registered' | 'waiting' | 'pending'>('registered');
   const [bakuTauOnly, setBakuTauOnly] = useState(true);
   const [domicileFilter, setDomicileFilter] = useState<string>('');
@@ -68,6 +74,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const [showJethroHint, setShowJethroHint] = useState(false);
   const [placementTargets, setPlacementTargets] = useState<PlacementTarget[] | null>(null);
 
+  const { pageItems: pagedPending, pager: pendingPager } = useListPager<WaitingPoolEntry>(pendingApproval || []);
   const poolQuery = (status: string) => {
     const params = new URLSearchParams({ status });
     if (bakuTauOnly) params.set('sourceEvent', BAKU_TAU_EVENT);
@@ -366,12 +373,16 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
         </button>
       </div>
 
+      <PanelGuide
+        guideId={tab === 'registered' ? 'onboarding.registered' : tab === 'waiting' ? 'onboarding.waiting' : 'onboarding.pending'}
+      />
+
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3 flex-wrap">
         {([
-          ['registered', `Quick Register (${(registeredPool || []).length})`],
-          ['waiting', `Menunggu Profil (${(waitingPool || []).length})`],
-          ['pending', `Menunggu Role (${(pendingApproval || []).length})`],
+          ['registered', fmt(o.tabRegistered, { n: (registeredPool || []).length })],
+          ['waiting', fmt(o.tabWaiting, { n: (waitingPool || []).length })],
+          ['pending', fmt(o.tabPending, { n: (pendingApproval || []).length })],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -388,8 +399,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       {tab === 'registered' && (
         <PoolList
           entries={registeredPool || []}
-          emptyTitle="Belum ada quick register"
-          emptyDesc="Peserta yang daftar via QRIS/form cepat akan muncul di sini."
+          emptyTitle={o.emptyRegisteredTitle}
+          emptyDesc={o.emptyRegisteredDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
         />
@@ -399,8 +410,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       {tab === 'waiting' && (
         <PoolList
           entries={waitingPool || []}
-          emptyTitle="Belum ada yang menunggu profil"
-          emptyDesc="Semua pendaftar sudah melengkapi profil."
+          emptyTitle={o.emptyWaitingTitle}
+          emptyDesc={o.emptyWaitingDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
         />
@@ -425,8 +436,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           {(pendingApproval || []).length === 0 ? (
             <EmptyState
               icon={<Clock className="w-8 h-8 text-[#8C8880]" />}
-              title="Belum ada yang menunggu role"
-              desc="Semua sudah melengkapi profil, tapi belum ada yang siap assign role."
+              title={o.emptyPendingTitle}
+              desc={o.emptyPendingDesc}
             />
           ) : (
             <>
@@ -465,9 +476,9 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                 </div>
               )}
 
-              {/* List */}
+              {pendingPager}
               <div className="space-y-2">
-                {(pendingApproval || []).map((entry) => {
+                {pagedPending.map((entry) => {
                   const isSelected = selectedIds.has(entry.id);
                   const canPlace = entry.userId;
                   const isProcessing = bulkActionLoading && isSelected;
@@ -606,12 +617,15 @@ const PoolList: React.FC<{
   emptyDesc: string;
   onReminder: (e: WaitingPoolEntry) => void;
   sendingReminder: string | null;
-}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => (
+}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => {
+  const { pageItems, pager } = useListPager<WaitingPoolEntry>(entries);
+  return (
   <div className="space-y-2">
+    {pager}
     {entries.length === 0 ? (
       <EmptyState icon={<ClipboardList className="w-8 h-8 text-[#8C8880]" />} title={emptyTitle} desc={emptyDesc} />
     ) : (
-      entries.map((entry) => (
+      pageItems.map((entry) => (
         <div key={entry.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4">
           <div className="flex items-center gap-3">
             <img src={initialsAvatar(entry.name)} alt={entry.name} className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]" />
@@ -665,7 +679,8 @@ const PoolList: React.FC<{
       ))
     )}
   </div>
-);
+  );
+};
 
 const EmptyState: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
   <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-12 text-center">

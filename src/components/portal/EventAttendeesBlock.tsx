@@ -4,6 +4,8 @@ import { asalFromOrigin } from '../../lib/origin';
 import { answersByQuestionKey, isQuestionVisible, type EventQuestion } from '../../lib/event-questions';
 import { EventQuestionFields } from './EventQuestionFields';
 import { useApp } from '../../context/AppContext';
+import { useListPager } from './ListPager';
+import { useLang } from '../../context/LangContext';
 
 type AttendeeRow = {
   id: string;
@@ -21,6 +23,7 @@ type AttendeeRow = {
 
 export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = ({ eventId, slug }) => {
   const { addToast } = useApp();
+  const { t } = useLang();
   const [rows, setRows] = useState<AttendeeRow[]>([]);
   const [questions, setQuestions] = useState<EventQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
@@ -28,6 +31,7 @@ export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = 
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
+  const { pageItems: pagedRows, pager: attendeePager } = useListPager<AttendeeRow>(rows);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,10 +102,12 @@ export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = 
       {loading ? (
         <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>
       ) : rows.length === 0 ? (
-        <p className="text-xs text-[#8C8880]">Belum ada peserta dengan akun terhubung.</p>
+        <p className="text-xs text-[#8C8880]">{t.portal.common.empty}</p>
       ) : (
+        <>
+          {attendeePager}
         <div className="rounded-2xl border border-[#D9D7D0] bg-white divide-y divide-[#D9D7D0]/60 max-h-[28rem] overflow-y-auto">
-          {rows.map((row) => {
+          {pagedRows.map((row) => {
             const uid = row.user?.id || row.userId;
             const asal = asalFromOrigin(row.user?.origin);
             const open = openId === uid;
@@ -137,6 +143,7 @@ export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = 
             );
           })}
         </div>
+        </>
       )}
     </div>
   );

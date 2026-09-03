@@ -1,4 +1,5 @@
 ﻿import { Dict } from './en';
+import { portalId } from './portal-id';
 
 /** Kamus bahasa INDONESIA — harus mencermati struktur en.ts. */
 export const id: Dict = {
@@ -266,4 +267,5 @@ export const id: Dict = {
     portalBtn: 'Masuk Portal',
     lineage: '“Satu retreat, seribu generasi.”',
   },
+  portal: portalId,
 };

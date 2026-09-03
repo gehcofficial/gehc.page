@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Loader2, MessageCircle, Save } from 'lucide-react';
 import { ScrollTabBar } from './ScrollTabBar';
+import { useLang } from '../../context/LangContext';
+import { PanelGuide } from './PanelGuide';
 
 type Kind = 'EVENT' | 'GROUP' | 'DIVISION' | 'KOLOM' | 'RECREATIONAL';
 
@@ -34,6 +36,7 @@ const KIND_LABEL: Record<Kind, string> = {
 const KINDS: Kind[] = ['EVENT', 'GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'];
 
 export const WhatsAppChannelsPanel: React.FC = () => {
+  const { t } = useLang();
   const [layer, setLayer] = useState<'event' | 'permanent'>('permanent');
   const [kind, setKind] = useState<Kind>('GROUP');
   const [loading, setLoading] = useState(true);
@@ -104,12 +107,14 @@ export const WhatsAppChannelsPanel: React.FC = () => {
       <div>
         <h2 className="text-lg font-black text-[#1B1B1B] flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-emerald-600" />
-          Kanal WhatsApp
+          {t.portal.wa.title}
         </h2>
         <p className="text-sm text-[#8C8880] mt-1">
-          Portal hanya menyimpan tautan undangan. Grup permanen jangan dikosongkan. Tautan grup peserta event diubah di Program & Event → Edit, bukan di sini.
+          {t.portal.guides['wa-channels'].purpose}
         </p>
       </div>
+
+      <PanelGuide guideId="wa-channels" />
 
       {raci && (
         <div className="rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] px-4 py-3 text-xs text-[#5C5850]">
@@ -126,7 +131,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
           onClick={() => { setLayer('permanent'); setKind('GROUP'); }}
           className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${layer === 'permanent' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
         >
-          Permanen
+          {t.portal.wa.layerPermanent}
         </button>
         <button
           type="button"
@@ -135,7 +140,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
           onClick={() => { setLayer('event'); setKind('EVENT'); }}
           className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${layer === 'event' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
         >
-          Event (sementara)
+          {t.portal.wa.layerEvent}
         </button>
       </ScrollTabBar>
 
@@ -157,7 +162,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
               kind === k ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
             }`}
           >
-            {KIND_LABEL[k]}
+            {k === 'EVENT' ? t.portal.wa.kindEvent : k === 'GROUP' ? t.portal.wa.kindGroup : k === 'DIVISION' ? t.portal.wa.kindDivision : k === 'KOLOM' ? t.portal.wa.kindKolom : t.portal.wa.kindRecreational}
           </button>
         ))}
       </ScrollTabBar>

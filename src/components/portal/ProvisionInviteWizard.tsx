@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, UserPlus, Copy, CheckCircle2, Download, Users } from 'lucide-react';
 import { UserRole } from '../../types';
-import { ROLE_LABEL } from '../../lib/roles';
 import { BEYONDERS_GROUPS, formatCredentialBlock, type InviteType } from '../../lib/invite-credentials';
 import { OrgSlotPicker } from './OrgSlotPicker';
+import { useLang } from '../../context/LangContext';
+import { fmt, portalRoleLabel } from '../../lib/portal-i18n';
 
 const MENTORING_ROLES: UserRole[] = ['MENTOR', 'CO_MENTOR', 'MENTEE'];
 const STAFF_ROLES: UserRole[] = ['KOMISI', 'COMMITTEE', 'BPMJ'];
@@ -66,6 +67,8 @@ function downloadResultsCsv(rows: ProvisionRow[]) {
 }
 
 export const ProvisionInviteWizard: React.FC = () => {
+  const { t } = useLang();
+  const p = t.portal.people;
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [inviteType, setInviteType] = useState<InviteType>('beyonders');
   const [name, setName] = useState('');
@@ -122,7 +125,7 @@ export const ProvisionInviteWizard: React.FC = () => {
     if (!name.trim()) return;
     if (inviteType === 'beyonders' && !groupId) return;
     if (inviteType === 'staff' && !orgNodeId) {
-      alert('Pilih slot posisi organisasi untuk undangan Komisi/Tim Kerja.');
+      alert(p.pickOrgSlot);
       return;
     }
     setBusy(true);
@@ -165,7 +168,7 @@ export const ProvisionInviteWizard: React.FC = () => {
   const submitBulk = async () => {
     if (!parsedBulk.length) return;
     if (inviteType === 'staff' && !parsedBulk.every((r) => r.orgNodeId || orgNodeId)) {
-      alert('Setiap baris bulk Komisi/Tim Kerja wajib punya orgNodeId (kolom ke-5) atau pilih slot default di form.');
+      alert(p.bulkNeedOrg);
       return;
     }
     setBusy(true);
@@ -225,7 +228,7 @@ export const ProvisionInviteWizard: React.FC = () => {
         <pre className="text-[10px] text-green-900 whitespace-pre-wrap font-sans bg-white/70 rounded-lg p-2">{block}</pre>
         <button type="button" onClick={() => void copyText(block, key)} className="flex items-center gap-1 text-[10px] font-bold text-green-800 hover:underline">
           <Copy className="w-3 h-3" />
-          {copiedId === key ? 'Tersalin!' : 'Salin info lengkap'}
+          {copiedId === key ? t.portal.common.copied : p.copyFull}
         </button>
       </div>
     );
@@ -237,19 +240,17 @@ export const ProvisionInviteWizard: React.FC = () => {
     <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5 space-y-4">
       <div className="flex items-center gap-2">
         <UserPlus className="w-5 h-5 text-[#FF416C]" />
-        <h3 className="text-sm font-bold">Undangan & Provision</h3>
+        <h3 className="text-sm font-bold">{p.provisionTitle}</h3>
       </div>
-      <p className="text-[11px] text-[#8C8880]">
-        Undangan existing Beyonders / staf — username + password, role & grup sudah di-assign. Google ditaut nanti di Akun.
-      </p>
+      <p className="text-[11px] text-[#8C8880]">{p.provisionHint}</p>
 
       <div className="space-y-2">
-        <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">Tipe undangan</span>
+        <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">{p.inviteType}</span>
         <div className="flex flex-wrap gap-2">
           {([
-            ['beyonders', 'Beyonders (grup + posisi)'],
-            ['staff', 'Komisi / Tim Kerja'],
-            ['individual', 'Individu (non-Beyonders)'],
+            ['beyonders', p.typeBeyonders],
+            ['staff', p.typeStaff],
+            ['individual', p.typeIndividual],
           ] as const).map(([id, label]) => (
             <button
               key={id}
@@ -264,23 +265,23 @@ export const ProvisionInviteWizard: React.FC = () => {
       </div>
 
       <div className="flex gap-2">
-        <button type="button" onClick={() => setMode('single')} className={`flex-1 py-2 rounded-lg text-xs font-bold ${mode === 'single' ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>Satu orang</button>
+        <button type="button" onClick={() => setMode('single')} className={`flex-1 py-2 rounded-lg text-xs font-bold ${mode === 'single' ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>{p.modeSingle}</button>
         <button type="button" onClick={() => setMode('bulk')} className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 ${mode === 'bulk' ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>
-          <Users className="w-3.5 h-3.5" /> Bulk
+          <Users className="w-3.5 h-3.5" /> {p.modeBulk}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-1">
         {roleOptions.map((r) => (
           <button key={r} type="button" onClick={() => setRole(r)} className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${role === r ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>
-            {ROLE_LABEL[r]}
+            {portalRoleLabel(t, r)}
           </button>
         ))}
       </div>
 
       {inviteType === 'beyonders' && (
         <label className="block space-y-1">
-          <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">Kelompok Beyonders</span>
+          <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">{p.beyondersGroup}</span>
           <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm">
             {groups.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
@@ -299,7 +300,7 @@ export const ProvisionInviteWizard: React.FC = () => {
 
       <label className="flex items-start gap-2 cursor-pointer">
         <input type="checkbox" checked={useUniformPassword} onChange={(e) => setUseUniformPassword(e.target.checked)} className="mt-0.5" />
-        <span className="text-[11px] text-[#8C8880]">Password seragam (staging/demo)</span>
+        <span className="text-[11px] text-[#8C8880]">{p.uniformPassword}</span>
       </label>
       {useUniformPassword && (
         <input className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono" placeholder="password123" value={uniformPassword} onChange={(e) => setUniformPassword(e.target.value)} />
@@ -308,13 +309,13 @@ export const ProvisionInviteWizard: React.FC = () => {
       {mode === 'single' ? (
         <>
           <div className="grid sm:grid-cols-2 gap-3">
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm" placeholder="Nama lengkap *" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono" placeholder="Username (opsional, auto dari nama)" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm sm:col-span-2" placeholder="Email (opsional — Google nanti)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm" placeholder={p.fullName} value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono" placeholder={p.usernameOptional} value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
+            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm sm:col-span-2" placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <button type="button" disabled={busy || !name.trim() || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-            Buat undangan
+            {p.createInviteBtn}
           </button>
         </>
       ) : (
@@ -330,26 +331,22 @@ export const ProvisionInviteWizard: React.FC = () => {
             onChange={(e) => setBulkText(e.target.value)}
           />
           <p className="text-[10px] text-[#8C8880]">
-            {inviteType === 'staff' ? (
-              <>Format: <code>nama,username,role,orgNodeId</code> — orgNodeId wajib (atau pilih slot default di atas).</>
-            ) : (
-              <>Format: <code>nama,username,role,groupId</code> — groupId wajib untuk Beyonders.</>
-            )}
+            {inviteType === 'staff' ? p.bulkStaffFormat : p.bulkBeyondersFormat}
             {parsedBulk.length > 0 && <span className="text-[#FF416C] font-bold"> · {parsedBulk.length} baris</span>}
           </p>
           <p className="text-[10px] text-[#8C8880]">
-            Ubah status Beyonders ↔ Individu setelah undangan lewat menu <strong>Jemaat</strong> → edit anggota.
+            {p.afterInviteJemaat}
           </p>
           <button type="button" disabled={busy || parsedBulk.length === 0} onClick={submitBulk} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-            Provision {parsedBulk.length || ''} orang
+            {fmt(p.provisionN, { n: parsedBulk.length || '' })}
           </button>
         </>
       )}
 
       {singleResult && (
         <div className="space-y-2">
-          <p className="text-xs font-bold text-green-800 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Undangan dibuat</p>
+          <p className="text-xs font-bold text-green-800 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {p.inviteCreated}</p>
           {renderCredentialCard(singleResult, 'single')}
         </div>
       )}
@@ -357,11 +354,11 @@ export const ProvisionInviteWizard: React.FC = () => {
       {bulkResults && bulkResults.length > 0 && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-bold text-green-800">Selesai: {successBulk.length} berhasil{bulkResults.length > successBulk.length && `, ${bulkResults.length - successBulk.length} gagal`}</p>
+            <p className="text-xs font-bold text-green-800">{fmt(p.doneOk, { ok: successBulk.length })}{bulkResults.length > successBulk.length ? fmt(p.doneFail, { n: bulkResults.length - successBulk.length }) : ''}</p>
             {successBulk.length > 0 && (
               <div className="flex gap-2">
                 <button type="button" onClick={() => void copyText(successBulk.map((r) => formatCredentialBlock(r)).join('\n---\n'), 'bulk-all')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-100 text-green-900 text-[10px] font-bold">
-                  <Copy className="w-3 h-3" />{copiedId === 'bulk-all' ? 'Tersalin!' : 'Salin semua'}
+                  <Copy className="w-3 h-3" />{copiedId === 'bulk-all' ? t.portal.common.copied : p.copyAll}
                 </button>
                 <button type="button" onClick={() => downloadResultsCsv(bulkResults)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#181818] text-white text-[10px] font-bold">
                   <Download className="w-3 h-3" /> CSV

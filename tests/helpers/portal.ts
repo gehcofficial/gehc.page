@@ -67,7 +67,7 @@ export async function switchToPortal(page: Page, roleLabel?: string | RegExp) {
     await page.goto(`${BASE_URL}/#/portal`, { waitUntil: 'domcontentloaded' });
   }
 
-  const rolePicker = page.getByRole('heading', { name: 'Pilih Panel Kerja' });
+  const rolePicker = page.getByRole('heading', { name: /Pilih (Panel Kerja|ruang kerja)|Choose a workspace/i });
   if (await rolePicker.isVisible({ timeout: 3000 }).catch(() => false)) {
     const btn = roleLabel
       ? page.locator('button').filter({ hasText: roleLabel }).first()
@@ -76,11 +76,11 @@ export async function switchToPortal(page: Page, roleLabel?: string | RegExp) {
     await page.waitForURL(/#\/portal\/[^/]+\//, { timeout: 30000 });
   }
 
-  await page.getByRole('button', { name: 'Akun Saya', exact: true }).or(
-    page.getByRole('button', { name: 'Dashboard & Ringkasan', exact: true }),
+  await page.getByRole('button', { name: /^(Akun Saya|My Account)$/ }).or(
+    page.getByRole('button', { name: /Dashboard & (Ringkasan|Summary)/ }),
   ).first().waitFor({ state: 'visible', timeout: 30000 });
 
-  const expand = page.getByTitle('Buka sidebar');
+  const expand = page.getByTitle(/Buka sidebar|Expand sidebar/);
   if (await expand.isVisible({ timeout: 1000 }).catch(() => false)) {
     await expand.click();
   }
@@ -107,7 +107,7 @@ function currentPortalNamespace(url: string): string {
 }
 
 export async function navigateToMenu(page: Page, menuText: string) {
-  const expand = page.getByTitle('Buka sidebar');
+  const expand = page.getByTitle(/Buka sidebar|Expand sidebar/);
   if (await expand.isVisible({ timeout: 1000 }).catch(() => false)) {
     await expand.click();
   }
@@ -132,7 +132,7 @@ export async function navigateToMenu(page: Page, menuText: string) {
 
 export async function openAccountHub(page: Page, section: 'Profil' | 'Keamanan' | 'Peran' | 'Notifikasi' = 'Profil') {
   await page.goto(`${BASE_URL}/#/portal/account/profile`, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('heading', { name: 'Akun Saya' }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('heading', { name: /^(Akun Saya|My Account)$/ }).waitFor({ state: 'visible', timeout: 30000 });
   if (section !== 'Profil') {
     await page.getByRole('button', { name: section, exact: true }).click();
   }

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Plus, Trash2, Users, Mail } from 'lucide-react';
 import { UserRole } from '../../types';
-import { ROLE_LABEL } from '../../lib/roles';
+import { useLang } from '../../context/LangContext';
+import { fmt, portalRoleLabel } from '../../lib/portal-i18n';
+import { useListPager } from './ListPager';
 
 const ROLES: UserRole[] = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'];
 
@@ -31,6 +33,8 @@ const authedFetch = async (url: string, method = 'GET', body?: unknown) => {
 };
 
 export const AccessGroupsPanel: React.FC = () => {
+  const { t } = useLang();
+  const p = t.portal.people;
   const [groups, setGroups] = useState<AccessGroupDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -72,7 +76,7 @@ export const AccessGroupsPanel: React.FC = () => {
   };
 
   const removeGroup = async (id: string) => {
-    if (!confirm('Hapus grup akses ini?')) return;
+    if (!confirm(t.portal.people.deleteGroupConfirm)) return;
     setBusy(true);
     try {
       await authedFetch(`/api/admin/access-groups/${id}`, 'DELETE');
@@ -84,10 +88,12 @@ export const AccessGroupsPanel: React.FC = () => {
     }
   };
 
+  const { pageItems: pagedGroups, pager: groupsPager } = useListPager<AccessGroupDto>(groups || []);
+
   if (!groups) {
     return (
       <div className="flex items-center gap-2 text-sm text-[#8C8880] py-12 justify-center">
-        <Loader2 className="w-4 h-4 animate-spin" /> Memuat grup akses…
+        <Loader2 className="w-4 h-4 animate-spin" /> {p.loadingAccess}
       </div>
     );
   }
@@ -95,25 +101,23 @@ export const AccessGroupsPanel: React.FC = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-black text-[#1B1B1B]">Grup Akses (RLS)</h2>
-        <p className="text-xs text-[#8C8880] mt-1">
-          Daftar email → bundle role otomatis saat login. Cocok untuk tim kerja, mentor batch, dll.
-        </p>
+        <h2 className="text-lg font-black text-[#1B1B1B]">{p.accessTitle}</h2>
+        <p className="text-xs text-[#8C8880] mt-1">{p.accessHint}</p>
       </div>
 
       <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5 space-y-4">
         <h3 className="text-sm font-bold flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Grup Baru
+          <Plus className="w-4 h-4" /> {p.newGroup}
         </h3>
         <input
           className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm"
-          placeholder="Nama grup (mis. Tim Konten 2026)"
+          placeholder={p.groupNamePh}
           value={newGroup.name}
           onChange={(e) => setNewGroup((g) => ({ ...g, name: e.target.value }))}
         />
         <textarea
           className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm"
-          placeholder="Deskripsi opsional"
+          placeholder={p.descOptional}
           rows={2}
           value={newGroup.description}
           onChange={(e) => setNewGroup((g) => ({ ...g, description: e.target.value }))}
@@ -131,7 +135,7 @@ export const AccessGroupsPanel: React.FC = () => {
                 newGroup.roles.includes(r) ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'
               }`}
             >
-              {ROLE_LABEL[r]}
+              {portalRoleLabel(t, r)}
             </button>
           ))}
         </div>
@@ -141,15 +145,16 @@ export const AccessGroupsPanel: React.FC = () => {
           onClick={create}
           className="px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50"
         >
-          Buat Grup
+          {p.createGroup}
         </button>
       </div>
 
       <div className="space-y-3">
         {groups.length === 0 && (
-          <p className="text-sm text-[#8C8880] text-center py-8">Belum ada grup akses.</p>
+          <p className="text-sm text-[#8C8880] text-center py-8">{p.noAccessGroups}</p>
         )}
-        {groups.map((g) => (
+        {groupsPager}
+        {pagedGroups.map((g) => (
           <div key={g.id} className="rounded-2xl border border-[#D9D7D0] bg-white overflow-hidden">
             <button
               type="button"
@@ -162,7 +167,7 @@ export const AccessGroupsPanel: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold">{g.name}</p>
                 <p className="text-[10px] text-[#8C8880]">
-                  {g.roles.join(', ')} · {g.memberCount} email
+                  {g.roles.map((r) => portalRoleLabel(t, r)).join(', ')} · {fmt(p.emailCount, { n: g.memberCount })}
                 </p>
               </div>
               <button
@@ -188,7 +193,7 @@ export const AccessGroupsPanel: React.FC = () => {
                 </div>
                 <textarea
                   className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-xs"
-                  placeholder="Email (pisah baris/koma)"
+                  placeholder={p.emailsPlaceholder}
                   rows={3}
                   value={emailBatch}
                   onChange={(e) => setEmailBatch(e.target.value)}
@@ -199,7 +204,7 @@ export const AccessGroupsPanel: React.FC = () => {
                   onClick={() => addMembers(g.id)}
                   className="px-3 py-1.5 rounded-lg bg-[#1B1B1B] text-white text-[10px] font-bold uppercase"
                 >
-                  Tambah Email
+                  {p.addEmails}
                 </button>
               </div>
             )}

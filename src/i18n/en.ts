@@ -1,4 +1,6 @@
-﻿/**
+﻿import { portalEn } from './portal-en';
+
+/**
  * Kamus bahasa INGGRIS — default untuk audiens global.
  * Struktur harus dicermati oleh id.ts (type Dict = typeof en).
  */
@@ -267,6 +269,7 @@ export const en = {
     portalBtn: 'Enter Portal',
     lineage: '“One retreat, a thousand generations.”',
   },
+  portal: portalEn,
 };
 
 export type Dict = typeof en;
