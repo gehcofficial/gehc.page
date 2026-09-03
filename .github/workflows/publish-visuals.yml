@@ -52,13 +52,25 @@ jobs:
 
       - name: Pull visuals from Google Drive
         env:
-          GDRIVE_ROOT_FOLDER_ID: ${{ secrets.GDRIVE_ROOT_FOLDER_ID }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          GDRIVE_ROOT_STAGING: ${{ secrets.GDRIVE_ROOT_FOLDER_ID }}
+          GDRIVE_ROOT_PRODUCTION: ${{ secrets.GDRIVE_ROOT_FOLDER_ID_PRODUCTION }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            export GDRIVE_ROOT_FOLDER_ID="$GDRIVE_ROOT_PRODUCTION"
+            LABEL=production
+            SECRET_NAME=GDRIVE_ROOT_FOLDER_ID_PRODUCTION
+          else
+            export GDRIVE_ROOT_FOLDER_ID="$GDRIVE_ROOT_STAGING"
+            LABEL=staging
+            SECRET_NAME=GDRIVE_ROOT_FOLDER_ID
+          fi
           if [ -z "$GDRIVE_ROOT_FOLDER_ID" ] || [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" ]; then
-            echo "Missing GDRIVE_ROOT_FOLDER_ID or GOOGLE_SERVICE_ACCOUNT_JSON repository secrets."
+            echo "Missing $SECRET_NAME or GOOGLE_SERVICE_ACCOUNT_JSON repository secret (Drive $LABEL)."
             exit 1
           fi
+          echo "Pull Website Visual from Drive $LABEL → branch $TARGET_BRANCH"
           if [ -n "${{ inputs.folder }}" ]; then
             node server/drive-pull-visuals.mjs -- --folder=${{ inputs.folder }}
           else

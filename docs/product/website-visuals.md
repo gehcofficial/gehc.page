@@ -22,9 +22,11 @@ Google One / My Drive **didukung**. Service account hanya **membaca**. Unggah me
 |--------|----------|
 | Vercel preview + production | `GITHUB_PUBLISH_TOKEN` (PAT: repo + workflow) |
 | Vercel preview + production | `GITHUB_REPO=gehcofficial/gehc.page` |
-| GitHub repo secrets | `GDRIVE_ROOT_FOLDER_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| GitHub repo secrets | `GDRIVE_ROOT_FOLDER_ID` (Drive **staging**), `GDRIVE_ROOT_FOLDER_ID_PRODUCTION` (Drive **prod**), `GOOGLE_SERVICE_ACCOUNT_JSON` |
 
-Sync dari `.env` lokal: `npm run env:sync-github-publish` lalu redeploy.
+Publish → Staging menarik Drive staging. Publish → Production (`main`) menarik Drive prod. Jangan ganti `GDRIVE_ROOT_FOLDER_ID` ke root prod.
+
+Sync token portal dari `.env` lokal: `npm run env:sync-github-publish` lalu redeploy.
 
 Workflow: `.github/workflows/publish-visuals.yml`
 
@@ -44,6 +46,7 @@ npm run drive:provision          # buat folder bila belum ada (SA boleh)
 npm run drive:auth               # sekali — login pemilik Drive (Google One)
 npm run drive:seed-visuals       # unggah ke root STAGING (.env)
 npm run drive:seed-visuals:prod  # unggah ke root PRODUCTION (.env.production)
+npm run drive:copy-visuals:staging-to-prod   # timpa Unsplash prod dengan foto staging
 npm run drive:pull-visuals       # tarik Drive → public/visuals/ + manifest
 npm run drive:pull-visuals:staging -- --folder=landing   # partial: satu subfolder saja
 npm run drive:pull-visuals:staging -- --folder=kelompok

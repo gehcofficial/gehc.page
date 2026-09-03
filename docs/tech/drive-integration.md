@@ -214,5 +214,8 @@ Sama seperti TiDB (dua cluster), Drive memakai dua root terpisah:
 - Seed visual (OAuth pemilik Drive):
   `npm run drive:seed-visuals`       → staging
   `npm run drive:seed-visuals:prod`  → production
+- Salin foto nyata staging → prod (replace stem, bukan seed Unsplash):
+  `npm run drive:copy-visuals:staging-to-prod`
 - Kedua root wajib di-share ke service account sebagai Content Manager.
+- GitHub Actions `publish-visuals.yml`: `GDRIVE_ROOT_FOLDER_ID` = staging, `GDRIVE_ROOT_FOLDER_ID_PRODUCTION` = prod. Branch `main` gagal jika secret prod kosong (tidak fallback ke staging).
 - Script selalu mencetak root mana yang dipakai — cek sebelum Enter.

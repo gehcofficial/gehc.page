@@ -64,6 +64,7 @@
     "drive:pull-visuals": "node server/drive-pull-visuals.mjs",
     "drive:pull-visuals:staging": "dotenv -e .env -e .env.staging --override -- node server/drive-pull-visuals.mjs",
     "drive:pull-visuals:prod": "dotenv -e .env -e .env.production --override -- node server/drive-pull-visuals.mjs",
+    "drive:copy-visuals:staging-to-prod": "node server/drive-copy-visuals.mjs",
     "visuals:optimize": "node server/visuals-optimize.mjs",
     "build": "vite build",
     "preview": "vite preview",
