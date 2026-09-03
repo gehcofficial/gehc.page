@@ -4,7 +4,7 @@ Each portal tab must only call endpoints the user's role can access.
 
 | Nav ID | Panel | Roles (nav) | Primary API endpoints | Server roles |
 |--------|-------|-------------|----------------------|--------------|
-| event-info | EventInfoPanel | all church roles (+ onboarding) | GET `/api/me/baku-tau-registration`, GET `/api/events/bakutau` | auth (registration); public venue |
+| event-info | EventInfoPanel | all church roles (+ onboarding) | GET `/api/me/baku-tau-registration`, GET `/api/events/bakutau`, GET/PATCH `/api/me/profile`, GET `/api/events/:id/questions`, GET/PUT `/api/me/events/:id/answers` | auth (registration + answers); public venue |
 | my-profile | MyProfilePanel | all 8 | GET/PATCH `/api/me/profile` | auth |
 | dashboard | PortalDashboard | 6 roles | GET `/api/groups`, `/api/jemaat/birthdays/upcoming` | varies |
 | people | PeopleInvites | SUPERADMIN, KOMISI | `/api/users`, `/api/invites` | KOMISION_CORE |
@@ -17,9 +17,9 @@ Each portal tab must only call endpoints the user's role can access.
 | content-activities | ManageActivities | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | media-guide | MediaGuidePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/drive/*` | content_manage |
 | struktur | ManageStruktur | SUPERADMIN, COMMITTEE | `/api/db/sync-struktur` | KOMISION |
-| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/church-programs`, `/api/ministry-plans/*` | KOMISION (+BPMJ payung) |
+| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*` | Koinonia operator (soal/assign/answers); Komisi approve katalog; BPMJ payung |
 | divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` | KOMISI / COMMITTEE + Koinonia or BOD |
-| wa-channels | WhatsAppChannelsPanel | KOMISI, COMMITTEE, MENTOR, CO_MENTOR, BPMJ | `GET/PUT /api/channel-links` | write scoped (mentor group, HoD division, Koinonia event) |
+| wa-channels | WhatsAppChannelsPanel | KOMISI, COMMITTEE, MENTOR, CO_MENTOR, BPMJ | `GET/PUT /api/channel-links` | EVENT layer read-only (tulis di Program & Event); PUT EVENT 400 kecuali KOMISI/SUPERADMIN |
 | integrations | ManageIntegrations | SUPERADMIN, KOMISI | drive config | SUPERADMIN/KOMISI |
 | pwa-settings | PWASettingsPanel | 7 roles | `/api/pwa/*`, push | auth |
 

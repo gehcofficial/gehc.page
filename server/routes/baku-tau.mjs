@@ -6,6 +6,7 @@ import {
   normalizePhone,
   whatsappGroupUrlFromEnv,
 } from '../lib/baku-tau.mjs';
+import { resolveWhatsAppUrl } from '../lib/event-question-showif.mjs';
 import { venueOf } from '../lib/event-venue.mjs';
 import { buildCheckInCode } from '../lib/check-in-code.mjs';
 import { emptyDomicileStats, isValidDomicileKind, DOMICILE_DETAIL_REQUIRED } from '../lib/domicile.mjs';
@@ -41,18 +42,18 @@ function publicEventInfo(event) {
 
 async function resolveEventInfo(prisma) {
   const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
-  let whatsappGroupUrl = event?.whatsappGroupUrl || whatsappGroupUrlFromEnv() || null;
-  if (!whatsappGroupUrl) {
-    try {
-      const link = await prisma.channelLink.findUnique({
-        where: { kind_refId: { kind: 'EVENT', refId: BAKU_TAU_EVENT_ID } },
-      });
-      const url = link?.url?.trim();
-      if (url && /^https:\/\/(chat\.whatsapp\.com\/|wa\.me\/)/i.test(url)) {
-        whatsappGroupUrl = url;
-      }
-    } catch { /* ChannelLink belum ada */ }
-  }
+  let channelUrl = null;
+  try {
+    const link = await prisma.channelLink.findUnique({
+      where: { kind_refId: { kind: 'EVENT', refId: BAKU_TAU_EVENT_ID } },
+    });
+    channelUrl = link?.url || null;
+  } catch { /* ChannelLink belum ada */ }
+  const whatsappGroupUrl = resolveWhatsAppUrl({
+    dbUrl: event?.whatsappGroupUrl,
+    envUrl: whatsappGroupUrlFromEnv(),
+    channelUrl,
+  });
   return {
     ...publicEventInfo(event),
     whatsappGroupUrl,
@@ -246,13 +247,13 @@ export function registerBakuTauRoutes(app, { wrap }) {
       });
     }
 
-    if (!name?.trim() || !phone?.trim() || !gender || !origin?.trim() || !domicileKind) {
-      return res.status(400).json({ error: 'Nama, WA, gender, asal, dan domisili wajib diisi.' });
+    if (!name?.trim() || !phone?.trim()) {
+      return res.status(400).json({ error: 'Nama dan nomor WhatsApp wajib diisi.' });
     }
-    if (!isValidDomicileKind(String(domicileKind))) {
+    if (domicileKind && !isValidDomicileKind(String(domicileKind))) {
       return res.status(400).json({ error: 'Domisili tidak valid.' });
     }
-    if (DOMICILE_DETAIL_REQUIRED.has(String(domicileKind)) && !domicileDetail?.trim()) {
+    if (domicileKind && DOMICILE_DETAIL_REQUIRED.has(String(domicileKind)) && !domicileDetail?.trim()) {
       return res.status(400).json({ error: 'Perincian domisili wajib untuk pilihan ini.' });
     }
 
@@ -278,9 +279,9 @@ export function registerBakuTauRoutes(app, { wrap }) {
         userId: null,
         name: String(name).trim(),
         phone: String(phone).trim(),
-        gender: String(gender),
-        origin: String(origin).trim(),
-        domicileKind: String(domicileKind),
+        gender: gender ? String(gender) : null,
+        origin: origin ? String(origin).trim() : null,
+        domicileKind: domicileKind ? String(domicileKind) : null,
         domicileDetail: domicileDetail?.trim() || null,
         sourceEvent: BAKU_TAU_SOURCE_EVENT,
         status: 'REGISTERED',

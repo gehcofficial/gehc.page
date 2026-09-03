@@ -111,3 +111,18 @@ export function parseOriginString(origin?: string | null): OriginFormState {
   }
   return empty;
 }
+
+export function asalFromOrigin(origin?: string | null): {
+  asalRegion: 'SULUT' | 'NON_SULUT' | 'KOSONG';
+  asalPlace: string;
+} {
+  const parsed = parseOriginString(origin);
+  if (parsed.originRegion === 'SULUT') {
+    const place = parsed.originSulutPlace === 'LAINNYA_SULUT' ? parsed.originSulutOther : parsed.originSulutPlace;
+    return { asalRegion: 'SULUT', asalPlace: place };
+  }
+  if (parsed.originRegion === 'NON_SULUT') {
+    return { asalRegion: 'NON_SULUT', asalPlace: parsed.originNonSulut };
+  }
+  return { asalRegion: 'KOSONG', asalPlace: origin?.trim() || '' };
+}

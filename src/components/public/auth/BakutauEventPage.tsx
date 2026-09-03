@@ -3,16 +3,6 @@ import { CheckCircle2, Loader2, MessageCircle, Users } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { Field } from '../ui/joinParts';
 import { EventVenueMap } from '../ui/EventVenueMap';
-import { DOMICILE_OPTIONS, domicileDetailConfig, type DomicileKind } from '../../../lib/domicile';
-import {
-  ORIGIN_REGION_OPTIONS,
-  SULUT_PLACES,
-  TITLE_CASE_HINT,
-  buildOriginString,
-  titleCaseWords,
-  validateOriginForm,
-  type OriginRegion,
-} from '../../../lib/origin';
 import { applyPendingEventRegistration, saveEventPending } from '../../../lib/event-pending';
 import { EmailRegisterPanel, GoogleRegisterPanel } from './shared/AuthPanels';
 import { BakutauRegisterCard } from '../../portal/BakutauRegisterCard';
@@ -150,8 +140,8 @@ export const BakutauEventPage: React.FC = () => {
         {authUser
           ? (reg.registered
             ? 'Kehadiranmu sudah tercatat. Simpan QR di bawah untuk daftar ulang hari H.'
-            : 'Satu langkah lagi: konfirmasi asal & domisili untuk mencatat kehadiran di akun ini.')
-          : 'Masuk dengan Google, atau isi form counter panitia jika belum punya akun.'}
+            : 'Satu langkah lagi: konfirmasi kehadiran di akun ini. Data asal & domisili dilengkapi di Info Event.')
+          : 'Masuk dengan Google, atau isi nama & WhatsApp di counter panitia.'}
       </p>
 
       {stats && (
@@ -199,7 +189,7 @@ export const BakutauEventPage: React.FC = () => {
 
       {!booting && !(authUser && reg.registered) && venue?.venueName && (
         <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6 mt-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] mb-3">Lokasi acara</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-3">Lokasi acara</p>
           {eventDateLabel && (
             <p className="text-xs font-bold text-[#1B1B1B] mb-3 capitalize">{eventDateLabel} WIB</p>
           )}
@@ -222,19 +212,8 @@ const GuestBakutauFlow: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    gender: '',
-    originRegion: '' as OriginRegion | '',
-    originSulutPlace: '',
-    originSulutOther: '',
-    originNonSulut: '',
-    domicileKind: '',
-    domicileDetail: '',
-  });
+  const [form, setForm] = useState({ name: '', phone: '' });
 
-  const domicileDetailCfg = domicileDetailConfig(form.domicileKind as DomicileKind | '');
   const registerNext = EVENT_NEXT;
   const loginHref = `#/login?next=${encodeURIComponent(EVENT_NEXT)}`;
   const registerHref = `#/register?next=${encodeURIComponent(EVENT_NEXT)}`;
@@ -243,40 +222,16 @@ const GuestBakutauFlow: React.FC = () => {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const originErr = validateOriginForm(form);
-    if (originErr) { setError(originErr); setBusy(false); return; }
-    const origin = buildOriginString(form);
-    if (!origin) { setError('Lengkapi asal daerah.'); setBusy(false); return; }
-    if (domicileDetailCfg?.required && !form.domicileDetail.trim()) {
-      setError('Lengkapi perincian domisili.');
-      setBusy(false);
-      return;
-    }
-    const domicileDetail = form.domicileDetail.trim() ? titleCaseWords(form.domicileDetail) : '';
     try {
       const res = await fetch('/api/events/baku-tau-4-0/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          gender: form.gender,
-          origin,
-          domicileKind: form.domicileKind,
-          domicileDetail: domicileDetail || undefined,
-        }),
+        body: JSON.stringify({ name: form.name, phone: form.phone }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Gagal mendaftar.');
       if (d.whatsappGroupUrl) setWhatsappGroupUrl(d.whatsappGroupUrl);
-      saveEventPending(SLUG, {
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        gender: form.gender,
-        origin,
-        domicileKind: form.domicileKind,
-        domicileDetail: domicileDetail || undefined,
-      });
+      saveEventPending(SLUG, { name: form.name.trim(), phone: form.phone.trim() });
       setStep('account');
     } catch (err) {
       setError((err as Error).message);
@@ -341,7 +296,7 @@ const GuestBakutauFlow: React.FC = () => {
         <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6 space-y-4">
           <GoogleRegisterPanel
             title="Masuk lalu konfirmasi kehadiran"
-            hint="Setelah Google, cukup isi asal & domisili sekali. QR daftar ulang muncul di halaman ini dan di portal → Info Event."
+            hint="Setelah Google, konfirmasi daftar. Asal & domisili dilengkapi di portal → Info Event."
             next={registerNext}
             loginHref={loginHref}
           />
@@ -355,42 +310,14 @@ const GuestBakutauFlow: React.FC = () => {
 
       {pathMode === 'counter' && (
         <form onSubmit={submitQuick} className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">Counter panitia — tanpa akun dulu</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Counter panitia — nama & WhatsApp</p>
           <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
           <Field label="No. WhatsApp *" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required />
-          <Field label="Jenis Kelamin *" type="select" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })}
-            options={[{ value: '', label: 'Pilih...' }, { value: 'LAKI-LAKI', label: 'Laki-laki' }, { value: 'PEREMPUAN', label: 'Perempuan' }]} required />
-          <Field label="Asal daerah *" type="select" value={form.originRegion}
-            onChange={(v) => setForm({ ...form, originRegion: v as OriginRegion | '', originSulutPlace: '', originSulutOther: '', originNonSulut: '' })}
-            options={[{ value: '', label: 'Pilih Sulut atau Luar Sulut...' }, ...ORIGIN_REGION_OPTIONS]} required />
-          {form.originRegion === 'SULUT' && (
-            <>
-              <Field label="Kota / kabupaten di Sulut *" type="select" value={form.originSulutPlace}
-                onChange={(v) => setForm({ ...form, originSulutPlace: v, originSulutOther: '' })}
-                options={[{ value: '', label: 'Pilih...' }, ...SULUT_PLACES]} required />
-              {form.originSulutPlace === 'LAINNYA_SULUT' && (
-                <Field label="Tulis kota/kabupaten *" value={form.originSulutOther} onChange={(v) => setForm({ ...form, originSulutOther: v })}
-                  hint={TITLE_CASE_HINT} onBlur={() => setForm((f) => ({ ...f, originSulutOther: titleCaseWords(f.originSulutOther) }))} required />
-              )}
-            </>
-          )}
-          {form.originRegion === 'NON_SULUT' && (
-            <Field label="Kota / kabupaten asal *" value={form.originNonSulut} onChange={(v) => setForm({ ...form, originNonSulut: v })}
-              hint={TITLE_CASE_HINT} onBlur={() => setForm((f) => ({ ...f, originNonSulut: titleCaseWords(f.originNonSulut) }))} required />
-          )}
-          <Field label="Domisili saat ini *" type="select" value={form.domicileKind}
-            onChange={(v) => setForm({ ...form, domicileKind: v, domicileDetail: '' })}
-            options={[{ value: '', label: 'Pilih...' }, ...DOMICILE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))]} required />
-          {domicileDetailCfg?.show && (
-            <Field label={domicileDetailCfg.label} value={form.domicileDetail} onChange={(v) => setForm({ ...form, domicileDetail: v })}
-              placeholder={domicileDetailCfg.placeholder} hint={TITLE_CASE_HINT}
-              onBlur={() => setForm((f) => ({ ...f, domicileDetail: titleCaseWords(f.domicileDetail) }))} required={domicileDetailCfg.required} />
-          )}
           {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
           <button type="submit" disabled={busy}
             className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Simpan & buat akun
+            Simpan & tautkan Google
           </button>
         </form>
       )}

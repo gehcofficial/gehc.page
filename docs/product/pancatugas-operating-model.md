@@ -75,6 +75,9 @@
 | Posting sosmed | Koinonia Hubungan | HoD Koinonia | Marturia Desain | — |
 | Dokumentasi acara | Marturia Dokumentasi | HoD Marturia | — | Komisi |
 | Newcomer → placement | Koinonia Hubungan | HoD Koinonia | Jethro/Komisi | Mentor |
+| Soal tambahan event | Koinonia Program | Ketua Tim Kerja | Konsumsi, Kesehatan, Hubungan, Logistik | Komisi |
+| Katalog soal baru | Tim Kerja (usul) | Komisi (approve) | Koinonia Hubungan | — |
+| WA grup peserta | Koinonia Hubungan | Ketua Tim Kerja | — | tulis hanya di Program & Event → Edit |
 | Benevolence member | Diakonia Kasih Peduli | HoD Diakonia | Bendahara/BZP | Komisi |
 | Transaksi merch/donasi | BZP | Bendahara Tim Kerja | Diakonia Kasih Peduli | Komisi |
 | Testimoni publik | Marturia Kesaksian | Komisi (approve) | Mentee author | — |

@@ -234,6 +234,9 @@ model User {
   orgAssignmentsGiven       OrgAssignment[] @relation("OrgAssignmentAssigner")
   eventAttendees            EventAttendee[]
   eventCheckIns             EventCheckIn[]
+  eventQuestionAnswers      EventQuestionAnswer[]
+  eventQuestionRequestsCreated EventQuestionRequest[] @relation("EqRequestCreator")
+  eventQuestionRequestsReviewed EventQuestionRequest[] @relation("EqRequestReviewer")
   platformAdminGrants       PlatformAdminGrant[]
   strukturMembers           StrukturMember[]
   testimonials              Testimonial[]
@@ -633,6 +636,8 @@ model EventProgram {
   meetings      EventMeeting[]
   attendees     EventAttendee[]
   checkIns      EventCheckIn[]
+  questionAssignments EventQuestionAssignment[]
+  questionAnswers     EventQuestionAnswer[]
   churchProgram ChurchProgram?  @relation(fields: [churchProgramId], references: [id])
 
   @@index([tenantId])
@@ -672,6 +677,87 @@ model EventCheckIn {
   @@index([eventId, scannedAt])
   @@index([waitingPoolId])
   @@map("event_check_ins")
+}
+
+/// Katalog soal tambahan per event (bukan profil).
+model EventQuestionBank {
+  id               String   @id @db.VarChar(64)
+  key              String   @unique @db.VarChar(64)
+  label            String   @db.VarChar(190)
+  hint             String?  @db.Text
+  type             String   @db.VarChar(16) // TEXT | BOOLEAN | SELECT | MULTI
+  options          Json?
+  ownerDivision    String   @map("owner_division") @db.VarChar(24)
+  ownerSubdivision String   @map("owner_subdivision") @db.VarChar(80)
+  showIf           Json?    @map("show_if")
+  status           String   @default("ACTIVE") @db.VarChar(16) // ACTIVE | INACTIVE
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  assignments EventQuestionAssignment[]
+  answers     EventQuestionAnswer[]
+  requests    EventQuestionRequest[]
+
+  @@index([status, sortOrder])
+  @@map("event_question_bank")
+}
+
+model EventQuestionRequest {
+  id                 String    @id @db.VarChar(64)
+  label              String    @db.VarChar(190)
+  hint               String?   @db.Text
+  type               String    @db.VarChar(16)
+  options            Json?
+  ownerDivision      String    @map("owner_division") @db.VarChar(24)
+  ownerSubdivision   String    @map("owner_subdivision") @db.VarChar(80)
+  reason             String?   @db.Text
+  status             String    @default("PENDING") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  createdById        String    @map("created_by_id") @db.VarChar(64)
+  reviewedById       String?   @map("reviewed_by_id") @db.VarChar(64)
+  reviewedAt         DateTime? @map("reviewed_at") @db.DateTime(3)
+  adminNote          String?   @map("admin_note") @db.Text
+  approvedQuestionId String?   @map("approved_question_id") @db.VarChar(64)
+
+  createdBy        User               @relation("EqRequestCreator", fields: [createdById], references: [id])
+  reviewedBy       User?              @relation("EqRequestReviewer", fields: [reviewedById], references: [id])
+  approvedQuestion EventQuestionBank? @relation(fields: [approvedQuestionId], references: [id])
+  createdAt        DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([status])
+  @@map("event_question_requests")
+}
+
+model EventQuestionAssignment {
+  id         String  @id @db.VarChar(64)
+  eventId    String  @map("event_id") @db.VarChar(64)
+  questionId String  @map("question_id") @db.VarChar(64)
+  sortOrder  Int     @default(0) @map("sort_order")
+  enabled    Boolean @default(true)
+
+  event    EventProgram      @relation(fields: [eventId], references: [id])
+  question EventQuestionBank @relation(fields: [questionId], references: [id])
+
+  @@unique([eventId, questionId])
+  @@index([eventId])
+  @@map("event_question_assignments")
+}
+
+model EventQuestionAnswer {
+  id         String   @id @db.VarChar(64)
+  eventId    String   @map("event_id") @db.VarChar(64)
+  userId     String   @map("user_id") @db.VarChar(64)
+  questionId String   @map("question_id") @db.VarChar(64)
+  value      Json
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  event    EventProgram      @relation(fields: [eventId], references: [id])
+  user     User              @relation(fields: [userId], references: [id])
+  question EventQuestionBank @relation(fields: [questionId], references: [id])
+
+  @@unique([eventId, userId, questionId])
+  @@index([eventId, userId])
+  @@map("event_question_answers")
 }
 
 model ChannelLink {

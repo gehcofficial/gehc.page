@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { BakuTauWelcomeCard } from './BakuTauWelcomeCard';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
+import { EventProfileCompleteCard, eventProfileIncomplete } from './EventProfileCompleteCard';
+import { EventSelfAnswersCard } from './EventSelfAnswersCard';
+
+const BAKU_TAU_EVENT_ID = 'evt-baku-tau-4-0';
 
 type BakuTauState = {
   registered: boolean;
@@ -20,6 +24,12 @@ export const EventInfoPanel: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [bakuTau, setBakuTau] = useState<BakuTauState | null>(null);
   const [stats, setStats] = useState<{ registered?: number } | null>(null);
+  const [profile, setProfile] = useState<{
+    gender?: string | null;
+    origin?: string | null;
+    domicileKind?: string | null;
+    domicileDetail?: string | null;
+  } | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async (soft = false) => {
@@ -27,13 +37,14 @@ export const EventInfoPanel: React.FC = () => {
     else setLoading(true);
     setError('');
     try {
-      const [reg, ev] = await Promise.all([
+      const [reg, ev, me] = await Promise.all([
         fetch('/api/me/baku-tau-registration', { credentials: 'include' }).then(async (r) => {
           const d = await r.json();
           if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
           return d;
         }),
         fetch('/api/events/bakutau').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/me/profile', { credentials: 'include' }).then((r) => r.json()).catch(() => ({})),
       ]);
       setBakuTau({
         registered: Boolean(reg.registered),
@@ -47,6 +58,13 @@ export const EventInfoPanel: React.FC = () => {
         registeredAt: reg.registeredAt || null,
       });
       setStats(ev.stats || null);
+      const u = me.user || {};
+      setProfile({
+        gender: u.gender || null,
+        origin: u.origin || null,
+        domicileKind: u.domicileKind || null,
+        domicileDetail: u.domicileDetail || null,
+      });
     } catch (e: any) {
       setError(e?.message || 'Gagal memuat info event');
       setBakuTau(null);
@@ -96,7 +114,7 @@ export const EventInfoPanel: React.FC = () => {
             <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-1">BAKU TAU 4.0</p>
             <h2 className="text-2xl font-black tracking-tight">Info Event</h2>
             <p className="text-sm text-[#8C8880] mt-2 leading-relaxed">
-              QR daftar ulang hari H, lokasi, dan grup WhatsApp peserta. Link WA mengikuti yang diisi admin di Program & Event.
+            QR daftar ulang hari H, lokasi, dan grup WhatsApp peserta. Link WA mengikuti yang diisi admin di Program & Event → Edit.
             </p>
           </div>
           <button
@@ -117,16 +135,25 @@ export const EventInfoPanel: React.FC = () => {
       </div>
 
       {bakuTau?.registered ? (
-        <BakuTauWelcomeCard
-          whatsappGroupUrl={bakuTau.whatsappGroupUrl}
-          eventDate={bakuTau.eventDate}
-          venueName={bakuTau.venueName}
-          locationDetail={bakuTau.locationDetail}
-          mapUrl={bakuTau.mapUrl}
-          mapEmbedQuery={bakuTau.mapEmbedQuery}
-          checkInCode={bakuTau.checkInCode}
-          registeredAt={bakuTau.registeredAt}
-        />
+        <>
+          <BakuTauWelcomeCard
+            whatsappGroupUrl={bakuTau.whatsappGroupUrl}
+            eventDate={bakuTau.eventDate}
+            venueName={bakuTau.venueName}
+            locationDetail={bakuTau.locationDetail}
+            mapUrl={bakuTau.mapUrl}
+            mapEmbedQuery={bakuTau.mapEmbedQuery}
+            checkInCode={bakuTau.checkInCode}
+            registeredAt={bakuTau.registeredAt}
+          />
+          {eventProfileIncomplete(profile) && (
+            <EventProfileCompleteCard
+              initial={profile}
+              onSaved={(next) => setProfile((p) => ({ ...p, ...next }))}
+            />
+          )}
+          <EventSelfAnswersCard eventId={BAKU_TAU_EVENT_ID} />
+        </>
       ) : (
         <div className="rounded-[28px] border border-dashed border-[#D9D7D0] bg-white p-6 text-center">
           <p className="text-sm font-bold text-[#1B1B1B]">Belum terdaftar kehadiran BAKU TAU</p>

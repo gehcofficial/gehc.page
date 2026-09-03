@@ -74,6 +74,7 @@ import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
+import { registerEventQuestionRoutes } from './routes/event-questions.mjs';
 import {
   applyLifeAddressFields,
   reminderDue,
@@ -2164,6 +2165,7 @@ registerChannelLinkRoutes(app, { wrap });
 registerChurchProgramRoutes(app, { wrap });
 registerMinistryPlanRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
+registerEventQuestionRoutes(app, { wrap });
 
 // GET /api/events/:id — detail event + divisi.
 // Jika id tidak ketemu, next() agar GET /api/events/:slug (events-public) yang menangani.

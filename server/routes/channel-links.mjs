@@ -120,7 +120,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
         }));
 
       const write = {
-        EVENT: await isKoinoniaOperator(req.authUser) || isKomisiOrSuperadmin(req.authUser),
+        EVENT: false,
         KOLOM: isKomisiOrSuperadmin(req.authUser),
         RECREATIONAL: isKomisiOrSuperadmin(req.authUser) || roles(req.authUser).includes('COMMITTEE'),
         GROUP: isKomisiOrSuperadmin(req.authUser) || mentorGroups.length > 0,
@@ -139,7 +139,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
         canWrite: write,
         mentorGroupIds: mentorGroups,
         raci: {
-          EVENT: { responsible: 'Koinonia — Hubungan & Komunikasi', accountable: 'Ketua Tim Kerja' },
+          EVENT: { responsible: 'Koinonia — Hubungan & Komunikasi', accountable: 'Ketua Tim Kerja', writeVia: 'Program & Event → Edit' },
           GROUP: { responsible: 'Mentor kelompok', accountable: 'Komisi' },
           DIVISION: { responsible: 'Kepala Divisi', accountable: 'Ketua Tim Kerja' },
           KOLOM: { responsible: 'Komisi Sekretaris', accountable: 'Komisi (BPMJ diinformasikan)' },
@@ -163,6 +163,9 @@ export function registerChannelLinkRoutes(app, { wrap }) {
       const label = req.body?.label ? String(req.body.label).trim().slice(0, 160) : null;
       if (!KINDS.includes(kind) || !refId) {
         return res.status(400).json({ error: 'kind dan refId wajib.' });
+      }
+      if (kind === 'EVENT' && !isKomisiOrSuperadmin(req.authUser)) {
+        return res.status(400).json({ error: 'Ubah tautan grup peserta di Program & Event → Edit.' });
       }
       if (!isValidWhatsAppUrl(url)) {
         return res.status(400).json({ error: 'URL harus tautan undangan WhatsApp (chat.whatsapp.com atau wa.me).' });
@@ -207,6 +210,12 @@ export function registerChannelLinkRoutes(app, { wrap }) {
       const existing = await prisma.channelLink.findUnique({ where: { id: req.params.id } });
       if (!existing) return res.status(404).json({ error: 'Tautan tidak ditemukan.' });
       await prisma.channelLink.delete({ where: { id: existing.id } });
+      if (existing.kind === 'EVENT') {
+        await prisma.eventProgram.update({
+          where: { id: existing.refId },
+          data: { whatsappGroupUrl: null },
+        }).catch(() => null);
+      }
       res.json({ ok: true });
     }),
   );

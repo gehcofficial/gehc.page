@@ -1,3 +1,5 @@
+import { DOMICILE_KINDS } from './lib/domicile.mjs';
+
 export const LIFE_STATUSES = ['SCHOOL', 'UNIVERSITY', 'WORK', 'HOMEMAKER', 'UNEMPLOYED', 'CHILD'];
 
 export const WORK_INDUSTRIES = [
@@ -154,6 +156,12 @@ export function applyLifeAddressFields(body, data) {
     data.cityCode = null;
   }
   if (body.origin !== undefined) data.origin = str(body.origin);
+  if (body.domicileKind !== undefined) {
+    const k = str(body.domicileKind);
+    if (k && !DOMICILE_KINDS.includes(k)) return 'Domisili tidak valid.';
+    data.domicileKind = k;
+  }
+  if (body.domicileDetail !== undefined) data.domicileDetail = str(body.domicileDetail);
   if (body.lifeStatuses !== undefined) {
     if (!Array.isArray(body.lifeStatuses)) return 'lifeStatuses harus array.';
     const bad = body.lifeStatuses.filter((s) => !LIFE_STATUSES.includes(s));

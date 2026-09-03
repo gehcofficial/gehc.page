@@ -1,6 +1,39 @@
 # GEHC Portal — Handoff
 
-## Current — Alur daftar BAKU TAU + reset regs (3 Sep 2026)
+## Current — Bank soal event + form depan tipis (3 Sep 2026)
+
+**Goal:** Counter hanya nama+WA lalu Google. Profil (asal/Sulut, domisili, gender) di Info Event. Soal event opsional (panitia + self-serve). WA grup peserta hanya dari Edit event.
+
+### Done
+
+- Migrasi 25: `event_question_bank` + requests + assignments + answers; seed katalog (jemaat, moda, kost, konsumsi, dll. — tanpa soal Sulut).
+- API soal event + CSV `asalRegion`/`asalPlace` dari `User.origin`.
+- Form `#/event/bakutau` tipis; register auth/guest tanpa wajib asal/gender.
+- Program & Event: checklist soal, isi jawaban atas nama, CSV. Info Event: lengkapi profil + data panitia.
+- Kanal WA layer Event read-only; DELETE ChannelLink EVENT mengosongkan `EventProgram.whatsappGroupUrl`.
+
+### Coba ulang
+
+```powershell
+npm run db:migrate:local
+npm run lint
+npm run test -- tests/unit/event-questions.test.ts tests/unit/origin-parse.test.ts
+npm run dev:all
+```
+
+1. Logout → `#/event/bakutau` → nama+WA atau Google → konfirmasi daftar → QR.
+2. Portal → Info Event → lengkapi asal (Sulut muncul dari dropdown asal) + soal panitia jika Tim Kerja sudah centang.
+3. Program & Event → Edit WA → kartu hijau. Centang 2 soal → isi dari daftar peserta → unduh CSV (kolom `asalRegion`).
+4. Kanal WhatsApp → Event: tidak ada tombol Simpan.
+
+### Next
+
+- Dry-run scanner staging dengan QR asli sebelum 12 Sep.
+- Centang paket soal BAKU TAU 4.0 di staging setelah Komisi setuju.
+
+---
+
+## Prior — Alur daftar BAKU TAU + reset regs (3 Sep 2026)
 
 **Goal:** Setelah Google login, kehadiran menempel; QR (bukan QRIS) + WA tampil di halaman event dan portal Info Event. Bisa daftar ulang dari nol.
 

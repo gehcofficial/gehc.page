@@ -122,7 +122,14 @@ export function registerEventsPublicRoutes(app, { wrap }) {
 
     const rows = await prisma.eventAttendee.findMany({
       where: { eventId: resolved.eventId },
-      include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+      include: {
+        user: {
+          select: {
+            id: true, name: true, email: true, phone: true,
+            gender: true, origin: true, domicileKind: true, domicileDetail: true,
+          },
+        },
+      },
       orderBy: { registeredAt: 'desc' },
       take: 500,
     });

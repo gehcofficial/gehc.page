@@ -110,6 +110,11 @@ const STEPS = [
     label: 'Venue & waktu acara EventProgram + koreksi zona waktu BAKU TAU',
     required: true,
   },
+  {
+    script: 'server/_migrate-event-questions.cjs',
+    label: 'Bank soal event + assignment + jawaban',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

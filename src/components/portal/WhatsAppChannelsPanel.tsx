@@ -106,7 +106,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
           Kanal WhatsApp
         </h2>
         <p className="text-sm text-[#8C8880] mt-1">
-          Portal hanya menyimpan tautan undangan. Grup permanen jangan dikosongkan; grup event dikosongkan setelah orang pindah ke kanal standing.
+          Portal hanya menyimpan tautan undangan. Grup permanen jangan dikosongkan. Tautan grup peserta event diubah di Program & Event → Edit, bukan di sini.
         </p>
       </div>
 
@@ -133,6 +133,12 @@ export const WhatsAppChannelsPanel: React.FC = () => {
           Event (sementara)
         </button>
       </div>
+
+      {kind === 'EVENT' && (
+        <p className="text-xs text-[#5C5850] rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] px-4 py-3">
+          Layer Event hanya tampilan. Ubah tautan di Program & Event → Edit.
+        </p>
+      )}
 
       <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0] overflow-x-auto">
         {(layer === 'event' ? (['EVENT'] as Kind[]) : (['GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'] as Kind[])).map((k) => (
@@ -172,12 +178,12 @@ export const WhatsAppChannelsPanel: React.FC = () => {
               <div className="flex gap-2">
                 <input
                   value={value}
-                  disabled={!writable}
+                  disabled={kind === 'EVENT' || !writable}
                   onChange={(e) => setDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
                   placeholder="https://chat.whatsapp.com/…"
                   className="flex-1 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs disabled:opacity-60"
                 />
-                {writable && (
+                {writable && kind !== 'EVENT' && (
                   <button
                     type="button"
                     onClick={() => save(row.id, row.label)}
