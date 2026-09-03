@@ -1,5 +1,5 @@
 {
-  "syncedAt": "2026-09-02T10:05:04.359Z",
+  "syncedAt": "2026-09-03T17:06:48.313Z",
   "rootFolderId": "1ooE8nCdw-OLL0iq17bp1CK2cSYEnIACA",
   "slots": {
     "landing": {
@@ -27,22 +27,23 @@
       "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788264167658.6074"
     },
     "kelompok": {
-      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788343397513.0056",
-      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788343411452.6067",
-      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788343427575.3062",
-      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788343430705.3462",
-      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788343453941.605",
-      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788343464978.2583",
-      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788343474168.1472",
-      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788343482499.2954",
-      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788343496313.3315",
-      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788343504357.855"
+      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788455173647.0242",
+      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788455178457.0288",
+      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788455183684.034",
+      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788455185400.0356",
+      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788455187801.0378",
+      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788455192892.0427",
+      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788455196452.046",
+      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788455199671.0415",
+      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788455203579.0398",
+      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788455208311.0435"
     },
     "pengurus": {
       "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
     },
     "testimoni": {
       "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788264262442.0808"
-    }
+    },
+    "users": {}
   }
 }
