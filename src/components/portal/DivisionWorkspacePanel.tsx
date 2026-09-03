@@ -31,6 +31,7 @@ import {
   Image,
   Newspaper,
   QrCode,
+  Plus,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
 import { EventCheckInTab } from './EventCheckInTab';
@@ -179,22 +180,57 @@ export const DivisionWorkspacePanel: React.FC = () => {
       const r = await fetch('/api/events', { credentials: 'include' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      setEvents(d.events || []);
-      if (d.events?.length && !selectedEvent) {
-        setSelectedEvent(d.events[0]);
-      }
+      const list: EventItem[] = d.events || [];
+      setEvents(list);
+      // Selalu ambil ulang objek terpilih dari daftar baru; kalau tidak, divisi
+      // yang baru diaktifkan tidak akan pernah terlihat karena objeknya basi.
+      setSelectedEvent((prev) => {
+        if (!prev) return list[0] || null;
+        return list.find((e) => e.id === prev.id) || list[0] || null;
+      });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal memuat event', description: e.message });
     } finally {
       setLoading(false);
     }
-  }, [addToast, selectedEvent]);
+  }, [addToast]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   const currentDiv = selectedEvent?.divisions?.find(
     (d) => d.division === selectedDiv
   );
+
+  const [activating, setActivating] = useState(false);
+  const globalRoles = (authUser?.roles || []).map((r: { role: string }) => r.role);
+  const canActivateDivision = globalRoles.some((r: string) =>
+    ['SUPERADMIN', 'KOMISI', 'COMMITTEE'].includes(r),
+  );
+
+  const handleActivateDivision = async () => {
+    if (!selectedEvent) return;
+    setActivating(true);
+    try {
+      const r = await fetch(`/api/events/${selectedEvent.id}/divisions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division: selectedDiv }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      addToast({
+        type: 'success',
+        title: `Divisi ${selectedDiv} aktif`,
+        description: d.driveFolderId ? 'Folder Drive dibuat' : undefined,
+      });
+      await fetchEvents();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Gagal mengaktifkan divisi', description: e.message });
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const pillarMeta = pillarByName(selectedDiv);
   const divColor = pillarMeta?.color || '#6B7280';
@@ -1276,6 +1312,40 @@ export const DivisionWorkspacePanel: React.FC = () => {
               <div>
                 <BenzarStoreTab eventId={selectedEvent?.id ?? ''} division={selectedDiv} />
               </div>
+            )}
+          </div>
+        )}
+
+        {/*
+          Divisi belum diaktifkan pada event ini. Check-in tetap ditampilkan karena
+          scanner bekerja di level event, bukan level dokumen divisi — tanpa ini
+          scanner hari H tidak bisa dijangkau untuk event tanpa divisi.
+        */}
+        {!currentDiv && selectedEvent && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-2xl bg-[#FAF9F5] border border-dashed border-[#D9D7D0] text-center">
+              <FolderOpen className="w-8 h-8 mx-auto mb-3 text-[#D9D7D0]" />
+              <p className="text-sm font-bold text-[#1B1B1B]">
+                Divisi {pillarMeta?.name || selectedDiv} belum aktif di {selectedEvent.name}
+              </p>
+              <p className="text-xs text-[#8C8880] mt-1 max-w-md mx-auto">
+                Aktifkan divisi untuk membuka ruang kerja: anggota, diskusi, folder Drive, dan alur persetujuan.
+              </p>
+              {canActivateDivision && (
+                <button
+                  type="button"
+                  onClick={handleActivateDivision}
+                  disabled={activating}
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+                >
+                  {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Aktifkan divisi {pillarMeta?.name || selectedDiv}
+                </button>
+              )}
+            </div>
+
+            {selectedDiv === 'KOINONIA' && (
+              <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
             )}
           </div>
         )}
