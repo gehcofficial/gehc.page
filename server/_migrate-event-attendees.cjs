@@ -44,9 +44,7 @@ async function main() {
         metadata JSON NULL,
         PRIMARY KEY (id),
         UNIQUE KEY event_attendees_event_id_user_id_key (event_id, user_id),
-        KEY event_attendees_event_id_idx (event_id),
-        CONSTRAINT event_attendees_event_id_fkey FOREIGN KEY (event_id) REFERENCES EventProgram(id) ON DELETE CASCADE,
-        CONSTRAINT event_attendees_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        KEY event_attendees_event_id_idx (event_id)
       ) ${TABLE_OPTS}
     `);
     console.log('event_attendees created');

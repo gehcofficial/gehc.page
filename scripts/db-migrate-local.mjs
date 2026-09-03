@@ -86,6 +86,21 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-platform-operators.cjs',
+    label: 'Platform operators + admin grants',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-access-groups.cjs',
+    label: 'Access groups',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-password-reset.cjs',
+    label: 'Password reset tokens',
+    required: true,
+  },
+  {
     script: 'server/_migrate-role-assigned-notif.cjs',
     label: 'Notification type ROLE_ASSIGNED',
     required: true,
