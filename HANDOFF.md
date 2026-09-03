@@ -1,26 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — HANDOFF consolidate + RBAC UI/API (3 Sep 2026)
+## Current — Production go-live (4 Sep 2026)
 
-**Goal:** Satu daftar Next aktif (BAKU TAU) + satu Deferred; UI tidak menawarkan aksi yang API tolak; dual-struktur ditutup di docs; runbook production.
+**Goal:** Vercel Production (`main` → `https://gehcpage.vercel.app`) hidup dengan TiDB/Drive/operator terpisah dari staging.
 
 ### Done
 
-- Staging ops: `db:migrate:local:staging` + `db:seed:church-calendar:staging` + `db:schema:check` (schema hijau).
-- Gate UI selaras API: Buat event (`KOMISI`/`COMMITTEE`/`SUPERADMIN`); rencana bulan tulis; payung default/scope BPMJ vs KOMISI; tombol runbook. MENTOR/CO_MENTOR dihapus dari GET `/api/church-calendar` (nav tidak punya kalender).
-- Dual layer struktur **keputusan ditutup**: `OrgNode`/`OrgAssignment` = slot RBAC; `struktur_members` = CMS Leaders. Bukan duplikat — jangan merge/hapus panel. Guides + [`docs/product/rbac-admin.md`](docs/product/rbac-admin.md).
-- Runbook prod: [`docs/tech/production-golive.md`](docs/tech/production-golive.md)
+- Merge `staging` → `main` (`a8297bf`); Vercel Production Ready.
+- Env Production: APP_URL/CORS `gehcpage.vercel.app`, `GEHC_ENV=production`, Drive root YOUTH GEHC (bukan staging), `DATABASE_URL_PRODUCTION`, operator/WebAuthn secrets; `SUPERADMIN_EMAILS` & `WEBAUTHN_MOCK` tidak di-set.
+- TiDB `gehc`: schema check hijau, 46 entri kalender gerejawi, BAKU TAU 4.0 ACTIVE + venue + WA, 0 user `@gehc.demo`.
+- 2 Platform Operator (`#/admin`): `superadmin@gehc.page`, `admin@gehc.page` — break-glass sudah ada, passkey belum (daftar setelah login pertama).
+- Drive prod di-provision; visual publik disalin dari staging.
 
 ### Next (BAKU TAU — 12 Sep)
 
-1. Komisi: centang paket soal BAKU TAU 4.0 di Program & Event (staging).
-2. Portal → Review Penempatan → generate ulang batch (skor Gift Diversity lama masih salah).
-3. Dry-run scanner staging + QR asli (perangkat + kartu peserta): scan, walk-in, void, export CSV.
-4. Setelah BPMJ konfirmasi tanggal: isi Pengucapan Syukur (Cikarang) & HUT WKI di Kalender gerejawi — boleh kosong sampai ada tanggal.
-5. Go-live production: ikuti [`docs/tech/production-golive.md`](docs/tech/production-golive.md).
+1. Login `#/admin` break-glass → daftar passkey (Windows Hello / Face ID / YubiKey) di `https://gehcpage.vercel.app` — passkey staging tidak berlaku.
+2. Google Cloud Console: origin + redirect `https://gehcpage.vercel.app` (dan `/api/auth/google/callback`) — env client ID sudah di Vercel.
+3. Komisi: centang paket soal BAKU TAU 4.0 di Program & Event.
+4. Portal → Review Penempatan → generate ulang batch (skor Gift Diversity lama masih salah).
+5. Dry-run scanner + QR asli: scan, walk-in, void, export CSV.
+6. Setelah BPMJ konfirmasi tanggal: isi Pengucapan Syukur (Cikarang) & HUT WKI di Kalender gerejawi.
 
 ### Deferred
 
+- GitHub Actions `GDRIVE_ROOT_FOLDER_ID` satu secret untuk staging+main — jangan ganti ke prod tanpa workflow terpisah (akan merusak sync staging).
 - STG-05 portal foto kelompok (setelah desain + ACL) — Drive `[GROUP:…]` + gallery publik sudah ada.
 - Broadcast lintas role — jangan panel paralel Warta; extend tipe `Notification` hanya jika Warta + WA tidak cukup.
 - Auto-upload CSV check-in ke Drive & auto-seri folder ibadah (setelah Liturgia minta).
