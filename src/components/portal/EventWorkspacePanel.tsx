@@ -22,6 +22,7 @@ import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
 import { MonthlyPlanPanel } from './MonthlyPlanPanel';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
+import { ScrollTabBar } from './ScrollTabBar';
 
 function EditField({
   label,
@@ -744,7 +745,7 @@ export const EventWorkspacePanel: React.FC = () => {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
+      <ScrollTabBar active={listTab}>
         {([
           { id: 'events' as ListTab, label: 'Event Tim Kerja' },
           { id: 'calendar' as ListTab, label: 'Kalender gerejawi' },
@@ -754,13 +755,15 @@ export const EventWorkspacePanel: React.FC = () => {
           <button
             key={t.id}
             type="button"
+            role="tab"
+            aria-selected={listTab === t.id}
             onClick={() => setListTab(t.id)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold ${listTab === t.id ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${listTab === t.id ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
           >
             {t.label}
           </button>
         ))}
-      </div>
+      </ScrollTabBar>
 
       {listTab === 'calendar' && (
         <ChurchYearCalendarPanel

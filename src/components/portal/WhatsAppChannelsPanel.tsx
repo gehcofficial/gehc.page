@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Loader2, MessageCircle, Save } from 'lucide-react';
+import { ScrollTabBar } from './ScrollTabBar';
 
 type Kind = 'EVENT' | 'GROUP' | 'DIVISION' | 'KOLOM' | 'RECREATIONAL';
 
@@ -117,22 +118,26 @@ export const WhatsAppChannelsPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0] w-fit">
+      <ScrollTabBar className="w-fit max-w-full" active={layer}>
         <button
           type="button"
+          role="tab"
+          aria-selected={layer === 'permanent'}
           onClick={() => { setLayer('permanent'); setKind('GROUP'); }}
-          className={`px-3 py-2 rounded-lg text-xs font-semibold ${layer === 'permanent' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
+          className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${layer === 'permanent' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
         >
           Permanen
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={layer === 'event'}
           onClick={() => { setLayer('event'); setKind('EVENT'); }}
-          className={`px-3 py-2 rounded-lg text-xs font-semibold ${layer === 'event' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
+          className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${layer === 'event' ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'}`}
         >
           Event (sementara)
         </button>
-      </div>
+      </ScrollTabBar>
 
       {kind === 'EVENT' && (
         <p className="text-xs text-[#5C5850] rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] px-4 py-3">
@@ -140,11 +145,13 @@ export const WhatsAppChannelsPanel: React.FC = () => {
         </p>
       )}
 
-      <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0] overflow-x-auto">
+      <ScrollTabBar active={kind}>
         {(layer === 'event' ? (['EVENT'] as Kind[]) : (['GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'] as Kind[])).map((k) => (
           <button
             key={k}
             type="button"
+            role="tab"
+            aria-selected={kind === k}
             onClick={() => setKind(k)}
             className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap ${
               kind === k ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
@@ -153,7 +160,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
             {KIND_LABEL[k]}
           </button>
         ))}
-      </div>
+      </ScrollTabBar>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <p className="text-sm text-[#8C8880]">Memuat kanal…</p>}

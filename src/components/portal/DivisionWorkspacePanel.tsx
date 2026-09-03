@@ -40,6 +40,7 @@ import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
 import EventGalleryTab from './EventGalleryTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
+import { ScrollTabBar } from './ScrollTabBar';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -713,7 +714,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
 
       {/* 6 Division Tabs */}
       <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
-        <div className="flex flex-wrap gap-2 mb-6">
+        <ScrollTabBar track={false} gapClass="gap-2" className="mb-6 pb-0.5" active={selectedDiv}>
           {ALL_DIVISIONS.map((div) => {
             const meta = pillarByName(div);
             const divRec = selectedEvent?.divisions?.find((d) => d.division === div);
@@ -724,8 +725,11 @@ export const DivisionWorkspacePanel: React.FC = () => {
             return (
               <button
                 key={div}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => { setSelectedDiv(div); setDetailTab('overview'); }}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
                     ? 'text-white shadow-lg'
                     : 'bg-[#FAF9F5] text-[#8C8880] hover:bg-gray-100 border border-[#D9D7D0]'
@@ -742,7 +746,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
               </button>
             );
           })}
-        </div>
+        </ScrollTabBar>
 
         {/* Division Detail */}
         {currentDiv && (
@@ -851,7 +855,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
             </div>
 
             {/* Sub-tabs: Overview | Members | Discussions | Drive | Store (Benzarpreneurship only) */}
-            <div className="flex gap-1 p-1 bg-[#FAF9F5] rounded-xl border border-[#D9D7D0]">
+            <ScrollTabBar active={detailTab}>
               {([
                 { id: 'overview' as DetailTab, label: 'Ringkasan', icon: <ChevronRight className="w-3.5 h-3.5" /> },
                 { id: 'members' as DetailTab, label: 'Anggota', icon: <Users className="w-3.5 h-3.5" /> },
@@ -866,8 +870,11 @@ export const DivisionWorkspacePanel: React.FC = () => {
               ]).map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === tab.id}
                   onClick={() => setDetailTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                     detailTab === tab.id
                       ? 'bg-white text-[#1B1B1B] shadow-sm'
                       : 'text-[#8C8880] hover:text-[#1B1B1B]'
@@ -877,7 +884,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   {tab.label}
                 </button>
               ))}
-            </div>
+            </ScrollTabBar>
 
             {/* Tab Content */}
             {detailTab === 'overview' && (

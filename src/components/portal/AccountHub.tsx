@@ -10,6 +10,7 @@ import { AccountRolesSection } from './AccountRolesSection';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import type { AccountSection } from '../../lib/portal-routes';
 import { buildPortalPath } from '../../lib/portal-routes';
+import { ScrollTabBar } from './ScrollTabBar';
 
 const TABS: { id: AccountSection; label: string; icon: React.ReactNode }[] = [
   { id: 'profile', label: 'Profil', icon: <User className="w-4 h-4" /> },
@@ -40,13 +41,15 @@ export const AccountHub: React.FC<{
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <ScrollTabBar track={false} gapClass="gap-2" active={section}>
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
+            role="tab"
+            aria-selected={section === t.id}
             onClick={() => go(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
               section === t.id
                 ? 'bg-[#1B1B1B] text-white'
                 : 'bg-white border border-[#D9D7D0] text-[#8C8880] hover:border-[#1B1B1B]'
@@ -56,7 +59,7 @@ export const AccountHub: React.FC<{
             {t.label}
           </button>
         ))}
-      </div>
+      </ScrollTabBar>
 
       <div className={section === 'profile' ? '' : 'hidden'}>
         <MyProfilePanel

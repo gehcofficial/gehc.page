@@ -270,7 +270,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
             </div>
           )}
 
-          <div className="flex gap-1 border-b border-[#D9D7D0]/60 pb-2 overflow-x-auto">
+          <div className="flex gap-1 border-b border-[#D9D7D0]/60 pb-2 overflow-x-auto overscroll-x-contain touch-pan-x [&>*]:shrink-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map((t) => (
               <button
                 key={t.id}
