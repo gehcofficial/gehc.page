@@ -41,6 +41,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-role-assignments.cjs',
+    label: 'role_assignments + user_roles.assignment_id (no DROP)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-waiting-pool.cjs',
     label: 'Waiting pool onboarding table (waiting_pool)',
     required: true,

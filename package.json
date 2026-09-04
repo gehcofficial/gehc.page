@@ -29,6 +29,7 @@
     "db:migrate:access-groups": "node server/_migrate-access-groups.cjs",
     "db:migrate:password-reset": "node server/_migrate-password-reset.cjs",
     "db:migrate:platform-operators": "node server/_migrate-platform-operators.cjs",
+    "db:migrate:role-assignments": "node server/_migrate-role-assignments.cjs",
     "db:migrate:e10-bakutau": "node server/_migrate-e10-bakutau.cjs",
     "db:migrate:user-avatars": "node server/_migrate-user-avatars.cjs",
     "db:backfill:google-link": "node server/_backfill-google-link.cjs",
