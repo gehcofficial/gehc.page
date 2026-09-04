@@ -60,6 +60,7 @@ export const portalId: typeof portalEn = {
     onboarding: 'Onboarding Pipeline',
     'jethro-placement': 'Review Penempatan',
     'youth-gehc': 'Jemaat',
+    catalog: 'Katalog Minat & Kampus',
     'org-hierarchy': 'Kelola Hirarki',
     'groups-monitoring': 'Monitoring 10 Kelompok',
     groupsMonitoringBinaan: 'Monitoring Kelompok Binaan',
@@ -394,6 +395,13 @@ export const portalId: typeof portalEn = {
       steps: ['Filter All / Individu / Beyonders / staf.', 'Edit anggota, setujui permintaan ubah data.', 'Assign slot org dengan wizard peran.', 'Provision akun (platform admin) hanya memasang password pada orang yang sudah ada.'],
       when: 'Kamu butuh data orang, bukan hanya akun login.',
       notFor: 'Undangan login portal ada di Orang & Undangan. Funnel newcomer ada di Onboarding. Provision di Jemaat bukan “buat user baru”.',
+    },
+    catalog: {
+      title: 'Katalog Minat & Kampus',
+      purpose: 'Daftar default Sports/Arts dan perguruan tinggi Indonesia. Request “Lainnya” dipetakan ke satu opsi, lalu pengusul diingatkan memilih sendiri di profil.',
+      steps: ['Buka tab Minat atau Universitas.', 'Centang beberapa request mirip, pilih satu item katalog (atau buat baru).', 'Kirim reminder — jangan auto-centang ke akun jemaat.'],
+      when: 'Katalog kosong, minat/kampus baru muncul, atau beberapa orang mengusulkan “Lainnya” yang sama.',
+      notFor: 'Mengubah chip orang yang sudah dipilih ada di Jemaat / Profil saya, bukan antrian ini.',
     },
     'org-hierarchy': {
       title: 'Kelola Hirarki',

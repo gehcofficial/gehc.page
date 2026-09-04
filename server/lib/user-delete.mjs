@@ -81,6 +81,7 @@ export async function purgeUserRelations(prisma, userId) {
   await safe('groupMember', () => prisma.groupMember.deleteMany({ where: { userId } }));
   await safe('recreationalMembership', () => prisma.recreationalMembership.deleteMany({ where: { userId } }));
   await safe('recreationalSuggestion', () => prisma.recreationalSuggestion.deleteMany({ where: { userId } }));
+  await safe('institutionSuggestion', () => prisma.institutionSuggestion.deleteMany({ where: { userId } }));
   await safe('churchDataRequest', () => prisma.profileChurchDataRequest.deleteMany({ where: { userId } }));
   await safe('monitoring', () => prisma.monitoringRecord.deleteMany({ where: { mentorId: userId } }));
   await safe('mentorTransition', () =>

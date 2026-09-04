@@ -50,6 +50,7 @@ import {
   removeAccessGroupMember,
 } from './access-groups.mjs';
 import { createInviteProvisionUser, resolveUniformPassword } from './invite-provision.mjs';
+import { sendCatalogReminder, institutionListQuery } from './lib/catalog-reminder.mjs';
 import { congregationUserWhere } from './lib/system-users.mjs';
 import { deleteCongregationUser } from './lib/user-delete.mjs';
 import {
@@ -332,6 +333,13 @@ app.get('/api/me/profile', wrap(async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
   } catch { /* table may not exist yet */ }
+  let institutionSuggestions = [];
+  try {
+    institutionSuggestions = await prisma.institutionSuggestion.findMany({
+      where: { userId: req.authUser.id, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch { /* table may not exist yet */ }
   let churchDataRequest = null;
   try {
     churchDataRequest = await prisma.profileChurchDataRequest.findFirst({
@@ -345,6 +353,7 @@ app.get('/api/me/profile', wrap(async (req, res) => {
     reminderDue: reminderDue(user),
     segments: profileSegments({ ...view, recreationalIds }),
     recreationalSuggestions,
+    institutionSuggestions,
     churchDataRequest,
   });
 }));
@@ -585,14 +594,28 @@ app.get('/api/institutions', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const kind = String(req.query.kind || 'UNIVERSITY');
+  const parsed = institutionListQuery({ q: req.query.q, id: req.query.id });
+  if (parsed.mode === 'empty') {
+    return res.json({ institutions: [], majors: COMMON_MAJORS });
+  }
+  if (parsed.mode === 'id') {
+    const one = await prisma.institution.findFirst({
+      where: { id: parsed.id, ...(kind ? { kind } : {}) },
+    });
+    return res.json({ institutions: one ? [one] : [], majors: COMMON_MAJORS });
+  }
   const institutions = await prisma.institution.findMany({
-    where: { kind },
+    where: {
+      kind,
+      name: { contains: parsed.q },
+    },
     orderBy: { name: 'asc' },
+    take: parsed.take,
   });
   res.json({ institutions, majors: COMMON_MAJORS });
 }));
 
-app.post('/api/institutions', requireRole(...['SUPERADMIN', 'KOMISI']), wrap(async (req, res) => {
+app.post('/api/institutions', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const name = String(req.body?.name || '').trim();
@@ -605,10 +628,129 @@ app.post('/api/institutions', requireRole(...['SUPERADMIN', 'KOMISI']), wrap(asy
       slug: `${slug}-${crypto.randomBytes(2).toString('hex')}`,
       name,
       kind,
-      city: req.body?.city ? String(req.body.city) : null,
+      city: req.body?.city ? String(req.body.city).trim() : null,
+      country: req.body?.country ? String(req.body.country).trim() : 'Indonesia',
     },
   });
   res.json({ institution });
+}));
+
+app.post('/api/institutions/suggest', wrap(async (req, res) => {
+  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Nama kampus wajib.' });
+  const suggestion = await prisma.institutionSuggestion.create({
+    data: {
+      id: `instsug-${crypto.randomBytes(6).toString('hex')}`,
+      userId: req.authUser.id,
+      name,
+      city: req.body?.city ? String(req.body.city).trim() : null,
+      country: req.body?.country ? String(req.body.country).trim() : null,
+      status: 'PENDING',
+    },
+  });
+  res.json({ suggestion });
+}));
+
+app.get('/api/institutions/suggestions', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const status = String(req.query.status || 'PENDING').toUpperCase();
+  const suggestions = await prisma.institutionSuggestion.findMany({
+    where: status ? { status } : undefined,
+    include: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  res.json({ suggestions });
+}));
+
+app.post('/api/institutions/suggestions/map', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const suggestionIds = Array.isArray(req.body?.suggestionIds) ? req.body.suggestionIds.map(String) : [];
+  const institutionId = String(req.body?.institutionId || '').trim();
+  if (!suggestionIds.length || !institutionId) {
+    return res.status(400).json({ error: 'suggestionIds dan institutionId wajib.' });
+  }
+  const inst = await prisma.institution.findUnique({ where: { id: institutionId } });
+  if (!inst) return res.status(404).json({ error: 'Kampus tidak ditemukan.' });
+  const pending = await prisma.institutionSuggestion.findMany({
+    where: { id: { in: suggestionIds }, status: 'PENDING' },
+  });
+  if (!pending.length) return res.status(400).json({ error: 'Tidak ada saran PENDING.' });
+  await prisma.institutionSuggestion.updateMany({
+    where: { id: { in: pending.map((s) => s.id) } },
+    data: { status: 'REDIRECTED', institutionId: inst.id },
+  });
+  await sendCatalogReminder(prisma, {
+    userIds: pending.map((s) => s.userId),
+    catalog: 'institution',
+    itemId: inst.id,
+    itemLabel: inst.name,
+  });
+  res.json({ ok: true, mapped: pending.length, institution: inst });
+}));
+
+app.post('/api/institutions/remind', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const institutionId = String(req.body?.institutionId || '').trim();
+  const inst = await prisma.institution.findUnique({ where: { id: institutionId } });
+  if (!inst) return res.status(404).json({ error: 'Kampus tidak ditemukan.' });
+  const result = await sendCatalogReminder(prisma, {
+    userIds: req.body?.userIds,
+    catalog: 'institution',
+    itemId: inst.id,
+    itemLabel: inst.name,
+  });
+  res.json({ ok: true, ...result });
+}));
+
+app.post('/api/institutions/suggestions/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const sug = await prisma.institutionSuggestion.findUnique({ where: { id: req.params.id } });
+  if (!sug) return res.status(404).json({ error: 'Saran tidak ditemukan.' });
+  if (sug.status !== 'PENDING') return res.status(400).json({ error: 'Saran sudah diproses.' });
+  const slugBase = sug.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'kampus';
+  const institution = await prisma.institution.create({
+    data: {
+      id: `inst-${crypto.randomBytes(6).toString('hex')}`,
+      slug: `${slugBase}-${crypto.randomBytes(2).toString('hex')}`,
+      name: sug.name,
+      kind: 'UNIVERSITY',
+      city: sug.city,
+      country: sug.country || 'Indonesia',
+    },
+  });
+  await prisma.institutionSuggestion.update({
+    where: { id: sug.id },
+    data: { status: 'APPROVED', institutionId: institution.id },
+  });
+  if (req.body?.assignNow && sug.userId) {
+    await prisma.user.update({ where: { id: sug.userId }, data: { institutionId: institution.id } });
+  } else {
+    await sendCatalogReminder(prisma, {
+      userIds: [sug.userId],
+      catalog: 'institution',
+      itemId: institution.id,
+      itemLabel: institution.name,
+    });
+  }
+  res.json({ institution, suggestionId: sug.id });
+}));
+
+app.post('/api/institutions/suggestions/:id/reject', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const sug = await prisma.institutionSuggestion.findUnique({ where: { id: req.params.id } });
+  if (!sug) return res.status(404).json({ error: 'Saran tidak ditemukan.' });
+  if (sug.status !== 'PENDING') return res.status(400).json({ error: 'Saran sudah diproses.' });
+  await prisma.institutionSuggestion.update({ where: { id: sug.id }, data: { status: 'REJECTED' } });
+  res.json({ ok: true });
 }));
 
 app.get('/api/kolom', wrap(async (req, res) => {
@@ -731,7 +873,9 @@ app.get('/api/notifications', wrap(async (req, res) => {
 
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
-      if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE') return n.memberId === req.authUser.id;
+      if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE' || n.type === 'CATALOG_REMINDER') {
+        return n.memberId === req.authUser.id;
+      }
       if (n.type !== 'MENTION') return true;
       const payload = n.payload || {};
       return payload.authorId !== req.authUser.id;
@@ -4412,6 +4556,61 @@ app.get('/api/recreational/suggestions', requireRole(...KOMISION_CORE), wrap(asy
   res.json({ suggestions });
 }));
 
+app.post('/api/recreational/suggestions/map', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const suggestionIds = Array.isArray(req.body?.suggestionIds) ? req.body.suggestionIds.map(String) : [];
+  const groupId = String(req.body?.groupId || '').trim();
+  if (!suggestionIds.length || !groupId) {
+    return res.status(400).json({ error: 'suggestionIds dan groupId wajib.' });
+  }
+  const group = await prisma.recreationalGroup.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Minat tidak ditemukan.' });
+  const pending = await prisma.recreationalSuggestion.findMany({
+    where: { id: { in: suggestionIds }, status: 'PENDING' },
+  });
+  if (!pending.length) return res.status(400).json({ error: 'Tidak ada saran PENDING.' });
+  await prisma.recreationalSuggestion.updateMany({
+    where: { id: { in: pending.map((s) => s.id) } },
+    data: { status: 'REDIRECTED', groupId: group.id },
+  });
+  await sendCatalogReminder(prisma, {
+    userIds: pending.map((s) => s.userId),
+    catalog: 'recreational',
+    itemId: group.id,
+    itemLabel: group.name,
+  });
+  res.json({ ok: true, mapped: pending.length, group });
+}));
+
+app.post('/api/recreational/remind', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const groupId = String(req.body?.groupId || '').trim();
+  const group = await prisma.recreationalGroup.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Minat tidak ditemukan.' });
+  const result = await sendCatalogReminder(prisma, {
+    userIds: req.body?.userIds,
+    catalog: 'recreational',
+    itemId: group.id,
+    itemLabel: group.name,
+  });
+  res.json({ ok: true, ...result });
+}));
+
+app.patch('/api/recreational/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const group = await prisma.recreationalGroup.findUnique({ where: { id: req.params.id } });
+  if (!group) return res.status(404).json({ error: 'Minat tidak ditemukan.' });
+  const data = {};
+  if (req.body?.name) data.name = String(req.body.name).trim();
+  if (req.body?.selectable === false || req.body?.selectable === true) data.selectable = Boolean(req.body.selectable);
+  if (req.body?.sortOrder != null) data.sortOrder = Number(req.body.sortOrder) || 0;
+  const updated = await prisma.recreationalGroup.update({ where: { id: group.id }, data });
+  res.json({ group: updated });
+}));
+
 app.post('/api/recreational/suggestions/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -4447,16 +4646,25 @@ app.post('/api/recreational/suggestions/:id/approve', requireRole(...KOMISION_CO
     },
   });
 
-  await prisma.recreationalMembership.upsert({
-    where: { userId_groupId: { userId: sug.userId, groupId: group.id } },
-    create: { userId: sug.userId, groupId: group.id },
-    update: {},
-  });
-
   await prisma.recreationalSuggestion.update({
     where: { id: sug.id },
     data: { status: 'APPROVED', groupId: group.id },
   });
+
+  if (req.body?.assignNow && sug.userId) {
+    await prisma.recreationalMembership.upsert({
+      where: { userId_groupId: { userId: sug.userId, groupId: group.id } },
+      create: { userId: sug.userId, groupId: group.id },
+      update: {},
+    });
+  } else {
+    await sendCatalogReminder(prisma, {
+      userIds: [sug.userId],
+      catalog: 'recreational',
+      itemId: group.id,
+      itemLabel: group.name,
+    });
+  }
 
   res.json({ group, suggestionId: sug.id });
 }));

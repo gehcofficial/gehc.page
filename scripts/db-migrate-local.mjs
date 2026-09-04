@@ -145,6 +145,11 @@ const STEPS = [
     label: 'Bank soal event + assignment + jawaban',
     required: true,
   },
+  {
+    script: 'server/_migrate-catalog-reminder.cjs',
+    label: 'Katalog minat/kampus: country, institution_suggestions, CATALOG_REMINDER',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

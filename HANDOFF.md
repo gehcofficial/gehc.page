@@ -1,6 +1,25 @@
 # GEHC Portal — Handoff
 
-## Current — Church org domains + hide system users (4 Sep 2026)
+## Current — Katalog Minat & Kampus + reminder (4 Sep 2026)
+
+**Goal:** Komisi kelola katalog default minat + PT Indonesia. Request “Lainnya” dipetakan ke 1 opsi lalu reminder — jemaat memilih sendiri.
+
+### Done
+
+- Panel **Katalog Minat & Kampus** (nav Komunitas). Setujui tidak auto-centang; map + reminder (`CATALOG_REMINDER`).
+- `GET /api/institutions` wajib `q` (min 2 huruf) atau `id` — tidak dump seluruh tabel.
+- Seed katalog PT Indonesia (PDDIKTI: Universitas/Institut/Politeknik/Sekolah Tinggi) + minat recreational.
+- Kampus luar negeri hanya lewat request.
+
+### Next
+
+1. Deploy Vercel `staging` + `main` (schema + seed TiDB sudah dijalankan).
+2. `npx prisma generate` jika client lokal masih terkunci (dev server).
+3. Cek panel Katalog: minat 43+ chip, kampus searchable; profil Lainnya + reminder.
+
+---
+
+## Prior — Church org domains + hide system users (4 Sep 2026)
 
 **Goal:** Domain jabatan = Jemaat (BPMJ) → BIPRA → Kolom. `@platform.ops` bukan jemaat.
 

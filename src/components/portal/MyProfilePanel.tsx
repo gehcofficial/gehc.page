@@ -37,7 +37,12 @@ export const MyProfilePanel: React.FC<{
   const [saving, setSaving] = useState(false);
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [institutions, setInstitutions] = useState<Array<{ id: string; name: string }>>([]);
+  const [institutions, setInstitutions] = useState<Array<{ id: string; name: string; city?: string | null }>>([]);
+  const [instSearch, setInstSearch] = useState('');
+  const [selectedInst, setSelectedInst] = useState<{ id: string; name: string } | null>(null);
+  const [pendingInst, setPendingInst] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [showInstOther, setShowInstOther] = useState(false);
+  const [instOther, setInstOther] = useState({ name: '', city: '', country: '' });
   const [majors, setMajors] = useState<string[]>(COMMON_MAJORS);
   const [recFlat, setRecFlat] = useState<RecreationalNode[]>([]);
   const [pendingSuggestions, setPendingSuggestions] = useState<PendingSuggestion[]>([]);
@@ -182,8 +187,11 @@ export const MyProfilePanel: React.FC<{
       }
       setUser(u);
       setPendingSuggestions(p.recreationalSuggestions || []);
+      setPendingInst(p.institutionSuggestions || []);
       setChurchDataRequest(p.churchDataRequest || null);
       setDue(Boolean(p.reminderDue));
+      const inst = u.institution;
+      setSelectedInst(inst?.id ? { id: inst.id, name: inst.name } : null);
       setForm({
         gender: u.gender || '',
         phone: u.phone || '',
@@ -212,6 +220,21 @@ export const MyProfilePanel: React.FC<{
   }, [addToast]);
 
   useEffect(() => { load(); }, [authUser?.id]);
+
+  useEffect(() => {
+    const q = instSearch.trim();
+    if (q.length < 2) {
+      setInstitutions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/institutions?kind=UNIVERSITY&q=${encodeURIComponent(q)}`, { credentials: 'include' });
+      const d = res.ok ? await res.json() : {};
+      setInstitutions(d.institutions || []);
+      if (Array.isArray(d.majors) && d.majors.length) setMajors(d.majors);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [instSearch]);
 
   const save = async () => {
     setSaving(true);
@@ -277,6 +300,34 @@ export const MyProfilePanel: React.FC<{
         title: 'Gagal',
         description: e instanceof Error ? e.message : 'Gagal mengirim saran',
       });
+    } finally {
+      setSuggestBusy(false);
+    }
+  };
+
+  const suggestInstitution = async () => {
+    const name = instOther.name.trim();
+    if (!name) return;
+    setSuggestBusy(true);
+    try {
+      const res = await fetch('/api/institutions/suggest', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          city: instOther.city.trim() || null,
+          country: instOther.country.trim() || null,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal mengirim saran kampus');
+      addToast({ type: 'success', title: 'Saran terkirim', description: 'Admin akan meninjau kampus ini.' });
+      setPendingInst((prev) => [d.suggestion, ...prev]);
+      setShowInstOther(false);
+      setInstOther({ name: '', city: '', country: '' });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal mengirim saran' });
     } finally {
       setSuggestBusy(false);
     }
@@ -482,16 +533,61 @@ export const MyProfilePanel: React.FC<{
             )}
             {form.lifeStatuses.includes('UNIVERSITY') && (
               <div className="space-y-2">
-                <div className="grid sm:grid-cols-2 gap-2">
-                  <select className={field} value={form.institutionId} onChange={(e) => setForm((f) => ({ ...f, institutionId: e.target.value }))}>
-                    <option value="">Universitas</option>
-                    {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                  </select>
-                  <select className={field} value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}>
-                    <option value="">Jurusan</option>
-                    {majors.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                <div className="relative">
+                  <input
+                    className={field}
+                    placeholder="Cari universitas (min. 2 huruf)…"
+                    value={instSearch}
+                    onChange={(e) => setInstSearch(e.target.value)}
+                  />
+                  {selectedInst && (
+                    <p className="text-[10px] text-[#8C8880] mt-1">Terpilih: <span className="font-bold text-[#1B1B1B]">{selectedInst.name}</span></p>
+                  )}
+                  {instSearch.trim().length >= 2 && institutions.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto rounded-xl border border-[#D9D7D0] bg-white shadow-lg">
+                      {institutions.map((i) => (
+                        <button
+                          key={i.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-[#FAF9F5]"
+                          onClick={() => {
+                            setSelectedInst({ id: i.id, name: i.name });
+                            setForm((f) => ({ ...f, institutionId: i.id }));
+                            setInstSearch('');
+                            setInstitutions([]);
+                          }}
+                        >
+                          {i.name}{i.city ? ` · ${i.city}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                <button type="button" onClick={() => setShowInstOther((v) => !v)} className="text-[10px] font-bold text-[#FF416C]">
+                  Lainnya… (kampus tidak ada di daftar)
+                </button>
+                {showInstOther && (
+                  <div className="space-y-2 rounded-xl border border-[#D9D7D0] p-3 bg-[#FAF9F5]">
+                    <input className={field} placeholder="Nama kampus" value={instOther.name} onChange={(e) => setInstOther((f) => ({ ...f, name: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input className={field} placeholder="Kota" value={instOther.city} onChange={(e) => setInstOther((f) => ({ ...f, city: e.target.value }))} />
+                      <input className={field} placeholder="Negara (kosong = Indonesia)" value={instOther.country} onChange={(e) => setInstOther((f) => ({ ...f, country: e.target.value }))} />
+                    </div>
+                    <button type="button" disabled={suggestBusy || !instOther.name.trim()} onClick={() => void suggestInstitution()} className="px-3 py-1.5 rounded-xl bg-[#181818] text-white text-[10px] font-bold disabled:opacity-50">
+                      {suggestBusy ? '…' : 'Kirim ke admin'}
+                    </button>
+                  </div>
+                )}
+                {pendingInst.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-2">
+                    <p className="text-[10px] font-bold text-amber-800">Kampus menunggu persetujuan</p>
+                    {pendingInst.map((s) => <p key={s.id} className="text-[10px] text-amber-900">• {s.name}</p>)}
+                  </div>
+                )}
+                <select className={field} value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}>
+                  <option value="">Jurusan</option>
+                  {majors.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
                 {form.major === 'Lainnya' && (
                   <input
                     className={field}

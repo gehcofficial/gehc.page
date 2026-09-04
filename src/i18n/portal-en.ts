@@ -66,6 +66,7 @@ export const portalEn = {
     onboarding: 'Onboarding Pipeline',
     'jethro-placement': 'Placement Review',
     'youth-gehc': 'Congregation',
+    catalog: 'Interests & campuses',
     'org-hierarchy': 'Manage Hierarchy',
     'groups-monitoring': 'Monitor 10 Groups',
     groupsMonitoringBinaan: 'Monitor My Group',
@@ -400,6 +401,13 @@ export const portalEn = {
       steps: ['Filter All / Individual / Beyonders / staff.', 'Edit a member, approve data-change requests.', 'Assign org slots with the role wizard.', 'Provision account (platform admin) only sets a password on someone who already exists.'],
       when: 'You need the person record, not just the login account.',
       notFor: 'Portal login invites are People & Invitations. Newcomer funnel is Onboarding. Congregation Provision is not “create a new user”.',
+    },
+    catalog: {
+      title: 'Interests & campuses',
+      purpose: 'Default Sports/Arts chips and Indonesian universities. “Other” requests are mapped to one option, then the requester is reminded to pick it on their profile.',
+      steps: ['Open the Interests or Campuses tab.', 'Tick similar requests and pick one catalog item (or create new).', 'Send reminder — do not auto-check the member.'],
+      when: 'The catalog is empty, a new hobby/campus appeared, or several people asked for the same “Other”.',
+      notFor: 'Editing a person’s current chips belongs in Congregation / My Profile, not this queue.',
     },
     'org-hierarchy': {
       title: 'Manage Hierarchy',

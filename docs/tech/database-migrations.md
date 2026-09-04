@@ -74,6 +74,10 @@ Scripts tambahan:
 | `npm run db:seed:org-tree` | Seed pohon CHURCH + BIPRA + YOUTH + KOLOM (BPMJ ke Jemaat) |
 | `npm run db:seed:org-tree:staging` | Sama ke staging |
 | `npm run db:seed:org-tree:prod` | Sama ke prod (BPMJ ke Jemaat + BIPRA) |
+| `npm run db:seed:institutions:staging` | Katalog PT Indonesia ke staging |
+| `npm run db:seed:institutions:prod` | Katalog PT Indonesia ke prod |
+| `npm run db:seed:recreational:staging` | Katalog minat Sports/Arts ke staging |
+| `npm run db:seed:recreational:prod` | Katalog minat Sports/Arts ke prod |
 | `npm run db:seed:beyonders-houses:staging` | 10 rumah Beyonders kosong ke staging |
 | `npm run db:seed:beyonders-houses:prod` | 10 rumah Beyonders kosong (tanpa anggota) |
 | `npm run db:schema:check:staging` | Cek schema TiDB staging |

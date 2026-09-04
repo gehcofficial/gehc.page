@@ -8,6 +8,7 @@ import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileC
 import { countryName } from '../../lib/countries';
 import { displayAvatar } from '../../lib/avatar';
 import { useListPager } from './ListPager';
+import { parsePortalHash, navigatePortal } from '../../lib/portal-routes';
 
 interface RoleAssignment {
   id: string;
@@ -931,38 +932,22 @@ export const YouthGEHCList: React.FC = () => {
       )}
 
       {pendingSuggestions.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+        <button
+          type="button"
+          onClick={() => {
+            const route = parsePortalHash();
+            const ns = route?.namespace && route.namespace !== 'account' ? route.namespace : 'komisi';
+            navigatePortal({ namespace: ns, page: 'catalog' });
+          }}
+          className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-4"
+        >
           <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
             Saran minat baru ({pendingSuggestions.length})
           </p>
-          {pendingSuggestions.map((s) => (
-            <div key={s.id} className="flex flex-wrap items-center gap-2 py-1.5 border-b border-amber-100 last:border-0">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-amber-950">{s.name}</p>
-                <p className="text-[10px] text-amber-800">
-                  {s.kind === 'SPORTS' ? 'Sports' : 'Arts'}
-                  {s.user?.name ? ` · ${s.user.name}` : ''}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={suggestionBusy === s.id}
-                onClick={() => approveSuggestion(s.id)}
-                className="px-2.5 py-1 rounded-lg bg-[#181818] text-white text-[9px] font-bold disabled:opacity-50"
-              >
-                Setujui
-              </button>
-              <button
-                type="button"
-                disabled={suggestionBusy === s.id}
-                onClick={() => rejectSuggestion(s.id)}
-                className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-[9px] font-bold text-amber-900 disabled:opacity-50"
-              >
-                Tolak
-              </button>
-            </div>
-          ))}
-        </div>
+          <p className="text-xs text-amber-900 mt-1">
+            Tinjau dan kirim reminder di Katalog Minat & Kampus — jangan setujui dari direktori ini.
+          </p>
+        </button>
       )}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
