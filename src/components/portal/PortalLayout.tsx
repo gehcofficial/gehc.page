@@ -6,6 +6,7 @@ import { ManageWeeklyInfo } from './ManageWeeklyInfo';
 import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
+import { PastoralCareBoard } from './PastoralCareBoard';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
@@ -65,6 +66,7 @@ import {
   MessageCircle,
   GraduationCap,
   CircleHelp,
+  HeartHandshake,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -196,6 +198,7 @@ export const PortalLayout: React.FC = () => {
     catalog: GraduationCap,
     'org-hierarchy': Network,
     'groups-monitoring': Users,
+    'pastoral-care': HeartHandshake,
     jethro: Sparkles,
     'content-weekly': BookOpen,
     'content-activities': Calendar,
@@ -694,6 +697,12 @@ export const PortalLayout: React.FC = () => {
             </div>
           )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
+          {activeTab === 'pastoral-care' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="pastoral-care" />
+              <PastoralCareBoard />
+            </div>
+          )}
           {activeTab === 'people' && <PeopleInvites onNavigate={handleNavClick} />}
           {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
           {activeTab === 'events' && <EventWorkspacePanel />}

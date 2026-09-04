@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { MessageSquareQuote, Plus, Edit2, Trash2, X, Search } from 'lucide-react';
+import { MessageSquareQuote, Plus, Edit2, Trash2, X, Search, Check } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 interface TestimonialItem {
   id: string;
@@ -9,6 +10,7 @@ interface TestimonialItem {
   photoUrl?: string | null;
   userId?: string | null;
   isPublished: boolean;
+  status?: string;
   sortOrder: number;
 }
 
@@ -18,11 +20,15 @@ const emptyForm = {
   quote: '',
   photoUrl: '',
   userId: '',
-  isPublished: true,
+  isPublished: false,
   sortOrder: 0,
 };
 
 export const ManageTestimonials: React.FC = () => {
+  const { authUser, addToast } = useApp();
+  const isKomisi = (authUser?.roles || []).some(
+    (r: { role: string }) => r.role === 'KOMISI' || r.role === 'SUPERADMIN',
+  );
   const [items, setItems] = useState<TestimonialItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,7 +90,7 @@ export const ManageTestimonials: React.FC = () => {
         quote: form.quote.trim(),
         photoUrl: form.photoUrl.trim() || null,
         userId: form.userId.trim() || null,
-        isPublished: form.isPublished,
+        isPublished: false,
         sortOrder: Number(form.sortOrder) || 0,
       };
       if (editing) {
@@ -115,6 +121,40 @@ export const ManageTestimonials: React.FC = () => {
     fetchItems();
   };
 
+  const sendToReview = async (item: TestimonialItem) => {
+    const r = await fetch(`/api/testimonials/${item.id}/review`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quote: item.quote, authorName: item.authorName, groupName: item.groupName }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      addToast?.({ type: 'error', title: d.error || 'Gagal kirim ke Marturia' });
+      return;
+    }
+    fetchItems();
+  };
+
+  const publishLive = async (item: TestimonialItem) => {
+    const r = await fetch(`/api/testimonials/${item.id}/publish`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      addToast?.({ type: 'error', title: d.error || 'Hanya Komisi yang menerbitkan' });
+      return;
+    }
+    fetchItems();
+  };
+
+  const statusLabel = (item: TestimonialItem) => {
+    if (item.isPublished || item.status === 'PUBLISHED') return 'Live';
+    if (item.status === 'REVIEW') return 'Review';
+    return 'Draft';
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
@@ -129,7 +169,7 @@ export const ManageTestimonials: React.FC = () => {
             Kelola Testimoni
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            Kutipan published tampil bergantian di collage halaman Beyonders.
+            Alur: draf jemaat → Marturia sunting → Komisi terbitkan ke landing (testimoni/slug).
           </p>
         </div>
         <button
@@ -180,16 +220,37 @@ export const ManageTestimonials: React.FC = () => {
                     <td className="py-4">
                       <span
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          item.isPublished
+                          item.isPublished || item.status === 'PUBLISHED'
                             ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-gray-100 text-gray-700'
+                            : item.status === 'REVIEW'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {item.isPublished ? 'Live' : 'Draft'}
+                        {statusLabel(item)}
                       </span>
                     </td>
                     <td className="py-4 pr-2 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {!item.isPublished && item.status !== 'REVIEW' && (
+                          <button
+                            type="button"
+                            onClick={() => sendToReview(item)}
+                            className="px-2 py-1 rounded-lg bg-amber-50 text-amber-800 text-[10px] font-bold"
+                          >
+                            Ke review
+                          </button>
+                        )}
+                        {isKomisi && !item.isPublished && (
+                          <button
+                            type="button"
+                            onClick={() => publishLive(item)}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+                            title="Terbitkan ke landing"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(item)}
                           className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200"
@@ -274,18 +335,6 @@ export const ManageTestimonials: React.FC = () => {
                   placeholder="https://…"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="tst-pub"
-                  checked={form.isPublished}
-                  onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="tst-pub" className="text-xs font-bold cursor-pointer">
-                  Publikasikan ke landing
-                </label>
-              </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button
                   type="button"
@@ -299,7 +348,7 @@ export const ManageTestimonials: React.FC = () => {
                   disabled={saving}
                   className="px-6 py-2.5 rounded-full bg-[#181818] text-white text-xs font-bold disabled:opacity-60"
                 >
-                  {saving ? 'Menyimpan…' : editing ? 'Simpan' : 'Terbitkan'}
+                  {saving ? 'Menyimpan…' : editing ? 'Simpan' : 'Simpan draf'}
                 </button>
               </div>
             </form>

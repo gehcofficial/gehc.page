@@ -1,5 +1,5 @@
 /**
- * Foto profil: Google default, kustom via Drive → CDN.
+ * Foto profil: Google default, kustom di DB (wajib), Drive opsional.
  */
 import { Readable } from 'node:stream';
 import sharp from 'sharp';
@@ -9,6 +9,8 @@ import { publishVisualsConfigured, triggerPublishVisualsWorkflow } from './githu
 
 export const AVATAR_SOURCE_GOOGLE = 'GOOGLE';
 export const AVATAR_SOURCE_CUSTOM = 'CUSTOM';
+/** MySQL TEXT ≈ 64 KiB; data URL base64 harus muat jika tabel blob belum ada. */
+export const MAX_INLINE_AVATAR_BYTES = 48_000;
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -49,18 +51,47 @@ export function staticUserAvatarUrl(userId) {
   return stem ? `/visuals/users/${stem}.jpg` : '';
 }
 
+export function servedAvatarUrl(userId, version = Date.now()) {
+  const id = encodeURIComponent(String(userId || '').trim());
+  return id ? `/api/media/user-avatar/${id}?v=${version}` : '';
+}
+
+export function inlineAvatarDataUrl(jpegBuffer) {
+  if (!jpegBuffer?.length || jpegBuffer.length > MAX_INLINE_AVATAR_BYTES) return '';
+  return `data:image/jpeg;base64,${Buffer.from(jpegBuffer).toString('base64')}`;
+}
+
+export function pickStoredAvatarUrl({ blobOk, userId, version, driveUrl, jpegBuffer }) {
+  if (blobOk) return servedAvatarUrl(userId, version);
+  const fromDrive = String(driveUrl || '').trim();
+  if (fromDrive) return fromDrive;
+  return inlineAvatarDataUrl(jpegBuffer);
+}
+
 export function thumbnailCdnUrl(file) {
   const link = file?.thumbnailLink || file?.thumbnailUrl || '';
   if (!link) return '';
   return link.replace(/=s\d+.*$/, '=s900');
 }
 
-export async function optimizeAvatarBuffer(input) {
+async function renderAvatarJpeg(input, width, quality) {
   return sharp(input, { failOn: 'none' })
     .rotate()
-    .resize({ width: 900, height: 900, fit: 'cover', withoutEnlargement: true })
-    .jpeg({ quality: 86, mozjpeg: true })
+    .resize({ width, height: width, fit: 'cover', withoutEnlargement: true })
+    .jpeg({ quality, mozjpeg: true })
     .toBuffer();
+}
+
+export async function optimizeAvatarBuffer(input) {
+  let width = 640;
+  let quality = 82;
+  let buffer = await renderAvatarJpeg(input, width, quality);
+  for (let i = 0; i < 8 && buffer.length > MAX_INLINE_AVATAR_BYTES; i++) {
+    if (quality > 55) quality -= 9;
+    else width = Math.max(240, Math.floor(width * 0.75));
+    buffer = await renderAvatarJpeg(input, width, quality);
+  }
+  return buffer;
 }
 
 export function decodeAvatarUpload({ mimetype, data }) {
@@ -132,6 +163,79 @@ function stemOf(name) {
   return String(name || '')
     .replace(/\.[^.]+$/, '')
     .toLowerCase();
+}
+
+export async function saveUserAvatarBlob(prisma, userId, jpegBuffer) {
+  if (!prisma || !userId || !jpegBuffer?.length) return false;
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO user_avatars (user_id, data, updated_at) VALUES (?, ?, NOW(3))
+       ON DUPLICATE KEY UPDATE data = ?, updated_at = NOW(3)`,
+      userId,
+      jpegBuffer,
+      jpegBuffer,
+    );
+    return true;
+  } catch (err) {
+    console.warn('[avatar] blob store:', err.message);
+    return false;
+  }
+}
+
+export async function loadUserAvatarBlob(prisma, userId) {
+  if (!prisma || !userId) return null;
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT data FROM user_avatars WHERE user_id = ? LIMIT 1`,
+      userId,
+    );
+    const data = rows?.[0]?.data;
+    return data || null;
+  } catch (err) {
+    console.warn('[avatar] blob load:', err.message);
+    return null;
+  }
+}
+
+export async function deleteUserAvatarBlob(prisma, userId) {
+  if (!prisma || !userId) return;
+  try {
+    await prisma.$executeRawUnsafe(`DELETE FROM user_avatars WHERE user_id = ?`, userId);
+  } catch {
+    /* missing table or row */
+  }
+}
+
+export async function persistUserAvatar({ prisma, userId, jpegBuffer, previousDriveFileId }) {
+  let drive = null;
+  if (hasUserDriveToken()) {
+    try {
+      drive = await uploadUserAvatarToDrive(userId, jpegBuffer);
+      if (previousDriveFileId && previousDriveFileId !== drive.fileId) {
+        await deleteUserAvatarFromDrive(previousDriveFileId);
+      }
+    } catch (err) {
+      console.warn('[avatar] Drive upload skipped:', err.message);
+    }
+  }
+
+  const blobOk = await saveUserAvatarBlob(prisma, userId, jpegBuffer);
+  const avatar = pickStoredAvatarUrl({
+    blobOk,
+    userId,
+    version: Date.now(),
+    driveUrl: drive?.driveUrl || drive?.staticUrl || '',
+    jpegBuffer,
+  });
+  if (!avatar) {
+    throw new Error('Gagal menyimpan foto. Coba foto lain yang lebih sederhana.');
+  }
+  return {
+    avatar,
+    avatarDriveFileId: drive?.fileId || previousDriveFileId || null,
+    stored: blobOk ? 'blob' : drive ? 'drive' : 'inline',
+    driveSynced: Boolean(drive?.fileId),
+  };
 }
 
 export async function uploadUserAvatarToDrive(userId, jpegBuffer) {

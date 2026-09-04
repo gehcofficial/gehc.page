@@ -19,7 +19,7 @@ export function useUpcomingBirthdays(days = 7, enabled = true) {
     queryKey: ['birthdays-upcoming', days],
     enabled,
     queryFn: async () => {
-      const r = await fetch(`/api/jemaat/birthdays/upcoming?days=${days}`, { credentials: 'include' });
+      const r = await fetch(`/api/portal/birthdays/upcoming?days=${days}`, { credentials: 'include' });
       if (!r.ok) return [];
       const d = await r.json();
       return d.birthdays || [];

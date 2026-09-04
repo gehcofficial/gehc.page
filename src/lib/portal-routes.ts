@@ -26,6 +26,7 @@ export type PortalPage =
   | 'catalog'
   | 'org-hierarchy'
   | 'groups-monitoring'
+  | 'pastoral-care'
   | 'jethro'
   | 'content-weekly'
   | 'content-activities'

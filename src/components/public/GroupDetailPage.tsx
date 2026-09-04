@@ -5,7 +5,6 @@ import { shortName } from '../../lib/privacy-name';
 import { FullFamilyTree } from './FamilyTree';
 import { HeritageSection } from './HeritageSection';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
-import type { DriveMediaItem } from '../../types';
 import {
   ArrowLeft,
   Crown,
@@ -26,22 +25,32 @@ import {
 
 type DetailTab = 'roster' | 'regen' | 'agenda' | 'docs';
 
+type PublicAlbum = {
+  id: string;
+  title: string;
+  occurredOn: string;
+  location?: string | null;
+  coverUrl?: string | null;
+  previews: { id: string; thumbnailUrl: string }[];
+  driveUrl?: string;
+};
+
 export const GroupDetailPage: React.FC = () => {
-  const { groups, groupBatches, selectedGroupId, closeGroupDetail, openGroupDetail } = useApp();
+  const { groups, groupBatches, selectedGroupId, closeGroupDetail, openGroupDetail, authUser, setPublicTab } = useApp();
   const { t } = useLang();
   const slots = useMediaSlots();
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>('roster');
-  const [gallery, setGallery] = useState<DriveMediaItem[] | null>(null);
+  const [albums, setAlbums] = useState<PublicAlbum[]>([]);
   const [galleryState, setGalleryState] = useState<'loading' | 'ready' | 'restricted' | 'empty'>(
     'loading'
   );
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; idx: number; urls: string[] } | null>(null);
 
   useEffect(() => {
     setTab('roster');
     setActiveBatchId(null);
-    setLightboxIdx(null);
+    setLightbox(null);
   }, [selectedGroupId]);
 
   useEffect(() => {
@@ -50,19 +59,16 @@ export const GroupDetailPage: React.FC = () => {
     setGalleryState('loading');
     (async () => {
       try {
-        const groupName = groups.find((g) => g.id === selectedGroupId)?.name || '';
-        const r = await fetch(
-          `/api/drive/group-files/${encodeURIComponent(groupName)}`,
-          { credentials: 'include' }
-        );
+        const r = await fetch(`/api/groups/${selectedGroupId}/albums`, { credentials: 'include' });
         if (cancelled) return;
         if (!r.ok) {
           setGalleryState(r.status === 403 ? 'restricted' : 'empty');
           return;
         }
         const d = await r.json();
-        setGallery(d.files || []);
-        setGalleryState((d.files || []).length > 0 ? 'ready' : 'empty');
+        const list = (d.albums || []) as PublicAlbum[];
+        setAlbums(list);
+        setGalleryState(list.length > 0 ? 'ready' : 'empty');
       } catch {
         if (!cancelled) setGalleryState('empty');
       }
@@ -70,7 +76,7 @@ export const GroupDetailPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedGroupId, groups]);
+  }, [selectedGroupId]);
 
   const group = groups.find((g) => g.id === selectedGroupId);
 
@@ -104,7 +110,7 @@ export const GroupDetailPage: React.FC = () => {
     { id: 'docs', label: t.groupDetail.tabDocs, icon: <Images className="w-3.5 h-3.5" /> },
   ];
 
-  const galleryItems = gallery || [];
+  const galleryItems = albums;
   const coverUrl = slots.kelompok[group.name.toLowerCase()];
   const onPhoto = !!coverUrl;
 
@@ -446,63 +452,110 @@ export const GroupDetailPage: React.FC = () => {
                 {t.groupDetail.docsRestricted}
               </div>
             ) : galleryState === 'loading' ? (
-              <p className="text-xs text-[#8C8880]">Memuat galeri…</p>
+              <p className="text-xs text-[#8C8880]">Memuat album…</p>
             ) : galleryState === 'empty' || !galleryItems.length ? (
               <div className="rounded-[24px] border border-dashed border-[#D9D7D0] bg-[#FAF9F5]/60 p-5 flex items-center gap-3 text-xs text-[#8C8880]">
                 <ImageOff className="w-4 h-4 shrink-0 opacity-60" />
                 <p>{t.groupDetail.docsEmpty}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {galleryItems.slice(0, 24).map((item, idx) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setLightboxIdx(idx)}
-                    className="group relative aspect-square overflow-hidden rounded-[24px] bg-[#F0EFEB] border border-[#D9D7D0]/40 hover:shadow-xl transition-all duration-300 text-left"
-                  >
-                    {item.thumbnailLink ? (
-                      <img
-                        src={item.thumbnailUrl || item.thumbnailLink}
-                        alt={item.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Images className="w-8 h-8 text-[#8C8880]/40" />
+              <div className="grid sm:grid-cols-2 gap-4">
+                {galleryItems.map((album) => {
+                  const previews = (album.previews || []).slice(0, 5);
+                  const urls = previews.map((p) => p.thumbnailUrl).filter(Boolean);
+                  return (
+                    <div
+                      key={album.id}
+                      className="rounded-[24px] overflow-hidden bg-white border border-[#D9D7D0]/50"
+                    >
+                      <div className="aspect-[4/3] bg-[#F3F1EC] relative">
+                        {album.coverUrl ? (
+                          <img src={album.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-[#8C8880]">
+                            <Images className="w-8 h-8" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </button>
-                ))}
+                      <div className="p-4 space-y-2">
+                        <p className="text-sm font-bold text-[#1B1B1B]">{album.title}</p>
+                        <p className="text-[11px] text-[#8C8880]">
+                          {String(album.occurredOn).slice(0, 10)}
+                          {album.location ? ` · ${album.location}` : ''}
+                        </p>
+                        <div className="flex gap-1">
+                          {previews.map((p, idx) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setLightbox({ url: p.thumbnailUrl, idx, urls })}
+                              className="w-12 h-12 rounded-lg overflow-hidden"
+                            >
+                              <img src={p.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                        {album.driveUrl ? (
+                          <a
+                            href={album.driveUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-[#1B1B1B]"
+                          >
+                            Lihat semua di Drive
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setPublicTab('login')}
+                            className="text-[11px] font-bold text-[#8C8880]"
+                          >
+                            {authUser ? 'Folder Drive hanya untuk anggota rumah' : 'Masuk untuk unduh di Drive'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
         )}
       </div>
 
-      {lightboxIdx !== null && galleryItems[lightboxIdx] && (
+      {lightbox && lightbox.urls[lightbox.idx] && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <button
             type="button"
-            onClick={() => setLightboxIdx(null)}
+            onClick={() => setLightbox(null)}
             className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
-          {galleryItems.length > 1 && (
+          {lightbox.urls.length > 1 && (
             <>
               <button
                 type="button"
-                onClick={() => setLightboxIdx((lightboxIdx - 1 + galleryItems.length) % galleryItems.length)}
+                onClick={() =>
+                  setLightbox((cur) =>
+                    cur
+                      ? { ...cur, idx: (cur.idx - 1 + cur.urls.length) % cur.urls.length, url: cur.urls[(cur.idx - 1 + cur.urls.length) % cur.urls.length] }
+                      : cur
+                  )
+                }
                 className="absolute left-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 type="button"
-                onClick={() => setLightboxIdx((lightboxIdx + 1) % galleryItems.length)}
+                onClick={() =>
+                  setLightbox((cur) =>
+                    cur
+                      ? { ...cur, idx: (cur.idx + 1) % cur.urls.length, url: cur.urls[(cur.idx + 1) % cur.urls.length] }
+                      : cur
+                  )
+                }
                 className="absolute right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -510,12 +563,8 @@ export const GroupDetailPage: React.FC = () => {
             </>
           )}
           <img
-            src={
-              galleryItems[lightboxIdx].thumbnailUrl ||
-              galleryItems[lightboxIdx].thumbnailLink ||
-              ''
-            }
-            alt={galleryItems[lightboxIdx].name}
+            src={lightbox.urls[lightbox.idx]}
+            alt=""
             className="max-h-[85vh] max-w-[90vw] object-contain rounded-2xl"
           />
         </div>

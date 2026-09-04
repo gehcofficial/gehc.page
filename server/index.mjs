@@ -112,6 +112,8 @@ import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
+import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from './routes/drive-ownership.mjs';
+import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
@@ -122,8 +124,9 @@ import {
   googleAvatarPatch,
   decodeAvatarUpload,
   optimizeAvatarBuffer,
-  uploadUserAvatarToDrive,
+  persistUserAvatar,
   deleteUserAvatarFromDrive,
+  deleteUserAvatarBlob,
   scheduleUsersVisualsPublish,
   AVATAR_SOURCE_CUSTOM,
   AVATAR_SOURCE_GOOGLE,
@@ -386,22 +389,26 @@ app.post('/api/me/avatar', wrap(async (req, res) => {
   }
 
   const jpeg = await optimizeAvatarBuffer(decoded.buffer);
-  const uploaded = await uploadUserAvatarToDrive(existing.id, jpeg);
-  if (existing.avatarDriveFileId && existing.avatarDriveFileId !== uploaded.fileId) {
-    await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
-  }
+  const stored = await persistUserAvatar({
+    prisma,
+    userId: existing.id,
+    jpegBuffer: jpeg,
+    previousDriveFileId: existing.avatarDriveFileId,
+  });
 
   const user = await prisma.user.update({
     where: { id: existing.id },
     data: {
-      avatar: uploaded.driveUrl || uploaded.staticUrl,
+      avatar: stored.avatar,
       avatarSource: AVATAR_SOURCE_CUSTOM,
-      avatarDriveFileId: uploaded.fileId,
+      avatarDriveFileId: stored.avatarDriveFileId,
       lastProfileUpdate: new Date(),
     },
     include: { roles: true },
   });
-  const publish = scheduleUsersVisualsPublish();
+  const publish = stored.driveSynced
+    ? scheduleUsersVisualsPublish()
+    : { skipped: true, reason: stored.stored };
   res.json({
     user: {
       id: user.id,
@@ -412,6 +419,7 @@ app.post('/api/me/avatar', wrap(async (req, res) => {
       avatarGoogle: user.avatarGoogle,
     },
     publish,
+    stored: stored.stored,
   });
 }));
 
@@ -422,6 +430,7 @@ app.delete('/api/me/avatar', wrap(async (req, res) => {
   const existing = await prisma.user.findUnique({ where: { id: req.authUser.id } });
   if (!existing) return res.status(404).json({ error: 'User tidak ditemukan.' });
 
+  await deleteUserAvatarBlob(prisma, existing.id);
   if (existing.avatarDriveFileId) {
     await deleteUserAvatarFromDrive(existing.avatarDriveFileId);
   }
@@ -1178,8 +1187,23 @@ app.get('/api/drive/group-files/:groupName', wrap(async (req, res) => {
     const verdict = await resolveAccess(chain, req.authUser);
     if (!verdict.allowed) return res.status(403).json({ error: verdict.reason });
 
-    const files = await listFiles({ folderId: target.id, pageSize: 24 });
-    res.json({ folder: { id: target.id, name: target.name }, files });
+    const subs = await listFolders(target.id);
+    const foto = subs.find((s) => /^foto kegiatan$/i.test(s.name));
+    const folderId = foto?.id || target.id;
+    const files = await listFiles({ folderId, pageSize: 48 });
+    const albums = foto ? await listFolders(foto.id) : [];
+    const nested = [];
+    for (const alb of albums.slice(0, 16)) {
+      const more = await listFiles({ folderId: alb.id, pageSize: 24 });
+      nested.push(...more);
+    }
+    const images = [...files, ...nested].filter(
+      (f) => f.mimeType !== 'application/vnd.google-apps.folder',
+    );
+    res.json({
+      folder: { id: folderId, name: foto?.name || target.name },
+      files: images.slice(0, 48),
+    });
   } catch (err) {
     res.status(502).json({ error: `Gagal membaca Drive: ${err.message}` });
   }
@@ -2337,6 +2361,7 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
 
 // BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
 registerBakuTauRoutes(app, { wrap });
+registerEventArchivePublicRoute(app, { wrap });
 registerEventCheckInRoutes(app, { wrap });
 registerChannelLinkRoutes(app, { wrap });
 registerChurchProgramRoutes(app, { wrap });
@@ -5600,6 +5625,8 @@ registerOnboardingRoutes(app, { wrap });
 // GET /api/events/:slug — dijangkau lewat next() dari /api/events/:id saat id tidak cocok
 registerEventsPublicRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
+registerDriveOwnershipRoutes(app, { wrap });
+registerPastoralCareRoutes(app, { wrap });
 registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerVisualsPublishRoutes(app, { wrap });

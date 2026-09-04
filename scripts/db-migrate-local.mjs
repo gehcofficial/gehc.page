@@ -150,6 +150,16 @@ const STEPS = [
     label: 'Katalog minat/kampus: country, institution_suggestions, CATALOG_REMINDER',
     required: true,
   },
+  {
+    script: 'server/_migrate-user-avatar-blobs.cjs',
+    label: 'Foto profil kustom (user_avatars blob)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-drive-ownership.cjs',
+    label: 'Drive ownership (album, arsip, pastoral, BZP)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

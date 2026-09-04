@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Camera, Loader2, Mail, RotateCcw, User } from 'lucide-react';
+import { CheckCircle2, Circle, Camera, Loader2, Mail, RotateCcw, User, MessageSquareQuote } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
 import { ProfileGiftsSection } from './ProfileGiftsSection';
 import { ProfileRecreationalSection } from './ProfileRecreationalSection';
 import { ProfileChurchDataRequestPanel, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { LinkGoogleCard } from './LinkGoogleCard';
+import { DriveUploadButton } from './DriveUploadButton';
 import { displayAvatar } from '../../lib/avatar';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
@@ -72,6 +73,10 @@ export const MyProfilePanel: React.FC<{
   });
   const [due, setDue] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [tstQuote, setTstQuote] = useState('');
+  const [tstBusy, setTstBusy] = useState(false);
+  const [tstPhoto, setTstPhoto] = useState<{ data: string; mimetype: string; filename: string } | null>(null);
+  const [myTestimonials, setMyTestimonials] = useState<{ id: string; quote: string; status?: string; isPublished?: boolean }[]>([]);
 
   const fileToJpegDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -129,7 +134,9 @@ export const MyProfilePanel: React.FC<{
       addToast({
         type: 'success',
         title: 'Foto profil diperbarui',
-        description: 'Portal memakai foto baru sekarang. Website publik menyusul setelah publish (~1–3 menit).',
+        description: body.publish && !body.publish.skipped
+          ? 'Portal memakai foto baru sekarang. Website publik menyusul setelah publish (~1–3 menit).'
+          : 'Foto baru sudah dipakai di portal dan halaman publik.',
       });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal ganti foto', description: e.message || 'Coba lagi.' });
@@ -219,6 +226,38 @@ export const MyProfilePanel: React.FC<{
   }, [addToast]);
 
   useEffect(() => { load(); }, [authUser?.id]);
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    fetch('/api/me/testimonials', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setMyTestimonials(d.items || []))
+      .catch(() => setMyTestimonials([]));
+  }, [authUser?.id]);
+
+  const submitTestimonial = async () => {
+    if (!tstQuote.trim()) return;
+    setTstBusy(true);
+    try {
+      const r = await fetch('/api/me/testimonial', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quote: tstQuote.trim(), ...(tstPhoto || {}) }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        addToast({ type: 'error', title: d.error || 'Gagal kirim kesaksian' });
+        return;
+      }
+      setTstQuote('');
+      setTstPhoto(null);
+      setMyTestimonials((cur) => [d.item, ...cur]);
+      addToast({ type: 'success', title: 'Draf kesaksian terkirim ke Marturia' });
+    } finally {
+      setTstBusy(false);
+    }
+  };
 
   const searchInstitutions = useCallback(async (q: string): Promise<SearchableOption[]> => {
     const res = await fetch(`/api/institutions?kind=UNIVERSITY&q=${encodeURIComponent(q)}`, { credentials: 'include' });
@@ -429,6 +468,45 @@ export const MyProfilePanel: React.FC<{
           onSubmitted={load}
           addToast={addToast}
         />
+
+        <div className="mt-4 rounded-[24px] border border-[#D9D7D0]/50 bg-white p-4 space-y-2">
+          <p className="text-xs font-bold flex items-center gap-1.5">
+            <MessageSquareQuote className="w-4 h-4 text-[#FF416C]" />
+            Kirim kesaksian (draf)
+          </p>
+          <p className="text-[10px] text-[#8C8880]">
+            Marturia menyunting, Komisi menerbitkan ke landing. Foto draf tidak langsung publik.
+          </p>
+          <textarea
+            value={tstQuote}
+            onChange={(e) => setTstQuote(e.target.value)}
+            rows={3}
+            placeholder="Tuliskan kesaksian singkat…"
+            className="w-full px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs"
+          />
+          <DriveUploadButton
+            label={tstPhoto ? 'Foto draf siap' : 'Foto opsional (inbox Marturia)'}
+            onFile={async (payload) => setTstPhoto(payload)}
+          />
+          <button
+            type="button"
+            disabled={tstBusy || !tstQuote.trim()}
+            onClick={() => void submitTestimonial()}
+            className="px-3 py-1.5 rounded-full bg-[#181818] text-white text-[11px] font-bold disabled:opacity-50"
+          >
+            {tstBusy ? 'Mengirim…' : 'Kirim draf'}
+          </button>
+          {myTestimonials.length > 0 && (
+            <ul className="text-[11px] text-[#8C8880] space-y-1 pt-2">
+              {myTestimonials.slice(0, 4).map((item) => (
+                <li key={item.id}>
+                  {item.isPublished || item.status === 'PUBLISHED' ? 'Live' : item.status || 'DRAFT'} —{' '}
+                  {item.quote.slice(0, 80)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {bipraMismatch && (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">

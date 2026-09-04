@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { landingBeyondersHouses } from '../../src/lib/landing-groups';
 import type { GroupBatch, YouthGroup } from '../../src/types';
 
-const house = (over: Partial<YouthGroup>): YouthGroup =>
+const house = (over: Partial<YouthGroup> & { parentGroupId?: string | null }): YouthGroup =>
   ({
     id: 'g',
     tenant_id: 'tenant-youth',

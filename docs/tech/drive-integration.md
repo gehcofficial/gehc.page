@@ -80,6 +80,36 @@ Aturan penting:
 - Nama `[GROUP:X]` harus sama persis (case-insensitive) dengan `groups.name`.
 - Sub-divisi anak folder pantatugas harus sama dengan `struktur_members.subdivision`.
 
+### Anak folder kelompok (`GROUP_SUBFOLDERS`)
+
+Di bawah `Kelompok Mentoring [MENTOR]/{Nama} [GROUP:NAMA]/`, provision membuat (idempotent, folder lama **tidak dihapus**):
+
+`Absensi/` · `Materi PA/` · `Foto Kegiatan/` · `Dokumen Lainnya/` · `Agenda Mandiri/` · **`Cover/`**
+
+- `Cover/` — arsip cover situs (mentor/co POST). Stem publik: `Website Visual/kelompok/cover-{rumah}.jpg`.
+- `Foto Kegiatan/{YYYY-MM-DD judul}/` — album. GET publik memakai indeks TiDB (`driveFolderId` + `previewFileIds`, max 5), **bukan** `listFiles` seluruh Drive.
+- Jangan gabung folder dengan ACL berbeda.
+
+### Anak folder pillar + sub-divisi
+
+Tiap pillar (`Liturgia` … `Marturia`, `Benzarpreneurship`) mendapat `Cover/`, `Foto Kegiatan/`, `Foto Tim/` plus anak kanonik dari `src/lib/pantatugas.ts`. Di bawah tiap sub-divisi: `Foto/`, `Berkas/`, plus folder khusus (rehearsal, kunjungan, `_inbox`, `Arsip Acara`, `produk`, …). Nama folder lama di Drive dibiarkan.
+
+### Event Gallery [PUBLIK] — deprecated
+
+Jangan provision folder baru. Landing `#/gallery` memakai arsip `Marturia/Dokumentasi Visual/Arsip Acara/` + indeks `EventProgram.archiveFolderId` / `previewFileIds`. Tab: **nama · MM-YYYY**. Tamu 3–5 preview; unduh penuh butuh login.
+
+### Zona root lain (ACL)
+
+| Folder | GET | POST |
+|---|---|---|
+| `Ruang Anggota [MENTEE]` | sesi login (matriks policy) | pemilik file |
+| `Laporan Internal [KOMISI]` | KOMISI + SUPERADMIN | KOMISI (BPMJ tidak baca) |
+| `Ringkasan BPMJ [BPMJ]` | BPMJ + SUPERADMIN | KOMISI meletakkan saduran |
+| `Arsip Generasi [ALUMNI]` | ALUMNI + KOMISI | Komisi / kenangan alumni |
+| `Warta Publik [PUBLIK]` | Publik | Marturia Dokumentasi |
+
+Jangan campur Laporan Internal dengan Ringkasan BPMJ. Jangan taruh foto Natal di Ruang Anggota atau Arsip Generasi.
+
 ## 4. Matriks Akses
 
 | Tag zona | Tamu | MENTEE | MENTOR/CO | COMMITTEE | KOMISI | BPMJ | ALUMNI |
@@ -120,6 +150,11 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 | `GET /api/drive/policy` | matriks zona vs user saat ini |
 | `GET /api/drive/audit` *(SUPERADMIN)* | audit sinkronisasi DB ↔ Drive |
 | `GET /api/media/slots` | lookup visual website by filename di `Website Visual [PUBLIK]` |
+| `POST /api/media/slots/:folder/:stem` | dual-write stem terdaftar (OAuth pemilik Drive) |
+| `POST /api/drive/ops/upload` | unggah JPEG ke folder ops yang lolos `guardDriveFolder` |
+| `POST /api/groups/:id/cover` | cover rumah + backup `[GROUP:x]/Cover/` |
+| `GET/POST /api/groups/:id/albums` | indeks album + folder `Foto Kegiatan/` |
+| `GET /api/events/public-archive` | tab arsip acara (preview tersemat) |
 | `GET /api/media/landing` | subset landing (hero + collage) |
 | `GET /api/media/warta-album` | foto edisi di `Warta Publik [PUBLIK]` |
 
@@ -165,19 +200,19 @@ npm run drive:seed-visuals
 | Karakter | Relasional, query/transaksi, berubah tiap minggu | Blob besar, dikelola via UI Drive |
 | Diakses | Server saja (kredensial rahasia) | Service account + anggota lewat portal |
 
-Pola hybrid: URL file disimpan di kolom TiDB (`bannerUrl`), filenya di Drive.
-**Data yang diprogram → TiDB; berkas yang disentuh manusia → Drive.**
+Pola hybrid: URL file disimpan di kolom TiDB (`driveFolderId`, `previewFileIds` max 5), filenya di Drive.
+GET publik **hanya** thumbnail dari ID tersemat — jangan `listFiles` seluruh pohon.
 
-## 7. Roadmap Fase 2 (belum dibangun)
+## 7. Tulis dari portal (OAuth pemilik)
 
-> Rencana lengkap kini dipusatkan di **`roadmap.md` → Fase 2½, item 27 "Google Drive Sync"** (enabler + 4 item turunannya). Bagian di bawah tetap valid sebagai ringkasan teknis.
+Unggah memakai kuota Google One pemilik (`GDRIVE_USER_REFRESH_TOKEN` / `.gdrive-user-token.json`), **bukan** service account.
 
-- **Upload dari portal** untuk Marturia (dokumentasi) & Komisi (laporan):
-  ganti scope SA menjadi `drive` (bukan readonly), endpoint multipart upload,
-  kuota & anti-spam. Struktur folder fase 1 sudah mengantisipasi ini.
-  - **Flag `GDRIVE_WRITE=1`** di env mengaktifkan scope `drive` (write). Tanpa flag ini, SA tetap readonly.
-  - Prasyarat sisi user: share folder induk (Liturgia…Marturia, Benzarpreneurship, Laporan Internal [KOMISI]) ke SA sebagai **Content Manager**.
-- Preview PDF modul Didaskalia langsung di halaman monitoring mentor.
+- Token **sama** di staging laptop dan Vercel Production. Yang berbeda hanya `GDRIVE_ROOT_FOLDER_ID`.
+- Sync ke Vercel: `npm run env:sync-gdrive-token` (butuh `npx vercel login`). Jangan commit token.
+- Folder operasional (bukan kuota My Drive) tetap boleh SA + `GDRIVE_WRITE=1` jika root di-share Content Manager.
+- HEIC/PNG/WebP dikompres ke JPEG di server sebelum tulis Drive.
+
+`npm run drive:provision` / `:prod` menambah folder kanonik; **tidak** menyalin dump kamera staging ke prod.
 
 ## 8. Setup Google Auth (Client ID untuk SSO)
 

@@ -3,6 +3,7 @@ import { requireRole } from '../auth.mjs';
 import { getDriveMode, listFolders, listFiles, getFolderChain } from '../gdrive.mjs';
 import { resolveAccess } from '../gdrive-policy.mjs';
 import { fromDbContent, toDbContent, syncWartaToContentItem } from '../lib/content-map.mjs';
+import { loadUserAvatarBlob, avatarStem } from '../lib/user-avatar.mjs';
 import {
   VISUAL_SLOTS,
   WEBSITE_VISUAL_FOLDER,
@@ -256,6 +257,20 @@ export function registerContentPublicRoutes(app, { wrap }) {
     res.json({ slots, source });
   }));
 
+  app.get('/api/media/user-avatar/:userId', wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'Database belum siap.' });
+    const userId = avatarStem(decodeURIComponent(String(req.params.userId || '')));
+    if (!userId) return res.status(400).json({ error: 'ID tidak valid.' });
+    const data = await loadUserAvatarBlob(prisma, userId);
+    if (!data) return res.status(404).json({ error: 'Foto tidak ditemukan.' });
+    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('Content-Length', String(buf.length));
+    return res.end(buf);
+  }));
+
   app.get('/api/media/warta-album', wrap(async (req, res) => {
     if (!getDriveMode()) return res.json({ files: [], source: 'fallback' });
     const publishedAt = String(req.query.publishedAt || req.query.date || '').slice(0, 10);
@@ -307,6 +322,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
       photoUrl: userAvatar || row.photoUrl || row.photo_url || null,
       userId,
       isPublished: Boolean(row.isPublished ?? row.is_published),
+      status: row.status || (row.isPublished || row.is_published ? 'PUBLISHED' : 'DRAFT'),
       sortOrder: Number(row.sortOrder ?? row.sort_order ?? 0),
       createdAt: row.createdAt ?? row.created_at,
       updatedAt: row.updatedAt ?? row.updated_at,
@@ -359,12 +375,12 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-    const { authorName, groupName, quote, photoUrl, userId, isPublished, sortOrder } = req.body || {};
+    const { authorName, groupName, quote, photoUrl, userId, sortOrder } = req.body || {};
     if (!authorName?.trim() || !quote?.trim()) {
       return res.status(400).json({ error: 'authorName & quote wajib' });
     }
     const id = `tst-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const pub = Boolean(isPublished);
+    const pub = false;
     const order = Number(sortOrder) || 0;
     const gName = groupName?.trim() || null;
     const pUrl = photoUrl?.trim() || null;
@@ -381,6 +397,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
           photoUrl: pUrl,
           userId: uid,
           isPublished: pub,
+          status: pub ? 'PUBLISHED' : 'DRAFT',
           sortOrder: order,
         },
         include: { user: { select: { id: true, avatar: true, name: true } } },
@@ -427,7 +444,11 @@ export function registerContentPublicRoutes(app, { wrap }) {
       if (body.quote !== undefined) data.quote = String(body.quote).trim();
       if (body.photoUrl !== undefined) data.photoUrl = body.photoUrl?.trim() || null;
       if (body.userId !== undefined) data.userId = body.userId?.trim() || null;
-      if (body.isPublished !== undefined) data.isPublished = Boolean(body.isPublished);
+      if (body.isPublished !== undefined) {
+        data.isPublished = Boolean(body.isPublished);
+        data.status = data.isPublished ? 'PUBLISHED' : (body.status || existing.status || 'DRAFT');
+      }
+      if (body.status !== undefined) data.status = String(body.status);
       if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder) || 0;
       const item = await prisma.testimonial.update({
         where: { id: req.params.id },

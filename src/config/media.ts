@@ -56,6 +56,7 @@ export type MediaSlots = {
   pengurus: Record<string, string>;
   testimoni: Record<string, string>;
   users: Record<string, string>;
+  panca: Record<string, string>;
   source: 'drive' | 'fallback' | 'static';
 };
 
@@ -73,6 +74,7 @@ export const DEFAULT_SLOTS: MediaSlots = {
   pengurus: {},
   testimoni: {},
   users: {},
+  panca: {},
   source: 'fallback',
 };
 

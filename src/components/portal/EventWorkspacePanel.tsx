@@ -18,7 +18,7 @@ import {
   AlignLeft,
 } from 'lucide-react';
 import { ChurchCalendarPanel } from './ChurchCalendarPanel';
-import { ChurchYearCalendarPanel } from './ChurchYearCalendarPanel';
+import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { MonthlyPlanPanel } from './MonthlyPlanPanel';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
@@ -773,7 +773,7 @@ export const EventWorkspacePanel: React.FC = () => {
       </ScrollTabBar>
 
       {listTab === 'calendar' && (
-        <ChurchYearCalendarPanel
+        <YouthCalendarPanel
           onPromote={canCreateEvent ? ({ name, startDate }) => {
             setCreateForm((f) => ({ ...f, name, startDate, endDate: startDate }));
             setShowCreate(true);
