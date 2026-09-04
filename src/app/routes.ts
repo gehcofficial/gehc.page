@@ -6,6 +6,7 @@ export const PUBLIC_ROUTES = [
   'leaders',
   'events',
   'bulletin',
+  'gallery',
   'join',
   'login',
   'register',
@@ -22,7 +23,6 @@ export const LEGACY_HASH_MAP: Record<string, PublicRouteId> = {
   'weekly-info': 'bulletin',
   activity: 'events',
   warta: 'bulletin',
-  gallery: 'bulletin',
 };
 
 export function tabFromHash(hash: string): PublicRouteId {

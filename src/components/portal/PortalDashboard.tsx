@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortalQueries';
 import { useLang } from '../../context/LangContext';
+import { YouthCalendarPanel } from './YouthCalendarPanel';
+import { displayAvatar } from '../../lib/avatar';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const {
@@ -36,7 +38,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
   const isGroupScoped = (isGroupMentor || isMentee) && userAssignedGroupId;
 
   const { data: onboardingCount = 0 } = useWaitingPoolCount(isKomisi || isSuperAdmin);
-  const { data: upcomingBirthdays = [] } = useUpcomingBirthdays(7, isAdminView);
+  const { data: upcomingBirthdays = [] } = useUpcomingBirthdays(7, true);
 
   const visibleGroups = useMemo(() => {
     if (isAlumni) return [];
@@ -232,18 +234,24 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
         </div>
       )}
 
-      {isAdminView && upcomingBirthdays.length > 0 && (
+      {upcomingBirthdays.length > 0 && (
         <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
           <h3 className="text-sm font-bold mb-3">Ulang tahun minggu ini</h3>
           <div className="flex flex-wrap gap-2">
-            {upcomingBirthdays.map((b) => (
-              <span key={b.id} className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-pink-50 text-pink-700">
-                {b.name} · {b.daysToBirthday === 0 ? 'Hari ini' : `${b.daysToBirthday} hari`}
+            {upcomingBirthdays.map((b: { id: string; name: string; avatar?: string; daysToBirthday?: number }) => (
+              <span key={b.id} className="inline-flex items-center gap-2 text-[10px] font-bold px-2 py-1.5 rounded-full bg-pink-50 text-pink-700">
+                <img src={displayAvatar(b.name, b.avatar)} alt="" className="w-6 h-6 rounded-full object-cover" />
+                {b.name.split(' ')[0]} · {b.daysToBirthday === 0 ? 'Hari ini' : `${b.daysToBirthday} hari`}
               </span>
             ))}
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
+        <h3 className="text-sm font-bold mb-3">Kalender pemuda</h3>
+        <YouthCalendarPanel compact />
+      </div>
 
       {!isAlumni && visibleGroups.length > 0 && (
         <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">

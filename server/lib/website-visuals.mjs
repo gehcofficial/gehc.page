@@ -16,6 +16,7 @@ export const WEBSITE_VISUAL_SUBFOLDERS = [
   'pengurus',
   'testimoni',
   'users',
+  'panca',
 ];
 
 export const TEN_HOMES = [
@@ -108,6 +109,13 @@ export const VISUAL_SLOTS = [
     key: `kelompok.${name.toLowerCase()}`,
     usedAt: `Cover rumah ${name} — GroupsCarousel`,
   })),
+  { folder: 'panca', stem: 'cover-liturgia', ext: 'jpg', key: 'panca.liturgia', usedAt: 'Cover Liturgia — landing + panel divisi' },
+  { folder: 'panca', stem: 'cover-didaskalia', ext: 'jpg', key: 'panca.didaskalia', usedAt: 'Cover Didaskalia' },
+  { folder: 'panca', stem: 'cover-koinonia', ext: 'jpg', key: 'panca.koinonia', usedAt: 'Cover Koinonia' },
+  { folder: 'panca', stem: 'cover-diakonia', ext: 'jpg', key: 'panca.diakonia', usedAt: 'Cover Diakonia' },
+  { folder: 'panca', stem: 'cover-marturia', ext: 'jpg', key: 'panca.marturia', usedAt: 'Cover Marturia' },
+  { folder: 'panca', stem: 'cover-benzarpr', ext: 'jpg', key: 'panca.benzarpr', usedAt: 'Cover Benzarpreneurship' },
+  { folder: 'panca', stem: 'cover-bod', ext: 'jpg', key: 'panca.bod', usedAt: 'Cover BOD Tim Kerja' },
   {
     folder: 'pengurus',
     stem: 'contoh-pengurus',

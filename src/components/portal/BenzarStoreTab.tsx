@@ -12,8 +12,9 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import type { Product, ProductCategory, Order, OrderStatus } from '../../types/benzar';
+import { DriveUploadButton } from './DriveUploadButton';
 import { CATEGORY_LABELS, CATEGORY_COLORS, STATUS_LABELS, STATUS_COLORS } from '../../types/benzar';
+import type { Product, ProductCategory, Order, OrderStatus } from '../../types/benzar';
 
 const CATEGORIES: ProductCategory[] = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
 const STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'VERIFIED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED'];
@@ -295,6 +296,21 @@ export default function BenzarStoreTab({ eventId, division }: Props) {
                   </div>
                 ))}
               </div>
+              <div className="border-t border-[#D9D7D0] pt-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-[#8C8880]">Bukti transfer (privat)</p>
+                <DriveUploadButton
+                  label="Unggah bukti TF"
+                  onFile={async (payload) => {
+                    const r = await fetch(`/api/benzar/orders/${selectedOrder.id}/payment-proof`, {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
+                    });
+                    if (r.ok) fetchOrders();
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -376,6 +392,22 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
               {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
             </select>
           </div>
+          {product?.id && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Foto produk (Drive BZP)</label>
+              <DriveUploadButton
+                label="Unggah foto"
+                onFile={async (payload) => {
+                  await fetch(`/api/benzar/products/${product.id}/images`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                }}
+              />
+            </div>
+          )}
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Batal</button>

@@ -31,7 +31,7 @@ export function createApp() {
     next();
   });
 
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '8mb' }));
   app.use(attachUser);
   app.use(attachPlatformContext);
 

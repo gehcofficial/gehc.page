@@ -17,6 +17,7 @@ import { GroupsCarousel } from './components/public/GroupsCarousel';
 import { PantatugasShowcase } from './components/public/PantatugasShowcase';
 import { EventsTimeline } from './components/public/EventsTimeline';
 import { ChurchYearSection } from './components/public/ChurchYearSection';
+import { EventArchiveGallery } from './components/public/EventArchiveGallery';
 import { WeeklyInfoSection } from './components/public/WeeklyInfoSection';
 import { GroupDetailPage } from './components/public/GroupDetailPage';
 import { JoinPage } from './components/public/JoinPage';
@@ -125,6 +126,7 @@ const MainAppContent: React.FC = () => {
         )}
 
         {publicTab === 'bulletin' && <WeeklyInfoSection />}
+        {publicTab === 'gallery' && <EventArchiveGallery />}
         {publicTab === 'benzarpreneurship' && <BenzarpreneurshipPage />}
       </main>
 

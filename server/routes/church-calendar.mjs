@@ -88,14 +88,20 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
 
   app.get(
     '/api/church-calendar',
-    requireRole('KOMISI', 'COMMITTEE', 'BPMJ'),
+    requireRole('KOMISI', 'COMMITTEE', 'BPMJ', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const { from, to } = parseRange(req);
+      const roles = (req.authUser?.roles || []).map((r) => r.role);
+      const pengurus = roles.some((r) => ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].includes(r));
       const rows = await prisma.churchCalendarEntry.findMany({
-        where: { tenantId: tenantOf(req), startDate: { gte: from, lte: to } },
+        where: {
+          tenantId: tenantOf(req),
+          startDate: { gte: from, lte: to },
+          ...(pengurus ? {} : { isPublic: true }),
+        },
         include: { churchProgram: { select: { id: true, name: true, scope: true } } },
         orderBy: { startDate: 'asc' },
       });

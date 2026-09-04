@@ -51,6 +51,9 @@ const REQUIRED_TABLES = [
   'groups',
   'group_batches',
   'role_assignments',
+  'user_avatars',
+  'group_albums',
+  'pastoral_care_notes',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [
@@ -64,12 +67,14 @@ const REQUIRED_WAITING_POOL_COLUMNS = [
 /** Kolom di tabel selain users/waiting_pool yang boot-critical */
 const REQUIRED_TABLE_COLUMNS = {
   event_attendees: ['checked_in_at', 'checked_in_by_id'],
-  EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query'],
+  EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query', 'archive_folder_id'],
   struktur_members: ['role', 'role_order', 'is_double_role', 'group_id', 'user_id'],
   user_roles: ['assignment_id'],
   group_members: ['assignment_id'],
   role_assignments: ['familyRole', 'user_id', 'assigned_by'],
   institutions: ['country'],
+  testimonials: ['status'],
+  orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
 };
 
 const quiet = process.argv.includes('--quiet');

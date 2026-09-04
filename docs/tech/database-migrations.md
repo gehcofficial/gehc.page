@@ -64,6 +64,7 @@ npm run dev:all
 10. `_migrate-struktur-multirole.cjs` — `struktur_members.role` / `role_order` / `group_id`
 11. `_migrate-role-assigned-notif.cjs` — enum `notifications.type` + `ROLE_ASSIGNED`
 12. `_migrate-event-questions.cjs` — bank soal event, assignment, jawaban
+13. `_migrate-user-avatar-blobs.cjs` — tabel `user_avatars` (foto profil kustom)
 
 Scripts tambahan:
 
@@ -71,6 +72,8 @@ Scripts tambahan:
 |--------|--------|
 | `npm run db:migrate:org-hierarchy` | Org nodes saja |
 | `npm run db:migrate:e10-bakutau` | Kolom BAKU TAU / domisili |
+| `npm run db:migrate:user-avatars` | Kolom avatar Google/custom |
+| `npm run db:migrate:user-avatar-blobs` | Tabel `user_avatars` (ganti foto tanpa token Drive) |
 | `npm run db:seed:org-tree` | Seed pohon CHURCH + BIPRA + YOUTH + KOLOM (BPMJ ke Jemaat) |
 | `npm run db:seed:org-tree:staging` | Sama ke staging |
 | `npm run db:seed:org-tree:prod` | Sama ke prod (BPMJ ke Jemaat + BIPRA) |

@@ -76,6 +76,7 @@ export const portalId: typeof portalEn = {
     'wa-channels': 'Kanal WhatsApp',
     integrations: 'Integrasi Google Drive',
     'pwa-settings': 'Notifikasi',
+    'pastoral-care': 'Portal Doa',
   },
   navGroups: {
     Utama: 'Utama',
@@ -521,6 +522,13 @@ export const portalId: typeof portalEn = {
       steps: ['Cek koneksi.', 'Jalankan audit jika folder terasa salah.', 'Unggahan mengikuti matriks akses.'],
       when: 'Drive tidak sinkron atau folder hilang.',
       notFor: 'Publikasi visual situs ada di Panduan Media. Folder divisi dibuka dari Panel Divisi.',
+    },
+    'pastoral-care': {
+      title: 'Portal Doa',
+      purpose: 'Kabar penggembalaan tentang orang lain (sakit, duka, yudisium). Privat, bukan sunting profil.',
+      steps: ['Cari nama jemaat.', 'Pilih jenis dan tulis catatan singkat.', 'Antrian Doa Liturgia dan kunjungan Diakonia memakai daftar ini.'],
+      when: 'Ada kabar yang perlu didoakan rumah.',
+      notFor: 'Jangan ubah telepon atau alamat orang lain di sini. Itu tetap di profil mereka sendiri.',
     },
   },
 };

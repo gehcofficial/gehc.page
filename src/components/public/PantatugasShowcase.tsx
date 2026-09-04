@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { PANTATUGAS } from '../../lib/pantatugas';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { unlockOurPeople } from '../../lib/our-people-unlock';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 
@@ -12,6 +13,7 @@ import { SectionHeader, Reveal } from './ui/SectionHeader';
 export const PantatugasShowcase: React.FC = () => {
   const { setPublicTab } = useApp();
   const { t } = useLang();
+  const slots = useMediaSlots();
 
   return (
     <section className="py-14 sm:py-20 bg-[#F3F1EC] border-y border-[#D9D7D0]/50">
@@ -26,12 +28,20 @@ export const PantatugasShowcase: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {PANTATUGAS.map((p, i) => {
             const Icon = p.icon;
+            const coverKey = p.name === 'BENZARPR' ? 'benzarpr' : p.name.toLowerCase();
+            const cover = slots.panca?.[coverKey];
             return (
               <Reveal key={p.name} delay={i * 0.08}>
                 <div
-                  className="h-full rounded-[28px] p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl bg-white flex items-start gap-4"
+                  className="h-full rounded-[28px] overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl bg-white flex flex-col"
                   style={{ borderTop: `4px solid ${p.color}` }}
                 >
+                  {cover && (
+                    <div className="h-28 w-full overflow-hidden">
+                      <img src={cover} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="p-5 sm:p-6 flex items-start gap-4">
                   <div
                     className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
                     style={{ backgroundColor: `${p.color}1A`, color: p.color }}
@@ -45,6 +55,7 @@ export const PantatugasShowcase: React.FC = () => {
                     <p className="text-[11px] text-[#8C8880] leading-relaxed mt-1">
                       {t.serve.items[i]?.tagline ?? p.tagline}
                     </p>
+                  </div>
                   </div>
                 </div>
               </Reveal>

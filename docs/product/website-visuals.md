@@ -59,6 +59,8 @@ Redirect URI yang harus ada di OAuth client (salah satu cukup):
 
 Token tersimpan di `.gdrive-user-token.json` (gitignore) atau `GDRIVE_USER_REFRESH_TOKEN`.
 
+**Token OAuth pemilik sama** di staging dan production. Hanya `GDRIVE_ROOT_FOLDER_ID` yang berbeda. Salin ke Vercel: `npm run env:sync-gdrive-token`.
+
 Jika OAuth gagal:
 
 ```powershell
@@ -89,6 +91,9 @@ Salinan peta: `_PETA-VISUAL.txt` di folder visual.
 | `benzarpreneurship/02-product-placeholder` | Produk tanpa foto |
 | `benzarpreneurship/03-qris` | QRIS checkout |
 | `kelompok/cover-{nama}` | Cover 10 rumah di carousel |
+| `panca/cover-liturgia` … `cover-marturia` | Cover pillar di landing + Panel Divisi |
+| `panca/cover-benzarpr` | Cover BZP |
+| `panca/cover-bod` | Cover BOD Tim Kerja |
 | `pengurus/{slug}` | Foto pengurus (override inisial) |
 | `testimoni/{slug}` | Foto penulis testimoni |
 
@@ -108,24 +113,31 @@ Bukan semua aset landing diurus admin. Tag zona `[PUBLIK]` dll. tetap di nama fo
 | Naskah warta | CMS TiDB | Didaskalia | Komisi (persetujuan bila perlu) |
 | Banner kegiatan | `Website Visual/kegiatan/` | Marturia | PIC event / Koinonia |
 | Benzarpreneurship | `Website Visual/benzarpreneurship/` | BZP | Bendahara |
-| Cover rumah | `Website Visual/kelompok/` | Mentor rumah | Marturia (bantuan desain) |
+| Cover rumah | `Website Visual/kelompok/` | Mentor/co rumah + KOMISI | backup `[GROUP:x]/Cover/` |
+| Cover panca / BOD | `Website Visual/panca/` | PIC/HoD divisi; BOD = Ketua Tim Kerja | Panel Divisi |
 | Foto pengurus | `Website Visual/pengurus/` | Komisi | — |
 | Folder event `[EV:…]` | di bawah pillar | PIC divisi | Rundown Liturgia, konsumsi Diakonia, publikasi Marturia |
 
-## Warta = pengganti Galeri publik
+POST ke situs **selalu** dual-write: timpa stem publik + salin arsip ke folder pemilik. Bukti bayar, invoice, draf kesaksian **tidak** masuk `Website Visual [PUBLIK]`.
 
-Halaman `#/gallery` dialihkan ke `#/bulletin`.
+Stem hanya boleh diubah lewat portal (`POST /api/media/slots/:folder/:stem`) jika terdaftar di `VISUAL_SLOTS` / registry `drive-ownership.mjs`.
+
+## Warta vs galeri acara
+
+Warta edisi tetap di `Warta Publik [PUBLIK]/YYYY-MM-DD-judul/foto/`.
+
+Halaman `#/gallery` adalah **arsip acara** (tab nama · MM-YYYY), bukan redirect warta. Tamu melihat 3–5 preview tersemat; set lengkap + unduh butuh login.
 
 ```
-Warta Publik [PUBLIK]/YYYY-MM-DD-judul-singkat/foto/*
+Marturia [MENTOR]/Dokumentasi Visual/Arsip Acara/{YYYY-MM-DD judul}/
 ```
-
-Galeri per-rumah di halaman detail grup tetap. Tab Galeri portal Marturia untuk unggah internal event.
 
 ## Endpoint
 
 | Endpoint | Isi |
 |---|---|
 | `GET /api/media/slots` | Semua slot by filename |
+| `POST /api/media/slots/:folder/:stem` | Dual-write stem terdaftar (OAuth pemilik) |
+| `POST /api/groups/:id/cover` | Cover rumah + backup `Cover/` |
 | `GET /api/media/landing` | Subset landing (kompat lama) |
 | `GET /api/media/warta-album?publishedAt=&title=` | Foto edisi warta |

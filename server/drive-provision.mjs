@@ -21,6 +21,13 @@ import { readFileSync } from 'node:fs';
 import { google } from 'googleapis';
 import { getPrisma } from './db.mjs';
 import { websiteVisualFolderSpec, WARTA_PUBLIK_FOLDER } from './lib/website-visuals.mjs';
+import {
+  GROUP_SUBFOLDERS,
+  PILLAR_OPS_FOLDERS,
+  CANONICAL_SUB_DIVISIONS,
+  SUBDIVISION_CHILDREN,
+  BZP_OPS_EXTRA,
+} from './lib/drive-ownership.mjs';
 
 // Mirror src/lib/pantatugas.ts (didefinisikan lokal agar script jalan via node murni)
 const PANTATUGAS = [
@@ -54,10 +61,20 @@ function getWriteDrive() {
 
 const PILLAR_NAMES = PANTATUGAS.map((p) => p.name);
 
+function pushNested(spec, parentKey, relPath) {
+  const parts = String(relPath).split('/').filter(Boolean);
+  let key = parentKey;
+  for (const part of parts) {
+    const next = `${key}/${part}`;
+    spec.push({ name: part, parent: key, key: next });
+    key = next;
+  }
+  return key;
+}
+
 async function buildTargetSpec(prisma) {
-  // Zona statis: [nama, parentId-key]
+  // Event Gallery [PUBLIK] sengaja tidak di-provision lagi (warisan → Marturia Arsip Acara).
   const spec = [
-    { name: 'Event Gallery [PUBLIK]', parent: 'ROOT' },
     { name: WARTA_PUBLIK_FOLDER, parent: 'ROOT', key: 'WARTA_PUBLIK' },
     { name: '_Template Edisi', parent: 'WARTA_PUBLIK', key: 'WARTA_TMPL' },
     { name: 'foto', parent: 'WARTA_TMPL' },
@@ -69,12 +86,11 @@ async function buildTargetSpec(prisma) {
     { name: 'Arsip Generasi [ALUMNI]', parent: 'ROOT' },
   ];
 
-  // Pantatugas + sub-divisi dari TiDB (sumber kebenaran)
   const subs = await prisma.strukturMember.findMany({
     where: { division: { in: PILLAR_NAMES }, NOT: { subdivision: null } },
     select: { division: true, subdivision: true },
   });
-  const byPillar = new Map(PILLAR_NAMES.map((p) => [p, new Set()]));
+  const byPillar = new Map(PILLAR_NAMES.map((p) => [p, new Set(CANONICAL_SUB_DIVISIONS[p] || [])]));
   for (const s of subs) {
     const set = byPillar.get(s.division);
     if (set && s.subdivision?.trim()) set.add(s.subdivision.trim());
@@ -82,27 +98,37 @@ async function buildTargetSpec(prisma) {
   for (const p of PANTATUGAS) {
     const pillarKey = `pillar:${p.name}`;
     spec.push({ name: `${p.label} [MENTOR]`, parent: 'ROOT', key: pillarKey });
-    // _Template Mingguan untuk setiap divisi
     spec.push({ name: '_Template Mingguan', parent: pillarKey, key: `tmpl:${p.name}` });
     spec.push({ name: 'Rundown', parent: `tmpl:${p.name}` });
     spec.push({ name: 'Checklist', parent: `tmpl:${p.name}` });
+    for (const extra of PILLAR_OPS_FOLDERS) {
+      spec.push({ name: extra, parent: pillarKey, key: `${pillarKey}/${extra}` });
+    }
+    if (p.name === 'BENZARPR') {
+      for (const extra of BZP_OPS_EXTRA) {
+        spec.push({ name: extra, parent: pillarKey, key: `${pillarKey}/${extra}` });
+      }
+    }
     for (const sub of byPillar.get(p.name)) {
-      spec.push({ name: sub, parent: pillarKey });
+      const subKey = `${pillarKey}/sub:${sub}`;
+      spec.push({ name: sub, parent: pillarKey, key: subKey });
+      const children = SUBDIVISION_CHILDREN[sub] || ['Foto', 'Berkas'];
+      for (const child of children) {
+        pushNested(spec, subKey, child);
+      }
     }
   }
 
-  // Grup aktif dari TiDB
   const groups = await prisma.group.findMany({
     where: { status: 'ACTIVE' },
     orderBy: { name: 'asc' },
     select: { name: true },
   });
-  const GROUP_SUBFOLDERS = ['Absensi', 'Materi PA', 'Foto Kegiatan', 'Dokumen Lainnya', 'Agenda Mandiri'];
   for (const g of groups) {
     const groupKey = `group:${g.name.toUpperCase()}`;
     spec.push({ name: `${g.name} [GROUP:${g.name.toUpperCase()}]`, parent: 'KELOMPOK', key: groupKey });
     for (const sub of GROUP_SUBFOLDERS) {
-      spec.push({ name: sub, parent: groupKey });
+      spec.push({ name: sub, parent: groupKey, key: `${groupKey}/${sub}` });
     }
   }
 

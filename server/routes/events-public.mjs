@@ -51,11 +51,12 @@ function hasActiveRole(user) {
 export function registerEventsPublicRoutes(app, { wrap }) {
   // BAKU TAU exact routes registered early in index.mjs (before /api/events/:id)
 
-  app.get('/api/events/:slug', wrap(async (req, res) => {
+  app.get('/api/events/:slug', wrap(async (req, res, next) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     const slug = String(req.params.slug || '').toLowerCase();
+    if (slug === 'public-archive' || slug === 'upcoming') return next();
     if (slug === 'baku-tau-4-0' || slug === 'bakutau') {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });

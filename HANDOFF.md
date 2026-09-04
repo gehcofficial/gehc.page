@@ -1,6 +1,55 @@
 # GEHC Portal — Handoff
 
-## Current — Invite provision + temp-password gate (4 Sep 2026)
+## Current — Drive ownership: portal GET/POST (5 Sep 2026)
+
+**Goal:** Drive = lemari; TiDB = indeks. Portal menulis stem publik (dual-write) + folder operasional dengan ACL per aset.
+
+### Done
+
+- Registry ACL `server/lib/drive-ownership.mjs` + `POST /api/media/slots/:folder/:stem`, cover kelompok, album `Foto Kegiatan`, arsip acara, BZP produk/bukti TF, draf kesaksian, Portal Doa.
+- Slot `panca/` di landing + ganti cover dari Panel Divisi. Event Gallery deprecated → Marturia Arsip Acara (`#/gallery`).
+- Kalender pemuda berlapis; strip HUT (nama + avatar, bukan tanggal lengkap); mentor GET kalender gereja.
+- Migrasi `27_drive_ownership`; `npm run env:sync-gdrive-token` (token OAuth sama staging/prod).
+
+### Next
+
+1. Redeploy Vercel Production agar token Drive pemilik dipakai unggah.
+2. `npx prisma generate` setelah stop `npm run dev` (DLL terkunci saat server jalan).
+3. Cek: cover rumah (mentor), `#/gallery`, dashboard HUT+kalender, Portal Doa, bukti TF BZP.
+
+### Commands
+
+```
+npm run env:sync-gdrive-token
+npm run db:migrate:local
+npm run db:schema:check
+npm run drive:provision
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Profile photo without Drive token (4 Sep 2026)
+
+**Goal:** Jemaat bisa ganti foto profil di production meski `GDRIVE_USER_REFRESH_TOKEN` kosong.
+
+### Done
+
+- Unggah foto tidak lagi gagal jika token Drive pemilik tidak ada.
+- Foto kustom disimpan di tabel `user_avatars` dan dilayani `GET /api/media/user-avatar/:userId`.
+- Cadangan: data URL di kolom `users.avatar` jika tabel belum dimigrasi.
+- Drive tetap opsional (sync folder visual) bila token tersedia.
+
+### Next
+
+1. `npm run db:migrate:local` (staging/local) lalu `npm run db:migrate:local:prod` dengan persetujuan — buat tabel `user_avatars`.
+2. Deploy Vercel `staging` + `main`.
+3. Cek Portal → Profil → ganti foto (tanpa error token Drive).
+
+---
+
+## Prior — Invite provision + temp-password gate (4 Sep 2026)
 
 **Goal:** Bulk undangan per-orang (dropdown seperti individu) + password sementara tidak bisa dikosongkan.
 

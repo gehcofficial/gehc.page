@@ -2,6 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { displayFolderName } from '../../lib/driveDisplay';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
 import { useApp } from '../../context/AppContext';
+import { DriveUploadButton } from './DriveUploadButton';
+import { MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Users,
   FolderOpen,
@@ -113,6 +116,7 @@ type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'p
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
+  const queryClient = useQueryClient();
   const { t } = useLang();
   const d = t.portal.divisions;
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -767,6 +771,27 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-[#1B1B1B]">{pillarMeta?.label || selectedDiv}</h3>
                   <p className="text-xs text-[#8C8880]">{pillarMeta?.tagline}</p>
+                  <div className="mt-2">
+                    <DriveUploadButton
+                      label="Ganti cover divisi"
+                      onFile={async (payload) => {
+                        const stem =
+                          selectedDiv === 'BENZARPR' ? 'cover-benzarpr' : `cover-${selectedDiv.toLowerCase()}`;
+                        const r = await fetch(`/api/media/slots/panca/${stem}`, {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(payload),
+                        });
+                        const err = await r.json().catch(() => ({}));
+                        if (!r.ok) addToast({ type: 'error', title: err.error || 'Gagal unggah cover' });
+                        else {
+                          addToast({ type: 'success', title: 'Cover divisi tersimpan' });
+                          queryClient.invalidateQueries({ queryKey: MEDIA_SLOTS_QUERY_KEY });
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 

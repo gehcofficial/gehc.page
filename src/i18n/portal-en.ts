@@ -82,6 +82,7 @@ export const portalEn = {
     'wa-channels': 'WhatsApp Channels',
     integrations: 'Google Drive Integration',
     'pwa-settings': 'Notifications',
+    'pastoral-care': 'Prayer board',
   },
   navGroups: {
     Utama: 'Main',
@@ -527,6 +528,13 @@ export const portalEn = {
       steps: ['Check the connection.', 'Run audit if folders look wrong.', 'Uploads follow the access matrix.'],
       when: 'Drive is out of sync or a folder is missing.',
       notFor: 'Publishing website visuals is Media Guide. Division folders are opened from the Division panel.',
+    },
+    'pastoral-care': {
+      title: 'Prayer board',
+      purpose: 'Private care notes about someone else (sick, bereavement, graduation). Not public, not a profile edit.',
+      steps: ['Search the person.', 'Pick a kind and write a short note.', 'Liturgia prayer and Diakonia visits use this queue.'],
+      when: 'You heard news that the house should pray for.',
+      notFor: 'Do not change someone else’s phone or address here. That stays on their own profile.',
     },
   },
 };

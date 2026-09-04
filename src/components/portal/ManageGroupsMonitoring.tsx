@@ -24,9 +24,15 @@ import {
   ArrowRight,
   Filter,
   TreePine,
+  Images,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
+import { DriveUploadButton } from './DriveUploadButton';
+import { GroupAlbumsPanel } from './GroupAlbumsPanel';
+import { useMediaSlots, MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots';
+import { useQueryClient } from '@tanstack/react-query';
+import { ROLE_LABEL } from '../../lib/roles';
 
 export const ManageGroupsMonitoring: React.FC = () => {
   const {
@@ -38,6 +44,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     currentRole,
     isSuperAdmin,
     isCommittee,
+    isKomisi,
     isGroupMentor,
     isMentee,
     userAssignedGroupId,
@@ -47,9 +54,12 @@ export const ManageGroupsMonitoring: React.FC = () => {
     updateGroupMember,
     deleteGroupMember,
     canAccess,
+    addToast,
   } = useApp();
   const { t } = useLang();
   const mon = t.portal.monitoring;
+  const slots = useMediaSlots();
+  const queryClient = useQueryClient();
 
   const hasAssignedGroup = (isGroupMentor || isMentee) && userAssignedGroupId;
   const availableGroups = hasAssignedGroup
@@ -60,7 +70,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     hasAssignedGroup ? userAssignedGroupId! : groups[0]?.id || 'grp-1'
   );
 
-  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi'>('monitoring-form');
+  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums'>('monitoring-form');
 
   // Selected group object
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
@@ -90,6 +100,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     email: '',
     phone: '',
     is_mentor: false,
+    familyRole: 'MENTEE' as 'MENTOR' | 'CO_MENTOR' | 'MENTEE',
     attendanceRate: 90,
     notes: '',
   });
@@ -140,6 +151,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
       email: '',
       phone: '',
       is_mentor: false,
+      familyRole: 'MENTEE',
       attendanceRate: 95,
       notes: '',
     });
@@ -153,6 +165,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
       email: m.email,
       phone: m.phone,
       is_mentor: m.is_mentor,
+      familyRole: (m.familyRole === 'CO_MENTOR' || m.familyRole === 'COMENTOR' ? 'CO_MENTOR' : m.familyRole === 'MENTOR' || m.is_mentor ? 'MENTOR' : 'MENTEE') as 'MENTOR' | 'CO_MENTOR' | 'MENTEE',
       attendanceRate: m.attendanceRate,
       notes: m.notes || '',
     });
@@ -168,7 +181,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         name: memberFormData.name,
         email: memberFormData.email,
         phone: memberFormData.phone,
-        is_mentor: memberFormData.is_mentor,
+        is_mentor: memberFormData.familyRole !== 'MENTEE',
+        familyRole: memberFormData.familyRole,
         attendanceRate: Number(memberFormData.attendanceRate),
         notes: memberFormData.notes,
       });
@@ -178,7 +192,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         name: memberFormData.name,
         email: memberFormData.email,
         phone: memberFormData.phone,
-        is_mentor: memberFormData.is_mentor,
+        is_mentor: memberFormData.familyRole !== 'MENTEE',
+        familyRole: memberFormData.familyRole,
         attendanceRate: Number(memberFormData.attendanceRate),
         notes: memberFormData.notes,
       });
@@ -255,10 +270,16 @@ export const ManageGroupsMonitoring: React.FC = () => {
       )}
 
       {/* Active Group Hero Summary */}
+      {(() => {
+        const coverUrl = slots.kelompok[activeGroup.name.toLowerCase()];
+        const canChangeCover = canWriteMonitoring && (isGroupMentor || isSuperAdmin || isKomisi);
+        return (
       <div
         className="rounded-[32px] p-6 sm:p-8 text-white relative overflow-hidden shadow-lg border border-white/10"
         style={{
-          background: `linear-gradient(135deg, ${activeGroup.color}EE, #181818)`,
+          background: coverUrl
+            ? `linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.72)), url(${coverUrl}) center/cover`
+            : `linear-gradient(135deg, ${activeGroup.color}EE, #181818)`,
         }}
       >
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -275,6 +296,25 @@ export const ManageGroupsMonitoring: React.FC = () => {
             <p className="text-[11px] text-white/80 italic">
               "{activeGroup.scripture}"
             </p>
+            {canChangeCover && (
+              <DriveUploadButton
+                label="Ganti cover rumah"
+                onFile={async (payload) => {
+                  const r = await fetch(`/api/groups/${activeGroup.id}/cover`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  const d = await r.json();
+                  if (!r.ok) addToast({ type: 'error', title: d.error || 'Gagal unggah cover' });
+                  else {
+                    addToast({ type: 'success', title: 'Cover tersimpan di Drive' });
+                    queryClient.invalidateQueries({ queryKey: MEDIA_SLOTS_QUERY_KEY });
+                  }
+                }}
+              />
+            )}
           </div>
 
           <div className="bg-black/30 backdrop-blur-md rounded-2xl p-4 text-xs space-y-1.5 text-white/90 border border-white/10 shrink-0">
@@ -284,6 +324,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
           </div>
         </div>
       </div>
+        );
+      })()}
 
       {/* Tab Switcher: Input Form, Monitoring History, Member Roster */}
       <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3">
@@ -345,6 +387,18 @@ export const ManageGroupsMonitoring: React.FC = () => {
         >
           <CalendarCheck2 className="w-3.5 h-3.5 text-cyan-500" />
           <span>{mon.tabAttendance}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('albums')}
+          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'albums'
+              ? 'bg-[#181818] text-white shadow-md'
+              : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+          }`}
+        >
+          <Images className="w-3.5 h-3.5 text-rose-500" />
+          <span>Album</span>
         </button>
       </div>
 
@@ -621,15 +675,27 @@ export const ManageGroupsMonitoring: React.FC = () => {
                       {m.name}
                     </td>
                     <td className="py-3.5">
+                      {(() => {
+                        const role =
+                          m.familyRole === 'CO_MENTOR' || m.familyRole === 'COMENTOR'
+                            ? 'CO_MENTOR'
+                            : m.familyRole === 'MENTOR' || m.is_mentor
+                              ? 'MENTOR'
+                              : 'MENTEE';
+                        return (
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          m.is_mentor
+                          role === 'MENTOR'
                             ? 'bg-purple-100 text-purple-800'
-                            : 'bg-gray-100 text-gray-700'
+                            : role === 'CO_MENTOR'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {m.is_mentor ? 'Mentor' : 'Menti'}
+                        {ROLE_LABEL[role]}
                       </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3.5 text-[#8C8880]">
                       <div>{m.email}</div>
@@ -744,17 +810,23 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="mentor-flag"
-                  checked={memberFormData.is_mentor}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, is_mentor: e.target.checked })}
-                  className="w-4 h-4 rounded text-black focus:ring-0 cursor-pointer"
-                />
-                <label htmlFor="mentor-flag" className="text-xs font-bold text-[#1B1B1B] cursor-pointer">
-                  Tugaskan Sebagai Mentor / Fasilitator Kelompok
-                </label>
+              <div className="pt-1">
+                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1">Peran rumah</label>
+                <select
+                  value={memberFormData.familyRole}
+                  onChange={(e) =>
+                    setMemberFormData({
+                      ...memberFormData,
+                      familyRole: e.target.value as 'MENTOR' | 'CO_MENTOR' | 'MENTEE',
+                      is_mentor: e.target.value !== 'MENTEE',
+                    })
+                  }
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-bold"
+                >
+                  <option value="MENTEE">{ROLE_LABEL.MENTEE}</option>
+                  <option value="CO_MENTOR">{ROLE_LABEL.CO_MENTOR}</option>
+                  <option value="MENTOR">{ROLE_LABEL.MENTOR}</option>
+                </select>
               </div>
 
               <div>
@@ -888,6 +960,14 @@ export const ManageGroupsMonitoring: React.FC = () => {
           groupName={activeGroup.name}
           canWrite={canWriteMonitoring}
           members={groupMembers}
+        />
+      )}
+
+      {activeTab === 'albums' && activeGroup && (
+        <GroupAlbumsPanel
+          groupId={activeGroup.id}
+          canCreate={canWriteMonitoring}
+          canUpload={Boolean(hasAssignedGroup || canWriteMonitoring)}
         />
       )}
 

@@ -33,7 +33,8 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'youth-gehc', label: 'Jemaat', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
   { id: 'catalog', label: 'Katalog Minat & Kampus', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Default + approval Lainnya' },
   { id: 'org-hierarchy', label: 'Kelola Hirarki', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
-  { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
+  { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['KOMISI', 'BPMJ', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
+  { id: 'pastoral-care', label: 'Portal Doa', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', subtitle: 'Kabar penggembalaan (privat)' },
   { id: 'jethro', label: 'Regenerasi Kelompok', roles: ['KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
   { id: 'content-weekly', label: 'Kelola Warta Pemuda', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS publikasi warta' },
   { id: 'content-activities', label: 'Kelola Agenda Kegiatan', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS agenda publik' },
@@ -57,10 +58,11 @@ const BASE_NAV: PortalNavItemDef[] = [
  * KOMISI, dan tugas platform ada di shell terpisah `#/admin`.
  */
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
-  KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
-  MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'wa-channels', 'account'],
-  MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'account'],
+  KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
+  MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'wa-channels', 'account'],
+  CO_MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'wa-channels', 'account'],
+  MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   BPMJ: ['event-info', 'dashboard', 'jethro-placement', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
 };
 

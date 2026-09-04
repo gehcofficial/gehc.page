@@ -90,6 +90,7 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
+                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -261,6 +262,7 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
+                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button

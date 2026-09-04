@@ -241,6 +241,10 @@ model User {
   platformAdminGrants       PlatformAdminGrant[]
   strukturMembers           StrukturMember[]
   testimonials              Testimonial[]
+  customAvatar              UserAvatar?
+  groupAlbumsCreated        GroupAlbum[]           @relation("GroupAlbumCreator")
+  pastoralNotesSubject      PastoralCareNote[]     @relation("PastoralSubject")
+  pastoralNotesReporter     PastoralCareNote[]     @relation("PastoralReporter")
 
   @@index([kolomId])
   @@index([bipra])
@@ -249,6 +253,16 @@ model User {
   @@index([addressScope])
   @@index([addressCountry])
   @@map("users")
+}
+
+/// JPEG foto profil kustom — tidak ikut query User biasa.
+model UserAvatar {
+  userId    String   @id @map("user_id") @db.VarChar(64)
+  data      Bytes    @db.MediumBlob
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
 }
 
 /// Kampus / sekolah (katalog + bisa ditambah dari portal)
@@ -382,6 +396,7 @@ model Group {
   children          Group[]            @relation("GroupLineage")
   attendance        AttendanceRecord[]
   roleAssignments   RoleAssignment[]
+  albums            GroupAlbum[]
 
   @@index([tenantId])
   @@index([parentGroupId])
@@ -462,6 +477,29 @@ model GroupMember {
   @@index([groupId, batchPeriod])
   @@index([userId])
   @@map("group_members")
+}
+
+/// Album kegiatan kelompok — indeks TiDB, file di Drive Foto Kegiatan.
+model GroupAlbum {
+  id               String   @id @db.VarChar(64)
+  groupId          String   @map("group_id") @db.VarChar(64)
+  title            String   @db.VarChar(190)
+  kind             String   @default("ADHOC") @db.VarChar(24) // PA | WORSHIP | ADHOC
+  occurredOn       DateTime @map("occurred_on") @db.Date
+  location         String?  @db.VarChar(190)
+  eventId          String?  @map("event_id") @db.VarChar(64)
+  driveFolderId    String?  @map("drive_folder_id") @db.VarChar(128)
+  coverDriveFileId String?  @map("cover_drive_file_id") @db.VarChar(128)
+  previewFileIds   Json?    @map("preview_file_ids")
+  createdById      String   @map("created_by_id") @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("GroupAlbumCreator", fields: [createdById], references: [id])
+
+  @@index([groupId, occurredOn])
+  @@map("group_albums")
 }
 
 enum FamilyRole {
@@ -648,6 +686,8 @@ model EventProgram {
   mapEmbedQuery   String?       @map("map_embed_query") @db.VarChar(190)
   /// Tidak diisi provisioning — folder Drive dibuat per divisi di EventDivision.driveFolderId.
   driveFolderId String?         @map("drive_folder_id") @db.VarChar(128)
+  archiveFolderId String?       @map("archive_folder_id") @db.VarChar(128)
+  previewFileIds  Json?         @map("preview_file_ids")
   /// Tidak diisi provisioning — tautan Meet per pertemuan ada di EventMeeting.gmeetLink.
   gmeetLink         String?         @map("gmeet_link") @db.VarChar(512)
   whatsappGroupUrl  String?         @map("whatsapp_group_url") @db.VarChar(512)
@@ -999,6 +1039,8 @@ model Order {
   shipping     String   @default("PICKUP") @db.VarChar(16) // PICKUP | DELIVERY
   shippingAddr Json?    @map("shipping_addr") // {name, phone, address}
   notes        String?  @db.Text
+  invoiceDriveFileId     String? @map("invoice_drive_file_id") @db.VarChar(128)
+  paymentProofDriveFileId String? @map("payment_proof_drive_file_id") @db.VarChar(128)
   createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
@@ -1193,6 +1235,8 @@ model Testimonial {
   photoUrl    String?  @map("photo_url") @db.Text
   userId      String?  @map("user_id") @db.VarChar(64)
   isPublished Boolean  @default(false) @map("is_published")
+  status      String   @default("DRAFT") @db.VarChar(16) // DRAFT | REVIEW | PUBLISHED
+  inboxDriveFileId String? @map("inbox_drive_file_id") @db.VarChar(128)
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -1202,6 +1246,27 @@ model Testimonial {
   @@index([tenantId, isPublished, sortOrder])
   @@index([userId])
   @@map("testimonials")
+}
+
+/// Kabar penggembalaan tentang orang lain — bukan lifeStatuses profil, bukan publik.
+model PastoralCareNote {
+  id             String    @id @db.VarChar(64)
+  subjectUserId  String    @map("subject_user_id") @db.VarChar(64)
+  reporterUserId String    @map("reporter_user_id") @db.VarChar(64)
+  kind           String    @db.VarChar(24) // SAKIT | DUKA | YUDISIUM | WISUDA | KERJA | LAINNYA
+  note           String    @db.Text
+  status         String    @default("OPEN") @db.VarChar(16) // OPEN | RESOLVED
+  expiresAt      DateTime? @map("expires_at") @db.DateTime(3)
+  driveFolderId  String?   @map("drive_folder_id") @db.VarChar(128)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  subject  User @relation("PastoralSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+  reporter User @relation("PastoralReporter", fields: [reporterUserId], references: [id])
+
+  @@index([subjectUserId, status])
+  @@index([status, expiresAt])
+  @@map("pastoral_care_notes")
 }
 
 // ============================================================

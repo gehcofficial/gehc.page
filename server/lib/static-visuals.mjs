@@ -34,6 +34,7 @@ export function emptySlots() {
     pengurus: {},
     testimoni: {},
     users: {},
+    panca: {},
   };
 }
 
