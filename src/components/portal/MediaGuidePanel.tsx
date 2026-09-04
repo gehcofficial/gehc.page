@@ -185,7 +185,7 @@ export const MediaGuidePanel: React.FC = () => {
           <div>
             <h3 className="text-sm font-black text-white">Panduan Media — Visual Website</h3>
             <p className="text-[10px] text-white/50">
-              Timpa file di Website Visual, lalu publish ke CDN
+              Foto cover & stem Drive saja — nama Mentor/Co kartu rumah ada di Pemimpin 10 Rumah
             </p>
           </div>
         </div>

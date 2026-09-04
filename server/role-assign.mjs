@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { GEN0_LABEL, GEN0_PERIOD, namesMatch } from './lib/beyonders-generation.mjs';
 
 export function genId64() {
   return crypto.randomBytes(32).toString('hex');
@@ -62,7 +63,7 @@ export function mapFamilyRole(role) {
 }
 
 /** Ensure group has a current batch; return { id, period }. */
-export async function ensureCurrentBatch(prisma, groupId, { mentorName, comentorName } = {}) {
+export async function ensureCurrentBatch(prisma, groupId, { mentorName, comentorName, mentorUserId, comentorUserId } = {}) {
   let batch = await prisma.groupBatch.findFirst({
     where: { groupId, isCurrent: true },
     orderBy: { period: 'desc' },
@@ -71,21 +72,30 @@ export async function ensureCurrentBatch(prisma, groupId, { mentorName, comentor
     const data = {};
     if (mentorName) data.mentorName = mentorName;
     if (comentorName) data.comentorName = comentorName;
+    if (mentorUserId) data.mentorUserId = mentorUserId;
+    if (comentorUserId) data.comentorUserId = comentorUserId;
     if (Object.keys(data).length) {
       batch = await prisma.groupBatch.update({ where: { id: batch.id }, data });
     }
     return batch;
   }
 
-  const period = new Date().toISOString().slice(0, 7);
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { foundedPeriod: true },
+  });
+  const period = group?.foundedPeriod || GEN0_PERIOD;
   return prisma.groupBatch.create({
     data: {
       id: `batch-${groupId}-${period}`.slice(0, 64),
       groupId,
       period,
+      generation: 0,
       mentorName: mentorName || 'TBD',
       comentorName: comentorName || null,
-      batchLabel: `Batch ${period}`,
+      mentorUserId: mentorUserId || null,
+      comentorUserId: comentorUserId || null,
+      batchLabel: period === GEN0_PERIOD ? GEN0_LABEL : `Batch ${period}`,
       isCurrent: true,
     },
   });
@@ -165,6 +175,8 @@ export async function assignRoleToUser(prisma, {
     const batch = await ensureCurrentBatch(prisma, groupId, {
       mentorName: role === 'MENTOR' ? user.name : undefined,
       comentorName: role === 'CO_MENTOR' ? user.name : undefined,
+      mentorUserId: role === 'MENTOR' ? user.id : undefined,
+      comentorUserId: role === 'CO_MENTOR' ? user.id : undefined,
     });
 
     if (role === 'MENTOR') {
@@ -274,6 +286,33 @@ export async function revokeRoleAssignment(prisma, roleAssignmentId) {
     await prisma.groupMember.deleteMany({
       where: { userId: assignment.userId, groupId: assignment.groupId },
     });
+  }
+
+  if (assignment.groupId && ['MENTOR', 'CO_MENTOR'].includes(assignment.role)) {
+    const [user, batch] = await Promise.all([
+      prisma.user.findUnique({ where: { id: assignment.userId }, select: { id: true, name: true } }),
+      prisma.groupBatch.findFirst({ where: { groupId: assignment.groupId, isCurrent: true } }),
+    ]);
+    if (batch) {
+      const data = {};
+      if (assignment.role === 'MENTOR') {
+        const match = batch.mentorUserId === assignment.userId || namesMatch(batch.mentorName, user?.name);
+        if (match || (!batch.mentorUserId && namesMatch(batch.mentorName, user?.name))) {
+          data.mentorName = 'TBD';
+          data.mentorUserId = null;
+        }
+      }
+      if (assignment.role === 'CO_MENTOR') {
+        const match = batch.comentorUserId === assignment.userId || namesMatch(batch.comentorName, user?.name);
+        if (match || (!batch.comentorUserId && namesMatch(batch.comentorName, user?.name))) {
+          data.comentorName = null;
+          data.comentorUserId = null;
+        }
+      }
+      if (Object.keys(data).length) {
+        await prisma.groupBatch.update({ where: { id: batch.id }, data });
+      }
+    }
   }
 
   await prisma.orgAssignment.updateMany({

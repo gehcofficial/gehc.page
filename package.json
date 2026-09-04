@@ -37,6 +37,7 @@
     "db:migrate:user-avatars": "node server/_migrate-user-avatars.cjs",
     "db:migrate:user-avatar-blobs": "node server/_migrate-user-avatar-blobs.cjs",
     "db:migrate:drive-ownership": "node server/_migrate-drive-ownership.cjs",
+    "db:migrate:beyonders-generation": "node server/_migrate-beyonders-generation.cjs",
     "db:backfill:google-link": "node server/_backfill-google-link.cjs",
     "db:archive:bakutau": "node server/_archive-bakutau-event.cjs",
     "db:archive:bakutau:staging": "dotenv -e .env.staging -- node server/_archive-bakutau-event.cjs",

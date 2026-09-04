@@ -1,6 +1,34 @@
 # GEHC Portal — Handoff
 
-## Current — Drive ownership: portal GET/POST (5 Sep 2026)
+## Current — Pemimpin 10 Rumah / generasi Retreat (5 Sep 2026)
+
+**Goal:** Nama Mentor/Co di landing Beyonders dikelola di panel sendiri. Generasi 0 = kohort Retreat `2026-06` (bukan bulan daftar akun). Cabut peran mengosongkan nama landing.
+
+### Done
+
+- Panel **Pemimpin 10 Rumah** (`#/portal/.../beyonders-leaders`): Komisi sunting nama/periode; Tim Kerja tandai siap; Komisi buka generasi berikutnya untuk 10 rumah sekaligus (`updateMany` + `createMany`, tanpa loop Prisma).
+- `group_batches`: `generation`, `mentor_user_id`, `comentor_user_id`, `regen_ready`. Backfill periode `2026-06`.
+- `revokeRoleAssignment` membersihkan nama batch berjalan. `ensureCurrentBatch` tidak lagi memakai bulan hari ini.
+- Panduan panel: monitoring, Jethro, media, dashboard, struktur, Jemaat, Review Penempatan — dipisahkan dari generasi Retreat.
+
+### Next
+
+1. `npm run db:migrate:local` (lalu `:staging` / `:prod` dengan persetujuan) agar kolom generasi ada.
+2. Deploy Vercel `staging` + `main`.
+3. Cek: cabut mentor simulasi → landing tidak menyimpan nama lama; panel Pemimpin 10 Rumah.
+
+### Commands
+
+```
+npm run db:migrate:local
+npm run db:schema:check
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Drive ownership: portal GET/POST (5 Sep 2026)
 
 **Goal:** Drive = lemari; TiDB = indeks. Portal menulis stem publik (dual-write) + folder operasional dengan ACL per aset.
 

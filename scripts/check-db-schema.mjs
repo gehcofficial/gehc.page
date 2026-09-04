@@ -75,6 +75,7 @@ const REQUIRED_TABLE_COLUMNS = {
   institutions: ['country'],
   testimonials: ['status'],
   orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
+  group_batches: ['generation', 'mentor_user_id', 'comentor_user_id', 'regen_ready'],
 };
 
 const quiet = process.argv.includes('--quiet');
