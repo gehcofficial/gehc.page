@@ -1,6 +1,23 @@
 # GEHC Portal — Handoff
 
-## Current — Platform Admin opens portal Superadmin picker (4 Sep 2026)
+## Current — Delete duplicate portal accounts (4 Sep 2026)
+
+**Goal:** Orang & Undangan bisa menghapus akun duplikat (provision berulang) dengan form konfirmasi.
+
+### Done
+
+- `DELETE /api/people/:id` (Komisi / Superadmin / platform admin): ketik username/email/nama; akun Google tertaut wajib ketik `HAPUS`.
+- Blokir hapus diri sendiri, `usr-platform-ops`, dan `SYSTEM_LEGACY`.
+- Tab Semua Akun menampilkan `@username` + status taut Google + tombol Hapus.
+
+### Next
+
+1. Deploy `staging` + `main`.
+2. Di prod: hapus baris Alvandi **tanpa** Google tertaut; sisakan akun LINKED (`usr-81dcba…`).
+
+---
+
+## Prior — Platform Admin opens portal Superadmin picker (4 Sep 2026)
 
 **Goal:** Grant di `#/admin` Platform Admins ikut membuka picker **Pilih ruang kerja** (Superadmin + peran jemaat yang sudah ada), bukan hanya `#/admin`.
 

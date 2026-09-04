@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Copy, Trash2, UserPlus, CheckCircle2, Loader2 } from 'lucide-react';
+import { ShieldCheck, Copy, Trash2, UserPlus, CheckCircle2, Loader2, X } from 'lucide-react';
 import { UserRole } from '../../types';
 import { ProvisionInviteWizard } from './ProvisionInviteWizard';
 import { AccessGroupsPanel } from './AccessGroupsPanel';
@@ -14,7 +14,10 @@ const ROLES: UserRole[] = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR'
 interface ApiUser {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  loginUsername?: string | null;
+  linkStatus?: string | null;
+  googleSub?: string | null;
   avatar: string | null;
   accountStatus: string;
   groupCount: number;
@@ -52,6 +55,7 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
   const [invites, setInvites] = useState<InviteDto[] | null>(null);
   const [q, setQ] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ApiUser | null>(null);
   const [newInvite, setNewInvite] = useState({ type: 'SINGLE', defaultRole: 'MENTEE', maxUses: 1, expiresDays: 14 });
   const [lastLink, setLastLink] = useState('');
 
@@ -75,12 +79,11 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
   };
 
   const pending = (users || []).filter((u) => u.accountStatus === 'PENDING');
-  const filtered = (users || []).filter(
-    (u) =>
-      !q ||
-      u.name.toLowerCase().includes(q.toLowerCase()) ||
-      u.email.toLowerCase().includes(q.toLowerCase())
-  );
+  const filtered = (users || []).filter((u) => {
+    if (!q) return true;
+    const hay = `${u.name} ${u.email || ''} ${u.loginUsername || ''} ${u.id}`.toLowerCase();
+    return hay.includes(q.toLowerCase());
+  });
   const { pageItems: pagedUsers, pager: usersPager } = useListPager<ApiUser>(filtered);
   const { pageItems: pagedInvites, pager: invitesPager } = useListPager<InviteDto>(invites || []);
 
@@ -156,7 +159,13 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
                     className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold truncate">{u.name}</p>
-                    <p className="text-[10px] text-[#8C8880] truncate">{u.email}</p>
+                    <p className="text-[10px] text-[#8C8880] truncate">
+                      {u.loginUsername ? `@${u.loginUsername}` : u.id}
+                      {u.email ? ` · ${u.email}` : ''}
+                    </p>
+                    <p className="text-[9px] text-[#8C8880] mt-0.5">
+                      {u.linkStatus === 'LINKED' && u.googleSub ? p.linked : p.unlinked}
+                    </p>
                   </div>
                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
                     u.accountStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
@@ -172,8 +181,8 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
                   </div>
                 </div>
 
-                {u.accountStatus === 'PENDING' && (
                   <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-[#D9D7D0]/40">
+                    {u.accountStatus === 'PENDING' && (
                     <button
                       onClick={() => act(async () => { setBusyId(u.id); await authedFetch(`/api/people/${u.id}`, 'PATCH', { action: 'approve' }); })}
                       disabled={busyId === u.id}
@@ -181,12 +190,31 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
                     >
                       <CheckCircle2 className="w-3 h-3" /> {t.portal.common.approve}
                     </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(u)}
+                      className="text-[10px] font-black px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                      title={p.deleteUser}
+                    >
+                      <Trash2 className="w-3 h-3" /> {p.deleteUser}
+                    </button>
                   </div>
-                )}
               </div>
             ))}
           </div>
         </>
+      )}
+
+      {deleteTarget && (
+        <DeleteUserModal
+          user={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={async () => {
+            setDeleteTarget(null);
+            await loadUsers();
+          }}
+        />
       )}
 
       {tab === 'provision' && <ProvisionInviteWizard />}
@@ -251,6 +279,97 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const DeleteUserModal: React.FC<{
+  user: ApiUser;
+  onClose: () => void;
+  onDeleted: () => Promise<void>;
+}> = ({ user, onClose, onDeleted }) => {
+  const { t } = useLang();
+  const p = t.portal.people;
+  const linked = user.linkStatus === 'LINKED' && Boolean(user.googleSub);
+  const expected = user.loginUsername || user.email || user.name;
+  const [confirm, setConfirm] = useState('');
+  const [phrase, setPhrase] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await authedFetch(`/api/people/${user.id}`, 'DELETE', {
+        confirm,
+        confirmPhrase: linked ? phrase : undefined,
+      });
+      await onDeleted();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-black">{p.deleteTitle}</h3>
+            <p className="text-xs text-[#8C8880] mt-1">{p.deleteWarn}</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100">
+            <X className="w-4 h-4 text-[#8C8880]" />
+          </button>
+        </div>
+        <div className="rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] p-3 text-xs space-y-1">
+          <p className="font-bold">{user.name}</p>
+          <p className="font-mono text-[11px]">{user.loginUsername ? `@${user.loginUsername}` : user.id}</p>
+          {user.email && <p className="text-[#8C8880]">{user.email}</p>}
+          <p className={linked ? 'text-amber-700 font-bold' : 'text-[#8C8880]'}>
+            {linked ? p.linked : p.unlinked}
+          </p>
+        </div>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-bold">{p.deleteConfirmLabel}</span>
+          <input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder={String(expected || '')}
+            className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+            autoComplete="off"
+          />
+        </label>
+        {linked && (
+          <label className="block space-y-1">
+            <span className="text-[11px] font-bold">{p.deletePhraseLabel}</span>
+            <input
+              value={phrase}
+              onChange={(e) => setPhrase(e.target.value)}
+              placeholder={p.deletePhrasePh}
+              className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm"
+              autoComplete="off"
+            />
+          </label>
+        )}
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-full border text-xs font-bold">
+            {t.portal.common.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={busy || !confirm.trim() || (linked && phrase.trim().toUpperCase() !== 'HAPUS')}
+            onClick={() => void submit()}
+            className="flex-1 py-2.5 rounded-full bg-red-600 text-white text-xs font-black disabled:opacity-50"
+          >
+            {busy ? '…' : p.deleteSubmit}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

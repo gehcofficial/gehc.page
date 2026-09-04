@@ -50,6 +50,7 @@ import {
   removeAccessGroupMember,
 } from './access-groups.mjs';
 import { createInviteProvisionUser, resolveUniformPassword } from './invite-provision.mjs';
+import { deleteCongregationUser } from './lib/user-delete.mjs';
 import {
   getDashboard,
   runScan,
@@ -102,7 +103,7 @@ import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } fro
 import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerVisualsPublishRoutes } from './routes/visuals-publish.mjs';
 import { registerOperatorRoutes } from './routes/operator.mjs';
-import { requirePlatformRoot, requirePlatformAdmin } from './lib/platform-rbac.mjs';
+import { requirePlatformRoot, requirePlatformAdmin, requireKomisiOrPlatformAdmin } from './lib/platform-rbac.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
@@ -4046,6 +4047,25 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   }
 
   res.status(400).json({ error: 'action tidak dikenal.' });
+}));
+
+app.delete('/api/people/:id', requireKomisiOrPlatformAdmin(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  try {
+    const result = await deleteCongregationUser(prisma, {
+      actorId: req.authUser?.id || null,
+      target,
+      confirm: req.body?.confirm,
+      confirmPhrase: req.body?.confirmPhrase,
+    });
+    return res.json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status >= 500) throw err;
+    return res.status(status).json({ error: err.message });
+  }
 }));
 
 // ============================================================
