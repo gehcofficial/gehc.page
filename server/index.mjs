@@ -37,6 +37,11 @@ import {
 } from './auth.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import {
+  applyPlatformAdminPortalRole,
+  ensurePortalSuperadminForGrant,
+  getActiveGrantForUser,
+} from './platform-operators.mjs';
+import {
   applyGroupEntitlements,
   listAccessGroups,
   createAccessGroup,
@@ -179,8 +184,11 @@ app.post('/api/auth/google', wrap(async (req, res) => {
     await applyGroupEntitlements(user.email, user.id);
     const prisma = getPrisma();
     if (prisma) {
+      const grant = await getActiveGrantForUser(user.id);
+      if (grant) await ensurePortalSuperadminForGrant(user.id, user.id);
       user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
       user = applySuperadminSession(user);
+      user = applyPlatformAdminPortalRole(user, Boolean(grant));
     }
     const activeRole = pickDefaultActiveRole(user);
     setSessionCookie(res, buildSessionPayload(user, { activeRole }));
@@ -3125,8 +3133,11 @@ app.post('/api/auth/local', wrap(async (req, res) => {
   try {
     let user = await loginLocal(identifier, req.body?.password);
     if (user.email) await applyGroupEntitlements(user.email, user.id);
+    const grant = await getActiveGrantForUser(user.id);
+    if (grant) await ensurePortalSuperadminForGrant(user.id, user.id);
     user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
     user = applySuperadminSession(user);
+    user = applyPlatformAdminPortalRole(user, Boolean(grant));
     const activeRole = pickDefaultActiveRole(user);
     setSessionCookie(res, buildSessionPayload(user, { activeRole }));
     res.json({

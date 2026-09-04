@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — Admin provision parity staging/prod (4 Sep 2026)
+## Current — Platform Admin opens portal Superadmin picker (4 Sep 2026)
+
+**Goal:** Grant di `#/admin` Platform Admins ikut membuka picker **Pilih ruang kerja** (Superadmin + peran jemaat yang sudah ada), bukan hanya `#/admin`.
+
+### Done
+
+- Grant `platform_admin_grants` dual-write `UserRole.SUPERADMIN` (note `platform_admin_grant`), tanpa mengubah onboarding.
+- Sesi Google/lokal + `attachPlatformContext` menghidrasi SUPERADMIN untuk grant yang sudah ada (tidak perlu revoke-regrant).
+- Cabut grant hanya melepas Superadmin bertanda grant, bukan slot Komisi/Tim Kerja terpisah.
+- Navbar HP: tombol Admin tidak lagi `hidden sm:block`; ada di drawer.
+- Copy panel Platform Admins menjelaskan picker portal.
+
+### Next
+
+1. Deploy `staging` + `main`.
+2. Akun yang sudah di-grant (mis. aisaerang): refresh / login Google ulang → `#/portal` harus menampilkan Superadmin + Mentee.
+3. Slot Komisi / Tim Kerja tetap di Jemaat → Assign Role jika memang jabatan gereja.
+
+---
+
+## Prior — Admin provision parity staging/prod (4 Sep 2026)
 
 **Goal:** `#/admin` Orang & Provision jalan di production seperti staging: schema `users` lengkap, 10 rumah Beyonders, operator boleh baca pohon jabatan.
 

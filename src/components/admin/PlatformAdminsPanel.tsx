@@ -100,7 +100,8 @@ export const PlatformAdminsPanel: React.FC = () => {
       <div>
         <h2 className="text-xl font-bold text-[#1B1B1B]">Platform Admins</h2>
         <p className="text-sm text-[#8C8880]">
-          Delegasi akses admin ke user jemaat yang sudah ada. Mereka login Google di portal, bukan di #/admin.
+          Delegasi akses admin ke user jemaat yang sudah ada. Mereka login Google di portal — bukan break-glass #/admin.
+          Grant ini juga menambah peran Superadmin di picker portal (bersama Mentee/peran lain yang sudah dimiliki).
         </p>
       </div>
 

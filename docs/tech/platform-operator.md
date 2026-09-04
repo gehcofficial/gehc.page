@@ -24,7 +24,7 @@ Migrasi CJS `db:migrate:local*` **tidak boleh** menghapus `platform_operators`. 
 
 - **Passkey/WebAuthn** — login utama di `#/admin`
 - **Break-glass** — password lokal, rate-limited
-- **Platform Admin** — grant ke `User` existing; login portal Google + link Admin
+- **Platform Admin** — grant ke `User` existing; login portal Google + link Admin. Grant juga membuka workspace Superadmin di picker portal (`user_roles`). Cabut grant melepas Superadmin yang ditandai `platform_admin_grant`.
 
 ## Env vars
 

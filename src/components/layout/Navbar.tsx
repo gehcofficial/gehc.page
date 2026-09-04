@@ -209,7 +209,7 @@ export const Navbar: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { window.location.hash = '#/admin'; }}
-                    className="border border-white/30 text-white font-bold rounded-full px-3 text-[10px] h-[34px] uppercase tracking-wider hidden sm:block"
+                    className="border border-white/30 text-white font-bold rounded-full px-3 text-[10px] h-[34px] uppercase tracking-wider"
                   >
                     Admin
                   </button>
@@ -305,15 +305,29 @@ export const Navbar: React.FC = () => {
               </>
             )}
             {authUser && activeView === 'public' && (
-              <button
-                onClick={() => {
-                  setActiveView('portal');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"
-              >
-                Buka Portal
-              </button>
+              <>
+                {isPlatformAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.hash = '#/admin';
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full py-3.5 rounded-full border border-white/30 text-white font-bold text-center text-sm"
+                  >
+                    Admin
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setActiveView('portal');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"
+                >
+                  Buka Portal
+                </button>
+              </>
             )}
             {activeView === 'portal' && (
               <button
