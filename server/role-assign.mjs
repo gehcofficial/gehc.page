@@ -245,7 +245,7 @@ export async function assignRoleToUser(prisma, {
         groupId: groupId || null,
         title: 'Peran baru ditugaskan',
         message: `Kamu mendapat peran ${roleLabel}. Buka portal untuk melihat konteks peran aktif.`,
-        payload: { role, position, division, subdivision, groupId, assignedBy },
+        payload: { role, position, division, subdivision, groupId, assignedBy, href: '#/account/roles' },
         status: 'OPEN',
       },
     });
