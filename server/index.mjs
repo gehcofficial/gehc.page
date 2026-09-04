@@ -24,6 +24,8 @@ import {
   verifyGoogleCredential,
   hashPassword,
   verifyPassword,
+  assertCurrentPassword,
+  attachMustChangePassword,
   loginLocal,
   isSuperadminEmail,
   ensureSuperadminRole,
@@ -190,13 +192,24 @@ app.post('/api/auth/google', wrap(async (req, res) => {
       const grant = await getActiveGrantForUser(user.id);
       if (grant) await ensurePortalSuperadminForGrant(user.id, user.id);
       user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+      user = await attachMustChangePassword(prisma, user);
       user = applySuperadminSession(user);
       user = applyPlatformAdminPortalRole(user, Boolean(grant));
     }
     const activeRole = pickDefaultActiveRole(user);
     setSessionCookie(res, buildSessionPayload(user, { activeRole }));
     res.json({
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, avatarSource: user.avatarSource, accountStatus: user.accountStatus, onboardingStatus: user.onboardingStatus, roles: user.roles },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        avatarSource: user.avatarSource,
+        accountStatus: user.accountStatus,
+        onboardingStatus: user.onboardingStatus,
+        roles: user.roles,
+        mustChangePassword: Boolean(user.mustChangePassword),
+      },
       activeRole,
       activeNamespace: roleToNamespace(activeRole),
     });
@@ -3292,6 +3305,7 @@ app.post('/api/auth/local', wrap(async (req, res) => {
     const grant = await getActiveGrantForUser(user.id);
     if (grant) await ensurePortalSuperadminForGrant(user.id, user.id);
     user = await prisma.user.findUnique({ where: { id: user.id }, include: { roles: true } });
+    user = await attachMustChangePassword(prisma, user);
     user = applySuperadminSession(user);
     user = applyPlatformAdminPortalRole(user, Boolean(grant));
     const activeRole = pickDefaultActiveRole(user);
@@ -5213,14 +5227,14 @@ app.post('/api/me/password', wrap(async (req, res) => {
   const mustChange = Buffer.isBuffer(mcpVal)
     ? mcpVal[0] === 1
     : Boolean(mcpVal != null ? Number(mcpVal) : user.mustChangePassword);
-  if (user.passwordHash && !mustChange) {
-    if (!currentPassword || !verifyPassword(String(currentPassword), user.passwordHash)) {
-      return res.status(400).json({ error: 'Password lama salah.' });
-    }
-  } else if (user.passwordHash && mustChange && currentPassword) {
-    if (!verifyPassword(String(currentPassword), user.passwordHash)) {
-      return res.status(400).json({ error: 'Password sementara salah.' });
-    }
+  try {
+    assertCurrentPassword({
+      passwordHash: user.passwordHash,
+      currentPassword,
+      mustChange,
+    });
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
   }
 
   await prisma.user.update({

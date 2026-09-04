@@ -118,7 +118,7 @@ export async function persistSuperadminRole(user) {
 
 export const ensureSuperadminRole = persistSuperadminRole;
 
-async function attachMustChangePassword(prisma, user) {
+export async function attachMustChangePassword(prisma, user) {
   if (!user) return user;
   try {
     const rows = await prisma.$queryRawUnsafe(
@@ -260,6 +260,18 @@ export function verifyPassword(password, stored) {
   const test = crypto.scryptSync(password, salt, 64);
   const expected = Buffer.from(hash, 'hex');
   return expected.length === test.length && crypto.timingSafeEqual(expected, test);
+}
+
+/** Wajibkan password lama jika akun sudah punya hash — termasuk mustChangePassword. */
+export function assertCurrentPassword({ passwordHash, currentPassword, mustChange = false }) {
+  if (!passwordHash) return;
+  const given = currentPassword == null ? '' : String(currentPassword);
+  if (!given || !verifyPassword(given, passwordHash)) {
+    throw Object.assign(
+      new Error(mustChange ? 'Password sementara wajib dan harus benar.' : 'Password lama salah.'),
+      { status: 400 },
+    );
+  }
 }
 
 /** Login username atau email + password → user lengkap dgn roles. */

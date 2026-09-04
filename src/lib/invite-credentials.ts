@@ -13,14 +13,18 @@ export const BEYONDERS_GROUPS = [
 
 export type InviteType = 'beyonders' | 'staff' | 'individual';
 
-export function formatCredentialBlock(row: {
+export type CredentialRow = {
   name: string;
   loginUsername?: string;
   email?: string | null;
   tempPassword?: string;
   claimUrl?: string;
-}) {
-  const lines = [`Nama: ${row.name}`];
+};
+
+export function formatCredentialBlock(row: CredentialRow, opts?: { banner?: string }) {
+  const lines: string[] = [];
+  if (opts?.banner) lines.push(opts.banner);
+  lines.push(`Nama: ${row.name}`);
   if (row.loginUsername) lines.push(`Username: ${row.loginUsername}`);
   if (row.email) lines.push(`Email: ${row.email}`);
   if (row.tempPassword) lines.push(`Password: ${row.tempPassword}`);
@@ -28,4 +32,15 @@ export function formatCredentialBlock(row: {
   lines.push('Login: #/login (username + password di atas)');
   lines.push('(Password wajib diganti saat login pertama. Google bisa ditaut di Akun → Keamanan.)');
   return lines.join('\n');
+}
+
+export function formatBulkShareText(
+  rows: CredentialRow[],
+  opts: { header: string; bannerFor: (name: string) => string },
+) {
+  const blocks = rows.map((row) => {
+    const title = `===== ${row.name} =====`;
+    return `${title}\n${formatCredentialBlock(row, { banner: opts.bannerFor(row.name) })}`;
+  });
+  return [opts.header, '', ...blocks].join('\n\n');
 }

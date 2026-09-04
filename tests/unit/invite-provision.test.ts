@@ -27,6 +27,10 @@ describe('invite-provision', () => {
     expect(resolveUniformPassword({ useUniformPassword: true, uniformPassword: 'password123' })).toBe('password123');
   });
 
+  it('resolveUniformPassword defaults to GEHCikarang when uniform is on', () => {
+    expect(resolveUniformPassword({ useUniformPassword: true })).toBe('GEHCikarang');
+  });
+
   it('resolveUniformPassword falls back to env', () => {
     process.env.PROVISION_UNIFORM_PASSWORD = 'staging-pass-99';
     expect(resolveUniformPassword({ useUniformPassword: true })).toBe('staging-pass-99');
@@ -47,5 +51,6 @@ describe('invite-provision', () => {
     expect(resolveUniformPassword({ useUniformPassword: true, uniformPassword: 'vault-secret-99' })).toBe(
       'vault-secret-99',
     );
+    expect(resolveUniformPassword({ useUniformPassword: true, uniformPassword: 'GEHCikarang' })).toBe('GEHCikarang');
   });
 });

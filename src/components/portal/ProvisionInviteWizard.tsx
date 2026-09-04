@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, UserPlus, Copy, CheckCircle2, Download, Users } from 'lucide-react';
+import { Loader2, UserPlus, Copy, CheckCircle2, Download, Users, Plus, Trash2 } from 'lucide-react';
 import { UserRole } from '../../types';
-import { BEYONDERS_GROUPS, formatCredentialBlock, type InviteType } from '../../lib/invite-credentials';
+import {
+  BEYONDERS_GROUPS,
+  formatBulkShareText,
+  formatCredentialBlock,
+  type InviteType,
+} from '../../lib/invite-credentials';
 import { OrgSlotPicker } from './OrgSlotPicker';
 import { useLang } from '../../context/LangContext';
 import { fmt, portalRoleLabel } from '../../lib/portal-i18n';
 
 const MENTORING_ROLES: UserRole[] = ['MENTOR', 'CO_MENTOR', 'MENTEE'];
 const STAFF_ROLES: UserRole[] = ['KOMISI', 'COMMITTEE', 'BPMJ'];
+const MAX_BULK = 40;
 
 export type ProvisionRow = {
   name: string;
@@ -20,35 +26,39 @@ export type ProvisionRow = {
   error?: string;
 };
 
-function parseBulkLines(
-  raw: string,
-  defaultRole: string,
-): Array<Record<string, string>> {
-  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  const first = lines[0].toLowerCase();
-  const skipHeader = first.includes('nama') || first.startsWith('name,');
-  const dataLines = skipHeader ? lines.slice(1) : lines;
-  const rows: Array<Record<string, string>> = [];
-  for (const line of dataLines) {
-    const parts = line.split(/[,;\t]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-    if (parts.length < 2) continue;
-    const [name, col2, col3, col4, col5, col6] = parts;
-    if (!name) continue;
-    if (col2?.includes('@')) {
-      rows.push({ name, email: col2, role: col3 || defaultRole, groupId: col4 || '', orgNodeId: col5 || '', loginUsername: '' });
-    } else {
-      rows.push({
-        name,
-        loginUsername: col2,
-        role: col3 || defaultRole,
-        groupId: col4 || '',
-        orgNodeId: col5 || '',
-        familyRole: col6 || '',
-      });
-    }
-  }
-  return rows;
+type BulkDraft = {
+  key: string;
+  name: string;
+  loginUsername: string;
+  email: string;
+  role: UserRole;
+  groupId: string;
+  orgNodeId: string;
+};
+
+function newDraftKey() {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `row-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function clampRole(inviteType: InviteType, role: UserRole): UserRole {
+  if (inviteType === 'beyonders' && !MENTORING_ROLES.includes(role)) return 'MENTEE';
+  if (inviteType === 'staff' && !STAFF_ROLES.includes(role)) return 'KOMISI';
+  if (inviteType === 'individual') return 'MENTEE';
+  return role;
+}
+
+function makeDraft(inviteType: InviteType, role: UserRole, groupId: string): BulkDraft {
+  return {
+    key: newDraftKey(),
+    name: '',
+    loginUsername: '',
+    email: '',
+    role: clampRole(inviteType, role),
+    groupId,
+    orgNodeId: '',
+  };
 }
 
 function downloadResultsCsv(rows: ProvisionRow[]) {
@@ -78,9 +88,12 @@ export const ProvisionInviteWizard: React.FC = () => {
   const [groupId, setGroupId] = useState('grp-1');
   const [orgNodeId, setOrgNodeId] = useState('');
   const [groups, setGroups] = useState(BEYONDERS_GROUPS);
-  const [bulkText, setBulkText] = useState('');
+  const [bulkDrafts, setBulkDrafts] = useState<BulkDraft[]>(() => [
+    makeDraft('beyonders', 'MENTEE', 'grp-1'),
+    makeDraft('beyonders', 'MENTEE', 'grp-1'),
+  ]);
   const [useUniformPassword, setUseUniformPassword] = useState(false);
-  const [uniformPassword, setUniformPassword] = useState('password123');
+  const [uniformPassword, setUniformPassword] = useState('GEHCikarang');
   const [busy, setBusy] = useState(false);
   const [singleResult, setSingleResult] = useState<ProvisionRow | null>(null);
   const [bulkResults, setBulkResults] = useState<ProvisionRow[] | null>(null);
@@ -96,13 +109,19 @@ export const ProvisionInviteWizard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (inviteType === 'beyonders' && !MENTORING_ROLES.includes(role)) setRole('MENTEE');
-    if (inviteType === 'staff' && !STAFF_ROLES.includes(role)) setRole('KOMISI');
-    if (inviteType === 'individual') setRole('MENTEE');
+    const next = clampRole(inviteType, role);
+    if (next !== role) setRole(next);
     if (inviteType !== 'staff') setOrgNodeId('');
-  }, [inviteType, role]);
+    setBulkDrafts((rows) =>
+      rows.map((r) => ({
+        ...r,
+        role: clampRole(inviteType, r.role),
+        orgNodeId: inviteType === 'staff' ? r.orgNodeId : '',
+      })),
+    );
+  }, [inviteType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const parsedBulk = useMemo(() => parseBulkLines(bulkText, role), [bulkText, role]);
+  const namedDrafts = useMemo(() => bulkDrafts.filter((r) => r.name.trim()), [bulkDrafts]);
   const roleOptions = inviteType === 'beyonders' ? MENTORING_ROLES : inviteType === 'staff' ? STAFF_ROLES : (['MENTEE'] as UserRole[]);
 
   const copyText = async (text: string, id: string) => {
@@ -113,6 +132,8 @@ export const ProvisionInviteWizard: React.FC = () => {
     } catch { /* ignore */ }
   };
 
+  const bannerFor = (personName: string) => fmt(p.bulkBlockBanner, { name: personName });
+
   const provisionPayload = () => ({
     useUniformPassword,
     inviteType,
@@ -120,6 +141,23 @@ export const ProvisionInviteWizard: React.FC = () => {
     orgNodeId: inviteType === 'staff' ? orgNodeId || undefined : undefined,
     ...(useUniformPassword && uniformPassword.trim() ? { uniformPassword: uniformPassword.trim() } : {}),
   });
+
+  const updateDraft = (key: string, patch: Partial<BulkDraft>) => {
+    setBulkDrafts((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  };
+
+  const addDraft = () => {
+    if (bulkDrafts.length >= MAX_BULK) return;
+    const last = bulkDrafts[bulkDrafts.length - 1];
+    setBulkDrafts((rows) => [
+      ...rows,
+      makeDraft(inviteType, last?.role || role, last?.groupId || groupId),
+    ]);
+  };
+
+  const removeDraft = (key: string) => {
+    setBulkDrafts((rows) => (rows.length <= 1 ? rows : rows.filter((r) => r.key !== key)));
+  };
 
   const submitSingle = async () => {
     if (!name.trim()) return;
@@ -166,8 +204,12 @@ export const ProvisionInviteWizard: React.FC = () => {
   };
 
   const submitBulk = async () => {
-    if (!parsedBulk.length) return;
-    if (inviteType === 'staff' && !parsedBulk.every((r) => r.orgNodeId || orgNodeId)) {
+    if (!namedDrafts.length) return;
+    if (inviteType === 'beyonders' && namedDrafts.some((r) => !r.groupId)) {
+      alert(p.bulkNeedGroup);
+      return;
+    }
+    if (inviteType === 'staff' && namedDrafts.some((r) => !r.orgNodeId)) {
       alert(p.bulkNeedOrg);
       return;
     }
@@ -180,15 +222,14 @@ export const ProvisionInviteWizard: React.FC = () => {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entries: parsedBulk.map((row) => ({
-            name: row.name,
-            loginUsername: row.loginUsername,
-            email: row.email,
+          entries: namedDrafts.map((row) => ({
+            name: row.name.trim(),
+            loginUsername: row.loginUsername.trim() || undefined,
+            email: row.email.trim().toLowerCase() || undefined,
             role: row.role,
-            groupId: row.groupId || (inviteType === 'beyonders' ? groupId : undefined),
-            orgNodeId: row.orgNodeId || (inviteType === 'staff' ? orgNodeId : undefined),
-            familyRole: row.familyRole,
-            inviteType: row.inviteType || inviteType,
+            groupId: inviteType === 'beyonders' ? row.groupId : undefined,
+            orgNodeId: inviteType === 'staff' ? row.orgNodeId : undefined,
+            inviteType,
           })),
           defaultRole: role,
           ...provisionPayload(),
@@ -204,7 +245,9 @@ export const ProvisionInviteWizard: React.FC = () => {
         error: e.error,
       }));
       setBulkResults([...ok, ...failed]);
-      if (ok.length) setBulkText('');
+      if (ok.length) {
+        setBulkDrafts([makeDraft(inviteType, role, groupId), makeDraft(inviteType, role, groupId)]);
+      }
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -212,7 +255,7 @@ export const ProvisionInviteWizard: React.FC = () => {
     }
   };
 
-  const renderCredentialCard = (row: ProvisionRow, key: string) => {
+  const renderCredentialCard = (row: ProvisionRow, key: string, namedShare: boolean) => {
     if (row.error) {
       return (
         <div key={key} className="rounded-xl bg-red-50 border border-red-200 p-3 text-[11px]">
@@ -221,7 +264,7 @@ export const ProvisionInviteWizard: React.FC = () => {
         </div>
       );
     }
-    const block = formatCredentialBlock(row);
+    const block = formatCredentialBlock(row, namedShare ? { banner: bannerFor(row.name) } : undefined);
     return (
       <div key={key} className="rounded-xl bg-green-50 border border-green-200 p-3 space-y-2">
         <p className="text-[11px] font-bold text-green-800">{row.name}</p>
@@ -235,6 +278,12 @@ export const ProvisionInviteWizard: React.FC = () => {
   };
 
   const successBulk = bulkResults?.filter((r) => !r.error) || [];
+  const bulkShareText = successBulk.length
+    ? formatBulkShareText(successBulk, { header: p.bulkShareHeader, bannerFor })
+    : '';
+
+  const inputClass = 'border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm';
+  const selectClass = 'w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm';
 
   return (
     <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5 space-y-4">
@@ -271,18 +320,20 @@ export const ProvisionInviteWizard: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        {roleOptions.map((r) => (
-          <button key={r} type="button" onClick={() => setRole(r)} className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${role === r ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>
-            {portalRoleLabel(t, r)}
-          </button>
-        ))}
-      </div>
+      {mode === 'single' && (
+        <div className="flex flex-wrap gap-1">
+          {roleOptions.map((r) => (
+            <button key={r} type="button" onClick={() => setRole(r)} className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${role === r ? 'bg-[#1B1B1B] text-white' : 'bg-gray-100 text-[#8C8880]'}`}>
+              {portalRoleLabel(t, r)}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {inviteType === 'beyonders' && (
+      {mode === 'single' && inviteType === 'beyonders' && (
         <label className="block space-y-1">
           <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">{p.beyondersGroup}</span>
-          <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm">
+          <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={selectClass}>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
@@ -290,7 +341,7 @@ export const ProvisionInviteWizard: React.FC = () => {
         </label>
       )}
 
-      {inviteType === 'staff' && (
+      {mode === 'single' && inviteType === 'staff' && (
         <OrgSlotPicker
           value={orgNodeId}
           onChange={(id) => setOrgNodeId(id)}
@@ -303,15 +354,15 @@ export const ProvisionInviteWizard: React.FC = () => {
         <span className="text-[11px] text-[#8C8880]">{p.uniformPassword}</span>
       </label>
       {useUniformPassword && (
-        <input className="w-full border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono" placeholder="password123" value={uniformPassword} onChange={(e) => setUniformPassword(e.target.value)} />
+        <input className={`${inputClass} font-mono`} placeholder="GEHCikarang" value={uniformPassword} onChange={(e) => setUniformPassword(e.target.value)} />
       )}
 
       {mode === 'single' ? (
         <>
           <div className="grid sm:grid-cols-2 gap-3">
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm" placeholder={p.fullName} value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono" placeholder={p.usernameOptional} value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
-            <input className="border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm sm:col-span-2" placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className={inputClass} placeholder={p.fullName} value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={`${inputClass} font-mono`} placeholder={p.usernameOptional} value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
+            <input className={`${inputClass} sm:col-span-2`} placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <button type="button" disabled={busy || !name.trim() || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -320,26 +371,77 @@ export const ProvisionInviteWizard: React.FC = () => {
         </>
       ) : (
         <>
-          <textarea
-            className="w-full min-h-[140px] border border-[#D9D7D0] rounded-xl px-3 py-2 text-sm font-mono"
-            placeholder={
-              inviteType === 'staff'
-                ? 'Nama,Username,Role,OrgNodeId\nPnt Komisi,komisi.01,KOMISI,node-slot-id'
-                : 'Nama,Username,Role,GroupId\nPnt Budi,budi.wanget,MENTOR,grp-3\nAni,ani.wijaya,MENTEE,grp-3'
-            }
-            value={bulkText}
-            onChange={(e) => setBulkText(e.target.value)}
-          />
-          <p className="text-[10px] text-[#8C8880]">
-            {inviteType === 'staff' ? p.bulkStaffFormat : p.bulkBeyondersFormat}
-            {parsedBulk.length > 0 && <span className="text-[#FF416C] font-bold"> · {parsedBulk.length} baris</span>}
-          </p>
-          <p className="text-[10px] text-[#8C8880]">
-            {p.afterInviteJemaat}
-          </p>
-          <button type="button" disabled={busy || parsedBulk.length === 0} onClick={submitBulk} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
+          <p className="text-[11px] text-[#8C8880]">{p.bulkHint}</p>
+          <div className="space-y-3">
+            {bulkDrafts.map((row, index) => (
+              <div key={row.key} className="rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">{fmt(p.personN, { n: index + 1 })}</span>
+                  <button
+                    type="button"
+                    disabled={bulkDrafts.length <= 1}
+                    onClick={() => removeDraft(row.key)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-red-600 disabled:opacity-40"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {p.removePerson}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {roleOptions.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => updateDraft(row.key, { role: r })}
+                      className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${row.role === r ? 'bg-[#1B1B1B] text-white' : 'bg-white text-[#8C8880] border border-[#D9D7D0]'}`}
+                    >
+                      {portalRoleLabel(t, r)}
+                    </button>
+                  ))}
+                </div>
+                {inviteType === 'beyonders' && (
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">{p.beyondersGroup}</span>
+                    <select value={row.groupId} onChange={(e) => updateDraft(row.key, { groupId: e.target.value })} className={selectClass}>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {inviteType === 'staff' && (
+                  <OrgSlotPicker
+                    value={row.orgNodeId}
+                    onChange={(id) => updateDraft(row.key, { orgNodeId: id })}
+                    compact
+                  />
+                )}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input className={inputClass} placeholder={p.fullName} value={row.name} onChange={(e) => updateDraft(row.key, { name: e.target.value })} />
+                  <input className={`${inputClass} font-mono`} placeholder={p.usernameOptional} value={row.loginUsername} onChange={(e) => updateDraft(row.key, { loginUsername: e.target.value })} />
+                  <input className={`${inputClass} sm:col-span-2`} placeholder={p.emailOptional} type="email" value={row.email} onChange={(e) => updateDraft(row.key, { email: e.target.value })} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkDrafts.length >= MAX_BULK}
+              onClick={addDraft}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#1B1B1B] disabled:opacity-50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {p.addPerson}
+            </button>
+            {namedDrafts.length > 0 && (
+              <span className="text-[10px] font-bold text-[#FF416C]">{fmt(p.provisionN, { n: namedDrafts.length })}</span>
+            )}
+          </div>
+          <p className="text-[10px] text-[#8C8880]">{p.afterInviteJemaat}</p>
+          <button type="button" disabled={busy || namedDrafts.length === 0} onClick={submitBulk} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-            {fmt(p.provisionN, { n: parsedBulk.length || '' })}
+            {fmt(p.provisionN, { n: namedDrafts.length })}
           </button>
         </>
       )}
@@ -347,17 +449,20 @@ export const ProvisionInviteWizard: React.FC = () => {
       {singleResult && (
         <div className="space-y-2">
           <p className="text-xs font-bold text-green-800 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {p.inviteCreated}</p>
-          {renderCredentialCard(singleResult, 'single')}
+          {renderCredentialCard(singleResult, 'single', false)}
         </div>
       )}
 
       {bulkResults && bulkResults.length > 0 && (
         <div className="space-y-3">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-relaxed">
+            {p.bulkShareHeader}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold text-green-800">{fmt(p.doneOk, { ok: successBulk.length })}{bulkResults.length > successBulk.length ? fmt(p.doneFail, { n: bulkResults.length - successBulk.length }) : ''}</p>
             {successBulk.length > 0 && (
               <div className="flex gap-2">
-                <button type="button" onClick={() => void copyText(successBulk.map((r) => formatCredentialBlock(r)).join('\n---\n'), 'bulk-all')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-100 text-green-900 text-[10px] font-bold">
+                <button type="button" onClick={() => void copyText(bulkShareText, 'bulk-all')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-100 text-green-900 text-[10px] font-bold">
                   <Copy className="w-3 h-3" />{copiedId === 'bulk-all' ? t.portal.common.copied : p.copyAll}
                 </button>
                 <button type="button" onClick={() => downloadResultsCsv(bulkResults)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#181818] text-white text-[10px] font-bold">
@@ -367,7 +472,7 @@ export const ProvisionInviteWizard: React.FC = () => {
             )}
           </div>
           <div className="max-h-80 overflow-y-auto space-y-2">
-            {bulkResults.map((row, i) => renderCredentialCard(row, `bulk-${i}-${row.loginUsername || row.name}`))}
+            {bulkResults.map((row, i) => renderCredentialCard(row, `bulk-${i}-${row.loginUsername || row.name}`, true))}
           </div>
         </div>
       )}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { LinkGoogleCard } from './LinkGoogleCard';
 
 export const MustChangePasswordGate: React.FC = () => {
   const { authUser, addToast } = useApp();
@@ -15,6 +14,10 @@ export const MustChangePasswordGate: React.FC = () => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword.trim()) {
+      addToast({ type: 'error', title: 'Password sementara wajib', description: 'Isi password sementara dari undangan.' });
+      return;
+    }
     if (newPassword.length < 8) {
       addToast({ type: 'error', title: 'Password terlalu pendek', description: 'Minimal 8 karakter.' });
       return;
@@ -29,11 +32,11 @@ export const MustChangePasswordGate: React.FC = () => {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: currentPassword || undefined, newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'Gagal ganti password');
-      addToast({ type: 'success', title: 'Password diperbarui', description: 'Silakan tautkan Google jika belum.' });
+      addToast({ type: 'success', title: 'Password diperbarui', description: 'Google bisa ditaut di Akun → Keamanan.' });
       setDone(true);
       window.location.reload();
     } catch (err) {
@@ -52,7 +55,7 @@ export const MustChangePasswordGate: React.FC = () => {
           </div>
           <div>
             <p className="text-sm font-bold text-[#1B1B1B]">Ganti password sementara</p>
-            <p className="text-[11px] text-[#8C8880]">Wajib sebelum lanjut memakai portal.</p>
+            <p className="text-[11px] text-[#8C8880]">Wajib isi password sementara dari undangan sebelum lanjut.</p>
           </div>
         </div>
         <form onSubmit={submit} className="space-y-3">
@@ -64,6 +67,7 @@ export const MustChangePasswordGate: React.FC = () => {
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
               autoComplete="current-password"
+              required
             />
           </label>
           <label className="block space-y-1">
@@ -99,7 +103,6 @@ export const MustChangePasswordGate: React.FC = () => {
             Simpan password baru
           </button>
         </form>
-        <LinkGoogleCard compact />
       </div>
     </div>
   );
