@@ -24,5 +24,6 @@ describe('role_assignments migrate CJS', () => {
   it('creates role_assignments only if missing', () => {
     expect(src).toMatch(/CREATE TABLE role_assignments/);
     expect(src).toMatch(/assignment_id/);
+    expect(src).toMatch(/familyRole/);
   });
 });

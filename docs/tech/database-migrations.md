@@ -9,6 +9,8 @@ GEHC memakai **dua jalur migrasi** yang saling melengkapi:
 
 `db:migrate:local` / `:staging` / `:prod` **tidak boleh** `DROP TABLE`. Khusus `platform_operators`: hanya buat tabel jika belum ada + `ALTER` kolom baru. Akun break-glass (`superadmin@gehc.page`, `admin@gehc.page`) tidak ikut seed/rotate. Setelah migrate: `npm run operator:ensure:prod` (buat jika hilang, tidak ganti password). File Prisma `17_platform_operators` historis masih berisi DROP — **jangan dijalankan ulang**; CJS sudah tidak membaca file itu.
 
+Untuk menyamakan **seluruh** tabel/kolom cluster prod dengan branch staging (tanpa hapus data): `npm run db:schema:sync-from-staging` (dry-run) lalu `:apply`.
+
 > **Jangan** jalankan `npm run db:migrate` (`prisma migrate deploy`) pada database lokal yang sudah ada tapi belum pernah di-baseline — bisa bentrok dengan migrasi `0_init`.
 
 ---

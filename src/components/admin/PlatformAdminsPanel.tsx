@@ -1,6 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { UserPlus, Trash2, Loader2 } from 'lucide-react';
-import { grantPlatformAdmin, listPlatformAdminGrants, revokePlatformAdmin } from '../../services/platformApi';
+import React, { useCallback, useEffect, useState } from 'react';
+import { UserPlus, Trash2, Loader2, X } from 'lucide-react';
+import {
+  grantPlatformAdmin,
+  listPlatformAdminGrants,
+  revokePlatformAdmin,
+  searchGrantableUsers,
+} from '../../services/platformApi';
 
 type GrantRow = {
   id: string;
@@ -10,10 +15,24 @@ type GrantRow = {
   grantedByOperator: { email: string; displayName: string };
 };
 
+type SearchUser = {
+  id: string;
+  name: string;
+  email: string | null;
+  loginUsername: string | null;
+};
+
+function userSubtitle(u: SearchUser) {
+  return [u.loginUsername && `@${u.loginUsername}`, u.email].filter(Boolean).join(' · ') || u.id;
+}
+
 export const PlatformAdminsPanel: React.FC = () => {
   const [grants, setGrants] = useState<GrantRow[]>([]);
-  const [userId, setUserId] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchUser[]>([]);
+  const [selected, setSelected] = useState<SearchUser | null>(null);
   const [note, setNote] = useState('');
+  const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,18 +42,39 @@ export const PlatformAdminsPanel: React.FC = () => {
       .catch((e) => setError((e as Error).message));
   };
 
+  const runSearch = useCallback(async (q: string) => {
+    setSearching(true);
+    try {
+      const d = await searchGrantableUsers(q);
+      setResults(d.users || []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, []);
 
+  useEffect(() => {
+    if (selected) return;
+    const t = setTimeout(() => void runSearch(query), 250);
+    return () => clearTimeout(t);
+  }, [query, selected, runSearch]);
+
   const grant = async () => {
+    if (!selected) return;
     setBusy(true);
     setError('');
     try {
-      await grantPlatformAdmin(userId.trim(), note.trim() || undefined);
-      setUserId('');
+      await grantPlatformAdmin(selected.id, note.trim() || undefined);
+      setSelected(null);
+      setQuery('');
       setNote('');
       load();
+      await runSearch('');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -59,17 +99,67 @@ export const PlatformAdminsPanel: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-[#1B1B1B]">Platform Admins</h2>
-        <p className="text-sm text-[#8C8880]">Delegasi akses admin ke user jemaat existing (Google SSO).</p>
+        <p className="text-sm text-[#8C8880]">
+          Delegasi akses admin ke user jemaat yang sudah ada. Mereka login Google di portal, bukan di #/admin.
+        </p>
       </div>
 
       <div className="rounded-xl border border-[#E8E4DC] bg-white p-4 space-y-3">
         <h3 className="font-semibold text-sm">Grant baru</h3>
-        <input
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          placeholder="User ID (usr-...)"
-          className="w-full px-3 py-2 border rounded-lg text-sm"
-        />
+        {selected ? (
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[#E8E4DC] bg-[#FAF9F5]">
+            <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center text-xs font-bold">
+              {(selected.name || '?').charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{selected.name}</p>
+              <p className="text-xs text-[#8C8880] truncate">{userSubtitle(selected)}</p>
+            </div>
+            <button type="button" onClick={() => setSelected(null)} className="p-1 rounded hover:bg-white">
+              <X className="w-4 h-4 text-[#8C8880]" />
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari nama, username, atau email…"
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
+              {searching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#8C8880]" />
+              )}
+            </div>
+            <div className="border rounded-lg max-h-56 overflow-y-auto">
+              {results.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => {
+                    setSelected(u);
+                    setQuery('');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-[#FAF9F5] border-b border-[#E8E4DC] last:border-0"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#FAF9F5] flex items-center justify-center text-xs font-bold text-[#8C8880]">
+                    {(u.name || '?').charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{u.name}</p>
+                    <p className="text-xs text-[#8C8880] truncate">{userSubtitle(u)}</p>
+                  </div>
+                </button>
+              ))}
+              {!searching && !results.length && (
+                <p className="px-3 py-6 text-center text-xs text-[#8C8880]">
+                  Tidak ada jemaat. Undang dulu di Orang & Provision, lalu grant di sini.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -78,7 +168,7 @@ export const PlatformAdminsPanel: React.FC = () => {
         />
         <button
           type="button"
-          disabled={busy || !userId.trim()}
+          disabled={busy || !selected}
           onClick={() => void grant()}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FF416C] text-white text-sm font-medium disabled:opacity-50"
         >

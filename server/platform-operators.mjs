@@ -49,18 +49,62 @@ export async function listPlatformAdminGrants() {
   });
 }
 
+export function normalizeGrantUserIdent(raw) {
+  return String(raw || '').trim().replace(/^@+/, '').trim();
+}
+
+const SYSTEM_USER_IDS = ['usr-platform-ops'];
+
+export async function searchGrantableUsers(qRaw) {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
+  const q = String(qRaw || '').trim().replace(/^@+/, '').trim();
+  const users = await prisma.user.findMany({
+    where: {
+      id: { notIn: SYSTEM_USER_IDS },
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { email: { contains: q } },
+              { loginUsername: { contains: q } },
+            ],
+          }
+        : {}),
+    },
+    select: { id: true, name: true, email: true, loginUsername: true },
+    orderBy: { name: 'asc' },
+    take: q ? 20 : 40,
+  });
+  return users;
+}
+
+export async function resolveCongregationUser(raw) {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
+  const ident = normalizeGrantUserIdent(raw);
+  if (!ident) return null;
+  const byId = await prisma.user.findUnique({ where: { id: ident } });
+  if (byId) return byId;
+  return prisma.user.findFirst({
+    where: {
+      OR: [{ email: ident }, { loginUsername: ident }],
+    },
+  });
+}
+
 export async function grantPlatformAdmin({ operatorId, userId, note }) {
   const prisma = getPrisma();
   if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await resolveCongregationUser(userId);
   if (!user) throw new Error('User tidak ditemukan.');
-  const existing = await getActiveGrantForUser(userId);
+  const existing = await getActiveGrantForUser(user.id);
   if (existing) throw new Error('User sudah memiliki grant platform admin aktif.');
 
   const grant = await prisma.platformAdminGrant.create({
     data: {
       id: crypto.randomBytes(32).toString('hex'),
-      userId,
+      userId: user.id,
       grantedByOperatorId: operatorId,
       note: note || null,
     },
@@ -74,7 +118,7 @@ export async function grantPlatformAdmin({ operatorId, userId, note }) {
     actorId: operatorId,
     action: 'GRANT_PLATFORM_ADMIN',
     targetType: 'USER',
-    targetId: userId,
+    targetId: user.id,
     meta: { grantId: grant.id },
   });
 
