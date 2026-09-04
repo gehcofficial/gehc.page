@@ -91,7 +91,7 @@ import {
   findUserByLoginIdentifier,
 } from './lib/username.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
-import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
+import { assignRoleToUser, revokeRoleAssignment, resolveAssignedByUserId } from './role-assign.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
@@ -4541,7 +4541,10 @@ app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async
     return res.status(400).json({ error: err.message });
   }
   const origin = `${req.protocol}://${req.get('host')}`;
-  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  const assignerId = await resolveAssignedByUserId(
+    prisma,
+    req.platformOperator?.id || req.authUser?.id,
+  );
   try {
     const created = await createInviteProvisionUser(prisma, {
       name: req.body?.name,
@@ -4555,7 +4558,7 @@ app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async
       groupId: req.body?.groupId,
       familyRole: req.body?.familyRole,
       orgNodeId: req.body?.orgNodeId,
-      assignedBy,
+      assignedBy: assignerId,
     });
     res.status(201).json(created);
   } catch (err) {
@@ -4587,7 +4590,10 @@ app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(
   const defaultRole = String(req.body?.defaultRole || 'MENTOR').trim();
   const defaultInviteType = req.body?.inviteType || 'beyonders';
   const defaultGroupId = req.body?.groupId || null;
-  const assignedBy = req.platformOperator?.id || req.authUser?.id || 'platform-admin';
+  const assignerId = await resolveAssignedByUserId(
+    prisma,
+    req.platformOperator?.id || req.authUser?.id,
+  );
   const origin = `${req.protocol}://${req.get('host')}`;
   const created = [];
   const errors = [];
@@ -4607,7 +4613,7 @@ app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(
         groupId: row.groupId || defaultGroupId,
         familyRole: row.familyRole,
         orgNodeId: row.orgNodeId,
-        assignedBy,
+        assignedBy: assignerId,
       });
       created.push(result);
     } catch (err) {

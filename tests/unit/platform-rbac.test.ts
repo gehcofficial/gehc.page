@@ -10,6 +10,11 @@ describe('platform-rbac', () => {
     expect(isPlatformRoot(req)).toBe(true);
   });
 
+  it('isPlatformAdminActor true for active operator', () => {
+    const req = { platformOperator: { status: 'ACTIVE' }, platformAdmin: false, authUser: null };
+    expect(isPlatformAdminActor(req)).toBe(true);
+  });
+
   it('isPlatformAdminActor true for grant without operator', () => {
     const req = { platformOperator: null, platformAdmin: true, authUser: { roles: [] } };
     expect(isPlatformAdminActor(req)).toBe(true);

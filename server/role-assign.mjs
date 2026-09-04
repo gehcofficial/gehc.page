@@ -4,6 +4,43 @@ export function genId64() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+export const PLATFORM_OPS_USER_ID = 'usr-platform-ops';
+
+/** Akun sistem untuk FK assignedBy saat aksi dari platform operator (bukan user jemaat). */
+export async function ensurePlatformOpsUser(prisma) {
+  const existing = await prisma.user.findUnique({
+    where: { id: PLATFORM_OPS_USER_ID },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  await prisma.user.create({
+    data: {
+      id: PLATFORM_OPS_USER_ID,
+      name: 'Platform Ops',
+      email: null,
+      loginUsername: 'platform.ops',
+      accountStatus: 'ACTIVE',
+      onboardingStatus: 'ACTIVE',
+      onboardingPath: 'INVITED',
+      accountKind: 'INVITED',
+      authProvider: 'LOCAL',
+      linkStatus: 'UNLINKED',
+      isBeyonders: false,
+      bipra: 'PEMUDA',
+    },
+  });
+  return PLATFORM_OPS_USER_ID;
+}
+
+export async function resolveAssignedByUserId(prisma, candidate) {
+  const id = String(candidate || '').trim();
+  if (id) {
+    const u = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (u) return u.id;
+  }
+  return ensurePlatformOpsUser(prisma);
+}
+
 export function mapPlacementRoleToPrisma(role) {
   if (role === 'COMENTOR') return 'CO_MENTOR';
   return role;
@@ -59,6 +96,8 @@ export async function assignRoleToUser(prisma, {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User tidak ditemukan.');
 
+  const assignerId = await resolveAssignedByUserId(prisma, assignedBy);
+
   if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
     const existing = await prisma.roleAssignment.findFirst({
       where: {
@@ -83,7 +122,7 @@ export async function assignRoleToUser(prisma, {
       subdivision: subdivision || null,
       groupId: groupId || null,
       familyRole: resolvedFamilyRole,
-      assignedBy,
+      assignedBy: assignerId,
       note: note || null,
       isActive: true,
     },

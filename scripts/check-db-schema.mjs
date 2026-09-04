@@ -20,6 +20,12 @@ const REQUIRED_USER_COLUMNS = [
   'domicile_detail',
   'login_username',
   'onboarding_path',
+  'onboarding_status',
+  'is_beyonders',
+  'account_status',
+  'account_kind',
+  'link_status',
+  'must_change_password',
   'avatar_source',
 ];
 
@@ -40,6 +46,8 @@ const REQUIRED_TABLES = [
   'event_question_bank',
   'event_question_assignments',
   'event_question_answers',
+  'groups',
+  'group_batches',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [

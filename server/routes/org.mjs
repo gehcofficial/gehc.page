@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import { requireRole } from '../auth.mjs';
 import { getPrisma } from '../db.mjs';
 import { KOMISION, KOMISION_CORE } from '../lib/rbac-constants.mjs';
+import { isPlatformAdminActor } from '../lib/platform-rbac.mjs';
+import { resolveAssignedByUserId } from '../role-assign.mjs';
 import {
   assignOrgSlot,
   buildOrgTree,
@@ -17,9 +19,18 @@ function parseMeta(raw) {
   return {};
 }
 
+/** Komisi/Tim Kerja, atau sesi platform operator/admin (#/admin). */
+function requireKomisiOrPlatformAdmin(...roles) {
+  const roleMw = requireRole(...roles);
+  return (req, res, next) => {
+    if (isPlatformAdminActor(req)) return next();
+    return roleMw(req, res, next);
+  };
+}
+
 /** Org hierarchy routes — tree CRUD + slot assignment */
 export function registerOrgRoutes(app, { wrap }) {
-  app.get('/api/org/nodes', requireRole(...KOMISION), wrap(async (req, res) => {
+  app.get('/api/org/nodes', requireKomisiOrPlatformAdmin(...KOMISION), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -145,12 +156,14 @@ export function registerOrgRoutes(app, { wrap }) {
     res.json({ ok: true });
   }));
 
-  app.post('/api/org/assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  app.post('/api/org/assignments', requireKomisiOrPlatformAdmin(...KOMISION_CORE), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-    const assignerId = req.authUser?.id;
-    if (!assignerId) return res.status(401).json({ error: 'Belum login.' });
+    const assignerId = await resolveAssignedByUserId(
+      prisma,
+      req.authUser?.id || req.platformOperator?.id,
+    );
 
     const { userId, orgNodeId, position, groupId, familyRole, note } = req.body || {};
     if (!userId || !orgNodeId) {
@@ -188,7 +201,7 @@ export function registerOrgRoutes(app, { wrap }) {
     }
   }));
 
-  app.get('/api/org/assignments', requireRole(...KOMISION), wrap(async (req, res) => {
+  app.get('/api/org/assignments', requireKomisiOrPlatformAdmin(...KOMISION), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
