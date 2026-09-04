@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
+import { SearchableSelect } from '../ui/SearchableSelect';
 
 const BIPRA_LABEL: Record<string, string> = {
   BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
@@ -185,16 +186,13 @@ export const ProfileChurchDataRequestPanel: React.FC<{
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Kolom</label>
-            <select
-              className={field}
+            <SearchableSelect
               value={onboardingForm.kolomId}
-              onChange={(e) => setOnboardingForm((f) => ({ ...f, kolomId: e.target.value }))}
-            >
-              <option value="">Pilih kolom…</option>
-              {kolomList.map((k) => (
-                <option key={k.id} value={k.id}>{k.name}</option>
-              ))}
-            </select>
+              selectedLabel={kolomList.find((k) => k.id === onboardingForm.kolomId)?.name}
+              placeholder="Cari kolom…"
+              options={kolomList.map((k) => ({ value: k.id, label: k.name }))}
+              onChange={(id) => setOnboardingForm((f) => ({ ...f, kolomId: id }))}
+            />
           </div>
           <button
             type="submit"
@@ -268,16 +266,20 @@ export const ProfileChurchDataRequestPanel: React.FC<{
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Kolom</label>
-                <select
-                  className={field}
+                <SearchableSelect
                   value={form.requestedKolomId}
-                  onChange={(e) => setForm((f) => ({ ...f, requestedKolomId: e.target.value }))}
-                >
-                  <option value="">Belum di-assign</option>
-                  {kolomList.map((k) => (
-                    <option key={k.id} value={k.id}>{k.name}</option>
-                  ))}
-                </select>
+                  selectedLabel={
+                    form.requestedKolomId
+                      ? kolomList.find((k) => k.id === form.requestedKolomId)?.name
+                      : 'Belum di-assign'
+                  }
+                  placeholder="Cari kolom…"
+                  options={[
+                    { value: '', label: 'Belum di-assign' },
+                    ...kolomList.map((k) => ({ value: k.id, label: k.name })),
+                  ]}
+                  onChange={(id) => setForm((f) => ({ ...f, requestedKolomId: id }))}
+                />
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Alasan (opsional)</label>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { COUNTRIES_INTL, countryName } from '../../lib/countries';
+import { SearchableSelect } from '../ui/SearchableSelect';
 
 export type AddressScope = 'ID' | 'INTL';
 
@@ -215,16 +216,16 @@ export const AddressForm: React.FC<{
 
       {value.addressScope === 'ID' ? (
         <>
-          <select
-            className={field}
+          <SearchableSelect
             value={value.provinceCode}
+            selectedLabel={value.province || undefined}
             disabled={loading}
-            onChange={(e) => {
-              const code = e.target.value;
-              const name = provinces.find((p) => p.code === code)?.name || '';
+            placeholder={loading ? 'Memuat provinsi…' : 'Cari provinsi…'}
+            options={provinces.map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(code, option) => {
               patch({
                 provinceCode: code,
-                province: name,
+                province: option?.label || '',
                 cityCode: '',
                 city: '',
                 districtCode: '',
@@ -233,93 +234,60 @@ export const AddressForm: React.FC<{
                 village: '',
               });
             }}
-          >
-            <option value="">{loading ? 'Memuat provinsi…' : 'Provinsi'}</option>
-            {provinces.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
           {wilayahError ? <p className="text-[10px] text-red-500">{wilayahError}</p> : null}
-          <select
-            className={field}
+          <SearchableSelect
             value={value.cityCode}
+            selectedLabel={value.city || undefined}
             disabled={!value.provinceCode}
-            onChange={(e) => {
-              const code = e.target.value;
-              const name = regencies.find((p) => p.code === code)?.name || '';
+            placeholder="Cari kabupaten / kota…"
+            options={regencies.map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(code, option) => {
               patch({
                 cityCode: code,
-                city: name,
+                city: option?.label || '',
                 districtCode: '',
                 district: '',
                 villageCode: '',
                 village: '',
               });
             }}
-          >
-            <option value="">Kabupaten / Kota</option>
-            {regencies.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={field}
+          />
+          <SearchableSelect
             value={value.districtCode}
+            selectedLabel={value.district || undefined}
             disabled={!value.cityCode}
-            onChange={(e) => {
-              const code = e.target.value;
-              const name = districts.find((p) => p.code === code)?.name || '';
+            placeholder="Cari kecamatan (opsional)…"
+            options={districts.map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(code, option) => {
               patch({
                 districtCode: code,
-                district: name,
+                district: option?.label || '',
                 villageCode: '',
                 village: '',
               });
             }}
-          >
-            <option value="">Kecamatan (opsional)</option>
-            {districts.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={field}
+          />
+          <SearchableSelect
             value={value.villageCode}
+            selectedLabel={value.village || undefined}
             disabled={!value.districtCode}
-            onChange={(e) => {
-              const code = e.target.value;
-              const name = villages.find((p) => p.code === code)?.name || '';
-              patch({ villageCode: code, village: name });
+            placeholder="Cari kelurahan / desa (opsional)…"
+            options={villages.map((p) => ({ value: p.code, label: p.name }))}
+            onChange={(code, option) => {
+              patch({ villageCode: code, village: option?.label || '' });
             }}
-          >
-            <option value="">Kelurahan / Desa (opsional)</option>
-            {villages.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
         </>
       ) : (
         <>
-          <select
-            className={field}
+          <SearchableSelect
             value={value.addressCountry}
-            onChange={(e) => patch({ addressCountry: e.target.value })}
-          >
-            <option value="">Negara</option>
-            {COUNTRIES_INTL.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            selectedLabel={value.addressCountry ? countryName(value.addressCountry) : undefined}
+            placeholder="Cari negara…"
+            options={COUNTRIES_INTL.map((c) => ({ value: c.code, label: c.name }))}
+            onChange={(code) => patch({ addressCountry: code })}
+          />
           <input
             className={field}
             placeholder="Kota"
