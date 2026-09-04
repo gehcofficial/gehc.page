@@ -1,8 +1,10 @@
 ﻿import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { landingBeyondersHouses } from '../../lib/landing-groups';
 
 export const MarqueeStrip: React.FC = () => {
-  const { groups, setPublicTab } = useApp();
+  const { groups, groupBatches, setPublicTab } = useApp();
+  const houses = landingBeyondersHouses(groups, groupBatches);
 
   return (
     <section className="py-10 border-y border-[#D9D7D0]/50 bg-[#FAF9F5] overflow-hidden">
@@ -14,8 +16,7 @@ export const MarqueeStrip: React.FC = () => {
 
       <div className="relative w-full overflow-hidden">
         <div className="flex animate-marquee gap-8 items-center cursor-pointer">
-          {/* Double list for smooth loop */}
-          {[...groups, ...groups].map((grp, idx) => (
+          {[...houses, ...houses].map((grp, idx) => (
             <div
               key={`${grp.id}-${idx}`}
               onClick={() => setPublicTab('beyonders')}

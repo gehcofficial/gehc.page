@@ -10,6 +10,7 @@ import {
   deactivateOrgAssignment,
   genOrgId,
 } from '../services/org-assign.mjs';
+import { LANDING_ORG_DOMAINS, toPublicOrgMembers } from '../services/org-public.mjs';
 
 const VALID_DOMAINS = ['CHURCH', 'BIPRA', 'YOUTH', 'KOLOM'];
 const NODE_KINDS = ['BRANCH', 'POSITION_SLOT', 'GROUP_REF'];
@@ -30,6 +31,38 @@ function requireKomisiOrPlatformAdmin(...roles) {
 
 /** Org hierarchy routes — tree CRUD + slot assignment */
 export function registerOrgRoutes(app, { wrap }) {
+  /** Publik: slot + foto dari User.avatar. Tanpa email/telepon. */
+  app.get('/api/org/public-tree', wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const domainFilter = { isActive: true, domain: { in: LANDING_ORG_DOMAINS } };
+    const [nodes, rows] = await Promise.all([
+      prisma.orgNode.findMany({
+        where: domainFilter,
+        orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+      }),
+      prisma.orgAssignment.findMany({
+        where: { isActive: true, orgNode: domainFilter },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+              accountKind: true,
+              loginUsername: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.json(toPublicOrgMembers(nodes, rows));
+  }));
+
   app.get('/api/org/nodes', requireKomisiOrPlatformAdmin(...KOMISION), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });

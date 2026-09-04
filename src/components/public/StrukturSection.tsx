@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import React, { useMemo, useState } from 'react';
 import { useLang } from '../../context/LangContext';
 import { trLabel } from '../../i18n';
+import { displayAvatar } from '../../lib/avatar';
+import { usePublicOrgTree, type PublicOrgMember } from '../../hooks/usePublicOrgTree';
 import {
   ChevronDown,
   ChevronRight,
@@ -31,20 +32,7 @@ const divisionCounts: Record<string, number> = Object.fromEntries(
   PANTATUGAS.map((p) => [p.name, subDivisions(p.name).length])
 );
 
-interface Member {
-  id: string;
-  name: string;
-  position?: string;
-  division?: string;
-  subdivision?: string | null;
-  photoUrl?: string;
-  email?: string;
-  order: number;
-  isOpenRole?: boolean;
-}
-
-const initialsAvatar = (name: string) =>
-  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name || '?')}&backgroundColor=1b1b1b`;
+type Member = PublicOrgMember;
 
 interface PillarDef {
   name: string;
@@ -130,8 +118,9 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
               {headMembers.map((m) => (
                 <div key={m.id} className="flex items-center gap-2.5">
                   <img
-                    src={m.photoUrl || initialsAvatar(m.name)}
+                    src={displayAvatar(m.name, m.photoUrl)}
                     alt={m.name}
+                    referrerPolicy="no-referrer"
                     className={`w-7 h-7 rounded-full object-cover bg-white ${
                       m.isOpenRole
                         ? 'border border-dashed border-[#8C8880]/50'
@@ -166,8 +155,9 @@ const PillarCard: React.FC<{ pillar: PillarDef; members: Member[]; isStructural?
                 {list.map((m) => (
                   <div key={m.id} className="flex items-center gap-2.5">
                     <img
-                      src={m.photoUrl || initialsAvatar(m.name)}
+                      src={displayAvatar(m.name, m.photoUrl)}
                       alt={m.name}
+                      referrerPolicy="no-referrer"
                       className={`w-7 h-7 rounded-full object-cover bg-white ${
                         m.isOpenRole
                           ? 'border border-dashed border-[#8C8880]/50'
@@ -217,24 +207,11 @@ interface PillarDef {
 }
 
 export const OrgTreeSection: React.FC = () => {
-  const { strukturMembers } = useApp();
   const { t } = useLang();
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const { data, isLoading } = usePublicOrgTree();
   const tr = (value?: string | null) => trLabel(t.orgTree.labels, value);
 
-  // API-first: ambil dari TiDB; gagal → fallback data lokal
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/db/struktur')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => !cancelled && setMembers(d.members))
-      .catch(() => !cancelled && setMembers(strukturMembers));
-    return () => {
-      cancelled = true;
-    };
-  }, [strukturMembers]);
-
-  if (!members) {
+  if (isLoading) {
     return (
       <section className="py-24 flex items-center justify-center gap-2 text-xs text-[#8C8880]">
         <Loader2 className="w-4 h-4 animate-spin" /> {t.leadersPage.loadingTree}
@@ -242,33 +219,18 @@ export const OrgTreeSection: React.FC = () => {
     );
   }
 
-  const sorted = [...members].sort((a, b) => a.order - b.order);
+  const sorted = [...(data?.members || [])].sort((a, b) => a.order - b.order);
+  const filledOf = (division: string) =>
+    sorted.filter((m) => (m.division || '').toUpperCase() === division && !m.isOpenRole);
+  const allOf = (division: string) =>
+    sorted.filter((m) => (m.division || '').toUpperCase() === division);
 
-  // --- Level 1: BPMJ (Badan Pekerja Majelis Jemaat) ---
-  const bpmjMembers = sorted.filter(
-    (m) => m.division && m.division.toUpperCase() === 'BPMJ'
-  );
-
-  // --- Level 2: Komisi Pemuda ---
-  const komisiMembers = sorted.filter(
-    (m) => m.division && m.division.toUpperCase() === 'KOMISI'
-  );
-
-  // --- Level 2b: BOD Tim Kerja ---
-  const timKerjaMembers = sorted.filter(
-    (m) => m.division && m.division.toUpperCase() === 'TIMKERJA'
-  );
-
-  // --- Level 3: 6 Divisi (Panca Tugas + Benzarpreneurship) + Sub-divisi ---
-  const structuralMembers = structuralNames.reduce((acc, pName) => {
-    const pillarMembers = sorted.filter(
-      (m) => m.division && m.division.toUpperCase() === pName
-    );
-    return acc.concat(pillarMembers);
-  }, [] as Member[]);
+  const bpmjMembers = filledOf('BPMJ');
+  const komisiMembers = filledOf('KOMISI');
+  const timKerjaMembers = filledOf('TIMKERJA');
 
   return (
-    <section className="max-w-[1200px] mx-auto">
+    <section className="max-w-[1200px] mx-auto space-y-4">
       <div className="flex items-center gap-2 mb-6">
         <span className="w-8 h-1 rounded-full bg-[#FF416C]" />
         <h3 className="text-lg sm:text-xl font-bold text-[#1B1B1B]">{t.orgTree.heading}</h3>
@@ -289,8 +251,9 @@ export const OrgTreeSection: React.FC = () => {
           {bpmjMembers.map((m) => (
             <div key={m.id} className="flex items-center gap-2.5 min-w-0">
               <img
-                src={m.photoUrl || initialsAvatar(m.name)}
+                src={displayAvatar(m.name, m.photoUrl)}
                 alt={m.name}
+                referrerPolicy="no-referrer"
                 className="w-8 h-8 rounded-full object-cover border border-white/20"
               />
               <div className="min-w-0">
@@ -316,8 +279,9 @@ export const OrgTreeSection: React.FC = () => {
           {komisiMembers.map((m) => (
             <div key={m.id} className="flex items-center gap-2.5 min-w-0">
               <img
-                src={m.photoUrl || initialsAvatar(m.name)}
+                src={displayAvatar(m.name, m.photoUrl)}
                 alt={m.name}
+                referrerPolicy="no-referrer"
                 className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]"
               />
               <div className="min-w-0">
@@ -335,46 +299,45 @@ export const OrgTreeSection: React.FC = () => {
       </div>
 
       {/* Level 2b: BOD Tim Kerja — pelaksana program di bawah Komisi */}
-      {timKerjaMembers.length > 0 && (
-        <div className="rounded-3xl border border-[#D9D7D0]/60 bg-[#FAFAF5] p-5">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#181818] mb-1">
-            {t.orgTree.timKerjaTitle}
-          </p>
-          <p className="text-[10px] text-[#8C8880] mb-3">
-            {t.orgTree.timKerjaSub}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {timKerjaMembers.map((m) => (
-              <div key={m.id} className="flex items-center gap-2.5 min-w-0">
-                <img
-                  src={m.photoUrl || initialsAvatar(m.name)}
-                  alt={m.name}
-                  className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]"
-                />
-                <div className="min-w-0">
-                  <p className="text-xs font-black truncate">{m.name}</p>
-                  {m.position && (
-                    <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
-                  )}
-                </div>
+      <div className="rounded-3xl border border-[#D9D7D0]/60 bg-[#FAFAF5] p-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#181818] mb-1">
+          {t.orgTree.timKerjaTitle}
+        </p>
+        <p className="text-[10px] text-[#8C8880] mb-3">
+          {t.orgTree.timKerjaSub}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {timKerjaMembers.map((m) => (
+            <div key={m.id} className="flex items-center gap-2.5 min-w-0">
+              <img
+                src={displayAvatar(m.name, m.photoUrl)}
+                alt={m.name}
+                referrerPolicy="no-referrer"
+                className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-black truncate">{m.name}</p>
+                {m.position && (
+                  <p className="text-[10px] text-[#8C8880] truncate">{tr(m.position)}</p>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+          {timKerjaMembers.length === 0 && (
+            <p className="text-xs text-[#8C8880] italic col-span-full">{t.orgTree.emptyPillar}</p>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Level 3: Enam Divisi (5 Panca Tugas + Benzarpreneurship) + Sub-divisi */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 items-start">
         {PANTATUGAS.map((p) => {
           const pillar: PillarDef = { name: p.name, tagline: p.tagline, icon: p.icon, color: p.color };
-          const pillarMembers = structuralMembers.filter(
-            (m) => m.division && m.division.toUpperCase() === p.name
-          );
           return (
             <PillarCard
               key={pillar.name}
               pillar={pillar}
-              members={pillarMembers}
+              members={allOf(p.name)}
               isStructural={structuralNames.includes(pillar.name)}
             />
           );
