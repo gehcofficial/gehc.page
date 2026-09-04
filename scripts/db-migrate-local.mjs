@@ -160,6 +160,11 @@ const STEPS = [
     label: 'Drive ownership (album, arsip, pastoral, BZP)',
     required: true,
   },
+  {
+    script: 'server/_migrate-beyonders-generation.cjs',
+    label: 'Beyonders generasi 0 (2026-06) + mentor_user_id',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

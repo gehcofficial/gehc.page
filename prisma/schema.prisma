@@ -412,15 +412,19 @@ enum GroupStatus {
 
 /// Family tree per batch / regenerasi (sumber: Retreat Attendance GEHC YOUTH 2026.xlsx)
 model GroupBatch {
-  id           String   @id @db.VarChar(64)
-  groupId      String   @map("group_id") @db.VarChar(64)
-  period       String   @db.VarChar(10) // "2026-07" format YYYY-MM
-  batchLabel   String?  @map("batch_label") @db.VarChar(190)
-  mentorName   String   @map("mentor_name") @db.VarChar(150)
-  comentorName String?  @map("comentor_name") @db.VarChar(150)
-  theme        String?  @db.VarChar(255)
-  isCurrent    Boolean  @default(false) @map("is_current")
-  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  id             String   @id @db.VarChar(64)
+  groupId        String   @map("group_id") @db.VarChar(64)
+  period         String   @db.VarChar(10) // "2026-07" format YYYY-MM
+  batchLabel     String?  @map("batch_label") @db.VarChar(190)
+  mentorName     String   @map("mentor_name") @db.VarChar(150)
+  comentorName   String?  @map("comentor_name") @db.VarChar(150)
+  mentorUserId   String?  @map("mentor_user_id") @db.VarChar(64)
+  comentorUserId String?  @map("comentor_user_id") @db.VarChar(64)
+  generation     Int      @default(0)
+  regenReady     Boolean  @default(false) @map("regen_ready")
+  theme          String?  @db.VarChar(255)
+  isCurrent      Boolean  @default(false) @map("is_current")
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   group Group @relation(fields: [groupId], references: [id])
 

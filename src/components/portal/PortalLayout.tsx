@@ -7,6 +7,7 @@ import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { PastoralCareBoard } from './PastoralCareBoard';
+import { BeyondersLeadersPanel } from './BeyondersLeadersPanel';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
@@ -67,6 +68,7 @@ import {
   GraduationCap,
   CircleHelp,
   HeartHandshake,
+  Crown,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -198,6 +200,7 @@ export const PortalLayout: React.FC = () => {
     catalog: GraduationCap,
     'org-hierarchy': Network,
     'groups-monitoring': Users,
+    'beyonders-leaders': Crown,
     'pastoral-care': HeartHandshake,
     jethro: Sparkles,
     'content-weekly': BookOpen,
@@ -697,6 +700,12 @@ export const PortalLayout: React.FC = () => {
             </div>
           )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
+          {activeTab === 'beyonders-leaders' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="beyonders-leaders" />
+              <BeyondersLeadersPanel />
+            </div>
+          )}
           {activeTab === 'pastoral-care' && (
             <div className="space-y-4">
               <PanelGuide guideId="pastoral-care" />

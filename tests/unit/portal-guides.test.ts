@@ -53,5 +53,12 @@ describe('portal i18n + guides', () => {
     expect(ids).not.toContain('onboarding');
     expect(ids).toContain('groups-monitoring');
     expect(ids).toContain('account');
+    expect(ids).not.toContain('beyonders-leaders');
+  });
+
+  it('Komisi sees house leaders next to monitoring', () => {
+    const ids = buildPortalNavItems('KOMISI', { isGroupMentor: false, isMentee: false }, false).map((i) => i.id);
+    expect(ids).toContain('beyonders-leaders');
+    expect(ids).toContain('jethro');
   });
 });
