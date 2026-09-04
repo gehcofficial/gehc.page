@@ -4,6 +4,8 @@
 import { isSuperadminEmail } from '../auth.mjs';
 import { readOperatorSession, loadOperatorById } from '../platform-auth.mjs';
 import {
+  applyPlatformAdminPortalRole,
+  ensurePortalSuperadminForGrant,
   getActiveGrantForUser,
   isLegacyPlatformRbac,
   PLATFORM_ADMIN_CAPABILITIES,
@@ -47,6 +49,11 @@ export async function attachPlatformContext(req, _res, next) {
       if (grant) {
         req.platformAdmin = true;
         req.platformCapabilities = [...PLATFORM_ADMIN_CAPABILITIES];
+        const hadPortalAdmin = (req.authUser.roles || []).some((r) => r.role === 'SUPERADMIN');
+        applyPlatformAdminPortalRole(req.authUser, true);
+        if (!hadPortalAdmin) {
+          await ensurePortalSuperadminForGrant(req.authUser.id, req.authUser.id);
+        }
       }
     } catch {
       /* DB transient */

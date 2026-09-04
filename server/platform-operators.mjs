@@ -3,6 +3,10 @@
  */
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
+import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
+
+export const PLATFORM_ADMIN_PORTAL_NOTE = 'platform_admin_grant';
+export const PLATFORM_ADMIN_PORTAL_ROLE = 'SUPERADMIN';
 
 export const PLATFORM_ADMIN_CAPABILITIES = [
   'access_groups',
@@ -34,6 +38,56 @@ export async function getActiveGrantForUser(userId) {
 export async function userHasPlatformAdmin(userId) {
   const grant = await getActiveGrantForUser(userId);
   return Boolean(grant);
+}
+
+/** Session/UI: grant Platform Admin juga membuka workspace Superadmin di picker portal. */
+export function applyPlatformAdminPortalRole(user, hasGrant) {
+  if (!user || !hasGrant) return user;
+  const roles = user.roles || [];
+  if (roles.some((r) => r.role === PLATFORM_ADMIN_PORTAL_ROLE)) return user;
+  const tenantId = roles[0]?.tenantId || 'tenant-youth';
+  user.roles = [...roles, { userId: user.id, tenantId, role: PLATFORM_ADMIN_PORTAL_ROLE }];
+  return user;
+}
+
+export async function ensurePortalSuperadminForGrant(userId, assignedBy) {
+  const prisma = getPrisma();
+  if (!prisma || !userId) return;
+  const existing = await prisma.userRole.findFirst({
+    where: { userId, role: PLATFORM_ADMIN_PORTAL_ROLE },
+  });
+  if (existing) return;
+  try {
+    await assignRoleToUser(prisma, {
+      userId,
+      role: PLATFORM_ADMIN_PORTAL_ROLE,
+      assignedBy,
+      note: PLATFORM_ADMIN_PORTAL_NOTE,
+      updateOnboarding: false,
+    });
+  } catch (err) {
+    console.warn('[platform-admin] persist portal SUPERADMIN:', err.message);
+  }
+}
+
+export async function revokePortalSuperadminFromGrant(userId) {
+  const prisma = getPrisma();
+  if (!prisma || !userId) return;
+  const tagged = await prisma.roleAssignment.findMany({
+    where: {
+      userId,
+      role: PLATFORM_ADMIN_PORTAL_ROLE,
+      note: PLATFORM_ADMIN_PORTAL_NOTE,
+      isActive: true,
+    },
+  });
+  for (const assignment of tagged) {
+    try {
+      await revokeRoleAssignment(prisma, assignment.id);
+    } catch (err) {
+      console.warn('[platform-admin] revoke portal SUPERADMIN:', err.message);
+    }
+  }
 }
 
 export async function listPlatformAdminGrants() {
@@ -122,6 +176,8 @@ export async function grantPlatformAdmin({ operatorId, userId, note }) {
     meta: { grantId: grant.id },
   });
 
+  await ensurePortalSuperadminForGrant(user.id, operatorId);
+
   return grant;
 }
 
@@ -135,6 +191,8 @@ export async function revokePlatformAdmin({ operatorId, grantId }) {
     where: { id: grantId },
     data: { revokedAt: new Date() },
   });
+
+  await revokePortalSuperadminFromGrant(grant.userId);
 
   await writePlatformAudit({
     actorType: 'OPERATOR',

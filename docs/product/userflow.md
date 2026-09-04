@@ -41,6 +41,8 @@ lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
 
 - User jemaat existing + `PlatformAdminGrant` (di-assign operator root)
 - Login portal biasa (Google) → tombol **Admin** di navbar → `#/admin`
+- Grant juga menulis `UserRole.SUPERADMIN` (catatan `platform_admin_grant`) supaya picker **Pilih ruang kerja** menampilkan Superadmin di samping Mentee/peran gereja lain
+- Cabut grant → hanya melepas Superadmin yang berasal dari grant, bukan slot Komisi/Tim Kerja yang di-assign terpisah
 - Tidak bisa menghapus/mengubah operator root
 
 ### Login Google SSO (jemaat):
