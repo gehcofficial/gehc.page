@@ -55,6 +55,7 @@
     "db:seed:beyonders-houses:prod": "dotenv -e .env.production -- tsx server/seed-beyonders-houses.ts",
     "db:seed:operator:staging": "dotenv -e .env.staging -- node scripts/seed-operator-staging.mjs",
     "operator:bootstrap:prod": "dotenv -e .env.production -- node scripts/bootstrap-operator.mjs",
+    "operator:ensure:prod": "dotenv -e .env.production -- node scripts/ensure-operators.mjs",
     "db:migrate:pancatugas": "node server/migrate-pancatugas-subdivisions.cjs",
     "db:migrate:church-calendar": "node server/_migrate-church-calendar.cjs",
     "db:migrate:event-venue": "node server/_migrate-event-venue.cjs",
