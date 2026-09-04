@@ -87,6 +87,12 @@ async function addColumnIfMissing(conn, table, column, ddl) {
     'assignment_id',
     'ALTER TABLE group_members ADD COLUMN assignment_id VARCHAR(64) NULL',
   );
+  await addColumnIfMissing(
+    conn,
+    'role_assignments',
+    'familyRole',
+    'ALTER TABLE role_assignments ADD COLUMN familyRole VARCHAR(20) NULL',
+  );
 
   console.log('role_assignments schema ready (idempotent, no drop)');
   await conn.end();

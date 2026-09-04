@@ -22,6 +22,8 @@
     "db:schema:check": "node scripts/check-db-schema.mjs",
     "db:schema:check:staging": "dotenv -e .env.staging -- node scripts/check-db-schema.mjs",
     "db:schema:check:prod": "dotenv -e .env.production -- node scripts/check-db-schema.mjs",
+    "db:schema:sync-from-staging": "node scripts/sync-schema-from-staging.mjs",
+    "db:schema:sync-from-staging:apply": "node scripts/sync-schema-from-staging.mjs --apply",
     "db:migrate:profile": "node server/_migrate-profile-phase1.cjs",
     "db:migrate:church-request": "node server/_migrate-profile-church-request.cjs",
     "db:migrate:placement": "node server/_migrate-jethro-placement.cjs",

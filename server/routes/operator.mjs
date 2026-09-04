@@ -14,6 +14,7 @@ import {
   grantPlatformAdmin,
   revokePlatformAdmin,
   listPlatformAuditLogs,
+  searchGrantableUsers,
 } from '../platform-operators.mjs';
 import { requirePlatformRoot, requirePlatformAdmin } from '../lib/platform-rbac.mjs';
 
@@ -93,6 +94,11 @@ export function registerOperatorRoutes(app, { wrap }) {
   app.post('/api/operator/auth/passkey/register', requirePlatformRoot(), wrap(async (req, res) => {
     await verifyPasskeyRegistration(req.platformOperator.id, req.body?.credential);
     res.json({ ok: true });
+  }));
+
+  app.get('/api/operator/users/search', requirePlatformRoot(), wrap(async (req, res) => {
+    const users = await searchGrantableUsers(req.query?.q);
+    res.json({ users });
   }));
 
   app.get('/api/operator/admins', requirePlatformRoot(), wrap(async (_req, res) => {

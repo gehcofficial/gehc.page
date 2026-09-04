@@ -66,6 +66,7 @@ const REQUIRED_TABLE_COLUMNS = {
   struktur_members: ['role', 'role_order', 'is_double_role', 'group_id', 'user_id'],
   user_roles: ['assignment_id'],
   group_members: ['assignment_id'],
+  role_assignments: ['familyRole', 'user_id', 'assigned_by'],
 };
 
 const quiet = process.argv.includes('--quiet');

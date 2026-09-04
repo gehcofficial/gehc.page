@@ -3,6 +3,7 @@ import {
   isPlatformRoot,
   isPlatformAdminActor,
 } from '../../server/lib/platform-rbac.mjs';
+import { normalizeGrantUserIdent } from '../../server/platform-operators.mjs';
 
 describe('platform-rbac', () => {
   it('isPlatformRoot true when operator session active', () => {
@@ -23,5 +24,11 @@ describe('platform-rbac', () => {
   it('isPlatformAdminActor false without grant or operator', () => {
     const req = { platformOperator: null, platformAdmin: false, authUser: { roles: [{ role: 'MENTEE' }] } };
     expect(isPlatformAdminActor(req)).toBe(false);
+  });
+});
+
+describe('normalizeGrantUserIdent', () => {
+  it('strips leading @ and whitespace', () => {
+    expect(normalizeGrantUserIdent('  @AISaerang ')).toBe('AISaerang');
   });
 });

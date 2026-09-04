@@ -90,6 +90,13 @@ export async function listPlatformAdminGrants(): Promise<{ grants: unknown[] }> 
   return handle(res);
 }
 
+export async function searchGrantableUsers(q = ''): Promise<{
+  users: { id: string; name: string; email: string | null; loginUsername: string | null }[];
+}> {
+  const res = await fetch(`/api/operator/users/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+  return handle(res);
+}
+
 export async function grantPlatformAdmin(userId: string, note?: string): Promise<unknown> {
   const res = await fetch('/api/operator/admins', {
     method: 'POST',
