@@ -320,7 +320,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetch('/api/db/struktur')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => {
-        if (cancelled || !Array.isArray(d.members) || d.members.length === 0) return;
+        if (cancelled || !Array.isArray(d.members)) return;
         const mapped: StrukturMember[] = d.members.map((m: any) => ({
           ...m,
           order: typeof m.order === 'number' ? m.order : Number(m.sortOrder ?? 0),

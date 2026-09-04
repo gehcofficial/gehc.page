@@ -1,6 +1,25 @@
 # GEHC Portal — Handoff
 
-## Current — Production go-live (4 Sep 2026)
+## Current — Org tree prod + schema catch-up (4 Sep 2026)
+
+**Goal:** Slot Assign Role / undangan Komisi-Tim Kerja hidup di production. Pohon `org_nodes` di-seed ke TiDB prod (bukan akun demo). Kolom `struktur_members.role` yang bikin `/api/db/struktur` gagal ikut di-migrate.
+
+### Done
+
+- CJS `_migrate-struktur-multirole.cjs` + `db:seed:org-tree` / `:staging` / `:prod`.
+- Prod TiDB `gehc`: schema check hijau; `struktur_members.role` ditambah; `org_nodes` YOUTH=66 · KOLOM=21.
+- Go-live: seed pohon jabatan setelah migrate; jangan seed `@gehc.demo`.
+
+### Next
+
+1. Login `#/admin` → Orang & Provision → undang Ketua Komisi / Tim Kerja (username + password, pilih slot).
+2. Assign Role di portal setelah orang login — dropdown cabang/posisi harus terisi.
+3. Login `#/admin` break-glass → daftar passkey di `https://gehcpage.vercel.app`.
+4. Google Cloud Console: origin + redirect `https://gehcpage.vercel.app`.
+
+---
+
+## Prior — Production go-live (4 Sep 2026)
 
 **Goal:** Vercel Production (`main` → `https://gehcpage.vercel.app`) hidup dengan TiDB/Drive/operator terpisah dari staging.
 
