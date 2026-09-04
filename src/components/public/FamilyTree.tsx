@@ -32,6 +32,7 @@ export const PersonNode: React.FC<NodeProps> = ({ name, label, color, icon, phot
           <img
             src={photo}
             alt={name}
+            referrerPolicy="no-referrer"
             className={`${dims} rounded-full object-cover shadow-md border-2 border-white shrink-0`}
           />
         ) : (

@@ -7,6 +7,7 @@ import { MiniFamilyTree } from './FamilyTree';
 import { SectionHeader } from './ui/SectionHeader';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { useSteerableMarquee } from '../../hooks/useSteerableMarquee';
+import { landingBeyondersHouses } from '../../lib/landing-groups';
 import type { YouthGroup } from '../../types';
 
 type GroupCardProps = {
@@ -131,9 +132,7 @@ export const GroupsCarousel: React.FC = () => {
   const currentBatchFor = (groupId: string) =>
     groupBatches.find((b) => b.group_id === groupId && b.isCurrent);
 
-  const visibleGroups = groups
-    .filter((g) => !g.parentGroupId && currentBatchFor(g.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const visibleGroups = landingBeyondersHouses(groups, groupBatches);
 
   const canLoop = !reduce && visibleGroups.length > 2;
   const rendered = canLoop ? [...visibleGroups, ...visibleGroups] : visibleGroups;
@@ -161,8 +160,8 @@ export const GroupsCarousel: React.FC = () => {
           }
         >
           {rendered.map((grp, i) => {
-            const batch = currentBatchFor(grp.id)!;
-            const menteeCount = batch.mentees?.length ?? Math.max(0, (grp.memberCount || 0) - 2);
+            const batch = currentBatchFor(grp.id);
+            const menteeCount = batch?.mentees?.length ?? Math.max(0, (grp.memberCount || 0) - 2);
             const sourceIndex = i % visibleGroups.length;
             return (
               <GroupHouseCard
@@ -170,10 +169,10 @@ export const GroupsCarousel: React.FC = () => {
                 grp={grp}
                 index={sourceIndex}
                 menteeCount={menteeCount}
-                mentor={batch.mentor}
-                comentor={batch.comentor || '—'}
-                mentorAvatar={batch.mentorAvatar}
-                comentorAvatar={batch.comentorAvatar}
+                mentor={batch?.mentor || '—'}
+                comentor={batch?.comentor || '—'}
+                mentorAvatar={batch?.mentorAvatar}
+                comentorAvatar={batch?.comentorAvatar}
                 seeFamily={t.groupDetail.seeFamily}
                 menteeLabel={t.groupDetail.menteeCount}
                 onOpen={openGroupDetail}

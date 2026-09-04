@@ -1,55 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import { Landmark, GraduationCap, Home } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { trLabel } from '../../i18n';
-
-interface LeaderDto {
-  id: string;
-  name: string;
-  position?: string | null;
-  division?: string | null;
-}
-
-const initialsAvatar = (n: string) =>
-  `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
+import { displayAvatar } from '../../lib/avatar';
+import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
 
 const FACT_ICONS = [Landmark, GraduationCap, Home];
 
 /**
  * ABOUT — "Tentang Pemuda GEHC" untuk audiens global.
- * Menyatukan perkenalan komunitas, fakta editorial, panel kepemimpinan
- * (announcing soon), dan ayat penutup (eks-Manifesto).
+ * Preview pengurus dari pohon organisasi (org assignments + User.avatar).
  */
 export const AboutSection: React.FC = () => {
   const { t } = useLang();
-  const [leaders, setLeaders] = useState<LeaderDto[] | null>(null);
+  const { data, isLoading } = usePublicOrgTree();
   const facts = [t.about.fact1t, t.about.fact2t, t.about.fact3t];
   const factDescs = [t.about.fact1d, t.about.fact2d, t.about.fact3d];
 
-  // Tim Kerja (BOD retreat) dari TiDB — max 3 untuk preview About
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/db/struktur')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { members: LeaderDto[] }) => {
-        if (!cancelled)
-          setLeaders(
-            (d.members || [])
-              .filter((m) => m.division === 'TIMKERJA')
-              .slice(0, 3)
-          );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const leaders = (data?.members || [])
+    .filter((m) => !m.isOpenRole && ['KOMISI', 'TIMKERJA', 'BPMJ'].includes((m.division || '').toUpperCase()))
+    .sort((a, b) => {
+      const rank = (d: string) => (d === 'KOMISI' ? 0 : d === 'TIMKERJA' ? 1 : 2);
+      const ra = rank((a.division || '').toUpperCase());
+      const rb = rank((b.division || '').toUpperCase());
+      return ra - rb || a.order - b.order;
+    })
+    .slice(0, 3);
 
   return (
     <section id="about" className="py-16 sm:py-24 px-4 sm:px-8 max-w-[1200px] mx-auto">
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
-        {/* Kiri: cerita */}
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D9D7D0] mb-4 shadow-sm">
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
@@ -64,7 +45,6 @@ export const AboutSection: React.FC = () => {
             {t.about.intro2}
           </p>
 
-          {/* Ayat penutup (eks-Manifesto) */}
           <motion.blockquote
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -77,7 +57,6 @@ export const AboutSection: React.FC = () => {
           </motion.blockquote>
         </div>
 
-        {/* Kanan: fakta + leadership */}
         <div className="space-y-5">
           <div className="space-y-3">
             {facts.map((f, i) => {
@@ -103,7 +82,6 @@ export const AboutSection: React.FC = () => {
             })}
           </div>
 
-          {/* Leadership — nama asli bila sudah ter-seed, announcing bila belum */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -115,13 +93,14 @@ export const AboutSection: React.FC = () => {
               {t.leadersPage.coreLabel} · {t.leadersPage.supportLabel}
             </p>
 
-            {leaders && leaders.length > 0 ? (
+            {isLoading ? null : leaders.length > 0 ? (
               <div className="space-y-2.5">
                 {leaders.map((l) => (
                   <div key={l.id} className="flex items-center gap-3">
                     <img
-                      src={initialsAvatar(l.name)}
+                      src={displayAvatar(l.name, l.photoUrl)}
                       alt={l.name}
+                      referrerPolicy="no-referrer"
                       loading="lazy"
                       decoding="async"
                       className="w-9 h-9 rounded-full object-cover border border-white/20"
