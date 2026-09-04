@@ -25,6 +25,60 @@ describe('org public landing', () => {
     expect(publicDivisionOf({ slug: 'LITURGIA_HEAD', metadata: {} })).toBe('LITURGIA');
   });
 
+  it('hides leftover panca/BZP names after the catalog rename', () => {
+    expect(
+      isLandingPublicSlot({
+        ...slot(),
+        slug: 'DIAKONIA_KONSUMSI',
+        label: 'Konsumsi',
+        metadata: { division: 'DIAKONIA', subdivision: 'Konsumsi', maxAssignees: 99 },
+      }),
+    ).toBe(false);
+    expect(
+      isLandingPublicSlot({
+        ...slot(),
+        slug: 'DIAKONIA_KONSUMSI_&_KERAMAHA',
+        label: 'Konsumsi & Keramahan',
+        metadata: { division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan', maxAssignees: 99 },
+      }),
+    ).toBe(true);
+    expect(
+      isLandingPublicSlot({
+        ...slot(),
+        slug: 'DIAKONIA_HEAD',
+        label: 'Kepala Divisi',
+        metadata: { division: 'DIAKONIA', position: 'Kepala Divisi', maxAssignees: 1 },
+      }),
+    ).toBe(true);
+  });
+
+  it('drops legacy Diakonia slots from the public member list', () => {
+    const { members } = toPublicOrgMembers(
+      [
+        {
+          id: 'old',
+          domain: 'YOUTH',
+          slug: 'DIAKONIA_KONSUMSI',
+          label: 'Konsumsi',
+          nodeKind: 'POSITION_SLOT',
+          sortOrder: 1,
+          metadata: { division: 'DIAKONIA', subdivision: 'Konsumsi' },
+        },
+        {
+          id: 'neu',
+          domain: 'YOUTH',
+          slug: 'DIAKONIA_KONSUMSI_&_KERAMAHA',
+          label: 'Konsumsi & Keramahan',
+          nodeKind: 'POSITION_SLOT',
+          sortOrder: 2,
+          metadata: { division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan' },
+        },
+      ],
+      [],
+    );
+    expect(members.map((m) => m.subdivision)).toEqual(['Konsumsi & Keramahan']);
+  });
+
   it('hides Beyonders, Individu, and grouped slots from landing', () => {
     expect(isLandingPublicSlot({ ...slot(), slug: 'BEYONDERS', nodeKind: 'GROUP_REF' })).toBe(false);
     expect(isLandingPublicSlot({ ...slot(), slug: 'INDIVIDU', metadata: { position: 'Individu' } })).toBe(false);
