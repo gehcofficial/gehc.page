@@ -7,6 +7,32 @@ import crypto from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { SUB_DIVISIONS, DIVISION_HEAD_POSITION, PANTA_DIVISIONS } from '../src/lib/pantatugas.ts';
 
+function resolveSeedDatabaseUrl() {
+  const env = String(process.env.GEHC_ENV || process.env.DB_TARGET || '').toLowerCase();
+  if (env === 'production' || env === 'prod' || env === 'main') {
+    return process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL || '';
+  }
+  return process.env.DATABASE_URL || process.env.DATABASE_URL_STAGING || '';
+}
+
+function maskDbUrl(url: string) {
+  try {
+    const u = new URL(url);
+    const db = u.pathname.replace(/^\//, '').split('?')[0];
+    return `${u.hostname}:${u.port || 4000}/${db}`;
+  } catch {
+    return '(invalid DATABASE_URL)';
+  }
+}
+
+const seedUrl = resolveSeedDatabaseUrl();
+if (!seedUrl) {
+  console.error('❌ DATABASE_URL tidak ada — gunakan db:seed:org-tree:staging atau db:seed:org-tree:prod');
+  process.exit(1);
+}
+process.env.DATABASE_URL = seedUrl;
+console.log(`🌱 seed-org-tree → ${process.env.GEHC_ENV || 'default'} · ${maskDbUrl(seedUrl)}`);
+
 const prisma = new PrismaClient();
 
 function id() {
@@ -302,6 +328,11 @@ async function seedKolomSlots() {
 async function main() {
   await seedYouthTree();
   await seedKolomSlots();
+  const [youth, kolom] = await Promise.all([
+    prisma.orgNode.count({ where: { domain: 'YOUTH', isActive: true } }),
+    prisma.orgNode.count({ where: { domain: 'KOLOM', isActive: true } }),
+  ]);
+  console.log(`✓ org_nodes aktif: YOUTH=${youth} · KOLOM=${kolom}`);
 }
 
 main()

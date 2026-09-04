@@ -33,6 +33,7 @@ npm run dev:all
 | `npm run db:migrate:local:staging` | Sama, pakai `.env.staging` |
 | `npm run db:migrate:local:prod` | Sama, pakai `.env.production` |
 | `npm run db:schema:check` | Cek read-only — kolom/tabel wajib ada? |
+| `npm run db:schema:check:prod` | Sama, pakai `.env.production` |
 | `npm run db:migrate:profile` | Hanya profil fase 1 (`major_other`, dll.) |
 | `npm run db:migrate:church-request` | Tabel permintaan ubah data gereja |
 | `npm run db:migrate:placement` | Jethro placement (opsional; bisa gagal FK di DB lama) |
@@ -55,8 +56,10 @@ npm run dev:all
 6. `_migrate-waiting-pool.cjs` — tabel `waiting_pool` (onboarding pipeline)
 7. `_migrate-e10-bakutau.cjs` — domisili, `whatsapp_group_url`, `claim_token`
 8. `_migrate-bakutau-venue.cjs` — patch lokasi BAKU TAU di `content_items`
-9. `_migrate-role-assigned-notif.cjs` — enum `notifications.type` + `ROLE_ASSIGNED`
-10. `_migrate-event-questions.cjs` — bank soal event, assignment, jawaban
+9. `_migrate-user-avatars.cjs` — avatar + `struktur_members.user_id`
+10. `_migrate-struktur-multirole.cjs` — `struktur_members.role` / `role_order` / `group_id`
+11. `_migrate-role-assigned-notif.cjs` — enum `notifications.type` + `ROLE_ASSIGNED`
+12. `_migrate-event-questions.cjs` — bank soal event, assignment, jawaban
 
 Scripts tambahan:
 
@@ -65,6 +68,8 @@ Scripts tambahan:
 | `npm run db:migrate:org-hierarchy` | Org nodes saja |
 | `npm run db:migrate:e10-bakutau` | Kolom BAKU TAU / domisili |
 | `npm run db:seed:org-tree` | Seed pohon YOUTH + KOLOM |
+| `npm run db:seed:org-tree:staging` | Sama ke staging |
+| `npm run db:seed:org-tree:prod` | Sama ke production — slot jabatan, bukan akun demo |
 | `npm run db:backfill:org-assignments` | Link RoleAssignment lama → OrgAssignment |
 5. `prisma generate`
 

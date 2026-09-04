@@ -86,6 +86,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-struktur-multirole.cjs',
+    label: 'struktur_members role / role_order / group_id (Prisma parity)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-platform-operators.cjs',
     label: 'Platform operators + admin grants',
     required: true,

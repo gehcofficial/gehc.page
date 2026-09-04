@@ -44,6 +44,9 @@ Google Cloud Console — OAuth Web client:
 npm run db:migrate:prod
 # jika kolom CJS belum ikut:
 npm run db:migrate:local:prod
+npm run db:schema:check:prod
+# pohon jabatan (slot Assign Role / undangan staff) — bukan akun demo:
+npm run db:seed:org-tree:prod
 ```
 
 Jangan `db:seed-users:staging` / akun `@gehc.demo` di prod.
