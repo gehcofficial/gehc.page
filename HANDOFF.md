@@ -9,11 +9,12 @@
 - Seed: BPMJ pindah `YOUTH` → `CHURCH`; domain `BIPRA` (Penatua per kategorial; Pemuda menyarang pohon Komisi).
 - Picker Assign Role / provision: Jemaat → BIPRA → Kolom (default Jemaat). BPMJ tidak lagi cabang Pemuda.
 - `accountKind: SYSTEM_LEGACY` untuk `usr-platform-ops`. `/api/jemaat` dan `/api/db/users` mengecualikan akun sistem.
+- Seed org-tree sudah dijalankan di **staging** dan **prod** TiDB (CHURCH=7 · BIPRA=10 · YOUTH=59 · KOLOM=21).
 
 ### Next
 
-1. `npm run db:seed:org-tree:staging` dan `:prod` agar pohon TiDB ikut pindah.
-2. Deploy `staging` + `main`.
+1. Tunggu deploy Vercel `staging` + `main` (kode sudah di-push).
+2. Cek picker Assign Role: Jemaat → BIPRA → Kolom; BPMJ di Jemaat; Komisi di BIPRA → Pemuda.
 
 ---
 
