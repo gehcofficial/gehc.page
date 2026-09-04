@@ -1,7 +1,7 @@
 /**
  * Platform RBAC middleware — operator root vs delegated platform admin.
  */
-import { isSuperadminEmail } from '../auth.mjs';
+import { isSuperadminEmail, requireRole } from '../auth.mjs';
 import { readOperatorSession, loadOperatorById } from '../platform-auth.mjs';
 import {
   applyPlatformAdminPortalRole,
@@ -91,6 +91,15 @@ export function requirePlatformAdmin() {
   return (req, res, next) => {
     if (isPlatformAdminActor(req)) return next();
     return res.status(403).json({ error: 'Akses platform admin diperlukan.' });
+  };
+}
+
+/** Komisi (atau SUPERADMIN), atau sesi platform operator/admin. */
+export function requireKomisiOrPlatformAdmin(...roles) {
+  const roleMw = requireRole(...(roles.length ? roles : ['KOMISI']));
+  return (req, res, next) => {
+    if (isPlatformAdminActor(req)) return next();
+    return roleMw(req, res, next);
   };
 }
 
