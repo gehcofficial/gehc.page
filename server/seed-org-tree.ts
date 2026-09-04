@@ -6,6 +6,7 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { SUB_DIVISIONS, DIVISION_HEAD_POSITION, PANTA_DIVISIONS } from '../src/lib/pantatugas.ts';
+import { pruneLegacyOrgSlots } from './services/org-prune-legacy.mjs';
 
 function resolveSeedDatabaseUrl() {
   const env = String(process.env.GEHC_ENV || process.env.DB_TARGET || '').toLowerCase();
@@ -398,6 +399,12 @@ async function main() {
   await seedChurchBpmj();
   await seedBipraTree();
   await seedYouthTree();
+  const prune = await pruneLegacyOrgSlots(prisma);
+  if (prune.legacy) {
+    console.log(
+      `✓ legacy panca/BZP slots pruned: moved=${prune.moved} deactivated=${prune.deactivated} no-target=${prune.skipped}`,
+    );
+  }
   await seedKolomSlots();
   try {
     await prisma.user.updateMany({

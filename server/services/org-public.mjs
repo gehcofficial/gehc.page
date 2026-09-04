@@ -1,4 +1,5 @@
 import { isSystemAccount } from '../lib/system-users.mjs';
+import { isCanonicalPillarSubdivision, isLegacyPantaSlot, parseOrgMeta } from '../lib/org-legacy-slots.mjs';
 
 export const LANDING_ORG_DOMAINS = ['CHURCH', 'YOUTH'];
 export const LANDING_PILLARS = [
@@ -12,10 +13,7 @@ export const LANDING_PILLARS = [
 
 const HIDDEN_SLUGS = new Set(['INDIVIDU', 'BEYONDERS']);
 
-function parseMeta(raw) {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
-  return {};
-}
+const parseMeta = parseOrgMeta;
 
 export function isDemoEmail(email) {
   return String(email || '').toLowerCase().endsWith('@gehc.demo');
@@ -45,7 +43,11 @@ export function isLandingPublicSlot(node) {
   if (HIDDEN_SLUGS.has(slug) || slug.startsWith('INDIVIDU_')) return false;
   const m = parseMeta(node.metadata);
   if (m.requiresGroup) return false;
-  return Boolean(publicDivisionOf(node));
+  const division = publicDivisionOf(node);
+  if (!division) return false;
+  if (isLegacyPantaSlot(node)) return false;
+  if (!isCanonicalPillarSubdivision(division, m.subdivision)) return false;
+  return true;
 }
 
 export function isPublishableAssignee(user) {
