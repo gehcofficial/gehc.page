@@ -48,6 +48,7 @@ const REQUIRED_TABLES = [
   'event_question_answers',
   'groups',
   'group_batches',
+  'role_assignments',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [
@@ -63,6 +64,8 @@ const REQUIRED_TABLE_COLUMNS = {
   event_attendees: ['checked_in_at', 'checked_in_by_id'],
   EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query'],
   struktur_members: ['role', 'role_order', 'is_double_role', 'group_id', 'user_id'],
+  user_roles: ['assignment_id'],
+  group_members: ['assignment_id'],
 };
 
 const quiet = process.argv.includes('--quiet');
