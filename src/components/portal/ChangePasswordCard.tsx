@@ -11,9 +11,14 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
 
   if (!authUser) return null;
   const mustChange = Boolean(authUser.mustChangePassword);
+  const needCurrent = mustChange || !allowSkipCurrent;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (needCurrent && !currentPassword.trim()) {
+      addToast({ type: 'error', title: 'Password lama wajib', description: 'Isi password sementara atau password lama.' });
+      return;
+    }
     if (newPassword.length < 8) {
       addToast({ type: 'error', title: 'Password terlalu pendek', description: 'Minimal 8 karakter.' });
       return;
@@ -29,7 +34,7 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentPassword: currentPassword || undefined,
+          currentPassword: needCurrent ? currentPassword : undefined,
           newPassword,
         }),
       });
@@ -61,7 +66,7 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
         </div>
       </div>
       <form onSubmit={submit} className="space-y-3 max-w-md">
-        {(!mustChange || allowSkipCurrent) && (
+        {needCurrent && (
           <label className="block space-y-1">
             <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">
               {mustChange ? 'Password sementara' : 'Password lama'}
@@ -72,7 +77,7 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
               autoComplete="current-password"
-              required={!mustChange}
+              required={needCurrent}
             />
           </label>
         )}

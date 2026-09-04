@@ -1,6 +1,23 @@
 # GEHC Portal — Handoff
 
-## Current — Katalog Minat & Kampus + reminder (4 Sep 2026)
+## Current — Invite provision + temp-password gate (4 Sep 2026)
+
+**Goal:** Bulk undangan per-orang (dropdown seperti individu) + password sementara tidak bisa dikosongkan.
+
+### Done
+
+- Wizard bulk: baris per orang (role/grup/slot + nama), copy-all mengingatkan salin hanya blok nama sendiri.
+- `POST /api/me/password` wajib password sementara jika akun sudah punya hash. Modal ganti password tidak lagi menampilkan taut Google.
+- Password seragam default `GEHCikarang`.
+
+### Next
+
+1. Deploy Vercel `staging` + `main`.
+2. Cek provision bulk: tambah baris, password seragam GEHCikarang, gerbang ganti password menolak field kosong.
+
+---
+
+## Prior — Katalog Minat & Kampus + reminder (4 Sep 2026)
 
 **Goal:** Komisi kelola katalog default minat + PT Indonesia. Request “Lainnya” dipetakan ke 1 opsi lalu reminder — jemaat memilih sendiri.
 

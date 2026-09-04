@@ -14,6 +14,8 @@ import {
   ensureUniqueUsername,
 } from './lib/username.mjs';
 
+export const DEFAULT_UNIFORM_PASSWORD = 'GEHCikarang';
+
 export function generateProvisionPassword() {
   return `GehC-${crypto.randomBytes(4).toString('hex')}!`;
 }
@@ -24,15 +26,18 @@ export function resolveUniformPassword(body = {}) {
   if (!useUniform && !requested) return null;
 
   const envUniform = process.env.PROVISION_UNIFORM_PASSWORD || process.env.DEMO_PASSWORD || null;
-  const pass = requested || envUniform;
+  const pass = requested || envUniform || DEFAULT_UNIFORM_PASSWORD;
 
-  if (!pass) {
-    throw new Error('Password seragam belum dikonfigurasi (isi uniformPassword atau PROVISION_UNIFORM_PASSWORD).');
-  }
   if (pass.length < 8) {
     throw new Error('Password seragam minimal 8 karakter.');
   }
-  if (isProductionEnv() && requested && envUniform && requested !== envUniform) {
+  if (
+    isProductionEnv()
+    && requested
+    && envUniform
+    && requested !== envUniform
+    && requested !== DEFAULT_UNIFORM_PASSWORD
+  ) {
     throw new Error('Password seragam kustom tidak diizinkan di production.');
   }
   return pass;
