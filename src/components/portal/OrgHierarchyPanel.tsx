@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Network, Loader2, Plus, ChevronRight, ChevronDown, Pencil, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
-type OrgDomain = 'YOUTH' | 'KOLOM' | 'CHURCH';
+type OrgDomain = 'CHURCH' | 'BIPRA' | 'YOUTH' | 'KOLOM';
 
 interface OrgNodeRow {
   id: string;
@@ -18,9 +18,10 @@ interface OrgNodeRow {
 }
 
 const DOMAINS: { id: OrgDomain; label: string }[] = [
-  { id: 'YOUTH', label: 'Pemuda' },
+  { id: 'CHURCH', label: 'Jemaat' },
+  { id: 'BIPRA', label: 'BIPRA' },
+  { id: 'YOUTH', label: 'Pemuda (Komisi & Tim Kerja)' },
   { id: 'KOLOM', label: 'Kolom' },
-  { id: 'CHURCH', label: 'Gereja (future)' },
 ];
 
 const NODE_KINDS = [
@@ -31,7 +32,7 @@ const NODE_KINDS = [
 
 export const OrgHierarchyPanel: React.FC = () => {
   const { addToast } = useApp();
-  const [domain, setDomain] = useState<OrgDomain>('YOUTH');
+  const [domain, setDomain] = useState<OrgDomain>('CHURCH');
   const [tree, setTree] = useState<OrgNodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

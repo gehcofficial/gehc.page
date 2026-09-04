@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building, Loader2 } from 'lucide-react';
 import {
+  assignmentBranches,
   collectAssignableSlots,
-  flattenBranches,
+  nestedDomainOf,
   ORG_DOMAINS,
+  DEFAULT_ORG_DOMAIN,
   type OrgNode,
 } from '../../lib/org-tree-utils';
 
@@ -15,7 +17,8 @@ export const OrgSlotPicker: React.FC<{
   const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
   const [treeError, setTreeError] = useState('');
-  const [domain, setDomain] = useState('YOUTH');
+  const [domain, setDomain] = useState(DEFAULT_ORG_DOMAIN);
+  const [nestedTree, setNestedTree] = useState<OrgNode[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<OrgNode | null>(null);
   const [selectedSubBranch, setSelectedSubBranch] = useState<OrgNode | null>(null);
   const [selectedDeepBranch, setSelectedDeepBranch] = useState<OrgNode | null>(null);
@@ -47,14 +50,34 @@ export const OrgSlotPicker: React.FC<{
     setSelectedBranch(null);
     setSelectedSubBranch(null);
     setSelectedDeepBranch(null);
+    setNestedTree([]);
     onChange('', null);
   }, [domain]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const topBranches = useMemo(() => flattenBranches(orgTree), [orgTree]);
+  const nestedDomain = nestedDomainOf(selectedBranch);
+  useEffect(() => {
+    if (!nestedDomain) {
+      setNestedTree([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/org/nodes?domain=${nestedDomain}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setNestedTree(d.tree || []);
+      })
+      .catch(() => {
+        if (!cancelled) setNestedTree([]);
+      });
+    return () => { cancelled = true; };
+  }, [nestedDomain]);
+
+  const topBranches = useMemo(() => assignmentBranches(orgTree, domain), [orgTree, domain]);
   const subBranches = useMemo(() => {
-    if (!selectedBranch?.children) return [];
-    return selectedBranch.children.filter((c) => c.nodeKind === 'BRANCH');
-  }, [selectedBranch]);
+    const own = (selectedBranch?.children || []).filter((c) => c.nodeKind === 'BRANCH');
+    const nested = assignmentBranches(nestedTree, nestedDomain || undefined);
+    return [...own, ...nested];
+  }, [selectedBranch, nestedTree, nestedDomain]);
   const deepBranches = useMemo(() => {
     if (!selectedSubBranch?.children) return [];
     return selectedSubBranch.children.filter((c) => c.nodeKind === 'BRANCH');

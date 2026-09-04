@@ -192,22 +192,31 @@ Jalankan: `npm run db:migrate:pancatugas` lalu reseed org tree & audit Drive.
 
 ## 11. Multi-domain Org Tree (`OrgNode`)
 
-Configurable hierarchy — separate from portal RBAC:
+Configurable hierarchy — separate from portal RBAC. **Urutan gereja:** Jemaat → BIPRA → Kolom. Pohon Komisi Pemuda tetap domain `YOUTH` (lookup `INDIVIDU` dll.) dan disarang di picker BIPRA → Pemuda.
 
 ```
-YOUTH domain
-  BPMJ → Komisi → Tim Kerja
-    ├─ BOD (Ketua / Sekre / Bendahara, division=TIMKERJA)
-    ├─ Panca Tugas → 5 divisi → sub-divisi slots
+CHURCH (Jemaat)
+  BPMJ → Ketua / Wakil / Sekre / Bendahara / Anggota
+
+BIPRA
+  Bapak | Ibu | Pemuda | Remaja | Anak
+    └─ Penatua (per kategorial)
+  Pemuda.nestedDomain = YOUTH → Komisi, Tim Kerja, Panca, Beyonders
+
+YOUTH (internal — Komisi Pemuda)
+  Komisi → Tim Kerja
+    ├─ BOD
+    ├─ Panca Tugas
     ├─ Benzarpreneurship
-    └─ Beyonders (GROUP_REF → grup + familyRole)
+    └─ Beyonders (GROUP_REF)
 
-KOLOM domain
-  per Kolom → Diaken (max 1) + Penatua (max 1) + Anggota
-
-CHURCH domain (future)
-  flat or custom ministry trees
+KOLOM
+  per Kolom → Diaken + Penatua + Anggota
 ```
+
+Admin assign: **Jemaat / BIPRA / Kolom** (bukan “Pemuda dulu”). Kelola Hirarki masih bisa edit domain `YOUTH` mentah.
+
+Seed: `npm run db:seed:org-tree` (juga memindah node BPMJ lama YOUTH → CHURCH).
 
 Admin: Portal → **Kelola Hirarki**. Seed: `npm run db:seed:org-tree`.
 
