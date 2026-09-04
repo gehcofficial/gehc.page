@@ -32,6 +32,8 @@ const REQUIRED_USER_COLUMNS = [
 const REQUIRED_TABLES = [
   'profile_church_data_requests',
   'recreational_suggestions',
+  'institution_suggestions',
+  'institutions',
   'org_nodes',
   'org_assignments',
   'waiting_pool',
@@ -67,6 +69,7 @@ const REQUIRED_TABLE_COLUMNS = {
   user_roles: ['assignment_id'],
   group_members: ['assignment_id'],
   role_assignments: ['familyRole', 'user_id', 'assigned_by'],
+  institutions: ['country'],
 };
 
 const quiet = process.argv.includes('--quiet');

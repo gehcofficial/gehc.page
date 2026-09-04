@@ -31,6 +31,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
   { id: 'jethro-placement', label: 'Review Penempatan', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
   { id: 'youth-gehc', label: 'Jemaat', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
+  { id: 'catalog', label: 'Katalog Minat & Kampus', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Default + approval Lainnya' },
   { id: 'org-hierarchy', label: 'Kelola Hirarki', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
   { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
   { id: 'jethro', label: 'Regenerasi Kelompok', roles: ['KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
@@ -56,7 +57,7 @@ const BASE_NAV: PortalNavItemDef[] = [
  * KOMISI, dan tugas platform ada di shell terpisah `#/admin`.
  */
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
-  KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
+  KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
   COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
   MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'wa-channels', 'account'],
   MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'account'],

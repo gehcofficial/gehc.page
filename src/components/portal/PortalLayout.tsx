@@ -22,6 +22,7 @@ import { WaitingPoolPanel } from './WaitingPoolPanel';
 import { JethroPlacementReview } from './JethroPlacementReview';
 import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
+import { CatalogReviewPanel } from './CatalogReviewPanel';
 import { type ProfileSectionId } from './MyProfilePanel';
 import { OnboardingBanner } from './OnboardingBanner';
 import { ProfileIncompleteBanner } from './ProfileIncompleteBanner';
@@ -32,6 +33,7 @@ import { RolePickerScreen } from './RolePickerScreen';
 import { AccountHub } from './AccountHub';
 import {
   parsePortalHash,
+  parseHashSearch,
   buildPortalPath,
   roleToNamespace,
   defaultPageForRole,
@@ -61,6 +63,7 @@ import {
   Network,
   MessageSquareQuote,
   MessageCircle,
+  GraduationCap,
   CircleHelp,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
@@ -144,6 +147,10 @@ export const PortalLayout: React.FC = () => {
       if (route.namespace === 'account') {
         setActiveTab('account');
         setAccountSection(route.accountSection || 'profile');
+        const section = parseHashSearch(window.location.hash).get('section') as ProfileSectionId | null;
+        if (section === 'contact' || section === 'life' || section === 'gifts' || section === 'recreational' || section === 'emergency') {
+          setProfileSection(section);
+        }
         return;
       }
       if (!route.namespace) return;
@@ -186,6 +193,7 @@ export const PortalLayout: React.FC = () => {
     onboarding: ClipboardList,
     'jethro-placement': Sparkles,
     'youth-gehc': Users,
+    catalog: GraduationCap,
     'org-hierarchy': Network,
     'groups-monitoring': Users,
     jethro: Sparkles,
@@ -535,6 +543,11 @@ export const PortalLayout: React.FC = () => {
                       await fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH', credentials: 'include' });
                       setNotifications((prev) => prev.filter((x) => x.id !== n.id));
                       setUnreadCount((prev) => Math.max(0, prev - 1));
+                      setShowNotifications(false);
+                      const href = typeof n.payload?.href === 'string' ? n.payload.href : '';
+                      if (href) {
+                        window.location.hash = href.replace(/^#/, '');
+                      }
                     }}
                   >
                     <p className="text-xs font-bold text-[#1B1B1B]">{n.title}</p>
@@ -654,6 +667,12 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="youth-gehc" />
               <YouthGEHCList />
+            </div>
+          )}
+          {activeTab === 'catalog' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="catalog" />
+              <CatalogReviewPanel />
             </div>
           )}
           {activeTab === 'org-hierarchy' && (

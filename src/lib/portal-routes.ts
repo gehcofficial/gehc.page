@@ -23,6 +23,7 @@ export type PortalPage =
   | 'onboarding'
   | 'jethro-placement'
   | 'youth-gehc'
+  | 'catalog'
   | 'org-hierarchy'
   | 'groups-monitoring'
   | 'jethro'
@@ -47,6 +48,11 @@ export type ParsedPortalRoute = {
 };
 
 const ACCOUNT_SECTIONS = new Set<AccountSection>(['profile', 'security', 'notifications', 'roles']);
+
+export function parseHashSearch(hash = typeof window !== 'undefined' ? window.location.hash : ''): URLSearchParams {
+  const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+  return new URLSearchParams(q);
+}
 
 export function isPortalHash(hash = typeof window !== 'undefined' ? window.location.hash : ''): boolean {
   const raw = hash.replace(/^#\/?/, '').split('?')[0];

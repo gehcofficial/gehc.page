@@ -216,6 +216,7 @@ model User {
   institution               Institution?               @relation(fields: [institutionId], references: [id])
   recreational              RecreationalMembership[]
   recreationalSuggestions   RecreationalSuggestion[]
+  institutionSuggestions    InstitutionSuggestion[]
   churchDataRequests        ProfileChurchDataRequest[]
   roles                     UserRole[]
   roleAssignments           RoleAssignment[]
@@ -252,16 +253,37 @@ model User {
 
 /// Kampus / sekolah (katalog + bisa ditambah dari portal)
 model Institution {
-  id     String @id @db.VarChar(64)
-  slug   String @unique @db.VarChar(80)
-  name   String @db.VarChar(190)
-  kind   String @db.VarChar(24) // UNIVERSITY | SCHOOL
-  city   String? @db.VarChar(120)
+  id      String  @id @db.VarChar(64)
+  slug    String  @unique @db.VarChar(80)
+  name    String  @db.VarChar(190)
+  kind    String  @db.VarChar(24) // UNIVERSITY | SCHOOL
+  city    String? @db.VarChar(120)
+  country String? @default("Indonesia") @db.VarChar(80)
 
-  users User[]
+  users       User[]
+  suggestions InstitutionSuggestion[]
 
   @@index([kind])
+  @@index([country])
   @@map("institutions")
+}
+
+model InstitutionSuggestion {
+  id            String   @id @db.VarChar(64)
+  userId        String   @map("user_id") @db.VarChar(64)
+  name          String   @db.VarChar(190)
+  city          String?  @db.VarChar(120)
+  country       String?  @db.VarChar(80)
+  status        String   @default("PENDING") @db.VarChar(16)
+  institutionId String?  @map("institution_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  user        User          @relation(fields: [userId], references: [id])
+  institution Institution?  @relation(fields: [institutionId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("institution_suggestions")
 }
 
 /// Kode undangan: link personal sekali-pakai atau link tim multi-use.
@@ -926,6 +948,7 @@ enum NotificationType {
   MENTION
   ROLE_ASSIGNED
   RUNBOOK_DUE
+  CATALOG_REMINDER
 }
 
 enum NotificationStatus {
