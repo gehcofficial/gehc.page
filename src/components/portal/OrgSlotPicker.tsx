@@ -14,6 +14,7 @@ export const OrgSlotPicker: React.FC<{
 }> = ({ value, onChange, compact }) => {
   const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
+  const [treeError, setTreeError] = useState('');
   const [domain, setDomain] = useState('YOUTH');
   const [selectedBranch, setSelectedBranch] = useState<OrgNode | null>(null);
   const [selectedSubBranch, setSelectedSubBranch] = useState<OrgNode | null>(null);
@@ -21,14 +22,23 @@ export const OrgSlotPicker: React.FC<{
 
   const loadTree = useCallback(async (d: string) => {
     setTreeLoading(true);
+    setTreeError('');
     try {
       const res = await fetch(`/api/org/nodes?domain=${d}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setOrgTree(data.tree || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setOrgTree([]);
+        setTreeError((err as { error?: string }).error || `Gagal memuat pohon (${res.status})`);
       }
-    } catch { /* skip */ }
-    finally { setTreeLoading(false); }
+    } catch {
+      setOrgTree([]);
+      setTreeError('Tidak bisa memuat pohon organisasi.');
+    } finally {
+      setTreeLoading(false);
+    }
   }, []);
 
   useEffect(() => { void loadTree(domain); }, [domain, loadTree]);
@@ -63,6 +73,9 @@ export const OrgSlotPicker: React.FC<{
         <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">Slot posisi organisasi</span>
         {treeLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
       </div>
+      {treeError ? (
+        <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">{treeError}</p>
+      ) : null}
 
       <label className="block space-y-1">
         <span className="text-[10px] font-bold text-[#8C8880]">Domain</span>

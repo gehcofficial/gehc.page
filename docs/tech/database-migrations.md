@@ -69,7 +69,10 @@ Scripts tambahan:
 | `npm run db:migrate:e10-bakutau` | Kolom BAKU TAU / domisili |
 | `npm run db:seed:org-tree` | Seed pohon YOUTH + KOLOM |
 | `npm run db:seed:org-tree:staging` | Sama ke staging |
-| `npm run db:seed:org-tree:prod` | Sama ke production — slot jabatan, bukan akun demo |
+| `npm run db:seed:org-tree:prod` | Pohon jabatan YOUTH + KOLOM ke prod |
+| `npm run db:seed:beyonders-houses:staging` | 10 rumah Beyonders kosong ke staging |
+| `npm run db:seed:beyonders-houses:prod` | 10 rumah Beyonders kosong (tanpa anggota) |
+| `npm run db:schema:check:staging` | Cek schema TiDB staging |
 | `npm run db:backfill:org-assignments` | Link RoleAssignment lama → OrgAssignment |
 5. `prisma generate`
 

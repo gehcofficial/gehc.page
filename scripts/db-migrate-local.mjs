@@ -81,6 +81,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-user-prisma-parity.cjs',
+    label: 'users onboarding_status / is_beyonders / remaining Prisma columns',
+    required: true,
+  },
+  {
     script: 'server/_migrate-user-avatars.cjs',
     label: 'User avatars (avatar_google, avatar_source) + struktur/testimoni userId',
     required: true,

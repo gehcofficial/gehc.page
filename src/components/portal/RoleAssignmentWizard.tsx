@@ -94,6 +94,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
 
   const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
+  const [treeError, setTreeError] = useState('');
   const [domain, setDomain] = useState('YOUTH');
   const [selectedBranch, setSelectedBranch] = useState<OrgNode | null>(null);
   const [selectedSubBranch, setSelectedSubBranch] = useState<OrgNode | null>(null);
@@ -104,14 +105,23 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
 
   const loadTree = useCallback(async (d: string) => {
     setTreeLoading(true);
+    setTreeError('');
     try {
       const res = await fetch(`/api/org/nodes?domain=${d}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setOrgTree(data.tree || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setOrgTree([]);
+        setTreeError((err as { error?: string }).error || `Gagal memuat pohon (${res.status})`);
       }
-    } catch { /* skip */ }
-    finally { setTreeLoading(false); }
+    } catch {
+      setOrgTree([]);
+      setTreeError('Tidak bisa memuat pohon organisasi.');
+    } finally {
+      setTreeLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadTree(domain); }, [domain, loadTree]);
@@ -300,6 +310,9 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
                   <Loader2 className="w-4 h-4 animate-spin" /> Memuat pohon organisasi…
                 </div>
               )}
+              {treeError ? (
+                <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">{treeError}</p>
+              ) : null}
 
               <div>
                 <label className="text-xs font-bold text-[#1B1B1B] mb-1 block">Domain</label>

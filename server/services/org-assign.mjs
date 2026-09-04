@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { assignRoleToUser, revokeRoleAssignment } from '../role-assign.mjs';
+import { assignRoleToUser, revokeRoleAssignment, resolveAssignedByUserId } from '../role-assign.mjs';
 
 export function genOrgId() {
   return crypto.randomBytes(32).toString('hex');
@@ -54,6 +54,8 @@ export async function assignOrgSlot(prisma, {
 }) {
   const node = await prisma.orgNode.findUnique({ where: { id: orgNodeId } });
   if (!node || !node.isActive) throw new Error('Slot organisasi tidak ditemukan.');
+
+  assignedBy = await resolveAssignedByUserId(prisma, assignedBy);
 
   const m = meta(node);
   const maxAssignees = Number(m.maxAssignees ?? 99);

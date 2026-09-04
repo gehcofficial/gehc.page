@@ -47,6 +47,7 @@ npm run db:migrate:local:prod
 npm run db:schema:check:prod
 # pohon jabatan (slot Assign Role / undangan staff) — bukan akun demo:
 npm run db:seed:org-tree:prod
+npm run db:seed:beyonders-houses:prod
 ```
 
 Jangan `db:seed-users:staging` / akun `@gehc.demo` di prod.
@@ -81,6 +82,7 @@ Script mencetak root yang dipakai — cek sebelum lanjut. Panduan: [`drive-integ
 - `#/admin` break-glass + passkey (bukan mock)
 - Landing + `#/event/bakutau`
 - Portal nav sesuai role nyata
+- `#/admin` Orang & Provision: undang Beyonders (pilih rumah) dan staf (pilih slot) — tanpa error Prisma `onboarding_status`
 - Drive/visual tidak mengarah ke folder staging
 
 ## Jangan
