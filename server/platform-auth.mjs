@@ -330,6 +330,23 @@ export async function upsertOperator({ id, email, displayName, password }) {
   });
 }
 
+/** Create operator only if email is missing. Never rotates password_hash. */
+export async function ensureOperator({ id, email, displayName, password }) {
+  const existing = await loadOperatorByEmail(email);
+  if (existing) {
+    if (existing.status !== 'ACTIVE') {
+      const prisma = getPrisma();
+      return prisma.platformOperator.update({
+        where: { id: existing.id },
+        data: { status: 'ACTIVE', displayName: displayName || existing.displayName },
+      });
+    }
+    return existing;
+  }
+  if (!password) throw new Error(`Password wajib untuk membuat operator baru (${email}).`);
+  return upsertOperator({ id, email, displayName, password });
+}
+
 /** Mock passkey login for E2E when WEBAUTHN_MOCK=true */
 export async function mockPasskeyLogin(emailRaw) {
   if (process.env.WEBAUTHN_MOCK !== 'true') {

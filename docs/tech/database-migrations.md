@@ -7,6 +7,8 @@ GEHC memakai **dua jalur migrasi** yang saling melengkapi:
 | **CJS idempotent** (disarankan lokal) | Setelah clone, pull, atau error "column does not exist" | `npm run db:migrate:local` |
 | **Prisma migrate deploy** | Staging/prod dengan riwayat `_prisma_migrations` lengkap | `npm run db:migrate:staging` / `db:migrate:prod` |
 
+`db:migrate:local` / `:staging` / `:prod` **tidak boleh** `DROP TABLE`. Khusus `platform_operators`: hanya buat tabel jika belum ada + `ALTER` kolom baru. Akun break-glass (`superadmin@gehc.page`, `admin@gehc.page`) tidak ikut seed/rotate. Setelah migrate: `npm run operator:ensure:prod` (buat jika hilang, tidak ganti password). File Prisma `17_platform_operators` historis masih berisi DROP — **jangan dijalankan ulang**; CJS sudah tidak membaca file itu.
+
 > **Jangan** jalankan `npm run db:migrate` (`prisma migrate deploy`) pada database lokal yang sudah ada tapi belum pernah di-baseline — bisa bentrok dengan migrasi `0_init`.
 
 ---

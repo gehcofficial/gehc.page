@@ -12,10 +12,13 @@ Akun bootstrap Tim Tech terpisah dari jemaat (`PlatformOperator` table).
 ## Commands
 
 ```powershell
-npm run db:migrate:platform-operators
-npm run db:seed:operator:staging
-npm run operator:bootstrap:prod   # production, sekali
+npm run db:migrate:platform-operators   # idempotent — tidak DROP data
+npm run db:seed:operator:staging        # buat jika belum ada; tidak rotate password
+npm run operator:ensure:prod            # pastikan 2 email prod ada; tidak rotate hash
+npm run operator:bootstrap:prod         # production, sekali (skip jika email sudah ada)
 ```
+
+Migrasi CJS `db:migrate:local*` **tidak boleh** menghapus `platform_operators`. Password break-glass hanya berubah jika `OPERATOR_ROTATE=true` pada bootstrap.
 
 ## Auth
 
