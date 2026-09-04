@@ -11,7 +11,7 @@ import {
   genOrgId,
 } from '../services/org-assign.mjs';
 
-const VALID_DOMAINS = ['YOUTH', 'KOLOM', 'CHURCH'];
+const VALID_DOMAINS = ['CHURCH', 'BIPRA', 'YOUTH', 'KOLOM'];
 const NODE_KINDS = ['BRANCH', 'POSITION_SLOT', 'GROUP_REF'];
 
 function parseMeta(raw) {
@@ -34,7 +34,7 @@ export function registerOrgRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-    const domain = String(req.query.domain || 'YOUTH').toUpperCase();
+    const domain = String(req.query.domain || 'CHURCH').toUpperCase();
     if (!VALID_DOMAINS.includes(domain)) {
       return res.status(400).json({ error: 'domain tidak valid.' });
     }

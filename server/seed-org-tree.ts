@@ -1,6 +1,6 @@
 /**
- * Default org tree seed — YOUTH (BPMJ→Komisi→Tim Kerja→BOD/Panca/BZP/Beyonders) + KOLOM slots.
- * Idempotent: upsert by domain+slug.
+ * Default org tree seed — CHURCH (BPMJ) + BIPRA + YOUTH (Komisi/Tim Kerja) + KOLOM.
+ * Idempotent: upsert by domain+slug. Memindah BPMJ lama dari YOUTH.
  */
 import 'dotenv/config';
 import crypto from 'node:crypto';
@@ -90,34 +90,102 @@ async function upsertNode({
   });
 }
 
-async function seedYouthTree() {
+async function relocateYouthBpmjToChurch() {
+  const nodes = await prisma.orgNode.findMany({
+    where: {
+      domain: 'YOUTH',
+      OR: [{ slug: 'BPMJ' }, { slug: { startsWith: 'BPMJ_' } }],
+    },
+  });
+  for (const node of nodes) {
+    const clash = await prisma.orgNode.findFirst({
+      where: { domain: 'CHURCH', slug: node.slug, NOT: { id: node.id } },
+    });
+    if (clash) {
+      await prisma.orgAssignment.updateMany({
+        where: { orgNodeId: node.id },
+        data: { orgNodeId: clash.id },
+      });
+      await prisma.orgNode.update({ where: { id: node.id }, data: { isActive: false } });
+      continue;
+    }
+    await prisma.orgNode.update({
+      where: { id: node.id },
+      data: { domain: 'CHURCH' },
+    });
+  }
+  if (nodes.length) console.log(`✓ BPMJ dipindah YOUTH → CHURCH (${nodes.length} node)`);
+}
+
+async function seedChurchBpmj() {
   const bpmj = await upsertNode({
-    domain: 'YOUTH',
+    domain: 'CHURCH',
     slug: 'BPMJ',
     label: 'BPMJ',
     nodeKind: 'BRANCH',
     sortOrder: 1,
-    metadata: { portalRole: 'BPMJ' },
+    metadata: { portalRole: 'BPMJ', churchOffice: 'BPMJ' },
   });
   for (let i = 0; i < BPMJ_POSITIONS.length; i++) {
     const pos = BPMJ_POSITIONS[i];
     await upsertNode({
-      domain: 'YOUTH',
+      domain: 'CHURCH',
       parentId: bpmj.id,
       slug: `BPMJ_${pos.replace(/\s+/g, '_').toUpperCase()}`,
       label: pos,
       nodeKind: 'POSITION_SLOT',
       sortOrder: i,
-      metadata: { portalRole: 'BPMJ', position: pos, maxAssignees: 1 },
+      metadata: { portalRole: 'BPMJ', position: pos, maxAssignees: 1, churchOffice: 'BPMJ' },
     });
   }
+  console.log('✓ CHURCH (Jemaat) BPMJ seeded');
+}
 
+async function seedBipraTree() {
+  const cats: Array<{ slug: string; label: string; sortOrder: number; nestedDomain?: string }> = [
+    { slug: 'BAPAK', label: 'Bapak', sortOrder: 1 },
+    { slug: 'IBU', label: 'Ibu', sortOrder: 2 },
+    { slug: 'PEMUDA', label: 'Pemuda', sortOrder: 3, nestedDomain: 'YOUTH' },
+    { slug: 'REMAJA', label: 'Remaja', sortOrder: 4 },
+    { slug: 'ANAK', label: 'Anak', sortOrder: 5 },
+  ];
+  for (const cat of cats) {
+    const branch = await upsertNode({
+      domain: 'BIPRA',
+      slug: cat.slug,
+      label: cat.label,
+      nodeKind: 'BRANCH',
+      sortOrder: cat.sortOrder,
+      metadata: {
+        bipra: cat.slug,
+        ...(cat.nestedDomain ? { nestedDomain: cat.nestedDomain } : {}),
+      },
+    });
+    await upsertNode({
+      domain: 'BIPRA',
+      parentId: branch.id,
+      slug: `${cat.slug}_PENATUA`,
+      label: `Penatua ${cat.label}`,
+      nodeKind: 'POSITION_SLOT',
+      sortOrder: 0,
+      metadata: {
+        bipra: cat.slug,
+        leaderKind: 'PENATUA',
+        position: `Penatua ${cat.label}`,
+        maxAssignees: 1,
+      },
+    });
+  }
+  console.log('✓ BIPRA tree seeded (Penatua per kategorial; Pemuda menyarang pohon YOUTH)');
+}
+
+async function seedYouthTree() {
   const komisi = await upsertNode({
     domain: 'YOUTH',
     slug: 'KOMISI',
     label: 'Komisi Pemuda',
     nodeKind: 'BRANCH',
-    sortOrder: 2,
+    sortOrder: 1,
     metadata: { portalRole: 'KOMISI' },
   });
   for (let i = 0; i < KOMISI_POSITIONS.length; i++) {
@@ -138,7 +206,7 @@ async function seedYouthTree() {
     slug: 'TIMKERJA',
     label: 'Tim Kerja',
     nodeKind: 'BRANCH',
-    sortOrder: 3,
+    sortOrder: 2,
     metadata: { portalRole: 'COMMITTEE' },
   });
 
@@ -326,13 +394,26 @@ async function seedKolomSlots() {
 }
 
 async function main() {
+  await relocateYouthBpmjToChurch();
+  await seedChurchBpmj();
+  await seedBipraTree();
   await seedYouthTree();
   await seedKolomSlots();
-  const [youth, kolom] = await Promise.all([
+  try {
+    await prisma.user.updateMany({
+      where: { OR: [{ id: 'usr-platform-ops' }, { loginUsername: 'platform.ops' }] },
+      data: { accountKind: 'SYSTEM_LEGACY', isBeyonders: false },
+    });
+  } catch {
+    /* users.accountKind belum ada */
+  }
+  const [church, bipra, youth, kolom] = await Promise.all([
+    prisma.orgNode.count({ where: { domain: 'CHURCH', isActive: true } }),
+    prisma.orgNode.count({ where: { domain: 'BIPRA', isActive: true } }),
     prisma.orgNode.count({ where: { domain: 'YOUTH', isActive: true } }),
     prisma.orgNode.count({ where: { domain: 'KOLOM', isActive: true } }),
   ]);
-  console.log(`✓ org_nodes aktif: YOUTH=${youth} · KOLOM=${kolom}`);
+  console.log(`✓ org_nodes aktif: CHURCH=${church} · BIPRA=${bipra} · YOUTH=${youth} · KOLOM=${kolom}`);
 }
 
 main()

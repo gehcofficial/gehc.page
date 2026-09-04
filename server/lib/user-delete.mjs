@@ -33,7 +33,7 @@ export function isGoogleLinkedUser(user) {
   return Boolean(user?.googleSub && String(user.linkStatus || '').toUpperCase() === 'LINKED');
 }
 
-export function assertUserDeleteAllowed({ actorId, target, confirm, confirmPhrase }) {
+export function assertUserDeleteAllowed({ actorId, target, confirm, confirmPhrase = '' }) {
   if (!target) {
     const err = new Error('User tidak ditemukan.');
     err.status = 404;

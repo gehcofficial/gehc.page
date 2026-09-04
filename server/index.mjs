@@ -50,6 +50,7 @@ import {
   removeAccessGroupMember,
 } from './access-groups.mjs';
 import { createInviteProvisionUser, resolveUniformPassword } from './invite-provision.mjs';
+import { congregationUserWhere } from './lib/system-users.mjs';
 import { deleteCongregationUser } from './lib/user-delete.mjs';
 import {
   getDashboard,
@@ -671,6 +672,7 @@ app.get('/api/users/search', wrap(async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: {
+        ...congregationUserWhere(),
         OR: [
           { name: { contains: q } },
           { email: { contains: q } },
@@ -704,6 +706,7 @@ app.get('/api/users', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(asy
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
   const users = await prisma.user.findMany({
+    where: congregationUserWhere(),
     select: { id: true, name: true, email: true, avatar: true, accountStatus: true },
     orderBy: { name: 'asc' },
   });
@@ -3995,6 +3998,7 @@ app.get('/api/db/users', requireRole(...KOMISION_CORE), wrap(async (req, res) =>
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const users = await prisma.user.findMany({
+    where: congregationUserWhere(),
     include: { roles: true, _count: { select: { groupMembers: true } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -4191,7 +4195,7 @@ function collectRecreationalLeafIds(all, rootId) {
 }
 
 async function queryJemaat(prisma, { bipra, kolomId, recreational, addressScope, birthdayWithin, membershipKind }) {
-  const where = {};
+  const where = { ...congregationUserWhere() };
   if (bipra && BIPRA_VALUES.includes(bipra)) where.bipra = bipra;
   if (kolomId === 'none') where.kolomId = null;
   else if (kolomId) where.kolomId = kolomId;

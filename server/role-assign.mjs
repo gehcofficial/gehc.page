@@ -12,7 +12,17 @@ export async function ensurePlatformOpsUser(prisma) {
     where: { id: PLATFORM_OPS_USER_ID },
     select: { id: true },
   });
-  if (existing) return existing.id;
+  if (existing) {
+    try {
+      await prisma.user.update({
+        where: { id: PLATFORM_OPS_USER_ID },
+        data: { accountKind: 'SYSTEM_LEGACY', name: 'Platform Ops', isBeyonders: false },
+      });
+    } catch {
+      /* kolom belum ada */
+    }
+    return existing.id;
+  }
   await prisma.user.create({
     data: {
       id: PLATFORM_OPS_USER_ID,
@@ -22,7 +32,7 @@ export async function ensurePlatformOpsUser(prisma) {
       accountStatus: 'ACTIVE',
       onboardingStatus: 'ACTIVE',
       onboardingPath: 'INVITED',
-      accountKind: 'INVITED',
+      accountKind: 'SYSTEM_LEGACY',
       authProvider: 'LOCAL',
       linkStatus: 'UNLINKED',
       isBeyonders: false,

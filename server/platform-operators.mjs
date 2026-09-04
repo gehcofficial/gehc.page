@@ -4,6 +4,7 @@
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
 import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
+import { congregationUserWhere, isSystemAccount } from './lib/system-users.mjs';
 
 export const PLATFORM_ADMIN_PORTAL_NOTE = 'platform_admin_grant';
 export const PLATFORM_ADMIN_PORTAL_ROLE = 'SUPERADMIN';
@@ -107,15 +108,13 @@ export function normalizeGrantUserIdent(raw) {
   return String(raw || '').trim().replace(/^@+/, '').trim();
 }
 
-const SYSTEM_USER_IDS = ['usr-platform-ops'];
-
 export async function searchGrantableUsers(qRaw) {
   const prisma = getPrisma();
   if (!prisma) throw new Error('DATABASE_URL belum dikonfigurasi.');
   const q = String(qRaw || '').trim().replace(/^@+/, '').trim();
   const users = await prisma.user.findMany({
     where: {
-      id: { notIn: SYSTEM_USER_IDS },
+      ...congregationUserWhere(),
       ...(q
         ? {
             OR: [
@@ -139,12 +138,13 @@ export async function resolveCongregationUser(raw) {
   const ident = normalizeGrantUserIdent(raw);
   if (!ident) return null;
   const byId = await prisma.user.findUnique({ where: { id: ident } });
-  if (byId) return byId;
-  return prisma.user.findFirst({
+  if (byId) return isSystemAccount(byId) ? null : byId;
+  const found = await prisma.user.findFirst({
     where: {
       OR: [{ email: ident }, { loginUsername: ident }],
     },
   });
+  return found && isSystemAccount(found) ? null : found;
 }
 
 export async function grantPlatformAdmin({ operatorId, userId, note }) {

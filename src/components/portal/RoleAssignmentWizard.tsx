@@ -2,6 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ShieldCheck, Loader2, X, Building } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import {
+  assignmentBranches,
+  collectAssignableSlots,
+  nestedDomainOf,
+  ORG_DOMAINS,
+  DEFAULT_ORG_DOMAIN,
+  type OrgNode,
+} from '../../lib/org-tree-utils';
 
 interface UserSearchResult {
   id: string;
@@ -10,18 +18,6 @@ interface UserSearchResult {
   avatar: string | null;
   accountStatus: string;
   onboardingStatus: string;
-}
-
-interface OrgNode {
-  id: string;
-  domain: string;
-  parentId: string | null;
-  slug: string;
-  label: string;
-  nodeKind: string;
-  metadata?: Record<string, unknown> | null;
-  sortOrder: number;
-  children?: OrgNode[];
 }
 
 interface RoleAssignmentWizardProps {
@@ -52,30 +48,6 @@ const FAMILY_ROLES = [
   { value: 'MENTEE', label: 'Mentee' },
 ];
 
-const DOMAINS = [
-  { id: 'YOUTH', label: 'Pemuda (YOUTH)' },
-  { id: 'KOLOM', label: 'Kolom (KOLOM)' },
-];
-
-function flattenBranches(nodes: OrgNode[]): OrgNode[] {
-  return nodes.filter((n) => n.nodeKind === 'BRANCH' || n.nodeKind === 'GROUP_REF');
-}
-
-function collectAssignableSlots(node: OrgNode | null): OrgNode[] {
-  if (!node) return [];
-  const out: OrgNode[] = [];
-  const walk = (n: OrgNode, prefix: string) => {
-    const label = prefix ? `${prefix} → ${n.label}` : n.label;
-    if (n.nodeKind === 'POSITION_SLOT' || n.nodeKind === 'GROUP_REF') {
-      out.push({ ...n, label });
-      return;
-    }
-    (n.children || []).forEach((c) => walk(c, label));
-  };
-  walk(node, '');
-  return out.sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
-}
-
 export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   userId: initialUserId,
   userName: initialUserName,
@@ -95,7 +67,8 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
   const [treeError, setTreeError] = useState('');
-  const [domain, setDomain] = useState('YOUTH');
+  const [domain, setDomain] = useState(DEFAULT_ORG_DOMAIN);
+  const [nestedTree, setNestedTree] = useState<OrgNode[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<OrgNode | null>(null);
   const [selectedSubBranch, setSelectedSubBranch] = useState<OrgNode | null>(null);
   const [selectedDeepBranch, setSelectedDeepBranch] = useState<OrgNode | null>(null);
@@ -131,13 +104,33 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     setSelectedSubBranch(null);
     setSelectedDeepBranch(null);
     setSelectedSlot(null);
+    setNestedTree([]);
   }, [domain]);
 
-  const topBranches = useMemo(() => flattenBranches(orgTree), [orgTree]);
+  const nestedDomain = nestedDomainOf(selectedBranch);
+  useEffect(() => {
+    if (!nestedDomain) {
+      setNestedTree([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/org/nodes?domain=${nestedDomain}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setNestedTree(d.tree || []);
+      })
+      .catch(() => {
+        if (!cancelled) setNestedTree([]);
+      });
+    return () => { cancelled = true; };
+  }, [nestedDomain]);
+
+  const topBranches = useMemo(() => assignmentBranches(orgTree, domain), [orgTree, domain]);
   const subBranches = useMemo(() => {
-    if (!selectedBranch?.children) return [];
-    return selectedBranch.children.filter((c) => c.nodeKind === 'BRANCH');
-  }, [selectedBranch]);
+    const own = (selectedBranch?.children || []).filter((c) => c.nodeKind === 'BRANCH');
+    const nested = assignmentBranches(nestedTree, nestedDomain || undefined);
+    return [...own, ...nested];
+  }, [selectedBranch, nestedTree, nestedDomain]);
   const deepBranches = useMemo(() => {
     if (!selectedSubBranch?.children) return [];
     return selectedSubBranch.children.filter((c) => c.nodeKind === 'BRANCH');
@@ -321,7 +314,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
                   onChange={(e) => setDomain(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
                 >
-                  {DOMAINS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  {ORG_DOMAINS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
 

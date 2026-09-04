@@ -1,6 +1,23 @@
 # GEHC Portal — Handoff
 
-## Current — Delete duplicate portal accounts (4 Sep 2026)
+## Current — Church org domains + hide system users (4 Sep 2026)
+
+**Goal:** Domain jabatan = Jemaat (BPMJ) → BIPRA → Kolom. `@platform.ops` bukan jemaat.
+
+### Done
+
+- Seed: BPMJ pindah `YOUTH` → `CHURCH`; domain `BIPRA` (Penatua per kategorial; Pemuda menyarang pohon Komisi).
+- Picker Assign Role / provision: Jemaat → BIPRA → Kolom (default Jemaat). BPMJ tidak lagi cabang Pemuda.
+- `accountKind: SYSTEM_LEGACY` untuk `usr-platform-ops`. `/api/jemaat` dan `/api/db/users` mengecualikan akun sistem.
+
+### Next
+
+1. `npm run db:seed:org-tree:staging` dan `:prod` agar pohon TiDB ikut pindah.
+2. Deploy `staging` + `main`.
+
+---
+
+## Prior — Delete duplicate portal accounts (4 Sep 2026)
 
 **Goal:** Orang & Undangan bisa menghapus akun duplikat (provision berulang) dengan form konfirmasi.
 

@@ -10,13 +10,33 @@ export interface OrgNode {
   children?: OrgNode[];
 }
 
+/** Picker assign: Jemaat → BIPRA → Kolom. Pohon Komisi Pemuda tetap domain YOUTH, disarang di BIPRA/Pemuda. */
 export const ORG_DOMAINS = [
-  { id: 'YOUTH', label: 'Pemuda (YOUTH)' },
-  { id: 'KOLOM', label: 'Kolom (KOLOM)' },
+  { id: 'CHURCH', label: 'Jemaat' },
+  { id: 'BIPRA', label: 'BIPRA' },
+  { id: 'KOLOM', label: 'Kolom' },
 ];
+
+export const DEFAULT_ORG_DOMAIN = 'CHURCH';
 
 export function flattenBranches(nodes: OrgNode[]): OrgNode[] {
   return nodes.filter((n) => n.nodeKind === 'BRANCH' || n.nodeKind === 'GROUP_REF');
+}
+
+export function hideYouthBpmjBranches(nodes: OrgNode[]): OrgNode[] {
+  return nodes.filter((n) => n.slug !== 'BPMJ' && !String(n.slug || '').startsWith('BPMJ_'));
+}
+
+export function assignmentBranches(nodes: OrgNode[], domain?: string): OrgNode[] {
+  const list = flattenBranches(nodes);
+  if (domain === 'YOUTH') return hideYouthBpmjBranches(list);
+  return list;
+}
+
+export function nestedDomainOf(node: OrgNode | null): string | null {
+  const raw = node?.metadata?.nestedDomain;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return raw.trim().toUpperCase();
 }
 
 export function collectAssignableSlots(node: OrgNode | null): OrgNode[] {
