@@ -7,6 +7,8 @@ import { ProfileRecreationalSection } from './ProfileRecreationalSection';
 import { ProfileChurchDataRequestPanel, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { LinkGoogleCard } from './LinkGoogleCard';
 import { displayAvatar } from '../../lib/avatar';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import type { SearchableOption } from '../../lib/searchable-options';
 import {
   COMMON_MAJORS,
   LIFE_STATUS_LABEL,
@@ -37,8 +39,6 @@ export const MyProfilePanel: React.FC<{
   const [saving, setSaving] = useState(false);
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [institutions, setInstitutions] = useState<Array<{ id: string; name: string; city?: string | null }>>([]);
-  const [instSearch, setInstSearch] = useState('');
   const [selectedInst, setSelectedInst] = useState<{ id: string; name: string } | null>(null);
   const [pendingInst, setPendingInst] = useState<Array<{ id: string; name: string; status: string }>>([]);
   const [showInstOther, setShowInstOther] = useState(false);
@@ -169,7 +169,6 @@ export const MyProfilePanel: React.FC<{
       const inst = instRes.ok ? await instRes.json() : {};
       const rec = recRes.ok ? await recRes.json() : {};
       const kolomData = kolomRes.ok ? await kolomRes.json() : {};
-      setInstitutions(inst.institutions || []);
       setMajors(inst.majors || COMMON_MAJORS);
       setRecFlat(rec.recreational || []);
       setKolomList(kolomData.kolom || []);
@@ -221,20 +220,16 @@ export const MyProfilePanel: React.FC<{
 
   useEffect(() => { load(); }, [authUser?.id]);
 
-  useEffect(() => {
-    const q = instSearch.trim();
-    if (q.length < 2) {
-      setInstitutions([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      const res = await fetch(`/api/institutions?kind=UNIVERSITY&q=${encodeURIComponent(q)}`, { credentials: 'include' });
-      const d = res.ok ? await res.json() : {};
-      setInstitutions(d.institutions || []);
-      if (Array.isArray(d.majors) && d.majors.length) setMajors(d.majors);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [instSearch]);
+  const searchInstitutions = useCallback(async (q: string): Promise<SearchableOption[]> => {
+    const res = await fetch(`/api/institutions?kind=UNIVERSITY&q=${encodeURIComponent(q)}`, { credentials: 'include' });
+    const d = res.ok ? await res.json() : {};
+    if (Array.isArray(d.majors) && d.majors.length) setMajors(d.majors);
+    return (d.institutions || []).map((i: { id: string; name: string; city?: string | null }) => ({
+      value: i.id,
+      label: i.name,
+      hint: i.city || undefined,
+    }));
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -533,36 +528,19 @@ export const MyProfilePanel: React.FC<{
             )}
             {form.lifeStatuses.includes('UNIVERSITY') && (
               <div className="space-y-2">
-                <div className="relative">
-                  <input
-                    className={field}
-                    placeholder="Cari universitas (min. 2 huruf)…"
-                    value={instSearch}
-                    onChange={(e) => setInstSearch(e.target.value)}
-                  />
-                  {selectedInst && (
-                    <p className="text-[10px] text-[#8C8880] mt-1">Terpilih: <span className="font-bold text-[#1B1B1B]">{selectedInst.name}</span></p>
-                  )}
-                  {instSearch.trim().length >= 2 && institutions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto rounded-xl border border-[#D9D7D0] bg-white shadow-lg">
-                      {institutions.map((i) => (
-                        <button
-                          key={i.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-xs hover:bg-[#FAF9F5]"
-                          onClick={() => {
-                            setSelectedInst({ id: i.id, name: i.name });
-                            setForm((f) => ({ ...f, institutionId: i.id }));
-                            setInstSearch('');
-                            setInstitutions([]);
-                          }}
-                        >
-                          {i.name}{i.city ? ` · ${i.city}` : ''}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <p className="text-[10px] font-bold uppercase text-[#8C8880]">Universitas</p>
+                <SearchableSelect
+                  value={form.institutionId}
+                  selectedLabel={selectedInst?.name}
+                  minQuery={2}
+                  placeholder="Cari kampus…"
+                  emptyHint="Ketik nama kampus (min. 2 huruf). Tidak ketemu? pakai Lainnya di bawah."
+                  onSearch={searchInstitutions}
+                  onChange={(id, option) => {
+                    setSelectedInst(option ? { id: option.value, name: option.label } : null);
+                    setForm((f) => ({ ...f, institutionId: id }));
+                  }}
+                />
                 <button type="button" onClick={() => setShowInstOther((v) => !v)} className="text-[10px] font-bold text-[#FF416C]">
                   Lainnya… (kampus tidak ada di daftar)
                 </button>
@@ -584,10 +562,14 @@ export const MyProfilePanel: React.FC<{
                     {pendingInst.map((s) => <p key={s.id} className="text-[10px] text-amber-900">• {s.name}</p>)}
                   </div>
                 )}
-                <select className={field} value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}>
-                  <option value="">Jurusan</option>
-                  {majors.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <SearchableSelect
+                  value={form.major}
+                  selectedLabel={form.major || undefined}
+                  options={majors.map((m) => ({ value: m, label: m }))}
+                  placeholder="Cari jurusan…"
+                  emptyHint="Tidak ada di daftar? pilih Lainnya."
+                  onChange={(id) => setForm((f) => ({ ...f, major: id }))}
+                />
                 {form.major === 'Lainnya' && (
                   <input
                     className={field}
@@ -606,10 +588,13 @@ export const MyProfilePanel: React.FC<{
                   value={form.workplaceName}
                   onChange={(e) => setForm((f) => ({ ...f, workplaceName: e.target.value }))}
                 />
-                <select className={field} value={form.workIndustry} onChange={(e) => setForm((f) => ({ ...f, workIndustry: e.target.value }))}>
-                  <option value="">Industri / sektor</option>
-                  {WORK_INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
-                </select>
+                <SearchableSelect
+                  value={form.workIndustry}
+                  selectedLabel={form.workIndustry || undefined}
+                  options={WORK_INDUSTRIES.map((ind) => ({ value: ind, label: ind }))}
+                  placeholder="Cari industri / sektor…"
+                  onChange={(id) => setForm((f) => ({ ...f, workIndustry: id }))}
+                />
                 <input
                   className={field}
                   placeholder="Jabatan / role (opsional)"
