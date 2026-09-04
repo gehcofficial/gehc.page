@@ -792,7 +792,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts((prev) => [...prev, { ...toast, id }]);
     setTimeout(() => {
       removeToast(id);
-    }, 4500);
+    }, 6500);
   }, [removeToast]);
 
   // Content Operations (CMS) — optimistic local + sync TiDB

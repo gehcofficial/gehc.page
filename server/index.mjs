@@ -866,13 +866,21 @@ app.get('/api/notifications', wrap(async (req, res) => {
   try {
     // Get notifications where user is mentioned (payload.authorId != user AND user is mentioned)
     const notifications = await prisma.notification.findMany({
-      where: { status: 'OPEN' },
+      where: {
+        status: 'OPEN',
+        OR: [
+          { memberId: req.authUser.id },
+          { type: 'MENTION' },
+          { type: { in: ['IDLE_FLAG', 'MITOSIS_ALERT', 'MERGER_SUGGESTION'] } },
+        ],
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
+      if (n.title === 'Push Subscription') return false;
       if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE' || n.type === 'CATALOG_REMINDER') {
         return n.memberId === req.authUser.id;
       }

@@ -190,8 +190,8 @@ export const MyProfilePanel: React.FC<{
       setPendingInst(p.institutionSuggestions || []);
       setChurchDataRequest(p.churchDataRequest || null);
       setDue(Boolean(p.reminderDue));
-      const inst = u.institution;
-      setSelectedInst(inst?.id ? { id: inst.id, name: inst.name } : null);
+      const userInst = u.institution;
+      setSelectedInst(userInst?.id ? { id: userInst.id, name: userInst.name } : null);
       setForm({
         gender: u.gender || '',
         phone: u.phone || '',

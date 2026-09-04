@@ -314,6 +314,84 @@ interface BeyondersGroupData {
   }>;
 }
 
+function InlineBulkAssignPanel({
+  selectedCount,
+  liveGroups,
+  bulkGroupId,
+  onGroupChange,
+  bulkFamilyRole,
+  onFamilyRoleChange,
+  bulkBusy,
+  onAssign,
+  onProvision,
+  className = 'mx-4 mb-4',
+}: {
+  selectedCount: number;
+  liveGroups: Array<{ id: string; name: string }>;
+  bulkGroupId: string;
+  onGroupChange: (id: string) => void;
+  bulkFamilyRole: 'MENTEE' | 'MENTOR' | 'CO_MENTOR';
+  onFamilyRoleChange: (role: 'MENTEE' | 'MENTOR' | 'CO_MENTOR') => void;
+  bulkBusy: boolean;
+  onAssign: () => void;
+  onProvision: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-2xl border border-[#FF416C]/25 bg-[#FF416C]/5 p-3 space-y-2 ${className}`}>
+      <p className="text-[10px] font-black uppercase tracking-wider text-[#FF416C]">
+        Assign di baris ini · {selectedCount} dipilih
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <label className="block space-y-1">
+          <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Assign ke grup</span>
+          <select
+            value={bulkGroupId}
+            onChange={(e) => onGroupChange(e.target.value)}
+            className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] bg-white text-xs"
+          >
+            {liveGroups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Peran family</span>
+          <select
+            value={bulkFamilyRole}
+            onChange={(e) => onFamilyRoleChange(e.target.value as 'MENTEE' | 'MENTOR' | 'CO_MENTOR')}
+            className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] bg-white text-xs"
+          >
+            <option value="MENTEE">Mentee</option>
+            <option value="MENTOR">Mentor (1 orang)</option>
+            <option value="CO_MENTOR">Co-Mentor (1 orang)</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={bulkBusy || !bulkGroupId}
+          onClick={onAssign}
+          className="px-3 py-2 rounded-xl bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+        >
+          {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
+          Assign ({selectedCount})
+        </button>
+        <button
+          type="button"
+          disabled={bulkBusy}
+          onClick={onProvision}
+          className="px-3 py-2 rounded-xl bg-[#181818] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+        >
+          {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+          Provision akun
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export const YouthGEHCList: React.FC = () => {
   const { addToast } = useApp();
   const [youth, setYouth] = useState<YouthUser[] | null>(null);
@@ -323,7 +401,12 @@ export const YouthGEHCList: React.FC = () => {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [mainFilter, setMainFilter] = useState<MainFilter>('ALL');
   const [subFilter, setSubFilter] = useState<string | null>(null);
-  const [assignWizardUser, setAssignWizardUser] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [assignWizardUser, setAssignWizardUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    anchor: HTMLElement | null;
+  } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
   const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
@@ -358,6 +441,8 @@ export const YouthGEHCList: React.FC = () => {
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const [churchRequestBusy, setChurchRequestBusy] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [justAssignedId, setJustAssignedId] = useState<string | null>(null);
   const [liveGroups, setLiveGroups] = useState<Array<{ id: string; name: string; color: string }>>(BEYONDER_GROUPS);
   const [bulkGroupId, setBulkGroupId] = useState('');
   const [bulkFamilyRole, setBulkFamilyRole] = useState<'MENTEE' | 'MENTOR' | 'CO_MENTOR'>('MENTEE');
@@ -760,20 +845,50 @@ export const YouthGEHCList: React.FC = () => {
     return Array.from(groupMap.values()).filter((g) => g.members.length > 0);
   }, [allFiltered, liveGroups]);
 
+  const visibleAssignTargetId = useMemo(() => {
+    if (selectedIds.size === 0) return null;
+    const onPage = pagedYouth.filter((y) => selectedIds.has(y.id)).map((y) => y.id);
+    const inGroups = beyondersGrouped
+      .flatMap((g) => g.members.map((m) => m.user.id))
+      .filter((id) => selectedIds.has(id));
+    const visible = new Set([...onPage, ...inGroups]);
+    if (lastSelectedId && visible.has(lastSelectedId)) return lastSelectedId;
+    return onPage[0] || inGroups[0] || null;
+  }, [selectedIds, lastSelectedId, pagedYouth, beyondersGrouped]);
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setLastSelectedId((cur) => {
+          if (cur !== id) return cur;
+          const rest = [...next];
+          return rest[rest.length - 1] || null;
+        });
+      } else {
+        next.add(id);
+        setLastSelectedId(id);
+      }
       return next;
     });
   };
 
   const selectDisplayed = () => {
-    setSelectedIds(new Set(displayed.map((y) => y.id)));
+    const ids = displayed.map((y) => y.id);
+    setSelectedIds(new Set(ids));
+    setLastSelectedId(ids[ids.length - 1] || null);
   };
 
-  const clearSelection = () => setSelectedIds(new Set());
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setLastSelectedId(null);
+  };
+
+  const openAssignWizard = (y: { id: string; name: string; email: string | null }, anchor: HTMLElement) => {
+    setAssignWizardUser({ id: y.id, name: y.name, email: y.email || '', anchor });
+    setExpanded(y.id);
+  };
 
   const runBulkAssign = async () => {
     if (!bulkGroupId || selectedIds.size === 0) return;
@@ -791,12 +906,22 @@ export const YouthGEHCList: React.FC = () => {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'Bulk assign gagal');
+      const flashId = lastSelectedId;
       addToast({
         type: 'success',
-        title: 'Assign selesai',
-        description: `${d.assigned || 0} masuk grup${d.failed ? `, ${d.failed} gagal` : ''}.`,
+        title: 'Role baru ditugaskan',
+        description: `${d.assigned || 0} jemaat masuk grup${d.failed ? `, ${d.failed} gagal` : ''}. Notifikasi dikirim ke masing-masing.`,
       });
+      if (lastSelectedId) {
+        setJustAssignedId(lastSelectedId);
+        window.setTimeout(() => setJustAssignedId(null), 5000);
+      }
       clearSelection();
+      if (flashId) {
+        setJustAssignedId(flashId);
+        setExpanded(flashId);
+        window.setTimeout(() => setJustAssignedId((cur) => (cur === flashId ? null : cur)), 6000);
+      }
       await fetchData();
     } catch (err) {
       addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Bulk assign gagal' });
@@ -861,6 +986,179 @@ export const YouthGEHCList: React.FC = () => {
     } finally {
       setRevokingId(null);
     }
+  };
+
+  const renderInlineBulk = (userId: string) => (
+    userId === visibleAssignTargetId ? (
+      <InlineBulkAssignPanel
+        selectedCount={selectedIds.size}
+        liveGroups={liveGroups}
+        bulkGroupId={bulkGroupId}
+        onGroupChange={setBulkGroupId}
+        bulkFamilyRole={bulkFamilyRole}
+        onFamilyRoleChange={setBulkFamilyRole}
+        bulkBusy={bulkBusy}
+        onAssign={runBulkAssign}
+        onProvision={runBulkProvision}
+      />
+    ) : null
+  );
+
+  const copyClaimLink = async (userId: string) => {
+    const res = await fetch(`/api/admin/users/${userId}/claim-link`, { method: 'POST', credentials: 'include' });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      addToast({ type: 'error', title: 'Gagal', description: d.error || 'Tidak bisa buat taut' });
+      return;
+    }
+    try { await navigator.clipboard.writeText(d.claimUrl); } catch { /* ignore */ }
+    setClaimInfo(d.claimUrl);
+    addToast({ type: 'success', title: 'Link taut disalin', description: 'Kirim ke jemaat untuk bind Google.' });
+  };
+
+  const renderDirectoryRow = (y: YouthUser) => {
+    const isExpanded = expanded === y.id;
+    const roles = displayRoles(y);
+    const assignedFlash = justAssignedId === y.id;
+
+    return (
+      <div
+        key={y.id}
+        className={`bg-white rounded-2xl border overflow-hidden ${
+          assignedFlash ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-[#D9D7D0]/50'
+        }`}
+      >
+        <div className="w-full flex items-center gap-3 p-4">
+          <input
+            type="checkbox"
+            checked={selectedIds.has(y.id)}
+            onChange={() => toggleSelect(y.id)}
+            className="rounded border-[#D9D7D0] shrink-0"
+            aria-label={`Pilih ${y.name}`}
+          />
+          <button
+            onClick={() => setExpanded(isExpanded ? null : y.id)}
+            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+          >
+            <img
+              src={displayAvatar(y.name, y.avatar)}
+              alt={y.name}
+              className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate">{y.name}</p>
+              <p className="text-[10px] text-[#8C8880] truncate">
+                {y.email || 'Belum ada email'}
+                {y.kolom ? ` · ${y.kolom.name}` : ''}
+                {y.demographics?.age != null ? ` · ${y.demographics.age} th` : ''}
+                {y.demographics?.daysToBirthday != null && y.demographics.daysToBirthday <= 30
+                  ? ` · HUT ${y.demographics.daysToBirthday}h`
+                  : ''}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1 shrink-0 max-w-[220px] justify-end">
+              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
+                y.linkStatus === 'LINKED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
+              }`}>
+                {y.linkStatus === 'LINKED' ? (y.authProvider === 'LOCAL' ? 'Lokal' : 'Google') : 'Belum taut'}
+              </span>
+              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
+                {domicileLabel(y)}
+              </span>
+              {y.membershipKind === 'SIMPATISAN' ? (
+                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Simpatisan</span>
+              ) : null}
+              {roles.slice(0, 3).map((r) => (
+                <span key={r.key} className={`text-[8px] font-black px-1.5 py-0.5 rounded ${r.color}`}>
+                  {r.label}
+                </span>
+              ))}
+              {roles.length > 3 && (
+                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                  +{roles.length - 3}
+                </span>
+              )}
+            </div>
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-[#8C8880] shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#8C8880] shrink-0" />}
+          </button>
+
+          <button
+            onClick={() => openEditModal(y)}
+            className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0 transition-colors"
+            title="Edit profil"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          {y.linkStatus !== 'LINKED' && (
+            <button
+              type="button"
+              onClick={() => copyClaimLink(y.id)}
+              className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0"
+              title="Buat taut Google"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => openAssignWizard(y, e.currentTarget)}
+            className="p-2 rounded-xl bg-[#FF416C]/10 hover:bg-[#FF416C]/20 text-[#FF416C] shrink-0 transition-colors"
+            title="Assign Role"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {renderInlineBulk(y.id)}
+
+        {assignedFlash && (
+          <p className="px-4 pb-2 text-[10px] font-bold text-emerald-700">Role baru ditugaskan. Jemaat mendapat notifikasi di lonceng.</p>
+        )}
+
+        {isExpanded && (
+          <div className="px-4 pb-4 border-t border-[#D9D7D0]/40">
+            <div className="pt-3 space-y-2">
+              {renderBipraBanner(y)}
+              {roles.length === 0 ? (
+                <p className="text-xs text-[#8C8880]">Tidak ada role aktif.</p>
+              ) : (
+                roles.map((r) => (
+                  <div key={r.key} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#FAF9F5]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded shrink-0 ${r.color}`}>
+                        {r.label}
+                      </span>
+                      {r.detail && <span className="text-[10px] text-[#8C8880] truncate">{r.detail}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {r.key.startsWith('legacy-') ? (
+                        <span className="text-[8px] text-[#8C8880] italic">legacy</span>
+                      ) : (
+                        <button
+                          onClick={() => revokeRole(r.key)}
+                          disabled={revokingId === r.key}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 disabled:opacity-50"
+                          title="Cabut role"
+                        >
+                          {revokingId === r.key ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={(e) => openAssignWizard(y, e.currentTarget)}
+                className="w-full py-2 rounded-xl border border-dashed border-[#FF416C]/40 text-[10px] font-bold text-[#FF416C] hover:bg-[#FF416C]/5"
+              >
+                Tambah role
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -1143,57 +1441,6 @@ export const YouthGEHCList: React.FC = () => {
 
       {youthPager}
 
-      {selectedIds.size > 0 && (
-        <div className="sticky top-2 z-20 bg-white border border-[#D9D7D0] rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-end gap-3">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label className="block space-y-1">
-              <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Assign ke grup</span>
-              <select
-                value={bulkGroupId}
-                onChange={(e) => setBulkGroupId(e.target.value)}
-                className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs"
-              >
-                {liveGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block space-y-1">
-              <span className="text-[9px] font-bold text-[#8C8880] uppercase tracking-wider">Peran family</span>
-              <select
-                value={bulkFamilyRole}
-                onChange={(e) => setBulkFamilyRole(e.target.value as 'MENTEE' | 'MENTOR' | 'CO_MENTOR')}
-                className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs"
-              >
-                <option value="MENTEE">Mentee</option>
-                <option value="MENTOR">Mentor (1 orang)</option>
-                <option value="CO_MENTOR">Co-Mentor (1 orang)</option>
-              </select>
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={bulkBusy || !bulkGroupId}
-              onClick={runBulkAssign}
-              className="px-3 py-2 rounded-xl bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
-            >
-              {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
-              Assign ({selectedIds.size})
-            </button>
-            <button
-              type="button"
-              disabled={bulkBusy}
-              onClick={runBulkProvision}
-              className="px-3 py-2 rounded-xl bg-[#181818] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
-            >
-              {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
-              Provision akun
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Content based on mainFilter */}
       {mainFilter === 'BEYONDERS' ? (
         // BEYONDERS TAB - Grouped by 10 groups with pending indicator
@@ -1242,10 +1489,9 @@ export const YouthGEHCList: React.FC = () => {
 
                 {/* Group Members */}
                 <div className="p-4 space-y-2">
-                  {gData.members.map((member) => {
-                    const roles = displayRoles(member.user).filter(r => BEYONDER_ROLES.includes(r.role));
-                    return (
-                      <div key={member.assignmentId} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
+                  {gData.members.map((member) => (
+                      <div key={member.assignmentId} className="space-y-2">
+                      <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
                         member.isPending ? 'bg-amber-50 border-l-4 border-amber-400' : 'bg-[#FAF9F5] hover:bg-[#F3F1EC]'
                       }`}>
                         <input
@@ -1290,6 +1536,14 @@ export const YouthGEHCList: React.FC = () => {
                             <Pencil className="w-3 h-3" />
                           </button>
                           <button
+                            type="button"
+                            onClick={(e) => openAssignWizard(member.user, e.currentTarget)}
+                            className="p-1.5 rounded-lg hover:bg-[#FF416C]/10 text-[#FF416C]"
+                            title="Assign Role"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
                             onClick={() => revokeRole(member.assignmentId)}
                             disabled={revokingId === member.assignmentId}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 disabled:opacity-50"
@@ -1299,8 +1553,22 @@ export const YouthGEHCList: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
+                      {member.user.id === visibleAssignTargetId ? (
+                        <InlineBulkAssignPanel
+                          selectedCount={selectedIds.size}
+                          liveGroups={liveGroups}
+                          bulkGroupId={bulkGroupId}
+                          onGroupChange={setBulkGroupId}
+                          bulkFamilyRole={bulkFamilyRole}
+                          onFamilyRoleChange={setBulkFamilyRole}
+                          bulkBusy={bulkBusy}
+                          onAssign={runBulkAssign}
+                          onProvision={runBulkProvision}
+                          className=""
+                        />
+                      ) : null}
+                      </div>
+                    ))}
                 </div>
               </div>
             ))
@@ -1320,141 +1588,7 @@ export const YouthGEHCList: React.FC = () => {
               </p>
             </div>
           ) : (
-            pagedYouth.map((y) => {
-              const isExpanded = expanded === y.id;
-              const roles = displayRoles(y);
-
-              return (
-                <div key={y.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden">
-                  <div className="w-full flex items-center gap-3 p-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(y.id)}
-                      onChange={() => toggleSelect(y.id)}
-                      className="rounded border-[#D9D7D0] shrink-0"
-                      aria-label={`Pilih ${y.name}`}
-                    />
-                    <button
-                      onClick={() => setExpanded(isExpanded ? null : y.id)}
-                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                    >
-                      <img
-                        src={displayAvatar(y.name, y.avatar)}
-                        alt={y.name}
-                        className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate">{y.name}</p>
-                        <p className="text-[10px] text-[#8C8880] truncate">
-                          {y.email || 'Belum ada email'}
-                          {y.kolom ? ` · ${y.kolom.name}` : ''}
-                          {y.demographics?.age != null ? ` · ${y.demographics.age} th` : ''}
-                          {y.demographics?.daysToBirthday != null && y.demographics.daysToBirthday <= 30
-                            ? ` · HUT ${y.demographics.daysToBirthday}h`
-                            : ''}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1 shrink-0 max-w-[220px] justify-end">
-                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
-                          y.linkStatus === 'LINKED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
-                        }`}>
-                          {y.linkStatus === 'LINKED' ? (y.authProvider === 'LOCAL' ? 'Lokal' : 'Google') : 'Belum taut'}
-                        </span>
-                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
-                          {domicileLabel(y)}
-                        </span>
-                        {y.membershipKind === 'SIMPATISAN' ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Simpatisan</span>
-                        ) : null}
-                        {roles.slice(0, 3).map((r) => (
-                          <span key={r.key} className={`text-[8px] font-black px-1.5 py-0.5 rounded ${r.color}`}>
-                            {r.label}
-                          </span>
-                        ))}
-                        {roles.length > 3 && (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                            +{roles.length - 3}
-                          </span>
-                        )}
-                      </div>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-[#8C8880] shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#8C8880] shrink-0" />}
-                    </button>
-
-                    {/* Action buttons */}
-                    <button
-                      onClick={() => openEditModal(y)}
-                      className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0 transition-colors"
-                      title="Edit profil"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    {y.linkStatus !== 'LINKED' && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const res = await fetch(`/api/admin/users/${y.id}/claim-link`, { method: 'POST', credentials: 'include' });
-                          const d = await res.json().catch(() => ({}));
-                          if (!res.ok) {
-                            addToast({ type: 'error', title: 'Gagal', description: d.error || 'Tidak bisa buat taut' });
-                            return;
-                          }
-                          try { await navigator.clipboard.writeText(d.claimUrl); } catch { /* ignore */ }
-                          setClaimInfo(d.claimUrl);
-                          addToast({ type: 'success', title: 'Link taut disalin', description: 'Kirim ke jemaat untuk bind Google.' });
-                        }}
-                        className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0"
-                        title="Buat taut Google"
-                      >
-                        <Link2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setAssignWizardUser({ id: y.id, name: y.name, email: y.email || '' })}
-                      className="p-2 rounded-xl bg-[#FF416C]/10 hover:bg-[#FF416C]/20 text-[#FF416C] shrink-0 transition-colors"
-                      title="Assign Role"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-[#D9D7D0]/40">
-                      <div className="pt-3 space-y-2">
-                        {renderBipraBanner(y)}
-                        {roles.length === 0 ? (
-                          <p className="text-xs text-[#8C8880]">Tidak ada role aktif.</p>
-                        ) : (
-                          roles.map((r) => (
-                            <div key={r.key} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#FAF9F5]">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded shrink-0 ${r.color}`}>
-                                  {r.label}
-                                </span>
-                                {r.detail && <span className="text-[10px] text-[#8C8880] truncate">{r.detail}</span>}
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {r.key.startsWith('legacy-') ? (
-                                  <span className="text-[8px] text-[#8C8880] italic">legacy</span>
-                                ) : (
-                                  <button
-                                    onClick={() => revokeRole(r.key)}
-                                    disabled={revokingId === r.key}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 disabled:opacity-50"
-                                    title="Cabut role"
-                                  >
-                                    {revokingId === r.key ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+            pagedYouth.map(renderDirectoryRow)
           )}
         </div>
       ) : (
@@ -1467,140 +1601,7 @@ export const YouthGEHCList: React.FC = () => {
               <p className="text-xs text-[#8C8880] mt-1">Role assignment belum dilakukan.</p>
             </div>
           ) : (
-            pagedYouth.map((y) => {
-              const isExpanded = expanded === y.id;
-              const roles = displayRoles(y);
-
-              return (
-                <div key={y.id} className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden">
-                  <div className="w-full flex items-center gap-3 p-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(y.id)}
-                      onChange={() => toggleSelect(y.id)}
-                      className="rounded border-[#D9D7D0] shrink-0"
-                      aria-label={`Pilih ${y.name}`}
-                    />
-                    <button
-                      onClick={() => setExpanded(isExpanded ? null : y.id)}
-                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                    >
-                      <img
-                        src={displayAvatar(y.name, y.avatar)}
-                        alt={y.name}
-                        className="w-10 h-10 rounded-full object-cover border border-[#D9D7D0]"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate">{y.name}</p>
-                        <p className="text-[10px] text-[#8C8880] truncate">
-                          {y.email || 'Belum ada email'}
-                          {y.kolom ? ` · ${y.kolom.name}` : ''}
-                          {y.demographics?.age != null ? ` · ${y.demographics.age} th` : ''}
-                          {y.demographics?.daysToBirthday != null && y.demographics.daysToBirthday <= 30
-                            ? ` · HUT ${y.demographics.daysToBirthday}h`
-                            : ''}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1 shrink-0 max-w-[220px] justify-end">
-                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
-                          y.linkStatus === 'LINKED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
-                        }`}>
-                          {y.linkStatus === 'LINKED' ? (y.authProvider === 'LOCAL' ? 'Lokal' : 'Google') : 'Belum taut'}
-                        </span>
-                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
-                          {domicileLabel(y)}
-                        </span>
-                        {y.membershipKind === 'SIMPATISAN' ? (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Simpatisan</span>
-                        ) : null}
-                        {roles.slice(0, 3).map((r) => (
-                          <span key={r.key} className={`text-[8px] font-black px-1.5 py-0.5 rounded ${r.color}`}>
-                            {r.label}
-                          </span>
-                        ))}
-                        {roles.length > 3 && (
-                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                            +{roles.length - 3}
-                          </span>
-                        )}
-                      </div>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-[#8C8880] shrink-0" /> : <ChevronDown className="w-4 h-4 text-[#8C8880] shrink-0" />}
-                    </button>
-
-                    <button
-                      onClick={() => openEditModal(y)}
-                      className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0 transition-colors"
-                      title="Edit profil"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    {y.linkStatus !== 'LINKED' && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const res = await fetch(`/api/admin/users/${y.id}/claim-link`, { method: 'POST', credentials: 'include' });
-                          const d = await res.json().catch(() => ({}));
-                          if (!res.ok) {
-                            addToast({ type: 'error', title: 'Gagal', description: d.error || 'Tidak bisa buat taut' });
-                            return;
-                          }
-                          try { await navigator.clipboard.writeText(d.claimUrl); } catch { /* ignore */ }
-                          setClaimInfo(d.claimUrl);
-                          addToast({ type: 'success', title: 'Link taut disalin', description: 'Kirim ke jemaat untuk bind Google.' });
-                        }}
-                        className="p-2 rounded-xl bg-white border border-[#D9D7D0] hover:bg-[#F3F1EC] text-[#8C8880] shrink-0"
-                        title="Buat taut Google"
-                      >
-                        <Link2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setAssignWizardUser({ id: y.id, name: y.name, email: y.email || '' })}
-                      className="p-2 rounded-xl bg-[#FF416C]/10 hover:bg-[#FF416C]/20 text-[#FF416C] shrink-0 transition-colors"
-                      title="Assign Role"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-[#D9D7D0]/40">
-                      <div className="pt-3 space-y-2">
-                        {renderBipraBanner(y)}
-                        {roles.length === 0 ? (
-                          <p className="text-xs text-[#8C8880]">Tidak ada role aktif.</p>
-                        ) : (
-                          roles.map((r) => (
-                            <div key={r.key} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#FAF9F5]">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded shrink-0 ${r.color}`}>
-                                  {r.label}
-                                </span>
-                                {r.detail && <span className="text-[10px] text-[#8C8880] truncate">{r.detail}</span>}
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {r.key.startsWith('legacy-') ? (
-                                  <span className="text-[8px] text-[#8C8880] italic">legacy</span>
-                                ) : (
-                                  <button
-                                    onClick={() => revokeRole(r.key)}
-                                    disabled={revokingId === r.key}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 disabled:opacity-50"
-                                    title="Cabut role"
-                                  >
-                                    {revokingId === r.key ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+            pagedYouth.map(renderDirectoryRow)
           )}
         </div>
       )}
@@ -1905,9 +1906,14 @@ export const YouthGEHCList: React.FC = () => {
         <RoleAssignmentWizard
           userId={assignWizardUser.id}
           userName={assignWizardUser.name}
+          anchorEl={assignWizardUser.anchor}
           onClose={() => setAssignWizardUser(null)}
           onAssigned={() => {
+            const id = assignWizardUser.id;
             setAssignWizardUser(null);
+            setExpanded(id);
+            setJustAssignedId(id);
+            window.setTimeout(() => setJustAssignedId((cur) => (cur === id ? null : cur)), 6000);
             fetchData();
           }}
         />

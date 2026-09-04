@@ -91,6 +91,22 @@ export async function assignOrgSlot(prisma, {
         data: { kolomId: m.linkedKolomId },
       });
     }
+  } else {
+    try {
+      await prisma.notification.create({
+        data: {
+          id: genOrgId(),
+          type: 'ROLE_ASSIGNED',
+          memberId: userId,
+          title: 'Peran baru ditugaskan',
+          message: `Kamu ditugaskan ke ${position || node.label}. Buka portal untuk melihat konteks peran aktif.`,
+          payload: { orgNodeId, position, assignedBy, href: '#/account/roles' },
+          status: 'OPEN',
+        },
+      });
+    } catch (e) {
+      console.warn('[org-assign] notifikasi ROLE_ASSIGNED gagal:', e?.message || e);
+    }
   }
 
   const orgAssignment = await prisma.orgAssignment.create({

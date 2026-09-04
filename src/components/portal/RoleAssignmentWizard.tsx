@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ShieldCheck, Loader2, X, Building } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { popoverPosition, type PopoverBox } from '../../lib/popover-position';
 import {
   assignmentBranches,
   collectAssignableSlots,
@@ -23,8 +24,9 @@ interface UserSearchResult {
 interface RoleAssignmentWizardProps {
   userId?: string;
   userName?: string;
+  anchorEl?: HTMLElement | null;
   onClose: () => void;
-  onAssigned: () => void;
+  onAssigned: (info?: { userName: string; roleLabel: string }) => void;
 }
 
 type WizardMode = 'superadmin' | 'org';
@@ -51,6 +53,7 @@ const FAMILY_ROLES = [
 export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   userId: initialUserId,
   userName: initialUserName,
+  anchorEl = null,
   onClose,
   onAssigned,
 }) => {
@@ -75,6 +78,32 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<OrgNode | null>(null);
   const [groupId, setGroupId] = useState(GROUPS[0].id);
   const [familyRole, setFamilyRole] = useState('MENTEE');
+  const [anchorBox, setAnchorBox] = useState<PopoverBox | null>(null);
+
+  useLayoutEffect(() => {
+    if (!anchorEl || typeof window === 'undefined' || window.innerWidth < 640) {
+      setAnchorBox(null);
+      return;
+    }
+    const update = () => {
+      if (!anchorEl.isConnected) return;
+      if (window.innerWidth < 640) {
+        setAnchorBox(null);
+        return;
+      }
+      setAnchorBox(popoverPosition(anchorEl.getBoundingClientRect(), {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }));
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [anchorEl]);
 
   const loadTree = useCallback(async (d: string) => {
     setTreeLoading(true);
@@ -195,8 +224,15 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
         }
       }
 
-      addToast({ type: 'success', title: 'Role Ditugaskan', description: `${selectedUser.name} berhasil ditugaskan.` });
-      onAssigned();
+      const roleLabel = mode === 'superadmin'
+        ? 'Superadmin'
+        : (selectedSlot?.label || 'slot organisasi');
+      addToast({
+        type: 'success',
+        title: 'Role baru ditugaskan',
+        description: `${selectedUser.name} mendapat ${roleLabel}. Notifikasi juga dikirim ke jemaat.`,
+      });
+      onAssigned({ userName: selectedUser.name, roleLabel });
       onClose();
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: (e as Error).message });
@@ -210,9 +246,12 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     { id: 'superadmin', label: 'Superadmin', icon: <ShieldCheck className="w-4 h-4" /> },
   ];
 
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-white rounded-[32px] w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+  const panel = (
+    <div
+      className="bg-white rounded-[32px] w-full overflow-y-auto shadow-2xl border border-[#D9D7D0]/60"
+      style={{ maxHeight: anchorBox ? anchorBox.maxHeight : '90vh' }}
+      onClick={(e) => e.stopPropagation()}
+    >
         <div className="sticky top-0 bg-white rounded-t-[32px] border-b border-[#D9D7D0]/50 p-6 pb-4 z-10">
           <div className="flex items-center justify-between">
             <div>
@@ -429,8 +468,25 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
             {assigning ? 'Menugaskan…' : 'Assign Role'}
           </button>
         </div>
+    </div>
+  );
+
+  return createPortal(
+    anchorBox ? (
+      <div className="fixed inset-0 z-[80]" onClick={onClose}>
+        <div
+          className="fixed z-[81]"
+          style={{ top: anchorBox.top, left: anchorBox.left, width: anchorBox.width }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {panel}
+        </div>
       </div>
-    </div>,
+    ) : (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div className="w-full max-w-lg">{panel}</div>
+      </div>
+    ),
     document.body,
   );
 };
