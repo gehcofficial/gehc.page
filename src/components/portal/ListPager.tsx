@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLang } from '../../context/LangContext';
 import { fmt } from '../../lib/portal-i18n';
+import { readStoredString, writeStored } from '../../lib/safe-storage';
 
 const STORAGE_KEY = 'gehc_list_page_size';
 const SIZES = [10, 20, 50] as const;
@@ -8,8 +9,7 @@ const SIZES = [10, 20, 50] as const;
 export type PageSize = number | 'all';
 
 export function readStoredPageSize(): PageSize {
-  if (typeof window === 'undefined') return 10;
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = readStoredString(STORAGE_KEY, '10');
   if (raw === 'all') return 'all';
   const n = Number(raw);
   if (SIZES.includes(n as (typeof SIZES)[number])) return n;
@@ -35,7 +35,7 @@ export function useListPager<T>(items: T[]): {
 
   const changeSize = (next: PageSize) => {
     setPageSize(next);
-    localStorage.setItem(STORAGE_KEY, String(next));
+    writeStored(STORAGE_KEY, String(next));
   };
 
   const pager =

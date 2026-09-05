@@ -19,6 +19,7 @@ import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import { displayAvatar } from '../../lib/avatar';
 import NotificationPermissionBanner from '../pwa/NotificationPermissionBanner';
+import { PwaInstallCard } from '../pwa/PwaInstallCard';
 import PWASettingsPanel from '../pwa/PWASettingsPanel';
 import { PeopleInvites } from './PeopleInvites';
 import { WaitingPoolPanel } from './WaitingPoolPanel';
@@ -76,6 +77,7 @@ import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
 import { PortalHelpDrawer } from './PortalHelpDrawer';
 import { PanelGuide } from './PanelGuide';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
+import { readStoredString, writeStored } from '../../lib/safe-storage';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
 
@@ -114,10 +116,7 @@ export const PortalLayout: React.FC = () => {
   );
   const [profileSection, setProfileSection] = useState<ProfileSectionId | undefined>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-    return saved === 'true';
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(() => readStoredString(SIDEBAR_COLLAPSED_KEY) === 'true');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -125,7 +124,7 @@ export const PortalLayout: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    writeStored(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   }, [collapsed]);
 
   // Fetch notifications
@@ -589,7 +588,10 @@ export const PortalLayout: React.FC = () => {
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
           <MustChangePasswordGate />
           <InvitedWelcomeModal />
-          <NotificationPermissionBanner compact onDismiss={() => {}} />
+          <div className="space-y-3 mb-4">
+            <NotificationPermissionBanner compact onDismiss={() => {}} />
+            <PwaInstallCard compact />
+          </div>
           {isOnboarding && (
             <OnboardingBanner
               hideEventCard={activeTab === 'event-info'}

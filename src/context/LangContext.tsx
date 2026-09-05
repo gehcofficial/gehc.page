@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Lang, dictionaries, Dict } from '../i18n';
+import { readStoredString, writeStored } from '../lib/safe-storage';
 
 interface LangCtx {
   lang: Lang;
@@ -12,8 +13,7 @@ const Ctx = createContext<LangCtx | undefined>(undefined);
 const KEY = 'gehc_lang_v1';
 
 function readStoredLang(): Lang {
-  if (typeof window === 'undefined') return 'id';
-  const saved = localStorage.getItem(KEY);
+  const saved = readStoredString(KEY, 'id');
   return saved === 'en' || saved === 'id' ? saved : 'id';
 }
 
@@ -30,7 +30,7 @@ export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    localStorage.setItem(KEY, lang);
+    writeStored(KEY, lang);
     applyHtmlLang(lang);
   }, [lang]);
 

@@ -4,16 +4,19 @@ import App from './App.tsx';
 import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
+import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryProvider>
-      <LangProvider>
-        <AppHashRouter>
-          <App />
-        </AppHashRouter>
-      </LangProvider>
-    </QueryProvider>
+    <AppErrorBoundary>
+      <QueryProvider>
+        <LangProvider>
+          <AppHashRouter>
+            <App />
+          </AppHashRouter>
+        </LangProvider>
+      </QueryProvider>
+    </AppErrorBoundary>
   </StrictMode>,
 );

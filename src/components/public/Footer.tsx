@@ -112,6 +112,9 @@ export const Footer: React.FC = () => {
               <span>{t.footer.portalBtn}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
+            <p className="text-[11px] text-white/45 mt-4 leading-relaxed">
+              {t.portal.pwaInstall.body}
+            </p>
           </div>
 
         </div>
