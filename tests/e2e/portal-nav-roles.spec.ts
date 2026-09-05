@@ -11,7 +11,15 @@ import {
 
 const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string }> = {
   'tech@gehc.demo': {
-    menus: ['Akun Saya', 'Dashboard & Ringkasan', 'Orang & Undangan', 'Onboarding Pipeline'],
+    menus: [
+      'Akun Saya',
+      'Dashboard & Ringkasan',
+      'Orang & Undangan',
+      'Onboarding Pipeline',
+      'Pemimpin 10 Rumah',
+      'Kelola Warta Pemuda',
+      'Struktur Organisasi',
+    ],
   },
   'stevania.hadinda@gehc.demo': {
     roleLabel: 'Komisi Pemuda',

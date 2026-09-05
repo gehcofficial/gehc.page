@@ -61,4 +61,14 @@ describe('portal i18n + guides', () => {
     expect(ids).toContain('beyonders-leaders');
     expect(ids).toContain('jethro');
   });
+
+  it('SUPERADMIN sees every church panel including Tim Kerja ones', () => {
+    const ids = buildPortalNavItems('SUPERADMIN', { isGroupMentor: false, isMentee: false }, false).map((i) => i.id);
+    const all = getAllPortalNavDefs().map((i) => i.id);
+    expect(ids.sort()).toEqual([...all].sort());
+    expect(ids).toContain('beyonders-leaders');
+    expect(ids).toContain('struktur');
+    expect(ids).toContain('content-weekly');
+    expect(ids).toContain('dashboard');
+  });
 });

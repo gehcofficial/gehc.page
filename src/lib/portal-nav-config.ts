@@ -55,10 +55,34 @@ const BASE_NAV: PortalNavItemDef[] = [
  * tetap ikut di belakang (lihat buildPortalNavItems), jadi daftar ini mengatur
  * urutan — bukan hak akses.
  *
- * SUPERADMIN tidak punya entri sendiri: `roleForNav` sudah memetakannya ke
- * KOMISI, dan tugas platform ada di shell terpisah `#/admin`.
+ * SUPERADMIN melihat seluruh panel gereja (inspector). Tugas platform (passkey,
+ * grant, audit) tetap di shell terpisah `#/admin`.
  */
 export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
+  SUPERADMIN: [
+    'event-info',
+    'dashboard',
+    'people',
+    'onboarding',
+    'jethro-placement',
+    'youth-gehc',
+    'catalog',
+    'org-hierarchy',
+    'groups-monitoring',
+    'beyonders-leaders',
+    'pastoral-care',
+    'jethro',
+    'content-weekly',
+    'content-activities',
+    'content-testimonials',
+    'media-guide',
+    'struktur',
+    'events',
+    'divisions',
+    'wa-channels',
+    'integrations',
+    'account',
+  ],
   KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
   COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
   MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'wa-channels', 'account'],
@@ -78,8 +102,6 @@ export function buildPortalNavItems(
   ctx: NavBuildContext,
   isOnboarding: boolean,
 ): PortalNavItemDef[] {
-  const roleForNav: UserRole = currentRole === 'SUPERADMIN' ? 'KOMISI' : currentRole;
-
   const withLabels = BASE_NAV.map((item) => {
     if (item.id === 'groups-monitoring') {
       return { ...item, label: monitoringLabel(ctx) };
@@ -88,14 +110,14 @@ export function buildPortalNavItems(
   });
 
   const filtered = withLabels.filter((item) => {
-    if (!item.roles.includes(roleForNav)) return false;
+    if (currentRole !== 'SUPERADMIN' && !item.roles.includes(currentRole)) return false;
     // Onboarding: hanya Info Event + Akun (akses penuh belum dibuka).
     if (isOnboarding) return item.id === 'event-info' || item.id === 'account';
     if (item.onboardingOnly) return false;
     return true;
   });
 
-  const order = NAMESPACE_NAV_OVERRIDES[currentRole] || NAMESPACE_NAV_OVERRIDES[roleForNav];
+  const order = NAMESPACE_NAV_OVERRIDES[currentRole];
   if (!order) return filtered;
 
   const byId = new Map(filtered.map((i) => [i.id, i]));
