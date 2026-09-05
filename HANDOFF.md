@@ -1,6 +1,55 @@
 # GEHC Portal — Handoff
 
-## Current — SUPERADMIN sees all portal panels (5 Sep 2026)
+## Current — WhatsApp view-only + Kesaksian mentee (5 Sep 2026)
+
+**Goal:** Tautan grup WA hanya ditulis Admin/BPMJ/Komisi/Tim Kerja BOD di Kanal WhatsApp; mentor/mentee/staf divisi hanya membuka tautan di panel mereka. Kesaksian ditulis mentee; Marturia mengkurasi.
+
+### Done
+
+- Nav `wa-channels` hanya penulis (`isBodTimkerja` dari `GET /api/auth/me`). PUT/DELETE tidak lagi untuk mentor.
+- `GET /api/channel-links/scoped` + kartu buka grup di Monitoring dan Panel Divisi.
+- Panel mentee **Kesaksian**; Profil hanya tautan. Tab Marturia **Kesaksian & Story** = kurasi (tanpa Testimoni Baru). Kelola Testimoni Komisi-only.
+
+### Next
+
+1. Cek demo: Komisi/BOD isi tautan di Kanal → muncul di monitoring + ringkasan divisi; mentor/mentee hanya tombol buka.
+2. Mentee kirim draf → tab Marturia review / Pakai posting → Komisi terbitkan.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Production group_batches schema catch-up (5 Sep 2026)
+
+**Goal:** Undangan mentor di People tidak error Prisma `group_batches.mentor_user_id`.
+
+### Done
+
+- Production TiDB: `group_batches.generation`, `mentor_user_id`, `comentor_user_id`, `regen_ready` + tabel `user_avatars`.
+- Backfill Generasi 0 (`2026-06`) untuk 10 rumah Beyonders.
+- Staging sudah sinkron sebelumnya; kode sudah di `staging`/`main` — tidak ada perubahan aplikasi.
+
+### Next
+
+1. Refresh `#/portal/superadmin/people` di `gehcpage.vercel.app` — undangan Mentor Dunamis tidak boleh alert Prisma.
+2. Panel Pemimpin 10 Rumah: nama landing vs `user_roles` tidak mismatch setelah assign.
+
+### Commands
+
+```
+npm run db:schema:check:prod
+npx dotenv -e .env.production -- node server/_migrate-beyonders-generation.cjs
+npx dotenv -e .env.production -- node server/_migrate-user-avatar-blobs.cjs
+```
+
+---
+
+## Prior — SUPERADMIN sees all portal panels (5 Sep 2026)
 
 **Goal:** Akun superadmin (`tech@gehc.demo`) bisa membuka setiap panel gereja di sidebar portal untuk inspeksi — bukan hanya menu Komisi.
 
