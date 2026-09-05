@@ -8,6 +8,7 @@ import {
 } from '../lib/baku-tau.mjs';
 import { resolveWhatsAppUrl } from '../lib/event-question-showif.mjs';
 import { venueOf } from '../lib/event-venue.mjs';
+import { findEventProgramPublic } from '../lib/event-program-public.mjs';
 import { buildCheckInCode } from '../lib/check-in-code.mjs';
 import { emptyDomicileStats, isValidDomicileKind, DOMICILE_DETAIL_REQUIRED } from '../lib/domicile.mjs';
 import { claimWaitingPoolByPhone, ensureWaitingPoolForNewPemuda } from '../onboarding-sync.mjs';
@@ -41,7 +42,7 @@ function publicEventInfo(event) {
 }
 
 async function resolveEventInfo(prisma) {
-  const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+  const event = await findEventProgramPublic(prisma, { id: BAKU_TAU_EVENT_ID });
   let channelUrl = null;
   try {
     const link = await prisma.channelLink.findUnique({
@@ -166,7 +167,7 @@ export function registerBakuTauRoutes(app, { wrap }) {
   const sendEventPayload = async (res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const event = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+    const event = await findEventProgramPublic(prisma, { id: BAKU_TAU_EVENT_ID });
     const stats = await bakuTauStats(prisma);
     res.json({ ...publicEventInfo(event), stats });
   };
@@ -184,7 +185,7 @@ export function registerBakuTauRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-    const eventRow = await prisma.eventProgram.findUnique({ where: { id: BAKU_TAU_EVENT_ID } });
+    const eventRow = await findEventProgramPublic(prisma, { id: BAKU_TAU_EVENT_ID });
     if (eventRow?.status === 'ARCHIVED') {
       return res.status(410).json({ error: 'Pendaftaran BAKU TAU sudah ditutup.' });
     }

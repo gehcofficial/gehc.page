@@ -33,3 +33,10 @@ CREATE TABLE IF NOT EXISTS pastoral_care_notes (
   INDEX pastoral_subject_status (subject_user_id, status),
   INDEX pastoral_status_expires (status, expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE `EventProgram` ADD COLUMN IF NOT EXISTS archive_folder_id VARCHAR(128) NULL;
+ALTER TABLE `EventProgram` ADD COLUMN IF NOT EXISTS preview_file_ids JSON NULL;
+ALTER TABLE `testimonials` ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE `testimonials` ADD COLUMN IF NOT EXISTS inbox_drive_file_id VARCHAR(128) NULL;
+ALTER TABLE `orders` ADD COLUMN IF NOT EXISTS invoice_drive_file_id VARCHAR(128) NULL;
+ALTER TABLE `orders` ADD COLUMN IF NOT EXISTS payment_proof_drive_file_id VARCHAR(128) NULL;
