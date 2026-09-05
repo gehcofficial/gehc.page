@@ -11,15 +11,17 @@ Each portal tab must only call endpoints the user's role can access.
 | onboarding | WaitingPoolPanel | SUPERADMIN, KOMISI | `/api/waiting-pool`, `/api/pending-approval` | KOMISION_CORE |
 | jethro-placement | JethroPlacementReview | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/jethro/placement/*` | read: +BPMJ; write: KOMISION |
 | youth-gehc | YouthGEHCList | SUPERADMIN, KOMISI | `/api/jemaat/*` | KOMISION_CORE |
-| groups-monitoring | ManageGroupsMonitoring | 5 roles | monitoring local + attendance APIs | MENTOR scoped write |
+| content-testimonials | ManageTestimonials | KOMISI (+ SUPERADMIN inspector) | `GET/PATCH /api/testimonials`, `POST /api/testimonials/:id/publish` | CMS read: KOMISI/COMMITTEE; create POST 403 except SUPERADMIN; publish: KOMISI |
+| kesaksian | MenteeKesaksianPanel | MENTEE | `POST /api/me/testimonial`, `GET /api/me/testimonials`, `PATCH /api/me/testimonials/:id` | any auth (own drafts) |
+| groups-monitoring | ManageGroupsMonitoring | 5 roles | monitoring local + attendance APIs + `GET /api/channel-links/scoped` | MENTOR scoped write; WA join is read-only |
+| wa-channels | WhatsAppChannelsPanel | KOMISI, BPMJ, COMMITTEE (BOD Tim Kerja only) | `GET/PUT/DELETE /api/channel-links` | Write: SUPERADMIN/KOMISI/BPMJ/`isBodTimkerja`. EVENT layer read-only (tulis di Program & Event). Mentor/co/mentee/staf divisi: `GET /api/channel-links/scoped` di panel kelompok/divisi |
 | jethro | JethroEngine | SUPERADMIN, KOMISI, BPMJ | `/api/jethro/*` | KOMISION (+BPMJ read) |
 | content-weekly | ManageWeeklyInfo | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | content-activities | ManageActivities | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | media-guide | MediaGuidePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/drive/*` | content_manage |
 | struktur | ManageStruktur | SUPERADMIN, COMMITTEE | `/api/db/sync-struktur` | KOMISION |
 | events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*`, `/api/church-calendar` | Create/edit event + monthly write + runbook: KOMISI/COMMITTEE (+SUPERADMIN). BPMJ: read events/plans; payung scope BPMJ only. Church calendar GET: no MENTOR |
-| divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` | KOMISI / COMMITTEE + Koinonia or BOD |
-| wa-channels | WhatsAppChannelsPanel | KOMISI, COMMITTEE, MENTOR, CO_MENTOR, BPMJ | `GET/PUT /api/channel-links` | EVENT layer read-only (tulis di Program & Event); PUT EVENT 400 kecuali KOMISI/SUPERADMIN |
+| divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` + `GET /api/channel-links/scoped` | KOMISI / COMMITTEE + Koinonia or BOD. Marturia tab Kesaksian: CMS testimonials review |
 | integrations | ManageIntegrations | SUPERADMIN, KOMISI | drive config | SUPERADMIN/KOMISI |
 | pwa-settings | PWASettingsPanel | 7 roles | `/api/pwa/*`, push | auth |
 

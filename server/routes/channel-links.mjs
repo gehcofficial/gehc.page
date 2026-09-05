@@ -2,86 +2,105 @@ import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { isValidWhatsAppUrl } from '../lib/baku-tau.mjs';
-import { isKomisiOrSuperadmin, isBodTimkerja, globalRoles } from '../division-rbac.mjs';
+import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import {
-  isKoinoniaOperator,
-  isDivisionStaff,
-  mentoredGroupIds,
-  isPortalStaff,
-} from '../lib/checkin-access.mjs';
+  DIVISION_CATALOG,
+  isChannelWriter,
+  canWriteKind,
+  scopedGroupIds,
+  scopedDivisionCodes,
+  isBroadChannelViewer,
+} from '../lib/channel-link-access.mjs';
 
 const KINDS = ['EVENT', 'GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'];
-const DIVISION_CATALOG = [
-  { id: 'LITURGIA', name: 'Liturgia' },
-  { id: 'DIDASKALIA', name: 'Didaskalia' },
-  { id: 'KOINONIA', name: 'Koinonia' },
-  { id: 'DIAKONIA', name: 'Diakonia' },
-  { id: 'MARTURIA', name: 'Marturia' },
-  { id: 'BENZARPR', name: 'Benzarpreneurship' },
-];
 const clId = () => `cl-${crypto.randomUUID()}`;
 
-function roles(user) {
-  return globalRoles(user);
-}
+const RACI = {
+  EVENT: { responsible: 'Koinonia — Hubungan & Komunikasi', accountable: 'Ketua Tim Kerja', writeVia: 'Program & Event → Edit' },
+  GROUP: { responsible: 'Tim Kerja BOD', accountable: 'Komisi' },
+  DIVISION: { responsible: 'Tim Kerja BOD', accountable: 'Ketua Tim Kerja' },
+  KOLOM: { responsible: 'Komisi Sekretaris', accountable: 'Komisi (BPMJ diinformasikan)' },
+  RECREATIONAL: { responsible: 'Tim Kerja BOD', accountable: 'Komisi' },
+};
 
-async function canWriteKind(authUser, kind, refId) {
-  if (!authUser) return false;
-  if (isKomisiOrSuperadmin(authUser)) return true;
-  if (kind === 'EVENT') return isKoinoniaOperator(authUser);
-  if (kind === 'KOLOM') return false;
-  if (kind === 'RECREATIONAL') return roles(authUser).includes('COMMITTEE') || isKomisiOrSuperadmin(authUser);
-  if (kind === 'DIVISION') return isDivisionStaff(authUser, refId);
-  if (kind === 'GROUP') {
-    const ids = await mentoredGroupIds(authUser);
-    return ids.includes(refId);
-  }
-  return false;
-}
-
-async function visibleKinds(authUser) {
-  const r = roles(authUser);
-  if (isKomisiOrSuperadmin(authUser) || r.includes('BPMJ') || await isBodTimkerja(authUser)) {
-    return KINDS;
-  }
-  const out = new Set();
-  if (await isKoinoniaOperator(authUser)) out.add('EVENT');
-  if (r.includes('COMMITTEE')) {
-    out.add('DIVISION');
-    out.add('RECREATIONAL');
-  }
-  if (r.includes('MENTOR') || r.includes('CO_MENTOR')) out.add('GROUP');
-  return [...out];
+function writeFlags(authUser) {
+  const komisi = isKomisiOrSuperadmin(authUser);
+  return {
+    EVENT: false,
+    KOLOM: komisi,
+    RECREATIONAL: true,
+    GROUP: true,
+    DIVISION: true,
+  };
 }
 
 export function registerChannelLinkRoutes(app, { wrap }) {
   app.get(
-    '/api/channel-links',
-    requireRole('KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'BPMJ'),
+    '/api/channel-links/scoped',
+    requireRole('KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'BPMJ'),
     wrap(async (req, res) => {
       if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
-      if (!isPortalStaff(req.authUser)) return res.status(403).json({ error: 'Akses ditolak.' });
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-      const kinds = await visibleKinds(req.authUser);
-      const mentorGroups = await mentoredGroupIds(req.authUser);
-      const isBroad = isKomisiOrSuperadmin(req.authUser)
-        || roles(req.authUser).includes('BPMJ')
-        || await isBodTimkerja(req.authUser);
+      const isBroad = await isBroadChannelViewer(req.authUser);
+      const [groupIds, divisionCodes] = await Promise.all([
+        isBroad ? Promise.resolve([]) : scopedGroupIds(req.authUser),
+        isBroad ? Promise.resolve([]) : scopedDivisionCodes(req.authUser),
+      ]);
+
+      const or = [];
+      if (isBroad) {
+        or.push({ kind: 'GROUP' }, { kind: 'DIVISION' });
+      } else {
+        if (groupIds.length) or.push({ kind: 'GROUP', refId: { in: groupIds } });
+        if (divisionCodes.length) or.push({ kind: 'DIVISION', refId: { in: divisionCodes } });
+      }
+
+      const links = or.length
+        ? await prisma.channelLink.findMany({
+            where: { OR: or },
+            orderBy: { kind: 'asc' },
+          }).catch(() => [])
+        : [];
+
+      const groups = isBroad
+        ? await prisma.group.findMany({
+            where: { status: 'ACTIVE' },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+          }).catch(() => [])
+        : groupIds.length
+          ? await prisma.group.findMany({
+              where: { status: 'ACTIVE', id: { in: groupIds } },
+              select: { id: true, name: true },
+              orderBy: { name: 'asc' },
+            }).catch(() => [])
+          : [];
+
+      res.json({
+        links,
+        groups,
+        divisions: DIVISION_CATALOG.filter((d) => isBroad || divisionCodes.includes(d.id)),
+      });
+    }),
+  );
+
+  app.get(
+    '/api/channel-links',
+    requireRole('KOMISI', 'COMMITTEE', 'BPMJ'),
+    wrap(async (req, res) => {
+      if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+      if (!(await isChannelWriter(req.authUser))) {
+        return res.status(403).json({ error: 'Hanya Admin, BPMJ, Komisi, atau Tim Kerja BOD yang mengelola kanal.' });
+      }
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const links = await prisma.channelLink.findMany({
-        where: { kind: { in: kinds } },
+        where: { kind: { in: KINDS } },
         orderBy: { kind: 'asc' },
       }).catch(() => []);
-
-      const filtered = isBroad
-        ? links
-        : links.filter((l) => {
-            if (l.kind === 'GROUP') return mentorGroups.includes(l.refId);
-            if (l.kind === 'DIVISION') return true;
-            return kinds.includes(l.kind);
-          });
 
       const [events, groups, kolom, recreational] = await Promise.all([
         prisma.eventProgram.findMany({
@@ -89,27 +108,21 @@ export function registerChannelLinkRoutes(app, { wrap }) {
           orderBy: { createdAt: 'desc' },
           take: 40,
         }).catch(() => []),
-        kinds.includes('GROUP') || isBroad
-          ? prisma.group.findMany({
-              where: isBroad ? { status: 'ACTIVE' } : { status: 'ACTIVE', id: { in: mentorGroups.length ? mentorGroups : ['__none__'] } },
-              select: { id: true, name: true },
-              orderBy: { name: 'asc' },
-            }).catch(() => [])
-          : [],
-        kinds.includes('KOLOM') || isBroad
-          ? prisma.kolom.findMany({ select: { id: true, number: true, name: true }, orderBy: { number: 'asc' } }).catch(() => [])
-          : [],
-        kinds.includes('RECREATIONAL') || isBroad
-          ? prisma.recreationalGroup.findMany({
-              where: { selectable: true },
-              select: { id: true, name: true, kind: true, parentId: true },
-              orderBy: { sortOrder: 'asc' },
-            }).catch(() => [])
-          : [],
+        prisma.group.findMany({
+          where: { status: 'ACTIVE' },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }).catch(() => []),
+        prisma.kolom.findMany({ select: { id: true, number: true, name: true }, orderBy: { number: 'asc' } }).catch(() => []),
+        prisma.recreationalGroup.findMany({
+          where: { selectable: true },
+          select: { id: true, name: true, kind: true, parentId: true },
+          orderBy: { sortOrder: 'asc' },
+        }).catch(() => []),
       ]);
 
       const eventLinks = events
-        .filter((ev) => ev.whatsappGroupUrl && !filtered.some((l) => l.kind === 'EVENT' && l.refId === ev.id))
+        .filter((ev) => ev.whatsappGroupUrl && !links.some((l) => l.kind === 'EVENT' && l.refId === ev.id))
         .map((ev) => ({
           id: `legacy-${ev.id}`,
           kind: 'EVENT',
@@ -119,39 +132,24 @@ export function registerChannelLinkRoutes(app, { wrap }) {
           updatedAt: null,
         }));
 
-      const write = {
-        EVENT: false,
-        KOLOM: isKomisiOrSuperadmin(req.authUser),
-        RECREATIONAL: isKomisiOrSuperadmin(req.authUser) || roles(req.authUser).includes('COMMITTEE'),
-        GROUP: isKomisiOrSuperadmin(req.authUser) || mentorGroups.length > 0,
-        DIVISION: isKomisiOrSuperadmin(req.authUser) || roles(req.authUser).includes('COMMITTEE'),
-      };
-
       res.json({
-        links: [...filtered, ...eventLinks],
+        links: [...links, ...eventLinks],
         catalog: {
-          events: kinds.includes('EVENT') || isBroad ? events : [],
+          events,
           groups,
           divisions: DIVISION_CATALOG,
           kolom,
           recreational,
         },
-        canWrite: write,
-        mentorGroupIds: mentorGroups,
-        raci: {
-          EVENT: { responsible: 'Koinonia — Hubungan & Komunikasi', accountable: 'Ketua Tim Kerja', writeVia: 'Program & Event → Edit' },
-          GROUP: { responsible: 'Mentor kelompok', accountable: 'Komisi' },
-          DIVISION: { responsible: 'Kepala Divisi', accountable: 'Ketua Tim Kerja' },
-          KOLOM: { responsible: 'Komisi Sekretaris', accountable: 'Komisi (BPMJ diinformasikan)' },
-          RECREATIONAL: { responsible: 'PIC / Komisi', accountable: 'Komisi' },
-        },
+        canWrite: writeFlags(req.authUser),
+        raci: RACI,
       });
     }),
   );
 
   app.put(
     '/api/channel-links',
-    requireRole('KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
+    requireRole('KOMISI', 'COMMITTEE', 'BPMJ'),
     wrap(async (req, res) => {
       if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
       const prisma = getPrisma();
@@ -170,7 +168,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
       if (!isValidWhatsAppUrl(url)) {
         return res.status(400).json({ error: 'URL harus tautan undangan WhatsApp (chat.whatsapp.com atau wa.me).' });
       }
-      if (!(await canWriteKind(req.authUser, kind, refId))) {
+      if (!(await canWriteKind(req.authUser, kind))) {
         return res.status(403).json({ error: 'Anda tidak berwenang mengubah kanal ini.' });
       }
 
@@ -199,13 +197,13 @@ export function registerChannelLinkRoutes(app, { wrap }) {
 
   app.delete(
     '/api/channel-links/:id',
-    requireRole('KOMISI', 'COMMITTEE'),
+    requireRole('KOMISI', 'COMMITTEE', 'BPMJ'),
     wrap(async (req, res) => {
       if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-      if (!isKomisiOrSuperadmin(req.authUser) && !(await isBodTimkerja(req.authUser))) {
-        return res.status(403).json({ error: 'Hanya Komisi / Ketua Tim Kerja yang boleh menghapus tautan.' });
+      if (!(await isChannelWriter(req.authUser))) {
+        return res.status(403).json({ error: 'Hanya Admin, BPMJ, Komisi, atau Tim Kerja BOD yang boleh menghapus tautan.' });
       }
       const existing = await prisma.channelLink.findUnique({ where: { id: req.params.id } });
       if (!existing) return res.status(404).json({ error: 'Tautan tidak ditemukan.' });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { MessageSquareQuote, Plus, Edit2, Trash2, X, Search, Check } from 'lucide-react';
+import { MessageSquareQuote, Edit2, Trash2, X, Search, Check, Copy } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 interface TestimonialItem {
@@ -24,7 +24,7 @@ const emptyForm = {
   sortOrder: 0,
 };
 
-export const ManageTestimonials: React.FC = () => {
+export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ variant = 'cms' }) => {
   const { authUser, addToast } = useApp();
   const isKomisi = (authUser?.roles || []).some(
     (r: { role: string }) => r.role === 'KOMISI' || r.role === 'SUPERADMIN',
@@ -59,12 +59,6 @@ export const ManageTestimonials: React.FC = () => {
       i.quote.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setIsModalOpen(true);
-  };
-
   const openEdit = (item: TestimonialItem) => {
     setEditing(item);
     setForm({
@@ -81,7 +75,7 @@ export const ManageTestimonials: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.authorName.trim() || !form.quote.trim()) return;
+    if (!editing || !form.authorName.trim() || !form.quote.trim()) return;
     setSaving(true);
     try {
       const payload = {
@@ -100,13 +94,6 @@ export const ManageTestimonials: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-      } else {
-        await fetch('/api/testimonials', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
       }
       setIsModalOpen(false);
       await fetchItems();
@@ -121,6 +108,15 @@ export const ManageTestimonials: React.FC = () => {
     fetchItems();
   };
 
+  const copyQuote = async (item: TestimonialItem) => {
+    try {
+      await navigator.clipboard.writeText(item.quote);
+      addToast?.({ type: 'success', title: 'Kutipan tersalin untuk posting' });
+    } catch {
+      addToast?.({ type: 'error', title: 'Gagal menyalin' });
+    }
+  };
+
   const sendToReview = async (item: TestimonialItem) => {
     const r = await fetch(`/api/testimonials/${item.id}/review`, {
       method: 'PATCH',
@@ -131,9 +127,16 @@ export const ManageTestimonials: React.FC = () => {
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       addToast?.({ type: 'error', title: d.error || 'Gagal kirim ke Marturia' });
-      return;
+      return false;
     }
+    addToast?.({ type: 'success', title: 'Siap untuk posting / review' });
     fetchItems();
+    return true;
+  };
+
+  const useForPost = async (item: TestimonialItem) => {
+    const ok = await sendToReview(item);
+    if (ok) await copyQuote(item);
   };
 
   const publishLive = async (item: TestimonialItem) => {
@@ -162,23 +165,16 @@ export const ManageTestimonials: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
             <MessageSquareQuote className="w-3.5 h-3.5 text-[#FF416C]" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
-              Landing Collage
+              {variant === 'curate' ? 'Kesaksian & Story' : 'Landing Collage'}
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B1B1B]">
-            Kelola Testimoni
+            {variant === 'curate' ? 'Kurasi kesaksian mentee' : 'Kelola Testimoni'}
           </h2>
           <p className="text-xs sm:text-sm text-[#8C8880] mt-1">
-            Alur: draf jemaat → Marturia sunting → Komisi terbitkan ke landing (testimoni/slug).
+            Pilih draf mentee, review, salin untuk posting. Komisi menerbitkan ke landing.
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="px-5 py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs sm:text-sm font-bold shadow-md flex items-center gap-2 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          + Testimoni Baru
-        </button>
       </div>
 
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm space-y-6">
@@ -197,7 +193,7 @@ export const ManageTestimonials: React.FC = () => {
           <p className="text-xs text-[#8C8880]">Memuat…</p>
         ) : filtered.length === 0 ? (
           <p className="text-xs text-[#8C8880] p-4 rounded-2xl border border-dashed border-[#D9D7D0]">
-            Belum ada testimoni. Tambahkan agar collage Beyonders menampilkan kutipan nyata.
+            Belum ada kesaksian dari mentee.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -232,6 +228,24 @@ export const ManageTestimonials: React.FC = () => {
                     </td>
                     <td className="py-4 pr-2 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {!item.isPublished && (
+                          <button
+                            type="button"
+                            onClick={() => void useForPost(item)}
+                            className="px-2 py-1 rounded-lg bg-pink-50 text-[#FF416C] text-[10px] font-bold"
+                            title="Tandai review dan salin kutipan untuk posting"
+                          >
+                            Pakai posting
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void copyQuote(item)}
+                          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                          title="Salin kutipan"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
                         {!item.isPublished && item.status !== 'REVIEW' && (
                           <button
                             type="button"
@@ -278,7 +292,7 @@ export const ManageTestimonials: React.FC = () => {
           <div className="bg-[#FAF9F5] rounded-[36px] w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9D7D0]">
             <div className="sticky top-0 bg-[#FAF9F5]/90 backdrop-blur-md px-6 py-4 border-b border-[#D9D7D0]/60 flex items-center justify-between">
               <h3 className="text-lg font-bold text-[#1B1B1B]">
-                {editing ? 'Edit Testimoni' : 'Testimoni Baru'}
+                {editing ? 'Sunting kesaksian' : 'Sunting kesaksian'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -348,7 +362,7 @@ export const ManageTestimonials: React.FC = () => {
                   disabled={saving}
                   className="px-6 py-2.5 rounded-full bg-[#181818] text-white text-xs font-bold disabled:opacity-60"
                 >
-                  {saving ? 'Menyimpan…' : editing ? 'Simpan' : 'Simpan draf'}
+                  {saving ? 'Menyimpan…' : 'Simpan'}
                 </button>
               </div>
             </form>

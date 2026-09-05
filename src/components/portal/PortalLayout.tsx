@@ -13,6 +13,7 @@ import { ManageIntegrations } from './ManageIntegrations';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
+import { MenteeKesaksianPanel } from './MenteeKesaksianPanel';
 import { WhatsAppChannelsPanel } from './WhatsAppChannelsPanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
@@ -85,6 +86,7 @@ export const PortalLayout: React.FC = () => {
     currentRole,
     isGroupMentor,
     isMentee,
+    isBodTimkerja,
     setActiveView,
     addToast,
     authUser,
@@ -206,6 +208,7 @@ export const PortalLayout: React.FC = () => {
     'content-weekly': BookOpen,
     'content-activities': Calendar,
     'content-testimonials': MessageSquareQuote,
+    kesaksian: MessageSquareQuote,
     'media-guide': Images,
     struktur: ShieldCheck,
     events: Calendar,
@@ -215,7 +218,7 @@ export const PortalLayout: React.FC = () => {
     'pwa-settings': Bell,
   };
 
-  const navItemDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee }, isOnboarding);
+  const navItemDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
   const navItems = navItemDefs.map((item) => ({
     ...item,
     icon: NAV_ICONS[item.id] || LayoutDashboard,
@@ -651,6 +654,7 @@ export const PortalLayout: React.FC = () => {
               <ManageTestimonials />
             </div>
           )}
+          {activeTab === 'kesaksian' && <MenteeKesaksianPanel />}
           {activeTab === 'media-guide' && (
             <div className="space-y-4">
               <PanelGuide guideId="media-guide" />
