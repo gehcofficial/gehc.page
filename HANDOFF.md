@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Pemimpin 10 Rumah / generasi Retreat (5 Sep 2026)
+## Current — Info Event production (5 Sep 2026)
+
+**Goal:** Halaman Info Event (`#/portal/mentee/event-info`) tidak error Prisma `archive_folder_id`.
+
+### Done
+
+- Production: `archive_folder_id` + kolom Drive ownership lain ditambahkan (CJS idempotent).
+- Info Event / API publik BAKU TAU memakai `findEventProgramPublic` (select kolom venue/WA saja, catch jika schema lag).
+- SQL `27_drive_ownership` dilengkapi `ALTER` EventProgram/testimonials/orders.
+
+### Next
+
+1. Deploy Vercel `main` agar query select ikut ke production (DB sudah cukup untuk error sekarang).
+2. `npm run db:migrate:local:prod` untuk sisa: `user_avatars` + generasi Beyonders (butuh persetujuan).
+3. Refresh Info Event di `gehcpage.vercel.app` — QR/WA harus tampil.
+
+### Commands
+
+```
+npx dotenv -e .env.production -- node scripts/check-db-schema.mjs
+npm run test
+```
+
+---
+
+## Prior — Pemimpin 10 Rumah / generasi Retreat (5 Sep 2026)
 
 **Goal:** Nama Mentor/Co di landing Beyonders dikelola di panel sendiri. Generasi 0 = kohort Retreat `2026-06` (bukan bulan daftar akun). Cabut peran mengosongkan nama landing.
 

@@ -5,6 +5,7 @@ import {
   BAKU_TAU_EVENT_ID,
 } from '../lib/baku-tau.mjs';
 import { venueOf } from '../lib/event-venue.mjs';
+import { findEventProgramPublic } from '../lib/event-program-public.mjs';
 
 export const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
@@ -14,10 +15,15 @@ export const SLUG_TO_EVENT_ID = {
 export async function resolveEventBySlug(prisma, slug) {
   const eventId = SLUG_TO_EVENT_ID[slug];
   if (eventId) {
-    const event = await prisma.eventProgram.findUnique({ where: { id: eventId } });
-    return { event, slug, eventId, isBakutau: true };
+    const event = await findEventProgramPublic(prisma, { id: eventId });
+    return {
+      event: event || { id: eventId, slug, name: BAKU_TAU_SOURCE_EVENT, status: 'ACTIVE' },
+      slug,
+      eventId,
+      isBakutau: true,
+    };
   }
-  const event = await prisma.eventProgram.findUnique({ where: { slug } });
+  const event = await findEventProgramPublic(prisma, { slug });
   if (!event) return null;
   return { event, slug, eventId: event.id, isBakutau: false };
 }
