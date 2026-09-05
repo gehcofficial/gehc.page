@@ -1,6 +1,22 @@
 # GEHC Portal — Handoff
 
-## Current — Info Event production (5 Sep 2026)
+## Current — SUPERADMIN sees all portal panels (5 Sep 2026)
+
+**Goal:** Akun superadmin (`tech@gehc.demo`) bisa membuka setiap panel gereja di sidebar portal untuk inspeksi — bukan hanya menu Komisi.
+
+### Done
+
+- `buildPortalNavItems('SUPERADMIN')` tidak lagi dipetakan ke KOMISI; seluruh `BASE_NAV` tampil (warta, agenda, struktur, dashboard, Pemimpin 10 Rumah, …).
+- `#/admin` tetap shell platform (passkey, grant, audit).
+
+### Next
+
+1. Login `tech@gehc.demo` → sidebar harus berisi Warta, Struktur, Pemimpin 10 Rumah.
+2. Deploy `staging` / `main` jika mau live.
+
+---
+
+## Prior — Info Event production (5 Sep 2026)
 
 **Goal:** Halaman Info Event (`#/portal/mentee/event-info`) tidak error Prisma `archive_folder_id`.
 
