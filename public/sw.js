@@ -1,73 +1,86 @@
 // Service Worker for GEHC Youth Portal PWA
-// Handles: caching, push notifications, background sync, offline support
+// Network-first for HTML so deploys never leave iOS/Safari on a blank cached shell.
 
-const CACHE_NAME = 'gehc-v2';
+const CACHE_NAME = 'gehc-v3';
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png',
 ];
 
 const VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
-// Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.all(
+        STATIC_ASSETS.map((url) => cache.add(url).catch(() => undefined)),
+      );
+    }),
   );
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => caches.delete(name)),
       );
-    })
+    }),
   );
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
+function isNavigationRequest(request) {
+  return request.mode === 'navigate' || request.destination === 'document';
+}
+
+function isApiRequest(url) {
+  return url.pathname.startsWith('/api/');
+}
+
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // In development (localhost), always go to network — never cache Vite chunks
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
   if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Skip API calls - let them go to network
-  if (event.request.url.includes('/api/')) {
+  if (isApiRequest(url)) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        // Return offline response for API calls
         return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
           headers: { 'Content-Type': 'application/json' },
           status: 503,
         });
-      })
+      }),
     );
     return;
   }
 
-  // For static assets: cache first
+  // Never serve a stale index.html — hashed Vite assets 404 and iOS shows a white screen.
+  if (isNavigationRequest(event.request) || url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          return networkResponse;
+        })
+        .catch(() => caches.match('/')),
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache successful responses
+    fetch(event.request)
+      .then((networkResponse) => {
         if (networkResponse.ok) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -75,12 +88,11 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request)),
   );
 });
 
-// Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
@@ -109,11 +121,10 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'GEHC Youth', options)
+    self.registration.showNotification(payload.title || 'GEHC Youth', options),
   );
 });
 
-// Notification click event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -125,7 +136,6 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // Handle different notification types
   if (data.type === 'warta' || data.type === 'bulletin') {
     url = '/#/bulletin';
   } else if (data.type === 'gallery') {
@@ -138,30 +148,24 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if app is already open
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.postMessage({ type: 'NOTIFICATION_CLICK', url, data });
           return client.focus();
         }
       }
-      // Open new window
       return clients.openWindow(url);
-    })
+    }),
   );
 });
 
-// Notification close event
 self.addEventListener('notificationclose', (event) => {
-  // Track dismissal analytics if needed
   const data = event.notification.data || {};
   if (data.notificationId) {
-    // Could send analytics here
     console.log('Notification dismissed:', data.notificationId);
   }
 });
 
-// Background sync for offline actions
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-notifications') {
     event.waitUntil(syncNotifications());
@@ -171,7 +175,6 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncNotifications() {
-  // Sync pending notification subscriptions
   try {
     const cache = await caches.open('gehc-offline');
     const requests = await cache.keys();
@@ -187,7 +190,6 @@ async function syncNotifications() {
 }
 
 async function syncGalleryUploads() {
-  // Sync pending gallery uploads
   try {
     const cache = await caches.open('gehc-offline');
     const requests = await cache.keys();
@@ -202,22 +204,18 @@ async function syncGalleryUploads() {
   }
 }
 
-// Message event - communicate with main thread
 self.addEventListener('message', (event) => {
   if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   } else if (event.data.type === 'GET_SUBSCRIPTION') {
-    // Return current push subscription
     self.registration.pushManager.getSubscription().then((sub) => {
       event.ports[0].postMessage({ subscription: sub });
     });
   } else if (event.data.type === 'SUBSCRIBE') {
-    // Subscribe to push
     subscribeToPush(event.data.vapidKey).then((sub) => {
       event.ports[0].postMessage({ subscription: sub });
     });
   } else if (event.data.type === 'UNSUBSCRIBE') {
-    // Unsubscribe from push
     self.registration.pushManager.getSubscription().then((sub) => {
       if (sub) {
         sub.unsubscribe();
@@ -227,7 +225,6 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Helper: Subscribe to push
 async function subscribeToPush(vapidKey) {
   try {
     const subscription = await self.registration.pushManager.subscribe({
@@ -241,7 +238,6 @@ async function subscribeToPush(vapidKey) {
   }
 }
 
-// Helper: Convert base64 to Uint8Array
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -253,7 +249,6 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Periodic background sync (if supported)
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'check-updates') {
     event.waitUntil(checkForUpdates());
@@ -262,12 +257,7 @@ self.addEventListener('periodicsync', (event) => {
 
 async function checkForUpdates() {
   try {
-    // Check for new warta, gallery items, etc.
-    const response = await fetch('/api/warta?limit=1');
-    if (response.ok) {
-      const data = await response.json();
-      // Could show badge notification if new content
-    }
+    await fetch('/api/warta?limit=1');
   } catch (err) {
     console.error('Periodic sync failed:', err);
   }

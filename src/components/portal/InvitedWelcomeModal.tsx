@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles, KeyRound, AtSign, UserCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { buildPortalPath } from '../../lib/portal-routes';
+import { readStoredString, writeStored } from '../../lib/safe-storage';
 
 const storageKey = (userId: string) => `gehc_invited_welcome_${userId}`;
 
@@ -13,14 +14,14 @@ export const InvitedWelcomeModal: React.FC = () => {
     if (!authUser?.id) return;
     if (authUser.onboardingPath !== 'INVITED') return;
     if (authUser.mustChangePassword) return;
-    if (localStorage.getItem(storageKey(authUser.id))) return;
+    if (readStoredString(storageKey(authUser.id))) return;
     setOpen(true);
   }, [authUser?.id, authUser?.onboardingPath, authUser?.mustChangePassword]);
 
   if (!open || !authUser) return null;
 
   const dismiss = () => {
-    localStorage.setItem(storageKey(authUser.id), '1');
+    writeStored(storageKey(authUser.id), '1');
     setOpen(false);
   };
 

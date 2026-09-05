@@ -2,26 +2,24 @@ import React, { useState } from 'react';
 import { CircleHelp, X } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalGuide } from '../../lib/portal-i18n';
+import { readStoredString, removeStored, writeStored } from '../../lib/safe-storage';
 
 const storageKey = (id: string) => `gehc_guide_${id}`;
 
 export const PanelGuide: React.FC<{ guideId: string }> = ({ guideId }) => {
   const { t } = useLang();
   const guide = portalGuide(t, guideId);
-  const [open, setOpen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem(storageKey(guideId)) !== '1';
-  });
+  const [open, setOpen] = useState(() => readStoredString(storageKey(guideId)) !== '1');
 
   if (!guide) return null;
 
   const dismiss = () => {
     setOpen(false);
-    localStorage.setItem(storageKey(guideId), '1');
+    writeStored(storageKey(guideId), '1');
   };
   const reopen = () => {
     setOpen(true);
-    localStorage.removeItem(storageKey(guideId));
+    removeStored(storageKey(guideId));
   };
 
   if (!open) {

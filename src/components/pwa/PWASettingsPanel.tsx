@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info } from 'lucide-react';
+import { isStandaloneDisplay, notificationPermission } from '../../lib/pwa-install';
+import { PwaInstallCard } from './PwaInstallCard';
 
 interface PWASettingsPanelProps {
   onClose?: () => void;
@@ -22,9 +24,9 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   }, []);
 
   const init = async () => {
-    setPermission(Notification.permission);
+    setPermission(notificationPermission());
     setIsOnline(navigator.onLine);
-    setIsStandalone(checkStandalone());
+    setIsStandalone(isStandaloneDisplay());
     await checkSW();
     await checkSubscription();
     await measureCache();
@@ -34,11 +36,6 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
     window.addEventListener('online', () => setIsOnline(true));
     window.addEventListener('offline', () => setIsOnline(false));
     window.addEventListener('beforeinstallprompt', () => { /* handled */ });
-  };
-
-  const checkStandalone = () => {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
   };
 
   const checkSW = async () => {
@@ -77,6 +74,7 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   };
 
   const requestPermission = useCallback(async () => {
+    if (typeof Notification === 'undefined') return;
     setLoading(true);
     try {
       const perm = await Notification.requestPermission();
@@ -163,15 +161,6 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
       setSwRegistered(false);
     } catch (err) {
       console.error('Unregister SW failed:', err);
-    }
-  };
-
-  const installPWA = async () => {
-    const deferredPrompt = (window as any).deferredPrompt;
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      (window as any).deferredPrompt = null;
     }
   };
 
@@ -344,32 +333,7 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
         </div>
       </div>
 
-      {/* Install PWA */}
-      {!isStandalone && (
-        <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-5">
-          <h3 className="text-lg font-bold text-[#1B1B1B] mb-4 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-[#F6AE4A]" /> Install Aplikasi
-          </h3>
-          <p className="text-sm text-[#8C8880] mb-4">
-            Install GEHC Youth sebagai aplikasi native untuk akses cepat, notifikasi push, & dukungan offline.
-          </p>
-          <button onClick={installPWA} className="px-6 py-3 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold flex items-center gap-2">
-            <Download className="w-4 h-4" /> Install Sekarang
-          </button>
-        </div>
-      )}
-
-      {isStandalone && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
-            <div>
-              <p className="font-bold text-green-800">Aplikasi Terinstall</p>
-              <p className="text-sm text-green-700">Anda menjalankan GEHC Youth sebagai PWA standalone</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <PwaInstallCard />
 
       {/* Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">

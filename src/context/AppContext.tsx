@@ -42,6 +42,7 @@ import {
 import { isAdminHash } from '../lib/admin-routes';
 import { fetchPlatformContext } from '../services/platformApi';
 import { AUTH_SESSION_EVENT } from '../lib/auth-redirect';
+import { clearStored, readStoredJson, readStoredString, writeStored } from '../lib/safe-storage';
 
 type PublicTab =
   | 'beyonders'
@@ -233,86 +234,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Load Persisted Data or Fallback
   const [allTenants] = useState<Tenant[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TENANTS);
-    return saved ? JSON.parse(saved) : INITIAL_TENANTS;
+    const saved = readStoredJson<Tenant[]>(STORAGE_KEYS.TENANTS, INITIAL_TENANTS);
+    return saved.length ? saved : INITIAL_TENANTS;
   });
 
   const [allUsers, setAllUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    const saved = readStoredJson<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    return saved.length ? saved : INITIAL_USERS;
   });
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    return saved || 'usr-tech'; // Default seed user (offline preview)
+    return readStoredString(STORAGE_KEYS.CURRENT_USER_ID, 'usr-tech') || 'usr-tech';
   });
 
   const [groups, setGroups] = useState<YouthGroup[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GROUPS);
-    return saved ? JSON.parse(saved) : INITIAL_GROUPS;
+    const saved = readStoredJson<YouthGroup[]>(STORAGE_KEYS.GROUPS, INITIAL_GROUPS);
+    return saved.length ? saved : INITIAL_GROUPS;
   });
 
   const [members, setMembers] = useState<GroupMember[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MEMBERS);
-    return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
+    const saved = readStoredJson<GroupMember[]>(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
+    return saved.length ? saved : INITIAL_MEMBERS;
   });
 
   const [monitoringRecords, setMonitoringRecords] = useState<MonitoringRecord[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MONITORING);
-    return saved ? JSON.parse(saved) : INITIAL_MONITORING;
+    const saved = readStoredJson<MonitoringRecord[]>(STORAGE_KEYS.MONITORING, INITIAL_MONITORING);
+    return saved.length ? saved : INITIAL_MONITORING;
   });
 
   const [contentItems, setContentItems] = useState<ContentItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CONTENT);
-    return saved ? JSON.parse(saved) : INITIAL_CONTENT;
+    const saved = readStoredJson<ContentItem[]>(STORAGE_KEYS.CONTENT, INITIAL_CONTENT);
+    return saved.length ? saved : INITIAL_CONTENT;
   });
 
   const [strukturMembers, setStrukturMembers] = useState<StrukturMember[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.STRUKTUR);
-    return saved ? JSON.parse(saved) : INITIAL_STRUKTUR;
+    const saved = readStoredJson<StrukturMember[]>(STORAGE_KEYS.STRUKTUR, INITIAL_STRUKTUR);
+    return saved.length ? saved : INITIAL_STRUKTUR;
   });
 
   const [driveFolders] = useState<DriveFolder[]>(INITIAL_DRIVE_FOLDERS);
 
   const [groupBatches, setGroupBatches] = useState<GroupBatch[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GROUP_BATCHES);
-    return saved ? JSON.parse(saved) : INITIAL_GROUP_BATCHES;
+    const saved = readStoredJson<GroupBatch[]>(STORAGE_KEYS.GROUP_BATCHES, INITIAL_GROUP_BATCHES);
+    return saved.length ? saved : INITIAL_GROUP_BATCHES;
   });
 
   const [integrationConfig, setIntegrationConfig] = useState<IntegrationConfig>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.INTEGRATION);
-    return saved ? JSON.parse(saved) : INITIAL_INTEGRATION_CONFIG;
+    return readStoredJson<IntegrationConfig>(STORAGE_KEYS.INTEGRATION, INITIAL_INTEGRATION_CONFIG);
   });
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Persistent storage sync
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(allUsers));
+    writeStored(STORAGE_KEYS.USERS, JSON.stringify(allUsers));
   }, [allUsers]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, currentUserId);
+    writeStored(STORAGE_KEYS.CURRENT_USER_ID, currentUserId);
   }, [currentUserId]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(groups));
+    writeStored(STORAGE_KEYS.GROUPS, JSON.stringify(groups));
   }, [groups]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+    writeStored(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
   }, [members]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MONITORING, JSON.stringify(monitoringRecords));
+    writeStored(STORAGE_KEYS.MONITORING, JSON.stringify(monitoringRecords));
   }, [monitoringRecords]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(contentItems));
+    writeStored(STORAGE_KEYS.CONTENT, JSON.stringify(contentItems));
   }, [contentItems]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.STRUKTUR, JSON.stringify(strukturMembers));
+    writeStored(STORAGE_KEYS.STRUKTUR, JSON.stringify(strukturMembers));
   }, [strukturMembers]);
 
   // Hydration API-first: struktur resmi = TiDB. Menimpa localStorage lama
@@ -518,11 +517,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.INTEGRATION, JSON.stringify(integrationConfig));
+    writeStored(STORAGE_KEYS.INTEGRATION, JSON.stringify(integrationConfig));
   }, [integrationConfig]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.GROUP_BATCHES, JSON.stringify(groupBatches));
+    writeStored(STORAGE_KEYS.GROUP_BATCHES, JSON.stringify(groupBatches));
   }, [groupBatches]);
 
   // Group Detail Navigation
@@ -538,7 +537,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Current Tenant Resolution
-  const currentTenant = allTenants.find((t) => t.id === currentTenantId) || allTenants[0];
+  const currentTenant = allTenants.find((t) => t.id === currentTenantId) || allTenants[0] || INITIAL_TENANTS[0];
 
   const switchTenant = (tenantId: string) => {
     const target = allTenants.find((t) => t.id === tenantId);
@@ -681,7 +680,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Semua peran milik user di tenant aktif, terurut precedensi
   const myRoleMappings = sortRoles(
     uniqueRolesByName(
-      currentUser.roles.filter((r) => r.tenantId === currentTenantId || r.role === 'SUPERADMIN')
+      currentUser.roles?.filter((r) => r.tenantId === currentTenantId || r.role === 'SUPERADMIN') || []
     )
   );
   const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
@@ -1116,7 +1115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Reset All
   const resetAllData = () => {
-    localStorage.clear();
+    clearStored();
     setAllUsers(INITIAL_USERS);
     setCurrentUserId('usr-tech');
     setGroups(INITIAL_GROUPS);

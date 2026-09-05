@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Bell, BellOff, Download, Smartphone, CheckCircle2, XCircle, Loader2, AlertCircle, Info } from 'lucide-react';
+import { isStandaloneDisplay, notificationPermission } from '../../lib/pwa-install';
+import { PwaInstallCard } from './PwaInstallCard';
 
 interface NotificationPermissionBannerProps {
   onDismiss?: () => void;
@@ -14,7 +16,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setPermission(Notification.permission);
+    setPermission(notificationPermission());
     void ensureServiceWorker().then(() => checkSubscription());
   }, []);
 
@@ -39,6 +41,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   };
 
   const requestPermission = useCallback(async () => {
+    if (typeof Notification === 'undefined') return;
     setLoading(true);
     try {
       const perm = await Notification.requestPermission();
@@ -94,15 +97,6 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       }
     } catch (err) {
       console.error('Unsubscribe failed:', err);
-    }
-  };
-
-  const installPWA = async () => {
-    const deferredPrompt = (window as any).deferredPrompt;
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      (window as any).deferredPrompt = null;
     }
   };
 
@@ -235,14 +229,10 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
           </div>
         )}
 
-        {/* Install PWA button */}
-        {!isStandalone() && (
-          <button
-            onClick={installPWA}
-            className="flex-1 min-w-[140px] py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold text-[#8C8880] hover:bg-gray-50 flex items-center justify-center gap-2"
-          >
-            <Download className="w-4 h-4" /> Install App
-          </button>
+        {!isStandaloneDisplay() && (
+          <div className="flex-1 min-w-[140px]">
+            <PwaInstallCard compact />
+          </div>
         )}
       </div>
 
@@ -267,10 +257,4 @@ function FeatureIcon({ icon, title, desc }: { icon: React.ReactNode; title: stri
       </div>
     </div>
   );
-}
-
-function isStandalone() {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true;
 }
