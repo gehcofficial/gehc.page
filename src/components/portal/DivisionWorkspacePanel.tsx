@@ -35,6 +35,7 @@ import {
   Newspaper,
   QrCode,
   Plus,
+  MessageSquareQuote,
 } from 'lucide-react';
 import BenzarStoreTab from './BenzarStoreTab';
 import { EventCheckInTab } from './EventCheckInTab';
@@ -42,10 +43,12 @@ import PenatalayanCalendar from './PenatalayanCalendar';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
 import EventGalleryTab from './EventGalleryTab';
+import { ManageTestimonials } from './ManageTestimonials';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
+import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -112,7 +115,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'checkin';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -124,6 +127,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [selectedDiv, setSelectedDiv] = useState<string>(ALL_DIVISIONS[0]);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
 
   // Division members
   const [members, setMembers] = useState<DivisionMember[]>([]);
@@ -205,6 +209,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
   }, [addToast]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  useEffect(() => {
+    fetch('/api/channel-links/scoped', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setWaLinks(d.links || []))
+      .catch(() => setWaLinks([]));
+  }, []);
 
   const currentDiv = selectedEvent?.divisions?.find(
     (d) => d.division === selectedDiv
@@ -758,6 +769,14 @@ export const DivisionWorkspacePanel: React.FC = () => {
           })}
         </ScrollTabBar>
 
+        <div className="mb-6">
+          <WhatsAppJoinCard
+            title={pillarByName(selectedDiv)?.label || selectedDiv}
+            url={waLinks.find((l) => l.kind === 'DIVISION' && l.refId === selectedDiv)?.url}
+            emptyHint={t.portal.wa.missingLink}
+          />
+        </div>
+
         {/* Division Detail */}
         {currentDiv && (
           <div className="space-y-6">
@@ -895,7 +914,10 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 { id: 'planning' as DetailTab, label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
                 ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'MARTURIA' ? [{ id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'MARTURIA' ? [
+                  { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+                  { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+                ] : []),
                 ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: d.tabStore, icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
@@ -1343,6 +1365,10 @@ export const DivisionWorkspacePanel: React.FC = () => {
               <div>
                 <EventGalleryTab division={selectedDiv} eventId={selectedEvent?.id ?? ''} />
               </div>
+            )}
+
+            {detailTab === 'kesaksian' && selectedDiv === 'MARTURIA' && (
+              <ManageTestimonials variant="curate" />
             )}
 
             {/* Store Tab (Benzarpreneurship only) */}

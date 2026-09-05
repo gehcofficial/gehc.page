@@ -14,6 +14,7 @@ export type PortalNavItemDef = {
 export type NavBuildContext = {
   isGroupMentor: boolean;
   isMentee: boolean;
+  isBodTimkerja?: boolean;
 };
 
 const CHURCH_ROLES = {
@@ -39,12 +40,13 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'jethro', label: 'Regenerasi Kelompok', roles: ['KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
   { id: 'content-weekly', label: 'Kelola Warta Pemuda', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS publikasi warta' },
   { id: 'content-activities', label: 'Kelola Agenda Kegiatan', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS agenda publik' },
-  { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten', subtitle: 'Collage landing' },
+  { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisi, group: 'Konten', subtitle: 'Collage landing' },
+  { id: 'kesaksian', label: 'Kesaksian', roles: ['MENTEE'] as UserRole[], group: 'Komunitas', subtitle: 'Tulis kesaksian sendiri' },
   { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten' },
   { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur' },
   { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event' },
   { id: 'divisions', label: 'Panel Divisi (6 Divisi)', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace permanen divisi' },
-  { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
+  { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
@@ -74,6 +76,7 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'jethro',
     'content-weekly',
     'content-activities',
+    'kesaksian',
     'content-testimonials',
     'media-guide',
     'struktur',
@@ -84,10 +87,10 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'account',
   ],
   KOMISI: ['event-info', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'content-testimonials', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
-  MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'wa-channels', 'account'],
-  CO_MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'wa-channels', 'account'],
-  MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
+  COMMITTEE: ['event-info', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
+  MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
+  CO_MENTOR: ['event-info', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
+  MENTEE: ['event-info', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
   BPMJ: ['event-info', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
 };
 
@@ -114,6 +117,7 @@ export function buildPortalNavItems(
     // Onboarding: hanya Info Event + Akun (akses penuh belum dibuka).
     if (isOnboarding) return item.id === 'event-info' || item.id === 'account';
     if (item.onboardingOnly) return false;
+    if (item.id === 'wa-channels' && currentRole === 'COMMITTEE' && !ctx.isBodTimkerja) return false;
     return true;
   });
 

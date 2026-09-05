@@ -81,6 +81,7 @@ import {
 import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
 import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
 import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
+import { isBodTimkerja } from './division-rbac.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
@@ -242,6 +243,9 @@ app.get('/api/auth/me', wrap(async (req, res) => {
     platformAdmin: Boolean(req.platformAdmin),
     platformCapabilities: req.platformCapabilities || [],
     isPlatformOperator: Boolean(req.platformOperator),
+    isBodTimkerja: (u.roles || []).some((r) => r.role === 'COMMITTEE')
+      ? await isBodTimkerja(u)
+      : false,
   });
 }));
 

@@ -372,6 +372,10 @@ export function registerContentPublicRoutes(app, { wrap }) {
   }));
 
   app.post('/api/testimonials', requireRole(...CMS_ROLES), wrap(async (req, res) => {
+    const roles = (req.authUser?.roles || []).map((r) => r.role);
+    if (!roles.includes('SUPERADMIN')) {
+      return res.status(403).json({ error: 'Kesaksian dibuat oleh mentee di portal mereka. Kurasi draf yang sudah ada.' });
+    }
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 

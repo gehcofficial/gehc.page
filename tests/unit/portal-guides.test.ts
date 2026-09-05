@@ -54,6 +54,25 @@ describe('portal i18n + guides', () => {
     expect(ids).toContain('groups-monitoring');
     expect(ids).toContain('account');
     expect(ids).not.toContain('beyonders-leaders');
+    expect(ids).not.toContain('wa-channels');
+  });
+
+  it('mentee sees kesaksian, not kanal WhatsApp', () => {
+    const ids = buildPortalNavItems('MENTEE', { isGroupMentor: false, isMentee: true }, false).map((i) => i.id);
+    expect(ids).toContain('kesaksian');
+    expect(ids).not.toContain('wa-channels');
+    expect(ids).not.toContain('content-testimonials');
+  });
+
+  it('COMMITTEE without BOD flag hides kanal WhatsApp', () => {
+    const ids = buildPortalNavItems('COMMITTEE', { isGroupMentor: false, isMentee: false }, false).map((i) => i.id);
+    expect(ids).not.toContain('wa-channels');
+    expect(ids).not.toContain('content-testimonials');
+  });
+
+  it('BOD Tim Kerja COMMITTEE sees kanal WhatsApp', () => {
+    const ids = buildPortalNavItems('COMMITTEE', { isGroupMentor: false, isMentee: false, isBodTimkerja: true }, false).map((i) => i.id);
+    expect(ids).toContain('wa-channels');
   });
 
   it('Komisi sees house leaders next to monitoring', () => {

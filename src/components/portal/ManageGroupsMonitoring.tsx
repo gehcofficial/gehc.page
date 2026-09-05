@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
 import { AttendancePanel } from './AttendancePanel';
@@ -30,6 +30,7 @@ import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 import { DriveUploadButton } from './DriveUploadButton';
 import { GroupAlbumsPanel } from './GroupAlbumsPanel';
+import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 import { useMediaSlots, MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABEL } from '../../lib/roles';
@@ -71,6 +72,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
   );
 
   const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums'>('monitoring-form');
+  const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string }>>([]);
 
   // Selected group object
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
@@ -110,6 +112,15 @@ export const ManageGroupsMonitoring: React.FC = () => {
 
   // Authorization check for current active group
   const canWriteMonitoring = canAccess('group_monitoring_write', activeGroup.id);
+
+  useEffect(() => {
+    fetch('/api/channel-links/scoped', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setWaLinks(d.links || []))
+      .catch(() => setWaLinks([]));
+  }, []);
+
+  const groupWaUrl = waLinks.find((l) => l.kind === 'GROUP' && l.refId === activeGroup?.id)?.url;
 
   const handleMonitoringSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,6 +247,14 @@ export const ManageGroupsMonitoring: React.FC = () => {
       </div>
 
       <PanelGuide guideId="groups-monitoring" />
+
+      {activeGroup && (
+        <WhatsAppJoinCard
+          title={activeGroup.name}
+          url={groupWaUrl}
+          emptyHint={t.portal.wa.missingLink}
+        />
+      )}
 
       {/* Group Selector Pills (If Superadmin/Committee, can pick from all 10) */}
       {(isSuperAdmin || isCommittee) && (

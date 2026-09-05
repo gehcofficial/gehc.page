@@ -22,6 +22,7 @@ export interface MeResponse {
   platformAdmin?: boolean;
   platformCapabilities?: string[];
   isPlatformOperator?: boolean;
+  isBodTimkerja?: boolean;
 }
 
 interface ApiUser {
@@ -88,6 +89,7 @@ export async function fetchMeFull(): Promise<{
   platformAdmin: boolean;
   platformCapabilities: string[];
   isPlatformOperator: boolean;
+  isBodTimkerja: boolean;
 }> {
   const res = await fetch('/api/auth/me', { credentials: 'include' });
   const data = await handle<MeResponse>(res);
@@ -98,6 +100,7 @@ export async function fetchMeFull(): Promise<{
     platformAdmin: Boolean(data.platformAdmin),
     platformCapabilities: data.platformCapabilities || [],
     isPlatformOperator: Boolean(data.isPlatformOperator),
+    isBodTimkerja: Boolean(data.isBodTimkerja),
   };
 }
 

@@ -88,6 +88,7 @@ interface AppContextType {
   isGroupMentor: boolean;
   isMentee: boolean;
   isAlumni: boolean;
+  isBodTimkerja: boolean;
   canAccess: (resource: 'settings_users' | 'settings_integrations' | 'content_manage' | 'groups_all' | 'group_monitoring_write' | 'struktur_manage', groupId?: string) => boolean;
 
   // Google SSO nyata (server-backed)
@@ -561,6 +562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPlatformOperator, setIsPlatformOperator] = useState(false);
   const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
   const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
+  const [isBodTimkerja, setIsBodTimkerja] = useState(false);
 
   const refreshPlatformContext = useCallback(async () => {
     try {
@@ -593,6 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
         setIsPlatformOperator(me.isPlatformOperator);
         setPlatformCapabilities(me.platformCapabilities || []);
+        setIsBodTimkerja(me.isBodTimkerja);
       }
       const hash = window.location.hash;
       if (isAdminHash(hash)) setActiveViewState('admin');
@@ -609,6 +612,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { user, activeRole } = await loginWithGoogle(credential);
     setAuthUser(user);
     if (activeRole) setRoleOverride(activeRole);
+    try {
+      const me = await fetchMeFull();
+      setIsBodTimkerja(me.isBodTimkerja);
+      setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
+      setIsPlatformOperator(me.isPlatformOperator);
+      setPlatformCapabilities(me.platformCapabilities || []);
+    } catch { /* session user already set */ }
     const ns = activeRole ? roleToNamespace(activeRole) : null;
     const onboarding = user.onboardingStatus === 'WAITING_POOL';
     if (ns) {
@@ -632,6 +642,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuthUser(null);
     setCurrentUserId('usr-tech');
     setRoleOverride(null);
+    setIsBodTimkerja(false);
     addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
   };
 
@@ -643,6 +654,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
       setIsPlatformOperator(me.isPlatformOperator);
       setPlatformCapabilities(me.platformCapabilities || []);
+      setIsBodTimkerja(me.isBodTimkerja);
       setPublicTabState(tabFromHash());
       if (isAdminHash(window.location.hash)) {
         setActiveViewState('admin');
@@ -1154,6 +1166,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isGroupMentor,
         isMentee,
         isAlumni,
+        isBodTimkerja,
         canAccess,
 
         authUser,
