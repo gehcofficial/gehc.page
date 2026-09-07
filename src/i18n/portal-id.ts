@@ -216,6 +216,13 @@ export const portalId: typeof portalEn = {
     emptyWaitingDesc: 'Semua pendaftar sudah melengkapi profil.',
     emptyPendingTitle: 'Tidak ada yang menunggu role',
     emptyPendingDesc: 'Semua orang di pool sudah punya penempatan.',
+    deleteTitle: 'Hapus Quick Register',
+    deleteWarn:
+      'Menghapus baris counter saja — bukan akun portal. Pakai untuk percobaan dummy yang nanti daftar Google atau diundang.',
+    deleteGuestHint: 'Counter tanpa akun Google',
+    deleteConfirmLabel: 'Ketik nama lengkap atau nomor WhatsApp persis',
+    deleteSubmit: 'Hapus pendaftaran',
+    deleteDone: 'Quick Register dihapus',
   },
   eventInfo: {
     title: 'Info Event',
@@ -390,7 +397,7 @@ export const portalId: typeof portalEn = {
     'onboarding.registered': {
       title: 'Quick Register',
       purpose: 'Orang yang daftar kehadiran sebelum profil portal lengkap.',
-      steps: ['Filter BAKU TAU / domisili.', 'Unduh CSV.', 'Kirim pengingat lengkapi profil.'],
+      steps: ['Filter BAKU TAU / domisili.', 'Unduh CSV.', 'Hapus baris dummy (ketik nama atau WA).', 'Kirim pengingat lengkapi profil.'],
       when: 'Pendaftaran counter atau QR dari event.',
       notFor: 'Menyetujui akun login PENDING ada di Semua Akun (Orang).',
     },

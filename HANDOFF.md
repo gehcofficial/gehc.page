@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Daftar pendaftar BAKU TAU 4.0 (7 Sep 2026)
+## Current — Hapus dummy Quick Register (7 Sep 2026)
+
+**Goal:** Komisi bisa menghapus baris counter dummy di Onboarding → Quick Register, dengan konfirmasi ketik nama/WA seperti hapus akun di Orang.
+
+### Done
+
+- Counter panitia tetap ada (hari H tanpa Google).
+- `DELETE /api/waiting-pool/:id` hanya untuk status `REGISTERED` tanpa `userId`.
+- Modal konfirmasi di tab Quick Register.
+
+### Next
+
+1. Login Komisi → Onboarding → Quick Register → Hapus (ketik nama atau nomor WA).
+2. Akun Google / undangan tetap dihapus di Orang → Semua Akun.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Daftar pendaftar BAKU TAU 4.0 (7 Sep 2026)
 
 **Goal:** Panitia Tim Kerja melihat list lengkap pendaftar BAKU TAU (angka QR “peserta terdaftar”), bukan hanya 9 akun Google di “Kehadiran Event”.
 

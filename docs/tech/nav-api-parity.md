@@ -8,7 +8,7 @@ Each portal tab must only call endpoints the user's role can access.
 | my-profile | MyProfilePanel | all 8 | GET/PATCH `/api/me/profile` | auth |
 | dashboard | PortalDashboard | 6 roles | GET `/api/groups`, `/api/jemaat/birthdays/upcoming` | varies |
 | people | PeopleInvites | SUPERADMIN, KOMISI | `/api/users`, `/api/invites` | KOMISION_CORE |
-| onboarding | WaitingPoolPanel | SUPERADMIN, KOMISI | `/api/waiting-pool`, `/api/pending-approval` | KOMISION_CORE |
+| onboarding | WaitingPoolPanel | SUPERADMIN, KOMISI | `/api/waiting-pool`, `DELETE /api/waiting-pool/:id` (REGISTERED only), `/api/pending-approval` | KOMISION_CORE |
 | jethro-placement | JethroPlacementReview | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/jethro/placement/*` | read: +BPMJ; write: KOMISION |
 | youth-gehc | YouthGEHCList | SUPERADMIN, KOMISI | `/api/jemaat/*` | KOMISION_CORE |
 | content-testimonials | ManageTestimonials | KOMISI (+ SUPERADMIN inspector) | `GET/PATCH /api/testimonials`, `POST /api/testimonials/:id/publish` | CMS read: KOMISI/COMMITTEE; create POST 403 except SUPERADMIN; publish: KOMISI |

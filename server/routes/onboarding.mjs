@@ -2,6 +2,7 @@ import { requireRole } from '../auth.mjs';
 import { getPrisma } from '../db.mjs';
 import { KOMISION_CORE } from '../lib/rbac-constants.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda } from '../onboarding-sync.mjs';
+import { deleteQuickRegisterEntry } from '../lib/waiting-pool-delete.mjs';
 
 /** Waiting pool & pending-approval routes */
 export function registerOnboardingRoutes(app, { wrap }) {
@@ -81,6 +82,24 @@ export function registerOnboardingRoutes(app, { wrap }) {
     });
 
     res.json({ ok: true, entry: updated, message: 'Reminder terkirim (placeholder).' });
+  }));
+
+  app.delete('/api/waiting-pool/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const entry = await prisma.waitingPool.findUnique({ where: { id: req.params.id } });
+    try {
+      const result = await deleteQuickRegisterEntry(prisma, {
+        entry,
+        confirm: req.body?.confirm,
+      });
+      return res.json(result);
+    } catch (err) {
+      const status = err.status || 500;
+      if (status >= 500) throw err;
+      return res.status(status).json({ error: err.message });
+    }
   }));
 
   app.post('/api/waiting-pool/reset-status', requireRole(...KOMISION_CORE), wrap(async (req, res) => {

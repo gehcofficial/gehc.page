@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ClipboardList, Clock, Gift, Send, Loader2, X, Download, Sparkles } from 'lucide-react';
+import { ClipboardList, Clock, Gift, Send, Loader2, X, Download, Sparkles, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { PlacementChoiceModal, PlacementTarget } from './PlacementChoiceModal';
@@ -73,6 +73,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showJethroHint, setShowJethroHint] = useState(false);
   const [placementTargets, setPlacementTargets] = useState<PlacementTarget[] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WaitingPoolEntry | null>(null);
 
   const { pageItems: pagedPending, pager: pendingPager } = useListPager<WaitingPoolEntry>(pendingApproval || []);
   const poolQuery = (status: string) => {
@@ -403,6 +404,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           emptyDesc={o.emptyRegisteredDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
+          onDelete={(e) => setDeleteTarget(e)}
         />
       )}
 
@@ -603,6 +605,17 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           onIndividu={() => handleIndividu(placementTargets.map((t) => t.poolId))}
         />
       )}
+
+      {deleteTarget && (
+        <DeleteQuickRegisterModal
+          entry={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={async () => {
+            setDeleteTarget(null);
+            await fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -611,14 +624,98 @@ const BIPRA_SHORT: Record<string, string> = {
   BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
 };
 
+const DeleteQuickRegisterModal: React.FC<{
+  entry: WaitingPoolEntry;
+  onClose: () => void;
+  onDeleted: () => Promise<void>;
+}> = ({ entry, onClose, onDeleted }) => {
+  const { addToast } = useApp();
+  const { t } = useLang();
+  const o = t.portal.onboarding;
+  const expected = entry.name || entry.phone || entry.id;
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/waiting-pool/${encodeURIComponent(entry.id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menghapus.');
+      addToast({ type: 'success', title: o.deleteDone, description: entry.name });
+      await onDeleted();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-black">{o.deleteTitle}</h3>
+            <p className="text-xs text-[#8C8880] mt-1">{o.deleteWarn}</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100">
+            <X className="w-4 h-4 text-[#8C8880]" />
+          </button>
+        </div>
+        <div className="rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] p-3 text-xs space-y-1">
+          <p className="font-bold">{entry.name}</p>
+          {entry.phone && <p className="font-mono text-[11px]">{entry.phone}</p>}
+          {entry.sourceEvent && <p className="text-[#8C8880]">{entry.sourceEvent}</p>}
+          <p className="text-amber-700 font-bold">{o.deleteGuestHint}</p>
+        </div>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-bold">{o.deleteConfirmLabel}</span>
+          <input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder={String(expected || '')}
+            className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm"
+            autoComplete="off"
+          />
+        </label>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-full border text-xs font-bold">
+            {t.portal.common.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={busy || !confirm.trim()}
+            onClick={() => void submit()}
+            className="flex-1 py-2.5 rounded-full bg-red-600 text-white text-xs font-black disabled:opacity-50"
+          >
+            {busy ? '…' : o.deleteSubmit}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PoolList: React.FC<{
   entries: WaitingPoolEntry[];
   emptyTitle: string;
   emptyDesc: string;
   onReminder: (e: WaitingPoolEntry) => void;
   sendingReminder: string | null;
-}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder }) => {
+  onDelete?: (e: WaitingPoolEntry) => void;
+}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder, onDelete }) => {
   const { pageItems, pager } = useListPager<WaitingPoolEntry>(entries);
+  const { t } = useLang();
+  const deleteLabel = t.portal.onboarding.deleteSubmit;
   return (
   <div className="space-y-2">
     {pager}
@@ -664,16 +761,27 @@ const PoolList: React.FC<{
               {entry.sourceEvent && <span className="bg-gray-100 px-2 py-0.5 rounded-full">{entry.sourceEvent}</span>}
               {entry.giftTestDone && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Gift</span>}
             </div>
-            {entry.status !== 'REGISTERED' && (
-              <button
-                onClick={() => onReminder(entry)}
-                disabled={sendingReminder === entry.id}
-                className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white disabled:opacity-50 flex items-center gap-1"
-              >
-                {sendingReminder === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                Reminder
-              </button>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {onDelete && entry.status === 'REGISTERED' && !entry.userId && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(entry)}
+                  className="text-[10px] font-black px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" /> {deleteLabel}
+                </button>
+              )}
+              {entry.status !== 'REGISTERED' && (
+                <button
+                  onClick={() => onReminder(entry)}
+                  disabled={sendingReminder === entry.id}
+                  className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white disabled:opacity-50 flex items-center gap-1"
+                >
+                  {sendingReminder === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                  Reminder
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ))

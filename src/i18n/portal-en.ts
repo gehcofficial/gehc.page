@@ -222,6 +222,13 @@ export const portalEn = {
     emptyWaitingDesc: 'Every registrant has completed their profile.',
     emptyPendingTitle: 'Nobody waiting for a role',
     emptyPendingDesc: 'Everyone in the pool already has a placement.',
+    deleteTitle: 'Delete Quick Register',
+    deleteWarn:
+      'Removes the counter row only — not a portal account. Use this for dummy trials that later sign in with Google or an invite.',
+    deleteGuestHint: 'Counter without a Google account',
+    deleteConfirmLabel: 'Type the full name or WhatsApp number exactly',
+    deleteSubmit: 'Delete registration',
+    deleteDone: 'Quick Register removed',
   },
   eventInfo: {
     title: 'Event Info',
@@ -396,7 +403,7 @@ export const portalEn = {
     'onboarding.registered': {
       title: 'Quick Register',
       purpose: 'People who registered attendance before a full portal profile.',
-      steps: ['Filter BAKU TAU / domicile.', 'Export CSV.', 'Send a reminder to finish profile.'],
+      steps: ['Filter BAKU TAU / domicile.', 'Export CSV.', 'Delete dummy rows (type name or WA).', 'Send a reminder to finish profile.'],
       when: 'Counter or QR registrations from the event.',
       notFor: 'Approving PENDING login accounts is All accounts under People.',
     },
