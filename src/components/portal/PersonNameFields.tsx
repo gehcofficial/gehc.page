@@ -43,9 +43,9 @@ export const PersonNameFields: React.FC<{
         </select>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <NameBox fieldClass={fieldClass} labelClass={labelClass} label="Nama depan" required={required} value={value.givenName} placeholder="Meyke" onChange={(givenName) => set({ givenName })} />
+        <NameBox fieldClass={fieldClass} labelClass={labelClass} label="Nama depan" required={required} value={value.givenName} placeholder="cth. Meyke" onChange={(givenName) => set({ givenName })} />
         <NameBox fieldClass={fieldClass} labelClass={labelClass} label="Nama tengah" value={value.middleName} placeholder="Opsional" onChange={(middleName) => set({ middleName })} />
-        <NameBox fieldClass={fieldClass} labelClass={labelClass} label="Nama belakang" required={required} value={value.familyName} placeholder="Poluan" onChange={(familyName) => set({ familyName })} />
+        <NameBox fieldClass={fieldClass} labelClass={labelClass} label="Nama belakang" required={required} value={value.familyName} placeholder="cth. Poluan" onChange={(familyName) => set({ familyName })} />
       </div>
       <p className={hintClass}>Huruf kapital otomatis di awal tiap kata.</p>
       <AcademicTitlesField
@@ -110,7 +110,11 @@ const AcademicTitlesField: React.FC<{
   const [open, setOpen] = useState(false);
   const hits = useMemo(() => searchAcademicTitles(q).filter((t) => !value.includes(t.abbr)).slice(0, 12), [q, value]);
   const custom = normalizeAcademicAbbr(q);
-  const customKnown = ACADEMIC_TITLES.some((t) => t.abbr.toLowerCase() === custom.toLowerCase());
+  const customCompact = custom.replace(/\./g, '').toLowerCase();
+  const customKnown = ACADEMIC_TITLES.some((t) => {
+    const abbr = t.abbr.toLowerCase();
+    return abbr === custom.toLowerCase() || abbr.replace(/\./g, '') === customCompact;
+  });
   const showCustom = Boolean(custom) && !customKnown && !value.some((v) => v.toLowerCase() === custom.toLowerCase());
   const dark = theme === 'dark';
 
