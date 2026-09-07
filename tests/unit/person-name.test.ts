@@ -49,6 +49,7 @@ describe('person name + gelar', () => {
     expect(searchAcademicTitles('teologi').some((t) => t.abbr === 'S.Th.')).toBe(true);
     expect(searchAcademicTitles('phd').some((t) => t.abbr === 'Ph.D.')).toBe(true);
     expect(searchAcademicTitles('education').some((t) => t.abbr === 'M.Ed.')).toBe(true);
+    expect(searchAcademicTitles('pendidikan teologi').some((t) => t.abbr === 'S.Pth.')).toBe(true);
   });
 
   it('requires given and family names', () => {
