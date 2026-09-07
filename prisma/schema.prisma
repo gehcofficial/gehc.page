@@ -134,6 +134,11 @@ model User {
   email     String?  @unique @db.VarChar(190)
   loginUsername String? @unique @map("login_username") @db.VarChar(40)
   name      String   @db.VarChar(150)
+  givenName     String?  @map("given_name") @db.VarChar(80)
+  middleName    String?  @map("middle_name") @db.VarChar(80)
+  familyName    String?  @map("family_name") @db.VarChar(80)
+  churchTitle   String?  @map("church_title") @db.VarChar(8)
+  academicTitles Json?   @map("academic_titles")
   avatar    String?  @db.Text
   avatarGoogle     String?  @map("avatar_google") @db.Text
   avatarSource     String   @default("GOOGLE") @map("avatar_source") @db.VarChar(16) // GOOGLE | CUSTOM

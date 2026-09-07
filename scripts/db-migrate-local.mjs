@@ -165,6 +165,11 @@ const STEPS = [
     label: 'Beyonders generasi 0 (2026-06) + mentor_user_id',
     required: true,
   },
+  {
+    script: 'server/_migrate-person-name.cjs',
+    label: 'Nama terstruktur + gelar gereja/akademis',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

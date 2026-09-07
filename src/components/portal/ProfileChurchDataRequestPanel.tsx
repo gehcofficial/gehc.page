@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { PersonNameFields } from './PersonNameFields';
+import {
+  composeOfficialName,
+  emptyPersonName,
+  partsFromUser,
+  validatePersonName,
+  type PersonNameParts,
+} from '../../lib/person-name';
 
 const BIPRA_LABEL: Record<string, string> = {
   BAPAK: 'Bapak', IBU: 'Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak',
@@ -38,6 +46,11 @@ function requestSummary(req: ChurchDataRequest, kolomList: KolomOption[]) {
 export const ProfileChurchDataRequestPanel: React.FC<{
   user: {
     name?: string;
+    givenName?: string | null;
+    middleName?: string | null;
+    familyName?: string | null;
+    churchTitle?: string | null;
+    academicTitles?: unknown;
     bipra?: string;
     kolom?: { id: string; name: string } | null;
     kolomId?: string | null;
@@ -52,20 +65,20 @@ export const ProfileChurchDataRequestPanel: React.FC<{
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [onboardingForm, setOnboardingForm] = useState({
-    name: user?.name || '',
+    nameParts: partsFromUser(user),
     bipra: user?.bipra || 'PEMUDA',
     kolomId: user?.kolomId || user?.kolom?.id || '',
   });
 
   useEffect(() => {
     setOnboardingForm({
-      name: user?.name || '',
+      nameParts: partsFromUser(user),
       bipra: user?.bipra || 'PEMUDA',
       kolomId: user?.kolomId || user?.kolom?.id || '',
     });
-  }, [user?.name, user?.bipra, user?.kolomId, user?.kolom?.id]);
+  }, [user]);
   const [form, setForm] = useState({
-    requestedName: '',
+    nameParts: emptyPersonName() as PersonNameParts,
     requestedBipra: '',
     requestedKolomId: '',
     reason: '',
@@ -77,12 +90,20 @@ export const ProfileChurchDataRequestPanel: React.FC<{
     e.preventDefault();
     setBusy(true);
     try {
+      const nameErr = validatePersonName(onboardingForm.nameParts);
+      if (nameErr) throw new Error(nameErr);
+      const parts = onboardingForm.nameParts;
       const res = await fetch('/api/me/profile', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: onboardingForm.name.trim(),
+          givenName: parts.givenName,
+          middleName: parts.middleName,
+          familyName: parts.familyName,
+          churchTitle: parts.churchTitle || null,
+          academicTitles: parts.academicTitles,
+          name: composeOfficialName(parts),
           bipra: onboardingForm.bipra,
           kolomId: onboardingForm.kolomId || null,
         }),
@@ -104,7 +125,7 @@ export const ProfileChurchDataRequestPanel: React.FC<{
 
   const openModal = () => {
     setForm({
-      requestedName: user?.name || '',
+      nameParts: partsFromUser(user),
       requestedBipra: user?.bipra || 'PEMUDA',
       requestedKolomId: user?.kolomId || user?.kolom?.id || '',
       reason: '',
@@ -116,9 +137,15 @@ export const ProfileChurchDataRequestPanel: React.FC<{
     e.preventDefault();
     setBusy(true);
     try {
-      const payload: Record<string, string | null> = { reason: form.reason.trim() || null };
-      if (form.requestedName.trim() !== (user?.name || '').trim()) {
-        payload.requestedName = form.requestedName.trim();
+      const payload: Record<string, unknown> = { reason: form.reason.trim() || null };
+      const composed = composeOfficialName(form.nameParts);
+      if (composed !== (user?.name || '').trim()) {
+        payload.requestedName = composed;
+        payload.givenName = form.nameParts.givenName;
+        payload.middleName = form.nameParts.middleName;
+        payload.familyName = form.nameParts.familyName;
+        payload.churchTitle = form.nameParts.churchTitle || null;
+        payload.academicTitles = form.nameParts.academicTitles;
       }
       if (form.requestedBipra && form.requestedBipra !== user?.bipra) {
         payload.requestedBipra = form.requestedBipra;
@@ -159,19 +186,13 @@ export const ProfileChurchDataRequestPanel: React.FC<{
       <div className="mt-4 pt-4 border-t border-dashed border-[#D9D7D0]/60">
         <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1">Identitas & data gereja</p>
         <p className="text-[10px] text-[#8C8880] mb-3 leading-relaxed">
-          Isi nama lengkap sesuai KTP. Nama Google hanya untuk login — kolom dan BIPRA bisa diisi langsung saat onboarding.
+          Isi nama depan / tengah / belakang, gelar jabatan gereja, dan gelar akademis. Nama Google hanya untuk login.
         </p>
         <form onSubmit={saveOnboardingChurch} className="space-y-3">
-          <div>
-            <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Nama lengkap (sesuai KTP) *</label>
-            <input
-              className={field}
-              value={onboardingForm.name}
-              onChange={(e) => setOnboardingForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder={user?.name || 'Nama resmi'}
-              required
-            />
-          </div>
+          <PersonNameFields
+            value={onboardingForm.nameParts}
+            onChange={(nameParts) => setOnboardingForm((f) => ({ ...f, nameParts }))}
+          />
           <div>
             <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">BIPRA *</label>
             <select
@@ -245,11 +266,9 @@ export const ProfileChurchDataRequestPanel: React.FC<{
             <form onSubmit={submit} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Nama</label>
-                <input
-                  className={field}
-                  value={form.requestedName}
-                  onChange={(e) => setForm((f) => ({ ...f, requestedName: e.target.value }))}
-                  required
+                <PersonNameFields
+                  value={form.nameParts}
+                  onChange={(nameParts) => setForm((f) => ({ ...f, nameParts }))}
                 />
               </div>
               <div>

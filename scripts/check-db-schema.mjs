@@ -27,6 +27,9 @@ const REQUIRED_USER_COLUMNS = [
   'link_status',
   'must_change_password',
   'avatar_source',
+  'given_name',
+  'family_name',
+  'church_title',
 ];
 
 const REQUIRED_TABLES = [

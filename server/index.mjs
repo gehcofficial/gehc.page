@@ -117,6 +117,7 @@ import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from '.
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
 import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
+import { applyPersonNameFields, parseDisplayName } from './lib/person-name.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -473,7 +474,13 @@ app.patch('/api/me/profile', wrap(async (req, res) => {
   const data = {};
   const isOnboarding = existingUser.onboardingStatus === 'WAITING_POOL';
 
-  if (body.name !== undefined) {
+  if (body.givenName !== undefined || body.familyName !== undefined || body.middleName !== undefined || body.churchTitle !== undefined || body.academicTitles !== undefined) {
+    if (!isOnboarding) {
+      return res.status(403).json({ error: 'Ubah nama lewat permintaan admin (Jemaat).' });
+    }
+    const nameErr = applyPersonNameFields(body, data);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+  } else if (body.name !== undefined) {
     if (!isOnboarding) {
       return res.status(403).json({ error: 'Ubah nama lewat permintaan admin (Jemaat).' });
     }
@@ -571,7 +578,15 @@ app.post('/api/me/profile/church-data-request', wrap(async (req, res) => {
     if (!n) return res.status(400).json({ error: 'Nama tidak boleh kosong.' });
     if (n !== user.name) {
       changeName = true;
-      requestedName = n;
+      requestedName = n.slice(0, 150);
+    }
+  } else if (body.givenName !== undefined || body.familyName !== undefined) {
+    const tmp = {};
+    const nameErr = applyPersonNameFields(body, tmp);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+    if (tmp.name && tmp.name !== user.name) {
+      changeName = true;
+      requestedName = tmp.name;
     }
   }
   if (body.requestedBipra !== undefined && body.requestedBipra !== null && body.requestedBipra !== '') {
@@ -3798,7 +3813,13 @@ app.post('/api/register/local', wrap(async (req, res) => {
 
   try {
     const b = req.body || {};
-    const name = String(b.name || '').trim();
+    const nameData = {};
+    let name = String(b.name || '').trim();
+    if (b.givenName !== undefined || b.familyName !== undefined) {
+      const nameErr = applyPersonNameFields(b, nameData);
+      if (nameErr) return res.status(400).json({ error: nameErr });
+      name = nameData.name;
+    }
     const email = String(b.email || '').toLowerCase().trim();
     const password = String(b.password || '');
     if (!name || !email.includes('@')) {
@@ -3838,6 +3859,7 @@ app.post('/api/register/local', wrap(async (req, res) => {
         where: { id: existing.id },
         data: {
           name,
+          ...nameData,
           accountStatus: status,
           authProvider: 'LOCAL',
           passwordHash: hashPassword(password),
@@ -3851,6 +3873,7 @@ app.post('/api/register/local', wrap(async (req, res) => {
           id: `usr-${crypto.randomUUID()}`,
           email,
           name,
+          ...nameData,
           accountStatus: status,
           bipra: 'PEMUDA',
           authProvider: 'LOCAL',
@@ -4300,7 +4323,15 @@ app.post('/api/profile/church-data-requests/:id/approve', requireRole(...KOMISIO
   if (record.status !== 'PENDING') return res.status(400).json({ error: 'Permintaan sudah diproses.' });
 
   const data = {};
-  if (record.changeName && record.requestedName) data.name = record.requestedName;
+  if (record.changeName && record.requestedName) {
+    data.name = record.requestedName;
+    const parts = parseDisplayName(record.requestedName);
+    if (parts.givenName) data.givenName = parts.givenName;
+    data.middleName = parts.middleName || null;
+    if (parts.familyName) data.familyName = parts.familyName;
+    data.churchTitle = parts.churchTitle || null;
+    data.academicTitles = parts.academicTitles;
+  }
   if (record.changeBipra && record.requestedBipra) {
     if (!BIPRA_VALUES.includes(record.requestedBipra)) {
       return res.status(400).json({ error: 'BIPRA pada permintaan tidak valid.' });

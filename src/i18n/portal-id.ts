@@ -300,8 +300,13 @@ export const portalId: typeof portalEn = {
     },
     'account.profile': {
       title: 'Profil',
-      purpose: 'Data dirimu: nama, BIPRA, asal, karunia, dan kontak.',
-      steps: ['Lengkapi bagian yang masih kosong.', 'Setelah ACTIVE, ubah data gereja lewat permintaan yang Komisi setujui di Jemaat.'],
+      purpose: 'Data dirimu: nama (depan/tengah/belakang + gelar), BIPRA, asal, karunia, dan kontak.',
+      steps: [
+        'Isi nama depan, tengah, belakang — huruf kapital otomatis.',
+        'Pilih gelar jabatan gereja (Pdt/Pnt/Dkn/Kr) jika ada.',
+        'Cari gelar akademis (ID/EN) atau ketik manual.',
+        'Setelah ACTIVE, ubah data gereja lewat permintaan yang Komisi setujui di Jemaat.',
+      ],
       when: 'Banner profil belum lengkap muncul, atau setelah tes karunia.',
       notFor: 'Bukan direktori jemaat. Komisi mengedit orang lain di Jemaat.',
     },

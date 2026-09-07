@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Hapus dummy Quick Register (7 Sep 2026)
+## Current — Nama terstruktur + gelar (7 Sep 2026)
+
+**Goal:** Form lengkapi profil memakai nama depan/tengah/belakang (Title Case), gelar jabatan gereja, dan gelar akademis searchable (ID/EN + manual).
+
+### Done
+
+- `users.given_name / middle_name / family_name / church_title / academic_titles`
+- Preview contoh: `Pdt Meyke Poluan S.Th., M.Pd.,`
+- Form onboarding, permintaan ubah nama, dan daftar email.
+
+### Next
+
+1. `npm run db:migrate:local` (lalu staging/prod) supaya kolom nama ada.
+2. Cek Akun Saya → Identitas gereja (onboarding) dan Daftar dengan email.
+
+### Commands
+
+```
+npm run db:migrate:local
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Hapus dummy Quick Register (7 Sep 2026)
 
 **Goal:** Komisi bisa menghapus baris counter dummy di Onboarding → Quick Register, dengan konfirmasi ketik nama/WA seperti hapus akun di Orang.
 

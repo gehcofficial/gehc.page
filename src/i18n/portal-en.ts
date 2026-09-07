@@ -306,8 +306,13 @@ export const portalEn = {
     },
     'account.profile': {
       title: 'Profile',
-      purpose: 'Your own data: name, BIPRA, origin, gifts, and contact.',
-      steps: ['Fill incomplete sections.', 'After you are ACTIVE, church-data changes go through a request that Komisi approves in Congregation.'],
+      purpose: 'Your own data: split name, church/academic titles, BIPRA, origin, gifts, and contact.',
+      steps: [
+        'Fill given, middle, and family names — each word is title-cased.',
+        'Pick a church office title (Pdt/Pnt/Dkn/Kr) if you hold one.',
+        'Search Indonesian or English academic titles, or type a custom abbreviation.',
+        'After you are ACTIVE, church-data changes go through a request that Komisi approves in Congregation.',
+      ],
       when: 'When the incomplete-profile banner appears, or after a gift test.',
       notFor: 'Not the congregation directory. Komisi edits other people in Congregation.',
     },

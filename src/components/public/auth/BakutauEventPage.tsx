@@ -7,6 +7,7 @@ import { applyPendingEventRegistration, saveEventPending } from '../../../lib/ev
 import { EmailRegisterPanel, GoogleRegisterPanel } from './shared/AuthPanels';
 import { BakutauRegisterCard } from '../../portal/BakutauRegisterCard';
 import { BakuTauWelcomeCard } from '../../portal/BakuTauWelcomeCard';
+import { titleCaseName } from '../../../lib/person-name';
 
 type Stats = {
   registered: number;
@@ -311,7 +312,13 @@ const GuestBakutauFlow: React.FC = () => {
       {pathMode === 'counter' && (
         <form onSubmit={submitQuick} className="space-y-4 bg-white rounded-[28px] border border-[#D9D7D0]/60 p-6">
           <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Counter panitia — nama & WhatsApp</p>
-          <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
+          <Field
+            label="Nama lengkap *"
+            value={form.name}
+            onChange={(v) => setForm({ ...form, name: titleCaseName(v) })}
+            onBlur={() => setForm((f) => ({ ...f, name: titleCaseName(f.name).trim() }))}
+            required
+          />
           <Field label="No. WhatsApp *" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required />
           {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
           <button type="submit" disabled={busy}

@@ -5,6 +5,13 @@ import { Field } from '../../ui/joinParts';
 import { loadGoogleClientId } from '../../../../lib/google-auth-flow';
 import type { EmailRegisterPayload } from '../../../../lib/email-auth-flow';
 import { finishAuthRedirect } from '../../../../lib/auth-redirect';
+import { PersonNameFields } from '../../../portal/PersonNameFields';
+import {
+  composeOfficialName,
+  emptyPersonName,
+  validatePersonName,
+  type PersonNameParts,
+} from '../../../../lib/person-name';
 
 type PanelProps = {
   title?: string;
@@ -125,7 +132,8 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
   theme = 'light',
 }) => {
   const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ email: '', password: '', phone: '' });
+  const [nameParts, setNameParts] = useState<PersonNameParts>(emptyPersonName());
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -134,8 +142,10 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
     setBusy(true);
     setErr('');
     try {
+      const nameErr = validatePersonName(nameParts);
+      if (nameErr) throw new Error(nameErr);
       const payload: EmailRegisterPayload = {
-        name: form.name.trim(),
+        name: composeOfficialName(nameParts),
         email: form.email.trim(),
         password: form.password,
         phone: form.phone.trim() || undefined,
@@ -144,7 +154,14 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          givenName: nameParts.givenName,
+          middleName: nameParts.middleName,
+          familyName: nameParts.familyName,
+          churchTitle: nameParts.churchTitle || null,
+          academicTitles: nameParts.academicTitles,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error || 'Pendaftaran email gagal.');
@@ -161,7 +178,7 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
       {hint && <p className={`text-xs leading-relaxed ${tone.hint}`}>{hint}</p>}
       {err && <p className={`text-xs font-semibold ${tone.err}`}>{err}</p>}
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Nama lengkap *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required theme={theme} />
+        <PersonNameFields value={nameParts} onChange={setNameParts} theme={theme} />
         <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} required theme={theme} />
         <Field label="Kata sandi * (min. 8 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required theme={theme} />
         <Field label="No. WhatsApp" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="08xxxxxxxxxx" theme={theme} />
