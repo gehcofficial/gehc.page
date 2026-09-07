@@ -170,6 +170,11 @@ const STEPS = [
     label: 'Nama terstruktur + gelar gereja/akademis',
     required: true,
   },
+  {
+    script: 'server/_migrate-title-catalog.cjs',
+    label: 'Katalog gelar pelayanan & akademis',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

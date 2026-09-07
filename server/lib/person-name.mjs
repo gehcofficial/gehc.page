@@ -9,11 +9,33 @@ export const CHURCH_TITLE_VALUES = Object.keys(CHURCH_TITLE_ABBR);
 
 const PREFIX_ACADEMIC = new Set(['Prof.', 'Dr.', 'Drs.', 'Dra.', 'Ir.']);
 
+let extraChurchAbbr = { ...CHURCH_TITLE_ABBR };
+let extraPrefixAcademic = new Set(PREFIX_ACADEMIC);
+
+function rowField(raw, key) {
+  return raw?.[key] ?? raw?.[String(key).toUpperCase()] ?? raw?.[String(key).toLowerCase()];
+}
+
+export function setTitleCatalogLookups(rows) {
+  extraChurchAbbr = { ...CHURCH_TITLE_ABBR };
+  extraPrefixAcademic = new Set(PREFIX_ACADEMIC);
+  for (const raw of rows || []) {
+    const active = rowField(raw, 'active');
+    if (active === 0 || active === false) continue;
+    const kind = String(rowField(raw, 'kind') || '');
+    const code = String(rowField(raw, 'code') || '').toUpperCase();
+    const abbr = String(rowField(raw, 'abbr') || '');
+    const position = String(rowField(raw, 'position') || '');
+    if (kind === 'CHURCH' && code && abbr) extraChurchAbbr[code] = abbr;
+    if (kind === 'ACADEMIC' && position === 'prefix' && abbr) extraPrefixAcademic.add(abbr);
+  }
+}
+
 export function parseDisplayName(raw) {
   const empty = { churchTitle: '', givenName: '', middleName: '', familyName: '', academicTitles: [] };
   let s = String(raw || '').trim().replace(/,+\s*$/, '');
   if (!s) return empty;
-  for (const [value, abbr] of Object.entries(CHURCH_TITLE_ABBR)) {
+  for (const [value, abbr] of Object.entries(extraChurchAbbr)) {
     const re = new RegExp(`^${abbr.replace('.', '\\.')}\\.?\\s+`, 'i');
     if (re.test(s)) {
       empty.churchTitle = value;
@@ -26,7 +48,7 @@ export function parseDisplayName(raw) {
   const nameTokens = [];
   for (const tok of tokens) {
     const abbr = normalizeAcademicAbbr(tok);
-    const looksDegree = /^[A-Za-z]{1,8}(\.[A-Za-z]{1,8})+\.?$/.test(tok) || PREFIX_ACADEMIC.has(abbr);
+    const looksDegree = /^[A-Za-z]{1,8}(\.[A-Za-z]{1,8})+\.?$/.test(tok) || extraPrefixAcademic.has(abbr);
     if (looksDegree && tok.includes('.')) academics.push(abbr);
     else nameTokens.push(tok);
   }
@@ -59,14 +81,14 @@ export function normalizeAcademicAbbr(raw) {
 
 export function composeOfficialName(parts) {
   const churchRaw = String(parts?.churchTitle || '').toUpperCase();
-  const church = CHURCH_TITLE_ABBR[churchRaw] || '';
+  const church = extraChurchAbbr[churchRaw] || '';
   const given = titleCaseName(parts?.givenName).trim();
   const middle = titleCaseName(parts?.middleName).trim();
   const family = titleCaseName(parts?.familyName).trim();
   const academics = (Array.isArray(parts?.academicTitles) ? parts.academicTitles : [])
     .map(normalizeAcademicAbbr)
     .filter(Boolean);
-  const prefixes = academics.filter((a) => PREFIX_ACADEMIC.has(a));
+  const prefixes = academics.filter((a) => extraPrefixAcademic.has(a));
   const suffixes = academics.filter((a) => !PREFIX_ACADEMIC.has(a));
   const person = [given, middle, family].filter(Boolean).join(' ');
   const head = [church, ...prefixes, person].filter(Boolean).join(' ');
@@ -80,7 +102,9 @@ export function validatePersonName(parts) {
   if (!titleCaseName(parts?.givenName).trim()) return 'Nama depan wajib diisi.';
   if (!titleCaseName(parts?.familyName).trim()) return 'Nama belakang wajib diisi.';
   const title = String(parts?.churchTitle || '').toUpperCase();
-  if (title && !CHURCH_TITLE_VALUES.includes(title)) return 'Gelar jabatan gereja tidak valid.';
+  if (title && !extraChurchAbbr[title] && !/^[A-Z][A-Z0-9]{1,15}$/.test(title)) {
+    return 'Gelar jabatan gereja tidak valid.';
+  }
   return null;
 }
 

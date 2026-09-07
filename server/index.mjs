@@ -118,6 +118,7 @@ import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
 import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
 import { applyPersonNameFields, parseDisplayName } from './lib/person-name.mjs';
+import { registerTitleCatalogRoutes } from './routes/title-catalog.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -4824,11 +4825,22 @@ app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => 
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { name, phone, gender, bipra, kolomId, isBeyonders, recreationalIds } = req.body || {};
-  if (!String(name || '').trim()) return res.status(400).json({ error: 'Nama wajib.' });
+  const nameData = {};
+  if (req.body?.givenName !== undefined || req.body?.familyName !== undefined) {
+    const nameErr = applyPersonNameFields(req.body || {}, nameData);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+  }
+  const displayName = nameData.name || String(name || '').trim();
+  if (!displayName) return res.status(400).json({ error: 'Nama wajib.' });
   const b = BIPRA_VALUES.includes(bipra) ? bipra : 'PEMUDA';
   const data = {
     id: `usr-${crypto.randomBytes(8).toString('hex')}`,
-    name: String(name).trim(),
+    name: displayName,
+    givenName: nameData.givenName || null,
+    middleName: nameData.middleName || null,
+    familyName: nameData.familyName || null,
+    churchTitle: nameData.churchTitle || null,
+    academicTitles: nameData.academicTitles,
     email: null,
     phone: phone ? String(phone) : null,
     gender: gender ? String(gender) : null,
@@ -5007,7 +5019,7 @@ app.post('/api/admin/users/:id/unlink', requirePlatformRoot(), wrap(async (req, 
 }));
 
 /** PATCH /api/admin/users/:id — Admin edit profil jemaat */
-app.patch('/api/admin/users/:id', requirePlatformAdmin(), wrap(async (req, res) => {
+app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -5016,7 +5028,10 @@ app.patch('/api/admin/users/:id', requirePlatformAdmin(), wrap(async (req, res) 
 
   const { name, gender, phone, giftsTop5, isBeyonders, bipra, kolomId, recreationalIds, membershipKind } = req.body || {};
   const data = {};
-  if (name !== undefined) {
+  if (req.body?.givenName !== undefined || req.body?.familyName !== undefined || req.body?.churchTitle !== undefined || req.body?.academicTitles !== undefined) {
+    const nameErr = applyPersonNameFields(req.body || {}, data);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+  } else if (name !== undefined) {
     if (!String(name).trim()) return res.status(400).json({ error: 'name tidak boleh kosong.' });
     data.name = String(name).trim();
   }
@@ -5658,6 +5673,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
+registerTitleCatalogRoutes(app, { wrap });
 // GET /api/events/:slug — dijangkau lewat next() dari /api/events/:id saat id tidak cocok
 registerEventsPublicRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });

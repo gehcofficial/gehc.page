@@ -48,6 +48,7 @@ const REQUIRED_TABLES = [
   'ministry_month_plans',
   'ministry_week_deliverables',
   'church_calendar_entries',
+  'title_catalog',
   'event_question_bank',
   'event_question_assignments',
   'event_question_answers',

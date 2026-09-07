@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Nama terstruktur + gelar (7 Sep 2026)
+## Current — Katalog gelar + Edit Profil admin (7 Sep 2026)
+
+**Goal:** Admin mengedit nama+gelar di Jemaat, dan Katalog punya tab Gelar (pelayanan + akademis) yang bisa ditambah/arsip/hapus plus antrian saran manual.
+
+### Done
+
+- Edit Profil / Tambah Jemaat memakai `PersonNameFields`.
+- Katalog tab **Gelar**: antrian, tambah, arsip, hapus (Pdt/Pnt/Dkn/Kr terkunci).
+- Gelar manual di form langsung dipakai; saran masuk antrian katalog.
+- Tabel `title_catalog` + `title_suggestions`; seed dari daftar bawaan.
+
+### Next
+
+1. Staging: Katalog → Gelar; Jemaat → Edit Profil (Pdt Meyke Poluan S.Th., M.Pd.,).
+2. Katalog lain (mis. hobi di luar Sports/Arts) nanti, jangan dicampur ke gelar.
+
+### Commands
+
+```
+npm run db:migrate:local
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Nama terstruktur + gelar (7 Sep 2026)
 
 **Goal:** Form lengkapi profil memakai nama depan/tengah/belakang (Title Case), gelar jabatan gereja, dan gelar akademis searchable (ID/EN + manual).
 

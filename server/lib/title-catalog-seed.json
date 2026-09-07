@@ -1,0 +1,672 @@
+{
+  "church": [
+    {
+      "kind": "CHURCH",
+      "code": "PDT",
+      "abbr": "Pdt",
+      "nameId": "Pendeta",
+      "nameEn": "Pastor",
+      "position": "prefix",
+      "locked": true
+    },
+    {
+      "kind": "CHURCH",
+      "code": "PNT",
+      "abbr": "Pnt",
+      "nameId": "Penatua",
+      "nameEn": "Elder",
+      "position": "prefix",
+      "locked": true
+    },
+    {
+      "kind": "CHURCH",
+      "code": "DKN",
+      "abbr": "Dkn",
+      "nameId": "Diaken",
+      "nameEn": "Deacon",
+      "position": "prefix",
+      "locked": true
+    },
+    {
+      "kind": "CHURCH",
+      "code": "KR",
+      "abbr": "Kr",
+      "nameId": "Kostor",
+      "nameEn": "Sexton",
+      "position": "prefix",
+      "locked": true
+    }
+  ],
+  "academic": [
+    {
+      "kind": "ACADEMIC",
+      "code": "Prof.",
+      "abbr": "Prof.",
+      "nameId": "Profesor",
+      "nameEn": "Professor",
+      "position": "prefix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Dr.",
+      "abbr": "Dr.",
+      "nameId": "Doktor",
+      "nameEn": "Doctor",
+      "position": "prefix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Drs.",
+      "abbr": "Drs.",
+      "nameId": "Doktorandus",
+      "nameEn": "Drs.",
+      "position": "prefix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Dra.",
+      "abbr": "Dra.",
+      "nameId": "Doktoranda",
+      "nameEn": "Dra.",
+      "position": "prefix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Ir.",
+      "abbr": "Ir.",
+      "nameId": "Insinyur",
+      "nameEn": "Engineer (Ir.)",
+      "position": "prefix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "A.Md.",
+      "abbr": "A.Md.",
+      "nameId": "Ahli Madya",
+      "nameEn": "Associate degree",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "A.Md.Kom.",
+      "abbr": "A.Md.Kom.",
+      "nameId": "Ahli Madya Komputer",
+      "nameEn": "Associate in Computing",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "A.Md.Kes.",
+      "abbr": "A.Md.Kes.",
+      "nameId": "Ahli Madya Kesehatan",
+      "nameEn": "Associate in Health",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Th.",
+      "abbr": "S.Th.",
+      "nameId": "Sarjana Teologi",
+      "nameEn": "Bachelor of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Th.M.",
+      "abbr": "S.Th.M.",
+      "nameId": "Sarjana Teologi Muda",
+      "nameEn": "Junior Bachelor of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Pth.",
+      "abbr": "S.Pth.",
+      "nameId": "Sarjana Pendidikan Teologi",
+      "nameEn": "Bachelor of Theological Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Pd.",
+      "abbr": "S.Pd.",
+      "nameId": "Sarjana Pendidikan",
+      "nameEn": "Bachelor of Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Pd.K.",
+      "abbr": "S.Pd.K.",
+      "nameId": "Sarjana Pendidikan Kristen",
+      "nameEn": "Bachelor of Christian Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Ag.",
+      "abbr": "S.Ag.",
+      "nameId": "Sarjana Agama",
+      "nameEn": "Bachelor of Religion",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Fil.",
+      "abbr": "S.Fil.",
+      "nameId": "Sarjana Filsafat",
+      "nameEn": "Bachelor of Philosophy",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Kom.",
+      "abbr": "S.Kom.",
+      "nameId": "Sarjana Komputer",
+      "nameEn": "Bachelor of Computer Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.T.",
+      "abbr": "S.T.",
+      "nameId": "Sarjana Teknik",
+      "nameEn": "Bachelor of Engineering",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Si.",
+      "abbr": "S.Si.",
+      "nameId": "Sarjana Sains",
+      "nameEn": "Bachelor of Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Sos.",
+      "abbr": "S.Sos.",
+      "nameId": "Sarjana Sosial",
+      "nameEn": "Bachelor of Social Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.H.",
+      "abbr": "S.H.",
+      "nameId": "Sarjana Hukum",
+      "nameEn": "Bachelor of Law",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.E.",
+      "abbr": "S.E.",
+      "nameId": "Sarjana Ekonomi",
+      "nameEn": "Bachelor of Economics",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Ak.",
+      "abbr": "S.Ak.",
+      "nameId": "Sarjana Akuntansi",
+      "nameEn": "Bachelor of Accounting",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Psi.",
+      "abbr": "S.Psi.",
+      "nameId": "Sarjana Psikologi",
+      "nameEn": "Bachelor of Psychology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Kep.",
+      "abbr": "S.Kep.",
+      "nameId": "Sarjana Keperawatan",
+      "nameEn": "Bachelor of Nursing",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Ns.",
+      "abbr": "Ns.",
+      "nameId": "Ners",
+      "nameEn": "Nurse professional",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Ked.",
+      "abbr": "S.Ked.",
+      "nameId": "Sarjana Kedokteran",
+      "nameEn": "Bachelor of Medicine",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Farm.",
+      "abbr": "S.Farm.",
+      "nameId": "Sarjana Farmasi",
+      "nameEn": "Bachelor of Pharmacy",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Gz.",
+      "abbr": "S.Gz.",
+      "nameId": "Sarjana Gizi",
+      "nameEn": "Bachelor of Nutrition",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.I.Kom.",
+      "abbr": "S.I.Kom.",
+      "nameId": "Sarjana Ilmu Komunikasi",
+      "nameEn": "Bachelor of Communication",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Hub.Int.",
+      "abbr": "S.Hub.Int.",
+      "nameId": "Sarjana Hubungan Internasional",
+      "nameEn": "Bachelor of International Relations",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Sn.",
+      "abbr": "S.Sn.",
+      "nameId": "Sarjana Seni",
+      "nameEn": "Bachelor of Arts (fine arts)",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Ds.",
+      "abbr": "S.Ds.",
+      "nameId": "Sarjana Desain",
+      "nameEn": "Bachelor of Design",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.P.",
+      "abbr": "S.P.",
+      "nameId": "Sarjana Pertanian",
+      "nameEn": "Bachelor of Agriculture",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Pt.",
+      "abbr": "S.Pt.",
+      "nameId": "Sarjana Peternakan",
+      "nameEn": "Bachelor of Animal Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Hut.",
+      "abbr": "S.Hut.",
+      "nameId": "Sarjana Kehutanan",
+      "nameEn": "Bachelor of Forestry",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "S.Pi.",
+      "abbr": "S.Pi.",
+      "nameId": "Sarjana Perikanan",
+      "nameEn": "Bachelor of Fisheries",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Th.",
+      "abbr": "M.Th.",
+      "nameId": "Magister Teologi",
+      "nameEn": "Master of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Pth.",
+      "abbr": "M.Pth.",
+      "nameId": "Magister Pendidikan Teologi",
+      "nameEn": "Master of Theological Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Pd.",
+      "abbr": "M.Pd.",
+      "nameId": "Magister Pendidikan",
+      "nameEn": "Master of Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Si.",
+      "abbr": "M.Si.",
+      "nameId": "Magister Sains",
+      "nameEn": "Master of Science (ID)",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Kom.",
+      "abbr": "M.Kom.",
+      "nameId": "Magister Komputer",
+      "nameEn": "Master of Computer Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.T.",
+      "abbr": "M.T.",
+      "nameId": "Magister Teknik",
+      "nameEn": "Master of Engineering",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.M.",
+      "abbr": "M.M.",
+      "nameId": "Magister Manajemen",
+      "nameEn": "Master of Management",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.H.",
+      "abbr": "M.H.",
+      "nameId": "Magister Hukum",
+      "nameEn": "Master of Law",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Psi.",
+      "abbr": "M.Psi.",
+      "nameId": "Magister Psikologi",
+      "nameEn": "Master of Psychology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Kes.",
+      "abbr": "M.Kes.",
+      "nameId": "Magister Kesehatan",
+      "nameEn": "Master of Health",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Hum.",
+      "abbr": "M.Hum.",
+      "nameId": "Magister Humaniora",
+      "nameEn": "Master of Humanities",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Ag.",
+      "abbr": "M.Ag.",
+      "nameId": "Magister Agama",
+      "nameEn": "Master of Religion",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Fil.",
+      "abbr": "M.Fil.",
+      "nameId": "Magister Filsafat",
+      "nameEn": "Master of Philosophy (ID)",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Div.",
+      "abbr": "M.Div.",
+      "nameId": "Master of Divinity",
+      "nameEn": "Master of Divinity",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Min.",
+      "abbr": "M.Min.",
+      "nameId": "Master of Ministry",
+      "nameEn": "Master of Ministry",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.A.",
+      "abbr": "B.A.",
+      "nameId": "Bachelor of Arts",
+      "nameEn": "Bachelor of Arts",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.Sc.",
+      "abbr": "B.Sc.",
+      "nameId": "Bachelor of Science",
+      "nameEn": "Bachelor of Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.Eng.",
+      "abbr": "B.Eng.",
+      "nameId": "Bachelor of Engineering",
+      "nameEn": "Bachelor of Engineering",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.Ed.",
+      "abbr": "B.Ed.",
+      "nameId": "Bachelor of Education",
+      "nameEn": "Bachelor of Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.Th.",
+      "abbr": "B.Th.",
+      "nameId": "Bachelor of Theology",
+      "nameEn": "Bachelor of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.Div.",
+      "abbr": "B.Div.",
+      "nameId": "Bachelor of Divinity",
+      "nameEn": "Bachelor of Divinity",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "B.B.A.",
+      "abbr": "B.B.A.",
+      "nameId": "Bachelor of Business Administration",
+      "nameEn": "Bachelor of Business Administration",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.A.",
+      "abbr": "M.A.",
+      "nameId": "Master of Arts",
+      "nameEn": "Master of Arts",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Sc.",
+      "abbr": "M.Sc.",
+      "nameId": "Master of Science",
+      "nameEn": "Master of Science",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Eng.",
+      "abbr": "M.Eng.",
+      "nameId": "Master of Engineering",
+      "nameEn": "Master of Engineering",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Ed.",
+      "abbr": "M.Ed.",
+      "nameId": "Master of Education",
+      "nameEn": "Master of Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.B.A.",
+      "abbr": "M.B.A.",
+      "nameId": "Master of Business Administration",
+      "nameEn": "Master of Business Administration",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "M.Phil.",
+      "abbr": "M.Phil.",
+      "nameId": "Master of Philosophy",
+      "nameEn": "Master of Philosophy",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Th.M.",
+      "abbr": "Th.M.",
+      "nameId": "Master of Theology",
+      "nameEn": "Master of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Ph.D.",
+      "abbr": "Ph.D.",
+      "nameId": "Doctor of Philosophy",
+      "nameEn": "Doctor of Philosophy",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "D.Min.",
+      "abbr": "D.Min.",
+      "nameId": "Doctor of Ministry",
+      "nameEn": "Doctor of Ministry",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Th.D.",
+      "abbr": "Th.D.",
+      "nameId": "Doctor of Theology",
+      "nameEn": "Doctor of Theology",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "Ed.D.",
+      "abbr": "Ed.D.",
+      "nameId": "Doctor of Education",
+      "nameEn": "Doctor of Education",
+      "position": "suffix",
+      "locked": false
+    },
+    {
+      "kind": "ACADEMIC",
+      "code": "D.D.",
+      "abbr": "D.D.",
+      "nameId": "Doctor of Divinity",
+      "nameEn": "Doctor of Divinity",
+      "position": "suffix",
+      "locked": false
+    }
+  ]
+}

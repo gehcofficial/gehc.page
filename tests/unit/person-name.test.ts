@@ -50,6 +50,7 @@ describe('person name + gelar', () => {
     expect(searchAcademicTitles('phd').some((t) => t.abbr === 'Ph.D.')).toBe(true);
     expect(searchAcademicTitles('education').some((t) => t.abbr === 'M.Ed.')).toBe(true);
     expect(searchAcademicTitles('pendidikan teologi').some((t) => t.abbr === 'S.Pth.')).toBe(true);
+    expect(searchAcademicTitles('xyz', [{ abbr: 'X.Y.Z.', nameId: 'Custom', nameEn: 'Custom', locale: 'BOTH', position: 'suffix' }]).some((t) => t.abbr === 'X.Y.Z.')).toBe(true);
   });
 
   it('requires given and family names', () => {

@@ -6,7 +6,7 @@ export const CHURCH_TITLES = [
   { value: 'KR', abbr: 'Kr', label: 'Kostor (Kr)' },
 ] as const;
 
-export type ChurchTitleValue = (typeof CHURCH_TITLES)[number]['value'] | '';
+export type ChurchTitleValue = string;
 
 export type AcademicTitle = {
   abbr: string;
@@ -116,8 +116,9 @@ export function normalizeAcademicAbbr(raw: string): string {
   return s;
 }
 
-export function churchTitleAbbr(value?: string | null): string {
-  const hit = CHURCH_TITLES.find((t) => t.value === String(value || '').toUpperCase());
+export function churchTitleAbbr(value?: string | null, extra: Array<{ value: string; abbr: string }> = []): string {
+  const key = String(value || '').toUpperCase();
+  const hit = CHURCH_TITLES.find((t) => t.value === key) || extra.find((t) => t.value.toUpperCase() === key);
   return hit?.abbr || '';
 }
 
@@ -126,25 +127,33 @@ function academicMeta(abbr: string): AcademicTitle | undefined {
   return ACADEMIC_TITLES.find((t) => t.abbr.toLowerCase() === n);
 }
 
-export function searchAcademicTitles(q: string): AcademicTitle[] {
+export function searchAcademicTitles(q: string, list: AcademicTitle[] = ACADEMIC_TITLES): AcademicTitle[] {
   const term = q.trim().toLowerCase();
-  if (!term) return ACADEMIC_TITLES;
+  const source = list.length ? list : ACADEMIC_TITLES;
+  if (!term) return source;
   const compact = term.replace(/[.\s]/g, '');
-  return ACADEMIC_TITLES.filter((t) => {
+  return source.filter((t) => {
     const hay = `${t.abbr} ${t.nameId} ${t.nameEn}`.toLowerCase();
     const hayCompact = hay.replace(/[.\s]/g, '');
     return hay.includes(term) || hayCompact.includes(compact);
   });
 }
 
-export function composeOfficialName(parts: PersonNameParts): string {
-  const church = churchTitleAbbr(parts.churchTitle);
+export type ComposeOpts = {
+  church?: Array<{ value: string; abbr: string }>;
+  academic?: AcademicTitle[];
+};
+
+export function composeOfficialName(parts: PersonNameParts, opts: ComposeOpts = {}): string {
+  const church = churchTitleAbbr(parts.churchTitle, opts.church);
   const given = titleCaseName(parts.givenName).trim();
   const middle = titleCaseName(parts.middleName).trim();
   const family = titleCaseName(parts.familyName).trim();
   const academics = (parts.academicTitles || []).map(normalizeAcademicAbbr).filter(Boolean);
-  const prefixes = academics.filter((a) => academicMeta(a)?.position === 'prefix');
-  const suffixes = academics.filter((a) => academicMeta(a)?.position !== 'prefix');
+  const extras = opts.academic || [];
+  const metaOf = (a: string) => extras.find((t) => t.abbr.toLowerCase() === a.toLowerCase()) || academicMeta(a);
+  const prefixes = academics.filter((a) => metaOf(a)?.position === 'prefix');
+  const suffixes = academics.filter((a) => metaOf(a)?.position !== 'prefix');
   const person = [given, middle, family].filter(Boolean).join(' ');
   const head = [church, ...prefixes, person].filter(Boolean).join(' ');
   if (!suffixes.length) return head.slice(0, 150);
@@ -212,9 +221,8 @@ export function partsFromUser(user?: {
     ? (user!.academicTitles as unknown[]).map((x) => normalizeAcademicAbbr(String(x))).filter(Boolean)
     : [];
   const title = String(user?.churchTitle || '').toUpperCase();
-  const church: ChurchTitleValue = CHURCH_TITLES.some((t) => t.value === title) ? (title as ChurchTitleValue) : '';
   return {
-    churchTitle: church,
+    churchTitle: title,
     givenName: user?.givenName || '',
     middleName: user?.middleName || '',
     familyName: user?.familyName || '',
@@ -225,8 +233,11 @@ export function partsFromUser(user?: {
 export function validatePersonName(parts: PersonNameParts): string | null {
   if (!titleCaseName(parts.givenName).trim()) return 'Nama depan wajib diisi.';
   if (!titleCaseName(parts.familyName).trim()) return 'Nama belakang wajib diisi.';
-  if (parts.churchTitle && !CHURCH_TITLES.some((t) => t.value === parts.churchTitle)) {
-    return 'Gelar jabatan gereja tidak valid.';
+  if (parts.churchTitle) {
+    const t = String(parts.churchTitle).toUpperCase();
+    if (!CHURCH_TITLES.some((c) => c.value === t) && !/^[A-Z][A-Z0-9]{1,15}$/.test(t)) {
+      return 'Gelar jabatan gereja tidak valid.';
+    }
   }
   return null;
 }

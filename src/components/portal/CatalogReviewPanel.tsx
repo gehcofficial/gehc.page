@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, GraduationCap, Loader2, Plus } from 'lucide-react';
+import { Award, BookOpen, GraduationCap, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { buildRecreationalTree, type RecreationalNode } from '../../lib/recreational';
 
@@ -23,7 +23,28 @@ type InstSuggestion = {
 
 type Institution = { id: string; name: string; city?: string | null; country?: string | null };
 
-type Tab = 'minat' | 'kampus';
+type TitleRow = {
+  id: string;
+  kind: 'CHURCH' | 'ACADEMIC' | string;
+  code: string;
+  abbr: string;
+  nameId: string;
+  nameEn: string;
+  position: string;
+  locked: boolean;
+  active: boolean;
+};
+
+type TitleSuggestion = {
+  id: string;
+  kind: string;
+  abbr: string;
+  nameHint?: string | null;
+  status: string;
+  user?: { id: string; name: string; email?: string | null };
+};
+
+type Tab = 'minat' | 'kampus' | 'gelar';
 
 export const CatalogReviewPanel: React.FC = () => {
   const { addToast } = useApp();
@@ -31,6 +52,9 @@ export const CatalogReviewPanel: React.FC = () => {
   const [recFlat, setRecFlat] = useState<RecreationalNode[]>([]);
   const [recPending, setRecPending] = useState<RecSuggestion[]>([]);
   const [instPending, setInstPending] = useState<InstSuggestion[]>([]);
+  const [titles, setTitles] = useState<TitleRow[]>([]);
+  const [titlePending, setTitlePending] = useState<TitleSuggestion[]>([]);
+  const [addTitle, setAddTitle] = useState({ kind: 'ACADEMIC', abbr: '', nameId: '' });
   const [loading, setLoading] = useState(true);
   const [selectedRec, setSelectedRec] = useState<string[]>([]);
   const [selectedInst, setSelectedInst] = useState<string[]>([]);
@@ -51,17 +75,23 @@ export const CatalogReviewPanel: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [recRes, recSugRes, instSugRes] = await Promise.all([
+      const [recRes, recSugRes, instSugRes, titleRes, titleSugRes] = await Promise.all([
         fetch('/api/recreational', { credentials: 'include' }),
         fetch('/api/recreational/suggestions?status=PENDING', { credentials: 'include' }),
         fetch('/api/institutions/suggestions?status=PENDING', { credentials: 'include' }),
+        fetch('/api/titles?all=1', { credentials: 'include' }),
+        fetch('/api/titles/suggestions?status=PENDING', { credentials: 'include' }),
       ]);
       const rec = recRes.ok ? await recRes.json() : {};
       const rs = recSugRes.ok ? await recSugRes.json() : {};
       const is_ = instSugRes.ok ? await instSugRes.json() : {};
+      const titlesJson = titleRes.ok ? await titleRes.json() : {};
+      const ts = titleSugRes.ok ? await titleSugRes.json() : {};
       setRecFlat(rec.recreational || []);
       setRecPending(rs.suggestions || []);
       setInstPending(is_.suggestions || []);
+      setTitles([...(titlesJson.church || []), ...(titlesJson.academic || [])]);
+      setTitlePending(ts.suggestions || []);
     } catch {
       addToast({ type: 'error', title: 'Gagal memuat', description: 'Katalog tidak bisa dimuat.' });
     } finally {
@@ -263,14 +293,100 @@ export const CatalogReviewPanel: React.FC = () => {
     }
   };
 
+  const createTitle = async () => {
+    if (!addTitle.abbr.trim()) return;
+    setBusy('add-title');
+    try {
+      const res = await fetch('/api/titles', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: addTitle.kind,
+          abbr: addTitle.abbr.trim(),
+          nameId: addTitle.nameId.trim() || addTitle.abbr.trim(),
+          nameEn: addTitle.nameId.trim() || addTitle.abbr.trim(),
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menambah gelar');
+      setAddTitle({ kind: addTitle.kind, abbr: '', nameId: '' });
+      addToast({ type: 'success', title: 'Gelar ditambah', description: d.title?.abbr });
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const toggleTitle = async (row: TitleRow) => {
+    setBusy(row.id);
+    try {
+      const res = await fetch(`/api/titles/${row.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !row.active }),
+      });
+      if (!res.ok) throw new Error('Gagal mengubah status gelar');
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteTitle = async (row: TitleRow) => {
+    if (row.locked) return;
+    if (!window.confirm(`Hapus ${row.abbr} dari katalog?`)) return;
+    setBusy(row.id);
+    try {
+      const res = await fetch(`/api/titles/${row.id}`, { method: 'DELETE', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menghapus');
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const approveTitle = async (id: string) => {
+    setBusy(id);
+    try {
+      const res = await fetch(`/api/titles/suggestions/${id}/approve`, { method: 'POST', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menyetujui');
+      addToast({ type: 'success', title: 'Gelar masuk katalog', description: d.title?.abbr });
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const rejectTitle = async (id: string) => {
+    setBusy(id);
+    try {
+      await fetch(`/api/titles/suggestions/${id}/reject`, { method: 'POST', credentials: 'include' });
+      await load();
+    } finally {
+      setBusy('');
+    }
+  };
+
   const cats = recFlat.filter((r) => !r.parentId);
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-black text-[#1B1B1B]">Katalog Minat & Kampus</h1>
+        <h1 className="text-2xl font-black text-[#1B1B1B]">Katalog Minat, Kampus & Gelar</h1>
         <p className="text-sm text-[#8C8880] mt-1">
-          Kelola daftar default. Request “Lainnya” dipilih ke satu opsi, lalu reminder ke pengusul — mereka mencentang sendiri di profil.
+          Kelola daftar default. Request “Lainnya” / gelar manual masuk antrian; admin bisa tambah, arsip, atau hapus item katalog.
         </p>
       </div>
 
@@ -288,6 +404,13 @@ export const CatalogReviewPanel: React.FC = () => {
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${tab === 'kampus' ? 'bg-[#181818] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'}`}
         >
           <GraduationCap className="w-3.5 h-3.5" /> Universitas ({instPending.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('gelar')}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${tab === 'gelar' ? 'bg-[#181818] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'}`}
+        >
+          <Award className="w-3.5 h-3.5" /> Gelar ({titlePending.length})
         </button>
       </div>
 
@@ -378,7 +501,7 @@ export const CatalogReviewPanel: React.FC = () => {
             ))}
           </div>
         </div>
-      ) : (
+      ) : tab === 'kampus' ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-3">
             <p className="text-[10px] font-black uppercase tracking-wider text-sky-800">Antrian saran kampus</p>
@@ -437,6 +560,74 @@ export const CatalogReviewPanel: React.FC = () => {
             <button type="button" disabled={!!busy} onClick={createInst} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#181818] text-white text-[10px] font-bold">
               <Plus className="w-3 h-3" /> Simpan kampus
             </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-violet-800">Antrian gelar manual</p>
+            <p className="text-[10px] text-violet-900 leading-relaxed">
+              Jemaat tetap bisa pakai singkatan yang belum ada. Saran masuk sini supaya katalog bertambah.
+            </p>
+            {titlePending.length === 0 ? (
+              <p className="text-xs text-violet-900">Tidak ada request PENDING.</p>
+            ) : titlePending.map((s) => (
+              <div key={s.id} className="flex items-start gap-2 py-1.5 border-b border-violet-100 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold">{s.abbr}</p>
+                  <p className="text-[10px] text-violet-800">{s.kind} · {s.user?.name || '—'}</p>
+                </div>
+                <button type="button" disabled={!!busy} onClick={() => approveTitle(s.id)} className="px-2 py-1 rounded-lg bg-[#181818] text-white text-[9px] font-bold">Masukkan katalog</button>
+                <button type="button" disabled={!!busy} onClick={() => rejectTitle(s.id)} className="px-2 py-1 rounded-lg border border-violet-200 text-[9px] font-bold">Tolak</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+            <p className="text-[10px] font-black uppercase text-[#8C8880]">Tambah gelar manual</p>
+            <div className="flex flex-wrap gap-2">
+              <select value={addTitle.kind} onChange={(e) => setAddTitle((f) => ({ ...f, kind: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs">
+                <option value="ACADEMIC">Gelar akademis</option>
+                <option value="CHURCH">Gelar pelayanan</option>
+              </select>
+              <input value={addTitle.abbr} onChange={(e) => setAddTitle((f) => ({ ...f, abbr: e.target.value }))} placeholder={addTitle.kind === 'CHURCH' ? 'Pdt / Ev.' : 'S.Th.'} className="w-28 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+              <input value={addTitle.nameId} onChange={(e) => setAddTitle((f) => ({ ...f, nameId: e.target.value }))} placeholder="Nama lengkap" className="flex-1 min-w-[140px] px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+              <button type="button" disabled={!!busy} onClick={createTitle} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#181818] text-white text-[10px] font-bold">
+                <Plus className="w-3 h-3" /> Simpan
+              </button>
+            </div>
+            {(['CHURCH', 'ACADEMIC'] as const).map((kind) => (
+              <div key={kind} className="text-xs">
+                <p className="font-bold">{kind === 'CHURCH' ? 'Gelar pelayanan' : 'Gelar akademis'}</p>
+                <p className="text-[10px] text-[#8C8880] mt-0.5 mb-1">
+                  Klik chip untuk arsip/tampilkan. Hapus hanya untuk item yang tidak dikunci.
+                </p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {titles.filter((t) => t.kind === kind).map((t) => (
+                    <span key={t.id} className="inline-flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        title={t.active ? 'Arsipkan' : 'Tampilkan lagi'}
+                        onClick={() => toggleTitle(t)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${t.active ? 'bg-[#F3F1EC] text-[#8C8880]' : 'bg-gray-200 text-gray-400 line-through'}`}
+                      >
+                        {t.abbr}
+                      </button>
+                      {!t.locked && (
+                        <button
+                          type="button"
+                          aria-label={`Hapus ${t.abbr}`}
+                          onClick={() => deleteTitle(t)}
+                          className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

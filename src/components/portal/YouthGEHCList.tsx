@@ -5,6 +5,14 @@ import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
+import { PersonNameFields } from './PersonNameFields';
+import {
+  composeOfficialName,
+  emptyPersonName,
+  partsFromUser,
+  validatePersonName,
+  type PersonNameParts,
+} from '../../lib/person-name';
 import { countryName } from '../../lib/countries';
 import { displayAvatar } from '../../lib/avatar';
 import { useListPager } from './ListPager';
@@ -57,6 +65,11 @@ interface YouthUser {
   districtCode?: string | null;
   villageCode?: string | null;
   giftsTop5?: string[] | null;
+  givenName?: string | null;
+  middleName?: string | null;
+  familyName?: string | null;
+  churchTitle?: string | null;
+  academicTitles?: unknown;
   isBeyonders?: boolean;
   membershipKind?: 'JEMAAT' | 'SIMPATISAN';
   bipra?: string;
@@ -78,7 +91,7 @@ interface YouthUser {
 }
 
 interface EditForm {
-  name: string;
+  nameParts: PersonNameParts;
   gender: string;
   phone: string;
   address: AddressValue;
@@ -408,7 +421,7 @@ export const YouthGEHCList: React.FC = () => {
     anchor: HTMLElement | null;
   } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { name: '', gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
+  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
@@ -458,7 +471,7 @@ export const YouthGEHCList: React.FC = () => {
     setCreating(false);
     setEditUser(user);
     setEditForm({
-      name: user.name || '',
+      nameParts: partsFromUser(user),
       gender: user.gender || '',
       phone: user.phone || '',
       address: addressFromUser(user as any),
@@ -534,13 +547,22 @@ export const YouthGEHCList: React.FC = () => {
     }
     setEditSaving(true);
     try {
+      const nameErr = validatePersonName(editForm.nameParts);
+      if (nameErr) throw new Error(nameErr);
+      const parts = editForm.nameParts;
+      const composed = composeOfficialName(parts);
       if (creating) {
         const res = await fetch('/api/jemaat', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: editForm.name,
+            name: composed,
+            givenName: parts.givenName,
+            middleName: parts.middleName,
+            familyName: parts.familyName,
+            churchTitle: parts.churchTitle || null,
+            academicTitles: parts.academicTitles,
             gender: editForm.gender || null,
             phone: editForm.phone || null,
             ...editForm.address,
@@ -555,14 +577,19 @@ export const YouthGEHCList: React.FC = () => {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || 'Gagal membuat jemaat');
         }
-        addToast({ type: 'success', title: 'Jemaat ditambah', description: editForm.name });
+        addToast({ type: 'success', title: 'Jemaat ditambah', description: composed });
       } else {
         const res = await fetch(`/api/admin/users/${editUser.id}`, {
           method: 'PATCH',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: editForm.name,
+            name: composed,
+            givenName: parts.givenName,
+            middleName: parts.middleName,
+            familyName: parts.familyName,
+            churchTitle: parts.churchTitle || null,
+            academicTitles: parts.academicTitles,
             gender: editForm.gender || null,
             phone: editForm.phone || null,
             ...editForm.address,
@@ -579,7 +606,7 @@ export const YouthGEHCList: React.FC = () => {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || 'Update gagal');
         }
-        addToast({ type: 'success', title: 'Profil Diperbarui', description: `${editForm.name} berhasil disimpan.` });
+        addToast({ type: 'success', title: 'Profil Diperbarui', description: `${composed} berhasil disimpan.` });
       }
       setEditUser(null);
       setCreating(false);
@@ -1243,7 +1270,7 @@ export const YouthGEHCList: React.FC = () => {
             Saran minat baru ({pendingSuggestions.length})
           </p>
           <p className="text-xs text-amber-900 mt-1">
-            Tinjau dan kirim reminder di Katalog Minat & Kampus — jangan setujui dari direktori ini.
+            Tinjau dan kirim reminder di Katalog — jangan setujui dari direktori ini.
           </p>
         </button>
       )}
@@ -1619,16 +1646,10 @@ export const YouthGEHCList: React.FC = () => {
               </button>
             </div>
             <form onSubmit={saveEdit} className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Nama</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
-                />
-              </div>
+              <PersonNameFields
+                value={editForm.nameParts}
+                onChange={(nameParts) => setEditForm({ ...editForm, nameParts })}
+              />
               <div>
                 <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Kategorial (BIPRA)</label>
                 <select

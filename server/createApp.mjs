@@ -3,6 +3,7 @@ import { attachUser } from './auth.mjs';
 import { attachPlatformContext } from './lib/platform-rbac.mjs';
 import { applyDatabaseUrl } from './db.mjs';
 import { ensurePersonNameColumnsOnce } from './lib/ensure-person-name-columns.mjs';
+import { ensureTitleCatalogOnce } from './lib/ensure-title-catalog.mjs';
 
 /**
  * Factory for Express app with shared middleware.
@@ -37,6 +38,7 @@ export function createApp() {
   app.use(async (_req, _res, next) => {
     try {
       await ensurePersonNameColumnsOnce(applyDatabaseUrl());
+      await ensureTitleCatalogOnce(applyDatabaseUrl());
     } catch (err) {
       console.error('[person-name] ensure columns:', err.message);
     }

@@ -129,6 +129,43 @@ model ProfileChurchDataRequest {
   @@map("profile_church_data_requests")
 }
 
+model TitleCatalog {
+  id        String   @id @db.VarChar(64)
+  kind      String   @db.VarChar(16)
+  code      String   @unique @db.VarChar(32)
+  abbr      String   @db.VarChar(32)
+  nameId    String   @map("name_id") @db.VarChar(120)
+  nameEn    String   @map("name_en") @db.VarChar(120)
+  position  String   @db.VarChar(8)
+  locked    Boolean  @default(false)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  suggestions TitleSuggestion[]
+
+  @@index([kind, active])
+  @@map("title_catalog")
+}
+
+model TitleSuggestion {
+  id        String   @id @db.VarChar(64)
+  userId    String   @map("user_id") @db.VarChar(64)
+  kind      String   @db.VarChar(16)
+  abbr      String   @db.VarChar(32)
+  nameHint  String?  @map("name_hint") @db.VarChar(120)
+  status    String   @default("PENDING") @db.VarChar(16)
+  titleId   String?  @map("title_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  user  User          @relation(fields: [userId], references: [id])
+  title TitleCatalog? @relation(fields: [titleId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("title_suggestions")
+}
+
 model User {
   id        String   @id @db.VarChar(64)
   email     String?  @unique @db.VarChar(190)
@@ -137,7 +174,7 @@ model User {
   givenName     String?  @map("given_name") @db.VarChar(80)
   middleName    String?  @map("middle_name") @db.VarChar(80)
   familyName    String?  @map("family_name") @db.VarChar(80)
-  churchTitle   String?  @map("church_title") @db.VarChar(8)
+  churchTitle   String?  @map("church_title") @db.VarChar(32)
   academicTitles Json?   @map("academic_titles")
   avatar    String?  @db.Text
   avatarGoogle     String?  @map("avatar_google") @db.Text
@@ -223,6 +260,7 @@ model User {
   recreationalSuggestions   RecreationalSuggestion[]
   institutionSuggestions    InstitutionSuggestion[]
   churchDataRequests        ProfileChurchDataRequest[]
+  titleSuggestions          TitleSuggestion[]
   roles                     UserRole[]
   roleAssignments           RoleAssignment[]
   assignedBy                RoleAssignment[]   @relation("RoleAssignmentAssigner")

@@ -7,8 +7,11 @@ import {
   normalizeAcademicAbbr,
   searchAcademicTitles,
   titleCaseName,
+  type AcademicTitle,
   type PersonNameParts,
 } from '../../lib/person-name';
+
+type ChurchOpt = { value: string; abbr: string; label: string };
 
 export const PersonNameFields: React.FC<{
   value: PersonNameParts;
@@ -16,8 +19,44 @@ export const PersonNameFields: React.FC<{
   required?: boolean;
   theme?: 'light' | 'dark';
 }> = ({ value, onChange, required = true, theme = 'light' }) => {
-  const preview = composeOfficialName(value);
+  const [churchOpts, setChurchOpts] = useState<ChurchOpt[]>(
+    CHURCH_TITLES.map((t) => ({ value: t.value, abbr: t.abbr, label: t.label })),
+  );
+  const [academicList, setAcademicList] = useState<AcademicTitle[]>(ACADEMIC_TITLES);
+  const preview = composeOfficialName(value, {
+    church: churchOpts,
+    academic: academicList,
+  });
   const set = (patch: Partial<PersonNameParts>) => onChange({ ...value, ...patch });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/titles', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { church: [], academic: [] }))
+      .then((d: { church?: Array<{ code: string; abbr: string; nameId: string; active?: boolean }>; academic?: Array<{ abbr: string; nameId: string; nameEn: string; position: string; active?: boolean }> }) => {
+        if (cancelled) return;
+        const church = (d.church || []).filter((t) => t.active !== false);
+        if (church.length) {
+          setChurchOpts(church.map((t) => ({
+            value: t.code,
+            abbr: t.abbr,
+            label: `${t.nameId} (${t.abbr})`,
+          })));
+        }
+        const academic = (d.academic || []).filter((t) => t.active !== false);
+        if (academic.length) {
+          setAcademicList(academic.map((t) => ({
+            abbr: t.abbr,
+            nameId: t.nameId,
+            nameEn: t.nameEn,
+            locale: 'BOTH' as const,
+            position: t.position === 'prefix' ? 'prefix' : 'suffix',
+          })));
+        }
+      })
+      .catch(() => { /* fallback seed */ });
+    return () => { cancelled = true; };
+  }, []);
   const dark = theme === 'dark';
   const fieldClass = dark
     ? 'w-full px-3.5 py-2.5 rounded-xl bg-[#181818] border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-[#FF416C]'
@@ -37,7 +76,7 @@ export const PersonNameFields: React.FC<{
           onChange={(e) => set({ churchTitle: e.target.value as PersonNameParts['churchTitle'] })}
         >
           <option value="">Tidak pakai</option>
-          {CHURCH_TITLES.map((t) => (
+          {churchOpts.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
@@ -53,6 +92,7 @@ export const PersonNameFields: React.FC<{
         fieldClass={fieldClass}
         labelClass={labelClass}
         hintClass={hintClass}
+        catalog={academicList}
         value={value.academicTitles}
         onChange={(academicTitles) => set({ academicTitles })}
       />
@@ -99,31 +139,41 @@ const NameBox: React.FC<{
 
 const AcademicTitlesField: React.FC<{
   value: string[];
+  catalog: AcademicTitle[];
   fieldClass: string;
   labelClass: string;
   hintClass: string;
   theme: 'light' | 'dark';
   onChange: (next: string[]) => void;
-}> = ({ value, fieldClass, labelClass, hintClass, theme, onChange }) => {
+}> = ({ value, catalog, fieldClass, labelClass, hintClass, theme, onChange }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
-  const hits = useMemo(() => searchAcademicTitles(q).filter((t) => !value.includes(t.abbr)).slice(0, 12), [q, value]);
+  const list = catalog.length ? catalog : ACADEMIC_TITLES;
+  const hits = useMemo(() => searchAcademicTitles(q, list).filter((t) => !value.includes(t.abbr)).slice(0, 12), [q, value, list]);
   const custom = normalizeAcademicAbbr(q);
   const customCompact = custom.replace(/\./g, '').toLowerCase();
-  const customKnown = ACADEMIC_TITLES.some((t) => {
+  const customKnown = list.some((t) => {
     const abbr = t.abbr.toLowerCase();
     return abbr === custom.toLowerCase() || abbr.replace(/\./g, '') === customCompact;
   });
   const showCustom = Boolean(custom) && !customKnown && !value.some((v) => v.toLowerCase() === custom.toLowerCase());
   const dark = theme === 'dark';
 
-  const add = (abbr: string) => {
+  const add = (abbr: string, fromCatalog = true) => {
     const n = normalizeAcademicAbbr(abbr);
     if (!n || value.some((v) => v.toLowerCase() === n.toLowerCase())) return;
     onChange([...value, n]);
     setQ('');
     setOpen(false);
+    if (!fromCatalog) {
+      fetch('/api/titles/suggest', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'ACADEMIC', abbr: n }),
+      }).catch(() => { /* antrian katalog opsional */ });
+    }
   };
 
   useEffect(() => {
@@ -182,8 +232,8 @@ const AcademicTitlesField: React.FC<{
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();
-            if (hits[0]) add(hits[0].abbr);
-            else if (showCustom) add(custom);
+            if (hits[0]) add(hits[0].abbr, true);
+            else if (showCustom) add(custom, false);
           }}
         />
         {open && (hits.length > 0 || showCustom) && (
@@ -193,7 +243,7 @@ const AcademicTitlesField: React.FC<{
                 key={t.abbr}
                 type="button"
                 className={itemClass}
-                onClick={() => add(t.abbr)}
+                onClick={() => add(t.abbr, true)}
               >
                 <span className="font-bold">{t.abbr}</span>
                 <span className={subClass}>{t.nameId} · {t.nameEn}</span>
@@ -203,7 +253,7 @@ const AcademicTitlesField: React.FC<{
               <button
                 type="button"
                 className={`${itemClass} flex items-center gap-2`}
-                onClick={() => add(custom)}
+                onClick={() => add(custom, false)}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Pakai gelar manual <span className="font-bold">{custom}</span>
