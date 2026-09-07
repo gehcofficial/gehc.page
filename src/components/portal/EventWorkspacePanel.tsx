@@ -681,7 +681,7 @@ export const EventWorkspacePanel: React.FC = () => {
           ))}
         </div>
 
-        {/* Kehadiran event (EventAttendee) */}
+        {/* Pendaftar event: waiting pool BAKU TAU, EventAttendee untuk event lain */}
         <EventAttendeesBlock eventId={selected.id} slug={selected.slug || selected.id} />
 
         {/* Meetings */}

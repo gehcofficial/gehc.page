@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — WhatsApp view-only + Kesaksian mentee (5 Sep 2026)
+## Current — Daftar pendaftar BAKU TAU 4.0 (7 Sep 2026)
+
+**Goal:** Panitia Tim Kerja melihat list lengkap pendaftar BAKU TAU (angka QR “peserta terdaftar”), bukan hanya 9 akun Google di “Kehadiran Event”.
+
+### Done
+
+- QR publik menghitung **waiting pool** `sourceEvent = BAKU TAU 4.0` (counter + akun).
+- Program & Event → BAKU TAU sekarang **Pendaftar Event** dari waiting pool, dengan filter Semua / Punya akun / Counter + CSV.
+- `GET /api/events/:slug/registrations` (+ `/export`) untuk KOMISI, COMMITTEE, BPMJ.
+
+### Next
+
+1. Login Tim Kerja Koinonia → Program & Event → BAKU TAU 4.0: angka harus sama dengan halaman QR.
+2. Komisi tetap bisa lihat split pipeline di Onboarding (Quick Register / menunggu profil / role).
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — WhatsApp view-only + Kesaksian mentee (5 Sep 2026)
 
 **Goal:** Tautan grup WA hanya ditulis Admin/BPMJ/Komisi/Tim Kerja BOD di Kanal WhatsApp; mentor/mentee/staf divisi hanya membuka tautan di panel mereka. Kesaksian ditulis mentee; Marturia mengkurasi.
 

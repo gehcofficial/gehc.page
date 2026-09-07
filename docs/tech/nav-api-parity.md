@@ -20,7 +20,7 @@ Each portal tab must only call endpoints the user's role can access.
 | content-activities | ManageActivities | SUPERADMIN, COMMITTEE | content APIs | KOMISION |
 | media-guide | MediaGuidePanel | SUPERADMIN, KOMISI, COMMITTEE | `/api/drive/*` | content_manage |
 | struktur | ManageStruktur | SUPERADMIN, COMMITTEE | `/api/db/sync-struktur` | KOMISION |
-| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*`, `/api/church-calendar` | Create/edit event + monthly write + runbook: KOMISI/COMMITTEE (+SUPERADMIN). BPMJ: read events/plans; payung scope BPMJ only. Church calendar GET: no MENTOR |
+| events | EventWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE, BPMJ | `/api/events/*`, `GET /api/events/:slug/registrations`, `/api/event-questions/*`, `/api/church-programs`, `/api/ministry-plans/*`, `/api/church-calendar` | Create/edit event + monthly write + runbook: KOMISI/COMMITTEE (+SUPERADMIN). BPMJ: read events/plans; payung scope BPMJ only. BAKU TAU registrations = waiting pool (KOMISI/COMMITTEE/BPMJ). Church calendar GET: no MENTOR |
 | divisions | DivisionWorkspacePanel | SUPERADMIN, KOMISI, COMMITTEE | division APIs + Koinonia `POST/GET /api/events/:slug/check-in*` + `GET /api/channel-links/scoped` | KOMISI / COMMITTEE + Koinonia or BOD. Marturia tab Kesaksian: CMS testimonials review |
 | integrations | ManageIntegrations | SUPERADMIN, KOMISI | drive config | SUPERADMIN/KOMISI |
 | pwa-settings | PWASettingsPanel | 7 roles | `/api/pwa/*`, push | auth |

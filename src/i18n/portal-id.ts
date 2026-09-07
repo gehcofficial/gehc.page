@@ -502,14 +502,14 @@ export const portalId: typeof portalEn = {
     events: {
       title: 'Program & Event',
       purpose: 'Workspace event operasional: buat, jadwal, edit WA/lokasi, soal, peserta.',
-      steps: ['Event Tim Kerja: buat dan buka program.', 'Kalender gerejawi / payung / rencana bulan untuk tampilan tahun.', 'Edit WhatsApp dan lokasi BAKU TAU di sini — Info Event dan Kanal membaca field itu.'],
+      steps: ['Event Tim Kerja: buat dan buka program.', 'Kalender gerejawi / payung / rencana bulan untuk tampilan tahun.', 'Edit WhatsApp dan lokasi BAKU TAU di sini — Info Event dan Kanal membaca field itu.', 'Buka BAKU TAU 4.0 → Pendaftar Event untuk list lengkap (termasuk counter nama & WA). Bukan absensi hari H.'],
       when: 'Kamu menjalankan program, bukan hanya teaser publik.',
       notFor: 'Kartu CMS publik adalah Agenda Kegiatan. Kerja pillar ada di Panel Divisi. QR peserta ada di Info Event.',
     },
     'events.events': {
       title: 'Event Tim Kerja',
       purpose: 'Daftar dan edit entitas program (BAKU TAU, retret, internal).',
-      steps: ['Buka event untuk mengedit field, soal, peserta, rapat.'],
+      steps: ['Buka event untuk mengedit field, soal, pendaftar, rapat.', 'Untuk BAKU TAU, Pendaftar Event = angka “peserta terdaftar” di QR (waiting pool), bukan hanya akun Google.'],
       when: 'Kamu butuh catatan sumber sebuah event.',
       notFor: 'Diskusi/Drive divisi untuk event itu ada di Panel Divisi.',
     },

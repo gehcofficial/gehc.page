@@ -508,14 +508,14 @@ export const portalEn = {
     events: {
       title: 'Programs & Events',
       purpose: 'Operational event workspace: create, schedule, edit WA/venue, questions, attendees.',
-      steps: ['Working Team events: create and open a program.', 'Church calendar / umbrella / monthly plan for the year view.', 'Edit BAKU TAU WhatsApp and venue here — Event Info and Channels read that field.'],
+      steps: ['Working Team events: create and open a program.', 'Church calendar / umbrella / monthly plan for the year view.', 'Edit BAKU TAU WhatsApp and venue here — Event Info and Channels read that field.', 'Open BAKU TAU 4.0 → Event registrants for the full list (including counter name & WA). That is not day-of check-in.'],
       when: 'You are running a program, not just publishing a public teaser.',
       notFor: 'Public CMS cards are Public Agenda. Pillar deep-work is the Division panel. Participant QR is Event Info.',
     },
     'events.events': {
       title: 'Working Team events',
       purpose: 'List and edit program entities (BAKU TAU, retreats, internals).',
-      steps: ['Open an event to edit fields, questions, attendees, meetings.'],
+      steps: ['Open an event to edit fields, questions, registrants, meetings.', 'For BAKU TAU, Event registrants matches the QR “registered” count (waiting pool), not only Google accounts.'],
       when: 'You need the source record for an event.',
       notFor: 'Division discussion/Drive for that event is the Division panel.',
     },

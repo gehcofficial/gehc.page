@@ -1,15 +1,23 @@
 import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
+import { requireRole } from '../auth.mjs';
 import {
   BAKU_TAU_SOURCE_EVENT,
   BAKU_TAU_EVENT_ID,
 } from '../lib/baku-tau.mjs';
 import { venueOf } from '../lib/event-venue.mjs';
 import { findEventProgramPublic } from '../lib/event-program-public.mjs';
+import {
+  registrationFromWaitingPool,
+  registrationFromAttendee,
+  summarizeRegistrations,
+  registrationsToCsv,
+} from '../lib/event-registrations.mjs';
 
 export const SLUG_TO_EVENT_ID = {
   bakutau: BAKU_TAU_EVENT_ID,
   'baku-tau-4-0': BAKU_TAU_EVENT_ID,
+  [BAKU_TAU_EVENT_ID]: BAKU_TAU_EVENT_ID,
 };
 
 export async function resolveEventBySlug(prisma, slug) {
@@ -141,6 +149,65 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       take: 500,
     });
     res.json({ attendees: rows });
+  }));
+
+  const USER_PUBLIC_SELECT = {
+    id: true, name: true, email: true, phone: true,
+    gender: true, origin: true, domicileKind: true, domicileDetail: true,
+  };
+
+  async function loadEventRegistrations(prisma, resolved) {
+    if (resolved.isBakutau) {
+      const pool = await prisma.waitingPool.findMany({
+        where: { sourceEvent: BAKU_TAU_SOURCE_EVENT },
+        include: { user: { select: USER_PUBLIC_SELECT } },
+        orderBy: { registeredAt: 'desc' },
+        take: 500,
+      });
+      const registrations = pool.map(registrationFromWaitingPool);
+      return {
+        source: 'waiting_pool',
+        registrations,
+        summary: summarizeRegistrations(registrations),
+      };
+    }
+
+    const rows = await prisma.eventAttendee.findMany({
+      where: { eventId: resolved.eventId },
+      include: { user: { select: USER_PUBLIC_SELECT } },
+      orderBy: { registeredAt: 'desc' },
+      take: 500,
+    });
+    const registrations = rows.map(registrationFromAttendee);
+    return {
+      source: 'event_attendee',
+      registrations,
+      summary: summarizeRegistrations(registrations),
+    };
+  }
+
+  app.get('/api/events/:slug/registrations', requireRole('KOMISI', 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEventBySlug(prisma, String(req.params.slug || '').toLowerCase());
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    res.json(await loadEventRegistrations(prisma, resolved));
+  }));
+
+  app.get('/api/events/:slug/registrations/export', requireRole('KOMISI', 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEventBySlug(prisma, String(req.params.slug || '').toLowerCase());
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const { registrations } = await loadEventRegistrations(prisma, resolved);
+    const slug = resolved.slug || resolved.eventId;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="pendaftar-${slug}.csv"`);
+    res.send(`\uFEFF${registrationsToCsv(registrations)}`);
   }));
 
   app.post('/api/events/:slug/register-auth', wrap(async (req, res) => {
