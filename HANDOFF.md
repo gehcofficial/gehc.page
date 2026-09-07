@@ -7,20 +7,22 @@
 ### Done
 
 - `users.given_name / middle_name / family_name / church_title / academic_titles`
-- Preview contoh: `Pdt Meyke Poluan S.Th., M.Pd.,`
-- Form onboarding, permintaan ubah nama, dan daftar email.
+- Preview: `Pdt Meyke Poluan S.Th., M.Pd.,`
+- Form: onboarding, **Ajukan perubahan** (setelah ACTIVE, Komisi setujui), daftar email.
+- API menambah kolom otomatis di request pertama jika belum ada (idempotent).
+- CJS: `server/_migrate-person-name.cjs` (juga lewat `npm run db:migrate:local`).
 
 ### Next
 
-1. `npm run db:migrate:local` (lalu staging/prod) supaya kolom nama ada.
-2. Cek Akun Saya → Identitas gereja (onboarding) dan Daftar dengan email.
+1. Cek staging/prod: Akun Saya → Ajukan perubahan → isi Pdt + nama + S.Th./M.Pd. → Komisi setujui di Jemaat.
+2. Onboarding WAITING_POOL: Identitas & data gereja (langsung simpan, tanpa antrean Komisi).
 
 ### Commands
 
 ```
 npm run db:migrate:local
-npm run lint
-npm run test
+npm run db:migrate:local:staging
+npm run db:schema:check:staging
 ```
 
 ---

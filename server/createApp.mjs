@@ -1,6 +1,8 @@
 import express from 'express';
 import { attachUser } from './auth.mjs';
 import { attachPlatformContext } from './lib/platform-rbac.mjs';
+import { applyDatabaseUrl } from './db.mjs';
+import { ensurePersonNameColumnsOnce } from './lib/ensure-person-name-columns.mjs';
 
 /**
  * Factory for Express app with shared middleware.
@@ -32,6 +34,14 @@ export function createApp() {
   });
 
   app.use(express.json({ limit: '8mb' }));
+  app.use(async (_req, _res, next) => {
+    try {
+      await ensurePersonNameColumnsOnce(applyDatabaseUrl());
+    } catch (err) {
+      console.error('[person-name] ensure columns:', err.message);
+    }
+    next();
+  });
   app.use(attachUser);
   app.use(attachPlatformContext);
 

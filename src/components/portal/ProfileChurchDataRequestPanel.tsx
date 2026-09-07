@@ -232,9 +232,13 @@ export const ProfileChurchDataRequestPanel: React.FC<{
     <>
       <div className="mt-4 pt-4 border-t border-dashed border-[#D9D7D0]/60">
         <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1">Data gereja (admin)</p>
+        <p className="text-xs font-bold text-[#1B1B1B]">{user?.name || '—'}</p>
         <p className="text-xs text-[#1B1B1B]">
           {BIPRA_LABEL[user?.bipra || ''] || user?.bipra || '—'}
           {user?.kolom ? ` · ${user.kolom.name}` : ' · Kolom belum diisi'}
+        </p>
+        <p className="text-[10px] text-[#8C8880] mt-1 leading-relaxed">
+          Ubah nama (depan/tengah/belakang + gelar gereja/akademis), BIPRA, atau kolom lewat tombol di bawah.
         </p>
         {pendingRequest ? (
           <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
