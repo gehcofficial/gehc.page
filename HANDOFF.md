@@ -11,7 +11,7 @@
 ### Next
 
 1. Restart API + `npx prisma generate` (kolom baru), refresh, cek: buka BAKU TAU → Konten publik terisi dari `cnt-bakutau`; Kelola Agenda tidak lagi menampilkan BAKU TAU.
-2. Staging: `db:migrate:staging` + deploy.
+2. ~~Staging: `db:migrate:staging` + deploy~~ — **done 8 Sep**: commit `843d9cc` push ke `origin/staging`; `.env.staging` = DB yang sama dengan lokal → `db:migrate:local:staging` + `db:schema:check:staging` hijau. Tanpa `prisma migrate deploy` (riwayat CJS sumber tunggal).
 
 ### Commands
 
