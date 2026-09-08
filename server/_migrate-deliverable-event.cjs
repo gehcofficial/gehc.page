@@ -34,12 +34,20 @@ const mysql = require('mysql2/promise');
       await conn.query('CREATE INDEX ministry_week_deliverables_event_id ON ministry_week_deliverables (event_id)').catch(() => null);
       console.log('event_id index ok');
     }
-    // Samakan collation dengan EventProgram.id agar FK bisa dibuat.
+    // Samakan collation dengan EventProgram.id agar FK bisa dibuat
+    // (tiap cluster bisa beda: lokal unicode_ci, prod bin).
     // TiDB menolak MODIFY saat index menempel — lepas index dulu, pasang lagi sesudahnya.
+    let parentCollation = 'utf8mb4_unicode_ci';
+    try {
+      const [pc] = await conn.query(
+        `SELECT COLLATION_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'EventProgram' AND COLUMN_NAME = 'id'`,
+      );
+      if (pc[0]?.COLLATION_NAME) parentCollation = pc[0].COLLATION_NAME;
+    } catch { /* pakai default */ }
     await conn.query('ALTER TABLE ministry_week_deliverables DROP INDEX ministry_week_deliverables_event_id').catch(() => null);
     await conn.query(
-      'ALTER TABLE ministry_week_deliverables MODIFY COLUMN event_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL',
-    ).then(() => console.log('event_id collation ok')).catch((e) => console.log('event_id collation skipped:', e.message.slice(0, 120)));
+      `ALTER TABLE ministry_week_deliverables MODIFY COLUMN event_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE ${parentCollation} NULL`,
+    ).then(() => console.log(`event_id collation ok (${parentCollation})`)).catch((e) => console.log('event_id collation skipped:', e.message.slice(0, 120)));
     await conn.query('CREATE INDEX ministry_week_deliverables_event_id ON ministry_week_deliverables (event_id)').catch(() => null);
     // FK opsional — lewati bila tabel induk belum ada agar migrasi tidak gagal.
     await conn.query(
