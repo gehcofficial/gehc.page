@@ -1,6 +1,6 @@
 {
-  "syncedAt": "2026-09-03T17:06:48.313Z",
-  "rootFolderId": "1ooE8nCdw-OLL0iq17bp1CK2cSYEnIACA",
+  "syncedAt": "2026-09-08T04:20:13.581Z",
+  "rootFolderId": "1WQLBGFw2FfaYTZizP8tLFfHlMWO66b6I",
   "slots": {
     "landing": {
       "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1788264721585.4478",
@@ -27,16 +27,16 @@
       "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788264167658.6074"
     },
     "kelompok": {
-      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788455173647.0242",
-      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788455178457.0288",
-      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788455183684.034",
-      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788455185400.0356",
-      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788455187801.0378",
-      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788455192892.0427",
-      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788455196452.046",
-      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788455199671.0415",
-      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788455203579.0398",
-      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788455208311.0435"
+      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788841185759.8328",
+      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788841189865.813",
+      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788841193936.793",
+      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788841195642.7847",
+      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788841197815.7734",
+      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788841202433.7495",
+      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788841205248.735",
+      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788841208213.7205",
+      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788841211607.7039",
+      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788841213578.6938"
     },
     "pengurus": {
       "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
@@ -44,6 +44,7 @@
     "testimoni": {
       "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788264262442.0808"
     },
-    "users": {}
+    "users": {},
+    "panca": {}
   }
 }
