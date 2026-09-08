@@ -1,6 +1,6 @@
 {
-  "syncedAt": "2026-09-08T05:58:47.372Z",
-  "rootFolderId": "1WQLBGFw2FfaYTZizP8tLFfHlMWO66b6I",
+  "syncedAt": "2026-09-08T15:40:23.434Z",
+  "rootFolderId": "1ooE8nCdw-OLL0iq17bp1CK2cSYEnIACA",
   "slots": {
     "landing": {
       "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1788264721585.4478",
@@ -42,7 +42,7 @@
       "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
     },
     "testimoni": {
-      "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788264262442.0808"
+      "contoh": "/visuals/testimoni/contoh-penulis.jpg?v=1788882023425.0376"
     },
     "users": {},
     "panca": {}
