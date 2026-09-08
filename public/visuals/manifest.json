@@ -1,5 +1,5 @@
 {
-  "syncedAt": "2026-09-08T16:27:13.155Z",
+  "syncedAt": "2026-09-08T16:34:15.782Z",
   "rootFolderId": "1WQLBGFw2FfaYTZizP8tLFfHlMWO66b6I",
   "slots": {
     "landing": {
@@ -27,16 +27,16 @@
       "qris": "/visuals/benzarpreneurship/03-qris.png?v=1788264167658.6074"
     },
     "kelompok": {
-      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788884814797.6567",
-      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788884816580.6501",
-      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788884818486.643",
-      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788884820157.6367",
-      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788884821980.6282",
-      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788884825994.6023",
-      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788884827587.5957",
-      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788884829497.5876",
-      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788884831712.575",
-      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788884833153.5667"
+      "agape": "/visuals/kelompok/cover-agape.jpg?v=1788885237408.9077",
+      "avodah": "/visuals/kelompok/cover-avodah.jpg?v=1788885238802.9204",
+      "dunamis": "/visuals/kelompok/cover-dunamis.jpg?v=1788885241491.9448",
+      "echad": "/visuals/kelompok/cover-echad.jpg?v=1788885242806.9568",
+      "hesed": "/visuals/kelompok/cover-hesed.jpg?v=1788885244784.9746",
+      "kairos": "/visuals/kelompok/cover-kairos.jpg?v=1788885248737.0095",
+      "logos": "/visuals/kelompok/cover-logos.jpg?v=1788885250259.022",
+      "metanoia": "/visuals/kelompok/cover-metanoia.jpg?v=1788885251543.0325",
+      "ruach": "/visuals/kelompok/cover-ruach.jpg?v=1788885253535.0488",
+      "shalom": "/visuals/kelompok/cover-shalom.jpg?v=1788885255781.0686"
     },
     "pengurus": {
       "contoh": "/visuals/pengurus/contoh-pengurus.jpg?v=1788264260936.8403"
