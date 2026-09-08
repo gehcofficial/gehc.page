@@ -31,6 +31,10 @@ async function main() {
   });
 
   try {
+    if (await hasTable(conn, 'event_question_bank')) {
+      // Lebarkan kolom type untuk tipe baru (SHORT_TEXT/LONG_TEXT/DROPDOWN/SINGLE/DATE/NUMBER).
+      await conn.query('ALTER TABLE event_question_bank MODIFY COLUMN `type` VARCHAR(24) NOT NULL').catch(() => null);
+    }
     if (!(await hasTable(conn, 'event_question_bank'))) {
       await conn.query(`
         CREATE TABLE event_question_bank (
@@ -38,7 +42,7 @@ async function main() {
           \`key\` VARCHAR(64) NOT NULL,
           label VARCHAR(190) NOT NULL,
           hint TEXT NULL,
-          \`type\` VARCHAR(16) NOT NULL,
+          \`type\` VARCHAR(24) NOT NULL,
           options JSON NULL,
           owner_division VARCHAR(24) NOT NULL,
           owner_subdivision VARCHAR(80) NOT NULL,
@@ -67,6 +71,7 @@ async function main() {
           options JSON NULL,
           owner_division VARCHAR(24) NOT NULL,
           owner_subdivision VARCHAR(80) NOT NULL,
+          show_if JSON NULL,
           reason TEXT NULL,
           status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
           created_by_id VARCHAR(64) NOT NULL,
@@ -82,6 +87,21 @@ async function main() {
       console.log('event_question_requests created');
     } else {
       console.log('event_question_requests already exists');
+    }
+
+    // Logika tampil-bersyarat (showIf) untuk usulan soal.
+    try {
+      const [cols] = await conn.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'event_question_requests' AND COLUMN_NAME = 'show_if'`,
+      );
+      if (!cols.length) {
+        await conn.query('ALTER TABLE event_question_requests ADD COLUMN show_if JSON NULL');
+        console.log('event_question_requests.show_if added');
+      } else {
+        console.log('event_question_requests.show_if exists');
+      }
+    } catch (e) {
+      console.log('show_if alter skipped:', e.message.slice(0, 120));
     }
 
     if (!(await hasTable(conn, 'event_question_assignments'))) {

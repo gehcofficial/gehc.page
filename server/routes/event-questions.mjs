@@ -5,7 +5,7 @@ import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import { isKoinoniaOperator } from '../lib/checkin-access.mjs';
 import { BAKU_TAU_EVENT_ID, BAKU_TAU_SOURCE_EVENT } from '../lib/baku-tau.mjs';
 import { resolveEventBySlug, SLUG_TO_EVENT_ID } from './events-public.mjs';
-import { QUESTION_TYPES, bankId } from '../lib/event-question-bank.mjs';
+import { QUESTION_TYPES, bankId, normQuestionType, typeNeedsOptions, validateShowIf } from '../lib/event-question-bank.mjs';
 import {
   asalFromOrigin,
   csvEscape,
@@ -79,18 +79,28 @@ async function isRegistered(prisma, eventId, userId) {
 }
 
 function validateValue(question, value) {
-  const type = question.type;
+  const type = normQuestionType(question.type);
   if (type === 'BOOLEAN') {
     if (typeof value !== 'boolean') return 'Jawaban harus ya/tidak.';
     return null;
   }
-  if (type === 'TEXT') {
+  if (type === 'SHORT_TEXT' || type === 'LONG_TEXT') {
     if (value == null) return null;
     if (typeof value !== 'string') return 'Jawaban harus teks.';
     return null;
   }
+  if (type === 'DATE') {
+    if (value == null || value === '') return null;
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Tanggal harus format YYYY-MM-DD.';
+    return null;
+  }
+  if (type === 'NUMBER') {
+    if (value == null || value === '') return null;
+    if (typeof value !== 'number' || Number.isNaN(value)) return 'Jawaban harus angka.';
+    return null;
+  }
   const options = parseOptions(question.options);
-  if (type === 'SELECT') {
+  if (type === 'DROPDOWN' || type === 'SINGLE') {
     if (value == null || value === '') return null;
     if (!options.includes(String(value))) return 'Pilihan tidak valid.';
     return null;
@@ -102,6 +112,21 @@ function validateValue(question, value) {
     return null;
   }
   return 'Tipe soal tidak didukung.';
+}
+
+/** Ambil kunci acuan dari rule showIf (objek/JSON string/null). */
+function parentKeyOf(raw) {
+  if (!raw) return null;
+  let rule = raw;
+  if (typeof rule === 'string') {
+    try {
+      rule = JSON.parse(rule);
+    } catch {
+      return null;
+    }
+  }
+  const key = rule && typeof rule === 'object' ? String(rule.key || '').trim() : '';
+  return key || null;
 }
 
 function slugKey(label) {
@@ -116,12 +141,34 @@ function slugKey(label) {
 }
 
 async function upsertAnswers(prisma, eventId, userId, answersMap, questionsById) {
+  // Peta jawaban per key dulu agar visibilitas bersyarat bisa dihitung
+  // dari submisi yang sama (jawaban soal acuan ada di paket ini juga).
+  const answersByKey = answersByKeyFromRows(
+    [...questionsById.values()],
+    Object.entries(answersMap || {}).map(([questionId, value]) => ({ questionId, value })),
+  );
   const rows = [];
+  const hiddenIds = [];
   for (const [questionId, value] of Object.entries(answersMap || {})) {
     if (value === undefined) continue;
     const q = questionsById.get(questionId);
-    if (!q) return { error: `Soal ${questionId} tidak ditemukan.`, status: 400 };
+    if (!q) {
+      // ID dikenal di bank tapi tak bisa dijawab di event ini (diarsip/dilepas/
+      // tersembunyi): lewati + bersihkan baris basi, JANGAN 400 — klien lama
+      // bisa mengirim nilai sisa. 400 hanya untuk ID yang asing total.
+      const known = await prisma.eventQuestionBank.findUnique({ where: { id: questionId } }).catch(() => null);
+      if (known) {
+        hiddenIds.push(questionId);
+        continue;
+      }
+      return { error: `Soal ${questionId} tidak ditemukan.`, status: 400 };
+    }
     if (q.status && q.status !== 'ACTIVE') return { error: 'Soal tidak aktif.', status: 400 };
+    // Soal tersembunyi oleh logika tampil: lewati (jangan validasi/simpan).
+    if (!isQuestionVisible(q, answersByKey)) {
+      hiddenIds.push(questionId);
+      continue;
+    }
     const err = validateValue(q, value);
     if (err) return { error: `${q.label}: ${err}`, status: 400 };
     rows.push({
@@ -131,6 +178,12 @@ async function upsertAnswers(prisma, eventId, userId, answersMap, questionsById)
       questionId,
       value,
     });
+  }
+  // Bersihkan jawaban basi untuk soal yang kini tersembunyi.
+  if (hiddenIds.length) {
+    await prisma.eventQuestionAnswer.deleteMany({
+      where: { eventId, userId, questionId: { in: hiddenIds } },
+    }).catch(() => null);
   }
   if (!rows.length) return { ok: true, count: 0 };
   await prisma.eventQuestionAnswer.deleteMany({
@@ -167,6 +220,115 @@ export function registerEventQuestionRoutes(app, { wrap }) {
     }),
   );
 
+  app.patch(
+    '/api/event-questions/bank/:id',
+    requireRole('SUPERADMIN', 'KOMISI'),
+    wrap(async (req, res) => {
+      if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const existing = await prisma.eventQuestionBank.findUnique({ where: { id: req.params.id } });
+      if (!existing) return res.status(404).json({ error: 'Soal tidak ditemukan.' });
+      const data = {};
+      if (req.body?.label !== undefined) {
+        const label = String(req.body.label).trim();
+        if (!label) return res.status(400).json({ error: 'Label wajib.' });
+        data.label = label.slice(0, 190);
+      }
+      if (req.body?.hint !== undefined) {
+        data.hint = req.body.hint ? String(req.body.hint).slice(0, 500) : null;
+      }
+      if (req.body?.type !== undefined) {
+        const rawType = String(req.body.type).toUpperCase();
+        if (!QUESTION_TYPES.includes(rawType)) return res.status(400).json({ error: 'Tipe soal tidak valid.' });
+        data.type = normQuestionType(rawType);
+      }
+      if (req.body?.options !== undefined) {
+        const options = parseOptions(req.body.options);
+        const type = data.type || normQuestionType(existing.type);
+        if (typeNeedsOptions(type) && options.length < 2) {
+          return res.status(400).json({ error: 'Tipe pilihan butuh minimal 2 opsi.' });
+        }
+        data.options = options.length ? options : undefined;
+      }
+      if (req.body?.showIf !== undefined) {
+        const bankRows = await prisma.eventQuestionBank.findMany({ select: { key: true, showIf: true } });
+        const bankKeys = bankRows.map((r) => r.key);
+        const showIfCheck = validateShowIf(req.body.showIf, { bankKeys, selfKey: existing.key });
+        if (!showIfCheck.ok) return res.status(400).json({ error: showIfCheck.error });
+        // Tolak siklus A→B→A: semua rantai akan tersembunyi selamanya.
+        const parentOf = new Map(bankRows.map((r) => [r.key, parentKeyOf(r.showIf)]));
+        parentOf.set(existing.key, showIfCheck.rule ? showIfCheck.rule.key : null);
+        let cur = parentOf.get(existing.key);
+        const seen = new Set([existing.key]);
+        while (cur) {
+          if (seen.has(cur)) {
+            return res.status(400).json({ error: 'Logika tampil berputar (A→B→A) — kedua soal akan hilang selamanya.' });
+          }
+          seen.add(cur);
+          cur = parentOf.get(cur);
+        }
+        data.showIf = showIfCheck.rule;
+      }
+      if (req.body?.status !== undefined) {
+        const st = String(req.body.status).toUpperCase();
+        if (!['ACTIVE', 'INACTIVE', 'ARCHIVED'].includes(st)) {
+          return res.status(400).json({ error: 'Status tidak valid.' });
+        }
+        data.status = st;
+      }
+      if (req.body?.sortOrder !== undefined) data.sortOrder = Number(req.body.sortOrder) || 0;
+      const updated = await prisma.eventQuestionBank.update({ where: { id: existing.id }, data });
+      res.json({ question: serializeQuestion(updated) });
+    }),
+  );
+
+  app.delete(
+    '/api/event-questions/bank/:id',
+    requireRole('SUPERADMIN', 'KOMISI'),
+    wrap(async (req, res) => {
+      if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const existing = await prisma.eventQuestionBank.findUnique({ where: { id: req.params.id } });
+      if (!existing) return res.status(404).json({ error: 'Soal tidak ditemukan.' });
+      const [answerCount, asgCount] = await Promise.all([
+        prisma.eventQuestionAnswer.count({ where: { questionId: existing.id } }),
+        prisma.eventQuestionAssignment.count({ where: { questionId: existing.id } }),
+      ]);
+      // ?force=1 → hapus permanen termasuk assignment + jawaban (Komisi paham risiko).
+      if (String(req.query.force || '') === '1') {
+        await prisma.eventQuestionAssignment.deleteMany({ where: { questionId: existing.id } });
+        await prisma.eventQuestionAnswer.deleteMany({ where: { questionId: existing.id } });
+        await prisma.eventQuestionRequest.updateMany({
+          where: { approvedQuestionId: existing.id },
+          data: { approvedQuestionId: null },
+        }).catch(() => null);
+        await prisma.eventQuestionBank.delete({ where: { id: existing.id } });
+        return res.json({ ok: true, deleted: true, removedAssignments: asgCount, removedAnswers: answerCount });
+      }
+      // Sudah ada jawaban/penugasan → arsip lunak agar histori utuh,
+      // sekaligus nonaktifkan assignment agar tidak masuk form & submit.
+      if (answerCount > 0 || asgCount > 0) {
+        const updated = await prisma.eventQuestionBank.update({
+          where: { id: existing.id },
+          data: { status: 'ARCHIVED' },
+        });
+        await prisma.eventQuestionAssignment.updateMany({
+          where: { questionId: existing.id },
+          data: { enabled: false },
+        }).catch(() => null);
+        return res.json({ question: serializeQuestion(updated), archived: true });
+      }
+      await prisma.eventQuestionRequest.updateMany({
+        where: { approvedQuestionId: existing.id },
+        data: { approvedQuestionId: null },
+      }).catch(() => null);
+      await prisma.eventQuestionBank.delete({ where: { id: existing.id } });
+      res.json({ ok: true, deleted: true });
+    }),
+  );
+
   app.post(
     '/api/event-questions/requests',
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'),
@@ -175,13 +337,18 @@ export function registerEventQuestionRoutes(app, { wrap }) {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const label = String(req.body?.label || '').trim();
-      const type = String(req.body?.type || 'TEXT').toUpperCase();
+      const rawType = String(req.body?.type || 'SHORT_TEXT').toUpperCase();
       if (!label) return res.status(400).json({ error: 'Label soal wajib.' });
-      if (!QUESTION_TYPES.includes(type)) return res.status(400).json({ error: 'Tipe soal tidak valid.' });
+      if (!QUESTION_TYPES.includes(rawType)) return res.status(400).json({ error: 'Tipe soal tidak valid.' });
+      const type = normQuestionType(rawType);
       const options = parseOptions(req.body?.options);
-      if ((type === 'SELECT' || type === 'MULTI') && options.length < 2) {
-        return res.status(400).json({ error: 'SELECT/MULTI butuh minimal 2 opsi.' });
+      if (typeNeedsOptions(type) && options.length < 2) {
+        return res.status(400).json({ error: 'Tipe pilihan butuh minimal 2 opsi.' });
       }
+      // Logika tampil-bersyarat: kunci acuan boleh soal yang sudah ada;
+      // dicek ketat lagi saat approve (bank terbaru) dan saat edit bank.
+      const showIfCheck = validateShowIf(req.body?.showIf);
+      if (!showIfCheck.ok) return res.status(400).json({ error: showIfCheck.error });
       const created = await prisma.eventQuestionRequest.create({
         data: {
           id: reqId(),
@@ -191,6 +358,7 @@ export function registerEventQuestionRoutes(app, { wrap }) {
           options: options.length ? options : undefined,
           ownerDivision: String(req.body?.ownerDivision || 'KOINONIA').slice(0, 24),
           ownerSubdivision: String(req.body?.ownerSubdivision || 'Program & Acara').slice(0, 80),
+          showIf: showIfCheck.rule ?? undefined,
           reason: req.body?.reason ? String(req.body.reason).slice(0, 500) : null,
           createdById: req.authUser.id,
         },
@@ -231,6 +399,13 @@ export function registerEventQuestionRoutes(app, { wrap }) {
       const clash = await prisma.eventQuestionBank.findUnique({ where: { key } });
       if (clash) key = `${key}_${crypto.randomBytes(2).toString('hex')}`;
 
+      // Salin logika tampil; kunci acuan harus sudah ada di bank saat ini.
+      const bankKeys = (await prisma.eventQuestionBank.findMany({ select: { key: true } })).map((r) => r.key);
+      const showIfCheck = validateShowIf(existing.showIf, { bankKeys });
+      if (!showIfCheck.ok) {
+        return res.status(400).json({ error: `Logika tampil usulan tidak valid: ${showIfCheck.error}` });
+      }
+
       const last = await prisma.eventQuestionBank.findFirst({ orderBy: { sortOrder: 'desc' } });
       const question = await prisma.eventQuestionBank.create({
         data: {
@@ -242,6 +417,7 @@ export function registerEventQuestionRoutes(app, { wrap }) {
           options: existing.options ?? undefined,
           ownerDivision: existing.ownerDivision,
           ownerSubdivision: existing.ownerSubdivision,
+          showIf: showIfCheck.rule ?? undefined,
           status: 'ACTIVE',
           sortOrder: (last?.sortOrder || 0) + 10,
         },
@@ -297,8 +473,10 @@ export function registerEventQuestionRoutes(app, { wrap }) {
         include: { question: true },
         orderBy: { sortOrder: 'asc' },
       });
+      // Soal ARCHIVED tidak dikembalikan ke siapa pun (termasuk operator):
+      // assignment basi tidak boleh masuk form jawaban agar submit tidak 400.
       const questions = asgs
-        .filter((a) => a.question && (operator || a.question.status === 'ACTIVE'))
+        .filter((a) => a.question && a.question.status !== 'ARCHIVED' && (operator || a.question.status === 'ACTIVE'))
         .map((a) => serializeQuestion(a.question, { assignmentId: a.id, enabled: a.enabled, sortOrder: a.sortOrder }));
       res.json({ questions });
     }),
@@ -323,7 +501,15 @@ export function registerEventQuestionRoutes(app, { wrap }) {
         ? await prisma.eventQuestionBank.findMany({ where: { id: { in: questionIds }, status: 'ACTIVE' } })
         : [];
       if (bank.length !== questionIds.length) {
-        return res.status(400).json({ error: 'Ada soal yang tidak valid atau tidak aktif.' });
+        const okIds = new Set(bank.map((b) => b.id));
+        const badIds = questionIds.filter((id) => !okIds.has(id));
+        const badRows = badIds.length
+          ? await prisma.eventQuestionBank.findMany({ where: { id: { in: badIds } }, select: { id: true, label: true, status: true } })
+          : [];
+        const names = badRows.length
+          ? badRows.map((r) => `"${r.label}" (${r.status})`).join(', ')
+          : badIds.join(', ');
+        return res.status(400).json({ error: `Soal tidak valid/diarsip: ${names}. Aktifkan lagi atau lepas centang.` });
       }
       await prisma.eventQuestionAssignment.deleteMany({ where: { eventId: resolved.id } });
       if (questionIds.length) {

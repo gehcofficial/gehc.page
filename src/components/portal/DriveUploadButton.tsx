@@ -1,12 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Loader2, FolderOpen } from 'lucide-react';
+import { Camera, Loader2, FolderOpen, X } from 'lucide-react';
 
 type Props = {
   label?: string;
   accept?: string;
   disabled?: boolean;
   driveUrl?: string | null;
+  hasFile?: boolean;
   onFile: (payload: { data: string; mimetype: string; filename: string }) => Promise<void> | void;
+  onClear?: () => void;
 };
 
 function readAsDataUrl(file: File): Promise<string> {
@@ -23,7 +25,9 @@ export const DriveUploadButton: React.FC<Props> = ({
   accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif',
   disabled,
   driveUrl,
+  hasFile,
   onFile,
+  onClear,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -58,6 +62,18 @@ export const DriveUploadButton: React.FC<Props> = ({
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
         {label}
       </button>
+      {(hasFile || onClear) && onClear && (
+        <button
+          type="button"
+          disabled={disabled || busy}
+          onClick={onClear}
+          title="Batalkan foto"
+          aria-label="Batalkan foto"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-50"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
       {driveUrl && (
         <a
           href={driveUrl}

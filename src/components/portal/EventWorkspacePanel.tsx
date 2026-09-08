@@ -21,6 +21,7 @@ import { ChurchCalendarPanel } from './ChurchCalendarPanel';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { MonthlyPlanPanel } from './MonthlyPlanPanel';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
+import { EventPublicContentBlock } from './EventPublicContentBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
 import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
@@ -155,6 +156,7 @@ export const EventWorkspacePanel: React.FC = () => {
     divisions: ['KOINONIA'] as string[],
   });
   const [detailLoading, setDetailLoading] = useState(false);
+  const [linkedPlans, setLinkedPlans] = useState<Array<{ id: string; title: string; division: string; weekIndex: number; yearMonth: string | null; status: string }>>([]);
 
   // Discussions per division
   const [discussions, setDiscussions] = useState<Record<string, any[]>>({});
@@ -250,6 +252,11 @@ export const EventWorkspacePanel: React.FC = () => {
       setCanEdit(d.canEdit === true);
       setShowEdit(false);
       setView('detail');
+      // Deliverable Rencana bulan yang tertaut (badge "dari Rencana bulan").
+      fetch(`/api/events/${ev.id}/deliverables`, { credentials: 'include' })
+        .then((lr) => lr.json())
+        .then((ld) => setLinkedPlans(ld.deliverables || []))
+        .catch(() => setLinkedPlans([]));
 
       // Load discussions per division
       const disc: Record<string, any[]> = {};
@@ -452,7 +459,21 @@ export const EventWorkspacePanel: React.FC = () => {
                   Payung: {selected.churchProgram.name}
                 </span>
               )}
+              {linkedPlans.length > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold">
+                  dari Rencana bulan ({linkedPlans.length})
+                </span>
+              )}
             </div>
+            {linkedPlans.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {linkedPlans.map((p) => (
+                  <span key={p.id} className="text-[10px] px-2 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 font-semibold">
+                    {p.yearMonth} · W{p.weekIndex} · {p.division}: {p.title}
+                  </span>
+                ))}
+              </div>
+            )}
             {selected.description && <p className="text-sm text-[#8C8880] mb-2">{selected.description}</p>}
             <div className="flex flex-wrap gap-4 text-xs text-[#8C8880]">
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(selected.startDate)} — {formatDate(selected.endDate)}</span>
@@ -637,6 +658,8 @@ export const EventWorkspacePanel: React.FC = () => {
             </div>
           </form>
         )}
+
+        <EventPublicContentBlock eventId={selected.id} />
 
         <EventQuestionsBlock eventId={selected.id} />
 

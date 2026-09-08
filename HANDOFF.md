@@ -1,6 +1,130 @@
 # GEHC Portal — Handoff
 
-## Current — Katalog gelar + Edit Profil admin (7 Sep 2026)
+## Current — Konten agenda by-event di Program & Event (8 Sep 2026)
+
+### Done
+
+- **Satu pola:** `content_items.event_id` (migrasi 33 + backfill `cnt-bakutau` → `evt-baku-tau-4-0`); Kelola Agenda Kegiatan kini hanya menampilkan agenda lepas + banner penunjuk ke event.
+- **Blok Konten publik** di detail event (`EventPublicContentBlock`): judul, tagline, kategori (dropdown tetap 7 opsi), banner (dropdown slot Drive + URL kustom + pratinjau), deskripsi opsional, unggulan, terbit. Tanggal & tempat read-only dari event (sumber tunggal, tanpa duplikat isian). Tulis: Komisi/Superadmin atau anggota divisi MARTURIA event itu (`GET/PUT /api/events/:id/content` + `canEdit`).
+- **Sinkron state:** `upsertContentItem` di context — simpan dari event langsung menyegarkan landing + panel agenda.
+
+### Next
+
+1. Restart API + `npx prisma generate` (kolom baru), refresh, cek: buka BAKU TAU → Konten publik terisi dari `cnt-bakutau`; Kelola Agenda tidak lagi menampilkan BAKU TAU.
+2. Staging: `db:migrate:staging` + deploy.
+
+### Commands
+
+```
+npm run db:migrate:local
+npx prisma generate
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Guard syarat-vs-API-lama + auto-sembunyi arsip (8 Sep 2026)
+
+### Done
+
+- **Bukti DB lokal:** `eqb-berapa_baik.show_if = NULL` — syarat tak pernah tersimpan karena API `:8787` masih kode lama (tanpa watch, PATCH lama buang `showIf` tapi tetap 200). Evaluasi showIf-nya sendiri benar.
+- **Guard anti-diam:** `saveEdit`/`submitRequest` membandingkan syarat terkirim vs tersimpan; bila beda → toast merah "Syarat TIDAK tersimpan (API lama)" + perintah restart. Berlaku untuk semua field showIf ke depan.
+- **Arsip default sembunyi:** list bank hanya soal aktif + toggle "Tampilkan N soal arsip"; Simpan soal membuang ID arsip basi dari payload; picker syarat hanya berisi soal aktif.
+
+### Next
+
+1. WAJIB restart API lokal: stop `dev:all` → `npx prisma generate` → `npm run dev:all` → refresh. Lalu pasang ulang syarat "Berapa baik?" (A atau B = B).
+2. Staging: deploy + migrasi seperti biasa.
+
+### Commands
+
+```
+npx prisma generate
+npm run dev:all
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Fix soal arsip "undead" + hapus permanen (8 Sep 2026)
+
+### Done
+
+- **Akar error `Soal eqb-… tidak ditemukan`:** soal ARCHIVED masih punya assignment di event → form operator tetap menampilkannya → submit jawaban 400. Kini `GET /api/events/:id/questions` menyembunyikan soal ARCHIVED untuk semua peran; arsip via DELETE ikut menonaktifkan assignment-nya.
+- **Hapus permanen:** `DELETE /api/event-questions/bank/:id?force=1` (Komisi) menghapus soal + assignment + jawaban; UI baris arsip dapat tombol **Aktifkan** (PATCH ACTIVE) dan sampah force-delete (ketik HAPUS). Checkbox baris arsip disabled.
+- **Pesan error jelas:** submit jawaban soal arsip menyebut labelnya ("…sudah diarsip — aktifkan lagi atau lepas dari event dulu"); Simpan soal menyebut label + status soal bermasalah.
+
+### Next
+
+1. Di lokal: revive (`Aktifkan`) atau hapus permanen baris arsip "Bekerja atau Kuliah", lalu Simpan soal ulang.
+2. Staging: deploy kode saja (tanpa migrasi baru).
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Gelar inti bisa edit/hapus + testimoni foto & kutipan penuh (8 Sep 2026)
+
+### Done
+
+- **Katalog gelar:** singkatan gelar inti (Pdt/Pnt/Dkn/Kr) bisa diubah via PATCH (profil aman — tersimpan sebagai kode PDT/…); hapus gelar inti dibuka dengan konfirmasi ketik singkatan persis; tiap chip gelar (pelayanan + akademis) kini ada pensil (singkatan + nama ID/EN) dan sampah.
+- **Kesaksian:** publish membuat foto inbox Drive publik (thumbnail tampil di landing); `userId` testimoni divalidasi harus `usr-…` (400 jelas, bukan gagal diam-diam); modal sunting ada pratinjau foto + toast sukses/gagal; bubble landing ada fallback foto rusak + tombol Selengkapnya/Tutup (jeda rotasi saat dibaca).
+
+### Next
+
+1. Cek lokal: Katalog → Gelar (ubah Pdt, hapus dengan ketik); Kesaksian → terbitkan ulang item berfoto; landing kolase foto + Selengkapnya.
+2. Staging: migrasi tidak perlu (tanpa perubahan schema); deploy kode saja.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Portal nine fixes (8 Sep 2026)
+
+**Goal:** 9 perbaikan portal: Drive resilient + kesaksian, Portal Doa search + nama manual, roster nyata, hapus katalog, CRUD soal event, editor Warta, Rencana → Event, search event divisi.
+
+### Done
+
+- **Drive + Kesaksian:** `isDriveAuthError()` + pesan ID (`gdrive-user-oauth.mjs`); `wrap()` hormati `err.status`; `DriveUploadButton` prop `onClear` + tombol X; kesaksian POST/PATCH tetap simpan draf bila Drive gagal (`photoPending` + toast).
+- **Portal Doa:** `SearchableSelect` + chip (ganti pill inline); `/api/pastoral-care/people` tidak exclude diri + cari `given/middle/familyName`; `subjectUserId` nullable + `subjectName` (migrasi 31 `_migrate-pastoral-subject-name.cjs`); toast bila nama/catatan kosong.
+- **Roster kelompok:** AppContext stop baris sintetis `${batch}-mentor/comentor/m{n}`; roster = `group_members` ACTIVE, dedupe `userId` lalu nama+peran; Tambah/Ubah/Hapus lewat API baru `POST/PATCH/DELETE /api/groups/:id/members[/:memberId]` (mentor rumah/komisi, revoke peran ikut bersih); badge hero = jumlah terdaftar; tab pakai `ScrollTabBar`; baris tanpa akun disembunyikan (superadmin toggle + hapus orphan ketik nama via `ConfirmationModal`).
+- **Katalog:** `DELETE /api/recreational/:id` (blokir bila dipakai/ada anak) + `PATCH/DELETE /api/institutions/:id`; chip minat = klik arsip + pensil rename + sampah hapus; kampus di hasil cari ada pensil + sampah.
+- **Soal event:** `PATCH/DELETE /api/event-questions/bank/:id` (soft `ARCHIVED` bila sudah ada jawaban/assignment, hard delete bila belum); tipe baru `SHORT_TEXT/LONG_TEXT/BOOLEAN/DROPDOWN/SINGLE/MULTI/DATE/NUMBER` (alias `TEXT`/`SELECT` dinormalisasi); kolom `type` → VARCHAR(24); renderer + form request + edit/hapus bank di `EventQuestionsBlock`.
+- **Warta:** hapus duplikat `PATCH /api/warta/:id` (dead code); `syncWartaToContentItem` susun body dari `ayat/khotbah/pengumuman/pelayanan/sharing/doa`; editor field terstruktur + pratinjau kartu; tombol export/Share2 mengaktifkan `WartaExportModal`; status APPROVED/PUBLISHED + skip langkah hanya Komisi/Superadmin.
+- **Rencana → Event:** `MinistryWeekDeliverable.eventId` (migrasi 32 `_migrate-deliverable-event.cjs`, FK SET NULL); `POST .../deliverables/:id/share` (buat `EventProgram` PLANNING baru atau tautkan + aktifkan divisi pemilik); badge "dari Rencana bulan" di Event Tim Kerja + ringkasan read-only di Panel Divisi; `GET /api/events/:id/deliverables`.
+- **Panel divisi:** `<select>` → input cari + chip (tanpa `ARCHIVED`, urut ACTIVE/PLANNING/DONE); `GET /api/events?status=` opsional.
+- **Tes:** `drive-auth-error`, `event-question-types`, `warta-body` (13 test baru). Total: 44 file / 226 test hijau; `lint` bersih; `db:schema:check` hijau (lokal termigrasi penuh + Prisma client baru).
+
+### Next
+
+1. `npm run dev:all` → cek browser: Doa cari+manual, kesaksian tanpa/dengan foto, cover Agape, minat hapus, soal edit/hapus, simpan warta field biasa, bagikan modul Didaskalia, cari event tanpa arsip, tab kelompok mobile.
+2. Staging: `npm run db:migrate:local:staging` (atau `db:migrate:staging`) + `db:schema:check:staging` — kolom `subject_name`, `event_id` (+FK), `type` VARCHAR(24).
+3. `INVALID_GRANT` di staging/prod: `npm run drive:auth` + `npm run env:sync-gdrive-token` (kode sekarang graceful, tapi token tetap perlu diperbarui).
+
+### Commands
+
+```
+npm run db:migrate:local
+npm run db:schema:check
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Katalog gelar + Edit Profil admin (7 Sep 2026)
 
 **Goal:** Admin mengedit nama+gelar di Jemaat, dan Katalog punya tab Gelar (pelayanan + akademis) yang bisa ditambah/arsip/hapus plus antrian saran manual.
 

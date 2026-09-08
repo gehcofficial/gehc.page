@@ -175,6 +175,21 @@ const STEPS = [
     label: 'Katalog gelar pelayanan & akademis',
     required: true,
   },
+  {
+    script: 'server/_migrate-pastoral-subject-name.cjs',
+    label: 'Portal Doa: subject_name + subject_user_id nullable',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-deliverable-event.cjs',
+    label: 'Rencana bulan: deliverable event_id',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-content-event-link.cjs',
+    label: 'Konten agenda: content_items.event_id (by-event)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

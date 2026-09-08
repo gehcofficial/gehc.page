@@ -145,6 +145,9 @@ const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(async (err) =>
     await resetPrisma();
     return res.status(503).json({ error: 'Database sedang reconnect. Muat ulang sebentar.', retry: true });
   }
+  // Hormati status yang sudah ditempel handler (mis. 503 Drive auth, 502 Drive umum).
+  const s = typeof err?.status === 'number' && err.status >= 400 && err.status < 600 ? err.status : 500;
+  if (s !== 500) return res.status(s).json({ error: err.message, retry: s === 503 });
   res.status(500).json({ error: err.message });
 });
 
@@ -676,6 +679,38 @@ app.post('/api/institutions', requireRole(...KOMISION_CORE), wrap(async (req, re
     },
   });
   res.json({ institution });
+}));
+
+app.patch('/api/institutions/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const inst = await prisma.institution.findUnique({ where: { id: req.params.id } });
+  if (!inst) return res.status(404).json({ error: 'Kampus tidak ditemukan.' });
+  const data = {};
+  if (req.body?.name !== undefined) {
+    const name = String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: 'Nama wajib.' });
+    data.name = name;
+  }
+  if (req.body?.city !== undefined) data.city = String(req.body.city).trim() || null;
+  if (req.body?.country !== undefined) data.country = String(req.body.country).trim() || null;
+  const updated = await prisma.institution.update({ where: { id: inst.id }, data });
+  res.json({ institution: updated });
+}));
+
+app.delete('/api/institutions/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const inst = await prisma.institution.findUnique({ where: { id: req.params.id } });
+  if (!inst) return res.status(404).json({ error: 'Kampus tidak ditemukan.' });
+  const used = await prisma.user.count({ where: { institutionId: inst.id } }).catch(() => 0);
+  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil — ganti dulu profilnya.` });
+  await prisma.institutionSuggestion.updateMany({
+    where: { institutionId: inst.id },
+    data: { institutionId: null },
+  }).catch(() => null);
+  await prisma.institution.delete({ where: { id: inst.id } });
+  res.json({ ok: true });
 }));
 
 app.post('/api/institutions/suggest', wrap(async (req, res) => {
@@ -2218,6 +2253,13 @@ app.get('/api/events', wrap(async (req, res) => {
     }
   }
 
+  // Filter opsional ?status=ACTIVE,PLANNING (payload lebih kecil; ARCHIVED disembunyikan default panel divisi).
+  const statusParam = String(req.query.status || '').toUpperCase();
+  if (statusParam) {
+    const want = new Set(statusParam.split(',').map((s) => s.trim()).filter(Boolean));
+    events = events.filter((e) => want.has(String(e.status || '').toUpperCase()));
+  }
+
   // Filter berdasarkan role
   const roles = (req.authUser?.roles || []).map((r) => r.role);
   const isKomsaOrBod = roles.includes('SUPERADMIN') || roles.includes('KOMISI');
@@ -2753,6 +2795,7 @@ app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
 import {
   canSubmitDivision, canApproveDivision, canPublishDivision,
   canEditDivision, isValidTransition, logApprovalAction,
+  isKomisiOrSuperadmin,
 } from './division-rbac.mjs';
 
 // POST /api/events/:eventId/divisions/:div/submit — submit division for review
@@ -4695,6 +4738,25 @@ app.patch('/api/recreational/:id', requireRole(...KOMISION_CORE), wrap(async (re
   res.json({ group: updated });
 }));
 
+app.delete('/api/recreational/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const group = await prisma.recreationalGroup.findUnique({ where: { id: req.params.id } });
+  if (!group) return res.status(404).json({ error: 'Minat tidak ditemukan.' });
+  const [used, kids] = await Promise.all([
+    prisma.recreationalMembership.count({ where: { groupId: group.id } }),
+    prisma.recreationalGroup.count({ where: { parentId: group.id } }),
+  ]);
+  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil — arsipkan saja.` });
+  if (kids > 0) return res.status(400).json({ error: `Masih punya ${kids} sub-kategori — hapus/arsipkan dulu.` });
+  await prisma.recreationalSuggestion.updateMany({
+    where: { groupId: group.id },
+    data: { groupId: null },
+  }).catch(() => null);
+  await prisma.recreationalGroup.delete({ where: { id: group.id } });
+  res.json({ ok: true });
+}));
+
 app.post('/api/recreational/suggestions/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6278,9 +6340,15 @@ app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
     oldStatus = current.status;
     const curIdx = WARTA_STATUS_FLOW.indexOf(current.status);
     const nextIdx = WARTA_STATUS_FLOW.indexOf(status);
-    if (nextIdx < 0) return res.status(400).json({ error: 'Status tidak valid' });
-    if (nextIdx > curIdx + 1 && status !== 'APPROVED' && status !== 'PUBLISHED') {
-      return res.status(400).json({ error: 'Tidak bisa skip status kecuali APPROVED/PUBLISHED dari REVIEW' });
+    if (nextIdx < 0 && status !== 'REJECTED') return res.status(400).json({ error: 'Status tidak valid' });
+    const privileged = isKomisiOrSuperadmin(req.authUser);
+    // Alur divisi: Didaskalia CONTENT_READY → Koinonia COPY_EDIT → Marturia DESIGN → Komisi REVIEW/PUBLISHED.
+    // Hanya Komisi/Superadmin yang boleh skip langkah atau APPROVED/PUBLISHED.
+    if (!privileged && (status === 'APPROVED' || status === 'PUBLISHED')) {
+      return res.status(403).json({ error: 'Hanya Komisi yang boleh menyetujui/menerbitkan.' });
+    }
+    if (!privileged && nextIdx > curIdx + 1) {
+      return res.status(400).json({ error: 'Ikuti alur status satu langkah — tidak bisa lompat.' });
     }
     data.status = status;
     if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
@@ -6304,38 +6372,6 @@ app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id } });
   if (!warta) return res.status(404).json({ error: 'Warta tidak ditemukan' });
-  res.json({ warta });
-}));
-
-// PATCH /api/warta/:id — update content or advance status
-app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  const { status, contentJson, title, pdfUrl, pngUrl, rejectReason, driveFolderId } = req.body;
-  const data = {};
-  if (title) data.title = title;
-  if (contentJson !== undefined) data.contentJson = contentJson;
-  if (pdfUrl !== undefined) data.pdfUrl = pdfUrl;
-  if (pngUrl !== undefined) data.pngUrl = pngUrl;
-  if (rejectReason !== undefined) data.rejectReason = rejectReason;
-  if (driveFolderId !== undefined) data.driveFolderId = driveFolderId;
-  if (status) {
-    // Validate status transition
-    const current = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
-    if (!current) return res.status(404).json({ error: 'Warta tidak ditemukan' });
-    const curIdx = WARTA_STATUS_FLOW.indexOf(current.status);
-    const nextIdx = WARTA_STATUS_FLOW.indexOf(status);
-    if (nextIdx < 0) return res.status(400).json({ error: 'Status tidak valid' });
-    // Allow: forward 1 step, or skip to APPROVED/PUBLISHED from REVIEW
-    if (nextIdx > curIdx + 1 && status !== 'APPROVED' && status !== 'PUBLISHED') {
-      return res.status(400).json({ error: 'Tidak bisa skip status kecuali APPROVED/PUBLISHED dari REVIEW' });
-    }
-    data.status = status;
-    if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
-    if (status === 'PUBLISHED') data.publishedAt = new Date();
-    if (status !== 'REJECTED') data.rejectReason = null;
-    data.reviewedById = req.authUser?.id;
-  }
-  const warta = await prisma.wartaPublik.update({ where: { id: req.params.id }, data });
   res.json({ warta });
 }));
 

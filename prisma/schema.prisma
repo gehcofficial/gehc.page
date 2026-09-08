@@ -591,9 +591,13 @@ model ContentItem {
   bannerUrl       String?     @map("banner_url") @db.Text
   pdfUrl          String?     @map("pdf_url") @db.Text
   tags            Json?
-  driveFolderId   String?     @map("drive_folder_id") @db.VarChar(64)
+  driveFolderId   String?         @map("drive_folder_id") @db.VarChar(64)
+  /// Tautan ke EventProgram — konten agenda dikelola by-event (Marturia),
+  /// bukan dari panel CMS terpisah.
+  eventId         String?         @map("event_id") @db.VarChar(64)
 
   @@index([tenantId, type, publishedAt])
+  @@index([eventId])
   @@map("content_items")
 }
 
@@ -748,6 +752,7 @@ model EventProgram {
   questionAssignments EventQuestionAssignment[]
   questionAnswers     EventQuestionAnswer[]
   churchProgram ChurchProgram?  @relation(fields: [churchProgramId], references: [id])
+  planDeliverables MinistryWeekDeliverable[]
 
   @@index([tenantId])
   @@index([churchProgramId])
@@ -794,12 +799,12 @@ model EventQuestionBank {
   key              String   @unique @db.VarChar(64)
   label            String   @db.VarChar(190)
   hint             String?  @db.Text
-  type             String   @db.VarChar(16) // TEXT | BOOLEAN | SELECT | MULTI
+  type             String   @db.VarChar(24) // SHORT_TEXT | LONG_TEXT | BOOLEAN | DROPDOWN | SINGLE | MULTI | DATE | NUMBER
   options          Json?
   ownerDivision    String   @map("owner_division") @db.VarChar(24)
   ownerSubdivision String   @map("owner_subdivision") @db.VarChar(80)
   showIf           Json?    @map("show_if")
-  status           String   @default("ACTIVE") @db.VarChar(16) // ACTIVE | INACTIVE
+  status           String   @default("ACTIVE") @db.VarChar(16) // ACTIVE | INACTIVE | ARCHIVED
   sortOrder        Int      @default(0) @map("sort_order")
   createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -820,6 +825,7 @@ model EventQuestionRequest {
   options            Json?
   ownerDivision      String    @map("owner_division") @db.VarChar(24)
   ownerSubdivision   String    @map("owner_subdivision") @db.VarChar(80)
+  showIf             Json?     @map("show_if")
   reason             String?   @db.Text
   status             String    @default("PENDING") @db.VarChar(16) // PENDING | APPROVED | REJECTED
   createdById        String    @map("created_by_id") @db.VarChar(64)
@@ -909,10 +915,13 @@ model MinistryWeekDeliverable {
   title       String  @db.VarChar(190)
   notes       String? @db.Text
   status      String  @default("TODO") @db.VarChar(16) // TODO | DOING | DONE | BLOCKED
+  eventId     String? @map("event_id") @db.VarChar(64)
 
   plan MinistryMonthPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  event EventProgram? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([planId, weekIndex])
+  @@index([eventId])
   @@map("ministry_week_deliverables")
 }
 
@@ -1298,7 +1307,8 @@ model Testimonial {
 /// Kabar penggembalaan tentang orang lain — bukan lifeStatuses profil, bukan publik.
 model PastoralCareNote {
   id             String    @id @db.VarChar(64)
-  subjectUserId  String    @map("subject_user_id") @db.VarChar(64)
+  subjectUserId  String?   @map("subject_user_id") @db.VarChar(64)
+  subjectName    String?   @map("subject_name") @db.VarChar(160)
   reporterUserId String    @map("reporter_user_id") @db.VarChar(64)
   kind           String    @db.VarChar(24) // SAKIT | DUKA | YUDISIUM | WISUDA | KERJA | LAINNYA
   note           String    @db.Text
@@ -1308,7 +1318,7 @@ model PastoralCareNote {
   createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
-  subject  User @relation("PastoralSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+  subject  User? @relation("PastoralSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
   reporter User @relation("PastoralReporter", fields: [reporterUserId], references: [id])
 
   @@index([subjectUserId, status])

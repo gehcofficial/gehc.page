@@ -3,6 +3,35 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { sundaysInMonth, toISODate } from '../lib/church-year.mjs';
 
+const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
+const SHAREABLE_KINDS = new Set(['MODULE', 'RUNDOWN']);
+
+function slugifyEvent(name) {
+  return (
+    String(name || 'event')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'event'
+  );
+}
+
+function serializeDeliverable(d) {
+  return {
+    id: d.id,
+    weekIndex: d.weekIndex,
+    division: d.division,
+    kind: d.kind,
+    title: d.title,
+    notes: d.notes,
+    status: d.status,
+    eventId: d.eventId || null,
+    event: d.event ? { id: d.event.id, name: d.event.name, status: d.event.status } : null,
+  };
+}
+
 const DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 const KINDS = ['MODULE', 'RUNDOWN', 'BENZUAR', 'BENZINEMA', 'LOGISTICS', 'DOCS', 'CASHIER'];
 const STATUSES = ['TODO', 'DOING', 'DONE', 'BLOCKED'];
@@ -43,8 +72,14 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
       if (!ymRe.test(yearMonth)) return res.status(400).json({ error: 'Format bulan YYYY-MM.' });
       let plan = await prisma.ministryMonthPlan.findUnique({
         where: { yearMonth },
-        include: { deliverables: { orderBy: [{ weekIndex: 'asc' }, { division: 'asc' }] } },
+        include: {
+          deliverables: {
+            orderBy: [{ weekIndex: 'asc' }, { division: 'asc' }],
+            include: { event: { select: { id: true, name: true, status: true } } },
+          },
+        },
       });
+      if (plan) plan = { ...plan, deliverables: plan.deliverables.map(serializeDeliverable) };
       res.json({
         plan: plan || { yearMonth, theme: '', notes: '', weeks: defaultWeeks(yearMonth), deliverables: [] },
         divisions: DIVISIONS,
@@ -148,13 +183,22 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
       if (title) data.title = title;
       if (kind) data.kind = kind;
       if (req.body?.notes !== undefined) data.notes = req.body.notes ? String(req.body.notes) : null;
+      if (req.body?.eventId !== undefined) {
+        const eventId = String(req.body.eventId || '').trim() || null;
+        if (eventId) {
+          const ev = await prisma.eventProgram.findUnique({ where: { id: eventId } });
+          if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+        }
+        data.eventId = eventId;
+      }
       if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
 
       const item = await prisma.ministryWeekDeliverable.update({
         where: { id: req.params.id },
         data,
+        include: { event: { select: { id: true, name: true, status: true } } },
       });
-      res.json({ deliverable: item });
+      res.json({ deliverable: serializeDeliverable(item) });
     }),
   );
 
@@ -167,6 +211,103 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
       const deleted = await prisma.ministryWeekDeliverable.deleteMany({ where: { id: req.params.id } });
       if (!deleted.count) return res.status(404).json({ error: 'Deliverable tidak ditemukan.' });
       res.json({ ok: true });
+    }),
+  );
+
+  /**
+   * POST /api/ministry-plans/deliverables/:id/share — bagikan deliverable
+   * MODULE/RUNDOWN ke Event Tim Kerja.
+   * Body: { eventId? } — tanpa eventId = buat EventProgram PLANNING baru
+   * (nama = judul deliverable, tanggal = Minggu berjalan, divisi pemilik aktif).
+   */
+  app.post(
+    '/api/ministry-plans/deliverables/:id/share',
+    requireRole('KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const item = await prisma.ministryWeekDeliverable.findUnique({
+        where: { id: req.params.id },
+        include: { plan: true },
+      });
+      if (!item) return res.status(404).json({ error: 'Deliverable tidak ditemukan.' });
+      if (item.kind && !SHAREABLE_KINDS.has(String(item.kind).toUpperCase())) {
+        return res.status(400).json({ error: 'Hanya baris MODULE/RUNDOWN yang bisa dibagikan ke event.' });
+      }
+      if (!EVENT_DIVISIONS.includes(String(item.division || '').toUpperCase())) {
+        return res.status(400).json({ error: 'Divisi deliverable tidak dikenal.' });
+      }
+
+      let eventId = String(req.body?.eventId || '').trim() || null;
+      let event = null;
+      if (eventId) {
+        event = await prisma.eventProgram.findUnique({
+          where: { id: eventId },
+          include: { divisions: true },
+        });
+        if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      } else {
+        const weeks = Array.isArray(item.plan?.weeks) ? item.plan.weeks : [];
+        const week = weeks.find((w) => Number(w.index) === item.weekIndex);
+        const slug = `${slugifyEvent(item.title)}-${Date.now().toString(36)}`;
+        event = await prisma.eventProgram.create({
+          data: {
+            id: `evt-${slug}`,
+            tenantId: 'tenant-youth',
+            slug,
+            name: item.title.slice(0, 160),
+            description: item.notes || `Dari Rencana bulan ${item.plan?.yearMonth || ''} minggu ${item.weekIndex}.`,
+            status: 'PLANNING',
+            kind: 'INTERNAL',
+            startDate: week?.date ? new Date(`${week.date}T00:00:00Z`) : null,
+            createdById: req.authUser.id,
+          },
+          include: { divisions: true },
+        });
+        eventId = event.id;
+      }
+
+      // Aktifkan divisi pemilik bila belum ada.
+      const division = String(item.division).toUpperCase();
+      if (!event.divisions?.some((d) => String(d.division).toUpperCase() === division)) {
+        await prisma.eventDivision.create({
+          data: { id: `evd-${event.slug}-${division}`, eventId: event.id, division },
+        }).catch(() => null);
+      }
+
+      const updated = await prisma.ministryWeekDeliverable.update({
+        where: { id: item.id },
+        data: { eventId },
+        include: { event: { select: { id: true, name: true, status: true } } },
+      });
+      res.json({ deliverable: serializeDeliverable(updated) });
+    }),
+  );
+
+  /**
+   * GET /api/events/:id/deliverables — deliverable Rencana bulan yang tertaut
+   * ke event ini (badge "dari Rencana bulan" + ringkasan divisi).
+   */
+  app.get(
+    '/api/events/:id/deliverables',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.json({ deliverables: [] });
+      const rows = await prisma.ministryWeekDeliverable.findMany({
+        where: { eventId: req.params.id },
+        include: { plan: { select: { yearMonth: true, theme: true, weeks: true } } },
+        orderBy: [{ weekIndex: 'asc' }, { division: 'asc' }],
+      });
+      res.json({
+        deliverables: rows.map((d) => ({
+          ...serializeDeliverable(d),
+          yearMonth: d.plan?.yearMonth || null,
+          weekDate: Array.isArray(d.plan?.weeks)
+            ? (d.plan.weeks.find((w) => Number(w.index) === d.weekIndex)?.date || null)
+            : null,
+        })),
+      });
     }),
   );
 }

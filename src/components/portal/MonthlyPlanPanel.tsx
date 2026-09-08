@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 type Week = { index: number; date?: string; theme?: string; verse?: string; liturgiaPic?: string };
@@ -10,7 +10,13 @@ type Deliverable = {
   kind?: string | null;
   title: string;
   status: string;
+  eventId?: string | null;
+  event?: { id: string; name: string; status: string } | null;
 };
+
+type PlanEvent = { id: string; name: string; status: string };
+
+const SHAREABLE = new Set(['MODULE', 'RUNDOWN']);
 
 const DIV_LABEL: Record<string, string> = {
   LITURGIA: 'Liturgia',
@@ -46,6 +52,10 @@ export const MonthlyPlanPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({ weekIndex: 1, division: 'DIDASKALIA', kind: 'MODULE', title: '' });
+  const [planEvents, setPlanEvents] = useState<PlanEvent[]>([]);
+  const [sharing, setSharing] = useState<Deliverable | null>(null);
+  const [shareTarget, setShareTarget] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/ministry-plans/${yearMonth}`, { credentials: 'include' });
@@ -62,6 +72,52 @@ export const MonthlyPlanPanel: React.FC = () => {
     setLoading(true);
     load().catch((e) => addToast({ type: 'error', title: e.message })).finally(() => setLoading(false));
   }, [load, addToast]);
+
+  useEffect(() => {
+    if (!canWrite) return;
+    fetch('/api/events', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setPlanEvents((d.events || []).map((e: PlanEvent) => ({ id: e.id, name: e.name, status: e.status }))))
+      .catch(() => setPlanEvents([]));
+  }, [canWrite]);
+
+  const shareDeliverable = async () => {
+    if (!sharing) return;
+    setShareBusy(true);
+    try {
+      const r = await fetch(`/api/ministry-plans/deliverables/${sharing.id}/share`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shareTarget ? { eventId: shareTarget } : {}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal membagikan');
+      addToast({ type: 'success', title: shareTarget ? 'Deliverable ditautkan ke event' : 'Event Tim Kerja dibuat (PLANNING)' });
+      setSharing(null);
+      setShareTarget('');
+      await load();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal membagikan' });
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const unlinkDeliverable = async (item: Deliverable) => {
+    const r = await fetch(`/api/ministry-plans/deliverables/${item.id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: null }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      addToast({ type: 'error', title: d.error || 'Gagal melepas tautan' });
+      return;
+    }
+    await load();
+  };
 
   const saveMeta = async () => {
     setSaving(true);
@@ -218,6 +274,11 @@ export const MonthlyPlanPanel: React.FC = () => {
                                 }`}
                               >
                                 {item.kind ? `${item.kind} · ` : ''}{item.title}
+                                {item.eventId && (
+                                  <span className="block mt-0.5 text-[9px] font-bold text-sky-700 no-underline">
+                                    → {item.event?.name || 'Event Tim Kerja'}
+                                  </span>
+                                )}
                               </button>
                             ) : (
                               <span
@@ -226,7 +287,32 @@ export const MonthlyPlanPanel: React.FC = () => {
                                 }`}
                               >
                                 {item.kind ? `${item.kind} · ` : ''}{item.title}
+                                {item.eventId && (
+                                  <span className="block mt-0.5 text-[9px] font-bold text-sky-700">
+                                    → {item.event?.name || 'Event Tim Kerja'}
+                                  </span>
+                                )}
                               </span>
+                            )}
+                            {canWrite && !item.eventId && (!item.kind || SHAREABLE.has(item.kind)) && (
+                              <button
+                                type="button"
+                                onClick={() => { setSharing(item); setShareTarget(''); }}
+                                title="Bagikan ke Event Tim Kerja"
+                                className="p-1 rounded-lg text-[#8C8880] hover:text-sky-700"
+                              >
+                                <CalendarPlus className="w-3 h-3" />
+                              </button>
+                            )}
+                            {canWrite && item.eventId && (
+                              <button
+                                type="button"
+                                onClick={() => unlinkDeliverable(item)}
+                                title="Lepas tautan event"
+                                className="p-1 rounded-lg text-sky-700 hover:text-red-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             )}
                             {canWrite && (
                               <button
@@ -247,6 +333,41 @@ export const MonthlyPlanPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {sharing && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSharing(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-sm font-black text-[#1B1B1B]">Bagikan ke Event Tim Kerja</h4>
+            <p className="text-xs text-[#8C8880]">“{sharing.title}” ({sharing.division} · minggu {sharing.weekIndex})</p>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">Tautkan ke event yang sudah ada (opsional)</span>
+              <select
+                value={shareTarget}
+                onChange={(e) => setShareTarget(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs"
+              >
+                <option value="">— Buat event PLANNING baru —</option>
+                {planEvents.filter((e) => e.status !== 'ARCHIVED').map((e) => (
+                  <option key={e.id} value={e.id}>{e.name} · {e.status}</option>
+                ))}
+              </select>
+            </label>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setSharing(null)} className="px-4 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => void shareDeliverable()}
+                disabled={shareBusy}
+                className="px-4 py-2 rounded-xl bg-sky-700 text-white text-xs font-bold disabled:opacity-50"
+              >
+                {shareBusy ? 'Membagikan…' : shareTarget ? 'Tautkan' : 'Buat event baru'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -34,7 +34,10 @@ export const ManageActivities: React.FC = () => {
     is_published: true,
   });
 
-  const activityItems = contentItems.filter((c) => c.type === 'ACTIVITY');
+  // Agenda tertaut event dikelola by-event (Program & Event → Konten publik),
+  // panel ini khusus agenda lepas (tanpa event).
+  const linkedCount = contentItems.filter((c) => c.type === 'ACTIVITY' && c.eventId).length;
+  const activityItems = contentItems.filter((c) => c.type === 'ACTIVITY' && !c.eventId);
 
   const filteredItems = activityItems.filter(
     (item) =>
@@ -153,9 +156,15 @@ export const ManageActivities: React.FC = () => {
         </button>
       </div>
 
+      {linkedCount > 0 && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
+          {linkedCount} agenda tertaut event dikelola dari <strong>Program &amp; Event → buka event → Konten publik</strong> (ditulis Komisi / Marturia), tidak dari panel ini.
+        </div>
+      )}
+
       {/* Table & List */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm space-y-6">
-        
+
         <div className="flex items-center justify-between gap-4">
           <div className="relative w-full max-w-md">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8C8880]" />

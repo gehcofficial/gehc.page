@@ -1,5 +1,6 @@
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
+import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import { getDriveMode, listFolders, listFiles, getFolderChain } from '../gdrive.mjs';
 import { resolveAccess } from '../gdrive-policy.mjs';
 import { fromDbContent, toDbContent, syncWartaToContentItem } from '../lib/content-map.mjs';
@@ -20,6 +21,40 @@ import {
 } from '../lib/static-visuals.mjs';
 
 const CMS_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
+
+/** Kategori agenda — dropdown tetap, bukan ketikan bebas. */
+const EVENT_ACTIVITY_CATEGORIES = [
+  'Ibadah & Konser',
+  'Retret',
+  'Seminar & Kelas',
+  'Fellowship & Bakudapa',
+  'Pelayanan & Misi',
+  'Olahraga & Kreativitas',
+  'Lainnya',
+];
+
+/**
+ * Konten agenda event boleh ditulis Komisi/Superadmin atau anggota
+ * divisi MARTURIA pada event tersebut (pola by-event, bukan panel global).
+ */
+async function canEditEventContent(prisma, authUser, eventId) {
+  if (!authUser) return false;
+  if (isKomisiOrSuperadmin(authUser)) return true;
+  try {
+    const div = await prisma.eventDivision.findFirst({
+      where: { eventId, division: 'MARTURIA' },
+      select: { id: true },
+    });
+    if (!div) return false;
+    const member = await prisma.eventDivisionMember.findFirst({
+      where: { eventDivisionId: div.id, userId: authUser.id },
+      select: { id: true },
+    });
+    return Boolean(member);
+  } catch {
+    return false;
+  }
+}
 
 const LANDING_MEDIA_KEYS = [
   'heroBanner',
@@ -223,6 +258,82 @@ export function registerContentPublicRoutes(app, { wrap }) {
     res.json({ ok: true });
   }));
 
+  // Konten publik per event (by-event) — dibaca landing tab Kegiatan.
+  // Hanya field yang dipakai landing; tanggal & tempat ikut EventProgram.
+  app.get(
+    '/api/events/:id/content',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const ev = await prisma.eventProgram.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, name: true, status: true, eventDate: true, venueName: true, locationDetail: true },
+      });
+      if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      const row = await prisma.contentItem.findFirst({
+        where: { eventId: ev.id, type: 'ACTIVITY' },
+      }).catch(() => null);
+      res.json({
+        item: row ? fromDbContent(row) : null,
+        canEdit: await canEditEventContent(prisma, req.authUser, ev.id),
+        categories: EVENT_ACTIVITY_CATEGORIES,
+        event: {
+          id: ev.id,
+          name: ev.name,
+          status: ev.status,
+          eventDate: ev.eventDate,
+          venueName: ev.venueName,
+          locationDetail: ev.locationDetail,
+        },
+      });
+    }),
+  );
+
+  app.put(
+    '/api/events/:id/content',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+      if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      if (!(await canEditEventContent(prisma, req.authUser, ev.id))) {
+        return res.status(403).json({ error: 'Hanya Komisi atau divisi Marturia event ini yang boleh mengelola konten publik.' });
+      }
+      const body = req.body || {};
+      const title = String(body.title || '').trim();
+      if (!title) return res.status(400).json({ error: 'Judul wajib.' });
+      const category = String(body.category || 'Lainnya').trim();
+      if (!EVENT_ACTIVITY_CATEGORIES.includes(category)) {
+        return res.status(400).json({ error: `Kategori harus salah satu dari: ${EVENT_ACTIVITY_CATEGORIES.join(', ')}.` });
+      }
+      const bannerUrl = String(body.bannerUrl || '').trim();
+      if (!bannerUrl) return res.status(400).json({ error: 'Banner wajib (pilih slot atau tempel URL).' });
+      const data = {
+        tenantId: 'tenant-youth',
+        type: 'ACTIVITY',
+        title: title.slice(0, 255),
+        subtitle: String(body.subtitle || '').trim().slice(0, 255) || null,
+        body: String(body.body || '').trim() || null,
+        category,
+        isFeaturedEvent: Boolean(body.isFeaturedEvent),
+        isPublished: body.isPublished !== false,
+        bannerUrl,
+        eventId: ev.id,
+      };
+      const existing = await prisma.contentItem.findFirst({
+        where: { eventId: ev.id, type: 'ACTIVITY' },
+      }).catch(() => null);
+      const saved = existing
+        ? await prisma.contentItem.update({ where: { id: existing.id }, data })
+        : await prisma.contentItem.create({
+            data: { id: `cnt-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, ...data },
+          });
+      res.json({ item: fromDbContent(saved), canEdit: true });
+    }),
+  );
+
   app.get('/api/gallery/public', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -310,6 +421,21 @@ export function registerContentPublicRoutes(app, { wrap }) {
     }
   }));
 
+  async function resolveTestimonialUserId(prisma, raw) {
+    const uid = String(raw || '').trim() || null;
+    if (!uid) return null;
+    // ID portal = usr-… ; Google sub (angka 21 digit) bukan ID portal.
+    const user = await prisma.user.findUnique({ where: { id: uid }, select: { id: true } }).catch(() => null);
+    if (!user) {
+      const err = new Error(
+        'ID akun portal tidak ditemukan (format usr-…). Kosongkan kolom bila tanpa akun portal.',
+      );
+      err.status = 400;
+      throw err;
+    }
+    return uid;
+  }
+
   function mapTestimonial(row) {
     const userAvatar = row.user?.avatar || null;
     const userId = row.userId ?? row.user_id ?? row.user?.id ?? null;
@@ -388,7 +514,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const order = Number(sortOrder) || 0;
     const gName = groupName?.trim() || null;
     const pUrl = photoUrl?.trim() || null;
-    const uid = userId?.trim() || null;
+    const uid = await resolveTestimonialUserId(prisma, userId);
 
     if (prisma.testimonial) {
       const item = await prisma.testimonial.create({
@@ -447,7 +573,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
       if (body.groupName !== undefined) data.groupName = body.groupName?.trim() || null;
       if (body.quote !== undefined) data.quote = String(body.quote).trim();
       if (body.photoUrl !== undefined) data.photoUrl = body.photoUrl?.trim() || null;
-      if (body.userId !== undefined) data.userId = body.userId?.trim() || null;
+      if (body.userId !== undefined) data.userId = await resolveTestimonialUserId(prisma, body.userId);
       if (body.isPublished !== undefined) {
         data.isPublished = Boolean(body.isPublished);
         data.status = data.isPublished ? 'PUBLISHED' : (body.status || existing.status || 'DRAFT');
@@ -469,6 +595,8 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const rows = Array.isArray(found) ? found[0] : null;
     if (!rows) return res.status(404).json({ error: 'Testimoni tidak ditemukan' });
 
+    const nextUserId =
+      body.userId !== undefined ? await resolveTestimonialUserId(prisma, body.userId) : rows.user_id;
     const next = {
       author_name: body.authorName !== undefined ? String(body.authorName).trim() : rows.author_name,
       group_name: body.groupName !== undefined ? body.groupName?.trim() || null : rows.group_name,
@@ -479,11 +607,12 @@ export function registerContentPublicRoutes(app, { wrap }) {
       sort_order: body.sortOrder !== undefined ? Number(body.sortOrder) || 0 : rows.sort_order,
     };
     await prisma.$executeRawUnsafe(
-      `UPDATE testimonials SET author_name=?, group_name=?, quote=?, photo_url=?, is_published=?, sort_order=? WHERE id=?`,
+      `UPDATE testimonials SET author_name=?, group_name=?, quote=?, photo_url=?, user_id=?, is_published=?, sort_order=? WHERE id=?`,
       next.author_name,
       next.group_name,
       next.quote,
       next.photo_url,
+      nextUserId,
       next.is_published,
       next.sort_order,
       req.params.id

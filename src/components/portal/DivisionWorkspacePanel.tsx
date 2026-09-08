@@ -124,7 +124,14 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const d = t.portal.divisions;
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventQuery, setEventQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+
+  const STATUS_ORDER: Record<string, number> = { ACTIVE: 0, PLANNING: 1, DONE: 2 };
+  const visibleEvents = events
+    .filter((e) => String(e.status || '').toUpperCase() !== 'ARCHIVED')
+    .filter((e) => !eventQuery.trim() || e.name.toLowerCase().includes(eventQuery.trim().toLowerCase()))
+    .sort((a, b) => (STATUS_ORDER[String(a.status).toUpperCase()] ?? 3) - (STATUS_ORDER[String(b.status).toUpperCase()] ?? 3));
   const [selectedDiv, setSelectedDiv] = useState<string>(ALL_DIVISIONS[0]);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
@@ -183,6 +190,20 @@ export const DivisionWorkspacePanel: React.FC = () => {
   // Meetings
   const [meetings, setMeetings] = useState<any[]>([]);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
+
+  // Deliverable Rencana bulan yang tertaut ke event ini
+  const [linkedPlans, setLinkedPlans] = useState<Array<{ id: string; title: string; division: string; weekIndex: number; yearMonth: string | null; status: string }>>([]);
+
+  useEffect(() => {
+    if (!selectedEvent) {
+      setLinkedPlans([]);
+      return;
+    }
+    fetch(`/api/events/${selectedEvent.id}/deliverables`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setLinkedPlans(d.deliverables || []))
+      .catch(() => setLinkedPlans([]));
+  }, [selectedEvent?.id]);
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
   const [creatingMeeting, setCreatingMeeting] = useState(false);
@@ -712,24 +733,45 @@ export const DivisionWorkspacePanel: React.FC = () => {
 
       <PanelGuide guideId="divisions" />
 
-      {/* Event Selector */}
+      {/* Event Selector — cari + tanpa arsip */}
       {events.length > 0 && (
-        <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
-          <label className="text-xs font-semibold text-[#8C8880] uppercase tracking-wider mb-2 block">
+        <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm space-y-2">
+          <label className="text-xs font-semibold text-[#8C8880] uppercase tracking-wider block">
             Program / Event
           </label>
-          <select
-            value={selectedEvent?.id || ''}
-            onChange={(e) => {
-              const ev = events.find((x) => x.id === e.target.value);
-              setSelectedEvent(ev || null);
-            }}
+          <input
+            value={eventQuery}
+            onChange={(e) => setEventQuery(e.target.value)}
+            placeholder="Cari event… (arsip disembunyikan)"
             className="w-full max-w-md px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
-          >
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>{ev.name}</option>
-            ))}
-          </select>
+          />
+          {visibleEvents.length === 0 ? (
+            <p className="text-xs text-[#8C8880]">Tidak ada event cocok. Coba kata lain.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+              {visibleEvents.map((ev) => {
+                const active = selectedEvent?.id === ev.id;
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => setSelectedEvent(ev)}
+                    title={`${ev.name} · ${ev.status}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      active
+                        ? 'bg-[#181818] text-white shadow-md'
+                        : 'bg-[#FAF9F5] text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+                    }`}
+                  >
+                    {ev.name}
+                    <span className={`ml-1.5 text-[9px] uppercase ${active ? 'text-white/70' : 'text-[#8C8880]'}`}>
+                      {ev.status}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -954,6 +996,25 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
                     <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">Alasan Penolakan</h4>
                     <p className="text-sm text-red-600">{currentDiv.rejectReason}</p>
+                  </div>
+                )}
+
+                {/* Deliverable Rencana bulan untuk divisi ini (read-only) */}
+                {linkedPlans.filter((p) => p.division === selectedDiv).length > 0 && (
+                  <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200">
+                    <h4 className="text-xs font-bold text-sky-800 uppercase tracking-wider mb-2">
+                      Dari Rencana bulan · {selectedDiv}
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {linkedPlans.filter((p) => p.division === selectedDiv).map((p) => (
+                        <li key={p.id} className="text-xs text-sky-900 bg-white rounded-lg px-2.5 py-1.5 border border-sky-100">
+                          <span className="font-bold">{p.title}</span>
+                          <span className="block text-[10px] text-sky-700">
+                            {p.yearMonth} · Minggu {p.weekIndex} · {p.status}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

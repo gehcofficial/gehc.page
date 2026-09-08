@@ -1,5 +1,6 @@
 import React from 'react';
 import type { EventQuestion } from '../../lib/event-questions';
+import { normEventQuestionType } from '../../lib/event-questions';
 
 const inputClass =
   'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] text-sm';
@@ -15,12 +16,13 @@ export const EventQuestionFields: React.FC<{
     <div className="space-y-3">
       {questions.map((q) => {
         const v = values[q.id];
+        const type = normEventQuestionType(q.type);
         return (
           <label key={q.id} className="block space-y-1">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
               {q.label}
             </span>
-            {q.type === 'BOOLEAN' && (
+            {type === 'BOOLEAN' && (
               <select
                 className={inputClass}
                 disabled={disabled}
@@ -35,7 +37,7 @@ export const EventQuestionFields: React.FC<{
                 <option value="false">Tidak</option>
               </select>
             )}
-            {q.type === 'TEXT' && (
+            {type === 'SHORT_TEXT' && (
               <input
                 className={inputClass}
                 disabled={disabled}
@@ -43,7 +45,37 @@ export const EventQuestionFields: React.FC<{
                 onChange={(e) => onChange(q.id, e.target.value)}
               />
             )}
-            {q.type === 'SELECT' && (
+            {type === 'LONG_TEXT' && (
+              <textarea
+                className={inputClass}
+                disabled={disabled}
+                rows={3}
+                value={typeof v === 'string' ? v : ''}
+                onChange={(e) => onChange(q.id, e.target.value)}
+              />
+            )}
+            {type === 'DATE' && (
+              <input
+                type="date"
+                className={inputClass}
+                disabled={disabled}
+                value={typeof v === 'string' ? v : ''}
+                onChange={(e) => onChange(q.id, e.target.value || undefined)}
+              />
+            )}
+            {type === 'NUMBER' && (
+              <input
+                type="number"
+                className={inputClass}
+                disabled={disabled}
+                value={typeof v === 'number' ? v : ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  onChange(q.id, raw === '' ? undefined : Number(raw));
+                }}
+              />
+            )}
+            {type === 'DROPDOWN' && (
               <select
                 className={inputClass}
                 disabled={disabled}
@@ -56,7 +88,23 @@ export const EventQuestionFields: React.FC<{
                 ))}
               </select>
             )}
-            {q.type === 'MULTI' && (
+            {type === 'SINGLE' && (
+              <div className="flex flex-wrap gap-2">
+                {q.options.map((o) => (
+                  <label key={o} className="inline-flex items-center gap-1.5 text-xs text-[#1B1B1B]">
+                    <input
+                      type="radio"
+                      name={`eq-${q.id}`}
+                      disabled={disabled}
+                      checked={v === o}
+                      onChange={() => onChange(q.id, o)}
+                    />
+                    {o}
+                  </label>
+                ))}
+              </div>
+            )}
+            {type === 'MULTI' && (
               <div className="flex flex-wrap gap-2">
                 {q.options.map((o) => {
                   const selected = Array.isArray(v) && v.includes(o);

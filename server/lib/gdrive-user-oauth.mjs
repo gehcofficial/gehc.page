@@ -53,6 +53,45 @@ export function hasUserDriveToken() {
   return Boolean(loadSavedTokens()?.refresh_token);
 }
 
+/**
+ * Deteksi error auth Drive (token dicabut / kedaluwarsa / client beda).
+ * Google mengembalikan invalid_grant / invalid_client / unauthorized_client
+ * baik sebagai err.message, err.code, atau di dalam response body.
+ */
+export function isDriveAuthError(err) {
+  if (!err) return false;
+  const hay = [
+    err.message,
+    err.code,
+    err.error,
+    err?.response?.data?.error,
+    err?.response?.data?.error_description,
+    err?.cause?.message,
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).toLowerCase())
+    .join(' | ');
+  if (!hay) return false;
+  return (
+    hay.includes('invalid_grant') ||
+    hay.includes('invalid_client') ||
+    hay.includes('unauthorized_client') ||
+    hay.includes('token has been expired or revoked') ||
+    hay.includes('token expired or revoked') ||
+    (hay.includes('deleted_client') && hay.includes('oauth')) ||
+    (hay.includes('disabled_client') && hay.includes('oauth'))
+  );
+}
+
+/** Pesan Indonesia yang ramah untuk error auth Drive. */
+export function driveAuthErrorMessage() {
+  return (
+    'Koneksi Drive terputus (token kedaluwarsa/dicabut). ' +
+    'Data tetap tersimpan; foto menyusul. ' +
+    'Admin: jalankan `npm run drive:auth` sebagai pemilik folder lalu `npm run env:sync-gdrive-token`.'
+  );
+}
+
 /** Drive client sebagai pemilik Google One. */
 export async function getUserDrive() {
   const tokens = loadSavedTokens();

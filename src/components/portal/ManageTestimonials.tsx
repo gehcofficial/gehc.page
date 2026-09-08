@@ -60,6 +60,7 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
   );
 
   const openEdit = (item: TestimonialItem) => {
+    setPhotoBroken(false);
     setEditing(item);
     setForm({
       authorName: item.authorName,
@@ -72,6 +73,8 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
     });
     setIsModalOpen(true);
   };
+
+  const [photoBroken, setPhotoBroken] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,16 +90,22 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
         isPublished: false,
         sortOrder: Number(form.sortOrder) || 0,
       };
-      if (editing) {
-        await fetch(`/api/testimonials/${editing.id}`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+      const r = await fetch(`/api/testimonials/${editing.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        addToast?.({ type: 'error', title: 'Gagal menyimpan', description: d.error || `HTTP ${r.status}` });
+        return;
       }
+      addToast?.({ type: 'success', title: 'Kesaksian disimpan' });
       setIsModalOpen(false);
       await fetchItems();
+    } catch (err) {
+      addToast?.({ type: 'error', title: 'Gagal menyimpan', description: err instanceof Error ? err.message : '' });
     } finally {
       setSaving(false);
     }
@@ -337,17 +346,37 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
                   value={form.userId}
                   onChange={(e) => setForm({ ...form, userId: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-mono"
-                  placeholder="Taut ke user — foto mengikuti akun"
+                  placeholder="usr-… (bukan angka Google) — foto mengikuti akun"
                 />
+                <p className="text-[10px] text-[#8C8880] mt-1">
+                  Format <span className="font-mono">usr-…</span> dari Orang & Undangan. Bukan ID angka Google.
+                  Bila diisi, foto mengikuti foto akun dan URL foto di bawah diabaikan.
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider block mb-1.5">URL Foto (opsional)</label>
                 <input
                   value={form.photoUrl}
-                  onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, photoUrl: e.target.value }); setPhotoBroken(false); }}
                   className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-mono"
                   placeholder="https://…"
                 />
+                {form.photoUrl.trim() && !photoBroken && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={form.photoUrl.trim()}
+                      alt="Pratinjau foto"
+                      className="w-12 h-12 rounded-full object-cover border border-[#D9D7D0] bg-[#F0EFEB]"
+                      onError={() => setPhotoBroken(true)}
+                    />
+                    <span className="text-[10px] text-emerald-700 font-bold">Foto termuat — akan tampil di landing.</span>
+                  </div>
+                )}
+                {form.photoUrl.trim() && photoBroken && (
+                  <p className="mt-2 text-[10px] font-bold text-red-600">
+                    URL tidak bisa dimuat (privat / salah tautan / hotlink ditolak). Landing akan memakai foto cadangan.
+                  </p>
+                )}
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button

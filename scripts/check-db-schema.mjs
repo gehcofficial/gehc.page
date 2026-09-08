@@ -78,6 +78,10 @@ const REQUIRED_TABLE_COLUMNS = {
   role_assignments: ['familyRole', 'user_id', 'assigned_by'],
   institutions: ['country'],
   testimonials: ['status'],
+  pastoral_care_notes: ['subject_name'],
+  ministry_week_deliverables: ['event_id'],
+  event_question_requests: ['show_if'],
+  content_items: ['event_id'],
   orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
   group_batches: ['generation', 'mentor_user_id', 'comentor_user_id', 'regen_ready'],
 };

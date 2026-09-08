@@ -100,7 +100,15 @@ export function registerTitleCatalogRoutes(app, { wrap }) {
     if (req.body?.active === true || req.body?.active === false) data.active = Boolean(req.body.active);
     if (req.body?.nameId) data.nameId = String(req.body.nameId).trim().slice(0, 120);
     if (req.body?.nameEn) data.nameEn = String(req.body.nameEn).trim().slice(0, 120);
-    if (req.body?.abbr && !row.locked) data.abbr = String(req.body.abbr).trim().slice(0, 32);
+    // Singkatan boleh diubah termasuk gelar inti (Pdt/Pnt/Dkn/Kr): profil menyimpan
+    // kode stabil (PDT/…) sehingga tampilan mengikuti katalog; code tidak bisa diubah.
+    if (req.body?.abbr) {
+      const abbr = row.kind === 'CHURCH'
+        ? String(req.body.abbr).trim().replace(/\s+/g, '').slice(0, 32)
+        : normalizeAcademicAbbr(req.body.abbr);
+      if (!abbr) return res.status(400).json({ error: 'Singkatan gelar wajib.' });
+      data.abbr = abbr;
+    }
     if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada field untuk diupdate.' });
     const title = await prisma.titleCatalog.update({ where: { id: row.id }, data });
     await refreshLookups(prisma);
@@ -112,7 +120,8 @@ export function registerTitleCatalogRoutes(app, { wrap }) {
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     const row = await prisma.titleCatalog.findUnique({ where: { id: req.params.id } });
     if (!row) return res.status(404).json({ error: 'Gelar tidak ditemukan.' });
-    if (row.locked) return res.status(400).json({ error: 'Gelar inti GMIM tidak boleh dihapus. Arsipkan saja.' });
+    // Gelar inti boleh dihapus bila benar-benar perlu: profil lama tetap tampil
+    // lewat peta bawaan (PDT→Pdt, dst.), hanya hilang dari picker.
     await prisma.titleSuggestion.updateMany({ where: { titleId: row.id }, data: { titleId: null } });
     await prisma.titleCatalog.delete({ where: { id: row.id } });
     await refreshLookups(prisma);
