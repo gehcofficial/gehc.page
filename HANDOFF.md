@@ -1,6 +1,22 @@
 # GEHC Portal — Handoff
 
-## Current — Konten agenda by-event di Program & Event (8 Sep 2026)
+## Current — MERGED ke main + prod hijau (8 Sep 2026)
+
+**Merge:** `9566a71` (`staging` → `main`, no-ff). Konflik 1 file generated (`public/visuals/manifest.json`) — diambil versi main (root Drive prod). Push `main` OK → Vercel Production build Ready.
+
+**DB prod:** `subject_name`, `deliverable event_id` (+FK, collation adaptif per-cluster), `request show_if`, `content event_id` — semua termigrasi; `db:schema:check:prod` hijau. Tanpa `prisma migrate deploy`, tanpa seed/demo.
+
+**Env prod:** APP_URL/CORS/WebAuthn = `gehcpage.vercel.app`; `ENABLE_DEMO_PERSONAS=false`; `SUPERADMIN_EMAILS` kosong; `WEBAUTHN_MOCK` unset; secrets lengkap; Drive prod provision OK (228 folder ada).
+
+**Smoke prod:** `/api/auth/config` configured:true; `/api/events/bakutau` ACTIVE + venue benar + 35 pendaftar utuh; endpoint konten by-event live (401 guarded); landing OK.
+
+**Sisa manual:** passkey prod daftar ulang; OAuth origin prod di Google Console; `drive:auth` + token sync bila Drive tulis disentuh; pantau BAKU TAU 12 Sep.
+
+**Rollback:** `git revert -m 1 9566a71` + push main (kolom DB nullable, aman dibiarkan).
+
+---
+
+## Prior — Konten agenda by-event di Program & Event (8 Sep 2026)
 
 ### Done
 
