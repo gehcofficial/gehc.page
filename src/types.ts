@@ -67,6 +67,7 @@ export interface YouthGroup {
 export interface GroupMember {
   id: string;
   group_id: string;
+  userId?: string;
   name: string;
   email: string;
   phone: string;
@@ -126,6 +127,8 @@ export interface ContentItem {
   bannerUrl: string;
   pdfUrl?: string;
   tags: string[];
+  /** Tautan ke EventProgram — dikelola by-event, bukan panel CMS global */
+  eventId?: string | null;
 }
 
 export interface StrukturMember {

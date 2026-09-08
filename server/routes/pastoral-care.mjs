@@ -30,9 +30,12 @@ function serialize(row) {
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
     driveFolderId: row.driveFolderId,
+    subjectName: row.subjectName || null,
     subject: row.subject
       ? { id: row.subject.id, name: row.subject.name, avatar: row.subject.avatar }
-      : null,
+      : row.subjectName
+        ? { id: null, name: row.subjectName, avatar: null }
+        : null,
     reporter: row.reporter
       ? { id: row.reporter.id, name: row.reporter.name }
       : null,
@@ -41,9 +44,11 @@ function serialize(row) {
 
 async function canSeeNote(authUser, row) {
   if (isKomisiOrSuperadmin(authUser)) return true;
-  if (row.reporterUserId === authUser.id || row.subjectUserId === authUser.id) return true;
+  if (row.reporterUserId === authUser.id) return true;
+  if (row.subjectUserId && row.subjectUserId === authUser.id) return true;
   if (await isLiturgiaDoa(authUser)) return true;
   if ((row.kind === 'SAKIT' || row.kind === 'DUKA') && (await isDiakoniaCare(authUser))) return true;
+  if (!row.subjectUserId) return false;
   const prisma = getPrisma();
   const subjectRoles = await prisma.userRole.findMany({
     where: { userId: row.subjectUserId },
@@ -75,7 +80,7 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const liturgia = await isLiturgiaDoa(req.authUser);
       const diakonia = await isDiakoniaCare(req.authUser);
       const admin = isKomisiOrSuperadmin(req.authUser);
-      const subjectIds = [...new Set(rows.map((r) => r.subjectUserId))];
+      const subjectIds = [...new Set(rows.map((r) => r.subjectUserId).filter(Boolean))];
       const roleRows = subjectIds.length
         ? await prisma.userRole.findMany({
             where: { userId: { in: subjectIds } },
@@ -91,9 +96,11 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       }
       const visible = rows.filter((row) => {
         if (admin) return true;
-        if (row.reporterUserId === req.authUser.id || row.subjectUserId === req.authUser.id) return true;
+        if (row.reporterUserId === req.authUser.id) return true;
+        if (row.subjectUserId && row.subjectUserId === req.authUser.id) return true;
         if (liturgia) return true;
         if ((row.kind === 'SAKIT' || row.kind === 'DUKA') && diakonia) return true;
+        if (!row.subjectUserId) return false;
         return (groupsByUser.get(row.subjectUserId) || []).some((gid) => isMentorOfGroup(req.authUser, gid));
       }).map(serialize);
       res.json({ notes: visible });
@@ -108,23 +115,33 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const kind = String(req.body?.kind || '').toUpperCase();
       const subjectUserId = String(req.body?.subjectUserId || '').trim();
+      const subjectName = String(req.body?.subjectName || '').trim();
       const note = String(req.body?.note || '').trim();
-      if (!KINDS.has(kind) || !subjectUserId || !note) {
-        return res.status(400).json({ error: 'Jenis, subjek, dan catatan wajib.' });
+      if (!KINDS.has(kind) || !note) {
+        return res.status(400).json({ error: 'Jenis dan catatan wajib.' });
+      }
+      if (!subjectUserId && !subjectName) {
+        return res.status(400).json({ error: 'Pilih jemaat atau tulis nama manual.' });
       }
       if (subjectUserId === req.authUser.id) {
         return res.status(400).json({ error: 'Laporan ini tentang orang lain, bukan profil sendiri.' });
       }
-      const subject = await prisma.user.findUnique({
-        where: { id: subjectUserId },
-        select: { id: true, name: true },
-      });
-      if (!subject) return res.status(404).json({ error: 'Jemaat tidak ditemukan.' });
+      let subject = null;
+      if (subjectUserId) {
+        subject = await prisma.user.findUnique({
+          where: { id: subjectUserId },
+          select: { id: true, name: true },
+        });
+        if (!subject) return res.status(404).json({ error: 'Jemaat tidak ditemukan.' });
+      }
 
       let driveFolderId = null;
       if (req.body?.data && (kind === 'SAKIT' || kind === 'DUKA')) {
         const jpeg = await toJpegBuffer(decodeImageUpload(req.body).buffer);
-        const dest = await ensureCareVisitFolder(subject.name, new Date().toISOString().slice(0, 10));
+        const dest = await ensureCareVisitFolder(
+          subject?.name || subjectName || 'manual',
+          new Date().toISOString().slice(0, 10),
+        );
         await uploadJpegToFolder(dest.drive, dest.folder.id, jpeg, {
           filename: `kunjungan-${Date.now()}.jpg`,
           publicReader: false,
@@ -135,7 +152,8 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const row = await prisma.pastoralCareNote.create({
         data: {
           id: newEntityId('pcn'),
-          subjectUserId,
+          subjectUserId: subject ? subject.id : null,
+          subjectName: subject ? null : (subjectName || null),
           reporterUserId: req.authUser.id,
           kind,
           note,
@@ -160,7 +178,7 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const row = await prisma.pastoralCareNote.findUnique({ where: { id: req.params.id } });
       if (!row) return res.status(404).json({ error: 'Tidak ditemukan.' });
       const mentor = await canSeeNote(req.authUser, row);
-      const isSubject = row.subjectUserId === req.authUser.id;
+      const isSubject = row.subjectUserId && row.subjectUserId === req.authUser.id;
       if (!mentor && !isSubject && !isKomisiOrSuperadmin(req.authUser)) {
         return res.status(403).json({ error: 'Hanya subjek, mentor, atau Komisi yang menutup catatan.' });
       }
@@ -183,11 +201,16 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const prisma = getPrisma();
       const q = String(req.query.q || '').trim();
       if (q.length < 2) return res.json({ people: [] });
+      // Diri sendiri tetap tampil di daftar (blokir kirim tentang diri ada di POST).
       const people = await prisma.user.findMany({
         where: {
           accountStatus: 'ACTIVE',
-          NOT: { id: req.authUser.id },
-          name: { contains: q },
+          OR: [
+            { name: { contains: q } },
+            { givenName: { contains: q } },
+            { middleName: { contains: q } },
+            { familyName: { contains: q } },
+          ],
         },
         select: { id: true, name: true, avatar: true },
         take: 12,

@@ -118,6 +118,8 @@ interface AppContextType {
   // Content Operations (CMS)
   addContentItem: (item: Omit<ContentItem, 'id' | 'published_at'>) => void;
   updateContentItem: (id: string, updates: Partial<ContentItem>) => void;
+  /** Sinkron state lokal dari item yang sudah tersimpan di server (tanpa POST ulang). */
+  upsertContentItem: (item: ContentItem) => void;
   deleteContentItem: (id: string) => void;
 
   // Monitoring Operations
@@ -125,9 +127,9 @@ interface AppContextType {
   deleteMonitoringRecord: (id: string) => void;
 
   // Group Member Operations
-  addGroupMember: (member: Omit<GroupMember, 'id' | 'joinedDate'>) => void;
-  updateGroupMember: (id: string, updates: Partial<GroupMember>) => void;
-  deleteGroupMember: (id: string) => void;
+  addGroupMember: (member: Omit<GroupMember, 'id' | 'joinedDate'>) => Promise<void>;
+  updateGroupMember: (id: string, updates: Partial<GroupMember>) => Promise<void>;
+  deleteGroupMember: (id: string) => Promise<void>;
 
   // Struktur Operations
   addStrukturMember: (member: Omit<StrukturMember, 'id'>) => void;
@@ -390,9 +392,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
           }
           for (const m of g.members || []) {
+            // Hanya baris ACTIVE yang masuk roster; ALUMNI tidak tampil di Anggota.
+            if (m.status && String(m.status).toUpperCase() !== 'ACTIVE') continue;
             mMap.set(m.id, {
               id: m.id,
               group_id: g.id,
+              userId: m.userId || m.user?.id || undefined,
               name: m.name,
               email: m.email || undefined,
               phone: m.phone || undefined,
@@ -440,73 +445,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // Build members array from groupBatches (same source as landing page family tree)
-        // This ensures panel & landing page show identical data
-        const membersFromBatches: GroupMember[] = [];
-        for (const b of bMapped) {
-          // Mentor
-          if (b.mentor) {
-            membersFromBatches.push({
-              id: `${b.id}-mentor`,
-              group_id: b.group_id,
-              name: b.mentor,
-              email: '',
-              phone: '',
-              is_mentor: true,
-              joinedDate: '',
-              attendanceRate: 0,
-              familyRole: 'MENTOR',
-              batchPeriod: b.period,
-              avatar: b.mentorAvatar,
-            });
-          }
-          // Comentor
-          if (b.comentor) {
-            membersFromBatches.push({
-              id: `${b.id}-comentor`,
-              group_id: b.group_id,
-              name: b.comentor,
-              email: '',
-              phone: '',
-              is_mentor: true,
-              joinedDate: '',
-              attendanceRate: 0,
-              familyRole: 'COMENTOR',
-              batchPeriod: b.period,
-              avatar: b.comentorAvatar,
-            });
-          }
-          // Mentees
-          for (let i = 0; i < b.mentees.length; i++) {
-            const mt = b.mentees[i];
-            membersFromBatches.push({
-              id: `${b.id}-m${i + 1}`,
-              group_id: b.group_id,
-              name: mt.name,
-              email: '',
-              phone: '',
-              is_mentor: false,
-              joinedDate: '',
-              attendanceRate: 0,
-              notes: mt.note,
-              familyRole: 'MENTEE',
-              batchPeriod: b.period,
-              avatar: mt.avatar,
-            });
-          }
-        }
-        // Merge with any extra members from group_members (non-mentee, alumni, etc.)
-        const batchIds = new Set(membersFromBatches.map((m) => m.id));
+        // Roster Anggota = group_members nyata (ACTIVE) — tanpa baris sintetis
+        // dari nama batch. Dedupe: userId dulu, lalu nama+peran.
+        const normRole = (r: unknown) => {
+          const s = String(r || 'MENTEE').toUpperCase();
+          if (s === 'MENTOR') return 'MENTOR';
+          if (s === 'CO_MENTOR' || s === 'COMENTOR') return 'COMENTOR';
+          return 'MENTEE';
+        };
+        const seenUser = new Set<string>();
+        const seenNameRole = new Set<string>();
+        const roster: GroupMember[] = [];
         for (const m of mMap.values() as IterableIterator<any>) {
-          if (!batchIds.has(m.id)) {
-            membersFromBatches.push(m);
+          const role = normRole(m.familyRole);
+          const uid = m.userId ? String(m.userId) : '';
+          if (uid) {
+            if (seenUser.has(`${m.group_id}|${uid}`)) continue;
+            seenUser.add(`${m.group_id}|${uid}`);
+          } else {
+            const key = `${m.group_id}|${String(m.name || '').toLowerCase().trim()}|${role}`;
+            if (seenNameRole.has(key)) continue;
+            seenNameRole.add(key);
           }
+          roster.push({ ...m, familyRole: role });
         }
 
         if (cancelled) return;
         setGroups(gMapped);
         setGroupBatches(bMapped);
-        setMembers(membersFromBatches);
+        setMembers(roster);
       } catch {
         /* offline → pertahankan data lokal */
       }
@@ -875,6 +842,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const upsertContentItem = (item: ContentItem) => {
+    setContentItems((prev) =>
+      prev.some((i) => i.id === item.id)
+        ? prev.map((i) => (i.id === item.id ? { ...i, ...item } : i))
+        : [item, ...prev]
+    );
+  };
+
   const deleteContentItem = (id: string) => {
     setContentItems((prev) => prev.filter((item) => item.id !== id));
     addToast({
@@ -919,15 +894,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Group Member Operations
-  const addGroupMember = (member: Omit<GroupMember, 'id' | 'joinedDate'>) => {
-    const newMember: GroupMember = {
-      ...member,
-      id: `mbr-${Date.now()}`,
-      joinedDate: new Date().toISOString().split('T')[0],
-    };
-    setMembers((prev) => [...prev, newMember]);
-    // update group member count
+  // Group Member Operations — selalu lewat API agar TiDB sinkron (bukan local-only).
+  const addGroupMember = async (member: Omit<GroupMember, 'id' | 'joinedDate'>) => {
+    const r = await fetch(`/api/groups/${member.group_id}/members`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: member.name,
+        email: member.email,
+        phone: member.phone,
+        familyRole: member.familyRole,
+        attendanceRate: member.attendanceRate,
+        notes: member.notes,
+      }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menambah anggota.');
+    const saved = d.member as GroupMember;
+    setMembers((prev) => [...prev, saved]);
     setGroups((prev) =>
       prev.map((g) =>
         g.id === member.group_id ? { ...g, memberCount: g.memberCount + 1 } : g
@@ -936,13 +921,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast({
       type: 'success',
       title: 'Anggota Ditambahkan',
-      description: `${newMember.name} telah terdaftar ke dalam kelompok.`,
+      description: `${saved.name} telah terdaftar ke dalam kelompok.`,
     });
   };
 
-  const updateGroupMember = (id: string, updates: Partial<GroupMember>) => {
+  const updateGroupMember = async (id: string, updates: Partial<GroupMember>) => {
+    const target = members.find((m) => m.id === id);
+    if (!target) return;
+    const r = await fetch(`/api/groups/${target.group_id}/members/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal memperbarui anggota.');
+    const saved = d.member as GroupMember;
     setMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+      prev.map((m) => (m.id === id ? { ...m, ...saved } : m))
     );
     addToast({
       type: 'success',
@@ -950,23 +946,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const deleteGroupMember = (id: string) => {
+  const deleteGroupMember = async (id: string) => {
     const memberToDelete = members.find((m) => m.id === id);
-    if (memberToDelete) {
-      setMembers((prev) => prev.filter((m) => m.id !== id));
-      setGroups((prev) =>
-        prev.map((g) =>
-          g.id === memberToDelete.group_id
-            ? { ...g, memberCount: Math.max(0, g.memberCount - 1) }
-            : g
-        )
-      );
-      addToast({
-        type: 'info',
-        title: 'Anggota Dihapus',
-        description: 'Anggota telah dikeluarkan dari daftar.',
-      });
-    }
+    if (!memberToDelete) return;
+    const r = await fetch(`/api/groups/${memberToDelete.group_id}/members/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menghapus anggota.');
+    setMembers((prev) => prev.filter((m) => m.id !== id));
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === memberToDelete.group_id
+          ? { ...g, memberCount: Math.max(0, g.memberCount - 1) }
+          : g
+      )
+    );
+    addToast({
+      type: 'info',
+      title: 'Anggota Dihapus',
+      description: 'Anggota telah dikeluarkan dari daftar.',
+    });
   };
 
   // Struktur Operations
@@ -1190,6 +1191,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         addContentItem,
         updateContentItem,
+        upsertContentItem,
         deleteContentItem,
 
         submitMonitoringRecord,

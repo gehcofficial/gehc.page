@@ -29,6 +29,8 @@ import {
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 import { DriveUploadButton } from './DriveUploadButton';
+import { ScrollTabBar } from './ScrollTabBar';
+import ConfirmationModal from '../ui/ConfirmationModal';
 import { GroupAlbumsPanel } from './GroupAlbumsPanel';
 import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 import { useMediaSlots, MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots';
@@ -77,13 +79,18 @@ export const ManageGroupsMonitoring: React.FC = () => {
   // Selected group object
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
   const groupMembers = members.filter((m) => m.group_id === activeGroup.id);
+  // Roster nyata: sembunyikan baris tanpa userId (seed/orphan) di UI default.
+  // Superadmin bisa menampilkan + menghapus orphan dengan konfirmasi ketik.
+  const [showOrphan, setShowOrphan] = useState(false);
+  const orphanCount = groupMembers.filter((m) => !m.userId).length;
+  const visibleMembers = showOrphan && isSuperAdmin ? groupMembers : groupMembers.filter((m) => m.userId);
   const groupRecords = monitoringRecords.filter((r) => r.group_id === activeGroup.id);
 
   // Monitoring Form State (JSONB Extensible Data Model)
   const [monitoringDate, setMonitoringDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  const [attendanceCount, setAttendanceCount] = useState<number>(groupMembers.length || 12);
+  const [attendanceCount, setAttendanceCount] = useState<number>(12);
   const [meetingTopic, setMeetingTopic] = useState<string>('');
   const [spiritualTemperature, setSpiritualTemperature] = useState<
     'Sangat Baik' | 'Baik' | 'Perlu Perhatian' | 'Kurang Aktif'
@@ -134,7 +141,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
       date: monitoringDate,
       data: {
         attendanceCount: Number(attendanceCount),
-        totalMembers: groupMembers.length || activeGroup.memberCount,
+        totalMembers: visibleMembers.length || activeGroup.memberCount,
         meetingTopic,
         spiritualTemperature,
         prayerRequests,
@@ -183,34 +190,53 @@ export const ManageGroupsMonitoring: React.FC = () => {
     setIsMemberModalOpen(true);
   };
 
-  const handleMemberSubmit = (e: React.FormEvent) => {
+  const [deletingMember, setDeletingMember] = useState<GroupMember | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const handleMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberFormData.name.trim()) return;
 
-    if (editingMember) {
-      updateGroupMember(editingMember.id, {
-        name: memberFormData.name,
-        email: memberFormData.email,
-        phone: memberFormData.phone,
-        is_mentor: memberFormData.familyRole !== 'MENTEE',
-        familyRole: memberFormData.familyRole,
-        attendanceRate: Number(memberFormData.attendanceRate),
-        notes: memberFormData.notes,
-      });
-    } else {
-      addGroupMember({
-        group_id: activeGroup.id,
-        name: memberFormData.name,
-        email: memberFormData.email,
-        phone: memberFormData.phone,
-        is_mentor: memberFormData.familyRole !== 'MENTEE',
-        familyRole: memberFormData.familyRole,
-        attendanceRate: Number(memberFormData.attendanceRate),
-        notes: memberFormData.notes,
-      });
+    try {
+      if (editingMember) {
+        await updateGroupMember(editingMember.id, {
+          name: memberFormData.name,
+          email: memberFormData.email,
+          phone: memberFormData.phone,
+          is_mentor: memberFormData.familyRole !== 'MENTEE',
+          familyRole: memberFormData.familyRole,
+          attendanceRate: Number(memberFormData.attendanceRate),
+          notes: memberFormData.notes,
+        });
+      } else {
+        await addGroupMember({
+          group_id: activeGroup.id,
+          name: memberFormData.name,
+          email: memberFormData.email,
+          phone: memberFormData.phone,
+          is_mentor: memberFormData.familyRole !== 'MENTEE',
+          familyRole: memberFormData.familyRole,
+          attendanceRate: Number(memberFormData.attendanceRate),
+          notes: memberFormData.notes,
+        });
+      }
+      setIsMemberModalOpen(false);
+    } catch (err) {
+      addToast({ type: 'error', title: err instanceof Error ? err.message : 'Gagal menyimpan anggota' });
     }
+  };
 
-    setIsMemberModalOpen(false);
+  const confirmDeleteMember = async () => {
+    if (!deletingMember) return;
+    setDeleteBusy(true);
+    try {
+      await deleteGroupMember(deletingMember.id);
+      setDeletingMember(null);
+    } catch (err) {
+      addToast({ type: 'error', title: err instanceof Error ? err.message : 'Gagal menghapus anggota' });
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
@@ -306,7 +332,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="text-2xl sm:text-3xl font-black">{activeGroup.name}</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/20 text-white font-bold">
-                {activeGroup.memberCount} Anggota
+                {visibleMembers.length} Anggota
               </span>
             </div>
             <p className="text-xs sm:text-sm text-white/90 font-medium">
@@ -347,8 +373,10 @@ export const ManageGroupsMonitoring: React.FC = () => {
       })()}
 
       {/* Tab Switcher: Input Form, Monitoring History, Member Roster */}
-      <div className="flex items-center gap-2 border-b border-[#D9D7D0]/60 pb-3">
+      <ScrollTabBar active={activeTab} className="border-b border-[#D9D7D0]/60 pb-3" track={false} gapClass="gap-2">
         <button
+          role="tab"
+          aria-selected={activeTab === 'monitoring-form'}
           onClick={() => setActiveTab('monitoring-form')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'monitoring-form'
@@ -361,6 +389,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'history'}
           onClick={() => setActiveTab('history')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'history'
@@ -373,6 +403,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'members'}
           onClick={() => setActiveTab('members')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'members'
@@ -381,10 +413,12 @@ export const ManageGroupsMonitoring: React.FC = () => {
           }`}
         >
           <Users className="w-3.5 h-3.5 text-emerald-500" />
-          <span>{mon.tabMembers} ({groupMembers.length})</span>
+          <span>{mon.tabMembers} ({visibleMembers.length})</span>
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'family-tree'}
           onClick={() => setActiveTab('family-tree')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'family-tree'
@@ -397,6 +431,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'absensi'}
           onClick={() => setActiveTab('absensi')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'absensi'
@@ -409,6 +445,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'albums'}
           onClick={() => setActiveTab('albums')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
             activeTab === 'albums'
@@ -419,7 +457,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           <Images className="w-3.5 h-3.5 text-rose-500" />
           <span>Album</span>
         </button>
-      </div>
+      </ScrollTabBar>
 
       {/* TAB 1: DYNAMIC MONITORING INPUT FORM */}
       {activeTab === 'monitoring-form' && (
@@ -470,7 +508,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
                       className="w-full px-4 py-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold focus:outline-none focus:border-black"
                     />
                     <span className="text-xs text-[#8C8880] whitespace-nowrap">
-                      / {groupMembers.length || activeGroup.memberCount} Anggota
+                      / {visibleMembers.length || activeGroup.memberCount} Anggota
                     </span>
                   </div>
                 </div>
@@ -660,8 +698,17 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 Roster Anggota Kelompok {activeGroup.name}
               </h3>
               <p className="text-xs text-[#8C8880]">
-                Daftar nama pemuda yang terdaftar dalam kelompok sel ini.
+                Daftar nama pemuda yang benar-benar terdaftar dalam kelompok sel ini.
               </p>
+              {isSuperAdmin && orphanCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowOrphan((v) => !v)}
+                  className="mt-1 text-[11px] font-bold text-amber-700 underline"
+                >
+                  {showOrphan ? 'Sembunyikan' : `Tampilkan ${orphanCount} baris tanpa akun (seed/orphan)`}
+                </button>
+              )}
             </div>
 
             {canWriteMonitoring && (
@@ -688,10 +735,15 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D9D7D0]/30">
-                {groupMembers.map((m) => (
+                {visibleMembers.map((m) => (
                   <tr key={m.id} className="hover:bg-[#FAF9F5] transition-colors">
                     <td className="py-3.5 pl-2 font-bold text-[#1B1B1B]">
                       {m.name}
+                      {!m.userId && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold uppercase">
+                          Tanpa akun
+                        </span>
+                      )}
                     </td>
                     <td className="py-3.5">
                       {(() => {
@@ -745,11 +797,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Hapus anggota "${m.name}"?`)) {
-                                deleteGroupMember(m.id);
-                              }
-                            }}
+                            onClick={() => setDeletingMember(m)}
                             className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"
                             title="Hapus Anggota"
                           >
@@ -978,7 +1026,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           groupId={activeGroup.id}
           groupName={activeGroup.name}
           canWrite={canWriteMonitoring}
-          members={groupMembers}
+          members={visibleMembers}
         />
       )}
 
@@ -989,6 +1037,26 @@ export const ManageGroupsMonitoring: React.FC = () => {
           canUpload={Boolean(hasAssignedGroup || canWriteMonitoring)}
         />
       )}
+
+      {/* Hapus anggota — orphan tanpa akun wajib ketik nama (superadmin) */}
+      <ConfirmationModal
+        isOpen={!!deletingMember}
+        onClose={() => setDeletingMember(null)}
+        onConfirm={() => void confirmDeleteMember()}
+        title={deletingMember && !deletingMember.userId ? 'Hapus baris tanpa akun?' : 'Hapus anggota?'}
+        message={
+          deletingMember && !deletingMember.userId
+            ? `Baris "${deletingMember.name}" tidak tertaut akun. Hapus permanen dari TiDB beserta riwayat absensinya.`
+            : deletingMember
+              ? `Keluarkan "${deletingMember.name}" dari kelompok? Penugasan peran rumahnya ikut dinonaktifkan.`
+              : ''
+        }
+        confirmText="Ya, Hapus"
+        variant="danger"
+        loading={deleteBusy}
+        requireTypeConfirmation={Boolean(deletingMember && !deletingMember.userId)}
+        typeConfirmationText={deletingMember && !deletingMember.userId ? deletingMember.name : 'HAPUS'}
+      />
 
       {/* Record Inspection Modal */}
       {viewingRecord && (

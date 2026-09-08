@@ -21,6 +21,34 @@ import {
 import WartaExportModal from './WartaExportModal';
 
 const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
+
+const WARTA_FIELDS = [
+  { key: 'ayat', label: 'Ayat', placeholder: 'Contoh: Roma 12:1-2', rows: 1 },
+  { key: 'khotbah', label: 'Khotbah', placeholder: 'Ringkasan khotbah minggu ini…', rows: 4 },
+  { key: 'pengumuman', label: 'Pengumuman', placeholder: 'Pengumuman jemaat & pemuda…', rows: 3 },
+  { key: 'pelayanan', label: 'Pelayanan', placeholder: 'Jadwal pelayan minggu depan…', rows: 3 },
+  { key: 'sharing', label: 'Sharing', placeholder: 'Kesaksian / sharing singkat…', rows: 3 },
+  { key: 'doa', label: 'Doa', placeholder: 'Pokok doa syafaat…', rows: 3 },
+];
+
+const FIELD_LABELS = {
+  ayat: 'Ayat',
+  khotbah: 'Khotbah',
+  pengumuman: 'Pengumuman',
+  pelayanan: 'Pelayanan',
+  sharing: 'Sharing',
+  doa: 'Doa',
+};
+
+function wartaPreview(contentJson) {
+  const c = contentJson && typeof contentJson === 'object' ? contentJson : {};
+  const parts = [];
+  for (const f of WARTA_FIELDS) {
+    const v = String(c[f.key] || '').trim();
+    if (v) parts.push(`${FIELD_LABELS[f.key]}: ${v}`);
+  }
+  return parts.join(' · ').slice(0, 160);
+}
 const STATUS_LABELS = {
   DRAFT: 'Draft',
   CONTENT_READY: 'Konten Siap (Didaskalia)',
@@ -68,12 +96,17 @@ export default function WartaPublikTab({ division }: { division: string }) {
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
 
   const advanceStatus = async (id: string, nextStatus: string) => {
-    await fetch(`/api/warta/${id}`, {
+    const r = await fetch(`/api/warta/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ status: nextStatus }),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error || 'Gagal ubah status');
+      return;
+    }
     fetchWarta();
   };
 
@@ -138,9 +171,9 @@ export default function WartaPublikTab({ division }: { division: string }) {
                     </span>
                   </div>
                   <p className="font-bold text-sm truncate">{w.title}</p>
-                  {w.contentJson && Object.keys(w.contentJson).length > 0 && (
+                  {wartaPreview(w.contentJson) && (
                     <p className="text-xs text-[#8C8880] mt-1 max-h-8 overflow-hidden">
-                      {JSON.stringify(w.contentJson).slice(0, 120)}...
+                      {wartaPreview(w.contentJson)}
                     </p>
                   )}
                 </div>
@@ -157,6 +190,9 @@ export default function WartaPublikTab({ division }: { division: string }) {
                   )}
                   <button onClick={() => { setEditingWarta(w); setShowDetail(w.id); }} className="p-2 rounded-xl hover:bg-gray-100" title="Edit">
                     <Edit2 className="w-4 h-4 text-[#8C8880]" />
+                  </button>
+                  <button onClick={() => setExportWarta(w)} className="p-2 rounded-xl hover:bg-gray-100" title="Export / bagikan">
+                    <Share2 className="w-4 h-4 text-[#8C8880]" />
                   </button>
                   {w.status === 'DRAFT' && (
                     <button onClick={() => deleteWarta(w.id)} className="p-2 rounded-xl hover:bg-gray-100" title="Hapus">
@@ -250,15 +286,26 @@ export default function WartaPublikTab({ division }: { division: string }) {
                   onChange={e => { editingWarta.title = e.target.value; setEditingWarta({ ...editingWarta }); }}
                   className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
               </div>
-              <div>
-                <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Konten (JSON)</label>
-                <textarea
-                  value={JSON.stringify(editingWarta.contentJson || {}, null, 2)}
-                  onChange={e => { editingWarta.contentJson = JSON.parse(e.target.value); setEditingWarta({ ...editingWarta }); }}
-                  rows={8}
-                  className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm font-mono text-xs"
-                  placeholder='{"khotbah": "...", "pelayanan": "...", "sharing": "..."}'
-                />
+              {WARTA_FIELDS.map(f => (
+                <div key={f.key}>
+                  <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">{f.label}</label>
+                  <textarea
+                    value={(editingWarta.contentJson && editingWarta.contentJson[f.key]) || ''}
+                    onChange={e => {
+                      const contentJson = { ...(editingWarta.contentJson || {}), [f.key]: e.target.value };
+                      setEditingWarta({ ...editingWarta, contentJson });
+                    }}
+                    rows={f.rows}
+                    className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm"
+                    placeholder={f.placeholder}
+                  />
+                </div>
+              ))}
+              <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60">
+                <p className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1">Pratinjau kartu landing</p>
+                <p className="text-xs text-[#1B1B1B] leading-relaxed whitespace-pre-wrap">
+                  {wartaPreview(editingWarta.contentJson) || 'Isi field di atas untuk pratinjau…'}
+                </p>
               </div>
               {editingWarta.pdfUrl && (
                 <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl">
@@ -275,13 +322,19 @@ export default function WartaPublikTab({ division }: { division: string }) {
               <div className="flex gap-3 pt-2">
                 <button onClick={() => { setShowDetail(null); setEditingWarta(null); }} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Tutup</button>
                 <button
-                  onClick={() => {
-                    fetch(`/api/warta/${editingWarta.id}`, {
+                  onClick={async () => {
+                    const r = await fetch(`/api/warta/${editingWarta.id}`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
                       credentials: 'include',
                       body: JSON.stringify({ title: editingWarta.title, contentJson: editingWarta.contentJson }),
-                    }).then(() => { setShowDetail(null); setEditingWarta(null); fetchWarta(); });
+                    });
+                    if (!r.ok) {
+                      const d = await r.json().catch(() => ({}));
+                      alert(d.error || 'Gagal menyimpan');
+                      return;
+                    }
+                    setShowDetail(null); setEditingWarta(null); fetchWarta();
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold"
                 >

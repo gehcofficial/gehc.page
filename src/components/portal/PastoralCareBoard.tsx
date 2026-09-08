@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { HeartHandshake } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { DriveUploadButton } from './DriveUploadButton';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import type { SearchableOption } from '../../lib/searchable-options';
 
 const KINDS = [
   { id: 'SAKIT', label: 'Sakit' },
@@ -18,16 +20,18 @@ type Note = {
   note: string;
   status: string;
   expiresAt?: string;
-  subject?: { id: string; name: string; avatar?: string | null };
+  subjectName?: string | null;
+  subject?: { id: string | null; name: string; avatar?: string | null };
   reporter?: { id: string; name: string };
 };
 
 export const PastoralCareBoard: React.FC = () => {
   const { addToast } = useApp();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [q, setQ] = useState('');
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
   const [subjectUserId, setSubjectUserId] = useState('');
+  const [subjectLabel, setSubjectLabel] = useState('');
+  const [subjectName, setSubjectName] = useState('');
+  const [manualMode, setManualMode] = useState(false);
   const [kind, setKind] = useState('SAKIT');
   const [note, setNote] = useState('');
   const [visitPhoto, setVisitPhoto] = useState<{
@@ -46,27 +50,27 @@ export const PastoralCareBoard: React.FC = () => {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (q.trim().length < 2) {
-      setPeople([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      const r = await fetch(`/api/pastoral-care/people?q=${encodeURIComponent(q)}`, { credentials: 'include' });
-      const d = await r.json();
-      setPeople(d.people || []);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
+    const r = await fetch(`/api/pastoral-care/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+    const d = await r.json().catch(() => ({}));
+    return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
+  }, []);
 
   const submit = async () => {
-    if (!subjectUserId || !note.trim()) return;
+    if (!subjectUserId && !subjectName.trim()) {
+      addToast({ type: 'error', title: 'Pilih jemaat atau tulis nama manual dulu.' });
+      return;
+    }
+    if (!note.trim()) {
+      addToast({ type: 'error', title: 'Tulis catatan doa dulu sebelum kirim.' });
+      return;
+    }
     const r = await fetch('/api/pastoral-care', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        subjectUserId,
+        ...(subjectUserId ? { subjectUserId } : { subjectName: subjectName.trim() }),
         kind,
         note: note.trim(),
         ...(kind === 'SAKIT' || kind === 'DUKA' ? visitPhoto || {} : {}),
@@ -79,7 +83,9 @@ export const PastoralCareBoard: React.FC = () => {
     }
     setNote('');
     setSubjectUserId('');
-    setQ('');
+    setSubjectLabel('');
+    setSubjectName('');
+    setManualMode(false);
     setVisitPhoto(null);
     addToast({ type: 'success', title: 'Tercatat di Portal Doa (privat)' });
     load();
@@ -92,30 +98,41 @@ export const PastoralCareBoard: React.FC = () => {
           <HeartHandshake className="w-4 h-4 text-[#EA580C]" />
           Laporkan kabar penggembalaan (bukan ubah profil orang lain)
         </p>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari nama jemaat…"
-          className="w-full px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs"
-        />
-        {people.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {people.map((p) => (
+        {!manualMode ? (
+          <SearchableSelect
+            value={subjectUserId}
+            selectedLabel={subjectLabel}
+            onSearch={searchPeople}
+            onChange={(value, option) => {
+              setSubjectUserId(value);
+              setSubjectLabel(option?.label || '');
+              if (value) setSubjectName('');
+            }}
+            placeholder="Cari nama jemaat…"
+            emptyHint="Tidak ketemu? Pakai nama manual di bawah."
+            minQuery={2}
+          />
+        ) : null}
+        {!subjectUserId && (
+          <div className="space-y-1.5">
+            <input
+              value={subjectName}
+              onChange={(e) => {
+                setSubjectName(e.target.value);
+                setManualMode(e.target.value.trim().length > 0);
+              }}
+              placeholder="Atau pakai nama ini (belum terdaftar)…"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs"
+            />
+            {manualMode && (
               <button
-                key={p.id}
                 type="button"
-                onClick={() => {
-                  setSubjectUserId(p.id);
-                  setQ(p.name);
-                  setPeople([]);
-                }}
-                className={`px-2 py-1 rounded-full text-[11px] font-bold ${
-                  subjectUserId === p.id ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC]'
-                }`}
+                onClick={() => { setSubjectName(''); setManualMode(false); }}
+                className="text-[11px] font-bold text-[#8C8880] underline"
               >
-                {p.name}
+                Kembali cari jemaat terdaftar
               </button>
-            ))}
+            )}
           </div>
         )}
         <select
@@ -141,7 +158,9 @@ export const PastoralCareBoard: React.FC = () => {
             <p className="text-[10px] text-[#8C8880] mb-1">Foto kunjungan Diakonia (privat, bukan landing)</p>
             <DriveUploadButton
               label={visitPhoto ? 'Foto kunjungan siap' : 'Lampirkan foto kunjungan'}
+              hasFile={Boolean(visitPhoto)}
               onFile={async (payload) => setVisitPhoto(payload)}
+              onClear={() => setVisitPhoto(null)}
             />
           </div>
         )}

@@ -37,6 +37,7 @@ import {
   ensureEventArchiveFolder,
 } from '../lib/drive-ensure.mjs';
 import { slugifyName } from '../lib/website-visuals.mjs';
+import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 
 const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
@@ -195,6 +196,131 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     }),
   );
 
+  const GROUP_MEMBER_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'];
+
+  function normFamilyRole(v) {
+    const s = String(v || 'MENTEE').toUpperCase();
+    if (s === 'MENTOR') return 'MENTOR';
+    if (s === 'CO_MENTOR' || s === 'COMENTOR') return 'COMENTOR';
+    return 'MENTEE';
+  }
+
+  function serializeGroupMember(m) {
+    return {
+      id: m.id,
+      group_id: m.groupId,
+      userId: m.userId || null,
+      name: m.name,
+      email: m.email || '',
+      phone: m.phone || '',
+      familyRole: m.familyRole === 'COMENTOR' ? 'CO_MENTOR' : m.familyRole,
+      status: m.status,
+      is_mentor: m.familyRole !== 'MENTEE',
+      joinedDate: m.joinedDate ? String(m.joinedDate).slice(0, 10) : '',
+      attendanceRate: m.attendanceRate ?? 0,
+      notes: m.notes || undefined,
+      batchPeriod: m.batchPeriod || undefined,
+      avatar: m.user?.avatar || undefined,
+    };
+  }
+
+  app.post(
+    '/api/groups/:id/members',
+    requireRole(...GROUP_MEMBER_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const group = await prisma.group.findUnique({ where: { id: req.params.id } });
+      if (!group) return res.status(404).json({ error: 'Kelompok tidak ditemukan.' });
+      if (!isMentorOfGroup(req.authUser, group.id) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini, Komisi, atau Tim Kerja.' });
+      }
+      const name = String(req.body?.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nama wajib.' });
+      const row = await prisma.groupMember.create({
+        data: {
+          id: newEntityId('gmb'),
+          groupId: group.id,
+          name,
+          email: String(req.body?.email || '').trim() || null,
+          phone: String(req.body?.phone || '').trim() || null,
+          familyRole: normFamilyRole(req.body?.familyRole),
+          status: 'ACTIVE',
+          attendanceRate: Number(req.body?.attendanceRate) || 0,
+          notes: String(req.body?.notes || '').trim() || null,
+        },
+        include: { user: { select: { avatar: true } } },
+      });
+      res.status(201).json({ member: serializeGroupMember(row) });
+    }),
+  );
+
+  app.patch(
+    '/api/groups/:id/members/:memberId',
+    requireRole(...GROUP_MEMBER_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const existing = await prisma.groupMember.findUnique({ where: { id: req.params.memberId } });
+      if (!existing || existing.groupId !== req.params.id) {
+        return res.status(404).json({ error: 'Anggota tidak ditemukan.' });
+      }
+      if (!isMentorOfGroup(req.authUser, existing.groupId) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini, Komisi, atau Tim Kerja.' });
+      }
+      const data = {};
+      if (req.body?.name !== undefined) {
+        const name = String(req.body.name).trim();
+        if (!name) return res.status(400).json({ error: 'Nama wajib.' });
+        data.name = name;
+      }
+      if (req.body?.email !== undefined) data.email = String(req.body.email).trim() || null;
+      if (req.body?.phone !== undefined) data.phone = String(req.body.phone).trim() || null;
+      if (req.body?.familyRole !== undefined) data.familyRole = normFamilyRole(req.body.familyRole);
+      if (req.body?.attendanceRate !== undefined) data.attendanceRate = Number(req.body.attendanceRate) || 0;
+      if (req.body?.notes !== undefined) data.notes = String(req.body.notes).trim() || null;
+      const row = await prisma.groupMember.update({
+        where: { id: existing.id },
+        data,
+        include: { user: { select: { avatar: true } } },
+      });
+      res.json({ member: serializeGroupMember(row) });
+    }),
+  );
+
+  app.delete(
+    '/api/groups/:id/members/:memberId',
+    requireRole(...GROUP_MEMBER_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const existing = await prisma.groupMember.findUnique({ where: { id: req.params.memberId } });
+      if (!existing || existing.groupId !== req.params.id) {
+        return res.status(404).json({ error: 'Anggota tidak ditemukan.' });
+      }
+      if (!isMentorOfGroup(req.authUser, existing.groupId) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini, Komisi, atau Tim Kerja.' });
+      }
+      // Baris tertaut akun: nonaktifkan juga penugasan peran rumah agar tidak yatim.
+      if (existing.userId) {
+        const assignments = await prisma.roleAssignment.findMany({
+          where: { userId: existing.userId, groupId: existing.groupId, isActive: true },
+          select: { id: true, role: true },
+        }).catch(() => []);
+        for (const a of assignments) {
+          if (!['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(String(a.role || '').toUpperCase())) continue;
+          await prisma.roleAssignment.update({ where: { id: a.id }, data: { isActive: false } }).catch(() => null);
+        }
+        await prisma.userRole.deleteMany({
+          where: { userId: existing.userId, groupId: existing.groupId },
+        }).catch(() => null);
+      }
+      await prisma.attendanceRecord.deleteMany({ where: { groupMemberId: existing.id } }).catch(() => null);
+      await prisma.groupMember.delete({ where: { id: existing.id } });
+      res.json({ ok: true });
+    }),
+  );
+
   app.get(
     '/api/groups/:id/albums',
     wrap(async (req, res) => {
@@ -341,15 +467,30 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (!quote) return res.status(400).json({ error: 'Kutipan wajib.' });
       let inboxDriveFileId = null;
       let photoUrl = req.authUser.avatar || null;
+      let photoPending = false;
       if (req.body?.data) {
-        const jpeg = await jpegFromBody(req.body);
-        const inbox = await ensureTestimonialInbox(req.authUser.id);
-        const file = await uploadJpegToFolder(inbox.drive, inbox.folder.id, jpeg, {
-          filename: `draft-${Date.now()}.jpg`,
-          publicReader: false,
-        });
-        inboxDriveFileId = file.id;
-        photoUrl = driveThumbUrl(file.id);
+        try {
+          const jpeg = await jpegFromBody(req.body);
+          const inbox = await ensureTestimonialInbox(req.authUser.id);
+          const file = await uploadJpegToFolder(inbox.drive, inbox.folder.id, jpeg, {
+            filename: `draft-${Date.now()}.jpg`,
+            publicReader: false,
+          });
+          inboxDriveFileId = file.id;
+          photoUrl = driveThumbUrl(file.id);
+        } catch (e) {
+          // Kesaksian tetap tersimpan; foto menyusul.
+          photoPending = true;
+          if (isDriveAuthError(e)) {
+            const err = new Error(driveAuthErrorMessage());
+            err.status = 503;
+            err.photoPending = true;
+            // Simpan draf dulu di bawah, lalu beri tahu klien lewat flag.
+            req._photoPendingReason = err.message;
+          } else {
+            req._photoPendingReason = e?.message || 'Foto gagal diunggah ke Drive.';
+          }
+        }
       }
       const item = await prisma.testimonial.create({
         data: {
@@ -365,7 +506,11 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
           inboxDriveFileId,
         },
       });
-      res.status(201).json({ item });
+      res.status(201).json({
+        item,
+        photoPending,
+        ...(req._photoPendingReason ? { photoNote: req._photoPendingReason } : {}),
+      });
     }),
   );
 
@@ -399,18 +544,25 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const quote = req.body?.quote !== undefined ? String(req.body.quote).trim() : existing.quote;
       if (!quote) return res.status(400).json({ error: 'Kutipan wajib.' });
       const data = { quote };
+      let photoPending = false;
+      let photoNote = null;
       if (req.body?.data) {
-        const jpeg = await jpegFromBody(req.body);
-        const inbox = await ensureTestimonialInbox(req.authUser.id);
-        const file = await uploadJpegToFolder(inbox.drive, inbox.folder.id, jpeg, {
-          filename: `draft-${Date.now()}.jpg`,
-          publicReader: false,
-        });
-        data.inboxDriveFileId = file.id;
-        data.photoUrl = driveThumbUrl(file.id);
+        try {
+          const jpeg = await jpegFromBody(req.body);
+          const inbox = await ensureTestimonialInbox(req.authUser.id);
+          const file = await uploadJpegToFolder(inbox.drive, inbox.folder.id, jpeg, {
+            filename: `draft-${Date.now()}.jpg`,
+            publicReader: false,
+          });
+          data.inboxDriveFileId = file.id;
+          data.photoUrl = driveThumbUrl(file.id);
+        } catch (e) {
+          photoPending = true;
+          photoNote = isDriveAuthError(e) ? driveAuthErrorMessage() : (e?.message || 'Foto gagal diunggah ke Drive.');
+        }
       }
       const item = await prisma.testimonial.update({ where: { id: existing.id }, data });
-      res.json({ item });
+      res.json({ item, photoPending, ...(photoNote ? { photoNote } : {}) });
     }),
   );
 
@@ -445,6 +597,16 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (existing.inboxDriveFileId || req.body?.data) {
         let jpeg;
         if (req.body?.data) jpeg = await jpegFromBody(req.body);
+        // Foto dari inbox mentee bersifat privat — tanpa ini thumbnail Drive
+        // butuh login sehingga gambar rusak di landing publik.
+        if (!jpeg && existing.inboxDriveFileId) {
+          try {
+            const drive = await requireUserDrive();
+            await setPublicReader(drive, existing.inboxDriveFileId);
+          } catch (e) {
+            console.warn('[testimonial-publish] setPublicReader:', e.message);
+          }
+        }
         if (jpeg) {
           await replaceVisualStem({ folder: 'testimoni', stem, jpegBuffer: jpeg });
         }

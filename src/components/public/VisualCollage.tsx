@@ -22,6 +22,8 @@ export const VisualCollage: React.FC = () => {
   const [testimonials, setTestimonials] = useState<PublicTestimonial[]>([]);
   const [idx, setIdx] = useState(0);
   const [fade, setFade] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [imgBroken, setImgBroken] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +39,7 @@ export const VisualCollage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (testimonials.length < 2) return;
+    if (testimonials.length < 2 || expanded) return;
     const timer = setInterval(() => {
       setFade(false);
       setTimeout(() => {
@@ -46,7 +48,13 @@ export const VisualCollage: React.FC = () => {
       }, 280);
     }, ROTATE_MS);
     return () => clearInterval(timer);
-  }, [testimonials.length]);
+  }, [testimonials.length, expanded]);
+
+  // Ganti kesaksian → tutup mode baca penuh + reset status foto.
+  useEffect(() => {
+    setExpanded(false);
+    setImgBroken(false);
+  }, [idx]);
 
   const current = testimonials[idx];
   const displayName = current
@@ -54,6 +62,10 @@ export const VisualCollage: React.FC = () => {
       ? `${current.authorName} (${current.groupName})`
       : current.authorName
     : null;
+  const fallbackPhoto = current
+    ? slots.testimoni[slugifyPerson(current.authorName)] || media.collagePortrait
+    : media.collagePortrait;
+  const isLongQuote = (current?.quote || '').length > 140;
 
   return (
     <section className="min-h-[920px] sm:min-h-[1100px] lg:min-h-[1280px] w-full max-w-[1440px] mx-auto relative overflow-hidden bg-[#FAF9F5] py-16 px-4">
@@ -186,20 +198,30 @@ export const VisualCollage: React.FC = () => {
             <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm border border-[#D9D7D0] shrink-0 bg-[#F0EFEB]">
               <img
                 className="w-full h-full object-cover"
-                src={
-                  current.photoUrl ||
-                  slots.testimoni[slugifyPerson(current.authorName)] ||
-                  media.collagePortrait
-                }
+                src={!imgBroken && current.photoUrl ? current.photoUrl : fallbackPhoto}
                 {...IMG_PROPS}
                 alt={displayName}
+                onError={() => setImgBroken(true)}
               />
             </div>
             <div className="flex flex-col pr-3 max-w-[280px] sm:max-w-md">
               <span className="text-[11px] text-[#1B1B1B] font-bold">{displayName}</span>
-              <span className="text-[12px] text-[#1B1B1B]/80 font-medium leading-tight line-clamp-2">
+              <span
+                className={`text-[12px] text-[#1B1B1B]/80 font-medium leading-snug ${
+                  expanded ? 'max-h-44 overflow-y-auto whitespace-pre-wrap' : 'line-clamp-2'
+                }`}
+              >
                 {current.quote}
               </span>
+              {isLongQuote && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  className="self-start mt-0.5 text-[10px] font-bold text-[#FF416C] hover:underline"
+                >
+                  {expanded ? 'Tutup' : 'Selengkapnya'}
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -89,7 +89,13 @@ export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = 
   const openRow = (userId: string | null) => {
     if (!userId) return;
     setOpenId((cur) => (cur === userId ? null : userId));
-    setDraft(answers[userId] || {});
+    // Buang jawaban basi (soal arsip/dilepas) agar tak ikut terkirim & memicu 400.
+    const known = new Set(questions.map((q) => q.id));
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(answers[userId] || {})) {
+      if (known.has(k)) clean[k] = v;
+    }
+    setDraft(clean);
   };
 
   const visible = useMemo(() => {
@@ -98,17 +104,30 @@ export const EventAttendeesBlock: React.FC<{ eventId: string; slug: string }> = 
   }, [questions, draft]);
 
   const saveRow = async (userId: string) => {
+    const known = new Set(questions.map((q) => q.id));
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(draft)) {
+      if (known.has(k)) payload[k] = v;
+    }
+    const summary = visible
+      .map((q) => {
+        const v = draft[q.id];
+        const text = v === true ? 'Ya' : v === false ? 'Tidak' : Array.isArray(v) ? v.join(', ') : String(v ?? '—');
+        return `• ${q.label}: ${text}`;
+      })
+      .join('\n');
+    if (!window.confirm(`Simpan jawaban berikut?\n\n${summary || '(kosong)'}`)) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/answers/${encodeURIComponent(userId)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: draft }),
+        body: JSON.stringify({ answers: payload }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Gagal menyimpan.');
-      setAnswers((prev) => ({ ...prev, [userId]: { ...draft } }));
+      setAnswers((prev) => ({ ...prev, [userId]: { ...payload } }));
       addToast({ type: 'success', title: 'Jawaban disimpan' });
     } catch (err: any) {
       addToast({ type: 'error', title: 'Gagal menyimpan jawaban', description: err.message });

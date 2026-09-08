@@ -40,7 +40,10 @@ export const MenteeKesaksianPanel: React.FC = () => {
   }, []);
 
   const submit = async () => {
-    if (!quote.trim()) return;
+    if (!quote.trim()) {
+      addToast({ type: 'error', title: 'Tulis kesaksian dulu sebelum kirim.' });
+      return;
+    }
     setBusy(true);
     try {
       const url = editingId ? `/api/me/testimonials/${editingId}` : '/api/me/testimonial';
@@ -62,7 +65,11 @@ export const MenteeKesaksianPanel: React.FC = () => {
       setQuote('');
       setPhoto(null);
       setEditingId(null);
-      addToast({ type: 'success', title: editingId ? 'Draf diperbarui' : 'Draf kesaksian terkirim ke Marturia' });
+      if (d.photoPending) {
+        addToast({ type: 'success', title: 'Draf tersimpan, foto belum ke Drive', body: d.photoNote || 'Foto bisa dilampirkan ulang nanti.' });
+      } else {
+        addToast({ type: 'success', title: editingId ? 'Draf diperbarui' : 'Draf kesaksian terkirim ke Marturia' });
+      }
       await load();
     } finally {
       setBusy(false);
@@ -92,7 +99,9 @@ export const MenteeKesaksianPanel: React.FC = () => {
         />
         <DriveUploadButton
           label={photo ? 'Foto draf siap' : 'Foto opsional (inbox Marturia)'}
+          hasFile={Boolean(photo)}
           onFile={async (payload) => setPhoto(payload)}
+          onClear={() => setPhoto(null)}
         />
         <div className="flex gap-2">
           <button

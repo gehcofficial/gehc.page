@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Award, BookOpen, GraduationCap, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Award, BookOpen, GraduationCap, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { buildRecreationalTree, type RecreationalNode } from '../../lib/recreational';
 
@@ -248,17 +248,91 @@ export const CatalogReviewPanel: React.FC = () => {
     }
   };
 
-  const archiveRec = async (id: string) => {
-    setBusy(id);
+  const toggleRec = async (leaf: RecreationalNode) => {
+    setBusy(leaf.id);
     try {
-      const res = await fetch(`/api/recreational/${id}`, {
+      const res = await fetch(`/api/recreational/${leaf.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectable: false }),
+        body: JSON.stringify({ selectable: leaf.selectable === false ? true : false }),
       });
-      if (!res.ok) throw new Error('Gagal arsip');
+      if (!res.ok) throw new Error('Gagal ubah status');
       await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const renameRec = async (leaf: RecreationalNode) => {
+    const name = window.prompt('Nama baru:', leaf.name);
+    if (!name || !name.trim() || name.trim() === leaf.name) return;
+    setBusy(leaf.id);
+    try {
+      const res = await fetch(`/api/recreational/${leaf.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal ganti nama');
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteRec = async (leaf: RecreationalNode) => {
+    if (!window.confirm(`Hapus "${leaf.name}" dari katalog minat?`)) return;
+    setBusy(leaf.id);
+    try {
+      const res = await fetch(`/api/recreational/${leaf.id}`, { method: 'DELETE', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menghapus');
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const renameInst = async (inst: Institution) => {
+    const name = window.prompt('Nama kampus baru:', inst.name);
+    if (!name || !name.trim() || name.trim() === inst.name) return;
+    setBusy(inst.id);
+    try {
+      const res = await fetch(`/api/institutions/${inst.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal ganti nama');
+      addToast({ type: 'success', title: 'Nama kampus diperbarui' });
+      setInstQuery(name.trim());
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteInst = async (inst: Institution) => {
+    if (!window.confirm(`Hapus "${inst.name}" dari katalog kampus?`)) return;
+    setBusy(inst.id);
+    try {
+      const res = await fetch(`/api/institutions/${inst.id}`, { method: 'DELETE', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menghapus');
+      addToast({ type: 'success', title: 'Kampus dihapus' });
+      setInstHits((prev) => prev.filter((x) => x.id !== inst.id));
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
     } finally {
@@ -338,14 +412,53 @@ export const CatalogReviewPanel: React.FC = () => {
     }
   };
 
+  const [editingTitle, setEditingTitle] = useState<{ id: string; abbr: string; nameId: string; nameEn: string } | null>(null);
+
+  const saveTitle = async () => {
+    if (!editingTitle || !editingTitle.abbr.trim()) return;
+    setBusy(editingTitle.id);
+    try {
+      const res = await fetch(`/api/titles/${editingTitle.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          abbr: editingTitle.abbr.trim(),
+          nameId: editingTitle.nameId.trim() || editingTitle.abbr.trim(),
+          nameEn: editingTitle.nameEn.trim() || editingTitle.abbr.trim(),
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal menyimpan gelar');
+      setEditingTitle(null);
+      addToast({ type: 'success', title: 'Gelar diperbarui' });
+      await load();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
+    } finally {
+      setBusy('');
+    }
+  };
+
   const deleteTitle = async (row: TitleRow) => {
-    if (row.locked) return;
-    if (!window.confirm(`Hapus ${row.abbr} dari katalog?`)) return;
+    // Gelar inti (Pdt/Pnt/Dkn/Kr): wajib ketik singkatan persis sebagai konfirmasi.
+    if (row.locked) {
+      const typed = window.prompt(
+        `Hapus gelar inti "${row.abbr}" (${row.nameId}) dari katalog?\nProfil lama tetap tampil, tapi hilang dari picker.\n\nKetik persis: ${row.abbr}`,
+      );
+      if (typed !== row.abbr) {
+        if (typed !== null) addToast({ type: 'error', title: 'Batal', description: 'Ketik tidak cocok.' });
+        return;
+      }
+    } else if (!window.confirm(`Hapus ${row.abbr} dari katalog?`)) {
+      return;
+    }
     setBusy(row.id);
     try {
       const res = await fetch(`/api/titles/${row.id}`, { method: 'DELETE', credentials: 'include' });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'Gagal menghapus');
+      addToast({ type: 'success', title: 'Gelar dihapus' });
       await load();
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : 'Gagal' });
@@ -484,15 +597,34 @@ export const CatalogReviewPanel: React.FC = () => {
                     <p className="font-semibold text-[#8C8880]">{cat.name}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {(cat.children || []).map((leaf) => (
-                        <button
-                          key={leaf.id}
-                          type="button"
-                          title="Arsipkan (sembunyikan dari picker)"
-                          onClick={() => archiveRec(leaf.id)}
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${leaf.selectable === false ? 'bg-gray-200 text-gray-400 line-through' : 'bg-[#F3F1EC] text-[#8C8880]'}`}
-                        >
-                          {leaf.name}
-                        </button>
+                        <span key={leaf.id} className="inline-flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            title={leaf.selectable === false ? 'Tampilkan lagi' : 'Arsipkan (sembunyikan dari picker)'}
+                            onClick={() => toggleRec(leaf)}
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${leaf.selectable === false ? 'bg-gray-200 text-gray-400 line-through' : 'bg-[#F3F1EC] text-[#8C8880]'}`}
+                          >
+                            {leaf.name}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Ganti nama ${leaf.name}`}
+                            title="Ganti nama"
+                            onClick={() => renameRec(leaf)}
+                            className="p-0.5 text-[#8C8880] hover:text-[#181818]"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Hapus ${leaf.name}`}
+                            title="Hapus dari katalog"
+                            onClick={() => deleteRec(leaf)}
+                            className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -528,14 +660,33 @@ export const CatalogReviewPanel: React.FC = () => {
                 />
                 <div className="flex flex-wrap gap-1">
                   {instHits.map((i) => (
-                    <button
-                      key={i.id}
-                      type="button"
-                      onClick={() => setTargetInstId(i.id)}
-                      className={`px-2 py-1 rounded-full text-[9px] font-bold ${targetInstId === i.id ? 'bg-[#181818] text-white' : 'bg-white border border-sky-200'}`}
-                    >
-                      {i.name}
-                    </button>
+                    <span key={i.id} className="inline-flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setTargetInstId(i.id)}
+                        className={`px-2 py-1 rounded-full text-[9px] font-bold ${targetInstId === i.id ? 'bg-[#181818] text-white' : 'bg-white border border-sky-200'}`}
+                      >
+                        {i.name}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Ganti nama ${i.name}`}
+                        title="Ganti nama"
+                        onClick={() => renameInst(i)}
+                        className="p-0.5 text-sky-700 hover:text-[#181818]"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus ${i.name}`}
+                        title="Hapus dari katalog"
+                        onClick={() => deleteInst(i)}
+                        className="p-0.5 text-sky-700 hover:text-[#FF416C]"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </span>
                   ))}
                 </div>
                 <button
@@ -600,32 +751,84 @@ export const CatalogReviewPanel: React.FC = () => {
               <div key={kind} className="text-xs">
                 <p className="font-bold">{kind === 'CHURCH' ? 'Gelar pelayanan' : 'Gelar akademis'}</p>
                 <p className="text-[10px] text-[#8C8880] mt-0.5 mb-1">
-                  Klik chip untuk arsip/tampilkan. Hapus hanya untuk item yang tidak dikunci.
+                  Klik chip untuk arsip/tampilkan. Pensil = ubah singkatan & nama lengkap; sampah = hapus
+                  {kind === 'CHURCH' ? ' (gelar inti wajib ketik singkatan).' : '.'}
                 </p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {titles.filter((t) => t.kind === kind).map((t) => (
                     <span key={t.id} className="inline-flex items-center gap-0.5">
                       <button
                         type="button"
-                        title={t.active ? 'Arsipkan' : 'Tampilkan lagi'}
+                        title={`${t.nameId} / ${t.nameEn} — ${t.active ? 'Arsipkan' : 'Tampilkan lagi'}`}
                         onClick={() => toggleTitle(t)}
                         className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${t.active ? 'bg-[#F3F1EC] text-[#8C8880]' : 'bg-gray-200 text-gray-400 line-through'}`}
                       >
                         {t.abbr}
                       </button>
-                      {!t.locked && (
-                        <button
-                          type="button"
-                          aria-label={`Hapus ${t.abbr}`}
-                          onClick={() => deleteTitle(t)}
-                          className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        aria-label={`Ubah ${t.abbr}`}
+                        title="Ubah singkatan & nama lengkap"
+                        onClick={() => setEditingTitle({ id: t.id, abbr: t.abbr, nameId: t.nameId, nameEn: t.nameEn })}
+                        className="p-0.5 text-[#8C8880] hover:text-[#181818]"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus ${t.abbr}`}
+                        title={t.locked ? 'Hapus gelar inti (wajib ketik singkatan)' : 'Hapus dari katalog'}
+                        onClick={() => deleteTitle(t)}
+                        className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </span>
                   ))}
                 </div>
+                {editingTitle && titles.some((t) => t.id === editingTitle.id && t.kind === kind) && (
+                  <div className="mt-2 rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] p-2.5 flex flex-wrap items-end gap-2">
+                    <label className="space-y-0.5">
+                      <span className="block text-[9px] font-bold uppercase text-[#8C8880]">Singkatan</span>
+                      <input
+                        value={editingTitle.abbr}
+                        onChange={(e) => setEditingTitle({ ...editingTitle, abbr: e.target.value })}
+                        className="w-24 px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs bg-white"
+                      />
+                    </label>
+                    <label className="space-y-0.5 flex-1 min-w-[140px]">
+                      <span className="block text-[9px] font-bold uppercase text-[#8C8880]">Nama lengkap (ID)</span>
+                      <input
+                        value={editingTitle.nameId}
+                        onChange={(e) => setEditingTitle({ ...editingTitle, nameId: e.target.value })}
+                        className="w-full px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs bg-white"
+                      />
+                    </label>
+                    <label className="space-y-0.5 flex-1 min-w-[140px]">
+                      <span className="block text-[9px] font-bold uppercase text-[#8C8880]">Nama lengkap (EN)</span>
+                      <input
+                        value={editingTitle.nameEn}
+                        onChange={(e) => setEditingTitle({ ...editingTitle, nameEn: e.target.value })}
+                        className="w-full px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs bg-white"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTitle(null)}
+                      className="px-2.5 py-1.5 rounded-lg border border-[#D9D7D0] text-[10px] font-bold bg-white"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!!busy || !editingTitle.abbr.trim()}
+                      onClick={saveTitle}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#181818] text-white text-[10px] font-bold disabled:opacity-50"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
