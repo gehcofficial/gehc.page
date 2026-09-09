@@ -14,15 +14,27 @@ export function useWaitingPoolCount(enabled = true) {
   });
 }
 
-export function useUpcomingBirthdays(days = 7, enabled = true) {
-  return useQuery({
-    queryKey: ['birthdays-upcoming', days],
+export type BirthdayWeek = {
+  birthdays: Array<{ id: string; name: string; avatar?: string | null; birthDate?: string; daysToBirthday: number }>;
+  weekStart: string;
+  weekEnd: string;
+  todayCount: number;
+};
+
+export function useUpcomingBirthdays(enabled = true) {
+  return useQuery<BirthdayWeek>({
+    queryKey: ['birthdays-week'],
     enabled,
     queryFn: async () => {
-      const r = await fetch(`/api/portal/birthdays/upcoming?days=${days}`, { credentials: 'include' });
-      if (!r.ok) return [];
+      const r = await fetch('/api/portal/birthdays/upcoming', { credentials: 'include' });
+      if (!r.ok) return { birthdays: [], weekStart: '', weekEnd: '', todayCount: 0 };
       const d = await r.json();
-      return d.birthdays || [];
+      return {
+        birthdays: d.birthdays || [],
+        weekStart: d.weekStart || '',
+        weekEnd: d.weekEnd || '',
+        todayCount: d.todayCount || 0,
+      };
     },
   });
 }

@@ -1,6 +1,16 @@
 # GEHC Portal — Handoff
 
-## Current — Cover wajib publik + perbaiki langsung Echad (9 Sep 2026)
+## Current — Ultah Senin–Minggu WIB + ucapan HUT (9 Sep 2026)
+
+**Jawaban batasan minggu:** sebelumnya jendela geser 7 hari dihitung UTC (bisa salah sehari 00–07 WIB). Kini Senin–Minggu berjalan dalam WIB; label jujur di dashboard; 29 Feb → 28 Feb non-kabisat.
+**Notifikasi:** cron harian kirim `BIRTHDAY_WISH` ke user + digest Komisi (dedupe harian); bell existing.
+**Panel caption (Jemaat → Ucapan HUT, Komisi):** teks `{nama}`/`{umur}` + foto URL + pratinjau; tabel `birthday_settings`.
+**Tampilan:** kartu ucapan hari-H di dashboard + banner Akun Saya ("dari GMIM Eben Haezer Cikarang"); landing tak disentuh.
+**Verifikasi:** lint bersih, 273 test hijau (9 baru), migrasi + schema check hijau. Tanpa sisa manual selain QA.
+
+---
+
+## Prior — Cover wajib publik + perbaiki langsung Echad (9 Sep 2026)
 
 **Akar (fakta prod):** file cover ada & tidak di-trash, tapi permission hanya owner/writer — thumbnail lh3 butuh publik. Ukuran bukan masalah (maks 8MB, dikompres server).
 **Fix kode:** upload/sync mempublikkan file saat jadi cover (`setPublicReader`).

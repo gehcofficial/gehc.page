@@ -13,6 +13,7 @@ import {
 import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortalQueries';
 import { useLang } from '../../context/LangContext';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
+import { BirthdayWishCard } from './BirthdayWishCard';
 import { displayAvatar } from '../../lib/avatar';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
@@ -38,7 +39,25 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
   const isGroupScoped = (isGroupMentor || isMentee) && userAssignedGroupId;
 
   const { data: onboardingCount = 0 } = useWaitingPoolCount(isKomisi || isSuperAdmin);
-  const { data: upcomingBirthdays = [] } = useUpcomingBirthdays(7, true);
+  const { data: birthdayWeek } = useUpcomingBirthdays(true);
+  const upcomingBirthdays = birthdayWeek?.birthdays || [];
+  const todayBirthdays = upcomingBirthdays.filter((b) => b.daysToBirthday === 0);
+  const restBirthdays = upcomingBirthdays.filter((b) => (b.daysToBirthday ?? 0) !== 0);
+
+  const fmtShortDate = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00Z`);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  };
+  const weekLabel = birthdayWeek?.weekStart && birthdayWeek?.weekEnd
+    ? `Senin–Minggu · ${fmtShortDate(birthdayWeek.weekStart)} – ${fmtShortDate(birthdayWeek.weekEnd)}`
+    : '';
+  const birthdayDayLabel = (days?: number) => {
+    if (days === 0) return 'Hari ini';
+    if (typeof days === 'number' && days < 0) return 'Sudah lewat';
+    return `${days ?? '?'} hari lagi`;
+  };
 
   const visibleGroups = useMemo(() => {
     if (isAlumni) return [];
@@ -234,14 +253,17 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
         </div>
       )}
 
-      {upcomingBirthdays.length > 0 && (
+      <BirthdayWishCard birthdays={todayBirthdays} />
+      {restBirthdays.length > 0 && (
         <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
-          <h3 className="text-sm font-bold mb-3">Ulang tahun minggu ini</h3>
+          <h3 className="text-sm font-bold">Ulang tahun minggu ini</h3>
+          {weekLabel && <p className="text-[11px] text-[#8C8880] mt-0.5 mb-3">{weekLabel}</p>}
+          {!weekLabel && <div className="mb-3" />}
           <div className="flex flex-wrap gap-2">
-            {upcomingBirthdays.map((b: { id: string; name: string; avatar?: string; daysToBirthday?: number }) => (
+            {restBirthdays.map((b: { id: string; name: string; avatar?: string; daysToBirthday?: number }) => (
               <span key={b.id} className="inline-flex items-center gap-2 text-[10px] font-bold px-2 py-1.5 rounded-full bg-pink-50 text-pink-700">
                 <img src={displayAvatar(b.name, b.avatar)} alt="" className="w-6 h-6 rounded-full object-cover" />
-                {b.name.split(' ')[0]} · {b.daysToBirthday === 0 ? 'Hari ini' : `${b.daysToBirthday} hari`}
+                {b.name.split(' ')[0]} · {birthdayDayLabel(b.daysToBirthday)}
               </span>
             ))}
           </div>

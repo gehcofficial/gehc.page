@@ -114,6 +114,7 @@ import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
 import { registerDigestRoutes } from './routes/digest.mjs';
+import { registerBirthdayRoutes } from './routes/birthday.mjs';
 import { registerMonitoringRoutes } from './routes/monitoring.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerEventSignupRoutes } from './routes/event-signup.mjs';
@@ -978,7 +979,7 @@ app.get('/api/notifications', wrap(async (req, res) => {
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
       if (n.title === 'Push Subscription') return false;
-      if (['ROLE_ASSIGNED', 'RUNBOOK_DUE', 'CATALOG_REMINDER', 'EVENT_ARCHIVED', 'APPROVAL_ITEM', 'DRIVE_DRIFT'].includes(n.type)) {
+      if (['ROLE_ASSIGNED', 'RUNBOOK_DUE', 'CATALOG_REMINDER', 'EVENT_ARCHIVED', 'APPROVAL_ITEM', 'DRIVE_DRIFT', 'BIRTHDAY_WISH'].includes(n.type)) {
         return n.memberId === req.authUser.id;
       }
       if (n.type !== 'MENTION') return true;
@@ -5842,6 +5843,7 @@ registerVisualsPublishRoutes(app, { wrap });
   registerOrgRoutes(app, { wrap });
   registerEventLifecycleRoutes(app, { wrap });
   registerDigestRoutes(app, { wrap });
+  registerBirthdayRoutes(app, { wrap });
   registerMonitoringRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
