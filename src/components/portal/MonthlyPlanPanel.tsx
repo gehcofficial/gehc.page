@@ -56,6 +56,12 @@ export const MonthlyPlanPanel: React.FC = () => {
   const [sharing, setSharing] = useState<Deliverable | null>(null);
   const [shareTarget, setShareTarget] = useState('');
   const [shareBusy, setShareBusy] = useState(false);
+  const [bipraList, setBipraList] = useState<string[]>(['Pemuda']);
+  const [kolomList, setKolomList] = useState<string[]>([]);
+  const [genBipra, setGenBipra] = useState('Pemuda');
+  const [genKolom, setGenKolom] = useState('');
+  const [genDivision, setGenDivision] = useState('LITURGIA');
+  const [genBusy, setGenBusy] = useState(false);
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/ministry-plans/${yearMonth}`, { credentials: 'include' });
@@ -79,7 +85,47 @@ export const MonthlyPlanPanel: React.FC = () => {
       .then((r) => r.json())
       .then((d) => setPlanEvents((d.events || []).map((e: PlanEvent) => ({ id: e.id, name: e.name, status: e.status }))))
       .catch(() => setPlanEvents([]));
+    fetch('/api/org/nodes?domain=BIPRA', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        const labels = (d.nodes || []).map((n: { label: string }) => n.label).filter(Boolean);
+        if (labels.length) {
+          setBipraList(labels);
+          setGenBipra((cur) => (labels.includes(cur) ? cur : labels[0]));
+        }
+      })
+      .catch(() => {});
+    fetch('/api/org/nodes?domain=KOLOM', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        const labels = (d.nodes || []).map((n: { label: string }) => n.label).filter(Boolean);
+        if (labels.length) setKolomList(labels);
+      })
+      .catch(() => {});
   }, [canWrite]);
+
+  const generateServices = async () => {
+    setGenBusy(true);
+    try {
+      const r = await fetch(`/api/ministry-plans/${yearMonth}/generate-services`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bipra: genBipra, kolom: genKolom || null, division: genDivision }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal generate.');
+      addToast({
+        type: 'success',
+        title: `Event ibadah dibuat: ${d.created?.length || 0}`,
+        description: d.skipped?.length ? `Dilewati (sudah ada): ${d.skipped.length}` : 'Lengkapi konten publik di Program & Event.',
+      });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate' });
+    } finally {
+      setGenBusy(false);
+    }
+  };
 
   const shareDeliverable = async () => {
     if (!sharing) return;
@@ -367,6 +413,49 @@ export const MonthlyPlanPanel: React.FC = () => {
                 {shareBusy ? 'Membagikan…' : shareTarget ? 'Tautkan' : 'Buat event baru'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {canWrite && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-wider text-sky-800">
+            Event ibadah mingguan dari tema — nama auto “{genKolom ? `Ibadah ${genKolom}` : `Ibadah ${genBipra}`}: Tema - DD Mon YYYY”
+          </p>
+          <div className="grid sm:grid-cols-4 gap-2">
+            <select
+              value={genBipra}
+              onChange={(e) => setGenBipra(e.target.value)}
+              className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white"
+              aria-label="BIPRA"
+            >
+              {bipraList.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select
+              value={genKolom}
+              onChange={(e) => setGenKolom(e.target.value)}
+              className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white"
+              aria-label="Kolom (opsional)"
+            >
+              <option value="">Semua kolom</option>
+              {kolomList.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <select
+              value={genDivision}
+              onChange={(e) => setGenDivision(e.target.value)}
+              className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white"
+              aria-label="Divisi pelaksana"
+            >
+              {divisions.map((d) => <option key={d} value={d}>{DIV_LABEL[d] || d}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => void generateServices()}
+              disabled={genBusy}
+              className="px-3 py-2 rounded-xl bg-sky-700 text-white text-xs font-bold disabled:opacity-50"
+            >
+              {genBusy ? 'Membuat…' : 'Buatkan event ibadah'}
+            </button>
           </div>
         </div>
       )}

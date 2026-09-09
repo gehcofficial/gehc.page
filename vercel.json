@@ -21,5 +21,8 @@
   ],
   "functions": {
     "api/index.mjs": { "maxDuration": 30, "includeFiles": "server/**" }
-  }
+  },
+  "crons": [
+    { "path": "/api/cron/event-lifecycle", "schedule": "0 1 * * *" }
+  ]
 }

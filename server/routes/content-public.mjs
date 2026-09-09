@@ -23,7 +23,7 @@ import {
 const CMS_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
 /** Kategori agenda — dropdown tetap, bukan ketikan bebas. */
-const EVENT_ACTIVITY_CATEGORIES = [
+export const EVENT_ACTIVITY_CATEGORIES = [
   'Ibadah & Konser',
   'Retret',
   'Seminar & Kelas',
@@ -309,7 +309,10 @@ export function registerContentPublicRoutes(app, { wrap }) {
         return res.status(400).json({ error: `Kategori harus salah satu dari: ${EVENT_ACTIVITY_CATEGORIES.join(', ')}.` });
       }
       const bannerUrl = String(body.bannerUrl || '').trim();
-      if (!bannerUrl) return res.status(400).json({ error: 'Banner wajib (pilih slot atau tempel URL).' });
+      const willPublish = body.isPublished !== false;
+      if (willPublish && !bannerUrl) {
+        return res.status(400).json({ error: 'Banner wajib untuk diterbitkan (draf boleh kosong).' });
+      }
       const data = {
         tenantId: 'tenant-youth',
         type: 'ACTIVITY',

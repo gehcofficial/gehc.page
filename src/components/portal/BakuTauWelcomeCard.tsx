@@ -3,6 +3,7 @@ import { CalendarClock, MessageCircle } from 'lucide-react';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
 
 type Props = {
+  eventName?: string;
   whatsappGroupUrl?: string | null;
   eventDate?: string;
   venueName?: string;
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export const BakuTauWelcomeCard: React.FC<Props> = ({
+  eventName = 'BAKU TAU 4.0',
   whatsappGroupUrl,
   eventDate = '2026-09-12T15:00:00+07:00',
   venueName = 'GMIM Eben Haezer Cikarang',
@@ -44,7 +46,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
       <div>
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-2">
           <CalendarClock className="w-3 h-3" />
-          BAKU TAU 4.0
+          {eventName}
         </span>
         {!compact && (
           <h2 className="font-black text-[#1B1B1B] text-lg">
@@ -74,7 +76,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=${compact ? 120 : 180}x${compact ? 120 : 180}&ecc=M&data=${encodeURIComponent(checkInCode)}`}
-            alt="QR daftar ulang BAKU TAU"
+            alt={`QR daftar ulang ${eventName}`}
             width={compact ? 120 : 180}
             height={compact ? 120 : 180}
             className="mx-auto rounded-xl border border-emerald-100"

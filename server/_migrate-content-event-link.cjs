@@ -33,6 +33,24 @@ const mysql = require('mysql2/promise');
     );
     if (upd.affectedRows) console.log(`cnt-bakutau tertaut (${upd.affectedRows})`);
     else console.log('cnt-bakutau sudah tertaut / tidak ada');
+
+    // Draf konten untuk event yang belum punya (agar muncul di alur by-event).
+    const [bare] = await conn.query(
+      `SELECT e.id, e.name FROM EventProgram e
+       LEFT JOIN content_items c ON c.event_id = e.id AND c.type = 'ACTIVITY'
+       WHERE c.id IS NULL`,
+    );
+    let drafts = 0;
+    for (const ev of bare) {
+      const id = `cnt-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}${drafts}`;
+      await conn.query(
+        `INSERT INTO content_items (id, tenant_id, type, title, category, is_featured_event, is_published, banner_url, event_id)
+         VALUES (?, 'tenant-youth', 'ACTIVITY', ?, 'Lainnya', 0, 0, '', ?)`,
+        [id, String(ev.name || 'Kegiatan').slice(0, 255), ev.id],
+      ).catch(() => null);
+      drafts += 1;
+    }
+    console.log(`draf konten dibuat: ${drafts}`);
   } finally {
     await conn.end();
   }

@@ -1,18 +1,23 @@
 # GEHC Portal — Handoff
 
-## Current — MERGED ke main + prod hijau (8 Sep 2026)
+## Current — MERGED ke main + prod hijau, putaran 1 (8 Sep 2026, `9566a71`)
 
-**Merge:** `9566a71` (`staging` → `main`, no-ff). Konflik 1 file generated (`public/visuals/manifest.json`) — diambil versi main (root Drive prod). Push `main` OK → Vercel Production build Ready.
+- DB prod termigrasi (`subject_name`, `deliverable event_id` + FK, `request show_if`, `content event_id`); schema check hijau; tanpa `prisma migrate deploy`/seed.
+- Env prod terverifikasi; smoke prod hijau (35 pendaftar utuh).
+- Rollback putaran 1: `git revert -m 1 9566a71` + push main.
 
-**DB prod:** `subject_name`, `deliverable event_id` (+FK, collation adaptif per-cluster), `request show_if`, `content event_id` — semua termigrasi; `db:schema:check:prod` hijau. Tanpa `prisma migrate deploy`, tanpa seed/demo.
+## Current — Merge putaran 2: generate ibadah, landing 3 lapis, hapus event, daftar generik, QR multi-event, cron (8 Sep 2026)
 
-**Env prod:** APP_URL/CORS/WebAuthn = `gehcpage.vercel.app`; `ENABLE_DEMO_PERSONAS=false`; `SUPERADMIN_EMAILS` kosong; `WEBAUTHN_MOCK` unset; secrets lengkap; Drive prod provision OK (228 folder ada).
+### Done (staging `d250efa`, ikut merge ini)
 
-**Smoke prod:** `/api/auth/config` configured:true; `/api/events/bakutau` ACTIVE + venue benar + 35 pendaftar utuh; endpoint konten by-event live (401 guarded); landing OK.
-
-**Sisa manual:** passkey prod daftar ulang; OAuth origin prod di Google Console; `drive:auth` + token sync bila Drive tulis disentuh; pantau BAKU TAU 12 Sep.
-
-**Rollback:** `git revert -m 1 9566a71` + push main (kolom DB nullable, aman dibiarkan).
+- **Generate ibadah:** `POST /api/ministry-plans/:ym/generate-services` + UI Rencana bulan + 7 unit test.
+- **Auto-draft konten:** `POST /api/events` buat draf; backfill yatim; banner pengingat; banner wajib hanya saat Terbit.
+- **Landing 3 lapis:** `GET /api/events/landing` + `EventsTimeline` + badge hari-H WIB.
+- **Hapus event:** `DELETE /api/events/:id` blokir-bila-ada-data + tombol UI.
+- **Daftar generik:** `register`/`claim`/`my-registration` + `EventSignupPage` + stats gabungan + walk-in per event.
+- **QR multi-event:** `GEHC-EA` attendee + scanner fallback + `registrationCodeFor`; BAKU TAU frozen.
+- **Cron lifecycle:** DONE H+1 / ARCHIVED H+7 + notifikasi `EVENT_ARCHIVED`; `CRON_SECRET` di Vercel Production.
+- **Verifikasi:** lint bersih, 47 file / 252 test hijau; enum `EVENT_ARCHIVED` termigrasi lokal.
 
 ---
 

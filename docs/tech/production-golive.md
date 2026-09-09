@@ -17,6 +17,7 @@ Filter **Production** (bukan Preview). Wajib beda dari staging:
 | `OPERATOR_SESSION_SECRET` | Kuat, **beda** dari `SESSION_SECRET` dan dari staging |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Client OAuth yang whitelist domain prod |
 | `GDRIVE_ROOT_FOLDER_ID` | Root Drive **production** |
+| `CRON_SECRET` | Acak 32+ char — Vercel Cron kirim Bearer otomatis |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | SA yang di-share ke root prod |
 | `WEBAUTHN_MOCK` | **jangan** `true` (hapus / `false`) |
 | `SUPERADMIN_EMAILS` | **kosong** (auto-grant mati) |
