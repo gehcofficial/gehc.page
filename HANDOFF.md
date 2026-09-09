@@ -2,7 +2,16 @@
 
 ## Current — MERGED ke main + prod hijau, putaran 1 (8 Sep 2026, `9566a71`)
 
-## Current — Merge putaran 3: monitoring persist, album ramah, approval instan, drift (9 Sep 2026)
+## Current — MERGED putaran 3 + staging & prod hijau (9 Sep 2026)
+
+**Merge:** staging (3 commit: monitoring / drive / notif) → main, konflik HANDOFF digabung. Push main OK → Production + Preview Ready.
+**DB:** enum `APPROVAL_ITEM` + `DRIVE_DRIFT` termigrasi lokal+staging+prod; schema check hijau semua.
+**Smoke prod:** BAKU TAU ACTIVE + 36 pendaftar (tumbuh, utuh); cron digest terjaga (403); staging 3 commit live.
+**Sisa:** passkey prod; re-auth Drive + sync token (manual); pantau BAKU TAU 12 Sep; cron pertama 01:00 UTC.
+
+---
+
+## Prior — Merge putaran 3: monitoring persist, album ramah, approval instan, drift (9 Sep 2026)
 
 ### Done (staging, ikut merge ini — 3 commit)
 
