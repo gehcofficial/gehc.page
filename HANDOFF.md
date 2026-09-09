@@ -1,6 +1,15 @@
 # GEHC Portal — Handoff
 
-## Current — Monitoring persist + kunci grup + album ramah (9 Sep 2026, prod)
+## Current — Token fail-safe + kartu deploy; staging & main sinkron (9 Sep 2026)
+
+**Temuan:** probe `Gagal probe EROFS` ternyata BUKAN token mati — token env valid, tapi listener refresh mencoba tulis file di FS read-only Vercel. `saveTokens`/`loadSavedTokens` kini fail-safe (token tetap dipakai dari memori/env).
+**Commit staging `fca84fd` → merge main `991ddfc`:** kartu Sinkronisasi & Deploy (banding commit GitHub + redeploy via hook + penjelasan env-butuh-redeploy), `GET /api/version`, `POST /api/admin/redeploy`.
+**Smoke:** staging `/api/version` = fca84fd; prod = 991ddfc. Tanpa migrasi DB (hanya kode).
+**Sisa manual:** buat Deploy Hook di Vercel (Settings → Git → Deploy Hooks, branch main) + pasang `VERCEL_DEPLOY_HOOK_URL` sebagai env Production agar tombol redeploy aktif; pantau BAKU TAU 12 Sep.
+
+---
+
+## Prior — Monitoring persist + kunci grup + album ramah (9 Sep 2026, prod)
 
 ### Done (lokal, belum commit/push)
 
