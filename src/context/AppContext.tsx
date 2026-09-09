@@ -76,6 +76,8 @@ interface AppContextType {
   currentRole: UserRole;
   setCurrentUserById: (userId: string) => void;
   userAssignedGroupId?: string;
+  /** true bila login tapi daftar peran kosong (sesi basi) — bukan MENTEE sungguhan. */
+  roleMissing: boolean;
   isSuperAdmin: boolean;
   isPlatformAdmin: boolean;
   isPlatformOperator: boolean;
@@ -123,8 +125,8 @@ interface AppContextType {
   deleteContentItem: (id: string) => void;
 
   // Monitoring Operations
-  submitMonitoringRecord: (record: Omit<MonitoringRecord, 'id' | 'created_at'>) => void;
-  deleteMonitoringRecord: (id: string) => void;
+  submitMonitoringRecord: (record: Omit<MonitoringRecord, 'id' | 'created_at'>) => Promise<void>;
+  deleteMonitoringRecord: (id: string) => Promise<void>;
 
   // Group Member Operations
   addGroupMember: (member: Omit<GroupMember, 'id' | 'joinedDate'>) => Promise<void>;
@@ -703,6 +705,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const currentRole: UserRole = currentRoleMapping.role;
   const userAssignedGroupId = currentRoleMapping.groupId;
+  // Login tapi tanpa peran termuat (sesi basi/gagal sinkron) — JANGAN tampilkan
+  // sebagai MENTEE grup pertama. PortalLayout menampilkan gate eksplisit.
+  const roleMissing =
+    Boolean(authUser) &&
+    authUser?.onboardingStatus !== 'WAITING_POOL' &&
+    myRoleOptions.length === 0;
 
   const {
     isSuperAdmin,
@@ -870,26 +878,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Monitoring Operations
-  const submitMonitoringRecord = (record: Omit<MonitoringRecord, 'id' | 'created_at'>) => {
-    const newRecord: MonitoringRecord = {
-      ...record,
-      id: `mon-${Date.now()}`,
-      created_at: new Date().toISOString(),
-    };
-    setMonitoringRecords((prev) => [newRecord, ...prev]);
-    addToast({
-      type: 'success',
-      title: 'Data Monitoring Berhasil Disimpan',
-      description: `Laporan persekutuan ${newRecord.group_name} tanggal ${newRecord.date} telah tersimpan.`,
-    });
+  // Monitoring Operations — tulis ke TiDB agar terlihat Komisi & perangkat lain.
+  // localStorage hanya arsip offline bila API gagal.
+  const submitMonitoringRecord = async (record: Omit<MonitoringRecord, 'id' | 'created_at'>) => {
+    try {
+      const r = await fetch('/api/monitoring', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_id: record.group_id,
+          date: record.date,
+          data: record.data,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menyimpan ke server.');
+      setMonitoringRecords((prev) => [d.record as MonitoringRecord, ...prev]);
+      addToast({
+        type: 'success',
+        title: 'Laporan tersimpan & terlihat Komisi',
+        description: `Persekutuan ${record.group_name} tanggal ${record.date}.`,
+      });
+    } catch (err) {
+      const offline: MonitoringRecord = {
+        ...record,
+        id: `mon-${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
+      setMonitoringRecords((prev) => [offline, ...prev]);
+      addToast({
+        type: 'error',
+        title: 'Server tidak terjangkau — tersimpan lokal saja',
+        description: err instanceof Error ? err.message : 'Kirim ulang saat online agar Komisi melihat.',
+      });
+    }
   };
 
-  const deleteMonitoringRecord = (id: string) => {
+  const refreshMonitoringRecords = useCallback(async () => {
+    try {
+      const r = await fetch('/api/monitoring', { credentials: 'include' });
+      if (!r.ok) return;
+      const d = await r.json().catch(() => ({}));
+      if (Array.isArray(d.records)) setMonitoringRecords(d.records as MonitoringRecord[]);
+    } catch { /* arsip lokal tetap dipakai */ }
+  }, []);
+
+  useEffect(() => {
+    if (authUser) void refreshMonitoringRecords();
+  }, [authUser?.id, refreshMonitoringRecords]);
+
+  const deleteMonitoringRecord = async (id: string) => {
+    try {
+      await fetch(`/api/monitoring/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    } catch { /* hapus lokal saja */ }
     setMonitoringRecords((prev) => prev.filter((rec) => rec.id !== id));
     addToast({
       type: 'info',
-      title: 'Data Monitoring Dihapus',
+      title: 'Laporan Dihapus',
       description: 'Laporan monitoring telah dihapus.',
     });
   };
@@ -1153,6 +1199,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentRole,
         setCurrentUserById,
         userAssignedGroupId,
+        roleMissing,
         isSuperAdmin,
         isPlatformAdmin: platformAdminEffective,
         isPlatformOperator,

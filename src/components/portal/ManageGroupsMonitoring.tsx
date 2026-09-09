@@ -64,21 +64,30 @@ export const ManageGroupsMonitoring: React.FC = () => {
   const slots = useMediaSlots();
   const queryClient = useQueryClient();
 
-  const hasAssignedGroup = (isGroupMentor || isMentee) && userAssignedGroupId;
-  const availableGroups = hasAssignedGroup
-    ? groups.filter((g) => g.id === userAssignedGroupId)
+  // Mentor/mentee TERKUNCI ke grup penugasannya — tidak pernah default ke grup pertama.
+  // Bila penugasan belum termuat, tampilkan status eksplisit (bukan grup orang lain).
+  const boundGroupId = (isGroupMentor || isMentee) ? userAssignedGroupId : undefined;
+  const needsGroup = (isGroupMentor || isMentee) && !boundGroupId;
+  const availableGroups = boundGroupId
+    ? groups.filter((g) => g.id === boundGroupId)
     : groups;
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
-    hasAssignedGroup ? userAssignedGroupId! : groups[0]?.id || 'grp-1'
+    boundGroupId || groups[0]?.id || ''
   );
+
+  useEffect(() => {
+    if (boundGroupId) setSelectedGroupId(boundGroupId);
+  }, [boundGroupId]);
 
   const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums'>('monitoring-form');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string }>>([]);
 
-  // Selected group object
-  const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0];
-  const groupMembers = members.filter((m) => m.group_id === activeGroup.id);
+  // Selected group object — pengguna terikat TIDAK PERNAH fallback ke groups[0].
+  const activeGroup = groups.find((g) => g.id === selectedGroupId)
+    || (!boundGroupId ? groups[0] : undefined)
+    || null;
+  const groupMembers = activeGroup ? members.filter((m) => m.group_id === activeGroup.id) : [];
   // Roster nyata: sembunyikan baris tanpa userId (seed/orphan) di UI default.
   // Superadmin bisa menampilkan + menghapus orphan dengan konfirmasi ketik.
   const [showOrphan, setShowOrphan] = useState(false);
@@ -239,9 +248,30 @@ export const ManageGroupsMonitoring: React.FC = () => {
     }
   };
 
+  if (needsGroup) {
+    return (
+      <div className="rounded-[28px] bg-amber-50 border border-amber-200 p-6 text-center space-y-2">
+        <p className="text-sm font-black text-amber-900">Akun belum terikat kelompok</p>
+        <p className="text-xs text-amber-800 leading-relaxed">
+          Peranmu memerlukan grup (cth. Mentor Echad), tapi penugasan belum termuat.
+          Muat ulang halaman; bila tetap, hubungi Komisi untuk cek penugasan peranmu.
+          Panel tidak menampilkan grup lain agar tidak tertukar.
+        </p>
+      </div>
+    );
+  }
+
+  if (!activeGroup) {
+    return (
+      <div className="rounded-[28px] bg-white border border-[#D9D7D0]/50 p-6 text-center">
+        <p className="text-xs text-[#8C8880]">Memuat data kelompok…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* Header Bar */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -1034,7 +1064,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
         <GroupAlbumsPanel
           groupId={activeGroup.id}
           canCreate={canWriteMonitoring}
-          canUpload={Boolean(hasAssignedGroup || canWriteMonitoring)}
+          canUpload={Boolean(boundGroupId || canWriteMonitoring)}
         />
       )}
 
