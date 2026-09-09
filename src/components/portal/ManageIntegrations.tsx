@@ -208,6 +208,127 @@ const AdminAlertsCard: React.FC = () => {
   );
 };
 
+type DeployState = {
+  running: string;
+  latest: string;
+  latestDate: string;
+  inSync: boolean | null;
+  redeploying: boolean;
+  message: string;
+};
+
+/**
+ * Sinkronisasi & Deploy: bandingkan commit yang berjalan vs main GitHub,
+ * plus tombol redeploy Production (perlu VERCEL_DEPLOY_HOOK_URL di server).
+ * Menjawab "sudah sync?" tanpa buka Vercel — dan menjelaskan bahwa
+ * perubahan env (mis. token) baru aktif setelah redeploy.
+ */
+const DeploySyncCard: React.FC = () => {
+  const [st, setSt] = useState<DeployState>({
+    running: '',
+    latest: '',
+    latestDate: '',
+    inSync: null,
+    redeploying: false,
+    message: 'Memeriksa…',
+  });
+
+  const check = async () => {
+    try {
+      const [v, g] = await Promise.all([
+        fetch('/api/version', { credentials: 'include' }).then((r) => r.json()).catch(() => ({})),
+        fetch('https://api.github.com/repos/gehcofficial/gehc.page/commits/main?per_page=1')
+          .then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ]);
+      const running = String(v.commit || 'dev');
+      const latest = String(g?.sha || '').slice(0, 7);
+      const full = String(g?.sha || '');
+      setSt((s) => ({
+        ...s,
+        running: running.slice(0, 7),
+        latest,
+        latestDate: g?.commit?.author?.date ? new Date(g.commit.author.date).toLocaleString('id-ID') : '',
+        inSync: !full ? null : running === 'dev' ? null : full.startsWith(running) || running.startsWith(full.slice(0, 7)),
+        message: !full
+          ? 'Tak bisa hubungi GitHub.'
+          : running === 'dev'
+            ? 'Server lokal (dev) — selalu sinkron dengan kode laptop.'
+            : (full.startsWith(running) || running.startsWith(full.slice(0, 7)))
+              ? 'Deploy sudah memuat commit terbaru.'
+              : 'Deploy tertinggal — tekan Redeploy setelah pull/merge terbaru.',
+      }));
+    } catch {
+      setSt((s) => ({ ...s, message: 'Gagal memeriksa.' }));
+    }
+  };
+
+  useEffect(() => { void check(); }, []);
+
+  const redeploy = async () => {
+    if (!window.confirm('Redeploy Production sekarang? (±1 menit, tanpa downtime)')) return;
+    setSt((s) => ({ ...s, redeploying: true, message: 'Meminta redeploy…' }));
+    try {
+      const r = await fetch('/api/admin/redeploy', { method: 'POST', credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      setSt((s) => ({
+        ...s,
+        redeploying: false,
+        message: r.ok ? (d.message || 'Redeploy dimulai.') : (d.error || 'Gagal meminta redeploy.'),
+      }));
+    } catch {
+      setSt((s) => ({ ...s, redeploying: false, message: 'Gagal menghubungi server.' }));
+    }
+  };
+
+  return (
+    <div className="rounded-[28px] border border-[#D9D7D0]/50 bg-white p-5 sm:p-6 space-y-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Sinkronisasi & Deploy</p>
+          <h3 className="text-base font-black text-[#1B1B1B]">Versi yang berjalan vs GitHub main</h3>
+          <p className="text-[11px] text-[#8C8880] mt-0.5">
+            Perubahan env (mis. token Drive) baru aktif setelah redeploy.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {st.inSync === null ? (
+            <span className="text-[11px] font-bold text-[#8C8880]">{st.message}</span>
+          ) : st.inSync ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black">
+              <CheckCircle2 className="w-4 h-4" /> Sinkron ({st.running})
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black">
+              <AlertTriangle className="w-4 h-4" /> Tertinggal ({st.running} → {st.latest})
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => void check()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] font-bold"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Cek lagi
+          </button>
+          <button
+            type="button"
+            onClick={() => void redeploy()}
+            disabled={st.redeploying}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#181818] text-white text-[11px] font-bold disabled:opacity-50"
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            {st.redeploying ? 'Meminta…' : 'Redeploy Production'}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] text-[#8C8880]">
+        {st.message}
+        {st.latestDate && ` Komit terbaru: ${st.latest} (${st.latestDate}).`}
+      </p>
+    </div>
+  );
+};
+
 /** Panel audit: folder Drive vs entitas DB (grup & subdivisi pantatugas). */
 const DriveAuditPanel: React.FC = () => {
   const [audit, setAudit] = useState<AuditResult | null>(null);
@@ -440,6 +561,8 @@ export const ManageIntegrations: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
 
       <DriveTokenStatusCard />
+
+      <DeploySyncCard />
 
       <AdminAlertsCard />
 

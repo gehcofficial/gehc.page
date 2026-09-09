@@ -1296,6 +1296,33 @@ app.get('/api/drive/test', wrap(async (req, res) => {
   res.json({ connected: await testDrive(), mode: getDriveMode() });
 }));
 
+// Versi kode yang sedang berjalan (untuk cek sinkronisasi deploy).
+// Vercel mengisi VERCEL_GIT_COMMIT_SHA saat build; lokal → 'dev'.
+const SERVER_STARTED_AT = new Date().toISOString();
+app.get('/api/version', wrap(async (_req, res) => {
+  res.json({
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || 'dev',
+    startedAt: SERVER_STARTED_AT,
+    env: process.env.GEHC_ENV || process.env.VERCEL_ENV || 'local',
+  });
+}));
+
+// Redeploy Production via Deploy Hook (URL rahasia hanya di env server).
+// Dipakai setelah sync env (token dkk) — perubahan env butuh redeploy agar aktif.
+app.post('/api/admin/redeploy', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
+  const hook = process.env.VERCEL_DEPLOY_HOOK_URL || '';
+  if (!hook) {
+    return res.status(400).json({
+      error: 'VERCEL_DEPLOY_HOOK_URL belum dipasang. Buat di Vercel → Settings → Git → Deploy Hooks (branch main), lalu tambah sebagai env Production.',
+    });
+  }
+  const r = await fetch(hook, { method: 'POST' });
+  if (!r.ok) {
+    return res.status(502).json({ error: `Deploy hook menolak (HTTP ${r.status}). Cek URL hook di Vercel.` });
+  }
+  res.json({ ok: true, message: 'Redeploy Production dimulai. Tunggu ±1 menit lalu Cek lagi.' });
+}));
+
 // Status token OAuth pemilik (untuk unggah — beda dari service account baca).
 // Hijau = unggah jalan; merah + authFailed = consent ulang (lihat runbook).
 app.get('/api/drive/token-status', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
