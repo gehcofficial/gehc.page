@@ -1,6 +1,15 @@
 # GEHC Portal — Handoff
 
-## Current — Album refresh + hapus folder/foto (9 Sep 2026, staging)
+## Current — Auto-cover album + UI jujur (9 Sep 2026)
+
+**Sebab cover kosong:** thumbnail lh3 hanya hidup bila file ada + publik; hapus file di Drive = penunjuk mati (sync membersihkan dengan benar).
+**Fix:** sync/upload jadikan foto pertama cover bila kosong; onError fallback + status "belum ada foto" vs "cover rusak"; preview mati disembunyikan.
+**Timing:** tombol Sinkron sinkron detik-an; thumbnail file BARU Google buat menit-an; landing instan (DB-driven).
+**Verifikasi:** lint bersih, 264 test hijau. Tanpa migrasi DB.
+
+---
+
+## Prior — Album refresh + hapus folder/foto (9 Sep 2026, staging)
 
 **Masalah:** hapus file di Drive tak mengubah portal/landing (portal baca baris DB + thumbnail file-ID).
 **Fix:** `POST .../albums/sync` (cek folder, hitung foto, bersihkan preview mati), `DELETE .../albums/:id` (DB + folder ke sampah, mentor/komisi), `DELETE .../photos/:fileId` (anggota rumah, validasi milik album). UI: tombol Sinkronkan Drive, sampah per album, X per foto, badge folder-hilang.

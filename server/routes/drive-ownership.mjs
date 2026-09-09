@@ -441,6 +441,13 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         err.status = 503;
         throw err;
       }
+      // Foto pertama otomatis jadi cover agar kartu langsung tampil.
+      if (!album.coverDriveFileId) {
+        await prisma.groupAlbum.update({
+          where: { id: album.id },
+          data: { coverDriveFileId: file.id },
+        }).catch(() => null);
+      }
       res.json({
         ok: true,
         fileId: file.id,
@@ -533,7 +540,11 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         }
         const liveIds = new Set(files.map((f) => f.id));
         const previews = (Array.isArray(album.previewFileIds) ? album.previewFileIds : []).filter((id) => liveIds.has(String(id)));
-        const cover = album.coverDriveFileId && liveIds.has(String(album.coverDriveFileId)) ? album.coverDriveFileId : (previews[0] || null);
+        // Cover: pertahankan bila hidup; bila kosong tapi ada foto, pakai foto pertama
+        // agar kartu tidak pernah kosong padahal isi ada.
+        const cover = album.coverDriveFileId && liveIds.has(String(album.coverDriveFileId))
+          ? album.coverDriveFileId
+          : (previews[0] || files[0]?.id || null);
         if (previews.length !== (album.previewFileIds || []).length || cover !== album.coverDriveFileId) {
           await prisma.groupAlbum.update({
             where: { id: album.id },
