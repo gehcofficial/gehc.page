@@ -428,9 +428,10 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         });
       }
       let file = null;
+      let drive = null;
       try {
         const jpeg = await jpegFromBody(req.body);
-        const drive = await requireUserDrive();
+        drive = await requireUserDrive();
         file = await uploadJpegToFolder(drive, album.driveFolderId, jpeg, {
           filename: `${Date.now()}-${req.authUser.id.slice(0, 8)}.jpg`,
           publicReader: false,
@@ -442,11 +443,13 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         throw err;
       }
       // Foto pertama otomatis jadi cover agar kartu langsung tampil.
-      if (!album.coverDriveFileId) {
+      // Cover WAJIB publik (thumbnail lh3 hanya untuk file publik).
+      if (drive && file && !album.coverDriveFileId) {
         await prisma.groupAlbum.update({
           where: { id: album.id },
           data: { coverDriveFileId: file.id },
         }).catch(() => null);
+        await setPublicReader(drive, file.id).catch(() => null);
       }
       res.json({
         ok: true,
@@ -545,6 +548,8 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         const cover = album.coverDriveFileId && liveIds.has(String(album.coverDriveFileId))
           ? album.coverDriveFileId
           : (previews[0] || files[0]?.id || null);
+        // Cover wajib publik agar thumbnail lh3 tampil (kasus: file ada tapi privat).
+        if (cover) await setPublicReader(drive, cover).catch(() => null);
         if (previews.length !== (album.previewFileIds || []).length || cover !== album.coverDriveFileId) {
           await prisma.groupAlbum.update({
             where: { id: album.id },
