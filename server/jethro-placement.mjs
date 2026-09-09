@@ -58,7 +58,7 @@ async function assignIndividuRole(prisma, userId, assignedBy) {
   });
   await prisma.user.update({
     where: { id: userId },
-    data: { isBeyonders: false },
+    data: { isBeyonders: false, isIndividuExplicit: true },
   });
 }
 

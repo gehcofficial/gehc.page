@@ -22,6 +22,7 @@ const REQUIRED_USER_COLUMNS = [
   'onboarding_path',
   'onboarding_status',
   'is_beyonders',
+  'is_individu_explicit',
   'account_status',
   'account_kind',
   'link_status',

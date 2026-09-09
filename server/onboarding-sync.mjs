@@ -106,7 +106,7 @@ export async function claimWaitingPoolByPhone(prisma, userId, phone, sourceEvent
     await prisma.waitingPool.update({
       where: { id: existing.id },
       data: {
-        sourceEvent: sourceEvent || existing.sourceEvent,
+        sourceEvent: existing.sourceEvent || sourceEvent || null,
         domicileKind: match.domicileKind || existing.domicileKind,
         domicileDetail: match.domicileDetail || existing.domicileDetail,
         origin: match.origin || existing.origin,

@@ -3894,8 +3894,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
         data: { onboardingStatus: 'WAITING_POOL' },
       });
       try {
-        await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
-        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: null });
       } catch { /* non-blocking */ }
       void notifyApprovalItem(prisma, {
         queue: 'akun-pending',
@@ -4020,8 +4019,7 @@ app.post('/api/register/local', wrap(async (req, res) => {
         data: { onboardingStatus: 'WAITING_POOL' },
       });
       try {
-        await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
-        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+        await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: null });
       } catch { /* non-blocking */ }
       void notifyApprovalItem(prisma, {
         queue: 'akun-pending',
@@ -4274,8 +4272,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
           data: { onboardingStatus: 'WAITING_POOL' },
         });
         try {
-          await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
-          await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
+          await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: null });
         } catch { /* non-blocking */ }
         void notifyApprovalItem(prisma, {
           queue: 'akun-pending',
@@ -4463,12 +4460,13 @@ app.post('/api/profile/church-data-requests/:id/approve', requireRole(...KOMISIO
     data.churchTitle = parts.churchTitle || null;
     data.academicTitles = parts.academicTitles;
   }
+    // Youth site menampung semua BIPRA; Beyonders murni Pemuda — future subdomain: bapak|ibu|kolom.gehc.page (tenant-bapak|ibu|teritorial)
   if (record.changeBipra && record.requestedBipra) {
     if (!BIPRA_VALUES.includes(record.requestedBipra)) {
       return res.status(400).json({ error: 'BIPRA pada permintaan tidak valid.' });
     }
     data.bipra = record.requestedBipra;
-    if (record.requestedBipra !== 'PEMUDA') data.isBeyonders = false;
+    if (record.requestedBipra !== 'PEMUDA') { data.isBeyonders = false; data.isIndividuExplicit = false; }
   }
   if (record.changeKolom) data.kolomId = record.requestedKolomId;
 
@@ -5217,7 +5215,12 @@ app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (re
   }
   const nextBipra = data.bipra || existing.bipra;
   if (isBeyonders !== undefined) data.isBeyonders = nextBipra === 'PEMUDA' ? Boolean(isBeyonders) : false;
-  else if (data.bipra && data.bipra !== 'PEMUDA') data.isBeyonders = false;
+  else if (data.bipra && data.bipra !== 'PEMUDA') { data.isBeyonders = false; data.isIndividuExplicit = false; }
+  const nextIndividu = req.body?.isIndividuExplicit;
+  if (nextIndividu !== undefined) {
+    data.isIndividuExplicit = Boolean(nextIndividu);
+    if (data.isIndividuExplicit) data.isBeyonders = false;
+  }
 
   if (Object.keys(data).length === 0 && recreationalIds === undefined) {
     return res.status(400).json({ error: 'Tidak ada field untuk diupdate.' });
@@ -5651,7 +5654,7 @@ app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), w
       // Update user
       await prisma.user.update({
         where: { id: userId },
-        data: { onboardingStatus: 'ACTIVE', isBeyonders: false },
+        data: { onboardingStatus: 'ACTIVE', isBeyonders: false, isIndividuExplicit: true },
       });
 
       results.created++;
