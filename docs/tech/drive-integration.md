@@ -214,6 +214,25 @@ Unggah memakai kuota Google One pemilik (`GDRIVE_USER_REFRESH_TOKEN` / `.gdrive-
 
 `npm run drive:provision` / `:prod` menambah folder kanonik; **tidak** menyalin dump kamera staging ke prod.
 
+## 7b. Runbook consent ulang (INVALID_GRANT, ±2 menit)
+
+Service account (JSON via env) selalu headless — untuk **baca**. Unggah butuh consent
+manusia **sekali** (aturan Google, tak bisa diwakilkan; Gmail biasa tak bisa impersonation).
+Consent mati bila: password akun pemilik diganti, akses app dicabut di
+myaccount.google.com → Permissions, atau Google membersihkan grant lama.
+Gejala: unggahan gagal `INVALID_GRANT`; panel Integrasi → badge merah "Terputus".
+
+```
+# di LAPTOP (bukan Vercel), login sebagai PEMILIK folder root Drive:
+npm run drive:auth        # → klik Izinkan di browser → token tersimpan lokal
+npm run env:sync-gdrive-token   # → token tersebar ke Vercel preview + production
+# tunggu redeploy (atau redeploy manual), minta pengunggah coba lagi
+```
+
+Jangan: cabut akses app GEHC, ganti password pemilik tanpa consent ulang,
+atau menempel token antar environment yang client OAuth-nya beda
+(`GOOGLE_CLIENT_ID/SECRET` harus sama dengan yang menerbitkan token).
+
 ## 8. Setup Google Auth (Client ID untuk SSO)
 
 ```

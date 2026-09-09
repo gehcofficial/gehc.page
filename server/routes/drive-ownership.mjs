@@ -38,6 +38,7 @@ import {
 } from '../lib/drive-ensure.mjs';
 import { slugifyName } from '../lib/website-visuals.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
+import { notifyApprovalItem } from '../lib/approval-notify.mjs';
 
 const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
@@ -175,12 +176,21 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const group = await prisma.group.findUnique({ where: { id: req.params.id } });
       if (!group) return res.status(404).json({ error: 'Kelompok tidak ditemukan.' });
       await assertSlotWrite(req.authUser, 'kelompok', houseStem(group.name), { groupId: group.id });
-      const jpeg = await jpegFromBody(req.body, { square: true, maxWidth: 1400 });
-      const written = await replaceVisualStem({
-        folder: 'kelompok',
-        stem: houseStem(group.name),
-        jpegBuffer: jpeg,
-      });
+      let written = null;
+      let jpeg = null;
+      try {
+        jpeg = await jpegFromBody(req.body, { square: true, maxWidth: 1400 });
+        written = await replaceVisualStem({
+          folder: 'kelompok',
+          stem: houseStem(group.name),
+          jpegBuffer: jpeg,
+        });
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
       let backup = null;
       try {
         const tree = await ensureGroupTree(group.name);
@@ -356,9 +366,34 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const kind = PHOTO_KINDS.has(String(req.body?.kind || '').toUpperCase())
         ? String(req.body.kind).toUpperCase()
         : 'ADHOC';
-      const tree = await ensureGroupTree(group.name);
-      const foto = tree.folders['Foto Kegiatan'];
-      const albumFolder = await ensureNamedFolder(tree.drive, foto.id, albumFolderName(occurredOn, title));
+      let albumFolder = null;
+      try {
+        const tree = await ensureGroupTree(group.name);
+        const foto = tree.folders['Foto Kegiatan'];
+        albumFolder = await ensureNamedFolder(tree.drive, foto.id, albumFolderName(occurredOn, title));
+      } catch (e) {
+        // Folder gagal dibuat (mis. token Drive dicabut) — album tetap
+        // tersimpan sebagai metadata; foto menyusul setelah token pulih.
+        if (!isDriveAuthError(e)) throw e;
+        const row = await prisma.groupAlbum.create({
+          data: {
+            id: newEntityId('alb'),
+            groupId: group.id,
+            title,
+            kind,
+            occurredOn: new Date(`${occurredOn}T00:00:00.000Z`),
+            location: req.body?.location ? String(req.body.location).trim() : null,
+            eventId: req.body?.eventId || null,
+            driveFolderId: null,
+            createdById: req.authUser.id,
+          },
+        });
+        return res.status(201).json({
+          album: serializeAlbum(row, { includeDrive: true }),
+          drivePending: true,
+          driveNote: driveAuthErrorMessage(),
+        });
+      }
       const row = await prisma.groupAlbum.create({
         data: {
           id: newEntityId('alb'),
@@ -368,7 +403,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
           occurredOn: new Date(`${occurredOn}T00:00:00.000Z`),
           location: req.body?.location ? String(req.body.location).trim() : null,
           eventId: req.body?.eventId || null,
-          driveFolderId: albumFolder.id,
+          driveFolderId: albumFolder ? albumFolder.id : null,
           createdById: req.authUser.id,
         },
       });
@@ -387,13 +422,25 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (!isMemberOfGroup(req.authUser, album.groupId)) {
         return res.status(403).json({ error: 'Hanya anggota rumah ini yang boleh unggah.' });
       }
-      if (!album.driveFolderId) return res.status(400).json({ error: 'Folder Drive album belum ada.' });
-      const jpeg = await jpegFromBody(req.body);
-      const drive = await requireUserDrive();
-      const file = await uploadJpegToFolder(drive, album.driveFolderId, jpeg, {
-        filename: `${Date.now()}-${req.authUser.id.slice(0, 8)}.jpg`,
-        publicReader: false,
-      });
+      if (!album.driveFolderId) {
+        return res.status(400).json({
+          error: 'Folder Drive album belum ada (pembuatan folder gagal sebelumnya). Buat ulang album setelah koneksi Drive pulih.',
+        });
+      }
+      let file = null;
+      try {
+        const jpeg = await jpegFromBody(req.body);
+        const drive = await requireUserDrive();
+        file = await uploadJpegToFolder(drive, album.driveFolderId, jpeg, {
+          filename: `${Date.now()}-${req.authUser.id.slice(0, 8)}.jpg`,
+          publicReader: false,
+        });
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
       res.json({
         ok: true,
         fileId: file.id,
@@ -418,8 +465,15 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         .map(String)
         .filter(Boolean)
         .slice(0, 5);
-      const drive = await requireUserDrive();
-      for (const id of ids) await setPublicReader(drive, id);
+      try {
+        const drive = await requireUserDrive();
+        for (const id of ids) await setPublicReader(drive, id);
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
       const coverDriveFileId = ids[0] || album.coverDriveFileId;
       const updated = await prisma.groupAlbum.update({
         where: { id: album.id },
@@ -442,17 +496,25 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       }
       if (!album.driveFolderId) return res.json({ files: [], driveUrl: null });
       const drive = await requireUserDrive().catch(() => null);
-      const files = drive
-        ? (await listFolderFiles(drive, album.driveFolderId)).filter(isImageFile).map((f) => ({
+      let files = [];
+      let driveNote = null;
+      if (drive) {
+        try {
+          files = (await listFolderFiles(drive, album.driveFolderId)).filter(isImageFile).map((f) => ({
             id: f.id,
             name: f.name,
             thumbnailUrl: driveThumbUrl(f.id),
             webViewLink: f.webViewLink,
-          }))
-        : [];
+          }));
+        } catch (e) {
+          if (!isDriveAuthError(e)) throw e;
+          driveNote = driveAuthErrorMessage();
+        }
+      }
       res.json({
         files,
         driveUrl: `https://drive.google.com/drive/folders/${album.driveFolderId}`,
+        ...(driveNote ? { driveNote } : {}),
       });
     }),
   );
@@ -505,6 +567,13 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
           status: 'DRAFT',
           inboxDriveFileId,
         },
+      });
+      void notifyApprovalItem(prisma, {
+        queue: 'kesaksian',
+        itemId: item.id,
+        title: `Kesaksian baru: ${item.authorName}`,
+        message: 'Perlu kurasi Marturia di Kesaksian & Story.',
+        url: '#/portal/komisi/content-testimonials',
       });
       res.status(201).json({
         item,

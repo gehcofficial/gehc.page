@@ -27,6 +27,187 @@ interface AuditResult {
   untaggedFolders: string[];
 }
 
+type TokenStatus = {
+  hasToken: boolean;
+  userOk: boolean;
+  authFailed: boolean;
+  mode?: string | null;
+  ownerEmail?: string | null;
+  note?: string | null;
+};
+
+const REAUTH_CMDS = 'npm run drive:auth\nnpm run env:sync-gdrive-token';
+
+/** Status token OAuth pemilik (untuk unggah) — dibedakan dari service account baca. */
+const DriveTokenStatusCard: React.FC = () => {
+  const [st, setSt] = useState<TokenStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const check = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/drive/token-status', { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      setSt(r.ok ? (d as TokenStatus) : { hasToken: false, userOk: false, authFailed: false, note: (d as { error?: string }).error });
+    } catch {
+      setSt({ hasToken: false, userOk: false, authFailed: false, note: 'Server tidak terjangkau.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => { void check(); }, []);
+
+  const copyCmds = async () => {
+    try {
+      await navigator.clipboard.writeText(REAUTH_CMDS);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard diblokir */ }
+  };
+
+  const broken = Boolean(st && (!st.userOk));
+  return (
+    <div className={`rounded-[28px] border p-5 sm:p-6 space-y-3 ${broken ? 'bg-red-50/60 border-red-200' : 'bg-white border-[#D9D7D0]/50 shadow-sm'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Token unggah pemilik</p>
+          <h3 className="text-base font-black text-[#1B1B1B]">Koneksi tulis Google Drive</h3>
+          <p className="text-[11px] text-[#8C8880] mt-0.5">
+            Baca memakai service account (JSON, headless). Unggah memakai akun pemilik — statusnya di sini.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!st ? (
+            <span className="text-[11px] font-bold text-[#8C8880]">Memeriksa…</span>
+          ) : st.userOk ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black">
+              <CheckCircle2 className="w-4 h-4" /> Terhubung{st.ownerEmail ? ` · ${st.ownerEmail}` : ''}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 text-red-800 text-[11px] font-black">
+              <XCircle className="w-4 h-4" /> {st.authFailed ? 'Terputus — perlu consent ulang' : st.hasToken ? 'Gagal probe' : 'Belum ada token'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => void check()}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+            Cek lagi
+          </button>
+        </div>
+      </div>
+      {st && !st.userOk && (
+        <div className="rounded-2xl bg-white border border-red-200 p-4 space-y-2">
+          <p className="text-xs text-[#1B1B1B] leading-relaxed">
+            {st.authFailed || !st.hasToken
+              ? 'Unggahan (album, cover, kesaksian) akan gagal sampai pemilik folder memberi izin ulang di browsernya. Ini aturan Google — tidak bisa diwakilkan.'
+              : `Probe gagal: ${st.note || 'tidak diketahui'}. Bila ini INVALID_GRANT, lakukan consent ulang di bawah.`}
+          </p>
+          <ol className="text-xs text-[#5C5850] leading-relaxed list-decimal ml-4 space-y-0.5">
+            <li>Jalankan perintah di bawah <strong>di laptop</strong> (bukan Vercel).</li>
+            <li>Login sebagai <strong>pemilik folder root Drive</strong> → klik Izinkan.</li>
+            <li>Lanjut perintah kedua → token tersebar ke staging + production.</li>
+            <li>Tunggu redeploy (atau redeploy manual), minta pengunggah coba lagi.</li>
+          </ol>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="flex-1 min-w-[220px] whitespace-pre-wrap rounded-xl bg-[#181818] text-emerald-300 text-[11px] font-mono px-3 py-2">{REAUTH_CMDS}</code>
+            <button
+              type="button"
+              onClick={() => void copyCmds()}
+              className="px-3 py-2 rounded-xl bg-[#181818] text-white text-[11px] font-bold"
+            >
+              {copied ? 'Tersalin!' : 'Salin perintah'}
+            </button>
+          </div>
+          <p className="text-[10px] text-[#8C8880]">Jangan cabut akses app di myaccount.google.com dan jangan ganti password akun pemilik tanpa consent ulang.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+type AdminAlert = {
+  id: string;
+  type: string;
+  title: string;
+  message?: string | null;
+  status: string;
+  createdAt: string;
+  payload?: { items?: Array<{ label: string }> } | null;
+};
+
+/** Peringatan admin: digest drift Drive + antrean approval yang masih OPEN. */
+const AdminAlertsCard: React.FC = () => {
+  const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [checking, setChecking] = useState(false);
+
+  const load = async () => {
+    try {
+      const r = await fetch('/api/db/notifications?status=OPEN', { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      const rows: AdminAlert[] = Array.isArray(d.notifications) ? d.notifications : [];
+      setAlerts(
+        rows.filter((n) => n.type === 'DRIVE_DRIFT' || n.type === 'APPROVAL_ITEM').slice(0, 8),
+      );
+    } catch { /* abaikan */ }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const checkDrift = async () => {
+    setChecking(true);
+    try {
+      const r = await fetch('/api/cron/digest', { method: 'POST', credentials: 'include' });
+      await r.json().catch(() => ({}));
+      await load();
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (!alerts.length) return null;
+  return (
+    <div className="rounded-[28px] border border-amber-200 bg-amber-50/60 p-5 sm:p-6 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Peringatan admin</p>
+          <h3 className="text-base font-black text-[#1B1B1B]">Perlu perhatian Komisi</h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => void checkDrift()}
+          disabled={checking}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#181818] text-white text-[11px] font-bold disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
+          {checking ? 'Memeriksa…' : 'Cek drift sekarang'}
+        </button>
+      </div>
+      <ul className="space-y-2">
+        {alerts.map((a) => (
+          <li key={a.id} className="rounded-2xl bg-white border border-[#D9D7D0]/60 px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${a.type === 'DRIVE_DRIFT' ? 'bg-sky-100 text-sky-800' : 'bg-violet-100 text-violet-800'}`}>
+                {a.type === 'DRIVE_DRIFT' ? 'Drive' : 'Approval'}
+              </span>
+              <span className="text-xs font-bold text-[#1B1B1B]">{a.title}</span>
+              <span className="ml-auto text-[10px] text-[#8C8880] shrink-0">
+                {new Date(a.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+            {a.message && <p className="text-[11px] text-[#5C5850] mt-1 leading-relaxed">{a.message}</p>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 /** Panel audit: folder Drive vs entitas DB (grup & subdivisi pantatugas). */
 const DriveAuditPanel: React.FC = () => {
   const [audit, setAudit] = useState<AuditResult | null>(null);
@@ -257,7 +438,11 @@ export const ManageIntegrations: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
+      <DriveTokenStatusCard />
+
+      <AdminAlertsCard />
+
       {/* Header Bar */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
