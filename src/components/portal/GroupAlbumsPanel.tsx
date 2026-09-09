@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Images, Plus, Pin } from 'lucide-react';
+import { Images, Plus, Pin, RefreshCw, Trash2, X } from 'lucide-react';
 import { DriveUploadButton } from './DriveUploadButton';
 import { useApp } from '../../context/AppContext';
 
@@ -26,6 +26,8 @@ export const GroupAlbumsPanel: React.FC<{
   const [location, setLocation] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [files, setFiles] = useState<{ id: string; name: string; thumbnailUrl: string }[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncInfo, setSyncInfo] = useState<Record<string, { folderMissing: boolean; photoCount: number }>>({});
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/groups/${groupId}/albums`, { credentials: 'include' });
@@ -74,8 +76,80 @@ export const GroupAlbumsPanel: React.FC<{
     await load();
   };
 
+  // Samakan DB ↔ Drive: cek folder masih ada, hitung foto aktual,
+  // bersihkan preview menunjuk file terhapus. Seperti refresh landing.
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch(`/api/groups/${groupId}/albums/sync`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        addToast({ type: 'error', title: d.error || 'Gagal sinkron' });
+        return;
+      }
+      const info: Record<string, { folderMissing: boolean; photoCount: number }> = {};
+      for (const a of d.albums || []) info[a.id] = { folderMissing: Boolean(a.folderMissing), photoCount: a.photoCount ?? 0 };
+      setSyncInfo(info);
+      const missing = (d.albums || []).filter((a: { folderMissing?: boolean }) => a.folderMissing).length;
+      addToast({
+        type: missing ? 'error' : 'success',
+        title: missing ? `${missing} album foldernya hilang di Drive` : 'Album sinkron dengan Drive',
+      });
+      await load();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const deleteAlbum = async (album: Album) => {
+    if (!window.confirm(`Hapus album "${album.title}"? Baris dihapus dan folder Drive masuk sampah (pulih 30 hari).`)) return;
+    const r = await fetch(`/api/groups/${groupId}/albums/${album.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      addToast({ type: 'error', title: d.error || 'Gagal hapus album' });
+      return;
+    }
+    addToast({ type: 'success', title: 'Album dihapus', body: d.driveNote });
+    if (openId === album.id) setOpenId(null);
+    await load();
+  };
+
+  const deletePhoto = async (albumId: string, fileId: string, fileName: string) => {
+    if (!window.confirm(`Hapus foto "${fileName}"? File masuk sampah Drive.`)) return;
+    const r = await fetch(`/api/groups/${groupId}/albums/${albumId}/photos/${fileId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      addToast({ type: 'error', title: d.error || 'Gagal hapus foto' });
+      return;
+    }
+    addToast({ type: 'success', title: 'Foto dihapus' });
+    await openFiles(albumId);
+    await load();
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void sync()}
+          disabled={syncing}
+          title="Samakan daftar album dengan isi Drive aktual"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? 'Menyamakan…' : 'Sinkronkan Drive'}
+        </button>
+      </div>
       {canCreate && (
         <div className="rounded-2xl border border-[#D9D7D0]/60 p-4 bg-white space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">Album kegiatan baru</p>
@@ -126,7 +200,24 @@ export const GroupAlbumsPanel: React.FC<{
                 )}
               </div>
               <div className="p-3 space-y-2">
-                <p className="text-sm font-bold">{a.title}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-bold">{a.title}</p>
+                  {canCreate && (
+                    <button
+                      type="button"
+                      onClick={() => void deleteAlbum(a)}
+                      title="Hapus album (DB + folder Drive ke sampah)"
+                      className="p-1 rounded-lg hover:bg-red-100 text-red-600 shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {syncInfo[a.id]?.folderMissing && (
+                  <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                    Folder Drive-nya sudah tidak ada — hapus album ini atau buat ulang.
+                  </p>
+                )}
                 <p className="text-[11px] text-[#8C8880]">
                   {String(a.occurredOn).slice(0, 10)}
                   {a.location ? ` · ${a.location}` : ''}
@@ -174,20 +265,29 @@ export const GroupAlbumsPanel: React.FC<{
                 {openId === a.id && files.length > 0 && (
                   <div className="flex flex-wrap gap-1 pt-2">
                     {files.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => {
-                          const current = albums.find((x) => x.id === a.id)?.previews.map((p) => p.id) || [];
-                          const next = current.includes(f.id)
-                            ? current.filter((id) => id !== f.id)
-                            : [...current, f.id].slice(0, 5);
-                          pinPreviews(a.id, next);
-                        }}
-                        className="w-12 h-12 rounded-lg overflow-hidden border border-[#D9D7D0]"
-                      >
-                        <img src={f.thumbnailUrl} alt={f.name} className="w-full h-full object-cover" />
-                      </button>
+                      <div key={f.id} className="relative w-12 h-12">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = albums.find((x) => x.id === a.id)?.previews.map((p) => p.id) || [];
+                            const next = current.includes(f.id)
+                              ? current.filter((id) => id !== f.id)
+                              : [...current, f.id].slice(0, 5);
+                            pinPreviews(a.id, next);
+                          }}
+                          className="w-12 h-12 rounded-lg overflow-hidden border border-[#D9D7D0]"
+                        >
+                          <img src={f.thumbnailUrl} alt={f.name} className="w-full h-full object-cover" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deletePhoto(a.id, f.id, f.name)}
+                          title={`Hapus ${f.name}`}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center shadow"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

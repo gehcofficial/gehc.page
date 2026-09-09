@@ -1,6 +1,14 @@
 # GEHC Portal — Handoff
 
-## Current — Token fail-safe + kartu deploy; staging & main sinkron (9 Sep 2026)
+## Current — Album refresh + hapus folder/foto (9 Sep 2026, staging)
+
+**Masalah:** hapus file di Drive tak mengubah portal/landing (portal baca baris DB + thumbnail file-ID).
+**Fix:** `POST .../albums/sync` (cek folder, hitung foto, bersihkan preview mati), `DELETE .../albums/:id` (DB + folder ke sampah, mentor/komisi), `DELETE .../photos/:fileId` (anggota rumah, validasi milik album). UI: tombol Sinkronkan Drive, sampah per album, X per foto, badge folder-hilang.
+**Verifikasi:** lint bersih, 264 test hijau. Tanpa migrasi DB.
+
+---
+
+## Prior — Token fail-safe + kartu deploy; staging & main sinkron (9 Sep 2026)
 
 **Temuan:** probe `Gagal probe EROFS` ternyata BUKAN token mati — token env valid, tapi listener refresh mencoba tulis file di FS read-only Vercel. `saveTokens`/`loadSavedTokens` kini fail-safe (token tetap dipakai dari memori/env).
 **Commit staging `fca84fd` → merge main `991ddfc`:** kartu Sinkronisasi & Deploy (banding commit GitHub + redeploy via hook + penjelasan env-butuh-redeploy), `GET /api/version`, `POST /api/admin/redeploy`.
