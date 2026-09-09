@@ -2,6 +2,20 @@
 
 ## Current — MERGED ke main + prod hijau, putaran 1 (8 Sep 2026, `9566a71`)
 
+## Current — Merge putaran 3: monitoring persist, album ramah, approval instan, drift (9 Sep 2026)
+
+### Done (staging, ikut merge ini — 3 commit)
+
+- **Monitoring persist** (`a8c885a`): `GET/POST/DELETE /api/monitoring` + sinkron context + `roleMissing` gate + kunci grup (tanpa default grup pertama) + hapus assignment yatim Holly.
+- **Drive** (`f402b2d`): album ramah (`drivePending`), kartu status token + `/api/drive/token-status`, audit extract `lib/drive-audit.mjs`, cron `/api/cron/digest`, kartu Peringatan admin, runbook §7b.
+- **Notif** (`a61a1a0`): enum `APPROVAL_ITEM` + `DRIVE_DRIFT`, helper dedupe, 8 hook antrean, bell.
+- **Verifikasi:** lint bersih, 49 file / 264 test hijau; enum termigrasi lokal+staging.
+
+---
+
+## Prior — QR multi-event per (user, event) (8 Sep 2026)
+>>>>>>> staging
+
 - DB prod termigrasi (`subject_name`, `deliverable event_id` + FK, `request show_if`, `content event_id`); schema check hijau; tanpa `prisma migrate deploy`/seed.
 - Env prod terverifikasi; smoke prod hijau (35 pendaftar utuh).
 - Rollback putaran 1: `git revert -m 1 9566a71` + push main.

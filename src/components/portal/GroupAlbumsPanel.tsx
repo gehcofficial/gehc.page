@@ -51,6 +51,9 @@ export const GroupAlbumsPanel: React.FC<{
       return;
     }
     setTitle('');
+    if (d.drivePending) {
+      addToast({ type: 'success', title: 'Album tersimpan, folder Drive menyusul', body: d.driveNote || 'Foto bisa diunggah setelah koneksi Drive pulih.' });
+    }
     await load();
   };
 
@@ -146,7 +149,10 @@ export const GroupAlbumsPanel: React.FC<{
                         });
                         const d = await r.json();
                         if (!r.ok) addToast({ type: 'error', title: d.error || 'Gagal unggah' });
-                        else addToast({ type: 'success', title: 'Foto tersimpan di Drive' });
+                        else {
+                          addToast({ type: 'success', title: 'Foto tersimpan di Drive' });
+                          await load();
+                        }
                       }}
                     />
                   )}

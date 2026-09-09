@@ -103,6 +103,7 @@ import {
 } from './lib/username.mjs';
 import { syncWaitingPoolFromUser, ensureWaitingPoolForNewPemuda, claimWaitingPoolByPhone } from './onboarding-sync.mjs';
 import { assignRoleToUser, revokeRoleAssignment, resolveAssignedByUserId } from './role-assign.mjs';
+import { notifyApprovalItem } from './lib/approval-notify.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
 import { enrichUserDemographics, parseBirthDateInput, isBirthdayWithinDays } from './demographics.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
@@ -112,6 +113,8 @@ import { requirePlatformRoot, requirePlatformAdmin, requireKomisiOrPlatformAdmin
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
+import { registerDigestRoutes } from './routes/digest.mjs';
+import { registerMonitoringRoutes } from './routes/monitoring.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerEventSignupRoutes } from './routes/event-signup.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
@@ -634,6 +637,13 @@ app.post('/api/me/profile/church-data-request', wrap(async (req, res) => {
       status: 'PENDING',
     },
   });
+  void notifyApprovalItem(prisma, {
+    queue: 'data-gereja',
+    itemId: churchDataRequest.id,
+    title: `Ajuan data gereja: ${user.name || user.email || churchDataRequest.id}`,
+    message: 'Perlu tinjauan Komisi di Jemaat.',
+    url: '#/portal/komisi/people',
+  });
   res.json({ churchDataRequest });
 }));
 
@@ -730,6 +740,13 @@ app.post('/api/institutions/suggest', wrap(async (req, res) => {
       country: req.body?.country ? String(req.body.country).trim() : null,
       status: 'PENDING',
     },
+  });
+  void notifyApprovalItem(prisma, {
+    queue: 'saran-kampus',
+    itemId: suggestion.id,
+    title: `Saran kampus: ${name}`,
+    message: 'Perlu tinjauan Komisi di Katalog.',
+    url: '#/portal/komisi/catalog',
   });
   res.json({ suggestion });
 }));
@@ -961,7 +978,7 @@ app.get('/api/notifications', wrap(async (req, res) => {
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
       if (n.title === 'Push Subscription') return false;
-      if (['ROLE_ASSIGNED', 'RUNBOOK_DUE', 'CATALOG_REMINDER', 'EVENT_ARCHIVED'].includes(n.type)) {
+      if (['ROLE_ASSIGNED', 'RUNBOOK_DUE', 'CATALOG_REMINDER', 'EVENT_ARCHIVED', 'APPROVAL_ITEM', 'DRIVE_DRIFT'].includes(n.type)) {
         return n.memberId === req.authUser.id;
       }
       if (n.type !== 'MENTION') return true;
@@ -1279,6 +1296,31 @@ app.get('/api/drive/test', wrap(async (req, res) => {
   res.json({ connected: await testDrive(), mode: getDriveMode() });
 }));
 
+// Status token OAuth pemilik (untuk unggah — beda dari service account baca).
+// Hijau = unggah jalan; merah + authFailed = consent ulang (lihat runbook).
+app.get('/api/drive/token-status', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
+  const { hasUserDriveToken, getUserDrive, isDriveAuthError } = await import('./lib/gdrive-user-oauth.mjs');
+  if (!hasUserDriveToken()) {
+    return res.json({ hasToken: false, userOk: false, authFailed: false, mode: getDriveMode() });
+  }
+  try {
+    const drive = await getUserDrive();
+    const about = await drive.about.get({ fields: 'user(emailAddress)' });
+    return res.json({
+      hasToken: true,
+      userOk: true,
+      authFailed: false,
+      mode: getDriveMode(),
+      ownerEmail: about?.data?.user?.emailAddress || null,
+    });
+  } catch (e) {
+    if (isDriveAuthError(e)) {
+      return res.json({ hasToken: true, userOk: false, authFailed: true, mode: getDriveMode() });
+    }
+    return res.json({ hasToken: true, userOk: false, authFailed: false, mode: getDriveMode(), note: e?.message || 'Gagal probe.' });
+  }
+}));
+
 // Matriks akses zona untuk user saat ini (UI audit ManageIntegrations)
 app.get('/api/drive/policy', wrap(async (req, res) => {
   if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
@@ -1286,94 +1328,10 @@ app.get('/api/drive/policy', wrap(async (req, res) => {
 }));
 
 // Audit sinkronisasi DB ↔ Drive: grup & subdivisi pantatugas vs folder aktual
-app.get('/api/drive/audit', requirePlatformRoot(), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-
-  const tree = await listFolderTree(3);
-  const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
-  // Warisan tag: anak mewarisi zona induk terdekat (logika sama dgn gdrive-policy)
-  const byId = new Map(tree.map((f) => [f.id, f]));
-  const inheritedTag = (f) => {
-    const own = f.name.match(/\[([A-Z][^\]]*)\]/i)?.[1];
-    if (own) return own.toUpperCase();
-    let p = f.parentId ? byId.get(f.parentId) : null;
-    while (p) {
-      const t = p.name.match(/\[([A-Z][^\]]*)\]/i)?.[1];
-      if (t) return t.toUpperCase();
-      p = p.parentId ? byId.get(p.parentId) : null;
-    }
-    return null;
-  };
-
-  // (a) Grup aktif → folder [GROUP:<nama>]
-  const groups = await prisma.group.findMany({ where: { status: 'ACTIVE' }, select: { name: true } });
-  const groupFolders = tree.filter((f) => /\[GROUP:[^\]]+\]/i.test(f.name));
-  const matchedGroupTokens = new Set(
-    groupFolders.map((f) => (f.name.match(/\[GROUP:([^\]]+)\]/i)?.[1] || '').trim().toLowerCase())
-  );
-  const groupAudit = groups.map((g) => ({
-    name: g.name,
-    ok: matchedGroupTokens.has(g.name.toLowerCase()),
-    hint: `[GROUP:${g.name.toUpperCase()}]`,
-  }));
-  const extraGroups = groupFolders.filter((f) => {
-    const tok = (f.name.match(/\[GROUP:([^\]]+)\]/i)?.[1] || '').trim().toLowerCase();
-    return !groups.some((g) => g.name.toLowerCase() === tok);
-  }).map((f) => f.name);
-
-  // (b) Subdivisi pantatugas → folder di bawah folder induk bernama <Pillar>
-  const subs = await prisma.strukturMember.findMany({
-    where: { division: { in: ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'] }, NOT: { subdivision: null } },
-    select: { division: true, subdivision: true },
-  });
-  const pillarParents = new Map(); // pillarLabel(lower) → array nama folder anak
-  for (const f of tree) {
-    const m = f.name.match(/^(.*?)\s*\[[^\]]+\]$/);
-    if (!m) continue;
-    const base = norm(m[1]);
-    for (const p of ['liturgia', 'didaskalia', 'koinonia', 'diakonia', 'marturia']) {
-      if (base === p) {
-        if (!pillarParents.has(p)) pillarParents.set(p, new Set());
-        break;
-      }
-    }
-  }
-  for (const f of tree) {
-    if (!f.parentId) continue;
-    const parent = tree.find((t) => t.id === f.parentId);
-    if (!parent) continue;
-    const pm = parent.name.match(/^(.*?)\s*\[[^\]]+\]$/);
-    if (!pm) continue;
-    const key = norm(pm[1]);
-    if (pillarParents.has(key)) pillarParents.get(key).add(norm(f.name.replace(/\[[^\]]+\]/g, '').trim()));
-  }
-  const seen = new Map();
-  for (const s of subs) {
-    const key = s.division.toLowerCase();
-    const set = seen.get(key) || new Set();
-    set.add(norm(s.subdivision));
-    seen.set(key, set);
-  }
-  const pillarAudit = [];
-  for (const [pillar, expectedSet] of seen.entries()) {
-    const actual = pillarParents.get(pillar) || new Set();
-    for (const sub of expectedSet) {
-      pillarAudit.push({ pillar, name: sub, ok: actual.has(sub) });
-    }
-  }
-
-  const untagged = tree.filter((f) => !inheritedTag(f)).map((f) => f.name);
-
-  res.json({
-    generatedAt: new Date().toISOString(),
-    totalFoldersScanned: tree.length,
-    groups: { items: groupAudit, missing: groupAudit.filter((g) => !g.ok).length },
-    pillars: { items: pillarAudit, missing: pillarAudit.filter((p) => !p.ok).length },
-    extraGroupFolders: extraGroups,
-    untaggedFolders: untagged.slice(0, 30),
-  });
+app.get('/api/drive/audit', requirePlatformRoot(), wrap(async (_req, res) => {
+  const { runDriveAudit } = await import('./lib/drive-audit.mjs');
+  const audit = await runDriveAudit();
+  res.json({ generatedAt: new Date().toISOString(), ...audit });
 }));
 
 // ---------- TiDB Cloud (Prisma) ----------
@@ -2885,6 +2843,13 @@ app.post('/api/events/:eventId/divisions/:div/submit', wrap(async (req, res) => 
   });
 
   await logApprovalAction(division.id, 'SUBMIT', req.authUser, req.body?.comment);
+  void notifyApprovalItem(prisma, {
+    queue: 'divisi-review',
+    itemId: division.id,
+    title: `Divisi ${div.toUpperCase()} minta review`,
+    message: 'Perlu approve Komisi di Panel Divisi.',
+    url: '#/portal/komisi/divisions',
+  });
   res.json({ division: updated });
 }));
 
@@ -3358,6 +3323,13 @@ app.post('/api/jethro/placement/batch', requireRole(...KOMISION), wrap(async (re
     return res.status(400).json({ error: 'recommendations array wajib.' });
   }
   const batch = await createPlacementBatch({ createdBy: req.authUser.id, recommendations });
+  void notifyApprovalItem(getPrisma(), {
+    queue: 'placement',
+    itemId: batch.id,
+    title: `Batch penempatan baru (${(batch.items || []).length} newcomer)`,
+    message: 'Perlu review Komisi di Review Penempatan.',
+    url: '#/portal/komisi/jethro-placement',
+  });
   res.json(batch);
 }));
 
@@ -3897,6 +3869,13 @@ app.post('/api/register/google', wrap(async (req, res) => {
         await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
         await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
       } catch { /* non-blocking */ }
+      void notifyApprovalItem(prisma, {
+        queue: 'akun-pending',
+        itemId: user.id,
+        title: `Akun PENDING: ${user.name || email}`,
+        message: 'Perlu verifikasi Komisi di Onboarding.',
+        url: '#/portal/komisi/onboarding',
+      });
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
@@ -4016,6 +3995,13 @@ app.post('/api/register/local', wrap(async (req, res) => {
         await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
         await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
       } catch { /* non-blocking */ }
+      void notifyApprovalItem(prisma, {
+        queue: 'akun-pending',
+        itemId: user.id,
+        title: `Akun PENDING: ${user.name || email}`,
+        message: 'Perlu verifikasi Komisi di Onboarding.',
+        url: '#/portal/komisi/onboarding',
+      });
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
@@ -4263,6 +4249,13 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
           await claimWaitingPoolByPhone(prisma, user.id, user.phone, BAKU_TAU_SOURCE_EVENT);
           await ensureWaitingPoolForNewPemuda(user.id, { sourceEvent: BAKU_TAU_SOURCE_EVENT });
         } catch { /* non-blocking */ }
+        void notifyApprovalItem(prisma, {
+          queue: 'akun-pending',
+          itemId: user.id,
+          title: `Akun PENDING: ${user.name || email}`,
+          message: 'Perlu verifikasi Komisi di Onboarding.',
+          url: '#/portal/komisi/onboarding',
+        });
       }
 
       const wl = await prisma.waitlistEntry.findFirst({ where: { email } });
@@ -4732,6 +4725,13 @@ app.post('/api/recreational/suggest', wrap(async (req, res) => {
       parentId,
       status: 'PENDING',
     },
+  });
+  void notifyApprovalItem(prisma, {
+    queue: 'saran-minat',
+    itemId: suggestion.id,
+    title: `Saran minat: ${name}`,
+    message: 'Perlu tinjauan Komisi di Katalog.',
+    url: '#/portal/komisi/catalog',
   });
   res.json({ suggestion });
 }));
@@ -5814,6 +5814,8 @@ registerAdminRoutes(app, { wrap });
 registerVisualsPublishRoutes(app, { wrap });
   registerOrgRoutes(app, { wrap });
   registerEventLifecycleRoutes(app, { wrap });
+  registerDigestRoutes(app, { wrap });
+  registerMonitoringRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
 app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) => {
@@ -6490,6 +6492,13 @@ app.post('/api/gallery', requireRole(), wrap(async (req, res) => {
       thumbUrl, division, driveFileId,
       uploadedById: req.authUser?.id,
     },
+  });
+  void notifyApprovalItem(prisma, {
+    queue: 'galeri',
+    itemId: id,
+    title: `Galeri menunggu approve: ${title}`,
+    message: 'Perlu tinjauan Marturia/Komisi di galeri event.',
+    url: '#/portal/komisi/divisions',
   });
   res.status(201).json({ item });
 }));

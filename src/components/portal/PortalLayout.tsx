@@ -94,6 +94,8 @@ export const PortalLayout: React.FC = () => {
     authUser,
     myRoleOptions,
     setActiveUserRole,
+    roleMissing,
+    refreshAuthUser,
   } = useApp();
   const { t, lang } = useLang();
 
@@ -260,6 +262,31 @@ export const PortalLayout: React.FC = () => {
 
   if (showRolePicker && !isOnboarding) {
     return <RolePickerScreen />;
+  }
+
+  // Login tapi daftar peran kosong (sesi basi/gagal sinkron) — JANGAN tampilkan
+  // sebagai MENTEE grup pertama. Minta muat ulang / login ulang eksplisit.
+  if (roleMissing && !isOnboarding) {
+    return (
+      <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-6 text-[#1B1B1B]">
+        <div className="max-w-md w-full rounded-[28px] bg-white border border-amber-200 p-6 text-center space-y-3">
+          <p className="text-base font-black">Sesi tanpa peran</p>
+          <p className="text-xs text-[#8C8880] leading-relaxed">
+            Kamu login sebagai {authUser?.name || 'jemaat'}, tapi daftar peran belum termuat.
+            Jangan lanjut sebagai tamu — muat ulang dulu. Bila tetap, keluar lalu masuk lagi atau hubungi Komisi.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <button
+              type="button"
+              onClick={() => void refreshAuthUser().then(() => window.location.reload())}
+              className="px-4 py-2 rounded-full bg-[#181818] text-white text-xs font-bold"
+            >
+              Muat ulang sesi
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

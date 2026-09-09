@@ -195,6 +195,11 @@ const STEPS = [
     label: 'Notifikasi EVENT_ARCHIVED (enum)',
     required: true,
   },
+  {
+    script: 'server/_migrate-approval-drift-notif.cjs',
+    label: 'Notifikasi APPROVAL_ITEM + DRIVE_DRIFT (enum)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
