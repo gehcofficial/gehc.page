@@ -28,11 +28,13 @@ export const GroupAlbumsPanel: React.FC<{
   const [files, setFiles] = useState<{ id: string; name: string; thumbnailUrl: string }[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncInfo, setSyncInfo] = useState<Record<string, { folderMissing: boolean; photoCount: number }>>({});
+  const [brokenCover, setBrokenCover] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/groups/${groupId}/albums`, { credentials: 'include' });
     const d = await r.json();
     setAlbums(d.albums || []);
+    setBrokenCover({});
   }, [groupId]);
 
   useEffect(() => {
@@ -191,11 +193,23 @@ export const GroupAlbumsPanel: React.FC<{
           {albums.map((a) => (
             <div key={a.id} className="rounded-2xl border border-[#D9D7D0]/50 overflow-hidden bg-white">
               <div className="aspect-square bg-[#F3F1EC] relative">
-                {a.coverUrl ? (
-                  <img src={a.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                {a.coverUrl && !brokenCover[a.id] ? (
+                  <img
+                    src={a.coverUrl}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={() => setBrokenCover((m) => ({ ...m, [a.id]: true }))}
+                  />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-[#8C8880]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#8C8880]">
                     <Images className="w-8 h-8" />
+                    {brokenCover[a.id] ? (
+                      <p className="text-[10px] font-bold px-3 text-center">Cover rusak — Sinkronkan Drive / pilih preview lain</p>
+                    ) : (
+                      syncInfo[a.id] && !syncInfo[a.id].folderMissing && syncInfo[a.id].photoCount === 0 && (
+                        <p className="text-[10px] font-bold px-3 text-center">Belum ada foto — unggah di bawah</p>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -224,7 +238,13 @@ export const GroupAlbumsPanel: React.FC<{
                 </p>
                 <div className="flex gap-1">
                   {(a.previews || []).map((p) => (
-                    <img key={p.id} src={p.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                    <img
+                      key={p.id}
+                      src={p.thumbnailUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
                   ))}
                 </div>
                 <div className="flex flex-wrap gap-2">
