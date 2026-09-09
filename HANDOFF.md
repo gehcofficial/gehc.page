@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — QR multi-event per (user, event) (8 Sep 2026)
+## Current — Monitoring persist + kunci grup + album ramah (9 Sep 2026, prod)
+
+### Done (lokal, belum commit/push)
+
+- **Monitoring persist:** `GET/POST/DELETE /api/monitoring` (tabel sudah ada; mentor rumah/komisi tulis, visibilitas per grup) + context sinkron (load saat login, submit/delete API, fallback lokal) + `server/lib/monitoring.mjs` + 5 unit test. Dashboard kini data TiDB (terlihat Komisi & semua perangkat).
+- **Kunci grup:** mentor/mentee tanpa penugasan termuat → panel eksplisit (tidak lagi default grup pertama); `roleMissing` gate di PortalLayout (login tanpa peran → layar sesi, bukan MENTEE/Agape); guard grup kosong.
+- **Album Drive ramah:** `INVALID_GRANT` → 503 pesan Indonesia di create/foto/preview/cover; album tetap tersimpan tanpa folder + flag `drivePending`; list file degradasi + `driveNote`.
+- **Data Holly (prod, verifikasi read-only):** MENTOR Echad + COMMITTEE aktif; baris assignment MENTEE inaktif DIHAPUS (1 baris yatim). Tidak ada pemindahan grup di DB.
+- **Verifikasi:** lint bersih, 48 file / 257 test hijau.
+
+### Next
+
+1. Restart API + refresh; cek album (pesan ramah), monitoring (laporan masuk + terlihat akun lain), role Holly normal.
+2. **Admin wajib (tak bisa headless):** `npm run drive:auth` sebagai pemilik folder + `npm run env:sync-gdrive-token` (token prod mati → INVALID_GRANT di prod).
+3. Commit + push staging → QA → merge main.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — QR multi-event per (user, event) (8 Sep 2026)
 
 ### Done (lokal, belum commit/push)
 

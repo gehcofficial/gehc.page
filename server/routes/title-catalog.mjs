@@ -3,6 +3,7 @@ import { requireRole } from '../auth.mjs';
 import { getPrisma } from '../db.mjs';
 import { KOMISION_CORE } from '../lib/rbac-constants.mjs';
 import { normalizeAcademicAbbr, setTitleCatalogLookups } from '../lib/person-name.mjs';
+import { notifyApprovalItem } from '../lib/approval-notify.mjs';
 
 function newId(prefix) {
   return `${prefix}-${crypto.randomBytes(8).toString('hex')}`;
@@ -156,6 +157,13 @@ export function registerTitleCatalogRoutes(app, { wrap }) {
         nameHint: req.body?.nameHint ? String(req.body.nameHint).trim().slice(0, 120) : null,
         status: 'PENDING',
       },
+    });
+    void notifyApprovalItem(prisma, {
+      queue: 'saran-gelar',
+      itemId: suggestion.id,
+      title: `Saran gelar: ${abbr}`,
+      message: 'Perlu tinjauan Komisi di Katalog.',
+      url: '#/portal/komisi/catalog',
     });
     res.json({ ok: true, suggestion });
   }));

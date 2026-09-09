@@ -6,6 +6,7 @@ import { isKoinoniaOperator } from '../lib/checkin-access.mjs';
 import { BAKU_TAU_EVENT_ID, BAKU_TAU_SOURCE_EVENT } from '../lib/baku-tau.mjs';
 import { resolveEventBySlug, SLUG_TO_EVENT_ID } from './events-public.mjs';
 import { QUESTION_TYPES, bankId, normQuestionType, typeNeedsOptions, validateShowIf } from '../lib/event-question-bank.mjs';
+import { notifyApprovalItem } from '../lib/approval-notify.mjs';
 import {
   asalFromOrigin,
   csvEscape,
@@ -362,6 +363,13 @@ export function registerEventQuestionRoutes(app, { wrap }) {
           reason: req.body?.reason ? String(req.body.reason).slice(0, 500) : null,
           createdById: req.authUser.id,
         },
+      });
+      void notifyApprovalItem(prisma, {
+        queue: 'soal-event',
+        itemId: created.id,
+        title: `Usulan soal: ${created.label}`,
+        message: 'Perlu tinjauan Komisi di blok soal event.',
+        url: '#/portal/komisi/events',
       });
       res.status(201).json({ request: created });
     }),

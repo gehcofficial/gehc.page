@@ -1046,6 +1046,8 @@ enum NotificationType {
   RUNBOOK_DUE
   CATALOG_REMINDER
   EVENT_ARCHIVED
+  APPROVAL_ITEM
+  DRIVE_DRIFT
 }
 
 enum NotificationStatus {
