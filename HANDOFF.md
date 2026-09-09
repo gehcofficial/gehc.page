@@ -1,6 +1,15 @@
 # GEHC Portal — Handoff
 
-## Current — Auto-cover album + UI jujur (9 Sep 2026)
+## Current — Cover wajib publik + perbaiki langsung Echad (9 Sep 2026)
+
+**Akar (fakta prod):** file cover ada & tidak di-trash, tapi permission hanya owner/writer — thumbnail lh3 butuh publik. Ukuran bukan masalah (maks 8MB, dikompres server).
+**Fix kode:** upload/sync mempublikkan file saat jadi cover (`setPublicReader`).
+**Fix langsung:** file cover Bonding Echad dipublikkan manual (verified HTTP 200 image/jpeg).
+**Verifikasi:** lint bersih, 264 test hijau. Tanpa migrasi DB.
+
+---
+
+## Prior — Auto-cover album + UI jujur (9 Sep 2026)
 
 **Sebab cover kosong:** thumbnail lh3 hanya hidup bila file ada + publik; hapus file di Drive = penunjuk mati (sync membersihkan dengan benar).
 **Fix:** sync/upload jadikan foto pertama cover bila kosong; onError fallback + status "belum ada foto" vs "cover rusak"; preview mati disembunyikan.
