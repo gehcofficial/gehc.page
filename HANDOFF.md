@@ -1,8 +1,17 @@
 # GEHC Portal — Handoff
 
-## Current — MERGED ke main + prod hijau, putaran 1 (8 Sep 2026, `9566a71`)
+## Current — Token fail-safe + kartu deploy; staging & main sinkron (9 Sep 2026)
 
-## Current — MERGED putaran 3 + staging & prod hijau (9 Sep 2026)
+**Temuan:** probe `Gagal probe EROFS` ternyata BUKAN token mati — token env valid, tapi listener refresh mencoba tulis file di FS read-only Vercel. `saveTokens`/`loadSavedTokens` kini fail-safe (token tetap dipakai dari memori/env).
+**Commit staging `fca84fd` → merge main `991ddfc`:** kartu Sinkronisasi & Deploy (banding commit GitHub + redeploy via hook + penjelasan env-butuh-redeploy), `GET /api/version`, `POST /api/admin/redeploy`.
+**Smoke:** staging `/api/version` = fca84fd; prod = 991ddfc. Tanpa migrasi DB (hanya kode).
+**Sisa manual:** buat Deploy Hook di Vercel (Settings → Git → Deploy Hooks, branch main) + pasang `VERCEL_DEPLOY_HOOK_URL` sebagai env Production agar tombol redeploy aktif; pantau BAKU TAU 12 Sep.
+
+---
+
+## Prior — Monitoring persist + kunci grup + album ramah (9 Sep 2026, prod)
+
+## Prior — MERGED putaran 3 + staging & prod hijau (9 Sep 2026)
 
 **Merge:** staging (3 commit: monitoring / drive / notif) → main, konflik HANDOFF digabung. Push main OK → Production + Preview Ready.
 **DB:** enum `APPROVAL_ITEM` + `DRIVE_DRIFT` termigrasi lokal+staging+prod; schema check hijau semua.
@@ -23,13 +32,14 @@
 ---
 
 ## Prior — QR multi-event per (user, event) (8 Sep 2026)
->>>>>>> staging
+
+## Prior — MERGED putaran 1 + prod hijau (8 Sep 2026)
 
 - DB prod termigrasi (`subject_name`, `deliverable event_id` + FK, `request show_if`, `content event_id`); schema check hijau; tanpa `prisma migrate deploy`/seed.
 - Env prod terverifikasi; smoke prod hijau (35 pendaftar utuh).
 - Rollback putaran 1: `git revert -m 1 9566a71` + push main.
 
-## Current — MERGED putaran 2 + staging & prod hijau (9 Sep 2026)
+## Prior — MERGED putaran 2 + staging & prod hijau (9 Sep 2026)
 
 **Merge:** staging `d250efa` → main `e91dd22` (konflik HANDOFF saja, digabung). Push main OK → Production Ready.
 **DB:** enum `EVENT_ARCHIVED` termigrasi lokal+staging+prod; schema check hijau semua.
