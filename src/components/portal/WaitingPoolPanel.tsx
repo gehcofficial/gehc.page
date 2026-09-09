@@ -48,6 +48,16 @@ interface WaitingPoolPanelProps {
 const initialsAvatar = (n: string) =>
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(n || '?')}&backgroundColor=1b1b1b`;
 
+function originKind(entry: WaitingPoolEntry): string {
+  if (!entry.userId) return 'Counter';
+  const s = entry.sourceEvent || '';
+  if (s.startsWith('Invite ')) return 'Undangan';
+  if (s && s !== 'Manual add' && s !== 'Portal') return 'Event';
+  if (!s || s === 'Portal') return 'Daftar sendiri';
+  return 'Manual';
+}
+const ORIGIN_KINDS = ['Undangan','Daftar sendiri','Event','Counter','Manual'] as const;
+
 function daysSince(dateStr: string): number {
   const d = new Date(dateStr);
   const now = new Date();
@@ -61,6 +71,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
   const [tab, setTab] = useState<'registered' | 'waiting' | 'pending'>('registered');
   const [bakuTauOnly, setBakuTauOnly] = useState(true);
   const [domicileFilter, setDomicileFilter] = useState<string>('');
+  const [originKindFilter, setOriginKindFilter] = useState<string>('');
+  const [roleWithoutProfileOnly, setRoleWithoutProfileOnly] = useState(false);
   const [registeredPool, setRegisteredPool] = useState<WaitingPoolEntry[] | null>(null);
   const [eventStats, setEventStats] = useState<{ registered: number; withAccount: number; profileComplete: number; byDomicile?: Record<string, number> } | null>(null);
   const [waitingPool, setWaitingPool] = useState<WaitingPoolEntry[] | null>(null);
@@ -366,6 +378,11 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
             {eventStats?.byDomicile?.[o.value] != null ? ` (${eventStats.byDomicile[o.value]})` : ''}
           </button>
         ))}
+        <div className="h-px w-full bg-[#D9D7D0]/40 my-1" />
+        {ORIGIN_KINDS.map(k=> (
+          <button key={k} onClick={()=>setOriginKindFilter(f=>f===k?'':k)} className={`px-3 py-1 rounded-full text-[10px] font-bold ${originKindFilter===k?'bg-violet-600 text-white':'bg-white border border-[#D9D7D0]'}`}>{k}</button>
+        ))}
+        <button onClick={()=>setRoleWithoutProfileOnly(v=>!v)} className={`px-3 py-1 rounded-full text-[10px] font-bold ${roleWithoutProfileOnly?'bg-amber-600 text-white':'bg-white border border-[#D9D7D0]'}`}>Peran, profil belum lengkap</button>
         <button
           onClick={exportCsv}
           className="ml-auto px-3 py-1.5 rounded-full text-[10px] font-bold bg-white border border-[#D9D7D0] flex items-center gap-1"
@@ -405,6 +422,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
           onDelete={(e) => setDeleteTarget(e)}
+          originKindFilter={originKindFilter}
+          roleWithoutProfileOnly={roleWithoutProfileOnly}
         />
       )}
 
@@ -416,6 +435,8 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
           emptyDesc={o.emptyWaitingDesc}
           onReminder={sendReminder}
           sendingReminder={sendingReminder}
+          originKindFilter={originKindFilter}
+          roleWithoutProfileOnly={roleWithoutProfileOnly}
         />
       )}
 
@@ -554,6 +575,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                           Profil lengkap {entry.profileCompletedAt ? `· ${daysSince(entry.profileCompletedAt)} hari lalu` : ''}
                         </span>
                         <div className="flex gap-1 text-[9px] text-[#8C8880]">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${originKind(entry)==='Undangan'?'bg-violet-100 text-violet-700':originKind(entry)==='Event'?'bg-emerald-100 text-emerald-700':'bg-gray-100 text-gray-600'}`}>{originKind(entry)}</span>
                           {entry.sourceEvent && (
                             <span className="bg-gray-100 px-2 py-0.5 rounded-full">{entry.sourceEvent}</span>
                           )}
@@ -712,14 +734,22 @@ const PoolList: React.FC<{
   onReminder: (e: WaitingPoolEntry) => void;
   sendingReminder: string | null;
   onDelete?: (e: WaitingPoolEntry) => void;
-}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder, onDelete }) => {
-  const { pageItems, pager } = useListPager<WaitingPoolEntry>(entries);
+  originKindFilter?: string;
+  roleWithoutProfileOnly?: boolean;
+}> = ({ entries, emptyTitle, emptyDesc, onReminder, sendingReminder, onDelete, originKindFilter='', roleWithoutProfileOnly=false }) => {
+  const filtered = entries.filter(e=>{
+    if (originKindFilter && originKind(e)!==originKindFilter) return false;
+    if (roleWithoutProfileOnly && !(e.user?.roles?.length && !e.profileCompleted)) return false;
+    return true;
+  });
+  const { pageItems, pager } = useListPager<WaitingPoolEntry>(filtered);
   const { t } = useLang();
   const deleteLabel = t.portal.onboarding.deleteSubmit;
   return (
   <div className="space-y-2">
     {pager}
-    {entries.length === 0 ? (
+    {filtered.length === 0 && entries.length>0 ? <p className="text-[11px] text-[#8C8880] p-3 border border-dashed rounded-xl">Filter aktif — kosong untuk filter ini.</p> : null}
+    {filtered.length === 0 && entries.length===0 ? (
       <EmptyState icon={<ClipboardList className="w-8 h-8 text-[#8C8880]" />} title={emptyTitle} desc={emptyDesc} />
     ) : (
       pageItems.map((entry) => (
@@ -758,7 +788,9 @@ const PoolList: React.FC<{
           </div>
           <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#D9D7D0]/40">
             <div className="flex gap-1 text-[9px] text-[#8C8880] flex-wrap">
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${originKind(entry)==='Undangan'?'bg-violet-100 text-violet-700':originKind(entry)==='Event'?'bg-emerald-100 text-emerald-700':'bg-gray-100'}`}>{originKind(entry)}</span>
               {entry.sourceEvent && <span className="bg-gray-100 px-2 py-0.5 rounded-full">{entry.sourceEvent}</span>}
+              {entry.user?.roles?.length && !entry.profileCompleted ? <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">Peran, profil belum lengkap</span> : null}
               {entry.giftTestDone && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Gift</span>}
             </div>
             <div className="flex items-center gap-1 shrink-0">

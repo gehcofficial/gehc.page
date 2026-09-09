@@ -71,6 +71,7 @@ interface YouthUser {
   churchTitle?: string | null;
   academicTitles?: unknown;
   isBeyonders?: boolean;
+  isIndividuExplicit?: boolean;
   membershipKind?: 'JEMAAT' | 'SIMPATISAN';
   bipra?: string;
   kolomId?: string | null;
@@ -97,6 +98,7 @@ interface EditForm {
   address: AddressValue;
   giftsTop5: string;
   isBeyonders: boolean;
+  isIndividuExplicit?: boolean;
   bipra: string;
   kolomId: string;
   recreationalIds: string[];
@@ -145,7 +147,7 @@ const ROLE_LABELS: Record<string, string> = {
   CO_MENTOR: 'Community',
   MENTEE: 'Community',
   ALUMNI: 'Alumni',
-  COMMUNITY: 'Community',
+  COMMUNITY: 'Belum ditempatkan',
 };
 
 // Tim Kerja groupings — fallback if org tree not loaded
@@ -179,9 +181,12 @@ function hasRoleInLegacy(y: YouthUser, role: string): boolean {
 function matchesMainFilter(y: YouthUser, filter: MainFilter): boolean {
   if (filter === 'ALL') return true;
   if (filter === 'INDIVIDU') {
-    return !y.isBeyonders && !BEYONDER_ROLES.some((r) => hasRoleInAssignment(y, r) || hasRoleInLegacy(y, r));
+    if (y.isIndividuExplicit) return y.bipra === 'PEMUDA';
+    return !y.isBeyonders && !BEYONDER_ROLES.some((r) => hasRoleInAssignment(y, r) || hasRoleInLegacy(y, r)) && y.bipra === 'PEMUDA';
   }
   if (filter === 'BEYONDERS') {
+    if (y.isIndividuExplicit) return false;
+    if (y.bipra !== 'PEMUDA') return false;
     return Boolean(y.isBeyonders) || BEYONDER_ROLES.some((r) => hasRoleInAssignment(y, r) || hasRoleInLegacy(y, r));
   }
   if (filter === 'TIMKERJA') {
@@ -301,6 +306,12 @@ function displayRoles(user: YouthUser): Array<{ key: string; role: string; label
       });
   }
 
+  if (user.isIndividuExplicit) {
+    return [{ key: 'individu', role: 'INDIVIDU', label: 'Individu (eksplisit)', color: 'bg-amber-100 text-amber-800', detail: 'Tidak bisa jadi Beyonders' }];
+  }
+  if (user.isBeyonders === false && !user.isIndividuExplicit && (user.roles?.length || user.roleAssignments?.length) === 0) {
+    return [{ key: 'belum', role: 'COMMUNITY', label: 'Belum ditempatkan', color: 'bg-gray-100 text-gray-600', detail: 'Pemuda — belum assign' }];
+  }
   return (user.roles || []).map((ur) => ({
     key: `legacy-${ur.id}`,
     role: ur.role,
@@ -421,7 +432,7 @@ export const YouthGEHCList: React.FC = () => {
     anchor: HTMLElement | null;
   } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
+  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, isIndividuExplicit: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
@@ -569,6 +580,7 @@ export const YouthGEHCList: React.FC = () => {
             bipra: editForm.bipra,
             kolomId: editForm.kolomId || null,
             isBeyonders: editForm.isBeyonders,
+            isIndividuExplicit: editForm.isIndividuExplicit,
             recreationalIds: editForm.recreationalIds,
             birthDate: editForm.birthDate || null,
           }),
@@ -595,6 +607,7 @@ export const YouthGEHCList: React.FC = () => {
             ...editForm.address,
             giftsTop5,
             isBeyonders: editForm.isBeyonders,
+            isIndividuExplicit: editForm.isIndividuExplicit,
             bipra: editForm.bipra,
             kolomId: editForm.kolomId || null,
             recreationalIds: editForm.recreationalIds,
@@ -1837,16 +1850,29 @@ export const YouthGEHCList: React.FC = () => {
               </div>
               )}
               {editForm.bipra === 'PEMUDA' && (
+              <>
               <div className="flex items-center justify-between py-1">
                 <span className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider">Beyonders</span>
                 <button
                   type="button"
+                  disabled={editForm.isIndividuExplicit}
                   onClick={() => setEditForm({ ...editForm, isBeyonders: !editForm.isBeyonders })}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${editForm.isBeyonders ? 'bg-emerald-500' : 'bg-[#D9D7D0]'}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${editForm.isBeyonders ? 'bg-emerald-500' : 'bg-[#D9D7D0]'} disabled:opacity-50`}
                 >
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.isBeyonders ? 'left-[22px]' : 'left-0.5'}`} />
                 </button>
               </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Individu (tidak bisa jadi Beyonders)</span>
+                <button
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, isIndividuExplicit: !editForm.isIndividuExplicit, isBeyonders: editForm.isIndividuExplicit ? editForm.isBeyonders : false })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${editForm.isIndividuExplicit ? 'bg-amber-500' : 'bg-[#D9D7D0]'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.isIndividuExplicit ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              </>
               )}
               <div className="flex gap-3 pt-2">
                 <button

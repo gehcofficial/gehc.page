@@ -225,6 +225,7 @@ model User {
   onboardingStatus String  @default("ACTIVE") @map("onboarding_status") @db.VarChar(30) // WAITING_POOL | PENDING | ACTIVE
   onboardingPath   String  @default("ORGANIC") @map("onboarding_path") @db.VarChar(16) // ORGANIC | INVITED
   isBeyonders      Boolean @default(false) @map("is_beyonders")
+  isIndividuExplicit Boolean @default(false) @map("is_individu_explicit") // Individu = tidak bisa jadi Beyonders (eksplisit KOMISI)
   bipra            Bipra   @default(PEMUDA)
   kolomId          String? @map("kolom_id") @db.VarChar(64)
   membershipKind   MembershipKind @default(JEMAAT) @map("membership_kind")

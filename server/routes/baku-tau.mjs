@@ -145,21 +145,24 @@ async function bakuTauStats(prisma) {
   const where = { sourceEvent: BAKU_TAU_SOURCE_EVENT };
   const entries = await prisma.waitingPool.findMany({
     where,
-    select: { status: true, userId: true, profileCompleted: true, domicileKind: true },
+    select: { status: true, userId: true, profileCompleted: true, domicileKind: true, user: { select: { bipra: true } } },
   });
   const byDomicile = emptyDomicileStats();
-  let registered = 0;
-  let withAccount = 0;
-  let profileComplete = 0;
+  let registered = 0, withAccount = 0, profileComplete = 0;
+  let pemudaRegistered = 0, pemudaWithAccount = 0, nonPemudaRegistered = 0;
   for (const e of entries) {
     registered += 1;
     if (e.userId) withAccount += 1;
     if (e.profileCompleted) profileComplete += 1;
-    if (e.domicileKind && byDomicile[e.domicileKind] !== undefined) {
-      byDomicile[e.domicileKind] += 1;
-    }
+    if (e.domicileKind && byDomicile[e.domicileKind] !== undefined) byDomicile[e.domicileKind] += 1;
+    const bipra = e.user?.bipra || null;
+    if (!e.userId || bipra === 'PEMUDA' || !bipra) { pemudaRegistered += 1; if (e.userId) pemudaWithAccount += 1; }
+    else nonPemudaRegistered += 1;
   }
-  return { registered, withAccount, profileComplete, byDomicile };
+  return {
+    registered, withAccount, profileComplete, byDomicile,
+    pemudaRegistered, pemudaWithAccount, nonPemudaRegistered,
+  };
 }
 
 /** BAKU TAU 4.0 public registration & stats */
@@ -181,8 +184,19 @@ export function registerBakuTauRoutes(app, { wrap }) {
     res.json(await bakuTauStats(prisma));
   }));
 
+  // Gate khusus Pemuda untuk BAKU TAU (undangan sudah lewat jalur lain)
+  function requirePemudaForBakutau(user, forceBipra) {
+    const isKomisiForce = forceBipra && (user.roles || []).some(r=>['KOMISI','SUPERADMIN'].includes(r.role));
+    if (isKomisiForce) return null;
+    const bipra = user.bipra;
+    const hasRole = (user.roles || []).length>0;
+    if (hasRole && bipra && bipra !== 'PEMUDA') {
+      return { status: 403, error: `BAKU TAU khusus Pemuda (BIPRA Anda: ${bipra}). Hubungi Komisi untuk dispensasi.` };
+    }
+    return null;
+  }
+
   app.post('/api/events/baku-tau-4-0/register', wrap(async (req, res) => {
-    const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     const eventRow = await findEventProgramPublic(prisma, { id: BAKU_TAU_EVENT_ID });
@@ -194,8 +208,10 @@ export function registerBakuTauRoutes(app, { wrap }) {
     const authUser = req.authUser;
 
     if (authUser) {
-      const user = await prisma.user.findUnique({ where: { id: authUser.id } });
+      const user = await prisma.user.findUnique({ where: { id: authUser.id }, include:{ roles:true } });
       if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+      const gate = requirePemudaForBakutau(user, req.body?.forceBipra || req.query?.forceBipra);
+      if (gate) return res.status(gate.status).json({ error: gate.error });
 
       let entry = await prisma.waitingPool.findUnique({ where: { userId: user.id } });
       const data = {

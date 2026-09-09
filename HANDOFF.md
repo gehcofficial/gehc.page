@@ -1,6 +1,22 @@
 # GEHC Portal — Handoff
 
-## Current — Ultah Senin–Minggu WIB + ucapan HUT (9 Sep 2026)
+## Current — Registrasi netral + BIPRA gate + pipeline & Beyonders murni (10 Sep 2026)
+
+**Done:**
+- Registrasi akun baru tidak lagi auto-cap BAKU TAU (`sourceEvent=null`); `claimWaitingPoolByPhone` tidak menimpa `sourceEvent` bila sudah terisi (memperbaiki bias Undangan→BAKU).
+- BIPRA gate BAKU TAU (403 untuk non-PEMUDA kecuali `forceBipra` Komisi) + statistik pecah `pemudaRegistered/withAccount/nonPemudaRegistered` + seluruh pipeline tetap biarkan BAKU sebagai satu-satunya penulis `sourceEvent='BAKU TAU 4.0'`.
+- Onboarding Pipeline: filter `originKind` (Undangan/Daftar sendiri/Event/Counter/Manual) + badge "Peran, profil belum lengkap" (role+!profileCompleted) + chip warna.
+- Youth Jemaat: `isIndividuExplicit` (flag eksplisit KOMISI) + label Legacy→"Belum ditempatkan" + angka Beyonders murni (hanya `PEMUDA` + `isBeyonders||BeyonderRole` tanpa explicit, abaikan legacy) + wizard toggle Individu + enforcement `bipra!=PEMUDA → isBeyonders=false` + catatan arsitektur multi-domain.
+- Repair 1 baris lokal BAKU TAU yang tercap salah (null) — dry-run 1→0, executed.
+- Verifikasi: `lint` bersih, `273` test hijau, `db:migrate:local` + `db:schema:check` hijau (is_individu_explicit termigrasi).
+
+### Next
+- Komisi coba: toggle Individu di Jemaat (PEMUDA), generate Beyonders → pastikan tidak masuk; filter pipeline OriginKind; daftar non-Pemuda ke BAKU → 403; stats BAKU pecah.
+- Repair prod (reuse `_repair-baku-source.cjs` dengan `--dry-run` dulu).
+
+---
+
+## Prior — Ultah Senin–Minggu WIB + ucapan HUT (9 Sep 2026)
 
 **Jawaban batasan minggu:** sebelumnya jendela geser 7 hari dihitung UTC (bisa salah sehari 00–07 WIB). Kini Senin–Minggu berjalan dalam WIB; label jujur di dashboard; 29 Feb → 28 Feb non-kabisat.
 **Notifikasi:** cron harian kirim `BIRTHDAY_WISH` ke user + digest Komisi (dedupe harian); bell existing.

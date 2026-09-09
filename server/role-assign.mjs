@@ -232,7 +232,7 @@ export async function assignRoleToUser(prisma, {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { isBeyonders: true },
+      data: { isBeyonders: true, isIndividuExplicit: false },
     });
   }
 

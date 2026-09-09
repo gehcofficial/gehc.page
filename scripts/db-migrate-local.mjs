@@ -205,6 +205,11 @@ const STEPS = [
     label: 'Ucapan HUT: enum BIRTHDAY_WISH + birthday_settings',
     required: true,
   },
+  {
+    script: 'server/_migrate-individu-explicit.cjs',
+    label: 'Individu eksplisit (is_individu_explicit)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
