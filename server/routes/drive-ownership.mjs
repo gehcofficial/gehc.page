@@ -483,6 +483,173 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     }),
   );
 
+  // Sinkron album ↔ Drive: per album cek folder masih ada, hitung foto aktual,
+  // bersihkan preview/cover yang menunjuk file terhapus. Tidak menghapus baris.
+  app.post(
+    '/api/groups/:id/albums/sync',
+    requireRole('SUPERADMIN', 'KOMISI', 'MENTOR', 'CO_MENTOR'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const group = await prisma.group.findUnique({ where: { id: req.params.id } });
+      if (!group) return res.status(404).json({ error: 'Kelompok tidak ditemukan.' });
+      if (!isMentorOfGroup(req.authUser, group.id) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini atau Komisi.' });
+      }
+      let drive = null;
+      try {
+        drive = await requireUserDrive();
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
+      const rows = await prisma.groupAlbum.findMany({
+        where: { groupId: group.id },
+        orderBy: { occurredOn: 'desc' },
+      });
+      const albums = [];
+      for (const album of rows) {
+        if (!album.driveFolderId) {
+          albums.push({ id: album.id, title: album.title, ok: false, folderMissing: true, photoCount: 0, coverUrl: null });
+          continue;
+        }
+        let folderOk = true;
+        let files = [];
+        try {
+          const meta = await drive.files.get({ fileId: album.driveFolderId, fields: 'id,trashed', supportsAllDrives: true });
+          folderOk = !meta?.data?.trashed;
+          if (folderOk) {
+            files = (await listFolderFiles(drive, album.driveFolderId)).filter(isImageFile);
+          }
+        } catch (e) {
+          if (isDriveAuthError(e)) {
+            const err = new Error(driveAuthErrorMessage());
+            err.status = 503;
+            throw err;
+          }
+          folderOk = false;
+        }
+        const liveIds = new Set(files.map((f) => f.id));
+        const previews = (Array.isArray(album.previewFileIds) ? album.previewFileIds : []).filter((id) => liveIds.has(String(id)));
+        const cover = album.coverDriveFileId && liveIds.has(String(album.coverDriveFileId)) ? album.coverDriveFileId : (previews[0] || null);
+        if (previews.length !== (album.previewFileIds || []).length || cover !== album.coverDriveFileId) {
+          await prisma.groupAlbum.update({
+            where: { id: album.id },
+            data: { previewFileIds: previews, coverDriveFileId: cover },
+          }).catch(() => null);
+        }
+        albums.push({
+          id: album.id,
+          title: album.title,
+          ok: folderOk,
+          folderMissing: !folderOk,
+          photoCount: files.length,
+          coverUrl: cover ? driveThumbUrl(cover) : null,
+        });
+      }
+      res.json({ albums });
+    }),
+  );
+
+  // Hapus foto: trash file Drive + lepas dari preview/cover.
+  app.delete(
+    '/api/groups/:id/albums/:albumId/photos/:fileId',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
+      if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
+      if (!isMemberOfGroup(req.authUser, album.groupId)) {
+        return res.status(403).json({ error: 'Hanya anggota rumah ini yang boleh hapus foto.' });
+      }
+      const fileId = String(req.params.fileId);
+      let gone = false;
+      try {
+        const drive = await requireUserDrive();
+        if (album.driveFolderId) {
+          try {
+            const meta = await drive.files.get({ fileId, fields: 'id,parents', supportsAllDrives: true });
+            const parents = (meta?.data?.parents || []).map(String);
+            if (!parents.includes(String(album.driveFolderId))) {
+              return res.status(400).json({ error: 'Foto bukan milik album ini.' });
+            }
+          } catch (e) {
+            if (e?.code === 404 || e?.response?.status === 404) gone = true;
+            else if (!isDriveAuthError(e)) throw e;
+            else {
+              const err = new Error(driveAuthErrorMessage());
+              err.status = 503;
+              throw err;
+            }
+          }
+        }
+        if (!gone) {
+          try {
+            await drive.files.delete({ fileId, supportsAllDrives: true });
+          } catch (e) {
+            if (e?.code === 404 || e?.response?.status === 404) gone = true;
+            else throw e;
+          }
+        }
+      } catch (e) {
+        if (isDriveAuthError(e)) {
+          const err = new Error(driveAuthErrorMessage());
+          err.status = 503;
+          throw err;
+        }
+        throw e;
+      }
+      const previews = (Array.isArray(album.previewFileIds) ? album.previewFileIds : []).filter((id) => String(id) !== fileId);
+      await prisma.groupAlbum.update({
+        where: { id: album.id },
+        data: {
+          previewFileIds: previews,
+          ...(album.coverDriveFileId && String(album.coverDriveFileId) === fileId ? { coverDriveFileId: previews[0] || null } : {}),
+        },
+      }).catch(() => null);
+      res.json({ ok: true, gone: true });
+    }),
+  );
+
+  // Hapus album: hapus baris DB + trash folder Drive (pulih 30 hari dari sampah Drive).
+  app.delete(
+    '/api/groups/:id/albums/:albumId',
+    requireRole('SUPERADMIN', 'KOMISI', 'MENTOR', 'CO_MENTOR'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
+      if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
+      if (!isMentorOfGroup(req.authUser, album.groupId) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini atau Komisi.' });
+      }
+      let driveTrashed = false;
+      let driveNote = null;
+      if (album.driveFolderId) {
+        try {
+          const drive = await requireUserDrive();
+          await drive.files.delete({ fileId: album.driveFolderId, supportsAllDrives: true });
+          driveTrashed = true;
+        } catch (e) {
+          if (isDriveAuthError(e)) {
+            driveNote = driveAuthErrorMessage();
+          } else if (!(e?.code === 404 || e?.response?.status === 404)) {
+            throw e;
+          }
+        }
+      }
+      await prisma.groupAlbum.delete({ where: { id: album.id } });
+      res.json({
+        ok: true,
+        driveTrashed,
+        ...(driveNote ? { driveNote: `${driveNote} Baris album tetap dihapus.` } : {}),
+      });
+    }),
+  );
+
   app.get(
     '/api/groups/:id/albums/:albumId/files',
     requireRole(),
