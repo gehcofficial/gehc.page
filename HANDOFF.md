@@ -6,7 +6,18 @@
 - Env prod terverifikasi; smoke prod hijau (35 pendaftar utuh).
 - Rollback putaran 1: `git revert -m 1 9566a71` + push main.
 
-## Current — Merge putaran 2: generate ibadah, landing 3 lapis, hapus event, daftar generik, QR multi-event, cron (8 Sep 2026)
+## Current — MERGED putaran 2 + staging & prod hijau (9 Sep 2026)
+
+**Merge:** staging `d250efa` → main `e91dd22` (konflik HANDOFF saja, digabung). Push main OK → Production Ready.
+**DB:** enum `EVENT_ARCHIVED` termigrasi lokal+staging+prod; schema check hijau semua.
+**Smoke staging:** landing 3 lapis jalan (BAKU TAU full + W2 full + W1/W3/W4 kompak).
+**Smoke prod:** BAKU TAU ACTIVE + 35 pendaftar utuh; landing full BAKU TAU; cron 403 tanpa secret (terjaga).
+**⚠️ Temuan staging:** konten W2 ikut centang `is_featured_event` → bisa menggeser BAKU TAU dari hero (find pertama). Uncheck unggulan W2 di Konten publik.
+**Sisa:** `npx prisma generate` lokal (terkunci saat dev jalan); passkey prod; pantau BAKU TAU 12 Sep; cron jalan otomatis 01:00 UTC.
+
+---
+
+## Prior — Merge putaran 2: generate ibadah, landing 3 lapis, hapus event, daftar generik, QR multi-event, cron (8 Sep 2026)
 
 ### Done (staging `d250efa`, ikut merge ini)
 
