@@ -37,16 +37,34 @@ function loadSavedTokens() {
     };
   }
   if (existsSync(TOKEN_PATH)) {
-    return JSON.parse(readFileSync(TOKEN_PATH, 'utf8'));
+    try {
+      return JSON.parse(readFileSync(TOKEN_PATH, 'utf8'));
+    } catch {
+      return null;
+    }
   }
   return null;
 }
 
+/**
+ * Simpan token ke file lokal — best-effort, TIDAK PERNAH throw.
+ * Di Vercel (filesystem read-only) tulis selalu gagal (EROFS): itu normal,
+ * token segar tetap dipakai di memori untuk request berjalan. Sumber
+ * kebenaran token adalah env GDRIVE_USER_REFRESH_TOKEN, bukan file.
+ */
 export function saveTokens(tokens) {
-  const prev = existsSync(TOKEN_PATH) ? JSON.parse(readFileSync(TOKEN_PATH, 'utf8')) : {};
-  const next = { ...prev, ...tokens };
-  writeFileSync(TOKEN_PATH, JSON.stringify(next, null, 2), 'utf8');
-  return next;
+  try {
+    let prev = {};
+    try {
+      prev = existsSync(TOKEN_PATH) ? JSON.parse(readFileSync(TOKEN_PATH, 'utf8')) : {};
+    } catch { /* file rusak/hilang — mulai dari kosong */ }
+    const next = { ...prev, ...tokens };
+    writeFileSync(TOKEN_PATH, JSON.stringify(next, null, 2), 'utf8');
+    return next;
+  } catch (e) {
+    console.warn(`[drive] simpan token lokal dilewati (${e?.code || e?.message || 'gagal tulis'}) — pakai memori.`);
+    return tokens;
+  }
 }
 
 export function hasUserDriveToken() {
