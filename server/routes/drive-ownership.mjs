@@ -1056,30 +1056,17 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
   app.get(
     '/api/portal/birthdays/upcoming',
     requireRole(),
-    wrap(async (req, res) => {
+    wrap(async (_req, res) => {
       const prisma = getPrisma();
-      if (!prisma) return res.json({ birthdays: [] });
-      const days = Math.min(14, Math.max(1, Number(req.query.days || 7)));
+      if (!prisma) return res.json({ birthdays: [], weekStart: '', weekEnd: '', todayCount: 0 });
       const users = await prisma.user.findMany({
         where: { birthDate: { not: null }, accountStatus: 'ACTIVE' },
         select: { id: true, name: true, avatar: true, birthDate: true },
         take: 400,
       });
-      const now = new Date();
-      const list = users
-        .map((u) => {
-          const b = new Date(u.birthDate);
-          const next = new Date(Date.UTC(now.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate()));
-          if (next < new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))) {
-            next.setUTCFullYear(next.getUTCFullYear() + 1);
-          }
-          const diff = Math.round((next - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86400000);
-          return { id: u.id, name: u.name, avatar: u.avatar, daysToBirthday: diff };
-        })
-        .filter((u) => u.daysToBirthday >= 0 && u.daysToBirthday <= days)
-        .sort((a, b) => a.daysToBirthday - b.daysToBirthday)
-        .slice(0, 24);
-      res.json({ birthdays: list });
+      // Ulang tahun Senin–Minggu berjalan (WIB).
+      const { birthdaysThisWeek } = await import('../lib/birthday-week.mjs');
+      res.json(birthdaysThisWeek(users));
     }),
   );
 

@@ -78,7 +78,15 @@ export function registerEventLifecycleRoutes(app, { wrap }) {
       }
     }
 
-    res.json({ ok: true, today: todayWibKey(), done, archived: archived.map((a) => a.name), notified });
+    let birthday = { wished: [], digested: 0 };
+    try {
+      const { runBirthdayWishes } = await import('./birthday.mjs');
+      birthday = await runBirthdayWishes(prisma);
+    } catch (e) {
+      console.warn('[event-lifecycle] ucapan HUT gagal:', e?.message || e);
+    }
+
+    res.json({ ok: true, today: todayWibKey(), done, archived: archived.map((a) => a.name), notified, birthday });
   });
 
   app.get('/api/cron/event-lifecycle', handler);

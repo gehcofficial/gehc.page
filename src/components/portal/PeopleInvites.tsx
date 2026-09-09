@@ -3,6 +3,7 @@ import { ShieldCheck, Copy, Trash2, UserPlus, CheckCircle2, Loader2, X } from 'l
 import { UserRole } from '../../types';
 import { ProvisionInviteWizard } from './ProvisionInviteWizard';
 import { AccessGroupsPanel } from './AccessGroupsPanel';
+import { BirthdayWishPanel } from './BirthdayWishPanel';
 import { displayAvatar } from '../../lib/avatar';
 import { useLang } from '../../context/LangContext';
 import { fmt, portalRoleLabel } from '../../lib/portal-i18n';
@@ -50,7 +51,7 @@ const authedFetch = async (url: string, method = 'GET', body?: unknown) => {
 export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> = ({ onNavigate }) => {
   const { t } = useLang();
   const p = t.portal.people;
-  const [tab, setTab] = useState<'akun' | 'invite' | 'provision' | 'access-groups'>('akun');
+  const [tab, setTab] = useState<'akun' | 'invite' | 'provision' | 'access-groups' | 'ultah'>('akun');
   const [users, setUsers] = useState<ApiUser[] | null>(null);
   const [invites, setInvites] = useState<InviteDto[] | null>(null);
   const [q, setQ] = useState('');
@@ -117,6 +118,7 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
           ['provision', p.tabProvision],
           ['access-groups', p.tabAccess],
           ['invite', p.tabInvite],
+          ['ultah', 'Ucapan HUT'],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -220,6 +222,8 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
       {tab === 'provision' && <ProvisionInviteWizard />}
 
       {tab === 'access-groups' && <AccessGroupsPanel />}
+
+      {tab === 'ultah' && <BirthdayWishPanel />}
 
       {tab === 'invite' && (
         <div className="space-y-6">

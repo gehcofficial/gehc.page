@@ -1048,6 +1048,20 @@ enum NotificationType {
   EVENT_ARCHIVED
   APPROVAL_ITEM
   DRIVE_DRIFT
+  BIRTHDAY_WISH
+}
+
+/// Ucapan HUT global (1 baris aktif) — teks + foto opsional dari Komisi.
+model BirthdaySetting {
+  id        String   @id @db.VarChar(64)
+  caption   String   @db.Text
+  photoUrl  String?  @map("photo_url") @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  updatedById String? @map("updated_by_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("birthday_settings")
 }
 
 enum NotificationStatus {

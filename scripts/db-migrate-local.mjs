@@ -200,6 +200,11 @@ const STEPS = [
     label: 'Notifikasi APPROVAL_ITEM + DRIVE_DRIFT (enum)',
     required: true,
   },
+  {
+    script: 'server/_migrate-birthday-wish.cjs',
+    label: 'Ucapan HUT: enum BIRTHDAY_WISH + birthday_settings',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
