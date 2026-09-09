@@ -190,6 +190,11 @@ const STEPS = [
     label: 'Konten agenda: content_items.event_id (by-event)',
     required: true,
   },
+  {
+    script: 'server/_migrate-event-lifecycle-notif.cjs',
+    label: 'Notifikasi EVENT_ARCHIVED (enum)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

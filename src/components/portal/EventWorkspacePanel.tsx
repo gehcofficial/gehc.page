@@ -13,6 +13,8 @@ import {
   Loader2,
   AlertTriangle,
   Pencil,
+  FileText,
+  Trash2,
   MapPin,
   Search,
   AlignLeft,
@@ -137,6 +139,23 @@ export const EventWorkspacePanel: React.FC = () => {
   const { t } = useLang();
   const ev = t.portal.events;
   const canCreateEvent = currentRole === 'SUPERADMIN' || currentRole === 'KOMISI' || currentRole === 'COMMITTEE';
+  const canDeleteEvent = currentRole === 'SUPERADMIN' || currentRole === 'KOMISI';
+
+  const deleteEvent = async () => {
+    if (!selected) return;
+    if (!window.confirm(`Hapus event "${selected.name}"? Hanya bisa bila belum punya pendaftar, jawaban, galeri, konten terbit, warta, atau deliverable.`)) return;
+    try {
+      const r = await fetch(`/api/events/${selected.id}`, { method: 'DELETE', credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menghapus.');
+      addToast({ type: 'success', title: 'Event dihapus' });
+      setSelected(null);
+      setView('list');
+      await fetchEvents();
+    } catch (err: unknown) {
+      addToast({ type: 'error', title: 'Gagal menghapus', description: err instanceof Error ? err.message : '' });
+    }
+  };
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
@@ -488,6 +507,41 @@ export const EventWorkspacePanel: React.FC = () => {
               <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {(selected.meetings || []).length} rapat</span>
             </div>
           </div>
+          {selected.status === 'DONE' && (
+            <button
+              type="button"
+              onClick={async () => {
+                const r = await fetch(`/api/events/${selected.id}/make-warta`, {
+                  method: 'POST',
+                  credentials: 'include',
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                  addToast({ type: 'error', title: 'Gagal membuat draf Warta', description: d.error });
+                  return;
+                }
+                addToast({
+                  type: 'success',
+                  title: d.existed ? 'Draf Warta sudah ada' : `Draf Warta dibuat (+${d.photos || 0} foto)`,
+                  description: 'Selesaikan di Kelola Warta Pemuda → terbitkan.',
+                });
+              }}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shrink-0"
+              title="Buat draf Warta dokumentasi dari event ini (sekali saja)"
+            >
+              <FileText className="w-3.5 h-3.5" /> Draf Warta
+            </button>
+          )}
+          {canDeleteEvent && (
+            <button
+              type="button"
+              onClick={() => void deleteEvent()}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors shrink-0"
+              title="Hapus event (diblokir bila sudah punya data)"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Hapus
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"

@@ -6,6 +6,9 @@ import {
   BAKU_TAU_EVENT_ID,
 } from '../lib/baku-tau.mjs';
 import { venueOf } from '../lib/event-venue.mjs';
+import { fromDbContent } from '../lib/content-map.mjs';
+import { eventSignupStats } from '../lib/event-signup-stats.mjs';
+import { resolveWhatsAppUrl } from '../lib/event-question-showif.mjs';
 import { findEventProgramPublic } from '../lib/event-program-public.mjs';
 import {
   registrationFromWaitingPool,
@@ -63,6 +66,72 @@ function hasActiveRole(user) {
 }
 
 export function registerEventsPublicRoutes(app, { wrap }) {
+  // Landing Kegiatan 3 lapis — WAJIB sebelum '/api/events/:slug' agar tak tertelan param.
+  // full: konten ACTIVITY terbit (+venue event tertaut). compact: event
+  // PLANNING/ACTIVE bertanggal tanpa konten terbit. DONE/ARCHIVED: tidak tampil.
+  app.get('/api/events/landing', wrap(async (_req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    let full = [];
+    let linkedIds = [];
+    try {
+      const rows = await prisma.contentItem.findMany({
+        where: { type: 'ACTIVITY', isPublished: true },
+        orderBy: [{ isFeaturedEvent: 'desc' }, { publishedAt: 'desc' }],
+        take: 20,
+      });
+      const items = rows.map(fromDbContent);
+      linkedIds = [...new Set(items.map((c) => c.eventId).filter(Boolean))];
+      const venueByEvent = {};
+      const statsByEvent = {};
+      if (linkedIds.length) {
+        const evs = await prisma.eventProgram.findMany({ where: { id: { in: linkedIds } } }).catch(() => []);
+        await Promise.all(evs.map(async (e) => {
+          venueByEvent[e.id] = {
+            ...venueOf(e, e.id === BAKU_TAU_EVENT_ID),
+            status: e.status,
+            slug: e.slug,
+            name: e.name,
+          };
+          try {
+            statsByEvent[e.id] = await eventSignupStats(prisma, e);
+          } catch { /* abaikan */ }
+        }));
+      }
+      full = items.map((c) => ({
+        ...c,
+        venue: c.eventId ? venueByEvent[c.eventId] || null : null,
+        isBakutau: c.id === 'cnt-bakutau',
+        stats: c.eventId ? statsByEvent[c.eventId] || null : null,
+      }));
+    } catch {
+      full = [];
+    }
+    let compact = [];
+    try {
+      const evs = await prisma.eventProgram.findMany({
+        where: {
+          status: { in: ['PLANNING', 'ACTIVE'] },
+          eventDate: { not: null },
+          ...(linkedIds.length ? { id: { notIn: linkedIds } } : {}),
+        },
+        orderBy: { eventDate: 'asc' },
+        take: 12,
+        select: { id: true, name: true, status: true, kind: true, eventDate: true },
+      });
+      compact = evs.map((e) => ({
+        id: e.id,
+        name: e.name,
+        status: e.status,
+        kind: e.kind,
+        eventDate: e.eventDate,
+      }));
+    } catch {
+      compact = [];
+    }
+    res.json({ full, compact });
+  }));
+
   // BAKU TAU exact routes registered early in index.mjs (before /api/events/:id)
 
   app.get('/api/events/:slug', wrap(async (req, res, next) => {
@@ -113,9 +182,17 @@ export function registerEventsPublicRoutes(app, { wrap }) {
         profileComplete: entries.filter((e) => e.profileCompleted).length,
       };
     } else {
-      const count = await prisma.eventAttendee.count({ where: { eventId: event.id } });
-      stats = { registered: count, withAccount: count, profileComplete: count };
+      // Counter + akun: waiting_pool (sourceEvent = nama event) + attendees.
+      stats = await eventSignupStats(prisma, event);
     }
+
+    let whatsappGroupUrl = null;
+    try {
+      const link = await prisma.channelLink.findUnique({
+        where: { kind_refId: { kind: 'EVENT', refId: event.id } },
+      }).catch(() => null);
+      whatsappGroupUrl = resolveWhatsAppUrl({ dbUrl: event.whatsappGroupUrl, channelUrl: link?.url || null });
+    } catch { /* abaikan */ }
 
     res.json({
       id: event.id,
@@ -123,6 +200,7 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       name: event.name,
       status: event.status,
       ...venueOf(event, isBakutau),
+      whatsappGroupUrl,
       stats,
     });
   }));
@@ -235,7 +313,51 @@ export function registerEventsPublicRoutes(app, { wrap }) {
 
     if (hasActiveRole(user) && !resolved.isBakutau) {
       await upsertEventAttendee(prisma, resolved.eventId, user.id, metadata);
-      return res.json({ ok: true, mode: 'attendee' });
+      // Pastikan baris pool event ini agar QR tersedia — cek dulu (satu user
+      // boleh ikut banyak event; jangan pakai pool event lain).
+      const source = String(resolved.event.name || '').trim();
+      let entry = source
+        ? await prisma.waitingPool.findFirst({ where: { userId: user.id, sourceEvent: source } }).catch(() => null)
+        : null;
+      if (!entry && source) {
+        const clash = await prisma.waitingPool.findUnique({ where: { userId: user.id } }).catch(() => null);
+        if (!clash) {
+          entry = await prisma.waitingPool.create({
+            data: {
+              id: `wp-${crypto.randomUUID()}`,
+              userId: user.id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || null,
+              sourceEvent: source,
+              status: 'REGISTERED',
+              claimToken: crypto.randomBytes(24).toString('hex'),
+            },
+          }).catch(() => null);
+        }
+      }
+      let channelUrl = null;
+      try {
+        const link = await prisma.channelLink.findUnique({
+          where: { kind_refId: { kind: 'EVENT', refId: resolved.eventId } },
+        }).catch(() => null);
+        channelUrl = link?.url || null;
+      } catch { /* abaikan */ }
+      const { registrationCodeFor } = await import('../lib/event-qr.mjs');
+      const { code, poolEntry } = await registrationCodeFor(prisma, {
+        eventId: resolved.eventId,
+        userId: user.id,
+        sourceEvent: source,
+      });
+      const shown = poolEntry || entry;
+      return res.json({
+        ok: true,
+        mode: 'attendee',
+        registered: Boolean(code),
+        whatsappGroupUrl: resolveWhatsAppUrl({ dbUrl: resolved.event.whatsappGroupUrl, channelUrl }),
+        checkInCode: code,
+        registeredAt: shown?.registeredAt || null,
+      });
     }
 
     return res.status(400).json({ error: 'Gunakan endpoint event spesifik untuk registrasi ini.' });

@@ -171,6 +171,42 @@ export function registerEventCheckInRoutes(app, { wrap }) {
       return res.json({ result: 'UNKNOWN', message: 'Kode tidak dikenali. Pastikan QR peserta BAKU TAU.' });
     }
 
+    // QR attendee (GEHC-EA, multi-event): cocokkan baris attendee event ini.
+    if (parsed.kind === 'attendee') {
+      const attendee = await prisma.eventAttendee.findUnique({
+        where: { id: parsed.attendeeId },
+        include: { user: { select: { id: true, name: true } } },
+      }).catch(() => null);
+      if (!attendee) {
+        await logScan(prisma, { eventId: resolved.id, code, result: 'UNKNOWN', scannedById });
+        return res.json({ result: 'UNKNOWN', message: 'Peserta tidak ada di daftar.' });
+      }
+      if (attendee.eventId !== resolved.id) {
+        await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'MISMATCH', scannedById });
+        return res.json({ result: 'MISMATCH', message: 'QR bukan untuk event ini.', name: attendee.user?.name || null });
+      }
+      if (!timestampsMatch(attendee.registeredAt, parsed.registeredAtMs)) {
+        await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'MISMATCH', scannedById });
+        return res.json({ result: 'MISMATCH', message: 'QR tidak cocok dengan data pendaftaran.', name: attendee.user?.name || null });
+      }
+      if (attendee.checkedInAt) {
+        await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'DUPLICATE', scannedById });
+        return res.json({
+          result: 'DUPLICATE',
+          message: 'Sudah check-in sebelumnya.',
+          name: attendee.user?.name || null,
+          checkedInAt: attendee.checkedInAt,
+        });
+      }
+      const at = new Date();
+      await prisma.eventAttendee.update({
+        where: { id: attendee.id },
+        data: { checkedInAt: at, checkedInById: scannedById },
+      });
+      await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'OK', scannedById });
+      return res.json({ result: 'OK', message: 'Check-in berhasil.', name: attendee.user?.name || null });
+    }
+
     const pool = await prisma.waitingPool.findUnique({ where: { id: parsed.waitingPoolId } });
     if (!pool) {
       await logScan(prisma, { eventId: resolved.id, code, waitingPoolId: parsed.waitingPoolId, result: 'UNKNOWN', scannedById });
@@ -238,7 +274,8 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     const at = new Date();
     let pool = null;
     if (phone) {
-      const base = resolved.isBakutau ? { sourceEvent: BAKU_TAU_SOURCE_EVENT } : {};
+      // Batasi ke event ini agar nomor yang sama di event lain tidak tertukar.
+      const base = { sourceEvent: resolved.isBakutau ? BAKU_TAU_SOURCE_EVENT : resolved.name };
       const candidates = await prisma.waitingPool.findMany({
         where: { ...base, phone: { in: phoneVariants(phone) } },
         select: { id: true, name: true, phone: true, userId: true, eventCheckedInAt: true },

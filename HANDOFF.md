@@ -1,6 +1,81 @@
 # GEHC Portal — Handoff
 
-## Current — Konten agenda by-event di Program & Event (8 Sep 2026)
+## Current — QR multi-event per (user, event) (8 Sep 2026)
+
+### Done (lokal, belum commit/push)
+
+- **Akar:** `waiting_pool.userId` UNIQUE → 1 baris per user global; fallback `findUnique({userId})` mengembalikan baris BAKU TAU → QR salah event + log `prisma:error` (dari Prisma `log:error`, bukan crash).
+- **QR dual-format:** `GEHC-BT|pool` (beku, QR BAKU TAU beredar tetap valid) + `GEHC-EA|attendee` (baru, per event); parse kompatibel-mundur; kedua kopi (`server` + `src`) disamakan + test.
+- **`registrationCodeFor`** (`server/lib/event-qr.mjs`): pool event ini → attendee event ini → null; tidak pernah pool event lain. Dipakai register/claim/my-registration/`register-auth`.
+- **Scanner:** fallback lookup attendee + cocok `eventId` (salah event → MISMATCH) + duplikat via `checkedInAt`.
+- **BAKU TAU frozen** sampai acara lewat.
+- **Verifikasi:** lint bersih, 47 file / 252 test hijau.
+
+### Next
+
+1. Restart API + refresh; daftar 1 akun di 2 event (Sabtu+Minggu) → 2 QR beda → scan silang MISMATCH, scan benar OK.
+2. Commit + push staging → QA → merge main.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Hapus event + daftar per event + badge hari-H + cron lifecycle (8 Sep 2026)
+
+### Done (lokal, belum commit/push)
+
+- **Hapus event:** `DELETE /api/events/:id` (SUPERADMIN/KOMISI, blokir bila ada pendaftar/check-in/jawaban/galeri/konten terbit/warta/deliverable + bersih milik event) + tombol Hapus di detail.
+- **Daftar per event ala BAKU TAU:** `POST /:slug/register` (akun+counter), `POST /:slug/claim`, `GET /:slug/my-registration` (QR+WA); `register-auth` pastikan pool + balas kode+WA; stats gabungan pool+attendee; walk-in scope per event; `EventSignupPage` generik + router + tombol Daftar + stats di kartu penuh; `BakuTauWelcomeCard` prop `eventName`.
+- **Badge hari-H:** `eventDayState` (WIB) — pil hijau ganti "Akan Datang" + 9 unit test.
+- **Cron lifecycle:** `vercel.json crons` harian 01:00 UTC + `/api/cron/event-lifecycle` (Bearer CRON_SECRET atau Komisi manual); DONE H+1, ARCHIVED H+7 + notifikasi `EVENT_ARCHIVED` (enum + migrasi); `CRON_SECRET` sudah di Vercel Production.
+- **Verifikasi:** lint bersih, 47 file / 250 test hijau, enum prod-lokal termigrasi, schema check hijau.
+
+### Next
+
+1. Restart API + refresh; uji: hapus event kosong/ditolak, daftar event non-BAKU TAU (QR+WA+soal), badge hari-H, trigger cron manual via Komisi.
+2. Tambah `CRON_SECRET` ke Vercel Preview bila cron diuji di preview (Production sudah).
+3. Commit + push staging → QA → merge main.
+
+### Commands
+
+```
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Event mingguan dari Rencana + landing 3 lapis + DONE→Warta (8 Sep 2026)
+
+### Done (lokal, belum commit/push)
+
+- **Generate ibadah:** `POST /api/ministry-plans/:ym/generate-services` (BIPRA/Kolom/divisi, nama `Ibadah Pemuda: Tema - 06 Sep 2026`, RECURRING/PLANNING, idempoten skip) + UI di Rencana bulan + `server/lib/service-events.mjs` + 7 unit test.
+- **Auto-draft konten:** `POST /api/events` buat draf; backfill event yatim (0 dibuat — semua sudah punya); banner pengingat belum-terbit; banner wajib hanya saat Terbit.
+- **Landing 3 lapis:** `GET /api/events/landing` (full/compact, DONE tak tampil) + `EventsTimeline` render ulang (unggulan + kartu penuh + kompak rutin).
+- **DONE→Warta:** `POST /api/events/:id/make-warta` (sekali saja, foto galeri approved) + tombol di detail event DONE.
+- **Verifikasi:** lint bersih, 46 file / 241 test hijau, migrate + schema check hijau.
+
+### Next
+
+1. Restart API + refresh; coba generate September → cek kartu kompak → terbitkan 1 konten → kartu penuh.
+2. Commit + push staging → QA → merge main (ikuti pola episode lalu).
+
+### Commands
+
+```
+npm run db:migrate:local
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Konten agenda by-event di Program & Event (8 Sep 2026)
 
 ### Done
 

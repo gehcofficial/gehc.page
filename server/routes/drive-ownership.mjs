@@ -620,6 +620,67 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     }),
   );
 
+  app.post(
+    '/api/events/:id/make-warta',
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+      if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      if (ev.status !== 'DONE') {
+        return res.status(400).json({ error: 'Hanya event DONE yang bisa dibuatkan draf Warta.' });
+      }
+      const marturiaDiv = await prisma.eventDivision.findFirst({
+        where: { eventId: ev.id, division: 'MARTURIA' },
+        select: { id: true },
+      }).catch(() => null);
+      const marturiaMember = marturiaDiv
+        ? await prisma.eventDivisionMember.findFirst({
+            where: { eventDivisionId: marturiaDiv.id, userId: req.authUser.id },
+            select: { id: true },
+          }).catch(() => null)
+        : null;
+      if (!komisiGate(req.authUser) && !marturiaMember) {
+        return res.status(403).json({ error: 'Hanya Komisi atau divisi Marturia event ini.' });
+      }
+      const existing = await prisma.wartaPublik.findFirst({ where: { eventId: ev.id } });
+      if (existing) return res.json({ warta: existing, existed: true });
+      // Foto dokumentasi dari galeri yang sudah di-approve.
+      const photos = await prisma.eventGallery.findMany({
+        where: { eventId: ev.id, status: 'APPROVED' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        take: 10,
+        select: { thumbUrl: true, mediaUrl: true, title: true },
+      }).catch(() => []);
+      const urls = photos.map((p) => p.thumbUrl || p.mediaUrl).filter(Boolean);
+      const weekDate = ev.eventDate || ev.startDate || new Date();
+      const warta = await prisma.wartaPublik.create({
+        data: {
+          id: `warta-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          eventId: ev.id,
+          weekDate: new Date(weekDate),
+          title: `Dokumentasi ${ev.name}`,
+          status: 'DRAFT',
+          contentJson: {
+            ayat: '',
+            khotbah: '',
+            pengumuman: '',
+            pelayanan: '',
+            sharing: '',
+            doa: '',
+            dokumentasi: urls,
+            ringkasan: '',
+          },
+          pngUrl: urls[0] || null,
+          driveFolderId: ev.archiveFolderId || null,
+          createdById: req.authUser.id,
+        },
+      });
+      res.status(201).json({ warta, existed: false, photos: urls.length });
+    }),
+  );
+
   app.get(
     '/api/events/:id/archive-link',
     requireRole(),

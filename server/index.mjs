@@ -111,7 +111,9 @@ import { registerOperatorRoutes } from './routes/operator.mjs';
 import { requirePlatformRoot, requirePlatformAdmin, requireKomisiOrPlatformAdmin } from './lib/platform-rbac.mjs';
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
+import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
+import { registerEventSignupRoutes } from './routes/event-signup.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
 import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from './routes/drive-ownership.mjs';
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
@@ -959,7 +961,7 @@ app.get('/api/notifications', wrap(async (req, res) => {
     // Filter MENTION notifications to only show ones relevant to current user
     const filtered = notifications.filter((n) => {
       if (n.title === 'Push Subscription') return false;
-      if (n.type === 'ROLE_ASSIGNED' || n.type === 'RUNBOOK_DUE' || n.type === 'CATALOG_REMINDER') {
+      if (['ROLE_ASSIGNED', 'RUNBOOK_DUE', 'CATALOG_REMINDER', 'EVENT_ARCHIVED'].includes(n.type)) {
         return n.memberId === req.authUser.id;
       }
       if (n.type !== 'MENTION') return true;
@@ -2364,6 +2366,23 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
     }
   }
 
+  // Draf konten publik agar event langsung bisa dilengkapi Marturia
+  // dan tampil di landing setelah diterbitkan (pola by-event).
+  await prisma.contentItem.create({
+    data: {
+      id: `cnt-${Date.now().toString(36)}${crypto.randomBytes(2).toString('hex')}`,
+      tenantId: 'tenant-youth',
+      type: 'ACTIVITY',
+      title: name.slice(0, 255),
+      subtitle: description ? String(description).slice(0, 255) : null,
+      category: 'Lainnya',
+      isFeaturedEvent: false,
+      isPublished: false,
+      bannerUrl: '',
+      eventId: ev.id,
+    },
+  }).catch(() => null);
+
   if (waUrl) {
     await prisma.channelLink.upsert({
       where: { kind_refId: { kind: 'EVENT', refId: ev.id } },
@@ -2605,6 +2624,53 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   }
 
   res.json({ event: ev, canEdit: true });
+}));
+
+// DELETE /api/events/:id — hapus event KHUSUS bila belum punya data.
+// Diblokir bila ada pendaftar/check-in/jawaban/galeri/konten terbit/warta/deliverable.
+app.delete('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  const [attendees, checkIns, answers, gallery, publishedContent, warta, deliverables] = await Promise.all([
+    prisma.eventAttendee.count({ where: { eventId: ev.id } }).catch(() => 0),
+    prisma.eventCheckIn.count({ where: { eventId: ev.id } }).catch(() => 0),
+    prisma.eventQuestionAnswer.count({ where: { eventId: ev.id } }).catch(() => 0),
+    prisma.eventGallery.count({ where: { eventId: ev.id } }).catch(() => 0),
+    prisma.contentItem.count({ where: { eventId: ev.id, isPublished: true } }).catch(() => 0),
+    prisma.wartaPublik.count({ where: { eventId: ev.id } }).catch(() => 0),
+    prisma.ministryWeekDeliverable.count({ where: { eventId: ev.id } }).catch(() => 0),
+  ]);
+  const blockers = [
+    attendees && `${attendees} pendaftar`,
+    checkIns && `${checkIns} check-in`,
+    answers && `${answers} jawaban`,
+    gallery && `${gallery} galeri`,
+    publishedContent && 'konten terbit',
+    warta && `${warta} warta`,
+    deliverables && `${deliverables} deliverable rencana`,
+  ].filter(Boolean);
+  if (blockers.length) {
+    return res.status(400).json({ error: `Masih punya ${blockers.join(', ')} — arsipkan saja.` });
+  }
+
+  // Bersihkan baris milik event (draf konten, assignment soal, rapat, diskusi, divisi, tautan).
+  const divs = await prisma.eventDivision.findMany({ where: { eventId: ev.id }, select: { id: true } }).catch(() => []);
+  const divIds = divs.map((d) => d.id);
+  if (divIds.length) {
+    await prisma.eventUpdate.deleteMany({ where: { eventDivisionId: { in: divIds } } }).catch(() => null);
+    await prisma.eventDivisionMember.deleteMany({ where: { eventDivisionId: { in: divIds } } }).catch(() => null);
+    await prisma.eventApprovalLog.deleteMany({ where: { eventDivisionId: { in: divIds } } }).catch(() => null);
+    await prisma.eventDivision.deleteMany({ where: { id: { in: divIds } } }).catch(() => null);
+  }
+  await prisma.eventMeeting.deleteMany({ where: { eventId: ev.id } }).catch(() => null);
+  await prisma.eventQuestionAssignment.deleteMany({ where: { eventId: ev.id } }).catch(() => null);
+  await prisma.contentItem.deleteMany({ where: { eventId: ev.id } }).catch(() => null);
+  await prisma.channelLink.deleteMany({ where: { kind: 'EVENT', refId: ev.id } }).catch(() => null);
+  await prisma.eventProgram.delete({ where: { id: ev.id } });
+  res.json({ ok: true });
 }));
 
 // POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres (supports replies)
@@ -5737,7 +5803,8 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 registerOnboardingRoutes(app, { wrap });
 registerTitleCatalogRoutes(app, { wrap });
 // GET /api/events/:slug — dijangkau lewat next() dari /api/events/:id saat id tidak cocok
-registerEventsPublicRoutes(app, { wrap });
+  registerEventsPublicRoutes(app, { wrap });
+  registerEventSignupRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
 registerDriveOwnershipRoutes(app, { wrap });
 registerPastoralCareRoutes(app, { wrap });
@@ -5745,7 +5812,8 @@ registerBeyondersLeadersRoutes(app, { wrap });
 registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });
 registerVisualsPublishRoutes(app, { wrap });
-registerOrgRoutes(app, { wrap });
+  registerOrgRoutes(app, { wrap });
+  registerEventLifecycleRoutes(app, { wrap });
 
 // ---------- Admin: Seed Gift Test Data (legacy inline — SUPERADMIN only) ----------
 app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) => {

@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { sundaysInMonth, toISODate } from '../lib/church-year.mjs';
+import { formatServiceName, servicePrefix, sundayInstant } from '../lib/service-events.mjs';
+import { EVENT_ACTIVITY_CATEGORIES } from './content-public.mjs';
 
 const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 const SHAREABLE_KINDS = new Set(['MODULE', 'RUNDOWN']);
@@ -281,6 +283,86 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
         include: { event: { select: { id: true, name: true, status: true } } },
       });
       res.json({ deliverable: serializeDeliverable(updated) });
+    }),
+  );
+
+  /**
+   * POST /api/ministry-plans/:yearMonth/generate-services — buatkan EventProgram
+   * ibadah mingguan dari tema tiap minggu: "{Prefix}: {Tema} - {DD Mon YYYY}".
+   * Idempoten: minggu yang namanya sudah ada dilewati. Tiap event baru langsung
+   * dapat draf konten publik (isPublished false) + divisi pelaksana aktif.
+   * Body: { bipra?, kolom?, division? }.
+   */
+  app.post(
+    '/api/ministry-plans/:yearMonth/generate-services',
+    requireRole('KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      if (!ymRe.test(yearMonth)) return res.status(400).json({ error: 'Format bulan YYYY-MM.' });
+      const division = String(req.body?.division || 'LITURGIA').toUpperCase();
+      if (!DIVISIONS.includes(division)) return res.status(400).json({ error: 'Divisi tidak dikenal.' });
+      const prefix = servicePrefix(req.body?.bipra, req.body?.kolom);
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = Array.isArray(plan?.weeks) && plan.weeks.length ? plan.weeks : defaultWeeks(yearMonth);
+      const themed = weeks.filter((w) => String(w.theme || '').trim() && w.date);
+      if (!themed.length) {
+        return res.status(400).json({ error: 'Isi dulu tema minggunya, baru generate.' });
+      }
+
+      const created = [];
+      const skipped = [];
+      for (const w of themed) {
+        const name = formatServiceName(prefix, w.theme, w.date);
+        if (!name) continue;
+        const dup = await prisma.eventProgram.findFirst({ where: { name }, select: { id: true } });
+        if (dup) {
+          skipped.push(name);
+          continue;
+        }
+        const slugBase = String(name).toLowerCase().normalize('NFKD')
+          .replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 40) || 'ibadah';
+        const slug = `${slugBase}-${Date.now().toString(36)}`;
+        const instant = sundayInstant(w.date);
+        const ev = await prisma.eventProgram.create({
+          data: {
+            id: `evt-${slug}`,
+            tenantId: 'tenant-youth',
+            slug,
+            name,
+            description: `Ibadah mingguan ${prefix} — tema: ${String(w.theme).trim()}.`,
+            status: 'PLANNING',
+            kind: 'RECURRING',
+            startDate: instant,
+            eventDate: instant,
+            createdById: req.authUser.id,
+          },
+        });
+        await prisma.eventDivision.create({
+          data: { id: `evd-${slug}-${division}`, eventId: ev.id, division },
+        }).catch(() => null);
+        await prisma.contentItem.create({
+          data: {
+            id: `cnt-${Date.now().toString(36)}${crypto.randomBytes(2).toString('hex')}`,
+            tenantId: 'tenant-youth',
+            type: 'ACTIVITY',
+            title: name,
+            subtitle: plan?.theme || null,
+            category: EVENT_ACTIVITY_CATEGORIES[0],
+            isFeaturedEvent: false,
+            isPublished: false,
+            bannerUrl: '',
+            eventId: ev.id,
+          },
+        }).catch(() => null);
+        created.push({ id: ev.id, name, eventDate: w.date });
+      }
+      res.status(201).json({ created, skipped });
     }),
   );
 

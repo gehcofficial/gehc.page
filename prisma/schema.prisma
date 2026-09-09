@@ -1045,6 +1045,7 @@ enum NotificationType {
   ROLE_ASSIGNED
   RUNBOOK_DUE
   CATALOG_REMINDER
+  EVENT_ARCHIVED
 }
 
 enum NotificationStatus {

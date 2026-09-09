@@ -74,8 +74,12 @@ export const EventPublicContentBlock: React.FC<{ eventId: string }> = ({ eventId
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !effectiveBanner) {
-      addToast({ type: 'error', title: 'Judul dan banner wajib.' });
+    if (!form.title.trim()) {
+      addToast({ type: 'error', title: 'Judul wajib.' });
+      return;
+    }
+    if (form.isPublished && !effectiveBanner) {
+      addToast({ type: 'error', title: 'Banner wajib untuk diterbitkan (draf boleh kosong).' });
       return;
     }
     setSaving(true);
@@ -131,6 +135,12 @@ export const EventPublicContentBlock: React.FC<{ eventId: string }> = ({ eventId
       <div className="rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 px-3 py-2 text-[11px] text-[#8C8880]">
         {eventInfo?.name} · {eventWhen} WIB · {[eventInfo?.venueName, eventInfo?.locationDetail].filter(Boolean).join(' · ') || 'Tempat menyusul'}
       </div>
+
+      {(!itemId || !form.isPublished) && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-bold text-amber-800">
+          Belum tampil di landing — lengkapi judul + banner lalu centang Terbit di bawah.
+        </div>
+      )}
 
       {!canEdit ? (
         <p className="text-xs text-[#8C8880]">
@@ -229,7 +239,7 @@ export const EventPublicContentBlock: React.FC<{ eventId: string }> = ({ eventId
             </label>
             <button
               type="submit"
-              disabled={saving || !form.title.trim() || !effectiveBanner}
+              disabled={saving || !form.title.trim() || (form.isPublished && !effectiveBanner)}
               className="ml-auto px-4 py-2 rounded-xl bg-[#181818] text-white text-xs font-bold disabled:opacity-40"
             >
               {saving ? 'Menyimpan…' : 'Simpan konten'}
