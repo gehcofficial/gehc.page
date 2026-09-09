@@ -7,6 +7,7 @@
 **Panel caption (Jemaat → Ucapan HUT, Komisi):** teks `{nama}`/`{umur}` + foto URL + pratinjau; tabel `birthday_settings`.
 **Tampilan:** kartu ucapan hari-H di dashboard + banner Akun Saya ("dari GMIM Eben Haezer Cikarang"); landing tak disentuh.
 **Verifikasi:** lint bersih, 273 test hijau (9 baru), migrasi + schema check hijau. Tanpa sisa manual selain QA.
+**Deploy 9 Sep:** staging `cf9bfdc` → merge main `eeb9dbc` → push dua-duanya; enum + tabel prod termigrasi; smoke prod (BAKU TAU ACTIVE, 45 pendaftar utuh).
 
 ---
 
