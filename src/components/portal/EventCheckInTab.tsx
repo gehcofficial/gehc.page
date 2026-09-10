@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, ClipboardPaste, Download, Loader2, QrCode, Undo2, UserPlus, XCircle } from 'lucide-react';
+import { Camera, ClipboardPaste, Download, ImagePlus, Loader2, QrCode, Undo2, UserPlus, XCircle } from 'lucide-react';
 
 type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'WALK_IN' | 'VOIDED';
 
@@ -37,12 +37,37 @@ const RESULT_STYLE: Record<ScanResult, string> = {
 /** Hanya scan ini yang menandai kehadiran, jadi hanya ini yang bisa dibatalkan. */
 const VOIDABLE: ScanResult[] = ['OK', 'WALK_IN'];
 
+function cameraErrorMessage(e: unknown): string {
+  const err = e as DOMException | Error | undefined;
+  const name = (err as DOMException)?.name || '';
+  const msg = (err as Error)?.message || '';
+  if (name === 'NotAllowedError' || /permission/i.test(msg)) {
+    return 'Izin kamera ditolak. iPhone: Pengaturan → Safari → Kamera → Izinkan, lalu ketuk Buka kamera lagi. Android: izinkan kamera di prompt browser.';
+  }
+  if (name === 'NotFoundError' || /not found/i.test(msg)) {
+    return 'Kamera tidak ditemukan. Tutup aplikasi kamera lain dan coba lagi.';
+  }
+  if (name === 'NotReadableError' || /in use|read/i.test(msg)) {
+    return 'Kamera sedang dipakai aplikasi lain. Tutup dulu lalu coba lagi.';
+  }
+  if (name === 'OverconstrainedError') {
+    return 'Kamera tidak mendukung mode ini. Coba buka kamera lagi.';
+  }
+  if (name === 'SecurityError') {
+    return 'Kamera butuh HTTPS. Buka lewat https://gehcpage.vercel.app (bukan http).';
+  }
+  return msg || 'Kamera tidak bisa dibuka.';
+}
+
 export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> = ({ eventId, eventName }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const cooldownRef = useRef(0);
   const busyRef = useRef(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraMode, setCameraMode] = useState<'native' | 'fallback' | null>(null);
+  const [galleryError, setGalleryError] = useState('');
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState('');
   const [walkName, setWalkName] = useState('');
@@ -90,6 +115,7 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
     if (!trimmed || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    setGalleryError('');
     try {
       const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/check-in`, {
         method: 'POST',
@@ -100,8 +126,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
       const d = await r.json();
       setFlash({ result: d.result || 'UNKNOWN', message: d.message || d.error || 'Gagal', name: d.name });
       await load();
-    } catch (e: any) {
-      setFlash({ result: 'UNKNOWN', message: e.message || 'Gagal scan' });
+    } catch (e: unknown) {
+      setFlash({ result: 'UNKNOWN', message: e instanceof Error ? e.message : 'Gagal scan' });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -109,53 +135,163 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
     }
   }, [eventId, load]);
 
+  // Kamera: native BarcodeDetector bila ada, fallback jsQR untuk iOS Safari
   useEffect(() => {
-    if (!cameraOn) return;
+    if (!cameraOn) {
+      setCameraMode(null);
+      return;
+    }
     const video = videoRef.current;
     if (!video) return;
     let stream: MediaStream | null = null;
     let raf = 0;
     let stopped = false;
-    const Detector = (window as unknown as { BarcodeDetector?: new (opts: { formats: string[] }) => { detect: (src: CanvasImageSource) => Promise<Array<{ rawValue?: string }>> } }).BarcodeDetector;
 
-    (async () => {
+    const start = async () => {
+      const Detector = (window as unknown as { BarcodeDetector?: new (opts: { formats: string[] }) => { detect: (src: CanvasImageSource) => Promise<Array<{ rawValue?: string }>>; getSupportedFormats?: () => Promise<string[]> } }).BarcodeDetector;
+
+      // buka stream dengan fallback constraint iOS
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-        video.srcObject = stream;
-        await video.play();
-        setCameraError('');
-        if (!Detector) {
-          setCameraError('Browser ini tidak baca QR otomatis. Tempel kode manual di bawah.');
-          return;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        } catch (err) {
+          const name = (err as DOMException)?.name;
+          if (name === 'OverconstrainedError' || name === 'NotFoundError') {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          } else throw err;
         }
-        const detector = new Detector({ formats: ['qr_code'] });
-        const tick = async () => {
+        video.srcObject = stream;
+        // iOS butuh playsInline + muted sudah di JSX, tapi play bisa reject
+        try { await video.play(); } catch {}
+        setCameraError('');
+      } catch (e: unknown) {
+        setCameraError(cameraErrorMessage(e));
+        setCameraMode(null);
+        return;
+      }
+
+      // coba native BarcodeDetector
+      let nativeDetector: { detect: (src: CanvasImageSource) => Promise<Array<{ rawValue?: string }>> } | null = null;
+      if (Detector) {
+        try {
+          const w = window as unknown as { BarcodeDetector?: { getSupportedFormats?: () => Promise<string[]> } };
+          const formats = w.BarcodeDetector?.getSupportedFormats ? await w.BarcodeDetector.getSupportedFormats() : ['qr_code'];
+          if (!formats || formats.includes('qr_code')) {
+            nativeDetector = new Detector({ formats: ['qr_code'] });
+          }
+        } catch {
+          nativeDetector = null;
+        }
+      }
+
+      if (nativeDetector) {
+        setCameraMode('native');
+        const tickNative = async () => {
           if (stopped) return;
           try {
             if (Date.now() > cooldownRef.current && video.readyState >= 2) {
-              const codes = await detector.detect(video);
+              const codes = await nativeDetector!.detect(video);
               const value = codes[0]?.rawValue;
               if (value) {
                 cooldownRef.current = Date.now() + 2500;
-                submitCode(value);
+                void submitCode(value);
               }
             }
           } catch { /* skip frame */ }
-          raf = requestAnimationFrame(() => { void tick(); });
+          raf = requestAnimationFrame(() => { void tickNative(); });
         };
-        raf = requestAnimationFrame(() => { void tick(); });
-      } catch (e: any) {
-        setCameraError(e?.message || 'Kamera tidak bisa dibuka.');
+        raf = requestAnimationFrame(() => { void tickNative(); });
+        return;
       }
-    })();
+
+      // fallback jsQR — iOS Safari path (lazy)
+      setCameraMode('fallback');
+      try {
+        const { decodeFromImageData } = await import('../../lib/qr-decode');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true } as CanvasRenderingContext2DSettings);
+        if (!ctx) {
+          setCameraError('Canvas tidak didukung di browser ini. Gunakan Tempel kode manual atau Galeri.');
+          return;
+        }
+        let lastScan = 0;
+        const tickFallback = () => {
+          if (stopped) return;
+          raf = requestAnimationFrame(tickFallback);
+          if (Date.now() < cooldownRef.current) return;
+          if (Date.now() - lastScan < 180) return; // ~5.5 fps hemat CPU
+          if (video.readyState < 2 || video.videoWidth === 0) return;
+          lastScan = Date.now();
+          try {
+            const targetW = Math.min(video.videoWidth, 640);
+            const scale = targetW / video.videoWidth;
+            canvas.width = targetW;
+            canvas.height = Math.round(video.videoHeight * scale);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const value = decodeFromImageData(img.data, img.width, img.height);
+            if (value) {
+              cooldownRef.current = Date.now() + 2500;
+              void submitCode(value);
+            }
+          } catch {
+            // skip frame
+          }
+        };
+        tickFallback();
+      } catch (e: unknown) {
+        setCameraError(e instanceof Error ? e.message : 'QR fallback gagal dimuat. Gunakan Tempel kode atau Galeri.');
+      }
+    };
+
+    void start();
 
     return () => {
       stopped = true;
       cancelAnimationFrame(raf);
       stream?.getTracks().forEach((t) => t.stop());
-      video.srcObject = null;
+      if (video) video.srcObject = null;
     };
   }, [cameraOn, submitCode]);
+
+  const handleGalleryPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // reset agar bisa pilih file sama berulang
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (!file) return;
+    setGalleryError('');
+    try {
+      const { decodeFromImageData } = await import('../../lib/qr-decode');
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Gagal memuat gambar.'));
+        img.src = objectUrl;
+      });
+      const canvas = document.createElement('canvas');
+      // downscale besar agar cepat
+      const maxSide = 1000;
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      const scale = Math.min(1, maxSide / Math.max(w, h));
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true } as CanvasRenderingContext2DSettings);
+      if (!ctx) throw new Error('Canvas tidak didukung.');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const value = decodeFromImageData(imageData.data, imageData.width, imageData.height);
+      if (value) {
+        await submitCode(value);
+      } else {
+        setGalleryError('QR tidak terbaca dari foto. Coba foto lebih dekat, terang, dan tidak blur.');
+      }
+    } catch (err: unknown) {
+      setGalleryError(err instanceof Error ? err.message : 'Gagal membaca foto.');
+    }
+  };
 
   const submitWalkIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,8 +310,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
       setWalkName('');
       setWalkPhone('');
       await load();
-    } catch (e: any) {
-      setFlash({ result: 'UNKNOWN', message: e.message || 'Gagal walk-in' });
+    } catch (e: unknown) {
+      setFlash({ result: 'UNKNOWN', message: e instanceof Error ? e.message : 'Gagal walk-in' });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -199,8 +335,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
         name: s.userName || undefined,
       });
       await load();
-    } catch (e: any) {
-      setFlash({ result: 'UNKNOWN', message: e.message || 'Gagal membatalkan' });
+    } catch (e: unknown) {
+      setFlash({ result: 'UNKNOWN', message: e instanceof Error ? e.message : 'Gagal membatalkan' });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -259,18 +395,45 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
           </button>
         </div>
         {cameraOn && (
-          <video ref={videoRef} className="w-full max-h-72 rounded-xl bg-black object-cover" playsInline muted />
+          <>
+            <video ref={videoRef} className="w-full max-h-72 rounded-xl bg-black object-cover" playsInline autoPlay muted />
+            {cameraMode === 'fallback' && !cameraError && (
+              <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">Mode kompatibilitas iPhone aktif — scan otomatis pakai fallback. Tetap arahkan kamera ke QR.</p>
+            )}
+            {cameraMode === 'native' && !cameraError && (
+              <p className="text-[11px] text-[#8C8880]">Mode native aktif.</p>
+            )}
+          </>
         )}
-        {cameraError && <p className="text-xs text-amber-700">{cameraError}</p>}
+        {cameraError && <p className="text-xs text-amber-700 leading-relaxed">{cameraError}</p>}
+
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => void handleGalleryPick(e)}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold text-[#5C5850] hover:bg-[#FAF9F5]"
+          >
+            <ImagePlus className="w-3.5 h-3.5" /> Pilih dari Galeri
+          </button>
+          <span className="text-[11px] text-[#8C8880] self-center">Foto QR dari WA / galeri juga bisa.</span>
+        </div>
+        {galleryError && <p className="text-xs text-red-600">{galleryError}</p>}
 
         <form
           className="flex gap-2"
-          onSubmit={(e) => { e.preventDefault(); submitCode(manual); }}
+          onSubmit={(e) => { e.preventDefault(); void submitCode(manual); }}
         >
           <input
             value={manual}
             onChange={(e) => setManual(e.target.value)}
-            placeholder="Tempel kode GEHC-BT|… di sini"
+            placeholder="Tempel kode GEHC-BT|… atau GEHC-EA|… di sini"
             className="flex-1 px-3 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-mono"
           />
           <button
@@ -282,6 +445,7 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
             Scan
           </button>
         </form>
+        <p className="text-[10px] text-[#8C8880] leading-relaxed">Jika kamera gagal, peserta bisa Salin kode di kartu QR-nya lalu kirim WA ke panitia → tempel di sini.</p>
       </div>
 
       <form onSubmit={submitWalkIn} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-2">
@@ -343,7 +507,7 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
                 {VOIDABLE.includes(s.result) && (
                   <button
                     type="button"
-                    onClick={() => voidScan(s)}
+                    onClick={() => void voidScan(s)}
                     disabled={busy}
                     title="Batalkan check-in"
                     className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] bg-white text-[10px] font-bold text-[#5C5850] disabled:opacity-50"
