@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarClock, MessageCircle } from 'lucide-react';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
+import { CopyCodeField } from '../shared/CopyCodeField';
 
 type Props = {
   eventName?: string;
@@ -70,7 +71,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
       )}
 
       {checkInCode ? (
-        <div className={`rounded-2xl border border-emerald-200 bg-white text-center space-y-2 ${compact ? 'p-3' : 'p-4'}`}>
+        <div className={`rounded-2xl border border-emerald-200 bg-white text-center space-y-3 ${compact ? 'p-3' : 'p-4'}`}>
           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
             QR daftar ulang hari H
           </p>
@@ -81,7 +82,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
             height={compact ? 120 : 180}
             className="mx-auto rounded-xl border border-emerald-100"
           />
-          <p className="text-[10px] font-mono text-[#5C5850] break-all">{checkInCode}</p>
+          <CopyCodeField code={checkInCode} compact={compact} label="Kode daftar ulang" />
           {registeredAt && (
             <p className="text-[10px] text-[#8C8880]">
               Terdaftar {new Date(registeredAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
