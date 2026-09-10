@@ -197,6 +197,7 @@ export function registerBakuTauRoutes(app, { wrap }) {
   }
 
   app.post('/api/events/baku-tau-4-0/register', wrap(async (req, res) => {
+    const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     const eventRow = await findEventProgramPublic(prisma, { id: BAKU_TAU_EVENT_ID });
