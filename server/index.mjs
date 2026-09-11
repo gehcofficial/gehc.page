@@ -131,6 +131,7 @@ import { registerServingAssignmentRoutes } from './routes/serving-assignments.mj
 import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
 import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
+import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -2548,6 +2549,7 @@ registerServingAssignmentRoutes(app, { wrap });
 registerServiceOverrideRoutes(app, { wrap });
 registerServiceSwapRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
+registerDidaskaliaStudioRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerEventQuestionRoutes(app, { wrap });
 
