@@ -126,6 +126,7 @@
     "react-router-dom": "^7.9.1",
     "sharp": "^0.34.5",
     "vite": "^6.2.3",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info } from 'lucide-react';
-import { isStandaloneDisplay, notificationPermission } from '../../lib/pwa-install';
-import { PwaInstallCard } from './PwaInstallCard';
+import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { pushCapability, pushCapabilityMessage } from '../../lib/push-capability';
 
 interface PWASettingsPanelProps {
   onClose?: () => void;
@@ -16,6 +15,8 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   const [isStandalone, setIsStandalone] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [cacheSize, setCacheSize] = useState<string>('...');
+  const [pushError, setPushError] = useState('');
+  const [cap, setCap] = useState<ReturnType<typeof pushCapability> | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -24,9 +25,10 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   }, []);
 
   const init = async () => {
-    setPermission(notificationPermission());
+    try { setPermission(Notification.permission); } catch {}
+    setCap(pushCapability());
     setIsOnline(navigator.onLine);
-    setIsStandalone(isStandaloneDisplay());
+    setIsStandalone(checkStandalone());
     await checkSW();
     await checkSubscription();
     await measureCache();
@@ -36,6 +38,11 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
     window.addEventListener('online', () => setIsOnline(true));
     window.addEventListener('offline', () => setIsOnline(false));
     window.addEventListener('beforeinstallprompt', () => { /* handled */ });
+  };
+
+  const checkStandalone = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
   };
 
   const checkSW = async () => {
@@ -57,14 +64,23 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   };
 
   const measureCache = async () => {
+    if (!('caches' in window)) return;
     try {
-      const estimate = await navigator.storage?.estimate?.();
-      if (estimate?.usage != null) {
-        setCacheSize(formatBytes(estimate.usage));
-        return;
+      let total = 0;
+      const names = await caches.keys();
+      for (const name of names) {
+        const cache = await caches.open(name);
+        const keys = await cache.keys();
+        for (const req of keys) {
+          const resp = await cache.match(req);
+          if (resp) {
+            const blob = await resp.blob();
+            total += blob.size;
+          }
+        }
       }
-    } catch { /* fall through */ }
-    setCacheSize('—');
+      setCacheSize(formatBytes(total));
+    } catch { /* skip */ }
   };
 
   const formatBytes = (bytes: number) => {
@@ -74,23 +90,45 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   };
 
   const requestPermission = useCallback(async () => {
-    if (typeof Notification === 'undefined') return;
     setLoading(true);
+    setPushError('');
     try {
+      const c = pushCapability();
+      if (c.state !== 'supported' && c.state !== 'default') {
+        setCap(c);
+        setPushError(pushCapabilityMessage(c.state).body);
+        return;
+      }
       const perm = await Notification.requestPermission();
       setPermission(perm);
+      setCap(pushCapability());
       if (perm === 'granted') await subscribe();
+      else if (perm === 'denied') setPushError('Izin diblokir. Buka pengaturan browser → Notifications → Allow.');
+    } catch (e: unknown) {
+      setPushError(e instanceof Error ? e.message : 'Gagal minta izin');
     } finally {
       setLoading(false);
     }
   }, []);
 
   const subscribe = async () => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator)) { setPushError('Service Worker tidak didukung.'); return; }
+    const capNow = pushCapability();
+    if (capNow.state !== 'supported' && capNow.state !== 'default') {
+      setCap(capNow);
+      setPushError(pushCapabilityMessage(capNow.state).body);
+      return;
+    }
     setLoading(true);
+    setPushError('');
     try {
       const reg = await navigator.serviceWorker.ready;
-      const vapidKey = (window as any).PWA?.VAPID_PUBLIC_KEY || 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
+      let vapidKey = (window as any).PWA?.VAPID_PUBLIC_KEY || '';
+      try {
+        const r = await fetch('/api/push/config');
+        if (r.ok) { const j = await r.json(); if (j.publicKey) vapidKey = j.publicKey; }
+      } catch {}
+      if (!vapidKey) vapidKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -112,7 +150,12 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
 
       setSubscribed(true);
       setSubscription(sub);
-    } catch (err) {
+      setCap(pushCapability());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/permission denied/i.test(msg)) setPushError('Izin ditolak.');
+      else if (/InvalidAccess|applicationServerKey/i.test(msg)) setPushError('VAPID key tidak valid.');
+      else setPushError(msg || 'Gagal berlangganan');
       console.error('Subscribe failed:', err);
     } finally {
       setLoading(false);
@@ -161,6 +204,15 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
       setSwRegistered(false);
     } catch (err) {
       console.error('Unregister SW failed:', err);
+    }
+  };
+
+  const installPWA = async () => {
+    const deferredPrompt = (window as any).deferredPrompt;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      (window as any).deferredPrompt = null;
     }
   };
 
@@ -291,6 +343,14 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
             </div>
           </div>
 
+          {pushError && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{pushError}</p>}
+          {cap && cap.state !== 'supported' && cap.state !== 'default' && !subscribed && (
+            <div className="text-xs bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <p className="font-bold text-amber-900">{pushCapabilityMessage(cap.state).title}</p>
+              <p className="text-amber-800 mt-0.5">{pushCapabilityMessage(cap.state).body}</p>
+            </div>
+          )}
+
           {subscription && (
             <details className="border border-[#D9D7D0]/50 rounded-xl">
               <summary className="p-3 cursor-pointer text-xs font-bold text-[#8C8880] uppercase tracking-wider">
@@ -333,7 +393,32 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
         </div>
       </div>
 
-      <PwaInstallCard />
+      {/* Install PWA */}
+      {!isStandalone && (
+        <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-5">
+          <h3 className="text-lg font-bold text-[#1B1B1B] mb-4 flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-[#F6AE4A]" /> Install Aplikasi
+          </h3>
+          <p className="text-sm text-[#8C8880] mb-4">
+            Install GEHC Youth sebagai aplikasi native untuk akses cepat, notifikasi push, & dukungan offline.
+          </p>
+          <button onClick={installPWA} className="px-6 py-3 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold flex items-center gap-2">
+            <Download className="w-4 h-4" /> Install Sekarang
+          </button>
+        </div>
+      )}
+
+      {isStandalone && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
+            <div>
+              <p className="font-bold text-green-800">Aplikasi Terinstall</p>
+              <p className="text-sm text-green-700">Anda menjalankan GEHC Youth sebagai PWA standalone</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
