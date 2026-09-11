@@ -61,7 +61,6 @@ export function pushCapability(): { state: PushCapability; reason: string } {
       }
       if (!isStandalone()) return { state: 'ios-need-install', reason: 'iPhone perlu Install ke Home Screen dulu.' };
     }
-    if (Notification.permission === 'denied') return { state: 'denied', reason: 'Diblokir.' };
     return { state: 'supported', reason: 'Siap.' };
   } catch {
     return { state: 'no-sw', reason: 'Tidak didukung.' };

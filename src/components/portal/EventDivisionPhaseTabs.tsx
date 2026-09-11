@@ -10,8 +10,7 @@ const SUBDIVISION_CHILDREN: Record<string, string[]> = {
   'Liturgi & Ibadah': ['Foto', 'Berkas', 'Berkas/rundown', 'Foto/ibadah'],
   'Musik & Vokal': ['Foto', 'Berkas', 'Berkas/chord', 'Foto/rehearsal'],
   'Doa & Intercession': ['Foto', 'Berkas', 'Berkas/pokok-doa'],
-  'Kurikulum Pemuridan': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb'],
-  'Pembekalan Tim': ['Foto', 'Berkas', 'Foto/pembekalan', 'Berkas/materi-tim'],
+  'Kurikulum & Pembekalan': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb', 'Foto/pembekalan', 'Berkas/materi-tim'],
   'Program & Acara': ['Foto', 'Berkas'],
   'Persekutuan & Integrasi': ['Foto', 'Berkas', 'Foto/welcome'],
   'Hubungan & Komunikasi': ['Foto', 'Berkas'],
@@ -53,15 +52,10 @@ const PHASE_TASKS: Record<string, Record<Phase, string[]>> = {
     during: ['Tim doa siaga (siapa petugas + jam)', 'Doa syafaat live intercession', 'Catat jawaban doa'],
     post: ['Rangkum jawaban doa untuk warta (field doa)', 'Follow-up anggota bergumul', 'Update pokok doa next week'],
   },
-  'Kurikulum Pemuridan': {
-    pre: ['Siapkan modul pembekalan mentor/komentor untuk tema minggu ini (Berkas/modul)', 'Upload materi ke Drive Kurikulum', 'Briefing Lead Equippers (Putri & Alvandi)'],
-    during: ['Rilis RHB harian 7 PDF: Senin-Sabat (6-12 Sep) di Berkas/modul-rhb', 'Pastikan mentor akses via Monitoring Kelompok', 'Pantau pembacaan RHB di portal'],
-    post: ['Susun warta: ayat/khotbah/ringkasan (WartaPublik)', 'Kumpulkan feedback modul untuk evaluasi batch', 'Arsip modul ke Foto/Berkas'],
-  },
-  'Pembekalan Tim': {
-    pre: ['Siapkan materi pembekalan tim (Berkas/materi-tim) — SESUAI HARI: Mentoring=deck utama 10 grup, Serving=ringkas 2 grup', 'Jadwal sesi pembekalan H-3 (Mentoring undang semua mentor/10 grup, Serving undang penanggung+host 2 grup)', 'Undang mentor/komentor sesuai hari'],
-    during: ['Absensi pembekalan terpisah per hari (Mentoring 10 grup / Serving 2 grup)', 'Sampaikan materi pembekalan (deck per event)', 'Foto pembekalan per hari'],
-    post: ['Evaluasi pembekalan H+7 per hari', 'Update materi untuk next Mentoring/Serving terpisah', 'Lapor ke Didaskalia HoD per hari'],
+  'Kurikulum & Pembekalan': {
+    pre: ['Siapkan modul + materi pembekalan mentor/komentor untuk tema minggu ini (Kurikulum by-event 01..03)', 'Upload materi ke Drive Kurikulum/<Event>', 'Briefing Lead Equippers (Putri & Alvandi)', 'Jadwal sesi pembekalan H-3 — Mentoring: semua mentor/10 grup; Serving: penanggung+host 2 grup'],
+    during: ['Rilis RHB harian 7 PDF Senin–Sabtu (by-event 03)', 'Absensi pembekalan terpisah per hari + sampaikan deck per event (by-event 01)', 'Pastikan mentor akses via Monitoring Kelompok', 'Foto pembekalan per hari'],
+    post: ['Susun warta: ayat/khotbah/ringkasan (by-event 02)', 'Evaluasi pembekalan H+7 per hari + feedback modul batch', 'Arsip modul ke Foto/Berkas'],
   },
   'Program & Acara': {
     pre: ['Konsep acara: games/bonding/dekor (RACI Proposal)', 'Finalisasi rundown acara + rundown detail', 'Koordinasi dengan Liturgia & Diakonia'],
@@ -181,26 +175,18 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
   const subDivs = CANONICAL_SUB_DIVISIONS[division as keyof typeof CANONICAL_SUB_DIVISIONS] || [];
   const Icon = DIVISION_ICON[division] || FileText;
   const getTasks = (sub: string, ph: Phase): string[] => {
-    if (sub === 'Pembekalan Tim' && serviceType) {
+    if (sub === 'Kurikulum & Pembekalan' && serviceType) {
       const isMentoring = serviceType === 'MENTORING_DAY';
       const isServing = serviceType === 'SERVING_DAY';
       if (isMentoring) {
-        if (ph === 'pre') return ['Siapkan materi pembekalan Mentoring (deck utama SOP 10 grup, Berkas/materi-tim)', 'Jadwal sesi pembekalan Mentoring H-3 untuk semua mentor/10 grup', 'Undang semua mentor/komentor + Komisi (all)'];
-        if (ph === 'during') return ['Absensi pembekalan Mentoring (10 grup roll call)', 'Sampaikan materi Mentoring Day (tema besar)', 'Foto pembekalan Mentoring'];
+        if (ph === 'pre') return ['Siapkan modul + materi pembekalan Mentoring (deck utama SOP 10 grup, Kurikulum by-event 01..03)', 'Jadwal sesi pembekalan Mentoring H-3 untuk semua mentor/10 grup', 'Undang semua mentor/komentor + Komisi (all)'];
+        if (ph === 'during') return ['Absensi pembekalan Mentoring (10 grup roll call)', 'Sampaikan materi Mentoring Day (tema besar)', 'Rilis RHB 7 PDF Senin–Sabtu (by-event 03)', 'Foto pembekalan Mentoring'];
         if (ph === 'post') return ['Evaluasi pembekalan Mentoring H+7', 'Update materi untuk next Mentoring Day', 'Lapor ke Didaskalia HoD + Komisi'];
       }
       if (isServing) {
-        if (ph === 'pre') return ['Siapkan materi pembekalan Serving (ringkas praktik 2 grup, Berkas/materi-tim)', 'Jadwal sesi pembekalan Serving H-3 untuk penanggung+host 2 grup', 'Undang mentor/komentor 2 grup bertugas'];
-        if (ph === 'during') return ['Absensi pembekalan Serving (2 grup)', 'Sampaikan materi Serving (praktik)', 'Foto pembekalan Serving'];
+        if (ph === 'pre') return ['Siapkan modul + materi pembekalan Serving (ringkas praktik 2 grup, Kurikulum by-event 01..03)', 'Jadwal sesi pembekalan Serving H-3 untuk penanggung+host 2 grup', 'Undang mentor/komentor 2 grup bertugas'];
+        if (ph === 'during') return ['Absensi pembekalan Serving (2 grup)', 'Sampaikan materi Serving (praktik)', 'Rilis RHB 7 PDF Senin–Sabtu (by-event 03) — tetap 7 PDF', 'Foto pembekalan Serving'];
         if (ph === 'post') return ['Evaluasi pembekalan Serving H+7', 'Update materi untuk next Serving Day', 'Lapor ke Didaskalia HoD + penanggung jawab'];
-      }
-    }
-    if (sub === 'Kurikulum Pemuridan' && serviceType) {
-      const isMentoring = serviceType === 'MENTORING_DAY';
-      if (ph === 'during') {
-        return isMentoring
-          ? ['Rilis RHB harian 7 PDF: Senin–Sabtu untuk Mentoring (Berkas/modul-rhb)', 'Pastikan mentor 10 grup akses via Monitoring', 'Pantau pembacaan RHB']
-          : ['Rilis RHB harian 7 PDF: Senin–Sabtu untuk Serving (Berkas/modul-rhb) — tetap 7 PDF', 'Pastikan 2 grup bertugas + mentor terkait akses', 'Pantau pembacaan RHB Serving'];
       }
     }
     return PHASE_TASKS[sub]?.[ph] || [];
@@ -254,7 +240,7 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
                 {tasks.length === 0 && <li className="text-xs text-[#8C8880] italic">Tidak ada tugas spesifik untuk fase ini — standby.</li>}
               </ul>
               {/* By-event Kurikulum files — sistem posisikan per subfolder (RHB sudah bagus) */}
-              {sub === 'Pembekalan Tim' && (driveSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 && (
+              {(false) && (driveSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 && (
                 <div className="pt-2 border-t border-[#EFEDE8] space-y-1">
                   <p className="text-[10px] font-bold text-amber-800 uppercase">Materi Pembekalan (by event 01 — mentor-only):</p>
                   {(driveSubFiles['01 Pembekalan Mentor - Co mentor'] || []).map((f) => (
@@ -262,7 +248,7 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
                   ))}
                 </div>
               )}
-              {sub === 'Kurikulum Pemuridan' && (
+              {sub === 'Kurikulum & Pembekalan' && (
                 <>
                   {(driveSubFiles['03 RHB 7 Hari'] || []).length > 0 && (
                     <div className="pt-2 border-t border-[#EFEDE8] space-y-1">
