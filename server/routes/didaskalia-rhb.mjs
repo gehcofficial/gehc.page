@@ -1,6 +1,12 @@
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { getDriveMode, listFiles, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
+import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
+
+/** Tulis Drive aktif bila flag di-set ATAU token OAuth pemilik tersedia. */
+function driveWriteEnabled() {
+  return process.env.GDRIVE_WRITE === '1' || hasUserDriveToken();
+}
 
 async function findFolderByName(name, parentId) {
   const folders = await listFolders(parentId, 100);
@@ -132,7 +138,7 @@ export function registerDidaskaliaRhbRoutes(app, { wrap }) {
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
     wrap(async (req, res) => {
       if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
-      if (process.env.GDRIVE_WRITE !== '1') return res.status(403).json({ error: 'Upload belum diaktifkan (GDRIVE_WRITE != 1).' });
+      if (!driveWriteEnabled()) return res.status(403).json({ error: 'Upload belum diaktifkan (set GDRIVE_WRITE=1 atau hubungkan token Drive pemilik).' });
       const { filename, mimetype, data, weekLabel } = req.body || {};
       if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
       if (typeof data === 'string' && data.length > 11_000_000) return res.status(413).json({ error: 'File terlalu besar (maks ~8MB).' });
