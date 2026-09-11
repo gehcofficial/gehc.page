@@ -6,6 +6,7 @@ import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { PersonNameFields } from './PersonNameFields';
+import { matchesMainFilter as matchesMainFilterLib, matchesSubFilter as matchesSubFilterLib, buildSubFilters as buildSubFiltersLib, hasBeyonderWithGroup } from '../../lib/jemaat-filter';
 import {
   composeOfficialName,
   emptyPersonName,
@@ -179,100 +180,15 @@ function hasRoleInLegacy(y: YouthUser, role: string): boolean {
 }
 
 function matchesMainFilter(y: YouthUser, filter: MainFilter): boolean {
-  if (filter === 'ALL') return true;
-  if (filter === 'INDIVIDU') {
-    if (y.isIndividuExplicit) return y.bipra === 'PEMUDA';
-    return !y.isBeyonders && !BEYONDER_ROLES.some((r) => hasRoleInAssignment(y, r) || hasRoleInLegacy(y, r)) && y.bipra === 'PEMUDA';
-  }
-  if (filter === 'BEYONDERS') {
-    if (y.isIndividuExplicit) return false;
-    if (y.bipra !== 'PEMUDA') return false;
-    return Boolean(y.isBeyonders) || BEYONDER_ROLES.some((r) => hasRoleInAssignment(y, r) || hasRoleInLegacy(y, r));
-  }
-  if (filter === 'TIMKERJA') {
-    return hasRoleInAssignment(y, 'COMMITTEE') || hasRoleInLegacy(y, 'COMMITTEE');
-  }
-  return hasRoleInAssignment(y, filter) || hasRoleInLegacy(y, filter);
+  return matchesMainFilterLib(y as unknown as Parameters<typeof matchesMainFilterLib>[0], filter);
 }
 
 function buildSubFilters(y: YouthUser[], filter: MainFilter, timKerjaGroups: Array<{ key: string; label: string; divisions: string[] }>): Array<{ key: string; label: string; count: number }> {
-  if (filter === 'ALL') return [];
-
-  const usersWithFilter = y.filter((u) => matchesMainFilter(u, filter));
-
-  if (filter === 'BPMJ' || filter === 'KOMISI') {
-    const posMap: Record<string, number> = {};
-    const roleKey = filter === 'BPMJ' ? 'BPMJ' : 'KOMISI';
-    usersWithFilter.forEach((u) => {
-      u.roleAssignments
-        .filter((ra) => ra.isActive && ra.role === roleKey)
-        .forEach((ra) => {
-          const pos = ra.position || 'Anggota';
-          posMap[pos] = (posMap[pos] || 0) + 1;
-        });
-    });
-    return Object.entries(posMap).map(([label, count]) => ({ key: label, label, count }));
-  }
-
-  if (filter === 'TIMKERJA') {
-    const groupCounts: Record<string, number> = {};
-    timKerjaGroups.forEach((g) => { groupCounts[g.key] = 0; });
-    usersWithFilter.forEach((u) => {
-      u.roleAssignments
-        .filter((ra) => ra.isActive && ra.role === 'COMMITTEE')
-        .forEach((ra) => {
-          const grp = timKerjaGroups.find((g) => g.divisions.includes(ra.division || ''));
-          if (grp) {
-            groupCounts[grp.key] = (groupCounts[grp.key] || 0) + 1;
-          }
-        });
-    });
-    return timKerjaGroups
-      .map((g) => ({ key: g.key, label: g.label, count: groupCounts[g.key] || 0 }))
-      .filter((g) => g.count > 0);
-  }
-
-  if (filter === 'BEYONDERS') {
-    const groupMap: Record<string, number> = {};
-    usersWithFilter.forEach((u) => {
-      u.roleAssignments
-        .filter((ra) => ra.isActive && BEYONDER_ROLES.includes(ra.role))
-        .forEach((ra) => {
-          const grp = ra.group?.name || 'Tanpa Group';
-          groupMap[grp] = (groupMap[grp] || 0) + 1;
-        });
-    });
-    return Object.entries(groupMap).map(([label, count]) => ({ key: label, label, count }));
-  }
-
-  return [];
+  return buildSubFiltersLib(y as unknown as Parameters<typeof buildSubFiltersLib>[0], filter, timKerjaGroups);
 }
 
 function matchesSubFilter(y: YouthUser, filter: MainFilter, subKey: string | null, timKerjaGroups: Array<{ key: string; label: string; divisions: string[] }>): boolean {
-  if (!subKey) return true;
-
-  if (filter === 'BPMJ' || filter === 'KOMISI') {
-    const roleKey = filter === 'BPMJ' ? 'BPMJ' : 'KOMISI';
-    return y.roleAssignments.some(
-      (ra) => ra.isActive && ra.role === roleKey && (ra.position || 'Anggota') === subKey
-    );
-  }
-
-  if (filter === 'TIMKERJA') {
-    const grp = timKerjaGroups.find((g) => g.key === subKey);
-    if (!grp) return false;
-    return y.roleAssignments.some(
-      (ra) => ra.isActive && ra.role === 'COMMITTEE' && grp.divisions.includes(ra.division || '')
-    );
-  }
-
-  if (filter === 'BEYONDERS') {
-    return y.roleAssignments.some(
-      (ra) => ra.isActive && BEYONDER_ROLES.includes(ra.role) && (ra.group?.name || 'Tanpa Group') === subKey
-    );
-  }
-
-  return true;
+  return matchesSubFilterLib(y as unknown as Parameters<typeof matchesSubFilterLib>[0], filter, subKey, timKerjaGroups);
 }
 
 function displayRoles(user: YouthUser): Array<{ key: string; role: string; label: string; color: string; detail: string }> {
@@ -845,7 +761,7 @@ export const YouthGEHCList: React.FC = () => {
   }, [allFiltered, mainFilter, subFilter, timKerjaGroups]);
   const { pageItems: pagedYouth, pager: youthPager } = useListPager<YouthUser>(displayed);
 
-  // Build Beyonders grouped data
+  // Build Beyonders grouped data — strict: hanya dengan group (Tanpa Group → Individu)
   const beyondersGrouped = useMemo((): BeyondersGroupData[] => {
     const catalog = liveGroups.length ? liveGroups : BEYONDER_GROUPS;
     const groupMap = new Map<string, BeyondersGroupData>();
@@ -855,14 +771,15 @@ export const YouthGEHCList: React.FC = () => {
       groupMap.set(g.name, { group: g, members: [] });
       byUpper.set(g.name.toUpperCase(), g.name);
     });
-    groupMap.set('Tanpa Group', { group: null, members: [] });
+    const source = allFiltered.filter((y) => hasBeyonderWithGroup(y as unknown as Parameters<typeof hasBeyonderWithGroup>[0]));
 
-    allFiltered.forEach((y) => {
+    source.forEach((y) => {
       y.roleAssignments
-        .filter((ra) => ra.isActive && BEYONDER_ROLES.includes(ra.role))
+        .filter((ra) => ra.isActive && BEYONDER_ROLES.includes(ra.role) && Boolean(ra.group?.name && ra.group.name !== 'Tanpa Group'))
         .forEach((ra) => {
-          const raw = ra.group?.name || 'Tanpa Group';
-          const key = raw === 'Tanpa Group' ? 'Tanpa Group' : (byUpper.get(raw.toUpperCase()) || raw);
+          const raw = ra.group!.name;
+          const key = byUpper.get(raw.toUpperCase()) || raw;
+          if (subFilter && key !== subFilter) return;
           if (!groupMap.has(key)) {
             groupMap.set(key, {
               group: ra.group ? { id: ra.group.id, name: ra.group.name, color: '#8C8880' } : null,
@@ -883,7 +800,7 @@ export const YouthGEHCList: React.FC = () => {
     });
 
     return Array.from(groupMap.values()).filter((g) => g.members.length > 0);
-  }, [allFiltered, liveGroups]);
+  }, [allFiltered, liveGroups, subFilter]);
 
   const visibleAssignTargetId = useMemo(() => {
     if (selectedIds.size === 0) return null;
