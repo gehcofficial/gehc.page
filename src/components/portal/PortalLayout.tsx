@@ -15,6 +15,7 @@ import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
 import { MenteeKesaksianPanel } from './MenteeKesaksianPanel';
 import { WhatsAppChannelsPanel } from './WhatsAppChannelsPanel';
+import { IbadahMingguanPanel } from './IbadahMingguanPanel';
 import { JethroEngine } from './JethroEngine';
 import { PortalAccountSwitcher } from './PortalAccountSwitcher';
 import { displayAvatar } from '../../lib/avatar';
@@ -161,12 +162,13 @@ export const PortalLayout: React.FC = () => {
         return;
       }
       if (!route.namespace) return;
-      const page = route.page === 'home' ? defaultPageForRole(currentRole, isOnboarding) : route.page;
+      let page = route.page === 'home' ? defaultPageForRole(currentRole, isOnboarding) : route.page;
       if (page === 'my-profile') {
         setActiveTab('account');
         window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
         return;
       }
+      if (page === 'ibadah-mingguan') page = 'kegiatan';
       setActiveTab(page);
     };
     syncFromHash();
@@ -195,6 +197,8 @@ export const PortalLayout: React.FC = () => {
   const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
     account: User,
     'event-info': Calendar,
+    'ibadah-mingguan': BookOpen,
+    kegiatan: Calendar,
     dashboard: LayoutDashboard,
     people: UsersRound,
     onboarding: ClipboardList,
@@ -402,11 +406,11 @@ export const PortalLayout: React.FC = () => {
 
           {/* Zone 2: Nav Links (scrollable) */}
           <nav className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300 ${collapsed ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
-            {navWithHeaders.map((row) => {
+            {navWithHeaders.map((row, idx) => {
               if (row.type === 'header') {
                 if (collapsed) return null;
                 return (
-                  <span key={`h-${row.label}`} className="block px-3 pt-4 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/60">
+                  <span key={`h-${row.label}-${idx}`} className="block px-3 pt-4 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/60">
                     {portalNavGroup(t, row.label)}
                   </span>
                 );
@@ -657,6 +661,12 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="event-info" />
               <EventInfoPanel />
+            </div>
+          )}
+          {(activeTab === 'kegiatan' || activeTab === 'ibadah-mingguan') && (
+            <div className="space-y-4">
+              <PanelGuide guideId={activeTab === 'ibadah-mingguan' ? 'ibadah-mingguan' : 'kegiatan'} />
+              <IbadahMingguanPanel />
             </div>
           )}
           {activeTab === 'dashboard' && (

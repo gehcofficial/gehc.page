@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { ChurchCalendarPanel } from './ChurchCalendarPanel';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
-import { MonthlyPlanPanel } from './MonthlyPlanPanel';
+import { ServicePlanPanel } from './ServicePlanPanel';
+import { EventDivisionPhaseTabs } from './EventDivisionPhaseTabs';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
 import { EventPublicContentBlock } from './EventPublicContentBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
@@ -85,6 +86,8 @@ interface EventItem {
   gmeetLink?: string;
   whatsappGroupUrl?: string | null;
   kind?: string;
+  serviceType?: string | null;
+  metadata?: Record<string, unknown> | null;
   churchProgramId?: string | null;
   churchProgram?: { id: string; name: string; scope: string } | null;
   eventDate?: string | null;
@@ -99,7 +102,7 @@ interface EventItem {
 }
 
 type ViewMode = 'list' | 'detail';
-type ListTab = 'events' | 'calendar' | 'umbrella' | 'month';
+type ListTab = 'events' | 'calendar' | 'umbrella' | 'ibadah';
 
 const ALL_EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
@@ -127,12 +130,7 @@ function isoToDateInput(iso?: string | null): string {
   const t = new Date(iso).getTime();
   return Number.isNaN(t) ? '' : new Date(t).toISOString().slice(0, 10);
 }
-const EVENT_KINDS = [
-  { id: 'KHUSUS', label: 'Khusus (BAKU TAU, retret)' },
-  { id: 'UMUM', label: 'Umum (ibadah jemaat/pemuda)' },
-  { id: 'INTERNAL', label: 'Internal (rapat/pembekalan)' },
-  { id: 'RECURRING', label: 'Berulang (BenZuar, BenZinema)' },
-];
+import { EVENT_KINDS, eventKindLabel, normalizeEventKind } from '../../lib/event-kinds';
 
 export const EventWorkspacePanel: React.FC = () => {
   const { addToast, currentRole } = useApp();
@@ -367,6 +365,13 @@ export const EventWorkspacePanel: React.FC = () => {
       default: return 'bg-gray-100 text-gray-500';
     }
   };
+  const serviceTypeColor = (s?: string | null) => {
+    switch (s) {
+      case 'MENTORING_DAY': return 'bg-sky-100 text-sky-700 border border-sky-200';
+      case 'SERVING_DAY': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+      default: return 'bg-[#FAF9F5] text-[#8C8880] border border-[#D9D7D0]';
+    }
+  };
 
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
@@ -384,7 +389,7 @@ export const EventWorkspacePanel: React.FC = () => {
     setEditForm({
       name: selected.name,
       description: selected.description || '',
-      kind: selected.kind || 'KHUSUS',
+      kind: normalizeEventKind(selected.kind || 'KHUSUS'),
       status: selected.status || 'PLANNING',
       churchProgramId: selected.churchProgramId || '',
       startDate: isoToDateInput(selected.startDate),
@@ -460,7 +465,7 @@ export const EventWorkspacePanel: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4">
           <button onClick={() => { setView('list'); setSelected(null); }} className="mt-1 text-[#8C8880] hover:text-[#FF416C] transition-colors">
             <ChevronRight className="w-5 h-5 rotate-180" />
           </button>
@@ -470,8 +475,11 @@ export const EventWorkspacePanel: React.FC = () => {
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${statusColor(selected.status)}`}>
                 {selected.status}
               </span>
+              {selected.serviceType && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${serviceTypeColor(selected.serviceType)}`}>{selected.serviceType === 'MENTORING_DAY' ? 'MENTORING' : selected.serviceType === 'SERVING_DAY' ? 'SERVING' : selected.serviceType}</span>
+              )}
               {selected.kind && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">{selected.kind}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold" title={eventKindLabel(selected.kind)}>{eventKindLabel(selected.kind)}</span>
               )}
               {selected.churchProgram && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880] font-bold">
@@ -578,9 +586,11 @@ export const EventWorkspacePanel: React.FC = () => {
                   value={editForm.kind}
                   onChange={(e) => setEditForm((f) => ({ ...f, kind: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                  title={EVENT_KINDS.find((k) => k.id === editForm.kind)?.tooltip || ''}
                 >
-                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id} title={k.tooltip}>{k.label}</option>)}
                 </select>
+                <p className="text-[10px] text-[#8C8880] mt-1">{EVENT_KINDS.find((k) => k.id === editForm.kind)?.tooltip}</p>
               </EditField>
               <EditField label="Status">
                 <select
@@ -717,45 +727,35 @@ export const EventWorkspacePanel: React.FC = () => {
 
         <EventQuestionsBlock eventId={selected.id} />
 
-        {/* Division Cards */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {selected.divisions.map((div) => (
-            <div key={div.id} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-[#1B1B1B]">{div.division}</h3>
-                {div.driveFolderId && (
-                  <a href={`https://drive.google.com/drive/folders/${div.driveFolderId}`} target="_blank" rel="noopener" className="text-[#8C8880] hover:text-[#FF416C] transition-colors">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                )}
-              </div>
-              {/* Discussion */}
-              <div className="space-y-2">
-                {(discussions[div.division] || []).slice(-3).map((u, i) => (
-                  <div key={u.id || i} className="text-xs bg-[#FAF9F5] rounded-lg p-2">
-                    <span className="font-semibold text-[#1B1B1B]">{u.authorName || u.authorId}</span>: {u.body}
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newPost[div.division] || ''}
-                    onChange={(e) => setNewPost((prev) => ({ ...prev, [div.division]: e.target.value }))}
-                    placeholder="Tulis progres..."
-                    className="flex-1 text-xs px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]"
-                    onKeyDown={(e) => e.key === 'Enter' && postUpdate(div.division)}
+        {/* Division Cards — selalu tampil 6 divisi + 20 sub, 3 fase pre/during/post */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <h3 className="text-sm font-black text-[#1B1B1B]">Rincian per Divisi — Pre / During / Post (selalu tampil)</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">6 divisi · 20 sub · 3 fase</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {ALL_EVENT_DIVISIONS.map((divName) => {
+              const rec = selected.divisions.find((d) => String(d.division).toUpperCase() === divName);
+              return (
+                <div key={divName} className="space-y-1">
+                  <EventDivisionPhaseTabs
+                    division={divName}
+                    eventId={selected.id}
+                    eventDate={selected.eventDate}
+                    serviceType={selected.serviceType}
+                    driveFolderId={rec?.driveFolderId}
+                    discussions={discussions[divName] || []}
+                    canWrite={false}
+                    onPostUpdate={() => {
+                      addToast({ type: 'info', title: 'Kelola di Panel Divisi', description: `Buka Panel Divisi → ${divName} → tab Ibadah untuk tulis pre/during/post.` });
+                    }}
                   />
-                  <button
-                    onClick={() => postUpdate(div.division)}
-                    disabled={!newPost[div.division]?.trim() || posting}
-                    className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40 hover:bg-[#FF416C]/90 transition-colors"
-                  >
-                    {posting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Kirim'}
-                  </button>
+                  <a href={`#/portal/${currentRole === 'SUPERADMIN' ? 'superadmin' : 'komisi'}/divisions`} onClick={() => addToast({ type: 'info', title: 'Buka Panel Divisi', description: `Pilih event ${selected.name} → ${divName} → tab Ibadah` })} className="block text-[11px] font-bold text-sky-700 hover:underline px-1">→ Kelola eksekusi di Panel Divisi (pre/during/post)</a>
                 </div>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-[#8C8880] px-1">Setiap sub-divisi (Liturgia 3, Didaskalia 2, Koinonia 3, Diakonia 5, Marturia 4, Benzarpr 3) selalu tampil. Yang belum ada personel tetap terlihat (badge Rekrutmen di struktur) — tugas pre/during/post tetap tertera untuk onboarding.</p>
         </div>
 
         {/* Pendaftar event: waiting pool BAKU TAU, EventAttendee untuk event lain */}
@@ -834,7 +834,7 @@ export const EventWorkspacePanel: React.FC = () => {
           { id: 'events' as ListTab, label: ev.tabEvents },
           { id: 'calendar' as ListTab, label: ev.tabCalendar },
           { id: 'umbrella' as ListTab, label: ev.tabUmbrella },
-          { id: 'month' as ListTab, label: ev.tabMonth },
+          { id: 'ibadah' as ListTab, label: ev.tabIbadah },
         ]).map((tab) => (
           <button
             key={tab.id}
@@ -859,7 +859,7 @@ export const EventWorkspacePanel: React.FC = () => {
         />
       )}
       {listTab === 'umbrella' && <ChurchCalendarPanel />}
-      {listTab === 'month' && <MonthlyPlanPanel />}
+      {listTab === 'ibadah' && <ServicePlanPanel />}
       {listTab === 'events' && (
         <>
           {showCreate && canCreateEvent && (
@@ -878,13 +878,17 @@ export const EventWorkspacePanel: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm min-h-[60px]"
               />
               <div className="grid sm:grid-cols-2 gap-2">
-                <select
-                  value={createForm.kind}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, kind: e.target.value }))}
-                  className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
-                >
-                  {EVENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-                </select>
+                <div>
+                  <select
+                    value={createForm.kind}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, kind: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm bg-[#FAF9F5]"
+                    title={EVENT_KINDS.find((k) => k.id === createForm.kind)?.tooltip || ''}
+                  >
+                    {EVENT_KINDS.map((k) => <option key={k.id} value={k.id} title={k.tooltip}>{k.label}</option>)}
+                  </select>
+                  <p className="text-[10px] text-[#8C8880] mt-1">{EVENT_KINDS.find((k) => k.id === createForm.kind)?.tooltip}</p>
+                </div>
                 <select
                   value={createForm.churchProgramId}
                   onChange={(e) => setCreateForm((f) => ({ ...f, churchProgramId: e.target.value }))}
@@ -942,18 +946,21 @@ export const EventWorkspacePanel: React.FC = () => {
                   onClick={() => openDetail(ev)}
                   className="text-left rounded-2xl border border-[#D9D7D0] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#FF416C]/30 transition-all group"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-1">{ev.name}</h3>
+                  <div className="flex items-start justify-between mb-2 gap-2">
+                    <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-1 flex-1">{ev.name}</h3>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusColor(ev.status)}`}>
                       {ev.status}
                     </span>
                   </div>
-                  {ev.churchProgram && <p className="text-[10px] font-bold text-[#8C8880] mb-1">{ev.churchProgram.name}</p>}
+                  <div className="flex flex-wrap gap-1.5 mb-1">
+                    {ev.serviceType && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${serviceTypeColor(ev.serviceType)}`}>{ev.serviceType === 'MENTORING_DAY' ? 'M' : ev.serviceType === 'SERVING_DAY' ? 'S' : ev.serviceType}</span>}
+                    {ev.churchProgram && <span className="text-[10px] font-bold text-[#8C8880]">{ev.churchProgram.name}</span>}
+                  </div>
                   {ev.description && <p className="text-xs text-[#8C8880] line-clamp-2 mb-3">{ev.description}</p>}
                   <div className="flex flex-wrap gap-3 text-[11px] text-[#8C8880]">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(ev.startDate)}</span>
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(ev.startDate)}{ev.eventDate ? ` · ${formatDateTimeWib(ev.eventDate)} WIB` : ''}</span>
                     <span className="flex items-center gap-1"><FolderOpen className="w-3 h-3" /> {ev.divisions.length} divisi</span>
-                    {ev.kind && <span className="font-bold">{ev.kind}</span>}
+                    {ev.kind && <span className="font-bold" title={eventKindLabel(ev.kind)}>{eventKindLabel(ev.kind)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {ev.divisions.slice(0, 4).map((d) => (

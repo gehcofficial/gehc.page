@@ -42,15 +42,25 @@ async function canEditEventContent(prisma, authUser, eventId) {
   if (isKomisiOrSuperadmin(authUser)) return true;
   try {
     const div = await prisma.eventDivision.findFirst({
-      where: { eventId, division: 'MARTURIA' },
-      select: { id: true },
+      where: { eventId, division: { in: ['MARTURIA', 'DIDASKALIA'] } },
+      select: { id: true, division: true },
     });
     if (!div) return false;
     const member = await prisma.eventDivisionMember.findFirst({
       where: { eventDivisionId: div.id, userId: authUser.id },
       select: { id: true },
     });
-    return Boolean(member);
+    if (member) return true;
+    // Also allow any Didaskalia/Marturia division member for this event (fallback: check any of the two)
+    const anyDiv = await prisma.eventDivision.findFirst({
+      where: { eventId, division: { in: ['MARTURIA', 'DIDASKALIA'] } },
+      select: { id: true },
+    });
+    if (!anyDiv) return false;
+    const anyMember = await prisma.eventDivisionMember.findFirst({
+      where: { eventDivisionId: anyDiv.id, userId: authUser.id },
+    });
+    return Boolean(anyMember);
   } catch {
     return false;
   }
@@ -299,7 +309,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
       const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
       if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
       if (!(await canEditEventContent(prisma, req.authUser, ev.id))) {
-        return res.status(403).json({ error: 'Hanya Komisi atau divisi Marturia event ini yang boleh mengelola konten publik.' });
+        return res.status(403).json({ error: 'Hanya Komisi atau divisi Marturia/Didaskalia event ini yang boleh mengelola konten publik (ringkasan/khotbah).' });
       }
       const body = req.body || {};
       const title = String(body.title || '').trim();

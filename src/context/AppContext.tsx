@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   Tenant,
   User,
@@ -76,7 +76,7 @@ interface AppContextType {
   currentRole: UserRole;
   setCurrentUserById: (userId: string) => void;
   userAssignedGroupId?: string;
-  /** true bila login tapi daftar peran kosong (sesi basi) — bukan MENTEE sungguhan. */
+  /** true bila login tapi daftar peran kosong (sesi basi) � bukan MENTEE sungguhan. */
   roleMissing: boolean;
   isSuperAdmin: boolean;
   isPlatformAdmin: boolean;
@@ -92,6 +92,7 @@ interface AppContextType {
   isMentee: boolean;
   isAlumni: boolean;
   isBodTimkerja: boolean;
+  isDidaskalia: boolean;
   canAccess: (resource: 'settings_users' | 'settings_integrations' | 'content_manage' | 'groups_all' | 'group_monitoring_write' | 'struktur_manage', groupId?: string) => boolean;
 
   // Google SSO nyata (server-backed)
@@ -173,7 +174,7 @@ const STORAGE_KEYS = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Navigation State — hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
+  // Navigation State � hash routing (#/beyonders, #/leaders, #/events, #/bulletin)
   const [activeView, setActiveViewState] = useState<string>(() => {
     if (typeof window === 'undefined') return 'public';
     if (isAdminHash(window.location.hash)) return 'admin';
@@ -333,7 +334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setStrukturMembers(mapped);
       })
       .catch(() => {
-        /* server tidak tersedia → pertahankan data lokal */
+        /* server tidak tersedia ? pertahankan data lokal */
       });
     return () => {
       cancelled = true;
@@ -350,7 +351,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (d.items.length > 0) setContentItems(d.items);
       })
       .catch(() => {
-        /* server tidak tersedia → pertahankan data lokal */
+        /* server tidak tersedia ? pertahankan data lokal */
       });
     return () => {
       cancelled = true;
@@ -447,7 +448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // Roster Anggota = group_members nyata (ACTIVE) — tanpa baris sintetis
+        // Roster Anggota = group_members nyata (ACTIVE) � tanpa baris sintetis
         // dari nama batch. Dedupe: userId dulu, lalu nama+peran.
         const normRole = (r: unknown) => {
           const s = String(r || 'MENTEE').toUpperCase();
@@ -477,7 +478,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGroupBatches(bMapped);
         setMembers(roster);
       } catch {
-        /* offline → pertahankan data lokal */
+        /* offline ? pertahankan data lokal */
       }
     })();
     return () => {
@@ -531,6 +532,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
   const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
   const [isBodTimkerja, setIsBodTimkerja] = useState(false);
+  const [isDidaskalia, setIsDidaskalia] = useState(false);
 
   const refreshPlatformContext = useCallback(async () => {
     try {
@@ -564,6 +566,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsPlatformOperator(me.isPlatformOperator);
         setPlatformCapabilities(me.platformCapabilities || []);
         setIsBodTimkerja(me.isBodTimkerja);
+        setIsDidaskalia(me.isDidaskalia);
       }
       const hash = window.location.hash;
       if (isAdminHash(hash)) setActiveViewState('admin');
@@ -583,6 +586,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const me = await fetchMeFull();
       setIsBodTimkerja(me.isBodTimkerja);
+      setIsDidaskalia(me.isDidaskalia);
       setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
       setIsPlatformOperator(me.isPlatformOperator);
       setPlatformCapabilities(me.platformCapabilities || []);
@@ -601,7 +605,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast({
       type: 'success',
       title: `Login Google: ${user.name}`,
-      description: 'Sesi SSO aktif — role dimuat dari TiDB.',
+      description: 'Sesi SSO aktif � role dimuat dari TiDB.',
     });
   };
 
@@ -611,6 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUserId('usr-tech');
     setRoleOverride(null);
     setIsBodTimkerja(false);
+    setIsDidaskalia(false);
     addToast({ type: 'info', title: 'Logout berhasil', description: 'Anda telah keluar dari portal.' });
   };
 
@@ -623,6 +628,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsPlatformOperator(me.isPlatformOperator);
       setPlatformCapabilities(me.platformCapabilities || []);
       setIsBodTimkerja(me.isBodTimkerja);
+      setIsDidaskalia(me.isDidaskalia);
       setPublicTabState(tabFromHash());
       if (isAdminHash(window.location.hash)) {
         setActiveViewState('admin');
@@ -704,8 +710,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
   const currentRole: UserRole = currentRoleMapping.role;
-  const userAssignedGroupId = currentRoleMapping.groupId;
-  // Login tapi tanpa peran termuat (sesi basi/gagal sinkron) — JANGAN tampilkan
+  // Fallback ke group_members roster jika UserRole.groupId kosong (kasus MENTEE Logos)
+  // � UserRole dedupe by role (src/lib/roles.ts:19) + seed awal tanpa groupId.
+  const rawAssignedGroupId = currentRoleMapping.groupId;
+  const fallbackGroupId = (() => {
+    if (rawAssignedGroupId) return undefined;
+    if (!['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(effectiveUserRole)) return undefined;
+    const uid = currentUser.id;
+    if (!uid) return undefined;
+    const norm = (r: unknown) => {
+      const s = String(r || '').toUpperCase();
+      if (s === 'MENTOR') return 'MENTOR';
+      if (s === 'CO_MENTOR' || s === 'COMENTOR') return 'CO_MENTOR';
+      return 'MENTEE';
+    };
+    // prioritas: cocok familyRole persis, lalu apapun milik user
+    const exact = members.find((m) => m.userId === uid && norm(m.familyRole) === effectiveUserRole)?.group_id;
+    if (exact) return exact;
+    const any = members.find((m) => m.userId === uid)?.group_id;
+    return any;
+  })();
+  const userAssignedGroupId = rawAssignedGroupId || fallbackGroupId;
+  // Login tapi tanpa peran termuat (sesi basi/gagal sinkron) � JANGAN tampilkan
   // sebagai MENTEE grup pertama. PortalLayout menampilkan gate eksplisit.
   const roleMissing =
     Boolean(authUser) &&
@@ -782,7 +808,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 6500);
   }, [removeToast]);
 
-  // Content Operations (CMS) — optimistic local + sync TiDB
+  // Content Operations (CMS) � optimistic local + sync TiDB
   const addContentItem = (item: Omit<ContentItem, 'id' | 'published_at'>) => {
     const tempId = `cnt-${Date.now()}`;
     const newItem: ContentItem = {
@@ -813,7 +839,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToast({
           type: 'warning',
           title: 'Sinkron Server Gagal',
-          description: 'Konten tersimpan lokal — login portal lalu simpan ulang untuk sinkron TiDB.',
+          description: 'Konten tersimpan lokal � login portal lalu simpan ulang untuk sinkron TiDB.',
         });
       });
   };
@@ -878,7 +904,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Monitoring Operations — tulis ke TiDB agar terlihat Komisi & perangkat lain.
+  // Monitoring Operations � tulis ke TiDB agar terlihat Komisi & perangkat lain.
   // localStorage hanya arsip offline bila API gagal.
   const submitMonitoringRecord = async (record: Omit<MonitoringRecord, 'id' | 'created_at'>) => {
     try {
@@ -909,7 +935,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMonitoringRecords((prev) => [offline, ...prev]);
       addToast({
         type: 'error',
-        title: 'Server tidak terjangkau — tersimpan lokal saja',
+        title: 'Server tidak terjangkau � tersimpan lokal saja',
         description: err instanceof Error ? err.message : 'Kirim ulang saat online agar Komisi melihat.',
       });
     }
@@ -940,7 +966,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Group Member Operations — selalu lewat API agar TiDB sinkron (bukan local-only).
+  // Group Member Operations � selalu lewat API agar TiDB sinkron (bukan local-only).
   const addGroupMember = async (member: Omit<GroupMember, 'id' | 'joinedDate'>) => {
     const r = await fetch(`/api/groups/${member.group_id}/members`, {
       method: 'POST',
@@ -1214,6 +1240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isMentee,
         isAlumni,
         isBodTimkerja,
+        isDidaskalia,
         canAccess,
 
         authUser,

@@ -61,6 +61,8 @@ export const portalEn = {
   nav: {
     account: 'My Account',
     'event-info': 'Event Info',
+    'ibadah-mingguan': 'Weekly Worship',
+    kegiatan: 'Activities',
     dashboard: 'Dashboard & Summary',
     people: 'People & Invitations',
     onboarding: 'Onboarding Pipeline',
@@ -262,6 +264,7 @@ export const portalEn = {
     tabCalendar: 'Church calendar',
     tabUmbrella: 'Church umbrella',
     tabMonth: 'Monthly plan',
+    tabIbadah: 'Weekly services',
   },
   divisions: {
     tabOverview: 'Overview',
@@ -343,6 +346,20 @@ export const portalEn = {
       steps: ['Complete origin/domicile if asked.', 'Show the QR on the day — it is not QRIS.', 'Open the WhatsApp link set by Komisi in Programs & Events → Edit.'],
       when: 'You are attending the current event (every church role, including during onboarding).',
       notFor: 'Not the program calendar or division workspace. Komisi schedules events under Programs & Events.',
+    },
+    'ibadah-mingguan': {
+      title: 'Weekly Worship',
+      purpose: 'By-event weekly worship hub: Kurikulum Pemuridan / (Event) / 01 Pembekalan (mentor-only), 02 Sermon Summary (all), 03 RHB 7-day (beyonders). Navbar is the parent event name + date.',
+      steps: ['Pick an event pill at the top — header shows [M]/[S], name, date WIB, venue.', 'Open 01 only if you are Mentor/Co-mentor, 02 for everyone, 03 for Mentee/Mentor.', 'Files are by event — same source as Monitoring & Info Event.'],
+      when: 'Every week after the worship — mentors check 01, everyone checks 02, beyonders check 03.',
+      notFor: 'Upload is still Division Panel → Didaskalia → Ibadah. This page is read-only by event.',
+    },
+    kegiatan: {
+      title: 'Activities',
+      purpose: 'Calendar hub for 4 kinds: Umum (weekly worship), Khusus (seasonal), Internal (staff-only), Rekreasional (community) — plus your own group bonding. Tabs follow your active role.',
+      steps: ['Pick a date on the calendar (or a bar on the timeline) — dots are color-coded per kind.', 'Read the selected event detail below: numbered sections follow what you can access.', 'Open Info Event for registration, QR, and WhatsApp.'],
+      when: 'Use this to find any activity and see who can access it.',
+      notFor: 'Upload stays in Division Panel. This page is read-only.',
     },
     dashboard: {
       title: 'Dashboard & Summary',
@@ -551,6 +568,13 @@ export const portalEn = {
       steps: ['Fill or review the current month.'],
       when: 'Komisi planning rhythm.',
       notFor: 'Not attendance in mentoring groups.',
+    },
+    'events.ibadah': {
+      title: 'Weekly services',
+      purpose: 'One tab for Mentoring (W1) + rotating Serving pairs with monthly and weekly themes. Special weeks (joint/off/moved) shift the cycle automatically.',
+      steps: ['Expand a month, fill the month theme, then each week theme.', 'Swap penanggung or tuan rumah per row when needed.', 'Mark joint/off/moved weeks; rebase when real rows need re-sync.'],
+      when: 'Komisi quarterly service planning.',
+      notFor: 'Not attendance in mentoring groups. Division work lives in the Division panel.',
     },
     divisions: {
       title: 'Division panel',

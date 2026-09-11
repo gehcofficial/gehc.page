@@ -293,8 +293,21 @@ export function registerEventsPublicRoutes(app, { wrap }) {
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     if (!req.authUser) return res.status(401).json({ error: 'Login diperlukan.' });
 
-    const resolved = await resolveEventBySlug(prisma, String(req.params.slug || '').toLowerCase());
+    let resolved = await resolveEventBySlug(prisma, String(req.params.slug || '').toLowerCase());
+    if (!resolved) {
+      const byId = await findEventProgramPublic(prisma, { id: String(req.params.slug) }).catch(() => null);
+      if (byId) resolved = { event: byId, slug: byId.slug, eventId: byId.id, isBakutau: byId.id === BAKU_TAU_EVENT_ID };
+    }
     if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+    // Gate INTERNAL hanya staf (semua perlu pendaftar, tapi Internal terpisah)
+    {
+      const kNorm = String(resolved.event.kind || '').toUpperCase() === 'RECURRING' ? 'REKREASIONAL' : String(resolved.event.kind || '').toUpperCase();
+      if (kNorm === 'INTERNAL') {
+        const roles = (req.authUser?.roles || []).map((r) => r.role);
+        const isPriv = roles.includes('SUPERADMIN') || roles.includes('KOMISI') || roles.includes('COMMITTEE') || roles.includes('BPMJ');
+        if (!isPriv) return res.status(403).json({ error: 'Event Internal hanya untuk staf.' });
+      }
+    }
     if (resolved.event.status === 'ARCHIVED') {
       return res.status(410).json({ error: 'Pendaftaran event sudah ditutup.' });
     }

@@ -21,6 +21,7 @@ const EXTRA_GUIDE_IDS = [
   'events.calendar',
   'events.umbrella',
   'events.month',
+  'events.ibadah',
 ];
 
 describe('portal i18n + guides', () => {

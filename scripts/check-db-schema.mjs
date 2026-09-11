@@ -59,6 +59,9 @@ const REQUIRED_TABLES = [
   'user_avatars',
   'group_albums',
   'pastoral_care_notes',
+  'serving_assignments',
+  'service_week_overrides',
+  'service_swap_requests',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [
@@ -72,7 +75,7 @@ const REQUIRED_WAITING_POOL_COLUMNS = [
 /** Kolom di tabel selain users/waiting_pool yang boot-critical */
 const REQUIRED_TABLE_COLUMNS = {
   event_attendees: ['checked_in_at', 'checked_in_by_id'],
-  EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query', 'archive_folder_id'],
+  EventProgram: ['kind', 'church_program_id', 'event_date', 'venue_name', 'location_detail', 'map_url', 'map_embed_query', 'archive_folder_id', 'service_type', 'metadata'],
   struktur_members: ['role', 'role_order', 'is_double_role', 'group_id', 'user_id'],
   user_roles: ['assignment_id'],
   group_members: ['assignment_id'],
@@ -80,11 +83,13 @@ const REQUIRED_TABLE_COLUMNS = {
   institutions: ['country'],
   testimonials: ['status'],
   pastoral_care_notes: ['subject_name'],
-  ministry_week_deliverables: ['event_id'],
+  ministry_week_deliverables: ['event_id', 'service_type'],
   event_question_requests: ['show_if'],
+  serving_assignments: ['event_id', 'responsible_group_id', 'host_group_id', 'cycle_index'],
   content_items: ['event_id'],
   orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
   group_batches: ['generation', 'mentor_user_id', 'comentor_user_id', 'regen_ready'],
+  group_albums: ['status'],
 };
 
 const quiet = process.argv.includes('--quiet');

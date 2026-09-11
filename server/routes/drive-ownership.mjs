@@ -39,6 +39,7 @@ import {
 import { slugifyName } from '../lib/website-visuals.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 import { notifyApprovalItem } from '../lib/approval-notify.mjs';
+import crypto from 'node:crypto';
 
 const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
@@ -56,6 +57,73 @@ async function jpegFromBody(body, { square = false, maxWidth = 1600 } = {}) {
   return toJpegBuffer(decoded.buffer, { square, maxWidth });
 }
 
+/** SELESAI otomatis = sudah berfoto (foto pertama otomatis jadi cover). */
+function hasAlbumPhotos(row) {
+  if (!row) return false;
+  if (row.coverDriveFileId) return true;
+  const ids = row.previewFileIds;
+  return Array.isArray(ids) && ids.filter(Boolean).length > 0;
+}
+
+/**
+ * Akses kolom group_albums.status tahan-client-lawas:
+ * generated Prisma client bisa lebih lama dari migrasi (dev server mengunci
+ * file saat generate). Raw SQL selalu jalan; fallback = perilaku lama (RENCANA).
+ */
+async function readAlbumStatusMap(prisma, ids) {
+  if (!ids?.length) return new Map();
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT id, status FROM group_albums WHERE id IN (${ids.map(() => '?').join(',')})`,
+      ...ids,
+    );
+    return new Map((rows || []).map((r) => [r.id, r.status || 'RENCANA']));
+  } catch {
+    return new Map();
+  }
+}
+
+function albumStatusOf(row, statusMap) {
+  return statusMap?.get?.(row.id) || row.status || 'RENCANA';
+}
+
+async function writeAlbumStatus(prisma, id, status) {
+  try {
+    await prisma.$executeRawUnsafe('UPDATE group_albums SET status = ? WHERE id = ?', status, id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Notifikasi usulan bonding ke mentor/co rumah itu (bukan ke Komisi). */
+async function notifyGroupMentors(prisma, group, album, proposer) {
+  try {
+    const rows = await prisma.userRole.findMany({
+      where: { groupId: group.id, role: { in: ['MENTOR', 'CO_MENTOR'] } },
+      select: { userId: true },
+      take: 20,
+    });
+    const recipients = [...new Set(rows.map((r) => r.userId).filter(Boolean).filter((id) => id !== proposer?.id))];
+    if (!recipients.length) return 0;
+    await prisma.notification.createMany({
+      data: recipients.map((userId) => ({
+        id: `ntf-${crypto.randomUUID()}`,
+        type: 'ALBUM_USULAN',
+        memberId: userId,
+        title: `Usulan bonding: ${album.title}`,
+        message: `${proposer?.name || 'Anggota'} ${group.name} mengusulkan bonding "${album.title}" (${String(album.occurredOn).slice(0, 10)}). Buka tab Album untuk menyetujui.`,
+        payload: { queue: 'album-usulan', itemId: String(album.id), groupId: group.id },
+        status: 'OPEN',
+      })),
+    });
+    return recipients.length;
+  } catch (e) {
+    console.warn('[album-usulan] notif gagal:', e?.message || e);
+    return 0;
+  }
+}
+
 function serializeAlbum(row, { includeDrive = false } = {}) {
   const previews = previewList(row.previewFileIds);
   return {
@@ -63,6 +131,7 @@ function serializeAlbum(row, { includeDrive = false } = {}) {
     groupId: row.groupId,
     title: row.title,
     kind: row.kind,
+    status: row.status || 'RENCANA',
     occurredOn: row.occurredOn,
     location: row.location,
     eventId: row.eventId,
@@ -343,21 +412,71 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         orderBy: { occurredOn: 'desc' },
       });
       const includeDrive = Boolean(req.authUser) && isMemberOfGroup(req.authUser, group.id);
-      res.json({ albums: rows.map((r) => serializeAlbum(r, { includeDrive })) });
+      const canModerate = isMentorOfGroup(req.authUser, group.id) || komisiGate(req.authUser);
+      const statusMap = await readAlbumStatusMap(prisma, rows.map((r) => r.id));
+      const withStatus = rows.map((r) => ({ ...r, status: albumStatusOf(r, statusMap) }));
+      // BATAL disembunyikan kecuali untuk mentor/Komisi rumah itu
+      const visible = canModerate ? withStatus : withStatus.filter((r) => r.status !== 'BATAL');
+      res.json({ albums: visible.map((r) => serializeAlbum(r, { includeDrive })) });
+    }),
+  );
+
+  // Agregat bonding untuk kalender Kegiatan (?month=YYYY-MM).
+  // locked roles (mentor/mentee): hanya grup sendiri. staf: semua grup.
+  app.get(
+    '/api/groups/albums',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.json({ albums: [] });
+      const roles = (req.authUser?.roles || []);
+      const isStaff = roles.some((r) => ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].includes(r.role));
+      let groups = [];
+      if (isStaff) {
+        groups = await prisma.group.findMany({ select: { id: true, name: true } });
+      } else {
+        const ids = [...new Set(roles.map((r) => r.groupId).filter(Boolean))];
+        if (!ids.length) return res.json({ albums: [] });
+        groups = await prisma.group.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+      }
+      if (!groups.length) return res.json({ albums: [] });
+      const month = /^\d{4}-\d{2}$/.test(String(req.query?.month || '')) ? String(req.query.month) : new Date().toISOString().slice(0, 7);
+      const start = new Date(`${month}-01T00:00:00.000Z`);
+      const end = new Date(start);
+      end.setUTCMonth(end.getUTCMonth() + 1);
+      const nameById = new Map(groups.map((g) => [g.id, g.name]));
+      const rows = await prisma.groupAlbum.findMany({
+        where: {
+          groupId: { in: groups.map((g) => g.id) },
+          occurredOn: { gte: start, lt: end },
+        },
+        orderBy: { occurredOn: 'asc' },
+      });
+      const statusMap = await readAlbumStatusMap(prisma, rows.map((r) => r.id));
+      res.json({
+        albums: rows
+          .map((r) => ({ ...serializeAlbum({ ...r, status: albumStatusOf(r, statusMap) }), groupName: nameById.get(r.groupId) || '' }))
+          .filter((a) => a.status !== 'BATAL'),
+        month,
+      });
     }),
   );
 
   app.post(
     '/api/groups/:id/albums',
-    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const group = await prisma.group.findUnique({ where: { id: req.params.id } });
       if (!group) return res.status(404).json({ error: 'Kelompok tidak ditemukan.' });
-      if (!isMentorOfGroup(req.authUser, group.id) && !komisiGate(req.authUser)) {
-        return res.status(403).json({ error: 'Hanya mentor/co rumah ini yang boleh membuat album.' });
+      const privileged = isMentorOfGroup(req.authUser, group.id) || komisiGate(req.authUser);
+      const member = isMemberOfGroup(req.authUser, group.id);
+      if (!privileged && !member) {
+        return res.status(403).json({ error: 'Hanya anggota rumah ini.' });
       }
+      // Anggota biasa (mentee) membuat USULAN bonding — mentor approve jadi RENCANA
+      const status = privileged ? 'RENCANA' : 'USULAN';
       const title = String(req.body?.title || '').trim();
       const occurredOn = String(req.body?.occurredOn || '').slice(0, 10);
       if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(occurredOn)) {
@@ -366,7 +485,20 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const kind = PHOTO_KINDS.has(String(req.body?.kind || '').toUpperCase())
         ? String(req.body.kind).toUpperCase()
         : 'ADHOC';
+      const baseData = {
+        id: newEntityId('alb'),
+        groupId: group.id,
+        title,
+        kind,
+        status,
+        occurredOn: new Date(`${occurredOn}T00:00:00.000Z`),
+        location: req.body?.location ? String(req.body.location).trim() : null,
+        eventId: req.body?.eventId || null,
+        createdById: req.authUser.id,
+      };
       let albumFolder = null;
+      let drivePending = false;
+      let driveNote = null;
       try {
         const tree = await ensureGroupTree(group.name);
         const foto = tree.folders['Foto Kegiatan'];
@@ -375,39 +507,66 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         // Folder gagal dibuat (mis. token Drive dicabut) — album tetap
         // tersimpan sebagai metadata; foto menyusul setelah token pulih.
         if (!isDriveAuthError(e)) throw e;
-        const row = await prisma.groupAlbum.create({
-          data: {
-            id: newEntityId('alb'),
-            groupId: group.id,
-            title,
-            kind,
-            occurredOn: new Date(`${occurredOn}T00:00:00.000Z`),
-            location: req.body?.location ? String(req.body.location).trim() : null,
-            eventId: req.body?.eventId || null,
-            driveFolderId: null,
-            createdById: req.authUser.id,
-          },
-        });
-        return res.status(201).json({
-          album: serializeAlbum(row, { includeDrive: true }),
-          drivePending: true,
-          driveNote: driveAuthErrorMessage(),
-        });
+        drivePending = true;
+        driveNote = driveAuthErrorMessage();
       }
       const row = await prisma.groupAlbum.create({
         data: {
-          id: newEntityId('alb'),
-          groupId: group.id,
-          title,
-          kind,
-          occurredOn: new Date(`${occurredOn}T00:00:00.000Z`),
-          location: req.body?.location ? String(req.body.location).trim() : null,
-          eventId: req.body?.eventId || null,
+          ...baseData,
           driveFolderId: albumFolder ? albumFolder.id : null,
-          createdById: req.authUser.id,
         },
       });
-      res.status(201).json({ album: serializeAlbum(row, { includeDrive: true }) });
+      // Tulis status via raw agar jalan walau generated client lawas
+      const statusOk = await writeAlbumStatus(prisma, row.id, status);
+      if (!statusOk && status === 'USULAN') {
+        await prisma.groupAlbum.delete({ where: { id: row.id } }).catch(() => null);
+        return res.status(503).json({ error: 'DB belum migrasi status album. Jalankan: npm run db:migrate:local' });
+      }
+      row.status = statusOk ? status : 'RENCANA';
+      if (row.status === 'USULAN') void notifyGroupMentors(prisma, group, row, req.authUser);
+      res.status(201).json({
+        album: serializeAlbum(row, { includeDrive: true }),
+        ...(drivePending ? { drivePending: true, driveNote } : {}),
+      });
+    }),
+  );
+
+  // Approve/reject usulan bonding: USULAN -> RENCANA | BATAL, RENCANA -> SELESAI (gate foto)
+  app.patch(
+    '/api/groups/:id/albums/:albumId/status',
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
+      if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
+      if (!isMentorOfGroup(req.authUser, album.groupId) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini atau Komisi.' });
+      }
+      const want = String(req.body?.status || '').toUpperCase();
+      if (!['RENCANA', 'SELESAI', 'BATAL'].includes(want)) {
+        return res.status(400).json({ error: 'status harus RENCANA, SELESAI, atau BATAL.' });
+      }
+      const statusMap = await readAlbumStatusMap(prisma, [album.id]);
+      const cur = albumStatusOf(album, statusMap);
+      const okTransition =
+        (cur === 'USULAN' && (want === 'RENCANA' || want === 'BATAL')) ||
+        (cur === 'RENCANA' && (want === 'SELESAI' || want === 'BATAL')) ||
+        (cur === want);
+      if (!okTransition) {
+        return res.status(400).json({ error: `Transisi ${cur} → ${want} tidak valid.` });
+      }
+      // SELESAI mensyaratkan foto sudah ada (otomatis selesai = berfoto)
+      let finalStatus = want;
+      if (want === 'RENCANA' && cur === 'USULAN' && hasAlbumPhotos(album)) {
+        finalStatus = 'SELESAI'; // usulan yang sudah berfoto langsung selesai saat diapprove
+      }
+      if (finalStatus === 'SELESAI' && !hasAlbumPhotos(album)) {
+        return res.status(400).json({ error: 'Belum ada foto — SELESAI otomatis setelah foto pertama diunggah.' });
+      }
+      const statusOk = await writeAlbumStatus(prisma, album.id, finalStatus);
+      if (!statusOk) return res.status(503).json({ error: 'DB belum migrasi status album. Jalankan: npm run db:migrate:local' });
+      res.json({ album: serializeAlbum({ ...album, status: finalStatus }, { includeDrive: true }) });
     }),
   );
 
@@ -450,6 +609,13 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
           data: { coverDriveFileId: file.id },
         }).catch(() => null);
         await setPublicReader(drive, file.id).catch(() => null);
+      }
+      // Otomatis selesai: RENCANA yang sudah berfoto -> SELESAI (keputusan: otomatis)
+      {
+        const statusMap = await readAlbumStatusMap(prisma, [album.id]);
+        if (albumStatusOf(album, statusMap) === 'RENCANA') {
+          await writeAlbumStatus(prisma, album.id, 'SELESAI');
+        }
       }
       res.json({
         ok: true,

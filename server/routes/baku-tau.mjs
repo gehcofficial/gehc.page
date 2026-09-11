@@ -350,4 +350,65 @@ export function registerBakuTauRoutes(app, { wrap }) {
     const info = await resolveEventInfo(prisma);
     res.json(registrationPayload(entry, info));
   }));
+
+  // Generik per-event — dipakai Info Event navbar by parent (semua jenis perlu pendaftar untuk konsumsi)
+  // Alias mundur: /api/me/baku-tau-registration tetap untuk BAKU TAU 4.0
+  app.get('/api/me/events/:id/registration', wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const userId = req.authUser?.id;
+    if (!userId) return res.status(401).json({ error: 'Belum login.' });
+    const rawId = String(req.params.id || '').trim();
+    if (!rawId) return res.status(400).json({ error: 'event id wajib.' });
+    let event = null;
+    try {
+      event = await findEventProgramPublic(prisma, { id: rawId });
+      if (!event) event = await findEventProgramPublic(prisma, { slug: rawId });
+    } catch { /* ignore */ }
+    if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+    // Gate INTERNAL hanya staf
+    const kindNorm = String(event.kind || '').toUpperCase() === 'RECURRING' ? 'REKREASIONAL' : String(event.kind || '').toUpperCase();
+    if (kindNorm === 'INTERNAL') {
+      const roles = (req.authUser?.roles || []).map((r) => r.role);
+      const isPriv = roles.includes('SUPERADMIN') || roles.includes('KOMISI') || roles.includes('COMMITTEE') || roles.includes('BPMJ');
+      if (!isPriv) return res.status(403).json({ error: 'Event Internal hanya untuk staf.', registered: false, checkInCode: null });
+    }
+    const sourceEvent = String(event.name || '').trim();
+    let poolEntry = null;
+    try {
+      if (sourceEvent) poolEntry = await prisma.waitingPool.findFirst({ where: { userId, sourceEvent } });
+    } catch { /* table maybe missing */ }
+    let attendee = null;
+    try {
+      attendee = await prisma.eventAttendee.findUnique({ where: { eventId_userId: { eventId: event.id, userId } } }).catch(() => null);
+    } catch {}
+    // Fallback BAKU TAU lookup jika event ini adalah BAKU_TAU_EVENT_ID
+    if (!poolEntry && !attendee && event.id === BAKU_TAU_EVENT_ID) {
+      poolEntry = await findBakutauPoolEntry(prisma, userId);
+    }
+    let channelUrl = null;
+    try {
+      const link = await prisma.channelLink.findUnique({ where: { kind_refId: { kind: 'EVENT', refId: event.id } } }).catch(() => null);
+      channelUrl = link?.url || null;
+    } catch {}
+    const whatsappGroupUrl = resolveWhatsAppUrl({ dbUrl: event.whatsappGroupUrl, channelUrl });
+    const { registrationCodeFor } = await import('../lib/event-qr.mjs');
+    const { code, poolEntry: qrPool } = await registrationCodeFor(prisma, { eventId: event.id, userId, sourceEvent });
+    const registered = Boolean(code) || Boolean(poolEntry) || Boolean(attendee);
+    const entry = qrPool || poolEntry;
+    res.json({
+      registered,
+      eventId: event.id,
+      eventName: event.name,
+      eventDate: event.eventDate || null,
+      venueName: event.venueName || null,
+      locationDetail: event.locationDetail || null,
+      mapUrl: event.mapUrl || null,
+      mapEmbedQuery: event.mapEmbedQuery || null,
+      whatsappGroupUrl: registered ? whatsappGroupUrl : null,
+      checkInCode: code,
+      registeredAt: entry?.registeredAt || attendee?.registeredAt || null,
+      source: attendee ? 'event_attendee' : poolEntry ? 'waiting_pool' : null,
+    });
+  }));
 }

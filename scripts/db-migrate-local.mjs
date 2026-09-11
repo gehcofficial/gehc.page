@@ -210,6 +210,31 @@ const STEPS = [
     label: 'Individu eksplisit (is_individu_explicit)',
     required: true,
   },
+  {
+    script: 'server/_migrate-serving-cycle.cjs',
+    label: 'Serving cycle (service_type, metadata, serving_assignments)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-monitoring-event-link.cjs',
+    label: 'Monitoring event link (event_id, week_index, year_month)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-album-status.cjs',
+    label: 'Album status (USULAN/RENCANA/SELESAI/BATAL)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-service-overrides.cjs',
+    label: 'Service week overrides (GABUNGAN/LIBUR/ALIH)',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-service-swap-requests.cjs',
+    label: 'Service swap requests (antrean mutualisme)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

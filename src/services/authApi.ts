@@ -90,6 +90,7 @@ export async function fetchMeFull(): Promise<{
   platformCapabilities: string[];
   isPlatformOperator: boolean;
   isBodTimkerja: boolean;
+  isDidaskalia: boolean;
 }> {
   const res = await fetch('/api/auth/me', { credentials: 'include' });
   const data = await handle<MeResponse>(res);
@@ -101,6 +102,7 @@ export async function fetchMeFull(): Promise<{
     platformCapabilities: data.platformCapabilities || [],
     isPlatformOperator: Boolean(data.isPlatformOperator),
     isBodTimkerja: Boolean(data.isBodTimkerja),
+    isDidaskalia: Boolean((data as unknown as { isDidaskalia?: boolean }).isDidaskalia),
   };
 }
 
