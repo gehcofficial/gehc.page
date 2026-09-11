@@ -1,4 +1,6 @@
 import { google } from 'googleapis';
+import { hasUserDriveToken, getUserDrive } from './lib/gdrive-user-oauth.mjs';
+import { Readable } from 'node:stream';
 
 const DRIVE_READONLY_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DRIVE_WRITE_SCOPE   = 'https://www.googleapis.com/auth/drive';
@@ -29,6 +31,8 @@ export function getDriveMode() {
 }
 
 let cachedClient = null;
+let cachedScope = null;
+export function resetDriveClient() { cachedClient = null; cachedScope = null; listCache.clear(); chainCache.clear(); }
 
 function parseServiceAccountJson(raw) {
   if (!raw) throw new Error('Service account JSON kosong.');
@@ -51,7 +55,21 @@ function parseServiceAccountJson(raw) {
 }
 
 async function getDrive() {
-  if (cachedClient) return cachedClient;
+  // Prefer user OAuth (gehcofficial@gmail.com) bila token ada — punya quota, bukan SA quota 0
+  try {
+    if (hasUserDriveToken()) {
+      const userDrive = await getUserDrive();
+      // cache user drive as well (scope is always DRIVE_WRITE)
+      cachedClient = userDrive;
+      cachedScope = DRIVE_WRITE_SCOPE;
+      return cachedClient;
+    }
+  } catch (e) {
+    console.warn('[drive] user drive tidak tersedia, fallback service-account:', e.message);
+  }
+  const curScope = getDriveScope();
+  if (cachedClient && cachedScope === curScope) return cachedClient;
+  if (cachedClient && cachedScope !== curScope) resetDriveClient();
 
   const mode = getDriveMode();
   if (!mode) throw new Error('Google Drive belum dikonfigurasi pada environment server.');
@@ -72,9 +90,11 @@ async function getDrive() {
       subject: process.env.GDRIVE_IMPERSONATE || undefined,
     });
     cachedClient = google.drive({ version: 'v3', auth });
+    cachedScope = curScope;
   } else {
     // API key string dipakai langsung sebagai auth sederhana
     cachedClient = google.drive({ version: 'v3', auth: process.env.GDRIVE_API_KEY });
+    cachedScope = curScope;
   }
 
   return cachedClient;
@@ -275,13 +295,50 @@ export async function uploadFile(parentId, file) {
     },
     media: {
       mimeType: file.mimetype || 'application/octet-stream',
-      body: file.buffer ? require('stream').Readable.from(file.buffer) : file.stream,
+      body: file.buffer ? Readable.from(file.buffer) : file.stream,
     },
     fields: 'id, name, mimeType, thumbnailLink, webViewLink, createdTime, size',
     supportsAllDrives: true,
   });
   clearListCache();
   return mapFile(res.data);
+}
+
+/**
+ * Move a file/folder to a new parent (add + remove).
+ * Uses drive.files.update with addParents/removeParents.
+ */
+export async function moveFolder(fileId, newParentId, oldParentId) {
+  const drive = await getDrive();
+  const params = {
+    fileId,
+    addParents: newParentId,
+    removeParents: oldParentId,
+    fields: 'id, parents',
+    supportsAllDrives: true,
+  };
+  // Drive API requires oldParent if file has single parent; fetch if not provided
+  if (!oldParentId) {
+    const info = await drive.files.get({ fileId, fields: 'parents', supportsAllDrives: true });
+    oldParentId = (info.data.parents || []).join(',');
+    params.removeParents = oldParentId;
+  }
+  const res = await drive.files.update(params);
+  clearListCache();
+  chainCache.delete(fileId);
+  return res.data;
+}
+
+export async function trashFolder(fileId) {
+  const drive = await getDrive();
+  await drive.files.update({
+    fileId,
+    requestBody: { trashed: true },
+    supportsAllDrives: true,
+  });
+  clearListCache();
+  chainCache.delete(fileId);
+  return true;
 }
 
 /**

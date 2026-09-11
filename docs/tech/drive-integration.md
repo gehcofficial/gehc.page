@@ -60,7 +60,12 @@ ROOT_GEHC/
 ├── Liturgia [MENTOR]/               ← pantatugas (anak = subdivisi)
 │   ├── Liturgi & Ibadah/  Musik & Vokal/  Doa & Intercession/
 ├── Didaskalia [MENTOR]/
-│   └── Kurikulum Pemuridan/  Pembekalan Tim/
+│   ├── Kurikulum/  ← wadah event (baru, rapi)
+│   │   └── Ibadah Pemuda Mentoring: TW1 - 06 Sep 2026 [EV:ibadah-pemuda-mentoring-tw1-06-sep-2026-mtv3o21c4v:DIDASKALIA]/
+│   │       ├── 01 Pembekalan Mentor - Co mentor/
+│   │       ├── 02 Ringkasan Khotbah/
+│   │       └── 03 RHB 7 Hari/
+│   └── Kurikulum Pemuridan/  Pembekalan Tim/  (arsip modul lama, boleh di-trash bila kosong)
 ├── Koinonia [MENTOR]/
 │   └── Program & Acara/  Persekutuan & Integrasi/  Hubungan & Komunikasi/
 ├── Diakonia [MENTOR]/
@@ -130,11 +135,11 @@ SUPERADMIN melewati semua zona. Resolusi: `server/gdrive-policy.mjs`.
 - `DIV` harus salah satu dari: `LITURGIA`, `DIDASKALIA`, `KOINONIA`, `DIAKONIA`, `MARTURIA`, `BENZARPR`.
 - BOD Tim Kerja = COMMITTEE + `struktur_members.division = 'TIMKERJA'` (atau kosong) → akses semua event.
 - PIC = COMMITTEE + `struktur_members.division` tertentu → akses hanya event dengan divisi yang sama.
-- Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk.
+- Auto-provision folder: `gdrive-events.mjs` buat `<Nama Event> [EV:<slug>:<DIV>]/` di bawah folder pillar induk, kecuali Didaskalia → `Didaskalia [MENTOR]/Kurikulum/` (rapi).
 - Subfolder template per pillar (idempotent):
   - Koinonia: `Check-in/` `Welcome/` `Rundown/`
   - Liturgia: `Rundown ibadah/` `Rehearsal/`
-  - Didaskalia: `Materi/`
+  - Didaskalia: `01 Pembekalan Mentor - Co mentor/` `02 Ringkasan Khotbah/` `03 RHB 7 Hari/` (di dalam `Kurikulum/<Event>/`)
   - Diakonia: `Logistik/` `Konsumsi/`
   - Marturia: `Dokumentasi/` `Desain/`
   - BZP: `Kasir/`

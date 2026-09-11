@@ -101,6 +101,10 @@ async function buildTargetSpec(prisma) {
     spec.push({ name: '_Template Mingguan', parent: pillarKey, key: `tmpl:${p.name}` });
     spec.push({ name: 'Rundown', parent: `tmpl:${p.name}` });
     spec.push({ name: 'Checklist', parent: `tmpl:${p.name}` });
+    // DIDASKALIA: wadah event Kurikulum/<Event> [EV:..:DIDASKALIA]/01..03
+    if (p.name === 'DIDASKALIA') {
+      spec.push({ name: 'Kurikulum', parent: pillarKey, key: `${pillarKey}/Kurikulum` });
+    }
     for (const extra of PILLAR_OPS_FOLDERS) {
       spec.push({ name: extra, parent: pillarKey, key: `${pillarKey}/${extra}` });
     }
