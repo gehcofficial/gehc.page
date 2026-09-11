@@ -1,6 +1,33 @@
 # GEHC Portal — Handoff
 
-## Current — Hotfix prod 500 + sinkron DB/Drive + push VAPID (11 Sep 2026)
+## Current — Didaskalia Studio: AI 7 Path + PDF (Modul/RHB/Khotbah) + Jadwal & Meet (12 Sep 2026)
+
+**Goal:** Panel Didaskalia untuk menyusun materi mingguan dengan bantuan AI, diskusi internal, lalu generate PDF (Modul Pembekalan 01, Ringkasan Khotbah 02, RHB 7 hari 03) langsung ke Drive, plus jadwal ritual mingguan dengan link Google Meet tetap.
+
+**Done:**
+- Server AI `server/lib/didaskalia-ai.mjs` (reuse `ai-provider.mjs` = OpenAI + Groq): draf 7 Path, ringkasan khotbah + kerangka slide, refine. Katalog metode homiletika (ekspositori, tematik/sistematik, naratif, historis-redemptif, analisis kata, komparatif, problem-solution, induktif) meniru pola Ringkasan W1 "The Church Begins Here".
+- Route `server/routes/didaskalia-studio.mjs` (terdaftar di `server/index.mjs`): GET/PATCH studio per (bulan, minggu); AI `draft`/`sermon`/`refine`; `publish` (versi + hash + file Drive); `ritual-links` (ChannelLink `DIDASKALIA_RITUAL`); `schedule` generate/read; ICS per ritual. RBAC: baca semua auth, tulis SUPERADMIN/KOMISI/COMMITTEE.
+- Penyimpanan MVP tanpa migrasi: field `studio` di dalam `MinistryMonthPlan.weeks[]` (chapter, fundamentalFirman, kitabFokus, 7 path + pertanyaan bertingkat, sermon + slide, diskusi, ritual, render per-dokumen).
+- UI `src/components/portal/DidaskaliaStudioPanel.tsx` + tab **Studio** di Panel Divisi Didaskalia (`DivisionWorkspacePanel`): editor 7 Path, editor ringkasan + slide, diskusi internal, tombol AI, generate/unduh/unggah PDF, tab **Jadwal & Meet**.
+- PDF `src/lib/didaskaliaPdf.ts` (jsPDF, brand GEHC): Modul Pembekalan, Ringkasan Khotbah slide-style, dan **RHB 7 file harian terpisah**; unggah ke subfolder 01/02/03 via endpoint upload yang sudah ada; versi + `contentHash` untuk badge "belum rilis ulang".
+- Jadwal ritual sesuai pola hari: Internal Sync (Senin/Selasa), Serving Group Briefing (Rabu/Kamis, hanya minggu Serving), General Equipping (Jumat/Sabtu); tombol Join/Salin Meet + `.ics`.
+- Verifikasi: `npm run lint` bersih, 285 + 5 test baru hijau, `vite build` OK, smoke route 401 (terdaftar & RBAC aktif).
+
+**Next:**
+- Uji di staging: susun draf AI, sunting, generate 3 PDF, cek Drive 01/02/03; isi 3 link Meet; generate jadwal.
+- Sambungkan gambar tema (slot Drive `panca/didaskalia/...`) ke cover/Path begitu aset siap.
+- Opsional: tambah `RHB`/`SERMON` ke `KINDS` deliverable; upgrade Meet ke persisten/Calendar.
+
+**Commands:**
+```
+npm run dev:all
+npm run lint
+npm run test
+```
+
+---
+
+## Prior — Hotfix prod 500 + sinkron DB/Drive + push VAPID (11 Sep 2026)
 
 **Done:**
 - **Prod 500 FUNCTION_INVOCATION_FAILED** (semua `/api/*` mati, login/portal tidak muncul): akar = `server/lib/service-events.mjs` kehilangan export `formatServiceNameByType`/`servicePrefixByType`/`sundayWIBInstant` akibat merge paralel, sedangkan `server/routes/ministry-plans.mjs` mengimpornya → serverless crash saat import. Export dipulihkan; prod sehat (`/api/config`, `/api/auth/*`, `/api/content/public`, `/api/db/struktur` → 200).

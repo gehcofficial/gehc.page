@@ -34,6 +34,7 @@ import {
   Store,
   Image,
   Newspaper,
+  BookOpen,
   QrCode,
   Plus,
   MessageSquareQuote,
@@ -43,6 +44,7 @@ import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
+import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
@@ -117,7 +119,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
 
 export const DivisionWorkspacePanel: React.FC = () => {
   const { addToast, authUser } = useApp();
@@ -1042,7 +1044,10 @@ export const DivisionWorkspacePanel: React.FC = () => {
                 { id: 'drive' as DetailTab, label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
                 { id: 'planning' as DetailTab, label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
                 ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'DIDASKALIA' ? [{ id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> }] : []),
+                ...(selectedDiv === 'DIDASKALIA' ? [
+                  { id: 'studio' as DetailTab, label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
+                  { id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> },
+                ] : []),
                 ...(selectedDiv === 'MARTURIA' ? [
                   { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
                   { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
@@ -1637,6 +1642,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
             {detailTab === 'penatalayan' && selectedDiv === 'LITURGIA' && (
               <div>
                 <PenatalayanCalendar division={selectedDiv} />
+              </div>
+            )}
+
+            {/* Studio Didaskalia (Didaskalia only) */}
+            {detailTab === 'studio' && selectedDiv === 'DIDASKALIA' && (
+              <div>
+                <DidaskaliaStudioPanel />
               </div>
             )}
 
