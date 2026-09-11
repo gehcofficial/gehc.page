@@ -18,10 +18,10 @@ export const GROUP_SUBFOLDERS = [
 
 export const PILLAR_OPS_FOLDERS = ['Cover', 'Foto Kegiatan', 'Foto Tim'];
 
-/** Mirror src/lib/pantatugas.ts — canonical names, Bahasa. */
+/** Mirror src/lib/pantatugas.ts — canonical names, Bahasa. Didaskalia: single Kurikulum (by-event) */
 export const CANONICAL_SUB_DIVISIONS = {
   LITURGIA: ['Liturgi & Ibadah', 'Musik & Vokal', 'Doa & Intercession'],
-  DIDASKALIA: ['Kurikulum Pemuridan', 'Pembekalan Tim'],
+  DIDASKALIA: ['Kurikulum'],
   KOINONIA: ['Program & Acara', 'Persekutuan & Integrasi', 'Hubungan & Komunikasi'],
   DIAKONIA: [
     'Logistik & Fasilitas',
@@ -48,7 +48,10 @@ export const SUBDIVISION_CHILDREN = {
   'Liturgi & Ibadah': ['Foto', 'Berkas', 'Berkas/rundown', 'Foto/ibadah'],
   'Musik & Vokal': ['Foto', 'Berkas', 'Berkas/chord', 'Foto/rehearsal'],
   'Doa & Intercession': ['Foto', 'Berkas', 'Berkas/pokok-doa'],
-  'Kurikulum Pemuridan': ['Foto', 'Berkas', 'Berkas/modul'],
+  // Didaskalia single source: Kurikulum by-event → 3 sub per event (01..03) diatur di gdrive-events.mjs, bukan di sini
+  // legacy entries tetap dikenali tapi tidak diprovision lagi
+  Kurikulum: [],
+  'Kurikulum Pemuridan': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb'],
   'Pembekalan Tim': ['Foto', 'Berkas', 'Foto/pembekalan', 'Berkas/materi-tim'],
   'Program & Acara': ['Foto', 'Berkas'],
   'Persekutuan & Integrasi': ['Foto', 'Berkas', 'Foto/welcome'],
