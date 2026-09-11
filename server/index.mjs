@@ -1840,6 +1840,12 @@ app.post('/api/regeneration/apply', requireRole('SUPERADMIN', 'KOMISI', 'COMMITT
 
 // ---------- Division Drive Browser ----------
 import { createFolder as gdriveCreateFolder, uploadFile as gdriveUploadFile, deleteFile as gdriveDeleteFile, getFileInfo as gdriveGetFileInfo } from './gdrive.mjs';
+import { hasUserDriveToken } from './lib/gdrive-user-oauth.mjs';
+
+/** Tulis Drive aktif bila flag di-set ATAU token OAuth pemilik tersedia. */
+function driveWriteEnabled() {
+  return process.env.GDRIVE_WRITE === '1' || hasUserDriveToken();
+}
 
 // GET /api/events/:eventId/divisions/:div/drive — list files in division's Drive folder
 app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
@@ -1940,7 +1946,7 @@ app.post('/api/events/:eventId/divisions/:div/drive/upload', requireRole('SUPERA
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
 
   if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
-  if (process.env.GDRIVE_WRITE !== '1') return res.status(403).json({ error: 'Upload belum diaktifkan (GDRIVE_WRITE != 1).' });
+  if (!driveWriteEnabled()) return res.status(403).json({ error: 'Upload belum diaktifkan (set GDRIVE_WRITE=1 atau hubungkan token Drive pemilik).' });
 
   const { eventId, div } = req.params;
   const division = await prisma.eventDivision.findUnique({
@@ -2012,7 +2018,7 @@ app.post('/api/events/:eventId/divisions/:div/drive/upload', requireRole('SUPERA
 // DELETE /api/drive/files/:fileId — delete file/folder
 app.delete('/api/drive/files/:fileId', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
   if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
-  if (process.env.GDRIVE_WRITE !== '1') return res.status(403).json({ error: 'Delete belum diaktifkan (GDRIVE_WRITE != 1).' });
+  if (!driveWriteEnabled()) return res.status(403).json({ error: 'Delete belum diaktifkan (set GDRIVE_WRITE=1 atau hubungkan token Drive pemilik).' });
 
   try {
     await gdriveDeleteFile(req.params.fileId);
@@ -2441,7 +2447,7 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
       },
     });
     // Provision Drive folder jika write mode aktif
-    if (process.env.GDRIVE_WRITE === '1' && process.env.GDRIVE_ROOT_FOLDER_ID) {
+    if (driveWriteEnabled() && process.env.GDRIVE_ROOT_FOLDER_ID) {
       try {
         const { createEventFolder } = await import('./gdrive-events.mjs');
         const fid = await createEventFolder(ev, div);
@@ -2515,7 +2521,7 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
   });
 
   let driveFolderId = null;
-  if (process.env.GDRIVE_WRITE === '1' && process.env.GDRIVE_ROOT_FOLDER_ID) {
+  if (driveWriteEnabled() && process.env.GDRIVE_ROOT_FOLDER_ID) {
     try {
       const { createEventFolder } = await import('./gdrive-events.mjs');
       driveFolderId = await createEventFolder(ev, division);
