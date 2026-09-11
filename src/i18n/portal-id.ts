@@ -55,6 +55,8 @@ export const portalId: typeof portalEn = {
   nav: {
     account: 'Akun Saya',
     'event-info': 'Info Event',
+    'ibadah-mingguan': 'Ibadah Mingguan',
+    kegiatan: 'Kegiatan',
     dashboard: 'Dashboard & Ringkasan',
     people: 'Orang & Undangan',
     onboarding: 'Onboarding Pipeline',
@@ -256,6 +258,7 @@ export const portalId: typeof portalEn = {
     tabCalendar: 'Kalender gerejawi',
     tabUmbrella: 'Payung gerejawi',
     tabMonth: 'Rencana bulan',
+    tabIbadah: 'Ibadah Mingguan',
   },
   divisions: {
     tabOverview: 'Ringkasan',
@@ -337,6 +340,20 @@ export const portalId: typeof portalEn = {
       steps: ['Lengkapi asal/domisili jika diminta.', 'Tunjukkan QR di hari H — ini bukan QRIS.', 'Buka tautan WhatsApp yang Komisi isi di Program & Event → Edit.'],
       when: 'Kamu peserta event berjalan (semua peran gereja, termasuk saat onboarding).',
       notFor: 'Bukan kalender program atau workspace divisi. Komisi menjadwalkan event di Program & Event.',
+    },
+    'ibadah-mingguan': {
+      title: 'Ibadah Mingguan',
+      purpose: 'Hub ibadah mingguan by event: Kurikulum Pemuridan / (Nama Event) / 01 Pembekalan (mentor-only), 02 Ringkasan (semua), 03 RHB 7 hari (beyonders). Navbar = nama event + tanggal.',
+      steps: ['Pilih pill event di atas — header tampil [M]/[S], nama, tanggal WIB, venue.', 'Buka 01 hanya Mentor/Co-mentor, 02 semua, 03 Mentee/Mentor.', 'File by event — sinkron dengan Monitoring & Info Event.'],
+      when: 'Tiap minggu usai ibadah — mentor cek 01, semua cek 02, beyonders cek 03.',
+      notFor: 'Upload tetap di Panel Divisi → Didaskalia → Ibadah. Halaman ini baca saja by event.',
+    },
+    kegiatan: {
+      title: 'Kegiatan',
+      purpose: 'Hub kalender 4 jenis: Umum (ibadah rutin), Khusus (musiman), Internal (hanya staf), Rekreasional (komunitas) — plus bonding kelompok sendiri. Tab menyesuaikan peran aktif.',
+      steps: ['Pilih tanggal di kalender (atau bar di linimasa) — dot berwarna sesuai jenis.', 'Baca detail event terpilih di bawah: nomor bagian mengikuti yang bisa kamu akses.', 'Buka Info Event untuk pendaftaran, QR, dan WhatsApp.'],
+      when: 'Untuk menemukan kegiatan apa dan siapa yang bisa akses.',
+      notFor: 'Upload tetap di Panel Divisi. Halaman ini baca saja.',
     },
     dashboard: {
       title: 'Dashboard & Ringkasan',
@@ -545,6 +562,13 @@ export const portalId: typeof portalEn = {
       steps: ['Isi atau tinjau bulan berjalan.'],
       when: 'Irama rapat Komisi.',
       notFor: 'Bukan absensi kelompok mentoring.',
+    },
+    'events.ibadah': {
+      title: 'Ibadah Mingguan',
+      purpose: 'Satu tab untuk Mentoring (W1) + Serving bergilir dengan tema bulan dan tema mingguan. Minggu khusus (gabungan/libur/alih) menggeser siklus otomatis.',
+      steps: ['Expand bulan, isi tema bulan, lalu tema tiap minggu.', 'Tukar penanggung atau tuan rumah per baris bila perlu.', 'Tandai minggu gabungan/libur/alih; rebase bila baris real perlu sinkron.'],
+      when: 'Perencanaan layanan Komisi tiap kuartal.',
+      notFor: 'Bukan absensi kelompok mentoring. Kerja divisi ada di Panel Divisi.',
     },
     divisions: {
       title: 'Panel Divisi',

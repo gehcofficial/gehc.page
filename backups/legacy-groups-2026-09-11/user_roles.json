@@ -1,0 +1,690 @@
+[
+ {
+  "id": 180002,
+  "user_id": "usr-theodore-kowaas",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180003,
+  "user_id": "usr-fladyna-mondoringin",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180004,
+  "user_id": "usr-jessica-poyoh",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180005,
+  "user_id": "usr-gemma-montol",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180006,
+  "user_id": "usr-riska-sajow",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180007,
+  "user_id": "usr-gabriel-lintong",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180008,
+  "user_id": "usr-kimberly-turambi",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180009,
+  "user_id": "usr-kevin-budianto",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-shalom",
+  "assignment_id": null
+ },
+ {
+  "id": 180010,
+  "user_id": "117231582340646459972",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180011,
+  "user_id": "usr-farendy-lumintang",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180012,
+  "user_id": "usr-clay-langi",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180013,
+  "user_id": "usr-michelle-watung",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180014,
+  "user_id": "usr-ario-semet",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180015,
+  "user_id": "usr-ivanna-pande",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180016,
+  "user_id": "usr-jeremy-walangitan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180017,
+  "user_id": "usr-kimmy-casey",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 180018,
+  "user_id": "usr-holly-kalele",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180019,
+  "user_id": "usr-aditya-wellem",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180020,
+  "user_id": "usr-timoty-wewengkang",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180021,
+  "user_id": "usr-virginia-parera",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180022,
+  "user_id": "usr-nicole-naray",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180023,
+  "user_id": "usr-chelsea-tjheuw",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180024,
+  "user_id": "usr-daud-lumanauw",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180025,
+  "user_id": "usr-pnt-kevin",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-echad",
+  "assignment_id": null
+ },
+ {
+  "id": 180026,
+  "user_id": "usr-krisetia-mamoto",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180027,
+  "user_id": "usr-filipo-karinda",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180028,
+  "user_id": "usr-lucky-losu",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180029,
+  "user_id": "usr-shien-siauw",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180030,
+  "user_id": "usr-soneta-imanuela",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180031,
+  "user_id": "usr-lorenzo-ricsamana",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180032,
+  "user_id": "usr-mega-welan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180033,
+  "user_id": "usr-putri-massie",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-ruach",
+  "assignment_id": null
+ },
+ {
+  "id": 180034,
+  "user_id": "usr-milithya-wuisan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180035,
+  "user_id": "usr-christian-lombogia",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180036,
+  "user_id": "usr-nelcy-lodarmase",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180037,
+  "user_id": "usr-marhaen-manus",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180038,
+  "user_id": "usr-aurellia-hillary",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180039,
+  "user_id": "usr-yohana-doga",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180040,
+  "user_id": "usr-akwila-gente",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180041,
+  "user_id": "usr-timothy-mewengkang",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-hesed",
+  "assignment_id": null
+ },
+ {
+  "id": 180042,
+  "user_id": "usr-jeremiah-mewengkang",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180043,
+  "user_id": "usr-patrisha-lengkey",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180044,
+  "user_id": "usr-lovely-pantouw",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180045,
+  "user_id": "usr-agnes-reimas",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180046,
+  "user_id": "usr-thea-sanger",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180047,
+  "user_id": "usr-febrian-evander",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180048,
+  "user_id": "usr-avriel-singal",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180049,
+  "user_id": "usr-imanuel-yimna",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-dunamis",
+  "assignment_id": null
+ },
+ {
+  "id": 180050,
+  "user_id": "usr-prichel-kampong",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180051,
+  "user_id": "usr-syallomitha-mawitjere",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180052,
+  "user_id": "usr-jilova-pakasi",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180053,
+  "user_id": "usr-jeconia-wanget",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180054,
+  "user_id": "usr-natalie-musak",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180055,
+  "user_id": "usr-cia-worung",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180056,
+  "user_id": "usr-hoky-theos",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180057,
+  "user_id": "usr-kezia-joseph",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 180058,
+  "user_id": "usr-michel-lonteng",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180059,
+  "user_id": "usr-artjuna-timbuleng",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180060,
+  "user_id": "usr-injilia-oroh",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180061,
+  "user_id": "usr-marshal-maramis",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180062,
+  "user_id": "usr-reywin-rengkuan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180063,
+  "user_id": "usr-angelita-entjaurau",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180064,
+  "user_id": "usr-resty-budianto",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180065,
+  "user_id": "usr-david-pesoth",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-kairos",
+  "assignment_id": null
+ },
+ {
+  "id": 180066,
+  "user_id": "usr-stefanus-tambariki",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180067,
+  "user_id": "usr-julivie-irot",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180068,
+  "user_id": "usr-gievara-bogar",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180069,
+  "user_id": "usr-shanella-mondong",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180070,
+  "user_id": "usr-glenity-siauw",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180071,
+  "user_id": "usr-lingkan-pinontoan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180072,
+  "user_id": "usr-jonathan-tintingon",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180073,
+  "user_id": "usr-yuen-pajow",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-metanoia",
+  "assignment_id": null
+ },
+ {
+  "id": 180074,
+  "user_id": "usr-mighty-rengkung",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180075,
+  "user_id": "usr-reiner-montolalu",
+  "tenant_id": "tenant-youth",
+  "role": "CO_MENTOR",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180076,
+  "user_id": "usr-jeconia-luwuk",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180077,
+  "user_id": "usr-trivena-rattu",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180078,
+  "user_id": "usr-diferd-wuri",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180079,
+  "user_id": "usr-gracia-laura",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180080,
+  "user_id": "usr-jacqson-naharia",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 180081,
+  "user_id": "usr-alvandi-saerang",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": null
+ },
+ {
+  "id": 210013,
+  "user_id": "usr-stevania-hadinda",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-agape",
+  "assignment_id": null
+ },
+ {
+  "id": 210025,
+  "user_id": "usr-zhanon-lausan",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-avodah",
+  "assignment_id": null
+ },
+ {
+  "id": 330001,
+  "user_id": "107207767606228920638",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-logos",
+  "assignment_id": "b659eb74ff65df5372e459c5359bd3bb5a054d518cb7f51194453e322b2bad1d"
+ },
+ {
+  "id": 390002,
+  "user_id": "usr-19a147c03fcf9880",
+  "tenant_id": "tenant-youth",
+  "role": "MENTEE",
+  "group_id": "grp-avodah",
+  "assignment_id": "5680d50291b8b87f08c63be53f40e7d4c09b023740cd103871b1b8b6f004776b"
+ },
+ {
+  "id": 390007,
+  "user_id": "usr-e7d01014f83b40ac",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-shalom",
+  "assignment_id": "536bc9b0c44a20cf833b0271e2e129582d8447918783ad56400bea45c54451f8"
+ },
+ {
+  "id": 540001,
+  "user_id": "107207767606228920638",
+  "tenant_id": "tenant-youth",
+  "role": "MENTOR",
+  "group_id": "grp-agape",
+  "assignment_id": "11f59060cdb0218882a810ec53e1da32eee36d1c6ff570c7896b93a127d852db"
+ }
+]

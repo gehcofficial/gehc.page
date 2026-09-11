@@ -19,6 +19,8 @@ export type PortalPage =
   | 'dashboard'
   | 'my-profile'
   | 'event-info'
+  | 'kegiatan'
+  | 'ibadah-mingguan'
   | 'people'
   | 'onboarding'
   | 'jethro-placement'

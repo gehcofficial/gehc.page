@@ -7,9 +7,9 @@ import {
 } from '../../src/lib/pantatugas';
 
 describe('pantatugas v2 subdivisions', () => {
-  it('has 20 sub-divisi total', () => {
+  it('has 19 sub-divisi total (Didaskalia merged to Kurikulum & Pembekalan)', () => {
     const total = Object.values(SUB_DIVISIONS).reduce((n, arr) => n + arr.length, 0);
-    expect(total).toBe(20);
+    expect(total).toBe(19);
   });
 
   it('each panta pillar has HoD-eligible subs', () => {

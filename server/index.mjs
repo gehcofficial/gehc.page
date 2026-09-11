@@ -6677,22 +6677,14 @@ app.delete('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
 // PAW NOTIFICATIONS (Web Push / In-App)
 // ============================================================
 
-// GET /api/push/config — VAPID public key untuk client (tanpa auth)
-app.get('/api/push/config', (req, res) => {
-  const pub = process.env.VAPID_PUBLIC_KEY || 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
-  res.json({ publicKey: pub });
-});
-
-// POST /api/paw/subscribe — save notification subscription (alias /api/push/subscribe)
-async function handlePushSubscribe(req, res) {
+// POST /api/paw/subscribe — save notification subscription
+app.post('/api/paw/subscribe', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { endpoint, keys } = req.body || {};
+  const { endpoint, keys } = req.body;
   if (!endpoint) return res.status(400).json({ error: 'endpoint wajib' });
   const userId = req.authUser?.id;
   if (!userId) return res.status(401).json({ error: 'User tidak ditemukan' });
-  const keysOk = keys?.p256dh && keys?.auth;
-  if (!keysOk) return res.status(400).json({ error: 'keys.p256dh/auth wajib' });
-  const id = 'pawsub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
+  const id = 'pawsub-' + Date.now().toString(36);
   try {
     await prisma.notification.create({
       data: {
@@ -6702,9 +6694,7 @@ async function handlePushSubscribe(req, res) {
     });
   } catch { /* skip duplicate */ }
   res.json({ ok: true });
-}
-app.post('/api/paw/subscribe', requireRole(), wrap(handlePushSubscribe));
-app.post('/api/push/subscribe', requireRole(), wrap(handlePushSubscribe));
+}));
 
 // POST /api/paw/send — send notification to user(s)
 app.post('/api/paw/send', requireRole(), wrap(async (req, res) => {

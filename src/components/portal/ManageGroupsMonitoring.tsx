@@ -80,7 +80,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     if (boundGroupId) setSelectedGroupId(boundGroupId);
   }, [boundGroupId]);
 
-  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums'>('monitoring-form');
+  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums' | 'jadwal'>('monitoring-form');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string }>>([]);
 
   // Selected group object — pengguna terikat TIDAK PERNAH fallback ke groups[0].
@@ -99,7 +99,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
   const [monitoringDate, setMonitoringDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  const [attendanceCount, setAttendanceCount] = useState<number>(12);
+  const [attendanceCount, setAttendanceCount] = useState<number>(0);
   const [meetingTopic, setMeetingTopic] = useState<string>('');
   const [spiritualTemperature, setSpiritualTemperature] = useState<
     'Sangat Baik' | 'Baik' | 'Perlu Perhatian' | 'Kurang Aktif'
@@ -138,10 +138,258 @@ export const ManageGroupsMonitoring: React.FC = () => {
 
   const groupWaUrl = waLinks.find((l) => l.kind === 'GROUP' && l.refId === activeGroup?.id)?.url;
 
+  // Serving/Mentoring linkage — event ibadah minggu ini (bisa dikunci dari hub Kegiatan via ?event=)
+  const [serviceEvents, setServiceEvents] = useState<Array<{ id: string; slug?: string | null; name: string; eventDate: string | null; serviceType?: string | null; venueName?: string | null }>>([]);
+  const [linkedEventId, setLinkedEventId] = useState<string>('');
+  const [eventLocked, setEventLocked] = useState(false);
+  const [dateLocked, setDateLocked] = useState(false);
+  const autoTarikRef = React.useRef('');
+  const serviceEventsRef = React.useRef<typeof serviceEvents>([]);
+  const [serviceModules, setServiceModules] = useState<Array<{ id: string; title: string; division: string }>>([]);
+  const [rhbFiles, setRhbFiles] = useState<Array<{ id: string; name: string; webViewLink?: string; thumbnailUrl?: string; mimeType?: string }>>([]);
+  const [rhbLoading, setRhbLoading] = useState(false);
+  const [rhbForbidden, setRhbForbidden] = useState(false);
+  const [rhbProgress, setRhbProgress] = useState<Record<string, boolean>>({});
+  const [pembekalanFiles, setPembekalanFiles] = useState<Array<{ id: string; name: string; webViewLink?: string }>>([]);
+  const [pembekalanLoading, setPembekalanLoading] = useState(false);
+  const [pembekalanForbidden, setPembekalanForbidden] = useState(false);
+  const [tarikLoading, setTarikLoading] = useState(false);
+  // Tab Jadwal Pelayanan — prediktif grup ini + usulan tukar mutualisme
+  type SchedRow = {
+    id: string; eventDate: string; responsibleGroupId?: string | null; hostGroupId?: string | null;
+    cycleIndex?: number | null; isSwapped?: boolean; swapReason?: string | null;
+    responsibleGroup?: { name: string } | null; hostGroup?: { name: string } | null;
+    event?: { name: string } | null; isVirtual?: boolean;
+  };
+  const [schedFull, setSchedFull] = useState<SchedRow[]>([]);
+  const [schedLoading, setSchedLoading] = useState(false);
+  const [schedReqDate, setSchedReqDate] = useState<string | null>(null);
+  const [schedTargetGroup, setSchedTargetGroup] = useState('');
+  const [schedTargetDate, setSchedTargetDate] = useState('');
+  const [schedPeer, setSchedPeer] = useState('');
+  const [schedAgree, setSchedAgree] = useState(false);
+  const [schedReason, setSchedReason] = useState('');
+  const [schedBusy, setSchedBusy] = useState(false);
+  const [mySwapReqs, setMySwapReqs] = useState<Array<{ id: string; aEventDate: string; bEventDate: string; scope: string; reason: string; status: string; decideNote?: string | null }>>([]);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    if (activeTab !== 'jadwal' || !activeGroup) return;
+    setSchedLoading(true);
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() - 2);
+    const from = `${d.toISOString().slice(0, 7)}-01`;
+    Promise.all([
+      fetch(`/api/serving-assignments?from=${from}&horizon=6&includeVirtual=1`, { credentials: 'include' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/service-swap-requests?status=ALL', { credentials: 'include' }).then((r) => r.json()).catch(() => ({})),
+    ]).then(([s, q]) => {
+      const all = [...(s.assignments || []), ...(s.virtual || [])] as SchedRow[];
+      all.sort((a, b) => String(a.eventDate).localeCompare(String(b.eventDate)));
+      setSchedFull(all);
+      setMySwapReqs(((q.requests || []) as Array<{ requesterGroupId?: string } & { id: string; aEventDate: string; bEventDate: string; scope: string; reason: string; status: string; decideNote?: string | null }>).filter((x) => x.requesterGroupId === activeGroup.id));
+    }).finally(() => setSchedLoading(false));
+  }, [activeTab, activeGroup?.id]);
+  const schedAll = schedFull.filter((r) => r.responsibleGroupId === activeGroup?.id || r.hostGroupId === activeGroup?.id);
+  const schedTargetRows = schedFull.filter((r) =>
+    !r.isVirtual
+    && String(r.eventDate).slice(0, 10) >= todayISO
+    && (r.responsibleGroupId === schedTargetGroup || r.hostGroupId === schedTargetGroup),
+  );
+  const schedRowB = schedFull.find((r) => String(r.eventDate).slice(0, 10) === schedTargetDate && !r.isVirtual) || null;
+  const submitSwapReq = async (rowDate: string) => {
+    if (!activeGroup) return;
+    if (!schedTargetGroup || !schedTargetDate || !schedReason.trim() || !schedAgree) {
+      addToast({ type: 'error', title: 'Pilih grup lawan, tanggalnya, alasan, dan centang kesepakatan kedua mentor' });
+      return;
+    }
+    setSchedBusy(true);
+    try {
+      const r = await fetch('/api/service-swap-requests', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aEventDate: rowDate, bEventDate: schedTargetDate, requesterGroupId: activeGroup.id, targetGroupId: schedTargetGroup, peerMentor: schedPeer.trim() || null, mutualAgreed: true, reason: schedReason.trim() }),
+      });
+      const dd = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(dd.error || 'Gagal kirim usulan');
+      addToast({ type: 'success', title: 'Usulan terkirim — menunggu approval' });
+      setSchedReqDate(null); setSchedTargetGroup(''); setSchedTargetDate(''); setSchedPeer(''); setSchedAgree(false); setSchedReason('');
+      fetch('/api/service-swap-requests?status=ALL', { credentials: 'include' }).then((x) => x.json()).then((q) => {
+        setMySwapReqs(((q.requests || []) as Array<{ requesterGroupId?: string; id: string; aEventDate: string; bEventDate: string; scope: string; reason: string; status: string; decideNote?: string | null }>).filter((x) => x.requesterGroupId === activeGroup.id));
+      }).catch(() => {});
+    } catch (e) { addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal kirim' }); }
+    finally { setSchedBusy(false); }
+  };
+  const resolveLockedEvent = (evs: typeof serviceEvents) => {
+    let p: string | null = null;
+    try {
+      const h = window.location.hash;
+      if (h.includes('?')) p = new URLSearchParams(h.slice(h.indexOf('?') + 1)).get('event');
+    } catch {}
+    if (!p) return;
+    const found = evs.find((e) => e.id === p || e.slug === p);
+    if (found) {
+      setLinkedEventId((cur) => (cur === found.id ? cur : found.id));
+      setEventLocked(true);
+    }
+  };
+  useEffect(() => {
+    if (activeTab !== 'monitoring-form') return;
+    fetch('/api/events', { credentials: 'include' }).then(r=>r.json()).then(d=>{
+      const evs = (d.events || []).filter((e: { serviceType?: string; eventDate?: string }) => e.serviceType === 'MENTORING_DAY' || e.serviceType === 'SERVING_DAY');
+      evs.sort((a: { eventDate?: string }, b: { eventDate?: string }) => String(a.eventDate||'').localeCompare(String(b.eventDate||'')));
+      const sliced = evs.slice(-12).reverse();
+      setServiceEvents(sliced);
+      serviceEventsRef.current = sliced;
+      // Kunci dari hub Kegiatan (?event=) bila ada — event + tanggal mengikuti
+      let locked = false;
+      try {
+        const h = window.location.hash;
+        const p = h.includes('?') ? new URLSearchParams(h.slice(h.indexOf('?') + 1)).get('event') : null;
+        if (p) {
+          const found = sliced.find((e: { id: string; slug?: string | null }) => e.id === p || e.slug === p);
+          if (found) {
+            setLinkedEventId(found.id);
+            setEventLocked(true);
+            locked = true;
+          }
+        }
+      } catch {}
+      if (locked) return;
+      // default monitoringDate ke event terdekat (Minggu ibadah terdekat)
+      if (evs.length && !linkedEventId) {
+        const upcoming = evs.find((e: { eventDate?: string }) => e.eventDate && new Date(e.eventDate).getTime() >= Date.now() - 24*3600*1000) || evs[evs.length-1];
+        if (upcoming?.eventDate) {
+          const iso = String(upcoming.eventDate).slice(0,10);
+          setMonitoringDate((cur)=> cur === new Date().toISOString().split('T')[0] ? iso : cur);
+          setLinkedEventId(upcoming.id);
+          if (!meetingTopic && upcoming.name) {
+            const theme = upcoming.name.split(':')[1]?.split('-')[0]?.trim();
+            if (theme) setMeetingTopic(theme);
+          }
+        }
+      }
+    }).catch(()=>{});
+  }, [activeTab]);
+  useEffect(() => {
+    const onHash = () => resolveLockedEvent(serviceEventsRef.current);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  // Sinkron otomatis saat event tertaut berubah: tanggal mengikuti (terkunci), topik terisi bila kosong
+  useEffect(() => {
+    if (!linkedEventId || !serviceEvents.length) return;
+    const ev = serviceEvents.find((e) => e.id === linkedEventId);
+    if (!ev?.eventDate) return;
+    setMonitoringDate(String(ev.eventDate).slice(0, 10));
+    setDateLocked(true);
+    if (ev.name) {
+      const theme = ev.name.split(':')[1]?.split('-')[0]?.trim();
+      if (theme) setMeetingTopic((cur: string) => cur || theme);
+    }
+  }, [linkedEventId, serviceEvents]);
+  useEffect(() => {
+    if (!linkedEventId) { setServiceModules([]); return; }
+    fetch(`/api/events/${linkedEventId}/deliverables`, { credentials: 'include' }).then(r=>r.json()).then(d=> setServiceModules(d.deliverables || [])).catch(()=> setServiceModules([]));
+  }, [linkedEventId]);
+  useEffect(() => {
+    if (!linkedEventId) { setRhbFiles([]); setRhbProgress({}); setRhbForbidden(false); return; }
+    setRhbLoading(true); setRhbForbidden(false);
+    // By-event 03 RHB — same source as Panel Divisi 3-folder (fresh), sinkron
+    fetch(`/api/events/${linkedEventId}/divisions/DIDASKALIA/drive?subfolder=${encodeURIComponent('03 RHB 7 Hari')}&fresh=1`, { credentials: 'include' })
+      .then(async (r) => {
+        if (r.status === 403) { setRhbForbidden(true); return [] as Array<{ id: string; name: string; webViewLink?: string }>; }
+        const d = await r.json().catch(()=> ({}));
+        let files = (d.files || []) as Array<{ id: string; name: string; webViewLink?: string }>;
+        // fallback ke pillar hybrid jika per-event kosong (event lama belum migrasi)
+        if (!files.length) {
+          try {
+            const fr = await fetch(`/api/didaskalia/rhb?eventId=${linkedEventId}`, { credentials: 'include' });
+            if (fr.status === 403) { setRhbForbidden(true); return [] as Array<{ id: string; name: string; webViewLink?: string }>; }
+            if (fr.ok) {
+              const fd = await fr.json();
+              if (Array.isArray(fd.files) && fd.files.length) files = fd.files;
+            }
+          } catch {}
+        }
+        return files;
+      })
+      .then((files) => {
+        setRhbFiles(files);
+        setRhbProgress((prev) => {
+          const next: Record<string, boolean> = {};
+          files.forEach((f) => { next[f.id] = prev[f.id] || false; });
+          return next;
+        });
+      })
+      .catch(() => setRhbFiles([]))
+      .finally(() => setRhbLoading(false));
+  }, [linkedEventId]);
+  // Pembekalan 01 — mentor-only, by event, sinkron dengan Panel Divisi 01
+  useEffect(() => {
+    if (!linkedEventId) { setPembekalanFiles([]); setPembekalanForbidden(false); return; }
+    setPembekalanLoading(true); setPembekalanForbidden(false);
+    fetch(`/api/events/${linkedEventId}/divisions/DIDASKALIA/drive?subfolder=${encodeURIComponent('01 Pembekalan Mentor - Co mentor')}&fresh=1`, { credentials: 'include' })
+      .then(async (r) => {
+        if (r.status === 403) { setPembekalanForbidden(true); return [] as Array<{ id: string; name: string; webViewLink?: string }>; }
+        const d = await r.json().catch(()=> ({}));
+        return (d.files || []) as Array<{ id: string; name: string; webViewLink?: string }>;
+      })
+      .then((files) => setPembekalanFiles(files))
+      .catch(() => setPembekalanFiles([]))
+      .finally(() => setPembekalanLoading(false));
+  }, [linkedEventId]);
+  const pullAttendance = async () => {
+    try {
+      const r = await fetch(`/api/db/groups/${activeGroup.id}/attendance?date=${monitoringDate}`, { credentials: 'include' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal ambil absensi');
+      const hadir = (d.records || []).filter((rec: { status: string }) => rec.status === 'HADIR').length;
+      setAttendanceCount(hadir);
+      if (hadir > 0) addToast({ type: 'success', title: `Kehadiran dari absensi: ${hadir} orang` });
+      else addToast({ type: 'info', title: 'Belum ada absensi HADIR untuk tanggal ini — isi dulu di tab Absensi' });
+    } catch (e: unknown) { addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal ambil absensi' }); }
+  };
+  useEffect(() => {
+    if (activeTab === 'monitoring-form' && monitoringDate && activeGroup?.id) void pullAttendance();
+  }, [monitoringDate, activeTab, activeGroup?.id]);
+  // Tarik kehadiran dari event (overwrite, real hari H) — dipakai tombol manual + auto-sinkron
+  const runTarik = async (eventId: string, dateIso: string, auto: boolean) => {
+    if (!activeGroup || !canWriteMonitoring) return false;
+    setTarikLoading(true);
+    try {
+      const r = await fetch(`/api/events/${eventId}/attendance-by-group?groupId=${activeGroup.id}`, { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal tarik');
+      const suggested = (d.suggestions || []).filter((s: { suggested?: string }) => s.suggested === 'HADIR');
+      if (!suggested.length) {
+        if (!auto) addToast({ type: 'info', title: 'Tidak ada yang terdata di event ini — isi manual' });
+        return true;
+      }
+      const entries = suggested.map((s: { groupMemberId: string }) => ({ groupMemberId: s.groupMemberId, status: 'HADIR' }));
+      const pr = await fetch('/api/db/attendance', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: activeGroup.id, date: dateIso, entries }) });
+      const pd = await pr.json().catch(() => ({}));
+      if (!pr.ok) throw new Error(pd.error || 'Gagal simpan tarik');
+      addToast({ type: 'success', title: `Tersinkron ${suggested.length} HADIR dari event${auto ? ' (otomatis — masih bisa diubah)' : ' (menimpa)'}` });
+      await pullAttendance();
+      return true;
+    } catch (e) { addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal tarik' }); return false; }
+    finally { setTarikLoading(false); }
+  };
+  // Auto-sinkron sekali per (event, grup): absensi ditarik begitu event tertaut
+  useEffect(() => {
+    if (!linkedEventId || activeTab !== 'monitoring-form' || !activeGroup) return;
+    const ev = serviceEvents.find((e) => e.id === linkedEventId);
+    if (!ev?.eventDate) return;
+    const key = `${linkedEventId}:${activeGroup.id}`;
+    if (autoTarikRef.current === key) return;
+    autoTarikRef.current = key;
+    void runTarik(linkedEventId, String(ev.eventDate).slice(0, 10), true);
+  }, [linkedEventId, serviceEvents, activeGroup?.id, activeTab]);
+
   const handleMonitoringSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!meetingTopic.trim()) return;
 
+    const linkedEv = serviceEvents.find(ev => ev.id === linkedEventId);
+    const rhbDone = Object.entries(rhbProgress).filter(([, v]) => v).map(([id]) => id);
     submitMonitoringRecord({
       group_id: activeGroup.id,
       group_name: activeGroup.name,
@@ -158,6 +406,11 @@ export const ManageGroupsMonitoring: React.FC = () => {
         fellowshipActivity,
         offeringAmount: Number(offeringAmount),
         customNotes,
+        eventId: linkedEventId || null,
+        serviceType: linkedEv?.serviceType || null,
+        weekRef: linkedEv ? { eventId: linkedEv.id, eventDate: linkedEv.eventDate, serviceType: linkedEv.serviceType } : null,
+        rhbProgress: rhbDone.length ? { done: rhbDone, total: rhbFiles.length, at: new Date().toISOString() } : null,
+        rhbFiles: rhbFiles.length ? rhbFiles.map((f) => ({ id: f.id, name: f.name, webViewLink: f.webViewLink })) : null,
       },
     });
 
@@ -168,6 +421,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     setFellowshipActivity('');
     setOfferingAmount(0);
     setCustomNotes('');
+    setRhbProgress({});
     setActiveTab('history');
   };
 
@@ -476,6 +730,20 @@ export const ManageGroupsMonitoring: React.FC = () => {
 
         <button
           role="tab"
+          aria-selected={activeTab === 'jadwal'}
+          onClick={() => setActiveTab('jadwal')}
+          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'jadwal'
+              ? 'bg-[#181818] text-white shadow-md'
+              : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+          }`}
+        >
+          <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Jadwal Pelayanan</span>
+        </button>
+
+        <button
+          role="tab"
           aria-selected={activeTab === 'albums'}
           onClick={() => setActiveTab('albums')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
@@ -511,6 +779,88 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 </p>
               </div>
 
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-sky-800 block">Event ibadah minggu ini (sinkron modul)</label>
+                <select value={linkedEventId} onChange={(e)=> { setLinkedEventId(e.target.value); setEventLocked(false); }} disabled={eventLocked} className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white disabled:opacity-70">
+                  <option value="">— Tanpa tautan event —</option>
+                  {serviceEvents.map((ev)=> (
+                    <option key={ev.id} value={ev.id}>{ev.serviceType === 'MENTORING_DAY' ? '[M] ' : '[S] '}{ev.name} · {ev.eventDate ? String(ev.eventDate).slice(0,10) : ''} {ev.venueName ? `· ${ev.venueName}` : ''}</option>
+                  ))}
+                </select>
+                {eventLocked && linkedEventId && (
+                  <p className="text-[11px] text-sky-800">🔒 Terkunci dari hub Kegiatan: <span className="font-bold">{serviceEvents.find((e)=>e.id===linkedEventId)?.name || linkedEventId.slice(0,8)}</span> — tanggal &amp; absensi mengikuti otomatis. <button type="button" onClick={() => { setEventLocked(false); try { const h = window.location.hash; window.location.hash = h.split('?')[0].replace(/^#/,''); } catch {} }} className="font-bold underline">Buka kunci</button></p>
+                )}
+                {linkedEventId && serviceModules.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {serviceModules.map((m)=> (
+                      <span key={m.id} className="text-[10px] px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-900 font-bold">{m.division}: {m.title}</span>
+                    ))}
+                  </div>
+                )}
+                {linkedEventId && serviceModules.length === 0 && <p className="text-[11px] text-sky-700">Belum ada modul Didaskalia untuk event ini — modul akan muncul setelah share dari Rencana Bulan.</p>}
+              </div>
+
+              {/* Pembekalan 01 — mentor-only, by event (tidak dirender untuk mentee) */}
+              {!pembekalanForbidden && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Pembekalan Mentor - Co mentor — by event · Didaskalia</p>
+                <p className="text-[11px] text-amber-700 leading-relaxed">Materi pembekalan by event <span className="font-bold">{(serviceEvents.find((e)=>e.id===linkedEventId)?.name) || '—'}</span> {(serviceEvents.find((e)=>e.id===linkedEventId)?.eventDate ? `· ${String(serviceEvents.find((e)=>e.id===linkedEventId)?.eventDate).slice(0,10)}` : '')} — hanya Mentor/Co-mentor (sinkron Panel Divisi → 01).</p>
+                {pembekalanLoading ? (
+                  <p className="text-xs text-amber-700">Memuat pembekalan…</p>
+                ) : pembekalanFiles.length === 0 ? (
+                  <p className="text-xs text-amber-700">Belum ada file pembekalan untuk minggu ini. Didaskalia upload via Panel Divisi → Didaskalia → Ibadah → 01.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {pembekalanFiles.map((f) => (
+                      <li key={f.id} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-amber-100">
+                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-[#1B1B1B] truncate" title={f.name}>{f.name}</p>
+                          {f.webViewLink && <a href={f.webViewLink} target="_blank" rel="noopener" className="text-[11px] font-bold text-sky-700 hover:underline">Buka di Drive</a>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              )}
+
+              {/* RHB Harian — hybrid pillar Didaskalia/Berkas/modul-rhb · 7 hari Senin-Sabtu selain pembekalan & materi Minggu */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">RHB Harian — 7 hari (Senin–Sabtu) · Didaskalia</p>
+                  {rhbFiles.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-emerald-200 text-emerald-700 font-bold">{Object.values(rhbProgress).filter(Boolean).length}/{rhbFiles.length} selesai</span>}
+                </div>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">Materi harian Beyonders untuk minggu ini (6–12 Sep contoh: 7 PDF). Selain materi pembekalan mentor & materi Minggu, ini renungan harian yang dipakai di kelompok. Didaskalia upload via Panel Divisi → Didaskalia → Ibadah → Kurikulum (Berkas/modul-rhb).</p>
+                {rhbLoading ? (
+                  <p className="text-xs text-emerald-700">Memuat RHB…</p>
+                ) : !linkedEventId ? (
+                  <p className="text-xs text-emerald-700 italic">Pilih event ibadah di atas untuk melihat RHB minggu itu.</p>
+                ) : rhbForbidden ? (
+                  <p className="text-xs text-emerald-700">🔒 RHB hanya untuk Beyonders (mentor/mentee). Hubungi mentor untuk akses.</p>
+                ) : rhbFiles.length === 0 ? (
+                  <p className="text-xs text-emerald-700">Belum ada file RHB untuk minggu ini. Didaskalia perlu upload 7 PDF (Senin–Sabtu) ke Panel Divisi → Didaskalia → Ibadah → 03 RHB 7 Hari (by event).</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {rhbFiles.map((f) => (
+                      <li key={f.id} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-emerald-100">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(rhbProgress[f.id])}
+                          onChange={(e) => setRhbProgress((prev) => ({ ...prev, [f.id]: e.target.checked }))}
+                          className="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-[#1B1B1B] truncate" title={f.name}>{f.name}</p>
+                          {f.webViewLink && <a href={f.webViewLink} target="_blank" rel="noopener" className="text-[11px] font-bold text-sky-700 hover:underline">Buka di Drive</a>}
+                        </div>
+                        {rhbProgress[f.id] && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">
@@ -518,9 +868,13 @@ export const ManageGroupsMonitoring: React.FC = () => {
                   </label>
                   <DatePicker
                     value={monitoringDate}
-                    onChange={setMonitoringDate}
+                    onChange={(d) => { setMonitoringDate(d); setDateLocked(false); }}
                     placeholder="Pilih tanggal pertemuan"
+                    disabled={dateLocked && !!linkedEventId}
                   />
+                  {dateLocked && linkedEventId && (
+                    <p className="mt-1 text-[10px] text-[#8C8880]">🔒 Mengikuti tanggal event ({monitoringDate}). <button type="button" onClick={() => setDateLocked(false)} className="font-bold text-sky-700 hover:text-sky-900 underline">Ubah manual</button></p>
+                  )}
                 </div>
 
                 <div>
@@ -534,13 +888,15 @@ export const ManageGroupsMonitoring: React.FC = () => {
                       min={0}
                       max={50}
                       value={attendanceCount}
-                      onChange={(e) => setAttendanceCount(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold focus:outline-none focus:border-black"
+                      readOnly
+                      className="w-full px-4 py-2.5 rounded-2xl bg-[#F0EFEB] border border-[#D9D7D0] text-xs font-bold focus:outline-none text-[#5C5850]"
+                      title="Otomatis dari absensi — ubah via tab Absensi"
                     />
                     <span className="text-xs text-[#8C8880] whitespace-nowrap">
                       / {visibleMembers.length || activeGroup.memberCount} Anggota
                     </span>
                   </div>
+                  <p className="mt-1 text-[10px] text-[#8C8880]">Otomatis dari tab <span className="font-bold">Absensi</span> (Hadir). <button type="button" onClick={() => void pullAttendance()} className="font-bold text-sky-700 hover:text-sky-900 underline">Segarkan</button></p>
                 </div>
               </div>
 
@@ -1050,14 +1406,138 @@ export const ManageGroupsMonitoring: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 5: ATTENDANCE (server-backed, TiDB) */}
+      {/* TAB 5: ATTENDANCE (server-backed, TiDB) + Tarik dari event (overwrite) */}
       {activeTab === 'absensi' && activeGroup && (
-        <AttendancePanel
-          groupId={activeGroup.id}
-          groupName={activeGroup.name}
-          canWrite={canWriteMonitoring}
-          members={visibleMembers}
-        />
+        <div className="space-y-4">
+          {linkedEventId && canWriteMonitoring && (
+            <div className="bg-white rounded-[28px] p-4 border border-sky-200 shadow-sm space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Tarik kehadiran dari event (overwrite)</p>
+              <p className="text-xs text-[#8C8880] leading-relaxed">Ambil pendaftar <span className="font-bold">{serviceEvents.find((e) => e.id === linkedEventId)?.name || linkedEventId.slice(0,8)}</span> untuk {activeGroup.name} — status HADIR dari event akan <span className="font-bold">menimpa</span> isian manual (real hari H). Yang tidak terekap tetap manual input.</p>
+              <button
+                type="button"
+                disabled={tarikLoading}
+                onClick={() => void runTarik(linkedEventId, monitoringDate, false)}
+                className="px-4 py-2 rounded-full bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 disabled:opacity-50"
+              >
+                {tarikLoading ? 'Menarik…' : `Tarik dari ${serviceEvents.find((e) => e.id === linkedEventId)?.name?.split(':')[0] || 'event'}`}
+              </button>
+            </div>
+          )}
+          <AttendancePanel
+            groupId={activeGroup.id}
+            groupName={activeGroup.name}
+            canWrite={canWriteMonitoring}
+            members={visibleMembers}
+          />
+        </div>
+      )}
+
+      {/* TAB: JADWAL PELAYANAN — prediktif grup ini (penanggung/tuan rumah) + usulan tukar */}
+      {activeTab === 'jadwal' && activeGroup && (
+        <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#1B1B1B]">Jadwal Pelayanan — Kelompok {activeGroup.name}</h3>
+            <p className="text-xs text-[#8C8880] mt-0.5">Periode berjalan + prediksi: kapan menjadi penanggung jawab atau tuan rumah. Butuh tukar? Musyawarahkan kedua mentor dulu, lalu ajukan — menunggu approval.</p>
+          </div>
+          {schedLoading ? (
+            <p className="text-xs text-[#8C8880]">Memuat jadwal…</p>
+          ) : schedAll.length === 0 ? (
+            <p className="text-xs text-[#8C8880] italic">Belum ada jadwal untuk kelompok ini di periode ini.</p>
+          ) : (
+            <div className="space-y-2">
+              {schedAll.map((r) => {
+                const iso = String(r.eventDate).slice(0, 10);
+                const isResp = r.responsibleGroupId === activeGroup.id;
+                const partner = isResp ? (r.hostGroup?.name || r.hostGroupId) : (r.responsibleGroup?.name || r.responsibleGroupId);
+                const open = schedReqDate === r.id;
+                const past = iso < todayISO;
+                const respA = r.responsibleGroup?.name || r.responsibleGroupId || '—';
+                const hostA = r.hostGroup?.name || r.hostGroupId || '—';
+                const respB = schedRowB?.responsibleGroup?.name || schedRowB?.responsibleGroupId || '—';
+                const hostB = schedRowB?.hostGroup?.name || schedRowB?.hostGroupId || '—';
+                return (
+                  <div key={r.id} className="p-3 rounded-2xl border border-[#D9D7D0]/60 bg-[#FAF9F5] space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-black text-[#1B1B1B]">{new Date(`${iso}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${isResp ? 'bg-sky-100 text-sky-800 border-sky-200' : 'bg-amber-100 text-amber-800 border-amber-200'}`}>
+                        {isResp ? 'Penanggung jawab' : 'Tuan rumah'}
+                      </span>
+                      <span className="text-[11px] text-[#8C8880]">dengan <span className="font-bold text-[#1B1B1B]">{partner || '—'}</span></span>
+                      {r.event?.name && <span className="text-[10px] text-[#8C8880] truncate max-w-[200px]" title={r.event.name}>{r.event.name}</span>}
+                      <span className="ml-auto flex items-center gap-1.5">
+                        {r.isVirtual
+                          ? <span className="text-[10px] text-sky-700 font-bold">prediksi</span>
+                          : <span className="text-[10px] text-[#8C8880]">real</span>}
+                        {r.isSwapped && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold" title={r.swapReason || ''}>tukar</span>}
+                        {r.cycleIndex != null && <span className="text-[10px] font-mono text-[#8C8880]">idx {r.cycleIndex}/10</span>}
+                      </span>
+                    </div>
+                    {canWriteMonitoring && !open && !past && !r.isVirtual && (
+                      <button type="button" onClick={() => { setSchedReqDate(r.id); setSchedTargetGroup(''); setSchedTargetDate(''); setSchedPeer(''); setSchedAgree(false); setSchedReason(''); }} className="text-[11px] font-bold text-sky-700 hover:underline">
+                        Minta tukar minggu ini →
+                      </button>
+                    )}
+                    {canWriteMonitoring && !open && (past || r.isVirtual) && (
+                      <p className="text-[10px] text-[#8C8880] italic">{past ? 'Sudah lewat — tidak bisa ditukar.' : 'Prediksi — bisa diusul setelah jadi jadwal real.'}</p>
+                    )}
+                    {canWriteMonitoring && open && (
+                      <div className="grid sm:grid-cols-2 gap-2 p-2 rounded-xl bg-white border border-sky-200">
+                        <select value={schedTargetGroup} onChange={(e) => { setSchedTargetGroup(e.target.value); setSchedTargetDate(''); }} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white sm:col-span-2">
+                          <option value="">Pilih grup yang diajak tukar…</option>
+                          {groups.filter((g) => g.id !== activeGroup.id).map((g) => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                        </select>
+                        {schedTargetGroup && (
+                          <select value={schedTargetDate} onChange={(e) => setSchedTargetDate(e.target.value)} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white sm:col-span-2">
+                            <option value="">Pilih tanggal {groups.find((g) => g.id === schedTargetGroup)?.name || ''} bertugas…</option>
+                            {schedTargetRows.map((x) => {
+                              const xi = String(x.eventDate).slice(0, 10);
+                              return <option key={x.id} value={xi}>{new Date(`${xi}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })} — {x.responsibleGroup?.name || ''} → {x.hostGroup?.name || ''}{x.event?.name ? ` · ${x.event.name}` : ''}</option>;
+                            })}
+                          </select>
+                        )}
+                        {schedTargetGroup && schedTargetRows.length === 0 && (
+                          <p className="text-[11px] text-[#8C8880] italic sm:col-span-2">Grup itu tidak punya jadwal real ke depan di periode ini.</p>
+                        )}
+                        {schedRowB && (
+                          <div className="sm:col-span-2 p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-[11px] space-y-1">
+                            <p className="font-black text-sky-800 uppercase tracking-wider text-[10px]">Preview bila disetujui (sepasang utuh bertukar)</p>
+                            <p className="text-[#1B1B1B]">{new Date(`${iso}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' })}: <span className="line-through text-[#8C8880]">{respA} → {hostA}</span> <span className="font-black">berubah jadi {respB} → {hostB}</span></p>
+                            <p className="text-[#1B1B1B]">{new Date(`${String(schedRowB.eventDate).slice(0, 10)}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' })}: <span className="line-through text-[#8C8880]">{respB} → {hostB}</span> <span className="font-black">berubah jadi {respA} → {hostA}</span></p>
+                          </div>
+                        )}
+                        <input value={schedPeer} onChange={(e) => setSchedPeer(e.target.value)} placeholder="Nama mentor lawan (sudah sepakat)" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+                        <input value={schedReason} onChange={(e) => setSchedReason(e.target.value)} placeholder="Alasan tukar (wajib)" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+                        <label className="sm:col-span-2 flex items-start gap-2 text-[11px] text-[#1B1B1B]">
+                          <input type="checkbox" checked={schedAgree} onChange={(e) => setSchedAgree(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-[#D9D7D0]" />
+                          Kedua mentor sudah sepakat (musyawarah offline) — usulan masuk antrean approval.
+                        </label>
+                        <div className="sm:col-span-2 flex justify-end gap-2">
+                          <button type="button" onClick={() => setSchedReqDate(null)} className="px-3 py-1.5 rounded-xl text-xs text-[#8C8880]">Batal</button>
+                          <button type="button" onClick={() => void submitSwapReq(iso)} disabled={schedBusy} className="px-4 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">{schedBusy ? 'Mengirim…' : 'Kirim usulan'}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {mySwapReqs.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-[#D9D7D0]/50">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Usulan grup ini</p>
+              {mySwapReqs.map((q) => (
+                <div key={q.id} className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 text-xs">
+                  <span className="font-bold">{q.aEventDate} ↔ {q.bEventDate}</span>
+                  <span className="text-[#8C8880]">{q.scope === 'PAIR' ? 'sepasang utuh' : q.scope === 'RESPONSIBLE' ? 'penanggung' : 'tuan rumah'} · {q.reason}</span>
+                  <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold border ${q.status === 'PENDING' ? 'bg-amber-100 text-amber-800 border-amber-200' : q.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{q.status}</span>
+                  {q.status === 'REJECTED' && q.decideNote && <span className="w-full text-[11px] text-[#8C8880] italic">Catatan: {q.decideNote}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === 'albums' && activeGroup && (
@@ -1065,6 +1545,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
           groupId={activeGroup.id}
           canCreate={canWriteMonitoring}
           canUpload={Boolean(boundGroupId || canWriteMonitoring)}
+          canPropose={!canWriteMonitoring && Boolean(boundGroupId)}
         />
       )}
 

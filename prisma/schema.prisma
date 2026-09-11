@@ -441,6 +441,8 @@ model Group {
   attendance        AttendanceRecord[]
   roleAssignments   RoleAssignment[]
   albums            GroupAlbum[]
+  servingResponsible ServingAssignment[] @relation("ServingResponsible")
+  servingHost        ServingAssignment[] @relation("ServingHost")
 
   @@index([tenantId])
   @@index([parentGroupId])
@@ -533,6 +535,7 @@ model GroupAlbum {
   groupId          String   @map("group_id") @db.VarChar(64)
   title            String   @db.VarChar(190)
   kind             String   @default("ADHOC") @db.VarChar(24) // PA | WORSHIP | ADHOC
+  status           String   @default("RENCANA") @db.VarChar(16) // USULAN | RENCANA | SELESAI | BATAL
   occurredOn       DateTime @map("occurred_on") @db.Date
   location         String?  @db.VarChar(190)
   eventId          String?  @map("event_id") @db.VarChar(64)
@@ -567,11 +570,18 @@ model MonitoringRecord {
   mentorId  String?  @map("mentor_id") @db.VarChar(64)
   date      DateTime @db.Date
   data      Json
+  eventId   String?  @map("event_id") @db.VarChar(64)
+  weekIndex Int?     @map("week_index")
+  yearMonth String?  @map("year_month") @db.VarChar(7)
+  season    String?  @db.VarChar(16)
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
-  mentor User? @relation(fields: [mentorId], references: [id])
+  mentor User?         @relation(fields: [mentorId], references: [id])
+  event  EventProgram? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([groupId, date])
+  @@index([eventId])
+  @@index([yearMonth])
   @@map("monitoring_records")
 }
 
@@ -725,6 +735,8 @@ model EventProgram {
   description   String?         @db.Text
   status        String          @default("PLANNING") @db.VarChar(16) // PLANNING|ACTIVE|DONE|ARCHIVED
   kind          String          @default("KHUSUS") @db.VarChar(16) // UMUM | KHUSUS | INTERNAL | RECURRING
+  serviceType   String?         @map("service_type") @db.VarChar(16) // MENTORING_DAY | SERVING_DAY | null
+  metadata      Json?           @map("metadata") // { cycleIndex?, weekIndex?, yearMonth?, retrofill? }
   churchProgramId String?       @map("church_program_id") @db.VarChar(64)
   /// Rentang program (BAKU TAU: 1 Jan–31 Des), bukan hari pelaksanaan.
   startDate     DateTime?       @map("start_date")
@@ -754,9 +766,12 @@ model EventProgram {
   questionAnswers     EventQuestionAnswer[]
   churchProgram ChurchProgram?  @relation(fields: [churchProgramId], references: [id])
   planDeliverables MinistryWeekDeliverable[]
+  servingAssignment ServingAssignment?
+  monitoringRecords MonitoringRecord[]
 
   @@index([tenantId])
   @@index([churchProgramId])
+  @@index([serviceType])
 }
 
 model EventAttendee {
@@ -913,6 +928,7 @@ model MinistryWeekDeliverable {
   weekIndex   Int     @map("week_index")
   division    String  @db.VarChar(24)
   kind        String? @db.VarChar(24) // MODULE | RUNDOWN | BENZUAR | BENZINEMA | LOGISTICS | DOCS | CASHIER
+  serviceType String? @map("service_type") @db.VarChar(16) // MENTORING | SERVING | null
   title       String  @db.VarChar(190)
   notes       String? @db.Text
   status      String  @default("TODO") @db.VarChar(16) // TODO | DOING | DONE | BLOCKED
@@ -1620,4 +1636,71 @@ model PlatformAuditLog {
   @@index([actorType, actorId])
   @@index([createdAt])
   @@map("platform_audit_logs")
+}
+
+// ============================================================
+// SERVING DAY ROTATION (Mentoring vs Serving)
+// W1 MENTORING_DAY = Komisi+Tim Kerja, W2+ SERVING_DAY = bergilir 10 pasang
+// ============================================================
+
+model ServingAssignment {
+  id                  String   @id @db.VarChar(64)
+  eventId             String?  @unique @map("event_id") @db.VarChar(64)
+  eventDate           DateTime @map("event_date") @db.Date
+  serviceType         String   @map("service_type") @db.VarChar(16) // SERVING_DAY
+  responsibleGroupId  String   @map("responsible_group_id") @db.VarChar(64)
+  hostGroupId         String   @map("host_group_id") @db.VarChar(64)
+  cycleIndex          Int      @map("cycle_index")
+  isSwapped           Boolean  @default(false) @map("is_swapped")
+  swapReason          String?  @map("swap_reason") @db.Text
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  event       EventProgram? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  responsibleGroup Group  @relation("ServingResponsible", fields: [responsibleGroupId], references: [id])
+  hostGroup        Group  @relation("ServingHost", fields: [hostGroupId], references: [id])
+
+  @@index([eventDate])
+  @@index([cycleIndex])
+  @@map("serving_assignments")
+}
+
+// Kondisi khusus minggu layanan: GABUNGAN (lintas-BIPRA/luar jemaat, tanpa
+// pasang bergilir) | LIBUR (force majeure) | ALIH (dialihkan ke event lain).
+// Tanpa baris = NORMAL. LIBUR/ALIH tidak consume cycle index.
+model ServiceWeekOverride {
+  eventDate     DateTime @id @map("event_date") @db.Date
+  condition     String   @default("GABUNGAN") @db.VarChar(16) // GABUNGAN | LIBUR | ALIH
+  note          String?  @db.VarChar(500)
+  partnerLabel  String?  @map("partner_label") @db.VarChar(190)
+  linkedEventId String?  @map("linked_event_id") @db.VarChar(64)
+  createdById   String?  @map("created_by_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([condition])
+  @@map("service_week_overrides")
+}
+
+// Antrean request tukar jadwal antar-grup (basis mutualisme: kedua mentor
+// sudah sepakat offline). Approve mengeksekusi swap per-peran yang sama.
+model ServiceSwapRequest {
+  id               String   @id @db.VarChar(64)
+  aEventDate       DateTime @map("a_event_date") @db.Date
+  bEventDate       DateTime @map("b_event_date") @db.Date
+  scope            String   @default("RESPONSIBLE") @db.VarChar(16) // RESPONSIBLE | HOST
+  requesterGroupId String   @map("requester_group_id") @db.VarChar(64)
+  requesterId      String   @map("requester_id") @db.VarChar(64)
+  peerMentor       String?  @map("peer_mentor") @db.VarChar(190)
+  mutualAgreed     Boolean  @default(false) @map("mutual_agreed")
+  reason           String   @db.VarChar(500)
+  status           String   @default("PENDING") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  decidedById      String?  @map("decided_by_id") @db.VarChar(64)
+  decidedAt        DateTime? @map("decided_at") @db.DateTime(3)
+  decideNote       String?  @map("decide_note") @db.VarChar(500)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status])
+  @@index([requesterGroupId])
+  @@map("service_swap_requests")
 }

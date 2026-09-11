@@ -1107,3 +1107,6 @@ Lihat [`docs/tech/database-migrations.md`](docs/tech/database-migrations.md).
 | `docs/tech/database-migrations.md` | Panduan migrasi |
 | `server/createApp.mjs` | Express factory |
 | `server/routes/onboarding.mjs` | Waiting pool routes |
+
+## Episode: Kegiatan hub + service scheduling + bonding (11 Sep 2026, branch cursor/kegiatan-service-hub)
+Hub Kegiatan, Info Event per-event, Monitoring lock+tarik, album bonding, tab Ibadah Mingguan, antrean swap PAIR, gate BOD+Didaskalia, merge 10 grup. DB applied (status/overrides/swap tables + merge COMMIT OK). JANGAN reset/stash saat agen bekerja.
