@@ -10,10 +10,12 @@
 - **Data**: `struktur_members`/`role_assignments` DIDASKALIA → `Kurikulum`.
 - **Drive**: Didaskalia prod & staging = `Kurikulum` + trashed legacy (`Kurikulum Pemuridan`, `Pembekalan Tim`, `Main Speaker`, `Modul & Kurikulum`); `drive:provision` staging/prod 0 gagal.
 - **Jemaat**: filter Beyonders strict (assignment aktif + grup) + sub-tab grup memfilter (`src/lib/jemaat-filter.ts`).
+- **Upload Drive RHB/Pembekalan/Ringkasan**: gate tulis kini sadar-token (`driveWriteEnabled()` = `GDRIVE_WRITE=1` **atau** token OAuth pemilik) di `server/index.mjs` (upload/delete/auto-provision) + `server/routes/didaskalia-rhb.mjs`. `GDRIVE_WRITE=1` di-set di `.env.staging`/`.env.production` + Vercel Production/Preview.
+- **Drive token**: service account tidak punya kuota upload (root bukan Shared Drive) → re-consent pemilik via `npm run drive:auth`, token valid disimpan, di-sync ke Vercel Production+Preview (`GDRIVE_USER_REFRESH_TOKEN`).
 - Verifikasi: lint bersih, 285 test hijau, build OK.
 
 ### Next
-- Setelah deploy staging berikutnya, alias `staging-gehcpage.vercel.app` ke deployment preview terbaru agar VAPID aktif di staging.
+- Uji upload nyata di Panel Divisi → Didaskalia (01/02/03) setelah deploy terbaru.
 - Uji push di Android/iOS dari PWA terinstal.
 
 ---
