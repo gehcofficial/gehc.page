@@ -1,6 +1,24 @@
 # GEHC Portal — Handoff
 
-## Current — Registrasi netral + BIPRA gate + pipeline & Beyonders murni (10 Sep 2026)
+## Current — Hotfix prod 500 + sinkron DB/Drive + push VAPID (11 Sep 2026)
+
+**Done:**
+- **Prod 500 FUNCTION_INVOCATION_FAILED** (semua `/api/*` mati, login/portal tidak muncul): akar = `server/lib/service-events.mjs` kehilangan export `formatServiceNameByType`/`servicePrefixByType`/`sundayWIBInstant` akibat merge paralel, sedangkan `server/routes/ministry-plans.mjs` mengimpornya → serverless crash saat import. Export dipulihkan; prod sehat (`/api/config`, `/api/auth/*`, `/api/content/public`, `/api/db/struktur` → 200).
+- `/api/push/config` + alias `/api/push/subscribe` dipulihkan (clobbered oleh merge).
+- **VAPID**: generate keypair valid + set `VAPID_PUBLIC_KEY/PRIVATE_KEY/SUBJECT` di `.env*` + Vercel Production & Preview. `/api/push/config` prod mengembalikan key 65-byte valid (sebelumnya fallback SPKI invalid → push selalu gagal).
+- **TiDB**: `db:migrate:local:prod` — perbaikan collation `serving_assignments` (`event_id` ikut `EventProgram.id` = utf8mb4_bin + FK best-effort) → tabel + FKs dibuat; `monitoring_records.{event_id,week_index,year_month,season}`, `group_albums.status`, `service_week_overrides`, `service_swap_requests`. Staging + prod `db:schema:check` hijau.
+- **Data**: `struktur_members`/`role_assignments` DIDASKALIA → `Kurikulum`.
+- **Drive**: Didaskalia prod & staging = `Kurikulum` + trashed legacy (`Kurikulum Pemuridan`, `Pembekalan Tim`, `Main Speaker`, `Modul & Kurikulum`); `drive:provision` staging/prod 0 gagal.
+- **Jemaat**: filter Beyonders strict (assignment aktif + grup) + sub-tab grup memfilter (`src/lib/jemaat-filter.ts`).
+- Verifikasi: lint bersih, 285 test hijau, build OK.
+
+### Next
+- Setelah deploy staging berikutnya, alias `staging-gehcpage.vercel.app` ke deployment preview terbaru agar VAPID aktif di staging.
+- Uji push di Android/iOS dari PWA terinstal.
+
+---
+
+## Prior — Registrasi netral + BIPRA gate + pipeline & Beyonders murni (10 Sep 2026)
 
 **Done:**
 - Registrasi akun baru tidak lagi auto-cap BAKU TAU (`sourceEvent=null`); `claimWaitingPoolByPhone` tidak menimpa `sourceEvent` bila sudah terisi (memperbaiki bias Undangan→BAKU).
