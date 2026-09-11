@@ -125,15 +125,9 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
   ],
   DIDASKALIA: [
     {
-      name: 'Kurikulum Pemuridan',
-      label: 'Kurikulum Pemuridan',
-      tagline: 'Modul Beyonders/SG, tes karunia, worldview & apologetics pemuda, evaluasi batch',
-      color: '#0EA5E9',
-    },
-    {
-      name: 'Pembekalan Tim',
-      label: 'Pembekalan Tim',
-      tagline: 'Pelatihan mentor/comentor, BAKU TAU, main session pembekalan (Lead Equippers: Putri & Alvandi)',
+      name: 'Kurikulum',
+      label: 'Kurikulum',
+      tagline: 'Kurikulum by-event: modul, pembekalan mentor & RHB — Didaskalia/Kurikulum/<Event>/01..03',
       color: '#0EA5E9',
     },
   ],
@@ -245,7 +239,9 @@ export const SUBDIVISION_MIGRATION: Record<string, Record<string, string>> = {
     Intercessor: 'Doa & Intercession',
   },
   DIDASKALIA: {
-    'Kurikulum & Pembekalan': 'Kurikulum Pemuridan',
+    'Kurikulum & Pembekalan': 'Kurikulum',
+    'Kurikulum Pemuridan': 'Kurikulum',
+    'Pembekalan Tim': 'Kurikulum',
   },
   KOINONIA: {
     'Program Persekutuan': 'Program & Acara',

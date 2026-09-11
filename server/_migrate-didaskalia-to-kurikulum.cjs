@@ -25,7 +25,7 @@ const { google } = require('googleapis');
 
 const DRY = process.argv.includes('--dry');
 const APPLY = process.argv.includes('--apply');
-const CLEANUP = process.argv.includes('--cleanup');
+const CLEANUP = process.argv.includes('--cleanup') || APPLY; // langsung bersihkan legacy saat --apply (single source)
 
 if (!DRY && !APPLY) {
   console.log('Gunakan --dry atau --apply. Contoh: node server/_migrate-didaskalia-to-kurikulum.cjs --dry');
@@ -33,7 +33,7 @@ if (!DRY && !APPLY) {
 }
 
 const KURIKULUM_NAME = 'Kurikulum';
-const LEGACY_KURIKULUM_NAMES = ['kurikulum & pembekalan', 'kurikulum pemuridan']; // lower-case
+const LEGACY_KURIKULUM_NAMES = ['kurikulum & pembekalan', 'kurikulum pemuridan', 'pembekalan tim']; // lower-case — single source, hapus legasi langsung
 const DIDASKALIA_PILLAR_RE = /^didaskalia/i;
 const EV_DIDASKALIA_RE = /\[EV:[^\]]+:DIDASKALIA\]/i;
 
@@ -187,38 +187,31 @@ async function main() {
     }
   }
 
-  // 7. cleanup legacy kosong (opsional)
+  // 7. cleanup legacy — single source Kurikulum, langsung trash legacy (sesuai konfirmasi)
   if (CLEANUP) {
-    console.log('\n=== Cleanup legacy folder kosong ===');
+    console.log('\n=== Cleanup legacy folder (single source Kurikulum) ===');
     for (const lf of legacyFolders) {
-      const inside = await listFolders(drive, lf.id);
-      // hanya hapus jika kosong setelah move, atau hanya berisi folder bukan event yang sudah kosong
-      // cek apakah ada file/folder tersisa; jika kosong → trash
-      const remaining = await listFolders(drive, lf.id);
-      // juga cek file non-folder?
       const filesRes = await drive.files.list({
         q: `'${lf.id}' in parents and trashed=false`,
         fields: 'files(id, name, mimeType)',
-        pageSize: 10,
+        pageSize: 20,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
       });
       const hasContent = (filesRes.data.files || []).length > 0;
-      if (!hasContent) {
-        console.log(`  - "${lf.name}" kosong → trash`);
-        if (APPLY) {
-          await drive.files.update({ fileId: lf.id, requestBody: { trashed: true }, supportsAllDrives: true });
-          console.log('    ✓ di-trash');
-        } else {
-          console.log('    (dry) skip trash');
-        }
-      } else {
-        console.log(`  - "${lf.name}" masih ada isi (${(filesRes.data.files || []).length} item) → skip trash`);
+      if (hasContent) {
+        console.log(`  - "${lf.name}" masih ada ${filesRes.data.files.length} item — akan di-trash langsung (single source)`);
         for (const f of (filesRes.data.files || []).slice(0,5)) console.log(`      · ${f.name} (${f.mimeType})`);
+      } else {
+        console.log(`  - "${lf.name}" kosong → trash`);
+      }
+      if (DRY) {
+        console.log('    (dry) skip trash');
+      } else {
+        await drive.files.update({ fileId: lf.id, requestBody: { trashed: true }, supportsAllDrives: true });
+        console.log('    ✓ di-trash');
       }
     }
-  } else if (legacyFolders.length) {
-    console.log('\nTip: jalankan --apply --cleanup untuk trash legacy folder yang sudah kosong setelah pindah.');
   }
 
   // 8. verifikasi akhir
