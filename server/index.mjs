@@ -80,8 +80,10 @@ import {
 } from './jethro-placement.mjs';
 import { registerBakuTauRoutes } from './routes/baku-tau.mjs';
 import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
+import { registerEventAttendanceSyncRoutes } from './routes/event-attendance-sync.mjs';
 import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
 import { isBodTimkerja } from './division-rbac.mjs';
+import { loadStruktur } from './lib/drive-ownership.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
@@ -125,6 +127,10 @@ import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
 import { applyPersonNameFields, parseDisplayName } from './lib/person-name.mjs';
 import { registerTitleCatalogRoutes } from './routes/title-catalog.mjs';
+import { registerServingAssignmentRoutes } from './routes/serving-assignments.mjs';
+import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
+import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
+import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -257,6 +263,7 @@ app.get('/api/auth/me', wrap(async (req, res) => {
     isBodTimkerja: (u.roles || []).some((r) => r.role === 'COMMITTEE')
       ? await isBodTimkerja(u)
       : false,
+    isDidaskalia: await loadStruktur(u).then((sm) => String(sm?.division || '').toUpperCase() === 'DIDASKALIA').catch(() => false),
   });
 }));
 
@@ -1372,17 +1379,29 @@ app.get('/api/db/status', wrap(async (req, res) => {
 app.get('/api/db/groups', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const groups = await prisma.group.findMany({
-    orderBy: { name: 'asc' },
-    include: {
-      batches: { orderBy: { period: 'desc' } },
-      members: {
-        orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
-        include: { user: { select: { id: true, avatar: true, name: true } } },
+  const allGroups = await prisma.group.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        batches: { orderBy: { period: 'desc' } },
+        members: {
+          orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+          include: { user: { select: { id: true, avatar: true, name: true } } },
+        },
       },
-    },
-  });
-  res.json({ groups });
+    });
+    // Guard anti-duplikat (insiden legacy grp-<nama> vs kanonis grp-N):
+    // satu nama -> satu baris, prefer id kanonis /^grp-\d+$/.
+    const seen = new Map();
+    for (const g of allGroups) {
+      const key = String(g.name || '').toUpperCase();
+      const prev = seen.get(key);
+      if (!prev) { seen.set(key, g); continue; }
+      const curCanon = /^grp-\d+$/.test(String(g.id));
+      const prevCanon = /^grp-\d+$/.test(String(prev.id));
+      if (curCanon && !prevCanon) seen.set(key, g);
+    }
+    const groups = [...seen.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    res.json({ groups });
 }));
 
 // History family tree per grup
@@ -1841,14 +1860,44 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
   }
 
   try {
+    const wantSub = String(req.query?.subfolder || '').trim();
+    let targetId = division.driveFolderId;
+    let targetName = null;
+    if (wantSub) {
+      // RBAC by subfolder: 01 mentor-only, 02 all, 03 beyonders — topeng aktif bila ada
+      const effRoles = req.activeRole ? [req.activeRole] : (req.authUser?.roles || []).map((r) => r.role);
+      const isPriv = effRoles.includes('SUPERADMIN') || effRoles.includes('KOMISI') || effRoles.includes('COMMITTEE') || effRoles.includes('BPMJ');
+      const isMentor = effRoles.includes('MENTOR') || effRoles.includes('CO_MENTOR');
+      const isBeyonder = isMentor || effRoles.includes('MENTEE');
+      const low = wantSub.toLowerCase();
+      if (low.includes('01') || low.includes('pembekalan')) {
+        if (!isMentor && !isPriv) return res.status(403).json({ error: '01 Pembekalan hanya untuk Mentor/Co-mentor.' });
+      } else if (low.includes('03') || low.includes('rhb')) {
+        if (!isBeyonder && !isPriv) return res.status(403).json({ error: '03 RHB hanya untuk Beyonders (mentor/mentee).' });
+      } // 02 terbuka untuk semua pemuda (termasuk non-beyonders)
+      const subs = await listFolders(division.driveFolderId, 100);
+      let found = subs.find((f) => String(f.name || '').toLowerCase() === wantSub.toLowerCase());
+      if (!found) found = subs.find((f) => String(f.name || '').toLowerCase().includes(wantSub.toLowerCase().slice(0, 6)));
+      if (!found) {
+        return res.json({ files: [], folders: [], folderId: division.driveFolderId, subfolder: wantSub, hint: 'Subfolder belum ada — upload pertama akan buat otomatis.' });
+      }
+      targetId = found.id;
+      targetName = found.name;
+    }
+    const fresh = String(req.query?.fresh || '') === '1';
+    if (wantSub) {
+      const files = await listFiles({ folderId: targetId, pageSize: 50, fresh });
+      res.json({ files, folders: [], folderId: targetId, subfolder: targetName, parentFolderId: division.driveFolderId });
+      return;
+    }
     const [files, folders] = await Promise.all([
-      listFiles({ folderId: division.driveFolderId, pageSize: 50 }),
-      listFolders(division.driveFolderId, 50),
+      listFiles({ folderId: targetId, pageSize: 50, fresh }),
+      listFolders(targetId, 50),
     ]);
     res.json({
       files,
       folders: folders.map((f) => ({ ...f, displayName: displayFolderName(f.name) })),
-      folderId: division.driveFolderId,
+      folderId: targetId,
     });
   } catch (e) {
     res.status(500).json({ error: `Gagal memuat Drive: ${e.message}` });
@@ -1900,24 +1949,63 @@ app.post('/api/events/:eventId/divisions/:div/drive/upload', requireRole('SUPERA
   if (!division) return res.status(404).json({ error: 'Divisi tidak ditemukan.' });
 
   if (!division.driveFolderId) {
-    return res.status(400).json({ error: 'Divisi belum memiliki folder Drive.' });
+    // Auto-provision bila folder belum ada (mis. event baru atau GDRIVE_WRITE baru aktif)
+    try {
+      const { createEventFolder } = await import('./gdrive-events.mjs');
+      const ev = await prisma.eventProgram.findUnique({ where: { id: eventId } });
+      if (ev) {
+        const fid = await createEventFolder(ev, div.toUpperCase());
+        if (fid) {
+          await prisma.eventDivision.update({ where: { id: division.id }, data: { driveFolderId: fid } });
+          division.driveFolderId = fid;
+        }
+      }
+    } catch (e) {
+      console.warn('[drive] autoprovision gagal:', e.message);
+    }
+    if (!division.driveFolderId) {
+      return res.status(400).json({ error: 'Divisi belum memiliki folder Drive. Coba Aktifkan ulang divisi.' });
+    }
   }
 
-  // Expect multipart form data — use multer or manual parse
-  // For now, expect JSON with base64 file data
-  const { filename, mimetype, data } = req.body || {};
+  const { filename, mimetype, data, subfolder } = req.body || {};
   if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
+  if (typeof data === 'string' && data.length > 11_000_000) {
+    return res.status(413).json({ error: 'File terlalu besar (maks ~8MB). Kompres PDF atau split.' });
+  }
 
   try {
+    let targetFolderId = division.driveFolderId;
+    const wantSub = String(subfolder || '').trim();
+    if (wantSub) {
+      const { listFolders, createFolder } = await import('./gdrive.mjs');
+      const subs = await listFolders(division.driveFolderId, 100);
+      let found = subs.find((f) => String(f.name || '').toLowerCase() === wantSub.toLowerCase());
+      if (!found) {
+        // tolerate partial match (e.g. "03 RHB")
+        found = subs.find((f) => String(f.name || '').toLowerCase().includes(wantSub.toLowerCase().slice(0, 6)));
+      }
+      if (found) targetFolderId = found.id;
+      else {
+        const created = await createFolder(division.driveFolderId, wantSub);
+        targetFolderId = created?.id || division.driveFolderId;
+      }
+    }
     const buffer = Buffer.from(data, 'base64');
-    const file = await gdriveUploadFile(division.driveFolderId, {
+    if (buffer.length > 8_000_000) return res.status(413).json({ error: 'File >8MB tidak didukung upload base64.' });
+    const file = await gdriveUploadFile(targetFolderId, {
       originalname: filename,
       mimetype: mimetype || 'application/octet-stream',
       buffer,
     });
     res.status(201).json({ file });
   } catch (e) {
-    res.status(500).json({ error: `Gagal upload: ${e.message}` });
+    console.error('[drive] upload failed:', e);
+    const msg = String(e.message || '');
+    if (msg.includes('insufficientPermissions') || msg.includes('File not found')) {
+      return res.status(403).json({ error: `Drive akses ditolak: pastikan Service Account ${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? 'sudah di-share sebagai Editor ke folder Drive' : 'GDRIVE belum dikonfigurasi'} — ${msg.slice(0,120)}` });
+    }
+    res.status(500).json({ error: `Gagal upload: ${msg.slice(0,300)}` });
   }
 }));
 
@@ -2061,7 +2149,7 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
       for (const div of divisions) {
         await prisma.eventDivision.create({
           data: {
-            id: `evd-${slug}-${div}`,
+            id: `evd-${crypto.randomUUID()}`,
             eventId: ev.id,
             division: div,
             approvalStatus: 'APPROVED',
@@ -2162,7 +2250,12 @@ function slugify(text) {
 // Helper: divisi yang bisa diakses user berdasarkan struktur_members
 /** 5 Panca Tugas + Benzarpreneurship — sinkron dengan src/lib/pantatugas.ts */
 const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
-const EVENT_KINDS = ['UMUM', 'KHUSUS', 'INTERNAL', 'RECURRING'];
+const EVENT_KINDS = ['UMUM', 'KHUSUS', 'INTERNAL', 'REKREASIONAL'];
+const EVENT_KIND_ALIASES = { RECURRING: 'REKREASIONAL', REKREASI: 'REKREASIONAL' };
+function normalizeEventKind(k) {
+  const s = String(k || '').toUpperCase().trim();
+  return EVENT_KIND_ALIASES[s] || s;
+}
 const EVENT_STATUSES = ['PLANNING', 'ACTIVE', 'DONE', 'ARCHIVED'];
 
 async function canSeeEventDivision(authUser, division) {
@@ -2216,10 +2309,20 @@ app.get('/api/events', wrap(async (req, res) => {
         name: r.name,
         description: r.description,
         status: r.status,
+        kind: r.kind,
+        serviceType: r.service_type ?? null,
+        metadata: r.metadata ?? null,
+        churchProgramId: r.church_program_id ?? null,
         startDate: r.start_date,
         endDate: r.end_date,
+        eventDate: r.event_date ?? null,
+        venueName: r.venue_name ?? null,
+        locationDetail: r.location_detail ?? null,
+        mapUrl: r.map_url ?? null,
+        mapEmbedQuery: r.map_embed_query ?? null,
         driveFolderId: r.drive_folder_id,
         gmeetLink: r.gmeet_link,
+        whatsappGroupUrl: r.whatsapp_group_url ?? null,
         createdById: r.created_by_id,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -2293,7 +2396,7 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
     return res.status(400).json({ error: `divisi "${invalidDiv}" tidak dikenal. Pilihan: ${EVENT_DIVISIONS.join(', ')}.` });
   }
 
-  const eventKind = String(kind || 'KHUSUS').toUpperCase();
+  const eventKind = normalizeEventKind(kind || 'KHUSUS');
   if (!EVENT_KINDS.includes(eventKind)) {
     return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
   }
@@ -2329,7 +2432,7 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   // Buat divisi + provision folder di Drive
   const provisioned = [];
   for (const div of divisions) {
-    const divId = `evd-${slug}-${div}`;
+    const divId = `evd-${crypto.randomUUID()}`;
     await prisma.eventDivision.create({
       data: {
         id: divId,
@@ -2408,7 +2511,7 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
   if (existing) return res.json({ division: existing, alreadyActive: true });
 
   const created = await prisma.eventDivision.create({
-    data: { id: `evd-${ev.slug}-${division}`, eventId: ev.id, division },
+    data: { id: `evd-${crypto.randomUUID()}`, eventId: ev.id, division },
   });
 
   let driveFolderId = null;
@@ -2428,12 +2531,17 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
 }));
 
 // BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
-registerBakuTauRoutes(app, { wrap });
-registerEventArchivePublicRoute(app, { wrap });
-registerEventCheckInRoutes(app, { wrap });
+  registerBakuTauRoutes(app, { wrap });
+  registerEventArchivePublicRoute(app, { wrap });
+  registerEventCheckInRoutes(app, { wrap });
+  registerEventAttendanceSyncRoutes(app, { wrap });
 registerChannelLinkRoutes(app, { wrap });
 registerChurchProgramRoutes(app, { wrap });
 registerMinistryPlanRoutes(app, { wrap });
+registerServingAssignmentRoutes(app, { wrap });
+registerServiceOverrideRoutes(app, { wrap });
+registerServiceSwapRequestRoutes(app, { wrap });
+registerDidaskaliaRhbRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerEventQuestionRoutes(app, { wrap });
 
@@ -2465,7 +2573,7 @@ app.get('/api/events/:id', wrap(async (req, res, next) => {
       );
       ev = {
         id: r.id, tenantId: r.tenant_id, slug: r.slug, name: r.name, description: r.description,
-        status: r.status, kind: r.kind, churchProgramId: r.church_program_id,
+        status: r.status, kind: r.kind, serviceType: r.service_type ?? null, metadata: r.metadata ?? null, churchProgramId: r.church_program_id,
         startDate: r.start_date, endDate: r.end_date,
         eventDate: r.event_date, venueName: r.venue_name, locationDetail: r.location_detail,
         mapUrl: r.map_url, mapEmbedQuery: r.map_embed_query,
@@ -2531,7 +2639,7 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
     data.status = s;
   }
   if (kind !== undefined) {
-    const k = String(kind).toUpperCase();
+    const k = normalizeEventKind(kind);
     if (!EVENT_KINDS.includes(k)) {
       return res.status(400).json({ error: `kind harus salah satu dari ${EVENT_KINDS.join(', ')}.` });
     }
@@ -6569,14 +6677,22 @@ app.delete('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
 // PAW NOTIFICATIONS (Web Push / In-App)
 // ============================================================
 
-// POST /api/paw/subscribe — save notification subscription
-app.post('/api/paw/subscribe', requireRole(), wrap(async (req, res) => {
+// GET /api/push/config — VAPID public key untuk client (tanpa auth)
+app.get('/api/push/config', (req, res) => {
+  const pub = process.env.VAPID_PUBLIC_KEY || 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
+  res.json({ publicKey: pub });
+});
+
+// POST /api/paw/subscribe — save notification subscription (alias /api/push/subscribe)
+async function handlePushSubscribe(req, res) {
   const prisma = getPrisma();
-  const { endpoint, keys } = req.body;
+  const { endpoint, keys } = req.body || {};
   if (!endpoint) return res.status(400).json({ error: 'endpoint wajib' });
   const userId = req.authUser?.id;
   if (!userId) return res.status(401).json({ error: 'User tidak ditemukan' });
-  const id = 'pawsub-' + Date.now().toString(36);
+  const keysOk = keys?.p256dh && keys?.auth;
+  if (!keysOk) return res.status(400).json({ error: 'keys.p256dh/auth wajib' });
+  const id = 'pawsub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
   try {
     await prisma.notification.create({
       data: {
@@ -6586,7 +6702,9 @@ app.post('/api/paw/subscribe', requireRole(), wrap(async (req, res) => {
     });
   } catch { /* skip duplicate */ }
   res.json({ ok: true });
-}));
+}
+app.post('/api/paw/subscribe', requireRole(), wrap(handlePushSubscribe));
+app.post('/api/push/subscribe', requireRole(), wrap(handlePushSubscribe));
 
 // POST /api/paw/send — send notification to user(s)
 app.post('/api/paw/send', requireRole(), wrap(async (req, res) => {

@@ -6,8 +6,12 @@
 
   const VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
-  const isPWASupported = () => 'serviceWorker' in navigator;
+  // Check PWA support
+  const isPWASupported = () => {
+    return 'serviceWorker' in navigator && 'PushManager' in window;
+  };
 
+  // Register service worker
   async function registerSW() {
     if (!isPWASupported()) {
       console.log('PWA not supported');
@@ -21,11 +25,12 @@
 
       console.log('SW registered:', registration.scope);
 
+      // Handle updates
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
-        if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available
             showUpdateAvailable();
           }
         });
@@ -38,13 +43,20 @@
     }
   }
 
+  // Subscribe to push notifications (fetch VAPID from server for env parity)
   async function subscribeToPush(registration) {
     try {
+      let key = VAPID_PUBLIC_KEY;
+      try {
+        const r = await fetch('/api/push/config');
+        if (r.ok) { const j = await r.json(); if (j.publicKey) key = j.publicKey; }
+      } catch {}
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(key),
       });
 
+      // Send subscription to server
       await sendSubscriptionToServer(subscription);
       return subscription;
     } catch (err) {
@@ -53,6 +65,7 @@
     }
   }
 
+  // Unsubscribe from push
   async function unsubscribeFromPush(registration) {
     try {
       const subscription = await registration.pushManager.getSubscription();
@@ -67,10 +80,12 @@
     }
   }
 
+  // Get current subscription
   async function getSubscription(registration) {
     return await registration.pushManager.getSubscription();
   }
 
+  // Send subscription to server
   async function sendSubscriptionToServer(subscription) {
     const authToken = getAuthToken();
     if (!authToken) return;
@@ -95,26 +110,30 @@
     }
   }
 
+  // Delete subscription from server
   async function deleteSubscriptionFromServer(subscription) {
-    console.log('Subscription removed locally', subscription && subscription.endpoint);
+    // Could implement DELETE endpoint if needed
+    console.log('Subscription removed locally');
   }
 
+  // Request notification permission
   async function requestNotificationPermission() {
-    if (typeof Notification === 'undefined') return false;
+    if (!isPWASupported()) return false;
+
     const permission = await Notification.requestPermission();
     return permission === 'granted';
   }
 
+  // Check notification permission
   function getNotificationPermission() {
-    if (typeof Notification === 'undefined') return 'denied';
     return Notification.permission;
   }
 
+  // Show install prompt
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    window.deferredPrompt = e;
     showInstallButton();
   });
 
@@ -129,7 +148,6 @@
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       deferredPrompt = null;
-      window.deferredPrompt = null;
       hideInstallButton();
       return true;
     }
@@ -141,12 +159,14 @@
     if (btn) btn.style.display = 'none';
   }
 
+  // Show update available toast
   function showUpdateAvailable() {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    if (confirm('Versi baru tersedia. Muat ulang?')) {
+      window.location.reload();
     }
   }
 
+  // Helper: Get auth token from cookie
   function getAuthToken() {
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
@@ -156,11 +176,13 @@
     return null;
   }
 
+  // Helper: ArrayBuffer to base64
   function arrayBufferToBase64(buffer) {
     if (!buffer) return '';
     return btoa(String.fromCharCode(...new Uint8Array(buffer)));
   }
 
+  // Helper: base64 to Uint8Array
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -172,21 +194,17 @@
     return outputArray;
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
-        window.dispatchEvent(new CustomEvent('pwa-notification-click', {
-          detail: event.data,
-        }));
-      }
-    });
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (window.__gehcSwRefreshing) return;
-      window.__gehcSwRefreshing = true;
-      window.location.reload();
-    });
-  }
+  // Listen for messages from SW
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data.type === 'NOTIFICATION_CLICK') {
+      // Handle notification click in app
+      window.dispatchEvent(new CustomEvent('pwa-notification-click', {
+        detail: event.data,
+      }));
+    }
+  });
 
+  // Expose API globally
   window.PWA = {
     register: registerSW,
     subscribe: subscribeToPush,
@@ -199,6 +217,7 @@
     VAPID_PUBLIC_KEY,
   };
 
+  // Auto-register on load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', registerSW);
   } else {

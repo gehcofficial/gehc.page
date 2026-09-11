@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Bell, BellOff, Download, Smartphone, CheckCircle2, XCircle, Loader2, AlertCircle, Info } from 'lucide-react';
-import { isStandaloneDisplay, notificationPermission } from '../../lib/pwa-install';
-import { PwaInstallCard } from './PwaInstallCard';
+import { Bell, BellOff, Download, Smartphone, CheckCircle2, XCircle, Loader2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { pushCapability, pushCapabilityMessage } from '../../lib/push-capability';
 
 interface NotificationPermissionBannerProps {
   onDismiss?: () => void;
@@ -13,21 +12,25 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [swRegistered, setSwRegistered] = useState(false);
+  const [error, setError] = useState('');
+  const [cap, setCap] = useState<ReturnType<typeof pushCapability> | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setPermission(notificationPermission());
-    void ensureServiceWorker().then(() => checkSubscription());
+    try { setPermission(Notification.permission); } catch {}
+    setCap(pushCapability());
+    checkSubscription();
+    registerSW();
   }, []);
 
-  const ensureServiceWorker = async () => {
-    if (!('serviceWorker' in navigator)) return null;
+  const registerSW = async () => {
+    if (!('serviceWorker' in navigator)) return;
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       setSwRegistered(true);
-      return reg;
-    } catch {
-      return null;
+      console.log('SW registered:', reg.scope);
+    } catch (err) {
+      console.error('SW registration failed:', err);
     }
   };
 
@@ -41,26 +44,47 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   };
 
   const requestPermission = useCallback(async () => {
-    if (typeof Notification === 'undefined') return;
     setLoading(true);
+    setError('');
     try {
+      const c = pushCapability();
+      if (c.state !== 'supported' && c.state !== 'default') {
+        setCap(c);
+        setError(pushCapabilityMessage(c.state).body);
+        return;
+      }
       const perm = await Notification.requestPermission();
       setPermission(perm);
-
+      setCap(pushCapability());
       if (perm === 'granted') {
         await subscribe();
+      } else if (perm === 'denied') {
+        setError('Izin diblokir. Buka pengaturan browser untuk mengizinkan.');
       }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Gagal minta izin');
     } finally {
       setLoading(false);
     }
   }, []);
 
   const subscribe = async () => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator)) { setError('Service Worker tidak didukung browser ini.'); return; }
+    const capNow = pushCapability();
+    if (capNow.state !== 'supported' && capNow.state !== 'default') {
+      setCap(capNow);
+      setError(pushCapabilityMessage(capNow.state).body);
+      return;
+    }
     try {
       const reg = await navigator.serviceWorker.ready;
-      const vapidKey = (window as any).PWA?.VAPID_PUBLIC_KEY || 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
-
+      let vapidKey = (window as any).PWA?.VAPID_PUBLIC_KEY || '';
+      try {
+        const r = await fetch('/api/push/config');
+        if (r.ok) { const j = await r.json(); if (j.publicKey) vapidKey = j.publicKey; }
+      } catch {}
+      if (!vapidKey) vapidKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
+      setError('');
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
@@ -81,7 +105,12 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       });
 
       setSubscribed(true);
-    } catch (err) {
+      setCap(pushCapability());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/permission denied/i.test(msg)) setError('Izin ditolak browser.');
+      else if (/InvalidAccess|applicationServerKey/i.test(msg)) setError('VAPID key tidak valid — hubungi admin.');
+      else setError(msg || 'Gagal berlangganan push');
       console.error('Subscribe failed:', err);
     }
   };
@@ -97,6 +126,15 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       }
     } catch (err) {
       console.error('Unsubscribe failed:', err);
+    }
+  };
+
+  const installPWA = async () => {
+    const deferredPrompt = (window as any).deferredPrompt;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      (window as any).deferredPrompt = null;
     }
   };
 
@@ -123,40 +161,52 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   if (!compact && permission === 'denied') return null;
 
   if (compact) {
+    const capMsg = cap ? pushCapabilityMessage(cap.state) : null;
+    const showCapHint = cap && cap.state !== 'supported' && cap.state !== 'default' && !subscribed;
     return (
-      <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[#D9D7D0]/50">
-        <div className="flex-1">
-          <p className="text-sm font-bold text-[#1B1B1B]">Notifikasi Push</p>
-          <p className="text-xs text-[#8C8880]">
-            {subscribed ? 'Aktif - Anda akan menerima notifikasi' :
-              permission === 'granted' ? 'Izin diberikan, mengaktifkan...' :
-                permission === 'denied' ? 'Diblokir - aktifkan di pengaturan browser' : 'Klik untuk mengaktifkan'}
-          </p>
+      <div className="flex flex-col gap-1 p-3 bg-white rounded-xl border border-[#D9D7D0]/50">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <p className="text-sm font-bold text-[#1B1B1B]">Notifikasi Push</p>
+            <p className="text-xs text-[#8C8880]">
+              {subscribed ? 'Aktif - Anda akan menerima notifikasi' :
+                permission === 'granted' ? 'Izin diberikan, mengaktifkan...' :
+                  showCapHint ? capMsg!.body :
+                    permission === 'denied' ? 'Diblokir - aktifkan di pengaturan browser' : 'Klik untuk mengaktifkan'}
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {!subscribed && !showCapHint && permission !== 'denied' && (
+              <button
+                onClick={requestPermission}
+                disabled={loading}
+                className="px-3 py-1.5 text-xs font-bold bg-[#F6AE4A] text-[#1B1B1B] rounded-lg disabled:opacity-50 flex items-center gap-1"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aktifkan'}
+              </button>
+            )}
+            {showCapHint && (
+              <span className="px-3 py-1.5 text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded-lg flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> {capMsg!.title}
+              </span>
+            )}
+            {subscribed && (
+              <button
+                onClick={unsubscribe}
+                className="px-3 py-1.5 text-xs font-bold border border-[#D9D7D0] text-[#8C8880] rounded-lg hover:bg-gray-50"
+              >
+                Nonaktifkan
+              </button>
+            )}
+            {permission === 'denied' && !showCapHint && (
+              <a href="#" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-xs font-bold text-[#F6AE4A] hover:underline">
+                Pengaturan
+              </a>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          {!subscribed && permission !== 'denied' && (
-            <button
-              onClick={requestPermission}
-              disabled={loading}
-              className="px-3 py-1.5 text-xs font-bold bg-[#F6AE4A] text-[#1B1B1B] rounded-lg disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aktifkan'}
-            </button>
-          )}
-          {subscribed && (
-            <button
-              onClick={unsubscribe}
-              className="px-3 py-1.5 text-xs font-bold border border-[#D9D7D0] text-[#8C8880] rounded-lg hover:bg-gray-50"
-            >
-              Nonaktifkan
-            </button>
-          )}
-          {permission === 'denied' && (
-            <a href="#" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-xs font-bold text-[#F6AE4A] hover:underline">
-              Pengaturan
-            </a>
-          )}
-        </div>
+        {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1">{error}</p>}
+        {showCapHint && <p className="text-[11px] text-amber-700 leading-relaxed">{capMsg!.body}</p>}
       </div>
     );
   }
@@ -171,7 +221,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[#1B1B1B]">Aktifkan Notifikasi Push</p>
             <p className="text-xs text-[#8C8880] mt-0.5">
-              Dapatkan update real-time: warta baru, jadwal penatalayan, & Benzarpreneurship.
+              Dapatkan update real-time: warta baru, jadwal penatalayan, galeri event, & info toko.
             </p>
           </div>
         </div>
@@ -183,7 +233,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <FeatureIcon icon={<Bell className="w-5 h-5" />} title="Warta Publik" desc="Warta mingguan siap baca" />
         <FeatureIcon icon={<Smartphone className="w-5 h-5" />} title="Penatalayan" desc="Jadwal ibadah & reminder" />
-        <FeatureIcon icon={<Download className="w-5 h-5" />} title="Warta & Benzarpreneurship" desc="Foto edisi warta & promo merchandise" />
+        <FeatureIcon icon={<Download className="w-5 h-5" />} title="Galeri & Toko" desc="Foto event & promo merchandise" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -229,10 +279,14 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
           </div>
         )}
 
-        {!isStandaloneDisplay() && (
-          <div className="flex-1 min-w-[140px]">
-            <PwaInstallCard compact />
-          </div>
+        {/* Install PWA button */}
+        {!isStandalone() && (
+          <button
+            onClick={installPWA}
+            className="flex-1 min-w-[140px] py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold text-[#8C8880] hover:bg-gray-50 flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Install App
+          </button>
         )}
       </div>
 
@@ -257,4 +311,10 @@ function FeatureIcon({ icon, title, desc }: { icon: React.ReactNode; title: stri
       </div>
     </div>
   );
+}
+
+function isStandalone() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true;
 }
