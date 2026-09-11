@@ -19,7 +19,9 @@ const SUBDIVISION_MIGRATION = {
     Intercessor: 'Doa & Intercession',
   },
   DIDASKALIA: {
-    'Kurikulum & Pembekalan': 'Kurikulum Pemuridan',
+    'Kurikulum & Pembekalan': 'Kurikulum',
+    'Kurikulum Pemuridan': 'Kurikulum',
+    'Pembekalan Tim': 'Kurikulum',
   },
   KOINONIA: {
     'Program Persekutuan': 'Program & Acara',
@@ -95,7 +97,22 @@ async function main() {
     }
   }
 
+  // role_assignments.subdivision juga dinormalkan (dipakai UI & RBAC)
+  const assignments = await prisma.roleAssignment.findMany({
+    where: { division: { in: Object.keys(SUBDIVISION_MIGRATION) } },
+  });
+  let raUpdated = 0;
+  for (const a of assignments) {
+    const div = (a.division || '').toUpperCase();
+    const map = SUBDIVISION_MIGRATION[div];
+    if (a.subdivision && map?.[a.subdivision]) {
+      await prisma.roleAssignment.update({ where: { id: a.id }, data: { subdivision: map[a.subdivision] } });
+      raUpdated += 1;
+    }
+  }
+
   console.log(`✓ migrate-pancatugas: ${subUpdated} subdivision, ${posUpdated} position updates (${members.length} rows scanned)`);
+  console.log(`  role_assignments: ${raUpdated} subdivision updates (${assignments.length} rows scanned)`);
   console.log('  Rekomendasi: npm run db:seed-users:staging untuk replace-all dari INITIAL_STRUKTUR');
 }
 
