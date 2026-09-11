@@ -33,7 +33,13 @@ if (!DRY && !APPLY) {
 }
 
 const KURIKULUM_NAME = 'Kurikulum';
-const LEGACY_KURIKULUM_NAMES = ['kurikulum & pembekalan', 'kurikulum pemuridan', 'pembekalan tim']; // lower-case — single source, hapus legasi langsung
+const LEGACY_KURIKULUM_NAMES = [
+  'kurikulum & pembekalan',
+  'kurikulum pemuridan',
+  'pembekalan tim',
+  'main speaker',
+  'modul & kurikulum',
+]; // lower-case — single source (Kurikulum by-event), hapus legasi langsung
 const DIDASKALIA_PILLAR_RE = /^didaskalia/i;
 const EV_DIDASKALIA_RE = /\[EV:[^\]]+:DIDASKALIA\]/i;
 
