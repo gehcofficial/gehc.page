@@ -116,6 +116,7 @@ import { requirePlatformRoot, requirePlatformAdmin, requireKomisiOrPlatformAdmin
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerChurchProfileRoutes } from './routes/church-profile.mjs';
+import { registerHubGalleryRoutes } from './routes/hub-gallery.mjs';
 import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
 import { registerDigestRoutes } from './routes/digest.mjs';
 import { registerBirthdayRoutes } from './routes/birthday.mjs';
@@ -5978,6 +5979,7 @@ registerAdminRoutes(app, { wrap });
 registerVisualsPublishRoutes(app, { wrap });
   registerOrgRoutes(app, { wrap });
   registerChurchProfileRoutes(app, { wrap });
+  registerHubGalleryRoutes(app, { wrap });
   registerEventLifecycleRoutes(app, { wrap });
   registerDigestRoutes(app, { wrap });
   registerBirthdayRoutes(app, { wrap });

@@ -123,6 +123,11 @@ async function findWebsiteVisualRoot() {
 let slotsCache = { at: 0, data: null };
 const SLOTS_TTL = 60_000;
 
+/** Paksa muat ulang slot media pada request berikutnya (setelah unggah/hapus). */
+export function bustSlotsCache() {
+  slotsCache = { at: 0, data: null };
+}
+
 async function loadDriveSlots() {
   if (slotsCache.data && Date.now() - slotsCache.at < SLOTS_TTL) return slotsCache.data;
 
