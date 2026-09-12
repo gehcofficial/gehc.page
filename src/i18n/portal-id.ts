@@ -591,6 +591,13 @@ export const portalId: typeof portalEn = {
       when: 'Drive tidak sinkron atau folder hilang.',
       notFor: 'Publikasi visual situs ada di Panduan Media. Folder divisi dibuka dari Panel Divisi.',
     },
+    'church-info': {
+      title: 'Info Gereja',
+      purpose: 'Profil, kontak, jadwal, dan sosial media gereja serta tiap unit pelayanan.',
+      steps: ['Isi profil & alamat gereja.', 'Tambahkan jadwal ibadah dan sosial media.', 'Atur kontak/sosial tiap unit lalu simpan.'],
+      when: 'Info di hub gehc.page perlu diperbarui.',
+      notFor: 'Nama pengurus struktur diubah di Kelola Hirarki/Struktur — bukan di sini.',
+    },
     'pastoral-care': {
       title: 'Portal Doa',
       purpose: 'Kabar penggembalaan tentang orang lain (sakit, duka, yudisium). Privat, bukan sunting profil.',

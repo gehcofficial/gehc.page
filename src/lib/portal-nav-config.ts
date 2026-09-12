@@ -49,6 +49,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'divisions', label: 'Panel Divisi (6 Divisi)', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace permanen divisi' },
   { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
+  { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit' },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];
@@ -86,14 +87,15 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'divisions',
     'wa-channels',
     'integrations',
+    'church-info',
     'account',
   ],
-  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'media-guide', 'content-testimonials', 'account'],
+  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
   COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
   MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   CO_MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   MENTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
-  BPMJ: ['event-info', 'kegiatan', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'account'],
+  BPMJ: ['event-info', 'kegiatan', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
 };
 
 function monitoringLabel(ctx: NavBuildContext): string {

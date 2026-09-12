@@ -23,6 +23,12 @@ model Tenant {
   defaultBipra     Bipra?   @map("default_bipra")
   /// Apakah registrasi mandiri dibuka untuk unit ini.
   registrationOpen Boolean  @default(false) @map("registration_open")
+  /// Tagline singkat unit.
+  tagline          String?  @db.VarChar(300)
+  /// Email kontak unit.
+  contactEmail     String?  @map("contact_email") @db.VarChar(190)
+  /// Sosial unit: { instagram, facebook, tiktok, youtube }.
+  socials          Json?
   createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   users  UserRole[]
@@ -1086,6 +1092,29 @@ model BirthdaySetting {
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@map("birthday_settings")
+}
+
+/// Profil gereja church-wide (singleton, id tetap `church-profile`).
+model ChurchProfile {
+  id            String   @id @db.VarChar(64)
+  name          String   @db.VarChar(200)
+  tagline       String?  @db.VarChar(300)
+  description   String?  @db.Text
+  addressText   String?  @map("address_text") @db.Text
+  mapShareUrl   String?  @map("map_share_url") @db.Text
+  mapEmbedQuery String?  @map("map_embed_query") @db.VarChar(300)
+  contactEmail  String?  @map("contact_email") @db.VarChar(190)
+  contactPhone  String?  @map("contact_phone") @db.VarChar(40)
+  whatsapp      String?  @db.VarChar(40)
+  /// Jadwal ibadah: [{ label, day, time }].
+  schedules     Json?
+  /// Sosial media: { instagram, facebook, tiktok, youtube }.
+  socials       Json?
+  updatedById   String?  @map("updated_by_id") @db.VarChar(64)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@map("church_profile")
 }
 
 enum NotificationStatus {

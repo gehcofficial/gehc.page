@@ -597,6 +597,13 @@ export const portalEn = {
       when: 'Drive is out of sync or a folder is missing.',
       notFor: 'Publishing website visuals is Media Guide. Division folders are opened from the Division panel.',
     },
+    'church-info': {
+      title: 'Church Info',
+      purpose: 'Profile, contact, schedules, and social media for the church and each ministry unit.',
+      steps: ['Fill the church profile and address.', 'Add worship schedules and social media.', 'Set each unit contact/social then save.'],
+      when: 'Info on the gehc.page hub needs updating.',
+      notFor: 'Officer names in the structure are managed in Org Hierarchy/Structure — not here.',
+    },
     'pastoral-care': {
       title: 'Prayer board',
       purpose: 'Private care notes about someone else (sick, bereavement, graduation). Not public, not a profile edit.',

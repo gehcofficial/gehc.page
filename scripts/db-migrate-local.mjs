@@ -240,6 +240,11 @@ const STEPS = [
     label: 'Host tenancy (bipra nullable, registration_origin, tenant default_bipra)',
     required: true,
   },
+  {
+    script: 'server/_migrate-church-profile.cjs',
+    label: 'Profil gereja church-wide + sosial unit',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

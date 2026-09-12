@@ -63,6 +63,7 @@ const REQUIRED_TABLES = [
   'serving_assignments',
   'service_week_overrides',
   'service_swap_requests',
+  'church_profile',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [
@@ -91,7 +92,7 @@ const REQUIRED_TABLE_COLUMNS = {
   orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
   group_batches: ['generation', 'mentor_user_id', 'comentor_user_id', 'regen_ready'],
   group_albums: ['status'],
-  tenants: ['default_bipra', 'registration_open'],
+  tenants: ['default_bipra', 'registration_open', 'tagline', 'contact_email', 'socials'],
 };
 
 const quiet = process.argv.includes('--quiet');

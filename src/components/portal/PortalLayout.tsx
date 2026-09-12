@@ -10,6 +10,7 @@ import { PastoralCareBoard } from './PastoralCareBoard';
 import { BeyondersLeadersPanel } from './BeyondersLeadersPanel';
 import { ManageStruktur } from './ManageStruktur';
 import { ManageIntegrations } from './ManageIntegrations';
+import ManageChurchInfo from './ManageChurchInfo';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
@@ -740,6 +741,12 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="integrations" />
               <ManageIntegrations />
+            </div>
+          )}
+          {activeTab === 'church-info' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="church-info" />
+              <ManageChurchInfo />
             </div>
           )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
