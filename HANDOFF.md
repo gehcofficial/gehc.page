@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Info Gereja tampil di landing Pemuda + salin staging→prod (13 Sep 2026)
+## Current — Kelola Galeri Hub dari panel Info Gereja + folder Drive (13 Sep 2026)
+
+**Goal:** Buat folder galeri hub otomatis dan kelola foto langsung dari panel (unggah/hapus), tanpa buka Drive manual.
+
+**Done:**
+- **Script** `server/_ensure-hub-gallery-folder.cjs` + npm `drive:ensure-hub[:prod]` — memastikan `Website Visual [PUBLIK]/hub/`. Dijalankan: staging (hub `1Ppa8OiS…`) & production (hub `1M-Ut3jr…`).
+- **API** `server/routes/hub-gallery.mjs` (akses SUPERADMIN/BPMJ/KOMISI): `GET /api/hub/gallery` (baca via SA), `POST /api/hub/gallery` (unggah, OAuth pemilik, public reader), `DELETE /api/hub/gallery/:fileId` (ke sampah), `POST /api/hub/gallery/ensure-folder`. Mutasi memanggil `bustSlotsCache()` (`content-public.mjs`) agar carousel langsung ikut.
+- **Panel**: tab/section **Galeri** di `ManageChurchInfo.tsx` — grid thumbnail, unggah multi-foto (kompres klien → JPEG ≤1600px), hapus, tombol "Buat folder", link "Buka di Drive".
+- Verifikasi: lint bersih, 305 test hijau, build OK; deploy prod; `GET/POST /api/hub/gallery` = **401 tanpa sesi** (rute terdaftar); `slots.hub` ada.
+- Folder Drive: **prod** `Website Visual [PUBLIK]/hub/` = ID `1M-Ut3jreOSxbRLzsy_TycyhHI3LEuEav`.
+
+### Next
+1. Isi ≥4 foto publik ke folder `hub` (via panel atau Drive) → carousel hub muncul.
+2. Unggah `brand/logo-gmim.png` (watermark + footer hub).
+
+### Commands
+```
+npm run drive:ensure-hub:prod
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Info Gereja tampil di landing Pemuda + salin staging→prod (13 Sep 2026)
 
 **Goal:** Data Info Gereja yang diisi di staging dipakai di prod, dan tampil di landing `youth.gehc.page` (footer) — bukan hanya hub `gehc.page`.
 

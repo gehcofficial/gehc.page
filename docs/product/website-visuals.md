@@ -110,7 +110,7 @@ Bukan semua aset landing diurus admin. Tag zona `[PUBLIK]` dll. tetap di nama fo
 |---|---|---|---|
 | Logo GEHC | `Website Visual/brand/` | Komisi | Marturia (file PNG transparan) |
 | Logo GMIM (watermark) | `Website Visual/brand/` | BPMJ/Komisi | Marturia; izin pemakaian logo GMIM |
-| Galeri jemaat hub | `Website Visual/hub/` | Marturia/Komisi | Foto publik yang aman ditampilkan |
+| Galeri jemaat hub | `Website Visual/hub/` | Marturia/Komisi | Panel **Info Gereja → Galeri** (unggah/hapus) atau Drive langsung; foto publik yang aman |
 | Hero, collage | `Website Visual/landing/` | Marturia (Desain) | Komisi (arah identitas) |
 | Banner warta default | `Website Visual/warta/` | Marturia | Didaskalia (jadwal edisi) |
 | Foto edisi warta | `Warta Publik/…/foto/` | Marturia (Dokumentasi) | Didaskalia (judul & tanggal folder) |
