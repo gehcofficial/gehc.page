@@ -2,7 +2,7 @@
 
 Staging (`https://staging-gehcpage.vercel.app`) dan production **sengaja beda** di data, secret, dan seed. Yang harus sama: **kode + schema**.
 
-Production URL: `https://gehcpage.vercel.app` (Vercel Production = git `main`). Jangan pakai `npm run deploy:staging` untuk prod.
+Production URL: `https://youth.gehc.page` (Vercel Production = git `main`). `gehc.page` dan `www.gehc.page` → **308 redirect** ke `youth.gehc.page` (domain-level redirect Vercel). Jangan pakai `npm run deploy:staging` untuk prod.
 
 ## 1. Env Vercel Production
 
@@ -11,8 +11,8 @@ Filter **Production** (bukan Preview). Wajib beda dari staging:
 | Key | Production |
 |-----|------------|
 | `DATABASE_URL_PRODUCTION` (atau `DATABASE_URL`) | Cluster TiDB `youthgehc` — **bukan** branch/staging |
-| `APP_URL` | `https://gehcpage.vercel.app` |
-| `CORS_ORIGIN` | `https://gehcpage.vercel.app` (+ custom domain jika ada) |
+| `APP_URL` | `https://youth.gehc.page` |
+| `CORS_ORIGIN` | `https://youth.gehc.page` (boleh tambah `https://gehcpage.vercel.app` selama transisi QR lama) |
 | `SESSION_SECRET` | Kuat, **beda** dari staging |
 | `OPERATOR_SESSION_SECRET` | Kuat, **beda** dari `SESSION_SECRET` dan dari staging |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Client OAuth yang whitelist domain prod |
@@ -34,10 +34,10 @@ Lokal: `.env.production` (gitignore) hanya untuk script `*:prod`.
 
 Google Cloud Console — OAuth Web client:
 
-- Authorized JavaScript origins: `https://gehcpage.vercel.app` (+ custom domain)
-- Authorized redirect URIs: `https://gehcpage.vercel.app/api/auth/google/callback`
+- Authorized JavaScript origins: `https://youth.gehc.page` (+ `https://gehcpage.vercel.app` selama transisi)
+- Authorized redirect URIs: `https://youth.gehc.page/api/auth/google/callback`
 
-`WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` ikut hostname prod, atau biarkan default dari `APP_URL`.
+`WEBAUTHN_RP_ID=gehc.page` (agar passkey berlaku lintas subdomain) / `WEBAUTHN_ORIGIN=https://youth.gehc.page`. Daftarkan ulang passkey `#/admin` di domain baru — passkey lama (`gehcpage.vercel.app`) tidak berlaku.
 
 ## 3. Database
 
@@ -85,6 +85,31 @@ Script mencetak root yang dipakai — cek sebelum lanjut. Panduan: [`drive-integ
 - Portal nav sesuai role nyata
 - `#/admin` Orang & Provision: undang Beyonders (pilih rumah) dan staf (pilih slot) — tanpa error Prisma `onboarding_status`
 - Drive/visual tidak mengarah ke folder staging
+
+## 8. DNS (Cloudflare)
+
+Zone `gehc.page` dikelola di **Cloudflare** (NS `coleman`/`serenity.ns.cloudflare.com`). Helper: `scripts/cloudflare-dns.mjs` (butuh `CF_API_TOKEN` scope `Zone → DNS → Edit` + `Zone → Zone → Read`).
+
+```powershell
+npm run dns:list
+npm run dns:upsert -- --type CNAME --name youth --content 8e88b9e05f2e1e25.vercel-dns-017.com --ttl 300 --apply
+```
+
+Record aktif (semua **DNS-only**, jangan proxy di Cloudflare):
+
+| Type | Name | Content |
+|---|---|---|
+| CNAME | `youth` | target unik project Vercel (`vercel domains verify youth.gehc.page --format=json`) |
+| CNAME | `@` | target Vercel yang sama (CNAME flattening Cloudflare) |
+| CNAME | `www` | target Vercel yang sama |
+
+Redirect apex/www → youth diatur di Vercel (bukan DNS):
+
+```powershell
+vercel api /v9/projects/gehc.page/domains/gehc.page -X PATCH -F redirect=youth.gehc.page -F redirectStatusCode=308 --scope gehc
+```
+
+Ganti target DNS bila project Vercel berubah: `vercel domains verify <domain> --format=json` → pakai `recommended.records`.
 
 ## Jangan
 

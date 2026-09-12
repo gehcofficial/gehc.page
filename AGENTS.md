@@ -4,7 +4,9 @@
 
 **GEHC.page** — public landing + Beyonders mentoring portal for GMIM Eben Haezer Cikarang Youth.
 
+- Production: `https://youth.gehc.page` (Vercel Production = git `main`); `gehc.page` + `www.gehc.page` → 308 redirect ke `youth.gehc.page`
 - Staging: `https://staging-gehcpage.vercel.app`
+- DNS: Cloudflare zone `gehc.page` (`npm run dns:list`, `npm run dns:upsert`)
 - Local: `npm run dev:all` (API `:8787` + Vite `:3000`)
 
 ## Branch strategy

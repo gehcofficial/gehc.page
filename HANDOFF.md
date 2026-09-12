@@ -1,6 +1,36 @@
 # GEHC Portal — Handoff
 
-## Current — Didaskalia Studio: AI 7 Path + PDF (Modul/RHB/Khotbah) + Jadwal & Meet (12 Sep 2026)
+## Current — Migrasi domain resmi: gehc.page / youth.gehc.page (12 Sep 2026)
+
+**Goal:** Domain resmi `gehc.page` (Cloudflare) + portal pindah ke `youth.gehc.page`; apex/www redirect; siap Workspace.
+
+**Done:**
+- Beli `gehc.page` via Cloudflare Registrar (zone aktif; NS coleman/serenity). DNS dikelola via helper baru `scripts/cloudflare-dns.mjs` (`npm run dns:list` / `dns:upsert` / `dns:zones`); `CF_API_TOKEN` + `CF_ZONE_NAME` di `.env`, zone id `0b8e679f2669dcc7097256dd4a700665`.
+- Vercel project `gehc.page`: `youth.gehc.page` (Production), `gehc.page`, `www.gehc.page` terpasang & `configured-correctly`.
+- Cloudflare DNS (DNS-only, TTL 300): CNAME `youth`/`@`/`www` → `8e88b9e05f2e1e25.vercel-dns-017.com`.
+- Redirect domain Vercel: `gehc.page` + `www.gehc.page` → **308** `https://youth.gehc.page` (via `vercel api PATCH`). Terverifikasi `curl -I` 308; `youth.gehc.page` 200.
+- Env Vercel Production: `APP_URL=https://youth.gehc.page`, `CORS_ORIGIN=https://youth.gehc.page,https://gehcpage.vercel.app`, `WEBAUTHN_ORIGIN=https://youth.gehc.page`, `WEBAUTHN_RP_ID=gehc.page`. Redeploy Production OK.
+- Fix: `app.set('trust proxy', 1)` (`server/createApp.mjs`) — sebelumnya `req.protocol` selalu `http` di Vercel sehingga redirect_uri OAuth salah; kini `https://youth.gehc.page/api/auth/google/callback`.
+- Pesan kamera di `EventCheckInTab.tsx` → `youth.gehc.page`. Smoke API prod (`/api/auth/config`, `/api/version`, `/api/config`, `/api/content/public`) semua 200, DB production.
+- Verifikasi: lint bersih, 290 test hijau, build OK.
+- `gehcpage.vercel.app` sengaja tetap hidup (QR/landing lama) — tidak bisa di-redirect (domain Vercel).
+
+### Next (manual, di luar CLI)
+1. Google Cloud Console → OAuth Web client: tambah origin `https://youth.gehc.page` + redirect `https://youth.gehc.page/api/auth/google/callback` (jangan hapus yang lama selama transisi).
+2. Daftar ulang passkey `#/admin` di `https://youth.gehc.page` (passkey lama terikat `gehcpage.vercel.app`).
+3. Uji login Google + QR check-in di domain baru.
+4. Google Workspace jalur Nonprofit + Shared Drive (fase berikut).
+
+### Commands
+```
+npm run dns:list
+npm run lint && npm run test
+vercel domains verify youth.gehc.page --format=json
+```
+
+---
+
+## Prior — Didaskalia Studio: AI 7 Path + PDF (Modul/RHB/Khotbah) + Jadwal & Meet (12 Sep 2026)
 
 **Goal:** Panel Didaskalia untuk menyusun materi mingguan dengan bantuan AI, diskusi internal, lalu generate PDF (Modul Pembekalan 01, Ringkasan Khotbah 02, RHB 7 hari 03) langsung ke Drive, plus jadwal ritual mingguan dengan link Google Meet tetap.
 
