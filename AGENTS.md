@@ -4,7 +4,8 @@
 
 **GEHC.page** — public landing + Beyonders mentoring portal for GMIM Eben Haezer Cikarang Youth.
 
-- Production: `https://youth.gehc.page` (Vercel Production = git `main`); `gehc.page` + `www.gehc.page` → 308 redirect ke `youth.gehc.page`
+- Production: `https://youth.gehc.page` (Vercel Production = git `main`). Hub gereja di `https://gehc.page` (redirect `www` → `gehc.page`).
+- Unit subdomain (pool, 1 repo/DB): `youth`/`teen`/`kids`/`men`/`women`/`districts`/`community`.gehc.page. Host = tenant; hanya `youth` aktif, lainnya "coming soon". Fallback `*.vercel.app`/localhost = Pemuda.
 - Staging: `https://staging-gehcpage.vercel.app`
 - DNS: Cloudflare zone `gehc.page` (`npm run dns:list`, `npm run dns:upsert`)
 - Local: `npm run dev:all` (API `:8787` + Vite `:3000`)

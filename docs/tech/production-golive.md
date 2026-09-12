@@ -2,7 +2,27 @@
 
 Staging (`https://staging-gehcpage.vercel.app`) dan production **sengaja beda** di data, secret, dan seed. Yang harus sama: **kode + schema**.
 
-Production URL: `https://youth.gehc.page` (Vercel Production = git `main`). `gehc.page` dan `www.gehc.page` → **308 redirect** ke `youth.gehc.page` (domain-level redirect Vercel). Jangan pakai `npm run deploy:staging` untuk prod.
+Production URL: `https://youth.gehc.page` (Vercel Production = git `main`). `https://gehc.page` = **hub gereja** (statis); `www.gehc.page` → **308 redirect** ke `gehc.page`. Jangan pakai `npm run deploy:staging` untuk prod.
+
+## Host = tenant (pool multi-unit)
+
+Satu repo, satu Vercel project, satu DB. Unit ditentukan dari hostname:
+
+| Host | Unit | `tenantId` | `defaultBipra` |
+|---|---|---|---|
+| `gehc.page` / `www` | Hub | — | `null` (netral) |
+| `youth.gehc.page` | Pemuda | `tenant-youth` | `PEMUDA` |
+| `teen.gehc.page` | Pra Remaja | `tenant-teen` | `REMAJA` |
+| `kids.gehc.page` | Anak | `tenant-kids` | `ANAK` |
+| `men.gehc.page` | P/KB | `tenant-men` | `BAPAK` |
+| `women.gehc.page` | W/KI | `tenant-women` | `IBU` |
+| `districts.gehc.page` | Kolom | `tenant-districts` | `null` |
+| `community.gehc.page` | Komunitas | `tenant-community` | `null` |
+| `*.vercel.app`, localhost | fallback Pemuda | `tenant-youth` | `PEMUDA` |
+
+Registrasi mengikuti host: hub → `WAITING_POOL` + `bipra=null` + tanpa role unit; unit → `bipra` unit + role unit. Logika: `server/lib/host-context.mjs` (server) & `src/lib/host-context.ts` (frontend) — **jaga sinkron**.
+
+Seed tenant: `npm run db:seed:tenants:staging` / `:prod`.
 
 ## 1. Env Vercel Production
 
@@ -95,18 +115,22 @@ npm run dns:list
 npm run dns:upsert -- --type CNAME --name youth --content 8e88b9e05f2e1e25.vercel-dns-017.com --ttl 300 --apply
 ```
 
-Record aktif (semua **DNS-only**, jangan proxy di Cloudflare):
+Record aktif (semua **DNS-only**, jangan proxy di Cloudflare) — `@`, `www`, `youth`, `teen`, `kids`, `men`, `women`, `districts`, `community` semuanya CNAME ke target Vercel `8e88b9e05f2e1e25.vercel-dns-017.com`:
 
 | Type | Name | Content |
 |---|---|---|
-| CNAME | `youth` | target unik project Vercel (`vercel domains verify youth.gehc.page --format=json`) |
-| CNAME | `@` | target Vercel yang sama (CNAME flattening Cloudflare) |
-| CNAME | `www` | target Vercel yang sama |
+| CNAME | `@` | target Vercel (CNAME flattening Cloudflare) |
+| CNAME | `www` | target Vercel |
+| CNAME | `youth` … `community` | target Vercel yang sama |
 
-Redirect apex/www → youth diatur di Vercel (bukan DNS):
+Registrasi subdomain di Vercel: `vercel domains add <sub>.gehc.page gehc.page` (semua di project `gehc.page`).
+
+Redirect `www` → apex diatur di Vercel (bukan DNS); `gehc.page` **tidak** di-redirect (serve hub):
 
 ```powershell
-vercel api /v9/projects/gehc.page/domains/gehc.page -X PATCH -F redirect=youth.gehc.page -F redirectStatusCode=308 --scope gehc
+vercel api /v9/projects/gehc.page/domains/www.gehc.page -X PATCH -F redirect=gehc.page -F redirectStatusCode=308 --scope gehc
+# hapus redirect apex (serve hub): body {"redirect":null,"redirectStatusCode":null}
+vercel api /v9/projects/gehc.page/domains/gehc.page -X PATCH --input clear.json --scope gehc
 ```
 
 Ganti target DNS bila project Vercel berubah: `vercel domains verify <domain> --format=json` → pakai `recommended.records`.

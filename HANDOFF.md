@@ -1,6 +1,36 @@
 # GEHC Portal — Handoff
 
-## Current — Migrasi domain resmi: gehc.page / youth.gehc.page (12 Sep 2026)
+## Current — Hub gehc.page + multi-unit (pool) subdomain + registrasi sadar-asal (12 Sep 2026)
+
+**Goal:** `gehc.page` jadi hub gereja (bukan redirect), unit disajikan per-subdomain English dari satu repo/DB, registrasi mengikuti host.
+
+**Done:**
+- **Hub `gehc.page`** (`src/components/hub/ChurchHub.tsx`): direktori unit (Pemuda aktif → `youth.gehc.page`; lain coming soon), info ibadah/lokasi, tombol Masuk Portal. `src/lib/host-context.ts` allowlist hub; `src/main.tsx` memilih hub / app Pemuda / coming soon via `React.lazy`.
+- **Coming soon** (`UnitComingSoon.tsx`) untuk `teen/kids/men/women/districts/community.gehc.page`.
+- **Redirect Vercel:** apex `gehc.page` di-clear (serve hub), `www.gehc.page` → 308 `gehc.page`. `gehcpage.vercel.app` & staging tetap portal Pemuda (fallback).
+- **Subdomain baru:** `teen/kids/men/women/districts/community.gehc.page` → CNAME Cloudflare (DNS-only) + `vercel domains add`; semua 200.
+- **Skema (migrasi `_migrate-host-tenancy.cjs`, lokal+staging+prod):** `users.bipra` nullable, `users.registration_origin`, `tenants.default_bipra`, `tenants.registration_open`; backfill `registration_origin='youth'` (108 staging / 101 prod).
+- **Registrasi sadar-host** (`server/lib/host-context.mjs`): `register/{google,local}`, `loginWithGoogleCredential`, `upsertGoogleUser` memakai konteks host — hub → `bipra=null` + tanpa role unit; unit → `bipra` unit + role unit.
+- **Tenant English** (`INITIAL_TENANTS`, `seed-tenants.ts` + `db:seed:tenants[:staging|:prod]`): `tenant-youth/teen/kids/men/women/community/districts`; legacy `tenant-bapak/ibu/rekreasi/teritorial` dihapus (tak terpakai).
+- **Trust proxy** sudah aktif dari episode sebelumnya → OAuth `redirect_uri` https.
+- Verifikasi: lint bersih, 297 test hijau (7 baru `host-context`), build OK, `db:schema:check` staging+prod hijau.
+- **Sisa (Fase 3b/3c):** threading `'tenant-youth'` → tenant per-host di konten/nav masih bertahap (belum ada pembaca aktif karena hanya `youth` yang aktif); login terpadu dari hub masih tombol → `youth.gehc.page`.
+
+### Next
+1. Google Cloud Console: tambah origin `https://youth.gehc.page` + redirect `.../api/auth/google/callback`; tambahkan bila unit lain diaktifkan.
+2. Daftar ulang passkey `#/admin` di `youth.gehc.page`.
+3. Saat mengaktifkan unit (mis. Teen): set `Tenant.isActive`/`registrationOpen`, bangun panel unit, lalu threading tenantId.
+
+### Commands
+```
+npm run db:seed:tenants:staging   # atau :prod
+npm run db:schema:check:prod
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Migrasi domain resmi: gehc.page / youth.gehc.page (12 Sep 2026)
 
 **Goal:** Domain resmi `gehc.page` (Cloudflare) + portal pindah ke `youth.gehc.page`; apex/www redirect; siap Workspace.
 
