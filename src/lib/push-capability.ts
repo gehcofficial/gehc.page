@@ -43,24 +43,46 @@ export function isSecure(): boolean {
   return window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
+/**
+ * Kemampuan push.
+ *
+ * Urutan penting: di iOS, `PushManager`/`Notification` hanya tersedia saat web
+ * app dijalankan dari Home Screen (standalone). Kalau kita cek `PushManager`
+ * lebih dulu, pengguna Safari tab (iOS 16.4+) salah mendapat pesan "browser
+ * tidak dukung". Karena itu deteksi iOS didahulukan, baru API generic.
+ */
 export function pushCapability(): { state: PushCapability; reason: string } {
   try {
-    if (typeof Notification === 'undefined') return { state: 'no-sw', reason: 'Browser tidak dukung notifikasi.' };
-    if (Notification.permission === 'denied') return { state: 'denied', reason: 'Izin notifikasi diblokir di browser.' };
+    const ios = isIosDevice();
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      return { state: 'denied', reason: 'Izin notifikasi diblokir di browser.' };
+    }
     if (!isSecure()) return { state: 'insecure', reason: 'Butuh HTTPS untuk push (buka https://youth.gehc.page).' };
     if (isInAppBrowser()) return { state: 'inapp-browser', reason: 'Buka dari WhatsApp/Instagram — perlu buka di Chrome/Safari asli.' };
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { state: 'no-sw', reason: 'Browser tidak dukung push.' };
-    if (isIosDevice()) {
+
+    // iOS lebih dulu: Safari tab tidak punya PushManager walau iOS 16.4+.
+    if (ios) {
       const major = iosMajor();
       if (major !== null && major < 16) return { state: 'ios-old', reason: 'Butuh iOS 16.4+ untuk push.' };
-      // 16.4+ alpha: check minor? if 16.0-16.3 need install + version
       if (major === 16) {
         const m2 = ua().match(/OS 16_(\d+)/i);
         const minor = m2 ? parseInt(m2[1], 10) : 0;
         if (minor < 4) return { state: 'ios-old', reason: 'Butuh iOS 16.4+ (update iOS).' };
       }
       if (!isStandalone()) return { state: 'ios-need-install', reason: 'iPhone perlu Install ke Home Screen dulu.' };
+      if (
+        typeof Notification === 'undefined' ||
+        !('serviceWorker' in navigator) ||
+        !('PushManager' in window)
+      ) {
+        return { state: 'no-sw', reason: 'Buka ulang dari ikon GEHC di Home Screen untuk mengaktifkan notifikasi.' };
+      }
+      return { state: 'supported', reason: 'Siap.' };
     }
+
+    if (typeof Notification === 'undefined') return { state: 'no-sw', reason: 'Browser tidak dukung notifikasi.' };
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { state: 'no-sw', reason: 'Browser tidak dukung push.' };
     return { state: 'supported', reason: 'Siap.' };
   } catch {
     return { state: 'no-sw', reason: 'Tidak didukung.' };
@@ -78,7 +100,9 @@ export function pushCapabilityMessage(state: PushCapability): { title: string; b
     case 'insecure':
       return { title: 'Butuh HTTPS', body: 'Buka https://youth.gehc.page (bukan http) untuk aktifkan notifikasi.', action: 'Buka' };
     case 'no-sw':
-      return { title: 'Browser tidak dukung', body: 'Coba Chrome terbaru atau Safari terbaru.', action: '' };
+      return isIosDevice()
+        ? { title: 'Buka dari ikon iPhone', body: 'Pastikan dibuka dari ikon GEHC yang sudah ditambahkan ke Home Screen (Safari → Share → Add to Home Screen), bukan tab Safari.', action: 'Cara Install' }
+        : { title: 'Browser tidak dukung', body: 'Coba Chrome terbaru atau Safari terbaru.', action: '' };
     case 'denied':
       return { title: 'Izin diblokir', body: 'Android: tap gembok di address bar → Site settings → Notifications → Allow. iPhone: Settings → Apps → Safari → Notifications.', action: 'Coba lagi' };
     default:

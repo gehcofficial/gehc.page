@@ -236,6 +236,13 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
         <FeatureIcon icon={<Download className="w-5 h-5" />} title="Galeri & Toko" desc="Foto event & promo merchandise" />
       </div>
 
+      {cap && cap.state !== 'supported' && cap.state !== 'default' && !subscribed && (
+        <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-3">
+          <p className="text-xs font-black text-amber-800">{pushCapabilityMessage(cap.state).title}</p>
+          <p className="text-[11px] text-amber-700 leading-relaxed mt-0.5">{pushCapabilityMessage(cap.state).body}</p>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-3">
         {permission === 'default' && (
           <button
