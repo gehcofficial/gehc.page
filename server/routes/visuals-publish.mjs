@@ -14,6 +14,8 @@ const FOLDER_LABELS = {
   kelompok: 'Cover 10 rumah (kelompok)',
   landing: 'Hero & collage landing',
   brand: 'Logo & brand',
+  hub: 'Galeri hub (foto jemaat)',
+  panca: 'Cover pilar (panca tugas)',
   warta: 'Banner warta',
   kegiatan: 'Banner kegiatan',
   benzarpreneurship: 'Benzarpreneurship',
