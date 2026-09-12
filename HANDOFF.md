@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Info Gereja editable + hub (kontak, BPMJ, logo/watermark) (12 Sep 2026)
+## Current — Info Event generik + terima kasih pasca-event + fix push iOS (13 Sep 2026)
+
+**Goal:** Info Event menampilkan event yang dipilih (redirect dari Kegiatan) atau event terdekat; ucapan terima kasih personal untuk peserta BAKU TAU yang sudah hadir (bisa unduh kartu); iOS Safari tidak lagi salah bilang "browser tidak dukung".
+
+**Done:**
+- **iOS push** (`src/lib/push-capability.ts`): deteksi iOS didahulukan sebelum cek `PushManager`. Safari tab (iOS 16.4+) kini dapat arahan "Install dulu di iPhone", bukan "browser tidak dukung". +8 unit test; banner menampilkan hint kemampuan.
+- **Info Event generik** (`EventInfoPanel.tsx`): baca `?event=`, tanpa param → event terdekat (event ibadah diprioritaskan bila tanggalnya sama); QR daftar ulang disembunyikan saat status DONE/ARCHIVED; materi Didaskalia 01/02/03 per event (`EventDidaskaliaMaterials.tsx`).
+- **Kegiatan → Info Event**: klik baris event (kalender & linimasa) redirect ke `event-info?event=<slug|id>` (`KegiatanCalendar` + `IbadahMingguanPanel`).
+- **Terima kasih pasca-event** (`EventThankYouCard.tsx`): personal (nama depan), tombol unduh PNG, tanpa daftar hadir publik; yang hadir dapat ucapan, terdaftar-tanpa-hadir dapat varian lembut. `server/routes/baku-tau.mjs` mengirim `attended/checkedInAt/eventStatus/givenName`.
+- **Sinkron Didaskalia**: `resolveEventId` prioritaskan `MENTORING_DAY/SERVING_DAY`; copy Monitoring diselaraskan ke "7 Path harian".
+- **Salvage**: `.cursor/rules/context-handoff.mdc`; E2E alamat di `tests/e2e/` (profil cascade, filter direktori, modal admin) + helper SearchableSelect di `tests/helpers/portal.ts`.
+- Verifikasi: lint bersih, 54 file / 305 test hijau, build OK, E2E alamat 3/3 lulus.
+
+### Next
+1. Uji di staging: Info Event BAKU TAU dengan akun yang `eventCheckedInAt` terisi → kartu terima kasih + unduh PNG.
+2. Uji iOS: Safari tab → arahan install; setelah Add to Home Screen → Aktifkan push.
+3. Sambungkan gambar tema (slot Drive) ke cover PDF Didaskalia bila aset siap.
+
+### Commands
+```
+npm run lint && npm run test
+npx playwright test tests/e2e/address-flow.spec.ts tests/e2e/admin-address.spec.ts
+```
+
+---
+
+## Prior — Info Gereja editable + hub (kontak, BPMJ, logo/watermark) (12 Sep 2026)
 
 **Goal:** Info gereja (alamat, maps, email, sosial, jadwal) editable dari portal; hub menampilkan kontak, struktur BPMJ, dan identitas visual.
 
