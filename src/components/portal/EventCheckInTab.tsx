@@ -54,7 +54,7 @@ function cameraErrorMessage(e: unknown): string {
     return 'Kamera tidak mendukung mode ini. Coba buka kamera lagi.';
   }
   if (name === 'SecurityError') {
-    return 'Kamera butuh HTTPS. Buka lewat https://gehcpage.vercel.app (bukan http).';
+    return 'Kamera butuh HTTPS. Buka lewat https://youth.gehc.page (bukan http).';
   }
   return msg || 'Kamera tidak bisa dibuka.';
 }
