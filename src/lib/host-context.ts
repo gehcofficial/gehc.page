@@ -53,3 +53,17 @@ export function isYouthAppHost(host: string): boolean {
   const unit = resolveHostUnit(host);
   return unit === 'youth' || unit === 'default';
 }
+
+/** Rute aplikasi (portal/admin/auth) — di host hub ini memicu portal, bukan landing. */
+const APP_HASH_PREFIXES = ['#/portal', '#/admin', '#/claim', '#/forgot-password', '#/reset-password'];
+
+export function isAppHash(hash: string): boolean {
+  const h = String(hash || '');
+  return APP_HASH_PREFIXES.some((p) => h === p || h.startsWith(`${p}/`) || h.startsWith(`${p}?`));
+}
+
+/** Halaman presentasi (pitch deck). */
+export function isPitchHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/pitch' || h.startsWith('#/pitch/') || h.startsWith('#/pitch?');
+}

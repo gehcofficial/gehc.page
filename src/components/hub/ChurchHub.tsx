@@ -18,16 +18,20 @@ import {
   Youtube,
   Music2,
   Mail,
+  Presentation,
   type LucideIcon,
 } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
+import HubGalleryCarousel from './HubGalleryCarousel';
 import {
   CHURCH_UNITS,
+  CHURCH_GROUP_LABELS,
   DEFAULT_MAP_URL,
   CHURCH_ADDRESS,
   type ChurchUnit,
+  type ChurchUnitGroup,
 } from '../../data/churchUnits';
 
 const YOUTH_PORTAL_URL = 'https://youth.gehc.page';
@@ -127,6 +131,13 @@ const ChurchHub: React.FC = () => {
               Pelayanan
             </a>
             <a
+              href="#/pitch"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
+            >
+              <Presentation className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Pitch</span>
+            </a>
+            <a
               href={YOUTH_PORTAL_URL}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold uppercase tracking-wider shadow-lg hover:opacity-95 transition-all"
             >
@@ -171,6 +182,13 @@ const ChurchHub: React.FC = () => {
               Jelajahi Pelayanan
             </a>
             <a
+              href="#/pitch"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
+            >
+              <Presentation className="w-4 h-4" />
+              Lihat Presentasi
+            </a>
+            <a
               href={YOUTH_PORTAL_URL}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
             >
@@ -197,66 +215,87 @@ const ChurchHub: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CHURCH_UNITS.map((unit) => {
-            const Icon = UNIT_ICONS[unit.id];
-            const active = unit.status === 'active' && unit.host;
-            const inner = (
-              <>
-                <div className="flex items-start justify-between">
-                  <div
-                    className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${unit.accent} flex items-center justify-center shadow-sm`}
-                  >
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  {active ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                      Aktif
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#8C8880] bg-[#F3F1EC] px-2.5 py-1 rounded-full">
-                      <Lock className="w-3 h-3" />
-                      Coming soon
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-lg mt-5">{unit.name}</h3>
-                <p className="text-[11px] uppercase tracking-widest text-[#BDBAB2] font-bold">
-                  {unit.nameEn}
-                </p>
-                <p className="text-xs text-[#8C8880] leading-relaxed mt-3 flex-1">{unit.desc}</p>
-                <div className="mt-5 flex items-center gap-1.5 text-xs font-bold">
-                  {active ? (
-                    <span className="text-[#FF416C] inline-flex items-center gap-1">
-                      Masuk <ArrowUpRight className="w-4 h-4" />
-                    </span>
-                  ) : (
-                    <span className="text-[#BDBAB2]">Segera hadir</span>
-                  )}
-                </div>
-              </>
-            );
-
-            return active ? (
-              <a
-                key={unit.id}
-                href={`https://${unit.host}`}
-                className="group flex flex-col rounded-[28px] bg-white border border-[#D9D7D0] p-6 hover:shadow-xl hover:-translate-y-0.5 transition-all"
-              >
-                {inner}
-              </a>
-            ) : (
-              <div
-                key={unit.id}
-                aria-disabled="true"
-                className="flex flex-col rounded-[28px] bg-[#F3F1EC] border border-transparent p-6 opacity-80"
-              >
-                {inner}
+        {(['bipra', 'teritorial', 'lainnya'] as ChurchUnitGroup[]).map((group) => {
+          const units = CHURCH_UNITS.filter((u) => u.group === group);
+          if (!units.length) return null;
+          const label = CHURCH_GROUP_LABELS[group];
+          return (
+            <div key={group} className="mb-10 last:mb-0">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                <h3 className="font-display text-lg font-black">{label.title}</h3>
+                <span className="text-[11px] text-[#8C8880]">{label.subtitle}</span>
               </div>
-            );
-          })}
-        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {units.map((unit) => {
+                  const Icon = UNIT_ICONS[unit.id];
+                  const active = unit.status === 'active' && Boolean(unit.host);
+                  const inner = (
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm ${
+                            active ? `bg-gradient-to-br ${unit.accent}` : 'bg-[#E9E8E4]'
+                          }`}
+                        >
+                          <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-[#BDBAB2]'}`} />
+                        </div>
+                        {active ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#8C8880] bg-white px-2.5 py-1 rounded-full border border-[#D9D7D0]">
+                            <Lock className="w-3 h-3" />
+                            Coming soon
+                          </span>
+                        )}
+                      </div>
+                      <h4 className={`font-bold text-lg mt-5 ${active ? 'text-[#1B1B1B]' : 'text-[#8C8880]'}`}>
+                        {unit.name}
+                      </h4>
+                      <p className="text-[11px] uppercase tracking-widest text-[#BDBAB2] font-bold">
+                        {unit.nameEn}
+                      </p>
+                      <p className="text-xs text-[#8C8880] leading-relaxed mt-3 flex-1">{unit.desc}</p>
+                      <div className="mt-5 flex items-center gap-1.5 text-xs font-bold">
+                        {active ? (
+                          <span className="text-[#FF416C] inline-flex items-center gap-1">
+                            Masuk <ArrowUpRight className="w-4 h-4" />
+                          </span>
+                        ) : (
+                          <span className="text-[#BDBAB2]">Segera hadir</span>
+                        )}
+                      </div>
+                    </>
+                  );
+
+                  return active ? (
+                    <a
+                      key={unit.id}
+                      href={`https://${unit.host}`}
+                      className="group relative flex flex-col overflow-hidden rounded-[28px] bg-white border border-[#D9D7D0] p-6 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                    >
+                      <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${unit.accent}`} />
+                      {inner}
+                    </a>
+                  ) : (
+                    <div
+                      key={unit.id}
+                      aria-disabled="true"
+                      className="flex flex-col rounded-[28px] bg-[#F3F1EC] border border-dashed border-[#D9D7D0] p-6"
+                    >
+                      {inner}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </section>
+
+      {/* Galeri jemaat (jika ada foto di Drive) */}
+      <HubGalleryCarousel />
 
       {/* BPMJ */}
       {bpmj.length > 0 && (
