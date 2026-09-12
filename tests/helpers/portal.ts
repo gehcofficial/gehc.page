@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Page, Locator } from '@playwright/test';
 
 export const BASE_URL = 'http://localhost:8787';
 export const DEMO_USER = 'tech@gehc.demo';
@@ -166,4 +166,45 @@ export async function loginAsOperator(
     throw new Error(`Sesi operator tidak terbentuk untuk ${email}`);
   }
   await page.goto(`${BASE_URL}/#/admin`, { waitUntil: 'domcontentloaded' });
+}
+
+// ---------- Alamat (Wilayah.id) — SearchableSelect ----------
+
+export function waitWilayah(page: Page, segment: 'provinces' | 'regencies' | 'districts' | 'villages' = 'provinces') {
+  return page.waitForResponse((r) => r.url().includes(`/api/wilayah/${segment}`) && r.ok(), { timeout: 20000 });
+}
+
+/** Modal "Edit Profil" di Direktori Jemaat (admin). */
+export function editProfileModal(page: Page): Locator {
+  return page.locator('div.fixed.inset-0').filter({ has: page.getByRole('heading', { name: /Edit Profil/ }) });
+}
+
+/**
+ * Pilih opsi pada komponen SearchableSelect (role=combobox + role=option).
+ * `query` opsional untuk memfilter daftar sebelum memilih.
+ */
+export async function pickSearchable(
+  scope: Page | Locator,
+  placeholder: RegExp,
+  option: RegExp,
+  query?: string,
+) {
+  const combo = scope.getByPlaceholder(placeholder).first();
+  await combo.waitFor({ state: 'visible', timeout: 20000 });
+  await combo.click();
+  if (query) await combo.fill(query);
+  const opt = scope.getByRole('option').filter({ hasText: option }).first();
+  await opt.waitFor({ state: 'visible', timeout: 20000 });
+  await opt.click();
+}
+
+/** Pastikan scope alamat = Indonesia (kalau sedang Luar negeri). */
+export async function ensureIndonesiaScope(scope: Page | Locator) {
+  const provinces = scope.getByPlaceholder(/Cari provinsi/i);
+  const visible = await provinces.isVisible({ timeout: 2000 }).catch(() => false);
+  if (!visible) {
+    const btn = scope.getByRole('button', { name: 'Indonesia' }).first();
+    if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) await btn.click();
+  }
+  await scope.getByPlaceholder(/Cari provinsi/i).first().waitFor({ state: 'visible', timeout: 20000 });
 }
