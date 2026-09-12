@@ -138,7 +138,9 @@ async function resolveEventId(prisma, dateISO) {
       select: { id: true, name: true, serviceType: true, eventDate: true },
       orderBy: { eventDate: 'asc' },
     });
-    const match = rows.find((r) => wibDateOnly(r.eventDate) === dateISO);
+    const onDate = rows.filter((r) => wibDateOnly(r.eventDate) === dateISO);
+    // Utamakan ibadah (Mentoring/Serving) agar materi Didaskalia menempel ke event yang benar.
+    const match = onDate.find((r) => r.serviceType === 'MENTORING_DAY' || r.serviceType === 'SERVING_DAY') || onDate[0];
     return match ? { id: match.id, name: match.name, serviceType: match.serviceType } : null;
   } catch {
     return null;
