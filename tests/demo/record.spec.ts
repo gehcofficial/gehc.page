@@ -27,7 +27,7 @@ async function caption(page: Page, text: string) {
     }
     el.textContent = t;
   }, text);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(300);
 }
 
 async function zoomTo(page: Page, selector: string, scale = 1.6) {
@@ -40,7 +40,7 @@ async function zoomTo(page: Page, selector: string, scale = 1.6) {
     root.style.transformOrigin = `${cx}px ${cy}px`;
     root.style.transform = `scale(${scale})`;
   }, { scale, cx, cy });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(450);
 }
 
 async function resetZoom(page: Page) {
@@ -49,7 +49,7 @@ async function resetZoom(page: Page) {
     root.style.transition = 'transform .6s ease';
     root.style.transform = 'scale(1)';
   });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(300);
 }
 
 async function loginDemo(page: Page) {
@@ -64,7 +64,7 @@ test.beforeAll(() => {
 test('01 daftar', async ({ page }) => {
   const video = page.video();
   await page.goto('/#/register');
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(450);
   await caption(page, 'Buka youth.gehc.page → Daftar');
   await zoomTo(page, 'form', 1.3);
 
@@ -77,9 +77,9 @@ test('01 daftar', async ({ page }) => {
 
   await caption(page, 'Isi nama, email, kata sandi — lalu ketuk Daftar');
   await page.getByRole('button', { name: /Daftar dengan Email/i }).click();
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(1400);
   await caption(page, 'Akun dibuat — lengkapi profil & tes karunia');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(600);
 
   await page.close();
   await video?.saveAs(path.join(OUT_DIR, '01-daftar.webm'));
@@ -89,15 +89,15 @@ test('02 pasang aplikasi', async ({ page }) => {
   const video = page.video();
   await loginDemo(page);
   await page.goto('/#/portal/superadmin/dashboard');
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(600);
   await caption(page, 'Buka menu → Pasang GEHC Youth');
   await zoomTo(page, 'text=Pasang GEHC Youth', 1.7);
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(350);
   await caption(page, 'Ketuk Pasang / Install app → Tambahkan ke Layar Utama');
   await resetZoom(page);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(800);
   await caption(page, 'Ikon GEHC muncul di HP — buka seperti aplikasi biasa');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(600);
 
   await page.close();
   await video?.saveAs(path.join(OUT_DIR, '02-pasang.webm'));
@@ -108,17 +108,17 @@ test('03 aktifkan notifikasi', async ({ page, context }) => {
   await context.grantPermissions(['notifications']);
   await loginDemo(page);
   await page.goto('/#/portal/superadmin/dashboard');
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(600);
   await caption(page, 'Aktifkan notifikasi agar info terbaru masuk');
   await zoomTo(page, 'text=Notifikasi Push', 1.7);
   const btn = page.getByRole('button', { name: /Aktifkan/i }).first();
   if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await btn.click();
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1400);
   }
   await resetZoom(page);
   await caption(page, 'Selesai — pengingat agenda & informasi langsung masuk');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(600);
 
   await page.close();
   await video?.saveAs(path.join(OUT_DIR, '03-notifikasi.webm'));

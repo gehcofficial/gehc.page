@@ -17,6 +17,10 @@ export type PitchDemoStep = {
   title: string;
   caption: string;
   media: string;
+  /** Detik awal untuk melewati idle awal rekaman (default 0.4). */
+  startAt?: number;
+  /** Detik akhir opsional sebelum loop kembali ke startAt. */
+  endAt?: number;
 };
 
 export type PitchQrItem = {
@@ -109,18 +113,21 @@ export const PITCH_SLIDES: PitchSlide[] = [
           title: 'Daftar',
           caption: 'Buka youth.gehc.page → Daftar → isi nama, email, dan kata sandi.',
           media: '/media/demo/01-daftar.webm',
+          startAt: 0.3,
         },
         {
           icon: 'install',
           title: 'Pasang di HP',
           caption: 'Ketuk Pasang / Bagikan → Tambah ke Layar Utama. Buka seperti aplikasi biasa.',
           media: '/media/demo/02-pasang.webm',
+          startAt: 0.3,
         },
         {
           icon: 'notif',
           title: 'Aktifkan notifikasi',
           caption: 'Dapatkan pengingat agenda dan informasi terbaru langsung di HP.',
           media: '/media/demo/03-notifikasi.webm',
+          startAt: 0.3,
         },
       ],
     },

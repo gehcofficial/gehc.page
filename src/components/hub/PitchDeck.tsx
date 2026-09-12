@@ -118,12 +118,21 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.15 }}
                 src={s.media}
                 autoPlay
                 muted
-                loop
                 playsInline
+                preload="auto"
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget;
+                  const st = s.startAt ?? 0.4;
+                  try { if (st > 0 && v.currentTime < st) v.currentTime = st; } catch { /* abaikan */ }
+                }}
+                onEnded={(e) => {
+                  const v = e.currentTarget;
+                  try { v.currentTime = s.startAt ?? 0.4; void v.play(); } catch { /* abaikan */ }
+                }}
                 className="w-full h-full object-cover"
               />
             </AnimatePresence>
