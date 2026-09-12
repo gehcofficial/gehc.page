@@ -12,6 +12,8 @@ import { ensureTitleCatalogOnce } from './lib/ensure-title-catalog.mjs';
 export function createApp() {
   const app = express();
 
+  // Vercel (dan proxy lain) mengirim X-Forwarded-Proto; tanpa ini req.protocol selalu http.
+  app.set('trust proxy', 1);
   app.set('json replacer', (_key, value) => (typeof value === 'bigint' ? Number(value) : value));
 
   const CORS_ALLOWED = String(process.env.CORS_ORIGIN || 'http://localhost:8787,http://localhost:3000')
