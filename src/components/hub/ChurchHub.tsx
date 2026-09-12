@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Landmark,
   Users,
@@ -13,9 +13,16 @@ import {
   Clock,
   ExternalLink,
   Palette,
+  Instagram,
+  Facebook,
+  Youtube,
+  Music2,
+  Mail,
   type LucideIcon,
 } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
+import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
 import {
   CHURCH_UNITS,
   DEFAULT_MAP_URL,
@@ -35,24 +42,66 @@ const UNIT_ICONS: Record<ChurchUnit['id'], LucideIcon> = {
   community: Palette,
 };
 
+type Schedule = { label?: string; day?: string; time?: string };
+type Socials = { instagram?: string; facebook?: string; tiktok?: string; youtube?: string };
+type Profile = {
+  name?: string;
+  tagline?: string;
+  description?: string;
+  addressText?: string;
+  mapShareUrl?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  whatsapp?: string;
+  schedules?: Schedule[];
+  socials?: Socials;
+};
+
+const SOCIAL_ITEMS: { key: keyof Socials; label: string; Icon: LucideIcon }[] = [
+  { key: 'instagram', label: 'Instagram', Icon: Instagram },
+  { key: 'facebook', label: 'Facebook', Icon: Facebook },
+  { key: 'tiktok', label: 'TikTok', Icon: Music2 },
+  { key: 'youtube', label: 'YouTube', Icon: Youtube },
+];
+
+const FALLBACK_SCHEDULES: Schedule[] = [
+  { label: 'Ibadah Umum', day: 'Minggu', time: '10.00 WIB' },
+  { label: 'Ibadah Pemuda', day: 'Minggu', time: '13.00 WIB' },
+];
+
 const CONTAINER = 'max-w-[1200px] mx-auto px-4 sm:px-8';
 
 /**
  * Hub gereja untuk gehc.page — direktori pelayanan lintas unit.
- * Statis (v1); unit aktif mengarah ke subdomain masing-masing.
+ * Info gereja (kontak/sosial/jadwal) dari /api/church-profile; struktur BPMJ publik.
  */
 const ChurchHub: React.FC = () => {
-  const [mapUrl, setMapUrl] = useState(DEFAULT_MAP_URL);
+  const { brand } = useMediaSlots();
+  const { data: orgTree } = usePublicOrgTree();
+  const [profile, setProfile] = useState<Profile>({});
 
   useEffect(() => {
     document.title = 'GMIM Eben Haezer Cikarang — GEHC.page';
-    fetch('/api/config')
+    fetch('/api/church-profile')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.gehcMapUrl) setMapUrl(d.gehcMapUrl);
+        if (d?.profile) setProfile(d.profile);
       })
       .catch(() => {});
   }, []);
+
+  const gmimLogo = brand?.logoGmim;
+  const mapUrl = profile.mapShareUrl || DEFAULT_MAP_URL;
+  const address = profile.addressText || CHURCH_ADDRESS;
+  const schedules = profile.schedules?.length ? profile.schedules : FALLBACK_SCHEDULES;
+  const socials = useMemo(
+    () => SOCIAL_ITEMS.filter(({ key }) => Boolean(profile.socials?.[key])),
+    [profile.socials],
+  );
+  const bpmj = useMemo(
+    () => (orgTree?.members || []).filter((m) => m.division === 'BPMJ'),
+    [orgTree],
+  );
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B]">
@@ -89,8 +138,16 @@ const ChurchHub: React.FC = () => {
       </header>
 
       {/* Hero */}
-      <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12`}>
-        <div className="max-w-3xl">
+      <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12 relative`}>
+        {gmimLogo && (
+          <img
+            src={gmimLogo}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute right-0 top-4 w-[420px] max-w-[60vw] opacity-[0.05] hidden md:block"
+          />
+        )}
+        <div className="max-w-3xl relative">
           <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#FF416C] bg-[#FF416C]/10 px-3 py-1.5 rounded-full">
             <Landmark className="w-3.5 h-3.5" />
             Rumah Digital Jemaat
@@ -103,9 +160,8 @@ const ChurchHub: React.FC = () => {
             </span>
           </h1>
           <p className="text-sm sm:text-base text-[#8C8880] leading-relaxed mt-6 max-w-2xl">
-            Selamat datang di laman hub GMIM Eben Haezer Cikarang. Temukan komunitas
-            pelayanan yang tepat untuk Anda — dari anak, pra remaja, pemuda, hingga kaum
-            bapa dan ibu, serta persekutuan wilayah/Kolom.
+            {profile.description ||
+              'Selamat datang di laman hub GMIM Eben Haezer Cikarang. Temukan komunitas pelayanan yang tepat untuk Anda — dari anak, pra remaja, pemuda, hingga kaum bapa dan ibu, serta persekutuan wilayah/Kolom.'}
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-8">
             <a
@@ -202,44 +258,107 @@ const ChurchHub: React.FC = () => {
         </div>
       </section>
 
+      {/* BPMJ */}
+      {bpmj.length > 0 && (
+        <section className={`${CONTAINER} pb-16`}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#8C8880]">
+            Majelis Jemaat
+          </p>
+          <h2 className="font-display text-2xl sm:text-3xl font-black mt-1">
+            Badan Pekerja Majelis Jemaat
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
+            {bpmj.map((m) => (
+              <div
+                key={m.id}
+                className={`rounded-2xl border p-4 ${
+                  m.isOpenRole
+                    ? 'border-dashed border-[#D9D7D0] bg-transparent'
+                    : 'border-[#E9E8E4] bg-white'
+                }`}
+              >
+                <p className={`text-sm font-bold ${m.isOpenRole ? 'text-[#BDBAB2]' : 'text-[#1B1B1B]'}`}>
+                  {m.name}
+                </p>
+                <p className="text-[11px] text-[#8C8880] mt-0.5">{m.position || '—'}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Church info */}
       <section className={`${CONTAINER} pb-20`}>
-        <div className="rounded-[28px] bg-[#151515] text-white p-8 sm:p-12 grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div>
+        <div className="rounded-[28px] bg-[#151515] text-white p-8 sm:p-12 grid grid-cols-1 md:grid-cols-2 gap-10 relative overflow-hidden">
+          {gmimLogo && (
+            <img
+              src={gmimLogo}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none select-none absolute -right-10 -bottom-10 w-[360px] opacity-[0.06]"
+            />
+          )}
+          <div className="relative">
             <h2 className="font-display text-2xl sm:text-3xl font-black">
-              Bersekutu bersama
+              {profile.name || 'Bersekutu bersama'}
             </h2>
-            <p className="text-xs sm:text-sm text-white/60 leading-relaxed mt-3">
-              {CHURCH_ADDRESS}
-            </p>
+            <p className="text-xs sm:text-sm text-white/60 leading-relaxed mt-3">{address}</p>
+            {profile.tagline && (
+              <p className="text-xs italic text-white/50 mt-2">{profile.tagline}</p>
+            )}
             <div className="flex flex-col gap-4 mt-8">
-              <div className="flex items-start gap-3">
-                <Clock className="w-4 h-4 text-[#FF416C] mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-bold">Ibadah Umum</p>
-                  <p className="text-xs text-white/60">Setiap Minggu, 10.00 WIB</p>
+              {schedules.map((s, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-[#FF416C] mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold">{s.label || s.day || 'Ibadah'}</p>
+                    <p className="text-xs text-white/60">
+                      {[s.day, s.time].filter(Boolean).join(', ')}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Clock className="w-4 h-4 text-[#FF416C] mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-bold">Ibadah Pemuda</p>
-                  <p className="text-xs text-white/60">Setiap Minggu, 13.00 WIB</p>
-                </div>
-              </div>
+              ))}
             </div>
-            <a
-              href={mapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-8 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold uppercase tracking-wider transition-all"
-            >
-              <MapPin className="w-4 h-4 text-[#FF416C]" />
-              Buka di Peta
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="flex flex-wrap items-center gap-3 mt-8">
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold uppercase tracking-wider transition-all"
+              >
+                <MapPin className="w-4 h-4 text-[#FF416C]" />
+                Buka di Peta
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              {profile.contactEmail && (
+                <a
+                  href={`mailto:${profile.contactEmail}`}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold transition-all"
+                >
+                  <Mail className="w-4 h-4 text-[#FF416C]" />
+                  {profile.contactEmail}
+                </a>
+              )}
+            </div>
+            {socials.length > 0 && (
+              <div className="flex items-center gap-2 mt-6">
+                {socials.map(({ key, label, Icon }) => (
+                  <a
+                    key={key}
+                    href={profile.socials?.[key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    title={label}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex flex-col justify-center gap-4">
+          <div className="flex flex-col justify-center gap-4 relative">
             <a
               href={YOUTH_PORTAL_URL}
               className="rounded-[24px] bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] p-6 hover:opacity-95 transition-all"
@@ -268,11 +387,16 @@ const ChurchHub: React.FC = () => {
         </div>
       </section>
 
-      <footer className="bg-[#151515] text-white/50 py-8 px-4 text-center">
-        <p className="text-[11px]">
-          © {new Date().getFullYear()} GMIM Eben Haezer Cikarang (GEHC) · gehc.page
-        </p>
-        <p className="text-[11px] italic mt-1">“Satu retreat, seribu generasi.”</p>
+      <footer className="bg-[#151515] text-white/50 py-8 px-4">
+        <div className="max-w-[1200px] mx-auto flex flex-col items-center gap-2 text-center">
+          {gmimLogo && (
+            <img src={gmimLogo} alt="GMIM" className="w-10 h-10 object-contain opacity-70" />
+          )}
+          <p className="text-[11px]">
+            © {new Date().getFullYear()} GMIM Eben Haezer Cikarang (GEHC) · gehc.page
+          </p>
+          <p className="text-[11px] italic">“Satu retreat, seribu generasi.”</p>
+        </div>
       </footer>
     </div>
   );

@@ -6,7 +6,7 @@ type SlotsResponse = {
   source?: 'static' | 'drive' | 'fallback';
   slots?: {
     landing?: Partial<LandingMedia>;
-    brand?: { logoGehc?: string };
+    brand?: { logoGehc?: string; logoGmim?: string };
     warta?: { bannerDefault?: string };
     kegiatan?: { bannerDefault?: string; bakuTau?: string };
     benzar?: { hero?: string; productPlaceholder?: string; qris?: string };
@@ -25,7 +25,7 @@ function mergeSlots(d: SlotsResponse): MediaSlots {
   const s = d.slots || {};
   return {
     landing: { ...MEDIA, ...s.landing },
-    brand: { logoGehc: s.brand?.logoGehc },
+    brand: { logoGehc: s.brand?.logoGehc, logoGmim: s.brand?.logoGmim },
     warta: { bannerDefault: s.warta?.bannerDefault || DEFAULT_SLOTS.warta.bannerDefault },
     kegiatan: {
       bannerDefault: s.kegiatan?.bannerDefault || DEFAULT_SLOTS.kegiatan.bannerDefault,
