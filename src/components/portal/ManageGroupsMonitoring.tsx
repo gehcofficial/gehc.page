@@ -808,7 +808,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 {pembekalanLoading ? (
                   <p className="text-xs text-amber-700">Memuat pembekalan…</p>
                 ) : pembekalanFiles.length === 0 ? (
-                  <p className="text-xs text-amber-700">Belum ada file pembekalan untuk minggu ini. Didaskalia upload via Panel Divisi → Didaskalia → Ibadah → 01.</p>
+                  <p className="text-xs text-amber-700">Belum ada file pembekalan untuk minggu ini. Didaskalia upload via Panel Divisi → Didaskalia → Studio → Modul Pembekalan (01).</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {pembekalanFiles.map((f) => (
@@ -828,10 +828,10 @@ export const ManageGroupsMonitoring: React.FC = () => {
               {/* RHB Harian — hybrid pillar Didaskalia/Berkas/modul-rhb · 7 hari Senin-Sabtu selain pembekalan & materi Minggu */}
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">RHB Harian — 7 hari (Senin–Sabtu) · Didaskalia</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">RHB 7 Path Harian · Didaskalia</p>
                   {rhbFiles.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-emerald-200 text-emerald-700 font-bold">{Object.values(rhbProgress).filter(Boolean).length}/{rhbFiles.length} selesai</span>}
                 </div>
-                <p className="text-[11px] text-emerald-700 leading-relaxed">Materi harian Beyonders untuk minggu ini (6–12 Sep contoh: 7 PDF). Selain materi pembekalan mentor & materi Minggu, ini renungan harian yang dipakai di kelompok. Didaskalia upload via Panel Divisi → Didaskalia → Ibadah → Kurikulum (Berkas/modul-rhb).</p>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">Materi harian Beyonders untuk minggu ini: 7 Path, tiap Path satu PDF terpisah. Ini renungan harian yang dipakai di kelompok. Didaskalia upload via Panel Divisi → Didaskalia → Studio → RHB 7 Hari (03).</p>
                 {rhbLoading ? (
                   <p className="text-xs text-emerald-700">Memuat RHB…</p>
                 ) : !linkedEventId ? (
@@ -839,7 +839,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 ) : rhbForbidden ? (
                   <p className="text-xs text-emerald-700">🔒 RHB hanya untuk Beyonders (mentor/mentee). Hubungi mentor untuk akses.</p>
                 ) : rhbFiles.length === 0 ? (
-                  <p className="text-xs text-emerald-700">Belum ada file RHB untuk minggu ini. Didaskalia perlu upload 7 PDF (Senin–Sabtu) ke Panel Divisi → Didaskalia → Ibadah → 03 RHB 7 Hari (by event).</p>
+                  <p className="text-xs text-emerald-700">Belum ada file RHB untuk minggu ini. Didaskalia upload 7 PDF (7 Path harian) via Panel Divisi → Didaskalia → Studio → RHB 7 Hari (03).</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {rhbFiles.map((f) => (

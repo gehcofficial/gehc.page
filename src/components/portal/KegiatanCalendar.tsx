@@ -48,10 +48,12 @@ export const KegiatanCalendar: React.FC<{
   events: CalEvent[];
   selectedId: string;
   onSelect: (id: string) => void;
+  /** Klik baris event → redirect ke Info Event event tsb. */
+  onOpenEvent?: (id: string) => void;
   portalNs: string;
   canViewInternal: boolean;
   canViewBonding: boolean;
-}> = ({ events, selectedId, onSelect, portalNs, canViewInternal, canViewBonding }) => {
+}> = ({ events, selectedId, onSelect, onOpenEvent, portalNs, canViewInternal, canViewBonding }) => {
   const [month, setMonth] = useState<string>(() => todayStr().slice(0, 7));
   const [mode, setMode] = useState<'kalender' | 'linimasa'>('kalender');
   const [kindFilter, setKindFilter] = useState<string>('SEMUA');
@@ -272,7 +274,7 @@ export const KegiatanCalendar: React.FC<{
                 <button
                   key={e.id + idx}
                   type="button"
-                  onClick={() => onSelect(e.id)}
+                  onClick={() => (onOpenEvent ? onOpenEvent(e.id) : onSelect(e.id))}
                   className={`w-full flex items-center gap-2 p-2 rounded-xl border text-left ${active ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white border-[#D9D7D0] hover:border-[#181818]'}`}
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${KIND_COLORS[k]?.dot || 'bg-gray-400'}`} />
@@ -297,7 +299,7 @@ export const KegiatanCalendar: React.FC<{
           <p className="text-[11px] text-[#8C8880]">Linimasa 90 hari dari {new Date(`${month}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} — rentang program (INTERNAL/Khusus) sebagai bar, ibadah harian sebagai tonggak.</p>
           {spanRows.length === 0 && <p className="text-xs text-[#8C8880] italic">Tidak ada rentang di window ini.</p>}
           {spanRows.map(({ e, k, left, width }) => (
-            <button key={e.id} type="button" onClick={() => onSelect(e.id)} className="w-full text-left">
+            <button key={e.id} type="button" onClick={() => (onOpenEvent ? onOpenEvent(e.id) : onSelect(e.id))} className="w-full text-left">
               <span className="block text-[11px] font-bold text-[#1B1B1B] truncate">{e.name}</span>
               <span className="block h-4 rounded-full bg-[#F3F1EC] relative overflow-hidden">
                 <span

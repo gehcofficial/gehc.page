@@ -131,6 +131,11 @@ export const IbadahMingguanPanel: React.FC = () => {
           if (ev) setSelectedKind(normalizeEventKind(ev.kind));
           setSelectedId(id);
         }}
+        onOpenEvent={(id) => {
+          const ev = allEvents.find((e) => e.id === id);
+          const key = ev?.slug || id;
+          window.location.hash = `#/portal/${portalNs}/event-info?event=${encodeURIComponent(key)}`;
+        }}
         portalNs={portalNs}
         canViewInternal={canViewInternal}
         canViewBonding={canViewBonding}

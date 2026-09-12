@@ -113,9 +113,16 @@ async function findBakutauPoolEntry(prisma, userId) {
   });
 }
 
-function registrationPayload(entry, info) {
+function registrationPayload(entry, info, extra = {}) {
+  const base = {
+    eventStatus: info.status || null,
+    attended: Boolean(extra.checkedInAt),
+    checkedInAt: extra.checkedInAt || null,
+    givenName: extra.givenName || null,
+  };
   if (!entry) {
     return {
+      ...base,
       registered: false,
       eventDate: info.eventDate,
       venueName: info.venueName,
@@ -127,6 +134,7 @@ function registrationPayload(entry, info) {
     };
   }
   return {
+    ...base,
     registered: true,
     status: entry.status,
     whatsappGroupUrl: info.whatsappGroupUrl || null,
@@ -139,6 +147,27 @@ function registrationPayload(entry, info) {
     registeredAt: entry.registeredAt,
     entry,
   };
+}
+
+/** Nama depan untuk sapaan personal (givenName → kata pertama name). */
+function givenNameOf(user) {
+  const g = String(user?.givenName || '').trim();
+  if (g) return g;
+  return String(user?.name || '').trim().split(/\s+/)[0] || null;
+}
+
+/** Timestamp check-in BAKU TAU (waiting pool atau event attendee). */
+async function bakutauCheckedInAt(prisma, userId, entry) {
+  if (entry?.eventCheckedInAt) return entry.eventCheckedInAt;
+  try {
+    const att = await prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId: BAKU_TAU_EVENT_ID, userId } },
+      select: { checkedInAt: true },
+    });
+    return att?.checkedInAt || null;
+  } catch {
+    return null;
+  }
 }
 
 async function bakuTauStats(prisma) {
@@ -348,7 +377,9 @@ export function registerBakuTauRoutes(app, { wrap }) {
 
     const entry = await findBakutauPoolEntry(prisma, userId);
     const info = await resolveEventInfo(prisma);
-    res.json(registrationPayload(entry, info));
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { givenName: true, name: true } }).catch(() => null);
+    const checkedInAt = await bakutauCheckedInAt(prisma, userId, entry);
+    res.json(registrationPayload(entry, info, { checkedInAt, givenName: givenNameOf(user) }));
   }));
 
   // Generik per-event — dipakai Info Event navbar by parent (semua jenis perlu pendaftar untuk konsumsi)
@@ -396,6 +427,8 @@ export function registerBakuTauRoutes(app, { wrap }) {
     const { code, poolEntry: qrPool } = await registrationCodeFor(prisma, { eventId: event.id, userId, sourceEvent });
     const registered = Boolean(code) || Boolean(poolEntry) || Boolean(attendee);
     const entry = qrPool || poolEntry;
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { givenName: true, name: true } }).catch(() => null);
+    const checkedInAt = attendee?.checkedInAt || entry?.eventCheckedInAt || null;
     res.json({
       registered,
       eventId: event.id,
@@ -405,6 +438,10 @@ export function registerBakuTauRoutes(app, { wrap }) {
       locationDetail: event.locationDetail || null,
       mapUrl: event.mapUrl || null,
       mapEmbedQuery: event.mapEmbedQuery || null,
+      eventStatus: event.status || null,
+      attended: Boolean(checkedInAt),
+      checkedInAt,
+      givenName: givenNameOf(me),
       whatsappGroupUrl: registered ? whatsappGroupUrl : null,
       checkInCode: code,
       registeredAt: entry?.registeredAt || attendee?.registeredAt || null,
