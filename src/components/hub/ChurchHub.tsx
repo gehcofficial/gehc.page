@@ -24,7 +24,7 @@ import {
 import { GehcLogo } from '../brand/GehcLogo';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
-import HubGalleryCarousel from './HubGalleryCarousel';
+import HeroPhotoWall from './HeroPhotoWall';
 import {
   CHURCH_UNITS,
   CHURCH_GROUP_LABELS,
@@ -150,51 +150,58 @@ const ChurchHub: React.FC = () => {
 
       {/* Hero */}
       <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12 relative`}>
-        {gmimLogo && (
-          <img
-            src={gmimLogo}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none select-none absolute right-0 top-4 w-[420px] max-w-[60vw] opacity-[0.05] hidden md:block"
-          />
-        )}
-        <div className="max-w-3xl relative">
-          <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#FF416C] bg-[#FF416C]/10 px-3 py-1.5 rounded-full">
-            <Landmark className="w-3.5 h-3.5" />
-            Rumah Digital Jemaat
-          </span>
-          <h1 className="font-display text-4xl sm:text-6xl font-black leading-[1.05] mt-6">
-            Satu gereja,
-            <br />
-            <span className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] bg-clip-text text-transparent">
-              banyak pelayanan.
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div className="max-w-3xl relative">
+            <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#FF416C] bg-[#FF416C]/10 px-3 py-1.5 rounded-full">
+              <Landmark className="w-3.5 h-3.5" />
+              Rumah Digital Jemaat
             </span>
-          </h1>
-          <p className="text-sm sm:text-base text-[#8C8880] leading-relaxed mt-6 max-w-2xl">
-            {profile.description ||
-              'Selamat datang di laman hub GMIM Eben Haezer Cikarang. Temukan komunitas pelayanan yang tepat untuk Anda — dari anak, pra remaja, pemuda, hingga kaum bapa dan ibu, serta persekutuan wilayah/Kolom.'}
-          </p>
-          <div className="flex flex-wrap items-center gap-3 mt-8">
-            <a
-              href="#pelayanan"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#1B1B1B] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#333] transition-all"
-            >
-              Jelajahi Pelayanan
-            </a>
-            <a
-              href="#/pitch"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
-            >
-              <Presentation className="w-4 h-4" />
-              Lihat Presentasi
-            </a>
-            <a
-              href={YOUTH_PORTAL_URL}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
-            >
-              Portal Pemuda
-              <ArrowUpRight className="w-4 h-4" />
-            </a>
+            <h1 className="font-display text-4xl sm:text-6xl font-black leading-[1.05] mt-6">
+              Satu gereja,
+              <br />
+              <span className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] bg-clip-text text-transparent">
+                banyak pelayanan.
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base text-[#8C8880] leading-relaxed mt-6 max-w-2xl">
+              {profile.description ||
+                'Selamat datang di laman hub GMIM Eben Haezer Cikarang. Temukan komunitas pelayanan yang tepat untuk Anda — dari anak, pra remaja, pemuda, hingga kaum bapa dan ibu, serta persekutuan wilayah/Kolom.'}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-8">
+              <a
+                href="#pelayanan"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#1B1B1B] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#333] transition-all"
+              >
+                Jelajahi Pelayanan
+              </a>
+              <a
+                href="#/pitch"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
+              >
+                <Presentation className="w-4 h-4" />
+                Lihat Presentasi
+              </a>
+              <a
+                href={YOUTH_PORTAL_URL}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
+              >
+                Portal Pemuda
+                <ArrowUpRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+
+          {/* Dinding foto (collage berotasi) */}
+          <div className="relative">
+            <HeroPhotoWall />
+            {gmimLogo && (
+              <img
+                src={gmimLogo}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none select-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] max-w-[70%] opacity-[0.04] -z-10"
+              />
+            )}
           </div>
         </div>
       </section>
@@ -293,9 +300,6 @@ const ChurchHub: React.FC = () => {
           );
         })}
       </section>
-
-      {/* Galeri jemaat (jika ada foto di Drive) */}
-      <HubGalleryCarousel />
 
       {/* BPMJ */}
       {bpmj.length > 0 && (

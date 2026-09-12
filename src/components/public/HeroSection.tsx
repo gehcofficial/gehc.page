@@ -2,6 +2,7 @@
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { useLandingMedia } from '../../hooks/useLandingMedia';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { EAGER_IMG_PROPS } from '../../config/media';
 import { Calendar, BookOpen, Users, ArrowUpRight } from 'lucide-react';
 
@@ -9,6 +10,7 @@ export const HeroSection: React.FC = () => {
   const { setPublicTab } = useApp();
   const { t, lang } = useLang();
   const media = useLandingMedia();
+  const { brand } = useMediaSlots();
   const [eventDesc, setEventDesc] = useState(t.hero.bDesc);
 
   useEffect(() => {
@@ -42,6 +44,15 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section className="pt-[140px] sm:pt-[170px] lg:pt-[200px] px-4 sm:px-8 max-w-[1440px] mx-auto flex flex-col items-center text-center relative overflow-visible pb-[60px] sm:pb-[90px]">
+
+      {brand?.logoYouthGmim && (
+        <img
+          src={brand.logoYouthGmim}
+          alt="Pemuda GMIM"
+          className="w-16 h-16 sm:w-20 sm:h-20 object-contain mb-4"
+          {...EAGER_IMG_PROPS}
+        />
+      )}
 
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border border-[#D9D7D0] shadow-sm mb-6 animate-fade-in">
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] animate-pulse"></span>

@@ -91,6 +91,8 @@
     "drive:provision:prod": "dotenv -e .env.production -- node server/drive-provision.mjs",
     "drive:ensure-hub": "node server/_ensure-hub-gallery-folder.cjs",
     "drive:ensure-hub:prod": "dotenv -e .env.production -- node server/_ensure-hub-gallery-folder.cjs",
+    "drive:optimize-logos": "node server/optimize-brand-logos.mjs",
+    "drive:optimize-logos:prod": "dotenv -e .env.production -- node server/optimize-brand-logos.mjs",
     "drive:migrate:didaskalia-kurikulum": "node server/_migrate-didaskalia-to-kurikulum.cjs --apply",
     "drive:migrate:didaskalia-kurikulum:dry": "node server/_migrate-didaskalia-to-kurikulum.cjs --dry",
     "drive:migrate:didaskalia-kurikulum:prod": "dotenv -e .env.production -- node server/_migrate-didaskalia-to-kurikulum.cjs --apply",

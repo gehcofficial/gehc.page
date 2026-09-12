@@ -48,7 +48,7 @@ export const MEDIA_EXTRAS = {
 
 export type MediaSlots = {
   landing: LandingMedia;
-  brand: { logoGehc?: string; logoGmim?: string };
+  brand: { logoGehc?: string; logoGmim?: string; logoYouthGmim?: string };
   hub: Record<string, string>;
   warta: { bannerDefault: string };
   kegiatan: { bannerDefault: string; bakuTau: string };

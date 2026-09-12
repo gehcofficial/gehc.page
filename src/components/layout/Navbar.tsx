@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
 import {
   ChevronDown,
@@ -33,6 +34,7 @@ export const Navbar: React.FC = () => {
     isPlatformAdmin,
   } = useApp();
   const { t } = useLang();
+  const { brand } = useMediaSlots();
 
     const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -78,6 +80,15 @@ export const Navbar: React.FC = () => {
                 size={36}
                 className="group-hover:scale-105 transition-transform"
               />
+              {brand?.logoYouthGmim && (
+                <img
+                  src={brand.logoYouthGmim}
+                  alt="Pemuda GMIM"
+                  className="w-7 h-7 object-contain shrink-0"
+                  loading="eager"
+                  decoding="async"
+                />
+              )}
               <BrandCaption className="hidden sm:flex" />
             </button>
           </div>

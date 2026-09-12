@@ -4,6 +4,7 @@ import { useLang } from '../../context/LangContext';
 import { MapPin, ArrowUpRight, ExternalLink, Mail, MessageCircle, Phone, Instagram, Facebook, Youtube, Music2 } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
+import { useMediaSlots } from '../../hooks/useMediaSlots';
 
 const DEFAULT_MAP = 'https://share.google/Ro2jBSuGfrzfg49nP';
 
@@ -38,6 +39,7 @@ function waHref(v?: string): string | null {
 export const Footer: React.FC = () => {
   const { setPublicTab, setActiveView } = useApp();
   const { t } = useLang();
+  const { brand } = useMediaSlots();
   const [mapUrl, setMapUrl] = useState(DEFAULT_MAP);
   const [profile, setProfile] = useState<ChurchProfile>({});
   const [unit, setUnit] = useState<UnitProfile>({});
@@ -76,6 +78,15 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <GehcLogo size={40} />
+              {brand?.logoYouthGmim && (
+                <img
+                  src={brand.logoYouthGmim}
+                  alt="Pemuda GMIM"
+                  className="w-10 h-10 object-contain shrink-0"
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
               <BrandCaption />
             </div>
 
