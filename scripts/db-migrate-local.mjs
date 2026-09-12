@@ -235,6 +235,11 @@ const STEPS = [
     label: 'Service swap requests (antrean mutualisme)',
     required: true,
   },
+  {
+    script: 'server/_migrate-host-tenancy.cjs',
+    label: 'Host tenancy (bipra nullable, registration_origin, tenant default_bipra)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

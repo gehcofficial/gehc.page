@@ -38,6 +38,7 @@ import {
   newResetToken,
 } from './auth.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
+import { resolveHostContext } from './lib/host-context.mjs';
 import {
   applyPlatformAdminPortalRole,
   ensurePortalSuperadminForGrant,
@@ -208,7 +209,7 @@ app.post('/api/auth/google', wrap(async (req, res) => {
   const credential = req.body?.credential;
   if (!credential) return res.status(400).json({ error: 'credential (ID token Google) wajib dikirim.' });
   try {
-    let user = await loginWithGoogleCredential(credential);
+    let user = await loginWithGoogleCredential(credential, resolveHostContext(req));
     await applyGroupEntitlements(user.email, user.id);
     const prisma = getPrisma();
     if (prisma) {
@@ -3926,6 +3927,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
   }
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const ctx = resolveHostContext(req);
 
   try {
     const p = await verifyGoogleCredential(req.body?.credential);
@@ -3984,18 +3986,19 @@ app.post('/api/register/google', wrap(async (req, res) => {
           googleSub: p.sub,
           linkStatus: 'LINKED',
           authProvider: 'GOOGLE',
+          bipra: ctx.bipra,
+          registrationOrigin: ctx.unit,
           ...profile,
         },
         include: { roles: true },
       });
     }
 
-    const hasRole = (user.roles || []).some((r) => r.role === initialRole);
-    if (!hasRole) {
+    if (ctx.tenantId && !(user.roles || []).some((r) => r.role === initialRole)) {
       await prisma.userRole.create({
-        data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
+        data: { userId: user.id, tenantId: ctx.tenantId, role: initialRole },
       });
-      user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
+      user.roles.push({ userId: user.id, tenantId: ctx.tenantId, role: initialRole });
     }
 
     // Kaitkan waitlist berdasar email bila pernah daftar cepat
@@ -4042,6 +4045,7 @@ app.post('/api/register/local', wrap(async (req, res) => {
   }
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const ctx = resolveHostContext(req);
 
   try {
     const b = req.body || {};
@@ -4107,7 +4111,8 @@ app.post('/api/register/local', wrap(async (req, res) => {
           name,
           ...nameData,
           accountStatus: status,
-          bipra: 'PEMUDA',
+          bipra: ctx.bipra,
+          registrationOrigin: ctx.unit,
           authProvider: 'LOCAL',
           passwordHash: hashPassword(password),
           ...profile,
@@ -4117,11 +4122,11 @@ app.post('/api/register/local', wrap(async (req, res) => {
     }
 
     const hasRole = (user.roles || []).some((r) => r.role === initialRole);
-    if (!hasRole) {
+    if (ctx.tenantId && !hasRole) {
       await prisma.userRole.create({
-        data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
+        data: { userId: user.id, tenantId: ctx.tenantId, role: initialRole },
       });
-      user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
+      user.roles.push({ userId: user.id, tenantId: ctx.tenantId, role: initialRole });
     }
 
     const wl = await prisma.waitlistEntry.findFirst({ where: { email } });
@@ -4274,8 +4279,9 @@ app.get('/api/drive-auth/start', wrap(async (req, res) => {
 }));
 
 /** Buat/perbarui user dari identitas Google terverifikasi. */
-async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTIVE', initialRole }) {
+async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTIVE', initialRole, ctx = null }) {
   const email = p.email.toLowerCase();
+  const host = ctx || { unit: 'youth', tenantId: 'tenant-youth', bipra: 'PEMUDA' };
   let user = await prisma.user.findFirst({
     where: { OR: [{ googleSub: p.sub }, { id: p.sub }, { email }] },
     include: { roles: true },
@@ -4297,7 +4303,14 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
 
   if (!user) {
     user = await prisma.user.create({
-      data: { id: p.sub, email, accountStatus, bipra: 'PEMUDA', ...baseData },
+      data: {
+        id: p.sub,
+        email,
+        accountStatus,
+        bipra: host.bipra,
+        registrationOrigin: host.unit,
+        ...baseData,
+      },
       include: { roles: true },
     });
   } else {
@@ -4305,13 +4318,13 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
     user = await prisma.user.update({ where: { id: user.id }, data: clean, include: { roles: true } });
   }
 
-  if (initialRole) {
+  if (initialRole && host.tenantId) {
     const has = (user.roles || []).some((r) => r.role === initialRole);
     if (!has) {
       await prisma.userRole.create({
-        data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
+        data: { userId: user.id, tenantId: host.tenantId, role: initialRole },
       });
-      user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
+      user.roles.push({ userId: user.id, tenantId: host.tenantId, role: initialRole });
     }
   }
   return user;
@@ -4379,6 +4392,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
         profile: { origin: req.state?.origin },
         accountStatus: status,
         initialRole: trusted ? 'SUPERADMIN' : 'MENTEE',
+        ctx: resolveHostContext(req),
       });
       roleInfo = trusted ? 'SUPERADMIN' : 'MENTEE';
 
@@ -4413,6 +4427,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
         profile: {},
         accountStatus: 'PENDING',
         initialRole: inv.defaultRole,
+        ctx: resolveHostContext(req),
       });
       status = user.accountStatus;
       roleInfo = inv.defaultRole;
@@ -4434,6 +4449,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
         profile: {},
         accountStatus: 'ACTIVE',
         initialRole: isSuperadminEmail(email) ? 'SUPERADMIN' : null,
+        ctx: resolveHostContext(req),
       });
       status = user.accountStatus;
     }

@@ -307,13 +307,14 @@ export async function verifyGoogleCredential(credential) {
  * Verifikasi credential (ID token JWT) dari Google Identity Services,
  * lalu upsert User (+ role awal) ke TiDB.
  */
-export async function loginWithGoogleCredential(credential) {
+export async function loginWithGoogleCredential(credential, ctx = null) {
   if (!isDbConfigured()) {
     throw new Error('DATABASE_URL belum dikonfigurasi.');
   }
   const p = await verifyGoogleCredential(credential);
   const email = p.email;
   const prisma = getPrisma();
+  const host = ctx || { unit: 'youth', tenantId: 'tenant-youth', bipra: 'PEMUDA' };
 
   let user = await prisma.user.findFirst({
     where: { googleSub: p.sub },
@@ -366,7 +367,8 @@ export async function loginWithGoogleCredential(credential) {
         ...googleAvatarCreate(p.picture),
         googleSub: p.sub,
         linkStatus: 'LINKED',
-        bipra: 'PEMUDA',
+        bipra: host.bipra,
+        registrationOrigin: host.unit,
         authProvider: 'GOOGLE',
       },
       update: {
@@ -381,12 +383,12 @@ export async function loginWithGoogleCredential(credential) {
     });
   }
 
-  if ((user.roles || []).length === 0) {
+  if (host.tenantId && (user.roles || []).length === 0) {
     const initialRole = shouldAutoGrantSuperadminEmail() && superadminEmails().includes(email) ? 'SUPERADMIN' : 'MENTEE';
     await prisma.userRole.create({
-      data: { userId: user.id, tenantId: 'tenant-youth', role: initialRole },
+      data: { userId: user.id, tenantId: host.tenantId, role: initialRole },
     });
-    user.roles.push({ userId: user.id, tenantId: 'tenant-youth', role: initialRole });
+    user.roles.push({ userId: user.id, tenantId: host.tenantId, role: initialRole });
   }
 
   return persistSuperadminRole(user);

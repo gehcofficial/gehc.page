@@ -31,6 +31,7 @@ const REQUIRED_USER_COLUMNS = [
   'given_name',
   'family_name',
   'church_title',
+  'registration_origin',
 ];
 
 const REQUIRED_TABLES = [
@@ -90,6 +91,7 @@ const REQUIRED_TABLE_COLUMNS = {
   orders: ['invoice_drive_file_id', 'payment_proof_drive_file_id'],
   group_batches: ['generation', 'mentor_user_id', 'comentor_user_id', 'regen_ready'],
   group_albums: ['status'],
+  tenants: ['default_bipra', 'registration_open'],
 };
 
 const quiet = process.argv.includes('--quiet');

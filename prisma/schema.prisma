@@ -13,13 +13,17 @@ datasource db {
 }
 
 model Tenant {
-  id          String   @id @db.VarChar(64)
-  name        String   @db.VarChar(150)
-  slug        String   @unique @db.VarChar(80)
-  domain      String?  @db.VarChar(150)
-  description String?  @db.Text
-  isActive    Boolean  @default(false) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  id               String   @id @db.VarChar(64)
+  name             String   @db.VarChar(150)
+  slug             String   @unique @db.VarChar(80)
+  domain           String?  @db.VarChar(150)
+  description      String?  @db.Text
+  isActive         Boolean  @default(false) @map("is_active")
+  /// Kategorial default saat registrasi dari subdomain ini (null = netral/hub).
+  defaultBipra     Bipra?   @map("default_bipra")
+  /// Apakah registrasi mandiri dibuka untuk unit ini.
+  registrationOpen Boolean  @default(false) @map("registration_open")
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   users  UserRole[]
   groups Group[]
@@ -226,7 +230,10 @@ model User {
   onboardingPath   String  @default("ORGANIC") @map("onboarding_path") @db.VarChar(16) // ORGANIC | INVITED
   isBeyonders      Boolean @default(false) @map("is_beyonders")
   isIndividuExplicit Boolean @default(false) @map("is_individu_explicit") // Individu = tidak bisa jadi Beyonders (eksplisit KOMISI)
-  bipra            Bipra   @default(PEMUDA)
+  /// Kategorial; null = belum ditempatkan (registrasi netral dari hub).
+  bipra            Bipra?
+  /// Asal registrasi (hub | youth | teen | kids | men | women | districts | community).
+  registrationOrigin String? @map("registration_origin") @db.VarChar(64)
   kolomId          String? @map("kolom_id") @db.VarChar(64)
   membershipKind   MembershipKind @default(JEMAAT) @map("membership_kind")
 

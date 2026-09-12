@@ -17,16 +17,37 @@ async function main() {
   console.log('Menyemai data GEHC Youth ke TiDB Cloud…');
 
   for (const t of INITIAL_TENANTS) {
+    const defaults = {
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      domain: t.domain,
+      description: t.description,
+      isActive: t.is_active,
+      defaultBipra: (t.defaultBipra ?? null) as never,
+      registrationOpen: Boolean(t.registrationOpen),
+    };
     await prisma.tenant.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, slug: t.slug, domain: t.domain,
-        description: t.description, isActive: t.is_active,
-      },
-      update: { name: t.name, isActive: t.is_active },
+      create: defaults,
+      update: defaults,
     });
   }
   console.log(`✓ tenants: ${INITIAL_TENANTS.length}`);
+
+  // Bersihkan tenant id lama (pra-English) bila tak dipakai.
+  for (const id of ['tenant-bapak', 'tenant-ibu', 'tenant-rekreasi', 'tenant-teritorial']) {
+    const [roles, groups] = await Promise.all([
+      prisma.userRole.count({ where: { tenantId: id } }),
+      prisma.group.count({ where: { tenantId: id } }),
+    ]);
+    if (roles === 0 && groups === 0) {
+      await prisma.tenant.deleteMany({ where: { id } });
+      console.log(`✓ legacy tenant dihapus: ${id}`);
+    } else {
+      console.warn(`⚠️ legacy tenant ${id} masih dipakai (roles=${roles}, groups=${groups}) — dilewati`);
+    }
+  }
 
   for (const g of INITIAL_GROUPS) {
     await prisma.group.upsert({
