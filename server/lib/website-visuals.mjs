@@ -8,6 +8,7 @@ export const WARTA_PUBLIK_FOLDER = 'Warta Publik [PUBLIK]';
 
 export const WEBSITE_VISUAL_SUBFOLDERS = [
   'brand',
+  'hub',
   'landing',
   'warta',
   'kegiatan',

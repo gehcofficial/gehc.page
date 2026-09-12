@@ -27,6 +27,7 @@ export function emptySlots() {
   return {
     landing: {},
     brand: {},
+    hub: {},
     warta: {},
     kegiatan: {},
     benzar: {},

@@ -155,6 +155,7 @@ async function loadDriveSlots() {
       'pengurus',
       'testimoni',
       'users',
+      'hub',
     ]);
     const foldersToLoad = [...folderNames]
       .map((name) => byName.get(name))
@@ -206,6 +207,20 @@ async function loadDriveSlots() {
         const url = publicFileUrl(f);
         if (url) slots.users[stem] = url;
       }
+    }
+
+    // Galeri hub (foto publik jemaat) — urut nama file, hanya gambar.
+    const hubFolder = byName.get('hub');
+    if (hubFolder) {
+      const files =
+        filesByFolder.get(hubFolder.id) || (await listFiles({ folderId: hubFolder.id, pageSize: 60 }));
+      files
+        .filter((f) => String(f.mimeType || '').startsWith('image/'))
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+        .forEach((f, i) => {
+          const url = publicFileUrl(f);
+          if (url) slots.hub[String(i).padStart(2, '0')] = url;
+        });
     }
 
     const hasAny = slotsHasAny(slots);
