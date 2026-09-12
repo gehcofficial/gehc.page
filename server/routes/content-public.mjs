@@ -128,14 +128,66 @@ export function bustSlotsCache() {
   slotsCache = { at: 0, data: null };
 }
 
+/**
+ * Grup dinamis yang selalu dibaca dari Drive — meski manifest statis (CDN) aktif.
+ * `brand` (logo) dan `hub` (galeri jemaat) diunggah lewat panel → harus live.
+ */
+async function mergeDriveDynamic(slots) {
+  if (!getDriveMode()) return false;
+  try {
+    const root = await findWebsiteVisualRoot();
+    if (!root || !(await folderAllowed(root))) return false;
+    const subfolders = await listFolders(root.id, 50);
+    const byName = new Map(subfolders.map((f) => [f.name.toLowerCase(), f]));
+    let assigned = false;
+
+    const brandFolder = byName.get('brand');
+    if (brandFolder) {
+      const files = await listFiles({ folderId: brandFolder.id, pageSize: 50, fresh: true });
+      for (const slot of VISUAL_SLOTS) {
+        if (slot.folder.toLowerCase() !== 'brand') continue;
+        const file = pickSlotFile(files, slot.stem);
+        if (file) {
+          assignSlot(slots, slot.key, publicFileUrl(file));
+          assigned = true;
+        }
+      }
+    }
+
+    const hubFolder = byName.get('hub');
+    if (hubFolder) {
+      const files = await listFiles({ folderId: hubFolder.id, pageSize: 60, fresh: true });
+      files
+        .filter((f) => String(f.mimeType || '').startsWith('image/'))
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+        .forEach((f, i) => {
+          const url = publicFileUrl(f);
+          if (url) {
+            slots.hub[String(i).padStart(2, '0')] = url;
+            assigned = true;
+          }
+        });
+    }
+
+    return assigned;
+  } catch {
+    return false;
+  }
+}
+
+
 async function loadDriveSlots() {
   if (slotsCache.data && Date.now() - slotsCache.at < SLOTS_TTL) return slotsCache.data;
 
   const staticRaw = loadStaticSlots();
   const staticResult = staticRaw ? validateStaticSlots(staticRaw) : null;
   if (staticResult) {
-    slotsCache = { at: Date.now(), data: staticResult };
-    return staticResult;
+    // Manifest statis (CDN) jadi basis, TAPI grup dinamis (hub, brand) tetap
+    // dibaca dari Drive agar unggahan terbaru muncul tanpa publish.
+    const merged = await mergeDriveDynamic(staticResult.slots);
+    const data = merged ? { slots: staticResult.slots, source: 'drive' } : staticResult;
+    slotsCache = { at: Date.now(), data };
+    return data;
   }
 
   const slots = emptySlots();
