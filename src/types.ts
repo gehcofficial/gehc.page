@@ -16,6 +16,10 @@ export interface Tenant {
   badge: string;
   description: string;
   is_active: boolean;
+  /** Kategorial default saat registrasi dari subdomain ini (null = netral). */
+  defaultBipra?: string | null;
+  /** Apakah registrasi mandiri dibuka untuk unit ini. */
+  registrationOpen?: boolean;
 }
 
 export interface UserRoleMapping {
