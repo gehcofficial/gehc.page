@@ -22,6 +22,8 @@ Satu repo, satu Vercel project, satu DB. Unit ditentukan dari hostname:
 
 Registrasi mengikuti host: hub → `WAITING_POOL` + `bipra=null` + tanpa role unit; unit → `bipra` unit + role unit. Logika: `server/lib/host-context.mjs` (server) & `src/lib/host-context.ts` (frontend) — **jaga sinkron**.
 
+**Hash di host hub (`gehc.page`):** `#/portal`, `#/admin`, `#/claim`, `#/forgot-password`, `#/reset-password` → render **portal** (bukan landing); `#/pitch` → **presentasi** (`PitchDeck`, publik); hash lain → hub. Direktori unit di hub: BIPRA (Bapak, Ibu, Pemuda, Remaja, Anak) → Teritorial (Kolom) → Lainnya. Galeri jemaat dari folder Drive `Website Visual [PUBLIK]/hub/`.
+
 Seed tenant: `npm run db:seed:tenants:staging` / `:prod`.
 
 ## 1. Env Vercel Production

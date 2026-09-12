@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Info Event generik + terima kasih pasca-event + fix push iOS (13 Sep 2026)
+## Current — Hub rapi + Pitch deck + portal di gehc.page + galeri (13 Sep 2026)
+
+**Goal:** Rapikan direktori unit hub, tambah presentasi publik, aktifkan portal di host hub, dan galeri jemaat dari Drive.
+
+**Done:**
+- **Urutan unit hub**: BIPRA dulu (Pria/P-KB, Wanita/W-KI, Pemuda, Pra Remaja, Anak) → Teritorial (Kolom) → Lainnya; header grup. `src/data/churchUnits.ts` + `ChurchHub.tsx`.
+- **Pembeda jelas**: kartu aktif (Pemuda) putih + bar aksen gradien + badge hijau; coming soon abu + ikon grayscale + border putus-putus.
+- **Root reaktif-hash** (`src/main.tsx` + `src/lib/host-context.ts`): di host hub, `#/portal`/`#/admin`/`#/claim`/`#/forgot-password`/`#/reset-password` render portal; `#/pitch` render presentasi; hash lain = hub.
+- **PitchDeck** (`src/components/hub/PitchDeck.tsx` + `src/data/pitchSlides.ts`): 8 slide publik di `gehc.page/#/pitch`; navigasi keyboard (Spasi/↓/→/Enter maju, ↑/← mundur, Home/End, F fullscreen, Esc keluar), progress + dots + tombol sentuh.
+- **Galeri hub** (`HubGalleryCarousel.tsx`): foto dari Drive `Website Visual [PUBLIK]/hub/` (loader dinamis `content-public.mjs`), carousel geser `useSteerableMarquee`; tampil bila ≥4 foto. Folder `hub` ditambah ke `WEBSITE_VISUAL_SUBFOLDERS`.
+- Verifikasi: lint bersih, 305 test hijau, build OK (chunk terpisah); deploy prod; smoke `gehc.page`, `#/pitch`, `#/portal`, `youth.gehc.page`.
+
+### Next
+1. Buat folder **`Website Visual [PUBLIK]/hub/`** di Drive, unggah ≥4 foto publik → galeri muncul.
+2. Unggah `brand/logo-gmim.png` (watermark + footer hub).
+3. Klaim Google Business Profile + isi Info Gereja (kontak/sosial).
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+npm run dns:list
+```
+
+---
+
+## Prior — Info Event generik + terima kasih pasca-event + fix push iOS (13 Sep 2026)
 
 **Goal:** Info Event menampilkan event yang dipilih (redirect dari Kegiatan) atau event terdekat; ucapan terima kasih personal untuk peserta BAKU TAU yang sudah hadir (bisa unduh kartu); iOS Safari tidak lagi salah bilang "browser tidak dukung".
 

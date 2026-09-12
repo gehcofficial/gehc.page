@@ -77,6 +77,7 @@ Salinan peta: `_PETA-VISUAL.txt` di folder visual.
 |---|---|
 | `brand/logo-gehc` | Logo GEHC (navbar, footer, portal) |
 | `brand/logo-gmim` | Logo GMIM transparan (hub gehc.page + watermark; opsional) |
+| `hub/{nama-file}` | Galeri foto jemaat di hub `gehc.page` (semua gambar, urut nama; perlu ≥4) |
 | `landing/01-hero-banner` | Hero Beyonders (`HeroSection`) |
 | `landing/02-collage-worship` | VisualCollage kiri atas |
 | `landing/03-collage-community` | VisualCollage kanan atas |
@@ -109,6 +110,7 @@ Bukan semua aset landing diurus admin. Tag zona `[PUBLIK]` dll. tetap di nama fo
 |---|---|---|---|
 | Logo GEHC | `Website Visual/brand/` | Komisi | Marturia (file PNG transparan) |
 | Logo GMIM (watermark) | `Website Visual/brand/` | BPMJ/Komisi | Marturia; izin pemakaian logo GMIM |
+| Galeri jemaat hub | `Website Visual/hub/` | Marturia/Komisi | Foto publik yang aman ditampilkan |
 | Hero, collage | `Website Visual/landing/` | Marturia (Desain) | Komisi (arah identitas) |
 | Banner warta default | `Website Visual/warta/` | Marturia | Didaskalia (jadwal edisi) |
 | Foto edisi warta | `Warta Publik/…/foto/` | Marturia (Dokumentasi) | Didaskalia (judul & tanggal folder) |
