@@ -43,6 +43,8 @@ Tanpa langkah 2–3, website tetap bisa baca Drive langsung (~60 detik cache, le
 
 ```powershell
 npm run drive:provision          # buat folder bila belum ada (SA boleh)
+npm run drive:ensure-hub:prod    # pastikan folder galeri hub ada
+npm run drive:optimize-logos:prod # kompres logo brand (resize ≤480px)
 npm run drive:auth               # sekali — login pemilik Drive (Google One)
 npm run drive:seed-visuals       # unggah ke root STAGING (.env)
 npm run drive:seed-visuals:prod  # unggah ke root PRODUCTION (.env.production)
@@ -77,6 +79,7 @@ Salinan peta: `_PETA-VISUAL.txt` di folder visual.
 |---|---|
 | `brand/logo-gehc` | Logo GEHC (navbar, footer, portal) |
 | `brand/logo-gmim` | Logo GMIM transparan (hub gehc.page + watermark; opsional) |
+| `brand/logo-youth-gmim` | Logo Pemuda GMIM (hub hero, navbar/hero/footer Pemuda) |
 | `hub/{nama-file}` | Galeri foto jemaat di hub `gehc.page` (semua gambar, urut nama; perlu ≥4) |
 | `landing/01-hero-banner` | Hero Beyonders (`HeroSection`) |
 | `landing/02-collage-worship` | VisualCollage kiri atas |
@@ -110,6 +113,7 @@ Bukan semua aset landing diurus admin. Tag zona `[PUBLIK]` dll. tetap di nama fo
 |---|---|---|---|
 | Logo GEHC | `Website Visual/brand/` | Komisi | Marturia (file PNG transparan) |
 | Logo GMIM (watermark) | `Website Visual/brand/` | BPMJ/Komisi | Marturia; izin pemakaian logo GMIM |
+| Logo Pemuda GMIM | `Website Visual/brand/` | Komisi Pemuda | Marturia; optimasi via `drive:optimize-logos` |
 | Galeri jemaat hub | `Website Visual/hub/` | Marturia/Komisi | Panel **Info Gereja → Galeri** (unggah/hapus) atau Drive langsung; foto publik yang aman |
 | Hero, collage | `Website Visual/landing/` | Marturia (Desain) | Komisi (arah identitas) |
 | Banner warta default | `Website Visual/warta/` | Marturia | Didaskalia (jadwal edisi) |

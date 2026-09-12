@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Pitch deck: demo PWA (video) + slide URL/QR + copy awam (13 Sep 2026)
+## Current — Galeri hub live dari Drive + logo (GMIM/Pemuda) + optimasi (13 Sep 2026)
+
+**Goal:** Foto galeri & logo tampil di web tanpa publish; logo Pemuda GMIM di hub & Pemuda; hero hub pakai dinding foto berotasi.
+
+**Done:**
+- **Loader merge** (`server/routes/content-public.mjs`): grup dinamis **`hub`** & **`brand`** kini selalu dibaca dari Drive walau manifest statis aktif (`mergeDriveDynamic`). Akar bug sebelumnya: `source: static` membuat Drive tak pernah dibaca → galeri/logo tak muncul. Kini `source: drive`, `hub` = 7 foto.
+- **Slot baru** `brand.logoYouthGmim` (`brand/logo-youth-gmim.png`).
+- **Optimasi logo** `server/optimize-brand-logos.mjs` + `drive:optimize-logos[:prod]`: `logo-youth-gmim` 1.13 MB → 52 KB; `logo-gmim` 173 KB → 69 KB (staging & prod).
+- **Publish** `.github/workflows/publish-visuals.yml`: tambah ops `hub`, `panca`; label di `visuals-publish.mjs`.
+- **Hero hub** `ChurchHub.tsx`: 2 kolom + **`HeroPhotoWall`** (collage tile berotasi ~5 dtk dari `slots.hub`, watermark wordmark GEHC + logo GMIM & Pemuda GMIM). Section marquee galeri bawah dihapus.
+- **Logo Pemuda GMIM** dipasang di: Navbar Pemuda, Hero landing Pemuda (`HeroSection`), Footer, dan hero hub.
+- Verifikasi: lint bersih, 305 test hijau, build OK; `/api/media/slots` → `hub` 7, `brand` = logoGehc/logoGmim/logoYouthGmim; screenshot hub & youth sesuai.
+
+### Next
+1. Isi/tambah foto galeri kapan saja via panel Info Gereja → Galeri (atau Drive `hub/`) → muncul ≤60 dtk.
+
+### Commands
+```
+npm run drive:optimize-logos:prod
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Pitch deck: demo PWA (video) + slide URL/QR + copy awam (13 Sep 2026)
 
 **Goal:** Dorong jemaat mendaftar: peragakan cara daftar → pasang di HP → aktifkan notifikasi di pitch, plus slide URL + QR yang bisa langsung discan.
 
