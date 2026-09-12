@@ -25,6 +25,8 @@ const SCALE_STORAGE = 'gehc-pitch-scale';
 /** Jumlah langkah (content-by-content) untuk sebuah slide. */
 function stepsFor(slide: PitchSlide): number {
   if (slide.kind === 'roadmap' && slide.roadmap?.length) return slide.roadmap.length;
+  if (slide.kind === 'demo' && slide.demo?.steps?.length) return slide.demo.steps.length;
+  if (slide.kind === 'qr' && slide.qr?.length) return slide.qr.length;
   if ((slide.kind === 'list' || slide.kind === 'section') && slide.bullets?.length) return slide.bullets.length;
   let n = 1; // judul
   if (slide.subtitle) n += 1;
@@ -98,6 +100,88 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
             Rumah Digital Jemaat
           </motion.div>
         )}
+      </div>
+    );
+  }
+
+  if (slide.kind === 'demo' && slide.demo?.steps?.length) {
+    const s = slide.demo.steps[Math.min(step, slide.demo.steps.length - 1)];
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <div className="mt-[1.4em] flex flex-col sm:flex-row items-center gap-[1.8em]">
+          <div className="shrink-0 rounded-[2.2em] border-[0.5em] border-white/15 bg-black overflow-hidden shadow-2xl" style={{ width: '15em', aspectRatio: '9 / 19.5' }}>
+            <AnimatePresence mode="wait">
+              <motion.video
+                key={s.media}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                src={s.media}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            </AnimatePresence>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-[0.6em] mb-[0.8em]">
+              {slide.demo.steps.map((st, i) => {
+                const c = colorAt(i);
+                const on = i === step;
+                return (
+                  <span
+                    key={st.title}
+                    className="px-[0.8em] py-[0.35em] rounded-full text-[0.85em] font-bold"
+                    style={{ background: on ? c : 'rgba(255,255,255,0.08)', color: on ? '#fff' : 'rgba(255,255,255,0.6)' }}
+                  >
+                    {i + 1}. {st.title}
+                  </span>
+                );
+              })}
+            </div>
+            <p className="text-[1.4em] leading-snug text-white/90">{s.caption}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (slide.kind === 'qr' && slide.qr?.length) {
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <div className="mt-[1.4em] grid grid-cols-1 sm:grid-cols-2 gap-[1.4em] max-w-[48em]">
+          {slide.qr.map((q, i) => {
+            const c = colorAt(i);
+            const shown = reveal(i);
+            const isActive = active(i);
+            return (
+              <motion.div
+                key={q.url}
+                initial={false}
+                animate={{ opacity: shown ? (isActive ? 1 : 0.5) : 0, y: shown || reduce ? 0 : 12, scale: isActive ? 1.02 : 1 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden={!shown}
+                style={{ borderColor: isActive ? c : 'rgba(255,255,255,0.12)', boxShadow: isActive ? `0 0 0 2px ${c}` : undefined }}
+                className="rounded-[1.4em] border bg-white/5 p-[1.1em] flex flex-col items-center gap-[0.7em]"
+              >
+                <div className="rounded-[1em] bg-white p-[0.7em]">
+                  <img src={q.image} alt={`QR ${q.label}`} className="w-[9em] h-[9em]" />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-[1.15em]">{q.label}</p>
+                  <p className="text-[0.95em] text-white/60">{q.url}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     );
   }

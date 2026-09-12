@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Kelola Galeri Hub dari panel Info Gereja + folder Drive (13 Sep 2026)
+## Current — Pitch deck: demo PWA (video) + slide URL/QR + copy awam (13 Sep 2026)
+
+**Goal:** Dorong jemaat mendaftar: peragakan cara daftar → pasang di HP → aktifkan notifikasi di pitch, plus slide URL + QR yang bisa langsung discan.
+
+**Done:**
+- **Perekam demo Playwright** (`playwright.demo.config.ts` + `tests/demo/record.spec.ts`, emulasi Pixel 5, `video: 'on'`): menghasilkan 3 klip webm dengan efek zoom/caption per langkah — `01-daftar`, `02-pasang`, `03-notifikasi` di `public/media/demo/`.
+- **QR statis offline**: `public/media/qr-daftar-youth.png` (→ `https://youth.gehc.page/#/register`) & `public/media/qr-hub.png` (→ `https://gehc.page`).
+- **PitchDeck**: jenis slide baru `demo` (bingkai ponsel + video autoPlay/loop, klik per langkah memutar klip) dan `qr` (kartu QR per langkah). `stepsFor` diperbarui.
+- **pitchSlides.ts**: tambah slide "Cara mulai" (3 langkah) & "Scan untuk mulai"; copy distilisasi jadi bahasa awam (hindari istilah teknis); closing mengarah ke `youth.gehc.page`.
+- **playwright.config.ts**: `testIgnore` menyertakan `**/demo/**` agar perekam tidak ikut `npx playwright test`.
+- Verifikasi: lint bersih, 305 test hijau, build OK; 3 klip terekam (739/796/595 KB).
+
+### Next
+1. Pratinjau `#/pitch` di `gehc.page` (slide demo & QR), lalu uji scan QR dari HP.
+2. Bila perlu mp4 untuk TV tertentu: tambahkan tooling konversi (ffmpeg) lalu generate versi mp4.
+3. Bersihkan akun demo hasil rekaman lokal bila perlu (email `demo.pwa.*@gehc.page`).
+
+### Commands
+```
+npx playwright test --config=playwright.demo.config.ts   # rekam ulang klip
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kelola Galeri Hub dari panel Info Gereja + folder Drive (13 Sep 2026)
 
 **Goal:** Buat folder galeri hub otomatis dan kelola foto langsung dari panel (unggah/hapus), tanpa buka Drive manual.
 
