@@ -26,6 +26,8 @@ npm run test             # vitest unit tests
 npm run test:e2e         # Playwright E2E
 npm run db:migrate:staging
 npm run db:seed-users:staging
+npm run db:seed:tenants:staging   # tenant unit English + defaultBipra
+npm run dns:list                 # DNS Cloudflare gehc.page
 ```
 
 ## RBAC rules

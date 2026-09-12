@@ -1,6 +1,33 @@
 # GEHC Portal — Handoff
 
-## Current — Hub gehc.page + multi-unit (pool) subdomain + registrasi sadar-asal (12 Sep 2026)
+## Current — Info Gereja editable + hub (kontak, BPMJ, logo/watermark) (12 Sep 2026)
+
+**Goal:** Info gereja (alamat, maps, email, sosial, jadwal) editable dari portal; hub menampilkan kontak, struktur BPMJ, dan identitas visual.
+
+**Done:**
+- **Skema** (`_migrate-church-profile.cjs`, lokal+staging+prod): tabel `church_profile` (singleton `church-profile`) + `tenants.tagline/contact_email/socials`; seed default (INSERT IGNORE). `db:schema:check` hijau.
+- **API** (`server/routes/church-profile.mjs`): `GET /api/church-profile` (publik, fallback env), `PUT` (SUPERADMIN/BPMJ/KOMISI), `GET /api/tenants` (publik), `GET/PUT /api/tenants/:slug/profile`.
+- **Panel "Info Gereja"** (`ManageChurchInfo.tsx`, nav grup Sistem; BPMJ/KOMISI/SUPERADMIN): tab profil gereja (nama, tagline, deskripsi, alamat, maps share + query, email/telepon/WA), sosial (IG/FB/TikTok/YouTube), jadwal dinamis; serta kontak/sosial per unit.
+- **Hub** (`ChurchHub.tsx`): kontak/jadwal/sosial dari profil, blok **BPMJ** dari `/api/org/public-tree` (nama+jabatan, slot kosong "terbuka"), map dari profil, GMIM+GEHC di header/footer.
+- **Media slot** `brand.logoGmim` (`brand/logo-gmim.png`, transparan) untuk watermark hub; fallback aman bila belum diunggah.
+- Verifikasi: lint bersih, 297 test hijau, build OK; `GET /api/church-profile` & `/api/tenants` prod 200; hub tampil BPMJ.
+- **Manual:** unggah `brand/logo-gmim.png` ke Drive (izin GMIM); klaim Google Business Profile agar nama di Maps bagus; isi sosial/email lewat panel.
+
+### Next
+1. Isi kontak/sosial gereja & unit lewat panel Info Gereja.
+2. Unggah logo GMIM transparan ke slot `brand/logo-gmim`.
+3. Klaim/rapikan Google Business Profile gereja; isi `mapEmbedQuery`.
+
+### Commands
+```
+npm run db:seed:tenants:staging
+npm run db:schema:check:prod
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Hub gehc.page + multi-unit (pool) subdomain + registrasi sadar-asal (12 Sep 2026)
 
 **Goal:** `gehc.page` jadi hub gereja (bukan redirect), unit disajikan per-subdomain English dari satu repo/DB, registrasi mengikuti host.
 
