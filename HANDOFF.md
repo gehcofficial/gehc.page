@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Hub rapi + Pitch deck + portal di gehc.page + galeri (13 Sep 2026)
+## Current — Info Gereja tampil di landing Pemuda + salin staging→prod (13 Sep 2026)
+
+**Goal:** Data Info Gereja yang diisi di staging dipakai di prod, dan tampil di landing `youth.gehc.page` (footer) — bukan hanya hub `gehc.page`.
+
+**Done:**
+- **Script salin** `server/_copy-church-profile-to-prod.cjs`: church_profile singleton + profil unit (`tenants.tagline/contact_email/socials`) dari `DATABASE_URL_STAGING` → `DATABASE_URL_PRODUCTION`. Dry-run default, tulis dengan `--apply`; `--skip-empty` agar kolom prod terisi tidak dikosongkan; `--only=church|tenants`. Sudah dijalankan (`--apply --skip-empty`): prod kini punya email, sosial (IG/FB/TikTok), 4 jadwal, alamat baru; tenant `youth` = IG pemuda.
+- **Footer landing Pemuda** (`src/components/public/Footer.tsx`) kini membaca `/api/church-profile` + `/api/tenants/youth/profile`: jadwal, alamat/peta, email, WhatsApp, telepon, dan ikon sosial dinamis (fallback i18n lama bila kosong).
+- Script npm: `npm run db:copy:church-profile:prod`.
+- Verifikasi: lint bersih, 305 test hijau, build OK; `/api/church-profile` prod 200 (kedua host) & `/api/tenants` youth terisi.
+
+### Next
+1. Cek visual landing `youth.gehc.page` (footer) + hub `gehc.page` (cache 30s).
+2. Bila ada perubahan Info Gereja lagi: isi di staging → `node server/_copy-church-profile-to-prod.cjs --apply --skip-empty` (atau langsung lewat portal prod).
+
+### Commands
+```
+npm run db:copy:church-profile:prod
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Hub rapi + Pitch deck + portal di gehc.page + galeri (13 Sep 2026)
 
 **Goal:** Rapikan direktori unit hub, tambah presentasi publik, aktifkan portal di host hub, dan galeri jemaat dari Drive.
 

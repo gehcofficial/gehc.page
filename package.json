@@ -64,6 +64,7 @@
     "db:seed:tenants": "tsx server/seed-tenants.ts",
     "db:seed:tenants:staging": "dotenv -e .env.staging -- tsx server/seed-tenants.ts",
     "db:seed:tenants:prod": "dotenv -e .env.production -- tsx server/seed-tenants.ts",
+    "db:copy:church-profile:prod": "node server/_copy-church-profile-to-prod.cjs",
     "db:prune:org-legacy": "tsx server/prune-legacy-org-slots.ts",
     "db:prune:org-legacy:staging": "dotenv -e .env.staging -- tsx server/prune-legacy-org-slots.ts",
     "db:prune:org-legacy:prod": "dotenv -e .env.production -- tsx server/prune-legacy-org-slots.ts",
