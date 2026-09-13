@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Kegiatan ikut tanggal + bonding privat per grup (13 Sep 2026)
+## Current — Nama bergelar tidak lagi tertimpa nama akun Google/username (13 Sep 2026)
+
+**Goal:** `User.name` (nama resmi + gelar) tidak ditimpa nama profil Google/akun saat login; undangan ikut menyimpan field gelar terstruktur.
+
+**Done:**
+- **Akar masalah:** semua UI membaca `User.name` mentah, tapi jalur Google OAuth menulis `name: p.name` tanpa merangkai ulang `givenName/familyName/churchTitle/academicTitles` → gelar hilang tiap login. Username sendiri tidak pernah jadi sumber nama.
+- `server/lib/person-name.mjs`: helper baru `partsFromUser`, `hasStructuredName`, `resolveDisplayName(user, fallback)` (prioritaskan field terstruktur, fallback nama provider/`name`).
+- `server/auth.mjs`: 5 titik Google (login sub, login email, create, claim, link) pakai `resolveDisplayName`.
+- `server/index.mjs`: jalur Google join/invite-code (`:3795`), register Google (`:3970`), dan `upsertGoogleUser` (`:4294`) juga pakai `resolveDisplayName`.
+- `server/invite-provision.mjs`: terima `nameParts`; bila nama polos, `parseDisplayName` membongkar gelar (mis. `Pdt Meyke Poluan S.Th., M.Pd.,`) lalu simpan field terstruktur sehingga tak hilang saat Google login. Username tetap diturunkan dari nama pribadi tanpa gelar.
+- `server/index.mjs`: endpoint `invite-provision` + `-bulk` teruskan `nameParts`.
+- `src/components/portal/ProvisionInviteWizard.tsx`: mode single pakai `PersonNameFields` (gelar gereja/akademis + preview nama tercetak); bulk tetap input nama polos (server mem-parse gelar).
+- Test: `tests/unit/person-name-server.test.ts` (3 kasus). Verifikasi: `npm run lint` bersih, 308 test hijau.
+
+### Next
+1. Uji staging: undang user bergelar → login Google → pastikan nama tetap `Pdt …`; dan user lama yang namanya sudah tertimpa perlu dikoreksi via permintaan admin / edit profil onboarding.
+2. Pertimbangkan opsi 2 (display dihitung dari field terstruktur saat read) agar `name` murni cache.
+3. Commit + deploy.
+
+### Commands
+```
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Kegiatan ikut tanggal + bonding privat per grup (13 Sep 2026)
 
 **Goal:** Klik tanggal di Kegiatan menampilkan folder event tanggal itu; album bonding hanya untuk grup terkait + SUPERADMIN/KOMISI/BOD COMMITTEE.
 

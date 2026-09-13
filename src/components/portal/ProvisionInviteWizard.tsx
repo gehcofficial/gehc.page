@@ -8,6 +8,8 @@ import {
   type InviteType,
 } from '../../lib/invite-credentials';
 import { OrgSlotPicker } from './OrgSlotPicker';
+import { PersonNameFields } from './PersonNameFields';
+import { composeOfficialName, emptyPersonName, type PersonNameParts } from '../../lib/person-name';
 import { useLang } from '../../context/LangContext';
 import { fmt, portalRoleLabel } from '../../lib/portal-i18n';
 
@@ -81,7 +83,7 @@ export const ProvisionInviteWizard: React.FC = () => {
   const p = t.portal.people;
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [inviteType, setInviteType] = useState<InviteType>('beyonders');
-  const [name, setName] = useState('');
+  const [singleName, setSingleName] = useState<PersonNameParts>(() => emptyPersonName());
   const [loginUsername, setLoginUsername] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('MENTEE');
@@ -122,6 +124,8 @@ export const ProvisionInviteWizard: React.FC = () => {
   }, [inviteType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const namedDrafts = useMemo(() => bulkDrafts.filter((r) => r.name.trim()), [bulkDrafts]);
+  const singleDisplayName = composeOfficialName(singleName);
+  const singleReady = Boolean(singleName.givenName.trim() && singleName.familyName.trim());
   const roleOptions = inviteType === 'beyonders' ? MENTORING_ROLES : inviteType === 'staff' ? STAFF_ROLES : (['MENTEE'] as UserRole[]);
 
   const copyText = async (text: string, id: string) => {
@@ -160,7 +164,7 @@ export const ProvisionInviteWizard: React.FC = () => {
   };
 
   const submitSingle = async () => {
-    if (!name.trim()) return;
+    if (!singleReady) return;
     if (inviteType === 'beyonders' && !groupId) return;
     if (inviteType === 'staff' && !orgNodeId) {
       alert(p.pickOrgSlot);
@@ -175,7 +179,12 @@ export const ProvisionInviteWizard: React.FC = () => {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
+          name: singleDisplayName,
+          givenName: singleName.givenName,
+          middleName: singleName.middleName,
+          familyName: singleName.familyName,
+          churchTitle: singleName.churchTitle,
+          academicTitles: singleName.academicTitles,
           loginUsername: loginUsername.trim() || undefined,
           email: email.trim().toLowerCase() || undefined,
           role,
@@ -185,7 +194,7 @@ export const ProvisionInviteWizard: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setSingleResult({
-        name: data.name || name.trim(),
+        name: data.name || singleDisplayName,
         loginUsername: data.loginUsername,
         email: data.email,
         role: data.role,
@@ -193,7 +202,7 @@ export const ProvisionInviteWizard: React.FC = () => {
         tempPassword: data.tempPassword,
         claimUrl: data.claimUrl,
       });
-      setName('');
+      setSingleName(emptyPersonName());
       setLoginUsername('');
       setEmail('');
     } catch (e) {
@@ -359,12 +368,12 @@ export const ProvisionInviteWizard: React.FC = () => {
 
       {mode === 'single' ? (
         <>
+          <PersonNameFields value={singleName} onChange={setSingleName} />
           <div className="grid sm:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={p.fullName} value={name} onChange={(e) => setName(e.target.value)} />
             <input className={`${inputClass} font-mono`} placeholder={p.usernameOptional} value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
-            <input className={`${inputClass} sm:col-span-2`} placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className={inputClass} placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <button type="button" disabled={busy || !name.trim() || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
+          <button type="button" disabled={busy || !singleReady || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
             {p.createInviteBtn}
           </button>

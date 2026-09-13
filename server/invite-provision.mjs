@@ -13,6 +13,7 @@ import {
   validateUsername,
   ensureUniqueUsername,
 } from './lib/username.mjs';
+import { applyPersonNameFields, hasStructuredName, parseDisplayName } from './lib/person-name.mjs';
 
 export const DEFAULT_UNIFORM_PASSWORD = 'GEHCikarang';
 
@@ -56,6 +57,7 @@ export async function createInviteProvisionUser(
   prisma,
   {
     name,
+    nameParts,
     loginUsername,
     email,
     role,
@@ -69,13 +71,32 @@ export async function createInviteProvisionUser(
     assignedBy,
   },
 ) {
-  const trimmedName = String(name || '').trim();
+  let trimmedName = String(name || '').trim();
   const assignedRole = String(role || 'MENTOR').trim();
   const type = resolveInviteType({ inviteType });
 
+  const nameData = {};
+  if (hasStructuredName(nameParts)) {
+    const nameErr = applyPersonNameFields(nameParts, nameData);
+    if (nameErr) throw Object.assign(new Error(nameErr), { status: 400 });
+    trimmedName = nameData.name;
+  } else if (trimmedName) {
+    // Nama polos (mis. bulk/ketik manual) — bongkar gelar agar tidak hilang saat login Google.
+    const parsed = parseDisplayName(trimmedName);
+    if (parsed.givenName && parsed.familyName) {
+      const nameErr = applyPersonNameFields(parsed, nameData);
+      if (nameErr) throw Object.assign(new Error(nameErr), { status: 400 });
+      trimmedName = nameData.name;
+    }
+  }
+  const structuredName = Boolean(nameData.givenName || nameData.familyName);
   if (!trimmedName) throw Object.assign(new Error('Nama wajib.'), { status: 400 });
 
-  let username = loginUsername ? normalizeUsername(loginUsername) : slugUsernameFromName(trimmedName);
+  // Username diturunkan dari nama pribadi (tanpa gelar) agar tetap rapi.
+  const nameForUsername = structuredName
+    ? [nameData.givenName, nameData.middleName, nameData.familyName].filter(Boolean).join(' ')
+    : trimmedName;
+  let username = loginUsername ? normalizeUsername(loginUsername) : slugUsernameFromName(nameForUsername);
   const usernameErr = validateUsername(username);
   if (usernameErr && loginUsername) throw Object.assign(new Error(usernameErr), { status: 400 });
   username = await ensureUniqueUsername(prisma, username);
@@ -108,6 +129,15 @@ export async function createInviteProvisionUser(
     data: {
       id: userId,
       name: trimmedName,
+      ...(structuredName
+        ? {
+            givenName: nameData.givenName || null,
+            middleName: nameData.middleName || null,
+            familyName: nameData.familyName || null,
+            churchTitle: nameData.churchTitle || null,
+            academicTitles: nameData.academicTitles,
+          }
+        : {}),
       loginUsername: username,
       email: normalizedEmail,
       passwordHash: hashPassword(tempPass),

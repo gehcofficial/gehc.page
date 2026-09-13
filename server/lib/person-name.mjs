@@ -98,6 +98,35 @@ export function composeOfficialName(parts) {
   return `${head} ${withComma}`.trim().slice(0, 150);
 }
 
+/** Ambil field nama terstruktur dari record User. */
+export function partsFromUser(user) {
+  return {
+    churchTitle: String(user?.churchTitle || '').toUpperCase(),
+    givenName: user?.givenName || '',
+    middleName: user?.middleName || '',
+    familyName: user?.familyName || '',
+    academicTitles: Array.isArray(user?.academicTitles) ? user.academicTitles : [],
+  };
+}
+
+/** True bila user punya nama terstruktur (gelar/nama depan-belakang) yang bisa dirangkai. */
+export function hasStructuredName(user) {
+  return Boolean(String(user?.givenName || '').trim() || String(user?.familyName || '').trim());
+}
+
+/**
+ * Nama tampilan yang diprioritaskan dari field terstruktur (gelar lengkap).
+ * Fallback ke `fallback` (mis. nama dari Google) atau `user.name` bila tidak ada.
+ */
+export function resolveDisplayName(user, fallback) {
+  if (hasStructuredName(user)) {
+    const composed = composeOfficialName(partsFromUser(user));
+    if (composed) return composed;
+  }
+  const next = fallback != null && String(fallback).trim() ? String(fallback).trim() : String(user?.name || '').trim();
+  return next;
+}
+
 export function validatePersonName(parts) {
   if (!titleCaseName(parts?.givenName).trim()) return 'Nama depan wajib diisi.';
   if (!titleCaseName(parts?.familyName).trim()) return 'Nama belakang wajib diisi.';

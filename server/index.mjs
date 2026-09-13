@@ -128,7 +128,7 @@ import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from '.
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
 import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
-import { applyPersonNameFields, parseDisplayName } from './lib/person-name.mjs';
+import { applyPersonNameFields, parseDisplayName, resolveDisplayName } from './lib/person-name.mjs';
 import { registerTitleCatalogRoutes } from './routes/title-catalog.mjs';
 import { registerServingAssignmentRoutes } from './routes/serving-assignments.mjs';
 import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
@@ -3792,7 +3792,7 @@ app.post('/api/join', wrap(async (req, res) => {
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          name: p.name || user.name,
+          name: resolveDisplayName(user, p.name),
           ...googleAvatarPatch(user, p.picture),
           googleSub: p.sub,
           linkStatus: 'LINKED',
@@ -3967,7 +3967,7 @@ app.post('/api/register/google', wrap(async (req, res) => {
       user = await prisma.user.update({
         where: { id: existing.id },
         data: {
-          name: p.name || existing.name || email.split('@')[0],
+          name: resolveDisplayName(existing, p.name || existing.name),
           ...googleAvatarPatch(existing, p.picture),
           accountStatus: status,
           googleSub: p.sub,
@@ -4291,7 +4291,7 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
 
   const avatarFields = user ? googleAvatarPatch(user, p.picture) : googleAvatarCreate(p.picture);
   const baseData = {
-    name: p.name || email.split('@')[0],
+    name: user ? resolveDisplayName(user, p.name) : (p.name || email.split('@')[0]),
     ...avatarFields,
     phone: profile.phone ?? undefined,
     address: profile.address ?? undefined,
@@ -5174,6 +5174,7 @@ app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async
   try {
     const created = await createInviteProvisionUser(prisma, {
       name: req.body?.name,
+      nameParts: req.body,
       loginUsername: req.body?.loginUsername || req.body?.username,
       email: req.body?.email,
       role: req.body?.role || 'MENTOR',
@@ -5229,6 +5230,7 @@ app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(
     try {
       const result = await createInviteProvisionUser(prisma, {
         name: row.name,
+        nameParts: row,
         loginUsername: row.loginUsername || row.username,
         email: row.email,
         role: row.role || defaultRole,

@@ -12,6 +12,7 @@ import { getPrisma, isDbConfigured, resetPrisma, isTransientDbError } from './db
 import { shouldAutoGrantSuperadminEmail } from './platform-operators.mjs';
 import { roleToNamespace, namespaceToRole } from './portal-namespace.mjs';
 import { googleAvatarCreate, googleAvatarPatch } from './lib/user-avatar.mjs';
+import { resolveDisplayName } from './lib/person-name.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -326,7 +327,7 @@ export async function loginWithGoogleCredential(credential, ctx = null) {
       where: { id: user.id },
       data: {
         email,
-        name: p.name || undefined,
+        name: resolveDisplayName(user, p.name) || undefined,
         ...googleAvatarPatch(user, p.picture),
         linkStatus: 'LINKED',
         authProvider: 'GOOGLE',
@@ -348,7 +349,7 @@ export async function loginWithGoogleCredential(credential, ctx = null) {
           googleSub: p.sub,
           linkStatus: 'LINKED',
           email,
-          name: p.name || undefined,
+          name: resolveDisplayName(byEmail, p.name) || undefined,
           ...googleAvatarPatch(byEmail, p.picture),
           authProvider: 'GOOGLE',
         },
@@ -434,7 +435,7 @@ export async function claimWithGoogleCredential(credential, tokenRaw) {
       googleSub: p.sub,
       linkStatus: 'LINKED',
       email: p.email,
-      name: p.name || target.name,
+      name: resolveDisplayName(target, p.name || target.name),
       ...googleAvatarPatch(target, p.picture),
       claimToken: null,
       claimTokenExpiresAt: null,
@@ -474,7 +475,7 @@ export async function linkGoogleToSessionUser(userId, credential) {
       googleSub: p.sub,
       linkStatus: 'LINKED',
       email: p.email || user.email,
-      name: p.name || user.name,
+      name: resolveDisplayName(user, p.name || user.name),
       ...googleAvatarPatch(user, p.picture),
       // Keep LOCAL if password exists — dual auth (Google + password backup)
       authProvider: user.passwordHash ? user.authProvider : 'GOOGLE',
