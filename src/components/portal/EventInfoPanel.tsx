@@ -79,6 +79,7 @@ const STATUS_LABEL: Record<string, string> = { PLANNING: 'Direncanakan', ACTIVE:
 export const EventInfoPanel: React.FC = () => {
   const [eventKey, setEventKey] = useState<string | null>(() => currentEventKey());
   const [ev, setEv] = useState<EvInfo | null>(null);
+  const [allEvents, setAllEvents] = useState<EvInfo[]>([]);
   const [reg, setReg] = useState<RegInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,16 +96,25 @@ export const EventInfoPanel: React.FC = () => {
     else setLoading(true);
     setError('');
     try {
+      let list: EvInfo[] = [];
+      const lr = await fetch('/api/events', { credentials: 'include' });
+      if (lr.ok) {
+        const ld = await lr.json().catch(() => ({}));
+        list = (ld.events || []) as EvInfo[];
+        setAllEvents(list);
+      }
       let target: EvInfo | null = null;
       if (eventKey) {
-        const r = await fetch(`/api/events/${encodeURIComponent(eventKey)}`, { credentials: 'include' });
-        if (r.ok) target = await r.json();
+        target = list.find((e) => e.id === eventKey || e.slug === eventKey) || null;
+        if (!target) {
+          const r = await fetch(`/api/events/${encodeURIComponent(eventKey)}`, { credentials: 'include' });
+          if (r.ok) {
+            const d = await r.json();
+            target = (d?.event || d) as EvInfo;
+          }
+        }
       }
-      if (!target) {
-        const r = await fetch('/api/events', { credentials: 'include' });
-        const d = await r.json().catch(() => ({}));
-        target = pickNearest((d.events || []) as EvInfo[]);
-      }
+      if (!target) target = pickNearest(list);
       setEv(target);
       if (target?.id) {
         const rr = await fetch(`/api/me/events/${target.id}/registration`, { credentials: 'include' });
@@ -164,8 +174,37 @@ export const EventInfoPanel: React.FC = () => {
 
   const goAgenda = () => { window.location.hash = `#/portal/${currentPortalNs()}/kegiatan`; };
 
+  const dateOptions = allEvents
+    .filter((e) => e.eventDate && !Number.isNaN(new Date(e.eventDate).getTime()))
+    .sort((a, b) => new Date(b.eventDate as string).getTime() - new Date(a.eventDate as string).getTime());
+  const optionLabel = (e: EvInfo) => new Date(e.eventDate as string).toLocaleDateString('id-ID', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
+  }) + ' · ' + e.name;
+  const pickDate = (id: string) => {
+    if (!id || id === ev?.id) return;
+    window.location.hash = `#/portal/${currentPortalNs()}/event-info?event=${encodeURIComponent(id)}`;
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Penjelajah tanggal ibadah — tiap tanggal punya drive/materi sendiri */}
+      {dateOptions.length > 1 && (
+        <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 px-4 py-3 flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-[#FF416C] shrink-0" />
+          <label htmlFor="event-date-picker" className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] shrink-0">Tanggal</label>
+          <select
+            id="event-date-picker"
+            value={ev.id}
+            onChange={(e) => pickDate(e.target.value)}
+            className="ml-auto min-w-0 flex-1 text-xs font-bold text-[#1B1B1B] bg-[#FAF9F5] border border-[#D9D7D0] rounded-xl px-3 py-2"
+          >
+            {dateOptions.map((e) => (
+              <option key={e.id} value={e.id}>{optionLabel(e)}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="flex items-start justify-between gap-3">

@@ -14,6 +14,34 @@ async function findFolderByName(name, parentId) {
   return folders.find((f) => String(f.name || '').toLowerCase() === lower) || null;
 }
 
+/** Folder `03 RHB 7 Hari` milik event (buat bila belum ada). Null bila event/divisi tak ada. */
+async function resolvePerEventRhbFolder(prisma, eventId) {
+  const div = await prisma.eventDivision.findUnique({
+    where: { eventId_division: { eventId, division: 'DIDASKALIA' } },
+    select: { id: true, driveFolderId: true },
+  });
+  if (!div) return null;
+  let folderId = div.driveFolderId;
+  if (!folderId) {
+    const ev = await prisma.eventProgram.findUnique({ where: { id: eventId } });
+    if (!ev) return null;
+    const { createEventFolder } = await import('../gdrive-events.mjs');
+    folderId = await createEventFolder(ev, 'DIDASKALIA');
+    if (folderId) {
+      await prisma.eventDivision.update({ where: { id: div.id }, data: { driveFolderId: folderId } }).catch(() => null);
+    }
+  }
+  if (!folderId) return null;
+  const subs = await listFolders(folderId, 50);
+  const rhb = subs.find((f) => {
+    const n = String(f.name || '').toLowerCase();
+    return n.includes('03') || n.includes('rhb');
+  });
+  if (rhb) return rhb.id;
+  const created = await createFolder(folderId, '03 RHB 7 Hari');
+  return created?.id || folderId;
+}
+
 async function findRhbFolderId() {
   // Legacy pillar path: Didaskalia/Kurikulum Pemuridan/Berkas/modul-rhb
   // Sekarang per-event: Didaskalia/Kurikulum/<Event>/03 RHB 7 Hari . Pillar fallback dipertahankan untuk arsip lama.
@@ -139,12 +167,17 @@ export function registerDidaskaliaRhbRoutes(app, { wrap }) {
     wrap(async (req, res) => {
       if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
       if (!driveWriteEnabled()) return res.status(403).json({ error: 'Upload belum diaktifkan (set GDRIVE_WRITE=1 atau hubungkan token Drive pemilik).' });
-      const { filename, mimetype, data, weekLabel } = req.body || {};
+      const { filename, mimetype, data, weekLabel, eventId } = req.body || {};
       if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
       if (typeof data === 'string' && data.length > 11_000_000) return res.status(413).json({ error: 'File terlalu besar (maks ~8MB).' });
       let folderId = null;
       try {
-        folderId = await findRhbFolderId();
+        // Utamakan folder per-event (03 RHB 7 Hari) agar RHB tidak tercampur antar tanggal ibadah.
+        if (eventId) {
+          const prisma = getPrisma();
+          if (prisma) folderId = await resolvePerEventRhbFolder(prisma, String(eventId)).catch(() => null);
+        }
+        if (!folderId) folderId = await findRhbFolderId();
         if (!folderId) {
           // Auto-create legacy pillar path Didaskalia/Kurikulum/Berkas/modul-rhb (fallback)
           const root = process.env.GDRIVE_ROOT_FOLDER_ID;

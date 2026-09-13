@@ -1,6 +1,35 @@
 # GEHC Portal — Handoff
 
-## Current — Galeri hub live dari Drive + logo (GMIM/Pemuda) + optimasi (13 Sep 2026)
+## Current — Drive per tanggal ibadah + paritas data September prod (13 Sep 2026)
+
+**Goal:** Tiap tanggal ibadah punya folder Drive DIDASKALIA sendiri + 3 subfolder; Info Event bisa pilih tanggal; produksi sejajar perilaku staging tanpa mengubah nama event.
+
+**Done:**
+- **Diagnosis:** staging vs prod jalan di commit sama (`6799436`) tapi **DB berbeda** (`server/db.mjs`: produksi → `DATABASE_URL_PRODUCTION`, preview → `DATABASE_URL_STAGING`). Prod punya 5 event manual (`serviceType`/`metadata` null), hanya 13 Sep punya folder DIDASKALIA; folder lain dibuat lazy (`server/gdrive-events.mjs`, `server/index.mjs:1961/2454/2528`).
+- **Skrip** `server/_provision-september-events.cjs` — idempoten, mode `--dry`, `--apply`, `--list=<folderId>`, `--move`, `--year-month=YYYY-MM`. Menjalankan: set `serviceType`+`metadata{weekIndex,yearMonth}`, pastikan `EventDivision(DIDASKALIA)`, `createEventFolder` → folder `"<nama> [EV:<slug>:DIDASKALIA]"` + `01 Pembekalan / 02 Ringkasan Khotbah / 03 RHB 7 Hari`.
+- **Apply prod September:** 06/13/20/27 Sep punya folder + 3 subfolder sendiri; 20 & 27 dapat divisi DIDASKALIA baru; `serviceType` metadata terisi.
+- **Pindah file:** RHB Week 1 Path 1–7 + `THE CHURCH BEGINS HERE.pdf` dari folder 13 Sep → folder 06 Sep. Sisa di 13 Sep: `DOC-20260905-WA0011.pdf` (01) + `RHB - Week 2 Path 1` (03).
+- **Kode:** `server/routes/didaskalia-rhb.mjs` — POST `/api/didaskalia/rhb/upload` kini utamakan folder per-event `03 RHB 7 Hari` (fallback pillar legacy). `src/components/portal/EventInfoPanel.tsx` — penjelajah tanggal (dropdown dari `/api/events`), deep-link `?event=` tetap.
+- Verifikasi: `npm run lint` bersih, 305 test hijau, `node --check` OK; inspeksi prod Drive/DB sesuai.
+
+### Next
+1. Commit + deploy agar UI penjelajah tanggal & fix RHB live (Fase 3/4 masih lokal).
+2. Bulan berikutnya: `--year-month=2026-10` (event sudah ada) atau buat event via Rencana Layanan lalu jalankan skrip.
+3. Isi materi 20/27 Sep via Panel Divisi → Didaskalia → Studio (terbit per event).
+
+### Commands
+```
+dotenv -e .env.production -- node server/_provision-september-events.cjs --dry
+dotenv -e .env.production -- node server/_provision-september-events.cjs --apply
+dotenv -e .env.production -- node server/_provision-september-events.cjs --year-month=2026-10 --apply
+dotenv -e .env.production -- node server/_provision-september-events.cjs --list=<folderId>
+dotenv -e .env.production -- node server/_provision-september-events.cjs --move --apply
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Galeri hub live dari Drive + logo (GMIM/Pemuda) + optimasi (13 Sep 2026)
 
 **Goal:** Foto galeri & logo tampil di web tanpa publish; logo Pemuda GMIM di hub & Pemuda; hero hub pakai dinding foto berotasi.
 
