@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Drive per tanggal ibadah + paritas data September prod (13 Sep 2026)
+## Current — Kegiatan ikut tanggal + bonding privat per grup (13 Sep 2026)
+
+**Goal:** Klik tanggal di Kegiatan menampilkan folder event tanggal itu; album bonding hanya untuk grup terkait + SUPERADMIN/KOMISI/BOD COMMITTEE.
+
+**Done:**
+- **Kegiatan** `src/components/portal/KegiatanCalendar.tsx`: klik sel tanggal → `selectDay(day)` (set `daySel` + `onSelect` event hari itu, utamakan kind `UMUM`); klik baris agenda → `onSelect` (detail di bawah ikut berganti), link "Info →" tetap navigasi. `IbadahMingguanPanel` tak diubah (sudah fetch 01/02/03 per `selectedId`).
+- **Bonding privat** `server/lib/drive-ownership.mjs`: helper `isBondingStaff` (SUPERADMIN/KOMISI/COMMITTEE; BPMJ tidak) + `isBondingViewer` (staf bonding ATAU role punya `groupId`).
+- `server/routes/drive-ownership.mjs`: `GET /api/groups/:id/albums` kini `requireRole()` + gate `isBondingViewer` (403 untuk non-anggota; `includeDrive=true` untuk yang lolos); `GET /api/groups/albums` + `GET /api/portal/calendar` pakai `isBondingStaff` (BPMJ keluar); `.../files`, upload & hapus foto pakai `isBondingViewer`.
+- `src/hooks/useActiveAccess.ts`: `canViewBonding` keluarkan BPMJ.
+- `src/components/public/GroupDetailPage.tsx`: 401 juga diperlakukan `restricted` (anonim → tab Docs terkunci, bukan "kosong").
+- Verifikasi: `npm run lint` bersih, 305 test hijau, `node --check` OK.
+
+### Next
+1. Uji staging sebagai mentee grup non-Echad (album Echad → restricted) & anggota Echad (bisa), lalu sebagai Komisi/Committee (semua grup), BPMJ (tidak).
+2. Uji Kegiatan: klik 06 Sep → kartu folder 06 Sep muncul.
+
+### Commands
+```
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Drive per tanggal ibadah + paritas data September prod (13 Sep 2026)
 
 **Goal:** Tiap tanggal ibadah punya folder Drive DIDASKALIA sendiri + 3 subfolder; Info Event bisa pilih tanggal; produksi sejajar perilaku staging tanpa mengubah nama event.
 

@@ -133,6 +133,15 @@ export const KegiatanCalendar: React.FC<{
     setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   };
 
+  // Klik tanggal → pilih event hari itu agar detail di bawah ikut berganti (utamakan UMUM).
+  const selectDay = (day: string) => {
+    setDaySel(day);
+    const evs = byDay.get(day) || [];
+    if (!evs.length) return;
+    const pick = evs.find(({ e }) => String(e.kind || 'KHUSUS').toUpperCase() === 'UMUM') || evs[0];
+    onSelect(pick.e.id);
+  };
+
   const dayItems = [...(byDay.get(daySel) || []), ...(bondingByDay.get(daySel) || []).map((b) => ({ b }))];
 
   // Linimasa (Gantt-lite): window 90 hari dari awal bulan tampil
@@ -229,7 +238,7 @@ export const KegiatanCalendar: React.FC<{
                 <button
                   key={day}
                   type="button"
-                  onClick={() => setDaySel(day)}
+                  onClick={() => selectDay(day)}
                   className={`min-h-[3.2rem] rounded-xl border p-1 text-left transition-all ${isSel ? 'border-[#181818] ring-2 ring-[#181818]/20 bg-white' : 'border-[#D9D7D0]/60 bg-[#FAF9F5] hover:bg-white'} ${!inMonth ? 'opacity-40' : ''}`}
                 >
                   <span className={`text-[11px] font-black inline-flex items-center justify-center w-5 h-5 rounded-full ${isToday ? 'bg-[#FF416C] text-white' : 'text-[#1B1B1B]'}`}>{Number(day.slice(8))}</span>
@@ -274,7 +283,7 @@ export const KegiatanCalendar: React.FC<{
                 <button
                   key={e.id + idx}
                   type="button"
-                  onClick={() => (onOpenEvent ? onOpenEvent(e.id) : onSelect(e.id))}
+                  onClick={() => onSelect(e.id)}
                   className={`w-full flex items-center gap-2 p-2 rounded-xl border text-left ${active ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white border-[#D9D7D0] hover:border-[#181818]'}`}
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${KIND_COLORS[k]?.dot || 'bg-gray-400'}`} />

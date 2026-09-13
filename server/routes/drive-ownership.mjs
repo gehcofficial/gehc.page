@@ -11,6 +11,8 @@ import {
   houseStem,
   isMentorOfGroup,
   isMemberOfGroup,
+  isBondingStaff,
+  isBondingViewer,
   isMarturiaStory,
   isMarturiaDocs,
   isBzpStaff,
@@ -402,17 +404,22 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
 
   app.get(
     '/api/groups/:id/albums',
+    requireRole(),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.json({ albums: [] });
       const group = await prisma.group.findUnique({ where: { id: req.params.id } });
       if (!group) return res.status(404).json({ error: 'Kelompok tidak ditemukan.' });
+      // Bonding privat: hanya anggota rumah ini + SUPERADMIN/KOMISI/BOD COMMITTEE.
+      if (!isBondingViewer(req.authUser, group.id)) {
+        return res.status(403).json({ error: 'Album bonding hanya untuk anggota rumah ini.' });
+      }
       const rows = await prisma.groupAlbum.findMany({
         where: { groupId: group.id },
         orderBy: { occurredOn: 'desc' },
       });
-      const includeDrive = Boolean(req.authUser) && isMemberOfGroup(req.authUser, group.id);
-      const canModerate = isMentorOfGroup(req.authUser, group.id) || komisiGate(req.authUser);
+      const includeDrive = true; // hanya viewer yang lolos yang sampai di sini
+      const canModerate = isBondingStaff(req.authUser) || isMentorOfGroup(req.authUser, group.id);
       const statusMap = await readAlbumStatusMap(prisma, rows.map((r) => r.id));
       const withStatus = rows.map((r) => ({ ...r, status: albumStatusOf(r, statusMap) }));
       // BATAL disembunyikan kecuali untuk mentor/Komisi rumah itu
@@ -430,7 +437,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const prisma = getPrisma();
       if (!prisma) return res.json({ albums: [] });
       const roles = (req.authUser?.roles || []);
-      const isStaff = roles.some((r) => ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].includes(r.role));
+      const isStaff = isBondingStaff(req.authUser);
       let groups = [];
       if (isStaff) {
         groups = await prisma.group.findMany({ select: { id: true, name: true } });
@@ -578,7 +585,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
       if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
-      if (!isMemberOfGroup(req.authUser, album.groupId)) {
+      if (!isBondingViewer(req.authUser, album.groupId)) {
         return res.status(403).json({ error: 'Hanya anggota rumah ini yang boleh unggah.' });
       }
       if (!album.driveFolderId) {
@@ -744,7 +751,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
       if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
-      if (!isMemberOfGroup(req.authUser, album.groupId)) {
+      if (!isBondingViewer(req.authUser, album.groupId)) {
         return res.status(403).json({ error: 'Hanya anggota rumah ini yang boleh hapus foto.' });
       }
       const fileId = String(req.params.fileId);
@@ -840,7 +847,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
       if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
-      if (!isMemberOfGroup(req.authUser, album.groupId)) {
+      if (!isBondingViewer(req.authUser, album.groupId)) {
         return res.status(403).json({ error: 'Login sebagai anggota untuk melihat isi Drive.' });
       }
       if (!album.driveFolderId) return res.json({ files: [], driveUrl: null });
@@ -1269,7 +1276,8 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       }));
 
       const groupIds = (req.authUser.roles || []).map((r) => r.groupId).filter(Boolean);
-      const albumWhere = pengurus
+      const bondingStaff = isBondingStaff(req.authUser);
+      const albumWhere = bondingStaff
         ? { occurredOn: { gte: from, lte: to } }
         : groupIds.length
           ? { groupId: { in: groupIds }, occurredOn: { gte: from, lte: to } }

@@ -186,6 +186,21 @@ export function isMemberOfGroup(authUser, groupId) {
   return (authUser.roles || []).some((r) => r.groupId === groupId);
 }
 
+/** Bonding: staf yang boleh lihat semua grup = SUPERADMIN / KOMISI / BOD COMMITTEE (BPMJ tidak). */
+export function isBondingStaff(authUser) {
+  if (!authUser) return false;
+  if (isSuperadminEmail(authUser.email)) return true;
+  const roles = rolesOf(authUser);
+  return roles.includes('SUPERADMIN') || roles.includes('KOMISI') || roles.includes('COMMITTEE');
+}
+
+/** Boleh lihat album bonding grup ini: staf bonding ATAU anggota rumah itu (role punya groupId). */
+export function isBondingViewer(authUser, groupId) {
+  if (!authUser || !groupId) return false;
+  if (isBondingStaff(authUser)) return true;
+  return (authUser.roles || []).some((r) => r.groupId === groupId);
+}
+
 async function inSubdivision(authUser, division, subdivision) {
   if (isKomisiOrSuperadmin(authUser) || isPlatformAdminUser(authUser)) return true;
   const sm = await loadStruktur(authUser);

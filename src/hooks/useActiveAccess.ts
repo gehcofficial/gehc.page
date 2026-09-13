@@ -22,7 +22,8 @@ export function useActiveAccess() {
   // 03 RHB: beyonders + staf (topeng aktif)
   const canView03 = isBeyonder || isPriv;
   const canViewInternal = isPriv;
-  const canViewBonding = isBeyonder || isPriv;
+  // Bonding privat: hanya beyonder grup + SUPERADMIN/KOMISI/BOD COMMITTEE (BPMJ tidak).
+  const canViewBonding = isBeyonder || isSuperAdmin || isKomisi || isCommittee;
 
   return {
     isPriv,

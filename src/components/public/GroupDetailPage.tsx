@@ -62,7 +62,7 @@ export const GroupDetailPage: React.FC = () => {
         const r = await fetch(`/api/groups/${selectedGroupId}/albums`, { credentials: 'include' });
         if (cancelled) return;
         if (!r.ok) {
-          setGalleryState(r.status === 403 ? 'restricted' : 'empty');
+          setGalleryState(r.status === 401 || r.status === 403 ? 'restricted' : 'empty');
           return;
         }
         const d = await r.json();
