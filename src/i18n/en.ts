@@ -31,10 +31,10 @@ export const en = {
     cta2: 'Bulletin',
     cta3: 'Events',
     bTag: 'Next Gathering',
-    bTitle: 'BAKU TAU 4.0 — Bakudapa di Rantau',
-    bDescIntro: 'A welcome night for new President University students.',
+    bTitle: 'GEHC Youth Events',
+    bDescIntro: 'Follow the latest GEHC Youth events.',
     bDesc:
-      'A welcome night for new President University students. Saturday, 12 September 2026 · 3:00 PM WIB.',
+      'See the upcoming events of GMIM Eben Haezer Cikarang Youth.',
     bCta: 'See Details',
   },
   about: {

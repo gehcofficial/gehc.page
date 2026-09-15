@@ -60,8 +60,11 @@ function currentPortalNs(): string {
 
 /** Event terdekat: upcoming terdekat; event ibadah diprioritaskan bila tanggalnya sama. */
 function pickNearest(events: EvInfo[]): EvInfo | null {
-  const dated = events.filter((e) => e.eventDate && !Number.isNaN(new Date(e.eventDate).getTime()));
-  if (!dated.length) return events[0] || null;
+  // Arsip tidak dipakai sebagai default — ikuti event yang masih berjalan.
+  const usable = events.filter((e) => String(e.status || '').toUpperCase() !== 'ARCHIVED');
+  const pool = usable.length ? usable : events;
+  const dated = pool.filter((e) => e.eventDate && !Number.isNaN(new Date(e.eventDate).getTime()));
+  if (!dated.length) return pool[0] || null;
   const now = Date.now();
   const upcoming = dated
     .filter((e) => new Date(e.eventDate as string).getTime() >= now - 12 * 3600 * 1000)
@@ -175,7 +178,7 @@ export const EventInfoPanel: React.FC = () => {
   const goAgenda = () => { window.location.hash = `#/portal/${currentPortalNs()}/kegiatan`; };
 
   const dateOptions = allEvents
-    .filter((e) => e.eventDate && !Number.isNaN(new Date(e.eventDate).getTime()))
+    .filter((e) => e.eventDate && !Number.isNaN(new Date(e.eventDate).getTime()) && String(e.status || '').toUpperCase() !== 'ARCHIVED')
     .sort((a, b) => new Date(b.eventDate as string).getTime() - new Date(a.eventDate as string).getTime());
   const optionLabel = (e: EvInfo) => new Date(e.eventDate as string).toLocaleDateString('id-ID', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',

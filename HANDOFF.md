@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Nama bergelar tidak lagi tertimpa nama akun Google/username (13 Sep 2026)
+## Current — Info Event & landing mengikuti event terdekat, bukan BAKU TAU arsip (15 Sep 2026)
+
+**Goal:** Semua "info event" di prod mengikuti event yang masih berjalan/akan datang; sisa hardcode BAKU TAU dibersihkan.
+
+**Done:**
+- **Diagnosis prod (read-only):** `evt-baku-tau-4-0` = ARCHIVED (12 Sep); event terdekat `Ibadah Pemuda: Follow the True Voice — 20 Sep 2026` (ACTIVE); `/api/events/landing` menempatkan `cnt-bakutau` (featured, arsip) di depan sehingga kartu unggulan salah.
+- `src/components/public/HeroSection.tsx`: hero "Pertemuan Terdekat" tak lagi `fetch('/api/events/bakutau')`; pakai `pickNextEvent()` dari `/api/events/landing` (full + compact), lewati ARCHIVED/DONE.
+- `src/components/public/EventsTimeline.tsx`: kartu unggulan = event non-arsip terdekat, bukan `full.find(is_featured_event)` yang memilih BAKU arsip.
+- `src/components/portal/EventInfoPanel.tsx`: `pickNearest` + dropdown "Tanggal" mengabaikan event ARCHIVED (default jadi 20 Sep).
+- `src/components/portal/BakuTauWelcomeCard.tsx`: default venue/tanggal/peta BAKU dihapus → kartu generik per event.
+- Teks: subtitle nav `portal-nav-config.ts`, guide `i18n/portal-{id,en}.ts`, fallback hero `i18n/{id,en}.ts` tak lagi menyebut BAKU TAU.
+- Verifikasi: `npm run lint` bersih, 308 test hijau.
+
+### Next
+1. Deploy `main` → refresh prod (youth.gehc.page): hero, kartu Kegiatan, dan portal Info Event harus menunjuk 20 Sep.
+2. Event berikutnya cukup diubah status/tanggal di Program & Event — tampilan ikut menyesuaikan tanpa deploy.
+
+### Commands
+```
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Nama bergelar tidak lagi tertimpa nama akun Google/username (13 Sep 2026)
 
 **Goal:** `User.name` (nama resmi + gelar) tidak ditimpa nama profil Google/akun saat login; undangan ikut menyimpan field gelar terstruktur.
 

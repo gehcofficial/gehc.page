@@ -6,25 +6,69 @@ import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { EAGER_IMG_PROPS } from '../../config/media';
 import { Calendar, BookOpen, Users, ArrowUpRight } from 'lucide-react';
 
+type HeroEvent = {
+  title: string;
+  subtitle?: string;
+  eventDate?: string | null;
+  venueName?: string | null;
+  status?: string | null;
+};
+
+const HIDDEN_EVENT_STATUS = new Set(['ARCHIVED', 'DONE']);
+
+/** Event terdekat dari landing (full + compact); arsip/selesai tidak dipilih. */
+function pickNextEvent(full: any[], compact: any[]): HeroEvent | null {
+  const now = Date.now() - 12 * 3600 * 1000;
+  const candidates: HeroEvent[] = [
+    ...(full || []).map((f) => ({
+      title: f.title,
+      subtitle: f.subtitle,
+      eventDate: f.venue?.eventDate || f.event_date || f.published_at || null,
+      venueName: f.venue?.venueName || null,
+      status: f.venue?.status || null,
+    })),
+    ...(compact || []).map((c) => ({
+      title: c.name,
+      eventDate: c.eventDate || null,
+      venueName: null,
+      status: c.status || null,
+    })),
+  ].filter((c) => c.title && c.eventDate && !HIDDEN_EVENT_STATUS.has(String(c.status || '').toUpperCase()));
+
+  const time = (e: HeroEvent) => new Date(e.eventDate as string).getTime();
+  const upcoming = candidates
+    .filter((e) => time(e) >= now)
+    .sort((a, b) => time(a) - time(b));
+  if (upcoming.length) return upcoming[0];
+  return candidates.sort((a, b) => time(b) - time(a))[0] || null;
+}
+
 export const HeroSection: React.FC = () => {
   const { setPublicTab } = useApp();
   const { t, lang } = useLang();
   const media = useLandingMedia();
   const { brand } = useMediaSlots();
-  const [eventDesc, setEventDesc] = useState(t.hero.bDesc);
-
-  useEffect(() => {
-    setEventDesc(t.hero.bDesc);
-  }, [t.hero.bDesc]);
+  const [featured, setFeatured] = useState<HeroEvent | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/events/bakutau')
-      .then((r) => r.json())
+    fetch('/api/events/landing')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => {
-        if (cancelled || !d.eventDate) return;
-        const locale = lang === 'id' ? 'id-ID' : 'en-US';
-        const when = new Date(d.eventDate).toLocaleString(locale, {
+        if (!cancelled) setFeatured(pickNextEvent(d.full || [], d.compact || []));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const locale = lang === 'id' ? 'id-ID' : 'en-US';
+  const heroTitle = featured?.title || t.hero.bTitle;
+  const heroDesc = featured?.eventDate
+    ? [
+        featured.subtitle,
+        new Date(featured.eventDate).toLocaleString(locale, {
           weekday: 'long',
           day: 'numeric',
           month: 'long',
@@ -32,15 +76,9 @@ export const HeroSection: React.FC = () => {
           hour: '2-digit',
           minute: '2-digit',
           timeZone: 'Asia/Jakarta',
-        });
-        const venue = d.venueName ? ` · ${d.venueName}` : '';
-        setEventDesc(`${t.hero.bDescIntro} ${when} WIB${venue}`);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [lang, t.hero.bDescIntro]);
+        }) + ' WIB' + (featured.venueName ? ` · ${featured.venueName}` : ''),
+      ].filter(Boolean).join(' ')
+    : t.hero.bDesc;
 
   return (
     <section className="pt-[140px] sm:pt-[170px] lg:pt-[200px] px-4 sm:px-8 max-w-[1440px] mx-auto flex flex-col items-center text-center relative overflow-visible pb-[60px] sm:pb-[90px]">
@@ -122,10 +160,10 @@ export const HeroSection: React.FC = () => {
               {t.hero.bTag}
             </span>
             <h3 className="text-xl sm:text-3xl font-black tracking-tight text-white mb-1">
-              {t.hero.bTitle}
+              {heroTitle}
             </h3>
             <p className="text-xs sm:text-sm text-white/80 line-clamp-2">
-              {eventDesc}
+              {heroDesc}
             </p>
           </div>
 

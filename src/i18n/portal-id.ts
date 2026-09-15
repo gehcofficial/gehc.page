@@ -336,8 +336,8 @@ export const portalId: typeof portalEn = {
     },
     'event-info': {
       title: 'Info Event',
-      purpose: 'Kartu peserta BAKU TAU: pendaftaran, QR check-in, lokasi, dan grup WhatsApp event.',
-      steps: ['Lengkapi asal/domisili jika diminta.', 'Tunjukkan QR di hari H — ini bukan QRIS.', 'Buka tautan WhatsApp yang Komisi isi di Program & Event → Edit.'],
+      purpose: 'Kartu peserta event berjalan: pendaftaran, QR daftar ulang, lokasi, dan grup WhatsApp event yang dipilih.',
+      steps: ['Pilih tanggal/event di penjelajah bila ada.', 'Lengkapi asal/domisili jika diminta.', 'Tunjukkan QR di hari H — ini bukan QRIS.', 'Buka tautan WhatsApp yang Komisi isi di Program & Event → Edit.'],
       when: 'Kamu peserta event berjalan (semua peran gereja, termasuk saat onboarding).',
       notFor: 'Bukan kalender program atau workspace divisi. Komisi menjadwalkan event di Program & Event.',
     },

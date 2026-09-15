@@ -342,8 +342,8 @@ export const portalEn = {
     },
     'event-info': {
       title: 'Event Info',
-      purpose: 'Participant card for BAKU TAU: registration, QR check-in, venue, and the event WhatsApp group.',
-      steps: ['Complete origin/domicile if asked.', 'Show the QR on the day — it is not QRIS.', 'Open the WhatsApp link set by Komisi in Programs & Events → Edit.'],
+      purpose: 'Participant card for the current event: registration, check-in QR, venue, and the event WhatsApp group.',
+      steps: ['Pick a date/event in the explorer if available.', 'Complete origin/domicile if asked.', 'Show the QR on the day — it is not QRIS.', 'Open the WhatsApp link set by Komisi in Programs & Events → Edit.'],
       when: 'You are attending the current event (every church role, including during onboarding).',
       notFor: 'Not the program calendar or division workspace. Komisi schedules events under Programs & Events.',
     },

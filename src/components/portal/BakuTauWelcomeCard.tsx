@@ -19,48 +19,55 @@ type Props = {
 };
 
 export const BakuTauWelcomeCard: React.FC<Props> = ({
-  eventName = 'BAKU TAU 4.0',
+  eventName,
   whatsappGroupUrl,
-  eventDate = '2026-09-12T15:00:00+07:00',
-  venueName = 'GMIM Eben Haezer Cikarang',
-  locationDetail = 'Cikarang, Bekasi',
-  mapUrl = 'https://share.google/Ro2jBSuGfrzfg49nP',
-  mapEmbedQuery = 'GMIM Eben Haezer Cikarang, Cikarang, Bekasi',
+  eventDate,
+  venueName,
+  locationDetail,
+  mapUrl,
+  mapEmbedQuery,
   compact = false,
   onCompleteProfile,
   checkInCode,
   registeredAt,
   showPortalLink = false,
 }) => {
-  const dateLabel = new Date(eventDate).toLocaleString('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  });
+  const parsedDate = eventDate ? new Date(eventDate) : null;
+  const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
+    ? parsedDate.toLocaleString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Jakarta',
+      })
+    : null;
 
   return (
     <div className={`rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white ${compact ? 'p-4' : 'p-6'} space-y-4`}>
       <div>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-2">
-          <CalendarClock className="w-3 h-3" />
-          {eventName}
-        </span>
+        {eventName && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-black uppercase tracking-widest mb-2">
+            <CalendarClock className="w-3 h-3" />
+            {eventName}
+          </span>
+        )}
         {!compact && (
           <h2 className="font-black text-[#1B1B1B] text-lg">
             Kamu sudah terdaftar!
           </h2>
         )}
-        <p className={`text-xs text-[#8C8880] capitalize ${compact ? '' : 'mt-1'}`}>{dateLabel} WIB</p>
+        {dateLabel && (
+          <p className={`text-xs text-[#8C8880] capitalize ${compact ? '' : 'mt-1'}`}>{dateLabel} WIB</p>
+        )}
         <p className="text-xs text-[#5C5850] mt-2 leading-relaxed">
           Gabung grup WhatsApp peserta untuk info terbaru, carpool, dan pengumuman event.
         </p>
       </div>
 
-      {!compact && (
+      {!compact && venueName && (
         <EventVenueMap
           venueName={venueName}
           locationDetail={locationDetail}
@@ -77,7 +84,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=${compact ? 120 : 180}x${compact ? 120 : 180}&ecc=M&data=${encodeURIComponent(checkInCode)}`}
-            alt={`QR daftar ulang ${eventName}`}
+            alt={`QR daftar ulang ${eventName || 'event'}`}
             width={compact ? 120 : 180}
             height={compact ? 120 : 180}
             className="mx-auto rounded-xl border border-emerald-100"

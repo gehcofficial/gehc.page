@@ -87,10 +87,20 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const upcoming = activities.filter((a) => a.date >= todayISO());
-  const featured = full.find((f) => f.is_featured_event) || full.find((f) => f.isBakutau) || full[0] || null;
-  const restFull = featured ? full.filter((f) => f.id !== featured.id) : [];
   const past = activities.filter((a) => !upcoming.includes(a));
   const pastShown = condensed ? past.slice(0, 3) : past;
+
+  // Kartu penuh mengikuti event yang masih berjalan / akan datang; arsip & selesai dilewati.
+  const fullDate = (item: LandingFull) => item.venue?.eventDate || item.event_date || item.published_at || null;
+  const fullHidden = (item: LandingFull) => ['ARCHIVED', 'DONE'].includes(String(item.venue?.status || '').toUpperCase());
+  const fullTime = (item: LandingFull) => {
+    const d = fullDate(item);
+    const t = d ? new Date(d).getTime() : NaN;
+    return Number.isNaN(t) ? Infinity : t;
+  };
+  const fullCards = full.filter((f) => !fullHidden(f)).sort((a, b) => fullTime(a) - fullTime(b));
+  const featured = fullCards[0] || null;
+  const restFull = featured ? fullCards.filter((f) => f.id !== featured.id) : [];
 
   const fmtDate = (iso?: string) =>
     iso

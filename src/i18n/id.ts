@@ -29,10 +29,10 @@ export const id: Dict = {
     cta2: 'Warta',
     cta3: 'Kegiatan',
     bTag: 'Pertemuan Terdekat',
-    bTitle: 'BAKU TAU 4.0 — Bakudapa di Rantau',
-    bDescIntro: 'Malam penyambutan mahasiswa baru President University.',
+    bTitle: 'Kegiatan Pemuda GEHC',
+    bDescIntro: 'Ikuti kabar terbaru kegiatan Pemuda GEHC.',
     bDesc:
-      'Malam penyambutan mahasiswa baru President University. Sabtu, 12 September 2026 · 15.00 WIB.',
+      'Lihat agenda kegiatan terdekat Pemuda GMIM Eben Haezer Cikarang.',
     bCta: 'Lihat Detail',
   },
   about: {
