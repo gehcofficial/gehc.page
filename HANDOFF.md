@@ -1,6 +1,27 @@
 # GEHC Portal — Handoff
 
-## Current — Penatalayan per-event: komponen Liturgia/Marturia + multi-personel (15 Sep 2026)
+## Current — Panel event hanya menampilkan divisi yang aktif (15 Sep 2026)
+
+**Goal:** Di detail Program & Event, kartu "Rincian per Divisi" tidak lagi menampilkan keenam divisi sekaligus — cukup divisi yang memang terlibat di event itu.
+
+**Done:**
+- `src/components/portal/EventWorkspacePanel.tsx`: derivasi `eventDivisions` dari `selected.divisions` (urutan kanonik tetap) + `missingDivisions`; loop kartu memakai `eventDivisions`.
+- Badge header jadi `{n} divisi aktif` (bukan "6 divisi · 20 sub · 3 fase"); catatan statis diganti kalimat dinamis.
+- **Empty state**: bila 0 divisi → kartu "Belum ada divisi diaktifkan untuk event ini" (tanpa fallback 6 divisi).
+- **Tambah divisi** (staf SUPERADMIN/KOMISI/COMMITTEE): chip `missingDivisions` di header & empty state → `POST /api/events/:id/divisions` (endpoint lama), lalu append ke `selected.divisions` + toast. Non-staf tanpa tombol.
+- Verifikasi: `npm run lint` bersih, 308 test hijau.
+
+### Next
+1. Cek 20 Sep (LITURGIA+DIDASKALIA), 27 Sep (4 divisi), BAKU (KOINONIA) → kartu sesuai; coba tombol Tambah divisi.
+
+### Commands
+```
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Penatalayan per-event: komponen Liturgia/Marturia + multi-personel (15 Sep 2026)
 
 **Goal:** Jadwal penatalayan per event (bukan hanya kalender tanggal) dengan komponen baku yang bisa diedit, penugasan banyak orang per komponen, dan salin dari event sebelumnya.
 

@@ -189,6 +189,7 @@ export const EventWorkspacePanel: React.FC = () => {
   const [canEdit, setCanEdit] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [addingDivision, setAddingDivision] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     name: '', description: '', kind: 'KHUSUS', status: 'PLANNING', churchProgramId: '',
     startDate: '', endDate: '', whatsappGroupUrl: '',
@@ -452,6 +453,37 @@ export const EventWorkspacePanel: React.FC = () => {
 
   const showVenueFields = editForm.kind === 'KHUSUS' || editForm.kind === 'UMUM';
 
+  const addDivision = async (division: string) => {
+    if (!selected || addingDivision) return;
+    setAddingDivision(division);
+    try {
+      const r = await fetch(`/api/events/${selected.id}/divisions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const added = d.division || { id: `evd-${division}`, eventId: selected.id, division };
+      setSelected((prev) => (prev ? {
+        ...prev,
+        divisions: prev.divisions.some((x) => String(x.division).toUpperCase() === division)
+          ? prev.divisions
+          : [...prev.divisions, added],
+      } : prev));
+      addToast({
+        type: 'success',
+        title: `Divisi ${division} diaktifkan`,
+        description: d.driveFolderId ? 'Folder Drive dibuat' : undefined,
+      });
+    } catch (err: unknown) {
+      addToast({ type: 'error', title: 'Gagal menambah divisi', description: err instanceof Error ? err.message : '' });
+    } finally {
+      setAddingDivision(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-16 text-[#8C8880]">
@@ -463,6 +495,9 @@ export const EventWorkspacePanel: React.FC = () => {
 
   // Detail View
   if (view === 'detail' && selected) {
+    const eventDivisions = ALL_EVENT_DIVISIONS.filter((divName) =>
+      selected.divisions.some((d) => String(d.division).toUpperCase() === divName));
+    const missingDivisions = ALL_EVENT_DIVISIONS.filter((divName) => !eventDivisions.includes(divName));
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -728,35 +763,85 @@ export const EventWorkspacePanel: React.FC = () => {
 
         <EventQuestionsBlock eventId={selected.id} />
 
-        {/* Division Cards — selalu tampil 6 divisi + 20 sub, 3 fase pre/during/post */}
+        {/* Division Cards — hanya divisi yang aktif di event ini */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-sm font-black text-[#1B1B1B]">Rincian per Divisi — Pre / During / Post (selalu tampil)</h3>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">6 divisi · 20 sub · 3 fase</span>
+          <div className="flex flex-wrap items-center gap-2 px-1">
+            <h3 className="text-sm font-black text-[#1B1B1B]">Rincian per Divisi — Pre / During / Post</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
+              {eventDivisions.length} divisi aktif
+            </span>
+            {canCreateEvent && missingDivisions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">Tambah divisi</span>
+                {missingDivisions.map((divName) => (
+                  <button
+                    key={divName}
+                    type="button"
+                    onClick={() => void addDivision(divName)}
+                    disabled={addingDivision === divName}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-[#D9D7D0] text-[10px] font-bold text-[#5C5850] hover:border-[#1B1B1B] disabled:opacity-40"
+                  >
+                    {addingDivision === divName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                    {divName}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {ALL_EVENT_DIVISIONS.map((divName) => {
-              const rec = selected.divisions.find((d) => String(d.division).toUpperCase() === divName);
-              return (
-                <div key={divName} className="space-y-1">
-                  <EventDivisionPhaseTabs
-                    division={divName}
-                    eventId={selected.id}
-                    eventDate={selected.eventDate}
-                    serviceType={selected.serviceType}
-                    driveFolderId={rec?.driveFolderId}
-                    discussions={discussions[divName] || []}
-                    canWrite={false}
-                    onPostUpdate={() => {
-                      addToast({ type: 'info', title: 'Kelola di Panel Divisi', description: `Buka Panel Divisi → ${divName} → tab Ibadah untuk tulis pre/during/post.` });
-                    }}
-                  />
-                  <a href={`#/portal/${currentRole === 'SUPERADMIN' ? 'superadmin' : 'komisi'}/divisions`} onClick={() => addToast({ type: 'info', title: 'Buka Panel Divisi', description: `Pilih event ${selected.name} → ${divName} → tab Ibadah` })} className="block text-[11px] font-bold text-sky-700 hover:underline px-1">→ Kelola eksekusi di Panel Divisi (pre/during/post)</a>
+
+          {eventDivisions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-white p-6 text-center space-y-2">
+              <p className="text-sm font-bold text-[#1B1B1B]">Belum ada divisi diaktifkan untuk event ini</p>
+              <p className="text-xs text-[#8C8880]">
+                {canCreateEvent
+                  ? 'Tambahkan divisi yang terlibat lewat tombol di atas, atau dari Panel Divisi.'
+                  : 'Divisi akan muncul setelah Komisi mengaktifkannya.'}
+              </p>
+              {canCreateEvent && missingDivisions.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-1.5 pt-1">
+                  {missingDivisions.map((divName) => (
+                    <button
+                      key={divName}
+                      type="button"
+                      onClick={() => void addDivision(divName)}
+                      disabled={addingDivision === divName}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FF416C] text-white text-[11px] font-bold disabled:opacity-40"
+                    >
+                      {addingDivision === divName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                      {divName}
+                    </button>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-          <p className="text-[11px] text-[#8C8880] px-1">Setiap sub-divisi (Liturgia 3, Didaskalia 2, Koinonia 3, Diakonia 5, Marturia 4, Benzarpr 3) selalu tampil. Yang belum ada personel tetap terlihat (badge Rekrutmen di struktur) — tugas pre/during/post tetap tertera untuk onboarding.</p>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {eventDivisions.map((divName) => {
+                const rec = selected.divisions.find((d) => String(d.division).toUpperCase() === divName);
+                return (
+                  <div key={divName} className="space-y-1">
+                    <EventDivisionPhaseTabs
+                      division={divName}
+                      eventId={selected.id}
+                      eventDate={selected.eventDate}
+                      serviceType={selected.serviceType}
+                      driveFolderId={rec?.driveFolderId}
+                      discussions={discussions[divName] || []}
+                      canWrite={false}
+                      onPostUpdate={() => {
+                        addToast({ type: 'info', title: 'Kelola di Panel Divisi', description: `Buka Panel Divisi → ${divName} → tab Ibadah untuk tulis pre/during/post.` });
+                      }}
+                    />
+                    <a href={`#/portal/${currentRole === 'SUPERADMIN' ? 'superadmin' : 'komisi'}/divisions`} onClick={() => addToast({ type: 'info', title: 'Buka Panel Divisi', description: `Pilih event ${selected.name} → ${divName} → tab Ibadah` })} className="block text-[11px] font-bold text-sky-700 hover:underline px-1">→ Kelola eksekusi di Panel Divisi (pre/during/post)</a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {eventDivisions.length > 0 && (
+            <p className="text-[11px] text-[#8C8880] px-1">Sub-divisi (mis. Liturgia 3, Didaskalia 2, Koinonia 3, Diakonia 5, Marturia 4, Benzarpr 3) tetap tampil walau belum ada personel — tugas pre/during/post berguna untuk rekrutmen.</p>
+          )}
         </div>
 
         {/* Pendaftar event: waiting pool BAKU TAU, EventAttendee untuk event lain */}
