@@ -42,6 +42,7 @@ import {
 import BenzarStoreTab from './BenzarStoreTab';
 import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
+import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import WartaPublikTab from './WartaPublikTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
@@ -1052,7 +1053,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
                   { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
                   { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
                 ] : []),
-                ...(selectedDiv === 'LITURGIA' ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
+                ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
                 ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: d.tabStore, icon: <Store className="w-3.5 h-3.5" /> }] : []),
               ]).map((tab) => (
                 <button
@@ -1638,10 +1639,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
               </div>
             )}
 
-            {/* Penatalayan Tab (Liturgia only) */}
-            {detailTab === 'penatalayan' && selectedDiv === 'LITURGIA' && (
-              <div>
+            {/* Penatalayan Tab (Liturgia & Marturia) */}
+            {detailTab === 'penatalayan' && (selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') && (
+              <div className="space-y-5">
                 <PenatalayanCalendar division={selectedDiv} />
+                <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
+                  <PenatalayanRolesEditor divisions={['LITURGIA', 'MARTURIA']} divisionLabel={(dv) => dv === 'LITURGIA' ? 'Liturgia' : dv === 'MARTURIA' ? 'Marturia' : dv} />
+                </div>
               </div>
             )}
 

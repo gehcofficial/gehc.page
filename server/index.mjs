@@ -6342,24 +6342,68 @@ app.get('/api/benzar/qris', wrap(async (req, res) => {
 
 // ---------- PENATALAYAN SCHEDULING ----------
 
-// GET /api/penatalayan/roles — list all service roles
+// GET /api/penatalayan/roles — list all service roles (division bisa CSV)
 app.get('/api/penatalayan/roles', wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { division } = req.query;
-  const where = { isActive: true };
-  if (division) where.division = division;
-  const roles = await prisma.serviceRole.findMany({ where, orderBy: { sortOrder: 'asc' } });
+  const { division, includeInactive } = req.query;
+  const where = includeInactive ? {} : { isActive: true };
+  if (division) {
+    const list = String(division).split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    if (list.length) where.division = list.length > 1 ? { in: list } : list[0];
+  }
+  const roles = await prisma.serviceRole.findMany({
+    where,
+    orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+  });
   res.json({ roles });
 }));
 
-// POST /api/penatalayan/roles — create service role (admin only)
-app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
+// POST /api/penatalayan/roles — create service role
+app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { name, division, description, sortOrder } = req.body;
-  if (!name || !division) return res.status(400).json({ error: 'name & division wajib' });
+  const { name, division, description, sortOrder } = req.body || {};
+  const cleanName = String(name || '').trim();
+  const cleanDiv = String(division || '').trim().toUpperCase();
+  if (!cleanName || !cleanDiv) return res.status(400).json({ error: 'name & division wajib' });
+  const existing = await prisma.serviceRole.findUnique({ where: { name: cleanName } }).catch(() => null);
+  if (existing) {
+    const role = await prisma.serviceRole.update({
+      where: { id: existing.id },
+      data: { division: cleanDiv, description: description ?? existing.description, sortOrder: sortOrder ?? existing.sortOrder, isActive: true },
+    });
+    return res.json({ role, reactivated: true });
+  }
   const id = 'sr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const role = await prisma.serviceRole.create({ data: { id, name, division, description, sortOrder: sortOrder || 0 } });
+  const role = await prisma.serviceRole.create({
+    data: { id, name: cleanName, division: cleanDiv, description: description || null, sortOrder: sortOrder || 0 },
+  });
   res.status(201).json({ role });
+}));
+
+// PATCH /api/penatalayan/roles/:id — edit nama/divisi/urutan/arsip
+app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { name, division, description, sortOrder, isActive } = req.body || {};
+  const data = {};
+  if (name !== undefined) data.name = String(name).trim();
+  if (division !== undefined) data.division = String(division).trim().toUpperCase();
+  if (description !== undefined) data.description = description || null;
+  if (sortOrder !== undefined) data.sortOrder = Number(sortOrder) || 0;
+  if (isActive !== undefined) data.isActive = Boolean(isActive);
+  const role = await prisma.serviceRole.update({ where: { id: req.params.id }, data });
+  res.json({ role });
+}));
+
+// DELETE /api/penatalayan/roles/:id — hapus bila belum terpakai, jika tidak arsipkan
+app.delete('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const used = await prisma.serviceSchedule.count({ where: { serviceRoleId: req.params.id } }).catch(() => 0);
+  if (used > 0) {
+    const role = await prisma.serviceRole.update({ where: { id: req.params.id }, data: { isActive: false } });
+    return res.json({ ok: true, archived: true, role });
+  }
+  await prisma.serviceRole.delete({ where: { id: req.params.id } });
+  res.json({ ok: true, archived: false });
 }));
 
 // GET /api/penatalayan/schedules — list schedules (filter by date range)
@@ -6382,32 +6426,38 @@ app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
   res.json({ schedules });
 }));
 
-// POST /api/penatalayan/schedules — create schedule (assign person to role)
-app.post('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
+// POST /api/penatalayan/schedules — assign person(s) to role for a date/event
+app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { serviceRoleId, userId, eventId, date, timeStart, timeEnd, notes } = req.body;
-  if (!serviceRoleId || !userId || !date) return res.status(400).json({ error: 'serviceRoleId, userId, date wajib' });
-  const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const schedule = await prisma.serviceSchedule.create({
-    data: { id, serviceRoleId, userId, eventId: eventId || null, date: new Date(date), timeStart, timeEnd, notes },
-    include: { serviceRole: true, user: { select: { id: true, name: true } } },
-  });
-  res.status(201).json({ schedule });
+  const { serviceRoleId, userId, userIds, eventId, date, timeStart, timeEnd, notes } = req.body || {};
+  const ids = Array.isArray(userIds) && userIds.length ? userIds : (userId ? [userId] : []);
+  if (!serviceRoleId || !ids.length || !date) return res.status(400).json({ error: 'serviceRoleId, userId(s), date wajib' });
+  const created = [];
+  for (const uid of ids) {
+    const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const schedule = await prisma.serviceSchedule.create({
+      data: { id, serviceRoleId, userId: uid, eventId: eventId || null, date: new Date(date), timeStart, timeEnd, notes },
+    });
+    created.push(schedule);
+  }
+  res.status(201).json({ schedule: created[0], schedules: created, count: created.length });
 }));
 
-// PATCH /api/penatalayan/schedules/:id — update status
-app.patch('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res) => {
+// PATCH /api/penatalayan/schedules/:id — update status / orang
+app.patch('/api/penatalayan/schedules/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { status, notes } = req.body;
+  const { status, notes, timeStart, timeEnd } = req.body || {};
   const data = {};
   if (status) data.status = status;
   if (notes !== undefined) data.notes = notes;
-  const schedule = await prisma.serviceSchedule.update({ where: { id: req.params.id }, data, include: { serviceRole: true, user: true } });
+  if (timeStart !== undefined) data.timeStart = timeStart || null;
+  if (timeEnd !== undefined) data.timeEnd = timeEnd || null;
+  const schedule = await prisma.serviceSchedule.update({ where: { id: req.params.id }, data, include: { serviceRole: true, user: { select: { id: true, name: true, email: true } } } });
   res.json({ schedule });
 }));
 
 // DELETE /api/penatalayan/schedules/:id — remove schedule
-app.delete('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res) => {
+app.delete('/api/penatalayan/schedules/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   await prisma.serviceSchedule.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
@@ -6431,6 +6481,105 @@ app.post('/api/penatalayan/schedules/bulk', requireRole(), wrap(async (req, res)
     }
   }
   res.status(201).json({ count: created.length });
+}));
+
+// ---------- PENATALAYAN PER EVENT ----------
+
+const PENATALAYAN_DIVISIONS = ['LITURGIA', 'MARTURIA'];
+
+/** Event sebelumnya yang sudah punya jadwal — sumber "salin dari sebelumnya". */
+async function previousPenatalayanEvent(prisma, eventId, eventDate) {
+  const cutoff = eventDate ? new Date(eventDate) : new Date();
+  const rows = await prisma.serviceSchedule.findMany({
+    where: { eventId: { not: null }, date: { lt: cutoff } },
+    orderBy: { date: 'desc' },
+    take: 300,
+    select: { eventId: true, date: true },
+  }).catch(() => []);
+  const candidate = rows.find((r) => r.eventId && r.eventId !== eventId);
+  if (!candidate?.eventId) return null;
+  const ev = await prisma.eventProgram.findUnique({
+    where: { id: candidate.eventId },
+    select: { id: true, name: true, eventDate: true },
+  }).catch(() => null);
+  if (!ev) return null;
+  return { eventId: ev.id, name: ev.name, eventDate: ev.eventDate || candidate.date };
+}
+
+// GET /api/events/:id/penatalayan — komponen + penugasan event ini + referensi sebelumnya
+app.get('/api/events/:id/penatalayan', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const event = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, name: true, eventDate: true, kind: true, serviceType: true, status: true, slug: true },
+  });
+  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  const [roles, assignments, previous] = await Promise.all([
+    prisma.serviceRole.findMany({
+      where: { isActive: true, division: { in: PENATALAYAN_DIVISIONS } },
+      orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+    }),
+    prisma.serviceSchedule.findMany({
+      where: { eventId: event.id },
+      include: {
+        serviceRole: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    previousPenatalayanEvent(prisma, event.id, event.eventDate),
+  ]);
+
+  res.json({ event, roles, assignments, previous });
+}));
+
+// POST /api/events/:id/penatalayan/copy — salin penugasan dari event sebelumnya
+app.post('/api/events/:id/penatalayan/copy', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const target = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, eventDate: true },
+  });
+  if (!target) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  let fromEventId = req.body?.fromEventId ? String(req.body.fromEventId) : null;
+  if (!fromEventId) {
+    const prev = await previousPenatalayanEvent(prisma, target.id, target.eventDate);
+    fromEventId = prev?.eventId || null;
+  }
+  if (!fromEventId) return res.status(400).json({ error: 'Tidak ada jadwal sebelumnya untuk disalin.' });
+  if (fromEventId === target.id) return res.status(400).json({ error: 'Event sumber sama dengan target.' });
+
+  const [source, existing] = await Promise.all([
+    prisma.serviceSchedule.findMany({ where: { eventId: fromEventId } }),
+    prisma.serviceSchedule.findMany({ where: { eventId: target.id }, select: { serviceRoleId: true, userId: true } }),
+  ]);
+  const seen = new Set(existing.map((s) => `${s.serviceRoleId}:${s.userId}`));
+  const date = target.eventDate || new Date();
+  let created = 0;
+  for (const s of source) {
+    const key = `${s.serviceRoleId}:${s.userId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    await prisma.serviceSchedule.create({
+      data: {
+        id,
+        serviceRoleId: s.serviceRoleId,
+        userId: s.userId,
+        eventId: target.id,
+        date,
+        timeStart: s.timeStart,
+        timeEnd: s.timeEnd,
+        status: 'SCHEDULED',
+      },
+    });
+    created += 1;
+  }
+  res.json({ ok: true, created, fromEventId });
 }));
 
 // ---------- DIVISION MEETINGS & AGENDAS ----------

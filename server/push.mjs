@@ -100,7 +100,7 @@ export async function notifyNewSchedule(prisma, schedule) {
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-72.png',
     tag: `schedule-${schedule.id}`,
-    data: { type: 'schedule', url: '/#/penatalayan', scheduleId: schedule.id },
+    data: { type: 'schedule', url: '/#/portal', scheduleId: schedule.id },
     actions: [{ action: 'open', title: 'Lihat Jadwal' }, { action: 'dismiss', title: 'OK' }],
     requireInteraction: true,
   };

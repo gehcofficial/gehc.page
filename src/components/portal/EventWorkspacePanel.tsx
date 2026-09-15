@@ -26,6 +26,7 @@ import { EventDivisionPhaseTabs } from './EventDivisionPhaseTabs';
 import { EventQuestionsBlock } from './EventQuestionsBlock';
 import { EventPublicContentBlock } from './EventPublicContentBlock';
 import { EventAttendeesBlock } from './EventAttendeesBlock';
+import { EventPenatalayanPanel } from './EventPenatalayanPanel';
 import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
@@ -760,6 +761,9 @@ export const EventWorkspacePanel: React.FC = () => {
 
         {/* Pendaftar event: waiting pool BAKU TAU, EventAttendee untuk event lain */}
         <EventAttendeesBlock eventId={selected.id} slug={selected.slug || selected.id} />
+
+        {/* Penatalayan & liturgi per event (Liturgia + Marturia) */}
+        <EventPenatalayanPanel eventId={selected.id} canEdit={canCreateEvent} />
 
         {/* Meetings */}
         <div className="space-y-3">

@@ -131,7 +131,7 @@ self.addEventListener('notificationclick', (event) => {
   } else if (data.type === 'gallery') {
     url = '/#/gallery';
   } else if (data.type === 'schedule') {
-    url = '/#/penatalayan';
+    url = data.url || '/#/portal';
   } else if (data.type === 'order') {
     url = '/#/benzarpreneurship';
   }

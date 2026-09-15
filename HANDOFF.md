@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Info Event & landing mengikuti event terdekat, bukan BAKU TAU arsip (15 Sep 2026)
+## Current — Penatalayan per-event: komponen Liturgia/Marturia + multi-personel (15 Sep 2026)
+
+**Goal:** Jadwal penatalayan per event (bukan hanya kalender tanggal) dengan komponen baku yang bisa diedit, penugasan banyak orang per komponen, dan salin dari event sebelumnya.
+
+**Done:**
+- **Temuan:** modul penatalayan lama (`ServiceRole`/`ServiceSchedule` + `PenatalayanCalendar`) ada tapi kosong di prod (0 role/0 schedule), berbasis tanggal (tak pakai `eventId`), tanpa komponen baku, dan tanpa UI kelola role.
+- **Seed** `server/seed-service-roles.mjs` (idempoten): 22 komponen baku LITURGIA (Liturgist, WL, Singer, pemusik, pembaca firman, doa, kolektor, MC, dll) + MARTURIA (sound, multimedia, kamera, foto, editor, desain). Skrip: `db:seed:service-roles[:staging|:prod]`. **Sudah dijalankan ke staging & prod (22 dibuat di masing-masing).**
+- **API** (`server/index.mjs`): roles GET (filter `division` CSV + `includeInactive`), POST (dengan reactivate nama sama), **PATCH** & **DELETE** (hapus bila tak terpakai, jika tidak arsip); schedules POST kini terima `userIds[]` (multi-orang) + PATCH time; `GET /api/events/:id/penatalayan` (event + roles + assignments + referensi event sebelumnya); `POST /api/events/:id/penatalayan/copy` (salin penugasan event sebelumnya, idempoten).
+- **UI per-event** `src/components/portal/EventPenatalayanPanel.tsx`: grup per Liturgia/Marturia, assign multi-orang per komponen, hapus, siklus status (Dijadwalkan→Dikonfirmasi→Selesai), tombol salin dari event sebelumnya, panel collapsible kelola komponen. Dipasang di detail `EventWorkspacePanel` (canEdit = SUPERADMIN/KOMISI/COMMITTEE).
+- **UI divisi** `PenatalayanRolesEditor.tsx` (editor komponen: tambah/edit/urutan/arsip) dipakai di tab Penatalayan Panel Divisi & per-event. Tab Penatalayan kini juga tampil untuk **MARTURIA** (sebelumnya hanya LITURGIA).
+- **Fix deep-link** push penatalayan `/#/penatalayan` (tak ada route) → `/#/portal`; `public/sw.js` pakai `data.url`.
+- Verifikasi: `npm run lint` bersih, 308 test hijau, `node --check` OK.
+
+### Next
+1. Deploy `main`; cek portal → Program & Event → pilih event → panel **Penatalayan & Liturgi** (assign beberapa orang per komponen) dan Panel Divisi → Liturgia/Marturia → Penatalayan.
+2. Sesuaikan daftar komponen via "Kelola komponen" bila nama jabatan lokal berbeda — perubahan langsung berlaku untuk semua event.
+
+### Commands
+```
+npm run db:seed:service-roles:staging
+npm run db:seed:service-roles:prod
+npm run lint && npm run test
+```
+
+---
+
+## Prior — Info Event & landing mengikuti event terdekat, bukan BAKU TAU arsip (15 Sep 2026)
 
 **Goal:** Semua "info event" di prod mengikuti event yang masih berjalan/akan datang; sisa hardcode BAKU TAU dibersihkan.
 
