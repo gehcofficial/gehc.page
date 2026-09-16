@@ -140,6 +140,7 @@ import { registerAnnouncementRoutes } from './routes/announcements.mjs';
 import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
 import { runAnnouncementDispatch } from './routes/notif-cron.mjs';
 import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.mjs';
+import { markAlumniBulk } from './lib/member-role-sync.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -1838,7 +1839,8 @@ app.post('/api/regeneration/apply', requireRole('SUPERADMIN', 'KOMISI', 'COMMITT
           groupId,
           userId,
           batchPeriod: period,
-          role: 'MENTEE',
+          familyRole: 'MENTEE',
+          status: 'ACTIVE',
         },
       });
     }
@@ -5153,20 +5155,26 @@ app.patch('/api/jemaat/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   res.json({ ok: true, user: serializeJemaat(updated) });
 }));
 
-/** POST /api/jemaat/member-status/bulk — tandai beberapa orang sekaligus */
+/** POST /api/jemaat/member-status/bulk — tandai beberapa orang sekaligus (sinkron roster grup) */
 app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { userIds, memberStatus } = req.body || {};
+  const { userIds, memberStatus, note } = req.body || {};
   if (!Array.isArray(userIds) || !userIds.length) return res.status(400).json({ error: 'userIds[] wajib.' });
   if (!MEMBER_STATUS_VALUES.includes(memberStatus)) {
     return res.status(400).json({ error: 'memberStatus harus ACTIVE, ALUMNI, atau NONAKTIF.' });
   }
+  const ids = userIds.map(String);
   const result = await prisma.user.updateMany({
-    where: { id: { in: userIds.map(String) } },
+    where: { id: { in: ids } },
     data: { memberStatus },
   });
-  res.json({ ok: true, updated: result.count });
+  // Sinkron ke roster grup: alumni → GroupMember ALUMNI + cabut akses grup.
+  let roster = { updated: 0 };
+  if (memberStatus === 'ALUMNI') {
+    roster = await markAlumniBulk(prisma, { userIds: ids, note });
+  }
+  res.json({ ok: true, updated: result.count, rosterUpdated: roster.updated });
 }));
 
 /** POST /api/jemaat/placement/recommend — usulan grup binaan (READ-ONLY, tidak menulis) */

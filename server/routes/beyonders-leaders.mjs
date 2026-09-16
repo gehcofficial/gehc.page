@@ -13,6 +13,13 @@ import {
   newBatchId,
   pickTenHomes,
 } from '../lib/beyonders-generation.mjs';
+import {
+  carryActiveMembers,
+  currentPeriod,
+  genSyncId,
+  mapFamilyRole,
+  placePerson,
+} from '../lib/member-role-sync.mjs';
 
 const READ_ROLES = ['KOMISI', 'COMMITTEE', 'BPMJ'];
 const READY_ROLES = ['KOMISI', 'COMMITTEE'];
@@ -283,4 +290,123 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       });
     }),
   );
+
+  // Tetapkan Mentor/Co-Mentor generasi baru untuk satu rumah (pindah penuh, sinkron role).
+  app.post(
+    '/api/beyonders/leaders/:groupId/assign-leader',
+    requireRole('KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const groupId = String(req.params.groupId || '').trim();
+      const houses = await loadHouses(prisma);
+      const group = houses.find((h) => h.id === groupId);
+      if (!group) return res.status(404).json({ error: 'Bukan salah satu dari 10 rumah induk.' });
+
+      const role = String(req.body?.role || '').toUpperCase();
+      if (!['MENTOR', 'CO_MENTOR'].includes(role)) {
+        return res.status(400).json({ error: 'role harus MENTOR atau CO_MENTOR.' });
+      }
+      const userId = String(req.body?.userId || '').trim();
+      if (!userId) return res.status(400).json({ error: 'userId wajib.' });
+
+      const period = req.body?.period && isPeriod(req.body.period) ? req.body.period : await currentPeriod(prisma, groupId);
+      const batch = await prisma.groupBatch.findFirst({ where: { groupId, period } })
+        || await prisma.groupBatch.findFirst({ where: { groupId, isCurrent: true } });
+
+      const prevUserId = role === 'MENTOR' ? batch?.mentorUserId : batch?.comentorUserId;
+      const result = await placePerson(prisma, {
+        userId,
+        groupId,
+        role,
+        familyRole: mapFamilyRole(role),
+        period,
+        assignedBy: req.authUser?.id,
+        reason: `Regenerasi ${period}: ${role}`,
+      });
+
+      // Riwayat pergantian pemimpin.
+      if (prevUserId && prevUserId !== userId) {
+        const incoming = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+        const outgoing = await prisma.user.findUnique({ where: { id: prevUserId }, select: { name: true } });
+        await prisma.mentorTransition.create({
+          data: {
+            id: genSyncId('mt'),
+            groupId,
+            outgoingUserId: prevUserId,
+            incomingUserId: userId,
+            outgoingRole: role === 'MENTOR' ? 'MENTOR' : 'COMENTOR',
+            incomingRole: role === 'MENTOR' ? 'MENTOR' : 'COMENTOR',
+            effectiveDate: new Date(),
+            reason: `${role === 'MENTOR' ? 'Mentor' : 'Co-Mentor'} diganti: ${outgoing?.name || '—'} → ${incoming?.name || '—'} (${period})`,
+            createdById: req.authUser?.id || prevUserId,
+          },
+        }).catch(() => {});
+      }
+
+      const refreshed = await prisma.group.findUnique({ where: { id: groupId }, include: { batches: true } });
+      const roles = await loadRoles(prisma, [groupId]);
+      res.json({ ok: true, period: result.period, house: serializeHouse(refreshed, roles) });
+    }),
+  );
+
+  // Bawa anggota ACTIVE ke period generasi baru (preview via dryRun).
+  app.post(
+    '/api/beyonders/leaders/carry-members',
+    requireRole('KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const period = String(req.body?.period || '').trim();
+      if (!isPeriod(period)) return res.status(400).json({ error: 'period wajib YYYY-MM.' });
+      const houses = await loadHouses(prisma);
+      const groupIds = Array.isArray(req.body?.groupIds) && req.body.groupIds.length
+        ? req.body.groupIds.map(String)
+        : houses.map((h) => h.id);
+      const summary = await carryActiveMembers(prisma, { period, groupIds, dryRun: Boolean(req.body?.dryRun) });
+      res.json({ ok: true, ...summary });
+    }),
+  );
+
+  // Assign orang (baru) ke rumah secara bulk untuk generasi tertentu.
+  app.post(
+    '/api/beyonders/leaders/assign-members',
+    requireRole('KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const groupId = String(req.body?.groupId || '').trim();
+      const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds.map(String).filter(Boolean) : [];
+      const familyRole = mapFamilyRole(req.body?.familyRole || 'MENTEE');
+      if (!groupId || !userIds.length) return res.status(400).json({ error: 'groupId & userIds[] wajib.' });
+      const houses = await loadHouses(prisma);
+      if (!houses.find((h) => h.id === groupId)) return res.status(404).json({ error: 'Bukan salah satu dari 10 rumah.' });
+
+      const period = req.body?.period && isPeriod(req.body.period) ? req.body.period : await currentPeriod(prisma, groupId);
+      let assigned = 0;
+      const errors = [];
+      for (const userId of userIds) {
+        try {
+          await placePerson(prisma, suchThatArgs({ userId, groupId, familyRole, period, assignedBy: req.authUser?.id }));
+          assigned += 1;
+        } catch (e) {
+          errors.push(`${userId}: ${e.message}`);
+        }
+      }
+      res.json({ ok: true, assigned, failed: errors.length, errors, period });
+    }),
+  );
+}
+
+// helper kecil agar payload placePerson konsisten
+function suchThatArgs({ userId, groupId, familyRole, period, assignedBy }) {
+  return {
+    userId,
+    groupId,
+    role: familyRole === 'MENTOR' ? 'MENTOR' : familyRole === 'COMENTOR' ? 'CO_MENTOR' : 'MENTEE',
+    familyRole,
+    period,
+    assignedBy,
+    reason: `Bulk assign ${period}`,
+  };
 }

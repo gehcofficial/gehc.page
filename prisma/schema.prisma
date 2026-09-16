@@ -541,11 +541,13 @@ model GroupMember {
   attendanceRate Int          @default(0) @map("attendance_rate")
   notes          String?      @db.Text
   assignmentId   String?      @map("assignment_id") @db.VarChar(64)
+  movedToGroupId String?      @map("moved_to_group_id") @db.VarChar(64)
 
   group      Group              @relation(fields: [groupId], references: [id])
   user       User?              @relation(fields: [userId], references: [id])
   attendance AttendanceRecord[]
 
+  @@unique([groupId, userId, batchPeriod])
   @@index([groupId])
   @@index([groupId, batchPeriod])
   @@index([userId])
@@ -585,6 +587,8 @@ enum FamilyRole {
 enum MemberStatus {
   ACTIVE
   ALUMNI
+  PAST
+  MOVED
 }
 
 model MonitoringRecord {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-
+import { RegenerationWizard } from './RegenerationWizard';
 type Person = { id: string; name: string; avatar?: string | null };
 
 type HouseRow = {
@@ -303,6 +303,14 @@ export const BeyondersLeadersPanel: React.FC = () => {
           );
         })}
       </div>
+
+      {canEdit && (
+        <RegenerationWizard
+          houses={houses.map((h) => ({ groupId: h.groupId, name: h.name, batch: h.batch, foundedPeriod: h.foundedPeriod }))}
+          canEdit={canEdit}
+          onChanged={load}
+        />
+      )}
 
       {canEdit && (
         <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4 space-y-3">

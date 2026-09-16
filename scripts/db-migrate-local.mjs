@@ -260,6 +260,11 @@ const STEPS = [
     label: 'Normalisasi id group_batches (period selaras)',
     required: true,
   },
+  {
+    script: 'server/_migrate-member-generations.cjs',
+    label: 'Roster per generasi (status PAST/MOVED, unique group+user+period)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

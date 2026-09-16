@@ -8,6 +8,7 @@
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
 import { normalizeGiftsTop5 } from './gift-normalize.mjs';
+import { syncRosterRole } from './lib/member-role-sync.mjs';
 
 export const THRESHOLD = Number(process.env.GROUP_THRESHOLD || 10);
 const IDLE_WEEKS = 4;
@@ -497,10 +498,12 @@ export async function executeSplit({ groupId, newName, mentorMemberId, comentorM
     where: { id: mentor.id },
     data: { groupId: child.id, familyRole: 'MENTOR', batchPeriod: period },
   });
+  await syncRosterRole(prisma, { userId: mentor.userId, groupId: child.id, familyRole: 'MENTOR' }).catch(() => {});
   await prisma.groupMember.update({
     where: { id: comentor.id },
     data: { groupId: child.id, familyRole: 'COMENTOR', batchPeriod: period },
   });
+  await syncRosterRole(prisma, { userId: comentor.userId, groupId: child.id, familyRole: 'COMENTOR' }).catch(() => {});
 
   // Redistribute proporsional: sisanya dibagi dua, parent sedikit lebih besar
   const rest = parent.members
@@ -508,7 +511,9 @@ export async function executeSplit({ groupId, newName, mentorMemberId, comentorM
     .map((m) => m.id);
   const toChild = Math.floor(rest.length / 2);
   for (const id of rest.slice(0, toChild)) {
+    const moved = parent.members.find((m) => m.id === id);
     await prisma.groupMember.update({ where: { id }, data: { groupId: child.id, batchPeriod: period } });
+    await syncRosterRole(prisma, { userId: moved?.userId, groupId: child.id, familyRole: 'MENTEE' }).catch(() => {});
   }
 
   await refreshMemberCount(prisma, parent.id);
@@ -553,6 +558,7 @@ export async function executeMerge({ sourceGroupId, targetGroupId }) {
     if (role === 'MENTOR' && hasMentor) { role = 'MENTEE'; demoted++; }
     if (role === 'COMENTOR' && hasComentor) { role = 'MENTEE'; demoted++; }
     await prisma.groupMember.update({ where: { id: m.id }, data: { groupId: target.id, familyRole: role } });
+    await syncRosterRole(prisma, { userId: m.userId, groupId: target.id, familyRole: role }).catch(() => {});
   }
 
   // Rekam lineage: grup sumber menutup sebagai cabang dari tujuan
@@ -595,6 +601,7 @@ export async function shuffleRole(memberId, familyRole) {
   }
 
   const updated = await prisma.groupMember.update({ where: { id: memberId }, data: { familyRole } });
+  await syncRosterRole(prisma, { userId: member.userId, groupId: member.groupId, familyRole }).catch(() => {});
   await refreshMemberCount(prisma, member.groupId);
   return updated;
 }

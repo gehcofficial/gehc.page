@@ -1,6 +1,33 @@
 # GEHC Portal — Handoff
 
-## Current — Fix "Buka generasi berikutnya" (PRIMARY constraint batch id) (16 Sep 2026)
+## Current — Regenerasi menyeluruh: roster per generasi, sinkron peran, wizard 4 langkah (16 Sep 2026)
+
+**Goal:** Regenerasi pemimpin + alumni per generasi + bawa anggota aktif + assign orang baru, dengan peran (RoleAssignment) selalu sinkron dan tanpa peran ganda.
+
+**Done:**
+- **Skema**: `MemberStatus` diperluas → `ACTIVE|ALUMNI|PAST|MOVED`; `GroupMember.movedToGroupId`; unique `[groupId, userId, batchPeriod]`. Migrasi idempotent `server/_migrate-member-generations.cjs` (dedupe aman) + daftar di `db-migrate-local.mjs`. **Sudah dijalankan staging & prod** + `prisma generate`.
+- **Service** `server/lib/member-role-sync.mjs`: `placePerson` (pindah penuh: nonaktifkan assignment grup lain, tulis RoleAssignment+UserRole+GroupMember(period)+GroupBatch, set user flags; tanpa peran ganda), `markAlumniBulk` (roster ALUMNI + cabut akses grup + `User.memberStatus`), `carryActiveMembers` (ACTIVE→period baru, alumni & MOVED dilewati, baris lama → PAST, dry-run), `syncRosterRole` (dipakai shuffle/mitosis/merge agar `GroupMember`↔`RoleAssignment` sinkron).
+- **Endpoint baru** (`server/routes/beyonders-leaders.mjs`): `POST /api/beyonders/leaders/:groupId/assign-leader` (+ catat `MentorTransition`), `POST /api/beyonders/leaders/carry-members` (+dryRun), `POST /api/beyonders/leaders/assign-members`. `POST /api/jemaat/member-status/bulk` kini ikut menyinkron roster grup saat ALUMNI.
+- **Perbaikan**: `/api/regeneration/apply` (field `role` → `familyRole` + `status`).
+- **UI**: komponen baru `RegenerationWizard.tsx` (4 langkah: Pemimpin · Alumni · Bawa anggota · Assign baru) dengan pratinjau/dry-run, `DirectoryPicker`, dan **badge warna status** (Aktif/Alumni/Generasi lalu/Pindah); dipasang di panel **Pemimpin 10 Rumah**.
+- Verifikasi: lint bersih, **327 test** hijau (1 baru `tests/unit/member-role-sync.test.ts`), build OK.
+
+### Next
+1. Deploy; uji: Langkah 1 tetapkan pemimpin rumah (mis. mentee dari rumah lain) → cek akses portal pindah & peran lama nonaktif; Langkah 3 pratinjau lalu bawa anggota; Langkah 4 assign orang baru.
+2. Perilaku: Mentor/Co-Mentor lama yang turun tetap di grup sebagai MENTEE (otomatis).
+3. Warna status tampil di wizard; opsional: bawa ke family tree publik.
+
+### Commands
+```
+npx dotenv -e .env.staging -- node server/_migrate-member-generations.cjs
+npx dotenv -e .env.production -- node server/_migrate-member-generations.cjs
+npx prisma generate
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Fix "Buka generasi berikutnya" (PRIMARY constraint batch id) (16 Sep 2026)
 
 **Goal:** Tombol Pemimpin 10 Rumah gagal `INVALID prisma.groupBatch.createMany() … UNIQUE constraint failed: PRIMARY` saat membuka generasi.
 
