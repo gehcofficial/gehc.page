@@ -74,11 +74,13 @@ import {
   HeartHandshake,
   Crown,
   Search,
+  Megaphone,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
 import { PortalHelpDrawer } from './PortalHelpDrawer';
 import { PortalSearchPalette } from './PortalSearchPalette';
+import { AnnouncementComposer } from './AnnouncementComposer';
 import { PanelGuide } from './PanelGuide';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
 import { readStoredString, writeStored } from '../../lib/safe-storage';
@@ -230,6 +232,7 @@ export const PortalLayout: React.FC = () => {
     'content-weekly': BookOpen,
     'content-activities': Calendar,
     'content-testimonials': MessageSquareQuote,
+    announcements: Megaphone,
     kesaksian: MessageSquareQuote,
     'media-guide': Images,
     struktur: ShieldCheck,
@@ -641,6 +644,9 @@ export const PortalLayout: React.FC = () => {
                     }}
                   >
                     <p className="text-xs font-bold text-[#1B1B1B]">{n.title}</p>
+                    {typeof n.payload?.senderRole === 'string' && n.payload.senderRole ? (
+                      <p className="text-[9px] font-bold text-[#FF416C] mt-0.5">Dari: {n.payload.senderRole}</p>
+                    ) : null}
                     <p className="text-[10px] text-[#8C8880] mt-0.5">{n.message}</p>
                     <p className="text-[9px] text-[#D9D7D0] mt-1">
                       {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID')}
@@ -742,6 +748,12 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="content-testimonials" />
               <ManageTestimonials />
+            </div>
+          )}
+          {activeTab === 'announcements' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="announcements" />
+              <AnnouncementComposer />
             </div>
           )}
           {activeTab === 'kesaksian' && <MenteeKesaksianPanel />}

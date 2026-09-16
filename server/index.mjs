@@ -136,6 +136,9 @@ import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerPortalAssistRoutes } from './routes/portal-assist.mjs';
+import { registerAnnouncementRoutes } from './routes/announcements.mjs';
+import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
+import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -2551,6 +2554,8 @@ registerChurchProgramRoutes(app, { wrap });
 registerMinistryPlanRoutes(app, { wrap });
 registerServingAssignmentRoutes(app, { wrap });
 registerPortalAssistRoutes(app, { wrap });
+registerAnnouncementRoutes(app, { wrap });
+registerNotifCronRoutes(app, { wrap });
 registerServiceOverrideRoutes(app, { wrap });
 registerServiceSwapRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
@@ -2838,8 +2843,10 @@ app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KO
       });
 
       // Create notifications for each mentioned user (skip author)
+      const mentionIds = [];
       for (const mu of mentionedUsers) {
         if (mu.id === update.authorId) continue; // don't notify self
+        mentionIds.push(mu.id);
 
         await prisma.notification.create({
           data: {
@@ -2854,9 +2861,19 @@ app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KO
               authorId: update.authorId,
               authorName,
             },
+            category: 'tugas',
             status: 'OPEN',
           },
         });
+      }
+      if (mentionIds.length) {
+        await pushToUsers(prisma, mentionIds, {
+          title: `Anda di-mention oleh ${authorName}`,
+          message: `Divisi ${req.params.div.toUpperCase()}`,
+          href: '#/portal',
+          category: 'tugas',
+          priority: 'TASK',
+        }).catch(() => {});
       }
     }
   } catch (e) {
@@ -6522,6 +6539,29 @@ app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMM
     });
     created.push(schedule);
   }
+  try {
+    const role = await prisma.serviceRole.findUnique({ where: { id: serviceRoleId }, select: { name: true } });
+    const dateLabel = new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+    const rows = await prisma.notification.createMany({
+      data: ids.map((uid) => ({
+        id: 'ntf-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+        type: 'IDLE_FLAG',
+        memberId: uid,
+        title: 'Jadwal penatalayan baru',
+        message: `Anda dijadwalkan sebagai ${role?.name || 'petugas'} pada ${dateLabel}.`,
+        payload: { href: '#/portal', category: 'penatalayan', priority: 'TASK' },
+        category: 'penatalayan',
+        status: 'OPEN',
+      })),
+    }).catch(() => null);
+    if (rows) await pushToUsers(prisma, ids, {
+      title: 'Jadwal penatalayan baru',
+      message: `Anda dijadwalkan sebagai ${role?.name || 'petugas'} pada ${dateLabel}.`,
+      href: '#/portal',
+      category: 'penatalayan',
+      priority: 'TASK',
+    }).catch(() => {});
+  } catch { /* abaikan */ }
   res.status(201).json({ schedule: created[0], schedules: created, count: created.length });
 }));
 
@@ -6944,7 +6984,7 @@ app.get('/api/push/config', (req, res) => {
   res.json({ publicKey: pub });
 });
 
-// POST /api/paw/subscribe — save notification subscription (alias /api/push/subscribe)
+// POST /api/paw/subscribe — simpan langganan web push (alias /api/push/subscribe)
 async function handlePushSubscribe(req, res) {
   const prisma = getPrisma();
   const { endpoint, keys } = req.body || {};
@@ -6952,33 +6992,75 @@ async function handlePushSubscribe(req, res) {
   const userId = req.authUser?.id;
   if (!userId) return res.status(401).json({ error: 'User tidak ditemukan' });
   if (!keys?.p256dh || !keys?.auth) return res.status(400).json({ error: 'keys.p256dh/auth wajib' });
-  const id = 'pawsub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-  try {
-    await prisma.notification.create({
-      data: {
-        id, memberId: userId,
-        type: 'IDLE_FLAG', title: 'Push Subscription', message: JSON.stringify({ endpoint, keys }),
-      },
-    });
-  } catch { /* skip duplicate */ }
+  const userAgent = String(req.headers['user-agent'] || '').slice(0, 255) || null;
+  await prisma.pushSubscription.upsert({
+    where: { endpoint: String(endpoint).slice(0, 500) },
+    update: { userId, p256dh: keys.p256dh, auth: keys.auth, userAgent, lastSeenAt: new Date() },
+    create: {
+      id: 'psub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+      userId,
+      endpoint: String(endpoint).slice(0, 500),
+      p256dh: String(keys.p256dh).slice(0, 255),
+      auth: String(keys.auth).slice(0, 255),
+      userAgent,
+    },
+  });
   res.json({ ok: true });
 }
 app.post('/api/paw/subscribe', requireRole(), wrap(handlePushSubscribe));
 app.post('/api/push/subscribe', requireRole(), wrap(handlePushSubscribe));
 
-// POST /api/paw/send — send notification to user(s)
-app.post('/api/paw/send', requireRole(), wrap(async (req, res) => {
-  const { userId, title, message, url } = req.body;
-  if (!userId || !title || !message) return res.status(400).json({ error: 'userId, title, message wajib' });
+// POST /api/push/unsubscribe — hapus langganan perangkat ini
+app.post('/api/push/unsubscribe', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const id = 'paw-' + Date.now().toString(36);
-  await prisma.notification.create({
-    data: {
-      id, memberId: userId,
-      type: 'IDLE_FLAG', title, message,
-    },
+  const { endpoint } = req.body || {};
+  if (endpoint) {
+    await prisma.pushSubscription.deleteMany({ where: { endpoint: String(endpoint), userId: req.authUser?.id } }).catch(() => {});
+  }
+  res.json({ ok: true });
+}));
+
+// GET/PUT /api/notifications/preferences — preferensi kategori per user
+app.get('/api/notifications/preferences', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const userId = req.authUser?.id;
+  const row = await prisma.notificationPreference.findUnique({ where: { userId } }).catch(() => null);
+  const prefs = {};
+  for (const c of NOTIFY_CATEGORIES) prefs[c] = row ? row[c] !== false : true;
+  res.json({ preferences: prefs });
+}));
+
+app.put('/api/notifications/preferences', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const userId = req.authUser?.id;
+  const body = req.body || {};
+  const data = {};
+  for (const c of NOTIFY_CATEGORIES) if (body[c] !== undefined) data[c] = Boolean(body[c]);
+  if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada preferensi untuk disimpan.' });
+  const row = await prisma.notificationPreference.upsert({
+    where: { userId },
+    update: data,
+    create: { userId, ...data },
   });
-  res.json({ ok: true, notificationId: id });
+  const prefs = {};
+  for (const c of NOTIFY_CATEGORIES) prefs[c] = row[c] !== false;
+  res.json({ ok: true, preferences: prefs });
+}));
+
+// POST /api/paw/send — kirim notifikasi ke 1 user (staf)
+app.post('/api/paw/send', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const { userId, title, message, url } = req.body || {};
+  if (!userId || !title) return res.status(400).json({ error: 'userId & title wajib' });
+  const r = await sendNotification({
+    type: 'ANNOUNCEMENT',
+    category: 'announcement',
+    title,
+    message: message || '',
+    href: url || null,
+    senderRole: (req.authUser?.roles || [])[0]?.role || null,
+    audience: { type: 'USER', userIds: [userId] },
+  });
+  res.json({ ok: true, count: r.count, pushed: r.pushed });
 }));
 
 // ---------- End Warta Publik & Event Gallery & PAW ----------

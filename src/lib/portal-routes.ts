@@ -34,6 +34,7 @@ export type PortalPage =
   | 'content-weekly'
   | 'content-activities'
   | 'content-testimonials'
+  | 'announcements'
   | 'kesaksian'
   | 'media-guide'
   | 'struktur'

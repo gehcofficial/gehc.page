@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { pushCapability, pushCapabilityMessage } from '../../lib/push-capability';
+import { NOTIFY_CATEGORIES, NOTIFY_CATEGORY_LABEL } from '../../lib/notify-categories';
 
 interface PWASettingsPanelProps {
   onClose?: () => void;
@@ -17,6 +18,31 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
   const [cacheSize, setCacheSize] = useState<string>('...');
   const [pushError, setPushError] = useState('');
   const [cap, setCap] = useState<ReturnType<typeof pushCapability> | null>(null);
+  const [prefs, setPrefs] = useState<Record<string, boolean> | null>(null);
+  const [prefsBusy, setPrefsBusy] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/notifications/preferences', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.preferences) setPrefs(d.preferences); })
+      .catch(() => {});
+  }, []);
+
+  const togglePref = async (key: string, value: boolean) => {
+    setPrefsBusy(true);
+    try {
+      const r = await fetch('/api/notifications/preferences', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d?.preferences) setPrefs(d.preferences);
+    } finally {
+      setPrefsBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -169,6 +195,12 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
         await sub.unsubscribe();
         setSubscribed(false);
         setSubscription(null);
@@ -362,6 +394,25 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
                 <p className="truncate mt-1">auth: {subscription.getKey('auth') ? arrayBufferToBase64(subscription.getKey('auth')!).slice(0, 32) + '...' : 'null'}</p>
               </div>
             </details>
+          )}
+
+          {prefs && (
+            <div className="space-y-2 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">Kategori yang diaktifkan</p>
+              <div className="grid grid-cols-2 gap-2">
+                {NOTIFY_CATEGORIES.map((c) => (
+                  <label key={c} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#FAF9F5] text-xs font-semibold text-[#1B1B1B]">
+                    <span>{NOTIFY_CATEGORY_LABEL[c] || c}</span>
+                    <input
+                      type="checkbox"
+                      checked={prefs[c] !== false}
+                      disabled={prefsBusy}
+                      onChange={(e) => void togglePref(c, e.target.checked)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

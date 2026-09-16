@@ -144,6 +144,7 @@ export const portalId: typeof portalEn = {
     'content-weekly': 'Kelola Warta Pemuda',
     'content-activities': 'Kelola Agenda Kegiatan',
     'content-testimonials': 'Kelola Testimoni',
+    announcements: 'Pengumuman',
     kesaksian: 'Kesaksian',
     'media-guide': 'Panduan Media (Drive)',
     struktur: 'Struktur Organisasi',
@@ -578,6 +579,13 @@ export const portalId: typeof portalEn = {
       steps: ['Tinjau kutipan yang sudah dikirim mentee.', 'Sunting jika perlu.', 'Terbitkan ke landing. Jangan membuat kesaksian dari nol di sini.'],
       when: 'Ada kisah yang sudah direview dan siap live.',
       notFor: 'Mentee menulis di panel Kesaksian. Marturia memilih dan mereview di Panel Divisi → Kesaksian & Story.',
+    },
+    announcements: {
+      title: 'Pengumuman',
+      purpose: 'Kirim broadcast ke peran, divisi, kelompok, atau semua pelanggan — dengan push opsional.',
+      steps: ['Tulis judul & pesan.', 'Pilih kategori & audiens.', 'Kirim sekarang atau jadwalkan.'],
+      when: 'Ada info yang perlu diketahui audiens target.',
+      notFor: 'Bukan chat pribadi atau catatan pastoral pribadi.',
     },
     kesaksian: {
       title: 'Kesaksian',

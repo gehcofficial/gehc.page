@@ -1,6 +1,35 @@
 # GEHC Portal — Handoff
 
-## Current — Status keaktifan pemuda (Alumni/Nonaktif) + Perlu Penempatan + Rekomendasi Grup + CSV Jemaat (15 Sep 2026)
+## Current — Notifikasi & Pengumuman: push berfungsi, broadcast per peran/divisi/kelompok (15 Sep 2026)
+
+**Goal:** Push sungguhan saat ada update, plus pengumuman dari role tertentu (sampai level divisi/mentor) ke audiens tertentu; preferensi granular.
+
+**Done:**
+- **Diagnosis:** push hanya jalan di 3 trigger (Warta/Galeri/catalog); `/api/paw/send` tak kirim push & RBAC longgar; langganan disimpan nakal di baris `notifications`.
+- **Skema** `prisma/schema.prisma`: `PushSubscription`, `NotificationPreference`, `Announcement`; kolom `notifications.category/announcement_id/sender_role`; enum `NotificationType` + `ANNOUNCEMENT/SWAP_REQUEST/ALBUM_USULAN` (fix drift). Migrasi idempotent `server/_migrate-notifications.cjs` (daftar di `db-migrate-local.mjs`) — **sudah dijalankan staging & prod** (prod: 11 langganan lama dimigrasikan, 11 baris hack dihapus) + `prisma generate`.
+- **Layanan pusat** `server/lib/notify.mjs`: `sendNotification()` (inbox + push, hormati preferensi), `pushToUsers()`, `resolveAudience()` (PUBLIC=pelanggan, ROLE/DIVISION/GROUP/USER), `senderCapabilities()` (matriks izin + whitelist kategori + scope divisi/grup).
+- **Endpoint**: refactor `/api/push/subscribe` + `/api/push/unsubscribe` (tabel baru), `/api/notifications/preferences` (GET/PUT), `/api/paw/send` RBAC + push. Baru `server/routes/announcements.mjs` (capabilities/list/create/send/archive dengan validasi audiens & scope) dan `server/routes/notif-cron.mjs` (`/api/cron/notif-dispatch`, `/api/cron/reminders`).
+- **Push transactional** disambung: penugasan role, **penatalayan**, approval item, mention.
+- **UI**: panel **Pengumuman** (nav baru; compose + riwayat + sender role), preferensi kategori granular di Akun → Notifikasi, lonceng menampilkan **asalan peran**. i18n nav+guide.
+- **Cron** `vercel.json`: notif-dispatch (*/5), reminders (12:00 UTC = 19:00 WIB), digest. **Perlu set `CRON_SECRET` di Vercel** (+ Production/Preview).
+- Verifikasi: lint bersih, **323 test** hijau (4 baru `tests/unit/notify.test.ts`), build OK.
+
+### Next
+1. Deploy `main`; set `CRON_SECRET` di Vercel (Production & Preview).
+2. Uji: aktifkan push (Akun → Notifikasi) → kirim pengumuman Komisi ke publik; komisi ke peran; mentor ke kelompoknya (batas scope); cek lonceng + push.
+3. Opsional lanjutan: push untuk Warta/Galeri lewat `sendNotification` terpusat; digest harian ke Komisi; langganan anonim publik.
+
+### Commands
+```
+npx dotenv -e .env.staging -- node server/_migrate-notifications.cjs
+npx dotenv -e .env.production -- node server/_migrate-notifications.cjs
+npx prisma generate
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Status keaktifan pemuda (Alumni/Nonaktif) + Perlu Penempatan + Rekomendasi Grup + CSV Jemaat (15 Sep 2026)
 
 **Goal:** Bedakan "Community legacy" vs "Belum ditempatkan" vs aktif; dukung penempatan kelompok binaan tanpa auto-apply; export CSV sesuai filter Jemaat.
 

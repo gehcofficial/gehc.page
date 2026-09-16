@@ -250,6 +250,11 @@ const STEPS = [
     label: 'Status keaktifan pemuda (member_status: ACTIVE/ALUMNI/NONAKTIF)',
     required: true,
   },
+  {
+    script: 'server/_migrate-notifications.cjs',
+    label: 'Notifikasi & pengumuman (push_subscriptions, preferences, announcements)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

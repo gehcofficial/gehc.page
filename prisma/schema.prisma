@@ -1061,20 +1061,85 @@ model EventApprovalLog {
 
 /// Auto-flag idle, alert mitosis, saran merger — dasbor Komisi ("Jethro" engine)
 model Notification {
-  id         String             @id @db.VarChar(64)
-  type       NotificationType
-  groupId    String?            @map("group_id") @db.VarChar(64)
-  memberId   String?            @map("member_id") @db.VarChar(64)
-  title      String             @db.VarChar(190)
-  message    String?            @db.Text
-  payload    Json?
-  status     NotificationStatus @default(OPEN)
-  createdAt  DateTime           @default(now()) @map("created_at") @db.DateTime(3)
-  resolvedAt DateTime?          @map("resolved_at") @db.DateTime(3)
+  id             String             @id @db.VarChar(64)
+  type           NotificationType
+  groupId        String?            @map("group_id") @db.VarChar(64)
+  memberId       String?            @map("member_id") @db.VarChar(64)
+  title          String             @db.VarChar(190)
+  message        String?            @db.Text
+  payload        Json?
+  category       String?            @db.VarChar(24)
+  announcementId String?            @map("announcement_id") @db.VarChar(64)
+  senderRole     String?            @map("sender_role") @db.VarChar(32)
+  status         NotificationStatus @default(OPEN)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  resolvedAt     DateTime?          @map("resolved_at") @db.DateTime(3)
 
   @@index([type, status])
   @@index([groupId])
+  @@index([memberId, status])
   @@map("notifications")
+}
+
+/// Langganan web push per perangkat/browser.
+model PushSubscription {
+  id           String   @id @db.VarChar(64)
+  userId       String   @map("user_id") @db.VarChar(64)
+  endpoint     String   @unique @db.VarChar(500)
+  p256dh       String   @db.VarChar(255)
+  auth         String   @db.VarChar(255)
+  userAgent    String?  @map("user_agent") @db.VarChar(255)
+  failureCount Int      @default(0) @map("failure_count")
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at") @db.DateTime(3)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Preferensi notifikasi per user (granular per kategori).
+model NotificationPreference {
+  userId       String   @id @map("user_id") @db.VarChar(64)
+  announcement Boolean  @default(true)
+  warta        Boolean  @default(true)
+  kegiatan     Boolean  @default(true)
+  penatalayan  Boolean  @default(true)
+  tugas        Boolean  @default(true)
+  pengingat    Boolean  @default(true)
+  birthday     Boolean  @default(true)
+  materi       Boolean  @default(true)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("notification_preferences")
+}
+
+/// Pengumuman/broadcast dari role tertentu ke audiens tertentu.
+model Announcement {
+  id                String   @id @db.VarChar(64)
+  title             String   @db.VarChar(190)
+  message           String?  @db.Text
+  href              String?  @db.VarChar(300)
+  senderId          String?  @map("sender_id") @db.VarChar(64)
+  senderRole        String   @map("sender_role") @db.VarChar(32)
+  audienceType      String   @map("audience_type") @db.VarChar(16) // PUBLIC | ROLE | DIVISION | GROUP | USER
+  audienceRoles     Json?    @map("audience_roles")
+  audienceDivisions Json?    @map("audience_divisions")
+  audienceGroupIds  Json?    @map("audience_group_ids")
+  audienceUserIds   Json?    @map("audience_user_ids")
+  category          String   @db.VarChar(24)
+  priority          String   @default("INFO") @db.VarChar(16) // INFO | TASK | URGENT
+  publishAt         DateTime @default(now()) @map("publish_at") @db.DateTime(3)
+  expiresAt         DateTime? @map("expires_at") @db.DateTime(3)
+  status            String   @default("SCHEDULED") @db.VarChar(16) // DRAFT | SCHEDULED | SENT | ARCHIVED
+  sentAt            DateTime? @map("sent_at") @db.DateTime(3)
+  sentCount         Int      @default(0) @map("sent_count")
+  failCount         Int      @default(0) @map("fail_count")
+  createdById       String?  @map("created_by_id") @db.VarChar(64)
+  createdAt         DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([status, publishAt])
+  @@index([senderId])
+  @@map("announcements")
 }
 
 enum NotificationType {
@@ -1089,6 +1154,9 @@ enum NotificationType {
   APPROVAL_ITEM
   DRIVE_DRIFT
   BIRTHDAY_WISH
+  ANNOUNCEMENT
+  SWAP_REQUEST
+  ALBUM_USULAN
 }
 
 /// Ucapan HUT global (1 baris aktif) — teks + foto opsional dari Komisi.

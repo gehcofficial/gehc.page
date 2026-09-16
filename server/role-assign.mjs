@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { GEN0_LABEL, GEN0_PERIOD, namesMatch } from './lib/beyonders-generation.mjs';
+import { pushToUsers } from './lib/notify.mjs';
 
 export function genId64() {
   return crypto.randomBytes(32).toString('hex');
@@ -258,9 +259,17 @@ export async function assignRoleToUser(prisma, {
         title: 'Peran baru ditugaskan',
         message: `Kamu mendapat peran ${roleLabel}. Buka portal untuk melihat konteks peran aktif.`,
         payload: { role, position, division, subdivision, groupId, assignedBy, href: '#/account/roles' },
+        category: 'tugas',
         status: 'OPEN',
       },
     });
+    await pushToUsers(prisma, [userId], {
+      title: 'Peran baru ditugaskan',
+      message: `Kamu mendapat peran ${roleLabel}.`,
+      href: '#/portal/account/roles',
+      category: 'tugas',
+      priority: 'TASK',
+    }).catch(() => {});
   } catch (e) {
     console.warn('[role-assign] notifikasi ROLE_ASSIGNED gagal:', e?.message || e);
   }

@@ -42,6 +42,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'content-weekly', label: 'Kelola Warta Pemuda', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS publikasi warta' },
   { id: 'content-activities', label: 'Kelola Agenda Kegiatan', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS agenda publik' },
   { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisi, group: 'Konten', subtitle: 'Collage landing' },
+  { id: 'announcements', label: 'Pengumuman', roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'] as UserRole[], group: 'Konten', subtitle: 'Broadcast ke peran/divisi/kelompok' },
   { id: 'kesaksian', label: 'Kesaksian', roles: ['MENTEE'] as UserRole[], group: 'Komunitas', subtitle: 'Tulis kesaksian sendiri' },
   { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten' },
   { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur' },

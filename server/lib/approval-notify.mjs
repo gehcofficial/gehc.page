@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { pushToUsers } from './notify.mjs';
 
 const nid = () => `ntf-${crypto.randomUUID()}`;
 
@@ -45,9 +46,17 @@ export async function notifyApprovalItem(prisma, { queue, itemId, title, message
         title,
         message,
         payload: { queue, itemId: String(itemId), url: url || null },
+        category: 'tugas',
         status: 'OPEN',
       })),
     });
+    await pushToUsers(prisma, recipients, {
+      title: title || 'Antrean persetujuan',
+      message: message || '',
+      href: url || '/#/portal',
+      category: 'tugas',
+      priority: 'TASK',
+    }).catch(() => {});
     return recipients.length;
   } catch (e) {
     console.warn('[approval-notify] gagal:', e?.message || e);

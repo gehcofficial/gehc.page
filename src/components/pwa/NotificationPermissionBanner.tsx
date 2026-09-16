@@ -121,6 +121,12 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
         await sub.unsubscribe();
         setSubscribed(false);
       }

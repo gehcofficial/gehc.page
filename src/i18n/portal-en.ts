@@ -150,6 +150,7 @@ export const portalEn = {
     'content-weekly': 'Youth Bulletin',
     'content-activities': 'Public Agenda',
     'content-testimonials': 'Testimonials',
+    announcements: 'Announcements',
     kesaksian: 'Testimony',
     'media-guide': 'Media Guide (Drive)',
     struktur: 'Org Chart',
@@ -584,6 +585,13 @@ export const portalEn = {
       steps: ['Review quotes already submitted by mentees.', 'Edit wording if needed.', 'Publish to the landing collage. Do not invent a new testimony here.'],
       when: 'A curated story is ready to go live.',
       notFor: 'Mentees write in the Testimony panel. Marturia selects and reviews in Division → Testimony & Story.',
+    },
+    announcements: {
+      title: 'Announcements',
+      purpose: 'Send a broadcast to a role, division, group, or all subscribers — with optional push.',
+      steps: ['Write a title and message.', 'Pick a category and the audience.', 'Send now or schedule for later.'],
+      when: 'There is info the target audience must know.',
+      notFor: 'Not a private chat or personal pastoral note.',
     },
     kesaksian: {
       title: 'Testimony',
