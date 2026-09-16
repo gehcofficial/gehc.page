@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Loader2, Search, ChevronDown, ChevronUp, Trash2, Edit2, Pencil, X, AlertCircle, UserPlus, Link2, Plus, KeyRound } from 'lucide-react';
+import { Users, Loader2, Search, ChevronDown, ChevronUp, Trash2, Edit2, Pencil, X, AlertCircle, UserPlus, Link2, Plus, KeyRound, Download, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoleAssignmentWizard } from './RoleAssignmentWizard';
 import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { PersonNameFields } from './PersonNameFields';
-import { matchesMainFilter as matchesMainFilterLib, matchesSubFilter as matchesSubFilterLib, buildSubFilters as buildSubFiltersLib, hasBeyonderWithGroup } from '../../lib/jemaat-filter';
+import { matchesMainFilter as matchesMainFilterLib, matchesSubFilter as matchesSubFilterLib, buildSubFilters as buildSubFiltersLib, hasBeyonderWithGroup, needsPlacement } from '../../lib/jemaat-filter';
+import { downloadCsv, toCsv, type CsvColumn } from '../../lib/csv';
 import {
   composeOfficialName,
   emptyPersonName,
@@ -74,6 +75,7 @@ interface YouthUser {
   isBeyonders?: boolean;
   isIndividuExplicit?: boolean;
   membershipKind?: 'JEMAAT' | 'SIMPATISAN';
+  memberStatus?: 'ACTIVE' | 'ALUMNI' | 'NONAKTIF';
   bipra?: string;
   kolomId?: string | null;
   kolom?: { id: string; number: number; name: string } | null;
@@ -105,9 +107,10 @@ interface EditForm {
   recreationalIds: string[];
   birthDate: string;
   membershipKind: 'JEMAAT' | 'SIMPATISAN';
+  memberStatus: 'ACTIVE' | 'ALUMNI' | 'NONAKTIF';
 }
 
-type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ';
+type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ' | 'ALUMNI' | 'NONAKTIF';
 
 const MAIN_FILTERS: { id: MainFilter; label: string; color: string }[] = [
   { id: 'ALL', label: 'All', color: 'bg-[#181818] text-white' },
@@ -116,6 +119,8 @@ const MAIN_FILTERS: { id: MainFilter; label: string; color: string }[] = [
   { id: 'TIMKERJA', label: 'Tim Kerja', color: 'bg-cyan-100 text-cyan-700' },
   { id: 'KOMISI', label: 'Komisi', color: 'bg-indigo-100 text-indigo-700' },
   { id: 'BPMJ', label: 'BPMJ', color: 'bg-blue-100 text-blue-700' },
+  { id: 'ALUMNI', label: 'Alumni', color: 'bg-slate-100 text-slate-600' },
+  { id: 'NONAKTIF', label: 'Nonaktif', color: 'bg-gray-100 text-gray-600' },
 ];
 
 const BIPRA_TABS = [
@@ -192,6 +197,16 @@ function matchesSubFilter(y: YouthUser, filter: MainFilter, subKey: string | nul
 }
 
 function displayRoles(user: YouthUser): Array<{ key: string; role: string; label: string; color: string; detail: string }> {
+  const status = String(user.memberStatus || 'ACTIVE').toUpperCase();
+  if (status === 'ALUMNI' || status === 'NONAKTIF') {
+    return [{
+      key: 'member-status',
+      role: status,
+      label: status === 'ALUMNI' ? 'Alumni' : 'Nonaktif',
+      color: status === 'ALUMNI' ? 'bg-slate-100 text-slate-600' : 'bg-gray-100 text-gray-600',
+      detail: status === 'ALUMNI' ? 'Alumni kelompok binaan' : 'Tidak aktif',
+    }];
+  }
   if (user.roleAssignments?.length > 0) {
     return user.roleAssignments
       .filter((ra) => ra.isActive)
@@ -235,6 +250,26 @@ function displayRoles(user: YouthUser): Array<{ key: string; role: string; label
     color: ROLE_COLORS[ur.role] || 'bg-gray-100 text-gray-600',
     detail: '',
   }));
+}
+
+/** Status penempatan untuk kolom CSV + badge ringkas. */
+function placementStatusLabel(user: YouthUser): string {
+  const status = String(user.memberStatus || 'ACTIVE').toUpperCase();
+  if (status === 'ALUMNI') return 'Alumni';
+  if (status === 'NONAKTIF') return 'Nonaktif';
+  const ra = (user.roleAssignments || []).filter((r) => r.isActive && BEYONDER_ROLES.includes(r.role));
+  const withGroup = ra.find((r) => r.group?.name && r.group.name !== 'Tanpa Group');
+  if (withGroup) return `Community – ${withGroup.group!.name}`;
+  if (ra.length) return 'Community – Individu (tanpa grup)';
+  if (user.isIndividuExplicit) return 'Individu (eksplisit)';
+  const legacy = (user.roles || []).some((r) => BEYONDER_ROLES.includes(r.role));
+  if (legacy) return 'Community – legacy (belum ada grup)';
+  return 'Belum ditempatkan';
+}
+
+function beyonderAssignment(user: YouthUser): RoleAssignment | null {
+  const ra = (user.roleAssignments || []).filter((r) => r.isActive && BEYONDER_ROLES.includes(r.role));
+  return ra.find((r) => r.group?.name && r.group.name !== 'Tanpa Group') || ra[0] || null;
 }
 
 function domicileLabel(u: YouthUser): string {
@@ -333,7 +368,8 @@ function InlineBulkAssignPanel({
 }
 
 export const YouthGEHCList: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, currentRole } = useApp();
+  const canManage = currentRole === 'SUPERADMIN' || currentRole === 'KOMISI';
   const [youth, setYouth] = useState<YouthUser[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -341,6 +377,7 @@ export const YouthGEHCList: React.FC = () => {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [mainFilter, setMainFilter] = useState<MainFilter>('ALL');
   const [subFilter, setSubFilter] = useState<string | null>(null);
+  const [placementOnly, setPlacementOnly] = useState(false);
   const [assignWizardUser, setAssignWizardUser] = useState<{
     id: string;
     name: string;
@@ -348,7 +385,7 @@ export const YouthGEHCList: React.FC = () => {
     anchor: HTMLElement | null;
   } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, isIndividuExplicit: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT' };
+  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, isIndividuExplicit: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT', memberStatus: 'ACTIVE' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
@@ -381,6 +418,9 @@ export const YouthGEHCList: React.FC = () => {
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const [churchRequestBusy, setChurchRequestBusy] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [memberStatusBusy, setMemberStatusBusy] = useState(false);
+  const [recBusy, setRecBusy] = useState(false);
+  const [recommendations, setRecommendations] = useState<Record<string, { recommendedGroupName?: string | null; recommendedRole?: string; reasons?: string[]; confidence?: number }>>({});
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [justAssignedId, setJustAssignedId] = useState<string | null>(null);
   const [liveGroups, setLiveGroups] = useState<Array<{ id: string; name: string; color: string }>>(BEYONDER_GROUPS);
@@ -409,6 +449,7 @@ export const YouthGEHCList: React.FC = () => {
       recreationalIds: user.recreationalIds || user.recreational?.map((g) => g.id) || [],
       birthDate: user.birthDate ? String(user.birthDate).slice(0, 10) : '',
       membershipKind: user.membershipKind || 'JEMAAT',
+      memberStatus: user.memberStatus || 'ACTIVE',
     });
   };
 
@@ -529,6 +570,7 @@ export const YouthGEHCList: React.FC = () => {
             recreationalIds: editForm.recreationalIds,
             birthDate: editForm.birthDate || null,
             membershipKind: editForm.membershipKind,
+            memberStatus: editForm.memberStatus,
           }),
         });
         if (!res.ok) {
@@ -742,7 +784,7 @@ export const YouthGEHCList: React.FC = () => {
   }, [youth, q]);
 
   const mainCounts = useMemo(() => {
-    const counts: Record<MainFilter, number> = { ALL: 0, INDIVIDU: 0, BEYONDERS: 0, TIMKERJA: 0, KOMISI: 0, BPMJ: 0 };
+    const counts: Record<MainFilter, number> = { ALL: 0, INDIVIDU: 0, BEYONDERS: 0, TIMKERJA: 0, KOMISI: 0, BPMJ: 0, ALUMNI: 0, NONAKTIF: 0 };
     allFiltered.forEach((y) => {
       counts.ALL++;
       if (matchesMainFilter(y, 'INDIVIDU')) counts.INDIVIDU++;
@@ -750,6 +792,8 @@ export const YouthGEHCList: React.FC = () => {
       if (hasRoleInAssignment(y, 'COMMITTEE') || hasRoleInLegacy(y, 'COMMITTEE')) counts.TIMKERJA++;
       if (hasRoleInAssignment(y, 'KOMISI') || hasRoleInLegacy(y, 'KOMISI')) counts.KOMISI++;
       if (hasRoleInAssignment(y, 'BPMJ') || hasRoleInLegacy(y, 'BPMJ')) counts.BPMJ++;
+      if (matchesMainFilter(y, 'ALUMNI')) counts.ALUMNI++;
+      if (matchesMainFilter(y, 'NONAKTIF')) counts.NONAKTIF++;
     });
     return counts;
   }, [allFiltered]);
@@ -757,8 +801,12 @@ export const YouthGEHCList: React.FC = () => {
   const subFilters = useMemo(() => buildSubFilters(allFiltered, mainFilter, timKerjaGroups), [allFiltered, mainFilter, timKerjaGroups]);
 
   const displayed = useMemo(() => {
-    return allFiltered.filter((y) => matchesMainFilter(y, mainFilter) && matchesSubFilter(y, mainFilter, subFilter, timKerjaGroups));
-  }, [allFiltered, mainFilter, subFilter, timKerjaGroups]);
+    return allFiltered.filter((y) =>
+      matchesMainFilter(y, mainFilter)
+      && matchesSubFilter(y, mainFilter, subFilter, timKerjaGroups)
+      && (!placementOnly || needsPlacement(y as unknown as Parameters<typeof needsPlacement>[0])),
+    );
+  }, [allFiltered, mainFilter, subFilter, timKerjaGroups, placementOnly]);
   const { pageItems: pagedYouth, pager: youthPager } = useListPager<YouthUser>(displayed);
 
   // Build Beyonders grouped data — strict: hanya dengan group (Tanpa Group → Individu)
@@ -945,6 +993,95 @@ export const YouthGEHCList: React.FC = () => {
     }
   };
 
+  const setMemberStatusBulk = async (status: 'ACTIVE' | 'ALUMNI' | 'NONAKTIF') => {
+    if (selectedIds.size === 0) return;
+    setMemberStatusBusy(true);
+    try {
+      const res = await fetch('/api/jemaat/member-status/bulk', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: Array.from(selectedIds), memberStatus: status }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal mengubah status');
+      addToast({ type: 'success', title: `Status ${status}`, description: `${d.updated || 0} orang diperbarui.` });
+      clearSelection();
+      await fetchData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Gagal mengubah status' });
+    } finally {
+      setMemberStatusBusy(false);
+    }
+  };
+
+  const setMemberStatusSingle = async (y: YouthUser, status: 'ACTIVE' | 'ALUMNI' | 'NONAKTIF') => {
+    setMemberStatusBusy(true);
+    try {
+      const res = await fetch(`/api/jemaat/${y.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberStatus: status }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal mengubah status');
+      addToast({ type: 'success', title: `${y.name}: ${status}` });
+      await fetchData();
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Gagal' });
+    } finally {
+      setMemberStatusBusy(false);
+    }
+  };
+
+  const recommendPlacements = async () => {
+    if (selectedIds.size === 0) return;
+    setRecBusy(true);
+    try {
+      const res = await fetch('/api/jemaat/placement/recommend', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: Array.from(selectedIds) }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Rekomendasi gagal');
+      const map: typeof recommendations = {};
+      for (const r of d.recommendations || []) map[r.newcomerId] = r;
+      setRecommendations(map);
+      addToast({ type: 'info', title: 'Rekomendasi siap', description: `${Object.keys(map).length} usulan grup (tidak otomatis ditugaskan).` });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Gagal', description: err instanceof Error ? err.message : 'Rekomendasi gagal' });
+    } finally {
+      setRecBusy(false);
+    }
+  };
+
+  const exportJemaatCsv = () => {
+    const b = (y: YouthUser) => beyonderAssignment(y);
+    const columns: CsvColumn<YouthUser>[] = [
+      { header: 'nama', value: (y) => y.name },
+      { header: 'gender', value: (y) => y.gender || '' },
+      { header: 'email', value: (y) => y.email || '' },
+      { header: 'wa', value: (y) => y.phone || '' },
+      { header: 'usia', value: (y) => y.demographics?.age ?? '' },
+      { header: 'ultah', value: (y) => (y.birthDate ? String(y.birthDate).slice(0, 10) : '') },
+      { header: 'bipra', value: (y) => y.bipra || '' },
+      { header: 'kolom', value: (y) => y.kolom?.name || '' },
+      { header: 'domisili', value: (y) => domicileLabel(y) },
+      { header: 'membership_kind', value: (y) => y.membershipKind || '' },
+      { header: 'member_status', value: (y) => y.memberStatus || 'ACTIVE' },
+      { header: 'status_penempatan', value: (y) => placementStatusLabel(y) },
+      { header: 'grup', value: (y) => b(y)?.group?.name || '' },
+      { header: 'family_role', value: (y) => b(y)?.familyRole || '' },
+      { header: 'role_aktif', value: (y) => (y.roleAssignments || []).filter((ra) => ra.isActive).map((ra) => ra.role).join('|') },
+      { header: 'link_status', value: (y) => y.linkStatus || '' },
+    ];
+    const suffix = placementOnly ? 'perlu-penempatan' : mainFilter.toLowerCase();
+    downloadCsv(`jemaat-${suffix}-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(displayed, columns));
+  };
+
   const renderInlineBulk = (userId: string) => (
     userId === visibleAssignTargetId ? (
       <InlineBulkAssignPanel
@@ -1111,6 +1248,25 @@ export const YouthGEHCList: React.FC = () => {
               >
                 Tambah role
               </button>
+              {canManage && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#8C8880]">
+                    Status: {(y.memberStatus || 'ACTIVE')}
+                  </span>
+                  <button type="button" disabled={memberStatusBusy} onClick={() => void setMemberStatusSingle(y, 'ALUMNI')}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 disabled:opacity-40">Alumni</button>
+                  <button type="button" disabled={memberStatusBusy} onClick={() => void setMemberStatusSingle(y, 'NONAKTIF')}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 disabled:opacity-40">Nonaktif</button>
+                  <button type="button" disabled={memberStatusBusy} onClick={() => void setMemberStatusSingle(y, 'ACTIVE')}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 disabled:opacity-40">Aktif</button>
+                </div>
+              )}
+              {recommendations[y.id] && (
+                <div className="rounded-xl bg-sky-50 border border-sky-200 p-2 text-[10px] text-sky-900">
+                  <span className="font-bold">Usulan grup: {recommendations[y.id].recommendedGroupName || '—'}</span>
+                  {recommendations[y.id].reasons?.length ? ` · ${recommendations[y.id].reasons!.join(', ')}` : ''}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1378,23 +1534,63 @@ export const YouthGEHCList: React.FC = () => {
             </button>
           )}
         </p>
-        {(mainFilter === 'ALL' || mainFilter === 'INDIVIDU' || mainFilter === 'BEYONDERS') && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={selectDisplayed}
-              className="text-[10px] font-bold text-[#8C8880] hover:text-[#FF416C]"
-            >
-              Pilih tampilan
-            </button>
-            {selectedIds.size > 0 && (
-              <button type="button" onClick={clearSelection} className="text-[10px] font-bold text-[#FF416C]">
-                Hapus pilihan ({selectedIds.size})
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setPlacementOnly((v) => !v)}
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${placementOnly ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'}`}
+            title="Pemuda aktif yang belum punya kelompok binaan"
+          >
+            Perlu penempatan
+          </button>
+          <button
+            type="button"
+            onClick={exportJemaatCsv}
+            disabled={displayed.length === 0}
+            className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#D9D7D0] text-[#5C5850] disabled:opacity-40"
+          >
+            <Download className="w-3 h-3" /> Unduh CSV
+          </button>
+          {(mainFilter === 'ALL' || mainFilter === 'INDIVIDU' || mainFilter === 'BEYONDERS') && (
+            <>
+              <button
+                type="button"
+                onClick={selectDisplayed}
+                className="text-[10px] font-bold text-[#8C8880] hover:text-[#FF416C]"
+              >
+                Pilih tampilan
               </button>
-            )}
-          </div>
-        )}
+              {selectedIds.size > 0 && (
+                <button type="button" onClick={clearSelection} className="text-[10px] font-bold text-[#FF416C]">
+                  Hapus pilihan ({selectedIds.size})
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Bulk actions — status keaktifan + rekomendasi grup (tanpa auto-apply) */}
+      {selectedIds.size > 0 && canManage && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#D9D7D0]/60 bg-white px-3 py-2">
+          <span className="text-[10px] font-bold text-[#8C8880]">{selectedIds.size} dipilih</span>
+          <button
+            type="button"
+            onClick={() => void recommendPlacements()}
+            disabled={recBusy}
+            className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white disabled:opacity-40"
+            title="Usulan grup saja — tidak otomatis ditugaskan"
+          >
+            {recBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Rekomendasi grup
+          </button>
+          <button type="button" onClick={() => void setMemberStatusBulk('ALUMNI')} disabled={memberStatusBusy}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 disabled:opacity-40">Tandai Alumni</button>
+          <button type="button" onClick={() => void setMemberStatusBulk('NONAKTIF')} disabled={memberStatusBusy}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 disabled:opacity-40">Tandai Nonaktif</button>
+          <button type="button" onClick={() => void setMemberStatusBulk('ACTIVE')} disabled={memberStatusBusy}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 disabled:opacity-40">Aktifkan kembali</button>
+        </div>
+      )}
 
       {youthPager}
 
@@ -1601,6 +1797,18 @@ export const YouthGEHCList: React.FC = () => {
                 >
                   <option value="JEMAAT">Jemaat</option>
                   <option value="SIMPATISAN">Simpatisan (direktori saja)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Status Keaktifan</label>
+                <select
+                  value={editForm.memberStatus}
+                  onChange={(e) => setEditForm({ ...editForm, memberStatus: e.target.value as 'ACTIVE' | 'ALUMNI' | 'NONAKTIF' })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                >
+                  <option value="ACTIVE">Aktif</option>
+                  <option value="ALUMNI">Alumni</option>
+                  <option value="NONAKTIF">Tidak aktif</option>
                 </select>
               </div>
               <div>

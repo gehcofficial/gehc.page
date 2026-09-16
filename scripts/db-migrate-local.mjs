@@ -245,6 +245,11 @@ const STEPS = [
     label: 'Profil gereja church-wide + sosial unit',
     required: true,
   },
+  {
+    script: 'server/_migrate-member-status.cjs',
+    label: 'Status keaktifan pemuda (member_status: ACTIVE/ALUMNI/NONAKTIF)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

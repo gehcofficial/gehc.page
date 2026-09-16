@@ -139,7 +139,11 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       ...(registeredPool || []),
       ...(waitingPool || []),
       ...(pendingApproval || []),
-    ].filter((e) => !bakuTauOnly || e.sourceEvent === BAKU_TAU_EVENT);
+    ]
+      .filter((e) => !bakuTauOnly || e.sourceEvent === BAKU_TAU_EVENT)
+      .filter((e) => !domicileFilter || e.domicileKind === domicileFilter)
+      .filter((e) => !originKindFilter || originKind(e) === originKindFilter)
+      .filter((e) => !roleWithoutProfileOnly || Boolean(e.user?.roles?.length && !e.profileCompleted));
     if (!rows.length) {
       addToast({ type: 'error', title: 'Kosong', description: 'Tidak ada data untuk diekspor.' });
       return;

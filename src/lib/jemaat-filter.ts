@@ -1,4 +1,4 @@
-export type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ';
+export type MainFilter = 'ALL' | 'INDIVIDU' | 'BEYONDERS' | 'TIMKERJA' | 'KOMISI' | 'BPMJ' | 'ALUMNI' | 'NONAKTIF';
 
 export const BEYONDER_ROLES = ['MENTOR', 'CO_MENTOR', 'MENTEE'] as const;
 
@@ -7,6 +7,7 @@ export interface YouthUserLite {
   bipra?: string | null;
   isIndividuExplicit?: boolean;
   isBeyonders?: boolean;
+  memberStatus?: string | null;
   roles?: Array<{ role: string; groupId?: string | null }>;
   roleAssignments: Array<{
     id: string;
@@ -40,8 +41,11 @@ function hasRoleInLegacy(y: YouthUserLite, role: string): boolean {
 
 export function matchesMainFilter(y: YouthUserLite, filter: MainFilter): boolean {
   if (filter === 'ALL') return true;
+  if (filter === 'ALUMNI') return String(y.memberStatus || 'ACTIVE').toUpperCase() === 'ALUMNI';
+  if (filter === 'NONAKTIF') return String(y.memberStatus || 'ACTIVE').toUpperCase() === 'NONAKTIF';
   if (filter === 'INDIVIDU') {
     if (y.bipra !== 'PEMUDA') return false;
+    if (String(y.memberStatus || 'ACTIVE').toUpperCase() !== 'ACTIVE') return false;
     if (y.isIndividuExplicit) return true;
     // Pemuda tanpa group Beyonders → Individu (sesuai “Tanpa Group masuk Individu”)
     return !hasBeyonderWithGroup(y);
@@ -55,6 +59,14 @@ export function matchesMainFilter(y: YouthUserLite, filter: MainFilter): boolean
     return hasRoleInAssignment(y, 'COMMITTEE') || hasRoleInLegacy(y, 'COMMITTEE');
   }
   return hasRoleInAssignment(y, filter) || hasRoleInLegacy(y, filter);
+}
+
+/** Pemuda aktif yang belum punya kelompok binaan — butuh penempatan. */
+export function needsPlacement(y: YouthUserLite): boolean {
+  if (y.bipra !== 'PEMUDA') return false;
+  if (String(y.memberStatus || 'ACTIVE').toUpperCase() !== 'ACTIVE') return false;
+  if (y.isIndividuExplicit) return false;
+  return !hasBeyonderWithGroup(y);
 }
 
 export function matchesSubFilter(

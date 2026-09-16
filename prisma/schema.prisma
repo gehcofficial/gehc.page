@@ -50,6 +50,13 @@ enum MembershipKind {
   SIMPATISAN
 }
 
+/// Keaktifan pemuda untuk penempatan kelompok binaan (terpisah dari keanggotaan).
+enum MemberActivityStatus {
+  ACTIVE
+  ALUMNI
+  NONAKTIF
+}
+
 enum AccountKind {
   MEMBER
   SYSTEM_LEGACY
@@ -242,6 +249,8 @@ model User {
   registrationOrigin String? @map("registration_origin") @db.VarChar(64)
   kolomId          String? @map("kolom_id") @db.VarChar(64)
   membershipKind   MembershipKind @default(JEMAAT) @map("membership_kind")
+  /// Keaktifan untuk penempatan binaan: ACTIVE | ALUMNI | NONAKTIF.
+  memberStatus     MemberActivityStatus @default(ACTIVE) @map("member_status")
 
   // Taut akun Google (direktori dulu, bind belakangan)
   googleSub            String?   @unique @map("google_sub") @db.VarChar(64)
@@ -306,6 +315,7 @@ model User {
   @@index([kolomId])
   @@index([bipra])
   @@index([membershipKind])
+  @@index([memberStatus])
   @@index([institutionId])
   @@index([addressScope])
   @@index([addressCountry])

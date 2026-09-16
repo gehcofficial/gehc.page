@@ -1,6 +1,34 @@
 # GEHC Portal — Handoff
 
-## Current — "Portal Cari & Panduan": command palette + pratinjau langkah + Tanya AI (15 Sep 2026)
+## Current — Status keaktifan pemuda (Alumni/Nonaktif) + Perlu Penempatan + Rekomendasi Grup + CSV Jemaat (15 Sep 2026)
+
+**Goal:** Bedakan "Community legacy" vs "Belum ditempatkan" vs aktif; dukung penempatan kelompok binaan tanpa auto-apply; export CSV sesuai filter Jemaat.
+
+**Done:**
+- **Diagnosis prod:** Pemuda 107 → 66 sudah di grup, **38 "Community legacy"** (`UserRole` lama tanpa `RoleAssignment`/grup), 2 "Belum ditempatkan". Kapasitas 10 grup: aktif 66, sisa 34 @ambang 10 (kurang ~6 untuk 40 orang).
+- **Skema** `prisma/schema.prisma`: `enum MemberActivityStatus { ACTIVE ALUMNI NONAKTIF }` + `User.memberStatus` (default ACTIVE, terpisah dari `membershipKind`) + index. Migrasi idempotent `server/_migrate-member-status.cjs` (daftar di `scripts/db-migrate-local.mjs`). **Sudah dijalankan ke staging & prod** + `prisma generate`.
+- **Server** (`server/index.mjs`): `queryJemaat` filter `memberStatus`; `PATCH /api/jemaat/:id` & `PATCH /api/admin/users/:id` terima `memberStatus`; baru `POST /api/jemaat/member-status/bulk` (tandai massal) & `POST /api/jemaat/placement/recommend` (**read-only**, pakai `recommendPlacementAdvanced` + kapasitas grup `GROUP_THRESHOLD`).
+- **Filter** `src/lib/jemaat-filter.ts`: `MainFilter` + `ALUMNI`/`NONAKTIF`; `needsPlacement()` (Pemuda aktif, bukan individu, tanpa grup); Alumni/Nonaktif dikecualikan dari Individu.
+- **UI Jemaat** `YouthGEHCList.tsx`: badge **Alumni/Nonaktif** (tetap tampil), chip filter baru, toggle **"Perlu penempatan"**, aksi status per baris + bulk + modal Edit, **"Rekomendasi grup"** (bulk → tampilkan usulan + alasan, tanpa auto-apply), tombol **"Unduh CSV"**.
+- **CSV** `src/lib/csv.ts` (`toCsv`/`downloadCsv`) — export `displayed` (hormati semua filter) dengan kolom `member_status` & `status_penempatan`. `WaitingPoolPanel.exportCsv` kini ikut filter (domisili/origin/profil).
+- Verifikasi: lint bersih, **319 test** hijau (4 baru `tests/unit/jemaat-csv.test.ts`), build OK; migrasi staging+prod sukses.
+
+### Next
+1. Deploy `main`; di Jemaat: filter **Perlu penempatan** (≈40), pilih banyak → **Rekomendasi grup** → assign manual lewat wizard/bulk; **Unduh CSV**.
+2. Rapikan penempatan: 38 legacy perlu masuk kelompok (kapasitas kurang ~6 → pertimbangkan ambang/mitosis/grup baru).
+3. i18n label baru (Alumni/Nonaktif/Perlu penempatan/dll) bila perlu EN.
+
+### Commands
+```
+npx dotenv -e .env.staging -- node server/_migrate-member-status.cjs
+npx dotenv -e .env.production -- node server/_migrate-member-status.cjs
+npx prisma generate
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — "Portal Cari & Panduan": command palette + pratinjau langkah + Tanya AI (15 Sep 2026)
 
 **Goal:** Satu pintu untuk menemukan semua fitur & panduan tanpa menghafal menu/role — cari, lihat langkah, langsung buka; fitur terkunci dijelaskan + bisa ganti peran.
 
