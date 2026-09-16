@@ -15,12 +15,13 @@
 - Untuk membuka generasi baru lagi dengan benar: **Buka generasi berikutnya** (periode baru) → Langkah 1 tetapkan pemimpin (period baru) → Langkah 3 **Pratinjau** lalu **Bawa anggota aktif** → Langkah 4 assign orang baru.
 
 ### Next
-1. Bila ingin pembersihan total: hapus batch `2026-09`/`2026-10` (belum dihapus; saat ini hanya non-current) — minta konfirmasi dulu.
+1. Sudah dibersihkan total: batch `2026-09`/`2026-10` **dihapus** (prod kini hanya 10 batch `2026-06` current; 80 anggota @2026-06). Backup: `backups/cleanup-extra-batches-2026-09-16/`.
 2. Wizard ada di panel **Pemimpin 10 Rumah** (peran Komisi/Tim Kerja).
 
 ### Commands
 ```
 npx dotenv -e .env.production -- node server/_restore-gen0-2026-06.cjs
+npx dotenv -e .env.production -- node server/_cleanup-extra-batches.cjs
 ```
 
 ---
