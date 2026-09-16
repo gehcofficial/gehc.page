@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Panel event hanya menampilkan divisi yang aktif (15 Sep 2026)
+## Current — "Portal Cari & Panduan": command palette + pratinjau langkah + Tanya AI (15 Sep 2026)
+
+**Goal:** Satu pintu untuk menemukan semua fitur & panduan tanpa menghafal menu/role — cari, lihat langkah, langsung buka; fitur terkunci dijelaskan + bisa ganti peran.
+
+**Done:**
+- **Indeks** `src/lib/portal-search-index.ts`: gabungan semua menu (`getAllPortalNavDefs`, termasuk yang terkunci untuk transparansi), **seluruh 42 guide i18n** (title/purpose/steps/when/notFor), dan aksi terkurasi; `searchPortal()` deterministik (token + bobot posisi, tanpa dependency). `guideIdToPage()` memetakan sub-guide → halaman induk.
+- **Aksi lintas-panel** `src/lib/portal-actions.ts` (penatalayan, tambah divisi, buat event, upload RHB, provision akun, WA channels, warta, kesaksian, doa, Info Event).
+- **UI** `PortalSearchPalette.tsx` (dialog: input + daftar + **pratinjau langkah**), `PortalGuidePreview.tsx` (reusable). Shortcut **Ctrl/Cmd+K**, tombol cari di sidebar (mode collapse & expand) dan topbar mobile; navigasi via `handleNavClick`.
+- **RBAC tetap server-side**: item yang tak diizinkan tampil redup + "Perlu peran: X"; bila user memiliki peran itu → **"Buka sebagai <ROLE>"** (`setActiveUserRole` lalu navigasi). SUPERADMIN bebas.
+- **Help drawer** diperluas: kotak cari + daftar **semua guide** (termasuk sub-guide) memakai `PortalGuidePreview`.
+- **Tanya AI** (opsional): `POST /api/portal/ask` (`server/routes/portal-assist.mjs`) memakai `jethroGenerateText`; katalog **server-side difilter per peran** (`server/lib/portal-feature-catalog.mjs`), `page` divalidasi ke allowlist peran; tanpa `OPENAI_API_KEY`/`GROQ_API_KEY` → 503 (toggle menampilkan pesan). AI tidak mengeksekusi aksi.
+- `src/lib/portal-routes.ts`: tambah `church-info` ke union `PortalPage`.
+- i18n `portal.search.*` (ID+EN). Verifikasi: `npm run lint` bersih, **315 test hijau** (7 test baru `tests/unit/portal-search.test.ts`), `npm run build` OK.
+
+### Next
+1. Deploy `main`; coba `Ctrl/Cmd+K` di portal, cari "penatalayan"/"QR"/"tambah divisi"; uji item terkunci sebagai MENTEE lalu ganti peran.
+2. Tanya AI hanya aktif bila env `OPENAI_API_KEY` (atau `GROQ_API_KEY`) terpasang di Vercel — jika belum, toggle tetap aman (pesan 503).
+3. Opsional lanjutan: quick-actions per peran di dashboard + analytics pencarian.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Panel event hanya menampilkan divisi yang aktif (15 Sep 2026)
 
 **Goal:** Di detail Program & Event, kartu "Rincian per Divisi" tidak lagi menampilkan keenam divisi sekaligus — cukup divisi yang memang terlibat di event itu.
 

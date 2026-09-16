@@ -73,13 +73,16 @@ import {
   CircleHelp,
   HeartHandshake,
   Crown,
+  Search,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
 import { PortalHelpDrawer } from './PortalHelpDrawer';
+import { PortalSearchPalette } from './PortalSearchPalette';
 import { PanelGuide } from './PanelGuide';
 import { LanguageToggle } from '../public/ui/LanguageToggle';
 import { readStoredString, writeStored } from '../../lib/safe-storage';
+import type { UserRole } from '../../types';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
 
@@ -125,6 +128,7 @@ export const PortalLayout: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
@@ -146,6 +150,18 @@ export const PortalLayout: React.FC = () => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000); // poll every 30s
     return () => clearInterval(interval);
+  }, []);
+
+  // Ctrl/Cmd+K — buka pencarian fitur & panduan.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -265,6 +281,13 @@ export const PortalLayout: React.FC = () => {
     window.location.hash = buildPortalPath({ namespace: ns, page: tabId }).slice(1);
   };
 
+  const handleSwitchRoleOpen = async (role: UserRole, page: string) => {
+    await setActiveUserRole(role);
+    window.location.hash = buildPortalPath({ namespace: roleToNamespace(role), page }).slice(1);
+    setActiveTab(page);
+    setShowSearch(false);
+  };
+
   if (showRolePicker && !isOnboarding) {
     return <RolePickerScreen />;
   }
@@ -307,6 +330,13 @@ export const PortalLayout: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSearch(true)}
+            className="p-2 rounded-xl bg-gray-100 text-[#1B1B1B]"
+            title={t.portal.search.title}
+          >
+            <Search className="w-5 h-5" />
+          </button>
           <LanguageToggle variant="light" />
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -403,6 +433,26 @@ export const PortalLayout: React.FC = () => {
                 </button>
               </div>
             )}
+
+            {/* Search — fitur & panduan */}
+            <div className={`mt-2 ${collapsed ? 'flex justify-center' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setShowSearch(true)}
+                className={collapsed
+                  ? 'p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-[#FF416C] hover:border-[#FF416C]/30 hover:shadow-md transition-all duration-200'
+                  : 'w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:border-[#1B1B1B]/20 hover:shadow-sm transition-all duration-200'}
+                title={t.portal.search.title}
+              >
+                <Search className="w-4 h-4 shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left text-[11px] font-semibold truncate">{t.portal.search.placeholder}</span>
+                    <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]">⌘K</kbd>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Zone 2: Nav Links (scrollable) */}
@@ -780,6 +830,14 @@ export const PortalLayout: React.FC = () => {
         isGroupMentor={isGroupMentor}
         isMentee={isMentee}
         onNavigate={handleNavClick}
+      />
+      <PortalSearchPalette
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        isGroupMentor={isGroupMentor}
+        isMentee={isMentee}
+        onNavigate={handleNavClick}
+        onSwitchRole={handleSwitchRoleOpen}
       />
     </div>
   );

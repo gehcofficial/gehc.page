@@ -41,6 +41,7 @@ export type PortalPage =
   | 'divisions'
   | 'wa-channels'
   | 'integrations'
+  | 'church-info'
   | 'pwa-settings';
 
 export type AccountSection = 'profile' | 'security' | 'notifications' | 'roles';
