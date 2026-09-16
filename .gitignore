@@ -28,3 +28,7 @@ scripts/visual-placeholders/**/*.jpeg
 
 # Vercel
 .vercel
+
+# Backup data (dump restore/merge) — jangan commit
+/backups/
+

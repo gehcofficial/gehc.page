@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Regenerasi menyeluruh: roster per generasi, sinkron peran, wizard 4 langkah (16 Sep 2026)
+## Current — Restore prod ke generasi awal Juni 2026 (16 Sep 2026)
+
+**Goal:** Kembalikan 10 rumah ke Gen0 `2026-06` setelah uji coba regenerasi membuat gen1 `2026-09` & gen2 `2026-10` (gen2 aktif).
+
+**Done:**
+- Skrip `server/_restore-gen0-2026-06.cjs` (non-destruktif, idempotent): backup `group_batches`+`group_members` → `backups/` lalu `is_current` hanya untuk `2026-06`; `group_members.batch_period` non-2026-06 → `2026-06`.
+- Hasil prod: 2026-06 current (10), 2026-09 & 2026-10 non-current; 80 anggota ACTIVE @2026-06. Backup: `backups/restore-gen0-2026-09-16/`.
+- `.gitignore`: `/backups/` (dump berisi PII — jangan commit).
+
+### Cara ganti Mentor/Co-Mentor
+- **Koreksi nama saja** (tanpa ubah akses): panel Pemimpin 10 Rumah → kartu rumah → isi Mentor/Co-Mentor → **Simpan**.
+- **Ganti orang + sinkron peran** (rekomendasi): panel yang sama → **wizard Regenerasi → Langkah 1 “Pemimpin”** → set **Periode generasi** = batch berjalan (sekarang `2026-06`) → cari orang dari direktori → **Tetapkan Mentor/Co-Mentor**. Efek: peran portal pindah (tanpa peran ganda), pemimpin lama yang turun jadi MENTEE tetap di grup, riwayat `MentorTransition` tercatat.
+- Untuk membuka generasi baru lagi dengan benar: **Buka generasi berikutnya** (periode baru) → Langkah 1 tetapkan pemimpin (period baru) → Langkah 3 **Pratinjau** lalu **Bawa anggota aktif** → Langkah 4 assign orang baru.
+
+### Next
+1. Bila ingin pembersihan total: hapus batch `2026-09`/`2026-10` (belum dihapus; saat ini hanya non-current) — minta konfirmasi dulu.
+2. Wizard ada di panel **Pemimpin 10 Rumah** (peran Komisi/Tim Kerja).
+
+### Commands
+```
+npx dotenv -e .env.production -- node server/_restore-gen0-2026-06.cjs
+```
+
+---
+
+## Prior — Regenerasi menyeluruh: roster per generasi, sinkron peran, wizard 4 langkah (16 Sep 2026)
 
 **Goal:** Regenerasi pemimpin + alumni per generasi + bawa anggota aktif + assign orang baru, dengan peran (RoleAssignment) selalu sinkron dan tanpa peran ganda.
 
