@@ -11,7 +11,7 @@
 - **Endpoint**: refactor `/api/push/subscribe` + `/api/push/unsubscribe` (tabel baru), `/api/notifications/preferences` (GET/PUT), `/api/paw/send` RBAC + push. Baru `server/routes/announcements.mjs` (capabilities/list/create/send/archive dengan validasi audiens & scope) dan `server/routes/notif-cron.mjs` (`/api/cron/notif-dispatch`, `/api/cron/reminders`).
 - **Push transactional** disambung: penugasan role, **penatalayan**, approval item, mention.
 - **UI**: panel **Pengumuman** (nav baru; compose + riwayat + sender role), preferensi kategori granular di Akun → Notifikasi, lonceng menampilkan **asalan peran**. i18n nav+guide.
-- **Cron** `vercel.json`: notif-dispatch (*/5), reminders (12:00 UTC = 19:00 WIB), digest. **Perlu set `CRON_SECRET` di Vercel** (+ Production/Preview).
+- **Cron** `vercel.json` (batas Hobby: **maks 2 cron/hari**): `/api/cron/event-lifecycle` (01:00 UTC) + `/api/cron/notif-daily` (12:00 UTC = 19:00 WIB → dispatch pengumuman terjadwal + pengingat H-1). Dispatch juga dipicu opportunistik saat lonceng polling. **Perlu set `CRON_SECRET` di Vercel** (Production & Preview).
 - Verifikasi: lint bersih, **323 test** hijau (4 baru `tests/unit/notify.test.ts`), build OK.
 
 ### Next

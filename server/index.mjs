@@ -138,6 +138,7 @@ import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerPortalAssistRoutes } from './routes/portal-assist.mjs';
 import { registerAnnouncementRoutes } from './routes/announcements.mjs';
 import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
+import { runAnnouncementDispatch } from './routes/notif-cron.mjs';
 import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
@@ -1003,6 +1004,12 @@ app.get('/api/notifications', wrap(async (req, res) => {
     });
 
     const unread = filtered.filter((n) => n.status === 'OPEN').length;
+    // Opportunistic: kirim pengumuman terjadwal yang sudah jatuh tempo (best-effort),
+    // supaya tak bergantung pada cron sering (batas plan Vercel).
+    try {
+      const dueCount = await prisma.announcement.count({ where: { status: 'SCHEDULED', publishAt: { lte: new Date() } } });
+      if (dueCount > 0) await runAnnouncementDispatch(prisma);
+    } catch { /* abaikan */ }
     res.json({ notifications: filtered, unread });
   } catch (e) {
     res.json({ notifications: [], unread: 0 });

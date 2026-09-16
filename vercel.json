@@ -24,8 +24,6 @@
   },
   "crons": [
     { "path": "/api/cron/event-lifecycle", "schedule": "0 1 * * *" },
-    { "path": "/api/cron/digest", "schedule": "10 1 * * *" },
-    { "path": "/api/cron/notif-dispatch", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/reminders", "schedule": "0 12 * * *" }
+    { "path": "/api/cron/notif-daily", "schedule": "0 12 * * *" }
   ]
 }
