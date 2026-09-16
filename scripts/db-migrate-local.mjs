@@ -255,6 +255,11 @@ const STEPS = [
     label: 'Notifikasi & pengumuman (push_subscriptions, preferences, announcements)',
     required: true,
   },
+  {
+    script: 'server/_migrate-normalize-batch-ids.cjs',
+    label: 'Normalisasi id group_batches (period selaras)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

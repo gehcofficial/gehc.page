@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Notifikasi & Pengumuman: push berfungsi, broadcast per peran/divisi/kelompok (15 Sep 2026)
+## Current — Fix "Buka generasi berikutnya" (PRIMARY constraint batch id) (16 Sep 2026)
+
+**Goal:** Tombol Pemimpin 10 Rumah gagal `INVALID prisma.groupBatch.createMany() … UNIQUE constraint failed: PRIMARY` saat membuka generasi.
+
+**Akar masalah:** `GroupBatch.id` berpolа `batch-<groupId>-<periode>`, tetapi `period` bisa diedit (PATCH) dan migrasi generation mengubah `period`→`2026-06` tanpa memperbarui `id` → **8/10 rumah** punya id basi (`…-2026-09`, period `2026-06`). Regenerate menghasilkan id dari `nextPeriod` dan hanya memeriksa bentrok **period**, bukan **id** → PK bentrok.
+
+**Done:**
+- `server/lib/beyonders-generation.mjs`: `newBatchId()` — id bersufiks acak (≤64 char, tahan bentrok).
+- Dipakai di: `server/routes/beyonders-leaders.mjs` (create PATCH + regenerate) & `server/role-assign.mjs` `ensureCurrentBatch`. Regenerate kini membalas **409 ramah** untuk `P2002`.
+- Migrasi normalisasi `server/_migrate-normalize-batch-ids.cjs` (idempotent; hanya menyentuh id berakhiran `-YYYY-MM` yang tak cocok) + daftar di `db-migrate-local.mjs`. **Sudah dijalankan staging (0) & prod (8 id diperbaiki)**; run kedua = 0.
+- Test `tests/unit/beyonders-batch-id.test.ts`. Verifikasi: lint bersih, **326 test** hijau, build OK.
+
+### Next
+1. Deploy; coba **Buka generasi berikutnya** (pilih periode yang belum dipakai, mis. `2026-07`).
+2. Catatan pakai: nama di panel = **landing**; akses login mentor lewat Jemaat → Assign Role. Mitosis/merge anggota ada di **Regenerasi Kelompok**, bukan tombol ini.
+
+### Commands
+```
+npx dotenv -e .env.staging -- node server/_migrate-normalize-batch-ids.cjs
+npx dotenv -e .env.production -- node server/_migrate-normalize-batch-ids.cjs
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Notifikasi & Pengumuman: push berfungsi, broadcast per peran/divisi/kelompok (15 Sep 2026)
 
 **Goal:** Push sungguhan saat ada update, plus pengumuman dari role tertentu (sampai level divisi/mentor) ke audiens tertentu; preferensi granular.
 

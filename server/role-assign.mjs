@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { GEN0_LABEL, GEN0_PERIOD, namesMatch } from './lib/beyonders-generation.mjs';
+import { GEN0_LABEL, GEN0_PERIOD, namesMatch, newBatchId } from './lib/beyonders-generation.mjs';
 import { pushToUsers } from './lib/notify.mjs';
 
 export function genId64() {
@@ -88,7 +88,7 @@ export async function ensureCurrentBatch(prisma, groupId, { mentorName, comentor
   const period = group?.foundedPeriod || GEN0_PERIOD;
   return prisma.groupBatch.create({
     data: {
-      id: `batch-${groupId}-${period}`.slice(0, 64),
+      id: newBatchId(groupId, period),
       groupId,
       period,
       generation: 0,

@@ -10,6 +10,7 @@ import {
   GEN0_PERIOD,
   isPeriod,
   leaderMismatch,
+  newBatchId,
   pickTenHomes,
 } from '../lib/beyonders-generation.mjs';
 
@@ -150,7 +151,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         const period = data.period || group.foundedPeriod || GEN0_PERIOD;
         batch = await prisma.groupBatch.create({
           data: {
-            id: `batch-${groupId}-${period}`.slice(0, 64),
+            id: newBatchId(groupId, period),
             groupId,
             period,
             generation: 0,
@@ -241,7 +242,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       const rows = currents.map(({ house, batch }) => {
         const generation = (batch.generation ?? 0) + 1;
         return {
-          id: `batch-${house.id}-${nextPeriod}`.slice(0, 64),
+          id: newBatchId(house.id, nextPeriod),
           groupId: house.id,
           period: nextPeriod,
           generation,
@@ -255,13 +256,22 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         };
       });
 
-      await prisma.$transaction([
-        prisma.groupBatch.updateMany({
-          where: { groupId: { in: ids }, isCurrent: true },
-          data: { isCurrent: false, regenReady: false },
-        }),
-        prisma.groupBatch.createMany({ data: rows }),
-      ]);
+      try {
+        await prisma.$transaction([
+          prisma.groupBatch.updateMany({
+            where: { groupId: { in: ids }, isCurrent: true },
+            data: { isCurrent: false, regenReady: false },
+          }),
+          prisma.groupBatch.createMany({ data: rows }),
+        ]);
+      } catch (err) {
+        if (String(err?.code) === 'P2002') {
+          return res.status(409).json({
+            error: `Periode ${nextPeriod} bentrok dengan data batch yang ada. Pilih periode lain (mis. bulan berikutnya).`,
+          });
+        }
+        throw err;
+      }
 
       const refreshed = await loadHouses(prisma);
       const roles = await loadRoles(prisma, ids);
