@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ListOrdered } from 'lucide-react';
+import { Cake, CalendarDays, ListOrdered } from 'lucide-react';
+import { displayAvatar } from '../../lib/avatar';
 
 export type CalEvent = {
   id: string;
@@ -23,12 +24,23 @@ type Bonding = {
   status?: string | null;
 };
 
+export type Birthday = {
+  id: string;
+  name: string;
+  avatar?: string | null;
+  birthDate: string;
+  date: string;
+  day: number;
+  age?: number | null;
+};
+
 export const KIND_COLORS: Record<string, { dot: string; text: string; chip: string }> = {
   UMUM: { dot: 'bg-sky-500', text: 'text-sky-700', chip: 'bg-sky-100 text-sky-800 border-sky-200' },
   KHUSUS: { dot: 'bg-[#FF416C]', text: 'text-[#FF416C]', chip: 'bg-rose-100 text-rose-800 border-rose-200' },
   INTERNAL: { dot: 'bg-amber-500', text: 'text-amber-700', chip: 'bg-amber-100 text-amber-800 border-amber-200' },
   REKREASIONAL: { dot: 'bg-emerald-500', text: 'text-emerald-700', chip: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   BONDING: { dot: 'bg-violet-500', text: 'text-violet-700', chip: 'bg-violet-100 text-violet-800 border-violet-200' },
+  BIRTHDAY: { dot: 'bg-pink-500', text: 'text-pink-700', chip: 'bg-pink-100 text-pink-800 border-pink-200' },
 };
 
 const DAY_NAMES = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
@@ -58,8 +70,10 @@ export const KegiatanCalendar: React.FC<{
   const [mode, setMode] = useState<'kalender' | 'linimasa'>('kalender');
   const [kindFilter, setKindFilter] = useState<string>('SEMUA');
   const [showBonding, setShowBonding] = useState(true);
+  const [showBirthdays, setShowBirthdays] = useState(true);
   const [daySel, setDaySel] = useState<string>(() => todayStr());
   const [bonding, setBonding] = useState<Bonding[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
 
   const kinds = useMemo(() => {
     const base = ['UMUM', 'KHUSUS', 'INTERNAL', 'REKREASIONAL'];
@@ -78,6 +92,15 @@ export const KegiatanCalendar: React.FC<{
       .then((d) => setBonding((d.albums || []).filter((a: Bonding) => (a.status || 'RENCANA') !== 'BATAL')))
       .catch(() => setBonding([]));
   }, [month, showBonding, canViewBonding]);
+
+  // Ulang tahun jemaat (semua jemaat aktif) per bulan tampil
+  useEffect(() => {
+    if (!showBirthdays) { setBirthdays([]); return; }
+    fetch(`/api/portal/birthdays?month=${month}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { birthdays: [] }))
+      .then((d) => setBirthdays(d.birthdays || []))
+      .catch(() => setBirthdays([]));
+  }, [month, showBirthdays]);
 
   const dated = useMemo(() => {
     return events
@@ -121,6 +144,18 @@ export const KegiatanCalendar: React.FC<{
     return m;
   }, [bonding]);
 
+  const birthdayByDay = useMemo(() => {
+    const m = new Map<string, Birthday[]>();
+    for (const bd of birthdays) {
+      const day = toDay(bd.date);
+      if (!day) continue;
+      const arr = m.get(day) || [];
+      arr.push(bd);
+      m.set(day, arr);
+    }
+    return m;
+  }, [birthdays]);
+
   const [y, mo] = month.split('-').map(Number);
   const firstOffset = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // Senin=0
   const daysInMonth = new Date(y, mo, 0).getDate();
@@ -142,7 +177,11 @@ export const KegiatanCalendar: React.FC<{
     onSelect(pick.e.id);
   };
 
-  const dayItems = [...(byDay.get(daySel) || []), ...(bondingByDay.get(daySel) || []).map((b) => ({ b }))];
+  const dayItems = [
+    ...(byDay.get(daySel) || []),
+    ...(bondingByDay.get(daySel) || []).map((b) => ({ b })),
+    ...(birthdayByDay.get(daySel) || []).map((bd) => ({ bd })),
+  ];
 
   // Linimasa (Gantt-lite): window 90 hari dari awal bulan tampil
   const winStart = new Date(`${month}-01T00:00:00.000Z`).getTime();
@@ -218,6 +257,15 @@ export const KegiatanCalendar: React.FC<{
             Bonding Kelompok
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setShowBirthdays((v) => !v)}
+          title="Ulang tahun jemaat (semua jemaat aktif)"
+          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showBirthdays ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+        >
+          <Cake className="w-3.5 h-3.5" />
+          Ulang Tahun
+        </button>
       </div>
 
       {mode === 'kalender' ? (
@@ -230,7 +278,8 @@ export const KegiatanCalendar: React.FC<{
               if (!day) return <div key={`e${i}`} />;
               const evs = byDay.get(day) || [];
               const bds = bondingByDay.get(day) || [];
-              const total = evs.length + bds.length;
+              const cakes = birthdayByDay.get(day) || [];
+              const total = evs.length + bds.length + cakes.length;
               const isToday = day === todayStr();
               const isSel = day === daySel;
               const inMonth = day.startsWith(month);
@@ -241,13 +290,19 @@ export const KegiatanCalendar: React.FC<{
                   onClick={() => selectDay(day)}
                   className={`min-h-[3.2rem] rounded-xl border p-1 text-left transition-all ${isSel ? 'border-[#181818] ring-2 ring-[#181818]/20 bg-white' : 'border-[#D9D7D0]/60 bg-[#FAF9F5] hover:bg-white'} ${!inMonth ? 'opacity-40' : ''}`}
                 >
-                  <span className={`text-[11px] font-black inline-flex items-center justify-center w-5 h-5 rounded-full ${isToday ? 'bg-[#FF416C] text-white' : 'text-[#1B1B1B]'}`}>{Number(day.slice(8))}</span>
+                  <span className="flex items-center justify-between">
+                    <span className={`text-[11px] font-black inline-flex items-center justify-center w-5 h-5 rounded-full ${isToday ? 'bg-[#FF416C] text-white' : 'text-[#1B1B1B]'}`}>{Number(day.slice(8))}</span>
+                    {cakes.length > 0 && <Cake title="Ada ulang tahun" className="w-3 h-3 text-pink-500" />}
+                  </span>
                   <span className="flex flex-wrap gap-0.5 mt-1">
                     {evs.slice(0, 3).map(({ e }) => (
                       <span key={e.id} title={e.name} className={`w-2 h-2 rounded-full ${KIND_COLORS[String(e.kind || 'KHUSUS').toUpperCase()]?.dot || 'bg-gray-400'}`} />
                     ))}
                     {bds.slice(0, 3).map((b) => (
                       <span key={b.id} title={`${b.title} · ${b.groupName}`} className="w-2 h-2 rounded-full bg-violet-500" />
+                    ))}
+                    {cakes.slice(0, 3).map((c) => (
+                      <span key={c.id} title={`🎂 ${c.name}${typeof c.age === 'number' ? ` · ${c.age} th` : ''}`} className="w-2 h-2 rounded-full bg-pink-500" />
                     ))}
                     {total > 3 && <span className="text-[9px] font-bold text-[#8C8880]">+{total - 3}</span>}
                   </span>
@@ -262,7 +317,23 @@ export const KegiatanCalendar: React.FC<{
               Agenda {new Date(`${daySel}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
             </p>
             {dayItems.length === 0 && <p className="text-xs text-[#8C8880] italic">Tidak ada kegiatan hari ini.</p>}
-            {dayItems.map((it: { e?: CalEvent; b?: Bonding }, idx: number) => {
+            {dayItems.map((it: { e?: CalEvent; b?: Bonding; bd?: Birthday }, idx: number) => {
+              if (it.bd) {
+                const bd = it.bd;
+                return (
+                  <div key={`bd${bd.id}`} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-pink-200">
+                    <span className="w-7 h-7 rounded-full bg-pink-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      {bd.avatar
+                        ? <img src={displayAvatar(bd.name, bd.avatar)} alt="" className="w-full h-full object-cover" />
+                        : <Cake className="w-3.5 h-3.5 text-pink-600" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#1B1B1B] truncate">🎂 {bd.name}</p>
+                      <p className="text-[10px] text-[#8C8880]">Ulang tahun{typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}</p>
+                    </div>
+                  </div>
+                );
+              }
               if (it.b) {
                 const b = it.b;
                 const st = b.status || 'RENCANA';
@@ -319,6 +390,32 @@ export const KegiatanCalendar: React.FC<{
               </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Ulang tahun bulan ini — semua jemaat aktif */}
+      {showBirthdays && birthdays.length > 0 && (
+        <div className="rounded-2xl border border-pink-200 bg-pink-50/50 p-3 space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-wider text-pink-700 flex items-center gap-1.5">
+            <Cake className="w-3.5 h-3.5" /> Ulang tahun bulan ini ({birthdays.length})
+          </p>
+          <div className="grid sm:grid-cols-2 gap-1.5">
+            {birthdays.map((bd) => (
+              <button
+                key={bd.id}
+                type="button"
+                onClick={() => setDaySel(bd.date)}
+                title={`${bd.name}${typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}`}
+                className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-pink-100 text-left hover:border-pink-300"
+              >
+                <img src={displayAvatar(bd.name, bd.avatar)} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                <span className="text-xs font-bold text-[#1B1B1B] truncate">{bd.name}</span>
+                <span className="ml-auto text-[10px] font-bold text-pink-700 shrink-0">
+                  {bd.day}{typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

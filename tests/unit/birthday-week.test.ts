@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   birthdayOffsetInWeek,
+  birthdaysInMonth,
   birthdaysThisWeek,
   mondayOfWeek,
   renderBirthdayCaption,
@@ -77,6 +78,51 @@ describe('birthdayOffsetInWeek', () => {
   it('di luar minggu → -1', () => {
     expect(birthdayOffsetInWeek(9, 14, '2026-09-07')).toBe(-1);
     expect(birthdayOffsetInWeek(9, 10, '2026-09-07')).toBe(3);
+  });
+});
+
+describe('birthdaysInMonth', () => {
+  const users = [
+    { id: 'a', name: 'Awal Bulan', avatar: null, birthDate: '2000-09-02' },
+    { id: 'b', name: 'Akhir Bulan', avatar: 'x.png', birthDate: '2005-09-25' },
+    { id: 'c', name: 'Bulan Lain', avatar: null, birthDate: '2001-08-10' },
+    { id: 'd', name: 'Tanpa Tanggal', avatar: null, birthDate: null },
+    { id: 'e', name: 'Kabisat', avatar: null, birthDate: '2004-02-29' },
+  ];
+
+  it('hanya bulan diminta, urut tanggal lalu nama', () => {
+    const r = birthdaysInMonth(users, 2026, 9);
+    expect(r.month).toBe('2026-09');
+    expect(r.count).toBe(2);
+    expect(r.birthdays.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(r.birthdays[0].date).toBe('2026-09-02');
+    expect(r.birthdays[1].day).toBe(25);
+  });
+
+  it('umur = umur yang genap pada tahun tsb, avatar diteruskan', () => {
+    const r = birthdaysInMonth(users, 2026, 9);
+    expect(r.birthdays.find((x) => x.id === 'a')?.age).toBe(26);
+    expect(r.birthdays.find((x) => x.id === 'b')?.age).toBe(21);
+    expect(r.birthdays.find((x) => x.id === 'b')?.avatar).toBe('x.png');
+    expect(r.birthdays.find((x) => x.id === 'a')?.avatar).toBeNull();
+  });
+
+  it('29 Feb dirayakan 28 Feb non-kabisat', () => {
+    const r = birthdaysInMonth(users, 2026, 2);
+    expect(r.birthdays.map((x) => x.id)).toEqual(['e']);
+    expect(r.birthdays[0].date).toBe('2026-02-28');
+    expect(r.birthdays[0].day).toBe(28);
+  });
+
+  it('29 Feb tetap 29 Feb saat kabisat', () => {
+    const r = birthdaysInMonth(users, 2024, 2);
+    expect(r.birthdays[0].date).toBe('2024-02-29');
+    expect(r.birthdays[0].day).toBe(29);
+  });
+
+  it('bulan invalid → kosong', () => {
+    expect(birthdaysInMonth(users, 2026, 13).count).toBe(0);
+    expect(birthdaysInMonth(users, 2026, 0).birthdays).toEqual([]);
   });
 });
 

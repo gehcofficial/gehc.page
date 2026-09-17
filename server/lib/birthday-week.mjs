@@ -115,3 +115,44 @@ export function birthdaysThisWeek(users, now = new Date()) {
     todayCount: list.filter((x) => x.daysToBirthday === 0).length,
   };
 }
+
+/** Apakah tahun kabisat (proleptic Gregorian, UTC). */
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
+ * Daftar ulang tahun pada satu bulan (year + month 1–12) dari baris user
+ * {id,name,avatar,birthDate}. 29 Feb dirayakan 28 Feb pada tahun non-kabisat.
+ * `age` = umur yang genap pada tahun tsb (bukan relatif "hari ini").
+ * Return { birthdays: [{...date,day,age}], month, count }.
+ */
+export function birthdaysInMonth(users, year, month) {
+  const y = Number(year);
+  const m = Number(month);
+  if (!y || !m || m < 1 || m > 12) return { birthdays: [], month: '', count: 0 };
+  const monthKey = `${y}-${String(m).padStart(2, '0')}`;
+  const leap = isLeapYear(y);
+  const list = [];
+  for (const u of users || []) {
+    const b = u.birthDate ? new Date(u.birthDate) : null;
+    if (!b || Number.isNaN(b.getTime())) continue;
+    const bm = b.getUTCMonth() + 1;
+    const bd = b.getUTCDate();
+    if (bm !== m) continue;
+    // 29 Feb → 28 Feb saat tahun non-kabisat.
+    const day = bd === 29 && m === 2 && !leap ? 28 : bd;
+    const age = y - b.getUTCFullYear();
+    list.push({
+      id: u.id,
+      name: u.name,
+      avatar: u.avatar || null,
+      birthDate: b.toISOString().slice(0, 10),
+      date: `${monthKey}-${String(day).padStart(2, '0')}`,
+      day,
+      age: age >= 0 ? age : null,
+    });
+  }
+  list.sort((a, b) => a.day - b.day || String(a.name).localeCompare(String(b.name)));
+  return { birthdays: list, month: monthKey, count: list.length };
+}

@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — Sapaan baru + kartu selamat datang & join WA kelompok (17 Sep 2026)
+## Current — Tab “Ulang Tahun” di kalender Kegiatan (17 Sep 2026)
+
+**Goal:** Kalender Kegiatan bisa menampilkan ulang tahun jemaat dengan warna/ikon khusus.
+
+**Done:**
+- **Helper** `server/lib/birthday-week.mjs`: `birthdaysInMonth(users, year, month)` — filter bulan, aturan 29 Feb → 28 Feb non-kabisat, `age` = umur genap pada tahun tsb, urut tanggal lalu nama, output `{ id, name, avatar, birthDate, date, day, age }`.
+- **Endpoint** `GET /api/portal/birthdays?month=YYYY-MM` (`server/routes/drive-ownership.mjs`, `requireRole()`) — semua user ACTIVE ber‑`birthDate` (take 400), konsisten dengan `/api/portal/birthdays/upcoming`; `400` bila format bulan salah, `401` tanpa auth. Portal‑only (tanpa nomor/alamat).
+- **UI** (`src/components/portal/KegiatanCalendar.tsx`): chip **“Ulang Tahun”** (ikon `Cake`, warna **pink** — beda dari `KHUSUS`/rose) default **aktif**; sel grid dapat ikon 🎂 + dot pink; **agenda hari terpilih** menampilkan kartu “🎂 {nama} · {umur} th” (avatar via `displayAvatar`); panel **“Ulang tahun bulan ini (n)”** di bawah kalender. Komponen hanya dipakai di portal (`IbadahMingguanPanel.tsx:126`).
+- Verifikasi: lint bersih, **344 test** hijau (5 baru `tests/unit/birthday-week.test.ts`), build OK; uji browser di localhost:8787 (chip, ikon tanggal 3 Sep, agenda, panel bulanan, toggle off).
+
+### Next
+1. Deploy; uji di prod: buka **Kegiatan** → cek chip Ulang Tahun, ikon di tanggal HUT, agenda hari, panel “Ulang tahun bulan ini”; toggle off menyembunyikan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Sapaan baru + kartu selamat datang & join WA kelompok (17 Sep 2026)
 
 **Goal:** Sapaan seragam “Shalom, Damai Di Hati (nama)”; anggota yang baru masuk kelompok diarahkan gabung grup WhatsApp-nya.
 

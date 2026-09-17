@@ -25,10 +25,11 @@ scripts/visual-placeholders/**/*.jpeg
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/.playwright-mcp/
 
 # Vercel
 .vercel
 
-# Backup data (dump restore/merge) — jangan commit
+# Backup data (dump restore/merge) ï¿½ jangan commit
 /backups/
 

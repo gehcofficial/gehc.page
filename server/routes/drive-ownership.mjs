@@ -1244,6 +1244,25 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
   );
 
   app.get(
+    '/api/portal/birthdays',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      const monthParam = String(req.query.month || '');
+      const parsed = /^(\d{4})-(\d{2})$/.exec(monthParam);
+      if (!prisma) return res.json({ birthdays: [], month: monthParam, count: 0 });
+      if (!parsed) return res.status(400).json({ error: 'Parameter month wajib format YYYY-MM.' });
+      const users = await prisma.user.findMany({
+        where: { birthDate: { not: null }, accountStatus: 'ACTIVE' },
+        select: { id: true, name: true, avatar: true, birthDate: true },
+        take: 400,
+      });
+      const { birthdaysInMonth } = await import('../lib/birthday-week.mjs');
+      res.json(birthdaysInMonth(users, Number(parsed[1]), Number(parsed[2])));
+    }),
+  );
+
+  app.get(
     '/api/portal/calendar',
     requireRole(),
     wrap(async (req, res) => {
