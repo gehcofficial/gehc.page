@@ -125,6 +125,7 @@ import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerEventSignupRoutes } from './routes/event-signup.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
 import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from './routes/drive-ownership.mjs';
+import { isMentorOfGroup } from './lib/drive-ownership.mjs';
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
 import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
@@ -1442,6 +1443,34 @@ app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
     include: { user: { select: { id: true, avatar: true, name: true } } },
   });
   res.json({ members });
+}));
+
+/** GET /api/portal/groups/:id/roster — roster ber-nomor untuk Portal Mentor (auth).
+ *  Hanya mentor grup tsb atau Komisi/SA. Endpoint publik grup tetap tanpa nomor. */
+app.get('/api/portal/groups/:id/roster', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const groupId = String(req.params.id || '').trim();
+  const privileged = isKomisiOrSuperadmin(req.authUser);
+  const mentor = privileged || await isMentorOfGroup(req.authUser, groupId);
+  if (!mentor) return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi.' });
+  const members = await prisma.groupMember.findMany({
+    where: { groupId, status: 'ACTIVE' },
+    orderBy: [{ familyRole: 'asc' }, { name: 'asc' }],
+    include: { user: { select: { id: true, phone: true, avatar: true, name: true } } },
+  });
+  res.json({
+    groupId,
+    members: members.map((m) => ({
+      id: m.id,
+      userId: m.userId || m.user?.id || null,
+      name: m.name,
+      familyRole: m.familyRole,
+      batchPeriod: m.batchPeriod,
+      avatar: m.user?.avatar || m.avatar || null,
+      phone: m.phone || m.user?.phone || null,
+    })),
+  });
 }));
 
 // Riwayat absensi grup (opsional filter ?date= atau ?since=)

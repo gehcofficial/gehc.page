@@ -13,6 +13,7 @@ import {
 import { decodeImageUpload, toJpegBuffer } from '../lib/drive-jpeg.mjs';
 import { uploadJpegToFolder, driveThumbUrl } from '../lib/drive-folders.mjs';
 import { ensureCareVisitFolder } from '../lib/drive-ensure.mjs';
+import { sendNotification } from '../lib/notify.mjs';
 
 const KINDS = new Set(['SAKIT', 'DUKA', 'YUDISIUM', 'WISUDA', 'KERJA', 'LAINNYA']);
 
@@ -80,6 +81,23 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const liturgia = await isLiturgiaDoa(req.authUser);
       const diakonia = await isDiakoniaCare(req.authUser);
       const admin = isKomisiOrSuperadmin(req.authUser);
+
+      // Filter per kelompok: subjeknya anggota grup tsb (roster Doa Kelompok).
+      const groupId = String(req.query.groupId || '').trim();
+      if (groupId) {
+        const mentorOk = await isMentorOfGroup(req.authUser, groupId);
+        if (!admin && !liturgia && !diakonia && !mentorOk) {
+          return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi.' });
+        }
+        const [gm, ur] = await Promise.all([
+          prisma.groupMember.findMany({ where: { groupId, status: 'ACTIVE', userId: { not: null } }, select: { userId: true } }).catch(() => []),
+          prisma.userRole.findMany({ where: { groupId, role: { in: ['MENTOR', 'CO_MENTOR', 'MENTEE'] } }, select: { userId: true } }).catch(() => []),
+        ]);
+        const memberIds = new Set([...gm.map((x) => x.userId), ...ur.map((x) => x.userId)].filter(Boolean));
+        const groupNotes = rows.filter((r) => r.subjectUserId && memberIds.has(r.subjectUserId)).map(serialize);
+        return res.json({ notes: groupNotes, groupId });
+      }
+
       const subjectIds = [...new Set(rows.map((r) => r.subjectUserId).filter(Boolean))];
       const roleRows = subjectIds.length
         ? await prisma.userRole.findMany({
@@ -166,6 +184,43 @@ export function registerPastoralCareRoutes(app, { wrap }) {
           reporter: { select: { id: true, name: true } },
         },
       });
+      // Notifikasi privat ke mentor kelompok subjek (tanpa detail sensitif).
+      if (subject) {
+        try {
+          const [gm, ur] = await Promise.all([
+            prisma.groupMember.findMany({ where: { userId: subject.id, status: 'ACTIVE' }, select: { groupId: true } }).catch(() => []),
+            prisma.userRole.findMany({ where: { userId: subject.id, groupId: { not: null } }, select: { groupId: true } }).catch(() => []),
+          ]);
+          const gids = [...new Set([...gm.map((g) => g.groupId), ...ur.map((g) => g.groupId)].filter(Boolean))];
+          const mentors = gids.length
+            ? await prisma.groupMember.findMany({
+                where: { groupId: { in: gids }, status: 'ACTIVE', familyRole: { in: ['MENTOR', 'COMENTOR'] } },
+                select: { userId: true },
+              }).catch(() => [])
+            : [];
+          const ra = gids.length
+            ? await prisma.roleAssignment.findMany({
+                where: { groupId: { in: gids }, isActive: true, role: { in: ['MENTOR', 'CO_MENTOR'] } },
+                select: { userId: true },
+              }).catch(() => [])
+            : [];
+          const mentorIds = [...new Set([...mentors.map((m) => m.userId), ...ra.map((r) => r.userId)].filter(Boolean))]
+            .filter((id) => id !== req.authUser.id);
+          if (mentorIds.length) {
+            await sendNotification({
+              type: 'IDLE_FLAG',
+              category: 'pengingat',
+              title: 'Catatan doa baru (privat)',
+              message: 'Buka Portal Doa untuk detail.',
+              href: '/#/portal',
+              senderRole: null,
+              audience: { type: 'USER', userIds: mentorIds },
+              priority: 'TASK',
+            });
+          }
+        } catch { /* notifikasi opsional */ }
+      }
+
       res.status(201).json({ note: serialize(row), photoHint: driveFolderId ? driveThumbUrl(null) : null });
     }),
   );
@@ -201,10 +256,16 @@ export function registerPastoralCareRoutes(app, { wrap }) {
       const prisma = getPrisma();
       const q = String(req.query.q || '').trim();
       if (q.length < 2) return res.json({ people: [] });
+      const groupId = String(req.query.groupId || '').trim();
+      if (groupId) {
+        const ok = isKomisiOrSuperadmin(req.authUser) || await isMentorOfGroup(req.authUser, groupId);
+        if (!ok) return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi.' });
+      }
       // Diri sendiri tetap tampil di daftar (blokir kirim tentang diri ada di POST).
       const people = await prisma.user.findMany({
         where: {
           accountStatus: 'ACTIVE',
+          ...(groupId ? { groupMembers: { some: { groupId, status: 'ACTIVE' } } } : {}),
           OR: [
             { name: { contains: q } },
             { givenName: { contains: q } },

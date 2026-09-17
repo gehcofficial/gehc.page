@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Regenerasi: guard + konfirmasi + wizard 5 langkah + demo SS/video (17 Sep 2026)
+## Current — WA mentee + Portal Doa per kelompok (17 Sep 2026)
+
+**Goal:** Mentor bisa chat WhatsApp ke mentee dari portal; catatan Portal Doa yang di‑tag ke roster grup muncul di portal kelompok itu.
+
+**Done:**
+- **Helper** `src/lib/wa.ts` (`waDigits`, `waMeHref`) — normalisasi `0→62`.
+- **Endpoint** `GET /api/portal/groups/:id/roster` (`server/index.mjs`): roster ACTIVE + `phone` (GroupMember/User), gate **mentor grup/Komisi/SA**; endpoint publik `/api/db/groups*` tetap tanpa nomor (privasi).
+- **UI Monitoring** (`ManageGroupsMonitoring.tsx`): tombol **WhatsApp** per anggota di tab **Roster** & **Absensi** (via prop `waHrefFor` di `AttendancePanel`), pesan otomatis; **Broadcast WA** (modal: salin semua nomor, unduh CSV, buka `wa.me` per orang). Nomor hanya tampil untuk mentor grup/Komisi/SA.
+- **Portal Doa per kelompok** (`server/routes/pastoral-care.mjs`): `GET /api/pastoral-care?groupId=` (filter subjek anggota grup; gate mentor/Komisi/Liturgia/Diakonia) & `/api/pastoral-care/people?q=&groupId=` (cari dari roster); POST mengirim **notifikasi privat ke mentor grup** (kategori `pengingat`, tanpa detail).
+- **UI Doa Kelompok**: tab **“Doa Kelompok”** + **section di Dashboard kelompok** (`GroupPrayerNotes`), semua jenis catatan + tombol Selesai. `PastoralCareBoard` dapat **filter grup** (juga memfilter pencarian subjek).
+- Verifikasi: lint bersih, **335 test** hijau (5 baru `tests/unit/wa.test.ts`), build OK.
+
+### Next
+1. Deploy; uji: Monitoring → Roster → tombol WA/Broadcast; buat catatan doa untuk mentee → muncul di “Doa Kelompok” + notifikasi ke mentor.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Regenerasi: guard + konfirmasi + wizard 5 langkah + demo SS/video (17 Sep 2026)
 
 **Goal:** Cegah kesalahan urutan (mis. tetapkan pemimpin tanpa batch), wajib konfirmasi sebelum eksekusi, dan sediakan demo alur.
 

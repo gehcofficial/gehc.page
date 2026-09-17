@@ -26,8 +26,9 @@ type Note = {
 };
 
 export const PastoralCareBoard: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, groups } = useApp();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [filterGroupId, setFilterGroupId] = useState('');
   const [subjectUserId, setSubjectUserId] = useState('');
   const [subjectLabel, setSubjectLabel] = useState('');
   const [subjectName, setSubjectName] = useState('');
@@ -41,20 +42,24 @@ export const PastoralCareBoard: React.FC = () => {
   } | null>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch('/api/pastoral-care', { credentials: 'include' });
+    const url = filterGroupId
+      ? `/api/pastoral-care?groupId=${encodeURIComponent(filterGroupId)}`
+      : '/api/pastoral-care';
+    const r = await fetch(url, { credentials: 'include' });
     const d = await r.json();
     setNotes(d.notes || []);
-  }, []);
+  }, [filterGroupId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
-    const r = await fetch(`/api/pastoral-care/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+    const url = `/api/pastoral-care/people?q=${encodeURIComponent(query)}${filterGroupId ? `&groupId=${encodeURIComponent(filterGroupId)}` : ''}`;
+    const r = await fetch(url, { credentials: 'include' });
     const d = await r.json().catch(() => ({}));
     return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
-  }, []);
+  }, [filterGroupId]);
 
   const submit = async () => {
     if (!subjectUserId && !subjectName.trim()) {
@@ -171,6 +176,19 @@ export const PastoralCareBoard: React.FC = () => {
         >
           Kirim ke Portal Doa
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-[11px] font-bold uppercase tracking-wider text-[#8C8880]">Filter grup</label>
+        <select
+          value={filterGroupId}
+          onChange={(e) => { setFilterGroupId(e.target.value); setSubjectUserId(''); setSubjectLabel(''); setSubjectName(''); }}
+          className="px-3 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
+        >
+          <option value="">Semua kelompok</option>
+          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+        {filterGroupId && <span className="text-[10px] text-[#8C8880]">Menampilkan catatan anggota kelompok ini</span>}
       </div>
 
       <div className="space-y-2">

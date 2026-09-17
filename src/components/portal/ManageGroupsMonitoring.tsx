@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
 import { AttendancePanel } from './AttendancePanel';
@@ -25,6 +25,9 @@ import {
   Filter,
   TreePine,
   Images,
+  MessageCircle,
+  Download,
+  Copy,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
@@ -36,6 +39,97 @@ import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 import { useMediaSlots, MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABEL } from '../../lib/roles';
+import { waMeHref, waDigits } from '../../lib/wa';
+
+type PrayerNote = {
+  id: string;
+  kind: string;
+  note: string;
+  status: string;
+  createdAt: string;
+  expiresAt?: string | null;
+  subjectName?: string | null;
+  subject?: { id: string | null; name: string; avatar?: string | null } | null;
+  reporter?: { id: string; name: string } | null;
+};
+
+const PRAYER_KIND_LABEL: Record<string, string> = {
+  SAKIT: 'Sakit', DUKA: 'Duka', YUDISIUM: 'Yudisium', WISUDA: 'Wisuda', KERJA: 'Kerja / pindah', LAINNYA: 'Lainnya',
+};
+
+/** Catatan Portal Doa untuk satu kelompok (roster grup). */
+const GroupPrayerNotes: React.FC<{ groupId: string; compact?: boolean; onCount?: (n: number) => void }> = ({ groupId, compact = false, onCount }) => {
+  const { addToast } = useApp();
+  const [notes, setNotes] = useState<PrayerNote[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!groupId) { setNotes([]); setLoading(false); return; }
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/pastoral-care?groupId=${encodeURIComponent(groupId)}`, { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        const list: PrayerNote[] = d.notes || [];
+        setNotes(list);
+        onCount?.(list.length);
+      } else {
+        setNotes([]);
+      }
+    } catch {
+      setNotes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [groupId, onCount]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const resolve = async (id: string) => {
+    try {
+      await fetch(`/api/pastoral-care/${id}/resolve`, { method: 'PATCH', credentials: 'include' });
+      await load();
+    } catch {
+      addToast({ type: 'error', title: 'Gagal menutup catatan' });
+    }
+  };
+
+  if (loading) return <p className="text-xs text-[#8C8880] flex items-center gap-2"><span className="w-3 h-3 border-2 border-[#FF416C] border-t-transparent rounded-full animate-spin inline-block" /> Memuat catatan doa…</p>;
+  if (!notes.length) return <p className="text-xs text-[#8C8880]">Belum ada catatan doa untuk anggota kelompok ini.</p>;
+
+  return (
+    <div className="space-y-2">
+      {notes.map((n) => (
+        <div key={n.id} className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  {PRAYER_KIND_LABEL[n.kind] || n.kind}
+                </span>
+                <span className="text-xs font-bold text-[#1B1B1B] truncate">{n.subject?.name || n.subjectName || '—'}</span>
+              </div>
+              <p className={`text-xs text-[#5C5850] mt-1.5 leading-relaxed ${compact ? 'line-clamp-2' : ''}`}>{n.note}</p>
+              <p className="text-[10px] text-[#8C8880] mt-1">
+                {n.reporter?.name ? `Dilaporkan ${n.reporter.name} · ` : ''}
+                {new Date(n.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void resolve(n.id)}
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100"
+              title="Tandai selesai"
+            >
+              Selesai
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 
 export const ManageGroupsMonitoring: React.FC = () => {
   const {
@@ -80,7 +174,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     if (boundGroupId) setSelectedGroupId(boundGroupId);
   }, [boundGroupId]);
 
-  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums' | 'jadwal'>('monitoring-form');
+  const [activeTab, setActiveTab] = useState<'monitoring-form' | 'history' | 'members' | 'family-tree' | 'absensi' | 'albums' | 'jadwal' | 'doa'>('monitoring-form');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string }>>([]);
 
   // Selected group object — pengguna terikat TIDAK PERNAH fallback ke groups[0].
@@ -128,6 +222,34 @@ export const ManageGroupsMonitoring: React.FC = () => {
 
   // Authorization check for current active group
   const canWriteMonitoring = canAccess('group_monitoring_write', activeGroup.id);
+  const canSeePhones = canWriteMonitoring || isKomisi || isSuperAdmin;
+
+  // Roster ber-nomor (auth) untuk tombol WA — hanya mentor grup/Komisi.
+  const [rosterPhones, setRosterPhones] = useState<Array<{ userId: string | null; name: string; familyRole: string; phone: string | null }>>([]);
+  const [showBroadcast, setShowBroadcast] = useState(false);
+  useEffect(() => {
+    if (!activeGroup?.id || !canSeePhones) { setRosterPhones([]); return; }
+    let cancelled = false;
+    fetch(`/api/portal/groups/${activeGroup.id}/roster`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.members) setRosterPhones(d.members); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeGroup?.id, canSeePhones]);
+
+  const phoneFor = (m: { userId?: string | null; name: string; phone?: string | null }): string | null => {
+    const byUser = m.userId ? rosterPhones.find((r) => r.userId === m.userId) : undefined;
+    const byName = rosterPhones.find((r) => r.name.toLowerCase() === String(m.name || '').toLowerCase());
+    return byUser?.phone || byName?.phone || m.phone || null;
+  };
+  const waFor = (m: { userId?: string | null; name: string; phone?: string | null }): string | null => {
+    if (!canSeePhones) return null;
+    return waMeHref(phoneFor(m), `Halo ${String(m.name || '').split(' ')[0]}, ini ${ROLE_LABEL[currentRole] || currentRole} dari kelompok ${activeGroup?.name || ''}.`);
+  };
+  const menteePhones = () => visibleMembers
+    .filter((m) => String(m.familyRole || '').toUpperCase() === 'MENTEE')
+    .map((m) => ({ name: m.name, phone: phoneFor(m) }))
+    .filter((x) => waDigits(x.phone));
 
   useEffect(() => {
     fetch('/api/channel-links/scoped', { credentials: 'include' })
@@ -730,6 +852,20 @@ export const ManageGroupsMonitoring: React.FC = () => {
 
         <button
           role="tab"
+          aria-selected={activeTab === 'doa'}
+          onClick={() => setActiveTab('doa')}
+          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'doa'
+              ? 'bg-[#181818] text-white shadow-md'
+              : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
+          }`}
+        >
+          <Heart className="w-3.5 h-3.5 text-rose-500" />
+          <span>Doa Kelompok</span>
+        </button>
+
+        <button
+          role="tab"
           aria-selected={activeTab === 'jadwal'}
           onClick={() => setActiveTab('jadwal')}
           className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
@@ -760,6 +896,19 @@ export const ManageGroupsMonitoring: React.FC = () => {
       {/* TAB 1: DYNAMIC MONITORING INPUT FORM */}
       {activeTab === 'monitoring-form' && (
         <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
+          {activeGroup && (
+            <div className="mb-6 rounded-2xl border border-rose-100 bg-rose-50/40 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5" /> Doa Kelompok
+                </h4>
+                <button type="button" onClick={() => setActiveTab('doa')} className="text-[11px] font-bold text-rose-700 underline">
+                  Lihat semua
+                </button>
+              </div>
+              <GroupPrayerNotes groupId={activeGroup.id} compact />
+            </div>
+          )}
           {!canWriteMonitoring ? (
             <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
               <h4 className="font-bold text-sm mb-1">Akses Terbatas</h4>
@@ -1097,15 +1246,27 @@ export const ManageGroupsMonitoring: React.FC = () => {
               )}
             </div>
 
-            {canWriteMonitoring && (
-              <button
-                onClick={handleOpenAddMember}
-                className="px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold shadow transition-all flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Tambah Anggota</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canSeePhones && (
+                <button
+                  onClick={() => setShowBroadcast(true)}
+                  className="px-3.5 py-2 rounded-full border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                  title="Broadcast WhatsApp ke para mentee"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Broadcast WA</span>
+                </button>
+              )}
+              {canWriteMonitoring && (
+                <button
+                  onClick={handleOpenAddMember}
+                  className="px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold shadow transition-all flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Tambah Anggota</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -1156,7 +1317,23 @@ export const ManageGroupsMonitoring: React.FC = () => {
                     </td>
                     <td className="py-3.5 text-[#8C8880]">
                       <div>{m.email}</div>
-                      <div className="text-[11px]">{m.phone}</div>
+                      <div className="text-[11px] flex items-center gap-1.5">
+                        <span>{phoneFor(m) || m.phone || '—'}</span>
+                        {(() => {
+                          const href = waFor(m);
+                          return href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100"
+                              title="Chat WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3" /> WA
+                            </a>
+                          ) : null;
+                        })()}
+                      </div>
                     </td>
                     <td className="py-3.5">
                       <div className="flex items-center gap-2">
@@ -1196,6 +1373,74 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Broadcast WA Modal */}
+      {showBroadcast && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#FAF9F5] rounded-[32px] w-full max-w-lg p-6 shadow-2xl border border-[#D9D7D0] relative">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D9D7D0]/60 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-[#1B1B1B] flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-emerald-600" /> Broadcast WA — {activeGroup?.name}
+                </h3>
+                <p className="text-[11px] text-[#8C8880] mt-0.5">Nomor mentee kelompok ini. Salin/unduh lalu kirim dari WhatsApp.</p>
+              </div>
+              <button onClick={() => setShowBroadcast(false)} className="w-7 h-7 rounded-full bg-white hover:bg-gray-100 border border-[#D9D7D0] flex items-center justify-center">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const nums = menteePhones().map((x) => waDigits(x.phone)).filter(Boolean).join('\n');
+                  navigator.clipboard?.writeText(nums).then(
+                    () => addToast({ type: 'success', title: 'Nomor disalin', description: `${menteePhones().length} nomor` }),
+                    () => addToast({ type: 'error', title: 'Gagal menyalin' }),
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181818] text-white text-xs font-bold"
+              >
+                <Copy className="w-3.5 h-3.5" /> Salin semua nomor
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const rows = [['nama', 'whatsapp', 'link'], ...menteePhones().map((x) => [x.name, waDigits(x.phone) || '', waMeHref(x.phone) || ''])];
+                  const csv = '\uFEFF' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `wa-${activeGroup?.name || 'kelompok'}-${Date.now()}.csv`;
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#5C5850]"
+              >
+                <Download className="w-3.5 h-3.5" /> Unduh CSV
+              </button>
+            </div>
+            <div className="max-h-72 overflow-y-auto space-y-1.5">
+              {menteePhones().length === 0 && <p className="text-xs text-[#8C8880]">Belum ada nomor mentee yang tersimpan.</p>}
+              {menteePhones().map((x, i) => {
+                const href = waMeHref(x.phone, `Halo ${String(x.name || '').split(' ')[0]}, ini ${ROLE_LABEL[currentRole] || currentRole} dari kelompok ${activeGroup?.name || ''}.`);
+                return (
+                  <div key={`${x.name}-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white border border-[#D9D7D0]/60">
+                    <span className="text-xs font-bold text-[#1B1B1B] truncate">{x.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-[#8C8880]">{waDigits(x.phone)}</span>
+                      {href && (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
+                          <MessageCircle className="w-3 h-3" /> Chat
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -1428,7 +1673,21 @@ export const ManageGroupsMonitoring: React.FC = () => {
             groupName={activeGroup.name}
             canWrite={canWriteMonitoring}
             members={visibleMembers}
+            waHrefFor={waFor}
           />
+        </div>
+      )}
+
+      {/* TAB: DOA KELOMPOK — catatan Portal Doa untuk anggota grup ini */}
+      {activeTab === 'doa' && activeGroup && (
+        <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#1B1B1B] flex items-center gap-2">
+              <Heart className="w-4 h-4 text-rose-500" /> Doa Kelompok {activeGroup.name}
+            </h3>
+            <p className="text-xs text-[#8C8880] mt-0.5">Catatan Portal Doa yang di‑tag ke anggota kelompok ini (semua jenis).</p>
+          </div>
+          <GroupPrayerNotes groupId={activeGroup.id} />
         </div>
       )}
 

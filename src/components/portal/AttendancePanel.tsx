@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck, Loader2, Save, ChevronDown, Check, X, UserCheck, Users } from 'lucide-react';
+import { CalendarCheck, Loader2, Save, ChevronDown, Check, X, UserCheck, Users, MessageCircle } from 'lucide-react';
 import { DatePicker } from '../ui/DatePicker';
 import type { GroupMember } from '../../types';
 
@@ -41,10 +41,12 @@ interface Props {
   groupName: string;
   canWrite: boolean;
   members: GroupMember[];
+  /** URL wa.me per anggota (opsional) — tombol chat WhatsApp. */
+  waHrefFor?: (m: GroupMember) => string | null;
 }
 
 /** Input absensi mingguan per anggota — tersimpan ke TiDB (tabel attendance_records). */
-export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite, members }) => {
+export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite, members, waHrefFor }) => {
   const [date, setDate] = useState<string>(todayStr());
   const [marks, setMarks] = useState<Record<string, AttStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -293,6 +295,20 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
                     {m.familyRole === 'MENTOR' ? 'Mentor' : m.familyRole === 'COMENTOR' ? 'Comentor' : 'Mentee'}
                   </p>
                 </div>
+                {waHrefFor && (() => {
+                  const href = waHrefFor(m);
+                  return href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100 shrink-0"
+                      title="Chat WhatsApp"
+                    >
+                      <MessageCircle className="w-3 h-3" /> WA
+                    </a>
+                  ) : null;
+                })()}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {STATUS_OPTIONS.map((opt) => {
