@@ -1146,6 +1146,22 @@ model Announcement {
   @@map("announcements")
 }
 
+/// Snapshot scope 10 rumah sebelum aksi regenerasi — untuk "Undo aksi terakhir".
+model RegenScopeSnapshot {
+  id          String    @id @db.VarChar(64)
+  action      String    @db.VarChar(32) // REGENERATE | ASSIGN_LEADER | ASSIGN_MEMBERS | CARRY | ALUMNI
+  summary     String    @db.VarChar(400)
+  groupId     String?   @map("group_id") @db.VarChar(64)
+  period      String?   @db.VarChar(10)
+  data        Json
+  createdById String?   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  undoneAt    DateTime? @map("undone_at") @db.DateTime(3)
+
+  @@index([createdAt])
+  @@map("regen_scope_snapshots")
+}
+
 enum NotificationType {
   IDLE_FLAG
   MITOSIS_ALERT

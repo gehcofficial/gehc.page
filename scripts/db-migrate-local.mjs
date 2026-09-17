@@ -265,6 +265,11 @@ const STEPS = [
     label: 'Roster per generasi (status PAST/MOVED, unique group+user+period)',
     required: true,
   },
+  {
+    script: 'server/_migrate-regen-snapshot.cjs',
+    label: 'Snapshot regenerasi (undo aksi terakhir)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

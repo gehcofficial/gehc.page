@@ -75,6 +75,29 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingConfirm | null>(null);
   const [override, setOverride] = useState(false);
+  const [undoable, setUndoable] = useState<{ action: string; summary: string; createdAt: string } | null>(null);
+
+  const loadUndo = useCallback(async () => {
+    try {
+      const r = await fetch('/api/regen/undo/status', { credentials: 'include' });
+      if (r.ok) setUndoable((await r.json()).undoable || null);
+    } catch { /* skip */ }
+  }, []);
+  useEffect(() => { if (canEdit) void loadUndo(); }, [canEdit, loadUndo, houses]);
+
+  const undoLastAction = async () => {
+    setBusy('undo');
+    try {
+      const r = await fetch('/api/regen/undo', { method: 'POST', credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal membatalkan');
+      addToast({ type: 'success', title: 'Aksi dibatalkan', description: d.summary });
+      onChanged();
+      void loadUndo();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
+    } finally { setBusy(null); setPending(null); }
+  };
 
   const currentBatchPeriod = houses[0]?.batch?.period || houses[0]?.foundedPeriod || null;
   const batchReady = Boolean(period) && currentBatchPeriod === period;
@@ -456,6 +479,24 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
               {busy === 'assign' ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : `Assign ${assignSel.length} orang`}
             </button>
           )}
+        </div>
+      )}
+
+      {undoable && (
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#D9D7D0]">
+          <span className="text-[10px] text-[#8C8880]">
+            Aksi terakhir: <b className="text-[#1B1B1B]">{undoable.summary}</b>
+          </span>
+          <button type="button" disabled={busy === 'undo'}
+            onClick={() => setPending({
+              title: 'Batalkan aksi terakhir?',
+              description: <>Mengembalikan data 10 rumah ke kondisi sebelum: <b>{undoable.summary}</b>. Pastikan tidak ada perubahan lain setelahnya.</>,
+              requireText: 'UNDO', tone: 'danger', confirmLabel: 'Batalkan aksi',
+              run: undoLastAction,
+            })}
+            className="ml-auto px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold disabled:opacity-40">
+            {busy === 'undo' ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : 'Batalkan aksi terakhir'}
+          </button>
         </div>
       )}
 

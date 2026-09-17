@@ -9,11 +9,12 @@
 - **Server guard** (`server/routes/beyonders-leaders.mjs`): `assign-leader`/`carry-members`/`assign-members` balas **409** bila batch periode belum ada; **idempoten** (pemimpin sama → no-op); **pemimpin lama otomatis turun jadi MENTEE** (perbaiki bug dua mentor aktif); dukungan `dryRun` (pratinjau dampak) di assign-leader.
 - **UI** (`RegenerationWizard.tsx`): **urutan 5 langkah** — `1 Alumni → 2 Buka generasi → 3 Pemimpin → 4 Bawa anggota → 5 Assign baru`; langkah 3–5 **disabled** sampai batch periode ada (banner guard); **ConfirmDialog** (`src/components/ui/ConfirmDialog.tsx`) untuk semua aksi + **type‑to‑confirm** (`REGENERASI`/`ALUMNI`/`BAWA`). Kartu “Buka generasi” lama dihapus (kini Langkah 2).
 - **Demo** (SS + video) di `docs/demo/regenerasi/` (8 PNG + `regeneration.webm`) via `playwright.demo-desktop.config.ts` + `tests/demo/regeneration.spec.ts` (localhost:8787, DB staging).
-- Verifikasi: lint bersih, **327 test** hijau, build OK. Staging direset ke Gen0 setelah rekaman.
+- **Undo aksi terakhir**: tabel `regen_scope_snapshots` + `server/lib/regen-undo.mjs` (snapshot scope 10 rumah sebelum aksi; `REGENERATE/ASSIGN_LEADER/ASSIGN_MEMBERS/CARRY/ALUMNI`; restore = replace scope). Endpoint `GET /api/regen/undo/status` & `POST /api/regen/undo` (Komisi/SA). Tombol **“Batalkan aksi terakhir”** + konfirmasi ketik `UNDO` di wizard. Migrasi `server/_migrate-regen-snapshot.cjs` (staging+prod).
+- Verifikasi: lint bersih, **330 test** hijau (3 baru `tests/unit/regen-undo.test.ts`), build OK. Staging direset ke Gen0 setelah rekaman.
 
 ### Next
-1. Deploy `main`; uji di prod: buka generasi → tetapkan pemimpin (konfirmasi) → bawa anggota (pratinjau) → assign.
-2. Catatan: “Undo aksi terakhir” belum dibuat — pemulihan via `backups/` + `MentorTransition`.
+1. Deploy `main`; uji di prod: buka generasi → tetapkan pemimpin (konfirmasi) → bawa anggota (pratinjau) → assign; lalu coba **Batalkan aksi terakhir**.
+2. Undo membatalkan aksi regenerasi terakhir (scope 10 rumah). Hindari perubahan lain tak terkait tepat sebelum menekan Undo.
 
 ### Commands
 ```

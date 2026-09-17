@@ -20,6 +20,7 @@ import {
   mapFamilyRole,
   placePerson,
 } from '../lib/member-role-sync.mjs';
+import { captureScope, latestUndoable, recordSnapshot, undoLast } from '../lib/regen-undo.mjs';
 
 const READ_ROLES = ['KOMISI', 'COMMITTEE', 'BPMJ'];
 const READY_ROLES = ['KOMISI', 'COMMITTEE'];
@@ -263,6 +264,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         };
       });
 
+      const snapData = await captureScope(prisma);
       try {
         await prisma.$transaction([
           prisma.groupBatch.updateMany({
@@ -279,6 +281,13 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         }
         throw err;
       }
+      await recordSnapshot(prisma, {
+        action: 'REGENERATE',
+        summary: `Buka generasi ${nextPeriod} (gen ${rows[0]?.generation ?? 1}) untuk 10 rumah`,
+        period: nextPeriod,
+        createdById: req.authUser?.id,
+        data: snapData,
+      }).catch(() => {});
 
       const refreshed = await loadHouses(prisma);
       const roles = await loadRoles(prisma, ids);
@@ -345,6 +354,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         });
       }
 
+      const snapData = await captureScope(prisma);
       const result = await placePerson(prisma, {
         userId,
         groupId,
@@ -383,6 +393,15 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         }).catch(() => {});
       }
 
+      await recordSnapshot(prisma, {
+        action: 'ASSIGN_LEADER',
+        summary: `Tetapkan ${role} ${group.name}: → ${userId}`,
+        groupId,
+        period,
+        createdById: req.authUser?.id,
+        data: snapData,
+      }).catch(() => {});
+
       const refreshed = await prisma.group.findUnique({ where: { id: groupId }, include: { batches: true } });
       const roles = await loadRoles(prisma, [groupId]);
       res.json({ ok: true, period: result.period, house: serializeHouse(refreshed, roles) });
@@ -410,7 +429,18 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       if (missing.length) {
         return res.status(409).json({ error: `Batch periode ${period} belum ada di: ${missing.join(', ')}. Buka generasi dulu.` });
       }
-      const summary = await carryActiveMembers(prisma, { period, groupIds, dryRun: Boolean(req.body?.dryRun) });
+      const isDry = Boolean(req.body?.dryRun);
+      const snapData = isDry ? null : await captureScope(prisma);
+      const summary = await carryActiveMembers(prisma, { period, groupIds, dryRun: isDry });
+      if (!isDry && snapData) {
+        await recordSnapshot(prisma, {
+          action: 'CARRY',
+          summary: `Bawa ${summary.carried} anggota ke ${period} (lewati ${summary.skippedMoved} pindah, ${summary.alumni} alumni)`,
+          period,
+          createdById: req.authUser?.id,
+          data: snapData,
+        }).catch(() => {});
+      }
       res.json({ ok: true, ...summary });
     }),
   );
@@ -436,6 +466,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       }
       let assigned = 0;
       const errors = [];
+      const snapData = await captureScope(prisma);
       for (const userId of userIds) {
         try {
           await placePerson(prisma, suchThatArgs({ userId, groupId, familyRole, period, assignedBy: req.authUser?.id }));
@@ -444,9 +475,41 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
           errors.push(`${userId}: ${e.message}`);
         }
       }
+      if (assigned) {
+        await recordSnapshot(prisma, {
+          action: 'ASSIGN_MEMBERS',
+          summary: `Assign ${assigned} orang ke ${groupId} (${familyRole}) periode ${period}`,
+          groupId,
+          period,
+          createdById: req.authUser?.id,
+          data: snapData,
+        }).catch(() => {});
+      }
       res.json({ ok: true, assigned, failed: errors.length, errors, period });
     }),
   );
+
+  // Status aksi terakhir (untuk tombol Undo).
+  app.get('/api/regen/undo/status', requireRole('KOMISI'), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const snap = await latestUndoable(prisma);
+    res.json({
+      undoable: snap ? { action: snap.action, summary: snap.summary, createdAt: snap.createdAt, period: snap.period, groupId: snap.groupId } : null,
+    });
+  }));
+
+  // Batalkan aksi regenerasi terakhir.
+  app.post('/api/regen/undo', requireRole('KOMISI'), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    if (!isKomisiOrSuperadmin(req.authUser)) {
+      return res.status(403).json({ error: 'Hanya Komisi yang membatalkan aksi.' });
+    }
+    const result = await undoLast(prisma);
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    res.json({ ok: true, ...result });
+  }));
 }
 
 // helper kecil agar payload placePerson konsisten

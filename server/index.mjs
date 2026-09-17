@@ -141,6 +141,7 @@ import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
 import { runAnnouncementDispatch } from './routes/notif-cron.mjs';
 import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.mjs';
 import { markAlumniBulk } from './lib/member-role-sync.mjs';
+import { captureScope, recordSnapshot } from './lib/regen-undo.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
@@ -5172,7 +5173,14 @@ app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(a
   // Sinkron ke roster grup: alumni → GroupMember ALUMNI + cabut akses grup.
   let roster = { updated: 0 };
   if (memberStatus === 'ALUMNI') {
+    const snapData = await captureScope(prisma);
     roster = await markAlumniBulk(prisma, { userIds: ids, note });
+    await recordSnapshot(prisma, {
+      action: 'ALUMNI',
+      summary: `Tandai alumni ${roster.updated} baris roster (${ids.length} orang)`,
+      createdById: req.authUser?.id,
+      data: snapData,
+    }).catch(() => {});
   }
   res.json({ ok: true, updated: result.count, rosterUpdated: roster.updated });
 }));
