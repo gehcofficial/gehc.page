@@ -1,15 +1,15 @@
 {
-  "syncedAt": "2026-09-17T18:01:14.758Z",
+  "syncedAt": "2026-09-17T18:02:40.155Z",
   "rootFolderId": "1WQLBGFw2FfaYTZizP8tLFfHlMWO66b6I",
   "slots": {
     "landing": {
-      "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1789576303325.8945",
-      "collageWorship": "/visuals/landing/02-collage-worship.jpg?v=1789624744364.1497",
-      "collageCommunity": "/visuals/landing/03-collage-community.jpg?v=1789624746818.1572",
-      "collageMusic": "/visuals/landing/04-collage-music.jpg?v=1789624748670.1628",
-      "collageStudy": "/visuals/landing/05-collage-study.jpg?v=1789624750347.168",
-      "collageFriends": "/visuals/landing/06-collage-friends.jpg?v=1789624752178.1733",
-      "collagePortrait": "/visuals/landing/07-collage-portrait.jpg?v=1789624753223.1765"
+      "heroBanner": "/visuals/landing/01-hero-banner.jpg?v=1789668147173.2834",
+      "collageWorship": "/visuals/landing/02-collage-worship.jpg?v=1789668149725.3052",
+      "collageCommunity": "/visuals/landing/03-collage-community.jpg?v=1789668152869.3315",
+      "collageMusic": "/visuals/landing/04-collage-music.jpg?v=1789668154871.3474",
+      "collageStudy": "/visuals/landing/05-collage-study.jpg?v=1789668156931.3635",
+      "collageFriends": "/visuals/landing/06-collage-friends.jpg?v=1789668159101.381",
+      "collagePortrait": "/visuals/landing/07-collage-portrait.jpg?v=1789668160154.39"
     },
     "brand": {
       "logoGehc": "/visuals/brand/logo-gehc.png?v=1788264114304.9329"
