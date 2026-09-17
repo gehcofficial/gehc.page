@@ -311,10 +311,40 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       if (!userId) return res.status(400).json({ error: 'userId wajib.' });
 
       const period = req.body?.period && isPeriod(req.body.period) ? req.body.period : await currentPeriod(prisma, groupId);
-      const batch = await prisma.groupBatch.findFirst({ where: { groupId, period } })
-        || await prisma.groupBatch.findFirst({ where: { groupId, isCurrent: true } });
+      const batch = await prisma.groupBatch.findFirst({ where: { groupId, period } });
+      if (!batch) {
+        return res.status(409).json({ error: `Batch periode ${period} belum ada untuk ${group.name}. Buka generasi dulu (Langkah 2).` });
+      }
 
-      const prevUserId = role === 'MENTOR' ? batch?.mentorUserId : batch?.comentorUserId;
+      const prevUserId = role === 'MENTOR' ? batch.mentorUserId : batch.comentorUserId;
+      const prevName = role === 'MENTOR' ? batch.mentorName : batch.comentorName;
+
+      // Idempoten: pemimpin sudah orang yang sama.
+      if (prevUserId && prevUserId === userId) {
+        const refreshedSame = await prisma.group.findUnique({ where: { id: groupId }, include: { batches: true } });
+        const rolesSame = await loadRoles(prisma, [groupId]);
+        return res.json({ ok: true, unchanged: true, period, house: serializeHouse(refreshedSame, rolesSame) });
+      }
+
+      // Pratinjau dampak tanpa menulis.
+      if (req.body?.dryRun) {
+        const incoming = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+        const otherAssignments = await prisma.roleAssignment.findMany({
+          where: { userId, isActive: true, groupId: { not: null }, role: { in: ['MENTOR', 'CO_MENTOR', 'MENTEE'] } },
+          select: { role: true, groupId: true },
+        });
+        return res.json({
+          ok: true,
+          dryRun: true,
+          period,
+          role,
+          replaces: prevUserId ? { userId: prevUserId, name: prevName || '—' } : null,
+          demoteToMentee: prevUserId || null,
+          incomingName: incoming?.name || '—',
+          deactivateAssignments: otherAssignments,
+        });
+      }
+
       const result = await placePerson(prisma, {
         userId,
         groupId,
@@ -325,8 +355,17 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
         reason: `Regenerasi ${period}: ${role}`,
       });
 
-      // Riwayat pergantian pemimpin.
+      // Pemimpin lama turun jadi MENTEE (tetap di grup) + riwayat.
       if (prevUserId && prevUserId !== userId) {
+        await placePerson(prisma, {
+          userId: prevUserId,
+          groupId,
+          role: 'MENTEE',
+          familyRole: 'MENTEE',
+          period,
+          assignedBy: req.authUser?.id,
+          reason: `Turun jadi Mentee (${period})`,
+        }).catch(() => {});
         const incoming = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
         const outgoing = await prisma.user.findUnique({ where: { id: prevUserId }, select: { name: true } });
         await prisma.mentorTransition.create({
@@ -338,7 +377,7 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
             outgoingRole: role === 'MENTOR' ? 'MENTOR' : 'COMENTOR',
             incomingRole: role === 'MENTOR' ? 'MENTOR' : 'COMENTOR',
             effectiveDate: new Date(),
-            reason: `${role === 'MENTOR' ? 'Mentor' : 'Co-Mentor'} diganti: ${outgoing?.name || '—'} → ${incoming?.name || '—'} (${period})`,
+            reason: `${role === 'MENTOR' ? 'Mentor' : 'Co-Mentor'} diganti: ${outgoing?.name || '—'} → ${incoming?.name || '—'} (${period}); ${outgoing?.name || 'lama'} → Mentee`,
             createdById: req.authUser?.id || prevUserId,
           },
         }).catch(() => {});
@@ -363,6 +402,14 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       const groupIds = Array.isArray(req.body?.groupIds) && req.body.groupIds.length
         ? req.body.groupIds.map(String)
         : houses.map((h) => h.id);
+      const missing = [];
+      for (const gid of groupIds) {
+        const b = await prisma.groupBatch.findFirst({ where: { groupId: gid, period } });
+        if (!b) missing.push(houses.find((h) => h.id === gid)?.name || gid);
+      }
+      if (missing.length) {
+        return res.status(409).json({ error: `Batch periode ${period} belum ada di: ${missing.join(', ')}. Buka generasi dulu.` });
+      }
       const summary = await carryActiveMembers(prisma, { period, groupIds, dryRun: Boolean(req.body?.dryRun) });
       res.json({ ok: true, ...summary });
     }),
@@ -383,6 +430,10 @@ export function registerBeyondersLeadersRoutes(app, { wrap }) {
       if (!houses.find((h) => h.id === groupId)) return res.status(404).json({ error: 'Bukan salah satu dari 10 rumah.' });
 
       const period = req.body?.period && isPeriod(req.body.period) ? req.body.period : await currentPeriod(prisma, groupId);
+      const batch = await prisma.groupBatch.findFirst({ where: { groupId, period } });
+      if (!batch) {
+        return res.status(409).json({ error: `Batch periode ${period} belum ada untuk rumah ini. Buka generasi dulu.` });
+      }
       let assigned = 0;
       const errors = [];
       for (const userId of userIds) {

@@ -106,8 +106,6 @@ export const BeyondersLeadersPanel: React.FC = () => {
   const canReady = canEdit || isCommittee;
   const [houses, setHouses] = useState<HouseRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [nextPeriod, setNextPeriod] = useState('');
-  const [override, setOverride] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, { period: string; mentor: Person | null; comentor: Person | null }>>({});
 
   const load = useCallback(async () => {
@@ -137,15 +135,6 @@ export const BeyondersLeadersPanel: React.FC = () => {
       };
     }
     setDrafts(next);
-    setNextPeriod((prev) => {
-      if (prev) return prev;
-      const first = list[0]?.batch?.period;
-      if (!first) return '2027-06';
-      const [y, m] = String(first).split('-').map(Number);
-      const ny = m === 12 ? y + 1 : y;
-      const nm = m === 12 ? 1 : m + 1;
-      return `${ny}-${String(nm).padStart(2, '0')}`;
-    });
     setLoading(false);
   }, [addToast]);
 
@@ -194,26 +183,7 @@ export const BeyondersLeadersPanel: React.FC = () => {
     );
   };
 
-  const regenerate = async () => {
-    const r = await fetch('/api/beyonders/leaders/regenerate', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nextPeriod, override }),
-    });
-    const body = await r.json();
-    if (!r.ok) {
-      addToast({ type: 'error', title: body.error || 'Gagal membuka generasi' });
-      return;
-    }
-    addToast({ type: 'success', title: `Generasi ${body.generation} (${body.nextPeriod}) dibuka untuk 10 rumah.` });
-    setOverride(false);
-    load();
-  };
-
   const generation = houses[0]?.batch?.generation ?? 0;
-  const readyCount = houses.filter((h) => h.batch?.regenReady).length;
-  const allReady = houses.length > 0 && readyCount === houses.length;
 
   if (loading) {
     return <p className="text-xs text-[#8C8880]">Memuat 10 rumah…</p>;
@@ -310,38 +280,6 @@ export const BeyondersLeadersPanel: React.FC = () => {
           canEdit={canEdit}
           onChanged={load}
         />
-      )}
-
-      {canEdit && (
-        <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4 space-y-3">
-          <p className="text-xs font-bold">Buka generasi berikutnya (10 rumah sekaligus)</p>
-          <p className="text-[11px] text-[#8C8880]">
-            Siap {readyCount}/{houses.length}. Nama rumah di landing tetap; batch baru jadi yang tampil.
-          </p>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="text-[11px] font-semibold">
-              Periode baru
-              <input
-                type="month"
-                value={nextPeriod}
-                onChange={(e) => setNextPeriod(e.target.value)}
-                className="ml-2 px-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-xs"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-[11px]">
-              <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
-              Override (tidak semua siap)
-            </label>
-            <button
-              type="button"
-              onClick={regenerate}
-              disabled={!nextPeriod || (!allReady && !override)}
-              className="px-3 py-1.5 rounded-full bg-[#C9A227] text-[#181818] text-[11px] font-bold disabled:opacity-40"
-            >
-              Buka generasi berikutnya
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

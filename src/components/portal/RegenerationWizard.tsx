@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Check, ArrowRight, UserPlus, Users, GraduationCap, Crown } from 'lucide-react';
+import { Loader2, Check, ArrowRight, UserPlus, Users, GraduationCap, Crown, CalendarPlus, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 type Person = { id: string; name: string; avatar?: string | null };
 type House = {
@@ -8,6 +9,22 @@ type House = {
   name: string;
   batch: { mentorName?: string | null; comentorName?: string | null; mentorUserId?: string | null; comentorUserId?: string | null; period?: string } | null;
   foundedPeriod?: string;
+};
+
+type PendingConfirm = {
+  title: string;
+  description?: React.ReactNode;
+  confirmLabel?: string;
+  tone?: 'default' | 'danger' | 'gold';
+  requireText?: string;
+  run: () => Promise<void>;
+};
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  ACTIVE: { label: 'Aktif', cls: 'bg-emerald-100 text-emerald-700' },
+  ALUMNI: { label: 'Alumni', cls: 'bg-slate-200 text-slate-700' },
+  PAST: { label: 'Generasi lalu', cls: 'bg-gray-100 text-gray-500' },
+  MOVED: { label: 'Pindah', cls: 'bg-sky-100 text-sky-700' },
 };
 
 function DirectoryPicker({ label, value, onPick, disabled }: {
@@ -53,20 +70,71 @@ function DirectoryPicker({ label, value, onPick, disabled }: {
 
 export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; onChanged: () => void }> = ({ houses, canEdit, onChanged }) => {
   const { addToast } = useApp();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [period, setPeriod] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingConfirm | null>(null);
+  const [override, setOverride] = useState(false);
+
+  const currentBatchPeriod = houses[0]?.batch?.period || houses[0]?.foundedPeriod || null;
+  const batchReady = Boolean(period) && currentBatchPeriod === period;
 
   useEffect(() => {
-    const first = houses[0]?.batch?.period || houses[0]?.foundedPeriod || '2026-06';
-    const [y, m] = String(first).split('-').map(Number);
+    if (period) return;
+    const base = currentBatchPeriod || '2026-06';
+    const [y, m] = String(base).split('-').map(Number);
     const ny = m === 12 ? y + 1 : y;
     const nm = m === 12 ? 1 : m + 1;
-    setPeriod((prev) => prev || `${ny}-${String(nm).padStart(2, '0')}`);
-  }, [houses]);
+    setPeriod(`${ny}-${String(nm).padStart(2, '0')}`);
+  }, [currentBatchPeriod, period]);
 
-  // Step 1 — pemimpin generasi baru
+  // ── Step 1: Alumni
+  const [peopleQ, setPeopleQ] = useState('');
+  const [people, setPeople] = useState<Person[]>([]);
+  const [alumniSel, setAlumniSel] = useState<Person[]>([]);
+  const searchPeople = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setPeople([]); return; }
+    const r = await fetch(`/api/beyonders/leaders/people?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+    if (r.ok) setPeople((await r.json()).people || []);
+  }, []);
+  const markStatus = async (status: 'ALUMNI' | 'ACTIVE') => {
+    setBusy('alumni');
+    try {
+      const r = await fetch('/api/jemaat/member-status/bulk', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: alumniSel.map((p) => p.id), memberStatus: status }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal');
+      addToast({ type: 'success', title: status === 'ALUMNI' ? 'Ditandai Alumni' : 'Diaktifkan kembali', description: `${d.updated || 0} orang, roster ${d.rosterUpdated || 0}` });
+      setAlumniSel([]);
+      onChanged();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
+    } finally { setBusy(null); setPending(null); }
+  };
+
+  // ── Step 2: Buka generasi
+  const openGeneration = async () => {
+    setBusy('regen');
+    try {
+      const r = await fetch('/api/beyonders/leaders/regenerate', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nextPeriod: period, override }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal membuka generasi');
+      addToast({ type: 'success', title: `Generasi ${d.generation} (${d.nextPeriod}) dibuka`, description: 'Lanjut ke Langkah 3: tetapkan pemimpin.' });
+      setOverride(false);
+      setStep(3);
+      onChanged();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
+    } finally { setBusy(null); setPending(null); }
+  };
+
+  // ── Step 3: Pemimpin
   const [leaders, setLeaders] = useState<Record<string, { mentor: Person | null; comentor: Person | null }>>({});
-  const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
     setLeaders((prev) => {
       const next = { ...prev };
@@ -81,9 +149,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
     });
   }, [houses]);
 
-  const assignLeader = async (groupId: string, role: 'MENTOR' | 'CO_MENTOR') => {
-    const person = role === 'MENTOR' ? leaders[groupId]?.mentor : leaders[groupId]?.comentor;
-    if (!person?.id) { addToast({ type: 'error', title: 'Pilih orang dari direktori (cari nama) dulu.' }); return; }
+  const assignLeader = async (groupId: string, role: 'MENTOR' | 'CO_MENTOR', person: Person, houseName: string, replaces?: string | null) => {
     setBusy(`${groupId}:${role}`);
     try {
       const r = await fetch(`/api/beyonders/leaders/${groupId}/assign-leader`, {
@@ -92,41 +158,18 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal menetapkan peran');
-      addToast({ type: 'success', title: `${role === 'MENTOR' ? 'Mentor' : 'Co-Mentor'} ditetapkan`, description: person.name });
-      onChanged();
-    } catch (e) {
-      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
-    } finally { setBusy(null); }
-  };
-
-  // Step 2 — alumni bulk
-  const [peopleQ, setPeopleQ] = useState('');
-  const [people, setPeople] = useState<Person[]>([]);
-  const [alumniSel, setAlumniSel] = useState<Person[]>([]);
-  const searchPeople = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setPeople([]); return; }
-    const r = await fetch(`/api/beyonders/leaders/people?q=${encodeURIComponent(q)}`, { credentials: 'include' });
-    if (r.ok) setPeople((await r.json()).people || []);
-  }, []);
-  const markStatus = async (status: 'ALUMNI' | 'ACTIVE') => {
-    if (!alumniSel.length) return;
-    setBusy('alumni');
-    try {
-      const r = await fetch('/api/jemaat/member-status/bulk', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: alumniSel.map((p) => p.id), memberStatus: status }),
+      addToast({
+        type: 'success',
+        title: d.unchanged ? 'Tidak berubah' : `${role === 'MENTOR' ? 'Mentor' : 'Co-Mentor'} ditetapkan`,
+        description: d.unchanged ? `Sudah ${person.name}` : `${houseName}: ${replaces ? `${replaces} → ` : ''}${person.name}`,
       });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || 'Gagal');
-      addToast({ type: 'success', title: status === 'ALUMNI' ? 'Ditandai Alumni' : 'Diaktifkan kembali', description: `${d.updated || 0} orang, roster ${d.rosterUpdated || 0}` });
-      setAlumniSel([]);
       onChanged();
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
-    } finally { setBusy(null); }
+    } finally { setBusy(null); setPending(null); }
   };
 
-  // Step 3 — bawa anggota
+  // ── Step 4: Bawa anggota
   const [carry, setCarry] = useState<{ carried: number; skippedMoved: number; alumni: number; details?: Array<{ name: string }> } | null>(null);
   const [groupsData, setGroupsData] = useState<Array<{ id: string; name: string; members: Array<{ id: string; name: string; batchPeriod?: string | null; status?: string; familyRole?: string }> }>>([]);
   useEffect(() => {
@@ -145,19 +188,17 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal');
       setCarry(d);
-      if (!dryRun) addToast({ type: 'success', title: 'Anggota dibawa', description: `${d.carried} orang` });
-      if (!dryRun) onChanged();
+      if (!dryRun) { addToast({ type: 'success', title: 'Anggota dibawa', description: `${d.carried} orang` }); onChanged(); }
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
-    } finally { setBusy(null); }
+    } finally { setBusy(null); setPending(null); }
   };
 
-  // Step 4 — assign orang baru
+  // ── Step 5: Assign baru
   const [assignGroupId, setAssignGroupId] = useState('');
   const [assignRole, setAssignRole] = useState<'MENTEE' | 'MENTOR' | 'CO_MENTOR'>('MENTEE');
   const [assignSel, setAssignSel] = useState<Person[]>([]);
   const runAssign = async () => {
-    if (!assignGroupId || !assignSel.length) return;
     setBusy('assign');
     try {
       const r = await fetch('/api/beyonders/leaders/assign-members', {
@@ -171,35 +212,29 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
       onChanged();
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
-    } finally { setBusy(null); }
+    } finally { setBusy(null); setPending(null); }
   };
 
   if (!canEdit) return null;
 
-  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-    ACTIVE: { label: 'Aktif', cls: 'bg-emerald-100 text-emerald-700' },
-    ALUMNI: { label: 'Alumni', cls: 'bg-slate-200 text-slate-700' },
-    PAST: { label: 'Generasi lalu', cls: 'bg-gray-100 text-gray-500' },
-    MOVED: { label: 'Pindah', cls: 'bg-sky-100 text-sky-700' },
-  };
-
   const steps = [
-    { id: 1 as const, label: '1 · Pemimpin', icon: Crown },
-    { id: 2 as const, label: '2 · Alumni', icon: GraduationCap },
-    { id: 3 as const, label: '3 · Bawa anggota', icon: Users },
-    { id: 4 as const, label: '4 · Assign baru', icon: UserPlus },
+    { id: 1 as const, label: '1 · Alumni', icon: GraduationCap, guard: true },
+    { id: 2 as const, label: '2 · Buka generasi', icon: CalendarPlus, guard: true },
+    { id: 3 as const, label: '3 · Pemimpin', icon: Crown, guard: batchReady },
+    { id: 4 as const, label: '4 · Bawa anggota', icon: Users, guard: batchReady },
+    { id: 5 as const, label: '5 · Assign baru', icon: UserPlus, guard: batchReady },
   ];
-
-  const pickFromPeople = (p: Person) => {
-    setAssignSel((prev) => prev.some((x) => x.id === p.id) ? prev.filter((x) => x.id !== p.id) : [...prev, p]);
-  };
 
   return (
     <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4 space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {steps.map((s) => (
-          <button key={s.id} type="button" onClick={() => setStep(s.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold ${step === s.id ? 'bg-[#181818] text-white' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#5C5850]'}`}>
+          <button key={s.id} type="button" disabled={!s.guard}
+            onClick={() => { if (s.guard) setStep(s.id); }}
+            title={!s.guard ? `Buka generasi ${period} dulu (Langkah 2)` : ''}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold ${
+              step === s.id ? 'bg-[#181818] text-white' : s.guard ? 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#5C5850]' : 'bg-[#FAF9F5] border border-dashed border-[#D9D7D0] text-[#C9C5BC] cursor-not-allowed'
+            }`}>
             <s.icon className="w-3.5 h-3.5" /> {s.label}
           </button>
         ))}
@@ -210,39 +245,16 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
         </label>
       </div>
 
-      {step === 1 && (
-        <div className="space-y-3">
-          <p className="text-[11px] text-[#8C8880]">Tetapkan Mentor/Co-Mentor generasi <b>{period}</b>. Pilih dari direktori agar peran portal ikut sinkron (pindah penuh, tanpa peran ganda). Pemimpin lama yang turun otomatis jadi Mentee di grup ini.</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {houses.map((h) => {
-              const d = leaders[h.groupId] || { mentor: null, comentor: null };
-              return (
-                <div key={h.groupId} className="rounded-2xl border border-[#D9D7D0]/60 p-3 space-y-2">
-                  <p className="text-xs font-bold">{h.name}</p>
-                  <DirectoryPicker label="Mentor baru" value={d.mentor}
-                    onPick={(p) => setLeaders((prev) => ({ ...prev, [h.groupId]: { ...d, mentor: p } }))} />
-                  <button type="button" disabled={busy === `${h.groupId}:MENTOR` || !d.mentor?.id}
-                    onClick={() => void assignLeader(h.groupId, 'MENTOR')}
-                    className="w-full py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40">
-                    {busy === `${h.groupId}:MENTOR` ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Tetapkan Mentor'}
-                  </button>
-                  <DirectoryPicker label="Co-Mentor baru" value={d.comentor}
-                    onPick={(p) => setLeaders((prev) => ({ ...prev, [h.groupId]: { ...d, comentor: p } }))} />
-                  <button type="button" disabled={busy === `${h.groupId}:CO_MENTOR` || !d.comentor?.id}
-                    onClick={() => void assignLeader(h.groupId, 'CO_MENTOR')}
-                    className="w-full py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40">
-                    {busy === `${h.groupId}:CO_MENTOR` ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Tetapkan Co-Mentor'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+      {!batchReady && (
+        <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>Batch periode <b>{period}</b> belum ada (generasi berjalan: <b>{currentBatchPeriod || '—'}</b>). Jalankan <b>Langkah 2 · Buka generasi</b> dulu sebelum menetapkan pemimpin / membawa anggota / assign.</span>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 1 && (
         <div className="space-y-3">
-          <p className="text-[11px] text-[#8C8880]">Tandai alumni (tercatat di generasi berjalan + badge warna). Bulk juga tersedia di <b>Jemaat</b>.</p>
+          <p className="text-[11px] text-[#8C8880]">Tandai alumni generasi berjalan (tercatat + badge warna, akses grup dicabut). Alumni otomatis dilewati saat “Bawa anggota”.</p>
           <input value={peopleQ} onChange={(e) => { setPeopleQ(e.target.value); void searchPeople(e.target.value); }}
             placeholder="Cari nama…" className="w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
           <div className="flex flex-wrap gap-1.5">
@@ -259,24 +271,112 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
           {alumniSel.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-bold text-[#8C8880]">{alumniSel.length} dipilih</span>
-              <button type="button" disabled={busy === 'alumni'} onClick={() => void markStatus('ALUMNI')}
+              <button type="button" disabled={busy === 'alumni'}
+                onClick={() => setPending({
+                  title: `Tandai ${alumniSel.length} orang sebagai ALUMNI?`,
+                  description: 'Roster generasi berjalan jadi ALUMNI + akses grup dicabut + status keanggotaan ALUMNI.',
+                  requireText: 'ALUMNI', tone: 'danger', confirmLabel: 'Tandai Alumni',
+                  run: () => markStatus('ALUMNI'),
+                })}
                 className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold disabled:opacity-40">Tandai Alumni</button>
-              <button type="button" disabled={busy === 'alumni'} onClick={() => void markStatus('ACTIVE')}
+              <button type="button" disabled={busy === 'alumni'}
+                onClick={() => setPending({
+                  title: `Aktifkan kembali ${alumniSel.length} orang?`,
+                  description: 'Status keanggotaan kembali ACTIVE (roster grup tidak otomatis dipulihkan).',
+                  confirmLabel: 'Aktifkan kembali',
+                  run: () => markStatus('ACTIVE'),
+                })}
                 className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-[11px] font-bold disabled:opacity-40">Aktifkan kembali</button>
             </div>
           )}
         </div>
       )}
 
+      {step === 2 && (
+        <div className="space-y-3">
+          <p className="text-[11px] text-[#8C8880]">Buat batch generasi baru untuk 10 rumah (generasi berjalan jadi non-current). Nama rumah di landing tetap.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-[11px] font-semibold flex items-center gap-2">
+              Periode baru
+              <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)}
+                className="px-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-xs" />
+            </label>
+            <label className="flex items-center gap-2 text-[11px]">
+              <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
+              Override (tidak semua rumah “Siap regenerasi”)
+            </label>
+            <button type="button" disabled={busy === 'regen' || !period || currentBatchPeriod === period}
+              onClick={() => setPending({
+                title: `Buka generasi ${period} untuk 10 rumah?`,
+                description: `Batch ${period} dibuat; generasi ${currentBatchPeriod} jadi non-current. Nama pemimpin disalin sementara (ganti di Langkah 3).`,
+                requireText: 'REGENERASI', tone: 'gold', confirmLabel: 'Buka generasi',
+                run: openGeneration,
+              })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#C9A227] text-[#181818] text-[11px] font-bold disabled:opacity-40">
+              {busy === 'regen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Buka generasi berikutnya
+            </button>
+          </div>
+          {currentBatchPeriod === period && (
+            <p className="text-[11px] text-emerald-700">Batch {period} sudah ada (generasi berjalan). Lanjut ke Langkah 3.</p>
+          )}
+        </div>
+      )}
+
       {step === 3 && (
+        <div className="space-y-3">
+          <p className="text-[11px] text-[#8C8880]">Tetapkan Mentor/Co-Mentor generasi <b>{period}</b>. Pilih dari direktori agar peran portal sinkron (tanpa peran ganda). Pemimpin lama otomatis turun jadi <b>Mentee</b> di grup ini.</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {houses.map((h) => {
+              const d = leaders[h.groupId] || { mentor: null, comentor: null };
+              return (
+                <div key={h.groupId} className="rounded-2xl border border-[#D9D7D0]/60 p-3 space-y-2">
+                  <p className="text-xs font-bold">{h.name}</p>
+                  <DirectoryPicker label="Mentor baru" value={d.mentor} disabled={!batchReady}
+                    onPick={(p) => setLeaders((prev) => ({ ...prev, [h.groupId]: { ...d, mentor: p } }))} />
+                  <button type="button" disabled={busy === `${h.groupId}:MENTOR` || !d.mentor?.id || !batchReady}
+                    onClick={() => d.mentor && setPending({
+                      title: `Tetapkan Mentor ${h.name}?`,
+                      description: <>{h.batch?.mentorName && h.batch.mentorName !== 'TBD' ? <><b>{h.batch.mentorName}</b> akan turun jadi <b>Mentee</b>. </> : null}Pemimpin baru: <b>{d.mentor.name}</b>. Peran portal ikut berpindah.</>,
+                      confirmLabel: 'Tetapkan Mentor',
+                      run: () => assignLeader(h.groupId, 'MENTOR', d.mentor as Person, h.name, h.batch?.mentorName || null),
+                    })}
+                    className="w-full py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40">
+                    {busy === `${h.groupId}:MENTOR` ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Tetapkan Mentor'}
+                  </button>
+                  <DirectoryPicker label="Co-Mentor baru" value={d.comentor} disabled={!batchReady}
+                    onPick={(p) => setLeaders((prev) => ({ ...prev, [h.groupId]: { ...d, comentor: p } }))} />
+                  <button type="button" disabled={busy === `${h.groupId}:CO_MENTOR` || !d.comentor?.id || !batchReady}
+                    onClick={() => d.comentor && setPending({
+                      title: `Tetapkan Co-Mentor ${h.name}?`,
+                      description: <>{h.batch?.comentorName ? <><b>{h.batch.comentorName}</b> akan turun jadi <b>Mentee</b>. </> : null}Co-Mentor baru: <b>{d.comentor.name}</b>. Peran portal ikut berpindah.</>,
+                      confirmLabel: 'Tetapkan Co-Mentor',
+                      run: () => assignLeader(h.groupId, 'CO_MENTOR', d.comentor as Person, h.name, h.batch?.comentorName || null),
+                    })}
+                    className="w-full py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40">
+                    {busy === `${h.groupId}:CO_MENTOR` ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Tetapkan Co-Mentor'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
         <div className="space-y-3">
           <p className="text-[11px] text-[#8C8880]">Bawa anggota <b>ACTIVE</b> dari generasi sebelumnya ke <b>{period}</b>. Alumni & yang pindah grup dilewati. Pratinjau dulu (tidak menulis).</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={busy === 'carry-preview'} onClick={() => void runCarry(true)}
+            <button type="button" disabled={busy === 'carry-preview' || !batchReady} onClick={() => void runCarry(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850] disabled:opacity-40">
               {busy === 'carry-preview' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />} Pratinjau
             </button>
-            <button type="button" disabled={busy === 'carry'} onClick={() => void runCarry(false)}
+            <button type="button" disabled={busy === 'carry' || !batchReady}
+              onClick={() => setPending({
+                title: `Bawa anggota aktif ke ${period}?`,
+                description: carry ? <>Akan dibawa <b>{carry.carried}</b> orang · dilewati (pindah) <b>{carry.skippedMoved}</b> · alumni <b>{carry.alumni}</b>.</> : 'Disarankan klik Pratinjau dulu.',
+                requireText: 'BAWA', tone: 'gold', confirmLabel: 'Bawa anggota',
+                run: () => runCarry(false),
+              })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#C9A227] text-[#181818] text-[11px] font-bold disabled:opacity-40">
               {busy === 'carry' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Bawa anggota aktif
             </button>
@@ -314,7 +414,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
         </div>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <div className="space-y-3">
           <p className="text-[11px] text-[#8C8880]">Assign orang (baru) ke rumah untuk generasi <b>{period}</b>.</p>
           <div className="flex flex-wrap gap-2">
@@ -336,7 +436,8 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
             {people.map((p) => {
               const sel = assignSel.some((x) => x.id === p.id);
               return (
-                <button key={p.id} type="button" onClick={() => pickFromPeople(p)}
+                <button key={p.id} type="button"
+                  onClick={() => setAssignSel((prev) => sel ? prev.filter((x) => x.id !== p.id) : [...prev, p])}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${sel ? 'bg-[#FF416C] text-white border-[#FF416C]' : 'bg-white border-[#D9D7D0] text-[#5C5850]'}`}>
                   {p.name}
                 </button>
@@ -344,12 +445,32 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
             })}
           </div>
           {assignSel.length > 0 && (
-            <button type="button" disabled={busy === 'assign' || !assignGroupId} onClick={() => void runAssign()}
+            <button type="button" disabled={busy === 'assign' || !assignGroupId || !batchReady}
+              onClick={() => setPending({
+                title: `Assign ${assignSel.length} orang ke ${houses.find((h) => h.groupId === assignGroupId)?.name || 'rumah'}?`,
+                description: <>Role: <b>{assignRole}</b> · periode <b>{period}</b>. Peran lama grup lain orang ini akan dinonaktifkan (tanpa peran ganda).</>,
+                confirmLabel: 'Assign',
+                run: runAssign,
+              })}
               className="px-3 py-1.5 rounded-xl bg-[#FF416C] text-white text-[11px] font-bold disabled:opacity-40">
               {busy === 'assign' ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : `Assign ${assignSel.length} orang`}
             </button>
           )}
         </div>
+      )}
+
+      {pending && (
+        <ConfirmDialog
+          open
+          title={pending.title}
+          description={pending.description}
+          confirmLabel={pending.confirmLabel}
+          tone={pending.tone}
+          requireText={pending.requireText}
+          busy={busy !== null}
+          onConfirm={() => void pending.run()}
+          onClose={() => { if (busy === null) setPending(null); }}
+        />
       )}
     </div>
   );

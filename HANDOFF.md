@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Restore prod ke generasi awal Juni 2026 (16 Sep 2026)
+## Current — Regenerasi: guard + konfirmasi + wizard 5 langkah + demo SS/video (17 Sep 2026)
+
+**Goal:** Cegah kesalahan urutan (mis. tetapkan pemimpin tanpa batch), wajib konfirmasi sebelum eksekusi, dan sediakan demo alur.
+
+**Done:**
+- **Revert** aksi “Tetapkan Mentor” Jurry (Agape @2026-09): hapus RoleAssignment/UserRole/GroupMember/MentorTransition-nya + pulihkan flag → Agape hanya **Prichel** MENTOR; 80 anggota @2026-06; `mentor_transitions=0`. Skrip `server/_revert-jurry-mentor.cjs` (backup dulu).
+- **Server guard** (`server/routes/beyonders-leaders.mjs`): `assign-leader`/`carry-members`/`assign-members` balas **409** bila batch periode belum ada; **idempoten** (pemimpin sama → no-op); **pemimpin lama otomatis turun jadi MENTEE** (perbaiki bug dua mentor aktif); dukungan `dryRun` (pratinjau dampak) di assign-leader.
+- **UI** (`RegenerationWizard.tsx`): **urutan 5 langkah** — `1 Alumni → 2 Buka generasi → 3 Pemimpin → 4 Bawa anggota → 5 Assign baru`; langkah 3–5 **disabled** sampai batch periode ada (banner guard); **ConfirmDialog** (`src/components/ui/ConfirmDialog.tsx`) untuk semua aksi + **type‑to‑confirm** (`REGENERASI`/`ALUMNI`/`BAWA`). Kartu “Buka generasi” lama dihapus (kini Langkah 2).
+- **Demo** (SS + video) di `docs/demo/regenerasi/` (8 PNG + `regeneration.webm`) via `playwright.demo-desktop.config.ts` + `tests/demo/regeneration.spec.ts` (localhost:8787, DB staging).
+- Verifikasi: lint bersih, **327 test** hijau, build OK. Staging direset ke Gen0 setelah rekaman.
+
+### Next
+1. Deploy `main`; uji di prod: buka generasi → tetapkan pemimpin (konfirmasi) → bawa anggota (pratinjau) → assign.
+2. Catatan: “Undo aksi terakhir” belum dibuat — pemulihan via `backups/` + `MentorTransition`.
+
+### Commands
+```
+npx dotenv -e .env.production -- node server/_revert-jurry-mentor.cjs
+npx playwright test --config=playwright.demo-desktop.config.ts
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Restore prod ke generasi awal Juni 2026 (16 Sep 2026)
 
 **Goal:** Kembalikan 10 rumah ke Gen0 `2026-06` setelah uji coba regenerasi membuat gen1 `2026-09` & gen2 `2026-10` (gen2 aktif).
 
