@@ -1,5 +1,5 @@
 {
-  "syncedAt": "2026-09-17T05:59:13.225Z",
+  "syncedAt": "2026-09-17T18:01:14.758Z",
   "rootFolderId": "1WQLBGFw2FfaYTZizP8tLFfHlMWO66b6I",
   "slots": {
     "landing": {
@@ -19,8 +19,8 @@
       "bannerDefault": "/visuals/warta/01-banner-default.jpg?v=1788264149582.1287"
     },
     "kegiatan": {
-      "bannerDefault": "/visuals/kegiatan/01-banner-default.jpg?v=1788264155623.1187",
-      "bakuTau": "/visuals/kegiatan/baku-tau-4.jpg?v=1788264161503.635"
+      "bannerDefault": "/visuals/kegiatan/01-banner-default.jpg?v=1789668072711.0222",
+      "bakuTau": "/visuals/kegiatan/baku-tau-4.jpg?v=1789668074754.0774"
     },
     "benzar": {
       "hero": "/visuals/benzarpreneurship/01-hero.jpg?v=1788264163683.1453",
