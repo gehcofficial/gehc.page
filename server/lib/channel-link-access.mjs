@@ -11,7 +11,26 @@ export const DIVISION_CATALOG = [
   { id: 'BENZARPR', name: 'Benzarpreneurship' },
 ];
 
+/** Badan kepemimpinan (kanal permanen). */
+export const LEADERSHIP_CATALOG = [
+  { id: 'KOMISI', name: 'Komisi' },
+  { id: 'TIMKERJA', name: 'Tim Kerja (BOD)' },
+  { id: 'BPMJ', name: 'BPMJ' },
+];
+
+/** Kategorial BIPRA. */
+export const BIPRA_CATALOG = [
+  { id: 'BAPAK', name: 'Pria / Kaum Bapa (P/KB)' },
+  { id: 'IBU', name: 'Wanita / Kaum Ibu (W/KI)' },
+  { id: 'PEMUDA', name: 'Pemuda' },
+  { id: 'REMAJA', name: 'Pra Remaja' },
+  { id: 'ANAK', name: 'Anak' },
+];
+
 const DIVISION_IDS = new Set(DIVISION_CATALOG.map((d) => d.id));
+
+/** Kanal yang hanya boleh ditulis Komisi/Superadmin. */
+const KOMISI_ONLY_KINDS = new Set(['EVENT', 'KOLOM', 'LEADERSHIP', 'BIPRA']);
 
 export function isChannelWriterSync(authUser, isBod = false) {
   const r = globalRoles(authUser);
@@ -23,7 +42,7 @@ export function canWriteKindSync(authUser, kind, isBod = false) {
   if (!isChannelWriterSync(authUser, isBod)) return false;
   const r = globalRoles(authUser);
   const komisi = r.includes('SUPERADMIN') || r.includes('KOMISI');
-  if (kind === 'EVENT' || kind === 'KOLOM') return komisi;
+  if (KOMISI_ONLY_KINDS.has(String(kind || '').toUpperCase())) return komisi;
   return true;
 }
 

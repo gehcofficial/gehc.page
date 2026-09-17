@@ -4,7 +4,9 @@ import { requireRole } from '../auth.mjs';
 import { isValidWhatsAppUrl } from '../lib/baku-tau.mjs';
 import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import {
+  BIPRA_CATALOG,
   DIVISION_CATALOG,
+  LEADERSHIP_CATALOG,
   isChannelWriter,
   canWriteKind,
   scopedGroupIds,
@@ -12,13 +14,15 @@ import {
   isBroadChannelViewer,
 } from '../lib/channel-link-access.mjs';
 
-const KINDS = ['EVENT', 'GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'];
+const KINDS = ['EVENT', 'GROUP', 'DIVISION', 'LEADERSHIP', 'BIPRA', 'KOLOM', 'RECREATIONAL'];
 const clId = () => `cl-${crypto.randomUUID()}`;
 
 const RACI = {
   EVENT: { responsible: 'Koinonia — Hubungan & Komunikasi', accountable: 'Ketua Tim Kerja', writeVia: 'Program & Event → Edit' },
   GROUP: { responsible: 'Tim Kerja BOD', accountable: 'Komisi' },
   DIVISION: { responsible: 'Tim Kerja BOD', accountable: 'Ketua Tim Kerja' },
+  LEADERSHIP: { responsible: 'Komisi Sekretaris', accountable: 'Komisi' },
+  BIPRA: { responsible: 'Komisi Sekretaris', accountable: 'Komisi' },
   KOLOM: { responsible: 'Komisi Sekretaris', accountable: 'Komisi (BPMJ diinformasikan)' },
   RECREATIONAL: { responsible: 'Tim Kerja BOD', accountable: 'Komisi' },
 };
@@ -28,6 +32,8 @@ function writeFlags(authUser) {
   return {
     EVENT: false,
     KOLOM: komisi,
+    LEADERSHIP: komisi,
+    BIPRA: komisi,
     RECREATIONAL: true,
     GROUP: true,
     DIVISION: true,
@@ -138,6 +144,8 @@ export function registerChannelLinkRoutes(app, { wrap }) {
           events,
           groups,
           divisions: DIVISION_CATALOG,
+          leadership: LEADERSHIP_CATALOG,
+          bipra: BIPRA_CATALOG,
           kolom,
           recreational,
         },

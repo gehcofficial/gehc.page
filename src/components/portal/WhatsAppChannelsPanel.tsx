@@ -4,7 +4,7 @@ import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 
-type Kind = 'EVENT' | 'GROUP' | 'DIVISION' | 'KOLOM' | 'RECREATIONAL';
+type Kind = 'EVENT' | 'GROUP' | 'DIVISION' | 'LEADERSHIP' | 'BIPRA' | 'KOLOM' | 'RECREATIONAL';
 
 type ChannelLink = {
   id: string;
@@ -15,10 +15,14 @@ type ChannelLink = {
   updatedAt?: string | null;
 };
 
+type CatalogEntry = { id: string; name: string };
+
 type Catalog = {
   events: Array<{ id: string; slug: string; name: string; status: string }>;
   groups: Array<{ id: string; name: string }>;
-  divisions: Array<{ id: string; name: string }>;
+  divisions: CatalogEntry[];
+  leadership: CatalogEntry[];
+  bipra: CatalogEntry[];
   kolom: Array<{ id: string; number: number; name: string }>;
   recreational: Array<{ id: string; name: string; kind: string }>;
 };
@@ -28,12 +32,15 @@ type Raci = Record<Kind, { responsible: string; accountable: string }>;
 const KIND_LABEL: Record<Kind, string> = {
   EVENT: 'Event (sementara)',
   GROUP: 'Beyonders (permanen)',
-  DIVISION: 'Staf divisi (permanen)',
-  KOLOM: 'Kolom pemuda (permanen)',
+  DIVISION: 'Divisi pelayanan (permanen)',
+  LEADERSHIP: 'Kepemimpinan (permanen)',
+  BIPRA: 'BIPRA (permanen)',
+  KOLOM: 'Wilayah & Kolom (permanen)',
   RECREATIONAL: 'Rekreasi (permanen)',
 };
 
-const KINDS: Kind[] = ['EVENT', 'GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'];
+const KINDS: Kind[] = ['EVENT', 'GROUP', 'DIVISION', 'LEADERSHIP', 'BIPRA', 'KOLOM', 'RECREATIONAL'];
+const PERMANENT_KINDS: Kind[] = ['GROUP', 'DIVISION', 'LEADERSHIP', 'BIPRA', 'KOLOM', 'RECREATIONAL'];
 
 export const WhatsAppChannelsPanel: React.FC = () => {
   const { t } = useLang();
@@ -43,17 +50,27 @@ export const WhatsAppChannelsPanel: React.FC = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [links, setLinks] = useState<ChannelLink[]>([]);
-  const [catalog, setCatalog] = useState<Catalog>({ events: [], groups: [], divisions: [], kolom: [], recreational: [] });
+  const [catalog, setCatalog] = useState<Catalog>({
+    events: [],
+    groups: [],
+    divisions: [],
+    leadership: [],
+    bipra: [],
+    kolom: [],
+    recreational: [],
+  });
   const [canWrite, setCanWrite] = useState<Partial<Record<Kind, boolean>>>({});
   const [raci, setRaci] = useState<Raci | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** Rekreasi ditampilkan satu per satu (dropdown) — default: yang sudah punya tautan. */
+  const [recreationalId, setRecreationalId] = useState('');
 
   const load = useCallback(async () => {
     const r = await fetch('/api/channel-links', { credentials: 'include' });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     setLinks(d.links || []);
-    setCatalog(d.catalog || { events: [], groups: [], divisions: [], kolom: [], recreational: [] });
+    setCatalog(d.catalog || { events: [], groups: [], divisions: [], leadership: [], bipra: [], kolom: [], recreational: [] });
     setCanWrite(d.canWrite || {});
     setRaci(d.raci || null);
   }, []);
@@ -63,13 +80,28 @@ export const WhatsAppChannelsPanel: React.FC = () => {
     load().catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, [load]);
 
+  // Rekreasi: pilih default (yang sudah ada tautannya) setelah katalog termuat.
+  useEffect(() => {
+    if (kind !== 'RECREATIONAL') return;
+    const recs = catalog.recreational;
+    if (!recs.length) return;
+    setRecreationalId((prev) => {
+      if (prev && recs.some((r) => r.id === prev)) return prev;
+      const withLink = recs.find((r) => links.some((l) => l.kind === 'RECREATIONAL' && l.refId === r.id));
+      return (withLink || recs[0]).id;
+    });
+  }, [kind, catalog.recreational, links]);
+
   const rows = useMemo(() => {
     if (kind === 'EVENT') return catalog.events.map((ev) => ({ id: ev.id, label: ev.name, hint: ev.status }));
     if (kind === 'GROUP') return catalog.groups.map((g) => ({ id: g.id, label: g.name, hint: 'Beyonders' }));
-    if (kind === 'DIVISION') return catalog.divisions.map((d) => ({ id: d.id, label: d.name, hint: d.id }));
+    if (kind === 'DIVISION') return catalog.divisions.map((d) => ({ id: d.id, label: d.name, hint: 'Divisi' }));
+    if (kind === 'LEADERSHIP') return catalog.leadership.map((d) => ({ id: d.id, label: d.name, hint: 'Kepemimpinan' }));
+    if (kind === 'BIPRA') return catalog.bipra.map((d) => ({ id: d.id, label: d.name, hint: 'Kategorial' }));
     if (kind === 'KOLOM') return catalog.kolom.map((k) => ({ id: k.id, label: k.name, hint: `Kolom ${k.number}` }));
-    return catalog.recreational.map((r) => ({ id: r.id, label: r.name, hint: r.kind }));
-  }, [kind, catalog]);
+    const rec = catalog.recreational.find((r) => r.id === recreationalId);
+    return rec ? [{ id: rec.id, label: rec.name, hint: rec.kind }] : [];
+  }, [kind, catalog, recreationalId]);
 
   const linkByRef = useMemo(() => {
     const m = new Map<string, ChannelLink>();
@@ -151,7 +183,7 @@ export const WhatsAppChannelsPanel: React.FC = () => {
       )}
 
       <ScrollTabBar active={kind}>
-        {(layer === 'event' ? (['EVENT'] as Kind[]) : (['GROUP', 'DIVISION', 'KOLOM', 'RECREATIONAL'] as Kind[])).map((k) => (
+        {(layer === 'event' ? (['EVENT'] as Kind[]) : PERMANENT_KINDS).map((k) => (
           <button
             key={k}
             type="button"
@@ -162,10 +194,30 @@ export const WhatsAppChannelsPanel: React.FC = () => {
               kind === k ? 'bg-white text-[#1B1B1B] shadow-sm' : 'text-[#8C8880]'
             }`}
           >
-            {k === 'EVENT' ? t.portal.wa.kindEvent : k === 'GROUP' ? t.portal.wa.kindGroup : k === 'DIVISION' ? t.portal.wa.kindDivision : k === 'KOLOM' ? t.portal.wa.kindKolom : t.portal.wa.kindRecreational}
+            {k === 'EVENT' ? t.portal.wa.kindEvent : k === 'GROUP' ? t.portal.wa.kindGroup : k === 'DIVISION' ? t.portal.wa.kindDivision : k === 'LEADERSHIP' ? t.portal.wa.kindLeadership : k === 'BIPRA' ? t.portal.wa.kindBipra : k === 'KOLOM' ? t.portal.wa.kindKolom : t.portal.wa.kindRecreational}
           </button>
         ))}
       </ScrollTabBar>
+
+      {kind === 'RECREATIONAL' && catalog.recreational.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-[#8C8880]">Pilih minat</label>
+          <select
+            value={recreationalId}
+            onChange={(e) => setRecreationalId(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold"
+          >
+            {catalog.recreational.map((r) => (
+              <option key={r.id} value={r.id}>
+                {links.some((l) => l.kind === 'RECREATIONAL' && l.refId === r.id) ? '✓ ' : ''}{r.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-[10px] text-[#8C8880]">
+            Hanya minat yang dipilih yang ditampilkan — bukan semua sekaligus.
+          </span>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <p className="text-sm text-[#8C8880]">Memuat kanal…</p>}
@@ -211,7 +263,9 @@ export const WhatsAppChannelsPanel: React.FC = () => {
           );
         })}
         {!loading && rows.length === 0 && (
-          <li className="text-sm text-[#8C8880]">Tidak ada kanal untuk filter ini.</li>
+          <li className="text-sm text-[#8C8880]">
+            {kind === 'RECREATIONAL' ? 'Pilih minat dulu untuk melihat kanalnya.' : 'Tidak ada kanal untuk filter ini.'}
+          </li>
         )}
       </ul>
     </div>

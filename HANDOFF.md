@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Portal Doa: konteks bertanggal, Doa Minggu, riwayat doa, mode privasi (17 Sep 2026)
+## Current — Kanal WhatsApp: Kepemimpinan, BIPRA, Wilayah & Kolom, Rekreasi dropdown (18 Sep 2026)
+
+**Goal:** Rapikan layer Kanal WhatsApp: kepemimpinan (Komisi/Tim Kerja BOD/BPMJ) terpisah, BIPRA ada, Kolom tidak lagi disebut “pemuda”, dan rekreasi tidak menampilkan semua grup sekaligus.
+
+**Done:**
+- **Jenis kanal baru**: `LEADERSHIP`, `BIPRA` (kolom `channel_links.kind` = VARCHAR → **tanpa migrasi DB**). `KINDS` di `server/routes/channel-links.mjs` + `catalog.leadership`/`catalog.bipra`.
+- **Katalog** (`server/lib/channel-link-access.mjs`): `LEADERSHIP_CATALOG` = Komisi · Tim Kerja (BOD) · BPMJ; `BIPRA_CATALOG` = P/KB · W/KI · Pemuda · Pra Remaja · Anak. `DIVISION_CATALOG` (6 divisi pelayanan) **tetap** agar tautan divisi di DivisionWorkspacePanel tidak hilang.
+- **Hak tulis**: `LEADERSHIP` & `BIPRA` masuk `KOMISI_ONLY_KINDS` (hanya Komisi/Superadmin — BPMJ & BOD tidak boleh). `EVENT`/`KOLOM` tetap Komisi-only; GROUP/DIVISION/RECREATIONAL tidak berubah.
+- **UI** `WhatsAppChannelsPanel.tsx`: tab permanen kini **Beyonders · Divisi pelayanan · Kepemimpinan · BIPRA · Wilayah & Kolom · Rekreasi**; label `kindKolom` → “Wilayah & Kolom (permanen)”, `kindDivision` → “Divisi pelayanan (permanen)”; **Rekreasi pakai dropdown** (default = minat yang sudah punya tautan, opsi bertanda ✓) sehingga hanya satu kanal tampil.
+- i18n ID/EN (`wa.kindLeadership`, `wa.kindBipra`, purpose/steps), `portal-feature-catalog.mjs` langkah panel, `portal-search-index.ts` kata kunci (bipra, kepemimpinan, komisi, tim kerja, bpmj, kolom, rekreasi).
+- **Verifikasi**: lint bersih, **365 test** hijau (3 baru di `channel-link-access.test.ts`), build OK; smoke API + browser lokal (tab Kepemimpinan = 3 baris, BIPRA = 5 baris, dropdown Rekreasi 37 minat → hanya 1 tampil, PUT/DELETE `BIPRA/PEMUDA` sukses, URL invalid ditolak 400). Tidak ada perubahan skema, jadi tidak ada migrasi prod.
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+2. Isi tautan WA Komisi, Tim Kerja (BOD), BPMJ, dan BIPRA di prod (hanya Komisi/Superadmin).
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Portal Doa: konteks bertanggal, Doa Minggu, riwayat doa, mode privasi (17 Sep 2026)
 
 **Goal:** Catat konteks doa lengkap dengan **tanggal kejadian** (boleh mundur bila baru diketahui), tampilkan **kapan & terakhir didoakan**, sediakan **daftar Doa Minggu** untuk pendoa, dan mode **sembunyi detail + salin/cetak** (juga untuk HUT).
 

@@ -50,7 +50,7 @@ const KEYWORDS: Record<string, string[]> = {
   kegiatan: ['kalender', 'agenda', 'ibadah', 'jadwal', 'kegiatan'],
   events: ['event', 'program', 'agenda', 'penatalayan', 'divisi', 'rundown', 'akun'],
   divisions: ['divisi', 'liturgia', 'didaskalia', 'koinonia', 'diakonia', 'marturia', 'rhb', 'drive', 'material'],
-  'wa-channels': ['whatsapp', 'wa', 'grup', 'link'],
+  'wa-channels': ['whatsapp', 'wa', 'grup', 'link', 'bipra', 'kepemimpinan', 'komisi', 'tim kerja', 'bpmj', 'kolom', 'rekreasi'],
   people: ['akun', 'undangan', 'invite', 'provision', 'reset', 'password', 'akses'],
   onboarding: ['newcomer', 'pipeline', 'waiting', 'pending', 'role'],
   monitoring: ['mentee', 'kelompok', 'monitoring', 'absensi'],

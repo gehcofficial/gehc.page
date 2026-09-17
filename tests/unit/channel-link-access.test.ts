@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canWriteKindSync, isChannelWriterSync } from '../../server/lib/channel-link-access.mjs';
+import {
+  BIPRA_CATALOG,
+  LEADERSHIP_CATALOG,
+  canWriteKindSync,
+  isChannelWriterSync,
+} from '../../server/lib/channel-link-access.mjs';
 
 const user = (...roles: string[]) => ({ roles: roles.map((role) => ({ role })) });
 
@@ -31,5 +36,22 @@ describe('channel-link write RBAC', () => {
     expect(canWriteKindSync(user('KOMISI'), 'EVENT')).toBe(true);
     expect(canWriteKindSync(user('COMMITTEE'), 'KOLOM', true)).toBe(false);
     expect(canWriteKindSync(user('KOMISI'), 'KOLOM')).toBe(true);
+  });
+
+  it('kepemimpinan & BIPRA hanya Komisi/Admin (termasuk BPMJ tidak boleh)', () => {
+    for (const kind of ['LEADERSHIP', 'BIPRA']) {
+      expect(canWriteKindSync(user('KOMISI'), kind)).toBe(true);
+      expect(canWriteKindSync(user('SUPERADMIN'), kind)).toBe(true);
+      expect(canWriteKindSync(user('BPMJ'), kind)).toBe(false);
+      expect(canWriteKindSync(user('COMMITTEE'), kind, true)).toBe(false);
+    }
+  });
+
+  it('katalog kepemimpinan: Komisi, Tim Kerja (BOD), BPMJ', () => {
+    expect(LEADERSHIP_CATALOG.map((e) => e.id)).toEqual(['KOMISI', 'TIMKERJA', 'BPMJ']);
+  });
+
+  it('katalog BIPRA: lima kategorial', () => {
+    expect(BIPRA_CATALOG.map((e) => e.id)).toEqual(['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK']);
   });
 });
