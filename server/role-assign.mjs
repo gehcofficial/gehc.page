@@ -250,23 +250,39 @@ export async function assignRoleToUser(prisma, {
 
   try {
     const roleLabel = position || role;
+    // Untuk role Beyonders: sebut nama kelompok + arahkan gabung grup WhatsApp.
+    let groupName = null;
+    let waUrl = null;
+    if (groupId && ['MENTOR', 'CO_MENTOR', 'MENTEE'].includes(role)) {
+      const g = await prisma.group.findUnique({ where: { id: groupId }, select: { name: true } }).catch(() => null);
+      groupName = g?.name || null;
+      const link = await prisma.channelLink.findUnique({
+        where: { kind_refId: { kind: 'GROUP', refId: groupId } },
+        select: { url: true },
+      }).catch(() => null);
+      waUrl = link?.url || null;
+    }
+    const title = groupName ? `Selamat datang di kelompok ${groupName}` : 'Peran baru ditugaskan';
+    const message = groupName
+      ? `Shalom! Kamu masuk kelompok ${groupName}. ${waUrl ? 'Gabung grup WhatsApp-nya lewat portal.' : 'Buka portal untuk info kelompok.'}`
+      : `Kamu mendapat peran ${roleLabel}. Buka portal untuk melihat konteks peran aktif.`;
     await prisma.notification.create({
       data: {
         id: genId64(),
         type: 'ROLE_ASSIGNED',
         memberId: userId,
         groupId: groupId || null,
-        title: 'Peran baru ditugaskan',
-        message: `Kamu mendapat peran ${roleLabel}. Buka portal untuk melihat konteks peran aktif.`,
-        payload: { role, position, division, subdivision, groupId, assignedBy, href: '#/account/roles' },
+        title,
+        message,
+        payload: { role, position, division, subdivision, groupId, assignedBy, href: '#/account/roles', groupName, waUrl },
         category: 'tugas',
         status: 'OPEN',
       },
     });
     await pushToUsers(prisma, [userId], {
-      title: 'Peran baru ditugaskan',
-      message: `Kamu mendapat peran ${roleLabel}.`,
-      href: '#/portal/account/roles',
+      title,
+      message,
+      href: '#/portal',
       category: 'tugas',
       priority: 'TASK',
     }).catch(() => {});

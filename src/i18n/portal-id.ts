@@ -312,8 +312,20 @@ export const portalId: typeof portalEn = {
   eventInfo: {
     title: 'Info Event',
   },
+  welcome: {
+    tag: 'Selamat datang',
+    title: 'Shalom, {name}!',
+    subtitle: 'Damai di hati. Kamu bergabung di kelompok {group} 🎉',
+    mentorTpl: 'Mentor: {mentor}',
+    comentorTpl: 'Co-Mentor: {comentor}',
+    joinWa: 'Gabung Grup WhatsApp {group}',
+    noWa: 'Link grup WhatsApp belum tersedia — hubungi {mentor}.',
+    viewGroup: 'Lihat kelompok saya',
+    dismiss: 'Tutup',
+  },
   dashboard: {
     title: 'Dashboard & Ringkasan',
+    greeting: 'Shalom, Damai Di Hati ({name})',
     subtitleAlumni: 'Ringkasan read-only — terima kasih atas pelayananmu.',
     subtitleMentor: 'Dashboard kelompok binaan.',
     subtitleMentee: 'Ringkasan kelompokmu.',

@@ -14,7 +14,9 @@ import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortal
 import { useLang } from '../../context/LangContext';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { BirthdayWishCard } from './BirthdayWishCard';
+import { MenteeWelcomeCard } from './MenteeWelcomeCard';
 import { displayAvatar } from '../../lib/avatar';
+import { fmt } from '../../lib/portal-i18n';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const {
@@ -110,6 +112,8 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
 
   return (
     <div className="space-y-8 animate-fade-in">
+      <MenteeWelcomeCard onNavigate={onNavigate} />
+
       <div className="bg-gradient-to-r from-[#181818] via-[#222222] to-[#181818] rounded-[32px] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-white/10">
         <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-[#FF416C]/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
 
@@ -122,7 +126,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
               <span className="text-xs text-white/60">• {portalSubtitle}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Selamat Melayani, {currentUser.name}!
+              {fmt(t.portal.dashboard.greeting, { name: currentUser.name })}
             </h2>
             <p className="text-xs sm:text-sm text-white/70 max-w-xl">
               Hak akses aktif Anda adalah <strong className="text-[#FF416C] uppercase">{currentRole}</strong>.

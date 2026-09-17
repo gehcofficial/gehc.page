@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — WA mentee + Portal Doa per kelompok (17 Sep 2026)
+## Current — Sapaan baru + kartu selamat datang & join WA kelompok (17 Sep 2026)
+
+**Goal:** Sapaan seragam “Shalom, Damai Di Hati (nama)”; anggota yang baru masuk kelompok diarahkan gabung grup WhatsApp-nya.
+
+**Done:**
+- **Sapaan** (`PortalDashboard.tsx`): ganti “Selamat Melayani, {nama}!” → i18n `portal.dashboard.greeting` — ID `Shalom, Damai Di Hati ({name})`, EN `Shalom, peace in your heart ({name})` (nama lengkap).
+- **Kartu** baru `src/components/portal/MenteeWelcomeCard.tsx` di atas Dashboard: sapaan + “Selamat datang di kelompok {Grup}” + nama Mentor/Co-Mentor + tombol **Gabung Grup WhatsApp {Grup}** (link `kind GROUP` via `/api/channel-links/scoped`; fallback bila belum ada) + **Lihat kelompok saya**. Tampil untuk **MENTEE/CO_MENTOR/MENTOR** yang punya grup; **dismiss per user+grup** (localStorage) → pindah grup muncul lagi. Helper `src/lib/welcome.ts`.
+- **Notifikasi penugasan** (`server/role-assign.mjs`): bila role Beyonders + grup → judul `Selamat datang di kelompok {Grup}` + pesan arahkan gabung WA (bila link ada); payload membawa `groupName`/`waUrl`.
+- i18n `portal.welcome.*` (ID+EN). Verifikasi: lint bersih, **339 test** hijau (4 baru `tests/unit/welcome.test.ts`), build OK.
+
+### Next
+1. Deploy; uji: assign mentee ke grup → notifikasi menyebut grup; Dashboard mentee menampilkan kartu + tombol WA; ganti grup → kartu muncul lagi.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — WA mentee + Portal Doa per kelompok (17 Sep 2026)
 
 **Goal:** Mentor bisa chat WhatsApp ke mentee dari portal; catatan Portal Doa yang di‑tag ke roster grup muncul di portal kelompok itu.
 

@@ -318,8 +318,20 @@ export const portalEn = {
   eventInfo: {
     title: 'Event Info',
   },
+  welcome: {
+    tag: 'Welcome',
+    title: 'Shalom, {name}!',
+    subtitle: 'Peace in your heart. You have joined the {group} group 🎉',
+    mentorTpl: 'Mentor: {mentor}',
+    comentorTpl: 'Co-Mentor: {comentor}',
+    joinWa: 'Join the {group} WhatsApp group',
+    noWa: 'WhatsApp group link is not available yet — contact {mentor}.',
+    viewGroup: 'View my group',
+    dismiss: 'Dismiss',
+  },
   dashboard: {
     title: 'Dashboard & Summary',
+    greeting: 'Shalom, peace in your heart ({name})',
     subtitleAlumni: 'Read-only summary — thank you for serving.',
     subtitleMentor: 'Dashboard for your mentoring group.',
     subtitleMentee: 'A snapshot of your group.',
