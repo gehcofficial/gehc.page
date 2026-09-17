@@ -23,6 +23,8 @@ export const PORTAL_ACTIONS: PortalActionDef[] = [
   { id: 'write-kesaksian', page: 'kesaksian', requiredRoles: ['MENTEE'] },
   { id: 'request-prayer', page: 'pastoral-care' },
   { id: 'open-event-info', page: 'event-info' },
+  { id: 'send-announcement', page: 'announcements', requiredRoles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ', 'MENTOR', 'CO_MENTOR'] },
+  { id: 'broadcast-wa', page: 'groups-monitoring', requiredRoles: ['SUPERADMIN', 'KOMISI', 'MENTOR', 'CO_MENTOR'] },
 ];
 
 export const PORTAL_ACTION_IDS = PORTAL_ACTIONS.map((a) => a.id);

@@ -1251,10 +1251,10 @@ export const ManageGroupsMonitoring: React.FC = () => {
                 <button
                   onClick={() => setShowBroadcast(true)}
                   className="px-3.5 py-2 rounded-full border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
-                  title="Broadcast WhatsApp ke para mentee"
+                  title="Kirim WhatsApp ke nomor mentee (bukan notifikasi aplikasi)"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Broadcast WA</span>
+                  <span>Broadcast WA (nomor)</span>
                 </button>
               )}
               {canWriteMonitoring && (
@@ -1387,6 +1387,9 @@ export const ManageGroupsMonitoring: React.FC = () => {
                   <MessageCircle className="w-4 h-4 text-emerald-600" /> Broadcast WA — {activeGroup?.name}
                 </h3>
                 <p className="text-[11px] text-[#8C8880] mt-0.5">Nomor mentee kelompok ini. Salin/unduh lalu kirim dari WhatsApp.</p>
+                <p className="text-[10px] text-[#8C8880] mt-1">
+                  Untuk <b>notifikasi aplikasi</b> (lonceng + push), buka panel <b>Pengumuman</b> di sidebar.
+                </p>
               </div>
               <button onClick={() => setShowBroadcast(false)} className="w-7 h-7 rounded-full bg-white hover:bg-gray-100 border border-[#D9D7D0] flex items-center justify-center">
                 <X className="w-3.5 h-3.5" />

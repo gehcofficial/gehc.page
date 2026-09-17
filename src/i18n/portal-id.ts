@@ -105,6 +105,16 @@ export const portalId: typeof portalEn = {
         purpose: 'Lihat kartu pendaftaran, QR daftar ulang, lokasi, dan grup WhatsApp event.',
         steps: ['Buka Info Event.', 'Pilih event/tanggal bila ada.', 'Tunjukkan QR di hari H.'],
       },
+      'send-announcement': {
+        title: 'Kirim pengumuman (notifikasi)',
+        purpose: 'Kirim notifikasi aplikasi (lonceng + push) ke publik, peran, divisi, kelompok, atau orang tertentu.',
+        steps: ['Buka panel Pengumuman.', 'Tulis judul & pesan, pilih kategori & audiens.', 'Kirim sekarang atau jadwalkan.'],
+      },
+      'broadcast-wa': {
+        title: 'Broadcast WhatsApp ke mentee',
+        purpose: 'Ambil nomor WhatsApp mentee kelompok untuk di-chat/disalin — bukan notifikasi aplikasi.',
+        steps: ['Buka Monitoring Kelompok (Binaan).', 'Tab Roster → tombol "Broadcast WA (nomor)".', 'Salin semua nomor, unduh CSV, atau chat per orang.'],
+      },
     },
   },
   pager: {

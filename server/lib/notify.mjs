@@ -29,7 +29,7 @@ const CAP_PIC = {
 };
 const CAP_MENTOR = {
   audiences: ['GROUP', 'USER'],
-  categories: ['penatalayan', 'pengingat', 'tugas'],
+  categories: ['announcement', 'penatalayan', 'pengingat', 'tugas'],
 };
 
 /**

@@ -10,10 +10,10 @@ describe('senderCapabilities', () => {
     expect(caps.categories).toEqual(expect.arrayContaining([...NOTIFY_CATEGORIES]));
   });
 
-  it('Mentor hanya ke kelompok/user, tanpa kategori pengumuman', () => {
+  it('Mentor hanya ke kelompok/user, boleh pengumuman ke kelompoknya', () => {
     const caps = senderCapabilities(user('MENTOR'));
     expect(caps.audiences).toEqual(['GROUP', 'USER']);
-    expect(caps.categories).not.toContain('announcement');
+    expect(caps.categories).toContain('announcement');
     expect(caps.categories).toContain('penatalayan');
   });
 

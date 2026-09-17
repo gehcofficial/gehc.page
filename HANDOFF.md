@@ -10,6 +10,7 @@
 - **UI Monitoring** (`ManageGroupsMonitoring.tsx`): tombol **WhatsApp** per anggota di tab **Roster** & **Absensi** (via prop `waHrefFor` di `AttendancePanel`), pesan otomatis; **Broadcast WA** (modal: salin semua nomor, unduh CSV, buka `wa.me` per orang). Nomor hanya tampil untuk mentor grup/Komisi/SA.
 - **Portal Doa per kelompok** (`server/routes/pastoral-care.mjs`): `GET /api/pastoral-care?groupId=` (filter subjek anggota grup; gate mentor/Komisi/Liturgia/Diakonia) & `/api/pastoral-care/people?q=&groupId=` (cari dari roster); POST mengirim **notifikasi privat ke mentor grup** (kategori `pengingat`, tanpa detail).
 - **UI Doa Kelompok**: tab **“Doa Kelompok”** + **section di Dashboard kelompok** (`GroupPrayerNotes`), semua jenis catatan + tombol Selesai. `PastoralCareBoard` dapat **filter grup** (juga memfilter pencarian subjek).
+- **Kejelasan & discoverability** (17 Sep): tombol **“Broadcast WA (nomor)”** + catatan “bukan notifikasi”; panel **Pengumuman** kini juga untuk **MENTOR/CO_MENTOR** (kategori `announcement` untuk mentor ditambah; audiens GROUP/USER tetap dibatasi ke kelompoknya) + tautan silang ke Broadcast WA; aksi pencarian **“Kirim pengumuman (notifikasi)”** & **“Broadcast WhatsApp mentee”** (i18n ID/EN + katalog asisten AI).
 - Verifikasi: lint bersih, **335 test** hijau (5 baru `tests/unit/wa.test.ts`), build OK.
 
 ### Next

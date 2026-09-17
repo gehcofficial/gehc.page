@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Megaphone, Send, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { NOTIFY_CATEGORIES, NOTIFY_CATEGORY_LABEL, PRIORITY_LABEL } from '../../lib/notify-categories';
+import { roleToNamespace } from '../../lib/portal-routes';
 
 type Caps = {
   role: string;
@@ -38,7 +39,7 @@ const AUD_LABEL: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = { SCHEDULED: 'Terjadwal', SENT: 'Terkirim', ARCHIVED: 'Arsip', DRAFT: 'Draf' };
 
 export const AnnouncementComposer: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, currentRole } = useApp();
   const [caps, setCaps] = useState<Caps | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
@@ -189,6 +190,16 @@ export const AnnouncementComposer: React.FC = () => {
           <h3 className="text-sm font-black text-[#1B1B1B]">Buat Pengumuman</h3>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">Dari: {caps.role}</span>
         </div>
+        <p className="text-[11px] text-[#8C8880]">
+          Ini mengirim <b>notifikasi aplikasi</b> (lonceng + web push) ke audiens terpilih.
+          Butuh <b>chat WhatsApp</b> ke nomor mentee?{' '}
+          <a
+            href={`#/portal/${roleToNamespace(currentRole)}/groups-monitoring`}
+            className="font-bold text-sky-700 hover:underline"
+          >
+            Buka Monitoring → Roster → “Broadcast WA (nomor)”
+          </a>.
+        </p>
 
         <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Judul pengumuman" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-sm" />
         <textarea value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} placeholder="Isi pesan…" className="w-full px-4 py-2.5 rounded-xl border border-[#D9D7D0] text-sm min-h-[80px]" />

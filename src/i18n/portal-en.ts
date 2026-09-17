@@ -111,6 +111,16 @@ export const portalEn = {
         purpose: 'See your registration card, check-in QR, venue, and the event WhatsApp group.',
         steps: ['Open Event Info.', 'Pick the event/date if available.', 'Show the QR on the day.'],
       },
+      'send-announcement': {
+        title: 'Send an announcement (notification)',
+        purpose: 'Send an app notification (bell + push) to public, roles, divisions, groups, or specific people.',
+        steps: ['Open the Announcements panel.', 'Write a title & message, pick a category & audience.', 'Send now or schedule.'],
+      },
+      'broadcast-wa': {
+        title: 'Broadcast WhatsApp to mentees',
+        purpose: 'Collect your group mentees’ WhatsApp numbers to chat/copy — not an app notification.',
+        steps: ['Open Group Monitoring.', 'Roster tab → "Broadcast WA (nomor)".', 'Copy all numbers, export CSV, or chat one by one.'],
+      },
     },
   },
   pager: {
