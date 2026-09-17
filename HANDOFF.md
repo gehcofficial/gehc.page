@@ -13,8 +13,9 @@
 - Verifikasi: lint bersih, **330 test** hijau (3 baru `tests/unit/regen-undo.test.ts`), build OK. Staging direset ke Gen0 setelah rekaman.
 
 ### Next
-1. Deploy `main`; uji di prod: buka generasi → tetapkan pemimpin (konfirmasi) → bawa anggota (pratinjau) → assign; lalu coba **Batalkan aksi terakhir**.
-2. Undo membatalkan aksi regenerasi terakhir (scope 10 rumah). Hindari perubahan lain tak terkait tepat sebelum menekan Undo.
+1. Deploy `main`; uji di prod: set **Periode generasi** ke periode baru → dialog buka generasi muncul otomatis (Opsi B) → konfirmasi → tetapkan pemimpin → bawa anggota (pratinjau) → assign; lalu coba **Batalkan aksi terakhir**.
+2. Urutan tab wizard final: **1 Alumni · 2 Buka generasi · 3 Pemimpin · 4 Bawa anggota · 5 Assign baru**.
+3. Undo membatalkan aksi regenerasi terakhir (scope 10 rumah). Hindari perubahan lain tak terkait tepat sebelum menekan Undo.
 
 ### Commands
 ```

@@ -138,12 +138,13 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
   };
 
   // ── Step 2: Buka generasi
-  const openGeneration = async () => {
+  const openGeneration = async (periodArg?: string) => {
+    const useP = periodArg || period;
     setBusy('regen');
     try {
       const r = await fetch('/api/beyonders/leaders/regenerate', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nextPeriod: period, override }),
+        body: JSON.stringify({ nextPeriod: useP, override }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal membuka generasi');
@@ -154,6 +155,24 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
     } finally { setBusy(null); setPending(null); }
+  };
+
+  const askOpenGeneration = (p: string) => {
+    setPending({
+      title: `Buka generasi ${p} untuk 10 rumah?`,
+      description: `Batch periode ${p} belum ada. Membuat batch baru; generasi ${currentBatchPeriod || '—'} jadi non-current. Nama pemimpin disalin sementara (ganti di Langkah 3).`,
+      requireText: 'REGENERASI', tone: 'gold', confirmLabel: 'Buka generasi',
+      run: () => openGeneration(p),
+    });
+  };
+
+  /** Opsi B: begitu pilih periode baru yang belum punya batch → langsung tawarkan buka. */
+  const handlePeriodChange = (value: string) => {
+    setPeriod(value);
+    if (!canEdit || !/^\d{4}-\d{2}$/.test(value)) return;
+    if (value === currentBatchPeriod) return;
+    setStep(2);
+    askOpenGeneration(value);
   };
 
   // ── Step 3: Pemimpin
@@ -263,7 +282,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
         ))}
         <label className="ml-auto text-[11px] font-semibold flex items-center gap-2">
           Periode generasi
-          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)}
+          <input type="month" value={period} onChange={(e) => handlePeriodChange(e.target.value)}
             className="px-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-xs" />
         </label>
       </div>
@@ -321,7 +340,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-[11px] font-semibold flex items-center gap-2">
               Periode baru
-              <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)}
+              <input type="month" value={period} onChange={(e) => handlePeriodChange(e.target.value)}
                 className="px-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-xs" />
             </label>
             <label className="flex items-center gap-2 text-[11px]">
@@ -333,7 +352,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
                 title: `Buka generasi ${period} untuk 10 rumah?`,
                 description: `Batch ${period} dibuat; generasi ${currentBatchPeriod} jadi non-current. Nama pemimpin disalin sementara (ganti di Langkah 3).`,
                 requireText: 'REGENERASI', tone: 'gold', confirmLabel: 'Buka generasi',
-                run: openGeneration,
+                run: () => openGeneration(period),
               })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#C9A227] text-[#181818] text-[11px] font-bold disabled:opacity-40">
               {busy === 'regen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Buka generasi berikutnya
