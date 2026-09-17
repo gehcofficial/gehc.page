@@ -7,6 +7,7 @@ interface ServerMember {
   name: string;
   familyRole: string;
   status: string;
+  batchPeriod?: string | null;
   alumniNote?: string | null;
   alumniDate?: string | null;
 }
@@ -99,6 +100,9 @@ export const HeritageSection: React.FC<{
                       <p className="text-sm font-bold text-[#1B1B1B] truncate">{shortName(a.name)}</p>
                       <p className="text-[11px] text-[#8C8880] leading-snug">
                         {a.alumniNote || 'Alumni — berkarya di luar kotanya.'}
+                        {a.batchPeriod && (
+                          <span className="block mt-0.5 opacity-70">Asal generasi {a.batchPeriod}</span>
+                        )}
                         {a.alumniDate && (
                           <span className="block mt-0.5 opacity-70">
                             Sejak {new Date(a.alumniDate).getFullYear()}

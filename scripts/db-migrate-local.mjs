@@ -270,6 +270,11 @@ const STEPS = [
     label: 'Snapshot regenerasi (undo aksi terakhir)',
     required: true,
   },
+  {
+    script: 'server/_migrate-normalize-batch-label.cjs',
+    label: 'Normalisasi batch_label yang memuat periode keliru',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

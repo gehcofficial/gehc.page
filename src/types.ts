@@ -203,7 +203,7 @@ export interface GroupBatch {
   comentor: string;
   mentorAvatar?: string;
   comentorAvatar?: string;
-  mentees: { name: string; note?: string; avatar?: string }[];
+  mentees: { name: string; note?: string; avatar?: string; status?: string }[];
   theme?: string;
   isCurrent?: boolean;
 }

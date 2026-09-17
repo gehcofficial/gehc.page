@@ -359,15 +359,27 @@ export const GroupDetailPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-3.5">
-                          {(batch.mentees || []).map((m) => (
-                            <span
-                              key={m.name}
-                              className="px-2 py-1 rounded-full bg-white border border-[#D9D7D0] text-[10px] font-semibold text-[#1B1B1B]"
-                            >
-                              {shortName(m.name)}
-                              {m.note ? ` ${m.note}` : ''}
-                            </span>
-                          ))}
+                          {(batch.mentees || []).map((m) => {
+                            const st = String(m.status || 'ACTIVE').toUpperCase();
+                            const cls = st === 'ALUMNI'
+                              ? 'bg-slate-200 border-slate-300 text-slate-700'
+                              : st === 'PAST'
+                              ? 'bg-gray-100 border-gray-200 text-gray-500'
+                              : st === 'MOVED'
+                              ? 'bg-sky-100 border-sky-200 text-sky-700'
+                              : 'bg-white border-[#D9D7D0] text-[#1B1B1B]';
+                            const tag = st === 'ALUMNI' ? ' · Alumni' : st === 'PAST' ? ' · Gen lalu' : st === 'MOVED' ? ' · Pindah' : '';
+                            return (
+                              <span
+                                key={m.name}
+                                className={`px-2 py-1 rounded-full border text-[10px] font-semibold ${cls}`}
+                                title={st}
+                              >
+                                {shortName(m.name)}
+                                {m.note ? ` ${m.note}` : ''}{tag}
+                              </span>
+                            );
+                          })}
                         </div>
                       </button>
                     </div>

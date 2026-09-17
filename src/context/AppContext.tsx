@@ -373,6 +373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const gMapped: YouthGroup[] = [];
         const bMapped: GroupBatch[] = [];
         const mMap = new Map<string, any>();
+        const historyMembers: Array<Record<string, any>> = [];
 
         for (const g of d.groups) {
           gMapped.push({
@@ -395,9 +396,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
           }
           for (const m of g.members || []) {
-            // Hanya baris ACTIVE yang masuk roster; ALUMNI tidak tampil di Anggota.
-            if (m.status && String(m.status).toUpperCase() !== 'ACTIVE') continue;
-            mMap.set(m.id, {
+            const status = String(m.status || 'ACTIVE').toUpperCase();
+            const row = {
               id: m.id,
               group_id: g.id,
               userId: m.userId || m.user?.id || undefined,
@@ -410,12 +410,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               notes: m.notes || undefined,
               familyRole: m.familyRole,
               batchPeriod: m.batchPeriod ? String(m.batchPeriod) : undefined,
+              status,
+              alumniDate: m.alumniDate || undefined,
+              alumniNote: m.alumniNote || undefined,
               avatar: m.user?.avatar || m.avatar || undefined,
-            });
+            };
+            // Riwayat (semua status) untuk timeline generasi & heritage.
+            historyMembers.push(row);
+            // Roster aktif (Anggota) hanya ACTIVE.
+            if (status === 'ACTIVE') mMap.set(m.id, row);
           }
         }
 
-        const allMembers = [...mMap.values()] as Array<{
+        const allMembers = historyMembers as Array<{
           group_id: string;
           name: string;
           familyRole?: string;
@@ -439,12 +446,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           b.comentorAvatar = pickAvatar(b.group_id, 'COMENTOR', b.comentor, b.period);
         }
 
-        // Sisipkan mentee ke batch-nya (kunci: groupId|period)
+        // Sisipkan mentee ke batch-nya (kunci: groupId|period).
+        // Termasuk non-ACTIVE (ALUMNI/PAST/MOVED) agar riwayat generasi tetap tercatat;
+        // status dipakai untuk badge warna di timeline.
         const byKey = new Map(bMapped.map((b) => [`${b.group_id}|${b.period}`, b]));
-        for (const m of mMap.values() as IterableIterator<any>) {
+        for (const m of historyMembers) {
           if (String(m.familyRole || '').toUpperCase() === 'MENTEE' && m.batchPeriod) {
             const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
-            if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar });
+            if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar, status: m.status });
           }
         }
 
