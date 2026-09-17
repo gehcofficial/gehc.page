@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Tab “Ulang Tahun” di kalender Kegiatan (17 Sep 2026)
+## Current — Portal Doa: konteks bertanggal, Doa Minggu, riwayat doa, mode privasi (17 Sep 2026)
+
+**Goal:** Catat konteks doa lengkap dengan **tanggal kejadian** (boleh mundur bila baru diketahui), tampilkan **kapan & terakhir didoakan**, sediakan **daftar Doa Minggu** untuk pendoa, dan mode **sembunyi detail + salin/cetak** (juga untuk HUT).
+
+**Done:**
+- **Schema** (`prisma/schema.prisma`): `PastoralCareNote` + `occurredOn` (Date, default hari ini), `contextEventId`, `prayedAt`, `prayedCount`; model baru **`PastoralPrayerLog`** (`pastoral_prayer_logs`: unik `note_id+prayed_on`). Migrasi idempotent `server/_migrate-pastoral-prayer.cjs` (+ step `db-migrate-local.mjs`) — **sudah dijalankan di staging**, prod belum.
+- **API** (`server/routes/pastoral-care.mjs`): `kind` baru **UMUM** (subjek opsional); `GET /api/pastoral-care` + `status=ALL|OPEN|RESOLVED`, `expired=include|exclude|only`, `month=YYYY-MM`, field baru (`occurredOn`, `prayedAt/Count`, `isExpired`, `isGeneral`, `lateRecordedDays`, `contextEvent`); `POST /:id/pray` (idempoten per tanggal, gate = pelapor/subjek/liturgia-doa/diakonia/mentor grup/Komisi), `DELETE /:id/pray?on=`, `POST /pray-bulk`, `GET /:id/prayer-log`, `GET /prayer-list?sunday=` (default Minggu terdekat **WIB**), `GET /events?q=` (tautan kegiatan).
+- **Lib** `server/lib/prayer-week.mjs` (`wibDayKey`, `upcomingSunday`, `mondayOf`, `weekRange`, `decoratePrayerWeek`, `lateRecordedDays`) + `src/lib/mask.ts` (`firstNameOnly`, `formatPrayerList`, `formatBirthdayList`, `copyText`, `printText`).
+- **UI** `PastoralCareBoard.tsx` → 3 tab: **Laporan baru** (tanggal kejadian, tautkan kegiatan, jenis Umum, **ConfirmDialog** sebelum kirim), **Daftar konteks** (badge kedaluwarsa/“baru dicatat H+n”, terakhir didoakan n×, riwayat, tandai selesai), **Doa Minggu** (Ibadah Minggu + event, “Tandai semua”, tanggal doa untuk backdate, Salin/Cetak, sembunyi detail). `ManageGroupsMonitoring` menampilkan “Terakhir didoakan” + badge kedaluwarsa.
+- **Kalender Kegiatan** (`KegiatanCalendar.tsx`): chip **Doa** (indigo, default aktif, isi tersaring izin server) + kartu “Konteks doa aktif: n → Buka Doa Minggu” pada event **Ibadah Minggu (UMUM)**; panel HUT dapat **Sembunyikan detail / Salin / Cetak**.
+- **Pengingat Sabtu** (`notif-cron.mjs`): `runPrayerReminder()` — hanya Sabtu WIB, audiens Liturgia Doa + Diakonia + Komisi/SA + mentor, tanpa detail sensitif; dipanggil dari `/api/cron/notif-daily` (tanpa cron baru).
+- Verifikasi: lint bersih, **362 test** hijau (18 baru: `mask.test.ts`, `pastoral-prayer.test.ts`), build OK; smoke API + browser lokal (konfirmasi kirim, backdate H+10, tandai/riwayat/prayer-log idempoten, Doa Minggu, chip Doa & kartu Ibadah Minggu, HUT sembunyi detail). Staging sudah deploy & diuji live.
+
+### Next
+1. **Migrasi prod** (`npm run db:migrate:local:prod`) → push `main` (Vercel prod) — **butuh izin eksplisit**.
+2. Uji prod: tab Doa Minggu, tandai didoakan (backdate), chip Doa di kalender, HUT sembunyi detail/salin.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+npm run db:migrate:local:prod   # hanya dengan izin
+```
+
+---
+
+## Prior — Tab “Ulang Tahun” di kalender Kegiatan (17 Sep 2026)
 
 **Goal:** Kalender Kegiatan bisa menampilkan ulang tahun jemaat dengan warna/ikon khusus.
 
