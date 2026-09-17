@@ -95,8 +95,89 @@ export async function runEventReminders(prisma) {
 }
 
 /**
+ * Pengingat Doa Minggu — hanya pada Sabtu (WIB) agar pendoa menyiapkan daftar
+ * sebelum ibadah. Tanpa detail sensitif: hanya jumlah konteks.
+ */
+export async function runPrayerReminder(prisma, now = new Date()) {
+  const wibNow = new Date(now.getTime() + WIB_OFFSET_MS);
+  if (wibNow.getUTCDay() !== 6) return { skipped: true, reason: 'bukan Sabtu WIB' };
+
+  const open = await prisma.pastoralCareNote.count({ where: { status: 'OPEN' } }).catch(() => 0);
+  if (!open) return { skipped: true, reason: 'tidak ada konteks doa aktif', open: 0 };
+
+  const weekStart = new Date(now.getTime() - 6 * 86400000);
+  const prayedThisWeek = await prisma.pastoralPrayerLog
+    .findMany({ where: { prayedOn: { gte: weekStart } }, select: { noteId: true }, distinct: ['noteId'] })
+    .then((rows) => rows.length)
+    .catch(() => 0);
+  const notPrayed = Math.max(0, open - prayedThisWeek);
+
+  const emails = new Set();
+  const strukur = await prisma.strukturMember
+    .findMany({
+      where: {
+        OR: [
+          { division: { equals: 'LITURGIA' } },
+          { division: { equals: 'DIAKONIA' } },
+        ],
+      },
+      select: { email: true },
+    })
+    .catch(() => []);
+  for (const s of strukur) if (s.email) emails.add(String(s.email).toLowerCase());
+  const komisi = await prisma.userRole
+    .findMany({ where: { role: { in: ['KOMISI', 'SUPERADMIN'] } }, select: { user: { select: { email: true } } } })
+    .catch(() => []);
+  for (const k of komisi) if (k.user?.email) emails.add(String(k.user.email).toLowerCase());
+
+  const mentors = await prisma.groupMember
+    .findMany({
+      where: { status: 'ACTIVE', familyRole: { in: ['MENTOR', 'COMENTOR'] } },
+      select: { user: { select: { email: true } } },
+    })
+    .catch(() => []);
+  for (const m of mentors) if (m.user?.email) emails.add(String(m.user.email).toLowerCase());
+
+  if (!emails.size) return { skipped: true, reason: 'tidak ada penerima', open };
+
+  const users = await prisma.user.findMany({
+    where: { email: { in: [...emails] }, accountStatus: 'ACTIVE' },
+    select: { id: true },
+  });
+  const userIds = users.map((u) => u.id);
+  if (!userIds.length) return { skipped: true, reason: 'tidak ada penerima aktif', open };
+
+  const title = 'Pengingat Doa Minggu';
+  const message = `${open} konteks doa aktif${notPrayed ? `, ${notPrayed} belum didoakan` : ''}. Siapkan daftar untuk ibadah besok.`;
+  let pushed = 0;
+  for (let i = 0; i < userIds.length; i += 100) {
+    const chunk = userIds.slice(i, i + 100);
+    await prisma.notification.createMany({
+      data: chunk.map((userId) => ({
+        id: `ntf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'IDLE_FLAG',
+        memberId: userId,
+        title,
+        message,
+        payload: { href: '/#/portal/superadmin/pastoral-care', category: 'pengingat', priority: 'INFO' },
+        category: 'pengingat',
+        status: 'OPEN',
+      })),
+    }).catch(() => {});
+    pushed += await pushToUsers(prisma, chunk, {
+      title,
+      message,
+      href: '/#/portal/superadmin/pastoral-care',
+      category: 'pengingat',
+      priority: 'INFO',
+    });
+  }
+  return { open, notPrayed, recipients: userIds.length, pushed };
+}
+
+/**
  * Cron notifikasi (rencana Hobby: maksimum 2 cron/hari):
- * - /api/cron/notif-daily — dispatch pengumuman terjadwal + pengingat H-1.
+ * - /api/cron/notif-daily — dispatch pengumuman terjadwal + pengingat H-1 + pengingat Doa Minggu (Sabtu).
  * - /api/cron/notif-dispatch, /api/cron/reminders — pemanggilan manual per bagian.
  * Auth: Bearer CRON_SECRET (Vercel Cron) atau sesi Komisi/Superadmin.
  */
@@ -123,7 +204,8 @@ export function registerNotifCronRoutes(app, { wrap }) {
     if (!authorize(req)) return res.status(403).json({ error: 'Butuh CRON_SECRET atau peran Komisi.' });
     const dispatchResult = await runAnnouncementDispatch(prisma);
     const reminderResult = await runEventReminders(prisma);
-    res.json({ ok: true, dispatch: dispatchResult, reminders: reminderResult });
+    const prayerResult = await runPrayerReminder(prisma).catch(() => ({ skipped: true }));
+    res.json({ ok: true, dispatch: dispatchResult, reminders: reminderResult, prayer: prayerResult });
   });
 
   app.get('/api/cron/notif-daily', daily);

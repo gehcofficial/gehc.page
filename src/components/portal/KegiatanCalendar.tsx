@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Cake, CalendarDays, ListOrdered } from 'lucide-react';
+import { Cake, CalendarDays, Copy, Eye, EyeOff, HandHeart, ListOrdered, Printer } from 'lucide-react';
 import { displayAvatar } from '../../lib/avatar';
+import { copyText, formatBirthdayList, formatDayShort, prayerKindLabel, printText } from '../../lib/mask';
 
 export type CalEvent = {
   id: string;
@@ -32,6 +33,20 @@ export type Birthday = {
   date: string;
   day: number;
   age?: number | null;
+};
+
+/** Konteks doa yang boleh dilihat pengguna (sudah tersaring izin di server). */
+export type Prayer = {
+  id: string;
+  kind: string;
+  note?: string | null;
+  occurredOn?: string | null;
+  isExpired?: boolean;
+  isGeneral?: boolean;
+  prayedCount?: number;
+  lastPrayedOn?: string | null;
+  subject?: { id: string | null; name: string } | null;
+  subjectName?: string | null;
 };
 
 export const KIND_COLORS: Record<string, { dot: string; text: string; chip: string }> = {
@@ -71,9 +86,18 @@ export const KegiatanCalendar: React.FC<{
   const [kindFilter, setKindFilter] = useState<string>('SEMUA');
   const [showBonding, setShowBonding] = useState(true);
   const [showBirthdays, setShowBirthdays] = useState(true);
+  const [hideBirthdayDetail, setHideBirthdayDetail] = useState(false);
+  const [showPrayer, setShowPrayer] = useState(true);
   const [daySel, setDaySel] = useState<string>(() => todayStr());
   const [bonding, setBonding] = useState<Bonding[]>([]);
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [flash, setFlash] = useState('');
+
+  const flashMsg = (msg: string) => {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(''), 2500);
+  };
 
   const kinds = useMemo(() => {
     const base = ['UMUM', 'KHUSUS', 'INTERNAL', 'REKREASIONAL'];
@@ -101,6 +125,15 @@ export const KegiatanCalendar: React.FC<{
       .then((d) => setBirthdays(d.birthdays || []))
       .catch(() => setBirthdays([]));
   }, [month, showBirthdays]);
+
+  // Konteks doa yang boleh dilihat pengguna (server menyaring sesuai izin).
+  useEffect(() => {
+    if (!showPrayer) { setPrayers([]); return; }
+    fetch(`/api/pastoral-care?status=OPEN&expired=include&month=${month}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { notes: [] }))
+      .then((d) => setPrayers(d.notes || []))
+      .catch(() => setPrayers([]));
+  }, [month, showPrayer]);
 
   const dated = useMemo(() => {
     return events
@@ -156,6 +189,18 @@ export const KegiatanCalendar: React.FC<{
     return m;
   }, [birthdays]);
 
+  const prayerByDay = useMemo(() => {
+    const m = new Map<string, Prayer[]>();
+    for (const p of prayers) {
+      const day = toDay(p.occurredOn);
+      if (!day) continue;
+      const arr = m.get(day) || [];
+      arr.push(p);
+      m.set(day, arr);
+    }
+    return m;
+  }, [prayers]);
+
   const [y, mo] = month.split('-').map(Number);
   const firstOffset = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // Senin=0
   const daysInMonth = new Date(y, mo, 0).getDate();
@@ -181,7 +226,22 @@ export const KegiatanCalendar: React.FC<{
     ...(byDay.get(daySel) || []),
     ...(bondingByDay.get(daySel) || []).map((b) => ({ b })),
     ...(birthdayByDay.get(daySel) || []).map((bd) => ({ bd })),
+    ...(prayerByDay.get(daySel) || []).map((p) => ({ p })),
   ];
+
+  const monthBirthdayText = useMemo(() => formatBirthdayList(
+    birthdays.map((b) => ({ name: b.name, day: b.day, age: b.age })),
+    {
+      title: 'ULANG TAHUN JEMAAT',
+      monthLabel: new Date(`${month}-01T00:00:00Z`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      hideDetail: hideBirthdayDetail,
+    },
+  ), [birthdays, month, hideBirthdayDetail]);
+
+  const onCopyBirthdays = async () => {
+    const ok = await copyText(monthBirthdayText);
+    flashMsg(ok ? 'Teks ulang tahun disalin' : 'Clipboard diblokir');
+  };
 
   // Linimasa (Gantt-lite): window 90 hari dari awal bulan tampil
   const winStart = new Date(`${month}-01T00:00:00.000Z`).getTime();
@@ -259,6 +319,15 @@ export const KegiatanCalendar: React.FC<{
         )}
         <button
           type="button"
+          onClick={() => setShowPrayer((v) => !v)}
+          title="Konteks doa yang boleh Anda lihat (Portal Doa)"
+          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showPrayer ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+        >
+          <HandHeart className="w-3.5 h-3.5" />
+          Doa
+        </button>
+        <button
+          type="button"
           onClick={() => setShowBirthdays((v) => !v)}
           title="Ulang tahun jemaat (semua jemaat aktif)"
           className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showBirthdays ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
@@ -267,6 +336,10 @@ export const KegiatanCalendar: React.FC<{
           Ulang Tahun
         </button>
       </div>
+
+      {flash && (
+        <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5">{flash}</p>
+      )}
 
       {mode === 'kalender' ? (
         <>
@@ -279,7 +352,8 @@ export const KegiatanCalendar: React.FC<{
               const evs = byDay.get(day) || [];
               const bds = bondingByDay.get(day) || [];
               const cakes = birthdayByDay.get(day) || [];
-              const total = evs.length + bds.length + cakes.length;
+              const doas = prayerByDay.get(day) || [];
+              const total = evs.length + bds.length + cakes.length + doas.length;
               const isToday = day === todayStr();
               const isSel = day === daySel;
               const inMonth = day.startsWith(month);
@@ -292,7 +366,10 @@ export const KegiatanCalendar: React.FC<{
                 >
                   <span className="flex items-center justify-between">
                     <span className={`text-[11px] font-black inline-flex items-center justify-center w-5 h-5 rounded-full ${isToday ? 'bg-[#FF416C] text-white' : 'text-[#1B1B1B]'}`}>{Number(day.slice(8))}</span>
-                    {cakes.length > 0 && <Cake title="Ada ulang tahun" className="w-3 h-3 text-pink-500" />}
+                    <span className="flex items-center gap-0.5">
+                      {doas.length > 0 && <HandHeart title="Ada konteks doa" className="w-3 h-3 text-indigo-500" />}
+                      {cakes.length > 0 && <Cake title="Ada ulang tahun" className="w-3 h-3 text-pink-500" />}
+                    </span>
                   </span>
                   <span className="flex flex-wrap gap-0.5 mt-1">
                     {evs.slice(0, 3).map(({ e }) => (
@@ -300,6 +377,9 @@ export const KegiatanCalendar: React.FC<{
                     ))}
                     {bds.slice(0, 3).map((b) => (
                       <span key={b.id} title={`${b.title} · ${b.groupName}`} className="w-2 h-2 rounded-full bg-violet-500" />
+                    ))}
+                    {doas.slice(0, 3).map((c) => (
+                      <span key={c.id} title={`Doa: ${c.isGeneral ? 'Umum' : (c.subject?.name || c.subjectName)}`} className="w-2 h-2 rounded-full bg-indigo-500" />
                     ))}
                     {cakes.slice(0, 3).map((c) => (
                       <span key={c.id} title={`🎂 ${c.name}${typeof c.age === 'number' ? ` · ${c.age} th` : ''}`} className="w-2 h-2 rounded-full bg-pink-500" />
@@ -317,7 +397,25 @@ export const KegiatanCalendar: React.FC<{
               Agenda {new Date(`${daySel}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
             </p>
             {dayItems.length === 0 && <p className="text-xs text-[#8C8880] italic">Tidak ada kegiatan hari ini.</p>}
-            {dayItems.map((it: { e?: CalEvent; b?: Bonding; bd?: Birthday }, idx: number) => {
+            {dayItems.map((it: { e?: CalEvent; b?: Bonding; bd?: Birthday; p?: Prayer }, idx: number) => {
+              if (it.p) {
+                const p = it.p;
+                return (
+                  <div key={`p${p.id}`} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-indigo-200">
+                    <HandHeart className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#1B1B1B] truncate">
+                        {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || '—')}
+                        <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-indigo-700">{prayerKindLabel(p.kind)}</span>
+                      </p>
+                      <p className="text-[10px] text-[#8C8880] truncate">
+                        {p.note}
+                        {p.prayedCount ? ` · terakhir didoakan ${formatDayShort(p.lastPrayedOn)}` : ' · belum pernah didoakan'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
               if (it.bd) {
                 const bd = it.bd;
                 return (
@@ -373,6 +471,28 @@ export const KegiatanCalendar: React.FC<{
               );
             })}
           </div>
+
+          {/* Ibadah Minggu pada hari terpilih → pintasan Doa Minggu */}
+          {(() => {
+            const umums = (byDay.get(daySel) || []).filter(({ e }) => String(e.kind || '').toUpperCase() === 'UMUM');
+            if (!umums.length) return null;
+            const active = prayers.filter((p) => (p.occurredOn || '') <= daySel);
+            return (
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-2.5 flex flex-wrap items-center gap-2">
+                <HandHeart className="w-4 h-4 text-indigo-600 shrink-0" />
+                <p className="text-[11px] font-bold text-indigo-800">
+                  Konteks doa aktif: {active.length}
+                  <span className="font-normal text-indigo-700"> · {umums[0].e.name}</span>
+                </p>
+                <a
+                  href={`#/portal/${portalNs}/pastoral-care`}
+                  className="ml-auto text-[11px] font-bold text-indigo-700 underline"
+                >
+                  Buka Doa Minggu →
+                </a>
+              </div>
+            );
+          })()}
         </>
       ) : (
         <div className="space-y-1.5">
@@ -396,9 +516,35 @@ export const KegiatanCalendar: React.FC<{
       {/* Ulang tahun bulan ini — semua jemaat aktif */}
       {showBirthdays && birthdays.length > 0 && (
         <div className="rounded-2xl border border-pink-200 bg-pink-50/50 p-3 space-y-2">
-          <p className="text-[11px] font-black uppercase tracking-wider text-pink-700 flex items-center gap-1.5">
-            <Cake className="w-3.5 h-3.5" /> Ulang tahun bulan ini ({birthdays.length})
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-black uppercase tracking-wider text-pink-700 flex items-center gap-1.5">
+              <Cake className="w-3.5 h-3.5" /> Ulang tahun bulan ini ({birthdays.length})
+            </p>
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setHideBirthdayDetail((v) => !v)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-pink-200 text-[10px] font-bold text-pink-700"
+              >
+                {hideBirthdayDetail ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {hideBirthdayDetail ? 'Detail disembunyikan' : 'Sembunyikan detail'}
+              </button>
+              <button
+                type="button"
+                onClick={onCopyBirthdays}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-pink-200 text-[10px] font-bold text-pink-700"
+              >
+                <Copy className="w-3 h-3" /> Salin
+              </button>
+              <button
+                type="button"
+                onClick={() => printText(`Ulang Tahun ${month}`, monthBirthdayText)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-pink-200 text-[10px] font-bold text-pink-700"
+              >
+                <Printer className="w-3 h-3" /> Cetak
+              </button>
+            </div>
+          </div>
           <div className="grid sm:grid-cols-2 gap-1.5">
             {birthdays.map((bd) => (
               <button
@@ -408,16 +554,53 @@ export const KegiatanCalendar: React.FC<{
                 title={`${bd.name}${typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}`}
                 className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-pink-100 text-left hover:border-pink-300"
               >
-                <img src={displayAvatar(bd.name, bd.avatar)} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                <span className="text-xs font-bold text-[#1B1B1B] truncate">{bd.name}</span>
+                {hideBirthdayDetail
+                  ? <Cake className="w-7 h-7 p-1.5 rounded-full bg-pink-100 text-pink-600 shrink-0" />
+                  : <img src={displayAvatar(bd.name, bd.avatar)} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />}
+                <span className="text-xs font-bold text-[#1B1B1B] truncate">
+                  {hideBirthdayDetail ? bd.name.trim().split(/\s+/)[0] : bd.name}
+                </span>
                 <span className="ml-auto text-[10px] font-bold text-pink-700 shrink-0">
-                  {bd.day}{typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}
+                  {bd.day}{!hideBirthdayDetail && typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}
                 </span>
               </button>
             ))}
           </div>
         </div>
       )}
+
+      {/* Konteks doa bulan ini — sudah tersaring izin oleh server */}
+      {showPrayer && prayers.length > 0 && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
+            <HandHeart className="w-3.5 h-3.5" /> Konteks doa bulan ini ({prayers.length})
+          </p>
+          <div className="grid sm:grid-cols-2 gap-1.5">
+            {prayers.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => p.occurredOn && setDaySel(p.occurredOn)}
+                title={p.note || ''}
+                className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-indigo-100 text-left hover:border-indigo-300"
+              >
+                <HandHeart className="w-4 h-4 text-indigo-500 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-[#1B1B1B] truncate">
+                    {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || '—')}
+                  </span>
+                  <span className="block text-[10px] text-[#8C8880] truncate">
+                    {prayerKindLabel(p.kind)}
+                    {p.isExpired ? ' · kedaluwarsa' : ''}
+                  </span>
+                </span>
+                <span className="text-[10px] font-bold text-indigo-700 shrink-0">{formatDayShort(p.occurredOn)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* PLANNING tanpa tanggal — disabled + note (keputusan) */}
       {planning.length > 0 && (

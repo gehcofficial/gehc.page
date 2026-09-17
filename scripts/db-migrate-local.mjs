@@ -275,6 +275,11 @@ const STEPS = [
     label: 'Normalisasi batch_label yang memuat periode keliru',
     required: true,
   },
+  {
+    script: 'server/_migrate-pastoral-prayer.cjs',
+    label: 'Portal Doa: occurred_on, context_event_id, prayed_at/count, prayer logs',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { PRAYER_KIND_LABEL, formatDayShort } from '../../lib/mask';
 import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
 import { AttendancePanel } from './AttendancePanel';
 import { MiniFamilyTree } from '../public/FamilyTree';
@@ -47,14 +48,14 @@ type PrayerNote = {
   note: string;
   status: string;
   createdAt: string;
+  occurredOn?: string | null;
+  prayedCount?: number;
+  lastPrayedOn?: string | null;
+  isExpired?: boolean;
   expiresAt?: string | null;
   subjectName?: string | null;
   subject?: { id: string | null; name: string; avatar?: string | null } | null;
   reporter?: { id: string; name: string } | null;
-};
-
-const PRAYER_KIND_LABEL: Record<string, string> = {
-  SAKIT: 'Sakit', DUKA: 'Duka', YUDISIUM: 'Yudisium', WISUDA: 'Wisuda', KERJA: 'Kerja / pindah', LAINNYA: 'Lainnya',
 };
 
 /** Catatan Portal Doa untuk satu kelompok (roster grup). */
@@ -110,9 +111,13 @@ const GroupPrayerNotes: React.FC<{ groupId: string; compact?: boolean; onCount?:
                 <span className="text-xs font-bold text-[#1B1B1B] truncate">{n.subject?.name || n.subjectName || '—'}</span>
               </div>
               <p className={`text-xs text-[#5C5850] mt-1.5 leading-relaxed ${compact ? 'line-clamp-2' : ''}`}>{n.note}</p>
-              <p className="text-[10px] text-[#8C8880] mt-1">
-                {n.reporter?.name ? `Dilaporkan ${n.reporter.name} · ` : ''}
-                {new Date(n.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              <p className="text-[10px] text-[#8C8880] mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                {n.occurredOn && <span>Kejadian {formatDayShort(n.occurredOn)}</span>}
+                {n.reporter?.name && <span>· Dilaporkan {n.reporter.name}</span>}
+                <span>· {n.prayedCount ? `Terakhir didoakan ${formatDayShort(n.lastPrayedOn)} (${n.prayedCount}×)` : 'Belum pernah didoakan'}</span>
+                {n.isExpired && (
+                  <span className="font-bold px-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Kedaluwarsa</span>
+                )}
               </p>
             </div>
             <button

@@ -311,6 +311,7 @@ model User {
   groupAlbumsCreated        GroupAlbum[]           @relation("GroupAlbumCreator")
   pastoralNotesSubject      PastoralCareNote[]     @relation("PastoralSubject")
   pastoralNotesReporter     PastoralCareNote[]     @relation("PastoralReporter")
+  pastoralPrayerLogs        PastoralPrayerLog[]    @relation("PastoralPrayerBy")
 
   @@index([kolomId])
   @@index([bipra])
@@ -1478,20 +1479,46 @@ model PastoralCareNote {
   subjectUserId  String?   @map("subject_user_id") @db.VarChar(64)
   subjectName    String?   @map("subject_name") @db.VarChar(160)
   reporterUserId String    @map("reporter_user_id") @db.VarChar(64)
-  kind           String    @db.VarChar(24) // SAKIT | DUKA | YUDISIUM | WISUDA | KERJA | LAINNYA
+  kind           String    @db.VarChar(24) // SAKIT | DUKA | YUDISIUM | WISUDA | KERJA | LAINNYA | UMUM
   note           String    @db.Text
   status         String    @default("OPEN") @db.VarChar(16) // OPEN | RESOLVED
+  /// Tanggal kejadian/informasi yang didoakan (boleh mundur bila baru diketahui).
+  occurredOn     DateTime  @default(now()) @map("occurred_on") @db.Date
+  /// Tautan opsional ke kegiatan terkait (EventProgram.id).
+  contextEventId String?   @map("context_event_id") @db.VarChar(64)
+  /// Ringkasan doa terakhir (denormalisasi dari PastoralPrayerLog).
+  prayedAt       DateTime? @map("prayed_at") @db.DateTime(3)
+  prayedCount    Int       @default(0) @map("prayed_count")
   expiresAt      DateTime? @map("expires_at") @db.DateTime(3)
   driveFolderId  String?   @map("drive_folder_id") @db.VarChar(128)
   createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
-  subject  User? @relation("PastoralSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
-  reporter User @relation("PastoralReporter", fields: [reporterUserId], references: [id])
+  subject    User?               @relation("PastoralSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+  reporter   User                @relation("PastoralReporter", fields: [reporterUserId], references: [id])
+  prayerLogs PastoralPrayerLog[]
 
   @@index([subjectUserId, status])
   @@index([status, expiresAt])
+  @@index([occurredOn])
   @@map("pastoral_care_notes")
+}
+
+/// Riwayat doa per tanggal (Doa Minggu / backdate).
+model PastoralPrayerLog {
+  id             String   @id @db.VarChar(64)
+  noteId         String   @map("note_id") @db.VarChar(64)
+  prayedOn       DateTime @map("prayed_on") @db.Date
+  serviceEventId String?  @map("service_event_id") @db.VarChar(64)
+  prayedById     String   @map("prayed_by_id") @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  note     PastoralCareNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  prayedBy User             @relation("PastoralPrayerBy", fields: [prayedById], references: [id])
+
+  @@unique([noteId, prayedOn])
+  @@index([prayedOn])
+  @@map("pastoral_prayer_logs")
 }
 
 // ============================================================
