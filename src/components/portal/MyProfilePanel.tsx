@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
 import { ProfileGiftsSection } from './ProfileGiftsSection';
 import { ProfileRecreationalSection } from './ProfileRecreationalSection';
+import { useMyChannels } from '../../hooks/usePortalQueries';
 import { ProfileChurchDataRequestPanel, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { LinkGoogleCard } from './LinkGoogleCard';
 import { displayAvatar } from '../../lib/avatar';
@@ -80,6 +81,12 @@ export const MyProfilePanel: React.FC<{
   const [kolomList, setKolomList] = useState<Array<{ id: string; number: number; name: string }>>([]);
   const [bipraOptions, setBipraOptions] = useState<string[]>(['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK']);
   const [open, setOpen] = useState<ProfileSectionId>(defaultOpenSection || 'contact');
+  // Kanal WhatsApp minat (tersaring di server) → tombol gabung di tiap minat terpilih.
+  const { data: myChannels } = useMyChannels(true);
+  const waByRecId: Record<string, string> = {};
+  for (const c of myChannels?.channels || []) {
+    if (c.kind === 'RECREATIONAL' && c.url) waByRecId[c.refId] = c.url;
+  }
   const [form, setForm] = useState({
     gender: '',
     phone: '',
@@ -692,6 +699,7 @@ export const MyProfilePanel: React.FC<{
             onChange={(recreationalIds) => setForm((f) => ({ ...f, recreationalIds }))}
             onSuggest={suggestRecreational}
             suggestBusy={suggestBusy}
+            waByRecId={waByRecId}
           />
         )}
 

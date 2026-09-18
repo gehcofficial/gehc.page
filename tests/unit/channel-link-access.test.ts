@@ -3,7 +3,9 @@ import {
   BIPRA_CATALOG,
   LEADERSHIP_CATALOG,
   canWriteKindSync,
+  channelRank,
   isChannelWriterSync,
+  personalChannelScope,
 } from '../../server/lib/channel-link-access.mjs';
 
 const user = (...roles: string[]) => ({ roles: roles.map((role) => ({ role })) });
@@ -53,5 +55,61 @@ describe('channel-link write RBAC', () => {
 
   it('katalog BIPRA: lima kategorial', () => {
     expect(BIPRA_CATALOG.map((e) => e.id)).toEqual(['BAPAK', 'IBU', 'PEMUDA', 'REMAJA', 'ANAK']);
+  });
+});
+
+describe('kanal personal berjenjang', () => {
+  const member = (...roles: string[]) => ({ roles: roles.map((role) => ({ role })) });
+
+  it('peringkat: admin > BPMJ > Komisi > BOD > anggota', () => {
+    expect(channelRank(member('KOMISI'), { isSuperadmin: true })).toBe('ADMIN');
+    expect(channelRank(member('SUPERADMIN'))).toBe('ADMIN');
+    expect(channelRank(member('BPMJ', 'KOMISI'))).toBe('BPMJ');
+    expect(channelRank(member('KOMISI', 'COMMITTEE'))).toBe('KOMISI');
+    expect(channelRank(member('COMMITTEE'), { isBod: true })).toBe('BOD');
+    expect(channelRank(member('COMMITTEE'), { isBod: false })).toBe('MEMBER');
+    expect(channelRank(member('MENTOR'))).toBe('MEMBER');
+    expect(channelRank(member('MENTEE'))).toBe('MEMBER');
+  });
+
+  it('pengurus melihat semua kanal di bawahnya', () => {
+    for (const rank of ['ADMIN', 'BPMJ', 'KOMISI', 'BOD']) {
+      expect(personalChannelScope({ rank }).seeAll).toBe(true);
+    }
+  });
+
+  it('anggota: hanya grup, divisi, BIPRA, kolom, dan minat miliknya', () => {
+    const r = personalChannelScope({
+      rank: 'MEMBER',
+      bipra: 'PEMUDA',
+      kolomId: 'kolom-3',
+      groupIds: ['g1', 'g1', 'g2'],
+      divisionCodes: ['LITURGIA'],
+      recreationalIds: ['rec-futsal'],
+    });
+    expect(r.seeAll).toBe(false);
+    expect(r.refs).toEqual([
+      { kind: 'GROUP', refId: 'g1' },
+      { kind: 'GROUP', refId: 'g2' },
+      { kind: 'DIVISION', refId: 'LITURGIA' },
+      { kind: 'BIPRA', refId: 'PEMUDA' },
+      { kind: 'KOLOM', refId: 'kolom-3' },
+      { kind: 'RECREATIONAL', refId: 'rec-futsal' },
+    ]);
+  });
+
+  it('anggota tanpa kluster → tidak ada kanal (dan tanpa LEADERSHIP)', () => {
+    const r = personalChannelScope({ rank: 'MEMBER', bipra: null, kolomId: null });
+    expect(r.seeAll).toBe(false);
+    expect(r.refs).toEqual([]);
+    expect(r.refs.some((x) => x.kind === 'LEADERSHIP')).toBe(false);
+  });
+
+  it('kolom hanya untuk kolom terkait, BIPRA hanya untuk BIPRA terkait', () => {
+    const a = personalChannelScope({ rank: 'MEMBER', bipra: 'ANAK', kolomId: 'kolom-1' });
+    expect(a.refs).toContainEqual({ kind: 'BIPRA', refId: 'ANAK' });
+    expect(a.refs).not.toContainEqual({ kind: 'BIPRA', refId: 'PEMUDA' });
+    expect(a.refs).toContainEqual({ kind: 'KOLOM', refId: 'kolom-1' });
+    expect(a.refs).not.toContainEqual({ kind: 'KOLOM', refId: 'kolom-2' });
   });
 });

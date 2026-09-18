@@ -38,3 +38,24 @@ export function useUpcomingBirthdays(enabled = true) {
     },
   });
 }
+
+export type MyChannel = {
+  kind: string;
+  refId: string;
+  label?: string | null;
+  url: string;
+};
+
+/** Kanal WhatsApp yang boleh diikuti pengguna (berjenjang — leader melihat ke bawah). */
+export function useMyChannels(enabled = true) {
+  return useQuery<{ channels: MyChannel[]; scope: string }>({
+    queryKey: ['my-channels'],
+    enabled,
+    queryFn: async () => {
+      const r = await fetch('/api/channel-links/scoped?me=1', { credentials: 'include' });
+      if (!r.ok) return { channels: [], scope: 'MEMBER' };
+      const d = await r.json();
+      return { channels: Array.isArray(d.channels) ? d.channels : [], scope: d.scope || 'MEMBER' };
+    },
+  });
+}

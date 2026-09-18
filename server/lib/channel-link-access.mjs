@@ -122,3 +122,80 @@ export async function isBroadChannelViewer(authUser) {
   if (isKomisiOrSuperadmin(authUser) || r.includes('BPMJ')) return true;
   return isBodTimkerja(authUser);
 }
+
+// ---------- Kanal personal berjenjang ("Grup WhatsApp Saya") ----------
+
+/**
+ * BOD Tim Kerja sesungguhnya: COMMITTEE **dengan** RoleAssignment divisi TIMKERJA/kosong.
+ * `isBodTimkerja()` lama menganggap setiap COMMITTEE tanpa baris struktur sebagai BOD
+ * (baris struktur di app ini tidak memuat email), jadi terlalu longgar untuk scope kanal personal.
+ */
+export async function isTimKerjaBod(authUser) {
+  const r = globalRoles(authUser);
+  if (!r.includes('COMMITTEE')) return false;
+  const prisma = getPrisma();
+  if (!prisma || !authUser?.id) return false;
+  try {
+    const ra = await prisma.roleAssignment.findFirst({
+      where: { userId: authUser.id, isActive: true, role: 'COMMITTEE' },
+      select: { division: true },
+    }).catch(() => null);
+    if (!ra) return false;
+    const div = String(ra.division || '').toUpperCase();
+    return !div || div === 'TIMKERJA';
+  } catch {
+    return false;
+  }
+}
+
+/** Peringkat pengurus: yang di atas melihat kanal di bawahnya. */
+export function channelRank(authUser, { isBod = false, isSuperadmin = false } = {}) {
+  if (isSuperadmin) return 'ADMIN';
+  const r = globalRoles(authUser);
+  if (r.includes('SUPERADMIN')) return 'ADMIN';
+  if (r.includes('BPMJ')) return 'BPMJ';
+  if (r.includes('KOMISI')) return 'KOMISI';
+  if (r.includes('COMMITTEE') && isBod) return 'BOD';
+  return 'MEMBER';
+}
+
+/** Peringkat yang melihat semua kanal (leader melihat ke bawah). */
+export const SEE_ALL_RANKS = new Set(['ADMIN', 'BPMJ', 'KOMISI', 'BOD']);
+
+/** Jenis kanal yang tampil di kartu personal (EVENT punya permukaan sendiri). */
+export const PERSONAL_CHANNEL_KINDS = [
+  'LEADERSHIP',
+  'BIPRA',
+  'KOLOM',
+  'GROUP',
+  'DIVISION',
+  'RECREATIONAL',
+];
+
+/**
+ * Scope kanal personal. Anggota hanya klusternya sendiri; pengurus melihat semua.
+ * Pure (tanpa DB) agar mudah diuji.
+ * @returns {{ seeAll: boolean, refs: Array<{ kind: string, refId: string }> }}
+ */
+export function personalChannelScope({
+  rank = 'MEMBER',
+  bipra = null,
+  kolomId = null,
+  groupIds = [],
+  divisionCodes = [],
+  recreationalIds = [],
+} = {}) {
+  if (SEE_ALL_RANKS.has(rank)) return { seeAll: true, refs: [] };
+  const refs = [];
+  const push = (kind, ids) => {
+    for (const id of new Set((ids || []).filter(Boolean))) {
+      refs.push({ kind, refId: String(id) });
+    }
+  };
+  push('GROUP', groupIds);
+  push('DIVISION', divisionCodes);
+  push('BIPRA', [bipra]);
+  push('KOLOM', [kolomId]);
+  push('RECREATIONAL', recreationalIds);
+  return { seeAll: false, refs };
+}

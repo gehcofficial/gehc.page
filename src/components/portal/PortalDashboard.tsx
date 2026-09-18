@@ -15,6 +15,7 @@ import { useLang } from '../../context/LangContext';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { BirthdayWishCard } from './BirthdayWishCard';
 import { MenteeWelcomeCard } from './MenteeWelcomeCard';
+import { MyChannelsCard } from './MyChannelsCard';
 import { displayAvatar } from '../../lib/avatar';
 import { fmt } from '../../lib/portal-i18n';
 
@@ -113,6 +114,8 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
   return (
     <div className="space-y-8 animate-fade-in">
       <MenteeWelcomeCard onNavigate={onNavigate} />
+
+      {!isAlumni && <MyChannelsCard />}
 
       <div className="bg-gradient-to-r from-[#181818] via-[#222222] to-[#181818] rounded-[32px] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-white/10">
         <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-[#FF416C]/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>

@@ -1,6 +1,27 @@
 # GEHC Portal — Handoff
 
-## Current — Kanal WhatsApp: Kepemimpinan, BIPRA, Wilayah & Kolom, Rekreasi dropdown (18 Sep 2026)
+## Current — Kartu “Grup WhatsApp Saya” berjenjang (18 Sep 2026)
+
+**Goal:** Kanal WhatsApp yang baru diisi pengurus muncul ke anggota yang tepat — anggota hanya klusternya, pengurus melihat ke bawah.
+
+**Done:**
+- **Peringkat** (`server/lib/channel-link-access.mjs`): `channelRank()` = **ADMIN > BPMJ > KOMISI > BOD Tim Kerja > MEMBER**; `personalChannelScope()` (pure, diuji) menerapkan anggota hanya `GROUP`(grupnya) + `DIVISION`(divisinya) + `BIPRA`(`user.bipra`) + `KOLOM`(`user.kolomId`) + `RECREATIONAL`(minat dipilih); ADMIN/BPMJ/KOMISI/BOD → **semua** kanal di bawahnya.
+- **Penting**: BOD ditentukan `isTimKerjaBod()` baru (COMMITTEE **dengan** `RoleAssignment` divisi TIMKERJA/kosong). `isBodTimkerja()` lama terlalu longgar (baris `struktur_members` tak memuat email → semua COMMITTEE dianggap BOD/`isBroadChannelViewer`) dan **tetap dipakai** untuk perilaku lama.
+- **Endpoint**: `GET /api/channel-links/scoped?me=1` → `{ channels:[{kind,refId,label,url}], scope }` (label fallback dari katalog). **Tanpa `?me=1` tidak berubah** → Monitoring Kelompok, Panel Divisi, MenteeWelcomeCard aman.
+- **UI**: hook `useMyChannels()`; komponen baru `MyChannelsCard.tsx` (badge jenis + tombol Gabung) dirender di Dashboard untuk semua **kecuali Alumni**; tombol **Gabung WA** per minat terpilih di Profil → Minat (`ProfileRecreationalSection` + `MyProfilePanel`). i18n ID/EN `portal.myChannels.*`.
+- **Verifikasi**: lint bersih, **370 test** hijau (5 baru di `channel-link-access.test.ts`), build OK; smoke API staging dengan persona nyata — SUPERADMIN/BPMJ/KOMISI → 7 kanal, MENTEE grp-8 + COMMITTEE → **hanya** BIPRA/REMAJA + GRUP Ruach, MENTOR grp-2 → hanya BIPRA/PEMUDA + GRUP Agape, +RA TIMKERJA → BOD (semua). Smoke browser: kartu Dashboard (3 kanal untuk mentee) & tombol WA di Profil → Minat. Semua data uji staging (3 link, 1 membership, 1 RA) sudah dihapus. Tanpa migrasi DB.
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kanal WhatsApp: Kepemimpinan, BIPRA, Wilayah & Kolom, Rekreasi dropdown (18 Sep 2026)
 
 **Goal:** Rapikan layer Kanal WhatsApp: kepemimpinan (Komisi/Tim Kerja BOD/BPMJ) terpisah, BIPRA ada, Kolom tidak lagi disebut “pemuda”, dan rekreasi tidak menampilkan semua grup sekaligus.
 

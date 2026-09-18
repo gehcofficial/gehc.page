@@ -1,12 +1,17 @@
 import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
-import { requireRole } from '../auth.mjs';
+import { requireRole, isSuperadminEmail } from '../auth.mjs';
+import { isBodTimkerja } from '../division-rbac.mjs';
 import { isValidWhatsAppUrl } from '../lib/baku-tau.mjs';
 import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import {
   BIPRA_CATALOG,
   DIVISION_CATALOG,
   LEADERSHIP_CATALOG,
+  PERSONAL_CHANNEL_KINDS,
+  channelRank,
+  isTimKerjaBod,
+  personalChannelScope,
   isChannelWriter,
   canWriteKind,
   scopedGroupIds,
@@ -48,6 +53,77 @@ export function registerChannelLinkRoutes(app, { wrap }) {
       if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+      // Mode personal: "Grup WhatsApp Saya" (berjenjang). Perilaku lama tidak diubah.
+      const personal = ['1', 'true', 'yes'].includes(String(req.query.me || '').toLowerCase());
+      if (personal) {
+        const isBod = await isTimKerjaBod(req.authUser);
+        const rank = channelRank(req.authUser, {
+          isBod,
+          isSuperadmin: isSuperadminEmail(req.authUser.email),
+        });
+        const [groupIds, divisionCodes, recRows] = await Promise.all([
+          scopedGroupIds(req.authUser),
+          scopedDivisionCodes(req.authUser),
+          prisma.recreationalMembership
+            .findMany({ where: { userId: req.authUser.id }, select: { groupId: true } })
+            .catch(() => []),
+        ]);
+        const scope = personalChannelScope({
+          rank,
+          bipra: req.authUser.bipra || null,
+          kolomId: req.authUser.kolomId || null,
+          groupIds,
+          divisionCodes,
+          recreationalIds: recRows.map((r) => r.groupId),
+        });
+
+        const where = scope.seeAll
+          ? { kind: { in: PERSONAL_CHANNEL_KINDS } }
+          : scope.refs.length
+            ? { OR: scope.refs.map((r) => ({ kind: r.kind, refId: r.refId })) }
+            : null;
+        const links = where
+          ? await prisma.channelLink.findMany({ where, orderBy: { kind: 'asc' } }).catch(() => [])
+          : [];
+
+        // Label fallback dari katalog (bila admin belum mengisi label).
+        const groupRefIds = links.filter((l) => l.kind === 'GROUP').map((l) => l.refId);
+        const [groupRows, kolomRows, recGroupRows] = await Promise.all([
+          groupRefIds.length
+            ? prisma.group.findMany({ where: { id: { in: groupRefIds } }, select: { id: true, name: true } }).catch(() => [])
+            : [],
+          links.some((l) => l.kind === 'KOLOM')
+            ? prisma.kolom.findMany({ select: { id: true, number: true, name: true } }).catch(() => [])
+            : [],
+          links.some((l) => l.kind === 'RECREATIONAL')
+            ? prisma.recreationalGroup.findMany({ select: { id: true, name: true } }).catch(() => [])
+            : [],
+        ]);
+        const labelFor = (kind, refId) => {
+          if (kind === 'LEADERSHIP') return LEADERSHIP_CATALOG.find((x) => x.id === refId)?.name || refId;
+          if (kind === 'BIPRA') return BIPRA_CATALOG.find((x) => x.id === refId)?.name || refId;
+          if (kind === 'DIVISION') return DIVISION_CATALOG.find((x) => x.id === refId)?.name || refId;
+          if (kind === 'KOLOM') {
+            const k = kolomRows.find((x) => x.id === refId);
+            return k ? (k.name || `Kolom ${k.number}`) : refId;
+          }
+          if (kind === 'GROUP') return groupRows.find((x) => x.id === refId)?.name || refId;
+          if (kind === 'RECREATIONAL') return recGroupRows.find((x) => x.id === refId)?.name || refId;
+          return refId;
+        };
+        const order = new Map(PERSONAL_CHANNEL_KINDS.map((k, i) => [k, i]));
+        const channels = links
+          .map((l) => ({
+            kind: l.kind,
+            refId: l.refId,
+            label: l.label || labelFor(l.kind, l.refId),
+            url: l.url,
+          }))
+          .sort((a, b) => (order.get(a.kind) ?? 99) - (order.get(b.kind) ?? 99)
+            || String(a.label).localeCompare(String(b.label)));
+        return res.json({ channels, scope: rank });
+      }
 
       const isBroad = await isBroadChannelViewer(req.authUser);
       const [groupIds, divisionCodes] = await Promise.all([

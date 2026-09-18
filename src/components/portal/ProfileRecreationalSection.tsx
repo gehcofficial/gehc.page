@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, Plus, Search } from 'lucide-react';
+import { Loader2, MessageCircle, Plus, Search } from 'lucide-react';
 import type { RecreationalNode } from '../../lib/recreational';
 
 type PendingSuggestion = {
@@ -17,7 +17,9 @@ export const ProfileRecreationalSection: React.FC<{
   onChange: (ids: string[]) => void;
   onSuggest: (payload: { name: string; kind: string; parentId?: string }) => Promise<void>;
   suggestBusy: boolean;
-}> = ({ recFlat, selectedIds, pendingSuggestions, onChange, onSuggest, suggestBusy }) => {
+  /** refId minat → URL WhatsApp (dari kanal Kanal WhatsApp, tersaring per pengguna). */
+  waByRecId?: Record<string, string>;
+}> = ({ recFlat, selectedIds, pendingSuggestions, onChange, onSuggest, suggestBusy, waByRecId = {} }) => {
   const [search, setSearch] = useState('');
   const [suggestKey, setSuggestKey] = useState<string | null>(null);
   const [suggestName, setSuggestName] = useState('');
@@ -143,15 +145,28 @@ export const ProfileRecreationalSection: React.FC<{
                   <div className="flex flex-wrap gap-1.5">
                     {leaves.map((leaf) => {
                       const on = selectedIds.includes(leaf.id);
+                      const wa = on ? waByRecId[leaf.id] : undefined;
                       return (
-                        <button
-                          key={leaf.id}
-                          type="button"
-                          onClick={() => toggle(leaf.id)}
-                          className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${on ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC] text-[#8C8880]'}`}
-                        >
-                          {leaf.name}
-                        </button>
+                        <span key={leaf.id} className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => toggle(leaf.id)}
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${on ? 'bg-[#181818] text-white' : 'bg-[#F3F1EC] text-[#8C8880]'}`}
+                          >
+                            {leaf.name}
+                          </button>
+                          {wa && (
+                            <a
+                              href={wa}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Gabung grup WhatsApp minat ini"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold bg-emerald-50 border border-emerald-300 text-emerald-700"
+                            >
+                              <MessageCircle className="w-3 h-3" /> WA
+                            </a>
+                          )}
+                        </span>
                       );
                     })}
                   </div>
