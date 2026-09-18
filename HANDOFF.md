@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Kartu “Grup WhatsApp Saya” berjenjang (18 Sep 2026)
+## Current — Warta: petugas penatalayan, tuan rumah, pokok doa, jadwal (18 Sep 2026)
+
+**Goal:** Warta Publik bisa diisi otomatis dari jadwal pelayanan: petugas penatalayan (grup + komponen + nama), penanggung/tuan rumah, pokok doa pekan & bulan, plus jadwal minggu depan.
+
+**Done:**
+- **Lib** `server/lib/warta-desk.mjs` (pure, 17 unit test): `groupOfficers` (per divisi LITURGIA→MARTURIA, urut `ServiceRole.sortOrder`, multi-orang `, `), `pickServingForDate` (tepat → else terdekat ≤21 hari bertanda `projected`), `pickWeekTheme`, `maskPrayerSuggestions` (nama depan + jenis, tanpa isi catatan), `buildWartaPelayanan/Doa/Jadwal`, `buildWartaDesk`, `toDayISO` (aman untuk Date Prisma `@db.Date`).
+- **Endpoint** `GET /api/warta/desk?date=YYYY-MM-DD&suggestions=1` (`SUPERADMIN/KOMISI/COMMITTEE/BPMJ`) → `{ responsibleGroup, hostGroup, projected, officers[], themes{monthTheme,weekTheme,verse,servingVerse}, suggestions[], suggestionsPrivate, next{...}, texts{pelayanan,doa,jadwal} }`. Sumber: `servingAssignment` · `serviceSchedule`+`ServiceRole`+`User` · `ministryMonthPlan` · `pastoral_care_notes` OPEN (saran doa; hanya Komisi/Liturgia Doa).
+- **UI** `WartaPublikTab.tsx` (Panel Divisi → **Didaskalia** → tab **Warta**): panel "Isi otomatis dari jadwal pelayanan" dengan tombol **Isi dari jadwal** dan **Isi + saran doa (privat)** (lewat `ConfirmDialog` + peringatan bahwa warta publik), pratinjau (penanggung/tuan rumah, tema, jumlah komponen terisi, jumlah saran privat), dan field baru **`jadwal`** ("Jadwal Minggu Depan"). Field `pelayanan/doa/jadwal` langsung ikut ke **export PNG/PDF** (`server/export.mjs` sudah merender ketiganya) dan ke body landing (`server/lib/content-map.mjs` `WARTA_FIELDS` += `jadwal`).
+- **Pengingat Kamis** (`server/routes/notif-cron.mjs`): `runPenatalayanReminder()` — hanya Kamis WIB, menghitung komponen Minggu depan yang belum ada petugas, kirim kategori `penatalayan` ke Komisi/COMMITTEE/BPMJ/Admin; dipanggil dari `/api/cron/notif-daily` (tanpa cron baru).
+- Verifikasi: lint bersih, **387 test** hijau (+17 `warta-desk.test.ts`), build OK; smoke API + browser (Warta 20 Sep: penanggung **Kairos**, tuan rumah **Shalom**, 3 komponen terisi, tema TW3/TB1, jadwal 27 Sep Agape/Metanoia; `suggestions=0` tanpa data privat, `suggestions=1` menampilkan "Putri (Sakit)"). Data uji staging dibersihkan (3 schedule, 1 warta, 1 catatan doa). **Tanpa migrasi DB.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+2. Isi jadwal petugas di **Panel Divisi → Liturgia/Marturia → Penatalayan** agar auto-isi tidak menampilkan "belum ada petugas terjadwal".
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kartu “Grup WhatsApp Saya” berjenjang (18 Sep 2026)
 
 **Goal:** Kanal WhatsApp yang baru diisi pengurus muncul ke anggota yang tepat — anggota hanya klusternya, pengurus melihat ke bawah.
 

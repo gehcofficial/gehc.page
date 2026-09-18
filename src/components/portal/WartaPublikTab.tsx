@@ -17,8 +17,10 @@ import {
   Send,
   RotateCcw,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 import WartaExportModal from './WartaExportModal';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
 
@@ -29,6 +31,7 @@ const WARTA_FIELDS = [
   { key: 'pelayanan', label: 'Pelayanan', placeholder: 'Jadwal pelayan minggu depan…', rows: 3 },
   { key: 'sharing', label: 'Sharing', placeholder: 'Kesaksian / sharing singkat…', rows: 3 },
   { key: 'doa', label: 'Doa', placeholder: 'Pokok doa syafaat…', rows: 3 },
+  { key: 'jadwal', label: 'Jadwal Minggu Depan', placeholder: 'Penanggung & tuan rumah minggu depan…', rows: 2 },
 ];
 
 const FIELD_LABELS = {
@@ -38,6 +41,7 @@ const FIELD_LABELS = {
   pelayanan: 'Pelayanan',
   sharing: 'Sharing',
   doa: 'Doa',
+  jadwal: 'Jadwal Minggu Depan',
 };
 
 function wartaPreview(contentJson) {
@@ -76,6 +80,32 @@ export default function WartaPublikTab({ division }: { division: string }) {
   const [editingWarta, setEditingWarta] = useState(null);
   const [showDetail, setShowDetail] = useState(null);
   const [exportWarta, setExportWarta] = useState(null);
+  const [desk, setDesk] = useState<any>(null);
+  const [deskBusy, setDeskBusy] = useState(false);
+  const [confirmSuggest, setConfirmSuggest] = useState(false);
+
+  /** Ambil rangkuman jadwal pelayanan untuk tanggal warta, lalu isikan ke field terkait. */
+  const fillFromDesk = useCallback(async (dateISO: string, withSuggestions: boolean) => {
+    setDeskBusy(true);
+    try {
+      const r = await fetch(
+        `/api/warta/desk?date=${encodeURIComponent(dateISO)}&suggestions=${withSuggestions ? 1 : 0}`,
+        { credentials: 'include' },
+      );
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal memuat jadwal pelayanan');
+      setDesk(d);
+      setEditingWarta((prev: any) => (prev
+        ? { ...prev, contentJson: { ...(prev.contentJson || {}), ...(d.texts || {}) } }
+        : prev));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Gagal memuat jadwal pelayanan');
+    } finally {
+      setDeskBusy(false);
+    }
+  }, []);
+
+  const wartaDateISO = editingWarta ? String(editingWarta.weekDate || '').slice(0, 10) : '';
 
   const fetchWarta = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -286,6 +316,53 @@ export default function WartaPublikTab({ division }: { division: string }) {
                   onChange={e => { editingWarta.title = e.target.value; setEditingWarta({ ...editingWarta }); }}
                   className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
               </div>
+              <div className="rounded-2xl border border-[#F6AE4A]/50 bg-[#FFF8EC] p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#B67B12]">
+                  Isi otomatis dari jadwal pelayanan
+                </p>
+                <p className="text-[10px] text-[#8C8880]">
+                  Minggu {new Date(`${wartaDateISO}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={deskBusy || !wartaDateISO}
+                    onClick={() => fillFromDesk(wartaDateISO, false)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-50"
+                  >
+                    {deskBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    Isi dari jadwal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deskBusy || !wartaDateISO}
+                    onClick={() => setConfirmSuggest(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50"
+                  >
+                    Isi + saran doa (privat)
+                  </button>
+                </div>
+                {desk && (
+                  <div className="text-[11px] text-[#5C5850] space-y-0.5 pt-1 border-t border-[#F6AE4A]/30">
+                    <p>
+                      Penanggung: <b>{desk.responsibleGroup?.name || '—'}</b> · Tuan Rumah: <b>{desk.hostGroup?.name || '—'}</b>
+                      {desk.projected ? ' (perkiraan)' : ''}
+                    </p>
+                    <p>
+                      Tema pekan: <b>{desk.themes?.weekTheme || '—'}</b> · Bulan: <b>{desk.themes?.monthTheme || '—'}</b>
+                    </p>
+                    <p>
+                      Petugas: <b>{desk.officers?.length || 0}</b> komponen ·{' '}
+                      <b>{desk.officers?.filter((o: any) => o.people?.length).length || 0}</b> terisi
+                    </p>
+                    {desk.suggestions?.length ? (
+                      <p className="text-amber-700 font-bold">
+                        Saran doa privat: {desk.suggestions.length} — sunting dulu sebelum terbit.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
               {WARTA_FIELDS.map(f => (
                 <div key={f.key}>
                   <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">{f.label}</label>
@@ -354,6 +431,21 @@ export default function WartaPublikTab({ division }: { division: string }) {
           onClose={() => setExportWarta(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmSuggest}
+        title="Sertakan saran doa dari Portal Doa?"
+        confirmLabel="Ya, sertakan"
+        busy={deskBusy}
+        onClose={() => setConfirmSuggest(false)}
+        onConfirm={() => { setConfirmSuggest(false); fillFromDesk(wartaDateISO, true); }}
+        description={(
+          <div className="space-y-1">
+            <p>Saran doa diambil dari <b>Portal Doa</b> (data privat) dan hanya memuat <b>nama depan + jenis</b> — tanpa isi catatan.</p>
+            <p className="font-bold text-amber-700">Warta tampil di halaman publik. Sunting/zamankan dulu sebelum status PUBLISHED.</p>
+          </div>
+        )}
+      />
     </div>
   );
 }

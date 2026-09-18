@@ -176,6 +176,71 @@ export async function runPrayerReminder(prisma, now = new Date()) {
 }
 
 /**
+ * Pengingat Kamis: komponen penatalayan ibadah Minggu depan yang belum ada petugas.
+ * Audiens: Komisi, COMMITTEE, BOD Tim Kerja, dan Superadmin (pihak yang boleh mengisi jadwal).
+ */
+export async function runPenatalayanReminder(prisma, now = new Date()) {
+  const wibNow = new Date(now.getTime() + WIB_OFFSET_MS);
+  if (wibNow.getUTCDay() !== 4) return { skipped: true, reason: 'bukan Kamis WIB' };
+
+  const today = wibNow.toISOString().slice(0, 10);
+  const t = Date.parse(`${today}T00:00:00Z`);
+  const dow = new Date(t).getUTCDay();
+  const sunday = new Date(t + (dow === 0 ? 0 : 7 - dow) * 86400000).toISOString().slice(0, 10);
+  const sundayDate = new Date(`${sunday}T00:00:00.000Z`);
+
+  const [roles, filled] = await Promise.all([
+    prisma.serviceRole.findMany({ where: { isActive: true }, select: { id: true, name: true } }).catch(() => []),
+    prisma.serviceSchedule
+      .findMany({ where: { date: sundayDate, status: { not: 'CANCELLED' } }, select: { serviceRoleId: true } })
+      .catch(() => []),
+  ]);
+  if (!roles.length) return { skipped: true, reason: 'belum ada komponen penatalayan' };
+  const filledIds = new Set(filled.map((f) => f.serviceRoleId));
+  const missing = roles.filter((r) => !filledIds.has(r.id));
+  if (!missing.length) return { skipped: true, reason: 'semua komponen sudah terisi', total: roles.length };
+
+  const users = await prisma.userRole
+    .findMany({
+      where: { role: { in: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'] } },
+      select: { userId: true, user: { select: { id: true, accountStatus: true } } },
+    })
+    .catch(() => []);
+  const userIds = [...new Set(users
+    .map((u) => u.userId || u.user?.id)
+    .filter(Boolean))]
+    .filter((id) => users.some((u) => (u.userId || u.user?.id) === id && u.user?.accountStatus === 'ACTIVE'));
+  if (!userIds.length) return { skipped: true, reason: 'tidak ada penerima', missing: missing.length };
+
+  const title = 'Pengingat penatalayan ibadah';
+  const message = `${missing.length} komponen Minggu ${sunday} belum ada petugas: ${missing.slice(0, 4).map((r) => r.name).join(', ')}${missing.length > 4 ? ', …' : ''}`;
+  let pushed = 0;
+  for (let i = 0; i < userIds.length; i += 100) {
+    const chunk = userIds.slice(i, i + 100);
+    await prisma.notification.createMany({
+      data: chunk.map((userId) => ({
+        id: `ntf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        type: 'IDLE_FLAG',
+        memberId: userId,
+        title,
+        message,
+        payload: { href: '/#/portal', category: 'penatalayan', priority: 'TASK' },
+        category: 'penatalayan',
+        status: 'OPEN',
+      })),
+    }).catch(() => {});
+    pushed += await pushToUsers(prisma, chunk, {
+      title,
+      message,
+      href: '/#/portal',
+      category: 'penatalayan',
+      priority: 'TASK',
+    });
+  }
+  return { sunday, total: roles.length, missing: missing.length, recipients: userIds.length, pushed };
+}
+
+/**
  * Cron notifikasi (rencana Hobby: maksimum 2 cron/hari):
  * - /api/cron/notif-daily — dispatch pengumuman terjadwal + pengingat H-1 + pengingat Doa Minggu (Sabtu).
  * - /api/cron/notif-dispatch, /api/cron/reminders — pemanggilan manual per bagian.
@@ -205,7 +270,14 @@ export function registerNotifCronRoutes(app, { wrap }) {
     const dispatchResult = await runAnnouncementDispatch(prisma);
     const reminderResult = await runEventReminders(prisma);
     const prayerResult = await runPrayerReminder(prisma).catch(() => ({ skipped: true }));
-    res.json({ ok: true, dispatch: dispatchResult, reminders: reminderResult, prayer: prayerResult });
+    const penatalayanResult = await runPenatalayanReminder(prisma).catch(() => ({ skipped: true }));
+    res.json({
+      ok: true,
+      dispatch: dispatchResult,
+      reminders: reminderResult,
+      prayer: prayerResult,
+      penatalayan: penatalayanResult,
+    });
   });
 
   app.get('/api/cron/notif-daily', daily);

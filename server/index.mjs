@@ -84,7 +84,9 @@ import { registerEventCheckInRoutes } from './routes/events-checkin.mjs';
 import { registerEventAttendanceSyncRoutes } from './routes/event-attendance-sync.mjs';
 import { registerChannelLinkRoutes } from './routes/channel-links.mjs';
 import { isBodTimkerja } from './division-rbac.mjs';
-import { loadStruktur } from './lib/drive-ownership.mjs';
+import { loadStruktur, isLiturgiaDoa } from './lib/drive-ownership.mjs';
+import { upcomingSunday } from './lib/prayer-week.mjs';
+import { buildWartaDesk, pickServingForDate } from './lib/warta-desk.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
@@ -6849,6 +6851,68 @@ app.patch('/api/division-meetings/agenda/:id', requireRole(), wrap(async (req, r
 
 // Status flow: DRAFT → CONTENT_READY (Didaskalia) → COPY_EDIT (Koinonia PR) → DESIGN (Marturia) → REVIEW (KOMISI) → APPROVED → PUBLISHED
 const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
+
+// GET /api/warta/desk — rangkuman petugas penatalayan, penanggung/tuan rumah, pokok doa,
+// dan jadwal minggu depan untuk satu tanggal ibadah (default: Minggu terdekat WIB).
+app.get('/api/warta/desk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const dateISO = String(req.query.date || '').slice(0, 10) || upcomingSunday();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) {
+    return res.status(400).json({ error: 'Parameter date wajib format YYYY-MM-DD.' });
+  }
+  const date = new Date(`${dateISO}T00:00:00.000Z`);
+  const windowFrom = new Date(date.getTime() - 21 * 86400000);
+  const windowTo = new Date(date.getTime() + 28 * 86400000);
+  const yearMonth = dateISO.slice(0, 7);
+
+  const [assignments, schedules, monthPlan, prayerNotes] = await Promise.all([
+    prisma.servingAssignment.findMany({
+      where: { eventDate: { gte: windowFrom, lte: windowTo } },
+      orderBy: { eventDate: 'asc' },
+      include: {
+        responsibleGroup: { select: { id: true, name: true, color: true } },
+        hostGroup: { select: { id: true, name: true, color: true } },
+      },
+    }).catch(() => []),
+    prisma.serviceSchedule.findMany({
+      where: { date, status: { not: 'CANCELLED' } },
+      include: {
+        serviceRole: { select: { id: true, name: true, division: true, sortOrder: true } },
+        user: { select: { id: true, name: true } },
+      },
+      orderBy: { serviceRole: { sortOrder: 'asc' } },
+    }).catch(() => []),
+    prisma.ministryMonthPlan.findUnique({ where: { yearMonth } }).catch(() => null),
+    prisma.pastoralCareNote.findMany({
+      where: { status: 'OPEN', occurredOn: { lte: date } },
+      include: {
+        subject: { select: { id: true, name: true } },
+      },
+      orderBy: [{ occurredOn: 'asc' }],
+      take: 60,
+    }).catch(() => []),
+  ]);
+
+  // Hanya catatan yang boleh dilihat Komisi/Liturgia (saring ringan di server).
+  const prayer = isKomisiOrSuperadmin(req.authUser) || await isLiturgiaDoa(req.authUser)
+    ? prayerNotes
+    : [];
+
+  const serving = pickServingForDate(assignments, dateISO);
+  const nextDate = new Date(date.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const nextServing = pickServingForDate(assignments, nextDate);
+  const desk = buildWartaDesk({
+    date: dateISO,
+    serving,
+    nextServing,
+    schedules,
+    monthPlan,
+    prayerNotes: prayer,
+    includeSuggestions: ['1', 'true', 'yes'].includes(String(req.query.suggestions || '').toLowerCase()),
+  });
+  res.json(desk);
+}));
 
 // GET /api/warta — list warta by status or date range
 app.get('/api/warta', requireRole(), wrap(async (req, res) => {

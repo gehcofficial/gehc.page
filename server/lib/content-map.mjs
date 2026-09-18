@@ -68,7 +68,7 @@ export function toDbContent(item, { id, tenantId = 'tenant-youth' } = {}) {
 }
 
 /** Field terstruktur editor Warta → body landing. */
-export const WARTA_FIELDS = ['ayat', 'khotbah', 'pengumuman', 'pelayanan', 'sharing', 'doa'];
+export const WARTA_FIELDS = ['ayat', 'khotbah', 'pengumuman', 'pelayanan', 'sharing', 'doa', 'jadwal'];
 
 export const WARTA_FIELD_LABELS = {
   ayat: 'Ayat',
@@ -77,6 +77,7 @@ export const WARTA_FIELD_LABELS = {
   pelayanan: 'Pelayanan',
   sharing: 'Sharing',
   doa: 'Doa',
+  jadwal: 'Jadwal Minggu Depan',
 };
 
 export function wartaBodyFromContent(contentJson, fallbackTitle = '') {
