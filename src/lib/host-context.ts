@@ -67,3 +67,15 @@ export function isPitchHash(hash: string): boolean {
   const h = String(hash || '');
   return h === '#/pitch' || h.startsWith('#/pitch/') || h.startsWith('#/pitch?');
 }
+
+/** Presentasi Mentor & Co-Mentor (regenerasi + fitur portal). */
+export function isMentorPitchHash(hash: string): boolean {
+  const h = String(hash || '');
+  return (
+    h === '#/pitch-mentor' ||
+    h.startsWith('#/pitch-mentor/') ||
+    h.startsWith('#/pitch-mentor?') ||
+    h === '#/panduan' ||
+    h.startsWith('#/panduan/')
+  );
+}

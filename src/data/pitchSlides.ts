@@ -4,7 +4,18 @@
  * Bahasa dijaga tetap ramah awam (hindari istilah teknis).
  */
 
-export type PitchSlideKind = 'cover' | 'section' | 'list' | 'roadmap' | 'closing' | 'demo' | 'qr';
+export type PitchSlideKind =
+  | 'cover'
+  | 'section'
+  | 'list'
+  | 'roadmap'
+  | 'closing'
+  | 'demo'
+  | 'qr'
+  | 'flow'
+  | 'weights'
+  | 'checklist'
+  | 'image';
 
 export type PitchRoadmapItem = {
   label: string;
@@ -29,6 +40,25 @@ export type PitchQrItem = {
   image: string;
 };
 
+/** Langkah alur bernomor (kind: 'flow'). */
+export type PitchFlowStep = {
+  title: string;
+  caption?: string;
+};
+
+/** Bar bobot parameter (kind: 'weights'), value 0..1. */
+export type PitchWeight = {
+  label: string;
+  value: number;
+  note?: string;
+};
+
+/** Daftar fitur + kenapa penting (kind: 'checklist'). */
+export type PitchChecklistItem = {
+  title: string;
+  detail: string;
+};
+
 export type PitchSlide = {
   id: string;
   kind: PitchSlideKind;
@@ -39,6 +69,10 @@ export type PitchSlide = {
   roadmap?: PitchRoadmapItem[];
   demo?: { steps: PitchDemoStep[] };
   qr?: PitchQrItem[];
+  flow?: PitchFlowStep[];
+  weights?: PitchWeight[];
+  checklist?: PitchChecklistItem[];
+  image?: { src: string; alt: string; caption?: string };
 };
 
 export const PITCH_SLIDES: PitchSlide[] = [

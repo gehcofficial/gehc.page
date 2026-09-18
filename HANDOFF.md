@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Kartu WA mengikuti role/kluster (bukan semua grup) (18 Sep 2026)
+## Current — Pitch “Panduan Mentor & Co-Mentor” di youth.gehc.page (18 Sep 2026)
+
+**Goal:** Materi pembekalan mentor/co-mentor: cara kerja regenerasi + cara orang baru ditempatkan (Jethro Engine) + fitur portal yang perlu diperhatikan, disajikan sebagai pitch deck seperti gehc.page.
+
+**Done:**
+- **Deck baru** `src/data/mentorPitchSlides.ts` (21 slide, ID, tanpa data pribadi): dasar (2 Tim 2:2 & Keluaran 18), alur orang baru (flow 8 langkah), Tes Karunia, **4 parameter Jethro 30/25/30/15**, cara membaca rekomendasi, kapasitas & pemicu (ambang 10 · idle 4 minggu · mitosis ≥80%×8 minggu · merger ≤6), alur Review Penempatan, panel + video regenerasi, 5 langkah regenerasi, dampak roster, 3 slide checklist fitur mentor (Monitoring; Pelayanan & Doa; Komunikasi & Kegiatan), ritme mingguan, Do & Don’t, jalur bantuan, QR, closing.
+- **Renderer** `PitchDeck.tsx` di-refactor agar menerima prop (`slides/storageKey/label/docTitle/exitHash`) + **kind baru**: `flow`, `weights`, `checklist`, `image` (tipe di `pitchSlides.ts`). Deck hub GEHC.page tidak berubah.
+- **Rute host-aware** (`host-context.ts` + `main.tsx`): `youth.gehc.page/#/pitch` → **deck mentor**; `gehc.page/#/pitch` tetap deck hub; alias eksplisit `#/pitch-mentor` & `#/panduan` (bisa dari host mana pun, keluar → `#/portal`).
+- **Aset** disalin ke `public/pitch/regenerasi/` (8 PNG + `regeneration.webm`) untuk slide gambar/demo; QR memakai `/media/qr-daftar-youth.png` & `/media/qr-hub.png`.
+- Tautan kecil di Dashboard untuk Mentor/Co-Mentor (“Panduan Mentor & Co-Mentor …”).
+- Verifikasi: lint bersih, **407 test** hijau (+5 `mentor-pitch.test.ts`: id unik, kind dikenal, kelengkapan isi per kind, bobot total 100%, semua aset ada di `public/`), build OK; smoke browser (deck termuat, label & judul tab benar, bobot 30/25/30/15, gambar, video, checklist, QR; `#/pitch` lokal → deck mentor). **Tanpa migrasi DB.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+2. Opsional: tombol unduh PDF handout (jspdf/html2canvas sudah tersedia) & meme per-slide.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kartu WA mengikuti role/kluster (bukan semua grup) (18 Sep 2026)
 
 **Goal:** Kartu “Grup WhatsApp Saya” di Dashboard & Ringkasan hanya menampilkan kanal milik pengguna + kanal kepemimpinannya — bukan seluruh grup Beyonders & divisi.
 

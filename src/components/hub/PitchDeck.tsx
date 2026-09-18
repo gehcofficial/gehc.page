@@ -27,6 +27,10 @@ function stepsFor(slide: PitchSlide): number {
   if (slide.kind === 'roadmap' && slide.roadmap?.length) return slide.roadmap.length;
   if (slide.kind === 'demo' && slide.demo?.steps?.length) return slide.demo.steps.length;
   if (slide.kind === 'qr' && slide.qr?.length) return slide.qr.length;
+  if (slide.kind === 'flow' && slide.flow?.length) return slide.flow.length;
+  if (slide.kind === 'weights' && slide.weights?.length) return slide.weights.length;
+  if (slide.kind === 'checklist' && slide.checklist?.length) return slide.checklist.length;
+  if (slide.kind === 'image') return slide.image ? 2 : 1; // judul → gambar
   if ((slide.kind === 'list' || slide.kind === 'section') && slide.bullets?.length) return slide.bullets.length;
   let n = 1; // judul
   if (slide.subtitle) n += 1;
@@ -62,6 +66,140 @@ function Header({ slide, step }: { slide: PitchSlide; step: number }) {
 function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; reduce: boolean | null }) {
   const reveal = (i: number) => i <= step;
   const active = (i: number) => i === step;
+
+  if (slide.kind === 'image' && slide.image) {
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <motion.div
+          initial={false}
+          animate={{ opacity: reveal(1) ? 1 : 0, y: reveal(1) || reduce ? 0 : 16 }}
+          transition={{ duration: 0.35 }}
+          aria-hidden={!reveal(1)}
+          className="mt-[1.2em] flex justify-center"
+        >
+          <figure className="max-w-[min(62em,92vw)]">
+            <img src={slide.image.src} alt={slide.image.alt} className="w-full rounded-[1.2em] border border-white/15 shadow-2xl" />
+            {slide.image.caption && (
+              <figcaption className="text-[0.95em] text-white/60 mt-[0.7em] text-center">{slide.image.caption}</figcaption>
+            )}
+          </figure>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (slide.kind === 'flow' && slide.flow?.length) {
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <div className="mt-[1.4em] flex flex-wrap gap-[0.7em]">
+          {slide.flow.map((f, i) => {
+            const c = colorAt(i);
+            const isActive = active(i);
+            const shown = reveal(i);
+            return (
+              <motion.div
+                key={f.title}
+                initial={false}
+                animate={{ opacity: shown ? (isActive ? 1 : 0.55) : 0, y: shown || reduce ? 0 : 12, scale: isActive ? 1.03 : 1 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden={!shown}
+                style={{ borderColor: isActive ? c : 'rgba(255,255,255,0.12)', boxShadow: isActive ? `0 0 0 2px ${c}` : undefined }}
+                className="flex-1 min-w-[10em] rounded-2xl border bg-white/5 p-[0.95em]"
+              >
+                <div className="flex items-center gap-[0.6em]">
+                  <span className="w-[1.9em] h-[1.9em] rounded-full flex items-center justify-center text-[0.95em] font-black" style={{ background: c }}>
+                    {i + 1}
+                  </span>
+                  <p className="font-bold text-[1.1em] leading-tight">{f.title}</p>
+                </div>
+                {f.caption && <p className="text-[0.95em] text-white/60 mt-[0.5em] leading-snug">{f.caption}</p>}
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (slide.kind === 'weights' && slide.weights?.length) {
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <div className="mt-[1.5em] space-y-[0.9em] max-w-[48em]">
+          {slide.weights.map((w, i) => {
+            const c = colorAt(i);
+            const isActive = active(i);
+            const shown = reveal(i);
+            const pct = Math.round(w.value * 100);
+            return (
+              <motion.div
+                key={w.label}
+                initial={false}
+                animate={{ opacity: shown ? (isActive ? 1 : 0.6) : 0, x: shown || reduce ? 0 : 16 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden={!shown}
+              >
+                <div className="flex items-baseline justify-between gap-[0.6em]">
+                  <p className="font-bold text-[1.15em]" style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.85)' }}>{w.label}</p>
+                  <span className="font-black tabular-nums text-[1.1em]" style={{ color: c }}>{pct}%</span>
+                </div>
+                <div className="mt-[0.35em] h-[0.9em] rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    initial={false}
+                    animate={{ width: shown ? `${pct}%` : '0%' }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full rounded-full"
+                    style={{ background: c }}
+                  />
+                </div>
+                {w.note && <p className="text-[0.95em] text-white/55 mt-[0.35em] leading-snug">{w.note}</p>}
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (slide.kind === 'checklist' && slide.checklist?.length) {
+    return (
+      <div>
+        <Header slide={slide} step={step} />
+        {slide.subtitle && <p className="text-[1.1em] text-white/60 mt-[0.45em]">{slide.subtitle}</p>}
+        <div className="mt-[1.4em] grid grid-cols-1 sm:grid-cols-2 gap-[0.8em]">
+          {slide.checklist.map((it, i) => {
+            const c = colorAt(i);
+            const isActive = active(i);
+            const shown = reveal(i);
+            return (
+              <motion.div
+                key={it.title}
+                initial={false}
+                animate={{ opacity: shown ? (isActive ? 1 : 0.6) : 0, y: shown || reduce ? 0 : 12 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden={!shown}
+                style={{ borderColor: isActive ? c : 'rgba(255,255,255,0.12)', boxShadow: isActive ? `0 0 0 2px ${c}` : undefined }}
+                className="rounded-2xl border bg-white/5 p-[1em] flex items-start gap-[0.7em]"
+              >
+                <span className="w-[1.7em] h-[1.7em] rounded-full flex items-center justify-center shrink-0 mt-[0.1em]" style={{ background: c }}>
+                  <Check className="w-[0.95em] h-[0.95em] text-white" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold text-[1.1em] leading-tight">{it.title}</p>
+                  <p className="text-[0.95em] text-white/60 mt-[0.3em] leading-snug">{it.detail}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   if (slide.kind === 'cover' || slide.kind === 'closing') {
     const units: Array<'title' | 'subtitle' | 'badge'> = ['title'];
@@ -281,47 +419,64 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
   );
 }
 
-const PitchDeck: React.FC = () => {
+const PitchDeck: React.FC<{
+  /** Isi deck. Default: deck hub GEHC.page. */
+  slides?: PitchSlide[];
+  /** Kunci penyimpanan preferensi ukuran teks (beda deck = beda kunci). */
+  storageKey?: string;
+  /** Label kecil di kanan atas. */
+  label?: string;
+  /** Judul tab browser. */
+  docTitle?: string;
+  /** Hash tujuan saat keluar (Esc / tombol X). */
+  exitHash?: string;
+}> = ({
+  slides = PITCH_SLIDES,
+  storageKey = SCALE_STORAGE,
+  label = 'GEHC.page · Presentasi',
+  docTitle = 'GEHC.page — Presentasi',
+  exitHash = '#/',
+}) => {
   const reduce = useReducedMotion();
-  const total = PITCH_SLIDES.length;
+  const total = slides.length;
   const [pos, setPos] = useState({ i: 0, s: 0 });
   const [isFull, setIsFull] = useState(false);
   const [started, setStarted] = useState(false);
   const [scale, setScale] = useState<ScaleKey>(() => {
     try {
-      const v = localStorage.getItem(SCALE_STORAGE) as ScaleKey | null;
+      const v = localStorage.getItem(storageKey) as ScaleKey | null;
       return v && v in SCALE_VALUES ? v : 'besar';
     } catch {
       return 'besar';
     }
   });
 
-  const slide = PITCH_SLIDES[pos.i];
+  const slide = slides[pos.i];
   const steps = stepsFor(slide);
 
   const stepsBefore = useMemo(
-    () => PITCH_SLIDES.slice(0, pos.i).reduce((n, s) => n + stepsFor(s), 0),
-    [pos.i],
+    () => slides.slice(0, pos.i).reduce((n, s) => n + stepsFor(s), 0),
+    [pos.i, slides],
   );
-  const totalSteps = useMemo(() => PITCH_SLIDES.reduce((n, s) => n + stepsFor(s), 0), []);
+  const totalSteps = useMemo(() => slides.reduce((n, s) => n + stepsFor(s), 0), [slides]);
   const globalStep = stepsBefore + pos.s + 1;
 
   const next = useCallback(() => {
     setPos((p) => {
-      const st = stepsFor(PITCH_SLIDES[p.i]);
+      const st = stepsFor(slides[p.i]);
       if (p.s < st - 1) return { i: p.i, s: p.s + 1 };
       if (p.i < total - 1) return { i: p.i + 1, s: 0 };
       return p;
     });
-  }, [total]);
+  }, [total, slides]);
 
   const prev = useCallback(() => {
     setPos((p) => {
       if (p.s > 0) return { i: p.i, s: p.s - 1 };
-      if (p.i > 0) return { i: p.i - 1, s: stepsFor(PITCH_SLIDES[p.i - 1]) - 1 };
+      if (p.i > 0) return { i: p.i - 1, s: stepsFor(slides[p.i - 1]) - 1 };
       return p;
     });
-  }, []);
+  }, [slides]);
 
   const goSlide = useCallback((i: number) => setPos({ i, s: 0 }), []);
 
@@ -331,7 +486,7 @@ const PitchDeck: React.FC = () => {
     else doc.exitFullscreen?.().catch(() => {});
   }, []);
 
-  const exit = useCallback(() => { window.location.hash = '#/'; }, []);
+  const exit = useCallback(() => { window.location.hash = exitHash; }, [exitHash]);
 
   const start = useCallback(() => {
     setStarted(true);
@@ -340,10 +495,10 @@ const PitchDeck: React.FC = () => {
 
   const changeScale = useCallback((k: ScaleKey) => {
     setScale(k);
-    try { localStorage.setItem(SCALE_STORAGE, k); } catch { /* abaikan */ }
-  }, []);
+    try { localStorage.setItem(storageKey, k); } catch { /* abaikan */ }
+  }, [storageKey]);
 
-  useEffect(() => { document.title = 'GEHC.page — Presentasi'; }, []);
+  useEffect(() => { document.title = docTitle; }, [docTitle]);
 
   useEffect(() => {
     const onFullscreen = () => setIsFull(Boolean(document.fullscreenElement));
@@ -360,7 +515,7 @@ const PitchDeck: React.FC = () => {
         case 'ArrowLeft': case 'PageUp': case 'ArrowUp': case 'Backspace':
           e.preventDefault(); prev(); break;
         case 'Home': e.preventDefault(); setPos({ i: 0, s: 0 }); break;
-        case 'End': e.preventDefault(); setPos({ i: total - 1, s: stepsFor(PITCH_SLIDES[total - 1]) - 1 }); break;
+        case 'End': e.preventDefault(); setPos({ i: total - 1, s: stepsFor(slides[total - 1]) - 1 }); break;
         case 'Escape': exit(); break;
         case 'f': case 'F': toggleFullscreen(); break;
         default: break;
@@ -368,7 +523,7 @@ const PitchDeck: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [next, prev, total, exit, toggleFullscreen, started, start]);
+  }, [next, prev, total, exit, toggleFullscreen, started, start, slides]);
 
   const baseFont = `calc(clamp(0.95rem, 0.5rem + 0.8vw, 1.5rem) * ${SCALE_VALUES[scale]})`;
 
@@ -378,7 +533,7 @@ const PitchDeck: React.FC = () => {
       <header className="flex items-center justify-between px-4 sm:px-8 py-4 shrink-0">
         <div className="flex items-center gap-3">
           <GehcLogo size={32} />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-white/60">GEHC.page · Presentasi</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/60">{label}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="hidden sm:flex items-center gap-1 mr-2 rounded-full bg-white/5 border border-white/10 p-1">
@@ -457,7 +612,7 @@ const PitchDeck: React.FC = () => {
             </div>
 
             <div className="hidden sm:flex items-center gap-1.5">
-              {PITCH_SLIDES.map((s, i) => (
+              {slides.map((s, i) => (
                 <button
                   key={s.id}
                   type="button"

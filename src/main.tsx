@@ -5,13 +5,14 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isMentorPitchHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
 import './index.css';
 
 /** Hub, coming-soon unit, dan pitch deck dimuat terpisah dari bundle portal Pemuda. */
 const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
 const UnitComingSoon = React.lazy(() => import('./components/hub/UnitComingSoon.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
+const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hostUnit = resolveHostUnit(host);
@@ -35,6 +36,16 @@ const AppRoot: React.FC = () => {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Deck Mentor & Co-Mentor: eksplisit (#/pitch-mentor, #/panduan) atau
+  // #/pitch pada host unit Pemuda (hub tetap memakai deck GEHC.page).
+  if (isMentorPitchHash(hash) || (isPitchHash(hash) && !hubHost && resolveHostUnit(host) !== 'hub')) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <PitchMentor />
+      </Suspense>
+    );
+  }
 
   if (isPitchHash(hash)) {
     return (

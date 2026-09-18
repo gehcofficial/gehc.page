@@ -117,6 +117,17 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
 
       {!isAlumni && <MyChannelsCard />}
 
+      {isGroupMentor && (
+        <a
+          href="#/pitch-mentor"
+          className="flex items-center gap-2 rounded-2xl border border-[#D9D7D0] bg-white px-4 py-3 text-xs font-bold text-[#1B1B1B] hover:border-[#FF416C] transition-colors"
+        >
+          <BookOpen className="w-4 h-4 text-[#FF416C] shrink-0" />
+          <span>Panduan Mentor &amp; Co-Mentor — cara kerja regenerasi, penempatan anggota baru, dan fitur portal</span>
+          <ArrowRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+        </a>
+      )}
+
       <div className="bg-gradient-to-r from-[#181818] via-[#222222] to-[#181818] rounded-[32px] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-white/10">
         <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-[#FF416C]/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
 
