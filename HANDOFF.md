@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — Urutan siklus serving dapat diatur admin + tukar Echad ⇄ Kairos (18 Sep 2026)
+## Current — Kartu WA mengikuti role/kluster (bukan semua grup) (18 Sep 2026)
+
+**Goal:** Kartu “Grup WhatsApp Saya” di Dashboard & Ringkasan hanya menampilkan kanal milik pengguna + kanal kepemimpinannya — bukan seluruh grup Beyonders & divisi.
+
+**Done:**
+- **Akar masalah**: `SEE_ALL_RANKS` mencakup `ADMIN, BPMJ, KOMISI, BOD` → akun mentee yang merangkap Komisi (mis. Glenity) melihat semua 10 grup + 6 divisi.
+- **Perbaikan** (`server/lib/channel-link-access.mjs`): `SEE_ALL_RANKS` = **`{ADMIN}`** saja; helper baru `leadershipRefsFor(rank)` (BPMJ→BPMJ · KOMISI→KOMISI · BOD→TIMKERJA · ADMIN→ketiganya); `personalChannelScope` kini selalu mengembalikan `refs` kluster (LEADERSHIP sesuai peran + GROUP/DIVISION/BIPRA/KOLOM/RECREATIONAL miliknya).
+- `scopedDivisionCodes()` menambah sumber **`eventDivisionMember.division`** agar staf divisi event tetap mendapat kanal divisinya.
+- **Verifikasi persona (staging)**: mentee grp-8/REMAJA → `BIPRA/REMAJA + GROUP/grp-8` (0 kebocoran); **Glenity (MENTEE grp-7 + KOMISI)** → `LEADERSHIP/KOMISI + BIPRA/PEMUDA + GROUP/grp-7`; mentor grp-2 → `BIPRA/PEMUDA + GROUP/grp-2`; **BPMJ** → `LEADERSHIP/BPMJ + BIPRA/PEMUDA` (bukan semua grup); Superadmin → semua. Lint bersih, **402 test** hijau (+3), build OK. Data uji staging dibersihkan. Tanpa migrasi DB.
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Urutan siklus serving dapat diatur admin + tukar Echad ⇄ Kairos (18 Sep 2026)
 
 **Goal:** Admin bisa mengubah urutan 10 pasangan penanggung/tuan rumah tanpa deploy, menukar dua kelompok secara massal (kedua peran) sejak 6 Sep 2026, dan menyelaraskan jadwal nyata.
 

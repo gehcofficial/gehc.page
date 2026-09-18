@@ -103,12 +103,23 @@ export async function scopedDivisionCodes(authUser) {
   const prisma = getPrisma();
   if (!prisma || !authUser?.id) return [...codes];
   try {
-    const ras = await prisma.roleAssignment.findMany({
-      where: { userId: authUser.id, isActive: true, division: { not: null } },
-      select: { division: true },
-    });
+    const [ras, eventMembers] = await Promise.all([
+      prisma.roleAssignment.findMany({
+        where: { userId: authUser.id, isActive: true, division: { not: null } },
+        select: { division: true },
+      }).catch(() => []),
+      // Staf divisi event (Tim Kerja per divisi) — sumber ketiga bila struktur/RA kosong.
+      prisma.eventDivisionMember.findMany({
+        where: { userId: authUser.id },
+        select: { eventDivision: { select: { division: true } } },
+      }).catch(() => []),
+    ]);
     for (const ra of ras) {
       const d = String(ra.division || '').toUpperCase();
+      if (DIVISION_IDS.has(d)) codes.add(d);
+    }
+    for (const m of eventMembers) {
+      const d = String(m.eventDivision?.division || '').toUpperCase();
       if (DIVISION_IDS.has(d)) codes.add(d);
     }
   } catch {
@@ -159,8 +170,17 @@ export function channelRank(authUser, { isBod = false, isSuperadmin = false } = 
   return 'MEMBER';
 }
 
-/** Peringkat yang melihat semua kanal (leader melihat ke bawah). */
-export const SEE_ALL_RANKS = new Set(['ADMIN', 'BPMJ', 'KOMISI', 'BOD']);
+/** Hanya Superadmin/Admin yang melihat seluruh kanal. */
+export const SEE_ALL_RANKS = new Set(['ADMIN']);
+
+/** Kanal kepemimpinan yang melekat pada peran (tanpa melihat kanal lain). */
+export function leadershipRefsFor(rank) {
+  if (rank === 'ADMIN') return ['KOMISI', 'TIMKERJA', 'BPMJ'];
+  if (rank === 'BPMJ') return ['BPMJ'];
+  if (rank === 'KOMISI') return ['KOMISI'];
+  if (rank === 'BOD') return ['TIMKERJA'];
+  return [];
+}
 
 /** Jenis kanal yang tampil di kartu personal (EVENT punya permukaan sendiri). */
 export const PERSONAL_CHANNEL_KINDS = [
@@ -173,8 +193,8 @@ export const PERSONAL_CHANNEL_KINDS = [
 ];
 
 /**
- * Scope kanal personal. Anggota hanya klusternya sendiri; pengurus melihat semua.
- * Pure (tanpa DB) agar mudah diuji.
+ * Scope kanal personal: hanya kluster milik pengguna + kanal kepemimpinan sesuai perannya.
+ * Hanya ADMIN (Superadmin) yang melihat seluruh kanal. Pure (tanpa DB) agar mudah diuji.
  * @returns {{ seeAll: boolean, refs: Array<{ kind: string, refId: string }> }}
  */
 export function personalChannelScope({
@@ -192,6 +212,7 @@ export function personalChannelScope({
       refs.push({ kind, refId: String(id) });
     }
   };
+  push('LEADERSHIP', leadershipRefsFor(rank));
   push('GROUP', groupIds);
   push('DIVISION', divisionCodes);
   push('BIPRA', [bipra]);

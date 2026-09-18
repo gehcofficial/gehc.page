@@ -5,6 +5,7 @@ import {
   canWriteKindSync,
   channelRank,
   isChannelWriterSync,
+  leadershipRefsFor,
   personalChannelScope,
 } from '../../server/lib/channel-link-access.mjs';
 
@@ -72,10 +73,36 @@ describe('kanal personal berjenjang', () => {
     expect(channelRank(member('MENTEE'))).toBe('MEMBER');
   });
 
-  it('pengurus melihat semua kanal di bawahnya', () => {
-    for (const rank of ['ADMIN', 'BPMJ', 'KOMISI', 'BOD']) {
-      expect(personalChannelScope({ rank }).seeAll).toBe(true);
+  it('hanya Admin/Superadmin yang melihat semua kanal', () => {
+    expect(personalChannelScope({ rank: 'ADMIN' }).seeAll).toBe(true);
+    for (const rank of ['BPMJ', 'KOMISI', 'BOD', 'MEMBER']) {
+      expect(personalChannelScope({ rank }).seeAll).toBe(false);
     }
+  });
+
+  it('kanal kepemimpinan hanya yang melekat pada peran', () => {
+    expect(leadershipRefsFor('ADMIN')).toEqual(['KOMISI', 'TIMKERJA', 'BPMJ']);
+    expect(leadershipRefsFor('BPMJ')).toEqual(['BPMJ']);
+    expect(leadershipRefsFor('KOMISI')).toEqual(['KOMISI']);
+    expect(leadershipRefsFor('BOD')).toEqual(['TIMKERJA']);
+    expect(leadershipRefsFor('MEMBER')).toEqual([]);
+  });
+
+  it('Komisi hanya melihat kanal Komisi + klusternya (bukan semua grup)', () => {
+    const r = personalChannelScope({ rank: 'KOMISI', bipra: 'PEMUDA', groupIds: ['grp-7'] });
+    expect(r.refs).toEqual([
+      { kind: 'LEADERSHIP', refId: 'KOMISI' },
+      { kind: 'GROUP', refId: 'grp-7' },
+      { kind: 'BIPRA', refId: 'PEMUDA' },
+    ]);
+    expect(r.refs.some((x) => x.kind === 'GROUP' && x.refId !== 'grp-7')).toBe(false);
+  });
+
+  it('BOD Tim Kerja hanya kanal TIMKERJA + divisi tempatnya ditugaskan', () => {
+    const r = personalChannelScope({ rank: 'BOD', divisionCodes: ['LITURGIA'], groupIds: ['grp-2'] });
+    expect(r.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'TIMKERJA' });
+    expect(r.refs).toContainEqual({ kind: 'DIVISION', refId: 'LITURGIA' });
+    expect(r.refs).toContainEqual({ kind: 'GROUP', refId: 'grp-2' });
   });
 
   it('anggota: hanya grup, divisi, BIPRA, kolom, dan minat miliknya', () => {
