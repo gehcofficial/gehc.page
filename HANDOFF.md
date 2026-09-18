@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — WA sesuai peran aktif + album kelompok tampil di publik (18 Sep 2026)
+## Current — Warta: penanggung/tuan rumah otomatis + sync ulang saat disunting (19 Sep 2026)
+
+**Goal:** Menutup dua celah Warta: (a) bagian Penanggung Jawab/Tuan Rumah kosong bila tombol “Isi dari jadwal” tak ditekan, (b) suntingan setelah PUBLISHED tidak ikut ke landing.
+
+**Done:**
+- **A. Prefill otomatis** (`WartaPublikTab.tsx`): saat modal Edit dibuka, field **Pelayanan** & **Jadwal Minggu Depan** diisi dari `/api/warta/desk?date=<weekDate>&suggestions=0` **hanya bila masih kosong** (tidak menimpa tulisan manual); tombol manual tetap ada.
+- **B. Sync ulang** (`server/index.mjs` `PATCH /api/warta/:id`): bila `contentJson` berubah dan status sudah `PUBLISHED`, `syncWartaToContentItem()` dijalankan ulang → teks landing (Warta publik) ikut diperbarui. (Sebelumnya hanya saat transisi ke PUBLISHED.)
+- **D. Chip jadwal di daftar Warta**: kartu tiap minggu kini menampilkan `Penanggung: X ⇄ Tuan Rumah: Y` (dari `/api/serving-assignments`, ditandai “(prediksi)” untuk baris virtual).
+- Verifikasi: lint bersih, **413 test** hijau, build OK; smoke lokal — prefill tanpa klik (Pelayanan: Echad/Shalom + petugas; Jadwal: Agape/Metanoia 27 Sep), chip tampil di kartu, dan sunting `contentJson` saat PUBLISHED langsung memperbarui body landing. Data uji dibersihkan. **Tanpa migrasi DB.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — WA sesuai peran aktif + album kelompok tampil di publik (18 Sep 2026)
 
 **Goal:** (a) Kartu “Grup WhatsApp saya” mengikuti **chip/peran aktif**, bukan gabungan semua role. (b) Foto kegiatan kelompok bisa tampil di landing/detail grup — **hanya bila ditandai eksplisit** oleh mentor/Komisi.
 

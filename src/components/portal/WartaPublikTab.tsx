@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   FileText,
   Plus,
@@ -83,6 +83,8 @@ export default function WartaPublikTab({ division }: { division: string }) {
   const [desk, setDesk] = useState<any>(null);
   const [deskBusy, setDeskBusy] = useState(false);
   const [confirmSuggest, setConfirmSuggest] = useState(false);
+  /** Jadwal penanggung/tuan rumah per tanggal (bulan terlihat). */
+  const [servingByDate, setServingByDate] = useState<Record<string, { responsible: string; host: string; virtual: boolean }>>({});
 
   /** Ambil rangkuman jadwal pelayanan untuk tanggal warta, lalu isikan ke field terkait. */
   const fillFromDesk = useCallback(async (dateISO: string, withSuggestions: boolean) => {
@@ -107,6 +109,38 @@ export default function WartaPublikTab({ division }: { division: string }) {
 
   const wartaDateISO = editingWarta ? String(editingWarta.weekDate || '').slice(0, 10) : '';
 
+  // Prefill Penanggung/Tuan Rumah + jadwal minggu depan dari jadwal pelayanan
+  // BILA field-nya masih kosong (tidak menimpa tulisan manual).
+  const prefilledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!showDetail || !editingWarta || !wartaDateISO) return;
+    if (prefilledFor.current === editingWarta.id) return;
+    const c = editingWarta.contentJson || {};
+    const missing = ['pelayanan', 'jadwal'].some((k) => !String(c[k] || '').trim());
+    if (!missing) return;
+    prefilledFor.current = editingWarta.id;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/warta/desk?date=${encodeURIComponent(wartaDateISO)}&suggestions=0`, { credentials: 'include' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (cancelled) return;
+        setDesk(d);
+        setEditingWarta((prev: any) => {
+          if (!prev) return prev;
+          const cur = prev.contentJson || {};
+          const next = { ...cur };
+          for (const k of ['pelayanan', 'jadwal']) {
+            if (!String(cur[k] || '').trim() && d.texts?.[k]) next[k] = d.texts[k];
+          }
+          return { ...prev, contentJson: next };
+        });
+      } catch { /* prefill opsional */ }
+    })();
+    return () => { cancelled = true; };
+  }, [showDetail, editingWarta?.id, wartaDateISO, editingWarta]);
+
   const fetchWarta = useCallback(async () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -114,9 +148,27 @@ export default function WartaPublikTab({ division }: { division: string }) {
     const lastDay = new Date(year, month + 1, 0).getDate();
     const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     try {
-      const r = await fetch(`/api/warta?from=${from}&to=${to}`, { credentials: 'include' });
+      const [r, s] = await Promise.all([
+        fetch(`/api/warta?from=${from}&to=${to}`, { credentials: 'include' }),
+        fetch(`/api/serving-assignments?from=${from}&to=${to}&includeVirtual=1`, { credentials: 'include' }),
+      ]);
       const d = await r.json();
       setWartaList(d.warta || []);
+      if (s.ok) {
+        const sd = await s.json();
+        const rows = [...(sd.assignments || []), ...(sd.virtual || [])];
+        const map: Record<string, { responsible: string; host: string; virtual: boolean }> = {};
+        for (const row of rows) {
+          const iso = String(row.eventDate || '').slice(0, 10);
+          if (!iso) continue;
+          map[iso] = {
+            responsible: row.responsibleGroup?.name || row.responsibleGroupId || '—',
+            host: row.hostGroup?.name || row.hostGroupId || '—',
+            virtual: Boolean(row.isVirtual),
+          };
+        }
+        setServingByDate(map);
+      }
     } catch { /* skip */ }
   }, [currentMonth]);
 
@@ -201,6 +253,19 @@ export default function WartaPublikTab({ division }: { division: string }) {
                     </span>
                   </div>
                   <p className="font-bold text-sm truncate">{w.title}</p>
+                  {(() => {
+                    const iso = String(w.weekDate || '').slice(0, 10);
+                    const s = servingByDate[iso];
+                    if (!s) return null;
+                    return (
+                      <p className="text-[11px] text-[#5C5850] mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>Penanggung: <strong>{s.responsible}</strong></span>
+                        <span aria-hidden>⇄</span>
+                        <span>Tuan Rumah: <strong>{s.host}</strong></span>
+                        {s.virtual && <span className="text-[10px] text-[#8C8880] italic">(prediksi)</span>}
+                      </p>
+                    );
+                  })()}
                   {wartaPreview(w.contentJson) && (
                     <p className="text-xs text-[#8C8880] mt-1 max-h-8 overflow-hidden">
                       {wartaPreview(w.contentJson)}

@@ -6991,6 +6991,9 @@ app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   if (status === 'PUBLISHED' && oldStatus !== 'PUBLISHED') {
     notifyNewWarta(prisma, warta).catch(console.error);
     syncWartaToContentItem(prisma, warta).catch(console.error);
+  } else if (contentJson !== undefined && warta.status === 'PUBLISHED') {
+    // Warta sudah terbit tapi isinya disunting → teks di landing ikut diperbarui.
+    syncWartaToContentItem(prisma, warta).catch(console.error);
   }
   
   res.json({ warta });
