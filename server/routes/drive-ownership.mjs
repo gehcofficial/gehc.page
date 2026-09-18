@@ -19,6 +19,12 @@ import {
   newEntityId,
 } from '../lib/drive-ownership.mjs';
 import { isKomisiOrSuperadmin as komisiGate } from '../division-rbac.mjs';
+import {
+  PUBLIC_ALBUM_STATUS,
+  filterPublicAlbums,
+  serializePublicAlbum,
+  sortPublicAlbums,
+} from '../lib/public-albums.mjs';
 import { replaceVisualStem, backupToOpsFolder, scheduleVisualsPublish } from '../lib/visual-slot-write.mjs';
 import {
   requireUserDrive,
@@ -139,6 +145,8 @@ function serializeAlbum(row, { includeDrive = false } = {}) {
     eventId: row.eventId,
     coverUrl: row.coverDriveFileId ? driveThumbUrl(row.coverDriveFileId) : previews[0]?.thumbnailUrl || null,
     previews,
+    showOnLanding: Boolean(row.showOnLanding),
+    publishedAt: row.publishedAt || null,
     driveFolderId: includeDrive ? row.driveFolderId : undefined,
     driveUrl: includeDrive && row.driveFolderId
       ? `https://drive.google.com/drive/folders/${row.driveFolderId}`
@@ -147,6 +155,62 @@ function serializeAlbum(row, { includeDrive = false } = {}) {
 }
 
 export function registerEventArchivePublicRoute(app, { wrap }) {
+  // Album kelompok yang ditandai publik (landing & detail grup). Tanpa login.
+  // Hanya album SELESAI + showOnLanding; tanpa folder Drive internal.
+  app.get(
+    '/api/db/groups/:id/albums',
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.json({ albums: [] });
+      const rows = await prisma.groupAlbum
+        .findMany({
+          where: { groupId: req.params.id, status: PUBLIC_ALBUM_STATUS, showOnLanding: true },
+          orderBy: { occurredOn: 'desc' },
+          take: 40,
+        })
+        .catch(() => []);
+      res.json({
+        albums: sortPublicAlbums(filterPublicAlbums(rows)).map((r) =>
+          serializePublicAlbum(r, {
+            coverUrl: r.coverDriveFileId ? driveThumbUrl(r.coverDriveFileId) : previewList(r.previewFileIds)[0]?.thumbnailUrl || null,
+            previews: previewList(r.previewFileIds),
+          })),
+      });
+    }),
+  );
+
+  // Umpan album publik lintas kelompok untuk seksi landing.
+  app.get(
+    '/api/db/group-albums',
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.json({ albums: [] });
+      const limit = Math.min(24, Math.max(1, Number(req.query.limit) || 9));
+      const rows = await prisma.groupAlbum
+        .findMany({
+          where: { status: PUBLIC_ALBUM_STATUS, showOnLanding: true },
+          orderBy: { occurredOn: 'desc' },
+          take: limit * 2,
+        })
+        .catch(() => []);
+      const visible = sortPublicAlbums(filterPublicAlbums(rows)).slice(0, limit);
+      const groupIds = [...new Set(visible.map((r) => r.groupId))];
+      const groups = groupIds.length
+        ? await prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true } }).catch(() => [])
+        : [];
+      const nameById = new Map(groups.map((g) => [g.id, g.name]));
+      res.json({
+        albums: visible.map((r) =>
+          serializePublicAlbum(r, {
+            groupName: nameById.get(r.groupId) || null,
+            coverUrl: r.coverDriveFileId ? driveThumbUrl(r.coverDriveFileId) : previewList(r.previewFileIds)[0]?.thumbnailUrl || null,
+            previews: previewList(r.previewFileIds),
+          }),
+        ),
+      });
+    }),
+  );
+
   app.get(
     '/api/events/public-archive',
     wrap(async (_req, res) => {
@@ -574,6 +638,40 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const statusOk = await writeAlbumStatus(prisma, album.id, finalStatus);
       if (!statusOk) return res.status(503).json({ error: 'DB belum migrasi status album. Jalankan: npm run db:migrate:local' });
       res.json({ album: serializeAlbum({ ...album, status: finalStatus }, { includeDrive: true }) });
+    }),
+  );
+
+  // Publikasi album ke halaman publik (landing/detail grup). Default privat.
+  // Hanya album SELESAI yang boleh ditandai; wajib mentor rumah itu atau Komisi.
+  app.patch(
+    '/api/groups/:id/albums/:albumId/visibility',
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const album = await prisma.groupAlbum.findUnique({ where: { id: req.params.albumId } });
+      if (!album || album.groupId !== req.params.id) return res.status(404).json({ error: 'Album tidak ditemukan.' });
+      if (!isMentorOfGroup(req.authUser, album.groupId) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya mentor/co rumah ini atau Komisi.' });
+      }
+      const statusMap = await readAlbumStatusMap(prisma, [album.id]);
+      const cur = albumStatusOf(album, statusMap);
+      const want = req.body?.showOnLanding === true;
+      if (want && cur !== 'SELESAI') {
+        return res.status(400).json({ error: 'Hanya album berstatus SELESAI yang dapat ditampilkan ke publik.' });
+      }
+      try {
+        const updated = await prisma.groupAlbum.update({
+          where: { id: album.id },
+          data: { showOnLanding: want, publishedAt: want ? new Date() : null },
+        });
+        res.json({ album: serializeAlbum({ ...updated, status: cur }, { includeDrive: true }) });
+      } catch (e) {
+        if (String(e?.message || '').includes('show_on_landing') || String(e?.message || '').includes('published_at')) {
+          return res.status(503).json({ error: 'DB belum migrasi album publik. Jalankan: npm run db:migrate:local' });
+        }
+        throw e;
+      }
     }),
   );
 

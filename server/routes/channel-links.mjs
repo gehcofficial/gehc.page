@@ -61,6 +61,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
         const rank = channelRank(req.authUser, {
           isBod,
           isSuperadmin: isSuperadminEmail(req.authUser.email),
+          activeRole: req.activeRole,
         });
         const [groupIds, divisionCodes, recRows] = await Promise.all([
           scopedGroupIds(req.authUser),

@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Pitch “Panduan Mentor & Co-Mentor” di youth.gehc.page (18 Sep 2026)
+## Current — WA sesuai peran aktif + album kelompok tampil di publik (18 Sep 2026)
+
+**Goal:** (a) Kartu “Grup WhatsApp saya” mengikuti **chip/peran aktif**, bukan gabungan semua role. (b) Foto kegiatan kelompok bisa tampil di landing/detail grup — **hanya bila ditandai eksplisit** oleh mentor/Komisi.
+
+**Done:**
+- **WA per-peran**: `channelRank()` menerima `activeRole` (`server/lib/channel-link-access.mjs`); rute `?me=1` memakai `req.activeRole`. Akun multi-role (mis. SUPERADMIN+MENTOR) kini hanya melihat kluster saat chip = MENTOR; chip SUPERADMIN tetap semua. Panel Kanal WhatsApp (pengurus) tidak berubah. +1 unit test multi-role.
+- **Album publik** (aditif, default **privat**): kolom `GroupAlbum.showOnLanding` + `publishedAt` (migrasi `server/_migrate-group-album-public.cjs` — **sudah di staging**, prod belum). Helper `server/lib/public-albums.mjs` (`isAlbumPublic` = SELESAI + ditandai; `serializePublicAlbum` tanpa field Drive internal).
+- **API**: `PATCH /api/groups/:id/albums/:albumId/visibility` (mentor rumah itu/Komisi; hanya album SELESAI; menyalakan `publishedAt`); publik **`GET /api/db/groups/:id/albums`** & **`GET /api/db/group-albums?limit=`** (tanpa login, hanya album publik).
+- **UI**: tombol **Tampilkan di landing / Sembunyikan** + badge **Publik** di `GroupAlbumsPanel` (konfirmasi izin foto); galeri `GroupDetailPage` menggabungkan album publik (tanpa login) + album privat (bila berhak); seksi baru **`GroupActivitySection`** di landing (`#/beyonders`).
+- Verifikasi: lint bersih, **413 test** hijau (+6: multi-role + `public-albums.test.ts`), build OK; smoke lokal — feed publik 200 tanpa login, `RENCANA` ditolak 400, toggle off menghilangkan dari feed (0), kartu tampil di landing & detail grup. Data uji dibersihkan. **Tanpa migrasi DB baru selain kolom album.**
+
+### Next
+1. Migrasi prod (`_migrate-group-album-public.cjs`) → push `main`.
+2. Uji prod: buka album Echad “Bonding” → **Tampilkan di landing** → cek landing & detail grup.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+node server/_migrate-group-album-public.cjs   # staging
+```
+
+---
+
+## Prior — Pitch “Panduan Mentor & Co-Mentor” di youth.gehc.page (18 Sep 2026)
 
 **Goal:** Materi pembekalan mentor/co-mentor: cara kerja regenerasi + cara orang baru ditempatkan (Jethro Engine) + fitur portal yang perlu diperhatikan, disajikan sebagai pitch deck seperti gehc.page.
 

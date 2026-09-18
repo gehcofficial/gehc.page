@@ -159,10 +159,21 @@ export async function isTimKerjaBod(authUser) {
   }
 }
 
-/** Peringkat pengurus: yang di atas melihat kanal di bawahnya. */
-export function channelRank(authUser, { isBod = false, isSuperadmin = false } = {}) {
-  if (isSuperadmin) return 'ADMIN';
+/**
+ * Peringkat pengurus. Peran **aktif** (chip di portal) yang menentukan, supaya akun
+ * multi-role tidak otomatis melihat semuanya; tanpa peran aktif → jatuh ke role tertinggi.
+ */
+export function channelRank(authUser, { isBod = false, isSuperadmin = false, activeRole = null } = {}) {
   const r = globalRoles(authUser);
+  const active = String(activeRole || '').toUpperCase();
+  if (active && (r.includes(active) || active === 'SUPERADMIN')) {
+    if (active === 'SUPERADMIN') return 'ADMIN';
+    if (active === 'BPMJ') return 'BPMJ';
+    if (active === 'KOMISI') return 'KOMISI';
+    if (active === 'COMMITTEE') return isBod ? 'BOD' : 'MEMBER';
+    return 'MEMBER'; // MENTOR | CO_MENTOR | MENTEE | ALUMNI
+  }
+  if (isSuperadmin) return 'ADMIN';
   if (r.includes('SUPERADMIN')) return 'ADMIN';
   if (r.includes('BPMJ')) return 'BPMJ';
   if (r.includes('KOMISI')) return 'KOMISI';

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Images, Plus, Pin, RefreshCw, Trash2, X } from 'lucide-react';
+import { Globe, Images, Lock, Plus, Pin, RefreshCw, Trash2, X } from 'lucide-react';
 import { DriveUploadButton } from './DriveUploadButton';
 import { useApp } from '../../context/AppContext';
 
@@ -7,11 +7,15 @@ type Album = {
   id: string;
   title: string;
   kind: string;
+  status?: string;
   occurredOn: string;
   location?: string | null;
   coverUrl?: string | null;
   previews: { id: string; thumbnailUrl: string }[];
   driveUrl?: string;
+  /** Album tampil di halaman publik (landing & detail grup). Default: false. */
+  showOnLanding?: boolean;
+  publishedAt?: string | null;
 };
 
 export const GroupAlbumsPanel: React.FC<{
@@ -122,8 +126,25 @@ export const GroupAlbumsPanel: React.FC<{
     await load();
   };
 
-  const deletePhoto = async (albumId: string, fileId: string, fileName: string) => {
-    if (!window.confirm(`Hapus foto "${fileName}"? File masuk sampah Drive.`)) return;
+  const togglePublic = async (album: Album) => {
+    const want = !album.showOnLanding;
+    if (want && !window.confirm(`Tampilkan album "${album.title}" di halaman publik (landing & detail grup)?\n\nPastikan sudah ada izin dari anggota yang tampil di foto.`)) return;
+    const r = await fetch(`/api/groups/${groupId}/albums/${album.id}/visibility`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ showOnLanding: want }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      addToast({ type: 'error', title: d.error || 'Gagal mengubah publikasi album' });
+      return;
+    }
+    addToast({ type: 'success', title: want ? 'Album tampil di halaman publik' : 'Album kembali privat' });
+    await load();
+  };
+
+  const deletePhoto = async (albumId: string, fileId: string, fileName: string) => {    if (!window.confirm(`Hapus foto "${fileName}"? File masuk sampah Drive.`)) return;
     const r = await fetch(`/api/groups/${groupId}/albums/${albumId}/photos/${fileId}`, {
       method: 'DELETE',
       credentials: 'include',
@@ -216,16 +237,26 @@ export const GroupAlbumsPanel: React.FC<{
               <div className="p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-bold">{a.title}</p>
-                  {canCreate && (
-                    <button
-                      type="button"
-                      onClick={() => void deleteAlbum(a)}
-                      title="Hapus album (DB + folder Drive ke sampah)"
-                      className="p-1 rounded-lg hover:bg-red-100 text-red-600 shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {a.showOnLanding && (
+                      <span
+                        title="Tampil di halaman publik"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold"
+                      >
+                        <Globe className="w-3 h-3" /> Publik
+                      </span>
+                    )}
+                    {canCreate && (
+                      <button
+                        type="button"
+                        onClick={() => void deleteAlbum(a)}
+                        title="Hapus album (DB + folder Drive ke sampah)"
+                        className="p-1 rounded-lg hover:bg-red-100 text-red-600 shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {syncInfo[a.id]?.folderMissing && (
                   <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
@@ -274,6 +305,24 @@ export const GroupAlbumsPanel: React.FC<{
                       className="text-[11px] font-bold text-[#1B1B1B] inline-flex items-center gap-1"
                     >
                       <Pin className="w-3 h-3" /> Pilih preview
+                    </button>
+                  )}
+                  {canCreate && (
+                    <button
+                      type="button"
+                      onClick={() => void togglePublic(a)}
+                      disabled={!a.showOnLanding && a.status !== 'SELESAI'}
+                      title={
+                        a.showOnLanding
+                          ? 'Sembunyikan lagi dari halaman publik'
+                          : a.status === 'SELESAI'
+                            ? 'Tampilkan album ini di landing & detail grup'
+                            : 'Hanya album berstatus SELESAI yang dapat ditampilkan'
+                      }
+                      className={`text-[11px] font-bold inline-flex items-center gap-1 disabled:opacity-40 ${a.showOnLanding ? 'text-amber-700' : 'text-emerald-700'}`}
+                    >
+                      {a.showOnLanding ? <Lock className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
+                      {a.showOnLanding ? 'Sembunyikan' : 'Tampilkan di landing'}
                     </button>
                   )}
                   {a.driveUrl && (

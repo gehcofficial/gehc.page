@@ -73,6 +73,23 @@ describe('kanal personal berjenjang', () => {
     expect(channelRank(member('MENTEE'))).toBe('MEMBER');
   });
 
+  it('peran AKTIF (chip) yang menentukan untuk akun multi-role', () => {
+    const multi = member('SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'MENTEE');
+    // Chip MENTOR → hanya klusternya, walau punya SUPERADMIN.
+    expect(channelRank(multi, { activeRole: 'MENTOR', isBod: true })).toBe('MEMBER');
+    expect(channelRank(multi, { activeRole: 'MENTEE', isSuperadmin: true })).toBe('MEMBER');
+    // Chip COMMITTEE → BOD hanya bila benar-benar Tim Kerja.
+    expect(channelRank(multi, { activeRole: 'COMMITTEE', isBod: true })).toBe('BOD');
+    expect(channelRank(multi, { activeRole: 'COMMITTEE', isBod: false })).toBe('MEMBER');
+    // Chip pengurus dan admin.
+    expect(channelRank(multi, { activeRole: 'KOMISI' })).toBe('KOMISI');
+    expect(channelRank(multi, { activeRole: 'BPMJ' })).toBe('BPMJ');
+    expect(channelRank(multi, { activeRole: 'SUPERADMIN' })).toBe('ADMIN');
+    // Peran aktif yang tidak dimiliki → fallback ke role tertinggi.
+    expect(channelRank(multi, { activeRole: 'ALUMNI' })).toBe('ADMIN');
+    expect(channelRank(member('MENTOR', 'MENTEE'), { activeRole: 'MENTEE' })).toBe('MEMBER');
+  });
+
   it('hanya Admin/Superadmin yang melihat semua kanal', () => {
     expect(personalChannelScope({ rank: 'ADMIN' }).seeAll).toBe(true);
     for (const rank of ['BPMJ', 'KOMISI', 'BOD', 'MEMBER']) {

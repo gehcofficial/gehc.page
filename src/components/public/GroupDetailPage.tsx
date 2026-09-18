@@ -58,20 +58,37 @@ export const GroupDetailPage: React.FC = () => {
     let cancelled = false;
     setGalleryState('loading');
     (async () => {
+      // 1) Album publik (tanpa login) — selalu aman ditampilkan.
+      let publicList: PublicAlbum[] = [];
+      try {
+        const r = await fetch(`/api/db/groups/${selectedGroupId}/albums`);
+        if (r.ok) {
+          const d = await r.json();
+          publicList = (d.albums || []) as PublicAlbum[];
+        }
+      } catch { /* abaikan */ }
+
+      // 2) Anggota/staf boleh melihat album privat rumahnya.
+      let memberList: PublicAlbum[] = [];
+      let memberAllowed = false;
       try {
         const r = await fetch(`/api/groups/${selectedGroupId}/albums`, { credentials: 'include' });
-        if (cancelled) return;
-        if (!r.ok) {
-          setGalleryState(r.status === 401 || r.status === 403 ? 'restricted' : 'empty');
-          return;
+        if (r.ok) {
+          const d = await r.json();
+          memberList = (d.albums || []) as PublicAlbum[];
+          memberAllowed = true;
         }
-        const d = await r.json();
-        const list = (d.albums || []) as PublicAlbum[];
-        setAlbums(list);
-        setGalleryState(list.length > 0 ? 'ready' : 'empty');
-      } catch {
-        if (!cancelled) setGalleryState('empty');
-      }
+      } catch { /* abaikan */ }
+
+      if (cancelled) return;
+      const byId = new Map<string, PublicAlbum>();
+      for (const a of publicList) byId.set(a.id, a);
+      for (const a of memberList) byId.set(a.id, a); // versi anggota lebih lengkap
+      const list = [...byId.values()].sort(
+        (a, b) => String(b.occurredOn || '').localeCompare(String(a.occurredOn || '')),
+      );
+      setAlbums(list);
+      setGalleryState(list.length > 0 ? 'ready' : memberAllowed ? 'empty' : 'restricted');
     })();
     return () => {
       cancelled = true;

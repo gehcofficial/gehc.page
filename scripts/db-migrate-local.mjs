@@ -285,6 +285,11 @@ const STEPS = [
     label: 'Urutan siklus serving dapat diubah admin (serving_cycle_pairs)',
     required: true,
   },
+  {
+    script: 'server/_migrate-group-album-public.cjs',
+    label: 'Album kelompok tampil di publik (show_on_landing, published_at)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

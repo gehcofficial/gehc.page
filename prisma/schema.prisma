@@ -566,6 +566,9 @@ model GroupAlbum {
   status           String   @default("RENCANA") @db.VarChar(16) // USULAN | RENCANA | SELESAI | BATAL
   occurredOn       DateTime @map("occurred_on") @db.Date
   location         String?  @db.VarChar(190)
+  /// Tampilkan album ini di halaman publik (landing & detail grup). Default: privat.
+  showOnLanding    Boolean  @default(false) @map("show_on_landing")
+  publishedAt      DateTime? @map("published_at") @db.DateTime(3)
   eventId          String?  @map("event_id") @db.VarChar(64)
   driveFolderId    String?  @map("drive_folder_id") @db.VarChar(128)
   coverDriveFileId String?  @map("cover_drive_file_id") @db.VarChar(128)
