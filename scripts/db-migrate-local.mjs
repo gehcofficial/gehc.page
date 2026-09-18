@@ -280,6 +280,11 @@ const STEPS = [
     label: 'Portal Doa: occurred_on, context_event_id, prayed_at/count, prayer logs',
     required: true,
   },
+  {
+    script: 'server/_migrate-serving-cycle-pairs.cjs',
+    label: 'Urutan siklus serving dapat diubah admin (serving_cycle_pairs)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

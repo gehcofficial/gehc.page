@@ -467,6 +467,8 @@ model Group {
   albums            GroupAlbum[]
   servingResponsible ServingAssignment[] @relation("ServingResponsible")
   servingHost        ServingAssignment[] @relation("ServingHost")
+  servingCycleResponsible ServingCyclePair[] @relation("ServingCycleResponsible")
+  servingCycleHost        ServingCyclePair[] @relation("ServingCycleHost")
 
   @@index([tenantId])
   @@index([parentGroupId])
@@ -1823,6 +1825,21 @@ model ServingAssignment {
   @@index([eventDate])
   @@index([cycleIndex])
   @@map("serving_assignments")
+}
+
+/// Urutan siklus serving (10 pasangan penanggung/tuan rumah).
+/// Di-seed dari SERVING_PAIRS di kode; admin dapat mengubah urutan lewat portal.
+model ServingCyclePair {
+  cycleIndex         Int      @id @map("cycle_index")
+  responsibleGroupId String   @map("responsible_group_id") @db.VarChar(64)
+  hostGroupId        String   @map("host_group_id") @db.VarChar(64)
+  updatedById        String?  @map("updated_by_id") @db.VarChar(64)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  responsibleGroup Group @relation("ServingCycleResponsible", fields: [responsibleGroupId], references: [id])
+  hostGroup        Group @relation("ServingCycleHost", fields: [hostGroupId], references: [id])
+
+  @@map("serving_cycle_pairs")
 }
 
 // Kondisi khusus minggu layanan: GABUNGAN (lintas-BIPRA/luar jemaat, tanpa

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, ArrowLeftRight, ChevronDown, ChevronRight, AlertTriangle, RefreshCw, Sparkles, Calendar } from 'lucide-react';
+import { Loader2, ArrowLeftRight, ChevronDown, ChevronRight, AlertTriangle, RefreshCw, Sparkles, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 /**
  * Tab gabungan "Ibadah Mingguan" — menggantikan Rencana bulan + Serving.
@@ -153,6 +154,182 @@ export const ServicePlanPanel: React.FC = () => {
   const [condLinked, setCondLinked] = useState('');
   const [condBusy, setCondBusy] = useState(false);
   const [rebaseBusy, setRebaseBusy] = useState(false);
+
+  // ---- Urutan siklus (dapat diubah admin) ----
+  type CyclePair = {
+    cycleIndex: number;
+    responsibleGroupId: string;
+    hostGroupId: string;
+    responsibleName?: string;
+    hostName?: string;
+  };
+  const [cycleOpen, setCycleOpen] = useState(false);
+  const [cyclePairs, setCyclePairs] = useState<CyclePair[]>([]);
+  const [cycleGroups, setCycleGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [cycleBusy, setCycleBusy] = useState(false);
+  const [cycleFrom, setCycleFrom] = useState('2026-09-06');
+  const [swapA, setSwapA] = useState('');
+  const [swapB, setSwapB] = useState('');
+  const [cyclePreview, setCyclePreview] = useState<Array<{
+    eventDate: string;
+    before: { responsibleName: string; hostName: string };
+    after: { responsibleName: string; hostName: string };
+  }> | null>(null);
+  const [confirmCycleApply, setConfirmCycleApply] = useState<null | 'swap' | 'apply'>(null);
+  const canEditCycle = canSwap || isBodTimkerja;
+
+  const openCycle = async () => {
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle', { credentials: 'include' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal memuat urutan siklus');
+      setCyclePairs((d.pairs || []).map((p: CyclePair) => ({ ...p })));
+      setCycleGroups(d.groups || []);
+      if (d.writeFrom) setCycleFrom(d.writeFrom);
+      setCyclePreview(null);
+      setCycleOpen(true);
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal memuat urutan siklus' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
+
+  const cycleName = (id: string) => cycleGroups.find((g) => g.id === id)?.name || id || '—';
+
+  const movePair = (index: number, dir: -1 | 1) => {
+    setCyclePairs((prev) => {
+      const next = [...prev];
+      const j = index + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[index], next[j]] = [next[j], next[index]];
+      return next;
+    });
+    setCyclePreview(null);
+  };
+
+  const setPairField = (index: number, field: 'responsibleGroupId' | 'hostGroupId', value: string) => {
+    setCyclePairs((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
+    setCyclePreview(null);
+  };
+
+  const saveCycle = async () => {
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pairs: cyclePairs.map((p, i) => ({
+            cycleIndex: i,
+            responsibleGroupId: p.responsibleGroupId,
+            hostGroupId: p.hostGroupId,
+          })),
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menyimpan urutan');
+      addToast({ type: 'success', title: 'Urutan siklus disimpan' });
+      setCyclePairs((d.pairs || []).map((p: CyclePair) => ({ ...p })));
+      await fetchSchedule();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan urutan' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
+
+  const previewSwapGroups = async () => {
+    if (!swapA || !swapB || swapA === swapB) {
+      addToast({ type: 'error', title: 'Pilih dua kelompok berbeda' });
+      return;
+    }
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle/swap-groups', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aGroupId: swapA, bGroupId: swapB, from: cycleFrom, dryRun: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal pratinjau');
+      setCyclePreview(d.changes || []);
+      if (d.pairsAfter) setCyclePairs(d.pairsAfter.map((p: CyclePair) => ({ ...p })));
+      addToast({ type: 'info', title: `${(d.changes || []).length} baris akan berubah` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal pratinjau' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
+
+  const runSwapGroups = async () => {
+    setConfirmCycleApply(null);
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle/swap-groups', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aGroupId: swapA, bGroupId: swapB, from: cycleFrom, dryRun: false }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menukar');
+      addToast({ type: 'success', title: `Tukar ${cycleName(swapA)} ⇄ ${cycleName(swapB)}: ${d.changed || 0} baris` });
+      setCyclePreview(null);
+      await openCycle();
+      await fetchSchedule();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menukar' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
+
+  const runApplyToSchedule = async () => {
+    setConfirmCycleApply(null);
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle/apply', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: cycleFrom, dryRun: false }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menerapkan');
+      addToast({ type: 'success', title: `Terapkan ke jadwal: ${d.updated || 0} baris diselaraskan` });
+      setCyclePreview(null);
+      await fetchSchedule();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menerapkan' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
+
+  const previewApplyToSchedule = async () => {
+    setCycleBusy(true);
+    try {
+      const r = await fetch('/api/serving-cycle/apply', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: cycleFrom, dryRun: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal pratinjau');
+      setCyclePreview(d.changes || []);
+      addToast({ type: 'info', title: `${(d.changes || []).length} baris akan diselaraskan` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal pratinjau' });
+    } finally {
+      setCycleBusy(false);
+    }
+  };
 
   const fromISO = `${anchorYm}-01`;
 
@@ -387,6 +564,16 @@ export const ServicePlanPanel: React.FC = () => {
           </button>
         )}
         <div className="ml-auto flex gap-1.5">
+          {canEditCycle && (
+            <button
+              type="button"
+              onClick={() => void openCycle()}
+              disabled={cycleBusy}
+              className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border bg-white text-[#8C8880] border-[#D9D7D0] hover:text-[#1B1B1B] disabled:opacity-50"
+            >
+              <ArrowLeftRight className="w-3 h-3" /> Urutan Siklus
+            </button>
+          )}
           <button type="button" onClick={() => setHorizon(3)} className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${horizon === 3 ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>3 bulan</button>
           <button type="button" onClick={() => setHorizon(4)} className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${horizon === 4 ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>4 bulan</button>
         </div>
@@ -589,6 +776,116 @@ export const ServicePlanPanel: React.FC = () => {
           </div>
         );
       })}
+
+      {cycleOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !cycleBusy && setCycleOpen(false)}>
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-base font-black text-[#1B1B1B]">Urutan Siklus Serving</h3>
+                <p className="text-[11px] text-[#8C8880]">
+                  10 pasangan penanggung ⇄ tuan rumah. Berlaku untuk prediksi &amp; generate berikutnya.
+                  Penulisan ulang jadwal hanya dari <b>{cycleFrom}</b> (riwayat sebelum itu tidak diubah).
+                </p>
+              </div>
+              <button type="button" onClick={() => setCycleOpen(false)} disabled={cycleBusy} className="shrink-0 px-2.5 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#8C8880] disabled:opacity-50">Tutup</button>
+            </div>
+
+            <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3 space-y-2 mb-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-violet-800">Tukar dua kelompok (penanggung &amp; tuan rumah)</p>
+              <div className="grid sm:grid-cols-4 gap-2">
+                <select value={swapA} onChange={(e) => setSwapA(e.target.value)} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white">
+                  <option value="">Kelompok A…</option>
+                  {cycleGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <select value={swapB} onChange={(e) => setSwapB(e.target.value)} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white">
+                  <option value="">Kelompok B…</option>
+                  {cycleGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <input type="date" value={cycleFrom} onChange={(e) => setCycleFrom(e.target.value)} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={() => void previewSwapGroups()} disabled={cycleBusy || !swapA || !swapB} className="flex-1 px-2 py-2 rounded-xl bg-white border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50">Pratinjau</button>
+                  <button type="button" onClick={() => setConfirmCycleApply('swap')} disabled={cycleBusy || !swapA || !swapB} className="flex-1 px-2 py-2 rounded-xl bg-violet-600 text-white text-[11px] font-bold disabled:opacity-50">Tukar</button>
+                </div>
+              </div>
+            </div>
+
+            <ol className="space-y-1.5">
+              {cyclePairs.map((p, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl border border-[#D9D7D0]/70 bg-[#FAF9F5]">
+                  <span className="w-6 text-[11px] font-black text-[#8C8880]">{i + 1}</span>
+                  <select
+                    value={p.responsibleGroupId}
+                    onChange={(e) => setPairField(i, 'responsibleGroupId', e.target.value)}
+                    className="flex-1 min-w-[130px] px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs bg-white"
+                  >
+                    <option value="">Penanggung…</option>
+                    {cycleGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <ArrowLeftRight className="w-3 h-3 text-[#8C8880] shrink-0" />
+                  <select
+                    value={p.hostGroupId}
+                    onChange={(e) => setPairField(i, 'hostGroupId', e.target.value)}
+                    className="flex-1 min-w-[130px] px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs bg-white"
+                  >
+                    <option value="">Tuan rumah…</option>
+                    {cycleGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <span className="flex flex-col gap-0.5">
+                    <button type="button" onClick={() => movePair(i, -1)} disabled={i === 0} className="p-0.5 rounded text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-30" title="Naik"><ArrowUp className="w-3 h-3" /></button>
+                    <button type="button" onClick={() => movePair(i, 1)} disabled={i === cyclePairs.length - 1} className="p-0.5 rounded text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-30" title="Turun"><ArrowDown className="w-3 h-3" /></button>
+                  </span>
+                </li>
+              ))}
+            </ol>
+
+            {cyclePreview && (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                  Pratinjau perubahan jadwal • {cyclePreview.length} baris
+                </p>
+                {cyclePreview.length === 0 && <p className="text-[11px] text-amber-800">Tidak ada baris jadwal yang perlu diubah.</p>}
+                {cyclePreview.slice(0, 12).map((c) => (
+                  <p key={c.eventDate} className="text-[11px] text-amber-900">
+                    <b>{fmtDate(c.eventDate)}</b>: {c.before.responsibleName}/{c.before.hostName} → <b>{c.after.responsibleName}/{c.after.hostName}</b>
+                  </p>
+                ))}
+                {cyclePreview.length > 12 && <p className="text-[10px] text-amber-800">…dan {cyclePreview.length - 12} baris lain.</p>}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => void previewApplyToSchedule()} disabled={cycleBusy} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50">Pratinjau terapkan</button>
+              <button type="button" onClick={() => setConfirmCycleApply('apply')} disabled={cycleBusy} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-[11px] font-bold disabled:opacity-50">Terapkan ke jadwal</button>
+              <button type="button" onClick={() => void saveCycle()} disabled={cycleBusy} className="px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-50">
+                {cycleBusy ? 'Menyimpan…' : 'Simpan urutan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmCycleApply !== null}
+        title={confirmCycleApply === 'swap' ? 'Tukar dua kelompok?' : 'Terapkan ke jadwal?'}
+        confirmLabel={confirmCycleApply === 'swap' ? 'Ya, tukar' : 'Ya, terapkan'}
+        busy={cycleBusy}
+        onClose={() => setConfirmCycleApply(null)}
+        onConfirm={() => (confirmCycleApply === 'swap' ? void runSwapGroups() : void runApplyToSchedule())}
+        description={confirmCycleApply === 'swap' ? (
+          <div className="space-y-1">
+            <p><b>{cycleName(swapA)}</b> ⇄ <b>{cycleName(swapB)}</b> (penanggung &amp; tuan rumah).</p>
+            <p>Mulai <b>{cycleFrom}</b>. {cyclePreview ? `${cyclePreview.length} baris jadwal ikut berubah.` : 'Jalankan Pratinjau dulu untuk melihat dampaknya.'}</p>
+            <p className="text-amber-700">Riwayat sebelum tanggal itu tidak diubah. Menjalankan dua kali mengembalikan ke semula.</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <p>Menyelaraskan baris jadwal ke urutan siklus saat ini, mulai <b>{cycleFrom}</b>.</p>
+            {cyclePreview ? <p>{cyclePreview.length} baris akan berubah.</p> : null}
+            <p className="text-amber-700">Baris hasil tukar manual &amp; minggu LIBUR/ALIH/GABUNGAN dilewati.</p>
+          </div>
+        )}
+      />
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { sundayInstant } from '../lib/service-events.mjs';
 import { sundaysInMonth } from '../lib/church-year.mjs';
-import { SERVING_PAIRS, resolvePairIds } from '../lib/serving-cycle.mjs';
+import { SERVING_PAIRS, resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
 import { listOverrides } from '../lib/service-overrides.mjs';
 
 function toDateOnly(d) {
@@ -181,7 +181,7 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
           continue;
         }
         const cycleIndex = expected;
-        const pair = resolvePairIds(cycleIndex, groups);
+        const pair = await resolvePairIdsDb(prisma, cycleIndex, groups);
         virtual.push({
           id: `virtual-${iso}`,
           eventDate: new Date(`${iso}T00:00:00Z`),

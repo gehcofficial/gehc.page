@@ -134,6 +134,7 @@ import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MA
 import { applyPersonNameFields, parseDisplayName, resolveDisplayName } from './lib/person-name.mjs';
 import { registerTitleCatalogRoutes } from './routes/title-catalog.mjs';
 import { registerServingAssignmentRoutes } from './routes/serving-assignments.mjs';
+import { registerServingCycleRoutes } from './routes/serving-cycle.mjs';
 import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
 import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
@@ -2594,6 +2595,7 @@ registerChannelLinkRoutes(app, { wrap });
 registerChurchProgramRoutes(app, { wrap });
 registerMinistryPlanRoutes(app, { wrap });
 registerServingAssignmentRoutes(app, { wrap });
+registerServingCycleRoutes(app, { wrap });
 registerPortalAssistRoutes(app, { wrap });
 registerAnnouncementRoutes(app, { wrap });
 registerNotifCronRoutes(app, { wrap });

@@ -3,7 +3,7 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { sundaysInMonth, toISODate } from '../lib/church-year.mjs';
 import { formatServiceName, formatServiceNameByType, servicePrefix, servicePrefixByType, sundayInstant, sundayWIBInstant } from '../lib/service-events.mjs';
-import { resolvePairIds } from '../lib/serving-cycle.mjs';
+import { resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
 import { requireServiceTheme } from '../lib/service-approvers.mjs';
 import { EVENT_ACTIVITY_CATEGORIES } from './content-public.mjs';
 
@@ -490,7 +490,7 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
           cycleIndex = (servingBase + servingCreatedInThisBatch) % 10;
           metadata.cycleIndex = cycleIndex;
           if (groups.length) {
-            servingPair = resolvePairIds(cycleIndex, groups);
+            servingPair = await resolvePairIdsDb(prisma, cycleIndex, groups);
             if (!servingPair.responsibleGroupId || !servingPair.hostGroupId) {
               // tetap buat event meski group belum seed — assignment tidak dibuat
               console.warn(`[generate-services] group id untuk cycle ${cycleIndex} tidak ditemukan: ${servingPair.responsibleName}/${servingPair.hostName}`);

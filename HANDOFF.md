@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Warta: petugas penatalayan, tuan rumah, pokok doa, jadwal (18 Sep 2026)
+## Current — Urutan siklus serving dapat diatur admin + tukar Echad ⇄ Kairos (18 Sep 2026)
+
+**Goal:** Admin bisa mengubah urutan 10 pasangan penanggung/tuan rumah tanpa deploy, menukar dua kelompok secara massal (kedua peran) sejak 6 Sep 2026, dan menyelaraskan jadwal nyata.
+
+**Done:**
+- **Tabel baru** `serving_cycle_pairs` (model `ServingCyclePair`) + migrasi `server/_migrate-serving-cycle-pairs.cjs` (idempotent, seed dari `SERVING_PAIRS`, kolom FK memakai collation `groups.id`) + step di `scripts/db-migrate-local.mjs`. **Sudah dijalankan di staging**, prod belum.
+- **Lib** `server/lib/serving-cycle.mjs`: `loadCyclePairs` (cache 30s, fallback ke konstanta bila tabel kosong), `resolvePairIdsDb`, `pairFromList`, `swapGroupsInPairs(pairs,a,b,groups)`, `validateCyclePairs` (10 baris, tanpa grup dobel per peran), `diffAssignments` (hormati `from`, lewati `isSwapped` & minggu override). Konsumen diarahkan ke resolver DB: `serving-assignments.mjs` (proyeksi virtual) & `ministry-plans.mjs` (generate-services).
+- **API** `server/routes/serving-cycle.mjs`: `GET /api/serving-cycle`, `PUT /api/serving-cycle`, `POST /swap-groups` (dry-run/pratinjau + eksekusi; idempoten — 2× = kembali semula), `POST /apply` (dry-run + tulis ulang baris). Gate: **SUPERADMIN, KOMISI, COMMITTEE BOD Tim Kerja** (`isTimKerjaBod`). `writeFrom = 2026-09-06` (riwayat sebelum itu tidak diubah).
+- **UI** `ServicePlanPanel.tsx` (Program & Event → tab **Ibadah Mingguan**): tombol **“Urutan Siklus”** → modal berisi 10 baris (dropdown penanggung & tuan rumah + naik/turun), panel **Tukar dua kelompok** (+ tanggal mulai, Pratinjau, Tukar via `ConfirmDialog`), pratinjau perubahan jadwal, tombol **Terapkan ke jadwal** (dry-run dulu).
+- **Opsi A diterapkan di staging**: tukar **Echad ⇄ Kairos** → 13 Sep **Kairos/Ruach**, 20 Sep **Echad/Shalom**, 25 Okt Ruach/**Kairos**, 8 Nov Shalom/**Echad** (4 baris, `swapReason: "[urutan] tukar Echad ⇄ Kairos"`); urutan siklus & prediksi (mis. Des 2026) ikut berubah; “Terapkan” → 0 baris (idempoten).
+- Verifikasi: lint bersih, **399 test** hijau (+12 `serving-cycle.test.ts`), build OK; smoke API + browser.
+
+### Next
+1. **Migrasi prod** (`_migrate-serving-cycle-pairs.cjs`) — butuh izin; prod saat ini 0 baris `serving_assignments` (efek langsung dari tabel siklus).
+2. Terapkan Opsi A di prod (tukar Echad ⇄ Kairos dari 2026-09-06) lewat tombol **Urutan Siklus** di tab Ibadah Mingguan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+node server/_migrate-serving-cycle-pairs.cjs   # staging
+```
+
+---
+
+## Prior — Warta: petugas penatalayan, tuan rumah, pokok doa, jadwal (18 Sep 2026)
 
 **Goal:** Warta Publik bisa diisi otomatis dari jadwal pelayanan: petugas penatalayan (grup + komponen + nama), penanggung/tuan rumah, pokok doa pekan & bulan, plus jadwal minggu depan.
 
