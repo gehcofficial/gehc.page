@@ -213,6 +213,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         serving[day] = {
           responsible: s.responsibleGroup?.name || null,
           host: s.hostGroup?.name || null,
+          hostGroupId: s.hostGroupId || null,
           projected: false,
         };
       }
@@ -249,10 +250,37 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           serving[day] = {
             responsible: pair.responsibleName || null,
             host: pair.hostName || null,
+            hostGroupId: pair.hostGroupId || null,
             projected: true,
           };
         }
       } catch { /* proyeksi opsional */ }
+
+      // Nama anggota grup TUAN RUMAH (default semua member aktif) — nama saja.
+      try {
+        const hostIds = [...new Set(Object.values(serving).map((s) => s.hostGroupId).filter(Boolean))];
+        if (hostIds.length) {
+          const members = await prisma.groupMember
+            .findMany({
+              where: { groupId: { in: hostIds }, status: 'ACTIVE' },
+              select: { groupId: true, user: { select: { name: true } }, name: true },
+            })
+            .catch(() => []);
+          const byGroup = new Map();
+          for (const m of members) {
+            const name = String(m.user?.name || m.name || '').trim();
+            if (!name) continue;
+            const list = byGroup.get(m.groupId) || [];
+            list.push(name);
+            byGroup.set(m.groupId, list);
+          }
+          for (const entry of Object.values(serving)) {
+            if (!entry.hostGroupId) continue;
+            const names = byGroup.get(entry.hostGroupId) || [];
+            entry.hostMembers = [...new Set(names)].sort((a, b) => a.localeCompare(b, 'id'));
+          }
+        }
+      } catch { /* daftar anggota opsional */ }
       const duties = filterPublicDuties(rows).map((r) => ({
         date: r.date,
         role: r.serviceRole?.name || 'Petugas',

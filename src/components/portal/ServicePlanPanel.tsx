@@ -154,6 +154,10 @@ export const ServicePlanPanel: React.FC = () => {
   const [condLinked, setCondLinked] = useState('');
   const [condBusy, setCondBusy] = useState(false);
   const [rebaseBusy, setRebaseBusy] = useState(false);
+  /** Backfill jadwal serving (baris nyata dari siklus). */
+  const [backfillPreview, setBackfillPreview] = useState<Array<{ date: string; responsibleName: string; hostName: string }> | null>(null);
+  const [backfillBusy, setBackfillBusy] = useState(false);
+  const [confirmBackfill, setConfirmBackfill] = useState(false);
 
   // ---- Urutan siklus (dapat diubah admin) ----
   type CyclePair = {
@@ -178,7 +182,50 @@ export const ServicePlanPanel: React.FC = () => {
   const [confirmCycleApply, setConfirmCycleApply] = useState<null | 'swap' | 'apply'>(null);
   const canEditCycle = canSwap || isBodTimkerja;
 
-  const openCycle = async () => {
+  const previewBackfill = async () => {
+    setBackfillBusy(true);
+    try {
+      const r = await fetch('/api/serving-assignments/backfill', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal memuat pratinjau');
+      setBackfillPreview(d.rows || []);
+      addToast({
+        type: 'info',
+        title: d.rows?.length ? `${d.rows.length} minggu akan dibuat` : 'Semua minggu sudah punya jadwal',
+      });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal memuat pratinjau' });
+    } finally {
+      setBackfillBusy(false);
+    }
+  };
+
+  const runBackfill = async () => {
+    setConfirmBackfill(false);
+    setBackfillBusy(true);
+    try {
+      const r = await fetch('/api/serving-assignments/backfill', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal melengkapi jadwal');
+      addToast({ type: 'success', title: `${d.created || 0} jadwal serving dibuat` });
+      setBackfillPreview(null);
+      await fetchSchedule();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal melengkapi jadwal' });
+    } finally {
+      setBackfillBusy(false);
+    }
+  };  const openCycle = async () => {
     setCycleBusy(true);
     try {
       const r = await fetch('/api/serving-cycle', { credentials: 'include' });
@@ -567,6 +614,17 @@ export const ServicePlanPanel: React.FC = () => {
           {canEditCycle && (
             <button
               type="button"
+              onClick={() => void previewBackfill()}
+              disabled={backfillBusy}
+              title="Buat baris penanggung/tuan rumah untuk minggu yang belum punya jadwal nyata (idempoten)"
+              className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border bg-white text-[#8C8880] border-[#D9D7D0] hover:text-[#1B1B1B] disabled:opacity-50"
+            >
+              <Sparkles className="w-3 h-3" /> Lengkapi jadwal serving
+            </button>
+          )}
+          {canEditCycle && (
+            <button
+              type="button"
               onClick={() => void openCycle()}
               disabled={cycleBusy}
               className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border bg-white text-[#8C8880] border-[#D9D7D0] hover:text-[#1B1B1B] disabled:opacity-50"
@@ -579,6 +637,45 @@ export const ServicePlanPanel: React.FC = () => {
         </div>
       </div>
       <p className="text-xs text-[#8C8880] leading-relaxed">W1 tiap bulan = Mentoring (Komisi+Tim Kerja). W2+ = Serving bergilir 10 pasang (offset +5). Minggu GABUNGAN/LIBUR/ALIH tidak consume siklus — prediksi bergeser otomatis, baris real yang terdampak ditandai untuk rebase.</p>
+
+      {backfillPreview && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">
+            Pratinjau lengkapi jadwal ({backfillPreview.length} minggu)
+          </p>
+          {backfillPreview.length === 0 ? (
+            <p className="text-[11px] text-sky-900">Semua minggu sudah punya baris jadwal nyata.</p>
+          ) : (
+            <>
+              <ul className="space-y-0.5 max-h-40 overflow-y-auto">
+                {backfillPreview.slice(0, 20).map((r) => (
+                  <li key={r.date} className="text-[11px] text-sky-900">
+                    <b>{fmtDate(r.date)}</b>: {r.responsibleName} → {r.hostName}
+                  </li>
+                ))}
+                {backfillPreview.length > 20 && <li className="text-[10px] text-sky-800">…dan {backfillPreview.length - 20} minggu lain.</li>}
+              </ul>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmBackfill(true)}
+                  disabled={backfillBusy}
+                  className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
+                >
+                  Terapkan ({backfillPreview.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBackfillPreview(null)}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-[11px] font-bold"
+                >
+                  Tutup pratinjau
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {(isSwapApprover || swapReqs.some((q) => q.status === 'PENDING')) && swapReqs.length > 0 && (
         <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3 space-y-2">
@@ -864,6 +961,21 @@ export const ServicePlanPanel: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmBackfill}
+        title={`Lengkapi ${backfillPreview?.length || 0} jadwal serving?`}
+        confirmLabel="Ya, lengkapi"
+        busy={backfillBusy}
+        onClose={() => setConfirmBackfill(false)}
+        onConfirm={() => void runBackfill()}
+        description={(
+          <div className="space-y-1">
+            <p>Baris penanggung/tuan rumah akan dibuat dari **urutan siklus** untuk minggu yang belum punya jadwal nyata.</p>
+            <p className="text-amber-700">Idempoten — minggu yang sudah ada tidak diubah.</p>
+          </div>
+        )}
+      />
 
       <ConfirmDialog
         open={confirmCycleApply !== null}

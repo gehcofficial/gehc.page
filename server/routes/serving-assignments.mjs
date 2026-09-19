@@ -3,6 +3,7 @@ import { requireRole } from '../auth.mjs';
 import { sundayInstant } from '../lib/service-events.mjs';
 import { sundaysInMonth } from '../lib/church-year.mjs';
 import { SERVING_PAIRS, resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
+import { applyServingBackfill, planServingBackfill } from '../lib/serving-backfill.mjs';
 import { listOverrides } from '../lib/service-overrides.mjs';
 
 function toDateOnly(d) {
@@ -261,6 +262,27 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
       const updated = await executeServingSwap(prisma, { aDate, bDate, scope, reason });
       res.json({ ok: true, scope, swapped: updated });
     })
+  );
+
+  // POST /api/serving-assignments/backfill — lengkapi baris nyata dari siklus
+  // (untuk event yang sudah ada tapi belum punya penanggung/tuan rumah). Idempoten.
+  // Body: { from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', dryRun?: boolean }
+  app.post(
+    '/api/serving-assignments/backfill',
+    requireRole('KOMISI', 'SUPERADMIN'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const from = toDateOnly(req.body?.from)?.toISOString().slice(0, 10);
+      const to = toDateOnly(req.body?.to)?.toISOString().slice(0, 10);
+      const dryRun = Boolean(req.body?.dryRun);
+      const plan = await planServingBackfill(prisma, { from, to });
+      if (dryRun) {
+        return res.json({ ok: true, dryRun: true, total: plan.rows.length, rows: plan.rows, serviceDays: plan.serviceDays });
+      }
+      const result = await applyServingBackfill(prisma, plan.rows);
+      res.json({ ok: true, dryRun: false, planned: plan.rows.length, ...result });
+    }),
   );
 
   // POST /api/serving-assignments/rebase — selaraskan ulang cycleIndex baris

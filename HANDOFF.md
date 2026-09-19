@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Sinkronisasi lanjutan: penanggung/tuan rumah prediksi di Warta + sisa mismatch (19 Sep 2026)
+## Current — Backfill jadwal serving + Warta: petugas & anggota tuan rumah (19 Sep 2026)
+
+**Goal:** Baris nyata penanggung/tuan rumah bisa dibuat untuk event yang sudah ada; Warta menampilkan **petugas** di bawah Penanggung Jawab dan **semua nama anggota** di bawah Tuan Rumah.
+
+**Done:**
+- **Backfill (B+D)**: `server/lib/serving-backfill.mjs` (`planServingBackfill` idempoten: idx siklus dari anchor 2026-09-06, minggu GABUNGAN/LIBUR/ALIH tidak consume; `applyServingBackfill`), endpoint **`POST /api/serving-assignments/backfill`** (`{dryRun}`; gate KOMISI/SUPERADMIN), skrip **`server/_backfill-serving-assignments.mjs`** (dry-run default, `--apply` untuk menulis), dan tombol **“Lengkapi jadwal serving”** di tab Ibadah Mingguan dengan **pratinjau + konfirmasi**.
+  - Staging: 10 minggu layanan, semuanya sudah punya baris → backfill = 0 (idempoten).
+  - Prod: event mingguan dibuat manual (tanpa `metadata.generatedAt`) & `serving_assignments` = 0 → backfill akan membuat baris untuk 13/20/27 Sep (menghilangkan label “(perkiraan)”).
+- **Warta**: kartu/blok pelayanan dirapikan — **Penanggung Jawab** → daftar **petugas penatalayan**; **Tuan Rumah** → **semua nama anggota grup tuan rumah** (dari `groupMember` ACTIVE, nama saja, diurut alfabetis) yang kini dikirim endpoint publik sebagai `serving[day].hostMembers`.
+- Verifikasi: lint bersih, **439 test** hijau (+4 `serving-backfill.test.ts`), build OK; smoke API: anggota tuan rumah tampil (Shalom 9 nama, Metanoia 8 nama), backfill dry-run 0/10, endpoint backfill 401 tanpa login.
+
+### Next
+1. Deploy staging → verifikasi → **jalankan backfill prod** (`--apply`) → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+node server/_backfill-serving-assignments.mjs            # dry-run
+node server/_backfill-serving-assignments.mjs --apply    # tulis
+dotenv -e .env.production -- node server/_backfill-serving-assignments.mjs --apply
+```
+
+---
+
+## Prior — Sinkronisasi lanjutan: penanggung/tuan rumah prediksi di Warta + sisa mismatch (19 Sep 2026)
 
 **Goal:** Penanggung jawab & tuan rumah **selalu muncul** di Warta (walau jadwal serving belum di-generate), plus menuntaskan sisa mismatch antar panel.
 
