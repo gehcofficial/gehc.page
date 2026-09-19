@@ -369,6 +369,18 @@ export const portalEn = {
     kindRecreational: 'Interest',
     inProfile: 'Join the group for the interests you picked.',
   },
+  myDuty: {
+    title: 'My service duties',
+    subtitle: 'Your upcoming assignments as a service officer.',
+    confirm: 'Confirm',
+    done: 'Mark done',
+    empty: 'No upcoming duty for you.',
+    statusScheduled: 'Scheduled',
+    statusConfirmed: 'Confirmed',
+    statusDone: 'Done',
+    confirmed: 'Duty confirmed',
+    doneToast: 'Duty marked done',
+  },
   events: {
     tabEvents: 'Working Team events',
     tabCalendar: 'Church calendar',

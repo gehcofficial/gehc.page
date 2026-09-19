@@ -16,6 +16,7 @@ import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { BirthdayWishCard } from './BirthdayWishCard';
 import { MenteeWelcomeCard } from './MenteeWelcomeCard';
 import { MyChannelsCard } from './MyChannelsCard';
+import { MyServiceDutyCard } from './MyServiceDutyCard';
 import { displayAvatar } from '../../lib/avatar';
 import { fmt } from '../../lib/portal-i18n';
 
@@ -116,6 +117,8 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
       <MenteeWelcomeCard onNavigate={onNavigate} />
 
       {!isAlumni && <MyChannelsCard />}
+
+      <MyServiceDutyCard />
 
       {isGroupMentor && (
         <a

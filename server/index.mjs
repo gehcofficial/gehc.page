@@ -6622,17 +6622,78 @@ app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMM
   res.status(201).json({ schedule: created[0], schedules: created, count: created.length });
 }));
 
-// PATCH /api/penatalayan/schedules/:id — update status / orang
-app.patch('/api/penatalayan/schedules/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+// PATCH /api/penatalayan/schedules/:id - update status / orang
+// Petugas yang bersangkutan boleh mengubah statusnya sendiri (konfirmasi/selesai);
+// perubahan lain tetap butuh Komisi/Tim Kerja.
+app.patch('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.serviceSchedule.findUnique({ where: { id: req.params.id }, select: { userId: true } });
+  if (!existing) return res.status(404).json({ error: 'Jadwal tidak ditemukan.' });
+  const isSelf = existing.userId === req.authUser?.id;
+  const roles = (req.authUser?.roles || []).map((r) => r.role);
+  const privileged = roles.includes('SUPERADMIN') || roles.includes('KOMISI') || roles.includes('COMMITTEE');
+  if (!isSelf && !privileged) {
+    return res.status(403).json({ error: 'Hanya petugas bersangkutan atau Komisi/Tim Kerja.' });
+  }
   const { status, notes, timeStart, timeEnd } = req.body || {};
   const data = {};
-  if (status) data.status = status;
-  if (notes !== undefined) data.notes = notes;
-  if (timeStart !== undefined) data.timeStart = timeStart || null;
-  if (timeEnd !== undefined) data.timeEnd = timeEnd || null;
+  if (status) {
+    const want = String(status).toUpperCase();
+    if (!['SCHEDULED', 'CONFIRMED', 'DONE', 'CANCELLED'].includes(want)) {
+      return res.status(400).json({ error: 'Status tidak valid.' });
+    }
+    // Petugas hanya boleh: konfirmasi jadwalnya, atau menandai selesai.
+    if (isSelf && !privileged && !['CONFIRMED', 'DONE'].includes(want)) {
+      return res.status(403).json({ error: 'Petugas hanya dapat mengonfirmasi atau menandai selesai.' });
+    }
+    data.status = want;
+  }
+  if (privileged) {
+    if (notes !== undefined) data.notes = notes;
+    if (timeStart !== undefined) data.timeStart = timeStart || null;
+    if (timeEnd !== undefined) data.timeEnd = timeEnd || null;
+  }
   const schedule = await prisma.serviceSchedule.update({ where: { id: req.params.id }, data, include: { serviceRole: true, user: { select: { id: true, name: true, email: true } } } });
   res.json({ schedule });
+}));
+
+// GET /api/penatalayan/my-schedule - tugas penatalayan milik pengguna (mendatang)
+app.get('/api/penatalayan/my-schedule', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const from = String(req.query.from || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+  const rows = await prisma.serviceSchedule.findMany({
+    where: {
+      userId: req.authUser.id,
+      date: { gte: new Date(`${from}T00:00:00.000Z`) },
+      status: { not: 'CANCELLED' },
+    },
+    include: {
+      serviceRole: { select: { id: true, name: true, division: true } },
+    },
+    orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
+    take: limit,
+  }).catch(() => []);
+  // Nama event (opsional) diambil terpisah — ServiceSchedule tidak punya relasi event.
+  const eventIds = [...new Set(rows.map((r) => r.eventId).filter(Boolean))];
+  const events = eventIds.length
+    ? await prisma.eventProgram.findMany({ where: { id: { in: eventIds } }, select: { id: true, name: true } }).catch(() => [])
+    : [];
+  const eventName = new Map(events.map((e) => [e.id, e.name]));
+  res.json({
+    schedules: rows.map((r) => ({
+      id: r.id,
+      date: r.date,
+      timeStart: r.timeStart,
+      timeEnd: r.timeEnd,
+      status: r.status,
+      role: r.serviceRole?.name || 'Petugas',
+      division: r.serviceRole?.division || null,
+      event: r.eventId ? { id: r.eventId, name: eventName.get(r.eventId) || 'Kegiatan' } : null,
+    })),
+  });
 }));
 
 // DELETE /api/penatalayan/schedules/:id — remove schedule

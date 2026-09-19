@@ -15,6 +15,7 @@ import { AboutSection } from './components/public/AboutSection';
 import { RegenerationFlowSection } from './components/public/RegenerationFlowSection';
 import { GroupsCarousel } from './components/public/GroupsCarousel';
 import { GroupActivitySection } from './components/public/GroupActivitySection';
+import { PublicServiceDutySection } from './components/public/PublicServiceDutySection';
 import { PantatugasShowcase } from './components/public/PantatugasShowcase';
 import { EventsTimeline } from './components/public/EventsTimeline';
 import { ChurchYearSection } from './components/public/ChurchYearSection';
@@ -106,6 +107,7 @@ const MainAppContent: React.FC = () => {
           <>
             <HeroSection />
             <GroupsCarousel />
+            <PublicServiceDutySection />
             <GroupActivitySection />
             <RegenerationFlowSection />
             <VisualCollage />

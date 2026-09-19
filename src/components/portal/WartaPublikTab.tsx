@@ -85,6 +85,8 @@ export default function WartaPublikTab({ division }: { division: string }) {
   const [confirmSuggest, setConfirmSuggest] = useState(false);
   /** Jadwal penanggung/tuan rumah per tanggal (bulan terlihat). */
   const [servingByDate, setServingByDate] = useState<Record<string, { responsible: string; host: string; virtual: boolean }>>({});
+  /** Jumlah petugas penatalayan per tanggal (bulan terlihat). */
+  const [dutyCountByDate, setDutyCountByDate] = useState<Record<string, number>>({});
 
   /** Ambil rangkuman jadwal pelayanan untuk tanggal warta, lalu isikan ke field terkait. */
   const fillFromDesk = useCallback(async (dateISO: string, withSuggestions: boolean) => {
@@ -148,12 +150,24 @@ export default function WartaPublikTab({ division }: { division: string }) {
     const lastDay = new Date(year, month + 1, 0).getDate();
     const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     try {
-      const [r, s] = await Promise.all([
+      const [r, s, duty] = await Promise.all([
         fetch(`/api/warta?from=${from}&to=${to}`, { credentials: 'include' }),
         fetch(`/api/serving-assignments?from=${from}&to=${to}&includeVirtual=1`, { credentials: 'include' }),
+        fetch(`/api/penatalayan/schedules?from=${from}&to=${to}`, { credentials: 'include' }).catch(() => null),
       ]);
       const d = await r.json();
       setWartaList(d.warta || []);
+      if (duty?.ok) {
+        const dd = await duty.json().catch(() => ({}));
+        const counts: Record<string, number> = {};
+        for (const row of (dd.schedules || []) as Array<{ date?: string; status?: string }>) {
+          if (String(row.status || '').toUpperCase() === 'CANCELLED') continue;
+          const iso = String(row.date || '').slice(0, 10);
+          if (!iso) continue;
+          counts[iso] = (counts[iso] || 0) + 1;
+        }
+        setDutyCountByDate(counts);
+      }
       if (s.ok) {
         const sd = await s.json();
         const rows = [...(sd.assignments || []), ...(sd.virtual || [])];
@@ -256,13 +270,21 @@ export default function WartaPublikTab({ division }: { division: string }) {
                   {(() => {
                     const iso = String(w.weekDate || '').slice(0, 10);
                     const s = servingByDate[iso];
-                    if (!s) return null;
+                    const dutyCount = dutyCountByDate[iso] || 0;
+                    if (!s && !dutyCount) return null;
                     return (
                       <p className="text-[11px] text-[#5C5850] mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span>Penanggung: <strong>{s.responsible}</strong></span>
-                        <span aria-hidden>⇄</span>
-                        <span>Tuan Rumah: <strong>{s.host}</strong></span>
-                        {s.virtual && <span className="text-[10px] text-[#8C8880] italic">(prediksi)</span>}
+                        {s && (
+                          <>
+                            <span>Penanggung: <strong>{s.responsible}</strong></span>
+                            <span aria-hidden>⇄</span>
+                            <span>Tuan Rumah: <strong>{s.host}</strong></span>
+                            {s.virtual && <span className="text-[10px] text-[#8C8880] italic">(prediksi)</span>}
+                          </>
+                        )}
+                        {dutyCount > 0 && (
+                          <span className="text-teal-700 font-bold">· {dutyCount} petugas</span>
+                        )}
                       </p>
                     );
                   })()}

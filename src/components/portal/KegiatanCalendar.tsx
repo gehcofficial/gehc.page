@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Cake, CalendarDays, Copy, Eye, EyeOff, HandHeart, ListOrdered, Printer } from 'lucide-react';
+import { Cake, CalendarDays, Copy, Eye, EyeOff, HandHeart, ListOrdered, Printer, Users } from 'lucide-react';
 import { displayAvatar } from '../../lib/avatar';
 import { copyText, formatBirthdayList, formatDayShort, prayerKindLabel, printText } from '../../lib/mask';
 
@@ -49,6 +49,18 @@ export type Prayer = {
   subjectName?: string | null;
 };
 
+/** Petugas penatalayan (dari jadwal pelayanan). */
+export type Duty = {
+  id: string;
+  date: string;
+  role: string;
+  name: string;
+  division?: string | null;
+  timeStart?: string | null;
+  timeEnd?: string | null;
+  status?: string | null;
+};
+
 export const KIND_COLORS: Record<string, { dot: string; text: string; chip: string }> = {
   UMUM: { dot: 'bg-sky-500', text: 'text-sky-700', chip: 'bg-sky-100 text-sky-800 border-sky-200' },
   KHUSUS: { dot: 'bg-[#FF416C]', text: 'text-[#FF416C]', chip: 'bg-rose-100 text-rose-800 border-rose-200' },
@@ -88,10 +100,12 @@ export const KegiatanCalendar: React.FC<{
   const [showBirthdays, setShowBirthdays] = useState(true);
   const [hideBirthdayDetail, setHideBirthdayDetail] = useState(false);
   const [showPrayer, setShowPrayer] = useState(true);
+  const [showDuty, setShowDuty] = useState(true);
   const [daySel, setDaySel] = useState<string>(() => todayStr());
   const [bonding, setBonding] = useState<Bonding[]>([]);
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [duties, setDuties] = useState<Duty[]>([]);
   const [flash, setFlash] = useState('');
 
   const flashMsg = (msg: string) => {
@@ -125,6 +139,37 @@ export const KegiatanCalendar: React.FC<{
       .then((d) => setBirthdays(d.birthdays || []))
       .catch(() => setBirthdays([]));
   }, [month, showBirthdays]);
+
+  // Petugas penatalayan (jadwal pelayanan) per bulan tampil
+  useEffect(() => {
+    if (!showDuty) { setDuties([]); return; }
+    const [y, m] = month.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const from = `${month}-01`;
+    const to = `${month}-${String(lastDay).padStart(2, '0')}`;
+    fetch(`/api/penatalayan/schedules?from=${from}&to=${to}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { schedules: [] }))
+      .then((d) => {
+        const rows = (d.schedules || [])
+          .filter((s: { status?: string }) => String(s.status || '').toUpperCase() !== 'CANCELLED')
+          .map((s: {
+            id: string; date: string; timeStart?: string | null; timeEnd?: string | null; status?: string | null;
+            serviceRole?: { name?: string; division?: string | null } | null;
+            user?: { name?: string } | null;
+          }) => ({
+            id: s.id,
+            date: String(s.date || '').slice(0, 10),
+            role: s.serviceRole?.name || 'Petugas',
+            division: s.serviceRole?.division || null,
+            name: s.user?.name || '—',
+            timeStart: s.timeStart || null,
+            timeEnd: s.timeEnd || null,
+            status: s.status || null,
+          }));
+        setDuties(rows);
+      })
+      .catch(() => setDuties([]));
+  }, [month, showDuty]);
 
   // Konteks doa yang boleh dilihat pengguna (server menyaring sesuai izin).
   useEffect(() => {
@@ -201,6 +246,18 @@ export const KegiatanCalendar: React.FC<{
     return m;
   }, [prayers]);
 
+  const dutyByDay = useMemo(() => {
+    const m = new Map<string, Duty[]>();
+    for (const d of duties) {
+      const day = toDay(d.date);
+      if (!day) continue;
+      const arr = m.get(day) || [];
+      arr.push(d);
+      m.set(day, arr);
+    }
+    return m;
+  }, [duties]);
+
   const [y, mo] = month.split('-').map(Number);
   const firstOffset = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // Senin=0
   const daysInMonth = new Date(y, mo, 0).getDate();
@@ -227,6 +284,7 @@ export const KegiatanCalendar: React.FC<{
     ...(bondingByDay.get(daySel) || []).map((b) => ({ b })),
     ...(birthdayByDay.get(daySel) || []).map((bd) => ({ bd })),
     ...(prayerByDay.get(daySel) || []).map((p) => ({ p })),
+    ...(dutyByDay.get(daySel) || []).map((d) => ({ d })),
   ];
 
   const monthBirthdayText = useMemo(() => formatBirthdayList(
@@ -328,6 +386,15 @@ export const KegiatanCalendar: React.FC<{
         </button>
         <button
           type="button"
+          onClick={() => setShowDuty((v) => !v)}
+          title="Petugas penatalayan (jadwal pelayanan)"
+          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showDuty ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          Petugas
+        </button>
+        <button
+          type="button"
           onClick={() => setShowBirthdays((v) => !v)}
           title="Ulang tahun jemaat (semua jemaat aktif)"
           className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showBirthdays ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
@@ -353,7 +420,8 @@ export const KegiatanCalendar: React.FC<{
               const bds = bondingByDay.get(day) || [];
               const cakes = birthdayByDay.get(day) || [];
               const doas = prayerByDay.get(day) || [];
-              const total = evs.length + bds.length + cakes.length + doas.length;
+              const duts = dutyByDay.get(day) || [];
+              const total = evs.length + bds.length + cakes.length + doas.length + duts.length;
               const isToday = day === todayStr();
               const isSel = day === daySel;
               const inMonth = day.startsWith(month);
@@ -367,6 +435,7 @@ export const KegiatanCalendar: React.FC<{
                   <span className="flex items-center justify-between">
                     <span className={`text-[11px] font-black inline-flex items-center justify-center w-5 h-5 rounded-full ${isToday ? 'bg-[#FF416C] text-white' : 'text-[#1B1B1B]'}`}>{Number(day.slice(8))}</span>
                     <span className="flex items-center gap-0.5">
+                      {duts.length > 0 && <Users title="Ada petugas" className="w-3 h-3 text-teal-500" />}
                       {doas.length > 0 && <HandHeart title="Ada konteks doa" className="w-3 h-3 text-indigo-500" />}
                       {cakes.length > 0 && <Cake title="Ada ulang tahun" className="w-3 h-3 text-pink-500" />}
                     </span>
@@ -380,6 +449,9 @@ export const KegiatanCalendar: React.FC<{
                     ))}
                     {doas.slice(0, 3).map((c) => (
                       <span key={c.id} title={`Doa: ${c.isGeneral ? 'Umum' : (c.subject?.name || c.subjectName)}`} className="w-2 h-2 rounded-full bg-indigo-500" />
+                    ))}
+                    {duts.slice(0, 3).map((x) => (
+                      <span key={x.id} title={`Petugas: ${x.role} — ${x.name}`} className="w-2 h-2 rounded-full bg-teal-500" />
                     ))}
                     {cakes.slice(0, 3).map((c) => (
                       <span key={c.id} title={`🎂 ${c.name}${typeof c.age === 'number' ? ` · ${c.age} th` : ''}`} className="w-2 h-2 rounded-full bg-pink-500" />
@@ -397,7 +469,27 @@ export const KegiatanCalendar: React.FC<{
               Agenda {new Date(`${daySel}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
             </p>
             {dayItems.length === 0 && <p className="text-xs text-[#8C8880] italic">Tidak ada kegiatan hari ini.</p>}
-            {dayItems.map((it: { e?: CalEvent; b?: Bonding; bd?: Birthday; p?: Prayer }, idx: number) => {
+            {dayItems.map((it: { e?: CalEvent; b?: Bonding; bd?: Birthday; p?: Prayer; d?: Duty }, idx: number) => {
+              if (it.d) {
+                const d = it.d;
+                const st = String(d.status || 'SCHEDULED').toUpperCase();
+                return (
+                  <div key={`d${d.id}`} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-teal-200">
+                    <Users className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#1B1B1B] truncate">
+                        {d.role}
+                        {d.division ? <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-teal-700">{d.division}</span> : null}
+                      </p>
+                      <p className="text-[10px] text-[#8C8880] truncate">
+                        {d.name}
+                        {(d.timeStart || d.timeEnd) ? ` · ${d.timeStart || '—'}–${d.timeEnd || '—'}` : ''}
+                        {st === 'CONFIRMED' ? ' · dikonfirmasi' : st === 'DONE' ? ' · selesai' : ' · dijadwalkan'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
               if (it.p) {
                 const p = it.p;
                 return (
@@ -566,6 +658,39 @@ export const KegiatanCalendar: React.FC<{
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Petugas penatalayan bulan ini */}
+      {showDuty && duties.length > 0 && (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-wider text-teal-800 flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" /> Petugas bulan ini ({duties.length})
+          </p>
+          <div className="grid sm:grid-cols-2 gap-1.5">
+            {duties.slice(0, 12).map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => setDaySel(x.date)}
+                title={`${x.role} — ${x.name}`}
+                className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-teal-100 text-left hover:border-teal-300"
+              >
+                <Users className="w-4 h-4 text-teal-500 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-[#1B1B1B] truncate">{x.name}</span>
+                  <span className="block text-[10px] text-[#8C8880] truncate">
+                    {x.role}
+                    {x.division ? ` · ${x.division}` : ''}
+                  </span>
+                </span>
+                <span className="text-[10px] font-bold text-teal-700 shrink-0">{formatDayShort(x.date)}</span>
+              </button>
+            ))}
+          </div>
+          {duties.length > 12 && (
+            <p className="text-[10px] text-[#8C8880]">…dan {duties.length - 12} petugas lain.</p>
+          )}
         </div>
       )}
 

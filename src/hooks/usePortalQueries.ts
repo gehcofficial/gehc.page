@@ -59,3 +59,28 @@ export function useMyChannels(enabled = true) {
     },
   });
 }
+
+export type ServiceDuty = {
+  id: string;
+  date: string;
+  timeStart?: string | null;
+  timeEnd?: string | null;
+  status: string;
+  role: string;
+  division?: string | null;
+  event?: { id: string; name: string } | null;
+};
+
+/** Tugas penatalayan mendatang milik pengguna sendiri. */
+export function useMyServiceDuty(enabled = true) {
+  return useQuery<ServiceDuty[]>({
+    queryKey: ['my-service-duty'],
+    enabled,
+    queryFn: async () => {
+      const r = await fetch('/api/penatalayan/my-schedule?limit=12', { credentials: 'include' });
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d.schedules) ? (d.schedules as ServiceDuty[]) : [];
+    },
+  });
+}

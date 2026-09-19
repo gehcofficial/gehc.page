@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Penatalayan: penugasan massal (komponen × orang × tanggal) (19 Sep 2026)
+## Current — Tugas penatalayan terlihat (dashboard, kalender, publik, warta) (19 Sep 2026)
+
+**Goal:** Setelah penugasan penatalayan diisi, petugas & jemaat bisa melihatnya di tempat yang tepat.
+
+**Done:**
+- **A. Kartu “Tugas penatalayan saya”** (`MyServiceDutyCard.tsx`) di Dashboard (semua peran; tersembunyi bila tidak ada tugas): daftar tugas mendatang + badge status + tombol **Konfirmasi** / **Tandai selesai**. Endpoint baru **`GET /api/penatalayan/my-schedule`**. `PATCH /api/penatalayan/schedules/:id` kini **mengizinkan petugas bersangkutan** mengubah statusnya sendiri (hanya CONFIRMED/DONE; perubahan lain tetap Komisi/Tim Kerja). i18n `portal.myDuty.*` (ID/EN).
+- **B. Lapisan “Petugas” di kalender Kegiatan** (`KegiatanCalendar.tsx`, chip teal): ikon + titik petugas per tanggal, kartu agenda (“Role — Nama · jam · status”), dan panel **“Petugas bulan ini (n)”**.
+- **C. Seksi publik “Petugas Ibadah”** di landing (`PublicServiceDutySection.tsx`) — **hanya menampilkan petugas berstatus CONFIRMED/DONE** (privasi: petugas yang sudah menyetujui); endpoint publik baru **`GET /api/db/service-schedule?from=&to=`** (maks rentang 60 hari, tanpa email/telepon).
+- **D. Chip jumlah petugas di daftar Warta** (`WartaPublikTab`): “… · n petugas” di samping chip Penanggung ⇄ Tuan Rumah.
+- **Lib** `server/lib/service-duty.mjs` (pure, 5 test): `isPublicDuty`/`filterPublicDuties` (CONFIRMED/DONE), `groupDutiesByDay`.
+- Verifikasi: lint bersih, **427 test** hijau (+5 `service-duty.test.ts`), build OK; smoke API — `my-schedule` menampilkan tugas, PATCH-diri CONFIRMED berhasil, publik 0 sebelum konfirmasi → 1 sesudahnya (+`byDay`), rentang >60 hari → **400**. Data uji dibersihkan. **Tanpa migrasi DB.**
+  - Catatan: smoke **browser** tidak dijalankan (tool Playwright tidak tersedia di sesi ini) — verifikasi UI lewat build + review kode.
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Penatalayan: penugasan massal (komponen × orang × tanggal) (19 Sep 2026)
 
 **Goal:** Menugaskan penatalayan sekaligus banyak: beberapa komponen × beberapa orang × beberapa tanggal, tanpa memilih satu-satu.
 

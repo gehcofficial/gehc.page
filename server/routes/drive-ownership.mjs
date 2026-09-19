@@ -25,6 +25,7 @@ import {
   serializePublicAlbum,
   sortPublicAlbums,
 } from '../lib/public-albums.mjs';
+import { PUBLIC_DUTY_STATUSES, filterPublicDuties, groupDutiesByDay } from '../lib/service-duty.mjs';
 import { replaceVisualStem, backupToOpsFolder, scheduleVisualsPublish } from '../lib/visual-slot-write.mjs';
 import {
   requireUserDrive,
@@ -155,6 +156,49 @@ function serializeAlbum(row, { includeDrive = false } = {}) {
 }
 
 export function registerEventArchivePublicRoute(app, { wrap }) {
+  // Petugas ibadah yang boleh tampil publik: HANYA yang sudah dikonfirmasi petugas
+  // (status CONFIRMED/DONE). Tanpa email/telepon; rentang maksimum 60 hari.
+  app.get(
+    '/api/db/service-schedule',
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.json({ duties: [], byDay: {} });
+      const from = String(req.query.from || '').slice(0, 10);
+      const to = String(req.query.to || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        return res.status(400).json({ error: 'Parameter from & to wajib format YYYY-MM-DD.' });
+      }
+      const span = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`);
+      if (!Number.isFinite(span) || span < 0 || span > 60 * 86400000) {
+        return res.status(400).json({ error: 'Rentang maksimum 60 hari.' });
+      }
+      const rows = await prisma.serviceSchedule
+        .findMany({
+          where: {
+            date: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) },
+            status: { in: PUBLIC_DUTY_STATUSES },
+          },
+          include: {
+            serviceRole: { select: { name: true, division: true } },
+            user: { select: { name: true } },
+          },
+          orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
+          take: 400,
+        })
+        .catch(() => []);
+      const duties = filterPublicDuties(rows).map((r) => ({
+        date: r.date,
+        role: r.serviceRole?.name || 'Petugas',
+        division: r.serviceRole?.division || null,
+        name: r.user?.name || '—',
+        timeStart: r.timeStart || null,
+        timeEnd: r.timeEnd || null,
+        status: r.status,
+      }));
+      res.json({ duties, byDay: groupDutiesByDay(rows) });
+    }),
+  );
+
   // Album kelompok yang ditandai publik (landing & detail grup). Tanpa login.
   // Hanya album SELESAI + showOnLanding; tanpa folder Drive internal.
   app.get(

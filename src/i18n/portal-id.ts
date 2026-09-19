@@ -363,6 +363,18 @@ export const portalId: typeof portalEn = {
     kindRecreational: 'Minat',
     inProfile: 'Gabung grup untuk minat yang Anda pilih.',
   },
+  myDuty: {
+    title: 'Tugas penatalayan saya',
+    subtitle: 'Jadwal pelayanan Anda yang akan datang.',
+    confirm: 'Konfirmasi',
+    done: 'Tandai selesai',
+    empty: 'Belum ada tugas mendatang untuk Anda.',
+    statusScheduled: 'Dijadwalkan',
+    statusConfirmed: 'Dikonfirmasi',
+    statusDone: 'Selesai',
+    confirmed: 'Tugas dikonfirmasi',
+    doneToast: 'Tugas ditandai selesai',
+  },
   events: {
     tabEvents: 'Event Tim Kerja',
     tabCalendar: 'Kalender gerejawi',
