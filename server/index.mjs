@@ -87,6 +87,7 @@ import { isBodTimkerja } from './division-rbac.mjs';
 import { loadStruktur, isLiturgiaDoa } from './lib/drive-ownership.mjs';
 import { upcomingSunday } from './lib/prayer-week.mjs';
 import { buildWartaDesk, pickServingForDate } from './lib/warta-desk.mjs';
+import { MAX_BULK_ROWS, buildAssignments, rowKey, summarizeByUser } from './lib/penatalayan-bulk.mjs';
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
@@ -6667,23 +6668,99 @@ app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
   res.json({ people });
 }));
 
-app.post('/api/penatalayan/schedules/bulk', requireRole(), wrap(async (req, res) => {
+// POST /api/penatalayan/schedules/bulk - penugasan massal:
+// komponen[] × orang[] × tanggal[] (idempoten; notifikasi ringkas per orang).
+app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { serviceRoleId, userIds, dates, timeStart, timeEnd } = req.body;
-  if (!serviceRoleId || !userIds?.length || !dates?.length) {
-    return res.status(400).json({ error: 'serviceRoleId, userIds[], dates[] wajib' });
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { serviceRoleId, serviceRoleIds, userIds, dates, timeStart, timeEnd, eventId } = req.body || {};
+  const roleIds = [
+    ...(Array.isArray(serviceRoleIds) ? serviceRoleIds : []),
+    ...(serviceRoleId ? [serviceRoleId] : []),
+  ];
+  const { rows, total, overCap } = buildAssignments({ roleIds, userIds, dates });
+  if (!rows.length && !overCap) {
+    return res.status(400).json({ error: 'Komponen, orang, dan tanggal wajib diisi.' });
   }
-  const created = [];
-  for (const userId of userIds) {
-    for (const dateStr of dates) {
-      const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      const s = await prisma.serviceSchedule.create({
-        data: { id, serviceRoleId, userId, date: new Date(dateStr), timeStart, timeEnd },
+  if (overCap) {
+    return res.status(400).json({ error: `Terlalu banyak: ${total} penugasan. Maksimal ${MAX_BULK_ROWS} sekali simpan.` });
+  }
+
+  const [roles, users] = await Promise.all([
+    prisma.serviceRole.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.serviceRoleId))] } }, select: { id: true, name: true } }).catch(() => []),
+    prisma.user.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.userId))] } }, select: { id: true } }).catch(() => []),
+  ]);
+  const roleName = new Map(roles.map((r) => [r.id, r.name]));
+  const validUsers = new Set(users.map((u) => u.id));
+  const missingRole = rows.find((r) => !roleName.has(r.serviceRoleId));
+  if (missingRole) return res.status(404).json({ error: 'Ada komponen yang tidak ditemukan.' });
+
+  const dayDates = [...new Set(rows.map((r) => r.date))].map((d) => new Date(`${d}T00:00:00.000Z`));
+  const existing = await prisma.serviceSchedule.findMany({
+    where: {
+      serviceRoleId: { in: [...new Set(rows.map((r) => r.serviceRoleId))] },
+      userId: { in: [...new Set(rows.map((r) => r.userId))] },
+      date: { in: dayDates },
+    },
+    select: { serviceRoleId: true, userId: true, date: true },
+  }).catch(() => []);
+  const existingKeys = new Set(existing.map((e) => rowKey(e.serviceRoleId, e.userId, e.date)));
+
+  const createdRows = [];
+  let skipped = 0;
+  for (const row of rows) {
+    if (!validUsers.has(row.userId) || existingKeys.has(rowKey(row.serviceRoleId, row.userId, row.date))) {
+      skipped += 1;
+      continue;
+    }
+    const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 4);
+    try {
+      await prisma.serviceSchedule.create({
+        data: {
+          id,
+          serviceRoleId: row.serviceRoleId,
+          userId: row.userId,
+          eventId: eventId || null,
+          date: new Date(`${row.date}T00:00:00.000Z`),
+          timeStart,
+          timeEnd,
+        },
       });
-      created.push(s);
+      createdRows.push(row);
+      existingKeys.add(rowKey(row.serviceRoleId, row.userId, row.date));
+    } catch {
+      skipped += 1;
     }
   }
-  res.status(201).json({ count: created.length });
+
+  // Notifikasi ringkas: satu pesan per orang (daftar komponen + tanggal).
+  try {
+    const names = Object.fromEntries(roleName);
+    const summaries = summarizeByUser(createdRows, { roleNames: names });
+    if (summaries.length) {
+      await prisma.notification.createMany({
+        data: summaries.map((s) => ({
+          id: 'ntf-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+          type: 'IDLE_FLAG',
+          memberId: s.userId,
+          title: 'Jadwal penatalayan baru',
+          message: s.message,
+          payload: { href: '#/portal', category: 'penatalayan', priority: 'TASK' },
+          category: 'penatalayan',
+          status: 'OPEN',
+        })),
+      }).catch(() => null);
+      await pushToUsers(prisma, summaries.map((s) => s.userId), {
+        title: 'Jadwal penatalayan baru',
+        message: summaries[0]?.message || 'Ada jadwal penatalayan baru untuk Anda.',
+        href: '#/portal',
+        category: 'penatalayan',
+        priority: 'TASK',
+      }).catch(() => {});
+    }
+  } catch { /* notifikasi opsional */ }
+
+  res.status(201).json({ ok: true, created: createdRows.length, skipped, total: rows.length });
 }));
 
 // ---------- PENATALAYAN PER EVENT ----------

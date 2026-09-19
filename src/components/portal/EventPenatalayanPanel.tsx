@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Users, Plus, X, Check, Clock, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
-import { SearchableSelect } from '../ui/SearchableSelect';
+import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
 
 type Props = {
@@ -66,7 +66,8 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [previous, setPrevious] = useState<Previous>(null);
   const [loading, setLoading] = useState(true);
-  const [addLabels, setAddLabels] = useState<Record<string, string>>({});
+  const [addPicked, setAddPicked] = useState<Record<string, string[]>>({});
+  const [addOptions, setAddOptions] = useState<Record<string, SearchableOption[]>>({});
   const [addNote, setAddNote] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -115,20 +116,22 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     return map;
   }, [assignments]);
 
-  const addPerson = async (roleId: string, userId: string) => {
-    if (!userId || !dateStr) return;
+  const addPeople = async (roleId: string, userIds: string[]) => {
+    if (!userIds.length || !dateStr) return;
     setBusy(`add-${roleId}`);
     try {
-      const r = await fetch('/api/penatalayan/schedules', {
+      const r = await fetch('/api/penatalayan/schedules/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ serviceRoleId: roleId, userId, eventId, date: dateStr }),
+        body: JSON.stringify({ serviceRoleIds: [roleId], userIds, dates: [dateStr], eventId }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
         throw new Error(d.error || 'Gagal menugaskan.');
       }
+      setAddPicked((m) => ({ ...m, [roleId]: [] }));
+      setAddOptions((m) => ({ ...m, [roleId]: [] }));
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menugaskan.');
@@ -311,30 +314,32 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
                           )}
 
                           {canEdit && dateStr && (
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 min-w-0">
-                                <SearchableSelect
-                                  value=""
-                                  selectedLabel={addLabels[role.id] || ''}
-                                  onSearch={searchPeople}
-                                  onChange={(value, option) => {
-                                    if (!value) return;
-                                    if (assignedIds.has(value)) {
-                                      setAddNote((m) => ({ ...m, [role.id]: 'Personel ini sudah ditugaskan di komponen tersebut.' }));
-                                      return;
-                                    }
-                                    setAddNote((m) => ({ ...m, [role.id]: '' }));
-                                    setAddLabels((m) => ({ ...m, [role.id]: option?.label || '' }));
-                                    void addPerson(role.id, value).then(() => {
-                                      setAddLabels((m) => ({ ...m, [role.id]: '' }));
-                                    });
-                                  }}
-                                  placeholder="Ketik nama untuk menambah (min. 2 huruf)…"
-                                  emptyHint="Nama tidak ketemu — coba ejaan lain."
-                                  minQuery={2}
-                                />
+                            <div className="space-y-1.5">
+                              <SearchableMultiSelect
+                                values={addPicked[role.id] || []}
+                                selectedOptions={addOptions[role.id] || []}
+                                onSearch={searchPeople}
+                                exclude={[...assignedIds]}
+                                onChange={(values, options) => {
+                                  setAddPicked((m) => ({ ...m, [role.id]: values }));
+                                  setAddOptions((m) => ({ ...m, [role.id]: options }));
+                                  setAddNote((m) => ({ ...m, [role.id]: '' }));
+                                }}
+                                placeholder="Ketik nama untuk menambah (min. 2 huruf)…"
+                                emptyHint="Nama tidak ketemu / semua sudah ditugaskan."
+                                minQuery={2}
+                              />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void addPeople(role.id, addPicked[role.id] || [])}
+                                  disabled={!(addPicked[role.id] || []).length || busy === `add-${role.id}`}
+                                  className="px-3 py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40"
+                                >
+                                  {busy === `add-${role.id}` ? 'Menugaskan…' : `Tambah ${(addPicked[role.id] || []).length || ''}`.trim()}
+                                </button>
+                                {busy === `add-${role.id}` && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
                               </div>
-                              {busy === `add-${role.id}` && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
                             </div>
                           )}
                           {addNote[role.id] && (

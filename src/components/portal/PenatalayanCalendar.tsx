@@ -12,8 +12,36 @@ import {
 } from 'lucide-react';
 import type { ServiceRole, ServiceSchedule } from '../../types/penatalayan';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../types/penatalayan';
-import { SearchableSelect } from '../ui/SearchableSelect';
+import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { useApp } from '../../context/AppContext';
 import type { SearchableOption } from '../../lib/searchable-options';
+
+const fmtLong = (iso: string) =>
+  new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  });
+
+/** Minggu-minggu dalam bulan dari sebuah tanggal ISO. */
+function sundaysOfMonth(iso: string): string[] {
+  const [y, m] = String(iso).slice(0, 7).split('-').map(Number);
+  const out: string[] = [];
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  while (d.getUTCMonth() === m - 1) {
+    if (d.getUTCDay() === 0) out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/** N Minggu ke depan (termasuk hari ini bila Minggu). */
+function nextSundays(iso: string, count = 4): string[] {
+  const t = Date.parse(`${String(iso).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(t)) return [];
+  const dow = new Date(t).getUTCDay();
+  const first = t + (dow === 0 ? 0 : (7 - dow) * 86400000);
+  return Array.from({ length: count }, (_, i) => new Date(first + i * 7 * 86400000).toISOString().slice(0, 10));
+}
 
 const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -209,26 +237,34 @@ export default function PenatalayanCalendar({ division }: Props) {
           date={selectedDate}
           roles={roles}
           onClose={() => setShowAssignForm(false)}
-          onSaved={() => { setShowAssignForm(false); fetchSchedules(); }}
+          onChanged={() => fetchSchedules()}
         />
       )}
     </div>
   );
 }
 
-// Assign Modal
-function AssignModal({ date, roles, onClose, onSaved }: {
+// Assign Modal — penugasan massal: komponen[] × personel[] × tanggal[]
+function AssignModal({ date, roles, onClose, onChanged }: {
   date: string;
   roles: ServiceRole[];
   onClose: () => void;
-  onSaved: () => void;
+  onChanged: () => void;
 }) {
-  const [form, setForm] = useState({ serviceRoleId: roles[0]?.id || '', userId: '', timeStart: '13:00', timeEnd: '15:00', notes: '' });
-  const [saving, setSaving] = useState(false);
-  const [userLabel, setUserLabel] = useState('');
-
-  /** Komponen/jabatan urut alfabetis. */
+  const { addToast } = useApp();
   const sortedRoles = [...roles].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  const [roleIds, setRoleIds] = useState<string[]>(() => (roles[0] ? [roles[0].id] : []));
+  const [people, setPeople] = useState<string[]>([]);
+  const [peopleOptions, setPeopleOptions] = useState<SearchableOption[]>([]);
+  const [dates, setDates] = useState<string[]>([date]);
+  const [dateInput, setDateInput] = useState(date);
+  const [timeStart, setTimeStart] = useState('13:00');
+  const [timeEnd, setTimeEnd] = useState('15:00');
+  const [saving, setSaving] = useState(false);
+  const [confirmBig, setConfirmBig] = useState(false);
+
+  const total = roleIds.length * people.length * dates.length;
+  const canSave = roleIds.length > 0 && people.length > 0 && dates.length > 0 && !saving;
 
   /** Cari personel langsung dari input (pola Portal Doa), hasil urut alfabetis. */
   const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
@@ -237,70 +273,172 @@ function AssignModal({ date, roles, onClose, onSaved }: {
     return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
   }, []);
 
-  const handleSubmit = async () => {
-    if (!form.serviceRoleId || !form.userId) return;
+  const toggleRole = (id: string) =>
+    setRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const addDate = (d: string) => {
+    const iso = String(d || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+    setDates((prev) => (prev.includes(iso) ? prev : [...prev, iso].sort()));
+  };
+  const removeDate = (d: string) => setDates((prev) => prev.filter((x) => x !== d));
+
+  const submit = async () => {
+    setConfirmBig(false);
     setSaving(true);
     try {
-      await fetch('/api/penatalayan/schedules', {
+      const r = await fetch('/api/penatalayan/schedules/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ ...form, date }),
+        body: JSON.stringify({ serviceRoleIds: roleIds, userIds: people, dates, timeStart, timeEnd }),
       });
-      onSaved();
-    } finally { setSaving(false); }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menyimpan penugasan.');
+      addToast({
+        type: 'success',
+        title: `${d.created || 0} penugasan dibuat`,
+        description: d.skipped ? `${d.skipped} dilewati (sudah ada).` : undefined,
+      });
+      setPeople([]);
+      setPeopleOptions([]);
+      setDates([date]);
+      onChanged();
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan penugasan.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-black mb-4">Tugaskan Penatalayan</h3>
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-black mb-1">Tugaskan Penatalayan</h3>
         <p className="text-xs text-[#8C8880] mb-4">
-          {new Date(date + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          Bisa sekaligus: beberapa komponen × beberapa orang × beberapa tanggal. Tanggal awal: {fmtLong(date)}.
         </p>
-        <div className="space-y-3">
+
+        <div className="space-y-4">
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Role / Jabatan</label>
-            <select value={form.serviceRoleId} onChange={e => setForm({ ...form, serviceRoleId: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm">
-              {sortedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-[#8C8880]">
+                Komponen / Jabatan ({roleIds.length}/{sortedRoles.length})
+              </label>
+              <button
+                type="button"
+                onClick={() => setRoleIds(roleIds.length === sortedRoles.length ? [] : sortedRoles.map((r) => r.id))}
+                className="text-[10px] font-bold text-emerald-700"
+              >
+                {roleIds.length === sortedRoles.length ? 'Kosongkan' : 'Pilih semua'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5]">
+              {sortedRoles.map((r) => {
+                const on = roleIds.includes(r.id);
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => toggleRole(r.id)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${on ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white text-[#5C5850] border-[#D9D7D0]'}`}
+                  >
+                    {r.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Personel</label>
-            <SearchableSelect
-              value={form.userId}
-              selectedLabel={userLabel}
+            <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">
+              Personel ({people.length} dipilih)
+            </label>
+            <SearchableMultiSelect
+              values={people}
+              selectedOptions={peopleOptions}
               onSearch={searchPeople}
-              onChange={(value, option) => {
-                setForm((f) => ({ ...f, userId: value }));
-                setUserLabel(option?.label || '');
-              }}
+              onChange={(values, options) => { setPeople(values); setPeopleOptions(options); }}
               placeholder="Ketik nama personel (min. 2 huruf)…"
               emptyHint="Nama tidak ketemu — coba ejaan lain."
               minQuery={2}
             />
           </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-[#8C8880]">Tanggal ({dates.length})</label>
+              <button type="button" onClick={() => sundaysOfMonth(date).forEach(addDate)} className="text-[10px] font-bold text-sky-700">+ Semua Minggu bulan ini</button>
+              <button type="button" onClick={() => nextSundays(date, 4).forEach(addDate)} className="text-[10px] font-bold text-sky-700">+ 4 Minggu ke depan</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {dates.map((d) => (
+                <span key={d} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] font-bold text-[#1B1B1B]">
+                  {fmtLong(d)}
+                  {dates.length > 1 && (
+                    <button type="button" onClick={() => removeDate(d)} className="p-0.5 rounded-full hover:bg-white" aria-label={`Hapus ${d}`}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm"
+              />
+              <button type="button" onClick={() => addDate(dateInput)} className="px-3 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-bold">
+                + Tambah tanggal
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Jam Mulai</label>
-              <input type="time" value={form.timeStart} onChange={e => setForm({ ...form, timeStart: e.target.value })}
+              <input type="time" value={timeStart} onChange={(e) => setTimeStart(e.target.value)}
                 className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
             </div>
             <div>
               <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Jam Selesai</label>
-              <input type="time" value={form.timeEnd} onChange={e => setForm({ ...form, timeEnd: e.target.value })}
+              <input type="time" value={timeEnd} onChange={(e) => setTimeEnd(e.target.value)}
                 className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm" />
             </div>
           </div>
+
+          <p className="text-[11px] text-[#5C5850] bg-[#FAF9F5] border border-[#D9D7D0] rounded-xl px-3 py-2">
+            {roleIds.length} komponen × {people.length} orang × {dates.length} tanggal ={' '}
+            <strong>{total} penugasan</strong>
+            {total > 20 ? ' — akan diminta konfirmasi.' : ''}
+          </p>
         </div>
+
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Batal</button>
-          <button onClick={handleSubmit} disabled={saving || !form.userId}
-            className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">
-            {saving ? 'Menyimpan...' : 'Simpan'}
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Tutup</button>
+          <button
+            onClick={() => (total > 20 ? setConfirmBig(true) : void submit())}
+            disabled={!canSave}
+            className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50"
+          >
+            {saving ? 'Menyimpan…' : `Simpan ${total ? `(${total})` : ''}`}
           </button>
         </div>
+
+        <ConfirmDialog
+          open={confirmBig}
+          title={`Simpan ${total} penugasan?`}
+          confirmLabel="Ya, simpan"
+          busy={saving}
+          onClose={() => setConfirmBig(false)}
+          onConfirm={() => void submit()}
+          description={(
+            <p>
+              {roleIds.length} komponen × {people.length} orang × {dates.length} tanggal. Notifikasi dikirim ke {people.length} orang.
+            </p>
+          )}
+        />
       </div>
     </div>
   );
