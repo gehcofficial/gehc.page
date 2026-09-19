@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Penatalayan/Liturgi: cari personel langsung + urut alfabetis (19 Sep 2026)
+## Current — Penatalayan: penugasan massal (komponen × orang × tanggal) (19 Sep 2026)
+
+**Goal:** Menugaskan penatalayan sekaligus banyak: beberapa komponen × beberapa orang × beberapa tanggal, tanpa memilih satu-satu.
+
+**Done:**
+- **Lib** `server/lib/penatalayan-bulk.mjs` (pure, 9 test): `buildAssignments` (cross-product + dedupe + cap `MAX_BULK_ROWS=500`), `rowKey` (normalisasi `Date` Prisma `@db.Date`), `summarizeByUser` (satu pesan per orang), `formatDayID`.
+- **Endpoint** `POST /api/penatalayan/schedules/bulk` diperluas: terima **`serviceRoleIds[]`** (+ `serviceRoleId` lama), `userIds[]`, `dates[]`, `eventId`, `timeStart/timeEnd`; **idempoten** (`created`/`skipped`), tolak >500 baris (400), gate diperketat ke **SUPERADMIN/KOMISI/COMMITTEE**, notifikasi **ringkas per orang** (“Anda dijadwalkan: Liturgist (27 Sep), Doa Syafaat (27 Sep), +n lain”).
+- **Komponen baru** `src/components/ui/SearchableMultiSelect.tsx`: cari di input, **chip terpilih** (bisa dihapus), tombol **“Tambah semua hasil (n)”**, `exclude` (orang yang sudah ditugaskan), `max`. `SearchableSelect` lama tidak diubah.
+- **Modal “Tugaskan Penatalayan”** (`PenatalayanCalendar`) jadi komposer batch: **komponen multi** (chip alfabetis + “Pilih semua”), **personel multi** (cari + tambah semua), **tanggal multi** (chips + tombol **“+ Semua Minggu bulan ini”** & **“+ 4 Minggu ke depan”**), ringkasan “n komponen × n orang × n tanggal = n penugasan”, **konfirmasi bila >20**, dan **modal tetap terbuka** setelah simpan (orang & tanggal direset).
+- **Panel per-event** (`EventPenatalayanPanel`): “+ Tambah orang” per komponen jadi multi-select (exclude yang sudah ditugaskan) → kirim `userIds[]` ke bulk.
+- Verifikasi: lint bersih, **422 test** hijau (+9 `penatalayan-bulk.test.ts`), build OK; smoke API (12 baris dibuat; **ulang → 0 dibuat / 12 dilewati**; >500 → **400**) & smoke browser (16 komponen × 2 orang = **32 penugasan** tersimpan via konfirmasi, modal tetap terbuka, 2 notifikasi ringkas). Data uji dibersihkan. **Tanpa migrasi DB.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Penatalayan/Liturgi: cari personel langsung + urut alfabetis (19 Sep 2026)
 
 **Goal:** Menugaskan personel penatalayan tidak lagi memilih satu-satu dari daftar panjang.
 
