@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import {
   PUBLIC_DUTY_STATUSES,
+  assignCycleIndexes,
   filterPublicDuties,
   groupDutiesByDay,
   isPublicDuty,
@@ -50,5 +51,18 @@ describe('groupDutiesByDay', () => {
   it('aman untuk data kosong / tanpa tanggal', () => {
     expect(groupDutiesByDay([])).toEqual({});
     expect(groupDutiesByDay([{ status: 'DONE' }])).toEqual({});
+  });
+});
+
+describe('assignCycleIndexes', () => {
+  it('memberi indeks berurutan dari baseIdx dan membungkus di 10', () => {
+    const days = ['2026-09-13', '2026-09-20', '2026-09-27'];
+    expect([...assignCycleIndexes(days, { baseIdx: 0 }).values()]).toEqual([0, 1, 2]);
+    expect([...assignCycleIndexes(days, { baseIdx: 8 }).values()]).toEqual([8, 9, 0]);
+  });
+
+  it('aman untuk daftar kosong', () => {
+    expect(assignCycleIndexes([]).size).toBe(0);
+    expect(assignCycleIndexes(undefined).size).toBe(0);
   });
 });

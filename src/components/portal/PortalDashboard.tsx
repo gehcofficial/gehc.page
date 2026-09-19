@@ -238,6 +238,9 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
               <div className="text-3xl font-black text-[#1B1B1B]">{compliancePercentage}%</div>
               <p className="text-[11px] text-emerald-600 font-semibold mt-1">
                 {groupsWithRecentMonitoring.filter((g) => g.hasRecentLog).length} dari {visibleGroups.length} grup terdata
+                <span className="block text-[10px] text-[#B8B4AC] mt-0.5">
+                  Check-in QR/absensi kegiatan dihitung terpisah dari laporan monitoring.
+                </span>
               </p>
             </div>
           </div>

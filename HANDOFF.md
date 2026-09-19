@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Sinkronisasi panel: petugas di Warta, default event, normalisasi kind (19 Sep 2026)
+## Current — Sinkronisasi lanjutan: penanggung/tuan rumah prediksi di Warta + sisa mismatch (19 Sep 2026)
+
+**Goal:** Penanggung jawab & tuan rumah **selalu muncul** di Warta (walau jadwal serving belum di-generate), plus menuntaskan sisa mismatch antar panel.
+
+**Done:**
+- **Proyeksi serving di endpoint publik** (`/api/db/service-schedule`): bila belum ada baris nyata, penanggung/tuan rumah dihitung dari **siklus** (`loadCyclePairs` + `assignCycleIndexes`, W1 mentoring & minggu GABUNGAN/LIBUR/ALIH dilewati) dan ditandai **`projected: true`** → UI menampilkan **“(perkiraan)”**. Terverifikasi cocok dengan panel Ibadah Mingguan (Des 2026: Kairos/Ruach, Echad/Shalom, Agape/Metanoia).
+- **#9 Absensi**: kartu “Kepatuhan Monitoring” di Dashboard diberi keterangan bahwa **check-in QR/absensi dihitung terpisah** dari laporan monitoring (menghindari kesan “0%” padahal ada check-in).
+- **#11 HUT**: `/api/portal/birthdays/upcoming` kini memakai `congregationUserWhere()` — cakupan sama dengan `/api/jemaat/birthdays/upcoming` (akun teknis tidak ikut).
+- **#10 Penamaan divisi**: diverifikasi **sudah konsisten** (id `BENZARPR` dengan label “Benzarpreneurship” di `DIVISION_CATALOG`, `PANTATUGAS`, dan `DIVISIONS`) — tidak perlu perubahan kode.
+- Verifikasi: lint bersih, **435 test** hijau (+2 `assignCycleIndexes`), build OK; smoke API proyeksi serving + perbandingan dengan panel. **Tanpa migrasi baru.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+2. Data prod: isi **WA grup default** di Info Gereja, generate jadwal serving, dan **publish Warta** agar edisi muncul.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Sinkronisasi panel: petugas di Warta, default event, normalisasi kind (19 Sep 2026)
 
 **Goal:** Petugas ibadah terlihat di Warta (bukan Beyonders), isian event tidak berulang, dan mismatch antar panel dibereskan.
 

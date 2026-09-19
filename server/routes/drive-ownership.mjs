@@ -25,7 +25,11 @@ import {
   serializePublicAlbum,
   sortPublicAlbums,
 } from '../lib/public-albums.mjs';
-import { PUBLIC_DUTY_STATUSES, filterPublicDuties, groupDutiesByDay } from '../lib/service-duty.mjs';
+import { PUBLIC_DUTY_STATUSES, assignCycleIndexes, filterPublicDuties, groupDutiesByDay } from '../lib/service-duty.mjs';
+import { sundaysInMonth } from '../lib/church-year.mjs';
+import { listOverrides } from '../lib/service-overrides.mjs';
+import { loadCyclePairs, pairFromList } from '../lib/serving-cycle.mjs';
+import { congregationUserWhere } from '../lib/system-users.mjs';
 import { replaceVisualStem, backupToOpsFolder, scheduleVisualsPublish } from '../lib/visual-slot-write.mjs';
 import {
   requireUserDrive,
@@ -209,8 +213,46 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         serving[day] = {
           responsible: s.responsibleGroup?.name || null,
           host: s.hostGroup?.name || null,
+          projected: false,
         };
       }
+
+      // Proyeksi siklus (prediksi) untuk tanggal yang belum punya baris nyata —
+      // supaya penanggung/tuan rumah tetap tampil walau jadwal belum di-generate.
+      try {
+        const monthStart = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);
+        const baseIdx = await prisma.servingAssignment.count({ where: { eventDate: { lt: monthStart } } }).catch(() => 0);
+        const overrides = await listOverrides(prisma, from, to).catch(() => new Map());
+        const serviceSundays = [];
+        const cursor = new Date(monthStart);
+        while (cursor <= new Date(`${to}T00:00:00.000Z`)) {
+          const y = cursor.getUTCFullYear();
+          const m = cursor.getUTCMonth() + 1;
+          const sundays = sundaysInMonth(y, m);
+          for (const s of sundays) {
+            const iso = s.toISOString().slice(0, 10);
+            const first = sundays[0]?.toISOString().slice(0, 10);
+            if (iso === first) continue; // W1 = mentoring (tidak consume siklus)
+            const ov = overrides.get?.(iso);
+            if (ov) continue; // GABUNGAN/LIBUR/ALIH: tidak consume siklus
+            serviceSundays.push(iso);
+          }
+          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
+        const idxByDay = assignCycleIndexes(serviceSundays, { baseIdx });
+        const pairs = await loadCyclePairs(prisma);
+        const groups = await prisma.group.findMany({ select: { id: true, name: true } }).catch(() => []);
+        for (const [day, idx] of idxByDay) {
+          if (day < from || day > to) continue;
+          if (serving[day]) continue; // baris nyata menang
+          const pair = pairFromList(pairs, idx, groups);
+          serving[day] = {
+            responsible: pair.responsibleName || null,
+            host: pair.hostName || null,
+            projected: true,
+          };
+        }
+      } catch { /* proyeksi opsional */ }
       const duties = filterPublicDuties(rows).map((r) => ({
         date: r.date,
         role: r.serviceRole?.name || 'Petugas',
@@ -1399,8 +1441,9 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     wrap(async (_req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.json({ birthdays: [], weekStart: '', weekEnd: '', todayCount: 0 });
+      // Cakupan sama dengan /api/jemaat/birthdays/upcoming: hanya jemaat (akun teknis dikecualikan).
       const users = await prisma.user.findMany({
-        where: { birthDate: { not: null }, accountStatus: 'ACTIVE' },
+        where: { ...congregationUserWhere(), birthDate: { not: null }, accountStatus: 'ACTIVE' },
         select: { id: true, name: true, avatar: true, birthDate: true },
         take: 400,
       });

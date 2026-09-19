@@ -54,3 +54,18 @@ export function groupDutiesByDay(rows) {
   }
   return out;
 }
+
+/**
+ * Indeks siklus untuk daftar tanggal layanan (Minggu serving) secara berurutan.
+ * `serviceSundays` harus sudah tersaring: bukan W1 mentoring & bukan minggu override.
+ * @returns {Map<string, number>}
+ */
+export function assignCycleIndexes(serviceSundays, { baseIdx = 0 } = {}) {
+  const out = new Map();
+  let seq = 0;
+  for (const day of serviceSundays || []) {
+    out.set(String(day), ((baseIdx + seq) % 10 + 10) % 10);
+    seq += 1;
+  }
+  return out;
+}

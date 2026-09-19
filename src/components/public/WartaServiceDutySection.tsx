@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, HandHeart, Home, Users } from 'lucide-react';
 import { SectionHeader } from './ui/SectionHeader';
 
@@ -12,7 +12,7 @@ type Duty = {
   status?: string | null;
 };
 
-type Serving = { responsible?: string | null; host?: string | null };
+type Serving = { responsible?: string | null; host?: string | null; projected?: boolean };
 
 const dayLabel = (iso: string) =>
   new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).toLocaleDateString('id-ID', {
@@ -20,7 +20,7 @@ const dayLabel = (iso: string) =>
   });
 
 /**
- * Blok publik “Petugas Ibadah” untuk tab Warta.
+ * Blok publik â€œPetugas Ibadahâ€ untuk tab Warta.
  * Menampilkan penanggung jawab + tuan rumah + daftar petugas (yang sudah
  * dikonfirmasi) untuk Minggu-minggu mendatang. Kartu disembunyikan hanya bila
  * ketiganya kosong.
@@ -85,12 +85,12 @@ export const WartaServiceDutySection: React.FC = () => {
                 <div className="mt-3 space-y-1">
                   {s.responsible && (
                     <p className="text-[11px] text-[#5C5850] flex items-center gap-1.5">
-                      <HandHeart className="w-3.5 h-3.5 text-[#8C8880]" /> Penanggung Jawab: <strong>{s.responsible}</strong>
+                      <HandHeart className="w-3.5 h-3.5 text-[#8C8880]" /> Penanggung Jawab: <strong>{s.responsible}</strong>{s.projected ? ' (perkiraan)' : ''}
                     </p>
                   )}
                   {s.host && (
                     <p className="text-[11px] text-[#5C5850] flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5 text-[#8C8880]" /> Tuan Rumah: <strong>{s.host}</strong>
+                      <Home className="w-3.5 h-3.5 text-[#8C8880]" /> Tuan Rumah: <strong>{s.host}</strong>{s.projected ? ' (perkiraan)' : ''}
                     </p>
                   )}
                 </div>
@@ -104,8 +104,8 @@ export const WartaServiceDutySection: React.FC = () => {
                         <span className="block text-xs font-bold text-[#1B1B1B] truncate">{d.name}</span>
                         <span className="block text-[10px] text-[#8C8880] truncate">
                           {d.role}
-                          {d.division ? ` · ${d.division}` : ''}
-                          {(d.timeStart || d.timeEnd) ? ` · ${d.timeStart || '—'}–${d.timeEnd || '—'}` : ''}
+                          {d.division ? ` Â· ${d.division}` : ''}
+                          {(d.timeStart || d.timeEnd) ? ` Â· ${d.timeStart || 'â€”'}â€“${d.timeEnd || 'â€”'}` : ''}
                         </span>
                       </span>
                     </li>
@@ -152,12 +152,12 @@ export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }
         <div className="mt-2 space-y-1">
           {serving.responsible && (
             <p className="text-xs text-[#5C5850]">
-              Penanggung Jawab: <strong>{serving.responsible}</strong>
+              Penanggung Jawab: <strong>{serving.responsible}</strong>{serving.projected ? ' (perkiraan)' : ''}
             </p>
           )}
           {serving.host && (
             <p className="text-xs text-[#5C5850]">
-              Tuan Rumah: <strong>{serving.host}</strong>
+              Tuan Rumah: <strong>{serving.host}</strong>{serving.projected ? ' (perkiraan)' : ''}
             </p>
           )}
         </div>
@@ -169,8 +169,8 @@ export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }
               <strong className="font-bold">{d.name}</strong>
               <span className="text-[#8C8880]">
                 {d.role}
-                {d.division ? ` · ${d.division}` : ''}
-                {(d.timeStart || d.timeEnd) ? ` · ${d.timeStart || '—'}–${d.timeEnd || '—'}` : ''}
+                {d.division ? ` Â· ${d.division}` : ''}
+                {(d.timeStart || d.timeEnd) ? ` Â· ${d.timeStart || 'â€”'}â€“${d.timeEnd || 'â€”'}` : ''}
               </span>
             </li>
           ))}
