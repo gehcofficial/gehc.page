@@ -30,7 +30,7 @@ const dayLabel = (iso: string) =>
  * dengan “ · ” mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
  * info kegiatan) — publik hanya butuh nama + role.
  */
-const mergeDutiesByName = (duties: Duty[]) => {
+export const mergeDutiesByName = (duties: Duty[]) => {
   const byName = new Map<string, { name: string; roles: string[] }>();
   for (const d of duties) {
     const name = String(d.name || '').trim() || '—';
