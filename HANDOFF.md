@@ -1,6 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — Warta: penanggung/tuan rumah otomatis + sync ulang saat disunting (19 Sep 2026)
+## Current — Penatalayan/Liturgi: cari personel langsung + urut alfabetis (19 Sep 2026)
+
+**Goal:** Menugaskan personel penatalayan tidak lagi memilih satu-satu dari daftar panjang.
+
+**Done:**
+- **Endpoint baru** `GET /api/penatalayan/people?q=&limit=` (`SUPERADMIN/KOMISI/COMMITTEE/MENTOR/CO_MENTOR`): cari user ACTIVE berdasarkan nama (name/given/middle/family), **urut alfabetis**, min. 2 huruf, maks 30 — pola sama seperti pencarian Portal Doa.
+- **`PenatalayanCalendar` (modal “Tugaskan Penatalayan”)**: dropdown Personel 100 orang diganti **SearchableSelect** (ketik langsung di input); daftar **Role/Jabatan** kini **urut alfabetis**; fetch `/api/db/users?limit=100` dihapus (lebih ringan).
+- **`EventPenatalayanPanel`**: pemilih “+ Tambah orang” per komponen diganti **SearchableSelect** (cari nama); komponen per divisi diurut **alfabetis**; peringatan bila personel yang dipilih sudah ditugaskan di komponen itu; fetch `/api/db/users?limit=200` dihapus.
+- Verifikasi: lint bersih, **413 test** hijau, build OK; smoke API (`q=an` → 12 hasil urut alfabetis; 1 huruf → 0; tanpa login → 401) dan smoke browser (role alfabetis: Doa Persembahan → Worship Leader; ketik “an” → hasil muncul; pilih + Simpan → schedule 30 Sep Liturgist tersimpan, lalu data uji dihapus). **Tanpa migrasi DB.**
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Warta: penanggung/tuan rumah otomatis + sync ulang saat disunting (19 Sep 2026)
 
 **Goal:** Menutup dua celah Warta: (a) bagian Penanggung Jawab/Tuan Rumah kosong bila tombol “Isi dari jadwal” tak ditekan, (b) suntingan setelah PUBLISHED tidak ikut ke landing.
 

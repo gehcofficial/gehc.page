@@ -6642,6 +6642,31 @@ app.delete('/api/penatalayan/schedules/:id', requireRole('SUPERADMIN', 'KOMISI',
 }));
 
 // POST /api/penatalayan/schedules/bulk — bulk create for a date range (recurring ibadah)
+// GET /api/penatalayan/people?q=&limit= - cari personel (nama) untuk penugasan.
+// Ringan, urut alfabetis, pola sama seperti pencarian di Portal Doa.
+app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const q = String(req.query.q || '').trim();
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 12));
+  if (q.length < 2) return res.json({ people: [] });
+  const people = await prisma.user.findMany({
+    where: {
+      accountStatus: 'ACTIVE',
+      OR: [
+        { name: { contains: q } },
+        { givenName: { contains: q } },
+        { middleName: { contains: q } },
+        { familyName: { contains: q } },
+      ],
+    },
+    select: { id: true, name: true, avatar: true },
+    orderBy: { name: 'asc' },
+    take: limit,
+  });
+  res.json({ people });
+}));
+
 app.post('/api/penatalayan/schedules/bulk', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { serviceRoleId, userIds, dates, timeStart, timeEnd } = req.body;

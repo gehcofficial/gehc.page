@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import type { ServiceRole, ServiceSchedule } from '../../types/penatalayan';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../types/penatalayan';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import type { SearchableOption } from '../../lib/searchable-options';
 
 const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -27,7 +29,6 @@ export default function PenatalayanCalendar({ division }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showAssignForm, setShowAssignForm] = useState(false);
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -50,18 +51,10 @@ export default function PenatalayanCalendar({ division }: Props) {
     } catch { /* skip */ }
   }, [currentMonth]);
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const r = await fetch('/api/db/users?limit=100', { credentials: 'include' });
-      const d = await r.json();
-      setUsers((d.users || []).map((u: any) => ({ id: u.id, name: u.name })));
-    } catch { /* skip */ }
-  }, []);
-
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchRoles(), fetchSchedules(), fetchUsers()]).finally(() => setLoading(false));
-  }, [fetchRoles, fetchSchedules, fetchUsers]);
+    Promise.all([fetchRoles(), fetchSchedules()]).finally(() => setLoading(false));
+  }, [fetchRoles, fetchSchedules]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -215,7 +208,6 @@ export default function PenatalayanCalendar({ division }: Props) {
         <AssignModal
           date={selectedDate}
           roles={roles}
-          users={users}
           onClose={() => setShowAssignForm(false)}
           onSaved={() => { setShowAssignForm(false); fetchSchedules(); }}
         />
@@ -225,15 +217,25 @@ export default function PenatalayanCalendar({ division }: Props) {
 }
 
 // Assign Modal
-function AssignModal({ date, roles, users, onClose, onSaved }: {
+function AssignModal({ date, roles, onClose, onSaved }: {
   date: string;
   roles: ServiceRole[];
-  users: { id: string; name: string }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({ serviceRoleId: roles[0]?.id || '', userId: '', timeStart: '13:00', timeEnd: '15:00', notes: '' });
   const [saving, setSaving] = useState(false);
+  const [userLabel, setUserLabel] = useState('');
+
+  /** Komponen/jabatan urut alfabetis. */
+  const sortedRoles = [...roles].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+
+  /** Cari personel langsung dari input (pola Portal Doa), hasil urut alfabetis. */
+  const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
+    const r = await fetch(`/api/penatalayan/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+    const d = await r.json().catch(() => ({}));
+    return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.serviceRoleId || !form.userId) return;
@@ -261,16 +263,23 @@ function AssignModal({ date, roles, users, onClose, onSaved }: {
             <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Role / Jabatan</label>
             <select value={form.serviceRoleId} onChange={e => setForm({ ...form, serviceRoleId: e.target.value })}
               className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm">
-              {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {sortedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">Personel</label>
-            <select value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm">
-              <option value="">Pilih personel...</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={form.userId}
+              selectedLabel={userLabel}
+              onSearch={searchPeople}
+              onChange={(value, option) => {
+                setForm((f) => ({ ...f, userId: value }));
+                setUserLabel(option?.label || '');
+              }}
+              placeholder="Ketik nama personel (min. 2 huruf)…"
+              emptyHint="Nama tidak ketemu — coba ejaan lain."
+              minQuery={2}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

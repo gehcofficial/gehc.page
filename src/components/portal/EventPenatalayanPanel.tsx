@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Users, Plus, X, Check, Clock, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import type { SearchableOption } from '../../lib/searchable-options';
 
 type Props = {
   eventId: string;
@@ -63,8 +65,9 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const [roles, setRoles] = useState<ServiceRole[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [previous, setPrevious] = useState<Previous>(null);
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addLabels, setAddLabels] = useState<Record<string, string>>({});
+  const [addNote, setAddNote] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showRoles, setShowRoles] = useState(false);
@@ -73,10 +76,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pr, ur] = await Promise.all([
-        fetch(`/api/events/${eventId}/penatalayan`, { credentials: 'include' }),
-        fetch('/api/db/users?limit=200', { credentials: 'include' }).catch(() => null),
-      ]);
+      const pr = await fetch(`/api/events/${eventId}/penatalayan`, { credentials: 'include' });
       if (!pr.ok) {
         const d = await pr.json().catch(() => ({}));
         throw new Error(d.error || 'Gagal memuat penatalayan.');
@@ -86,10 +86,6 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       setRoles(d.roles || []);
       setAssignments(d.assignments || []);
       setPrevious(d.previous || null);
-      if (ur?.ok) {
-        const ud = await ur.json().catch(() => ({}));
-        setUsers((ud.users || []).map((u: { id: string; name: string }) => ({ id: u.id, name: u.name })));
-      }
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat penatalayan.');
@@ -97,6 +93,13 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       setLoading(false);
     }
   }, [eventId]);
+
+  /** Cari personel langsung dari input (pola Portal Doa); hasil urut alfabetis. */
+  const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
+    const r = await fetch(`/api/penatalayan/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+    const d = await r.json().catch(() => ({}));
+    return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -234,7 +237,9 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       ) : (
         <div className="space-y-4">
           {DIVISIONS.map((division) => {
-            const divisionRoles = roles.filter((r) => String(r.division).toUpperCase() === division);
+            const divisionRoles = roles
+              .filter((r) => String(r.division).toUpperCase() === division)
+              .sort((a, b) => a.name.localeCompare(b.name, 'id'));
             const collapsedKey = division;
             const isCollapsed = collapsed[collapsedKey];
             return (
@@ -263,7 +268,6 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
                     {divisionRoles.map((role) => {
                       const people = byRole[role.id] || [];
                       const assignedIds = new Set(people.map((p) => p.userId));
-                      const available = users.filter((u) => !assignedIds.has(u.id));
                       return (
                         <div key={role.id} className="px-4 py-3 space-y-2">
                           <div className="flex items-center justify-between gap-2">
@@ -308,17 +312,33 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
 
                           {canEdit && dateStr && (
                             <div className="flex items-center gap-2">
-                              <select
-                                value=""
-                                onChange={(e) => { const v = e.target.value; if (v) void addPerson(role.id, v); }}
-                                disabled={busy === `add-${role.id}` || available.length === 0}
-                                className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs bg-white"
-                              >
-                                <option value="">{available.length ? '+ Tambah orang…' : 'Semua personel sudah ditugaskan'}</option>
-                                {available.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                              </select>
+                              <div className="flex-1 min-w-0">
+                                <SearchableSelect
+                                  value=""
+                                  selectedLabel={addLabels[role.id] || ''}
+                                  onSearch={searchPeople}
+                                  onChange={(value, option) => {
+                                    if (!value) return;
+                                    if (assignedIds.has(value)) {
+                                      setAddNote((m) => ({ ...m, [role.id]: 'Personel ini sudah ditugaskan di komponen tersebut.' }));
+                                      return;
+                                    }
+                                    setAddNote((m) => ({ ...m, [role.id]: '' }));
+                                    setAddLabels((m) => ({ ...m, [role.id]: option?.label || '' }));
+                                    void addPerson(role.id, value).then(() => {
+                                      setAddLabels((m) => ({ ...m, [role.id]: '' }));
+                                    });
+                                  }}
+                                  placeholder="Ketik nama untuk menambah (min. 2 huruf)…"
+                                  emptyHint="Nama tidak ketemu — coba ejaan lain."
+                                  minQuery={2}
+                                />
+                              </div>
                               {busy === `add-${role.id}` && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
                             </div>
+                          )}
+                          {addNote[role.id] && (
+                            <p className="text-[10px] text-amber-700">{addNote[role.id]}</p>
                           )}
                         </div>
                       );
