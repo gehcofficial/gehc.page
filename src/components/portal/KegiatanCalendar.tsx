@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Cake, CalendarDays, Copy, Eye, EyeOff, HandHeart, ListOrdered, Printer, Users } from 'lucide-react';
 import { displayAvatar } from '../../lib/avatar';
 import { copyText, formatBirthdayList, formatDayShort, prayerKindLabel, printText } from '../../lib/mask';
@@ -72,6 +72,12 @@ export const KIND_COLORS: Record<string, { dot: string; text: string; chip: stri
 
 const DAY_NAMES = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
+/** Kind kanonik untuk warna/filter: RECURRING lama (event mingguan) = UMUM. */
+const canonKind = (raw?: string | null) => {
+  const k = String(raw || 'KHUSUS').toUpperCase();
+  return k === 'RECURRING' ? 'UMUM' : k;
+};
+
 function toDay(iso?: string | null): string | null {
   if (!iso) return null;
   const s = String(iso).slice(0, 10);
@@ -87,7 +93,7 @@ export const KegiatanCalendar: React.FC<{
   events: CalEvent[];
   selectedId: string;
   onSelect: (id: string) => void;
-  /** Klik baris event → redirect ke Info Event event tsb. */
+  /** Klik baris event â†’ redirect ke Info Event event tsb. */
   onOpenEvent?: (id: string) => void;
   portalNs: string;
   canViewInternal: boolean;
@@ -161,7 +167,7 @@ export const KegiatanCalendar: React.FC<{
             date: String(s.date || '').slice(0, 10),
             role: s.serviceRole?.name || 'Petugas',
             division: s.serviceRole?.division || null,
-            name: s.user?.name || '—',
+            name: s.user?.name || 'â€”',
             timeStart: s.timeStart || null,
             timeEnd: s.timeEnd || null,
             status: s.status || null,
@@ -183,7 +189,7 @@ export const KegiatanCalendar: React.FC<{
   const dated = useMemo(() => {
     return events
       .filter((e) => {
-        const k = String(e.kind || 'KHUSUS').toUpperCase();
+        const k = canonKind(e.kind);
         if (k === 'INTERNAL' && !canViewInternal) return false;
         if (kindFilter !== 'SEMUA' && k !== kindFilter) return false;
         return toDay(e.eventDate);
@@ -193,7 +199,7 @@ export const KegiatanCalendar: React.FC<{
 
   const planning = useMemo(() => {
     return events.filter((e) => {
-      const k = String(e.kind || 'KHUSUS').toUpperCase();
+      const k = canonKind(e.kind);
       if (k === 'INTERNAL' && !canViewInternal) return false;
       if (kindFilter !== 'SEMUA' && k !== kindFilter) return false;
       return !toDay(e.eventDate);
@@ -270,12 +276,12 @@ export const KegiatanCalendar: React.FC<{
     setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   };
 
-  // Klik tanggal → pilih event hari itu agar detail di bawah ikut berganti (utamakan UMUM).
+  // Klik tanggal â†’ pilih event hari itu agar detail di bawah ikut berganti (utamakan UMUM).
   const selectDay = (day: string) => {
     setDaySel(day);
     const evs = byDay.get(day) || [];
     if (!evs.length) return;
-    const pick = evs.find(({ e }) => String(e.kind || 'KHUSUS').toUpperCase() === 'UMUM') || evs[0];
+    const pick = evs.find(({ e }) => canonKind(e.kind) === 'UMUM') || evs[0];
     onSelect(pick.e.id);
   };
 
@@ -307,13 +313,13 @@ export const KegiatanCalendar: React.FC<{
   const spanRows = useMemo(() => {
     return events
       .filter((e) => {
-        const k = String(e.kind || 'KHUSUS').toUpperCase();
+        const k = canonKind(e.kind);
         if (k === 'INTERNAL' && !canViewInternal) return false;
         if (kindFilter !== 'SEMUA' && k !== kindFilter) return false;
         return (e.startDate && e.endDate) || e.eventDate;
       })
       .map((e) => {
-        const k = String(e.kind || 'KHUSUS').toUpperCase();
+        const k = canonKind(e.kind);
         const s = e.startDate && e.endDate ? new Date(e.startDate).getTime() : new Date(e.eventDate as string).getTime();
         const en = e.startDate && e.endDate ? new Date(e.endDate).getTime() : s + 24 * 3600 * 1000;
         const left = Math.max(0, Math.min(100, ((s - winStart) / winLen) * 100));
@@ -336,9 +342,9 @@ export const KegiatanCalendar: React.FC<{
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => shiftMonth(-1)} className="px-2.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold">‹</button>
+          <button type="button" onClick={() => shiftMonth(-1)} className="px-2.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold">â€¹</button>
           <span className="text-xs font-black min-w-[7rem] text-center">{new Date(`${month}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
-          <button type="button" onClick={() => shiftMonth(1)} className="px-2.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold">›</button>
+          <button type="button" onClick={() => shiftMonth(1)} className="px-2.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-bold">â€º</button>
         </div>
       </div>
 
@@ -368,7 +374,7 @@ export const KegiatanCalendar: React.FC<{
           <button
             type="button"
             onClick={() => setShowBonding((v) => !v)}
-            title="Bonding kelompok sendiri (usul mentee → approve mentor → otomatis selesai saat berfoto)"
+            title="Bonding kelompok sendiri (usul mentee â†’ approve mentor â†’ otomatis selesai saat berfoto)"
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 ${showBonding ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
           >
             <span className="w-2 h-2 rounded-full bg-violet-500" />
@@ -442,19 +448,19 @@ export const KegiatanCalendar: React.FC<{
                   </span>
                   <span className="flex flex-wrap gap-0.5 mt-1">
                     {evs.slice(0, 3).map(({ e }) => (
-                      <span key={e.id} title={e.name} className={`w-2 h-2 rounded-full ${KIND_COLORS[String(e.kind || 'KHUSUS').toUpperCase()]?.dot || 'bg-gray-400'}`} />
+                      <span key={e.id} title={e.name} className={`w-2 h-2 rounded-full ${KIND_COLORS[canonKind(e.kind)]?.dot || 'bg-gray-400'}`} />
                     ))}
                     {bds.slice(0, 3).map((b) => (
-                      <span key={b.id} title={`${b.title} · ${b.groupName}`} className="w-2 h-2 rounded-full bg-violet-500" />
+                      <span key={b.id} title={`${b.title} Â· ${b.groupName}`} className="w-2 h-2 rounded-full bg-violet-500" />
                     ))}
                     {doas.slice(0, 3).map((c) => (
                       <span key={c.id} title={`Doa: ${c.isGeneral ? 'Umum' : (c.subject?.name || c.subjectName)}`} className="w-2 h-2 rounded-full bg-indigo-500" />
                     ))}
                     {duts.slice(0, 3).map((x) => (
-                      <span key={x.id} title={`Petugas: ${x.role} — ${x.name}`} className="w-2 h-2 rounded-full bg-teal-500" />
+                      <span key={x.id} title={`Petugas: ${x.role} â€” ${x.name}`} className="w-2 h-2 rounded-full bg-teal-500" />
                     ))}
                     {cakes.slice(0, 3).map((c) => (
-                      <span key={c.id} title={`🎂 ${c.name}${typeof c.age === 'number' ? ` · ${c.age} th` : ''}`} className="w-2 h-2 rounded-full bg-pink-500" />
+                      <span key={c.id} title={`ðŸŽ‚ ${c.name}${typeof c.age === 'number' ? ` Â· ${c.age} th` : ''}`} className="w-2 h-2 rounded-full bg-pink-500" />
                     ))}
                     {total > 3 && <span className="text-[9px] font-bold text-[#8C8880]">+{total - 3}</span>}
                   </span>
@@ -483,8 +489,8 @@ export const KegiatanCalendar: React.FC<{
                       </p>
                       <p className="text-[10px] text-[#8C8880] truncate">
                         {d.name}
-                        {(d.timeStart || d.timeEnd) ? ` · ${d.timeStart || '—'}–${d.timeEnd || '—'}` : ''}
-                        {st === 'CONFIRMED' ? ' · dikonfirmasi' : st === 'DONE' ? ' · selesai' : ' · dijadwalkan'}
+                        {(d.timeStart || d.timeEnd) ? ` Â· ${d.timeStart || 'â€”'}â€“${d.timeEnd || 'â€”'}` : ''}
+                        {st === 'CONFIRMED' ? ' Â· dikonfirmasi' : st === 'DONE' ? ' Â· selesai' : ' Â· dijadwalkan'}
                       </p>
                     </div>
                   </div>
@@ -497,12 +503,12 @@ export const KegiatanCalendar: React.FC<{
                     <HandHeart className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-[#1B1B1B] truncate">
-                        {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || '—')}
+                        {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || 'â€”')}
                         <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-indigo-700">{prayerKindLabel(p.kind)}</span>
                       </p>
                       <p className="text-[10px] text-[#8C8880] truncate">
                         {p.note}
-                        {p.prayedCount ? ` · terakhir didoakan ${formatDayShort(p.lastPrayedOn)}` : ' · belum pernah didoakan'}
+                        {p.prayedCount ? ` Â· terakhir didoakan ${formatDayShort(p.lastPrayedOn)}` : ' Â· belum pernah didoakan'}
                       </p>
                     </div>
                   </div>
@@ -518,8 +524,8 @@ export const KegiatanCalendar: React.FC<{
                         : <Cake className="w-3.5 h-3.5 text-pink-600" />}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#1B1B1B] truncate">🎂 {bd.name}</p>
-                      <p className="text-[10px] text-[#8C8880]">Ulang tahun{typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}</p>
+                      <p className="text-xs font-bold text-[#1B1B1B] truncate">ðŸŽ‚ {bd.name}</p>
+                      <p className="text-[10px] text-[#8C8880]">Ulang tahun{typeof bd.age === 'number' ? ` Â· ${bd.age} th` : ''}</p>
                     </div>
                   </div>
                 );
@@ -532,13 +538,13 @@ export const KegiatanCalendar: React.FC<{
                     <span className="w-2.5 h-2.5 rounded-full bg-violet-500 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-[#1B1B1B] truncate">{b.title}</p>
-                      <p className="text-[10px] text-[#8C8880]">{b.groupName}{b.location ? ` · ${b.location}` : ''} · {st === 'USULAN' ? 'Usulan — menunggu mentor' : st === 'SELESAI' ? 'Selesai ✓' : 'Rencana'}</p>
+                      <p className="text-[10px] text-[#8C8880]">{b.groupName}{b.location ? ` Â· ${b.location}` : ''} Â· {st === 'USULAN' ? 'Usulan â€” menunggu mentor' : st === 'SELESAI' ? 'Selesai âœ“' : 'Rencana'}</p>
                     </div>
                   </div>
                 );
               }
               const e = (it as { e: CalEvent }).e;
-              const k = String(e.kind || 'KHUSUS').toUpperCase();
+              const k = canonKind(e.kind);
               const active = e.id === selectedId;
               return (
                 <button
@@ -550,23 +556,23 @@ export const KegiatanCalendar: React.FC<{
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${KIND_COLORS[k]?.dot || 'bg-gray-400'}`} />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-xs font-bold truncate ${active ? '' : 'text-[#1B1B1B]'}`}>{e.name}</span>
-                    <span className={`block text-[10px] ${active ? 'text-white/70' : 'text-[#8C8880]'}`}>{k === 'REKREASIONAL' ? 'Rekreasional' : k.charAt(0) + k.slice(1).toLowerCase()}{e.venueName ? ` · ${e.venueName}` : ''}</span>
+                    <span className={`block text-[10px] ${active ? 'text-white/70' : 'text-[#8C8880]'}`}>{k === 'REKREASIONAL' ? 'Rekreasional' : k.charAt(0) + k.slice(1).toLowerCase()}{e.venueName ? ` Â· ${e.venueName}` : ''}</span>
                   </span>
                   <a
                     href={`#/portal/${portalNs}/event-info?event=${encodeURIComponent(e.slug || e.id)}`}
                     onClick={(ev) => ev.stopPropagation()}
                     className={`text-[10px] font-bold shrink-0 ${active ? 'text-white underline' : 'text-sky-700 hover:underline'}`}
                   >
-                    Info →
+                    Info â†’
                   </a>
                 </button>
               );
             })}
           </div>
 
-          {/* Ibadah Minggu pada hari terpilih → pintasan Doa Minggu */}
+          {/* Ibadah Minggu pada hari terpilih â†’ pintasan Doa Minggu */}
           {(() => {
-            const umums = (byDay.get(daySel) || []).filter(({ e }) => String(e.kind || '').toUpperCase() === 'UMUM');
+            const umums = (byDay.get(daySel) || []).filter(({ e }) => canonKind(e.kind) === 'UMUM');
             if (!umums.length) return null;
             const active = prayers.filter((p) => (p.occurredOn || '') <= daySel);
             return (
@@ -574,13 +580,13 @@ export const KegiatanCalendar: React.FC<{
                 <HandHeart className="w-4 h-4 text-indigo-600 shrink-0" />
                 <p className="text-[11px] font-bold text-indigo-800">
                   Konteks doa aktif: {active.length}
-                  <span className="font-normal text-indigo-700"> · {umums[0].e.name}</span>
+                  <span className="font-normal text-indigo-700"> Â· {umums[0].e.name}</span>
                 </p>
                 <a
                   href={`#/portal/${portalNs}/pastoral-care`}
                   className="ml-auto text-[11px] font-bold text-indigo-700 underline"
                 >
-                  Buka Doa Minggu →
+                  Buka Doa Minggu â†’
                 </a>
               </div>
             );
@@ -588,14 +594,14 @@ export const KegiatanCalendar: React.FC<{
         </>
       ) : (
         <div className="space-y-1.5">
-          <p className="text-[11px] text-[#8C8880]">Linimasa 90 hari dari {new Date(`${month}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} — rentang program (INTERNAL/Khusus) sebagai bar, ibadah harian sebagai tonggak.</p>
+          <p className="text-[11px] text-[#8C8880]">Linimasa 90 hari dari {new Date(`${month}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} â€” rentang program (INTERNAL/Khusus) sebagai bar, ibadah harian sebagai tonggak.</p>
           {spanRows.length === 0 && <p className="text-xs text-[#8C8880] italic">Tidak ada rentang di window ini.</p>}
           {spanRows.map(({ e, k, left, width }) => (
             <button key={e.id} type="button" onClick={() => (onOpenEvent ? onOpenEvent(e.id) : onSelect(e.id))} className="w-full text-left">
               <span className="block text-[11px] font-bold text-[#1B1B1B] truncate">{e.name}</span>
               <span className="block h-4 rounded-full bg-[#F3F1EC] relative overflow-hidden">
                 <span
-                  title={`${e.name} — ${k}`}
+                  title={`${e.name} â€” ${k}`}
                   className={`absolute top-1 bottom-1 rounded-full ${KIND_COLORS[k]?.dot || 'bg-gray-400'}`}
                   style={{ left: `${left}%`, width: `${width}%` }}
                 />
@@ -605,7 +611,7 @@ export const KegiatanCalendar: React.FC<{
         </div>
       )}
 
-      {/* Ulang tahun bulan ini — semua jemaat aktif */}
+      {/* Ulang tahun bulan ini â€” semua jemaat aktif */}
       {showBirthdays && birthdays.length > 0 && (
         <div className="rounded-2xl border border-pink-200 bg-pink-50/50 p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -643,7 +649,7 @@ export const KegiatanCalendar: React.FC<{
                 key={bd.id}
                 type="button"
                 onClick={() => setDaySel(bd.date)}
-                title={`${bd.name}${typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}`}
+                title={`${bd.name}${typeof bd.age === 'number' ? ` Â· ${bd.age} th` : ''}`}
                 className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-pink-100 text-left hover:border-pink-300"
               >
                 {hideBirthdayDetail
@@ -653,7 +659,7 @@ export const KegiatanCalendar: React.FC<{
                   {hideBirthdayDetail ? bd.name.trim().split(/\s+/)[0] : bd.name}
                 </span>
                 <span className="ml-auto text-[10px] font-bold text-pink-700 shrink-0">
-                  {bd.day}{!hideBirthdayDetail && typeof bd.age === 'number' ? ` · ${bd.age} th` : ''}
+                  {bd.day}{!hideBirthdayDetail && typeof bd.age === 'number' ? ` Â· ${bd.age} th` : ''}
                 </span>
               </button>
             ))}
@@ -673,7 +679,7 @@ export const KegiatanCalendar: React.FC<{
                 key={x.id}
                 type="button"
                 onClick={() => setDaySel(x.date)}
-                title={`${x.role} — ${x.name}`}
+                title={`${x.role} â€” ${x.name}`}
                 className="flex items-center gap-2 p-1.5 rounded-xl bg-white border border-teal-100 text-left hover:border-teal-300"
               >
                 <Users className="w-4 h-4 text-teal-500 shrink-0" />
@@ -681,7 +687,7 @@ export const KegiatanCalendar: React.FC<{
                   <span className="block text-xs font-bold text-[#1B1B1B] truncate">{x.name}</span>
                   <span className="block text-[10px] text-[#8C8880] truncate">
                     {x.role}
-                    {x.division ? ` · ${x.division}` : ''}
+                    {x.division ? ` Â· ${x.division}` : ''}
                   </span>
                 </span>
                 <span className="text-[10px] font-bold text-teal-700 shrink-0">{formatDayShort(x.date)}</span>
@@ -689,12 +695,12 @@ export const KegiatanCalendar: React.FC<{
             ))}
           </div>
           {duties.length > 12 && (
-            <p className="text-[10px] text-[#8C8880]">…dan {duties.length - 12} petugas lain.</p>
+            <p className="text-[10px] text-[#8C8880]">â€¦dan {duties.length - 12} petugas lain.</p>
           )}
         </div>
       )}
 
-      {/* Konteks doa bulan ini — sudah tersaring izin oleh server */}
+      {/* Konteks doa bulan ini â€” sudah tersaring izin oleh server */}
       {showPrayer && prayers.length > 0 && (
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-2">
           <p className="text-[11px] font-black uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
@@ -712,11 +718,11 @@ export const KegiatanCalendar: React.FC<{
                 <HandHeart className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-bold text-[#1B1B1B] truncate">
-                    {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || '—')}
+                    {p.isGeneral ? 'Doa umum' : (p.subject?.name || p.subjectName || 'â€”')}
                   </span>
                   <span className="block text-[10px] text-[#8C8880] truncate">
                     {prayerKindLabel(p.kind)}
-                    {p.isExpired ? ' · kedaluwarsa' : ''}
+                    {p.isExpired ? ' Â· kedaluwarsa' : ''}
                   </span>
                 </span>
                 <span className="text-[10px] font-bold text-indigo-700 shrink-0">{formatDayShort(p.occurredOn)}</span>
@@ -727,14 +733,14 @@ export const KegiatanCalendar: React.FC<{
       )}
 
 
-      {/* PLANNING tanpa tanggal — disabled + note (keputusan) */}
+      {/* PLANNING tanpa tanggal â€” disabled + note (keputusan) */}
       {planning.length > 0 && (
         <div className="rounded-2xl border border-dashed border-[#D9D7D0] p-3 space-y-1.5">
           <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880]">Jadwal menyusul ({planning.length})</p>
           {planning.slice(0, 8).map((e) => (
-            <p key={e.id} title="Jadwal & lokasi menyusul — panitia melengkapi di Program & Event." className="text-xs text-[#8C8880]">
-              <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${KIND_COLORS[String(e.kind || 'KHUSUS').toUpperCase()]?.dot || 'bg-gray-400'}`} />
-              {e.name} — <span className="italic">jadwal menyusul</span>
+            <p key={e.id} title="Jadwal & lokasi menyusul â€” panitia melengkapi di Program & Event." className="text-xs text-[#8C8880]">
+              <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${KIND_COLORS[canonKind(e.kind)]?.dot || 'bg-gray-400'}`} />
+              {e.name} â€” <span className="italic">jadwal menyusul</span>
             </p>
           ))}
         </div>

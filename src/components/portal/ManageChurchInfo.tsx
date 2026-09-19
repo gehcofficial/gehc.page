@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Save,
   Loader2,
@@ -26,6 +26,7 @@ type Profile = {
   contactEmail: string;
   contactPhone: string;
   whatsapp: string;
+  whatsappGroupUrl: string;
   schedules: Schedule[];
   socials: Socials;
 };
@@ -85,6 +86,7 @@ const EMPTY_PROFILE: Profile = {
   contactEmail: '',
   contactPhone: '',
   whatsapp: '',
+  whatsappGroupUrl: '',
   schedules: [],
   socials: {},
 };
@@ -139,6 +141,7 @@ const ManageChurchInfo: React.FC = () => {
           contactEmail: p.contactEmail || '',
           contactPhone: p.contactPhone || '',
           whatsapp: p.whatsapp || '',
+      whatsappGroupUrl: p.whatsappGroupUrl || '',
           schedules: Array.isArray(p.schedules) ? p.schedules : [],
           socials: p.socials && typeof p.socials === 'object' ? p.socials : {},
         });
@@ -304,7 +307,7 @@ const ManageChurchInfo: React.FC = () => {
   if (loading) {
     return (
       <div className="py-20 flex items-center justify-center text-sm text-[#8C8880]">
-        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat info gereja…
+        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat info gerejaâ€¦
       </div>
     );
   }
@@ -388,6 +391,18 @@ const ManageChurchInfo: React.FC = () => {
             <span className={labelCls}>WhatsApp</span>
             <input className={inputCls} value={profile.whatsapp} onChange={(e) => setField('whatsapp', e.target.value)} />
           </label>
+          <label className="space-y-1 sm:col-span-2">
+            <span className={labelCls}>Grup WhatsApp default (event mingguan)</span>
+            <input
+              className={inputCls}
+              value={profile.whatsappGroupUrl}
+              onChange={(e) => setField('whatsappGroupUrl', e.target.value)}
+              placeholder="https://chat.whatsapp.com/… (mis. grup Pemuda)"
+            />
+            <span className="text-[10px] text-[#8C8880]">
+              Dipakai otomatis saat membuat event ibadah mingguan. Bisa diubah per event bila ada grup khusus.
+            </span>
+          </label>
         </div>
 
         {/* Socials */}
@@ -399,7 +414,7 @@ const ManageChurchInfo: React.FC = () => {
                 <span className="text-[11px] text-[#8C8880]">{label}</span>
                 <input
                   className={inputCls}
-                  placeholder={`https://…`}
+                  placeholder={`https://â€¦`}
                   value={profile.socials[key] || ''}
                   onChange={(e) => setSocial(key, e.target.value)}
                 />
@@ -563,12 +578,12 @@ const ManageChurchInfo: React.FC = () => {
           </div>
         </div>
         <p className="text-xs text-[#8C8880]">
-          Foto publik untuk carousel di hub <strong>gehc.page</strong>. Muncul bila ada ≥4 foto.
+          Foto publik untuk carousel di hub <strong>gehc.page</strong>. Muncul bila ada â‰¥4 foto.
         </p>
 
         {galleryLoading ? (
           <div className="py-8 flex items-center justify-center text-sm text-[#8C8880]">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat galeri…
+            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat galeriâ€¦
           </div>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-[#FAF9F5] p-8 text-center">

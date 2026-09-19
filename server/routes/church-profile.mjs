@@ -1,4 +1,4 @@
-import { getPrisma } from '../db.mjs';
+﻿import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 
 const CHURCH_PROFILE_ID = 'church-profile';
@@ -30,6 +30,7 @@ function envDefaults() {
     contactEmail: null,
     contactPhone: null,
     whatsapp: null,
+    whatsappGroupUrl: null,
     schedules: DEFAULT_SCHEDULES,
     socials: {},
   };
@@ -103,6 +104,7 @@ export function registerChurchProfileRoutes(app, { wrap }) {
         contactEmail: str(b.contactEmail, 190),
         contactPhone: str(b.contactPhone, 40),
         whatsapp: str(b.whatsapp, 40),
+        whatsappGroupUrl: str(b.whatsappGroupUrl, 512),
         updatedById: req.authUser?.id || null,
       };
       if (socials !== undefined) data.socials = socials;

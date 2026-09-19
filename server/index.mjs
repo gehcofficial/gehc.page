@@ -6757,6 +6757,21 @@ app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 
   if (missingRole) return res.status(404).json({ error: 'Ada komponen yang tidak ditemukan.' });
 
   const dayDates = [...new Set(rows.map((r) => r.date))].map((d) => new Date(`${d}T00:00:00.000Z`));
+  // Auto-tautkan ke event ibadah pada tanggal yang sama (bila eventId tidak dikirim),
+  // supaya penugasan dari Panel Divisi & Program/Event tidak terpisah.
+  const autoEventByDay = new Map();
+  if (!eventId) {
+    const evs = await prisma.eventProgram.findMany({
+      where: { eventDate: { in: dayDates } },
+      select: { id: true, eventDate: true, serviceType: true, kind: true },
+      orderBy: { eventDate: 'asc' },
+    }).catch(() => []);
+    for (const e of evs) {
+      const iso = e.eventDate instanceof Date ? e.eventDate.toISOString().slice(0, 10) : String(e.eventDate || '').slice(0, 10);
+      const isWorship = ['MENTORING_DAY', 'SERVING_DAY'].includes(String(e.serviceType || '')) || String(e.kind || '').toUpperCase() === 'UMUM';
+      if (iso && isWorship && !autoEventByDay.has(iso)) autoEventByDay.set(iso, e.id);
+    }
+  }
   const existing = await prisma.serviceSchedule.findMany({
     where: {
       serviceRoleId: { in: [...new Set(rows.map((r) => r.serviceRoleId))] },
@@ -6781,7 +6796,7 @@ app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 
           id,
           serviceRoleId: row.serviceRoleId,
           userId: row.userId,
-          eventId: eventId || null,
+          eventId: eventId || autoEventByDay.get(row.date) || null,
           date: new Date(`${row.date}T00:00:00.000Z`),
           timeStart,
           timeEnd,
@@ -6863,7 +6878,16 @@ app.get('/api/events/:id/penatalayan', wrap(async (req, res) => {
       orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
     }),
     prisma.serviceSchedule.findMany({
-      where: { eventId: event.id },
+      where: {
+        OR: [
+          { eventId: event.id },
+          // Penugasan mingguan (tanpa eventId) pada tanggal event ini ikut tampil,
+          // agar tidak ada penugasan "tak terlihat" & tidak diisi dobel.
+          ...(event.eventDate
+            ? [{ eventId: null, date: new Date(`${new Date(event.eventDate).toISOString().slice(0, 10)}T00:00:00.000Z`) }]
+            : []),
+        ],
+      },
       include: {
         serviceRole: true,
         user: { select: { id: true, name: true, email: true } },

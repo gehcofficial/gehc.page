@@ -186,6 +186,31 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           take: 400,
         })
         .catch(() => []);
+      // Penanggung jawab & tuan rumah (ServingAssignment) — nama grup saja, publik-aman.
+      const servingRows = await prisma.servingAssignment
+        .findMany({
+          where: {
+            eventDate: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) },
+          },
+          include: {
+            responsibleGroup: { select: { name: true } },
+            hostGroup: { select: { name: true } },
+          },
+          orderBy: { eventDate: 'asc' },
+          take: 200,
+        })
+        .catch(() => []);
+      const serving = {};
+      for (const s of servingRows) {
+        const day = s.eventDate instanceof Date
+          ? s.eventDate.toISOString().slice(0, 10)
+          : String(s.eventDate || '').slice(0, 10);
+        if (!day) continue;
+        serving[day] = {
+          responsible: s.responsibleGroup?.name || null,
+          host: s.hostGroup?.name || null,
+        };
+      }
       const duties = filterPublicDuties(rows).map((r) => ({
         date: r.date,
         role: r.serviceRole?.name || 'Petugas',
@@ -195,7 +220,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         timeEnd: r.timeEnd || null,
         status: r.status,
       }));
-      res.json({ duties, byDay: groupDutiesByDay(rows) });
+      res.json({ duties, byDay: groupDutiesByDay(rows), serving });
     }),
   );
 

@@ -1,6 +1,44 @@
 # GEHC Portal — Handoff
 
-## Current — Tugas penatalayan terlihat (dashboard, kalender, publik, warta) (19 Sep 2026)
+## Current — Sinkronisasi panel: petugas di Warta, default event, normalisasi kind (19 Sep 2026)
+
+**Goal:** Petugas ibadah terlihat di Warta (bukan Beyonders), isian event tidak berulang, dan mismatch antar panel dibereskan.
+
+**Bagian 1 — Petugas di Warta**
+- Section **“Petugas Ibadah”** dipindah dari tab **Beyonders** ke tab **Warta** (`WartaServiceDutySection.tsx`): kartu per Minggu (maks 3 ≤21 hari) → tanggal · **Penanggung Jawab** · **Tuan Rumah** · daftar petugas (CONFIRMED/DONE); kartu disembunyikan hanya bila ketiganya kosong. Komponen lama `PublicServiceDutySection.tsx` dihapus.
+- **Detail Warta**: blok **“Pelayanan”** (`WartaPelayananBlock`) untuk tanggal warta itu.
+- Endpoint publik `/api/db/service-schedule?from&to` kini juga mengembalikan **`serving`** (penanggung/tuan rumah per hari, nama grup saja).
+
+**Bagian 3 — Mismatch yang dibereskan**
+1. **Kind event mingguan**: `generate-services` dulu menulis `RECURRING` (UI memetakannya jadi “Rekreasional” & titik abu-abu). Kini menulis **`UMUM`**; `KegiatanCalendar` memakai `canonKind()` (RECURRING→UMUM); migrasi `_migrate-normalize-event-kind.cjs` menormalkan data lama (**staging: 9 baris**; prod menyusul).
+2. **Penatalayan dua pintu**: bulk `POST /api/penatalayan/schedules/bulk` **auto-taut ke event** pada tanggal yang sama (`eventId`), dan `GET /api/events/:id/penatalayan` ikut menampilkan penugasan **tanpa eventId pada tanggal event** → tidak ada lagi penugasan “tak terlihat”/dobel. Terverifikasi: penugasan 27 Sep otomatis tertaut ke `evt-ibadah-pemuda-raya-tw4-27-sep-2026`.
+3. **Komponen diarsipkan**: panel per-event kini menampilkan blok **“Komponen diarsipkan (n personel)”** sehingga tidak lagi “1 penugasan aktif tapi 0 orang”.
+4. **Dua editor Warta**: `ManageWeeklyInfo` (Kelola Warta Pemuda) diberi banner yang mengarahkan warta mingguan resmi ke **Panel Divisi → Didaskalia → Warta**.
+5. **WA event**: sudah sinkron — `PATCH /api/events/:id` men-upsert `ChannelLink(kind=EVENT)` (diverifikasi di kode, tidak perlu diubah).
+
+**Bagian 2 — Default otomatis (kurangi isian berulang)**
+- **Lib** `server/lib/event-defaults.mjs` (pure, 6 test): `pickDefaultSchedule` (prioritas jadwal Pemuda → Ibadah umum → apa saja), `normalizeTime`, `eventDefaultsFromProfile`, `resolveEventDefaults`.
+- **Kolom baru** `church_profile.whatsapp_group_url` (migrasi `_migrate-church-wa-default.cjs`, staging sudah; prod menyusul) + field **“Grup WhatsApp default (event mingguan)”** di **Info Gereja**.
+- `generate-services` kini mengisi **`venueName`** (nama gereja) + **`whatsappGroupUrl`** default ke event mingguan baru.
+- **Form Event** (`EventWorkspacePanel`) prefill WA default (create & edit) dan tempat (edit) dari Profil Gereja bila masih kosong.
+- Verifikasi: lint bersih, **433 test** hijau (+6 `event-defaults.test.ts`), build OK; smoke API: `serving` muncul di endpoint publik, auto-link `eventId` bekerja. Data uji dibersihkan. **2 migrasi aditif/idempotent** (staging selesai, prod menunggu izin).
+
+**Sisa (belum dikerjakan, terdata)**: #9 tiga sumber absensi (AttendanceRecord/EventAttendee/MonitoringRecord), #10 penamaan divisi (BENZARPR vs Benzarpreneurship), #11 dua endpoint HUT.
+
+### Next
+1. Migrasi prod: `_migrate-church-wa-default.cjs` + `_migrate-normalize-event-kind.cjs` → push `main`.
+2. Isi **WA grup default** di Info Gereja (prod) + generate jadwal serving agar penanggung/tuan rumah muncul di Warta.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+node server/_migrate-church-wa-default.cjs
+node server/_migrate-normalize-event-kind.cjs
+```
+
+---
+
+## Prior — Tugas penatalayan terlihat (dashboard, kalender, publik, warta) (19 Sep 2026)
 
 **Goal:** Setelah penugasan penatalayan diisi, petugas & jemaat bisa melihatnya di tempat yang tepat.
 

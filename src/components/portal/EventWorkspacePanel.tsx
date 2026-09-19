@@ -174,6 +174,8 @@ export const EventWorkspacePanel: React.FC = () => {
     divisions: ['KOINONIA'] as string[],
   });
   const [detailLoading, setDetailLoading] = useState(false);
+  /** Default dari Profil Gereja: tempat + WA grup default (event mingguan). */
+  const [churchDefaults, setChurchDefaults] = useState<{ venueName: string; whatsappGroupUrl: string }>({ venueName: '', whatsappGroupUrl: '' });
   const [linkedPlans, setLinkedPlans] = useState<Array<{ id: string; title: string; division: string; weekIndex: number; yearMonth: string | null; status: string }>>([]);
 
   // Discussions per division
@@ -211,6 +213,19 @@ export const EventWorkspacePanel: React.FC = () => {
   }, [addToast]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // Default dari Profil Gereja (satu sumber): tempat + WA grup default.
+  useEffect(() => {
+    fetch('/api/church-profile')
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: { profile?: { name?: string; whatsappGroupUrl?: string | null } }) => {
+        setChurchDefaults({
+          venueName: String(d.profile?.name || '').trim(),
+          whatsappGroupUrl: String(d.profile?.whatsappGroupUrl || '').trim(),
+        });
+      })
+      .catch(() => { /* default opsional */ });
+  }, []);
 
   useEffect(() => {
     fetch('/api/church-programs', { credentials: 'include' })
@@ -396,9 +411,9 @@ export const EventWorkspacePanel: React.FC = () => {
       churchProgramId: selected.churchProgramId || '',
       startDate: isoToDateInput(selected.startDate),
       endDate: isoToDateInput(selected.endDate),
-      whatsappGroupUrl: selected.whatsappGroupUrl || '',
+      whatsappGroupUrl: selected.whatsappGroupUrl || churchDefaults.whatsappGroupUrl,
       eventDate: isoToWibInput(selected.eventDate),
-      venueName: selected.venueName || '',
+      venueName: selected.venueName || churchDefaults.venueName,
       locationDetail: selected.locationDetail || '',
       mapUrl: selected.mapUrl || '',
       mapEmbedQuery: selected.mapEmbedQuery || '',
@@ -908,7 +923,16 @@ export const EventWorkspacePanel: React.FC = () => {
         {listTab === 'events' && canCreateEvent && (
           <button
             type="button"
-            onClick={() => setShowCreate((v) => !v)}
+            onClick={() => setShowCreate((v) => {
+              const next = !v;
+              if (next) {
+                setCreateForm((f) => ({
+                  ...f,
+                  whatsappGroupUrl: f.whatsappGroupUrl || churchDefaults.whatsappGroupUrl,
+                }));
+              }
+              return next;
+            })}
             className="text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold"
           >
             <Plus className="w-3.5 h-3.5 inline mr-1" /> {ev.tabEvents}

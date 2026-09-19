@@ -2,6 +2,7 @@
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import { SectionHeader } from './ui/SectionHeader';
+import { WartaServiceDutySection, WartaPelayananBlock } from './WartaServiceDutySection';
 import { useLang } from '../../context/LangContext';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import {
@@ -108,6 +109,9 @@ export const WeeklyInfoSection: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Petugas ibadah minggu-minggu mendatang (penanggung, tuan rumah, petugas) */}
+      <WartaServiceDutySection />
 
       {/* Warta Cards Grid */}
       {filteredPosts.length === 0 ? (
@@ -259,6 +263,9 @@ export const WeeklyInfoSection: React.FC = () => {
               <div className="text-sm sm:text-base text-[#1B1B1B] leading-relaxed whitespace-pre-line space-y-4 pt-2 font-normal">
                 {selectedItem.body}
               </div>
+
+              {/* Pelayanan: penanggung, tuan rumah, petugas (live dari jadwal) */}
+              <WartaPelayananBlock date={selectedItem.event_date || selectedItem.published_at} />
 
               {album.length > 0 && (
                 <div>

@@ -1210,6 +1210,8 @@ model ChurchProfile {
   contactEmail  String?  @map("contact_email") @db.VarChar(190)
   contactPhone  String?  @map("contact_phone") @db.VarChar(40)
   whatsapp      String?  @db.VarChar(40)
+  /// Tautan grup WhatsApp default (mis. grup Pemuda) untuk event mingguan.
+  whatsappGroupUrl String? @map("whatsapp_group_url") @db.Text
   /// Jadwal ibadah: [{ label, day, time }].
   schedules     Json?
   /// Sosial media: { instagram, facebook, tiktok, youtube }.

@@ -361,6 +361,38 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
           Event ini belum punya tanggal. Isi tanggal event dulu agar penugasan bisa disimpan.
         </p>
       )}
+
+      {/* Komponen yang sudah diarsipkan: penugasannya tetap terlihat (tidak "hilang") */}
+      {!loading && (() => {
+        const activeIds = new Set(roles.map((r) => r.id));
+        const archived = assignments.filter((a) => !activeIds.has(a.serviceRoleId));
+        if (!archived.length) return null;
+        const byRole = new Map<string, Assignment[]>();
+        for (const a of archived) {
+          const list = byRole.get(a.serviceRoleId) || [];
+          list.push(a);
+          byRole.set(a.serviceRoleId, list);
+        }
+        return (
+          <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/50 p-4 space-y-2">
+            <p className="text-[11px] font-black uppercase tracking-wider text-amber-800">
+              Komponen diarsipkan ({archived.length} personel)
+            </p>
+            <p className="text-[11px] text-amber-800">
+              Komponen ini sudah diarsipkan, jadi tidak muncul di daftar aktif — penugasannya tetap tersimpan. Pulihkan
+              komponen lewat “Kelola komponen”, atau pindahkan orangnya ke komponen aktif.
+            </p>
+            <ul className="space-y-1">
+              {[...byRole.entries()].map(([roleId, list]) => (
+                <li key={roleId} className="text-xs text-[#1B1B1B]">
+                  <strong className="font-bold">{list[0]?.serviceRole?.name || roleId}</strong>
+                  <span className="text-[#8C8880]"> — {list.map((a) => a.user?.name || '—').join(', ')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })()}
     </div>
   );
 };

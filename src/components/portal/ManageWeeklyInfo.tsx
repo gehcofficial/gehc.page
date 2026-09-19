@@ -127,6 +127,15 @@ export const ManageWeeklyInfo: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       
       {/* Header Bar */}
+      <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900 space-y-1">
+        <p className="font-bold">Dua pintu Warta — mana yang dipakai?</p>
+        <p>
+          <strong>Warta mingguan resmi</strong> (dengan pelayanan: penanggung jawab, tuan rumah, petugas, pokok doa, dan
+          ekspor PNG/PDF) dibuat di <strong>Panel Divisi → Didaskalia → tab Warta</strong>. Halaman ini untuk
+          warta/renungan umum (non-mingguan) yang langsung terbit ke landing.
+        </p>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">

@@ -290,6 +290,11 @@ const STEPS = [
     label: 'Album kelompok tampil di publik (show_on_landing, published_at)',
     required: true,
   },
+  {
+    script: 'server/_migrate-normalize-event-kind.cjs',
+    label: 'Normalisasi kind event mingguan (RECURRING → UMUM)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

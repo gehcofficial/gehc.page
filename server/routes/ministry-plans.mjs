@@ -4,6 +4,7 @@ import { requireRole } from '../auth.mjs';
 import { sundaysInMonth, toISODate } from '../lib/church-year.mjs';
 import { formatServiceName, formatServiceNameByType, servicePrefix, servicePrefixByType, sundayInstant, sundayWIBInstant } from '../lib/service-events.mjs';
 import { resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
+import { resolveEventDefaults } from '../lib/event-defaults.mjs';
 import { requireServiceTheme } from '../lib/service-approvers.mjs';
 import { EVENT_ACTIVITY_CATEGORIES } from './content-public.mjs';
 
@@ -446,6 +447,9 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
       // Sort kronologis
       candidates.sort((a, b) => String(a.week.date).localeCompare(String(b.week.date)));
 
+      // Default dari Profil Gereja: tempat + WA grup default (satu sumber kebenaran).
+      const defaults = await resolveEventDefaults(prisma, 'SERVING_DAY');
+
       // Hitung starting cycleIndex untuk SERVING_DAY: jumlah assignment existing
       let servingBase = 0;
       try {
@@ -508,11 +512,13 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
               ? `Ibadah gabungan${cand.override?.partnerLabel ? ` ${cand.override.partnerLabel}` : ''}${cand.override?.note ? ` — ${cand.override.note}` : ''} — tema: ${theme}.`
               : `Ibadah ${serviceType === 'MENTORING_DAY' ? 'Mentoring' : 'Raya'} ${servicePrefixByType(req.body?.bipra, req.body?.kolom, serviceType)} — tema: ${theme}.`,
             status: 'PLANNING',
-            kind: isGabungan ? 'KHUSUS' : 'RECURRING',
+            kind: isGabungan ? 'KHUSUS' : 'UMUM',
             serviceType,
             metadata: isGabungan ? { ...metadata, joint: true, partnerLabel: cand.override?.partnerLabel || null } : metadata,
             startDate: instant,
             eventDate: instant,
+            venueName: defaults.venueName,
+            whatsappGroupUrl: defaults.whatsappGroupUrl,
             createdById: req.authUser.id,
           },
         });
