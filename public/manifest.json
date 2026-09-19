@@ -54,10 +54,10 @@
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Event Gallery",
+      "name": "Galeri & Warta",
       "short_name": "Galeri",
-      "description": "Lihat foto/video event",
-      "url": "/#/gallery",
+      "description": "Lihat warta mingguan & foto/video event",
+      "url": "/#/bulletin",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {

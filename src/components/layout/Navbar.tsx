@@ -17,6 +17,7 @@ import {
   Store,
 } from 'lucide-react';
 import { displayAvatar } from '../../lib/avatar';
+import { PwaInstallButton } from '../pwa/PwaInstallButton';
 
 export const Navbar: React.FC = () => {
   const {
@@ -101,7 +102,6 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
-                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -197,6 +197,7 @@ export const Navbar: React.FC = () => {
 
             {activeView === 'public' && !authUser && (
               <>
+                <PwaInstallButton />
                 <button
                   onClick={() => { window.location.hash = '#/login'; }}
                   title="Masuk ke portal"
@@ -273,7 +274,6 @@ export const Navbar: React.FC = () => {
                 ['leaders', t.nav.leaders],
                 ['events', t.nav.events],
                 ['bulletin', t.nav.bulletin],
-                ['gallery', t.nav.gallery],
                 ['benzarpreneurship', t.nav.benzarpreneurship],
               ] as const).map(([tabId, label]) => (
                 <button
@@ -295,6 +295,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="pt-6 border-t border-white/10 flex flex-col gap-3">
+            <PwaInstallButton variant="footer" />
             {!authUser && (
               <>
                 <button

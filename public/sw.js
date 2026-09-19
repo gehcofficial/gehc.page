@@ -1,82 +1,140 @@
 // Service Worker for GEHC Youth Portal PWA
-// Handles: caching, push notifications, background sync, offline support
+// Handles: app-shell freshness, offline fallback, push notifications, background sync.
+//
+// Strategi cache (penting untuk sinkronisasi versi):
+// - Navigasi/HTML  : NETWORK-FIRST (timeout 3s) → fallback cache saat offline.
+//   Sebelumnya cache-first membuat PWA terinstal terjebak di bundle lama.
+// - Aset ber-hash  : stale-while-revalidate (aman karena nama file berubah tiap build).
+// - /api/*         : network-only (tidak pernah di-cache).
+// BUILD_ID disuntik saat build oleh plugin vite (lihat vite.config.ts) sehingga
+// byte file ini SELALU berubah tiap deploy → browser mendeteksi update SW.
 
-const CACHE_NAME = 'gehc-v3';
-const STATIC_ASSETS = [
-  '/',
+const BUILD_ID = '__BUILD_ID__';
+const CACHE_NAME = `gehc-${BUILD_ID}`;
+const PRECACHE = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
+const NAV_TIMEOUT_MS = 3000;
 
 const VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
-// Install event - cache static assets
+// Install — precache hanya aset statis (BUKAN index.html).
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).catch(() => undefined)
   );
+  // Tetap ambil alih segera: user yang masih terjebak di cache lama (gehc-v3)
+  // otomatis keluar dari cache basi pada navigasi berikutnya.
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// Activate — buang semua cache versi lama.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    (async () => {
+      const names = await caches.keys();
+      await Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)));
+      await self.clients.claim();
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) client.postMessage({ type: 'SW_ACTIVATED', buildId: BUILD_ID });
+    })()
   );
-  self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+function isHtmlRequest(request) {
+  if (request.mode === 'navigate') return true;
+  const accept = request.headers.get('accept') || '';
+  return accept.includes('text/html');
+}
 
-  // In development (localhost), always go to network — never cache Vite chunks
-  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
-    event.respondWith(fetch(event.request));
+function isHashedAsset(url) {
+  return /\/assets\//.test(url.pathname) || /\/icons\//.test(url.pathname);
+}
+
+// Fetch
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Dev: jangan pernah cache chunk Vite.
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    event.respondWith(fetch(request));
     return;
   }
 
-  // Skip API calls - let them go to network
-  if (event.request.url.includes('/api/')) {
+  // API: network-only, fallback JSON offline.
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        // Return offline response for API calls
-        return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
-          headers: { 'Content-Type': 'application/json' },
-          status: 503,
-        });
-      })
+      fetch(request).catch(() => new Response(
+        JSON.stringify({ error: 'Offline', offline: true }),
+        { headers: { 'Content-Type': 'application/json' }, status: 503 }
+      ))
     );
     return;
   }
 
-  // For static assets: cache first
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache successful responses
-        if (networkResponse.ok) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+  // Navigasi / HTML: network-first agar app shell selalu terbaru.
+  if (isHtmlRequest(request)) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await Promise.race([
+            fetch(request, { cache: 'no-store' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NAV_TIMEOUT_MS)),
+          ]);
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, fresh.clone()).catch(() => undefined);
+          return fresh;
+        } catch {
+          const cache = await caches.open(CACHE_NAME);
+          const cached = (await cache.match(request)) || (await cache.match('/'));
+          if (cached) return cached;
+          throw new Error('offline');
         }
-        return networkResponse;
-      });
-    })
+      })()
+    );
+    return;
+  }
+
+  // Aset ber-hash: stale-while-revalidate.
+  if (isHashedAsset(url)) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(request);
+        const network = fetch(request)
+          .then((res) => {
+            if (res.ok) cache.put(request, res.clone()).catch(() => undefined);
+            return res;
+          })
+          .catch(() => undefined);
+        return cached || (await network) || new Response('', { status: 504 });
+      })()
+    );
+    return;
+  }
+
+  // Sisanya: network-first, fallback cache.
+  event.respondWith(
+    (async () => {
+      try {
+        const fresh = await fetch(request);
+        if (fresh.ok && !request.url.endsWith('/sw.js')) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, fresh.clone()).catch(() => undefined);
+        }
+        return fresh;
+      } catch {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        throw new Error('offline');
+      }
+    })()
   );
 });
 
@@ -127,9 +185,9 @@ self.addEventListener('notificationclick', (event) => {
 
   // Handle different notification types
   if (data.type === 'warta') {
-    url = '/#/warta';
+    url = '/#/bulletin';
   } else if (data.type === 'gallery') {
-    url = '/#/gallery';
+    url = '/#/bulletin';
   } else if (data.type === 'schedule') {
     url = data.url || '/#/portal';
   } else if (data.type === 'order') {
@@ -153,10 +211,8 @@ self.addEventListener('notificationclick', (event) => {
 
 // Notification close event
 self.addEventListener('notificationclose', (event) => {
-  // Track dismissal analytics if needed
   const data = event.notification.data || {};
   if (data.notificationId) {
-    // Could send analytics here
     console.log('Notification dismissed:', data.notificationId);
   }
 });
@@ -171,7 +227,6 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncNotifications() {
-  // Sync pending notification subscriptions
   try {
     const cache = await caches.open('gehc-offline');
     const requests = await cache.keys();
@@ -187,7 +242,6 @@ async function syncNotifications() {
 }
 
 async function syncGalleryUploads() {
-  // Sync pending gallery uploads
   try {
     const cache = await caches.open('gehc-offline');
     const requests = await cache.keys();
@@ -204,24 +258,21 @@ async function syncGalleryUploads() {
 
 // Message event - communicate with main thread
 self.addEventListener('message', (event) => {
-  if (event.data.type === 'SKIP_WAITING') {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  } else if (event.data.type === 'GET_SUBSCRIPTION') {
-    // Return current push subscription
+  } else if (event.data?.type === 'GET_BUILD_ID') {
+    event.ports?.[0]?.postMessage({ buildId: BUILD_ID });
+  } else if (event.data?.type === 'GET_SUBSCRIPTION') {
     self.registration.pushManager.getSubscription().then((sub) => {
       event.ports[0].postMessage({ subscription: sub });
     });
-  } else if (event.data.type === 'SUBSCRIBE') {
-    // Subscribe to push
+  } else if (event.data?.type === 'SUBSCRIBE') {
     subscribeToPush(event.data.vapidKey).then((sub) => {
       event.ports[0].postMessage({ subscription: sub });
     });
-  } else if (event.data.type === 'UNSUBSCRIBE') {
-    // Unsubscribe from push
+  } else if (event.data?.type === 'UNSUBSCRIBE') {
     self.registration.pushManager.getSubscription().then((sub) => {
-      if (sub) {
-        sub.unsubscribe();
-      }
+      if (sub) sub.unsubscribe();
       event.ports[0].postMessage({ success: true });
     });
   }
@@ -262,11 +313,9 @@ self.addEventListener('periodicsync', (event) => {
 
 async function checkForUpdates() {
   try {
-    // Check for new warta, gallery items, etc.
     const response = await fetch('/api/warta?limit=1');
     if (response.ok) {
-      const data = await response.json();
-      // Could show badge notification if new content
+      await response.json();
     }
   } catch (err) {
     console.error('Periodic sync failed:', err);

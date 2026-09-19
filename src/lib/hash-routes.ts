@@ -23,6 +23,7 @@ const LEGACY_MAP: Record<string, ParsedHashRoute['tab']> = {
   'weekly-info': 'bulletin',
   activity: 'events',
   warta: 'bulletin',
+  gallery: 'bulletin',
 };
 
 const PUBLIC_TABS = new Set<ParsedHashRoute['tab']>([
@@ -30,7 +31,6 @@ const PUBLIC_TABS = new Set<ParsedHashRoute['tab']>([
   'leaders',
   'events',
   'bulletin',
-  'gallery',
   'join',
   'login',
   'register',

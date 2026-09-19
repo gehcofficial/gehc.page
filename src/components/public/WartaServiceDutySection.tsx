@@ -25,6 +25,23 @@ const dayLabel = (iso: string) =>
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   });
 
+/**
+ * Kelompokkan petugas per nama: satu nama = satu baris, role unik digabung
+ * dengan “ · ” mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
+ * info kegiatan) — publik hanya butuh nama + role.
+ */
+const mergeDutiesByName = (duties: Duty[]) => {
+  const byName = new Map<string, { name: string; roles: string[] }>();
+  for (const d of duties) {
+    const name = String(d.name || '').trim() || '—';
+    const role = String(d.role || '').trim();
+    const entry = byName.get(name) || { name, roles: [] };
+    if (role && !entry.roles.includes(role)) entry.roles.push(role);
+    byName.set(name, entry);
+  }
+  return [...byName.values()];
+};
+
 /** Blok “Pelayanan” untuk satu hari (dipakai kartu Warta & detail Warta). */
 const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> = ({ day, duties, serving }) => (
   <div className="space-y-3">
@@ -39,13 +56,10 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
         </p>
         {duties.length > 0 ? (
           <ul className="mt-1.5 space-y-1">
-            {duties.map((d, i) => (
-              <li key={`${d.role}-${d.name}-${i}`} className="text-[11px] text-[#1B1B1B] flex flex-wrap gap-x-1.5">
-                <span className="font-bold">{d.name}</span>
-                <span className="text-[#8C8880]">
-                  {d.role}
-                  {(d.timeStart || d.timeEnd) ? ` · ${d.timeStart || '—'}–${d.timeEnd || '—'}` : ''}
-                </span>
+            {mergeDutiesByName(duties).map((p) => (
+              <li key={p.name} className="text-[11px] text-[#1B1B1B] flex flex-wrap gap-x-1.5">
+                <span className="font-bold">{p.name}</span>
+                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' · ')}</span>}
               </li>
             ))}
           </ul>

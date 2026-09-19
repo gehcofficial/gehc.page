@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AppProvider, useApp } from './context/AppContext';
 import { MediaSlotsWarmup, prefetchMediaSlots } from './hooks/useMediaSlots';
 import { ToastContainer } from './components/layout/ToastContainer';
+import { PwaUpdateToast } from './components/pwa/PwaUpdateToast';
 import { Navbar } from './components/layout/Navbar';
 import { HeroSection } from './components/public/HeroSection';
 import { VisualCollage } from './components/public/VisualCollage';
@@ -127,8 +128,12 @@ const MainAppContent: React.FC = () => {
           </>
         )}
 
-        {publicTab === 'bulletin' && <WeeklyInfoSection />}
-        {publicTab === 'gallery' && <EventArchiveGallery />}
+        {publicTab === 'bulletin' && (
+          <>
+            <WeeklyInfoSection />
+            <EventArchiveGallery />
+          </>
+        )}
         {publicTab === 'benzarpreneurship' && <BenzarpreneurshipPage />}
       </main>
 
@@ -148,6 +153,7 @@ export default function App() {
     <AppProvider>
       <MediaSlotsWarmup />
       <MainAppContent />
+      <PwaUpdateToast />
       <ToastContainer />
     </AppProvider>
   );

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Bell, BellOff, CheckCircle2, XCircle, Loader2, Smartphone, Globe, WifiOff, Download, Trash2, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { pushCapability, pushCapabilityMessage } from '../../lib/push-capability';
 import { NOTIFY_CATEGORIES, NOTIFY_CATEGORY_LABEL } from '../../lib/notify-categories';
+import { PwaUpdateButton } from './PwaUpdateButton';
 
 interface PWASettingsPanelProps {
   onClose?: () => void;
@@ -441,6 +442,10 @@ export default function PWASettingsPanel({ onClose }: PWASettingsPanelProps) {
           <button onClick={unregisterSW} className="px-4 py-2 rounded-lg border border-red-300 text-red-600 text-sm font-bold hover:bg-red-50 flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> Unregister SW
           </button>
+        </div>
+
+        <div className="mt-4">
+          <PwaUpdateButton />
         </div>
       </div>
 

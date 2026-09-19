@@ -5,6 +5,8 @@ import { MapPin, ArrowUpRight, ExternalLink, Mail, MessageCircle, Phone, Instagr
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
+import { PwaInstallButton } from '../pwa/PwaInstallButton';
+import { PwaUpdateButton } from '../pwa/PwaUpdateButton';
 
 const DEFAULT_MAP = 'https://share.google/Ro2jBSuGfrzfg49nP';
 
@@ -223,6 +225,11 @@ export const Footer: React.FC = () => {
             <p className="text-[11px] text-white/45 mt-4 leading-relaxed">
               {t.portal.pwaInstall.body}
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <PwaInstallButton variant="footer" />
+              <PwaUpdateButton dark />
+            </div>
           </div>
 
         </div>

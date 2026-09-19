@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useLang } from '../../context/LangContext';
-import { SectionHeader } from '../public/ui/SectionHeader';
 import { useApp } from '../../context/AppContext';
 import { Images } from 'lucide-react';
 
@@ -43,8 +42,16 @@ export const EventArchiveGallery: React.FC = () => {
   };
 
   return (
-    <section className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
-      <SectionHeader eyebrow={t.gallery.eyebrow} title={t.gallery.title} subtitle={t.gallery.sub} />
+    <section id="galeri-arsip" className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto border-t border-[#D9D7D0]/60">
+      <div className="mb-6">
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FF416C]">
+          {t.gallery.eyebrow}
+        </span>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B1B1B] font-display mt-1">
+          {t.gallery.title}
+        </h2>
+        <p className="text-xs text-[#8C8880] mt-1 max-w-2xl">{t.gallery.sub}</p>
+      </div>
       {events.length === 0 ? (
         <p className="text-xs text-[#8C8880] py-8">{t.gallery.highlights} — arsip acara akan tampil di sini.</p>
       ) : (

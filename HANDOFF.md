@@ -1,6 +1,35 @@
 # GEHC Portal — Handoff
 
-## Current — Backfill jadwal serving + Warta: petugas & anggota tuan rumah (19 Sep 2026)
+## Current — Warta rapi, Galeri gabung Warta, PWA fresh + install dari landing (20 Sep 2026)
+
+**Goal:** (1) Warta: petugas cukup nama+role; (2) Galeri jadi bagian Warta; (3) PWA terinstal tidak lagi terjebak versi lama; (4) tombol install di landing.
+
+**Done:**
+- **Warta petugas**: `DutyDayBlock` (`src/components/public/WartaServiceDutySection.tsx`) tidak lagi menampilkan jam; nama di-dedup (1 nama = 1 baris) dan role unik digabung ` · ` sesuai urutan jadwal → `Holly Kalele — Liturgist · Worship Leader`. Berlaku di kartu Warta & modal detail.
+- **Galeri → bagian Warta**: item nav `gallery` dihapus (desktop + drawer), `EventArchiveGallery` dirender di bawah `WeeklyInfoSection` pada tab `bulletin` dengan header sub-seksi (`#galeri-arsip`), alias `gallery → bulletin` di `routes.ts`/`hash-routes.ts`/`AppContext` (`#/gallery` lama tetap jalan), shortcut manifest diarahkan ke `/#/bulletin`.
+- **PWA fresh (akar masalah)**: `public/sw.js` lama cache-first untuk `/` → PWA terinstal selalu memuat HTML/chunk lama; `CACHE_NAME` tak pernah berubah → `updatefound` tak pernah muncul; prompt `confirm()` tak muncul di standalone.
+  - `sw.js` ditulis ulang: navigasi/HTML **network-first** (timeout 3s, fallback offline), aset ber-hash **stale-while-revalidate**, `/api/*` network-only, `CACHE_NAME = gehc-<buildId>` (cache lama dibuang saat activate), pesan `SW_ACTIVATED`.
+  - **Build-id stamping** (`vite.config.ts`): `dist/sw.js` + `dist/pwa-register.js` distempel id unik tiap deploy → byte `sw.js` selalu berubah → update selalu terdeteksi. Token `__BUILD_ID__`/`self.__GEHC_BUILD_ID__`.
+  - `public/pwa-register.js`: event `pwa-update-available` (bukan `confirm()`), reload sekali saat `controllerchange`, `registration.update()` saat load/fokus/`visibilitychange` + tiap 60 menit, helper `applyUpdate`/`hardReload`/`checkForUpdate`/`canInstall`.
+  - `PwaUpdateToast` (global di `App.tsx`): toast “Versi baru tersedia” + tombol Muat ulang; auto-reload hanya saat idle (tidak ada input aktif & 15s tanpa interaksi).
+  - `PwaUpdateButton`: “Cek pembaruan” + “Muat ulang paksa” di Footer landing & `PWASettingsPanel` portal.
+- **Install dari landing**: `PwaInstallButton` (pill di Navbar desktop + drawer mobile, `variant="footer"` di Footer) memakai `window.deferredPrompt`/`window.PWA`; iOS/Safari → modal instruksi “Tambah ke Layar Utama”; disembunyikan bila standalone. i18n `pwa.*` ditambah di `en.ts` + `id.ts`.
+- Verifikasi: lint bersih, **439 test** hijau, build OK; `node --check` pada `dist/sw.js` & `dist/pwa-register.js` lolos; `vite preview` → `/sw.js` 200, `/pwa-register.js` 200 (baris build-id ada), `/manifest.json` 200, index memuat `pwa-register.js`.
+
+### Next
+1. Deploy staging → verifikasi → push `main`.
+2. Uji update nyata di perangkat: install PWA → deploy ulang → toast “Versi baru tersedia” muncul tanpa hapus cookies (butuh user, Playwright tidak tersedia di sesi ini).
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+node --check dist/sw.js; node --check dist/pwa-register.js
+npm run deploy:staging
+```
+
+---
+
+## Prior — Backfill jadwal serving + Warta: petugas & anggota tuan rumah (19 Sep 2026)
 
 **Goal:** Baris nyata penanggung/tuan rumah bisa dibuat untuk event yang sudah ada; Warta menampilkan **petugas** di bawah Penanggung Jawab dan **semua nama anggota** di bawah Tuan Rumah.
 
