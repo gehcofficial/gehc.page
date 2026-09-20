@@ -52,7 +52,12 @@
     }
 
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      // updateViaCache: 'none' → iOS Safari selalu ambil /sw.js dari jaringan saat
+      // memeriksa update, tidak terjebak SW lama yang menyajikan shell basi.
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none',
+      });
       swRegistration = registration;
       console.log('SW registered:', registration.scope);
 

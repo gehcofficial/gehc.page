@@ -26,7 +26,7 @@ export default function NotificationPermissionBanner({ onDismiss, compact = fals
   const registerSW = async () => {
     if (!('serviceWorker' in navigator)) return;
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
       setSwRegistered(true);
       console.log('SW registered:', reg.scope);
     } catch (err) {

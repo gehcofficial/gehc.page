@@ -6,6 +6,7 @@ import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
 import { isHubHost, isAppHash, isMentorPitchHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
+import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
 /** Hub, coming-soon unit, dan pitch deck dimuat terpisah dari bundle portal Pemuda. */
@@ -84,6 +85,41 @@ const AppRoot: React.FC = () => {
     </Suspense>
   );
 };
+
+const RECOVER_KEY = 'gehc_stale_asset_recover_at';
+
+/**
+ * Pemulihan otomatis klien yang terjebak shell basi (umum di iOS/Safari):
+ * HTML lama menunjuk aset ber-hash yang sudah hilang → React gagal mount dan
+ * sebagian section tampak "hilang". Bersihkan SW + cache lalu muat ulang sekali.
+ * Dibatasi 1×/60 detik agar tidak jadi loop reload saat jaringan benar-benar mati.
+ */
+function recoverFromStaleAsset(reason: string) {
+  try {
+    const last = Number(sessionStorage.getItem(RECOVER_KEY) || '0');
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem(RECOVER_KEY, String(Date.now()));
+  } catch {
+    /* storage diblokir — tetap coba pulihkan sekali */
+  }
+  console.warn('[gehc] memulihkan klien dari aset basi:', reason);
+  void recoverBrokenClientCache().finally(() => window.location.reload());
+}
+
+const STALE_ASSET_RE = /dynamically imported module|Loading chunk|Importing a module script failed|MIME type|error loading/i;
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  recoverFromStaleAsset('vite:preloadError');
+});
+window.addEventListener('error', (event: ErrorEvent) => {
+  if (STALE_ASSET_RE.test(event?.message || '')) recoverFromStaleAsset(event.message);
+});
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  const reason = event?.reason;
+  const message = typeof reason === 'string' ? reason : reason?.message || '';
+  if (STALE_ASSET_RE.test(message)) recoverFromStaleAsset(message);
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

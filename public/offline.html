@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline — GEHC Youth</title>
+    <meta name="theme-color" content="#F6AE4A" />
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #faf9f5;
+        color: #1b1b1b;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .card {
+        max-width: 28rem;
+        width: 100%;
+        background: #fff;
+        border: 1px solid #d9d7d0;
+        border-radius: 28px;
+        padding: 28px;
+        text-align: center;
+      }
+      .dot {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 16px;
+        border-radius: 14px;
+        background: #f6ae4a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+      }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      p { font-size: 13px; line-height: 1.6; color: #8c8880; margin: 0 0 20px; }
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 22px;
+        font-size: 13px;
+        font-weight: 700;
+        background: #1b1b1b;
+        color: #fff;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="dot">📶</div>
+      <h1>Anda sedang offline</h1>
+      <p>
+        Sambungkan kembali ke internet lalu muat ulang. Portal GEHC Youth butuh koneksi
+        agar selalu menampilkan versi terbaru.
+      </p>
+      <button type="button" onclick="location.reload()">Muat ulang</button>
+    </div>
+  </body>
+</html>

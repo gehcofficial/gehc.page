@@ -2,8 +2,10 @@
 // Handles: app-shell freshness, offline fallback, push notifications, background sync.
 //
 // Strategi cache (penting untuk sinkronisasi versi):
-// - Navigasi/HTML  : NETWORK-FIRST (timeout 3s) → fallback cache saat offline.
-//   Sebelumnya cache-first membuat PWA terinstal terjebak di bundle lama.
+// - Navigasi/HTML  : NETWORK-ONLY. TIDAK PERNAH menyajikan index.html dari cache,
+//   karena HTML lama menunjuk aset ber-hash yang sudah dihapus deploy baru →
+//   aset 404 → React gagal mount → "section hilang"/layar kosong di iOS Safari.
+//   Saat offline ditampilkan /offline.html statis, bukan app shell lama.
 // - Aset ber-hash  : stale-while-revalidate (aman karena nama file berubah tiap build).
 // - /api/*         : network-only (tidak pernah di-cache).
 // BUILD_ID disuntik saat build oleh plugin vite (lihat vite.config.ts) sehingga
@@ -13,10 +15,10 @@ const BUILD_ID = '__BUILD_ID__';
 const CACHE_NAME = `gehc-${BUILD_ID}`;
 const PRECACHE = [
   '/manifest.json',
+  '/offline.html',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
-const NAV_TIMEOUT_MS = 3000;
 
 const VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
@@ -78,25 +80,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigasi / HTML: network-first agar app shell selalu terbaru.
+  // Navigasi / HTML: NETWORK-ONLY — jangan pernah menyajikan dokumen basi.
   if (isHtmlRequest(request)) {
     event.respondWith(
-      (async () => {
-        try {
-          const fresh = await Promise.race([
-            fetch(request, { cache: 'no-store' }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NAV_TIMEOUT_MS)),
-          ]);
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(request, fresh.clone()).catch(() => undefined);
-          return fresh;
-        } catch {
-          const cache = await caches.open(CACHE_NAME);
-          const cached = (await cache.match(request)) || (await cache.match('/'));
-          if (cached) return cached;
-          throw new Error('offline');
-        }
-      })()
+      fetch(request, { cache: 'no-store' }).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const offline = await cache.match('/offline.html');
+        if (offline) return offline;
+        return new Response('Offline — sambungkan kembali lalu muat ulang.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      })
     );
     return;
   }

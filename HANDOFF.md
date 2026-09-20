@@ -1,6 +1,79 @@
 # GEHC Portal — Handoff
 
-## Current — Warta rapi, Galeri gabung Warta, PWA fresh + install dari landing (20 Sep 2026)
+## Current — iOS Safari "section hilang": HTML network-only + auto-recovery aset basi (21 Sep 2026)
+
+**Goal:** Portal tampil penuh di Safari iPhone (`youth.gehc.page`) seperti di Android. Teman melaporkan sebagian section (header/nav, konten utama, kartu bantuan, materi Didaskalia) hilang, sementara banner tetap tampil.
+
+**Done:**
+- **Akar masalah (service worker):** `sw.js` masih bisa menyajikan `index.html` basi dari cache (network-first + fallback cache, timeout 3s). HTML lama menunjuk aset ber-hash yang sudah dihapus deploy baru → aset 404 → React gagal mount → section "hilang" (paling terasa di iOS/Safari yang agresif cache + jaringan seluler lambat).
+  - `public/sw.js`: navigasi/HTML jadi **NETWORK-ONLY** (tanpa fallback HTML basi). Offline → `/offline.html` statis via precache. Aset ber-hash tetap stale-while-revalidate; `/api/*` network-only.
+  - `public/offline.html` (baru): halaman offline ringan tanpa aset bundle.
+  - `public/pwa-register.js` + `NotificationPermissionBanner.tsx`: registrasi SW pakai **`updateViaCache: 'none'`** → iOS selalu ambil `/sw.js` dari jaringan saat cek update.
+  - `vercel.json`: `Cache-Control: no-store` untuk `/` (dokumen sebenarnya — sebelumnya hanya `/index.html` yang cocok) dan `/pwa-register.js`.
+- **Jaring pengaman klien** (`src/main.tsx`): listener `vite:preloadError` + `error`/`unhandledrejection` untuk pesan aset basi ("dynamically imported module", "Loading chunk", "MIME type") → `recoverBrokenClientCache()` (unregister SW + hapus cache) lalu reload sekali; dibatasi 1×/60 detik (sessionStorage) agar tidak loop.
+- **Verifikasi**: `npm run lint` bersih; **442 test** hijau; `npm run build` OK; `dist/sw.js` ter-stempel build-id & memuat `/offline.html`; `dist/pwa-register.js` ter-stempel + `updateViaCache`; `dist/offline.html` ada; `node --check` sw.js/pwa-register.js lolos; `vercel.json` valid.
+- Catatan kompatibilitas: Tailwind v4 memakai `oklch`/`color-mix`/`@property`, tapi sudah menyertakan fallback (`@layer properties` untuk browser tanpa `@property`, `@supports` untuk `color-mix`) → bukan penyebab "section hilang" (diverifikasi dari CSS produksi).
+
+### Next
+1. Deploy staging → uji di iPhone teman (Safari tab): muat ulang sekali, tunggu SW baru (`updateViaCache`) → section harus lengkap.
+2. Bila masih hilang: minta screenshot + error console (Mac Safari → Develop → Web Inspector) dari iPhone teman.
+3. Bila ada device iOS < 16.4: pertimbangkan fallback warna eksplisit (hex) untuk palette Tailwind — belum perlu sampai terbukti.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+npm run deploy:staging
+```
+
+---
+
+## Prior — Slide presentasi ProPresenter (4 PNG 1920×1080) (20 Sep 2026)
+
+**Goal:** 4 gambar slide untuk ProPresenter: depan `gehc.page`, QR `gehc.page` + coming soon, depan `youth.gehc.page`, QR daftar + status jemaat + himbauan install.
+
+**Done:**
+- **`public/presenter/`** → `01-hub-depan.png`, `02-hub-qr.png`, `03-youth-depan.png`, `04-youth-qr.png` (semua **1920×1080**, ~1 MB total). Ikut ter-deploy → bisa diakses di `https://youth.gehc.page/presenter/<nama>.png`.
+- **Generator**: `scripts/render-slides.mjs` (Playwright + sharp + jsqr) + template `scripts/slides/*.html` + `slide.css` + **`slides-data.json`** (naskah & angka — satu tempat untuk disunting) + `scripts/slides/README.md`.
+- **QR** dari `public/media/qr-hub.png` (`https://gehc.page`) & `qr-daftar-youth.png` (`https://youth.gehc.page/#/register`) → diperbesar nearest-neighbor 640→1100px + quiet zone 88px, lalu **diverifikasi ulang dengan `jsqr`** (gagal = render gagal).
+- **Screenshot live** `gehc.page` & `youth.gehc.page` (viewport 1440×900 @2x, animasi/scrollbar dimatikan) ditempatkan dalam mockup laptop gelap di latar krem brand.
+- **Slide 4 angka nyata (snapshot 20 Sep 2026, prod)**: terdaftar 135 · Bapak 9 · Ibu 3 · Pemuda 123 · terhubung Kolom 22 · menunggu verifikasi 11.
+- Verifikasi: lint bersih, build OK, `dist/presenter/` ikut ter-copy, 4 PNG terkonfirmasi 1920×1080, QR valid setelah diperbesar.
+- Tanpa dependensi npm baru; tanpa perubahan aplikasi/DB.
+
+### Next
+1. (Opsional) Perbarui angka snapshot di `scripts/slides/slides-data.json` lalu `node scripts/render-slides.mjs`.
+2. (Opsional) Commit + push bila slide ingin ikut ter-deploy.
+
+### Commands
+```
+node scripts/render-slides.mjs              # render ulang (pakai screenshot lama)
+node scripts/render-slides.mjs --refresh    # ambil ulang screenshot situs live
+```
+
+---
+
+## Prior — Audit portal menyeluruh (dokumen review) (20 Sep 2026)
+
+**Goal:** Review menyeluruh seluruh panel portal — mana yang benar-benar dibutuhkan, best practice read/write (GET/POST), dari POV semua peran.
+
+**Done:**
+- Dokumen **[`docs/review/2026-09-20-portal-audit.md`](docs/review/2026-09-20-portal-audit.md)** (15 bagian): ringkasan eksekutif, inventaris nav 26 destinasi × 8 peran, penilaian kebutuhan per panel, **usulan nav baru per peran** (KOMISI 21→10, COMMITTEE 16→8, BPMJ 11→8, dst.), pola akses read/write, P0 keamanan, P1 efisiensi, P2 UX, konsolidasi endpoint, roadmap + quick wins dengan snippet, dan 3 lampiran.
+- Terdaftar di `docs/README.md` (seksi Review baru); melengkapi `docs/tech/nav-api-parity.md`.
+- **Murni analisis** — tidak ada perubahan kode/DB. Semua temuan P0 diverifikasi manual baris kode; 4 kandidat dibuang karena ternyata sudah aman.
+- Temuan P0 teratas: 3 endpoint tulis publik tanpa auth (`POST /api/db/sync-batches`, `/api/migrate/events`, `/api/seed/events`; `server/index.mjs:1501/2095/2250`, 0 referensi di `src/`) · endpoint baca publik mengekspos absensi/transisi mentor/notulen rapat · lock UI mati (`PortalLayout.tsx:475`).
+
+### Next
+1. Review checklist bagian 11 (P0 → P1 → P2); tandai yang disetujui.
+2. Eksekusi P0 (butuh keputusan produk untuk endpoint yang "memang publik").
+
+### Commands
+```
+# dokumen saja — tidak ada perintah build yang diperlukan
+```
+
+---
+
+## Prior — Warta rapi, Galeri gabung Warta, PWA fresh + install dari landing (20 Sep 2026)
 
 **Goal:** (1) Warta: petugas cukup nama+role; (2) Galeri jadi bagian Warta; (3) PWA terinstal tidak lagi terjebak versi lama; (4) tombol install di landing.
 
