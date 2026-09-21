@@ -23,6 +23,10 @@
 - [Production go-live](tech/production-golive.md)
 - [Platform operator](tech/platform-operator.md)
 
+## Review
+
+- [Audit portal 20 Sep 2026](review/2026-09-20-portal-audit.md) — kebutuhan panel per peran, pola akses read/write, P0 keamanan → P1 efisiensi → P2 UX
+
 ## Handoff
 
 - [Current handoff](../HANDOFF.md) (root — updated each episode)
