@@ -1427,7 +1427,7 @@ app.get('/api/db/groups', wrap(async (req, res) => {
 }));
 
 // History family tree per grup
-app.get('/api/db/groups/:id/batches', wrap(async (req, res) => {
+app.get('/api/db/groups/:id/batches', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const batches = await prisma.groupBatch.findMany({
@@ -1478,7 +1478,7 @@ app.get('/api/portal/groups/:id/roster', requireRole(), wrap(async (req, res) =>
 }));
 
 // Riwayat absensi grup (opsional filter ?date= atau ?since=)
-app.get('/api/db/groups/:id/attendance', wrap(async (req, res) => {
+app.get('/api/db/groups/:id/attendance', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const where = { groupId: req.params.id };
@@ -1498,7 +1498,7 @@ app.get('/api/db/groups/:id/attendance', wrap(async (req, res) => {
 }));
 
 // Sinkronisasi data family tree dari frontend/portal → TiDB (upsert per id)
-app.post('/api/db/sync-batches', wrap(async (req, res) => {
+app.post('/api/db/sync-batches', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const batches = Array.isArray(req.body?.batches) ? req.body.batches : [];
@@ -1531,7 +1531,7 @@ app.post('/api/db/sync-batches', wrap(async (req, res) => {
 
 // ---------- Mentor Transition (Phase 6) ----------
 // GET: List mentor transitions for a group
-app.get('/api/groups/:id/mentor-transitions', wrap(async (req, res) => {
+app.get('/api/groups/:id/mentor-transitions', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const transitions = await prisma.mentorTransition.findMany({
@@ -2092,7 +2092,7 @@ app.get('/api/drive/files/:fileId', wrap(async (req, res) => {
 }));
 
 // ---------- Event Workspace Migration (ad hoc) ----------
-app.post('/api/migrate/events', wrap(async (req, res) => {
+app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL tidak tersedia.' });
 
@@ -2247,7 +2247,7 @@ app.post('/api/migrate/events', wrap(async (req, res) => {
 }));
 
 // POST /api/seed/events — seed BAKU TAU 4.0 via raw SQL (idempotent)
-app.post('/api/seed/events', wrap(async (req, res) => {
+app.post('/api/seed/events', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -2993,7 +2993,7 @@ app.post('/api/events/:id/meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMIT
 }));
 
 // GET /api/events/:id/meetings — daftar rapat
-app.get('/api/events/:id/meetings', wrap(async (req, res) => {
+app.get('/api/events/:id/meetings', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
