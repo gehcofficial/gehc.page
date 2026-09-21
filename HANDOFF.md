@@ -26,8 +26,8 @@
 - Verifikasi batch ini: lint bersih · 442 test hijau · build OK · anon `/api/events/:id/penatalayan` **401**, `/api/drive/files/xxx` ditolak guard; render `#/events`, `#/bulletin`, `#/leaders` tanpa error; `/api/db/users` limit/offset bekerja (110 → 5 → 5 offset beda).
 - **P1-5 — read-POST → GET**: alias `GET /api/jethro/scan` (handler sama; `POST` tetap ada).
 - **P1-7 — BAKU TAU**: sudah satu handler dua alias (`/api/events/baku-tau-4-0` & `/api/events/bakutau`) — tidak perlu diubah.
-- **P2-1 — draft nav** (`docs/review/2026-09-21-portal-nav-draft.md`): rencana parent + sub-tab backward-compatible + keputusan yang diminta. **Nav belum diubah** menunggu persetujuan.
-- Belum dikerjakan: P1-6 react-query, P2-2/P2-3 prompt/welcome, P2-4 warta, P2-6 pecah file.
+- **P2-1 — nav bertahap (COMMITTEE)**: `portal-nav-config.ts` + `buildPortalSidebarItems()` (parent + sub-tab; id anak tetap routable) + `findParentForTab()`; `PortalLayout` merender parent (expanded + flyout collapsed) + bar sub-tab di atas konten. Rollout dibatasi `PORTAL_NAV_GROUPED_ROLES = ['COMMITTEE']` — KOMISI/BPMJ/SUPERADMIN **belum** berubah. Unit test `tests/unit/portal-nav-sidebar.test.ts`; e2e `portal-nav-roles` disesuaikan (scope ke `navigation`; submenu Konten → Kelola Warta Pemuda). Rencana & keputusan: `docs/review/2026-09-21-portal-nav-draft.md`.
+- Belum dikerjakan: P1-6 react-query, P2-2/P2-3 prompt/welcome, P2-4 warta, P2-6 pecah file, lanjutan P2-1 ke KOMISI/BPMJ/SUPERADMIN.
 
 ### Next
 1. Uji portal dengan akun nyata (Monitoring, Warta/Galeri/Rapat divisi, Dashboard KOMISI/BPMJ).
