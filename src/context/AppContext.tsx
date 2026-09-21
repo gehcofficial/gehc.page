@@ -365,7 +365,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch('/api/db/groups');
+        // Coba versi lengkap (login) dulu; pengunjung publik jatuh ke versi ramping.
+        let r = await fetch('/api/db/groups/full', { credentials: 'include' });
+        if (!r.ok) r = await fetch('/api/db/groups');
         if (!r.ok) return;
         const d = await r.json();
         if (cancelled || !Array.isArray(d.groups)) return;

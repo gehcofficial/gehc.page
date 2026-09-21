@@ -732,7 +732,7 @@ export const YouthGEHCList: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
-    fetch('/api/db/groups', { credentials: 'include' })
+    fetch('/api/db/groups/full', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
         const groups = Array.isArray(d.groups) ? d.groups : [];

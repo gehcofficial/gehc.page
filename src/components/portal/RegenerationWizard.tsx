@@ -215,7 +215,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
   const [carry, setCarry] = useState<{ carried: number; skippedMoved: number; alumni: number; details?: Array<{ name: string }> } | null>(null);
   const [groupsData, setGroupsData] = useState<Array<{ id: string; name: string; members: Array<{ id: string; name: string; batchPeriod?: string | null; status?: string; familyRole?: string }> }>>([]);
   useEffect(() => {
-    fetch('/api/db/groups', { credentials: 'include' })
+    fetch('/api/db/groups/full', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setGroupsData(d?.groups || []))
       .catch(() => {});

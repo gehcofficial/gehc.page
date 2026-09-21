@@ -1397,33 +1397,66 @@ app.get('/api/db/status', wrap(async (req, res) => {
   res.json({ configured: isDbConfigured(), connected });
 }));
 
-// Family tree semua grup + batch regenerasi
+// Guard anti-duplikat (insiden legacy grp-<nama> vs kanonis grp-N):
+// satu nama -> satu baris, prefer id kanonis /^grp-\d+$/.
+function dedupeGroups(allGroups) {
+  const seen = new Map();
+  for (const g of allGroups) {
+    const key = String(g.name || '').toUpperCase();
+    const prev = seen.get(key);
+    if (!prev) { seen.set(key, g); continue; }
+    const curCanon = /^grp-\d+$/.test(String(g.id));
+    const prevCanon = /^grp-\d+$/.test(String(prev.id));
+    if (curCanon && !prevCanon) seen.set(key, g);
+  }
+  return [...seen.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+}
+
+// Kolom anggota yang aman untuk publik — TANPA email/telepon/catatan (PII).
+const PUBLIC_MEMBER_SELECT = {
+  id: true,
+  groupId: true,
+  batchPeriod: true,
+  userId: true,
+  name: true,
+  familyRole: true,
+  status: true,
+  joinedDate: true,
+  alumniDate: true,
+  alumniNote: true,
+  attendanceRate: true,
+  user: { select: { id: true, avatar: true, name: true } },
+};
+
+// Family tree semua grup + batch regenerasi (PUBLIK — minimisasi PII).
 app.get('/api/db/groups', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const allGroups = await prisma.group.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        batches: { orderBy: { period: 'desc' } },
-        members: {
-          orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
-          include: { user: { select: { id: true, avatar: true, name: true } } },
-        },
+    orderBy: { name: 'asc' },
+    include: {
+      batches: { orderBy: { period: 'desc' } },
+      members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }], select: PUBLIC_MEMBER_SELECT },
+    },
+  });
+  res.json({ groups: dedupeGroups(allGroups) });
+}));
+
+// Versi lengkap (termasuk email/telepon/catatan anggota) — hanya pengguna login.
+app.get('/api/db/groups/full', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const allGroups = await prisma.group.findMany({
+    orderBy: { name: 'asc' },
+    include: {
+      batches: { orderBy: { period: 'desc' } },
+      members: {
+        orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
+        include: { user: { select: { id: true, avatar: true, name: true } } },
       },
-    });
-    // Guard anti-duplikat (insiden legacy grp-<nama> vs kanonis grp-N):
-    // satu nama -> satu baris, prefer id kanonis /^grp-\d+$/.
-    const seen = new Map();
-    for (const g of allGroups) {
-      const key = String(g.name || '').toUpperCase();
-      const prev = seen.get(key);
-      if (!prev) { seen.set(key, g); continue; }
-      const curCanon = /^grp-\d+$/.test(String(g.id));
-      const prevCanon = /^grp-\d+$/.test(String(prev.id));
-      if (curCanon && !prevCanon) seen.set(key, g);
-    }
-    const groups = [...seen.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-    res.json({ groups });
+    },
+  });
+  res.json({ groups: dedupeGroups(allGroups) });
 }));
 
 // History family tree per grup
@@ -1437,14 +1470,23 @@ app.get('/api/db/groups/:id/batches', requireRole(), wrap(async (req, res) => {
   res.json({ batches });
 }));
 
-// Anggota/mentee per grup & batch
+// Anggota/mentee per grup & batch (PUBLIK — minimisasi PII).
 app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const members = await prisma.groupMember.findMany({
     where: { groupId: req.params.id, ...(req.query.period ? { batchPeriod: req.query.period } : {}) },
     orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
-    include: { user: { select: { id: true, avatar: true, name: true } } },
+    select: {
+      id: true,
+      groupId: true,
+      batchPeriod: true,
+      name: true,
+      familyRole: true,
+      status: true,
+      alumniDate: true,
+      alumniNote: true,
+    },
   });
   res.json({ members });
 }));

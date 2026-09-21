@@ -69,7 +69,7 @@ export const AnnouncementComposer: React.FC = () => {
       const [cr, hr, gr, ur] = await Promise.all([
         fetch('/api/announcements/capabilities', { credentials: 'include' }),
         fetch('/api/announcements', { credentials: 'include' }),
-        fetch('/api/db/groups', { credentials: 'include' }).catch(() => null),
+        fetch('/api/db/groups/full', { credentials: 'include' }).catch(() => null),
         fetch('/api/db/users?limit=200', { credentials: 'include' }).catch(() => null),
       ]);
       if (cr.ok) {
