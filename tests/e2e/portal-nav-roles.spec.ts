@@ -9,7 +9,7 @@ import {
   tokenFromResetUrl,
 } from '../helpers/portal';
 
-const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string }> = {
+const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string; submenu?: { parent: string; child: string } }> = {
   'tech@gehc.demo': {
     menus: [
       'Akun Saya',
@@ -27,14 +27,15 @@ const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string }> = {
   },
   'theodore.kowaas@gehc.demo': {
     roleLabel: 'Tim Kerja',
-    menus: ['Akun Saya', 'Dashboard & Ringkasan', 'Review Penempatan', 'Kelola Warta Pemuda'],
+    menus: ['Akun Saya', 'Dashboard & Ringkasan', 'Konten', 'Regenerasi'],
+    submenu: { parent: 'Konten', child: 'Kelola Warta Pemuda' },
   },
 };
 
 test.describe('Portal nav per role', () => {
   test.setTimeout(120000);
 
-  for (const [email, { menus, roleLabel }] of Object.entries(ROLE_NAV)) {
+  for (const [email, { menus, roleLabel, submenu }] of Object.entries(ROLE_NAV)) {
     test(`${email} sees expected nav items`, async ({ page }) => {
       try {
         await loginViaLocal(page, email);
@@ -45,7 +46,12 @@ test.describe('Portal nav per role', () => {
       await switchToPortal(page, roleLabel);
 
       for (const label of menus) {
-        await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation').getByRole('button', { name: label, exact: true })).toBeVisible();
+      }
+
+      if (submenu) {
+        await page.getByRole('navigation').getByRole('button', { name: submenu.parent, exact: true }).click();
+        await expect(page.getByRole('main').getByRole('button', { name: submenu.child, exact: true }).first()).toBeVisible();
       }
     });
   }
