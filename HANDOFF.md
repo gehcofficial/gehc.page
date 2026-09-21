@@ -21,8 +21,10 @@
 - **P1-2 — lazy-load AppContext**: `/api/db/struktur` & `/api/content/public` tidak lagi dimuat di setiap load; jadi `ensureStruktur()`/`ensureContent()` dipanggil panel terkait (`ManageStruktur`, `EventsTimeline`, `WeeklyInfoSection`, `ManageWeeklyInfo`, `ManageActivities`, `PortalDashboard`). `/api/db/groups` tetap dimuat (dipakai lintas halaman).
 - **P2-7 — Dashboard KOMISI & BPMJ**: `dashboard` ditambah ke `roles` (`src/lib/portal-nav-config.ts`).
 - **P2-5 tidak berlaku**: `YouthCalendarPanel` **bukan** wrapper tipis (punya UI layer + fetch `/api/portal/calendar` sendiri) → tidak dihapus.
-- Verifikasi batch ini: lint bersih · 442 test hijau · build OK · anon `/api/events/:id/penatalayan` **401**, `/api/drive/files/xxx` ditolak guard; render `#/events`, `#/bulletin`, `#/leaders` tanpa error.
-- Belum dikerjakan: P1-3 paginasi, P1-4 N+1, P1-5 read-POST→GET, P1-6 react-query, P1-7 konsolidasi endpoint, P2-1 nav, P2-2/P2-3 prompt/welcome, P2-4 warta, P2-6 pecah file.
+- **P1-4 — N+1**: `POST /api/db/sync-batches` & `POST /api/db/sync-struktur` → upsert dibatch dalam satu `$transaction` (bukan loop `await`).
+- **P1-3 — paginasi**: `GET /api/db/users` kini menghormati `?limit` & `?offset` (default tetap semua).
+- Verifikasi batch ini: lint bersih · 442 test hijau · build OK · anon `/api/events/:id/penatalayan` **401**, `/api/drive/files/xxx` ditolak guard; render `#/events`, `#/bulletin`, `#/leaders` tanpa error; `/api/db/users` limit/offset bekerja (110 → 5 → 5 offset beda).
+- Belum dikerjakan: P1-5 read-POST→GET, P1-6 react-query, P1-7 konsolidasi endpoint, P2-1 nav, P2-2/P2-3 prompt/welcome, P2-4 warta, P2-6 pecah file.
 
 ### Next
 1. Uji portal dengan akun nyata (Monitoring, Warta/Galeri/Rapat divisi, Dashboard KOMISI/BPMJ).

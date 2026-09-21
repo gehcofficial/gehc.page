@@ -1544,31 +1544,28 @@ app.post('/api/db/sync-batches', requireRole('SUPERADMIN'), wrap(async (req, res
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const batches = Array.isArray(req.body?.batches) ? req.body.batches : [];
-  let synced = 0;
-  for (const b of batches) {
-    await prisma.groupBatch.upsert({
-      where: { id: b.id },
-      create: {
-        id: b.id,
-        groupId: b.group_id ?? b.groupId,
-        period: b.period,
-        batchLabel: b.batchLabel ?? b.batch_label,
-        mentorName: b.mentor,
-        comentorName: b.comentor,
-        theme: b.theme,
-        isCurrent: Boolean(b.isCurrent),
-      },
-      update: {
-        batchLabel: b.batchLabel ?? b.batch_label,
-        mentorName: b.mentor,
-        comentorName: b.comentor,
-        theme: b.theme,
-        isCurrent: Boolean(b.isCurrent),
-      },
-    });
-    synced += 1;
-  }
-  res.json({ synced });
+  const ops = batches.map((b) => prisma.groupBatch.upsert({
+    where: { id: b.id },
+    create: {
+      id: b.id,
+      groupId: b.group_id ?? b.groupId,
+      period: b.period,
+      batchLabel: b.batchLabel ?? b.batch_label,
+      mentorName: b.mentor,
+      comentorName: b.comentor,
+      theme: b.theme,
+      isCurrent: Boolean(b.isCurrent),
+    },
+    update: {
+      batchLabel: b.batchLabel ?? b.batch_label,
+      mentorName: b.mentor,
+      comentorName: b.comentor,
+      theme: b.theme,
+      isCurrent: Boolean(b.isCurrent),
+    },
+  }));
+  if (ops.length) await prisma.$transaction(ops);
+  res.json({ synced: batches.length });
 }));
 
 // ---------- Mentor Transition (Phase 6) ----------
@@ -3420,6 +3417,7 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const list = Array.isArray(req.body?.members) ? req.body.members : [];
+  const ops = [];
   for (const [i, m] of list.entries()) {
     if (!m?.id || !m?.name) continue;
     const data = {
@@ -3441,8 +3439,9 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
       subRoleId: m.subRoleId ?? null,
       groupId: m.groupId ?? null,
     };
-    await prisma.strukturMember.upsert({ where: { id: m.id }, create: { id: m.id, ...data }, update: data });
+    ops.push(prisma.strukturMember.upsert({ where: { id: m.id }, create: { id: m.id, ...data }, update: data }));
   }
+  if (ops.length) await prisma.$transaction(ops);
   const keepIds = list.map((m) => m.id).filter(Boolean);
   const removed = await prisma.strukturMember.deleteMany({
     where: keepIds.length ? { id: { notIn: keepIds } } : {},
@@ -4583,10 +4582,14 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
 app.get('/api/db/users', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const take = Math.min(1000, Math.max(0, Number(req.query.limit) || 0));
+  const skip = Math.max(0, Number(req.query.offset) || 0);
   const users = await prisma.user.findMany({
     where: congregationUserWhere(),
     include: { roles: true, _count: { select: { groupMembers: true } } },
     orderBy: { createdAt: 'desc' },
+    ...(take ? { take } : {}),
+    ...(skip ? { skip } : {}),
   });
   res.json({
     users: users.map(({ _count, ...u }) => ({ ...u, groupCount: _count.groupMembers })),
