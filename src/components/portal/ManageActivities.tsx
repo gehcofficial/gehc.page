@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import {
@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 
 export const ManageActivities: React.FC = () => {
-  const { contentItems, addContentItem, updateContentItem, deleteContentItem } = useApp();
+  const { contentItems, addContentItem, updateContentItem, deleteContentItem, ensureContent } = useApp();
+  useEffect(() => { void ensureContent(); }, [ensureContent]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StrukturMember } from '../../types';
 import { PANTATUGAS } from '../../lib/pantatugas';
@@ -75,7 +75,9 @@ export const ManageStruktur: React.FC = () => {
     updateStrukturMember,
     deleteStrukturMember,
     canAccess,
+    ensureStruktur,
   } = useApp();
+  useEffect(() => { void ensureStruktur(); }, [ensureStruktur]);
 
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [isModalOpen, setIsModalOpen] = useState(false);

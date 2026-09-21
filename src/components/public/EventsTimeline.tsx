@@ -52,8 +52,9 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
   condensed = true,
   showHeader = true,
 }) => {
-  const { contentItems, setPublicTab } = useApp();
+  const { contentItems, setPublicTab, ensureContent } = useApp();
   const { t } = useLang();
+  useEffect(() => { void ensureContent(); }, [ensureContent]);
   const slots = useMediaSlots();
   const [full, setFull] = useState<LandingFull[]>([]);
   const [compact, setCompact] = useState<LandingCompact[]>([]);

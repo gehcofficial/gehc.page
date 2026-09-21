@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   Tenant,
   User,
@@ -113,6 +113,8 @@ interface AppContextType {
   monitoringRecords: MonitoringRecord[];
   contentItems: ContentItem[];
   strukturMembers: StrukturMember[];
+  ensureContent: () => Promise<void>;
+  ensureStruktur: () => Promise<void>;
   driveFolders: DriveFolder[];
   groupBatches: GroupBatch[];
   integrationConfig: IntegrationConfig;
@@ -319,43 +321,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     writeStored(STORAGE_KEYS.STRUKTUR, JSON.stringify(strukturMembers));
   }, [strukturMembers]);
 
-  // Hydration API-first: struktur resmi = TiDB. Menimpa localStorage lama
-  // sehingga panel & semua konsumen context selalu sinkron dengan seed terbaru.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/db/struktur')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => {
-        if (cancelled || !Array.isArray(d.members)) return;
-        const mapped: StrukturMember[] = d.members.map((m: any) => ({
-          ...m,
-          order: typeof m.order === 'number' ? m.order : Number(m.sortOrder ?? 0),
-        }));
-        setStrukturMembers(mapped);
-      })
-      .catch(() => {
-        /* server tidak tersedia ? pertahankan data lokal */
-      });
-    return () => {
-      cancelled = true;
-    };
+  // Hydration API-first (LAZY): struktur & konten dimuat hanya saat panel yang
+  // membutuhkannya dirender — bukan di setiap load pengunjung publik.
+  const strukturLoadedRef = useRef(false);
+  const contentLoadedRef = useRef(false);
+
+  const ensureStruktur = useCallback(async () => {
+    if (strukturLoadedRef.current) return;
+    strukturLoadedRef.current = true;
+    try {
+      const r = await fetch('/api/db/struktur');
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!Array.isArray(d.members)) return;
+      const mapped: StrukturMember[] = d.members.map((m: any) => ({
+        ...m,
+        order: typeof m.order === 'number' ? m.order : Number(m.sortOrder ?? 0),
+      }));
+      setStrukturMembers(mapped);
+    } catch {
+      /* server tidak tersedia — pertahankan data lokal */
+    }
   }, []);
 
-  // Hydration API-first: warta & kegiatan dari TiDB (content_items).
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/content/public')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => {
-        if (cancelled || !Array.isArray(d.items)) return;
-        if (d.items.length > 0) setContentItems(d.items);
-      })
-      .catch(() => {
-        /* server tidak tersedia ? pertahankan data lokal */
-      });
-    return () => {
-      cancelled = true;
-    };
+  const ensureContent = useCallback(async () => {
+    if (contentLoadedRef.current) return;
+    contentLoadedRef.current = true;
+    try {
+      const r = await fetch('/api/content/public');
+      if (!r.ok) return;
+      const d = await r.json();
+      if (Array.isArray(d.items) && d.items.length > 0) setContentItems(d.items);
+    } catch {
+      /* server tidak tersedia — pertahankan data lokal */
+    }
   }, []);
 
   // Hydration API-first: kelompok + batch mentoring + anggota dari TiDB.
@@ -1269,6 +1268,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         monitoringRecords,
         contentItems,
         strukturMembers,
+        ensureContent,
+        ensureStruktur,
         driveFolders,
         groupBatches,
         integrationConfig,

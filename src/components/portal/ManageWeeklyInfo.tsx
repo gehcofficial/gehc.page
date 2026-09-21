@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import {
@@ -16,8 +16,9 @@ import {
 } from 'lucide-react';
 
 export const ManageWeeklyInfo: React.FC = () => {
-  const { contentItems, addContentItem, updateContentItem, deleteContentItem, isSuperAdmin, isCommittee } =
+  const { contentItems, addContentItem, updateContentItem, deleteContentItem, isSuperAdmin, isCommittee, ensureContent } =
     useApp();
+  useEffect(() => { void ensureContent(); }, [ensureContent]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

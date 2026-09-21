@@ -21,7 +21,8 @@ import {
 
 export const WeeklyInfoSection: React.FC = () => {
   const { t } = useLang();
-  const { contentItems, addToast } = useApp();
+  const { contentItems, addToast, ensureContent } = useApp();
+  useEffect(() => { void ensureContent(); }, [ensureContent]);
   const slots = useMediaSlots();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

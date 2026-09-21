@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Users,
@@ -36,8 +36,10 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
     isAlumni,
     userAssignedGroupId,
     integrationConfig,
+    ensureContent,
   } = useApp();
   const { t } = useLang();
+  useEffect(() => { void ensureContent(); }, [ensureContent]);
 
   const isAdminView = isSuperAdmin || isCommittee || isKomisi;
   const isGroupScoped = (isGroupMentor || isMentee) && userAssignedGroupId;
