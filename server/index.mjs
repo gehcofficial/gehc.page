@@ -6965,7 +6965,7 @@ app.get('/api/division-meetings', requireRole(), wrap(async (req, res) => {
 }));
 
 // POST /api/division-meetings — create meeting
-app.post('/api/division-meetings', requireRole(), wrap(async (req, res) => {
+app.post('/api/division-meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { division, meetingDate, title, agenda, attendees } = req.body;
   if (!division || !meetingDate) return res.status(400).json({ error: 'division & meetingDate wajib' });
@@ -6991,7 +6991,7 @@ app.get('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
 }));
 
 // PATCH /api/division-meetings/:id — update meeting
-app.patch('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
+app.patch('/api/division-meetings/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { title, agenda, attendees, notes, status } = req.body;
   const data = {};
@@ -7005,7 +7005,7 @@ app.patch('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => 
 }));
 
 // POST /api/division-meetings/:id/agenda — add agenda item
-app.post('/api/division-meetings/:id/agenda', requireRole(), wrap(async (req, res) => {
+app.post('/api/division-meetings/:id/agenda', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { title, description, division, component, personInChargeId, deadline } = req.body;
   if (!title) return res.status(400).json({ error: 'title wajib' });
@@ -7020,7 +7020,7 @@ app.post('/api/division-meetings/:id/agenda', requireRole(), wrap(async (req, re
 }));
 
 // PATCH /api/division-meetings/agenda/:id — update agenda item status
-app.patch('/api/division-meetings/agenda/:id', requireRole(), wrap(async (req, res) => {
+app.patch('/api/division-meetings/agenda/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, personInChargeId, deadline, driveFolderId } = req.body;
   const data = {};
@@ -7123,7 +7123,7 @@ app.get('/api/warta', requireRole(), wrap(async (req, res) => {
 }));
 
 // POST /api/warta — create new warta (DRAFT)
-app.post('/api/warta', requireRole(), wrap(async (req, res) => {
+app.post('/api/warta', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { weekDate, title, contentJson } = req.body;
   if (!weekDate || !title) return res.status(400).json({ error: 'weekDate & title wajib' });
@@ -7139,7 +7139,7 @@ app.post('/api/warta', requireRole(), wrap(async (req, res) => {
 }));
 
 // PATCH /api/warta/:id — update content or advance status
-app.patch('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+app.patch('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, contentJson, title, pdfUrl, pngUrl, rejectReason, driveFolderId } = req.body;
   const data = {};
@@ -7195,7 +7195,7 @@ app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
 }));
 
 // DELETE /api/warta/:id — delete draft warta
-app.delete('/api/warta/:id', requireRole(), wrap(async (req, res) => {
+app.delete('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
   if (!warta) return res.status(404).json({ error: 'Warta tidak ditemukan' });
@@ -7228,7 +7228,7 @@ app.get('/api/gallery', requireRole(), wrap(async (req, res) => {
 }));
 
 // POST /api/gallery — upload media (creates PENDING entry)
-app.post('/api/gallery', requireRole(), wrap(async (req, res) => {
+app.post('/api/gallery', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { eventId, title, description, mediaUrl, mediaType, thumbUrl, division, driveFileId } = req.body;
   if (!eventId || !title || !mediaUrl || !mediaType) {
@@ -7253,7 +7253,7 @@ app.post('/api/gallery', requireRole(), wrap(async (req, res) => {
 }));
 
 // PATCH /api/gallery/:id — approve/reject
-app.patch('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
+app.patch('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, rejectReason } = req.body;
   if (!['APPROVED', 'REJECTED'].includes(status)) {
@@ -7276,7 +7276,7 @@ app.patch('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
 }));
 
 // DELETE /api/gallery/:id — delete gallery item
-app.delete('/api/gallery/:id', requireRole(), wrap(async (req, res) => {
+app.delete('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   await prisma.eventGallery.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
