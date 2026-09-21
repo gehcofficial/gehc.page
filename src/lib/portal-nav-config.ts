@@ -143,3 +143,80 @@ export function buildPortalNavItems(
 export function getAllPortalNavDefs(): PortalNavItemDef[] {
   return BASE_NAV;
 }
+
+/** Destinasi gabungan (parent) dengan sub-tab anak. */
+export type PortalNavParentDef = {
+  id: string;
+  label: string;
+  group: string;
+  roles: UserRole[];
+  children: string[];
+};
+
+export type PortalSidebarItem =
+  | { type: 'item'; item: PortalNavItemDef }
+  | { type: 'parent'; parent: PortalNavParentDef; children: PortalNavItemDef[] };
+
+/**
+ * Peta penggabungan destinasi (audit bagian 5). ID anak tetap routable —
+ * ini hanya mengubah cara akses di sidebar, bukan rute/komponen.
+ */
+export const PORTAL_NAV_PARENTS: PortalNavParentDef[] = [
+  { id: 'orang', label: 'Orang', group: 'Komunitas', roles: ['KOMISI'], children: ['people', 'youth-gehc', 'onboarding', 'catalog'] },
+  { id: 'regenerasi', label: 'Regenerasi', group: 'Komunitas', roles: ['KOMISI', 'BPMJ', 'COMMITTEE'], children: ['jethro', 'jethro-placement', 'beyonders-leaders'] },
+  { id: 'konten', label: 'Konten', group: 'Konten', roles: ['COMMITTEE', 'KOMISI'], children: ['content-weekly', 'content-activities', 'content-testimonials', 'media-guide', 'announcements'] },
+  { id: 'struktur-hirarki', label: 'Struktur & Hirarki', group: 'Struktur', roles: ['COMMITTEE', 'KOMISI'], children: ['struktur', 'org-hierarchy'] },
+  { id: 'sistem', label: 'Sistem', group: 'Sistem', roles: ['KOMISI', 'BPMJ'], children: ['integrations', 'church-info'] },
+];
+
+/** Rollout bertahap: grouping sidebar aktif untuk peran ini dulu. */
+export const PORTAL_NAV_GROUPED_ROLES: UserRole[] = ['COMMITTEE'];
+
+/**
+ * Baris sidebar: item tunggal, atau parent yang menampung beberapa anak.
+ * Peran di luar PORTAL_NAV_GROUPED_ROLES tetap datar (belum berubah).
+ */
+export function buildPortalSidebarItems(
+  currentRole: UserRole,
+  ctx: NavBuildContext,
+  isOnboarding: boolean,
+): PortalSidebarItem[] {
+  const items = buildPortalNavItems(currentRole, ctx, isOnboarding);
+  if (!PORTAL_NAV_GROUPED_ROLES.includes(currentRole)) {
+    return items.map((item) => ({ type: 'item', item }));
+  }
+
+  const parents = PORTAL_NAV_PARENTS.filter((p) => p.roles.includes(currentRole));
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const consumed = new Set<string>();
+  const out: PortalSidebarItem[] = [];
+
+  for (const item of items) {
+    if (consumed.has(item.id)) continue;
+    const parent = parents.find((p) => p.children.includes(item.id));
+    if (!parent) {
+      out.push({ type: 'item', item });
+      continue;
+    }
+    const children = parent.children
+      .map((id) => byId.get(id))
+      .filter((c): c is PortalNavItemDef => Boolean(c));
+    for (const c of children) consumed.add(c.id);
+    if (children.length < 2) {
+      out.push({ type: 'item', item: children[0] || item });
+      continue;
+    }
+    out.push({ type: 'parent', parent, children });
+  }
+  return out;
+}
+
+export function findParentForTab(
+  rows: PortalSidebarItem[],
+  tabId: string,
+): PortalNavParentDef | null {
+  for (const row of rows) {
+    if (row.type === 'parent' && row.children.some((c) => c.id === tabId)) return row.parent;
+  }
+  return null;
+}

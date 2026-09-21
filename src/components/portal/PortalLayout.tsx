@@ -46,7 +46,7 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, type PortalNavParentDef } from '../../lib/portal-nav-config';
 import {
   LayoutDashboard,
   BookOpen,
@@ -257,15 +257,34 @@ export const PortalLayout: React.FC = () => {
     }
   }, [currentRole]);
 
-  const navWithHeaders: Array<{ type: 'header'; label: string } | { type: 'item'; item: typeof navItems[number] }> = [];
+  const navWithHeaders: Array<
+    | { type: 'header'; label: string }
+    | { type: 'item'; item: typeof navItems[number] }
+    | { type: 'parent'; parent: PortalNavParentDef; children: typeof navItems }
+  > = [];
+  const sidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
   let lastGroup = '';
-  for (const item of navItems) {
-    if (item.group && item.group !== lastGroup) {
-      navWithHeaders.push({ type: 'header', label: item.group });
-      lastGroup = item.group;
+  for (const row of sidebarRows) {
+    const group = row.type === 'item' ? row.item.group : row.parent.group;
+    if (group && group !== lastGroup) {
+      navWithHeaders.push({ type: 'header', label: group });
+      lastGroup = group;
     }
-    navWithHeaders.push({ type: 'item', item });
+    if (row.type === 'item') {
+      const item = navItems.find((i) => i.id === row.item.id) || { ...row.item, icon: NAV_ICONS[row.item.id] || LayoutDashboard };
+      navWithHeaders.push({ type: 'item', item });
+    } else {
+      const children = row.children
+        .map((c) => navItems.find((i) => i.id === c.id))
+        .filter((c): c is typeof navItems[number] => Boolean(c));
+      navWithHeaders.push({ type: 'parent', parent: row.parent, children });
+    }
   }
+  const activeParentRow = sidebarRows.find(
+    (r): r is Extract<typeof sidebarRows[number], { type: 'parent' }> =>
+      r.type === 'parent' && r.children.some((c) => c.id === activeTab),
+  );
+  const activeParent = findParentForTab(sidebarRows, activeTab);
 
   const handleNavClick = (tabId: string) => {
     if (!isTabAllowed(tabId) && tabId !== 'account') {
@@ -469,6 +488,75 @@ export const PortalLayout: React.FC = () => {
                   </span>
                 );
               }
+              if (row.type === 'parent') {
+                const ParentIcon = row.children[0]?.icon || LayoutDashboard;
+                const isActive = activeParent?.id === row.parent.id;
+                if (collapsed) {
+                  return (
+                    <div
+                      key={row.parent.id}
+                      className="relative"
+                      onMouseEnter={() => setHoveredItem(row.parent.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      <button
+                        onClick={() => row.children[0] && handleNavClick(row.children[0].id)}
+                        className={`w-full flex items-center px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 ${
+                          isActive
+                            ? 'bg-[#181818] text-white shadow-lg shadow-black/10'
+                            : 'text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm'
+                        }`}
+                      >
+                        <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-[#FF416C]' : ''}`} />
+                      </button>
+                      {hoveredItem === row.parent.id && (
+                        <div
+                          className="absolute left-full top-0 ml-2 z-50 w-56 py-1.5 bg-white rounded-xl border border-[#D9D7D0]/60 shadow-xl shadow-black/10"
+                          onMouseEnter={() => setHoveredItem(row.parent.id)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                        >
+                          {row.children.map((child) => {
+                            const ChildIcon = child.icon;
+                            const childActive = activeTab === child.id;
+                            return (
+                              <div
+                                key={child.id}
+                                className={`flex items-center justify-between px-3.5 py-2.5 cursor-pointer transition-colors ${
+                                  childActive ? 'bg-[#181818] text-white' : 'hover:bg-[#FAF9F5] text-[#1B1B1B]'
+                                }`}
+                                onClick={() => handleNavClick(child.id)}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <ChildIcon className={`w-4 h-4 shrink-0 ${childActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                                  <span className="text-[13px] font-semibold truncate">{portalNavLabel(t, child.id, { isGroupMentor, isMentee })}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={row.parent.id}
+                    onClick={() => row.children[0] && handleNavClick(row.children[0].id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 ${
+                      isActive
+                        ? 'bg-[#181818] text-white shadow-lg shadow-black/10'
+                        : 'text-[#1B1B1B] hover:bg-white hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                      <span className="truncate text-[13px]">{row.parent.label}</span>
+                    </div>
+                    <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                  </button>
+                );
+              }
+
               const item = row.item;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -692,6 +780,29 @@ export const PortalLayout: React.FC = () => {
                 window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
               }}
             />
+          )}
+          {activeParentRow && (
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {activeParentRow.children.map((child) => {
+                const ChildIcon = navItems.find((i) => i.id === child.id)?.icon || LayoutDashboard;
+                const childActive = activeTab === child.id;
+                return (
+                  <button
+                    key={child.id}
+                    type="button"
+                    onClick={() => handleNavClick(child.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      childActive
+                        ? 'bg-[#181818] text-white'
+                        : 'bg-white border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B]'
+                    }`}
+                  >
+                    <ChildIcon className="w-3.5 h-3.5" />
+                    {portalNavLabel(t, child.id, { isGroupMentor, isMentee })}
+                  </button>
+                );
+              })}
+            </div>
           )}
           {(activeTab === 'account' || isAccountRoute) && (
             <AccountHub
