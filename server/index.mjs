@@ -2123,7 +2123,7 @@ app.delete('/api/drive/files/:fileId', requireRole('SUPERADMIN', 'KOMISI'), wrap
 
 // GET /api/drive/files/:fileId — get file info
 app.get('/api/drive/files/:fileId', wrap(async (req, res) => {
-  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+  if (!(await guardDriveFolder(req, res, req.params.fileId))) return;
 
   try {
     const info = await gdriveGetFileInfo(req.params.fileId);
@@ -6905,7 +6905,7 @@ async function previousPenatalayanEvent(prisma, eventId, eventDate) {
 }
 
 // GET /api/events/:id/penatalayan — komponen + penugasan event ini + referensi sebelumnya
-app.get('/api/events/:id/penatalayan', wrap(async (req, res) => {
+app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const event = await prisma.eventProgram.findUnique({
