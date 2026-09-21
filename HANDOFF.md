@@ -10,13 +10,15 @@
 - **P0-2/P0-3 — guard endpoint baca internal** (`server/index.mjs`): `GET /api/db/groups/:id/batches` (:1430), `/:id/attendance` (:1481), `GET /api/groups/:id/mentor-transitions` (:1534), `GET /api/events/:id/meetings` (:2996) → `requireRole()`.
 - **P1-1 — polling notifikasi** `PortalLayout.tsx:153` 30 dtk → 180 dtk (3 menit).
 - **Cleanup dead code**: hapus cabang badge "terkunci" + `isAllowed` di `PortalLayout.tsx` dan field `badge?` di `portal-nav-config.ts`. **Catatan:** usulan P0-6 audit (`isAllowed = isTabAllowed(...)`) **tidak berlaku** — `navWithHeaders` sudah difilter per peran, jadi nilainya selalu `true`; badge juga tak pernah diisi. Lock UI sejati butuh model izin tersendiri (belum dikerjakan).
+- **P0-7 — peran eksplisit untuk endpoint tulis** (`server/index.mjs`): `POST/PATCH/DELETE /api/warta*`, `POST/PATCH/DELETE /api/gallery*`, `POST/PATCH /api/division-meetings*` + agenda → `requireRole('SUPERADMIN','KOMISI','COMMITTEE')`. Ketiganya hanya dipakai dari `DivisionWorkspacePanel` (nav `divisions` = KOMISI/COMMITTEE).
+  - **Ditambah temuan verifikasi**: `PATCH /api/penatalayan/schedules/:id` sudah aman (isSelf/privileged internal); seluruh `/api/pastoral-care/*` dan `/api/service-swap-requests/*` juga **sudah** ber-otorisasi internal (`canSeeNote`, `isMentorOfGroup`, `isServiceApprover`) → `requireRole()` kosong memang tepat, **tidak** diubah.
 - **Verifikasi:** `lint` bersih · **442 test** hijau · `build` OK · e2e nav 3 test peran lulus (1 test `unauthorized tab click` **gagal juga di `main`** → pre-existing, bukan regresi).
-- **Verifikasi runtime lokal & staging** (`https://staging-gehcpage.vercel.app`): anon → 3 tulis **401** + 4 baca internal **401**; publik (`/api/db/struktur`, `/api/church-profile`, `/api/auth/config`, `/`) **200**; login `tech@gehc.demo` (SUPERADMIN) → 4 baca internal **200** dan `POST /api/db/sync-batches` **200** (`{"synced":0}`, tanpa menulis).
-- Belum dikerjakan (butuh keputusan): P0-4 minimisasi `/api/db/groups`, P0-5 tinjau penatalayan/drive, P0-7 peran eksplisit endpoint tulis lain, P1-2…P2.
+- **Verifikasi runtime lokal & staging** (`https://staging-gehcpage.vercel.app`): anon → 3 tulis **401** + 4 baca internal **401** + 10 tulis warta/galeri/rapat **401**; publik (`/api/db/struktur`, `/api/church-profile`, `/api/auth/config`, `/`) **200**; login `tech@gehc.demo` (SUPERADMIN) → baca internal **200**, `POST /api/db/sync-batches` **200** (`{"synced":0}`), tulis warta/galeri/rapat lolos gate (400 validasi/404, bukan 403).
+- Belum dikerjakan (butuh keputusan): P0-4 minimisasi `/api/db/groups`, P0-5 tinjau penatalayan/drive, P1-2…P2.
 
 ### Next
-1. Uji portal di staging dengan akun nyata (attendance, meetings, notifikasi) — pastikan tidak ada regresi UI.
-2. Lanjut P0-4/P0-5/P0-7 (butuh keputusan produk) atau P1 efisiensi.
+1. Uji portal di staging dengan akun nyata (attendance, meetings, notifikasi, warta/galeri/rapat divisi) — pastikan tidak ada regresi UI.
+2. Lanjut P0-4/P0-5 (butuh keputusan produk) atau P1 efisiensi (lazy AppContext, paginasi, N+1).
 3. P2-7 (Dashboard KOMISI/BPMJ) + susunan nav baru (bagian 5) — dipisah ke episode sendiri.
 
 ### Commands
