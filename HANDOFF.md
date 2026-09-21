@@ -1,6 +1,33 @@
 # GEHC Portal — Handoff
 
-## Current — iOS Safari "section hilang": HTML network-only + auto-recovery aset basi (21 Sep 2026)
+## Current — Audit portal P0: RBAC endpoint + cleanup (21 Sep 2026)
+
+**Goal:** Mulai eksekusi [`docs/review/2026-09-20-portal-audit.md`](docs/review/2026-09-20-portal-audit.md) — batch pertama: keamanan P0 + efisiensi kecil + cleanup, lalu uji di staging.
+
+**Done:**
+- **Dokumen audit masuk git**: `docs/review/2026-09-20-portal-audit.md` + registrasi di `docs/README.md`.
+- **P0-1 — kunci endpoint tulis publik** (`server/index.mjs`): `POST /api/db/sync-batches` (:1501), `POST /api/migrate/events` (:2095), `POST /api/seed/events` (:2250) → `requireRole('SUPERADMIN')`. Ketiganya **0 referensi** di repo (aman).
+- **P0-2/P0-3 — guard endpoint baca internal** (`server/index.mjs`): `GET /api/db/groups/:id/batches` (:1430), `/:id/attendance` (:1481), `GET /api/groups/:id/mentor-transitions` (:1534), `GET /api/events/:id/meetings` (:2996) → `requireRole()`.
+- **P1-1 — polling notifikasi** `PortalLayout.tsx:153` 30 dtk → 180 dtk (3 menit).
+- **Cleanup dead code**: hapus cabang badge "terkunci" + `isAllowed` di `PortalLayout.tsx` dan field `badge?` di `portal-nav-config.ts`. **Catatan:** usulan P0-6 audit (`isAllowed = isTabAllowed(...)`) **tidak berlaku** — `navWithHeaders` sudah difilter per peran, jadi nilainya selalu `true`; badge juga tak pernah diisi. Lock UI sejati butuh model izin tersendiri (belum dikerjakan).
+- **Verifikasi:** `lint` bersih · **442 test** hijau · `build` OK · e2e nav 3 test peran lulus (1 test `unauthorized tab click` **gagal juga di `main`** → pre-existing, bukan regresi).
+- **Verifikasi runtime lokal & staging** (`https://staging-gehcpage.vercel.app`): anon → 3 tulis **401** + 4 baca internal **401**; publik (`/api/db/struktur`, `/api/church-profile`, `/api/auth/config`, `/`) **200**; login `tech@gehc.demo` (SUPERADMIN) → 4 baca internal **200** dan `POST /api/db/sync-batches` **200** (`{"synced":0}`, tanpa menulis).
+- Belum dikerjakan (butuh keputusan): P0-4 minimisasi `/api/db/groups`, P0-5 tinjau penatalayan/drive, P0-7 peran eksplisit endpoint tulis lain, P1-2…P2.
+
+### Next
+1. Uji portal di staging dengan akun nyata (attendance, meetings, notifikasi) — pastikan tidak ada regresi UI.
+2. Lanjut P0-4/P0-5/P0-7 (butuh keputusan produk) atau P1 efisiensi.
+3. P2-7 (Dashboard KOMISI/BPMJ) + susunan nav baru (bagian 5) — dipisah ke episode sendiri.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+npm run deploy:staging
+```
+
+---
+
+## Prior — iOS Safari "section hilang": HTML network-only + auto-recovery aset basi (21 Sep 2026)
 
 **Goal:** Portal tampil penuh di Safari iPhone (`youth.gehc.page`) seperti di Android. Teman melaporkan sebagian section (header/nav, konten utama, kartu bantuan, materi Didaskalia) hilang, sementara banner tetap tampil.
 
