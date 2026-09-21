@@ -3477,9 +3477,11 @@ app.get('/api/jethro/dashboard', requireRole(...KOMISION, 'BPMJ'), wrap(async (r
   res.json(await getDashboard());
 }));
 
-app.post('/api/jethro/scan', requireRole(...KOMISION), wrap(async (req, res) => {
+const jethroScanHandler = wrap(async (_req, res) => {
   res.json(await runScan());
-}));
+});
+app.post('/api/jethro/scan', requireRole(...KOMISION), jethroScanHandler);
+app.get('/api/jethro/scan', requireRole(...KOMISION), jethroScanHandler);
 
 app.get('/api/jethro/narrate', requireRole(...KOMISION, 'BPMJ'), wrap(async (req, res) => {
   try {
