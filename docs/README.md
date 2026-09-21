@@ -26,6 +26,7 @@
 ## Review
 
 - [Audit portal 20 Sep 2026](review/2026-09-20-portal-audit.md) — kebutuhan panel per peran, pola akses read/write, P0 keamanan → P1 efisiensi → P2 UX
+- [Draft susunan nav portal](review/2026-09-21-portal-nav-draft.md) — implementasi aman P2-1 (parent + sub-tab, backward-compatible) + keputusan yang diminta
 
 ## Handoff
 
