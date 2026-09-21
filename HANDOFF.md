@@ -12,13 +12,16 @@
 - **Cleanup dead code**: hapus cabang badge "terkunci" + `isAllowed` di `PortalLayout.tsx` dan field `badge?` di `portal-nav-config.ts`. **Catatan:** usulan P0-6 audit (`isAllowed = isTabAllowed(...)`) **tidak berlaku** — `navWithHeaders` sudah difilter per peran, jadi nilainya selalu `true`; badge juga tak pernah diisi. Lock UI sejati butuh model izin tersendiri (belum dikerjakan).
 - **P0-7 — peran eksplisit untuk endpoint tulis** (`server/index.mjs`): `POST/PATCH/DELETE /api/warta*`, `POST/PATCH/DELETE /api/gallery*`, `POST/PATCH /api/division-meetings*` + agenda → `requireRole('SUPERADMIN','KOMISI','COMMITTEE')`. Ketiganya hanya dipakai dari `DivisionWorkspacePanel` (nav `divisions` = KOMISI/COMMITTEE).
   - **Ditambah temuan verifikasi**: `PATCH /api/penatalayan/schedules/:id` sudah aman (isSelf/privileged internal); seluruh `/api/pastoral-care/*` dan `/api/service-swap-requests/*` juga **sudah** ber-otorisasi internal (`canSeeNote`, `isMentorOfGroup`, `isServiceApprover`) → `requireRole()` kosong memang tepat, **tidak** diubah.
+- **P0-4 — minimisasi PII `/api/db/groups`** (`server/index.mjs` + klien): endpoint publik kini `select` anggota **tanpa** `email`/`telepon`/`catatan` (tetap: nama, familyRole, status, batchPeriod, avatar, alumniDate/Note, attendanceRate, userId). Ditambah **`GET /api/db/groups/full`** (`requireRole()`) yang mengembalikan bentuk lengkap. `AppContext` mencoba `/full` lalu jatuh ke versi publik; 3 konsumen portal (`AnnouncementComposer`, `RegenerationWizard`, `YouthGEHCList`) dipindah ke `/full`. `GET /api/db/groups/:id/members` (publik, dipakai `HeritageSection`) juga dirampingkan.
 - **Verifikasi:** `lint` bersih · **442 test** hijau · `build` OK · e2e nav 3 test peran lulus (1 test `unauthorized tab click` **gagal juga di `main`** → pre-existing, bukan regresi).
-- **Verifikasi runtime lokal & staging** (`https://staging-gehcpage.vercel.app`): anon → 3 tulis **401** + 4 baca internal **401** + 10 tulis warta/galeri/rapat **401**; publik (`/api/db/struktur`, `/api/church-profile`, `/api/auth/config`, `/`) **200**; login `tech@gehc.demo` (SUPERADMIN) → baca internal **200**, `POST /api/db/sync-batches` **200** (`{"synced":0}`), tulis warta/galeri/rapat lolos gate (400 validasi/404, bukan 403).
-- Belum dikerjakan (butuh keputusan): P0-4 minimisasi `/api/db/groups`, P0-5 tinjau penatalayan/drive, P1-2…P2.
+- **Verifikasi runtime lokal & staging** (`https://staging-gehcpage.vercel.app`): anon → 3 tulis **401** + 4 baca internal **401** + 10 tulis warta/galeri/rapat **401** + `/api/db/groups/full` **401**; publik (`/api/db/struktur`, `/api/church-profile`, `/api/auth/config`, `/api/db/groups`, `/`) **200**; login `tech@gehc.demo` (SUPERADMIN) → baca internal **200**, `POST /api/db/sync-batches` **200** (`{"synced":0}`), tulis warta/galeri/rapat lolos gate (400 validasi/404, bukan 403), `/api/db/groups/full` **200**.
+  - **P0-4 lokal (Chromium render `#/beyonders`)**: 10 grup tampil (Agape…Shalom), kunci anggota publik tanpa `email`/`phone`; `/full` auth mengandung `email`/`phone`/`notes`.
+  - Catatan: `npm run deploy:staging` sempat gagal `fetch failed` (upload jaringan) — rilis dilakukan via `main` (Vercel build dari git).
+- Belum dikerjakan (butuh keputusan): P0-5 tinjau `/api/events/:id/penatalayan` & `/api/drive/files/:fileId`, P1-2…P2.
 
 ### Next
-1. Uji portal di staging dengan akun nyata (attendance, meetings, notifikasi, warta/galeri/rapat divisi) — pastikan tidak ada regresi UI.
-2. Lanjut P0-4/P0-5 (butuh keputusan produk) atau P1 efisiensi (lazy AppContext, paginasi, N+1).
+1. Uji portal di staging/produksi dengan akun nyata (Monitoring: telepon/email anggota; Warta/Galeri/Rapat divisi) — pastikan tidak ada regresi UI.
+2. Lanjut P0-5 (review) atau P1 efisiensi (lazy AppContext, paginasi, N+1).
 3. P2-7 (Dashboard KOMISI/BPMJ) + susunan nav baru (bagian 5) — dipisah ke episode sendiri.
 
 ### Commands
