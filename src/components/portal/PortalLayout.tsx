@@ -150,7 +150,7 @@ export const PortalLayout: React.FC = () => {
       } catch { /* skip */ }
     };
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
+    const interval = setInterval(fetchNotifications, 180000); // poll every 3 min
     return () => clearInterval(interval);
   }, []);
 
@@ -472,7 +472,6 @@ export const PortalLayout: React.FC = () => {
               const item = row.item;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-              const isAllowed = true;
 
               if (collapsed) {
                 return (
@@ -492,7 +491,7 @@ export const PortalLayout: React.FC = () => {
                       }`}
                     >
                       <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${
-                        isActive ? 'text-[#FF416C]' : isAllowed ? '' : 'text-gray-400'
+                        isActive ? 'text-[#FF416C]' : ''
                       }`} />
                     </button>
 
@@ -510,11 +509,6 @@ export const PortalLayout: React.FC = () => {
                             <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
                             <span className="text-[13px] font-semibold truncate">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                           </div>
-                          {item.badge && !isAllowed && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400 font-bold shrink-0">
-                              {t.portal.common.locked}
-                            </span>
-                          )}
                         </div>
                       </div>
                     )}
@@ -530,23 +524,15 @@ export const PortalLayout: React.FC = () => {
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 ${
                     isActive
                       ? 'bg-[#181818] text-white shadow-lg shadow-black/10'
-                      : isAllowed
-                      ? 'text-[#1B1B1B] hover:bg-white hover:shadow-sm'
-                      : 'text-[#8C8880]/50 hover:bg-white/50'
+                      : 'text-[#1B1B1B] hover:bg-white hover:shadow-sm'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${
-                      isActive ? 'text-[#FF416C]' : isAllowed ? 'text-[#8C8880]' : 'text-gray-400'
+                      isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'
                     }`} />
                     <span className="truncate text-[13px]">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                   </div>
-
-                  {item.badge && !isAllowed && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400 font-bold shrink-0">
-                      {t.portal.common.locked}
-                    </span>
-                  )}
                 </button>
               );
             })}

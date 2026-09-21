@@ -8,7 +8,6 @@ export type PortalNavItemDef = {
   subtitle?: string;
   accountOnly?: boolean;
   onboardingOnly?: boolean;
-  badge?: boolean;
 };
 
 export type NavBuildContext = {
