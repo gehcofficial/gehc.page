@@ -30,8 +30,7 @@ import { YouthGEHCList } from './YouthGEHCList';
 import { OrgHierarchyPanel } from './OrgHierarchyPanel';
 import { CatalogReviewPanel } from './CatalogReviewPanel';
 import { type ProfileSectionId } from './MyProfilePanel';
-import { OnboardingBanner } from './OnboardingBanner';
-import { ProfileIncompleteBanner } from './ProfileIncompleteBanner';
+import { ProfileChecklistBanner } from './ProfileChecklistBanner';
 import { MustChangePasswordGate } from './MustChangePasswordGate';
 import { InvitedWelcomeModal } from './InvitedWelcomeModal';
 import { EventInfoPanel } from './EventInfoPanel';
@@ -754,33 +753,21 @@ export const PortalLayout: React.FC = () => {
             <NotificationPermissionBanner compact onDismiss={() => {}} />
             <PwaInstallCard compact />
           </div>
-          {isOnboarding && (
-            <OnboardingBanner
-              hideEventCard={activeTab === 'event-info'}
-              onCompleteProfile={() => {
-                setProfileSection('contact');
-                setActiveTab('account');
-                setAccountSection('profile');
-                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
-              }}
-              onStartGiftTest={() => {
-                setProfileSection('gifts');
-                setActiveTab('account');
-                setAccountSection('profile');
-                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
-              }}
-            />
-          )}
-          {!isOnboarding && (
-            <ProfileIncompleteBanner
-              onCompleteProfile={() => {
-                setProfileSection('contact');
-                setActiveTab('account');
-                setAccountSection('profile');
-                window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
-              }}
-            />
-          )}
+          <ProfileChecklistBanner
+            hideEventCard={activeTab === 'event-info'}
+            onCompleteProfile={() => {
+              setProfileSection('contact');
+              setActiveTab('account');
+              setAccountSection('profile');
+              window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+            }}
+            onStartGiftTest={() => {
+              setProfileSection('gifts');
+              setActiveTab('account');
+              setAccountSection('profile');
+              window.location.hash = buildPortalPath({ namespace: 'account', accountSection: 'profile' }).slice(1);
+            }}
+          />
           {activeParentRow && (
             <div className="mb-4 flex flex-wrap gap-1.5">
               {activeParentRow.children.map((child) => {
