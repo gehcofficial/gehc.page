@@ -29,7 +29,8 @@
 - **P2-1 — nav bertahap (SELESAI semua peran)**: `buildPortalSidebarItems()` (parent + sub-tab; id anak tetap routable) + `findParentForTab()`; `PortalLayout` merender parent (expanded + flyout collapsed) + bar sub-tab. `PORTAL_NAV_GROUPED_ROLES = ['COMMITTEE','KOMISI','BPMJ','SUPERADMIN']`. KOMISI 21→~10; SUPERADMIN 26→~11 (semua parent). Unit test + e2e `portal-nav-roles` hijau. Rencana: `docs/review/2026-09-21-portal-nav-draft.md`.
 - **P2-6 — pecah file (mulai)**: `GroupPrayerNotes` diekstrak dari `ManageGroupsMonitoring.tsx` → `src/components/portal/GroupPrayerNotes.tsx` (perilaku sama). Sisa: `DivisionWorkspacePanel` & `YouthGEHCList` (per sub-tab) — refactor besar, episode tersendiri.
 - **P2-2 — satukan prompt kelengkapan profil**: `ProfileChecklistBanner.tsx` (baru) jadi satu pintu — onboarding/waiting-pool pakai `OnboardingBanner`; pengguna aktif yang belum lengkap melihat **checklist** (tanggal lahir, data diri & kontak, tes karunia) alih-alih pesan generik. `ProfileIncompleteBanner.tsx` dihapus (sudah tidak dipakai).
-- Belum dikerjakan: P1-6 react-query, P2-3 welcome card, P2-4 warta, P2-6 (lanjutan).
+- **P2-3 — satukan welcome**: `PortalWelcomeModal.tsx` (baru) = 1 modal kontekstual — INVITED (kredensial login) atau role Beyonders berkelompok (ajakan grup WA). `InvitedWelcomeModal.tsx` + `MenteeWelcomeCard.tsx` dihapus; dirender sekali di shell `PortalLayout`.
+- Belum dikerjakan: P1-6 react-query, P2-4 warta, P2-6 (lanjutan).
 
 ### Next
 1. Uji portal dengan akun nyata (Monitoring, Warta/Galeri/Rapat divisi, Dashboard KOMISI/BPMJ).
