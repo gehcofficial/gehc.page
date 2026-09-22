@@ -4,6 +4,7 @@ import { requireRole, isSuperadminEmail } from '../auth.mjs';
 import { isBodTimkerja } from '../division-rbac.mjs';
 import { isValidWhatsAppUrl } from '../lib/baku-tau.mjs';
 import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
+import { isDivisionHead } from '../lib/service-approvers.mjs';
 import {
   BIPRA_CATALOG,
   DIVISION_CATALOG,
@@ -70,6 +71,19 @@ export function registerChannelLinkRoutes(app, { wrap }) {
             .findMany({ where: { userId: req.authUser.id }, select: { groupId: true } })
             .catch(() => []),
         ]);
+        // Kanal kepemimpinan tambahan yang melekat pada peran/posisi:
+        // - Mentor & Co-Mentor → semua mentor/co-mentor.
+        // - Koordinator Divisi → kepala divisi (LEAD/CO_LEAD) untuk divisinya.
+        const activeRole = String(req.activeRole || '').toUpperCase();
+        const ownedRoles = (req.authUser.roles || []).map((r) => r.role);
+        const leadershipExtra = [];
+        if (activeRole === 'MENTOR' || activeRole === 'CO_MENTOR'
+          || (!activeRole && (ownedRoles.includes('MENTOR') || ownedRoles.includes('CO_MENTOR')))) {
+          leadershipExtra.push('MENTORS');
+        }
+        if (await isDivisionHead(req.authUser)) {
+          for (const d of divisionCodes) leadershipExtra.push(`KOORD_${d}`);
+        }
         const scope = personalChannelScope({
           rank,
           bipra: req.authUser.bipra || null,
@@ -77,6 +91,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
           groupIds,
           divisionCodes,
           recreationalIds: recRows.map((r) => r.groupId),
+          leadershipExtra,
         });
 
         const where = scope.seeAll

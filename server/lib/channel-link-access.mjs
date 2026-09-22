@@ -16,6 +16,12 @@ export const LEADERSHIP_CATALOG = [
   { id: 'KOMISI', name: 'Komisi' },
   { id: 'TIMKERJA', name: 'Tim Kerja (BOD)' },
   { id: 'BPMJ', name: 'BPMJ' },
+  { id: 'MENTORS', name: 'Mentor & Co-Mentor' },
+  { id: 'KOORD_LITURGIA', name: 'Koordinator Liturgia' },
+  { id: 'KOORD_DIDASKALIA', name: 'Koordinator Didaskalia' },
+  { id: 'KOORD_KOINONIA', name: 'Koordinator Koinonia' },
+  { id: 'KOORD_DIAKONIA', name: 'Koordinator Diakonia' },
+  { id: 'KOORD_MARTURIA', name: 'Koordinator Marturia' },
 ];
 
 /** Kategorial BIPRA. */
@@ -215,6 +221,7 @@ export function personalChannelScope({
   groupIds = [],
   divisionCodes = [],
   recreationalIds = [],
+  leadershipExtra = [],
 } = {}) {
   if (SEE_ALL_RANKS.has(rank)) return { seeAll: true, refs: [] };
   const refs = [];
@@ -224,6 +231,7 @@ export function personalChannelScope({
     }
   };
   push('LEADERSHIP', leadershipRefsFor(rank));
+  push('LEADERSHIP', leadershipExtra);
   push('GROUP', groupIds);
   push('DIVISION', divisionCodes);
   push('BIPRA', [bipra]);

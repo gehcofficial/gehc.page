@@ -50,8 +50,18 @@ describe('channel-link write RBAC', () => {
     }
   });
 
-  it('katalog kepemimpinan: Komisi, Tim Kerja (BOD), BPMJ', () => {
-    expect(LEADERSHIP_CATALOG.map((e) => e.id)).toEqual(['KOMISI', 'TIMKERJA', 'BPMJ']);
+  it('katalog kepemimpinan: Komisi, Tim Kerja (BOD), BPMJ, Mentor & Koordinator divisi', () => {
+    expect(LEADERSHIP_CATALOG.map((e) => e.id)).toEqual([
+      'KOMISI',
+      'TIMKERJA',
+      'BPMJ',
+      'MENTORS',
+      'KOORD_LITURGIA',
+      'KOORD_DIDASKALIA',
+      'KOORD_KOINONIA',
+      'KOORD_DIAKONIA',
+      'KOORD_MARTURIA',
+    ]);
   });
 
   it('katalog BIPRA: lima kategorial', () => {
@@ -149,11 +159,22 @@ describe('kanal personal berjenjang', () => {
     expect(r.refs.some((x) => x.kind === 'LEADERSHIP')).toBe(false);
   });
 
-  it('kolom hanya untuk kolom terkait, BIPRA hanya untuk BIPRA terkait', () => {
-    const a = personalChannelScope({ rank: 'MEMBER', bipra: 'ANAK', kolomId: 'kolom-1' });
+  it('kolom hanya untuk kolom terkait, BIPRA hanya untuk BIPRA terkait', () => {    const a = personalChannelScope({ rank: 'MEMBER', bipra: 'ANAK', kolomId: 'kolom-1' });
     expect(a.refs).toContainEqual({ kind: 'BIPRA', refId: 'ANAK' });
     expect(a.refs).not.toContainEqual({ kind: 'BIPRA', refId: 'PEMUDA' });
     expect(a.refs).toContainEqual({ kind: 'KOLOM', refId: 'kolom-1' });
     expect(a.refs).not.toContainEqual({ kind: 'KOLOM', refId: 'kolom-2' });
+  });
+
+  it('kanal kepemimpinan tambahan: MENTORS & KOORD_<divisi> sesuai peran', () => {
+    const mentor = personalChannelScope({ rank: 'MEMBER', leadershipExtra: ['MENTORS'] });
+    expect(mentor.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'MENTORS' });
+
+    const koord = personalChannelScope({ rank: 'MEMBER', divisionCodes: ['LITURGIA'], leadershipExtra: ['KOORD_LITURGIA'] });
+    expect(koord.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'KOORD_LITURGIA' });
+
+    // Tanpa leadershipExtra (mis. pengguna biasa) → tidak ada MENTORS/KOORD.
+    const plain = personalChannelScope({ rank: 'MEMBER' });
+    expect(plain.refs.some((x) => x.kind === 'LEADERSHIP')).toBe(false);
   });
 });
