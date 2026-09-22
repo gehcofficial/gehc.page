@@ -15,7 +15,7 @@
 
 ### Next
 1. Uji di prod: buka **Warta** (grup Konten) sebagai Komisi/Tim Kerja → isi via tab Publikasi; cek landing.
-2. **Task 3** (menunggu): skrip sinkron `GroupMember` mentor — dry-run staging dulu.
+2. **Task 3** (menunggu izin `--apply`): `scripts/sync-mentor-members.mjs` — dry-run **staging = 0**, dry-run **prod = 1** (`Dunamis 2026-09 MENTOR Jeremia`). Menunggu persetujuan untuk `GEHC_ENV=production … --apply`.
 3. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
 
 ### Commands
