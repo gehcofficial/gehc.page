@@ -14,7 +14,6 @@ import { useWaitingPoolCount, useUpcomingBirthdays } from '../../hooks/usePortal
 import { useLang } from '../../context/LangContext';
 import { YouthCalendarPanel } from './YouthCalendarPanel';
 import { BirthdayWishCard } from './BirthdayWishCard';
-import { MenteeWelcomeCard } from './MenteeWelcomeCard';
 import { MyChannelsCard } from './MyChannelsCard';
 import { MyServiceDutyCard } from './MyServiceDutyCard';
 import { displayAvatar } from '../../lib/avatar';
@@ -116,8 +115,6 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <MenteeWelcomeCard onNavigate={onNavigate} />
-
       {!isAlumni && <MyChannelsCard />}
 
       <MyServiceDutyCard />

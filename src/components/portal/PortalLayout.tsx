@@ -32,7 +32,7 @@ import { CatalogReviewPanel } from './CatalogReviewPanel';
 import { type ProfileSectionId } from './MyProfilePanel';
 import { ProfileChecklistBanner } from './ProfileChecklistBanner';
 import { MustChangePasswordGate } from './MustChangePasswordGate';
-import { InvitedWelcomeModal } from './InvitedWelcomeModal';
+import { PortalWelcomeModal } from './PortalWelcomeModal';
 import { EventInfoPanel } from './EventInfoPanel';
 import { RolePickerScreen } from './RolePickerScreen';
 import { AccountHub } from './AccountHub';
@@ -748,7 +748,7 @@ export const PortalLayout: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
           <MustChangePasswordGate />
-          <InvitedWelcomeModal />
+          <PortalWelcomeModal />
           <div className="space-y-3 mb-4">
             <NotificationPermissionBanner compact onDismiss={() => {}} />
             <PwaInstallCard compact />
