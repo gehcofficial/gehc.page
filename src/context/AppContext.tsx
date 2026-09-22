@@ -393,6 +393,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               comentor: b.comentorName ?? '',
               theme: b.theme ?? '',
               isCurrent: !!b.isCurrent,
+              mentorAvatar: b.mentorAvatar ?? undefined,
+              comentorAvatar: b.comentorAvatar ?? undefined,
               mentees: [],
             });
           }
@@ -443,8 +445,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return list.find((m) => String(m.name || '').toLowerCase().trim() === want)?.avatar;
         };
         for (const b of bMapped) {
-          b.mentorAvatar = pickAvatar(b.group_id, 'MENTOR', b.mentor, b.period);
-          b.comentorAvatar = pickAvatar(b.group_id, 'COMENTOR', b.comentor, b.period);
+          b.mentorAvatar = b.mentorAvatar || pickAvatar(b.group_id, 'MENTOR', b.mentor, b.period);
+          b.comentorAvatar = b.comentorAvatar || pickAvatar(b.group_id, 'COMENTOR', b.comentor, b.period);
         }
 
         // Sisipkan mentee ke batch-nya (kunci: groupId|period).

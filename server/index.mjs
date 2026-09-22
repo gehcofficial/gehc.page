@@ -1432,9 +1432,23 @@ function dedupeGroups(allGroups) {
   return [...seen.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
+// Lengkapi avatar mentor/comentor dari User — mentor sering tak punya baris GroupMember.
+async function attachBatchAvatars(prisma, groups) {
+  const ids = [...new Set(groups.flatMap((g) => (g.batches || []).flatMap((b) => [b.mentorUserId, b.comentorUserId])).filter(Boolean))];
+  if (!ids.length) return groups;
+  const users = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, avatar: true } }).catch(() => []);
+  const av = new Map(users.map((u) => [u.id, u.avatar || null]));
+  for (const g of groups) {
+    for (const b of g.batches || []) {
+      b.mentorAvatar = b.mentorUserId ? (av.get(b.mentorUserId) || null) : null;
+      b.comentorAvatar = b.comentorUserId ? (av.get(b.comentorUserId) || null) : null;
+    }
+  }
+  return groups;
+}
+
 // Kolom anggota yang aman untuk publik — TANPA email/telepon/catatan (PII).
-const PUBLIC_MEMBER_SELECT = {
-  id: true,
+const PUBLIC_MEMBER_SELECT = {  id: true,
   groupId: true,
   batchPeriod: true,
   userId: true,
@@ -1459,7 +1473,7 @@ app.get('/api/db/groups', wrap(async (req, res) => {
       members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }], select: PUBLIC_MEMBER_SELECT },
     },
   });
-  res.json({ groups: dedupeGroups(allGroups) });
+  res.json({ groups: await attachBatchAvatars(prisma, dedupeGroups(allGroups)) });
 }));
 
 // Versi lengkap (termasuk email/telepon/catatan anggota) — hanya pengguna login.
@@ -1476,7 +1490,7 @@ app.get('/api/db/groups/full', requireRole(), wrap(async (req, res) => {
       },
     },
   });
-  res.json({ groups: dedupeGroups(allGroups) });
+  res.json({ groups: await attachBatchAvatars(prisma, dedupeGroups(allGroups)) });
 }));
 
 // History family tree per grup
