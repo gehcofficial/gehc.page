@@ -47,6 +47,7 @@ function defaultStudio() {
     authorId: null,
     reviewerId: null,
     homileticMethods: [],
+    methodMix: [],
     paths: [],
     sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
     discussion: [],
@@ -274,7 +275,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (week) => {
           const st = { ...week.studio };
-          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'paths', 'sermon', 'discussion', 'rituals']) {
+          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
           if (st.status && st.status === 'REVIEW' && !st.reviewerId) st.reviewerId = req.authUser?.id || null;
@@ -335,6 +336,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           if (draft.fundamentalFirman?.ref || draft.fundamentalFirman?.text) s.fundamentalFirman = draft.fundamentalFirman;
           if (draft.kitabFokus) s.kitabFokus = draft.kitabFokus;
           s.homileticMethods = draft.homileticMethods || s.homileticMethods;
+          if (Array.isArray(draft.methodMix) && draft.methodMix.length) s.methodMix = draft.methodMix;
           s.paths = draft.paths;
           s.sermon = draft.sermon;
           if (s.status === 'PUBLISHED') s.status = 'DRAFT';

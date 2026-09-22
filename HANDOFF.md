@@ -1,6 +1,32 @@
 # GEHC Portal — Handoff
 
-## Current — Panel per-divisi (Fase 1 IA) (23 Sep 2026)
+## Current — Studio Didaskalia: ayat picker, 7 metode, analisa %, diskusi ber-nama (23 Sep 2026)
+
+**Goal:** Permudah Studio: pilih referensi ayat, Chapter angka, 7 metode kanonik (tooltip), analisa metode %, dan Diskusi Internal ber-nama yang dipakai AI.
+
+**Done:**
+- **Ayat picker** (`BibleRefPicker.tsx` + `src/data/bible-books.ts` 66 kitab): **Kitab → Pasal → Ayat** (referensi saja; teks manual opsional). Dipakai di **Fundamental Firman (ayat)**; nilai lama di-parse, bisa "Ketik manual".
+- **Chapter** → number picker (`type=number`, min 0).
+- **7 metode kanonik** (`src/data/homiletic-methods.ts`): Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis — chip + **ikon info tooltip** (deskripsi + analogi). Nilai lama tetap tampil. Disinkron ke `server/lib/didaskalia-ai.mjs` + prompt AI.
+- **Analisa Metode (%)** — field baru `methodMix` (client+server whitelist) + AI mengusulkan; baris metode/%/catatan + total.
+- **"Teks Fundamental Firman"** → label **"Inti Pesan (Big Idea) & Kerangka"** + hint (bukan teks ayat).
+- **Diskusi Internal**: simpan **nama + peran** pemberi usul; toggle **"Pakai diskusi sebagai konteks AI"** → isi diskusi dikirim sebagai `notes` ke AI draf.
+- **Visibilitas divisi (Fase 3b)**: `GET /api/me/divisions` + `useMyDivisions()`; `PortalLayout` → staf (KOMISI/SUPERADMIN) + **BOD Tim Kerja** lihat semua; anggota divisi hanya divisinya.
+- Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · render Studio (chapter number, picker kitab, 7 metode+tooltip, methodMix, Big Idea, diskusi) 0 error; `/api/me/divisions` 200.
+
+### Next
+1. Uji di prod: Studio → isi Fundamental via picker, metode+%, Diskusi (nama muncul), AI draf (pakai diskusi).
+2. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.
+3. Sisa: Fase C email, P1-6 react-query, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Panel per-divisi (Fase 1 IA) (23 Sep 2026)
 
 **Goal:** Tiap divisi jadi destinasi sendiri di sidebar (bukan tab di dalam satu panel), agar alur lebih fokus dan tanggal/event tak dipilih berulang.
 

@@ -8,14 +8,13 @@
 import { jethroGenerateText } from '../ai-provider.mjs';
 
 export const HOMILETIC_METHODS = [
-  'Ekspositori',
-  'Tematik/Sistematik',
-  'Naratif',
-  'Historis-Redemptif',
-  'Analisis Kata',
-  'Komparatif/Kontras',
-  'Problem-Solution',
-  'Induktif',
+  'Teologi Sistematika',
+  'Teologi Biblika',
+  'Pengajaran Tematika',
+  'Pengajaran Ekspositori',
+  'Apologetika',
+  'Teologi Praktika / Pastoral',
+  'Teologi Historis',
 ];
 
 export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'GENERAL_EQUIPPING'];
@@ -120,6 +119,18 @@ export function clampSermon(raw) {
   };
 }
 
+function clampMethodMix(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .slice(0, 7)
+    .map((m) => ({
+      method: asStr(m?.method),
+      percent: Math.max(0, Math.min(100, Math.round(Number(m?.percent) || 0))),
+      note: asStr(m?.note),
+    }))
+    .filter((m) => m.method);
+}
+
 export function clampDraft(raw) {
   const d = raw && typeof raw === 'object' ? raw : {};
   const ff = d.fundamentalFirman && typeof d.fundamentalFirman === 'object' ? d.fundamentalFirman : {};
@@ -128,6 +139,7 @@ export function clampDraft(raw) {
     fundamentalFirman: { ref: asStr(ff.ref), text: asStr(ff.text) },
     kitabFokus: asStr(d.kitabFokus),
     homileticMethods: asStrArray(d.homileticMethods, 4),
+    methodMix: clampMethodMix(d.methodMix),
     paths: clampPaths(d.paths),
     sermon: clampSermon(d.sermon),
   };
@@ -165,13 +177,15 @@ export async function generateWeekDraft(input) {
     '- Hasilkan TEPAT 7 Path yang saling terhubung dan berurutan (Path 1 sampai 7).',
     '- Path 7 adalah KESIMPULAN minggu ini sekaligus JEMBATAN ke tema minggu berikutnya.',
     '- Tiap Path wajib punya: title, scriptureRef, scriptureText (ringkas), homileticLens (2-3 metode), hookQuestion (pertanyaan pembuka mudah), illustration (ilustrasi singkat relevan), reflection (2-4 paragraf pendek), observeQ/interpretQ/applyQ (pertanyaan diskusi bertingkat), fgdQuestions (2-4 pertanyaan), bridge (kalimat jembatan ke Path berikutnya).',
-    '- Kombinasikan metode berkhotbah (ekspositori, tematik/sistematik, naratif, historis-redemptif, analisis kata, komparatif, problem-solution, induktif) sesuai kebutuhan; jelaskan pilihan pada sermon.rationale.',
+    '- Kombinasikan metode berkhotbah dari 7 pendekatan (Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis) sesuai kebutuhan; jelaskan pilihan pada sermon.rationale.',
+    '- Sertakan "methodMix": 2-3 metode dari daftar 7 dengan persentase (total ~100) dan catatan singkat alasan porsinya.',
+    '- Manfaatkan "Catatan tim/diskusi" bila ada sebagai masukan nyata dari tim Didaskalia.',
     '- Ringkasan khotbah: methods, rationale, summary (3-5 paragraf), slideOutline (6-10 slide, tiap slide: title, bullets 2-5, visualNote).',
     '- Kontekstual untuk anak muda & anak rantau di Cikarang (kerja, kos, komunitas).',
     '- Bahasa Indonesia yang hangat dan jelas.',
     '',
     'Balas HANYA dengan JSON valid (tanpa markdown) dengan bentuk:',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":""}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
+    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":""}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
   ].join('\n');
 
   const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });

@@ -3,16 +3,9 @@
  * Bentuk data selaras dengan server/lib/didaskalia-ai.mjs.
  */
 
-export const HOMILETIC_METHODS = [
-  'Ekspositori',
-  'Tematik/Sistematik',
-  'Naratif',
-  'Historis-Redemptif',
-  'Analisis Kata',
-  'Komparatif/Kontras',
-  'Problem-Solution',
-  'Induktif',
-] as const;
+import { HOMILETIC_METHOD_NAMES } from '../data/homiletic-methods';
+
+export const HOMILETIC_METHODS: readonly string[] = HOMILETIC_METHOD_NAMES;
 
 export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'GENERAL_EQUIPPING'] as const;
 export type RitualType = (typeof RITUAL_TYPES)[number];
@@ -50,6 +43,9 @@ export type DidaskaliaPath = {
 };
 
 export type DidaskaliaSlide = { title: string; bullets: string[]; visualNote: string };
+
+/** Analisa komposisi metode khotbah (persen) untuk pembekalan. */
+export type DidaskaliaMethodMix = { method: string; percent: number; note?: string };
 
 export type DidaskaliaSermon = {
   methods: string[];
@@ -95,6 +91,7 @@ export type DidaskaliaStudio = {
   authorId?: string | null;
   reviewerId?: string | null;
   homileticMethods: string[];
+  methodMix: DidaskaliaMethodMix[];
   paths: DidaskaliaPath[];
   sermon: DidaskaliaSermon;
   discussion: DidaskaliaComment[];
@@ -140,6 +137,7 @@ export function defaultStudio(): DidaskaliaStudio {
     authorId: null,
     reviewerId: null,
     homileticMethods: [],
+    methodMix: [],
     paths: Array.from({ length: 7 }, (_, i) => defaultPath(i)),
     sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
     discussion: [],

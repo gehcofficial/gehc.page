@@ -45,7 +45,8 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, type PortalNavParentDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, type PortalNavParentDef } from '../../lib/portal-nav-config';
+import { useMyDivisions } from '../../hooks/useMyDivisions';
 import {
   LayoutDashboard,
   BookOpen,
@@ -105,6 +106,7 @@ export const PortalLayout: React.FC = () => {
     logoutSso,
   } = useApp();
   const { t, lang } = useLang();
+  const { divisions: myDivisions } = useMyDivisions();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
@@ -249,7 +251,19 @@ export const PortalLayout: React.FC = () => {
     'pwa-settings': Bell,
   };
 
-  const navItemDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  // Visibilitas per-divisi: staf (KOMISI/SUPERADMIN) + BOD Tim Kerja lihat semua;
+  // anggota divisi hanya divisinya sendiri.
+  const isDivStaf = currentRole === 'KOMISI' || currentRole === 'SUPERADMIN' || isBodTimkerja;
+  const myDivSet = new Set(myDivisions);
+  const extraDivDefs = (isDivStaf || myDivSet.size === 0)
+    ? []
+    : divisionNavDefs().filter((d) => myDivSet.has(divisionForTab(d.id) || ''));
+
+  const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  const navItemDefs = [
+    ...baseNavDefs,
+    ...extraDivDefs.filter((d) => !baseNavDefs.some((x) => x.id === d.id)),
+  ];
   const navItems = navItemDefs.map((item) => ({
     ...item,
     icon: NAV_ICONS[item.id] || LayoutDashboard,
@@ -277,7 +291,13 @@ export const PortalLayout: React.FC = () => {
     | { type: 'item'; item: typeof navItems[number] }
     | { type: 'parent'; parent: PortalNavParentDef; children: typeof navItems }
   > = [];
-  const sidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  const baseSidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  const sidebarRows = [
+    ...baseSidebarRows,
+    ...extraDivDefs
+      .filter((d) => !baseSidebarRows.some((r) => r.type === 'item' && r.item.id === d.id))
+      .map((item) => ({ type: 'item' as const, item })),
+  ];
   let lastGroup = '';
   for (const row of sidebarRows) {
     const group = row.type === 'item' ? row.item.group : row.parent.group;

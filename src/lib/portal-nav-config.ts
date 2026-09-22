@@ -43,6 +43,11 @@ export function isDivisionTab(tabId: string): boolean {
   return DIVISION_TAB_IDS.includes(tabId);
 }
 
+/** Definisi nav untuk 6 panel divisi (untuk gating anggota divisi). */
+export function divisionNavDefs(): PortalNavItemDef[] {
+  return BASE_NAV.filter((i) => i.group === 'Divisi');
+}
+
 const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },

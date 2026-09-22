@@ -18,10 +18,12 @@ import {
   Presentation,
   BookOpen,
   Users,
+  Info,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { BibleRefPicker } from './BibleRefPicker';
+import { HOMILETIC_METHODS_DATA } from '../../data/homiletic-methods';
 import {
-  HOMILETIC_METHODS,
   RITUAL_LABELS,
   RITUAL_TYPES,
   defaultStudio,
@@ -29,6 +31,7 @@ import {
   hashContent,
   needsRepublish,
   statusLabel,
+  type DidaskaliaMethodMix,
   type DidaskaliaPath,
   type DidaskaliaStudio,
   type RitualType,
@@ -73,7 +76,7 @@ const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs bg
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1 block';
 
 export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
-  const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
+  const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
   const [tab, setTab] = useState<'konten' | 'jadwal'>('konten');
@@ -102,6 +105,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [error, setError] = useState<string | null>(null);
   const [expandedPath, setExpandedPath] = useState<number | null>(1);
   const [comment, setComment] = useState('');
+  const [useDiscussionContext, setUseDiscussionContext] = useState(true);
   const paths = useMemo(() => ensurePaths(studio), [studio]);
 
   const [schedule, setSchedule] = useState<{ weeks: Array<WeekMeta & { rituals: RitualRow[] }>; theme: string } | null>(null);
@@ -168,11 +172,18 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     setBusy(kind);
     setError(null);
     try {
+      const discussionText = (studio.discussion || [])
+        .map((c) => `${c.userName || 'Tim'}${c.role ? ` (${c.role})` : ''}: ${c.text}`)
+        .join('\n');
+      const notes = [
+        comment,
+        useDiscussionContext && discussionText ? `Diskusi tim Didaskalia:\n${discussionText}` : '',
+      ].filter(Boolean).join('\n\n') || undefined;
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/${kind}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ methods: studio.homileticMethods, notes: comment || undefined }),
+        body: JSON.stringify({ methods: studio.homileticMethods, notes }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'AI gagal.');
@@ -184,7 +195,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     } finally {
       setBusy(null);
     }
-  }, [addToast, canWrite, comment, save, studio.homileticMethods, weekIndex, ym]);
+  }, [addToast, canWrite, comment, save, studio.homileticMethods, studio.discussion, useDiscussionContext, weekIndex, ym]);
 
   const aiRefine = useCallback(async (fieldLabel: string, current: string, apply: (text: string) => void) => {
     if (!canWrite || !current.trim()) return;
@@ -216,7 +227,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const addComment = async () => {
     if (!comment.trim()) return;
-    const entry = { id: `c-${Date.now()}`, text: comment.trim(), at: new Date().toISOString(), resolved: false };
+    const entry = {
+      id: `c-${Date.now()}`,
+      text: comment.trim(),
+      at: new Date().toISOString(),
+      resolved: false,
+      userId: authUser?.id || null,
+      userName: currentUser?.name || authUser?.name || null,
+      role: currentRole || null,
+    };
     const discussion = [...(studio.discussion || []), entry];
     setComment('');
     await save({ discussion });
@@ -395,11 +414,21 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div className="grid sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelCls}>Chapter</label>
-                <input value={studio.chapterNo} onChange={(e) => setStudio((s) => ({ ...s, chapterNo: e.target.value }))} placeholder="Chapter 0" className={inputCls} />
+                <input
+                  type="number"
+                  min={0}
+                  value={studio.chapterNo}
+                  onChange={(e) => setStudio((s) => ({ ...s, chapterNo: e.target.value }))}
+                  placeholder="0"
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Fundamental Firman (ayat)</label>
-                <input value={studio.fundamentalFirman?.ref || ''} onChange={(e) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, ref: e.target.value } }))} placeholder="Matius 16:18" className={inputCls} />
+                <BibleRefPicker
+                  value={studio.fundamentalFirman?.ref || ''}
+                  onChange={(ref) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, ref } }))}
+                />
               </div>
               <div>
                 <label className={labelCls}>Kitab / Bagian Fokus</label>
@@ -407,15 +436,82 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
             </div>
             <div>
-              <label className={labelCls}>Teks Fundamental Firman</label>
-              <textarea value={studio.fundamentalFirman?.text || ''} onChange={(e) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, text: e.target.value } }))} rows={2} className={inputCls} />
+              <label className={labelCls}>Inti Pesan (Big Idea) &amp; Kerangka</label>
+              <textarea
+                value={studio.fundamentalFirman?.text || ''}
+                onChange={(e) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, text: e.target.value } }))}
+                rows={3}
+                placeholder={'Satu kalimat inti pesan, lalu poin utama.\nMis. Redefining Greatness through Service\n- Apa yang dunia sebut "hebat"?\n- Everlasting Glory\n- Ambassador (Mat 28:18)'}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-[#8C8880] mt-1">
+                Isi: <b>inti pesan</b> (1 kalimat) + kerangka/poin khotbah — bukan teks ayat (teks nats ditulis di tiap Path).
+              </p>
             </div>
             <div>
               <label className={labelCls}>Metode Khotbah (pilih / biarkan AI memilih)</label>
               <div className="flex flex-wrap gap-1.5">
-                {HOMILETIC_METHODS.map((m) => (
-                  <button key={m} type="button" onClick={() => toggleMethod(m)} className={`text-[11px] px-2.5 py-1 rounded-full border font-bold ${studio.homileticMethods?.includes(m) ? 'bg-sky-100 border-sky-300 text-sky-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>{m}</button>
+                {HOMILETIC_METHODS_DATA.map((m) => {
+                  const on = studio.homileticMethods?.includes(m.name);
+                  return (
+                    <span key={m.name} className="inline-flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleMethod(m.name)}
+                        title={`${m.name} — ${m.short}\n\n${m.description}\n\nAnalogi: ${m.analogy}`}
+                        className={`text-[11px] px-2.5 py-1 rounded-l-full border font-bold ${on ? 'bg-sky-100 border-sky-300 text-sky-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
+                      >
+                        {m.name}
+                      </button>
+                      <span
+                        title={`${m.description}\n\nAnalogi: ${m.analogy}`}
+                        className={`inline-flex items-center justify-center w-5 h-[26px] rounded-r-full border border-l-0 ${on ? 'bg-sky-100 border-sky-300 text-sky-700' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
+                      >
+                        <Info className="w-3 h-3" />
+                      </span>
+                    </span>
+                  );
+                })}
+                {(studio.homileticMethods || [])
+                  .filter((m) => !HOMILETIC_METHODS_DATA.some((d) => d.name === m))
+                  .map((m) => (
+                    <button key={m} type="button" onClick={() => toggleMethod(m)} title="Metode lama (tersimpan)" className="text-[11px] px-2.5 py-1 rounded-full border font-bold bg-amber-50 border-amber-300 text-amber-800">{m} ✕</button>
+                  ))}
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Analisa Metode (%)</label>
+              <div className="space-y-1.5">
+                {(studio.methodMix || []).map((row, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-1.5">
+                    <select
+                      value={row.method}
+                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, method: e.target.value } : x) }))}
+                      className={`${inputCls} flex-1 min-w-[150px]`}
+                    >
+                      <option value="">Pilih metode…</option>
+                      {HOMILETIC_METHODS_DATA.map((m) => <option key={m.name} value={m.name}>{m.name}</option>)}
+                    </select>
+                    <input
+                      type="number" min={0} max={100}
+                      value={row.percent}
+                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, percent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } : x) }))}
+                      className={`${inputCls} w-20`}
+                    />
+                    <span className="text-xs font-bold text-[#8C8880]">%</span>
+                    <input
+                      value={row.note || ''}
+                      placeholder="Catatan (opsional)"
+                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, note: e.target.value } : x) }))}
+                      className={`${inputCls} flex-1 min-w-[150px]`}
+                    />
+                    <button type="button" onClick={() => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).filter((_, xi) => xi !== i) }))} className="text-[10px] text-red-600 font-bold">Hapus</button>
+                  </div>
                 ))}
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setStudio((s) => ({ ...s, methodMix: [...(s.methodMix || []), { method: '', percent: 0, note: '' } as DidaskaliaMethodMix] }))} className="text-[11px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah metode</button>
+                  <span className="text-[10px] text-[#8C8880]">Total: {(studio.methodMix || []).reduce((n, r) => n + (Number(r.percent) || 0), 0)}%</span>
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -425,6 +521,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Ringkasan Khotbah
               </button>
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] ml-1">
+                <input
+                  type="checkbox"
+                  checked={useDiscussionContext}
+                  onChange={(e) => setUseDiscussionContext(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-[#D9D7D0]"
+                />
+                Pakai diskusi internal sebagai konteks AI
+              </label>
             </div>
           </div>
 
@@ -511,7 +616,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div className="space-y-2">
               {(studio.discussion || []).map((c) => (
                 <div key={c.id} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
-                  <p className="text-xs text-[#1B1B1B] whitespace-pre-wrap">{c.text}</p>
+                  <p className="text-[10px] font-bold text-[#1B1B1B]">
+                    {c.userName || 'Tim'}{c.role ? <span className="text-[#8C8880] font-normal"> · {c.role}</span> : null}
+                  </p>
+                  <p className="text-xs text-[#1B1B1B] whitespace-pre-wrap mt-0.5">{c.text}</p>
                   <p className="text-[10px] text-[#8C8880] mt-1">{new Date(c.at).toLocaleString('id-ID')}</p>
                 </div>
               ))}

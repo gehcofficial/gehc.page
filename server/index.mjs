@@ -939,6 +939,17 @@ app.post('/api/me/unlink-google', requireRole(), wrap(async (req, res) => {
   res.json({ ok: true, googleLinked: false });
 }));
 
+// Divisi yang boleh dilihat pengguna (gating nav per-divisi).
+app.get('/api/me/divisions', requireRole(), wrap(async (req, res) => {
+  try {
+    const { scopedDivisionCodes } = await import('./lib/channel-link-access.mjs');
+    const divisions = await scopedDivisionCodes(req.authUser);
+    res.json({ divisions });
+  } catch {
+    res.json({ divisions: [] });
+  }
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
