@@ -14,6 +14,12 @@
 - **Visibilitas divisi (Fase 3b)**: `GET /api/me/divisions` + `useMyDivisions()`; `PortalLayout` → staf (KOMISI/SUPERADMIN) + **BOD Tim Kerja** lihat semua; anggota divisi hanya divisinya.
 - Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · render Studio (chapter number, picker kitab, 7 metode+tooltip, methodMix, Big Idea, diskusi) 0 error; `/api/me/divisions` 200.
 
+### Susulan Studio (23 Sep 2026)
+- **Kitab/Bagian Fokus** kini juga pakai **BibleRefPicker** (2 picker ayat).
+- **Chapter** → **dropdown** `Chapter 0…52` (bukan input angka).
+- **AI + PDF Pembekalan**: tombol baru → AI menyusun 7 Path lalu **membangun & mengunduh PDF Pembekalan (01)** memakai `buildPembekalanPdf`.
+- **Fix error "Unexpected token 'A'… not valid JSON"**: klien kini baca respons aman (`readJson`, non-JSON → `{}`) + pesan `… (server <status>)`; `vercel.json` `maxDuration` 30 → **60** (AI draft bisa lama).
+
 ### Next
 1. Uji di prod: Studio → isi Fundamental via picker, metode+%, Diskusi (nama muncul), AI draf (pakai diskusi).
 2. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.

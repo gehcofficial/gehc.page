@@ -75,6 +75,15 @@ function fmtDate(iso: string) {
 const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]';
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1 block';
 
+/** Baca JSON dengan aman — server/edge bisa balas non-JSON (mis. halaman error). */
+async function readJson(r: Response): Promise<any> {
+  try {
+    return await r.json();
+  } catch {
+    return {};
+  }
+}
+
 export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
@@ -116,8 +125,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     setError(null);
     try {
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, { credentials: 'include' });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Gagal memuat studio.');
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal memuat studio (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
       setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme });
       setEvent(d.event || null);
@@ -134,7 +143,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const loadSchedule = useCallback(async () => {
     try {
       const r = await fetch(`/api/didaskalia/schedule/${ym}`, { credentials: 'include' });
-      const d = await r.json();
+      const d = await readJson(r);
       if (r.ok) {
         setSchedule({ weeks: d.weeks || [], theme: d.theme || '' });
         setLinks(d.links || []);
@@ -155,8 +164,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studio: payload }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Gagal simpan.');
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal simpan (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
       addToast({ type: 'success', title: 'Studio tersimpan' });
     } catch (e: unknown) {
@@ -185,8 +194,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ methods: studio.homileticMethods, notes }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'AI gagal.');
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
       addToast({ type: 'success', title: kind === 'draft' ? 'Draf 7 Path & ringkasan dibuat' : 'Ringkasan khotbah dibuat' });
     } catch (e: unknown) {
@@ -207,7 +216,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fieldLabel, current, instruction: comment || 'Buat lebih jelas, hangat, dan mudah dipahami pemuda.', context: weekMeta?.theme || '' }),
       });
-      const d = await r.json();
+      const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'AI gagal memperbaiki.');
       apply(d.text || current);
       addToast({ type: 'success', title: 'Diusulkan AI — periksa lalu Simpan' });
@@ -252,7 +261,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: f.filename, mimetype: 'application/pdf', data, subfolder }),
       });
-      const d = await r.json();
+      const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'Gagal upload ke Drive.');
       uploaded.push({ name: f.filename, driveFileId: d.file?.id, pathIndex: f.pathIndex });
     }
@@ -306,11 +315,53 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   }, [addToast, load, studio, weekIndex, weekMeta, ym]);
 
+  /** AI menyusun 7 Path lalu langsung membangun & mengunduh PDF Pembekalan (01). */
+  const generatePembekalanWithAi = useCallback(async () => {
+    if (!canWrite) return;
+    setBusy('ai-pembekalan');
+    setError(null);
+    try {
+      const discussionText = (studio.discussion || [])
+        .map((c) => `${c.userName || 'Tim'}${c.role ? ` (${c.role})` : ''}: ${c.text}`)
+        .join('\n');
+      const notes = [
+        comment,
+        useDiscussionContext && discussionText ? `Diskusi tim Didaskalia:\n${discussionText}` : '',
+      ].filter(Boolean).join('\n\n') || undefined;
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/draft`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ methods: studio.homileticMethods, notes }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
+      const nextStudio = { ...defaultStudio(), ...(d.week?.studio || {}) };
+      setStudio(nextStudio);
+      const week = {
+        index: weekIndex,
+        date: weekMeta?.date || '',
+        theme: weekMeta?.theme,
+        mentoringTheme: weekMeta?.mentoringTheme,
+        servingTheme: weekMeta?.servingTheme,
+        studio: nextStudio,
+      };
+      const { filename, blob } = buildPembekalanPdf(week, nextStudio, { version: (nextStudio.render?.pembekalan?.version || 0) + 1 });
+      download(filename, blob);
+      addToast({ type: 'success', title: 'AI menyusun 7 Path & PDF Pembekalan diunduh' });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'AI gagal.');
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
+    } finally {
+      setBusy(null);
+    }
+  }, [addToast, canWrite, comment, studio.discussion, studio.homileticMethods, useDiscussionContext, weekIndex, weekMeta, ym]);
+
   const generateSchedule = async () => {
     setSchedBusy(true);
     try {
       const r = await fetch(`/api/didaskalia/schedule/${ym}/generate`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const d = await r.json();
+      const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'Gagal generate jadwal.');
       await loadSchedule();
       addToast({ type: 'success', title: 'Jadwal ritual dibuat' });
@@ -325,7 +376,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     setSchedBusy(true);
     try {
       const r = await fetch('/api/didaskalia/ritual-links', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ links }) });
-      const d = await r.json();
+      const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'Gagal simpan link.');
       setLinks(d.links || []);
       addToast({ type: 'success', title: 'Link Meet tersimpan' });
@@ -414,14 +465,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div className="grid sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelCls}>Chapter</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={studio.chapterNo}
+                <select
+                  value={studio.chapterNo || '0'}
                   onChange={(e) => setStudio((s) => ({ ...s, chapterNo: e.target.value }))}
-                  placeholder="0"
                   className={inputCls}
-                />
+                >
+                  {Array.from({ length: 53 }, (_, i) => (
+                    <option key={i} value={String(i)}>Chapter {i}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className={labelCls}>Fundamental Firman (ayat)</label>
@@ -432,7 +484,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
               <div>
                 <label className={labelCls}>Kitab / Bagian Fokus</label>
-                <input value={studio.kitabFokus} onChange={(e) => setStudio((s) => ({ ...s, kitabFokus: e.target.value }))} placeholder="Kisah Para Rasul 2:41-47" className={inputCls} />
+                <BibleRefPicker
+                  value={studio.kitabFokus}
+                  onChange={(ref) => setStudio((s) => ({ ...s, kitabFokus: ref }))}
+                />
               </div>
             </div>
             <div>
@@ -520,6 +575,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </button>
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Ringkasan Khotbah
+              </button>
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void generatePembekalanWithAi()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+                {busy === 'ai-pembekalan' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} AI + PDF Pembekalan
               </button>
               <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] ml-1">
                 <input
