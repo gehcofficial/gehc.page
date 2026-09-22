@@ -44,6 +44,7 @@ interface EditForm {
   nameParts: PersonNameParts;
   gender: string;
   phone: string;
+  email: string;
   address: AddressValue;
   giftsTop5: string;
   isBeyonders: boolean;
@@ -162,7 +163,7 @@ export const YouthGEHCList: React.FC = () => {
     anchor: HTMLElement | null;
   } | null>(null);
   const [editUser, setEditUser] = useState<YouthUser | null>(null);
-  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, isIndividuExplicit: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT', memberStatus: 'ACTIVE' };
+  const emptyForm: EditForm = { nameParts: emptyPersonName(), gender: '', phone: '', email: '', address: emptyAddress(), giftsTop5: '[]', isBeyonders: false, isIndividuExplicit: false, bipra: 'PEMUDA', kolomId: '', recreationalIds: [], birthDate: '', membershipKind: 'JEMAAT', memberStatus: 'ACTIVE' };
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
   const [bipraFilter, setBipraFilter] = useState('PEMUDA');
@@ -218,6 +219,7 @@ export const YouthGEHCList: React.FC = () => {
       nameParts: partsFromUser(user),
       gender: user.gender || '',
       phone: user.phone || '',
+      email: user.email || '',
       address: addressFromUser(user as any),
       giftsTop5: JSON.stringify(user.giftsTop5 || [], null, 2),
       isBeyonders: Boolean(user.isBeyonders),
@@ -325,35 +327,49 @@ export const YouthGEHCList: React.FC = () => {
         }
         addToast({ type: 'success', title: 'Jemaat ditambah', description: composed });
       } else {
-        const res = await fetch(`/api/admin/users/${editUser.id}`, {
+        const emailVal = editForm.email.trim();
+        if (editUser.email && !emailVal) throw new Error('Email tidak boleh kosong.');
+        if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) throw new Error('Format email tidak valid.');
+        const payload = {
+          name: composed,
+          givenName: parts.givenName,
+          middleName: parts.middleName,
+          familyName: parts.familyName,
+          churchTitle: parts.churchTitle || null,
+          academicTitles: parts.academicTitles,
+          gender: editForm.gender || null,
+          phone: editForm.phone || null,
+          ...editForm.address,
+          giftsTop5,
+          isBeyonders: editForm.isBeyonders,
+          isIndividuExplicit: editForm.isIndividuExplicit,
+          bipra: editForm.bipra,
+          kolomId: editForm.kolomId || null,
+          recreationalIds: editForm.recreationalIds,
+          birthDate: editForm.birthDate || null,
+          membershipKind: editForm.membershipKind,
+          memberStatus: editForm.memberStatus,
+          ...(emailVal ? { email: emailVal } : {}),
+        };
+        let res = await fetch(`/api/admin/users/${editUser.id}`, {
           method: 'PATCH',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: composed,
-            givenName: parts.givenName,
-            middleName: parts.middleName,
-            familyName: parts.familyName,
-            churchTitle: parts.churchTitle || null,
-            academicTitles: parts.academicTitles,
-            gender: editForm.gender || null,
-            phone: editForm.phone || null,
-            ...editForm.address,
-            giftsTop5,
-            isBeyonders: editForm.isBeyonders,
-            isIndividuExplicit: editForm.isIndividuExplicit,
-            bipra: editForm.bipra,
-            kolomId: editForm.kolomId || null,
-            recreationalIds: editForm.recreationalIds,
-            birthDate: editForm.birthDate || null,
-            membershipKind: editForm.membershipKind,
-            memberStatus: editForm.memberStatus,
-          }),
+          body: JSON.stringify({ ...payload, confirmRights: false }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Update gagal');
+        let err = res.ok ? null : await res.json().catch(() => ({}));
+        if (!res.ok && err?.needsConfirmRights) {
+          if (typeof window !== 'undefined' && window.confirm(`${err.error}\n\nLanjut mengganti email?`)) {
+            res = await fetch(`/api/admin/users/${editUser.id}`, {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...payload, confirmRights: true }),
+            });
+            err = res.ok ? null : await res.json().catch(() => ({}));
+          }
         }
+        if (!res.ok) throw new Error(err?.error || 'Update gagal');
         addToast({ type: 'success', title: 'Profil Diperbarui', description: `${composed} berhasil disimpan.` });
       }
       setEditUser(null);
@@ -1733,6 +1749,21 @@ export const YouthGEHCList: React.FC = () => {
                   className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
                 />
               </div>
+              {!creating && (
+              <div>
+                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Email (login)</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="nama@email.com"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                />
+                <p className="text-[10px] text-[#8C8880] mt-1">
+                  Mengubah email login. Email admin platform/operator ditolak; akun tertaut Google harus dilepas dulu.
+                </p>
+              </div>
+              )}
               <div>
                 <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Alamat</label>
                 <AddressForm

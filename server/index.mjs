@@ -918,6 +918,26 @@ app.post('/api/me/link-google', wrap(async (req, res) => {
   }
 }));
 
+// Lepas tautan Google (self-service). Prasyarat: user punya password agar tidak terkunci.
+app.post('/api/me/unlink-google', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const user = await prisma.user.findUnique({
+    where: { id: req.authUser.id },
+    select: { id: true, passwordHash: true, googleSub: true },
+  });
+  if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+  if (!user.googleSub) return res.json({ ok: true, googleLinked: false });
+  if (!user.passwordHash) {
+    return res.status(400).json({ error: 'Set password dulu sebelum melepas tautan Google (agar akun tidak terkunci).' });
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { googleSub: null, linkStatus: 'UNLINKED', claimToken: null, claimTokenExpiresAt: null },
+  });
+  res.json({ ok: true, googleLinked: false });
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
@@ -5515,6 +5535,41 @@ app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (re
 
   const { name, gender, phone, giftsTop5, isBeyonders, bipra, kolomId, recreationalIds, membershipKind, memberStatus } = req.body || {};
   const data = {};
+
+  // Ganti email login (guard: unik, bukan admin/operator, akun tidak Google-linked,
+  // dan konfirmasi bila email membawa hak akses).
+  if (req.body?.email !== undefined) {
+    const raw = String(req.body.email || '').trim().toLowerCase();
+    if (!raw) return res.status(400).json({ error: 'Email tidak boleh kosong.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return res.status(400).json({ error: 'Format email tidak valid.' });
+    if (raw !== String(existing.email || '').toLowerCase()) {
+      if (existing.googleSub) {
+        return res.status(400).json({ error: 'Akun ini tertaut Google — lepas tautan Google dulu sebelum mengganti email.' });
+      }
+      const superadmins = String(process.env.SUPERADMIN_EMAILS || '')
+        .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+      if (superadmins.includes(raw)) {
+        return res.status(403).json({ error: 'Email itu milik admin platform — tidak boleh dipakai.' });
+      }
+      const op = await prisma.platformOperator.findUnique({ where: { email: raw } }).catch(() => null);
+      if (op) return res.status(403).json({ error: 'Email itu milik operator platform — tidak boleh dipakai.' });
+      const taken = await prisma.user.findFirst({ where: { email: raw, NOT: { id: req.params.id } }, select: { id: true } }).catch(() => null);
+      if (taken) return res.status(409).json({ error: 'Email sudah dipakai akun lain.' });
+      const [ag, sm] = await Promise.all([
+        prisma.accessGroupMember.findFirst({ where: { email: raw }, select: { id: true } }).catch(() => null),
+        prisma.strukturMember.findFirst({ where: { email: raw }, select: { id: true } }).catch(() => null),
+      ]);
+      const rights = [ag ? 'Grup Akses' : null, sm ? 'Struktur' : null].filter(Boolean).join(' & ');
+      if (rights && req.body?.confirmRights !== true) {
+        return res.status(409).json({
+          error: `Email itu terdaftar di ${rights} — menggantinya akan mengubah hak akses. Kirim confirmRights=true untuk lanjut.`,
+          needsConfirmRights: true,
+        });
+      }
+      data.email = raw;
+    }
+  }
+
   if (req.body?.givenName !== undefined || req.body?.familyName !== undefined || req.body?.churchTitle !== undefined || req.body?.academicTitles !== undefined) {
     const nameErr = applyPersonNameFields(req.body || {}, data);
     if (nameErr) return res.status(400).json({ error: nameErr });

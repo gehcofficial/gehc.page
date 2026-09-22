@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Link2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Link2, Loader2, Unlink } from 'lucide-react';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
 import { useApp } from '../../context/AppContext';
 
@@ -28,12 +28,47 @@ export const LinkGoogleCard: React.FC<{ compact?: boolean }> = ({ compact }) => 
   const linked = ok
     || linkStatus === 'LINKED'
     || Boolean(googleSub);
+
+  const onUnlink = async () => {
+    if (typeof window !== 'undefined' && !window.confirm('Lepas tautan Google dari akun ini? Anda tetap bisa masuk dengan password/username.')) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const res = await fetch('/api/me/unlink-google', { method: 'POST', credentials: 'include' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Gagal melepas tautan Google.');
+      setOk(false);
+      setLinkStatus('UNLINKED');
+      setGoogleSub(null);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (linked) {
-    if (compact) return null;
     return (
-      <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
-        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-        <p className="text-xs font-semibold text-emerald-700">Akun Google sudah tertaut.</p>
+      <div className={`rounded-2xl border border-emerald-200 bg-emerald-50 ${compact ? 'p-4' : 'p-5'} space-y-3`}>
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-emerald-800">Tautan Google aktif</p>
+            <p className="text-[11px] text-emerald-700 mt-1 leading-relaxed">
+              Anda bisa masuk lewat Google. Untuk melepas tautan, pastikan password sudah diatur lebih dulu.
+            </p>
+          </div>
+        </div>
+        {err && <p className="text-xs text-red-600 font-semibold">{err}</p>}
+        <button
+          type="button"
+          onClick={() => void onUnlink()}
+          disabled={busy}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-300 bg-white text-emerald-800 text-xs font-bold hover:bg-emerald-100 disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
+          Lepas tautan Google
+        </button>
       </div>
     );
   }
