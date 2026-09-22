@@ -134,11 +134,13 @@ export const DivisionWorkspacePanel: React.FC = () => {
   const [eventQuery, setEventQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
+  const [showArchived, setShowArchived] = useState(false);
   const STATUS_ORDER: Record<string, number> = { ACTIVE: 0, PLANNING: 1, DONE: 2 };
+  const orderOf = (s: string) => (String(s).toUpperCase() === 'ARCHIVED' ? 9 : (STATUS_ORDER[String(s).toUpperCase()] ?? 3));
   const visibleEvents = events
-    .filter((e) => String(e.status || '').toUpperCase() !== 'ARCHIVED')
+    .filter((e) => showArchived || String(e.status || '').toUpperCase() !== 'ARCHIVED')
     .filter((e) => !eventQuery.trim() || e.name.toLowerCase().includes(eventQuery.trim().toLowerCase()))
-    .sort((a, b) => (STATUS_ORDER[String(a.status).toUpperCase()] ?? 3) - (STATUS_ORDER[String(b.status).toUpperCase()] ?? 3));
+    .sort((a, b) => orderOf(a.status) - orderOf(b.status));
   const [selectedDiv, setSelectedDiv] = useState<string>(ALL_DIVISIONS[0]);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
@@ -308,8 +310,9 @@ export const DivisionWorkspacePanel: React.FC = () => {
       // Selalu ambil ulang objek terpilih dari daftar baru; kalau tidak, divisi
       // yang baru diaktifkan tidak akan pernah terlihat karena objeknya basi.
       setSelectedEvent((prev) => {
-        if (!prev) return list[0] || null;
-        return list.find((e) => e.id === prev.id) || list[0] || null;
+        const firstActive = list.find((e) => String(e.status || '').toUpperCase() !== 'ARCHIVED') || list[0] || null;
+        if (!prev) return firstActive;
+        return list.find((e) => e.id === prev.id) || firstActive;
       });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal memuat event', description: e.message });
@@ -828,12 +831,23 @@ export const DivisionWorkspacePanel: React.FC = () => {
           <label className="text-xs font-semibold text-[#8C8880] uppercase tracking-wider block">
             Program / Event
           </label>
-          <input
-            value={eventQuery}
-            onChange={(e) => setEventQuery(e.target.value)}
-            placeholder="Cari event… (arsip disembunyikan)"
-            className="w-full max-w-md px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              value={eventQuery}
+              onChange={(e) => setEventQuery(e.target.value)}
+              placeholder="Cari event…"
+              className="w-full max-w-md px-4 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-sm focus:outline-none focus:border-black"
+            />
+            <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-[#D9D7D0]"
+              />
+              Tampilkan arsip
+            </label>
+          </div>
           {visibleEvents.length === 0 ? (
             <p className="text-xs text-[#8C8880]">Tidak ada event cocok. Coba kata lain.</p>
           ) : (
@@ -853,13 +867,16 @@ export const DivisionWorkspacePanel: React.FC = () => {
                     }`}
                   >
                     {ev.name}
-                    <span className={`ml-1.5 text-[9px] uppercase ${active ? 'text-white/70' : 'text-[#8C8880]'}`}>
-                      {ev.status}
+                    <span className={`ml-1.5 text-[9px] uppercase ${active ? 'text-white/70' : String(ev.status).toUpperCase() === 'ARCHIVED' ? 'text-amber-700' : 'text-[#8C8880]'}`}>
+                      {String(ev.status).toUpperCase() === 'ARCHIVED' ? 'ARSIP' : ev.status}
                     </span>
                   </button>
                 );
               })}
             </div>
+          )}
+          {selectedEvent && String(selectedEvent.status || '').toUpperCase() === 'ARCHIVED' && (
+            <p className="text-[11px] text-amber-700">Event arsip — galeri & dokumentasi tetap bisa diisi.</p>
           )}
         </div>
       )}

@@ -8,6 +8,7 @@
 - **Server** (`server/routes/drive-ownership.mjs`): `POST /api/events/:id/gallery/photos` — Marturia Dokumentasi/Komisi; pastikan folder arsip auto (`ensureEventArchiveFolder` → set `archiveFolderId`), upload JPEG (`publicReader:true`), lalu catat baris **`EventGallery`** (`status APPROVED`, `division`, `driveFileId`, `mediaUrl/thumbUrl`).
 - **Klien** (`EventGalleryTab.tsx`, dipakai semua divisi): toolbar **"Galeri Event"** — nama+tanggal **auto** dari event; **multi-upload** file; **pin preview ≤5** (centang + indikator `n/5`, simpan via `POST /api/events/:id/archive`); tombol **Folder Drive**. Form URL manual lama dipindah ke **"Lanjutan (URL)"**.
 - **Dipakai ulang** (tanpa ubah): list `/api/gallery?eventId=`, preview `/api/events/:id/archive`, link `/api/events/:id/archive-link`, landing `/api/events/public-archive`.
+- **Event arsip bisa digarap lagi** (`DivisionWorkspacePanel.tsx`): toggle **"Tampilkan arsip"** di pemilih event (default off; arsip diurut paling bawah + label `ARSIP`). Sebelumnya `ARCHIVED` difilter keluar sehingga Marturia tak bisa buat galeri untuk event lampau. Pemilihan default kini ke event non-arsip. Tanpa perubahan server (upload auto-buat folder arsip; landing sudah memuat ARCHIVED).
 - Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · runtime: anon upload **401**, event tak ada **404** (route aktif).
 
 ### Next
