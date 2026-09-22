@@ -2,17 +2,17 @@
 
 ## Current — Kanal WhatsApp: kepemimpinan Mentor & Koordinator Divisi (22 Sep 2026)
 
-**Goal:** Tambah kanal di tab **Kepemimpinan** (Kanal WhatsApp): "Mentor & Co-Mentor" dan "Koordinator Divisi" (per panca tugas).
+**Goal:** Tambah kanal di tab **Kepemimpinan** (Kanal WhatsApp): "Mentor & Co-Mentor" dan **satu** kanal "Koordinator Panca Tugas" (isi: HOD + BOD).
 
 **Done:**
-- **Katalog** (`server/lib/channel-link-access.mjs`): `LEADERSHIP_CATALOG` + `MENTORS` ("Mentor & Co-Mentor") dan `KOORD_LITURGIA/DIDASKALIA/KOINONIA/DIAKONIA/MARTURIA` ("Koordinator …"). Otomatis muncul di panel Kanal WhatsApp → Kepemimpinan (Komisi/Admin mengisi tautan).
+- **Katalog** (`server/lib/channel-link-access.mjs`): `LEADERSHIP_CATALOG` + `MENTORS` ("Mentor & Co-Mentor") dan `KOORD_PANCA` ("Koordinator Panca Tugas"). Otomatis muncul di panel Kanal WhatsApp → Kepemimpinan (Komisi/Admin mengisi tautan).
 - **Visibilitas "Grup WhatsApp Saya"** (`/api/channel-links/scoped?me=1`): `personalChannelScope` menerima `leadershipExtra`; route menambahkan
   - `MENTORS` bila peran aktif/role = MENTOR/CO_MENTOR;
-  - `KOORD_<DIV>` bila pengguna **kepala divisi** (`isDivisionHead` = LEAD/CO_LEAD) untuk divisinya.
-- Verifikasi: `lint` bersih · **449 test** hijau (1 test baru) · `build` OK · lokal `/api/channel-links` mengembalikan katalog kepemimpinan lengkap.
+  - `KOORD_PANCA` bila **BOD Tim Kerja** (`isTimKerjaBod`) **atau** **kepala divisi** (`isDivisionHead` = LEAD/CO_LEAD).
+- Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · lokal `/api/channel-links` mengembalikan katalog kepemimpinan lengkap.
 
 ### Next
-1. Isi tautan grup via Kanal WhatsApp → tab Kepemimpinan (Komisi/Admin): Mentor & Co-Mentor + 5 Koordinator.
+1. Isi tautan grup via Kanal WhatsApp → Kepemimpinan: Mentor & Co-Mentor + Koordinator Panca Tugas.
 2. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-4 warta, P2-6 lanjutan.
 
 ### Commands

@@ -50,17 +50,13 @@ describe('channel-link write RBAC', () => {
     }
   });
 
-  it('katalog kepemimpinan: Komisi, Tim Kerja (BOD), BPMJ, Mentor & Koordinator divisi', () => {
+  it('katalog kepemimpinan: Komisi, Tim Kerja (BOD), BPMJ, Mentor & Koordinator Panca Tugas', () => {
     expect(LEADERSHIP_CATALOG.map((e) => e.id)).toEqual([
       'KOMISI',
       'TIMKERJA',
       'BPMJ',
       'MENTORS',
-      'KOORD_LITURGIA',
-      'KOORD_DIDASKALIA',
-      'KOORD_KOINONIA',
-      'KOORD_DIAKONIA',
-      'KOORD_MARTURIA',
+      'KOORD_PANCA',
     ]);
   });
 
@@ -166,14 +162,14 @@ describe('kanal personal berjenjang', () => {
     expect(a.refs).not.toContainEqual({ kind: 'KOLOM', refId: 'kolom-2' });
   });
 
-  it('kanal kepemimpinan tambahan: MENTORS & KOORD_<divisi> sesuai peran', () => {
+  it('kanal kepemimpinan tambahan: MENTORS & KOORD_PANCA sesuai peran', () => {
     const mentor = personalChannelScope({ rank: 'MEMBER', leadershipExtra: ['MENTORS'] });
     expect(mentor.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'MENTORS' });
 
-    const koord = personalChannelScope({ rank: 'MEMBER', divisionCodes: ['LITURGIA'], leadershipExtra: ['KOORD_LITURGIA'] });
-    expect(koord.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'KOORD_LITURGIA' });
+    const koord = personalChannelScope({ rank: 'MEMBER', leadershipExtra: ['KOORD_PANCA'] });
+    expect(koord.refs).toContainEqual({ kind: 'LEADERSHIP', refId: 'KOORD_PANCA' });
 
-    // Tanpa leadershipExtra (mis. pengguna biasa) → tidak ada MENTORS/KOORD.
+    // Tanpa leadershipExtra (mis. pengguna biasa) → tidak ada MENTORS/KOORD_PANCA.
     const plain = personalChannelScope({ rank: 'MEMBER' });
     expect(plain.refs.some((x) => x.kind === 'LEADERSHIP')).toBe(false);
   });

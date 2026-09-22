@@ -73,7 +73,7 @@ export function registerChannelLinkRoutes(app, { wrap }) {
         ]);
         // Kanal kepemimpinan tambahan yang melekat pada peran/posisi:
         // - Mentor & Co-Mentor → semua mentor/co-mentor.
-        // - Koordinator Divisi → kepala divisi (LEAD/CO_LEAD) untuk divisinya.
+        // - Koordinator Panca Tugas → HOD (kepala divisi) + BOD Tim Kerja.
         const activeRole = String(req.activeRole || '').toUpperCase();
         const ownedRoles = (req.authUser.roles || []).map((r) => r.role);
         const leadershipExtra = [];
@@ -81,8 +81,8 @@ export function registerChannelLinkRoutes(app, { wrap }) {
           || (!activeRole && (ownedRoles.includes('MENTOR') || ownedRoles.includes('CO_MENTOR')))) {
           leadershipExtra.push('MENTORS');
         }
-        if (await isDivisionHead(req.authUser)) {
-          for (const d of divisionCodes) leadershipExtra.push(`KOORD_${d}`);
+        if (isBod || (await isDivisionHead(req.authUser))) {
+          leadershipExtra.push('KOORD_PANCA');
         }
         const scope = personalChannelScope({
           rank,
