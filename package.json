@@ -19,6 +19,7 @@
     "env:sync-gdrive-token": "node scripts/sync-gdrive-token-vercel.mjs",
     "env:sync-cron-secret": "node scripts/sync-cron-secret.mjs",
     "env:sync-ai-keys": "node scripts/sync-ai-keys-vercel.mjs",
+    "db:ensure:weekly-divisions": "node scripts/ensure-weekly-divisions.mjs",
     "server": "node server/index.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

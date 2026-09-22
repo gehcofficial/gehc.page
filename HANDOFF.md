@@ -12,8 +12,16 @@
 - Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · render lokal `#/portal/superadmin/div-didaskalia` (tab Didaskalia: Studio+Warta; tanpa tab 6 divisi; 14 chip event; 0 error); alias `divisions` → `div-liturgia`.
 
 ### Next
-1. **Fase 3** — auto akses mingguan: `ensureWeeklyDivisions` (auto-create `EventDivision` 6 divisi) + visibilitas anggota divisi (`/api/me/divisions`).
-2. **AI key (SELESAI)** — `OPENAI_API_KEY`, `GROQ_API_KEY`, `AI_MODEL_MAIN`, `AI_MODEL_FALLBACK` disinkron dari `.env` → Vercel **Production + Preview** (skrip `scripts/sync-ai-keys-vercel.mjs`, `npm run env:sync-ai-keys`). Redeploy dipicu via push ini. (Catatan: `vercel env add` lambat ~40 dtk/key dan sempat `fetch failed` — perlu retry.)
+1. **Fase 3b** — visibilitas anggota divisi (`GET /api/me/divisions` + filter nav `div-*`).
+2. **Backfill divisi (menunggu izin `--apply`)**: `scripts/ensure-weekly-divisions.mjs` — dry-run staging **13 event** (semua kurang), prod **4 event** (kurang BENZARPR/DIAKONIA dll). Jalankan `--apply` staging lalu prod.
+3. Sisa lain: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
+
+### Fase 3a (SELESAI) — auto akses mingguan
+- Baru `server/lib/event-divisions.mjs` (`ensureEventDivisions` idempoten, `isWeeklyWorshipEvent`).
+- `POST /api/events`: event ibadah (UMUM/SERVING_DAY/MENTORING_DAY) otomatis dapat **6 divisi**.
+- Baru `POST /api/events/:id/divisions/ensure` (staf) — melengkapi divisi yang kurang.
+- `DivisionWorkspacePanel` (per-divisi): auto-panggil `ensure` sekali saat event terpilih belum punya workspace divisi itu, lalu muat ulang.
+- Baru `scripts/ensure-weekly-divisions.mjs` (`npm run db:ensure:weekly-divisions`) — backfill dry-run/apply.
 3. Sisa lain: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
 
 ### Fase 2 (SELESAI) — Studio ikut event

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { displayFolderName } from '../../lib/driveDisplay';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
 import { EventDivisionPhaseTabs } from './EventDivisionPhaseTabs';
@@ -339,6 +339,22 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
   // supaya tak perlu memilih tanggal dua kali.
   const studioYearMonth = selectedEvent?.eventDate ? yearMonthWib(selectedEvent.eventDate) : '';
   const studioWeekIndex = selectedEvent?.eventDate ? weekIndexForDateWib(selectedEvent.eventDate) : undefined;
+
+  // Auto akses mingguan: bila event terpilih belum punya workspace divisi ini,
+  // minta server melengkapinya sekali (idempoten) lalu muat ulang.
+  const ensuredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const ev = selectedEvent;
+    if (!ev || !division) return;
+    const key = `${ev.id}:${division}`;
+    if (ensuredRef.current.has(key)) return;
+    const has = (ev.divisions || []).some((d) => String(d.division).toUpperCase() === division);
+    if (has) return;
+    ensuredRef.current.add(key);
+    fetch(`/api/events/${ev.id}/divisions/ensure`, { method: 'POST', credentials: 'include' })
+      .then((r) => { if (r.ok) return fetchEvents(); })
+      .catch(() => { /* abaikan */ });
+  }, [selectedEvent?.id, division]);
 
   const [activating, setActivating] = useState(false);
   const globalRoles = (authUser?.roles || []).map((r: { role: string }) => r.role);

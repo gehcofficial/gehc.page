@@ -127,6 +127,7 @@ import { registerMonitoringRoutes } from './routes/monitoring.mjs';
 import { registerEventsPublicRoutes } from './routes/events-public.mjs';
 import { registerEventSignupRoutes } from './routes/event-signup.mjs';
 import { registerContentPublicRoutes, syncWartaToContentItem } from './routes/content-public.mjs';
+import { ensureEventDivisions, isWeeklyWorshipEvent } from './lib/event-divisions.mjs';
 import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from './routes/drive-ownership.mjs';
 import { isMentorOfGroup } from './lib/drive-ownership.mjs';
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
@@ -2585,6 +2586,11 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
     }
   }
 
+  // Event ibadah mingguan: pastikan SEMUA divisi punya workspace (auto akses tiap minggu).
+  if (isWeeklyWorshipEvent(ev)) {
+    await ensureEventDivisions(prisma, ev.id).catch(() => null);
+  }
+
   // Draf konten publik agar event langsung bisa dilengkapi Marturia
   // dan tampil di landing setelah diterbitkan (pola by-event).
   await prisma.contentItem.create({
@@ -2658,6 +2664,16 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
   }
 
   res.status(201).json({ division: { ...created, driveFolderId }, driveFolderId });
+}));
+
+// Pastikan SEMUA divisi punya workspace untuk event ini (idempoten) — auto akses mingguan.
+app.post('/api/events/:id/divisions/ensure', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  const { created } = await ensureEventDivisions(prisma, ev.id);
+  res.json({ ok: true, created });
 }));
 
 // BAKU TAU exact paths must register before /api/events/:id (param route shadows them)
