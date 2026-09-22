@@ -14,12 +14,13 @@ const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string; submenu?: 
     menus: [
       'Akun Saya',
       'Dashboard & Ringkasan',
-      'Orang & Undangan',
-      'Onboarding Pipeline',
-      'Pemimpin 10 Rumah',
-      'Kelola Warta Pemuda',
-      'Struktur Organisasi',
+      'Orang',
+      'Regenerasi',
+      'Konten',
+      'Struktur & Hirarki',
+      'Sistem',
     ],
+    submenu: { parent: 'Orang', child: 'Jemaat' },
   },
   'stevania.hadinda@gehc.demo': {
     roleLabel: 'Komisi Pemuda',

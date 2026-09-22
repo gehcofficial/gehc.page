@@ -41,11 +41,15 @@ describe('buildPortalSidebarItems — P2-1 grouping (bertahap)', () => {
     expect(rows.some((r) => r.type === 'item' && r.item.id === 'struktur')).toBe(true);
   });
 
-  it('peran di luar rollout belum berubah (SUPERADMIN tetap datar)', () => {
-    const flat = buildPortalNavItems('SUPERADMIN', ctx, false);
+  it('SUPERADMIN: semua parent terbentuk (orang/regenerasi/konten/struktur-hirarki/sistem)', () => {
     const rows = buildPortalSidebarItems('SUPERADMIN', ctx, false);
-    expect(rows.every((r) => r.type === 'item')).toBe(true);
-    expect(rows.length).toBe(flat.length);
+    const parentIds = rows.filter((r) => r.type === 'parent').map((r) => r.parent.id);
+    expect(parentIds).toEqual(
+      expect.arrayContaining(['orang', 'regenerasi', 'konten', 'struktur-hirarki', 'sistem']),
+    );
+    // Struktur & Hirarki kini punya 2 anak (struktur + org-hierarchy) untuk SUPERADMIN.
+    const sh = rows.find((r) => r.type === 'parent' && r.parent.id === 'struktur-hirarki');
+    expect(sh && sh.type === 'parent' ? sh.children.length : 0).toBe(2);
   });
 
   it('KOMISI: parent Orang/Regenerasi/Konten/Sistem terbentuk', () => {

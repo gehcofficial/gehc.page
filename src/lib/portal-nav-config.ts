@@ -170,7 +170,7 @@ export const PORTAL_NAV_PARENTS: PortalNavParentDef[] = [
 ];
 
 /** Rollout bertahap: grouping sidebar aktif untuk peran ini dulu. */
-export const PORTAL_NAV_GROUPED_ROLES: UserRole[] = ['COMMITTEE', 'KOMISI', 'BPMJ'];
+export const PORTAL_NAV_GROUPED_ROLES: UserRole[] = ['COMMITTEE', 'KOMISI', 'BPMJ', 'SUPERADMIN'];
 
 /**
  * Baris sidebar: item tunggal, atau parent yang menampung beberapa anak.
@@ -186,7 +186,9 @@ export function buildPortalSidebarItems(
     return items.map((item) => ({ type: 'item', item }));
   }
 
-  const parents = PORTAL_NAV_PARENTS.filter((p) => p.roles.includes(currentRole));
+  const parents = currentRole === 'SUPERADMIN'
+    ? PORTAL_NAV_PARENTS
+    : PORTAL_NAV_PARENTS.filter((p) => p.roles.includes(currentRole));
   const byId = new Map(items.map((i) => [i.id, i]));
   const consumed = new Set<string>();
   const out: PortalSidebarItem[] = [];
