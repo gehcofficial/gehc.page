@@ -1,6 +1,27 @@
 # GEHC Portal — Handoff
 
-## Current — Kelola akun: lepas Google + ganti email (22 Sep 2026)
+## Current — Family Tree: mentee MOVED tak lagi dobel kelompok (22 Sep 2026)
+
+**Goal:** Veylicia Kaempe (MENTEE) muncul di Family Tree **Kairos** padahal sudah pindah ke **Shalom**.
+
+**Done:**
+- **Verifikasi data (prod, read-only):** baris Kairos-nya berstatus **`MOVED`** (`movedToGroupId=grp-3` = Shalom, period 2026-09) dan Shalom-nya `ACTIVE`. **DB sudah benar**; yang tidak `members` roster (ACTIVE-only) benar.
+- **Akar bug:** `src/context/AppContext.tsx` saat membangun `groupBatches[].mentees` memasukkan **semua** status (termasuk `MOVED`) dari `/api/db/groups` → anggota pindah tetap muncul di pohon kelompok lama.
+- **Fix:** lewati status **`MOVED`** saat menyisipkan mentee ke batch (ALUMNI/PAST tetap untuk riwayat generasi). Kini mentee pindah hanya tampil di pohon kelompok barunya.
+- Verifikasi: `lint` bersih · **448 test** hijau · `build` OK.
+
+### Next
+1. Konfirmasi ke penanya: buka Family Tree Kairos → Veylicia tidak lagi muncul (jumlah Mentee turun).
+2. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-4 warta, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kelola akun: lepas Google + ganti email (22 Sep 2026)
 
 **Goal:** User bisa melepas tautan Google; admin/Komisi bisa mengganti email login dengan aman.
 
