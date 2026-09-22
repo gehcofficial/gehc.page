@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
-## Current — Family Tree: MOVED + avatar mentor (22 Sep 2026)
+## Current — Kanal WhatsApp: kepemimpinan Mentor & Koordinator Divisi (22 Sep 2026)
+
+**Goal:** Tambah kanal di tab **Kepemimpinan** (Kanal WhatsApp): "Mentor & Co-Mentor" dan "Koordinator Divisi" (per panca tugas).
+
+**Done:**
+- **Katalog** (`server/lib/channel-link-access.mjs`): `LEADERSHIP_CATALOG` + `MENTORS` ("Mentor & Co-Mentor") dan `KOORD_LITURGIA/DIDASKALIA/KOINONIA/DIAKONIA/MARTURIA` ("Koordinator …"). Otomatis muncul di panel Kanal WhatsApp → Kepemimpinan (Komisi/Admin mengisi tautan).
+- **Visibilitas "Grup WhatsApp Saya"** (`/api/channel-links/scoped?me=1`): `personalChannelScope` menerima `leadershipExtra`; route menambahkan
+  - `MENTORS` bila peran aktif/role = MENTOR/CO_MENTOR;
+  - `KOORD_<DIV>` bila pengguna **kepala divisi** (`isDivisionHead` = LEAD/CO_LEAD) untuk divisinya.
+- Verifikasi: `lint` bersih · **449 test** hijau (1 test baru) · `build` OK · lokal `/api/channel-links` mengembalikan katalog kepemimpinan lengkap.
+
+### Next
+1. Isi tautan grup via Kanal WhatsApp → tab Kepemimpinan (Komisi/Admin): Mentor & Co-Mentor + 5 Koordinator.
+2. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-4 warta, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Family Tree: MOVED + avatar mentor (22 Sep 2026)
 
 **Goal:** (1) Veylicia Kaempe (MENTEE) muncul di Family Tree **Kairos** padahal sudah pindah ke **Shalom**. (2) Foto mentor di Family Tree (mis. Jeremia/Dunamis) tidak muncul, padahal ada di DB.
 
