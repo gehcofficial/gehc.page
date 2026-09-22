@@ -23,7 +23,8 @@ const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string; submenu?: 
   },
   'stevania.hadinda@gehc.demo': {
     roleLabel: 'Komisi Pemuda',
-    menus: ['Akun Saya', 'Orang & Undangan', 'Onboarding Pipeline', 'Jemaat'],
+    menus: ['Akun Saya', 'Dashboard & Ringkasan', 'Orang', 'Regenerasi', 'Konten', 'Sistem'],
+    submenu: { parent: 'Orang', child: 'Jemaat' },
   },
   'theodore.kowaas@gehc.demo': {
     roleLabel: 'Tim Kerja',

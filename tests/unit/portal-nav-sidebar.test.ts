@@ -41,11 +41,34 @@ describe('buildPortalSidebarItems — P2-1 grouping (bertahap)', () => {
     expect(rows.some((r) => r.type === 'item' && r.item.id === 'struktur')).toBe(true);
   });
 
-  it('peran di luar rollout belum berubah (KOMISI tetap datar)', () => {
-    const flat = buildPortalNavItems('KOMISI', ctx, false);
-    const rows = buildPortalSidebarItems('KOMISI', ctx, false);
+  it('peran di luar rollout belum berubah (SUPERADMIN tetap datar)', () => {
+    const flat = buildPortalNavItems('SUPERADMIN', ctx, false);
+    const rows = buildPortalSidebarItems('SUPERADMIN', ctx, false);
     expect(rows.every((r) => r.type === 'item')).toBe(true);
     expect(rows.length).toBe(flat.length);
+  });
+
+  it('KOMISI: parent Orang/Regenerasi/Konten/Sistem terbentuk', () => {
+    const rows = buildPortalSidebarItems('KOMISI', ctx, false);
+    const parentIds = rows.filter((r) => r.type === 'parent').map((r) => r.parent.id);
+    expect(parentIds).toEqual(expect.arrayContaining(['orang', 'regenerasi', 'konten', 'sistem']));
+
+    const orang = rows.find((r) => r.type === 'parent' && r.parent.id === 'orang');
+    expect(orang && orang.type === 'parent' ? orang.children.map((c) => c.id) : []).toEqual(
+      expect.arrayContaining(['people', 'youth-gehc', 'onboarding', 'catalog']),
+    );
+
+    // sistem punya 2 anak KOMISI (integrations + church-info).
+    const sistem = rows.find((r) => r.type === 'parent' && r.parent.id === 'sistem');
+    expect(sistem && sistem.type === 'parent' ? sistem.children.length : 0).toBe(2);
+  });
+
+  it('BPMJ: hanya Regenerasi yang bergabung (sistem tinggal church-info)', () => {
+    const rows = buildPortalSidebarItems('BPMJ', ctx, false);
+    const parentIds = rows.filter((r) => r.type === 'parent').map((r) => r.parent.id);
+    expect(parentIds).toContain('regenerasi');
+    expect(parentIds).not.toContain('sistem');
+    expect(rows.some((r) => r.type === 'item' && r.item.id === 'church-info')).toBe(true);
   });
 
   it('findParentForTab menemukan parent dari tab anak', () => {

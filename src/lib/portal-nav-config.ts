@@ -170,7 +170,7 @@ export const PORTAL_NAV_PARENTS: PortalNavParentDef[] = [
 ];
 
 /** Rollout bertahap: grouping sidebar aktif untuk peran ini dulu. */
-export const PORTAL_NAV_GROUPED_ROLES: UserRole[] = ['COMMITTEE'];
+export const PORTAL_NAV_GROUPED_ROLES: UserRole[] = ['COMMITTEE', 'KOMISI', 'BPMJ'];
 
 /**
  * Baris sidebar: item tunggal, atau parent yang menampung beberapa anak.
