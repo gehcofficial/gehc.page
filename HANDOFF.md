@@ -13,7 +13,7 @@
 
 ### Next
 1. **Fase 3** — auto akses mingguan: `ensureWeeklyDivisions` (auto-create `EventDivision` 6 divisi) + visibilitas anggota divisi (`/api/me/divisions`).
-2. **AI key** — sinkron `OPENAI_API_KEY`/`GROQ_API_KEY` dari `.env` → Vercel Production+Preview + redeploy (Studio AI sedang gagal di prod).
+2. **AI key (SELESAI)** — `OPENAI_API_KEY`, `GROQ_API_KEY`, `AI_MODEL_MAIN`, `AI_MODEL_FALLBACK` disinkron dari `.env` → Vercel **Production + Preview** (skrip `scripts/sync-ai-keys-vercel.mjs`, `npm run env:sync-ai-keys`). Redeploy dipicu via push ini. (Catatan: `vercel env add` lambat ~40 dtk/key dan sempat `fetch failed` — perlu retry.)
 3. Sisa lain: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
 
 ### Fase 2 (SELESAI) — Studio ikut event

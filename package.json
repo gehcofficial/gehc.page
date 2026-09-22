@@ -18,6 +18,7 @@
     "env:sync-github-publish": "node scripts/sync-github-publish-vercel.mjs",
     "env:sync-gdrive-token": "node scripts/sync-gdrive-token-vercel.mjs",
     "env:sync-cron-secret": "node scripts/sync-cron-secret.mjs",
+    "env:sync-ai-keys": "node scripts/sync-ai-keys-vercel.mjs",
     "server": "node server/index.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
