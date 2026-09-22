@@ -34,6 +34,9 @@ export const portalId: typeof portalEn = {
     markAllRead: 'Tandai semua sudah dibaca',
     locked: 'Terkunci',
     logoutPortal: 'Keluar portal',
+    logoutAccount: 'Logout akun',
+    logoutAccountHint: 'Keluar dari akun ini — untuk ganti akun di perangkat yang sama.',
+    logoutAccountConfirm: 'Keluar dari akun ini? Anda perlu login lagi untuk masuk.',
   },
   search: {
     title: 'Cari fitur & panduan',

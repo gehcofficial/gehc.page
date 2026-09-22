@@ -1,43 +1,35 @@
-// Service Worker for GEHC Youth Portal PWA
-// Handles: app-shell freshness, offline fallback, push notifications, background sync.
+// Service Worker for GEHC Youth Portal PWA — PUSH-ONLY.
 //
-// Strategi cache (penting untuk sinkronisasi versi):
-// - Navigasi/HTML  : NETWORK-ONLY. TIDAK PERNAH menyajikan index.html dari cache,
-//   karena HTML lama menunjuk aset ber-hash yang sudah dihapus deploy baru →
-//   aset 404 → React gagal mount → "section hilang"/layar kosong di iOS Safari.
-//   Saat offline ditampilkan /offline.html statis, bukan app shell lama.
-// - Aset ber-hash  : stale-while-revalidate (aman karena nama file berubah tiap build).
-// - /api/*         : network-only (tidak pernah di-cache).
-// BUILD_ID disuntik saat build oleh plugin vite (lihat vite.config.ts) sehingga
-// byte file ini SELALU berubah tiap deploy → browser mendeteksi update SW.
+// PENTING (perbaikan berulang iOS/Safari): SW ini TIDAK lagi menangani `fetch`.
+// Sebelumnya SW menyimpan HTML/aset dan membalas `/api/*` dengan JSON 503 palsu
+// saat jaringan gagal. Di iOS Safari (yang agresif mematikan SW) itu menyebabkan:
+// bundle basi, "section hilang" (Info Event / materi Didaskalia), dan API seolah
+// kosong. Tanpa handler `fetch`, browser SELALU mengambil HTML/aset/API langsung
+// dari jaringan — tidak ada lagi cache basi maupun balasan palsu.
+//
+// Yang tersisa: install/activate (purge cache lama), push, klik notifikasi,
+// background sync, dan messaging. BUILD_ID tetap disuntik tiap deploy
+// (lihat vite.config.ts) agar update SW selalu terdeteksi.
 
 const BUILD_ID = '__BUILD_ID__';
-const CACHE_NAME = `gehc-${BUILD_ID}`;
-const PRECACHE = [
-  '/manifest.json',
-  '/offline.html',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-];
 
 const VAPID_PUBLIC_KEY = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
 
-// Install — precache hanya aset statis (BUKAN index.html).
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).catch(() => undefined)
-  );
-  // Tetap ambil alih segera: user yang masih terjebak di cache lama (gehc-v3)
-  // otomatis keluar dari cache basi pada navigasi berikutnya.
+// Install — tanpa precache; langsung ambil alih.
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Activate — buang semua cache versi lama.
+// Activate — HAPUS SEMUA cache lama (purge bundle basi) lalu ambil alih.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const names = await caches.keys();
-      await Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)));
+      try {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      } catch {
+        /* abaikan */
+      }
       await self.clients.claim();
       const clients = await self.clients.matchAll({ type: 'window' });
       for (const client of clients) client.postMessage({ type: 'SW_ACTIVATED', buildId: BUILD_ID });
@@ -45,93 +37,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-function isHtmlRequest(request) {
-  if (request.mode === 'navigate') return true;
-  const accept = request.headers.get('accept') || '';
-  return accept.includes('text/html');
-}
-
-function isHashedAsset(url) {
-  return /\/assets\//.test(url.pathname) || /\/icons\//.test(url.pathname);
-}
-
-// Fetch
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-
-  // Dev: jangan pernah cache chunk Vite.
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    event.respondWith(fetch(request));
-    return;
-  }
-
-  // API: network-only, fallback JSON offline.
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request).catch(() => new Response(
-        JSON.stringify({ error: 'Offline', offline: true }),
-        { headers: { 'Content-Type': 'application/json' }, status: 503 }
-      ))
-    );
-    return;
-  }
-
-  // Navigasi / HTML: NETWORK-ONLY — jangan pernah menyajikan dokumen basi.
-  if (isHtmlRequest(request)) {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' }).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const offline = await cache.match('/offline.html');
-        if (offline) return offline;
-        return new Response('Offline — sambungkan kembali lalu muat ulang.', {
-          status: 503,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        });
-      })
-    );
-    return;
-  }
-
-  // Aset ber-hash: stale-while-revalidate.
-  if (isHashedAsset(url)) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(request);
-        const network = fetch(request)
-          .then((res) => {
-            if (res.ok) cache.put(request, res.clone()).catch(() => undefined);
-            return res;
-          })
-          .catch(() => undefined);
-        return cached || (await network) || new Response('', { status: 504 });
-      })()
-    );
-    return;
-  }
-
-  // Sisanya: network-first, fallback cache.
-  event.respondWith(
-    (async () => {
-      try {
-        const fresh = await fetch(request);
-        if (fresh.ok && !request.url.endsWith('/sw.js')) {
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(request, fresh.clone()).catch(() => undefined);
-        }
-        return fresh;
-      } catch {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        throw new Error('offline');
-      }
-    })()
-  );
-});
 
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {

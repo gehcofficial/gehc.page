@@ -102,6 +102,7 @@ export const PortalLayout: React.FC = () => {
     setActiveUserRole,
     roleMissing,
     refreshAuthUser,
+    logoutSso,
   } = useApp();
   const { t, lang } = useLang();
 
@@ -309,6 +310,19 @@ export const PortalLayout: React.FC = () => {
     setShowSearch(false);
   };
 
+  /** Keluar dari akun (hapus sesi) → landing publik. Berbeda dari "Keluar portal". */
+  const handleLogoutAccount = async () => {
+    if (typeof window !== 'undefined' && !window.confirm(t.portal.common.logoutAccountConfirm)) return;
+    try {
+      await logoutSso();
+    } catch {
+      /* tetap arahkan ke landing */
+    }
+    setIsMobileMenuOpen(false);
+    setActiveView('public');
+    window.location.hash = '#/beyonders';
+  };
+
   if (showRolePicker && !isOnboarding) {
     return <RolePickerScreen />;
   }
@@ -339,7 +353,7 @@ export const PortalLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF9F5] flex flex-col md:flex-row text-[#1B1B1B]">
+    <div className="min-h-[100dvh] bg-[#FAF9F5] flex flex-col md:flex-row text-[#1B1B1B]">
       
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#D9D7D0] sticky top-0 z-40">
@@ -368,10 +382,10 @@ export const PortalLayout: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-screen">
+      <div className="flex flex-1 min-h-[100dvh]">
         {/* Sidebar Navigation */}
         <aside
-          className={`fixed md:sticky top-0 left-0 z-30 h-screen bg-[#FAF9F5] border-r border-[#D9D7D0]/60 flex flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          className={`fixed md:sticky top-0 left-0 z-30 h-[100dvh] bg-[#FAF9F5] border-r border-[#D9D7D0]/60 flex flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             collapsed ? 'w-[68px]' : 'w-72'
           } ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
@@ -626,7 +640,7 @@ export const PortalLayout: React.FC = () => {
           </nav>
 
           {/* Zone 3: Bottom — User Card + Logout (fixed) */}
-          <div className={`shrink-0 border-t border-[#D9D7D0]/60 ${collapsed ? 'px-2.5 py-3' : 'px-4 py-4'}`}>
+          <div className={`shrink-0 border-t border-[#D9D7D0]/60 pb-[calc(1rem+env(safe-area-inset-bottom))] ${collapsed ? 'px-2.5 pt-3' : 'px-4 pt-4'}`}>
             {collapsed ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="relative">
@@ -643,7 +657,15 @@ export const PortalLayout: React.FC = () => {
                     setActiveView('public');
                     addToast({ type: 'info', title: t.portal.common.sessionDoneTitle, description: t.portal.common.sessionDoneBody });
                   }}
-                  className="w-9 h-9 rounded-xl bg-gray-100/80 hover:bg-red-50 flex items-center justify-center text-[#8C8880] hover:text-red-500 transition-all duration-200"
+                  className="w-9 h-9 rounded-xl bg-gray-100/80 hover:bg-[#F3F1EC] flex items-center justify-center text-[#8C8880] transition-all duration-200"
+                  title={t.portal.common.logoutPortal}
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => void handleLogoutAccount()}
+                  className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-all duration-200"
+                  title={t.portal.common.logoutAccount}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -673,10 +695,18 @@ export const PortalLayout: React.FC = () => {
                     setActiveView('public');
                     addToast({ type: 'info', title: t.portal.common.sessionDoneTitle, description: t.portal.common.sessionDoneBody });
                   }}
-                  className="w-full py-2.5 rounded-xl bg-gray-100/80 hover:bg-red-50 text-xs font-bold text-[#8C8880] hover:text-red-500 transition-all duration-200 flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 rounded-xl bg-gray-100/80 hover:bg-[#F3F1EC] text-xs font-bold text-[#8C8880] transition-all duration-200 flex items-center justify-center gap-1.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>{t.portal.common.logoutPortal}</span>
+                </button>
+                <button
+                  onClick={() => void handleLogoutAccount()}
+                  className="w-full py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-xs font-bold text-red-600 transition-all duration-200 flex items-center justify-center gap-1.5"
+                  title={t.portal.common.logoutAccountHint}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{t.portal.common.logoutAccount}</span>
                 </button>
               </div>
             )}
@@ -746,7 +776,7 @@ export const PortalLayout: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full">
           <MustChangePasswordGate />
           <PortalWelcomeModal />
           <div className="space-y-3 mb-4">

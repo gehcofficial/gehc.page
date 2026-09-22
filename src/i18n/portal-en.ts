@@ -40,6 +40,9 @@ export const portalEn = {
     markAllRead: 'Mark all as read',
     locked: 'Locked',
     logoutPortal: 'Leave portal',
+    logoutAccount: 'Log out account',
+    logoutAccountHint: 'Sign out of this account — to switch account on this device.',
+    logoutAccountConfirm: 'Log out of this account? You will need to sign in again.',
   },
   search: {
     title: 'Search features & guides',
