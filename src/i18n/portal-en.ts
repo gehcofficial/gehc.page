@@ -160,7 +160,7 @@ export const portalEn = {
     groupsMonitoringMine: 'My Group Monitoring',
     'beyonders-leaders': '10 House Leaders',
     jethro: 'Group Regeneration',
-    'content-weekly': 'Youth Bulletin',
+    'content-weekly': 'Bulletin',
     'content-activities': 'Public Agenda',
     'content-testimonials': 'Testimonials',
     announcements: 'Announcements',
@@ -383,6 +383,12 @@ export const portalEn = {
     statusDone: 'Done',
     confirmed: 'Duty confirmed',
     doneToast: 'Duty marked done',
+  },
+  wartaWorkspace: {
+    tabPublish: 'Publication',
+    tabArchive: 'Archive & General',
+    hintPublish: 'Main bulletin editor: DRAFT → published flow, synced to the public page.',
+    hintArchive: 'General/archive bulletin items (no division flow).',
   },
   events: {
     tabEvents: 'Working Team events',

@@ -30,7 +30,7 @@ const ROLE_NAV: Record<string, { menus: string[]; roleLabel?: string; submenu?: 
   'theodore.kowaas@gehc.demo': {
     roleLabel: 'Tim Kerja',
     menus: ['Akun Saya', 'Dashboard & Ringkasan', 'Konten', 'Regenerasi'],
-    submenu: { parent: 'Konten', child: 'Kelola Warta Pemuda' },
+    submenu: { parent: 'Konten', child: 'Warta' },
   },
 };
 

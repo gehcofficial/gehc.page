@@ -2,7 +2,7 @@
 import { useApp } from '../../context/AppContext';
 import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
-import { ManageWeeklyInfo } from './ManageWeeklyInfo';
+import { WartaWorkspacePanel } from './WartaWorkspacePanel';
 import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
@@ -849,7 +849,7 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'content-weekly' && (
             <div className="space-y-4">
               <PanelGuide guideId="content-weekly" />
-              <ManageWeeklyInfo />
+              <WartaWorkspacePanel />
             </div>
           )}
           {activeTab === 'content-activities' && (

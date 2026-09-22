@@ -154,7 +154,7 @@ export const portalId: typeof portalEn = {
     groupsMonitoringMine: 'Monitoring Kelompok Saya',
     'beyonders-leaders': 'Pemimpin 10 Rumah',
     jethro: 'Regenerasi Kelompok',
-    'content-weekly': 'Kelola Warta Pemuda',
+    'content-weekly': 'Warta',
     'content-activities': 'Kelola Agenda Kegiatan',
     'content-testimonials': 'Kelola Testimoni',
     announcements: 'Pengumuman',
@@ -377,6 +377,12 @@ export const portalId: typeof portalEn = {
     statusDone: 'Selesai',
     confirmed: 'Tugas dikonfirmasi',
     doneToast: 'Tugas ditandai selesai',
+  },
+  wartaWorkspace: {
+    tabPublish: 'Publikasi',
+    tabArchive: 'Arsip & Umum',
+    hintPublish: 'Editor utama warta: alur DRAFT → terbit, tersinkron ke halaman publik.',
+    hintArchive: 'Item warta umum/arsip (tanpa alur divisi).',
   },
   events: {
     tabEvents: 'Event Tim Kerja',

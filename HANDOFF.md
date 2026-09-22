@@ -1,6 +1,31 @@
 # GEHC Portal — Handoff
 
-## Current — Kanal WhatsApp: kepemimpinan Mentor & Koordinator Divisi (22 Sep 2026)
+## Current — P2-4: satu destinasi Warta (22 Sep 2026)
+
+**Goal:** Satukan 2 editor warta (ManageWeeklyInfo vs WartaPublikTab) jadi satu alur.
+
+**Done:**
+- **`WartaWorkspacePanel.tsx`** (baru): sub-tab **Publikasi** (`WartaPublikTab`, editor utama + sync ke publik) dan **Arsip & Umum** (`ManageWeeklyInfo`).
+- **`PortalLayout`**: tab `content-weekly` merender `WartaWorkspacePanel`.
+- **Nav**: label `content-weekly` → **"Warta"** (ID) / "Bulletin" (EN); roles `['COMMITTEE']` → `['KOMISI','COMMITTEE']`.
+- **i18n**: `portal.wartaWorkspace` (tab + hint) di ID/EN.
+- Divisi (Didaskalia) tidak diubah; `WartaPublikTab.division` ternyata tidak dipakai → aman di luar divisi.
+- **Slide ProPresenter** (artefak episode lalu) di-commit: `public/presenter/*` + `scripts/slides/*` + `scripts/render-slides.mjs`.
+- Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · e2e nav lolos (tech, stevania, theodore) · render `#/portal/{committee,komisi}/content-weekly` menampilkan kedua sub-tab tanpa error.
+
+### Next
+1. Uji di prod: buka **Warta** (grup Konten) sebagai Komisi/Tim Kerja → isi via tab Publikasi; cek landing.
+2. **Task 3** (menunggu): skrip sinkron `GroupMember` mentor — dry-run staging dulu.
+3. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Kanal WhatsApp: kepemimpinan Mentor & Koordinator Divisi (22 Sep 2026)
 
 **Goal:** Tambah kanal di tab **Kepemimpinan** (Kanal WhatsApp): "Mentor & Co-Mentor" dan **satu** kanal "Koordinator Panca Tugas" (isi: HOD + BOD).
 
