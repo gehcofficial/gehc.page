@@ -68,6 +68,12 @@ export function isPitchHash(hash: string): boolean {
   return h === '#/pitch' || h.startsWith('#/pitch/') || h.startsWith('#/pitch?');
 }
 
+/** Halaman presentasi materi Didaskalia (per pekan/hari). */
+export function isMaterialHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/materi' || h.startsWith('#/materi/') || h.startsWith('#/materi?');
+}
+
 /** Presentasi Mentor & Co-Mentor (regenerasi + fitur portal). */
 export function isMentorPitchHash(hash: string): boolean {
   const h = String(hash || '');

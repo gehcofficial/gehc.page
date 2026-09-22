@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isMentorPitchHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isMaterialHash, isMentorPitchHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
@@ -14,6 +14,7 @@ const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
 const UnitComingSoon = React.lazy(() => import('./components/hub/UnitComingSoon.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
+const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hostUnit = resolveHostUnit(host);
@@ -52,6 +53,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <PitchDeck />
+      </Suspense>
+    );
+  }
+
+  // Presentasi materi Didaskalia: standalone, wajib login (RBAC dijaga endpoint).
+  if (isMaterialHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <DidaskaliaPresentation />
       </Suspense>
     );
   }

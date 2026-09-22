@@ -27,6 +27,15 @@ export const RITUAL_LABELS = {
 
 export const DAY_LABELS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+/** Lima section baku RHB harian (urutan tetap). */
+export const RHB_SECTIONS = [
+  { key: 'PENGANTAR', title: 'Pengantar' },
+  { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+];
+
 const SYSTEM =
   'Kamu adalah asisten kurikulum pemuridan "Didaskalia" untuk Komisi Pemuda GMIM Eben Haezer Cikarang (GEHC Youth "Beyonders"). ' +
   'Audiens: pemuda dan anak rantau di Cikarang. Gaya: hangat, jelas, Alkitabiah, kontekstual, tidak menggurui. ' +
@@ -74,6 +83,19 @@ function asStrArray(v, max = 12) {
   return v.map((x) => asStr(x)).filter(Boolean).slice(0, max);
 }
 
+function clampRhbSections(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return RHB_SECTIONS.map((def) => {
+    const found = list.find((x) => x && typeof x === 'object' && String(x.key || '').toUpperCase() === def.key) || {};
+    return {
+      key: def.key,
+      title: asStr(found.title, def.title) || def.title,
+      body: asStr(found.body),
+      imageFileId: '',
+    };
+  });
+}
+
 function clampPaths(raw) {
   const list = Array.isArray(raw) ? raw : [];
   const out = [];
@@ -95,6 +117,8 @@ function clampPaths(raw) {
       fgdQuestions: asStrArray(p.fgdQuestions, 6),
       bridge: asStr(p.bridge),
       imageStem: asStr(p.imageStem),
+      coverImageFileId: '',
+      rhbSections: clampRhbSections(p.rhbSections),
     });
   }
   return out;
@@ -177,6 +201,7 @@ export async function generateWeekDraft(input) {
     '- Hasilkan TEPAT 7 Path yang saling terhubung dan berurutan (Path 1 sampai 7).',
     '- Path 7 adalah KESIMPULAN minggu ini sekaligus JEMBATAN ke tema minggu berikutnya.',
     '- Tiap Path wajib punya: title, scriptureRef, scriptureText (ringkas), homileticLens (2-3 metode), hookQuestion (pertanyaan pembuka mudah), illustration (ilustrasi singkat relevan), reflection (2-4 paragraf pendek), observeQ/interpretQ/applyQ (pertanyaan diskusi bertingkat), fgdQuestions (2-4 pertanyaan), bridge (kalimat jembatan ke Path berikutnya).',
+    '- Tiap Path juga wajib punya "rhbSections": TEPAT 5 section RHB harian berurutan dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. Masing-masing {key, title, body} dengan body 1-3 paragraf pendek (boleh dipisah baris kosong). "Makna dan Implikasi bagi Beyonders" harus konkret untuk pemuda/anak rantau; "Diskusi Kelompok" berisi 3-5 pertanyaan.',
     '- Kombinasikan metode berkhotbah dari 7 pendekatan (Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis) sesuai kebutuhan; jelaskan pilihan pada sermon.rationale.',
     '- Sertakan "methodMix": 2-3 metode dari daftar 7 dengan persentase (total ~100) dan catatan singkat alasan porsinya.',
     '- Manfaatkan "Catatan tim/diskusi" bila ada sebagai masukan nyata dari tim Didaskalia.',
@@ -185,7 +210,7 @@ export async function generateWeekDraft(input) {
     '- Bahasa Indonesia yang hangat dan jelas.',
     '',
     'Balas HANYA dengan JSON valid (tanpa markdown) dengan bentuk:',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":""}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
+    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna dan Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
   ].join('\n');
 
   const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });

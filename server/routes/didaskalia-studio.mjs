@@ -18,6 +18,7 @@ import {
   RITUAL_LABELS,
   HOMILETIC_METHODS,
 } from '../lib/didaskalia-ai.mjs';
+import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 
 const ymRe = /^\d{4}-\d{2}$/;
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
@@ -32,7 +33,58 @@ const RITUAL_REF_BY_TYPE = {
 
 const DOCS = ['pembekalan', 'khutbah', 'rhb'];
 
+/** Lima section baku RHB harian (urutan tetap) — sinkron dengan src/lib/didaskalia.ts. */
+const RHB_SECTION_DEFS = [
+  { key: 'PENGANTAR', title: 'Pengantar' },
+  { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+];
+
 const uid = () => crypto.randomBytes(8).toString('hex');
+
+function str(v, max = 8000) {
+  return typeof v === 'string' ? v.slice(0, max) : '';
+}
+
+/** Normalisasi 5 section RHB: key & urutan tetap. */
+function sanitizeRhbSections(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return RHB_SECTION_DEFS.map((def) => {
+    const found = list.find((x) => x && typeof x === 'object' && x.key === def.key) || {};
+    return {
+      key: def.key,
+      title: str(found.title, 190).trim() || def.title,
+      body: str(found.body, 20000),
+      imageFileId: str(found.imageFileId, 190).trim(),
+    };
+  });
+}
+
+function sanitizePaths(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 7).map((p, i) => ({
+    ...(p && typeof p === 'object' ? p : {}),
+    pathIndex: Number(p?.pathIndex) || i + 1,
+    rhbSections: sanitizeRhbSections(p?.rhbSections),
+  }));
+}
+
+function sanitizeImages(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const mapOfStr = (v) => {
+    const o = v && typeof v === 'object' ? v : {};
+    const out = {};
+    for (const [k, val] of Object.entries(o)) if (typeof val === 'string' && val) out[k] = val.slice(0, 190);
+    return out;
+  };
+  const rhb = {};
+  if (r.rhb && typeof r.rhb === 'object') {
+    for (const [day, secs] of Object.entries(r.rhb)) rhb[day] = mapOfStr(secs);
+  }
+  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb };
+}
 
 export function hashContent(obj) {
   return crypto.createHash('sha256').update(JSON.stringify(obj ?? null)).digest('hex').slice(0, 16);
@@ -52,12 +104,15 @@ function defaultStudio() {
     sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
     discussion: [],
     rituals: [],
+    presentation: {},
     render: {},
   };
 }
 
 function sanitizeStudio(raw) {
   const s = raw && typeof raw === 'object' ? { ...defaultStudio(), ...raw } : defaultStudio();
+  s.paths = sanitizePaths(s.paths);
+  s.presentation = sanitizeImages(s.presentation);
   return s;
 }
 
@@ -275,7 +330,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (week) => {
           const st = { ...week.studio };
-          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals']) {
+          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals', 'presentation']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
           if (st.status && st.status === 'REVIEW' && !st.reviewerId) st.reviewerId = req.authUser?.id || null;
@@ -411,6 +466,135 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     })
   );
 
+  // ---------- Presentasi materi (deck web per pekan/hari) ----------
+  const PRESENTATION_IMAGE_SUBFOLDER = '04 Presentasi';
+
+  function effectiveRoles(req) {
+    if (req.activeRole) return [req.activeRole];
+    return (req.authUser?.roles || []).map((r) => r.role);
+  }
+
+  /** RBAC materi: 01/02 mentor+staf, 03 beyonders+staf (mengikuti topeng peran aktif). */
+  function canViewDoc(req, doc) {
+    const roles = effectiveRoles(req);
+    const isPriv = ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].some((r) => roles.includes(r));
+    const isMentor = roles.includes('MENTOR') || roles.includes('CO_MENTOR');
+    const isBeyonder = isMentor || roles.includes('MENTEE');
+    if (doc === 'rhb') return isBeyonder || isPriv;
+    return isMentor || isPriv;
+  }
+
+  // GET /api/didaskalia/presentation/2026-09/1?doc=pembekalan|khutbah|rhb[&day=3]
+  app.get(
+    '/api/didaskalia/presentation/:yearMonth/:weekIndex',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      const doc = String(req.query?.doc || 'pembekalan');
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+      if (!DOCS.includes(doc)) return res.status(400).json({ error: 'Jenis materi tidak valid.' });
+      if (!canViewDoc(req, doc)) {
+        return res.status(403).json({
+          error: doc === 'rhb' ? 'RHB hanya untuk Beyonders (mentor/mentee).' : 'Materi ini hanya untuk Mentor/Co-mentor & staf.',
+        });
+      }
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const studio = sanitizeStudio(week.studio);
+      const render = studio.render?.[doc] || null;
+      res.json({
+        doc,
+        meta: {
+          weekIndex: week.index,
+          date: week.date || '',
+          theme: week.mentoringTheme || week.servingTheme || week.theme || '',
+        },
+        studio,
+        published: studio.status === 'PUBLISHED' && Boolean(render),
+        version: Number(render?.version) || 1,
+        snapshot: render?.snapshot || null,
+      });
+    })
+  );
+
+  // GET /api/didaskalia/asset/:fileId — proxy gambar (login-gated, tanpa share publik)
+  app.get(
+    '/api/didaskalia/asset/:fileId',
+    requireRole(),
+    wrap(async (req, res) => {
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const fileId = String(req.params.fileId || '');
+      if (!fileId) return res.status(400).json({ error: 'fileId wajib.' });
+      try {
+        const { meta, stream } = await getFileStream(fileId);
+        res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'private, max-age=3600');
+        stream.on('error', () => { try { res.end(); } catch { /* abaikan */ } });
+        stream.pipe(res);
+      } catch {
+        res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+      }
+    })
+  );
+
+  // POST /api/didaskalia/studio/:yearMonth/:weekIndex/presentation-image
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/presentation-image',
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const { filename, mimetype, data } = req.body || {};
+      if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
+      if (typeof data === 'string' && data.length > 6_000_000) return res.status(413).json({ error: 'Gambar terlalu besar (maks ~4MB).' });
+      const mime = String(mimetype || '');
+      if (!mime.startsWith('image/')) return res.status(400).json({ error: 'Hanya berkas gambar yang diizinkan.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const event = await resolveEventId(prisma, week.date);
+      if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini. Buat dulu di Ibadah Mingguan.' });
+
+      try {
+        let division = await prisma.eventDivision.findUnique({
+          where: { eventId_division: { eventId: event.id, division: 'DIDASKALIA' } },
+          select: { id: true, driveFolderId: true },
+        });
+        if (!division?.driveFolderId) {
+          const { createEventFolder } = await import('../gdrive-events.mjs');
+          const ev = await prisma.eventProgram.findUnique({ where: { id: event.id } });
+          const fid = ev ? await createEventFolder(ev, 'DIDASKALIA') : null;
+          if (fid && division) await prisma.eventDivision.update({ where: { id: division.id }, data: { driveFolderId: fid } }).catch(() => null);
+          division = { id: division?.id || null, driveFolderId: fid };
+        }
+        if (!division?.driveFolderId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
+
+        const subs = await listFolders(division.driveFolderId, 100);
+        let target = subs.find((f) => String(f.name || '').toLowerCase() === PRESENTATION_IMAGE_SUBFOLDER.toLowerCase());
+        if (!target) target = await createFolder(division.driveFolderId, PRESENTATION_IMAGE_SUBFOLDER);
+        const parentId = target?.id || division.driveFolderId;
+
+        const buffer = Buffer.from(data, 'base64');
+        if (buffer.length > 5_000_000) return res.status(413).json({ error: 'Gambar >5MB tidak didukung.' });
+        const file = await uploadFile(parentId, { originalname: filename, mimetype: mime, buffer });
+        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, name: file.name });
+      } catch (e) {
+        res.status(500).json({ error: `Gagal mengunggah gambar: ${String(e.message || e).slice(0, 200)}` });
+      }
+    })
+  );
+
   // ---------- Publish: catat versi + file Drive ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/publish',
@@ -441,6 +625,19 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
               driveFolder: req.body?.driveFolder || prev.driveFolder || null,
               files,
               contentHash: hash,
+              snapshot: {
+                doc,
+                weekIndex: Number(w.index) || 0,
+                date: w.date || '',
+                theme: w.mentoringTheme || w.servingTheme || w.theme || '',
+                chapterNo: s.chapterNo || '',
+                fundamentalFirman: s.fundamentalFirman || { ref: '', text: '' },
+                kitabFokus: s.kitabFokus || '',
+                methodMix: Array.isArray(s.methodMix) ? s.methodMix : [],
+                paths: sanitizePaths(s.paths),
+                sermon: s.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+                images: sanitizeImages(s.presentation),
+              },
             },
           };
           if (doc === 'pembekalan' || doc === 'rhb') s.status = 'PUBLISHED';

@@ -1,0 +1,300 @@
+/**
+ * Presentasi Didaskalia — template tetap (kode) + isi dinamis dari Studio.
+ *
+ * Deck dibangun dari konten yang sama dengan PDF, sehingga web & PDF identik.
+ * Rute: #/materi/<doc>/<YYYY-MM>/<pekan>[/<hari>]
+ */
+import {
+  DAY_LABELS,
+  RHB_SECTIONS,
+  ensurePaths,
+  ensureRhbSections,
+  type DidaskaliaPath,
+  type DidaskaliaPresentationImages,
+  type DidaskaliaRhbSection,
+  type DidaskaliaSermon,
+  type DidaskaliaStudio,
+} from './didaskalia';
+
+export type MaterialDoc = 'pembekalan' | 'khutbah' | 'rhb';
+
+export const MATERIAL_DOCS: readonly MaterialDoc[] = ['pembekalan', 'khutbah', 'rhb'];
+
+export const MATERIAL_DOC_LABEL: Record<MaterialDoc, string> = {
+  pembekalan: 'Modul Pembekalan Mentor & Co-Mentor',
+  khutbah: 'Ringkasan Khotbah',
+  rhb: 'RHB 7 Hari',
+};
+
+/** Akses dokumen: 01/02 = mentor+staf, 03 = beyonders+staf. */
+export function docAccess(doc: MaterialDoc): 'mentor' | 'beyonder' {
+  return doc === 'rhb' ? 'beyonder' : 'mentor';
+}
+
+export type DeckSlide = {
+  id: string;
+  kind: 'cover' | 'section' | 'path' | 'closing';
+  kicker?: string;
+  title: string;
+  subtitle?: string;
+  imageFileId?: string;
+  paragraphs?: string[];
+  bullets?: string[];
+  fields?: { label: string; value: string }[];
+  callout?: { label: string; value: string };
+};
+
+export type PresentationContent = {
+  weekIndex: number;
+  date: string;
+  theme: string;
+  chapterNo: string;
+  fundamentalFirman: { ref: string; text: string };
+  kitabFokus: string;
+  paths: DidaskaliaPath[];
+  sermon: DidaskaliaSermon;
+  images: DidaskaliaPresentationImages;
+};
+
+export type ParsedMaterialHash = {
+  doc: MaterialDoc;
+  yearMonth: string;
+  weekIndex: number;
+  dayIndex?: number;
+};
+
+const YM_RE = /^\d{4}-\d{2}$/;
+
+export function parseMaterialHash(hash: string): ParsedMaterialHash | null {
+  const raw = String(hash || '').replace(/^#\/?/, '').split('?')[0];
+  const seg = raw.split('/').filter(Boolean);
+  if (seg[0] !== 'materi') return null;
+  const doc = seg[1] as MaterialDoc;
+  if (!MATERIAL_DOCS.includes(doc)) return null;
+  const yearMonth = seg[2] || '';
+  if (!YM_RE.test(yearMonth)) return null;
+  const weekIndex = Number(seg[3]);
+  if (!Number.isInteger(weekIndex) || weekIndex < 1 || weekIndex > 6) return null;
+  const dayIndex = seg[4] ? Number(seg[4]) : undefined;
+  if (dayIndex !== undefined && (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > 7)) return null;
+  return { doc, yearMonth, weekIndex, dayIndex };
+}
+
+export function materialHashPath(r: ParsedMaterialHash): string {
+  const base = `#/materi/${r.doc}/${r.yearMonth}/${r.weekIndex}`;
+  return r.dayIndex ? `${base}/${r.dayIndex}` : base;
+}
+
+export function materialAbsoluteUrl(r: ParsedMaterialHash, origin?: string): string {
+  const base = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://youth.gehc.page');
+  return `${base}/${materialHashPath(r)}`;
+}
+
+/** URL proxy gambar (SA-backed, login-gated) — bukan link Drive publik. */
+export function imageAssetUrl(fileId?: string): string | undefined {
+  return fileId ? `/api/didaskalia/asset/${encodeURIComponent(fileId)}` : undefined;
+}
+
+function toParagraphs(text?: string): string[] {
+  return String(text || '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** Section RHB efektif: pakai tersimpan; bila kosong turunkan dari field lama. */
+export function effectiveRhbSections(path: DidaskaliaPath): DidaskaliaRhbSection[] {
+  const saved = ensureRhbSections(path.rhbSections);
+  const anyFilled = saved.some((s) => s.body.trim() || s.imageFileId);
+  if (anyFilled) return saved;
+  const legacy: Record<string, string> = {
+    PENGANTAR: [path.hookQuestion, path.illustration].filter(Boolean).join('\n\n'),
+    PEMBAHASAN_TEMATIS: [path.scriptureText, path.interpretQ].filter(Boolean).join('\n\n'),
+    MAKNA_IMPLIKASI: path.applyQ || '',
+    REFLEKSI_PRIBADI: path.reflection || '',
+    DISKUSI_KELOMPOK: (path.fgdQuestions || []).join('\n'),
+  };
+  return saved.map((s) => ({ ...s, body: legacy[s.key] || s.body }));
+}
+
+function weekCoverSubtitle(content: PresentationContent): string {
+  return [content.date, content.kitabFokus].filter(Boolean).join(' · ');
+}
+
+export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
+  const { paths, images } = content;
+  const slides: DeckSlide[] = [
+    {
+      id: 'cover',
+      kind: 'cover',
+      kicker: `Modul Pembekalan · Pekan ${content.weekIndex}`,
+      title: content.theme || content.kitabFokus || `Pekan ${content.weekIndex}`,
+      subtitle: weekCoverSubtitle(content),
+      imageFileId: images.cover,
+    },
+    {
+      id: 'panduan',
+      kind: 'section',
+      kicker: 'Panduan Pembekalan',
+      title: 'Panduan Pembekalan',
+      paragraphs: [
+        'Modul ini menuntun mentor & co-mentor menyiapkan pertemuan kelompok: mendaraskan firman, menuntun diskusi, lalu menutup dengan doa.',
+        'Gunakan alur di halaman berikut. Setiap Path memuat nats, lensa homiletik, pertanyaan bertingkat, dan jembatan ke Path berikutnya.',
+      ],
+    },
+    {
+      id: 'alur',
+      kind: 'section',
+      kicker: 'Alur Diskusi',
+      title: 'Alur Diskusi (30–45 menit)',
+      bullets: [
+        'Hook — pertanyaan pembuka yang mudah',
+        'Ilustrasi — cerita singkat yang relevan',
+        'Amati teks (observe)',
+        'Pahami makna (interpret)',
+        'Terapkan (apply)',
+        'Jembatan ke Path berikutnya',
+      ],
+    },
+  ];
+
+  paths.forEach((p, i) => {
+    slides.push({
+      id: `path-${i}`,
+      kind: 'path',
+      kicker: `Path ${p.pathIndex} · ${p.dayLabel}`,
+      title: p.title,
+      imageFileId: images.paths?.[String(p.pathIndex)] || p.coverImageFileId || undefined,
+      fields: [
+        p.scriptureRef ? { label: 'Ayat', value: p.scriptureRef } : null,
+        p.homileticLens.length ? { label: 'Lensa', value: p.homileticLens.join(' · ') } : null,
+        p.hookQuestion ? { label: 'Pertanyaan Pembuka', value: p.hookQuestion } : null,
+        p.illustration ? { label: 'Ilustrasi', value: p.illustration } : null,
+        p.reflection ? { label: 'Perenungan', value: p.reflection } : null,
+      ].filter(Boolean) as { label: string; value: string }[],
+      callout: p.scriptureText ? { label: 'Nats', value: p.scriptureText } : undefined,
+      bullets: [
+        p.observeQ ? `Amati: ${p.observeQ}` : '',
+        p.interpretQ ? `Pahami: ${p.interpretQ}` : '',
+        p.applyQ ? `Terapkan: ${p.applyQ}` : '',
+        ...(p.fgdQuestions || []),
+      ].filter(Boolean),
+    });
+  });
+
+  slides.push({
+    id: 'closing',
+    kind: 'closing',
+    kicker: 'Penutup',
+    title: 'Tutup dengan doa syafaat',
+    paragraphs: [
+      'Rangkum perjalanan 7 Path minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
+    ],
+  });
+  return slides;
+}
+
+export function buildRhbDayDeck(content: PresentationContent, dayIndex: number): DeckSlide[] {
+  const paths = content.paths;
+  const path = paths[dayIndex - 1];
+  if (!path) return [];
+  const sections = effectiveRhbSections(path);
+  const perDay = content.images.rhb?.[String(dayIndex)] || {};
+  const slides: DeckSlide[] = [
+    {
+      id: 'cover',
+      kind: 'cover',
+      kicker: `RHB · Pekan ${content.weekIndex} · ${path.dayLabel || DAY_LABELS[dayIndex - 1]}`,
+      title: path.title,
+      subtitle: [content.chapterNo, path.scriptureRef].filter(Boolean).join(' · '),
+      imageFileId: perDay.cover || path.coverImageFileId || undefined,
+    },
+  ];
+  sections.forEach((s, i) => {
+    const paragraphs = toParagraphs(s.body);
+    slides.push({
+      id: `sec-${s.key}`,
+      kind: 'section',
+      kicker: `Hari ${dayIndex} · ${path.dayLabel || DAY_LABELS[dayIndex - 1]}`,
+      title: s.title,
+      imageFileId: perDay[s.key] || s.imageFileId || undefined,
+      paragraphs,
+      bullets: s.key === 'DISKUSI_KELOMPOK' && !paragraphs.length ? path.fgdQuestions || [] : undefined,
+      callout: i === 0 && path.scriptureText ? { label: path.scriptureRef || 'Nats', value: path.scriptureText } : undefined,
+    });
+  });
+  slides.push({
+    id: 'closing',
+    kind: 'closing',
+    kicker: 'Besok',
+    title: 'Jembatan ke hari berikutnya',
+    paragraphs: [path.bridge || 'Teruskan perjalanan RHB besok dengan hati yang terbuka.'],
+  });
+  return slides;
+}
+
+export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
+  const { sermon, images } = content;
+  const slides: DeckSlide[] = [
+    {
+      id: 'cover',
+      kind: 'cover',
+      kicker: `Ringkasan Khotbah · Pekan ${content.weekIndex}`,
+      title: content.theme || `Pekan ${content.weekIndex}`,
+      subtitle: weekCoverSubtitle(content),
+      imageFileId: images.cover,
+    },
+    {
+      id: 'inti',
+      kind: 'section',
+      kicker: 'Ringkasan',
+      title: 'Inti Khotbah',
+      paragraphs: toParagraphs(sermon.summary),
+      callout: sermon.rationale ? { label: 'Pendekatan & Metode', value: sermon.rationale } : undefined,
+    },
+  ];
+  (sermon.slideOutline || []).forEach((s, i) => {
+    slides.push({
+      id: `slide-${i}`,
+      kind: 'section',
+      kicker: `Slide ${i + 1}`,
+      title: s.title,
+      bullets: s.bullets,
+      callout: s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
+    });
+  });
+  return slides;
+}
+
+export function buildDeck(doc: MaterialDoc, content: PresentationContent, dayIndex?: number): DeckSlide[] {
+  if (doc === 'pembekalan') return buildPembekalanDeck(content);
+  if (doc === 'khutbah') return buildKhutbahDeck(content);
+  return buildRhbDayDeck(content, dayIndex || 1);
+}
+
+/** Ringkasan 7 hari untuk halaman indeks RHB. */
+export function rhbDayList(content: PresentationContent): { dayIndex: number; dayLabel: string; title: string; ref: string }[] {
+  return content.paths.map((p, i) => ({
+    dayIndex: i + 1,
+    dayLabel: p.dayLabel || DAY_LABELS[i],
+    title: p.title,
+    ref: p.scriptureRef,
+  }));
+}
+
+/** Konten presentasi dari studio (live). */
+export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string): PresentationContent {
+  return {
+    weekIndex,
+    date,
+    theme,
+    chapterNo: studio.chapterNo || '',
+    fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
+    kitabFokus: studio.kitabFokus || '',
+    paths: ensurePaths(studio),
+    sermon: studio.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+    images: studio.presentation || {},
+  };
+}
+
+export { RHB_SECTIONS };

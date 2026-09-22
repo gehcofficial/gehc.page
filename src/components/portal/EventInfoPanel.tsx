@@ -335,7 +335,7 @@ export const EventInfoPanel: React.FC = () => {
       )}
 
       {/* Materi Didaskalia event ini */}
-      <EventDidaskaliaMaterials eventId={ev.id} eventName={ev.name} />
+          <EventDidaskaliaMaterials eventId={ev.id} eventName={ev.name} eventDate={ev.eventDate} />
     </div>
   );
 };

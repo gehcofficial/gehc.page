@@ -24,6 +24,25 @@ export const RITUAL_REF_BY_TYPE: Record<RitualType, string> = {
 
 export const DAY_LABELS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+/** Lima section baku RHB harian (urutan tetap). */
+export const RHB_SECTIONS = [
+  { key: 'PENGANTAR', title: 'Pengantar' },
+  { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+] as const;
+
+export type RhbSectionKey = (typeof RHB_SECTIONS)[number]['key'];
+
+/** Section RHB: teks + gambar opsional (fileId Drive). */
+export type DidaskaliaRhbSection = {
+  key: RhbSectionKey;
+  title: string;
+  body: string;
+  imageFileId?: string;
+};
+
 export type DidaskaliaPath = {
   pathIndex: number;
   dayLabel: string;
@@ -40,6 +59,17 @@ export type DidaskaliaPath = {
   fgdQuestions: string[];
   bridge: string;
   imageStem: string;
+  /** Hero hari (opsional) untuk deck RHB. */
+  coverImageFileId?: string;
+  /** 5 section RHB harian. */
+  rhbSections?: DidaskaliaRhbSection[];
+};
+
+/** Gambar presentasi per dokumen: cover + per-path + per-section RHB. */
+export type DidaskaliaPresentationImages = {
+  cover?: string;
+  paths?: Record<string, string>;
+  rhb?: Record<string, Record<string, string>>;
 };
 
 export type DidaskaliaSlide = { title: string; bullets: string[]; visualNote: string };
@@ -81,6 +111,23 @@ export type DidaskaliaRenderMeta = {
   driveFolder?: string | null;
   files: DidaskaliaRenderFile[];
   contentHash?: string | null;
+  /** Snapshot konten saat publish (freeze) — dipakai deck presentasi. */
+  snapshot?: DidaskaliaPresentationSnapshot | null;
+};
+
+/** Snapshot konten yang dibekukan saat publish. */
+export type DidaskaliaPresentationSnapshot = {
+  doc: 'pembekalan' | 'khutbah' | 'rhb';
+  weekIndex: number;
+  date: string;
+  theme: string;
+  chapterNo: string;
+  fundamentalFirman: { ref: string; text: string };
+  kitabFokus: string;
+  methodMix: DidaskaliaMethodMix[];
+  paths: DidaskaliaPath[];
+  sermon: DidaskaliaSermon;
+  images: DidaskaliaPresentationImages;
 };
 
 export type DidaskaliaStudio = {
@@ -96,6 +143,7 @@ export type DidaskaliaStudio = {
   sermon: DidaskaliaSermon;
   discussion: DidaskaliaComment[];
   rituals: DidaskaliaRitual[];
+  presentation?: DidaskaliaPresentationImages;
   render: Partial<Record<'pembekalan' | 'khutbah' | 'rhb', DidaskaliaRenderMeta>>;
 };
 
@@ -107,6 +155,10 @@ export type DidaskaliaWeek = {
   servingTheme?: string;
   studio: DidaskaliaStudio;
 };
+
+export function defaultRhbSections(): DidaskaliaRhbSection[] {
+  return RHB_SECTIONS.map((s) => ({ key: s.key, title: s.title, body: '' }));
+}
 
 export function defaultPath(i: number): DidaskaliaPath {
   return {
@@ -125,7 +177,23 @@ export function defaultPath(i: number): DidaskaliaPath {
     fgdQuestions: [],
     bridge: '',
     imageStem: '',
+    coverImageFileId: '',
+    rhbSections: defaultRhbSections(),
   };
+}
+
+/** Normalisasi 5 section RHB: key & urutan tetap, body/gambar dari data tersimpan. */
+export function ensureRhbSections(raw: unknown): DidaskaliaRhbSection[] {
+  const list = Array.isArray(raw) ? raw : [];
+  return RHB_SECTIONS.map((s) => {
+    const found = list.find((x) => x && typeof x === 'object' && (x as DidaskaliaRhbSection).key === s.key) as DidaskaliaRhbSection | undefined;
+    return {
+      key: s.key,
+      title: found?.title?.trim() || s.title,
+      body: typeof found?.body === 'string' ? found.body : '',
+      imageFileId: typeof found?.imageFileId === 'string' ? found.imageFileId : '',
+    };
+  });
 }
 
 export function defaultStudio(): DidaskaliaStudio {
@@ -142,6 +210,7 @@ export function defaultStudio(): DidaskaliaStudio {
     sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
     discussion: [],
     rituals: [],
+    presentation: {},
     render: {},
   };
 }
@@ -149,7 +218,10 @@ export function defaultStudio(): DidaskaliaStudio {
 /** Pastikan selalu ada 7 Path dengan field lengkap. */
 export function ensurePaths(studio: DidaskaliaStudio): DidaskaliaPath[] {
   const list = Array.isArray(studio.paths) ? studio.paths : [];
-  return Array.from({ length: 7 }, (_, i) => ({ ...defaultPath(i), ...(list[i] || {}) }));
+  return Array.from({ length: 7 }, (_, i) => {
+    const merged = { ...defaultPath(i), ...(list[i] || {}) };
+    return { ...merged, rhbSections: ensureRhbSections(merged.rhbSections) };
+  });
 }
 
 export function statusLabel(status: string): string {

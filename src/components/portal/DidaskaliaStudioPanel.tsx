@@ -19,24 +19,32 @@ import {
   BookOpen,
   Users,
   Info,
+  ImagePlus,
+  ExternalLink,
+  MessageCircle,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BibleRefPicker } from './BibleRefPicker';
 import { HOMILETIC_METHODS_DATA } from '../../data/homiletic-methods';
 import {
+  RHB_SECTIONS,
   RITUAL_LABELS,
   RITUAL_TYPES,
   defaultStudio,
   ensurePaths,
+  ensureRhbSections,
   hashContent,
   needsRepublish,
   statusLabel,
   type DidaskaliaMethodMix,
   type DidaskaliaPath,
+  type DidaskaliaRhbSection,
   type DidaskaliaStudio,
   type RitualType,
 } from '../../lib/didaskalia';
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
+import { materialHashPath } from '../../lib/didaskalia-presentation';
+import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-caption';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -83,6 +91,61 @@ async function readJson(r: Response): Promise<any> {
     return {};
   }
 }
+
+/** Slot gambar opsional (upload ke Drive → fileId) dengan pratinjau. */
+const ImageSlot: React.FC<{
+  label: string;
+  fileId?: string;
+  onUpload: (f: File) => Promise<void>;
+  onClear: () => void;
+}> = ({ label, fileId, onUpload, onClear }) => {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const ref = React.useRef<HTMLInputElement | null>(null);
+  return (
+    <div className="rounded-xl border border-dashed border-[#D9D7D0] p-2 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold text-[#8C8880]">{label}</span>
+        {fileId && (
+          <button type="button" onClick={onClear} className="text-[10px] font-bold text-red-600">Hapus</button>
+        )}
+      </div>
+      {fileId ? (
+        <img src={`/api/didaskalia/asset/${encodeURIComponent(fileId)}`} alt="" className="w-full h-28 object-cover rounded-lg border border-[#EFEDE8]" />
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => ref.current?.click()}
+          className="w-full h-20 rounded-lg bg-[#FAF9F5] border border-[#EFEDE8] text-[11px] font-bold text-[#8C8880] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Tambah gambar
+        </button>
+      )}
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (!f) return;
+          setBusy(true);
+          setErr(null);
+          try {
+            await onUpload(f);
+          } catch (x) {
+            setErr(x instanceof Error ? x.message : 'Gagal unggah gambar.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      {err && <p className="text-[10px] text-red-600">{err}</p>}
+    </div>
+  );
+};
 
 export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
@@ -234,6 +297,74 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     });
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const data = await blobToBase64(file);
+    const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/presentation-image`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, mimetype: file.type || 'image/jpeg', data }),
+    });
+    const d = await readJson(r);
+    if (!r.ok) throw new Error(d.error || `Gagal unggah gambar (server ${r.status}).`);
+    return String(d.fileId || '');
+  };
+
+  const setCoverImage = (fileId: string) =>
+    setStudio((s) => ({ ...s, presentation: { ...(s.presentation || {}), cover: fileId } }));
+
+  const setPathImage = (pathIndex: number, fileId: string) =>
+    setStudio((s) => {
+      const pres = s.presentation || {};
+      const map = { ...(pres.paths || {}) };
+      if (fileId) map[String(pathIndex)] = fileId; else delete map[String(pathIndex)];
+      return { ...s, presentation: { ...pres, paths: map } };
+    });
+
+  const setSectionImage = (pathIndex: number, sectionKey: string, fileId: string) =>
+    setStudio((s) => {
+      const pres = s.presentation || {};
+      const rhb = { ...(pres.rhb || {}) };
+      const day = { ...(rhb[String(pathIndex)] || {}) };
+      if (fileId) day[sectionKey] = fileId; else delete day[sectionKey];
+      rhb[String(pathIndex)] = day;
+      return { ...s, presentation: { ...pres, rhb } };
+    });
+
+  const setRhbSection = (i: number, key: string, patch: Partial<DidaskaliaRhbSection>) =>
+    setStudio((s) => {
+      const next = ensurePaths(s).map((p, idx) =>
+        idx === i
+          ? { ...p, rhbSections: ensureRhbSections(p.rhbSections).map((x) => (x.key === key ? { ...x, ...patch } : x)) }
+          : p
+      );
+      return { ...s, paths: next };
+    });
+
+  const presentationUrl = (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {
+    const path = materialHashPath({ doc, yearMonth: ym, weekIndex, ...(dayIndex ? { dayIndex } : {}) });
+    return `${typeof window !== 'undefined' ? window.location.origin : ''}/${path}`;
+  };
+
+  const copyCaption = async (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {
+    const content = {
+      weekIndex,
+      date: weekMeta?.date || '',
+      theme: weekMeta?.theme || weekMeta?.mentoringTheme || weekMeta?.servingTheme || '',
+      chapterNo: studio.chapterNo || '',
+      fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
+      kitabFokus: studio.kitabFokus || '',
+      paths,
+      sermon: studio.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+      images: studio.presentation || {},
+    };
+    const text = dayIndex
+      ? buildDayCaption({ doc, yearMonth: ym, weekIndex, dayIndex, content })
+      : buildWeekCaption({ doc: 'rhb', yearMonth: ym, weekIndex, content });
+    const ok = await copyText(text);
+    addToast({ type: ok ? 'success' : 'error', title: ok ? 'Caption disalin — tempel ke grup' : 'Gagal menyalin caption' });
+  };
+
   const addComment = async () => {
     if (!comment.trim()) return;
     const entry = {
@@ -277,9 +408,45 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     URL.revokeObjectURL(url);
   };
 
+  const assetDataUrl = async (fileId?: string): Promise<string | undefined> => {
+    if (!fileId) return undefined;
+    try {
+      const r = await fetch(`/api/didaskalia/asset/${encodeURIComponent(fileId)}`, { credentials: 'include' });
+      if (!r.ok) return undefined;
+      const blob = await r.blob();
+      return await new Promise<string>((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result || ''));
+        fr.readAsDataURL(blob);
+      });
+    } catch {
+      return undefined;
+    }
+  };
+
+  /** Ambil gambar presentasi → data URL agar PDF identik dengan deck web. */
+  const buildPdfImages = async () => {
+    const pres = studio.presentation || {};
+    const pathImages: Record<number, string> = {};
+    const rhbSectionImages: Record<number, Record<string, string>> = {};
+    for (const p of ensurePaths(studio)) {
+      const hero = await assetDataUrl(pres.paths?.[String(p.pathIndex)] || p.coverImageFileId);
+      if (hero) pathImages[p.pathIndex] = hero;
+      const day = pres.rhb?.[String(p.pathIndex)] || {};
+      for (const s of ensureRhbSections(p.rhbSections)) {
+        const d = await assetDataUrl(day[s.key] || s.imageFileId);
+        if (d) {
+          rhbSectionImages[p.pathIndex] = rhbSectionImages[p.pathIndex] || {};
+          rhbSectionImages[p.pathIndex][s.key] = d;
+        }
+      }
+    }
+    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages };
+  };
+
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
     if (!weekMeta) return;
-    const opts = { version: (studio.render?.[doc]?.version || 0) + 1 };
+    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, ...(await buildPdfImages()) };
     const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio };
     setBusy(`pdf-${doc}`);
     try {
@@ -630,6 +797,39 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                       </div>
                       <div><label className={labelCls}>Pertanyaan FGD (pisahkan dengan enter)</label><textarea value={(p.fgdQuestions || []).join('\n')} onChange={(e) => setPath(i, { fgdQuestions: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} rows={3} className={inputCls} /></div>
                       <div><label className={labelCls}>Jembatan ke Path Berikutnya</label><textarea value={p.bridge} onChange={(e) => setPath(i, { bridge: e.target.value })} rows={2} className={inputCls} /></div>
+
+                      {/* RHB harian: 5 section + gambar opsional per section */}
+                      <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-3.5 h-3.5 text-sky-700" />
+                          <p className="text-[11px] font-black text-sky-800">RHB Harian — 5 Section</p>
+                          <span className="ml-auto text-[10px] text-[#8C8880]">gambar opsional per section</span>
+                        </div>
+                        <ImageSlot
+                          label="Gambar hero hari (opsional)"
+                          fileId={studio.presentation?.rhb?.[String(p.pathIndex)]?.cover}
+                          onUpload={async (f) => setSectionImage(p.pathIndex, 'cover', await uploadImage(f))}
+                          onClear={() => setSectionImage(p.pathIndex, 'cover', '')}
+                        />
+                        {ensureRhbSections(p.rhbSections).map((sec) => (
+                          <div key={sec.key} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
+                            <p className="text-[11px] font-bold text-[#1B1B1B]">{sec.title}</p>
+                            <textarea
+                              value={sec.body}
+                              onChange={(e) => setRhbSection(i, sec.key, { body: e.target.value })}
+                              rows={3}
+                              placeholder="Isi section… (pisahkan baris kosong untuk paragraf baru)"
+                              className={inputCls}
+                            />
+                            <ImageSlot
+                              label="Gambar section (opsional)"
+                              fileId={studio.presentation?.rhb?.[String(p.pathIndex)]?.[sec.key]}
+                              onUpload={async (f) => setSectionImage(p.pathIndex, sec.key, await uploadImage(f))}
+                              onClear={() => setSectionImage(p.pathIndex, sec.key, '')}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -701,8 +901,50 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             {(Object.entries(studio.render || {}) as Array<[string, import('../../lib/didaskalia').DidaskaliaRenderMeta | undefined]>).map(([doc, meta]) => meta && (
               <p key={doc} className="text-[11px] text-[#8C8880]">
                 <span className="font-bold text-[#1B1B1B] uppercase">{doc}</span> v{meta.version} · {meta.files?.length || 0} file · {meta.renderedAt ? new Date(meta.renderedAt).toLocaleDateString('id-ID') : ''}
+                {meta.snapshot ? <span className="text-emerald-700 font-bold"> · snapshot rilis</span> : <span className="text-amber-600"> · belum ada snapshot</span>}
               </p>
             ))}
+          </div>
+
+          {/* Presentasi Web + Caption */}
+          <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Presentation className="w-4 h-4 text-[#0EA5E9]" />
+              <h4 className="text-sm font-black text-[#1B1B1B]">Presentasi Web &amp; Caption</h4>
+            </div>
+            <p className="text-[11px] text-[#8C8880]">
+              Deck presentasi per pekan (Pembekalan/Khutbah) dan per hari (RHB). Konten dibekukan saat dokumen dirilis.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
+                <ExternalLink className="w-3.5 h-3.5" /> Pembekalan
+              </a>
+              <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
+                <ExternalLink className="w-3.5 h-3.5" /> Khutbah
+              </a>
+              <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                <ExternalLink className="w-3.5 h-3.5" /> RHB (indeks 7 hari)
+              </a>
+              <button type="button" onClick={() => void copyCaption('rhb')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+                <MessageCircle className="w-3.5 h-3.5" /> Caption RHB sepekan
+              </button>
+              <button type="button" onClick={() => void copyCaption('pembekalan')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold">
+                <MessageCircle className="w-3.5 h-3.5" /> Caption Pembekalan
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {paths.map((p) => (
+                <button
+                  key={p.pathIndex}
+                  type="button"
+                  onClick={() => void copyCaption('rhb', p.pathIndex)}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#8C8880] hover:text-[#1B1B1B]"
+                  title={`Salin caption RHB ${p.dayLabel}`}
+                >
+                  Caption {p.dayLabel}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       ) : (

@@ -20,6 +20,18 @@
 - **AI + PDF Pembekalan**: tombol baru → AI menyusun 7 Path lalu **membangun & mengunduh PDF Pembekalan (01)** memakai `buildPembekalanPdf`.
 - **Fix error "Unexpected token 'A'… not valid JSON"**: klien kini baca respons aman (`readJson`, non-JSON → `{}`) + pesan `… (server <status>)`; `vercel.json` `maxDuration` 30 → **60** (AI draft bisa lama).
 
+## Current — Presentasi Web Didaskalia per Pekan/Hari (23 Sep 2026)
+
+**Goal:** Materi generated jadi **deck presentasi ber-URL** (bukan hanya PDF): per pekan (Pembekalan/Khutbah) dan **per hari RHB**, template tetap, gambar opsional per section, plus **caption siap-kirim** ke grup.
+
+**Done (4 fase):**
+- **Fase 1 — Deck + rute + RBAC.** `src/lib/didaskalia-presentation.ts` (template tetap: `buildPembekalanDeck` cover→panduan→alur→7 Path→penutup; `buildRhbDayDeck` cover→**5 section**→penutup; `buildKhutbahDeck`), `src/components/presentation/DeckShell.tsx` (navigasi slide, fullscreen, keyboard), `src/components/didaskalia/DidaskaliaPresentation.tsx`. Rute **`#/materi/<doc>/<YYYY-MM>/<pekan>[/<hari>]`** via `isMaterialHash` (`host-context.ts` + `main.tsx`, standalone lazy). Endpoint `GET /api/didaskalia/presentation/:ym/:week?doc=` — **401 anon**, **403** bila role tak berhak (aturan 01/02 mentor+staf, 03 beyonders+staf).
+- **Fase 2 — Snapshot rilis.** Publish (`didaskalia-studio.mjs`) menyimpan `render[doc].snapshot` (konten beku) → minggu lama tidak berubah walau studio diedit; endpoint menyajikan snapshot bila ada, else live. Studio menandai "snapshot rilis" / "belum ada snapshot".
+- **Fase 3 — Gambar + parity PDF.** 5 section RHB (`RHB_SECTIONS` di client+server+AI); `POST /api/didaskalia/studio/:ym/:week/presentation-image` (upload ke Drive event, subfolder `04 Presentasi`) + `GET /api/didaskalia/asset/:fileId` (proxy gambar login-gated, tanpa share publik). `ImageSlot` di Studio (hero hari + gambar per section). PDF RHB kini render 5 section + gambar (`rhbSectionImages`); PDF lain pakai `coverImage`/`pathImages`.
+- **Fase 4 — Caption + indeks + cetak.** `src/lib/rhb-caption.ts` (`buildDayCaption`, `buildWeekCaption`, `whatsappShareUrl`, `copyText`); panel Caption di halaman presentasi (Salin/Bagikan/WhatsApp + **kirim notifikasi aplikasi ke kelompok** via `POST /api/announcements` kategori `materi`); indeks RHB `#/materi/rhb/<ym>/<pekan>` (7 hari + "Buka"); tombol Cetak (`window.print` + print CSS); tautan presentasi/caption di **Studio** + **EventDidaskaliaMaterials** (pakai `church-week.ts`).
+- **AI**: prompt `generateWeekDraft` menghasilkan `rhbSections` (5 key tetap); `clampDraft`/`sanitizeStudio` menormalkan key+urutan.
+- Verifikasi: `lint` bersih · **461 test** hijau (12 test baru) · `build` OK · render lokal: indeks RHB 7 link, deck pembekalan **11 slide**, RHB hari-3 **7 slide**, khutbah **2 slide**, 0 page error; API 200 authed / 401 anon.
+
 ### Next
 1. Uji di prod: Studio → isi Fundamental via picker, metode+%, Diskusi (nama muncul), AI draf (pakai diskusi).
 2. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.

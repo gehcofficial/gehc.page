@@ -9,6 +9,7 @@
  */
 import { jsPDF } from 'jspdf';
 import type { DidaskaliaPath, DidaskaliaStudio, DidaskaliaWeek } from './didaskalia';
+import { effectiveRhbSections } from './didaskalia-presentation';
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -231,6 +232,8 @@ export type PdfOptions = {
   version?: number;
   coverImage?: string;
   pathImages?: Record<number, string>;
+  /** Gambar per section RHB: { [pathIndex]: { [sectionKey]: dataUrl } } */
+  rhbSectionImages?: Record<number, Record<string, string>>;
 };
 
 function weekMeta(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions) {
@@ -373,16 +376,14 @@ export function buildRhbPdfs(week: DidaskaliaWeek, studio: DidaskaliaStudio, opt
     w.divider(7);
     w.image(opts.pathImages?.[p.pathIndex], 52);
     if (p.scriptureText) w.callout(p.scriptureRef || 'Nats', p.scriptureText);
-    w.field('Perenungan', p.reflection);
-    if (p.hookQuestion) w.field('Tanya Dirimu', p.hookQuestion);
-    if (p.fgdQuestions?.length) {
-      w.doc.setFont('helvetica', 'bold');
-      w.doc.setFontSize(8.5);
-      setText(w.doc, C.accent);
-      w.doc.text('RENUNGKAN & DISKUSIKAN', M, w.y);
-      w.y += 4.5;
-      w.bullets(p.fgdQuestions);
+
+    const sectionImages = opts.rhbSectionImages?.[p.pathIndex] || {};
+    for (const s of effectiveRhbSections(p)) {
+      const img = sectionImages[s.key] || s.imageFileId;
+      if (img) w.image(img, 40);
+      if (s.body) w.field(s.title, s.body);
     }
+
     if (p.bridge) w.callout('Besok', p.bridge);
     w.finishFooters();
     out.push({ filename: `W${week.index}-D${p.pathIndex}-${p.dayLabel}-${week.date || ''}-v${v}.pdf`, blob: w.blob(), pathIndex: p.pathIndex });
