@@ -122,7 +122,7 @@ interface EventItem {
 
 type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
 
-export const DivisionWorkspacePanel: React.FC = () => {
+export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
   const queryClient = useQueryClient();
   const { t } = useLang();
@@ -141,7 +141,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
     .filter((e) => showArchived || String(e.status || '').toUpperCase() !== 'ARCHIVED')
     .filter((e) => !eventQuery.trim() || e.name.toLowerCase().includes(eventQuery.trim().toLowerCase()))
     .sort((a, b) => orderOf(a.status) - orderOf(b.status));
-  const [selectedDiv, setSelectedDiv] = useState<string>(ALL_DIVISIONS[0]);
+  const [selectedDiv, setSelectedDiv] = useState<string>(division || ALL_DIVISIONS[0]);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
 
@@ -881,8 +881,9 @@ export const DivisionWorkspacePanel: React.FC = () => {
         </div>
       )}
 
-      {/* 6 Division Tabs */}
+      {/* 6 Division Tabs — hanya saat panel gabungan (bukan per-divisi) */}
       <div className="bg-white rounded-[32px] p-6 border border-[#D9D7D0]/50 shadow-sm">
+        {!division && (
         <ScrollTabBar track={false} gapClass="gap-2" className="mb-6 pb-0.5" active={selectedDiv}>
           {ALL_DIVISIONS.map((div) => {
             const meta = pillarByName(div);
@@ -916,6 +917,7 @@ export const DivisionWorkspacePanel: React.FC = () => {
             );
           })}
         </ScrollTabBar>
+        )}
 
         <div className="mb-6">
           <WhatsAppJoinCard

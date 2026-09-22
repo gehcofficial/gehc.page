@@ -23,6 +23,26 @@ const CHURCH_ROLES = {
   komisiCommittee: ['KOMISI', 'COMMITTEE'] as UserRole[],
 };
 
+/** Panel per-divisi (Fase 1 IA): tiap divisi = destinasi sendiri di sidebar. */
+export const DIVISION_TABS: { id: string; division: string; label: string }[] = [
+  { id: 'div-liturgia', division: 'LITURGIA', label: 'Liturgia' },
+  { id: 'div-didaskalia', division: 'DIDASKALIA', label: 'Didaskalia' },
+  { id: 'div-koinonia', division: 'KOINONIA', label: 'Koinonia' },
+  { id: 'div-diakonia', division: 'DIAKONIA', label: 'Diakonia' },
+  { id: 'div-marturia', division: 'MARTURIA', label: 'Marturia' },
+  { id: 'div-benzarpr', division: 'BENZARPR', label: 'Benzarpreneurship' },
+];
+
+export const DIVISION_TAB_IDS = DIVISION_TABS.map((d) => d.id);
+
+export function divisionForTab(tabId: string): string | null {
+  return DIVISION_TABS.find((d) => d.id === tabId)?.division || null;
+}
+
+export function isDivisionTab(tabId: string): boolean {
+  return DIVISION_TAB_IDS.includes(tabId);
+}
+
 const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },
@@ -46,7 +66,12 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten' },
   { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur' },
   { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event' },
-  { id: 'divisions', label: 'Panel Divisi (6 Divisi)', roles: CHURCH_ROLES.komisiCommittee, group: 'Kerja', subtitle: 'Workspace permanen divisi' },
+  { id: 'div-liturgia', label: 'Liturgia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Ibadah, penatalayan & liturgi' },
+  { id: 'div-didaskalia', label: 'Didaskalia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Studio, RHB & warta' },
+  { id: 'div-koinonia', label: 'Koinonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Hubungan, komunikasi & check-in' },
+  { id: 'div-diakonia', label: 'Diakonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Kasih peduli & benevolence' },
+  { id: 'div-marturia', label: 'Marturia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Dokumentasi, galeri & kesaksian' },
+  { id: 'div-benzarpr', label: 'Benzarpreneurship', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Usaha & fundraising' },
   { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
   { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit' },
@@ -84,14 +109,14 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'media-guide',
     'struktur',
     'events',
-    'divisions',
+    'div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr',
     'wa-channels',
     'integrations',
     'church-info',
     'account',
   ],
-  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'divisions', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'divisions', 'wa-channels', 'media-guide', 'account'],
+  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr', 'wa-channels', 'media-guide', 'account'],
   MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   CO_MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   MENTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],

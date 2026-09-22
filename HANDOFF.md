@@ -1,6 +1,29 @@
 # GEHC Portal — Handoff
 
-## Current — Galeri event mudah untuk Marturia (23 Sep 2026)
+## Current — Panel per-divisi (Fase 1 IA) (23 Sep 2026)
+
+**Goal:** Tiap divisi jadi destinasi sendiri di sidebar (bukan tab di dalam satu panel), agar alur lebih fokus dan tanggal/event tak dipilih berulang.
+
+**Done (Fase 1):**
+- **Nav** (`portal-nav-config.ts`): `divisions` diganti **6 item** `div-liturgia/didaskalia/koinonia/diakonia/marturia/benzarpr` (grup sidebar **"Divisi"**, roles staf KOMISI/COMMITTEE/SUPERADMIN); `divisions` lama jadi **alias** (redirect ke divisi pertama yang boleh).
+- **PortalLayout**: `NAV_ICONS` 6 id; render `div-*` → `<DivisionWorkspacePanel division="…" />`; efek alias `divisions` → `div-liturgia` (dst.).
+- **DivisionWorkspacePanel**: prop `division?` → `selectedDiv` tetap & **tab bar 6 divisi disembunyikan**; event selector + toggle arsip tetap.
+- **i18n** (ID/EN): label 6 divisi, `navGroups.Divisi`, + 6 guide divisi (unit test "every sidebar nav id has a guide").
+- Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · render lokal `#/portal/superadmin/div-didaskalia` (tab Didaskalia: Studio+Warta; tanpa tab 6 divisi; 14 chip event; 0 error); alias `divisions` → `div-liturgia`.
+
+### Next
+1. **Fase 2** — sinkron konteks: turunkan `ym`/`weekIndex` dari event terpilih → `DidaskaliaStudioPanel` (hapus pemilih bulan/minggu); `WartaPublikTab` ikut tanggal event; header konteks.
+2. **Fase 3** — auto akses mingguan: `ensureWeeklyDivisions` (auto-create `EventDivision` 6 divisi) + visibilitas anggota divisi (`/api/me/divisions`).
+3. Sisa lain: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Galeri event mudah untuk Marturia (23 Sep 2026)
 
 **Goal:** Fitur galeri yang tim Marturia pakai untuk update activity & event dibuat semudah alur Album Kelompok (mentor/co-mentor): auto folder Drive, upload foto, preview ≤5.
 

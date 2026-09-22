@@ -45,7 +45,7 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, type PortalNavParentDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, type PortalNavParentDef } from '../../lib/portal-nav-config';
 import {
   LayoutDashboard,
   BookOpen,
@@ -237,6 +237,12 @@ export const PortalLayout: React.FC = () => {
     'media-guide': Images,
     struktur: ShieldCheck,
     events: Calendar,
+    'div-liturgia': Calendar,
+    'div-didaskalia': BookOpen,
+    'div-koinonia': MessageCircle,
+    'div-diakonia': HeartHandshake,
+    'div-marturia': Images,
+    'div-benzarpr': Sparkles,
     divisions: Users,
     'wa-channels': MessageCircle,
     integrations: FolderSync,
@@ -256,6 +262,15 @@ export const PortalLayout: React.FC = () => {
       setActiveTab(navItems[0]?.id || 'dashboard');
     }
   }, [currentRole]);
+
+  // Alias lama: #/portal/<ns>/divisions → divisi pertama yang boleh.
+  useEffect(() => {
+    if (activeTab !== 'divisions') return;
+    const first = DIVISION_TAB_IDS.find((id) => isTabAllowed(id));
+    if (!first) return;
+    setActiveTab(first);
+    window.location.hash = buildPortalPath({ namespace: roleToNamespace(currentRole), page: first }).slice(1);
+  }, [activeTab, currentRole]);
 
   const navWithHeaders: Array<
     | { type: 'header'; label: string }
@@ -941,6 +956,11 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'people' && <PeopleInvites onNavigate={handleNavClick} />}
           {activeTab === 'onboarding' && <WaitingPoolPanel onNavigate={handleNavClick} />}
           {activeTab === 'events' && <EventWorkspacePanel />}
+          {DIVISION_TAB_IDS.map((id) => (
+            activeTab === id
+              ? <DivisionWorkspacePanel key={id} division={divisionForTab(id) || undefined} />
+              : null
+          ))}
           {activeTab === 'divisions' && <DivisionWorkspacePanel />}
           {activeTab === 'wa-channels' && <WhatsAppChannelsPanel />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
