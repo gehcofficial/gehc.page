@@ -1,6 +1,27 @@
 # GEHC Portal — Handoff
 
-## Current — P2-4: satu destinasi Warta (22 Sep 2026)
+## Current — Galeri event mudah untuk Marturia (23 Sep 2026)
+
+**Goal:** Fitur galeri yang tim Marturia pakai untuk update activity & event dibuat semudah alur Album Kelompok (mentor/co-mentor): auto folder Drive, upload foto, preview ≤5.
+
+**Done:**
+- **Server** (`server/routes/drive-ownership.mjs`): `POST /api/events/:id/gallery/photos` — Marturia Dokumentasi/Komisi; pastikan folder arsip auto (`ensureEventArchiveFolder` → set `archiveFolderId`), upload JPEG (`publicReader:true`), lalu catat baris **`EventGallery`** (`status APPROVED`, `division`, `driveFileId`, `mediaUrl/thumbUrl`).
+- **Klien** (`EventGalleryTab.tsx`, dipakai semua divisi): toolbar **"Galeri Event"** — nama+tanggal **auto** dari event; **multi-upload** file; **pin preview ≤5** (centang + indikator `n/5`, simpan via `POST /api/events/:id/archive`); tombol **Folder Drive**. Form URL manual lama dipindah ke **"Lanjutan (URL)"**.
+- **Dipakai ulang** (tanpa ubah): list `/api/gallery?eventId=`, preview `/api/events/:id/archive`, link `/api/events/:id/archive-link`, landing `/api/events/public-archive`.
+- Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · runtime: anon upload **401**, event tak ada **404** (route aktif).
+
+### Next
+1. Uji di prod (Divisi → Marturia → Galeri): pilih event → upload beberapa foto → sematkan ≤5 preview → cek landing "Galeri & Arsip".
+2. Sisa: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — P2-4: satu destinasi Warta (22 Sep 2026)
 
 **Goal:** Satukan 2 editor warta (ManageWeeklyInfo vs WartaPublikTab) jadi satu alur.
 

@@ -11,6 +11,7 @@ import {
   Loader2,
   Upload,
   AlertTriangle,
+  FolderOpen,
 } from 'lucide-react';
 
 interface GalleryItem {
@@ -48,6 +49,13 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
   const [previewItem, setPreviewItem] = useState<GalleryItem | null>(null);
   const [showApprovedOnly, setShowApprovedOnly] = useState(false);
 
+  type EvInfo = { id: string; name: string; eventDate?: string | null; startDate?: string | null; archiveFolderId?: string | null; previewFileIds?: string[] | null };
+  const [ev, setEv] = useState<EvInfo | null>(null);
+  const [previewIds, setPreviewIds] = useState<string[]>([]);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+
   const fetchItems = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -59,6 +67,69 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
       setItems(d.items || []);
     } catch { /* skip */ }
   }, [division, eventId, showApprovedOnly]);
+
+  useEffect(() => {
+    if (!eventId) { setEv(null); setPreviewIds([]); return; }
+    fetch(`/api/events/${encodeURIComponent(eventId)}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const e = (d?.event || d) as EvInfo | null;
+        setEv(e);
+        setPreviewIds(Array.isArray(e?.previewFileIds) ? (e!.previewFileIds as string[]).map(String) : []);
+      })
+      .catch(() => { setEv(null); setPreviewIds([]); });
+  }, [eventId]);
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!eventId || !files || !files.length) return;
+    setUploadBusy(true);
+    setNotice('');
+    let ok = 0;
+    try {
+      for (const file of Array.from(files)) {
+        const data = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(String(fr.result || ''));
+          fr.onerror = () => reject(new Error('Gagal membaca file'));
+          fr.readAsDataURL(file);
+        });
+        const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/gallery/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ data, mimetype: file.type || 'image/jpeg', filename: file.name, division: division || 'MARTURIA' }),
+        });
+        if (r.ok) ok += 1;
+        else { const d = await r.json().catch(() => ({})); setNotice(d.error || 'Sebagian foto gagal diunggah.'); }
+      }
+      await fetchItems();
+      setNotice(`${ok}/${files.length} foto terunggah ke arsip event.`);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const savePreviews = async () => {
+    if (!eventId) return;
+    setPinBusy(true);
+    setNotice('');
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ previewFileIds: previewIds.slice(0, 5) }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setNotice(d.error || 'Gagal menyimpan preview.'); return; }
+      const e = (d.event || {}) as Partial<EvInfo>;
+      setEv((prev) => ({ ...(prev || { id: eventId, name: '' }), ...e }));
+      if (Array.isArray(e.previewFileIds)) setPreviewIds((e.previewFileIds as string[]).map(String));
+      setNotice('Preview landing tersimpan.');
+    } finally {
+      setPinBusy(false);
+    }
+  };
 
   useEffect(() => { setLoading(true); fetchItems().finally(() => setLoading(false)); }, [fetchItems]);
 
@@ -110,6 +181,91 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
 
   return (
     <div className="space-y-4">
+      {/* Galeri Event — mudah seperti Album Kelompok: upload langsung + preview <=5 */}
+      <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-wider text-[#FF416C]">Galeri Event</p>
+            <p className="text-sm font-bold text-[#1B1B1B] truncate">{ev?.name || (eventId ? 'Memuat event…' : 'Pilih event dulu')}</p>
+            {ev && (
+              <p className="text-[11px] text-[#8C8880]">
+                {new Date(ev.eventDate || ev.startDate || Date.now()).toLocaleDateString('id-ID', {
+                  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
+                })}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+              !eventId || uploadBusy ? 'bg-[#F3F1EC] text-[#8C8880]' : 'bg-[#F6AE4A] text-[#1B1B1B] cursor-pointer'
+            }`}>
+              {uploadBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {uploadBusy ? 'Mengunggah…' : 'Upload foto (bisa banyak)'}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                disabled={!eventId || uploadBusy}
+                onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ''; }}
+              />
+            </label>
+            {ev?.archiveFolderId && (
+              <a
+                href={`https://drive.google.com/drive/folders/${ev.archiveFolderId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#5C5850] hover:bg-[#FAF9F5]"
+              >
+                <FolderOpen className="w-3.5 h-3.5" /> Folder Drive
+              </a>
+            )}
+          </div>
+        </div>
+        <p className="text-[11px] text-[#8C8880]">
+          Foto otomatis masuk folder arsip event di Drive dan langsung disetujui. Sematkan hingga 5 sebagai preview landing.
+        </p>
+        {notice && <p className="text-[11px] font-semibold text-emerald-700">{notice}</p>}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#D9D7D0]/40">
+          <p className="text-[11px] font-bold text-[#1B1B1B]">Preview landing: {Math.min(previewIds.length, 5)}/5</p>
+          <button
+            type="button"
+            onClick={() => void savePreviews()}
+            disabled={!eventId || pinBusy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181818] text-white text-xs font-bold disabled:opacity-40"
+          >
+            {pinBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Simpan preview
+          </button>
+        </div>
+        {items.some((i) => i.driveFileId) ? (
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {items.filter((i) => i.driveFileId).map((i) => {
+              const id = String(i.driveFileId);
+              const idx = previewIds.indexOf(id);
+              const on = idx >= 0;
+              return (
+                <button
+                  key={i.id}
+                  type="button"
+                  onClick={() => setPreviewIds((prev) => (on ? prev.filter((x) => x !== id) : (prev.length >= 5 ? prev : [...prev, id])))}
+                  className={`relative aspect-square rounded-xl overflow-hidden border-2 ${on ? 'border-[#FF416C]' : 'border-transparent'}`}
+                  title={i.title}
+                >
+                  <img src={i.thumbUrl || i.mediaUrl} alt="" className="w-full h-full object-cover" />
+                  {on && (
+                    <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[#FF416C] text-white text-[10px] font-black flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-[#8C8880]">Belum ada foto ber-Drive untuk dijadikan preview. Upload dulu.</p>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-black text-[#1B1B1B]">Event Gallery</h3>
         <div className="flex gap-2">
@@ -117,8 +273,8 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
             <input type="checkbox" checked={showApprovedOnly} onChange={e => setShowApprovedOnly(e.target.checked)} className="w-4 h-4 rounded border-[#D9D7D0] text-[#F6AE4A] focus:ring-[#F6AE4A]" />
             Hanya yang disetujui
           </label>
-          <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-1.5 bg-[#F6AE4A] text-[#1B1B1B] px-3 py-1.5 rounded-xl text-xs font-bold">
-            <Upload className="w-3.5 h-3.5" /> Upload
+          <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-1.5 border border-[#D9D7D0] text-[#5C5850] px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#FAF9F5]">
+            <Upload className="w-3.5 h-3.5" /> Lanjutan (URL)
           </button>
         </div>
       </div>

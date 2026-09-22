@@ -1390,6 +1390,82 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     }),
   );
 
+  // Upload foto langsung ke folder arsip event (pola Album Kelompok) + catat EventGallery.
+  app.post(
+    '/api/events/:id/gallery/photos',
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
+    wrap(async (req, res) => {
+      if (!(await isMarturiaDocs(req.authUser)) && !komisiGate(req.authUser)) {
+        return res.status(403).json({ error: 'Hanya Marturia Dokumentasi atau Komisi.' });
+      }
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const prisma = getPrisma();
+      const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
+      if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+      const occurred = ev.eventDate || ev.startDate || new Date();
+      const iso = new Date(occurred).toISOString().slice(0, 10);
+
+      let archiveFolderId = ev.archiveFolderId || null;
+      try {
+        if (!archiveFolderId) {
+          const { folder } = await ensureEventArchiveFolder(iso, ev.name);
+          archiveFolderId = folder.id;
+        }
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
+
+      const division = String(req.body?.division || 'MARTURIA').toUpperCase().slice(0, 20);
+      let file = null;
+      let drive = null;
+      try {
+        const jpeg = await jpegFromBody(req.body);
+        drive = await requireUserDrive();
+        file = await uploadJpegToFolder(drive, archiveFolderId, jpeg, {
+          filename: `${iso}-${Date.now()}-${req.authUser.id.slice(0, 6)}.jpg`,
+          publicReader: true,
+        });
+      } catch (e) {
+        if (!isDriveAuthError(e)) throw e;
+        const err = new Error(driveAuthErrorMessage());
+        err.status = 503;
+        throw err;
+      }
+      try { await setPublicReader(drive, file.id); } catch { /* thumbnail publik opsional */ }
+
+      const title = String(req.body?.title || '').trim() || `${ev.name} · ${iso}`;
+      const item = await prisma.eventGallery.create({
+        data: {
+          id: newEntityId('gal'),
+          eventId: ev.id,
+          title: title.slice(0, 200),
+          mediaUrl: driveThumbUrl(file.id),
+          mediaType: 'PHOTO',
+          thumbUrl: driveThumbUrl(file.id),
+          driveFileId: file.id,
+          division,
+          status: 'APPROVED',
+          uploadedById: req.authUser.id,
+          approvedById: req.authUser.id,
+          approvedAt: new Date(),
+        },
+      });
+      if (archiveFolderId !== ev.archiveFolderId) {
+        await prisma.eventProgram.update({ where: { id: ev.id }, data: { archiveFolderId } }).catch(() => null);
+      }
+      res.status(201).json({
+        ok: true,
+        fileId: file.id,
+        thumbnailUrl: driveThumbUrl(file.id),
+        webViewLink: file.webViewLink,
+        item,
+      });
+    }),
+  );
+
   app.post(
     '/api/benzar/products/:id/images',
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
