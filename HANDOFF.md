@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — Audit portal P0: RBAC endpoint + cleanup (21 Sep 2026)
+## Current — iOS: SW push-only + layout 100dvh + Logout akun (22 Sep 2026)
+
+**Goal:** iPhone (iOS 18.5) tetap tidak menampilkan Info Event & materi Didaskalia (Android normal), dan tombol "keluar portal" sulit diakses. Akar: service worker iOS + layout tinggi.
+
+**Done:**
+- **Penyebab berulang iOS = service worker.** `sw.js` masih meng-*intercept* SEMUA fetch (cache HTML/aset + balas `/api/*` dengan JSON 503 palsu saat gagal). Di iOS Safari (agresif mematikan SW) → bundle basi / API seolah kosong → Info Event & materi Didaskalia "hilang".
+  - `public/sw.js` kini **PUSH-ONLY**: handler `fetch` **dihapus**; `activate` **menghapus SEMUA cache**. Browser selalu ambil HTML/aset/API dari jaringan. Push + klik notifikasi + background sync tetap.
+- **Layout iOS**: `aside` `h-screen` → `h-[100dvh]`; shell `min-h-screen` → `min-h-[100dvh]`; safe-area bawah `pb-[calc(1rem+env(safe-area-inset-bottom))]`; buang `overflow-y-auto` di `<main>`. Tombol bawah kini terjangkau.
+- **Logout akun** (baru, terpisah dari "Keluar portal"): tombol `logoutSso` (hapus sesi) → konfirmasi → **landing publik** (`#/beyonders`). i18n `logoutAccount*` (ID/EN).
+- Verifikasi: `lint` bersih · **448 test** hijau · `build` OK · `dist/sw.js` tanpa handler `fetch`, ada handler `push`; render lokal menampilkan "Keluar portal" + "Logout akun" (desktop & mobile), 0 page error.
+- Ditahan (permintaan user): lepas/ganti tautan email.
+
+### Next
+1. Uji iPhone (iOS 18.5): buka `youth.gehc.page` → Info Event + materi Didaskalia harus muncul; cek tombol "Logout akun".
+2. Bila masih: cek data jadwal Marhaen (MENTOR Hesed) — `my-schedule` (read-only).
+3. Sisa audit: P1-6 react-query, P2-4 warta, P2-6 lanjutan, lepas/ganti email.
+
+### Commands
+```
+npm run lint && npm run test && npm run build
+```
+
+---
+
+## Prior — Audit portal P0: RBAC endpoint + cleanup (21 Sep 2026)
 
 **Goal:** Mulai eksekusi [`docs/review/2026-09-20-portal-audit.md`](docs/review/2026-09-20-portal-audit.md) — batch pertama: keamanan P0 + efisiensi kecil + cleanup, lalu uji di staging.
 
