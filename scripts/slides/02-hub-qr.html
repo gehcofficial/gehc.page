@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Slide 2 — QR gehc.page</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="slide.css" />
+</head>
+<body>
+  <div class="slide">
+    <div class="blob blob--a"></div>
+    <div class="blob blob--b"></div>
+    <div class="grid-lines"></div>
+
+    <div style="display:flex; gap:70px; align-items:center; width:100%; position:relative; z-index:1;">
+      <!-- QR -->
+      <div style="width:600px; flex:none;">
+        <div class="qrcard">
+          <img src="assets/qr-hub-large.png" alt="QR gehc.page" />
+          <div class="qrurl">{{hub.url}}</div>
+          <div class="qrhint">{{hub.qrHint}}</div>
+        </div>
+      </div>
+
+      <!-- Teks -->
+      <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+        <div class="brandbar">
+          <div class="brandbadge">GEHC</div>
+          <div class="brandtext">
+            <strong>{{church.name}}</strong>
+            <span>{{church.unit}}</span>
+          </div>
+        </div>
+
+        <h1 class="title" style="font-size:82px; margin-top:34px;">{{hub.qrTitle}}</h1>
+
+        <div class="panel" style="margin-top:38px;">
+          <div class="panel__label">{{hub.comingSoonLabel}}</div>
+          <div class="chips">
+            <span class="chip"><span class="mark">1</span>{{hub.comingSoon.0}}</span>
+            <span class="chip"><span class="mark">2</span>{{hub.comingSoon.1}}</span>
+            <span class="chip"><span class="mark">3</span>{{hub.comingSoon.2}}</span>
+          </div>
+        </div>
+
+        <p class="note" style="margin-top:28px;">{{hub.qrNote}}</p>
+      </div>
+    </div>
+
+    <div class="slidefoot">
+      <div class="addr">{{church.address}}</div>
+      <div class="tag">{{church.tagline}}</div>
+    </div>
+  </div>
+</body>
+</html>

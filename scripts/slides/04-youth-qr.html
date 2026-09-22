@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Slide 4 — QR youth.gehc.page + status jemaat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="slide.css" />
+</head>
+<body>
+  <div class="slide">
+    <div class="blob blob--a"></div>
+    <div class="blob blob--b"></div>
+    <div class="grid-lines"></div>
+
+    <div style="display:flex; gap:64px; align-items:center; width:100%; position:relative; z-index:1;">
+      <!-- QR -->
+      <div style="width:560px; flex:none;">
+        <div class="qrcard">
+          <img src="assets/qr-youth-large.png" alt="QR youth.gehc.page" />
+          <div class="qrurl" style="font-size:21px;">{{youth.url}}</div>
+          <div class="qrhint">{{youth.qrHint}}</div>
+        </div>
+      </div>
+
+      <!-- Statistik + himbauan -->
+      <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+        <div class="brandbar">
+          <div class="brandbadge">GEHC</div>
+          <div class="brandtext">
+            <strong>{{church.name}}</strong>
+            <span>{{youth.eyebrow}}</span>
+          </div>
+        </div>
+
+        <h1 class="title" style="font-size:64px; margin-top:26px;">{{youth.qrTitle}}</h1>
+
+        <div class="panel" style="margin-top:30px; padding:26px 30px;">
+          <div class="panel__label" style="margin-bottom:14px;">{{youth.statsLabel}}</div>
+          <div class="stats">
+            <div class="stat stat--hero">
+              <div class="stat__value">{{stats.total}}</div>
+              <div class="stat__label">Total terdaftar</div>
+            </div>
+            <div class="stat">
+              <div class="stat__value">{{stats.bapak}}</div>
+              <div class="stat__label">Bapak</div>
+            </div>
+            <div class="stat">
+              <div class="stat__value">{{stats.ibu}}</div>
+              <div class="stat__label">Ibu</div>
+            </div>
+            <div class="stat">
+              <div class="stat__value">{{stats.pemuda}}</div>
+              <div class="stat__label">Pemuda</div>
+            </div>
+            <div class="stat">
+              <div class="stat__value">{{stats.kolom}}</div>
+              <div class="stat__label">Terhubung Kolom</div>
+            </div>
+            <div class="stat">
+              <div class="stat__value">{{stats.pending}}</div>
+              <div class="stat__label">Menunggu verifikasi</div>
+            </div>
+          </div>
+          <div class="snapshot">Data per {{snapshotDate}} · sumber: portal pemuda GEHC</div>
+        </div>
+
+        <div class="install">
+          <div class="install__icon">↓</div>
+          <div class="install__text">
+            {{youth.installTitle}}
+            <small>{{youth.installSub}}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slidefoot">
+      <div class="addr">{{church.address}}</div>
+      <div class="tag">{{church.tagline}}</div>
+    </div>
+  </div>
+</body>
+</html>

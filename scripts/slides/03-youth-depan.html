@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Slide 3 — Depan youth.gehc.page</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="slide.css" />
+</head>
+<body>
+  <div class="slide">
+    <div class="blob blob--a"></div>
+    <div class="blob blob--b"></div>
+    <div class="grid-lines"></div>
+
+    <div style="display:flex; gap:56px; align-items:center; width:100%; position:relative; z-index:1;">
+      <!-- Kolom teks -->
+      <div style="width:46%; flex:none; display:flex; flex-direction:column;">
+        <div class="brandbar">
+          <div class="brandbadge">GEHC</div>
+          <div class="brandtext">
+            <strong>{{church.name}}</strong>
+            <span>{{youth.eyebrow}}</span>
+          </div>
+        </div>
+
+        <p class="eyebrow" style="margin-top:52px;">{{youth.eyebrow}}</p>
+        <h1 class="title">{{youth.title}}<br /><span class="accent">{{youth.titleAccent}}</span></h1>
+        <p class="subtitle">{{youth.subtitle}}</p>
+
+        <div class="callout"><span class="dot"></span>{{youth.callout}}</div>
+      </div>
+
+      <!-- Kolom visual -->
+      <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+        <div class="laptop">
+          <div class="laptop__screen">
+            <div class="laptop__cam"></div>
+            <img src="assets/youth-desktop.png" alt="Halaman depan youth.gehc.page" />
+          </div>
+          <div class="laptop__base"><div class="laptop__notch"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slidefoot">
+      <div class="addr">{{church.address}}</div>
+      <div class="tag">{{church.tagline}}</div>
+    </div>
+  </div>
+</body>
+</html>

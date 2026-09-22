@@ -1,0 +1,47 @@
+{
+  "snapshotDate": "20 Sep 2026",
+  "church": {
+    "name": "GMIM Eben Haezer Cikarang",
+    "unit": "Komisi Pelayanan Pemuda",
+    "address": "Ruko Elite Blok 2A No. 149, Jl. KH Dewantara, Jababeka, Cikarang Utara, Kab. Bekasi, Jawa Barat",
+    "tagline": "Beyond the Sunday Walk"
+  },
+  "hub": {
+    "eyebrow": "GMIM Eben Haezer Cikarang",
+    "title": "Situs Hub Gereja",
+    "titleAccent": "gehc.page",
+    "subtitle": "Satu pintu informasi jemaat: jadwal ibadah, warta, kegiatan, dan komunitas pelayanan.",
+    "callout": "Silakan buka gehc.page di HP Anda",
+    "url": "https://gehc.page",
+    "qrTitle": "Buka gehc.page",
+    "qrHint": "Arahkan kamera HP ke kode berikut",
+    "comingSoonLabel": "Segera hadir",
+    "comingSoon": [
+      "Portal panel gereja",
+      "BIPRA: Bapak · Ibu · Remaja · Anak",
+      "Kolom & Wilayah"
+    ],
+    "qrNote": "Portal Pemuda sudah aktif — daftar lewat slide berikutnya."
+  },
+  "youth": {
+    "eyebrow": "Portal Pemuda",
+    "title": "Daftar melalui",
+    "titleAccent": "youth.gehc.page",
+    "subtitle": "Sementara waktu, seluruh jemaat mendaftar melalui portal pemuda.",
+    "callout": "Buka youth.gehc.page → Daftar",
+    "url": "https://youth.gehc.page/#/register",
+    "qrTitle": "Daftar & lengkapi profil",
+    "qrHint": "Arahkan kamera HP ke kode berikut",
+    "statsLabel": "Jemaat terdaftar",
+    "installTitle": "Install aplikasi & lengkapi profil Anda",
+    "installSub": "Bagikan → Tambah ke Layar Utama, lalu isi profil lengkap Anda."
+  },
+  "stats": {
+    "total": 135,
+    "bapak": 9,
+    "ibu": 3,
+    "pemuda": 123,
+    "kolom": 22,
+    "pending": 11
+  }
+}
