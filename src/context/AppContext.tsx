@@ -448,14 +448,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // Sisipkan mentee ke batch-nya (kunci: groupId|period).
-        // Termasuk non-ACTIVE (ALUMNI/PAST/MOVED) agar riwayat generasi tetap tercatat;
-        // status dipakai untuk badge warna di timeline.
+        // Termasuk ALUMNI/PAST agar riwayat generasi tetap tercatat; TAPI anggota
+        // berstatus MOVED dilewati — mereka sudah pindah ke kelompok lain dan
+        // hanya boleh tampil di pohon kelompok barunya (cegah dobel).
         const byKey = new Map(bMapped.map((b) => [`${b.group_id}|${b.period}`, b]));
         for (const m of historyMembers) {
-          if (String(m.familyRole || '').toUpperCase() === 'MENTEE' && m.batchPeriod) {
-            const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
-            if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar, status: m.status });
-          }
+          if (String(m.familyRole || '').toUpperCase() !== 'MENTEE' || !m.batchPeriod) continue;
+          if (String(m.status || '').toUpperCase() === 'MOVED') continue;
+          const b = byKey.get(`${m.group_id}|${m.batchPeriod}`);
+          if (b) b.mentees.push({ name: m.name, note: undefined, avatar: m.avatar, status: m.status });
         }
 
         // Roster Anggota = group_members nyata (ACTIVE) � tanpa baris sintetis
