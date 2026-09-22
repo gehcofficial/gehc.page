@@ -12,9 +12,15 @@
 - Verifikasi: `lint` bersih · **449 test** hijau · `build` OK · render lokal `#/portal/superadmin/div-didaskalia` (tab Didaskalia: Studio+Warta; tanpa tab 6 divisi; 14 chip event; 0 error); alias `divisions` → `div-liturgia`.
 
 ### Next
-1. **Fase 2** — sinkron konteks: turunkan `ym`/`weekIndex` dari event terpilih → `DidaskaliaStudioPanel` (hapus pemilih bulan/minggu); `WartaPublikTab` ikut tanggal event; header konteks.
-2. **Fase 3** — auto akses mingguan: `ensureWeeklyDivisions` (auto-create `EventDivision` 6 divisi) + visibilitas anggota divisi (`/api/me/divisions`).
+1. **Fase 3** — auto akses mingguan: `ensureWeeklyDivisions` (auto-create `EventDivision` 6 divisi) + visibilitas anggota divisi (`/api/me/divisions`).
+2. **AI key** — sinkron `OPENAI_API_KEY`/`GROQ_API_KEY` dari `.env` → Vercel Production+Preview + redeploy (Studio AI sedang gagal di prod).
 3. Sisa lain: Fase C email (butuh API key), P1-6 react-query, P2-6 lanjutan.
+
+### Fase 2 (SELESAI) — Studio ikut event
+- Baru `src/lib/church-week.ts` (`sundaysInMonth`, `yearMonthWib`, `weekIndexForDateWib`).
+- `DivisionWorkspacePanel` menurunkan `yearMonth`/`weekIndex` dari `selectedEvent.eventDate` (WIB) → prop ke `DidaskaliaStudioPanel`.
+- `DidaskaliaStudioPanel` menerima prop; **select Bulan/Minggu dihapus** (diganti konteks *"Event: … · tanggal"*); tetap kompatibel tanpa prop.
+- Verifikasi: `lint`/`test`/`build` hijau; render `div-didaskalia` → Studio "Event: …", `selects: 0`, 0 error.
 
 ### Commands
 ```

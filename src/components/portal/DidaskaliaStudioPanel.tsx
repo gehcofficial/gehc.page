@@ -72,14 +72,22 @@ function fmtDate(iso: string) {
 const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]';
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1 block';
 
-export const DidaskaliaStudioPanel: React.FC = () => {
+export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
   const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
   const [tab, setTab] = useState<'konten' | 'jadwal'>('konten');
-  const [ym, setYm] = useState(currentYearMonth());
-  const [weekIndex, setWeekIndex] = useState(1);
+  const [ym, setYm] = useState(yearMonth || currentYearMonth());
+  const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
+
+  // Konteks dari panel divisi: ikuti event terpilih (tanggal dipilih sekali).
+  useEffect(() => {
+    if (yearMonth && yearMonth !== ym) setYm(yearMonth);
+  }, [yearMonth]);
+  useEffect(() => {
+    if (weekIndexProp && weekIndexProp !== weekIndex) setWeekIndex(weekIndexProp);
+  }, [weekIndexProp]);
 
   const months = useMemo(() => monthOptions().slice(0, coverage), [coverage]);
   const weeksInMonth = useMemo(() => sundaysOfMonth(ym), [ym]);
@@ -340,22 +348,34 @@ export const DidaskaliaStudioPanel: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <label className={labelCls}>Bulan</label>
-            <select value={ym} onChange={(e) => { setYm(e.target.value); setWeekIndex(1); }} className={inputCls}>
-              {months.map((m) => <option key={m.ym} value={m.ym}>{m.label}</option>)}
-            </select>
-          </div>
-          <button type="button" onClick={() => setCoverage((c) => (c >= 6 ? 4 : c + 2))} className="text-[10px] px-2 py-2 rounded-xl border border-[#D9D7D0] font-bold text-[#8C8880]">+ bulan</button>
-          <div>
-            <label className={labelCls}>Minggu</label>
-            <select value={weekIndex} onChange={(e) => setWeekIndex(Number(e.target.value))} className={inputCls}>
-              {weeksInMonth.map((d, i) => <option key={d} value={i + 1}>W{i + 1} · {fmtDate(d)}</option>)}
-            </select>
-          </div>
-          <div className="text-[11px] text-[#8C8880]">
-            {event ? <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" /> Event: {event.name}</span> : <span className="text-amber-600">Belum ada event ibadah minggu ini</span>}
-          </div>
+          {yearMonth ? (
+            <div className="text-[11px] text-[#8C8880] inline-flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              <span>
+                Event: {event?.name || eventName || 'terpilih'}
+                {weekMeta?.date ? ` · ${fmtDate(String(weekMeta.date).slice(0, 10))}` : ''}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className={labelCls}>Bulan</label>
+                <select value={ym} onChange={(e) => { setYm(e.target.value); setWeekIndex(1); }} className={inputCls}>
+                  {months.map((m) => <option key={m.ym} value={m.ym}>{m.label}</option>)}
+                </select>
+              </div>
+              <button type="button" onClick={() => setCoverage((c) => (c >= 6 ? 4 : c + 2))} className="text-[10px] px-2 py-2 rounded-xl border border-[#D9D7D0] font-bold text-[#8C8880]">+ bulan</button>
+              <div>
+                <label className={labelCls}>Minggu</label>
+                <select value={weekIndex} onChange={(e) => setWeekIndex(Number(e.target.value))} className={inputCls}>
+                  {weeksInMonth.map((d, i) => <option key={d} value={i + 1}>W{i + 1} · {fmtDate(d)}</option>)}
+                </select>
+              </div>
+              <div className="text-[11px] text-[#8C8880]">
+                {event ? <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" /> Event: {event.name}</span> : <span className="text-amber-600">Belum ada event ibadah minggu ini</span>}
+              </div>
+            </>
+          )}
           <div className="ml-auto flex gap-2">
             <button type="button" onClick={() => void save()} disabled={!canWrite || saving} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan

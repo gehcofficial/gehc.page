@@ -54,6 +54,7 @@ import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 import { useActiveAccess } from '../../hooks/useActiveAccess';
+import { yearMonthWib, weekIndexForDateWib } from '../../lib/church-week';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -333,6 +334,11 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
   const currentDiv = selectedEvent?.divisions?.find(
     (d) => d.division === selectedDiv
   );
+
+  // Konteks tanggal Studio (Fase 2): turunkan bulan/minggu dari event terpilih
+  // supaya tak perlu memilih tanggal dua kali.
+  const studioYearMonth = selectedEvent?.eventDate ? yearMonthWib(selectedEvent.eventDate) : '';
+  const studioWeekIndex = selectedEvent?.eventDate ? weekIndexForDateWib(selectedEvent.eventDate) : undefined;
 
   const [activating, setActivating] = useState(false);
   const globalRoles = (authUser?.roles || []).map((r: { role: string }) => r.role);
@@ -1671,7 +1677,11 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
             {/* Studio Didaskalia (Didaskalia only) */}
             {detailTab === 'studio' && selectedDiv === 'DIDASKALIA' && (
               <div>
-                <DidaskaliaStudioPanel />
+                <DidaskaliaStudioPanel
+                  yearMonth={studioYearMonth || undefined}
+                  weekIndex={studioWeekIndex}
+                  eventName={selectedEvent?.name}
+                />
               </div>
             )}
 
