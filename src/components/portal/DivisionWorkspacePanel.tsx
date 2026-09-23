@@ -32,7 +32,6 @@ import {
   ClipboardList,
   Download,
   Image,
-  Newspaper,
   BookOpen,
   QrCode,
   Plus,
@@ -43,7 +42,6 @@ import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import DivisionPlanningTab from './DivisionPlanningTab';
-import WartaPublikTab from './WartaPublikTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
@@ -120,7 +118,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio' | 'materi';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -142,7 +140,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     .filter((e) => !eventQuery.trim() || e.name.toLowerCase().includes(eventQuery.trim().toLowerCase()))
     .sort((a, b) => orderOf(a.status) - orderOf(b.status));
   const [selectedDiv, setSelectedDiv] = useState<string>(division || ALL_DIVISIONS[0]);
-  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [detailTab, setDetailTab] = useState<DetailTab>(String(division || '').toUpperCase() === 'DIDASKALIA' ? 'studio' : 'overview');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
 
   // Division members
@@ -387,6 +385,31 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
   };
 
   const pillarMeta = pillarByName(selectedDiv);
+
+  // Sub-tab per divisi. Didaskalia: alur kerja kurikulum (Studio, Materi, Anggota) —
+  // tab generik (Ringkasan/Ibadah/Diskusi/Drive/Rencana/Warta) dihilangkan untuknya
+  // karena duplikat/ tidak relevan (Warta ada di sidebar, Diskusi ada di Studio).
+  const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = selectedDiv === 'DIDASKALIA'
+    ? [
+        { id: 'studio', label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
+        { id: 'materi', label: d.tabMateri, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+        { id: 'members', label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
+      ]
+    : [
+        { id: 'overview', label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
+        { id: 'ibadah', label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> },
+        { id: 'members', label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
+        { id: 'discussions', label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+        { id: 'drive', label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+        { id: 'planning', label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
+        ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
+        ...(selectedDiv === 'MARTURIA' ? [
+          { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+          { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+        ] : []),
+        ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
+      ];
+  const activeTab: DetailTab = divTabs.some((tab) => tab.id === detailTab) ? detailTab : (divTabs[0]?.id || 'overview');
   const divColor = pillarMeta?.color || '#6B7280';
 
   // Fetch division members
@@ -589,7 +612,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     finally { setDriveLoading(false); }
   }, [selectedEvent, currentDiv, selectedDiv]);
 
-  useEffect(() => { if (detailTab === 'drive') fetchDrive(); }, [detailTab, fetchDrive]);
+  useEffect(() => { if (activeTab === 'drive' || activeTab === 'materi') fetchDrive(); }, [activeTab, fetchDrive]);
 
   // Create folder
   const handleCreateFolder = async () => {
@@ -824,6 +847,228 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     );
   }
 
+  const rapatBlock = (
+                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Rapat</h4>
+                    <button
+                      onClick={() => setShowMeetingForm(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#1B1B1B] text-white text-[10px] font-bold hover:bg-black"
+                    >
+                      <CalendarPlus className="w-3 h-3" />
+                      Buat Rapat
+                    </button>
+                  </div>
+                  {meetingsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#8C8880]" />
+                  ) : meetings.length === 0 ? (
+                    <p className="text-xs text-[#8C8880]">Belum ada rapat.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {meetings.slice(0, 3).map((m) => (
+                        <div key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#D9D7D0]">
+                          <div className="flex items-center gap-2">
+                            <Video className="w-4 h-4 text-[#FF416C] shrink-0" />
+                            <div>
+                              <p className="text-xs font-bold text-[#1B1B1B]">{m.title}</p>
+                              <p className="text-[10px] text-[#8C8880]">
+                                {new Date(m.scheduledAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {m.gmeetLink && (
+                              <a href={m.gmeetLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-gray-100">
+                                <ExternalLink className="w-3 h-3 text-[#8C8880]" />
+                              </a>
+                            )}
+                            <button onClick={() => generateICS(m)} className="p-1 rounded hover:bg-gray-100">
+                              <Download className="w-3 h-3 text-[#8C8880]" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+  );
+
+  const driveBrowserBlock = (
+              <div className="space-y-4">
+                {/* Drive actions */}
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-semibold text-[#8C8880]">
+                    {driveFolders.length} Folder, {driveFiles.length} File
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowCreateFolder(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#8C8880] hover:bg-gray-100 transition-colors"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      Folder Baru
+                    </button>
+                    <button
+                      onClick={() => setShowUpload(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Upload
+                    </button>
+                  </div>
+                </div>
+
+                {!driveFolderId ? (
+                  <div className="text-center py-8 text-sm text-[#8C8880]">
+                    <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                    <p>Belum ada folder Drive untuk divisi ini.</p>
+                    <p className="text-xs mt-1">Hubungi admin untuk membuat folder Drive.</p>
+                  </div>
+                ) : driveLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#8C8880]" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Folders */}
+                    {driveFolders.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">Folder</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {driveFolders.map((f) => (
+                            <div key={f.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors cursor-pointer">
+                              <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
+                              <span className="text-xs font-semibold text-[#1B1B1B] truncate" title={f.name}>
+                                {f.displayName || displayFolderName(f.name)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Files */}
+                    {driveFiles.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">File</p>
+                        <div className="space-y-2">
+                          {driveFiles.map((f) => (
+                            <a
+                              key={f.id}
+                              href={f.webViewLink || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors"
+                            >
+                              {f.thumbnailUrl ? (
+                                <img src={f.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center shrink-0">
+                                  <FileText className="w-5 h-5 text-[#8C8880]" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</p>
+                                <p className="text-[10px] text-[#8C8880]">
+                                  {f.createdTime ? new Date(f.createdTime).toLocaleDateString('id-ID') : ''}
+                                </p>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-[#8C8880] shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {driveFolders.length === 0 && driveFiles.length === 0 && (
+                      <div className="text-center py-8 text-sm text-[#8C8880]">
+                        <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
+                        <p>Folder kosong.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+  );
+
+  const materialBlock = (
+                      <div className="space-y-3">
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+                          <p className="text-xs font-black text-emerald-800">Kurikulum — {selectedEvent?.name || 'event'} — 3 folder per event</p>
+                          <p className="text-[11px] text-emerald-700 leading-relaxed">Pola baru: <span className="font-bold">Kurikulum / (Nama Event) / 3 subfolder</span> — file per subfolder, bukan di pilar. Upload di bawah ini masuk ke folder event yang sesuai dan langsung muncul di Monitor.</p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+                            <p className="text-xs font-black text-amber-800">01 Pembekalan Mentor – Co mentor</p>
+                            <p className="text-[11px] text-amber-700">Deck SOP, materi pembekalan per event (mentor-only).</p>
+                            {canView01 ? (
+                              <>
+                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-amber-200 text-xs font-bold text-amber-800 hover:bg-amber-100 cursor-pointer">
+                                  {rhbUploading === '01 Pembekalan Mentor - Co mentor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Pembekalan
+                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '01 Pembekalan Mentor - Co mentor'); e.currentTarget.value=''; }} />
+                                </label>
+                                <p className="text-[10px] text-amber-600">Bisa pilih banyak file sekaligus.</p>
+                                {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 ? (
+                                  <ul className="space-y-1 pt-2 border-t border-amber-100">
+                                    {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).map((f) => (
+                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-[11px] text-amber-600 italic">Belum ada file — upload pertama akan buat subfolder.</p>
+                                )}
+                              </>
+                            ) : (
+                              <div className="p-3 rounded-xl bg-white border border-amber-200 text-[11px] text-amber-800">🔒 Hanya Mentor/Co-mentor yang bisa akses materi pembekalan.</div>
+                            )}
+                          </div>
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
+                            <p className="text-xs font-black text-sky-800">02 Ringkasan Khotbah</p>
+                            <p className="text-[11px] text-sky-700">File khotbah/ringkasan per event (portal) — <span className="font-bold">semua pemuda bisa akses</span> termasuk non-beyonders.</p>
+                            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-sky-200 text-xs font-bold text-sky-800 hover:bg-sky-100 cursor-pointer">
+                              {rhbUploading === '02 Ringkasan Khotbah' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Ringkasan
+                              <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '02 Ringkasan Khotbah'); e.currentTarget.value=''; }} />
+                            </label>
+                            <p className="text-[10px] text-sky-600">Bisa pilih banyak file sekaligus.</p>
+                            {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).length > 0 ? (
+                              <ul className="space-y-1 pt-2 border-t border-sky-100">
+                                {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).map((f) => (
+                                  <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-sky-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-[11px] text-sky-600 italic">Belum ada ringkasan — akan muncul di Info Event portal.</p>
+                            )}
+                          </div>
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+                            <p className="text-xs font-black text-emerald-800">03 RHB 7 Hari</p>
+                            <p className="text-[11px] text-emerald-700">7 PDF Senin–Sabtu untuk semua 10 grup — <span className="font-bold">semua beyonders (mentee/mentor)</span>.</p>
+                            {canView03 ? (
+                              <>
+                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer">
+                                  {rhbUploading === '03 RHB 7 Hari' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Pilih PDF RHB
+                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '03 RHB 7 Hari'); e.currentTarget.value=''; }} />
+                                </label>
+                                <p className="text-[10px] text-emerald-600">Bisa pilih 7 PDF sekaligus (Senin–Sabtu).</p>
+                                {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).length > 0 ? (
+                                  <ul className="space-y-1 pt-2 border-t border-emerald-100">
+                                    {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).map((f) => (
+                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-[11px] text-emerald-600 italic">Belum ada RHB — akan muncul di Monitor 10 Groups.</p>
+                                )}
+                              </>
+                            ) : (
+                              <div className="p-3 rounded-xl bg-white border border-emerald-200 text-[11px] text-emerald-800">🔒 RHB hanya untuk Beyonders (mentor/mentee). Hubungi mentor untuk akses.</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+  );
+
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -919,7 +1164,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => { setSelectedDiv(div); setDetailTab('overview'); }}
+                  onClick={() => { setSelectedDiv(div); setDetailTab(div === 'DIDASKALIA' ? 'studio' : 'overview'); }}
                 className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
                     ? 'text-white shadow-lg'
@@ -1076,32 +1321,16 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
             </div>
 
             {/* Sub-tabs divisi (BZP punya tab mandiri) */}
-            <ScrollTabBar active={detailTab}>
-              {([
-                { id: 'overview' as DetailTab, label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
-                { id: 'ibadah' as DetailTab, label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> },
-                { id: 'members' as DetailTab, label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
-                { id: 'discussions' as DetailTab, label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
-                { id: 'drive' as DetailTab, label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
-                { id: 'planning' as DetailTab, label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
-                ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'DIDASKALIA' ? [
-                  { id: 'studio' as DetailTab, label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
-                  { id: 'warta' as DetailTab, label: d.tabWarta, icon: <Newspaper className="w-3.5 h-3.5" /> },
-                ] : []),
-                ...(selectedDiv === 'MARTURIA' ? [
-                  { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
-                  { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
-                ] : []),
-                ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),              ]).map((tab) => (
+            <ScrollTabBar active={activeTab}>
+              {divTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   role="tab"
-                  aria-selected={detailTab === tab.id}
+                  aria-selected={activeTab === tab.id}
                   onClick={() => setDetailTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                    detailTab === tab.id
+                    activeTab === tab.id
                       ? 'bg-white text-[#1B1B1B] shadow-sm'
                       : 'text-[#8C8880] hover:text-[#1B1B1B]'
                   }`}
@@ -1112,8 +1341,36 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               ))}
             </ScrollTabBar>
 
+            {/* Strip ringkas Didaskalia: status penolakan divisi + deliverable Rencana bulan */}
+            {selectedDiv === 'DIDASKALIA' && (
+              (currentDiv?.approvalStatus === 'REJECTED' && !!currentDiv.rejectReason)
+              || linkedPlans.some((p) => p.division === selectedDiv)
+            ) && (
+              <div className="space-y-2 mb-4">
+                {currentDiv?.approvalStatus === 'REJECTED' && currentDiv.rejectReason && (
+                  <div className="p-3 rounded-2xl bg-red-50 border border-red-200">
+                    <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Alasan penolakan divisi</p>
+                    <p className="text-xs text-red-600 mt-0.5">{currentDiv.rejectReason}</p>
+                  </div>
+                )}
+                {linkedPlans.some((p) => p.division === selectedDiv) && (
+                  <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200">
+                    <p className="text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-1.5">Dari Rencana bulan · {selectedDiv}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {linkedPlans.filter((p) => p.division === selectedDiv).map((p) => (
+                        <span key={p.id} className="text-[11px] text-sky-900 bg-white rounded-lg px-2.5 py-1 border border-sky-100">
+                          <span className="font-bold">{p.title}</span>
+                          <span className="text-[10px] text-sky-700"> · {p.yearMonth} W{p.weekIndex} · {p.status}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Tab Content */}
-            {detailTab === 'overview' && (
+            {activeTab === 'overview' && (
               <div className="space-y-4">
                 <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]">
                   <h4 className="text-xs font-bold text-[#8C8880] uppercase tracking-wider mb-2">Program</h4>
@@ -1192,54 +1449,11 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   </div>
                 )}
 
-                {/* Meetings */}
-                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Rapat</h4>
-                    <button
-                      onClick={() => setShowMeetingForm(true)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#1B1B1B] text-white text-[10px] font-bold hover:bg-black"
-                    >
-                      <CalendarPlus className="w-3 h-3" />
-                      Buat Rapat
-                    </button>
-                  </div>
-                  {meetingsLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-[#8C8880]" />
-                  ) : meetings.length === 0 ? (
-                    <p className="text-xs text-[#8C8880]">Belum ada rapat.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {meetings.slice(0, 3).map((m) => (
-                        <div key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#D9D7D0]">
-                          <div className="flex items-center gap-2">
-                            <Video className="w-4 h-4 text-[#FF416C] shrink-0" />
-                            <div>
-                              <p className="text-xs font-bold text-[#1B1B1B]">{m.title}</p>
-                              <p className="text-[10px] text-[#8C8880]">
-                                {new Date(m.scheduledAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {m.gmeetLink && (
-                              <a href={m.gmeetLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-gray-100">
-                                <ExternalLink className="w-3 h-3 text-[#8C8880]" />
-                              </a>
-                            )}
-                            <button onClick={() => generateICS(m)} className="p-1 rounded hover:bg-gray-100">
-                              <Download className="w-3 h-3 text-[#8C8880]" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {rapatBlock}
               </div>
             )}
 
-            {detailTab === 'ibadah' && (
+            {activeTab === 'ibadah' && (
               <div className="space-y-4">
                 {!currentDiv ? (
                   <div className="p-6 rounded-2xl bg-[#FAF9F5] border border-dashed border-[#D9D7D0] text-center">
@@ -1297,88 +1511,12 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                         }
                       }}
                     />
-                    {selectedDiv === 'DIDASKALIA' && (
-                      <div className="space-y-3">
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                          <p className="text-xs font-black text-emerald-800">Kurikulum — {selectedEvent.name} — 3 folder per event</p>
-                          <p className="text-[11px] text-emerald-700 leading-relaxed">Pola baru: <span className="font-bold">Kurikulum / (Nama Event) / 3 subfolder</span> — file per subfolder, bukan di pilar. Upload di bawah ini masuk ke folder event yang sesuai dan langsung muncul di Monitor.</p>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-amber-800">01 Pembekalan Mentor – Co mentor</p>
-                            <p className="text-[11px] text-amber-700">Deck SOP, materi pembekalan per event (mentor-only).</p>
-                            {canView01 ? (
-                              <>
-                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-amber-200 text-xs font-bold text-amber-800 hover:bg-amber-100 cursor-pointer">
-                                  {rhbUploading === '01 Pembekalan Mentor - Co mentor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Pembekalan
-                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '01 Pembekalan Mentor - Co mentor'); e.currentTarget.value=''; }} />
-                                </label>
-                                <p className="text-[10px] text-amber-600">Bisa pilih banyak file sekaligus.</p>
-                                {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 ? (
-                                  <ul className="space-y-1 pt-2 border-t border-amber-100">
-                                    {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).map((f) => (
-                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-[11px] text-amber-600 italic">Belum ada file — upload pertama akan buat subfolder.</p>
-                                )}
-                              </>
-                            ) : (
-                              <div className="p-3 rounded-xl bg-white border border-amber-200 text-[11px] text-amber-800">🔒 Hanya Mentor/Co-mentor yang bisa akses materi pembekalan.</div>
-                            )}
-                          </div>
-                          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-sky-800">02 Ringkasan Khotbah</p>
-                            <p className="text-[11px] text-sky-700">File khotbah/ringkasan per event (portal) — <span className="font-bold">semua pemuda bisa akses</span> termasuk non-beyonders.</p>
-                            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-sky-200 text-xs font-bold text-sky-800 hover:bg-sky-100 cursor-pointer">
-                              {rhbUploading === '02 Ringkasan Khotbah' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Ringkasan
-                              <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '02 Ringkasan Khotbah'); e.currentTarget.value=''; }} />
-                            </label>
-                            <p className="text-[10px] text-sky-600">Bisa pilih banyak file sekaligus.</p>
-                            {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).length > 0 ? (
-                              <ul className="space-y-1 pt-2 border-t border-sky-100">
-                                {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).map((f) => (
-                                  <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-sky-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-[11px] text-sky-600 italic">Belum ada ringkasan — akan muncul di Info Event portal.</p>
-                            )}
-                          </div>
-                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-emerald-800">03 RHB 7 Hari</p>
-                            <p className="text-[11px] text-emerald-700">7 PDF Senin–Sabtu untuk semua 10 grup — <span className="font-bold">semua beyonders (mentee/mentor)</span>.</p>
-                            {canView03 ? (
-                              <>
-                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer">
-                                  {rhbUploading === '03 RHB 7 Hari' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Pilih PDF RHB
-                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '03 RHB 7 Hari'); e.currentTarget.value=''; }} />
-                                </label>
-                                <p className="text-[10px] text-emerald-600">Bisa pilih 7 PDF sekaligus (Senin–Sabtu).</p>
-                                {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).length > 0 ? (
-                                  <ul className="space-y-1 pt-2 border-t border-emerald-100">
-                                    {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).map((f) => (
-                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-[11px] text-emerald-600 italic">Belum ada RHB — akan muncul di Monitor 10 Groups.</p>
-                                )}
-                              </>
-                            ) : (
-                              <div className="p-3 rounded-xl bg-white border border-emerald-200 text-[11px] text-emerald-800">🔒 RHB hanya untuk Beyonders (mentor/mentee). Hubungi mentor untuk akses.</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
             )}
 
-            {detailTab === 'members' && (
+            {activeTab === 'members' && (
               <div className="space-y-4">
                 {/* Add member button */}
                 <div className="flex justify-between items-center">
@@ -1444,7 +1582,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               </div>
             )}
 
-            {detailTab === 'discussions' && (
+            {activeTab === 'discussions' && (
               <div className="space-y-4">
                 {/* Post input */}
                 <div className="flex gap-3">
@@ -1568,117 +1706,28 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               </div>
             )}
 
-            {detailTab === 'drive' && (
+            {activeTab === 'materi' && selectedDiv === 'DIDASKALIA' && currentDiv && (
               <div className="space-y-4">
-                {/* Drive actions */}
-                <div className="flex justify-between items-center">
-                  <p className="text-xs font-semibold text-[#8C8880]">
-                    {driveFolders.length} Folder, {driveFiles.length} File
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowCreateFolder(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#8C8880] hover:bg-gray-100 transition-colors"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      Folder Baru
-                    </button>
-                    <button
-                      onClick={() => setShowUpload(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold hover:bg-black transition-colors"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      Upload
-                    </button>
-                  </div>
-                </div>
-
-                {!driveFolderId ? (
-                  <div className="text-center py-8 text-sm text-[#8C8880]">
-                    <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
-                    <p>Belum ada folder Drive untuk divisi ini.</p>
-                    <p className="text-xs mt-1">Hubungi admin untuk membuat folder Drive.</p>
-                  </div>
-                ) : driveLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#8C8880]" />
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Folders */}
-                    {driveFolders.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">Folder</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {driveFolders.map((f) => (
-                            <div key={f.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors cursor-pointer">
-                              <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
-                              <span className="text-xs font-semibold text-[#1B1B1B] truncate" title={f.name}>
-                                {f.displayName || displayFolderName(f.name)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Files */}
-                    {driveFiles.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider mb-2">File</p>
-                        <div className="space-y-2">
-                          {driveFiles.map((f) => (
-                            <a
-                              key={f.id}
-                              href={f.webViewLink || '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] hover:bg-gray-100 transition-colors"
-                            >
-                              {f.thumbnailUrl ? (
-                                <img src={f.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                              ) : (
-                                <div className="w-10 h-10 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center shrink-0">
-                                  <FileText className="w-5 h-5 text-[#8C8880]" />
-                                </div>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold text-[#1B1B1B] truncate">{f.name}</p>
-                                <p className="text-[10px] text-[#8C8880]">
-                                  {f.createdTime ? new Date(f.createdTime).toLocaleDateString('id-ID') : ''}
-                                </p>
-                              </div>
-                              <ExternalLink className="w-4 h-4 text-[#8C8880] shrink-0" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {driveFolders.length === 0 && driveFiles.length === 0 && (
-                      <div className="text-center py-8 text-sm text-[#8C8880]">
-                        <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#D9D7D0]" />
-                        <p>Folder kosong.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {materialBlock}
+                {driveBrowserBlock}
               </div>
             )}
 
-            {detailTab === 'checkin' && selectedDiv === 'KOINONIA' && selectedEvent && (
+            {activeTab === 'drive' && driveBrowserBlock}
+
+            {activeTab === 'checkin' && selectedDiv === 'KOINONIA' && selectedEvent && (
               <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
             )}
 
             {/* Planning Tab (all divisions) */}
-            {detailTab === 'planning' && (
+            {activeTab === 'planning' && (
               <div>
                 <DivisionPlanningTab division={selectedDiv} />
               </div>
             )}
 
             {/* Penatalayan Tab (Liturgia & Marturia) */}
-            {detailTab === 'penatalayan' && (selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') && (
+            {activeTab === 'penatalayan' && (selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') && (
               <div className="space-y-5">
                 <PenatalayanCalendar division={selectedDiv} />
                 <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
@@ -1688,31 +1737,30 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
             )}
 
             {/* Studio Didaskalia (Didaskalia only) */}
-            {detailTab === 'studio' && selectedDiv === 'DIDASKALIA' && (
+            {activeTab === 'studio' && selectedDiv === 'DIDASKALIA' && (
               <div>
                 <DidaskaliaStudioPanel
                   yearMonth={studioYearMonth || undefined}
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}
+                  extraJadwal={(
+                    <div className="space-y-4">
+                      {rapatBlock}
+                      <DivisionPlanningTab division={selectedDiv} />
+                    </div>
+                  )}
                 />
               </div>
             )}
 
-            {/* Warta Publik Tab (Didaskalia only) */}
-            {detailTab === 'warta' && selectedDiv === 'DIDASKALIA' && (
-              <div>
-                <WartaPublikTab division={selectedDiv} />
-              </div>
-            )}
-
             {/* Event Gallery Tab (Marturia only) */}
-            {detailTab === 'gallery' && selectedDiv === 'MARTURIA' && (
+            {activeTab === 'gallery' && selectedDiv === 'MARTURIA' && (
               <div>
                 <EventGalleryTab division={selectedDiv} eventId={selectedEvent?.id ?? ''} />
               </div>
             )}
 
-            {detailTab === 'kesaksian' && selectedDiv === 'MARTURIA' && (
+            {activeTab === 'kesaksian' && selectedDiv === 'MARTURIA' && (
               <ManageTestimonials variant="curate" />
             )}
 

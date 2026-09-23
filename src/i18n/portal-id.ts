@@ -410,6 +410,7 @@ export const portalId: typeof portalEn = {
     tabKesaksian: 'Kesaksian & Story',
     tabPenatalayan: 'Penatalayan',
     tabStore: 'Benzarpreneurship',
+    tabMateri: 'Kurikulum & Materi',
   },
   monitoring: {
     tabForm: 'Form monitoring',

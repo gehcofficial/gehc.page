@@ -154,11 +154,11 @@ const ImageSlot: React.FC<{
   );
 };
 
-export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
+export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string; extraJadwal?: React.ReactNode }> = ({ yearMonth, weekIndex: weekIndexProp, eventName, extraJadwal }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
-  const [tab, setTab] = useState<'konten' | 'jadwal'>('konten');
+  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'jadwal'>('inti');
   const [ym, setYm] = useState(yearMonth || currentYearMonth());
   const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
@@ -733,6 +733,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 
+  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'jadwal'; label: string }> = [
+    { id: 'inti', label: 'Inti' },
+    { id: 'paths', label: '7 Path' },
+    { id: 'khotbah', label: 'Khotbah' },
+    { id: 'diskusi', label: 'Diskusi' },
+    { id: 'terbitkan', label: 'Terbitkan' },
+    { id: 'jadwal', label: 'Jadwal & Meet' },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Header kontrol */}
@@ -741,9 +750,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           <BookOpen className="w-4 h-4 text-[#0EA5E9]" />
           <h3 className="text-sm font-black text-[#1B1B1B]">Studio Didaskalia</h3>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">{statusLabel(studio.status)}</span>
-          <div className="ml-auto flex gap-1.5">
-            <button type="button" onClick={() => setTab('konten')} className={`text-[11px] px-3 py-1.5 rounded-full font-bold border ${tab === 'konten' ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>Konten & 7 Path</button>
-            <button type="button" onClick={() => setTab('jadwal')} className={`text-[11px] px-3 py-1.5 rounded-full font-bold border ${tab === 'jadwal' ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>Jadwal & Meet</button>
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            {studioTabs.map((s) => (
+              <button key={s.id} type="button" onClick={() => setTab(s.id)} className={`text-[11px] px-3 py-1.5 rounded-full font-bold border ${tab === s.id ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>{s.label}</button>
+            ))}
           </div>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -787,8 +797,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
       {loading ? (
         <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat studio…</p>
-      ) : tab === 'konten' ? (
+      ) : (
         <>
+          {tab === 'inti' && (<>
           {/* Persetujuan HOD & riwayat regenerate */}
           {(approval.pending || (approval.history || []).length > 0) && (
             <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
@@ -983,6 +994,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
           </div>
 
+          </>)}
+          {tab === 'paths' && (<>
           {/* Editor 7 Path */}
           <div className="space-y-2">
             {paths.map((p, i) => {
@@ -1073,6 +1086,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             })}
           </div>
 
+          </>)}
+          {tab === 'khotbah' && (<>
           {/* Ringkasan Khotbah + slide */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -1153,6 +1168,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
           </div>
 
+          </>)}
+          {tab === 'diskusi' && (<>
           {/* Diskusi */}
           <div id="didaskalia-discussion" className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2"><Users className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Diskusi Internal</h4><span className="ml-auto text-[10px] text-[#8C8880]">bagian terpilih: <b>{scopeLabel(commentScope)}</b></span></div>
@@ -1199,6 +1216,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
           </div>
 
+          </>)}
+          {tab === 'terbitkan' && (<>
           {/* Generate PDF */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Terbitkan Dokumen</h4></div>
@@ -1289,9 +1308,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               ))}
             </div>
           </div>
-        </>
-      ) : (
-        <>
+          </>)}
+          {tab === 'jadwal' && (<>
           {/* Jadwal */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -1348,6 +1366,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
             <button type="button" disabled={!canWrite || schedBusy} onClick={() => void saveLinks()} className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">Simpan link</button>
           </div>
+            {extraJadwal}
+          </>)}
         </>
       )}
     </div>
