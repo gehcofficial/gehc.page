@@ -76,8 +76,18 @@ describe('deck builders', () => {
     const sections = deck.filter((s) => s.kind === 'section');
     expect(sections).toHaveLength(5);
     expect(sections[0].title).toBe('Pengantar');
-    expect(sections[4].title).toBe('Diskusi Kelompok');
+    expect(sections[4].title).toBe('Pertanyaan untuk Diskusi Kelompok');
     expect(deck[deck.length - 1].kind).toBe('closing');
+  });
+
+  it('RHB harian menampilkan Bacaan Alkitab & Nats Pembimbing', () => {
+    const studio = studioWithRhb();
+    const content = contentFromStudio(studio, 1, '', '');
+    content.paths[1] = { ...content.paths[1], bacaanRef: '1 Timotius 3:3-4', scriptureRef: '1 Timotius 3:11' };
+    const deck = buildRhbDayDeck(content, 2);
+    const labels = (deck[0].fields || []).map((f) => f.label);
+    expect(labels).toContain('Bacaan Alkitab');
+    expect(labels).toContain('Nats Pembimbing');
   });
 
   it('RHB harian memakai gambar per section bila ada', () => {

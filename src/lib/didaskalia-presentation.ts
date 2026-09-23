@@ -166,7 +166,8 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       title: p.title,
       imageFileId: images.paths?.[String(p.pathIndex)] || p.coverImageFileId || undefined,
       fields: [
-        p.scriptureRef ? { label: 'Ayat', value: p.scriptureRef } : null,
+        p.bacaanRef ? { label: 'Bacaan Alkitab', value: p.bacaanRef } : null,
+        p.scriptureRef ? { label: 'Nats Pembimbing', value: p.scriptureRef } : null,
         p.homileticLens.length ? { label: 'Lensa', value: p.homileticLens.join(' · ') } : null,
         p.hookQuestion ? { label: 'Pertanyaan Pembuka', value: p.hookQuestion } : null,
         p.illustration ? { label: 'Ilustrasi', value: p.illustration } : null,
@@ -206,8 +207,12 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       kind: 'cover',
       kicker: `RHB · Pekan ${content.weekIndex} · ${path.dayLabel || DAY_LABELS[dayIndex - 1]}`,
       title: path.title,
-      subtitle: [content.chapterNo, path.scriptureRef].filter(Boolean).join(' · '),
+      subtitle: [content.chapterNo, path.bacaanRef].filter(Boolean).join(' · '),
       imageFileId: perDay.cover || path.coverImageFileId || undefined,
+      fields: [
+        path.bacaanRef ? { label: 'Bacaan Alkitab', value: path.bacaanRef } : null,
+        path.scriptureRef ? { label: 'Nats Pembimbing', value: path.scriptureRef } : null,
+      ].filter(Boolean) as { label: string; value: string }[],
     },
   ];
   sections.forEach((s, i) => {

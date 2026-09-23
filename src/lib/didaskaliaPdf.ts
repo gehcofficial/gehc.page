@@ -281,10 +281,11 @@ function pathPage(w: Writer, path: DidaskaliaPath, opts: PdfOptions, mode: 'modu
   w.y = 20;
   w.label(`Path ${path.pathIndex} · ${path.dayLabel}`, C.accent);
   w.title(path.title, 20);
-  if (path.scriptureRef) w.field('Ayat', path.scriptureRef, 10);
+  if (path.bacaanRef) w.field('Bacaan Alkitab', path.bacaanRef, 10);
+  if (path.scriptureRef) w.field('Nats Pembimbing', path.scriptureRef, 10);
   if (path.homileticLens.length) w.field('Lensa', path.homileticLens.join(' · '), 9.5);
   w.image(opts.pathImages?.[path.pathIndex], 42);
-  if (path.scriptureText) w.callout('Nats', path.scriptureText);
+  if (path.scriptureText) w.callout('Nats Pembimbing', path.scriptureText);
   if (mode === 'modul') {
     w.field('Pertanyaan Pembuka', path.hookQuestion);
     w.field('Ilustrasi', path.illustration);
@@ -374,8 +375,10 @@ export function buildRhbPdfs(week: DidaskaliaWeek, studio: DidaskaliaStudio, opt
     w.title(p.title, 24);
     w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
     w.divider(7);
+    if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
+    if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
     w.image(opts.pathImages?.[p.pathIndex], 52);
-    if (p.scriptureText) w.callout(p.scriptureRef || 'Nats', p.scriptureText);
+    if (p.scriptureText) w.callout(p.scriptureRef || 'Nats Pembimbing', p.scriptureText);
 
     const sectionImages = opts.rhbSectionImages?.[p.pathIndex] || {};
     for (const s of effectiveRhbSections(p)) {

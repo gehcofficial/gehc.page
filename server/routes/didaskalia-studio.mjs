@@ -12,6 +12,7 @@ import { sundaysInMonth, toISODate, addDays } from '../lib/church-year.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
 import {
   generateWeekDraft,
+  generateEnrichedDraft,
   generateSermon,
   refineField,
   RITUAL_TYPES,
@@ -37,9 +38,9 @@ const DOCS = ['pembekalan', 'khutbah', 'rhb'];
 const RHB_SECTION_DEFS = [
   { key: 'PENGANTAR', title: 'Pengantar' },
   { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
-  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
-  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
-  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna & Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Pertanyaan untuk Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Pertanyaan untuk Diskusi Kelompok' },
 ];
 
 const uid = () => crypto.randomBytes(8).toString('hex');
@@ -48,14 +49,14 @@ function str(v, max = 8000) {
   return typeof v === 'string' ? v.slice(0, max) : '';
 }
 
-/** Normalisasi 5 section RHB: key & urutan tetap. */
+/** Normalisasi 5 section RHB: key, judul baku & urutan tetap. */
 function sanitizeRhbSections(raw) {
   const list = Array.isArray(raw) ? raw : [];
   return RHB_SECTION_DEFS.map((def) => {
     const found = list.find((x) => x && typeof x === 'object' && x.key === def.key) || {};
     return {
       key: def.key,
-      title: str(found.title, 190).trim() || def.title,
+      title: def.title,
       body: str(found.body, 20000),
       imageFileId: str(found.imageFileId, 190).trim(),
     };
@@ -330,7 +331,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (week) => {
           const st = { ...week.studio };
-          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals', 'presentation']) {
+          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals', 'presentation', 'generation']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
           if (st.status && st.status === 'REVIEW' && !st.reviewerId) st.reviewerId = req.authUser?.id || null;
@@ -394,6 +395,70 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           if (Array.isArray(draft.methodMix) && draft.methodMix.length) s.methodMix = draft.methodMix;
           s.paths = draft.paths;
           s.sermon = draft.sermon;
+          s.generation = (Number(s.generation) || 0) + 1;
+          if (s.status === 'PUBLISHED') s.status = 'DRAFT';
+          if (!s.authorId) s.authorId = req.authUser?.id || null;
+          return { ...w, studio: s };
+        },
+        req.authUser?.id
+      );
+      res.json({ week: saved, draft });
+    })
+  );
+
+  // ---------- AI: perkaya draf (tahap 2, dengan diskusi internal) ----------
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/enrich',
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const prev = weekOrDefault(weeks, yearMonth, weekIndex - 1);
+      const next = weekOrDefault(weeks, yearMonth, weekIndex + 1);
+      const st = sanitizeStudio(week.studio);
+
+      let draft;
+      try {
+        draft = await generateEnrichedDraft({
+          yearMonth,
+          weekIndex,
+          date: week.date,
+          monthTheme: plan?.theme || '',
+          theme: week.mentoringTheme || week.servingTheme || week.theme || st.chapterNo || '',
+          chapterNo: req.body?.chapterNo ?? st.chapterNo,
+          fundamentalFirman: req.body?.fundamentalFirman ?? st.fundamentalFirman,
+          kitabFokus: req.body?.kitabFokus ?? st.kitabFokus,
+          prevTheme: prev.mentoringTheme || prev.servingTheme || prev.theme || '',
+          nextTheme: next.mentoringTheme || next.servingTheme || next.theme || '',
+          methods: req.body?.methods ?? st.homileticMethods,
+          notes: req.body?.notes,
+          current: st,
+        });
+      } catch (e) {
+        return res.status(502).json({ error: `AI gagal memperkaya draf: ${e.message}` });
+      }
+
+      const saved = await saveStudioWeek(
+        prisma,
+        yearMonth,
+        weekIndex,
+        (w) => {
+          const s = { ...w.studio };
+          if (draft.chapterNo) s.chapterNo = draft.chapterNo;
+          if (draft.fundamentalFirman?.ref || draft.fundamentalFirman?.text) s.fundamentalFirman = draft.fundamentalFirman;
+          if (draft.kitabFokus) s.kitabFokus = draft.kitabFokus;
+          s.homileticMethods = draft.homileticMethods || s.homileticMethods;
+          if (Array.isArray(draft.methodMix) && draft.methodMix.length) s.methodMix = draft.methodMix;
+          s.paths = draft.paths;
+          s.sermon = draft.sermon;
+          s.generation = (Number(s.generation) || 0) + 1;
           if (s.status === 'PUBLISHED') s.status = 'DRAFT';
           if (!s.authorId) s.authorId = req.authUser?.id || null;
           return { ...w, studio: s };

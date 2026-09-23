@@ -238,7 +238,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   }, [addToast, canWrite, studio, weekIndex, ym]);
 
-  const runAi = useCallback(async (kind: 'draft' | 'sermon') => {
+  const runAi = useCallback(async (kind: 'draft' | 'sermon' | 'enrich') => {
     if (!canWrite) return;
     await save(); // jangan buang edit terakhir
     setBusy(kind);
@@ -260,7 +260,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      addToast({ type: 'success', title: kind === 'draft' ? 'Draf 7 Path & ringkasan dibuat' : 'Ringkasan khotbah dibuat' });
+      addToast({
+        type: 'success',
+        title: kind === 'draft' ? 'Draf 7 Path & ringkasan dibuat'
+          : kind === 'enrich' ? 'Draf diperkaya dengan diskusi tim'
+            : 'Ringkasan khotbah dibuat',
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'AI gagal.');
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
@@ -740,6 +745,14 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
               </button>
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Tahap 2: perkaya draf dengan diskusi internal tim">
+                {busy === 'enrich' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Perkaya dengan diskusi
+              </button>
+              {(studio.generation || 0) > 0 && (
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${(studio.generation || 0) > 3 ? 'bg-amber-50 border border-amber-300 text-amber-700' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]'}`}>
+                  Generasi ke-{studio.generation}{(studio.generation || 0) > 3 ? ' — disarankan maks 2-3×' : ''}
+                </span>
+              )}
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Ringkasan Khotbah
               </button>
@@ -775,10 +788,11 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                       <div className="grid sm:grid-cols-2 gap-2 pt-3">
                         <div><label className={labelCls}>Judul Path</label><input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Ayat</label><input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} /></div>
+                        <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} className={inputCls} /></div>
+                        <div><label className={labelCls}>Nats Pembimbing</label><input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Lensa Khotbah</label><input value={(p.homileticLens || []).join(', ')} onChange={(e) => setPath(i, { homileticLens: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} className={inputCls} /></div>
                       </div>
-                      <div><label className={labelCls}>Teks Nats</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
+                      <div><label className={labelCls}>Teks Nats Pembimbing</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
                       <div className="grid sm:grid-cols-2 gap-2">
                         <div><label className={labelCls}>Pertanyaan Pembuka</label><textarea value={p.hookQuestion} onChange={(e) => setPath(i, { hookQuestion: e.target.value })} rows={2} className={inputCls} /></div>
                         <div><label className={labelCls}>Ilustrasi</label><textarea value={p.illustration} onChange={(e) => setPath(i, { illustration: e.target.value })} rows={2} className={inputCls} /></div>

@@ -31,9 +31,9 @@ export const DAY_LABELS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu',
 export const RHB_SECTIONS = [
   { key: 'PENGANTAR', title: 'Pengantar' },
   { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
-  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
-  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
-  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna & Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Pertanyaan untuk Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Pertanyaan untuk Diskusi Kelompok' },
 ];
 
 const SYSTEM =
@@ -89,7 +89,7 @@ function clampRhbSections(raw) {
     const found = list.find((x) => x && typeof x === 'object' && String(x.key || '').toUpperCase() === def.key) || {};
     return {
       key: def.key,
-      title: asStr(found.title, def.title) || def.title,
+      title: def.title,
       body: asStr(found.body),
       imageFileId: '',
     };
@@ -107,6 +107,7 @@ function clampPaths(raw) {
       title: asStr(p.title, `Path ${i + 1}`),
       scriptureRef: asStr(p.scriptureRef),
       scriptureText: asStr(p.scriptureText),
+      bacaanRef: asStr(p.bacaanRef),
       homileticLens: asStrArray(p.homileticLens, 4),
       hookQuestion: asStr(p.hookQuestion),
       illustration: asStr(p.illustration),
@@ -197,21 +198,80 @@ export async function generateWeekDraft(input) {
     'KONTEKS:',
     buildContext(input),
     '',
+    'ALUR PEMIKIRAN (WAJIB DIPATUHI):',
+    '- Fundamental Firman (ayat) adalah JANGKAR TEMA minggu ini. Seluruh isi harus bertumpu pada ayat dasar ini.',
+    '- Ringkasan Khotbah DITURUNKAN dari Fundamental Firman, lalu DIARAHKAN ke Kitab/Bagian Fokus minggu ini.',
+    '- Setiap metode berkhotbah yang dipakai (lihat persentasenya) harus terasa MENAJAMKAN & MEMPERDALAM Fundamental Firman — bukan tempelan.',
+    '- Kitab/Bagian Fokus adalah TUJUAN HARIAN: bagi rentangnya menjadi 7 bagian berurutan (Path 1 → Path 7).',
+    '',
     'ATURAN:',
     '- Hasilkan TEPAT 7 Path yang saling terhubung dan berurutan (Path 1 sampai 7).',
+    '- Judul tiap Path WAJIB Bahasa Inggris yang menarik/kece untuk anak muda (2-5 kata, mis. "Redefining Greatness", "Ambassadors of Grace"). Isi lain tetap Bahasa Indonesia.',
     '- Path 7 adalah KESIMPULAN minggu ini sekaligus JEMBATAN ke tema minggu berikutnya.',
-    '- Tiap Path wajib punya: title, scriptureRef, scriptureText (ringkas), homileticLens (2-3 metode), hookQuestion (pertanyaan pembuka mudah), illustration (ilustrasi singkat relevan), reflection (2-4 paragraf pendek), observeQ/interpretQ/applyQ (pertanyaan diskusi bertingkat), fgdQuestions (2-4 pertanyaan), bridge (kalimat jembatan ke Path berikutnya).',
-    '- Tiap Path juga wajib punya "rhbSections": TEPAT 5 section RHB harian berurutan dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. Masing-masing {key, title, body} dengan body 1-3 paragraf pendek (boleh dipisah baris kosong). "Makna dan Implikasi bagi Beyonders" harus konkret untuk pemuda/anak rantau; "Diskusi Kelompok" berisi 3-5 pertanyaan.',
-    '- Kombinasikan metode berkhotbah dari 7 pendekatan (Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis) sesuai kebutuhan; jelaskan pilihan pada sermon.rationale.',
+    '- Tiap Path wajib punya: title (Inggris), bacaanRef (Bacaan Alkitab harian dari rentang Kitab Fokus), scriptureRef (Nats Pembimbing — satu ayat kunci), scriptureText (teks Nats Pembimbing, ringkas), homileticLens (2-3 metode), hookQuestion (pertanyaan pembuka mudah), illustration (ilustrasi singkat relevan), reflection (2-4 paragraf pendek), observeQ/interpretQ/applyQ (pertanyaan diskusi bertingkat), fgdQuestions (2-4 pertanyaan), bridge (kalimat jembatan ke Path berikutnya).',
+    '- Bacaan Alkitab: bagi rentang Kitab/Bagian Fokus secara merata untuk 7 hari (progresif). Contoh: bila Kitab Fokus = 1 Timotius 3:1-13, hari 1 ≈ 1 Timotius 3:1-2, hari 2 ≈ 3:3-4, dst.',
+    '- Nats Pembimbing: ayat kunci tiap hari yang diulas dan berasosiasi dengan Fundamental Firman/tema minggu.',
+    '- Tiap Path juga wajib punya "rhbSections": TEPAT 5 section RHB harian berurutan dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. Masing-masing {key, title, body} dengan body 1-3 paragraf pendek (boleh dipisah baris kosong). "Makna & Implikasi bagi Beyonders" harus konkret untuk pemuda/anak rantau; "Diskusi Kelompok" 3-5 pertanyaan; "Refleksi Pribadi" 1-3 pertanyaan.',
+    '- Kombinasikan metode berkhotbah dari 7 pendekatan (Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis) sesuai kebutuhan; jelaskan pada sermon.rationale BAGAIMANA pilihan itu menajamkan Fundamental Firman.',
     '- Sertakan "methodMix": 2-3 metode dari daftar 7 dengan persentase (total ~100) dan catatan singkat alasan porsinya.',
     '- Manfaatkan "Catatan tim/diskusi" bila ada sebagai masukan nyata dari tim Didaskalia.',
     '- Ringkasan khotbah: methods, rationale, summary (3-5 paragraf), slideOutline (6-10 slide, tiap slide: title, bullets 2-5, visualNote).',
+    '- Kesinambungan: hubungkan dengan tema minggu sebelumnya dan berikutnya (lihat konteks).',
     '- Kontekstual untuk anak muda & anak rantau di Cikarang (kerja, kos, komunitas).',
-    '- Bahasa Indonesia yang hangat dan jelas.',
+    '- Bahasa Indonesia yang hangat dan jelas (kecuali judul Path).',
     '',
     'Balas HANYA dengan JSON valid (tanpa markdown) dengan bentuk:',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna dan Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
+    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
   ].join('\n');
+
+  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });
+  return clampDraft(extractJson(text));
+}
+
+/**
+ * Tahap 2 — perkaya draf yang sudah ada dengan diskusi internal tim.
+ * Tidak membuang struktur; hanya menajamkan/ memperdalam isi.
+ */
+export async function generateEnrichedDraft(input) {
+  const current = input.current && typeof input.current === 'object' ? input.current : {};
+  const prompt = [
+    'PERKAYA (revisi kedua) draf pembelajaran satu minggu untuk komunitas pemuda (Beyonders).',
+    '',
+    'KONTEKS:',
+    buildContext(input),
+    '',
+    'ALUR PEMIKIRAN (WAJIB):',
+    '- Fundamental Firman = jangkar tema; Ringkasan Khotbah diturunkan darinya lalu diarahkan ke Kitab/Bagian Fokus.',
+    '- Setiap metode (sesuai persentase) harus menajamkan & memperdalam Fundamental Firman.',
+    '- Kitab/Bagian Fokus dibagi 7 hari sebagai Bacaan Alkitab; tiap hari punya Nats Pembimbing.',
+    '',
+    'DRAF SAAT INI (JSON):',
+    JSON.stringify({
+      chapterNo: current.chapterNo,
+      fundamentalFirman: current.fundamentalFirman,
+      kitabFokus: current.kitabFokus,
+      methodMix: current.methodMix,
+      paths: (current.paths || []).map((p) => ({
+        pathIndex: p.pathIndex,
+        dayLabel: p.dayLabel,
+        title: p.title,
+        bacaanRef: p.bacaanRef,
+        scriptureRef: p.scriptureRef,
+        rhbSections: (p.rhbSections || []).map((s) => ({ key: s.key, body: s.body })),
+      })),
+      sermon: current.sermon,
+    }),
+    '',
+    'TUGAS:',
+    '- JANGAN mengubah struktur: tetap 7 Path dan 5 rhbSections per Path dengan key yang sama.',
+    '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), isi rhbSections, dan ringkasan khotbah.',
+    '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
+    '- Integrasikan masukan dari "Catatan tim/diskusi" (jangan diabaikan).',
+    '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
+    '',
+    'Balas HANYA JSON valid (bentuk sama seperti draf di atas, lengkap):',
+    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}}',
+  ].filter(Boolean).join('\n');
 
   const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });
   return clampDraft(extractJson(text));

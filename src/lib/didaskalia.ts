@@ -28,9 +28,9 @@ export const DAY_LABELS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu',
 export const RHB_SECTIONS = [
   { key: 'PENGANTAR', title: 'Pengantar' },
   { key: 'PEMBAHASAN_TEMATIS', title: 'Pembahasan Tematis' },
-  { key: 'MAKNA_IMPLIKASI', title: 'Makna dan Implikasi bagi Beyonders' },
-  { key: 'REFLEKSI_PRIBADI', title: 'Refleksi Pribadi' },
-  { key: 'DISKUSI_KELOMPOK', title: 'Diskusi Kelompok' },
+  { key: 'MAKNA_IMPLIKASI', title: 'Makna & Implikasi bagi Beyonders' },
+  { key: 'REFLEKSI_PRIBADI', title: 'Pertanyaan untuk Refleksi Pribadi' },
+  { key: 'DISKUSI_KELOMPOK', title: 'Pertanyaan untuk Diskusi Kelompok' },
 ] as const;
 
 export type RhbSectionKey = (typeof RHB_SECTIONS)[number]['key'];
@@ -47,8 +47,11 @@ export type DidaskaliaPath = {
   pathIndex: number;
   dayLabel: string;
   title: string;
+  /** Nats Pembimbing: ayat kunci harian yang diulas & berasosiasi dengan tema. */
   scriptureRef: string;
   scriptureText: string;
+  /** Bacaan Alkitab harian — bagian dari rentang Kitab/Bagian Fokus. */
+  bacaanRef: string;
   homileticLens: string[];
   hookQuestion: string;
   illustration: string;
@@ -144,6 +147,8 @@ export type DidaskaliaStudio = {
   discussion: DidaskaliaComment[];
   rituals: DidaskaliaRitual[];
   presentation?: DidaskaliaPresentationImages;
+  /** Berapa kali AI diminta menyusun (disarankan maks 2–3). */
+  generation?: number;
   render: Partial<Record<'pembekalan' | 'khutbah' | 'rhb', DidaskaliaRenderMeta>>;
 };
 
@@ -167,6 +172,7 @@ export function defaultPath(i: number): DidaskaliaPath {
     title: `Path ${i + 1}`,
     scriptureRef: '',
     scriptureText: '',
+    bacaanRef: '',
     homileticLens: [],
     hookQuestion: '',
     illustration: '',
@@ -182,14 +188,14 @@ export function defaultPath(i: number): DidaskaliaPath {
   };
 }
 
-/** Normalisasi 5 section RHB: key & urutan tetap, body/gambar dari data tersimpan. */
+/** Normalisasi 5 section RHB: key, judul baku & urutan tetap. */
 export function ensureRhbSections(raw: unknown): DidaskaliaRhbSection[] {
   const list = Array.isArray(raw) ? raw : [];
   return RHB_SECTIONS.map((s) => {
     const found = list.find((x) => x && typeof x === 'object' && (x as DidaskaliaRhbSection).key === s.key) as DidaskaliaRhbSection | undefined;
     return {
       key: s.key,
-      title: found?.title?.trim() || s.title,
+      title: s.title,
       body: typeof found?.body === 'string' ? found.body : '',
       imageFileId: typeof found?.imageFileId === 'string' ? found.imageFileId : '',
     };
@@ -211,6 +217,7 @@ export function defaultStudio(): DidaskaliaStudio {
     discussion: [],
     rituals: [],
     presentation: {},
+    generation: 0,
     render: {},
   };
 }
