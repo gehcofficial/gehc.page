@@ -300,6 +300,11 @@ const STEPS = [
     label: 'BZP v2: harga/promo/campaign/settings/jadwal penjualan + order guest',
     required: true,
   },
+  {
+    script: 'server/_migrate-bzp-v3.cjs',
+    label: 'BZP v3: sub-kategori terkelola + varian produk',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

@@ -48,6 +48,21 @@ export function divisionNavDefs(): PortalNavItemDef[] {
   return BASE_NAV.filter((i) => i.group === 'Divisi');
 }
 
+/**
+ * Boleh membuka panel divisi? Aturan (sama dengan server/lib/division-access.mjs):
+ * SUPERADMIN, anggota divisi itu, atau kepala divisi itu (LEAD/CO_LEAD per-divisi).
+ */
+export function canSeeDivisionTab(
+  me: { isSuperadmin: boolean; divisions: string[]; headDivisions: string[] },
+  tabId: string,
+): boolean {
+  const div = divisionForTab(tabId);
+  if (!div) return false;
+  if (me.isSuperadmin) return true;
+  const set = new Set([...(me.divisions || []), ...(me.headDivisions || [])].map((x) => String(x).toUpperCase()));
+  return set.has(div);
+}
+
 const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },
@@ -120,8 +135,8 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'church-info',
     'account',
   ],
-  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr', 'wa-channels', 'media-guide', 'account'],
+  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'wa-channels', 'media-guide', 'account'],
   MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   CO_MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
   MENTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],

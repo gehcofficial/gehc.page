@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import type {
   Product, ProductCategory, QRISInfo, Campaign, CampaignDonation, Fulfillment,
+  ProductVariant, BzpSubcategory, BzpSizeChart,
 } from '../types/benzar';
 import { CATEGORY_LABELS, CATEGORY_COLORS, STATUS_LABELS, FULFILLMENT_LABELS } from '../types/benzar';
 import { useMediaSlots } from '../hooks/useMediaSlots';
@@ -14,7 +15,10 @@ const CATEGORIES: ProductCategory[] = ['MERCHANDISE', 'FUNDRAISING', 'DONATION']
 
 const rupiah = (n: number) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
-type CartLine = { product: Product; qty: number };
+type CartLine = { product: Product; variant?: ProductVariant; qty: number };
+const lineKey = (l: CartLine) => `${l.product.id}:${l.variant?.id || ''}`;
+const linePrice = (l: CartLine) => (l.variant?.price == null ? l.product.price : Number(l.variant.price));
+const lineLabel = (l: CartLine) => (l.variant ? Object.values(l.variant.options || {}).join(' / ') : '');
 
 function hashParam(key: string): string | null {
   if (typeof window === 'undefined') return null;
@@ -43,6 +47,9 @@ export default function BenzarpreneurshipPage() {
   const [activeCampaign, setActiveCampaign] = useState<{ campaign: Campaign; donations: CampaignDonation[]; grandTotal: number; donorCount: number } | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [subcats, setSubcats] = useState<BzpSubcategory[]>([]);
+  const [sel, setSel] = useState<Record<string, string>>({});
+  const [showSizeChart, setShowSizeChart] = useState(false);
 
   // Checkout form
   const [form, setForm] = useState({
@@ -85,6 +92,7 @@ export default function BenzarpreneurshipPage() {
   useEffect(() => {
     fetch('/api/benzar/qris').then((r) => r.json()).then(setQrisInfo).catch(() => {});
     fetch('/api/benzar/campaigns').then((r) => (r.ok ? r.json() : { campaigns: [] })).then((d) => setCampaigns(d.campaigns || [])).catch(() => {});
+    fetch('/api/benzar/subcategories').then((r) => (r.ok ? r.json() : { subcategories: [] })).then((d) => setSubcats(d.subcategories || [])).catch(() => {});
     fetch('/api/benzar/orders/my', { credentials: 'include' })
       .then(async (r) => {
         if (r.status === 401) { setLoggedIn(false); return; }
@@ -99,7 +107,7 @@ export default function BenzarpreneurshipPage() {
     const slug = hashParam('campaign');
     if (itemId) {
       fetch(`/api/benzar/products/${itemId}`).then((r) => (r.ok ? r.json() : null)).then((d) => {
-        if (d?.product) { setSelectedProduct(d.product); setGalleryIdx(0); }
+        if (d?.product) openProduct(d.product);
       }).catch(() => {});
     }
     if (slug) void openCampaign(slug);
@@ -111,22 +119,23 @@ export default function BenzarpreneurshipPage() {
     [products],
   );
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, variant?: ProductVariant) => {
     setCart((prev) => {
-      const existing = prev.find((c) => c.product.id === product.id);
-      if (existing) return prev.map((c) => (c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c));
-      return [...prev, { product, qty: 1 }];
+      const key = `${product.id}:${variant?.id || ''}`;
+      const existing = prev.find((c) => lineKey(c) === key);
+      if (existing) return prev.map((c) => (lineKey(c) === key ? { ...c, qty: c.qty + 1 } : c));
+      return [...prev, { product, variant, qty: 1 }];
     });
     setSelectedProduct(null);
   };
 
-  const updateCartQty = (productId: string, delta: number) => {
+  const updateCartQty = (key: string, delta: number) => {
     setCart((prev) => prev
-      .map((c) => (c.product.id === productId ? { ...c, qty: c.qty + delta } : c))
+      .map((c) => (lineKey(c) === key ? { ...c, qty: c.qty + delta } : c))
       .filter((c) => c.qty > 0));
   };
 
-  const cartSubtotal = cart.reduce((s, c) => s + c.product.price * c.qty, 0);
+  const cartSubtotal = cart.reduce((s, c) => s + linePrice(c) * c.qty, 0);
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
   const deliveryFee = form.fulfillment === 'DELIVERY' ? Number(qrisInfo?.deliveryFee || 0) : 0;
   const discount = promo?.discount || 0;
@@ -160,7 +169,7 @@ export default function BenzarpreneurshipPage() {
       const r = await fetch('/api/benzar/orders', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
-          items: cart.map((c) => ({ productId: c.product.id, qty: c.qty })),
+          items: cart.map((c) => ({ productId: c.product.id, variantId: c.variant?.id, qty: c.qty })),
           fulfillment: form.fulfillment,
           deliveryFee,
           notes: form.notes,
@@ -225,6 +234,15 @@ export default function BenzarpreneurshipPage() {
   };
 
   const images = (selectedProduct?.images as any[]) || [];
+  const productOptions = selectedProduct?.options || [];
+  const matchedVariant = selectedProduct?.hasVariants
+    ? (selectedProduct.variants || []).find((v) => v.isActive !== false && productOptions.every((o) => (v.options || {})[o.name] === sel[o.name]))
+    : undefined;
+  const variantComplete = !selectedProduct?.hasVariants || (productOptions.length > 0 && productOptions.every((o) => Boolean(sel[o.name])));
+  const activePrice = matchedVariant?.price == null ? (selectedProduct?.price ?? 0) : Number(matchedVariant.price);
+  const activeStock = selectedProduct?.hasVariants ? (variantComplete ? (matchedVariant?.stock ?? 0) : 0) : (selectedProduct?.stock ?? 0);
+  const sizeChart: BzpSizeChart | null = subcats.find((s) => s.id === selectedProduct?.subcategoryId)?.sizeChart || null;
+  const openProduct = (p: Product) => { setSelectedProduct(p); setGalleryIdx(0); setSel({}); setShowSizeChart(false); };
 
   return (
     <div className="min-h-screen bg-[#FAFAF5]">
@@ -375,7 +393,7 @@ export default function BenzarpreneurshipPage() {
             {products.map((product) => (
               <div
                 key={product.id}
-                onClick={() => { setSelectedProduct(product); setGalleryIdx(0); }}
+                onClick={() => openProduct(product)}
                 className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
               >
                 <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
@@ -405,10 +423,10 @@ export default function BenzarpreneurshipPage() {
                     <span className="text-lg font-black text-[#F6AE4A]">{rupiah(product.price)}</span>
                     {product.stock > 0 && product.isOnSale && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+                        onClick={(e) => { e.stopPropagation(); if (product.hasVariants) openProduct(product); else addToCart(product); }}
                         className="bg-[#F6AE4A] text-[#1B1B1B] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#E5A03F]"
                       >
-                        + Keranjang
+                        {product.hasVariants ? 'Pilih varian' : '+ Keranjang'}
                       </button>
                     )}
                   </div>
@@ -444,9 +462,69 @@ export default function BenzarpreneurshipPage() {
               </div>
             )}
             <p className="text-sm text-[#8C8880] mb-4 whitespace-pre-line">{selectedProduct.description}</p>
+
+            {/* Pemilih varian */}
+            {selectedProduct.hasVariants && productOptions.map((o) => (
+              <div key={o.id} className="mb-3">
+                <p className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1">{o.name}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {o.values.map((v) => {
+                    const on = sel[o.name] === v;
+                    const avail = (selectedProduct.variants || []).some((vr) => vr.isActive !== false && (vr.options || {})[o.name] === v && vr.stock > 0);
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => setSel((s) => ({ ...s, [o.name]: v }))}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border ${on ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : avail ? 'bg-white border-[#D9D7D0] text-[#1B1B1B]' : 'bg-[#FAF9F5] border-[#EFEDE8] text-[#C9C5BD] line-through'}`}
+                      >
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Size chart per sub-kategori */}
+            {sizeChart && (
+              <div className="mb-3">
+                <button onClick={() => setShowSizeChart((s) => !s)} className="text-[11px] font-bold text-sky-700">
+                  {showSizeChart ? '▾' : '▸'} Panduan ukuran (size chart)
+                </button>
+                {showSizeChart && (
+                  <div className="mt-2 rounded-xl border border-[#EFEDE8] overflow-hidden">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-[#FAF9F5] text-[#8C8880]">
+                          {(sizeChart.columns || []).map((c) => <th key={c} className="px-2 py-1.5 text-left font-bold">{c}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(sizeChart.rows || []).map((r, i) => (
+                          <tr key={i} className="border-t border-[#EFEDE8]">
+                            {r.map((cell, j) => <td key={j} className="px-2 py-1.5">{cell}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!!(sizeChart.notes || []).length && (
+                      <ul className="px-3 py-2 bg-[#FAF9F5] text-[10px] text-[#8C8880] list-disc list-inside space-y-0.5">
+                        {(sizeChart.notes || []).map((n, i) => <li key={i}>{n}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
-              <span className="text-2xl font-black text-[#F6AE4A]">{rupiah(selectedProduct.price)}</span>
-              <span className="text-xs text-[#8C8880]">Stok: {selectedProduct.stock}{selectedProduct.isPreorder ? ' · Pre-order' : ''}</span>
+              <span className="text-2xl font-black text-[#F6AE4A]">{rupiah(activePrice)}</span>
+              <span className="text-xs text-[#8C8880]">
+                {selectedProduct.hasVariants
+                  ? (variantComplete ? `Stok varian: ${matchedVariant?.stock ?? 0}` : 'Pilih varian dulu')
+                  : `Stok: ${selectedProduct.stock}`}
+                {selectedProduct.isPreorder ? ' · Pre-order' : ''}
+              </span>
             </div>
             <div className="flex gap-2 mb-3">
               <button onClick={() => void shareProduct(selectedProduct)} className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]">
@@ -457,11 +535,17 @@ export default function BenzarpreneurshipPage() {
               </button>
             </div>
             <button
-              onClick={() => addToCart(selectedProduct)}
-              disabled={selectedProduct.stock <= 0 || !selectedProduct.isOnSale}
+              onClick={() => addToCart(selectedProduct, matchedVariant)}
+              disabled={!selectedProduct.isOnSale || activeStock <= 0 || !variantComplete}
               className="w-full bg-[#F6AE4A] text-[#1B1B1B] py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#E5A03F]"
             >
-              {selectedProduct.stock > 0 && selectedProduct.isOnSale ? 'Tambah ke Keranjang' : 'Tidak tersedia'}
+              {!selectedProduct.isOnSale
+                ? 'Tidak tersedia'
+                : !variantComplete
+                  ? 'Pilih varian dulu'
+                  : activeStock <= 0
+                    ? 'Stok habis'
+                    : 'Tambah ke Keranjang'}
             </button>
           </div>
         </div>
@@ -480,19 +564,24 @@ export default function BenzarpreneurshipPage() {
             ) : (
               <>
                 <div className="space-y-3 mb-4 max-h-56 overflow-y-auto">
-                  {cart.map((c) => (
-                    <div key={c.product.id} className="flex items-center gap-3 p-3 bg-[#FAF9F5] rounded-xl">
+                  {cart.map((c) => {
+                    const key = lineKey(c);
+                    const lbl = lineLabel(c);
+                    return (
+                    <div key={key} className="flex items-center gap-3 p-3 bg-[#FAF9F5] rounded-xl">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate">{c.product.name}</p>
-                        <p className="text-xs text-[#8C8880]">{rupiah(c.product.price)} × {c.qty}</p>
+                        {lbl && <p className="text-[11px] font-bold text-[#F6AE4A] truncate">{lbl}</p>}
+                        <p className="text-xs text-[#8C8880]">{rupiah(linePrice(c))} × {c.qty}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => updateCartQty(c.product.id, -1)} className="w-7 h-7 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center"><Minus className="w-3 h-3" /></button>
+                        <button onClick={() => updateCartQty(key, -1)} className="w-7 h-7 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center"><Minus className="w-3 h-3" /></button>
                         <span className="text-sm font-bold w-6 text-center">{c.qty}</span>
-                        <button onClick={() => updateCartQty(c.product.id, 1)} className="w-7 h-7 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center"><Plus className="w-3 h-3" /></button>
+                        <button onClick={() => updateCartQty(key, 1)} className="w-7 h-7 rounded-lg bg-white border border-[#D9D7D0] flex items-center justify-center"><Plus className="w-3 h-3" /></button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Fulfillment */}

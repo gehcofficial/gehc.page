@@ -8,6 +8,7 @@
 import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
+import { requireDivision } from '../lib/division-access.mjs';
 import { sundaysInMonth, toISODate, addDays } from '../lib/church-year.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
 import {
@@ -281,6 +282,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
   app.put(
     '/api/didaskalia/ritual-links',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -331,6 +333,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- Simpan (editor + diskusi + ritual) ----------
   app.patch(
     '/api/didaskalia/studio/:yearMonth/:weekIndex',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -361,6 +364,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- AI: draft minggu (7 Path + ringkasan) ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/draft',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -425,6 +429,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- AI: perkaya draf (tahap 2, dengan diskusi internal) ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/enrich',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -490,6 +495,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- AI: lengkapi Bagian A/B (jaring pengaman) ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/extras',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -548,6 +554,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- AI: ringkasan khotbah saja ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/sermon',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -594,6 +601,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- AI: perbaiki satu bagian ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/refine',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const { fieldLabel, current, instruction, context } = req.body || {};
@@ -709,6 +717,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // POST /api/didaskalia/studio/:yearMonth/:weekIndex/presentation-image
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/presentation-image',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -748,6 +757,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // AI membuat ilustrasi cover (tanpa teks) → unggah ke Drive → set sebagai cover.
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/generate-image',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -844,6 +854,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- Publish: catat versi + file Drive ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/publish',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();
@@ -898,6 +909,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- Jadwal ritual: generate dari bulan ----------
   app.post(
     '/api/didaskalia/schedule/:yearMonth/generate',
+    requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
     wrap(async (req, res) => {
       const prisma = getPrisma();

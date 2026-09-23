@@ -19,6 +19,7 @@ import {
   newEntityId,
 } from '../lib/drive-ownership.mjs';
 import { isKomisiOrSuperadmin as komisiGate } from '../division-rbac.mjs';
+import { canAccessDivision } from '../lib/division-access.mjs';
 import {
   PUBLIC_ALBUM_STATUS,
   filterPublicAlbums,
@@ -1358,8 +1359,8 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     '/api/events/:id/archive',
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
     wrap(async (req, res) => {
-      if (!(await isMarturiaDocs(req.authUser)) && !komisiGate(req.authUser)) {
-        return res.status(403).json({ error: 'Hanya Marturia Dokumentasi atau Komisi.' });
+      if (!(await canAccessDivision(req.authUser, 'MARTURIA'))) {
+        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia.' });
       }
       const prisma = getPrisma();
       const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
@@ -1395,8 +1396,8 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     '/api/events/:id/gallery/photos',
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
     wrap(async (req, res) => {
-      if (!(await isMarturiaDocs(req.authUser)) && !komisiGate(req.authUser)) {
-        return res.status(403).json({ error: 'Hanya Marturia Dokumentasi atau Komisi.' });
+      if (!(await canAccessDivision(req.authUser, 'MARTURIA'))) {
+        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia.' });
       }
       if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
       const prisma = getPrisma();

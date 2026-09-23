@@ -1,5 +1,29 @@
 # GEHC Portal — Handoff
 
+## Current — RBAC panel per-divisi + BZP v3 (sub-kategori, varian, size chart) (23 Sep 2026)
+
+### A. Panel divisi hanya untuk divisinya (UI + server)
+- **Baru** `server/lib/division-access.mjs`: `headDivisions()` (LEAD/CO_LEAD **per-divisi**), `divisionCodesFor()`, `canAccessDivision()`, `requireDivision()` (403).
+- **Guard server** dipasang pada: `/api/events/:eventId/divisions/:div/*` (tulis/kelola), **BZP pengelolaan** (`BENZARPR`), **Didaskalia Studio tulis** (`DIDASKALIA`), **Marturia arsip/galeri** (`MARTURIA`).
+  - **Tetap publik/konsumen**: katalog BZP, QRIS, campaign publik, donasi, order buat/track, `/api/didaskalia/presentation` (RBAC 01/02/03), dan GET materi divisi (drive 01/02/03) — agar mentor tetap bisa akses RHB.
+- **UI**: `/api/me/divisions` → `{ divisions, headDivisions, isSuperadmin }`; `useMyDivisions()` diperluas + `canSee(tabId)`; `div-*` **dihapus** dari allowlist `KOMISI`/`COMMITTEE`; `PortalLayout` menampilkan tab divisi hanya bila berhak + **kartu "Tidak berhak"** untuk deep link.
+- **Konsekuensi**: KOMISI/Tim Kerja tanpa divisi tidak melihat panel divisi apa pun; anggota Tim Kerja event tetap dapat panelnya; kepala divisi hanya divisinya.
+- Verifikasi: unit test (`canSeeDivisionTab`, `canAccessDivision`) + smoke API — KOMISI tanpa divisi **403** di BZP & events/divisions, publik **200**.
+
+### B. BZP v3: sub-kategori terkelola + varian + size chart
+- **Skema** (migrasi `server/_migrate-bzp-v3.cjs`, sudah di **staging & prod**, idempoten): `bzp_subcategories` (bilingual `nameId`/`nameEn` + `sizeChart` + `optionNames`), `product_options`, `product_variants`; `products.subcategory_id/has_variants`; `order_items.variant_id/variant_label`; **unique `(order_id, product_id)` dihapus** (mendukung multi-varian 1 pesanan).
+- **Seed** `server/seed-bzp-catalog.mjs` (`npm run db:seed:bzp-catalog`): 16 sub-kategori bilingual (Fashion/Drinkware/Food/Lain) + **size chart Clothing** (Dewasa XS–5XL, Anak No.2–10, notes) — sudah dijalankan di staging & **prod**.
+- **Backend**: CRUD sub-kategori; produk menerima `options[]`+`variants[]` (stok **otomatis = Σ varian**); order menerima `variantId` (validasi stok per varian, harga per varian, label varian); batal → stok varian dikembalikan.
+- **Frontend publik**: pemilih **Warna/Ukuran** (chip, stok habis dicoret), **size chart** per sub-kategori, harga & stok per varian, keranjang per varian.
+- **Portal**: dropdown sub-kategori, **editor varian** (opsi → "Hasilkan varian" → tabel stok/harga/SKU/gambar per varian), tab **Katalog** (CRUD sub-kategori + editor size chart).
+- Verifikasi: smoke API (produk 4 varian → stok 20; order 2 varian → total 290.000; stok jadi 17 & varian 3; order tanpa varian → 400) + render lokal (chip varian, size chart, tab Katalog 7 sub-tab) — 0 error.
+
+**Global**: `lint` bersih · **472 test** hijau · `build` OK.
+
+### Next
+1. Uji di prod: buka BZP sebagai BENZARPR, buat produk Clothing dengan varian, cek storefront (chip + size chart).
+2. Isi/ganti size chart & sub-kategori lain lewat tab **Katalog** sesuai kebutuhan.
+
 ## Current — Benzarpreneurship v2 (analisis PDF "BZP Input" → semua kebutuhan) (23 Sep 2026)
 
 **Sumber kebutuhan:** `Services/Khotbah/BZP Input.pdf` (catatan feedback tim BZP).

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Package, ShoppingCart, Plus, Edit2, Trash2, Search, Eye, X, Ticket, HeartHandshake,
-  CalendarClock, Settings as SettingsIcon, Megaphone, Check, Loader2, History,
+  CalendarClock, Settings as SettingsIcon, Megaphone, Check, Loader2, History, Ruler, Wand2,
 } from 'lucide-react';
 import { DriveUploadButton } from './DriveUploadButton';
 import { CATEGORY_LABELS, CATEGORY_COLORS, STATUS_LABELS, STATUS_COLORS, FULFILLMENT_LABELS } from '../../types/benzar';
 import type {
   Product, ProductCategory, Order, OrderStatus, Fulfillment, Promo, Campaign, CampaignDonation,
-  SalesShift, BzpSettings,
+  SalesShift, BzpSettings, BzpSubcategory, ProductVariant, BzpSizeChart,
 } from '../../types/benzar';
 
 const CATEGORIES: ProductCategory[] = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
@@ -21,12 +21,13 @@ const label = 'text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block';
 interface Props { eventId?: string; division?: string }
 
 export default function BenzarStoreTab(_props: Props) {
-  const [tab, setTab] = useState<'products' | 'orders' | 'promos' | 'campaigns' | 'shifts' | 'settings'>('products');
+  const [tab, setTab] = useState<'products' | 'orders' | 'promos' | 'campaigns' | 'shifts' | 'catalog' | 'settings'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [shifts, setShifts] = useState<SalesShift[]>([]);
+  const [subcats, setSubcats] = useState<BzpSubcategory[]>([]);
   const [settings, setSettings] = useState<BzpSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -64,11 +65,14 @@ export default function BenzarStoreTab(_props: Props) {
   const fetchSettings = useCallback(async () => {
     try { const r = await fetch('/api/benzar/settings', { credentials: 'include' }); const d = await r.json(); setSettings(d.settings); } catch { /* skip */ }
   }, []);
+  const fetchSubcats = useCallback(async () => {
+    try { const r = await fetch('/api/benzar/subcategories?all=1', { credentials: 'include' }); const d = await r.json(); setSubcats(d.subcategories || []); } catch { /* skip */ }
+  }, []);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchProducts(), fetchOrders(), fetchPromos(), fetchCampaigns(), fetchShifts(), fetchSettings()]).finally(() => setLoading(false));
-  }, [fetchProducts, fetchOrders, fetchPromos, fetchCampaigns, fetchShifts, fetchSettings]);
+    Promise.all([fetchProducts(), fetchOrders(), fetchPromos(), fetchCampaigns(), fetchShifts(), fetchSettings(), fetchSubcats()]).finally(() => setLoading(false));
+  }, [fetchProducts, fetchOrders, fetchPromos, fetchCampaigns, fetchShifts, fetchSettings, fetchSubcats]);
 
   const filteredProducts = products
     .filter((p) => filterCategory === 'ALL' || p.category === filterCategory)
@@ -88,6 +92,7 @@ export default function BenzarStoreTab(_props: Props) {
     { id: 'promos', label: 'Promo', icon: <Ticket className="w-4 h-4" />, count: promos.length },
     { id: 'campaigns', label: 'Campaign', icon: <HeartHandshake className="w-4 h-4" />, count: campaigns.length },
     { id: 'shifts', label: 'Jadwal Jual', icon: <CalendarClock className="w-4 h-4" />, count: shifts.length },
+    { id: 'catalog', label: 'Katalog', icon: <Ruler className="w-4 h-4" />, count: subcats.length },
     { id: 'settings', label: 'Pengaturan', icon: <SettingsIcon className="w-4 h-4" /> },
   ];
 
@@ -322,6 +327,8 @@ export default function BenzarStoreTab(_props: Props) {
             </div>
           )}
 
+          {tab === 'catalog' && <CatalogPanel subcats={subcats} onChanged={fetchSubcats} notify={notify} />}
+
           {tab === 'settings' && <SettingsPanel settings={settings} onSaved={fetchSettings} notify={notify} />}
         </>
       )}
@@ -329,6 +336,7 @@ export default function BenzarStoreTab(_props: Props) {
       {showProductForm && (
         <ProductFormModal
           product={editingProduct}
+          subcats={subcats}
           onClose={() => { setShowProductForm(false); setEditingProduct(null); }}
           onSaved={(msg) => { setShowProductForm(false); setEditingProduct(null); fetchProducts(); notify(msg || 'Produk tersimpan'); }}
         />
@@ -436,7 +444,7 @@ export default function BenzarStoreTab(_props: Props) {
 }
 
 // ---------------- Product form ----------------
-function ProductFormModal({ product, onClose, onSaved }: { product: Product | null; onClose: () => void; onSaved: (msg?: string) => void }) {
+function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Product | null; subcats: BzpSubcategory[]; onClose: () => void; onSaved: (msg?: string) => void }) {
   const [form, setForm] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -445,6 +453,7 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
     stock: product?.stock != null ? String(product.stock) : '0',
     category: (product?.category || 'MERCHANDISE') as ProductCategory,
     subCategory: product?.subCategory || '',
+    subcategoryId: product?.subcategoryId || '',
     fundraisingType: product?.fundraisingType || '',
     isOnSale: product?.isOnSale ?? true,
     isPreorder: product?.isPreorder ?? false,
@@ -455,6 +464,14 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
     takeaway: product?.fulfillmentOptions?.takeaway ?? false,
     delivery: product?.fulfillmentOptions?.delivery ?? false,
   });
+  // Editor varian
+  const [optNames, setOptNames] = useState<string[]>(() => (product?.options || []).map((o) => o.name));
+  const [optValues, setOptValues] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const o of product?.options || []) m[o.name] = (o.values || []).join(', ');
+    return m;
+  });
+  const [variants, setVariants] = useState<ProductVariant[]>(product?.variants || []);
   const [saved, setSaved] = useState<Product | null>(product);
   const [history, setHistory] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -486,6 +503,21 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
         stock: Number(form.stock) || 0,
         category: form.category,
         subCategory: form.subCategory,
+        subcategoryId: form.subcategoryId || null,
+        hasVariants: variants.length > 0,
+        options: optNames
+          .map((n) => n.trim())
+          .filter(Boolean)
+          .map((n) => ({ name: n, values: String(optValues[n] || '').split(',').map((x) => x.trim()).filter(Boolean) })),
+        variants: variants.map((v) => ({
+          sku: v.sku || null,
+          options: v.options,
+          price: v.price ?? null,
+          buyPrice: v.buyPrice ?? null,
+          stock: Number(v.stock) || 0,
+          imageFileId: v.imageFileId || null,
+          isActive: v.isActive !== false,
+        })),
         fundraisingType: form.fundraisingType || null,
         isOnSale: form.isOnSale,
         isPreorder: form.isPreorder,
@@ -533,6 +565,43 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
     if (r.ok) setSaved(d.product);
   };
 
+  /** Cartesian product dari opsi â†’ matriks varian (stok/harga lama dipertahankan). */
+  const generateVariants = () => {
+    const names = optNames.map((n) => n.trim()).filter(Boolean);
+    const vals = names.map((n) => String(optValues[n] || '').split(',').map((x) => x.trim()).filter(Boolean));
+    if (!names.length || vals.some((v) => !v.length)) return;
+    const combos: Record<string, string>[] = [];
+    const walk = (idx: number, acc: Record<string, string>) => {
+      if (idx === names.length) { combos.push({ ...acc }); return; }
+      for (const v of vals[idx]) walk(idx + 1, { ...acc, [names[idx]]: v });
+    };
+    walk(0, {});
+    setVariants((prev) => combos.map((opts) => {
+      const key = JSON.stringify(opts);
+      const found = prev.find((p) => JSON.stringify(p.options) === key);
+      return found || {
+        id: '',
+        productId: saved?.id || '',
+        sku: null,
+        options: opts,
+        price: null,
+        buyPrice: null,
+        stock: 0,
+        imageFileId: null,
+        isActive: true,
+        position: 0,
+      } as ProductVariant;
+    }));
+  };
+
+  const patchVariant = (i: number, patch: Partial<ProductVariant>) =>
+    setVariants((vs) => vs.map((v, vi) => (vi === i ? { ...v, ...patch } : v)));
+
+  const variantCount = optNames
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .reduce((n, name) => n * String(optValues[name] || '').split(',').map((x) => x.trim()).filter(Boolean).length, 1) || 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -550,7 +619,30 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
                 {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
               </select>
             </div>
-            <div><label className={label}>Sub-kategori</label><input value={form.subCategory} onChange={(e) => setForm({ ...form, subCategory: e.target.value })} placeholder="mis. Kaos, Dessert" className={input} /></div>
+            <div><label className={label}>Sub-kategori</label>
+              <select
+                value={form.subcategoryId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const sc = subcats.find((s) => s.id === id);
+                  setForm((f) => ({ ...f, subcategoryId: id, subCategory: sc ? sc.nameId : '' }));
+                  if (sc?.optionNames?.length && optNames.length === 0) {
+                    setOptNames(sc.optionNames);
+                    setOptValues((v) => {
+                      const m = { ...v };
+                      for (const n of sc.optionNames || []) m[n] = m[n] || (n.toLowerCase().includes('warna') || n.toLowerCase().includes('color') ? 'Putih, Ungu' : 'S, M, L, XL, 2XL, 3XL');
+                      return m;
+                    });
+                  }
+                }}
+                className={input}
+              >
+                <option value="">â€” pilih sub-kategori â€”</option>
+                {subcats.filter((s) => s.isActive).map((s) => (
+                  <option key={s.id} value={s.id}>{s.nameId} / {s.nameEn}</option>
+                ))}
+              </select>
+            </div>
           </div>
           {form.category === 'FUNDRAISING' && (
             <div><label className={label}>Tipe Fundraising</label>
@@ -583,6 +675,74 @@ function ProductFormModal({ product, onClose, onSaved }: { product: Product | nu
             <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.dineIn} onChange={(e) => setForm({ ...form, dineIn: e.target.checked })} /> Dine-in</label>
             <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.takeaway} onChange={(e) => setForm({ ...form, takeaway: e.target.checked })} /> Takeaway</label>
             <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.delivery} onChange={(e) => setForm({ ...form, delivery: e.target.checked })} /> Antar</label>
+          </div>
+
+          {/* Varian (opsi + matriks) */}
+          <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className={`${label} flex items-center gap-1`}><Ruler className="w-3 h-3" /> Opsi &amp; Varian</p>
+              <button onClick={() => setOptNames((n) => [...n, ''])} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah opsi</button>
+            </div>
+            {optNames.length === 0 && (
+              <p className="text-[10px] text-[#8C8880] italic">Belum ada opsi. Tambah mis. "Warna" dan "Ukuran", lalu tekan Hasilkan varian.</p>
+            )}
+            {optNames.map((n, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <input
+                  value={n}
+                  onChange={(e) => setOptNames((ns) => ns.map((x, xi) => (xi === i ? e.target.value : x)))}
+                  placeholder="Nama opsi (mis. Warna)"
+                  className={`${input} w-36`}
+                />
+                <input
+                  value={optValues[n] || ''}
+                  onChange={(e) => setOptValues((v) => ({ ...v, [n]: e.target.value }))}
+                  placeholder="Nilai dipisah koma: Putih, Ungu"
+                  className={`${input} flex-1`}
+                />
+                <button onClick={() => setOptNames((ns) => ns.filter((_, xi) => xi !== i))} className="text-[10px] text-red-600 font-bold">Ã—</button>
+              </div>
+            ))}
+            {variantCount > 0 && (
+              <button onClick={generateVariants} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold">
+                <Wand2 className="w-3.5 h-3.5" /> Hasilkan {variantCount} varian
+              </button>
+            )}
+            {variants.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-[#8C8880]">
+                      <th className="text-left py-1">Varian</th>
+                      <th className="text-left">Harga</th>
+                      <th className="text-left">Modal</th>
+                      <th className="text-left">Stok</th>
+                      <th className="text-left">SKU</th>
+                      <th className="text-left">Gambar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {variants.map((v, i) => (
+                      <tr key={i} className="border-t border-[#EFEDE8]">
+                        <td className="py-1 pr-2 whitespace-nowrap">{Object.entries(v.options || {}).map(([k, val]) => `${k}: ${val}`).join(' / ')}</td>
+                        <td><input inputMode="numeric" value={v.price ?? ''} onChange={(e) => patchVariant(i, { price: e.target.value === '' ? null : Number(e.target.value.replace(/[^0-9]/g, '')) })} placeholder={form.price || '0'} className="w-20 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
+                        <td><input inputMode="numeric" value={v.buyPrice ?? ''} onChange={(e) => patchVariant(i, { buyPrice: e.target.value === '' ? null : Number(e.target.value.replace(/[^0-9]/g, '')) })} className="w-20 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
+                        <td><input inputMode="numeric" value={String(v.stock)} onChange={(e) => patchVariant(i, { stock: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} className="w-16 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
+                        <td><input value={v.sku ?? ''} onChange={(e) => patchVariant(i, { sku: e.target.value })} className="w-24 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
+                        <td>
+                          <select value={v.imageFileId || ''} onChange={(e) => patchVariant(i, { imageFileId: e.target.value || null })} className="px-2 py-1 rounded border border-[#D9D7D0] max-w-[120px]">
+                            <option value="">â€”</option>
+                            {(saved?.images || []).map((im: any) => (
+                              <option key={im.url} value={im.driveFileId || im.url}>{im.caption || im.name || 'gambar'}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Images */}
@@ -1036,6 +1196,142 @@ function SettingsPanel({ settings, onSaved, notify }: { settings: BzpSettings | 
       <button onClick={() => void save()} disabled={saving} className="inline-flex items-center gap-1.5 bg-[#F6AE4A] text-[#1B1B1B] px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Simpan pengaturan
       </button>
+    </div>
+  );
+}
+
+// ---------------- Katalog sub-kategori + size chart ----------------
+function CatalogPanel({ subcats, onChanged, notify }: { subcats: BzpSubcategory[]; onChanged: () => void; notify: (m: string) => void }) {
+  const [editing, setEditing] = useState<BzpSubcategory | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const remove = async (id: string) => {
+    if (!confirm('Nonaktifkan sub-kategori ini?')) return;
+    await fetch(`/api/benzar/subcategories/${id}`, { method: 'DELETE', credentials: 'include' });
+    onChanged();
+    notify('Sub-kategori dinonaktifkan');
+  };
+
+  const groups = Array.from(new Set(subcats.map((s) => s.group || 'Lain')));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => { setEditing(null); setShowForm(true); }} className="flex items-center gap-1.5 bg-[#F6AE4A] text-[#1B1B1B] px-4 py-2 rounded-xl text-sm font-bold">
+          <Plus className="w-4 h-4" /> Sub-kategori Baru
+        </button>
+      </div>
+      {groups.map((g) => (
+        <div key={g} className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4">
+          <p className="text-[11px] font-black text-[#1B1B1B] mb-2">{g}</p>
+          <div className="flex flex-wrap gap-2">
+            {subcats.filter((s) => (s.group || 'Lain') === g).map((s) => (
+              <div key={s.id} className={`rounded-xl border px-3 py-2 ${s.isActive ? 'border-[#EFEDE8] bg-[#FAF9F5]' : 'border-dashed border-[#D9D7D0] opacity-60'}`}>
+                <p className="text-xs font-bold">{s.nameId} <span className="text-[#8C8880] font-normal">/ {s.nameEn}</span></p>
+                <p className="text-[10px] text-[#8C8880]">
+                  {s.hasSize ? 'ada ukuran' : 'tanpa ukuran'}{s.sizeChart ? ' · size chart' : ''}{s.optionNames?.length ? ` · ${s.optionNames.join('+')}` : ''}
+                </p>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => { setEditing(s); setShowForm(true); }} className="text-[10px] font-bold text-sky-700">Edit</button>
+                  {s.isActive && <button onClick={() => void remove(s.id)} className="text-[10px] font-bold text-red-600">Nonaktifkan</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {subcats.length === 0 && <p className="text-xs text-[#8C8880] italic">Belum ada sub-kategori. Tambahkan atau jalankan seed katalog.</p>}
+
+      {showForm && (
+        <SubcatFormModal
+          subcat={editing}
+          onClose={() => { setShowForm(false); setEditing(null); }}
+          onSaved={() => { setShowForm(false); setEditing(null); onChanged(); notify('Sub-kategori tersimpan'); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SubcatFormModal({ subcat, onClose, onSaved }: { subcat: BzpSubcategory | null; onClose: () => void; onSaved: () => void }) {
+  const sc = subcat?.sizeChart || null;
+  const [form, setForm] = useState({
+    nameId: subcat?.nameId || '',
+    nameEn: subcat?.nameEn || '',
+    slug: subcat?.slug || '',
+    group: subcat?.group || 'Fashion',
+    hasSize: subcat?.hasSize ?? false,
+    optionNames: (subcat?.optionNames || []).join(', '),
+    isActive: subcat?.isActive ?? true,
+    columns: (sc?.columns || ['SIZE', 'PANJANG (cm)', 'LEBAR (cm)']).join(', '),
+    rows: (sc?.rows || []).map((r) => r.join(', ')).join('\n'),
+    notes: (sc?.notes || []).join('\n'),
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const sizeChart: BzpSizeChart | null = form.columns.trim() || form.rows.trim()
+        ? {
+            columns: form.columns.split(',').map((x) => x.trim()).filter(Boolean),
+            rows: form.rows.split('\n').map((l) => l.split(',').map((x) => x.trim())).filter((r) => r.some(Boolean)),
+            notes: form.notes.split('\n').map((x) => x.trim()).filter(Boolean),
+          }
+        : null;
+      const body = {
+        nameId: form.nameId,
+        nameEn: form.nameEn,
+        slug: form.slug || undefined,
+        group: form.group,
+        hasSize: form.hasSize,
+        optionNames: form.optionNames.split(',').map((x) => x.trim()).filter(Boolean),
+        isActive: form.isActive,
+        sizeChart,
+      };
+      const url = subcat ? `/api/benzar/subcategories/${subcat.id}` : '/api/benzar/subcategories';
+      const r = await fetch(url, { method: subcat ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal menyimpan sub-kategori.');
+      onSaved();
+    } catch (e) { alert(e instanceof Error ? e.message : 'Gagal.'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-black mb-4">{subcat ? 'Edit Sub-kategori' : 'Sub-kategori Baru'}</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className={label}>Nama (ID)</label><input value={form.nameId} onChange={(e) => setForm({ ...form, nameId: e.target.value })} className={input} /></div>
+            <div><label className={label}>Nama (EN)</label><input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} className={input} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className={label}>Grup</label>
+              <select value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} className={input}>
+                {['Fashion', 'Drinkware', 'Food', 'Lain'].map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div><label className={label}>Slug (opsional)</label><input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} className={input} /></div>
+          </div>
+          <div><label className={label}>Opsi varian default (pisah koma)</label><input value={form.optionNames} onChange={(e) => setForm({ ...form, optionNames: e.target.value })} placeholder="Warna, Ukuran" className={input} /></div>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.hasSize} onChange={(e) => setForm({ ...form, hasSize: e.target.checked })} /> Punya ukuran (size chart)</label>
+            <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Aktif</label>
+          </div>
+          <div className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-3 space-y-2">
+            <p className={label}>Size chart (opsional)</p>
+            <div><label className={label}>Kolom (pisah koma)</label><input value={form.columns} onChange={(e) => setForm({ ...form, columns: e.target.value })} className={input} /></div>
+            <div><label className={label}>Baris (satu baris per ukuran, sel dipisah koma)</label><textarea value={form.rows} onChange={(e) => setForm({ ...form, rows: e.target.value })} rows={5} placeholder={'XS, 62, 45, Dewasa\nS, 68, 47, Dewasa'} className={`${input} font-mono`} /></div>
+            <div><label className={label}>Catatan (satu per baris)</label><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className={input} /></div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Batal</button>
+          <button onClick={() => void save()} disabled={saving || !form.nameId} className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan…' : 'Simpan'}</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,10 @@ export interface Product {
   images: ProductImage[];
   category: 'MERCHANDISE' | 'FUNDRAISING' | 'DONATION';
   subCategory?: string | null;
+  subcategoryId?: string | null;
+  hasVariants?: boolean;
+  options?: ProductOption[];
+  variants?: ProductVariant[];
   fundraisingType?: 'SERVICE' | 'PRODUCT' | null;
   isActive: boolean;
   isOnSale?: boolean;
@@ -21,6 +25,51 @@ export interface Product {
   createdById: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Size chart per sub-kategori (mis. Clothing). */
+export interface BzpSizeChart {
+  imageFileId?: string;
+  columns: string[];
+  rows: string[][];
+  notes?: string[];
+}
+
+/** Sub-kategori terkelola (bilingual ID/EN). */
+export interface BzpSubcategory {
+  id: string;
+  nameId: string;
+  nameEn: string;
+  slug: string;
+  group?: string | null;
+  hasSize: boolean;
+  sizeChart?: BzpSizeChart | null;
+  optionNames?: string[] | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** Opsi varian (mis. Warna: [Putih, Ungu]). */
+export interface ProductOption {
+  id: string;
+  productId: string;
+  name: string;
+  values: string[];
+  position: number;
+}
+
+/** Varian produk (kombinasi opsi) dengan stok/harga/gambar sendiri. */
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  sku?: string | null;
+  options: Record<string, string>;
+  price?: number | null;
+  buyPrice?: number | null;
+  stock: number;
+  imageFileId?: string | null;
+  isActive: boolean;
+  position: number;
 }
 
 export interface ProductImage {
@@ -63,6 +112,8 @@ export interface Order {
 
 export interface OrderItem {
   productId: string;
+  variantId?: string | null;
+  variantLabel?: string | null;
   qty: number;
   price: number;
   name: string;

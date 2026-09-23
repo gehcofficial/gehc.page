@@ -88,6 +88,16 @@ import type { UserRole } from '../../types';
 
 const SIDEBAR_COLLAPSED_KEY = 'gehc_sidebar_collapsed';
 
+/** Kartu penolakan akses panel divisi (deep link tanpa keanggotaan divisi). */
+const DivisionAccessDenied: React.FC = () => (
+  <div className="py-20 text-center space-y-2">
+    <p className="text-sm font-bold text-[#1B1B1B]">Tidak berhak mengakses panel divisi ini.</p>
+    <p className="text-xs text-[#8C8880]">
+      Panel divisi hanya untuk anggota divisi tersebut (dan kepala divisinya). Hubungi Komisi bila Anda perlu ditambahkan.
+    </p>
+  </div>
+);
+
 export const PortalLayout: React.FC = () => {
   const {
     currentTenant,
@@ -106,7 +116,7 @@ export const PortalLayout: React.FC = () => {
     logoutSso,
   } = useApp();
   const { t, lang } = useLang();
-  const { divisions: myDivisions } = useMyDivisions();
+  const myDiv = useMyDivisions();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
@@ -251,13 +261,10 @@ export const PortalLayout: React.FC = () => {
     'pwa-settings': Bell,
   };
 
-  // Visibilitas per-divisi: staf (KOMISI/SUPERADMIN) + BOD Tim Kerja lihat semua;
-  // anggota divisi hanya divisinya sendiri.
-  const isDivStaf = currentRole === 'KOMISI' || currentRole === 'SUPERADMIN' || isBodTimkerja;
-  const myDivSet = new Set(myDivisions);
-  const extraDivDefs = (isDivStaf || myDivSet.size === 0)
-    ? []
-    : divisionNavDefs().filter((d) => myDivSet.has(divisionForTab(d.id) || ''));
+  // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
+  // KOMISI/Tim Kerja tanpa divisi tidak lagi otomatis melihat semua panel divisi.
+  const extraDivDefs = divisionNavDefs().filter((d) => myDiv.canSee(d.id));
+  const allowedDivisionTabs = DIVISION_TAB_IDS.filter((id) => myDiv.canSee(id));
 
   const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
   const navItemDefs = [
@@ -978,10 +985,16 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'events' && <EventWorkspacePanel />}
           {DIVISION_TAB_IDS.map((id) => (
             activeTab === id
-              ? <DivisionWorkspacePanel key={id} division={divisionForTab(id) || undefined} />
+              ? (myDiv.canSee(id)
+                ? <DivisionWorkspacePanel key={id} division={divisionForTab(id) || undefined} />
+                : <DivisionAccessDenied key={id} />)
               : null
           ))}
-          {activeTab === 'divisions' && <DivisionWorkspacePanel />}
+          {activeTab === 'divisions' && (
+            allowedDivisionTabs.length
+              ? <DivisionWorkspacePanel division={divisionForTab(allowedDivisionTabs[0]) || undefined} />
+              : <DivisionAccessDenied />
+          )}
           {activeTab === 'wa-channels' && <WhatsAppChannelsPanel />}
           {activeTab === 'pwa-settings' && <PWASettingsPanel onClose={() => setActiveTab('dashboard')} />}
           {!isTabAllowed(activeTab) && activeTab !== 'account' && (

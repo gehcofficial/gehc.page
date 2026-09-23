@@ -37,6 +37,7 @@ import {
   buildSessionPayload,
   newResetToken,
 } from './auth.mjs';
+import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext } from './lib/host-context.mjs';
 import {
@@ -942,11 +943,14 @@ app.post('/api/me/unlink-google', requireRole(), wrap(async (req, res) => {
 // Divisi yang boleh dilihat pengguna (gating nav per-divisi).
 app.get('/api/me/divisions', requireRole(), wrap(async (req, res) => {
   try {
-    const { scopedDivisionCodes } = await import('./lib/channel-link-access.mjs');
-    const divisions = await scopedDivisionCodes(req.authUser);
-    res.json({ divisions });
+    const { divisionCodesFor, headDivisions, isSuperadminUser } = await import('./lib/division-access.mjs');
+    const [divisions, heads] = await Promise.all([
+      divisionCodesFor(req.authUser),
+      headDivisions(req.authUser),
+    ]);
+    res.json({ divisions, headDivisions: heads, isSuperadmin: isSuperadminUser(req.authUser) });
   } catch {
-    res.json({ divisions: [] });
+    res.json({ divisions: [], headDivisions: [], isSuperadmin: false });
   }
 }));
 
@@ -2047,7 +2051,7 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
 }));
 
 // POST /api/events/:eventId/divisions/:div/drive/folder — create subfolder
-app.post('/api/events/:eventId/divisions/:div/drive/folder', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/drive/folder', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -2076,7 +2080,7 @@ app.post('/api/events/:eventId/divisions/:div/drive/folder', requireRole('SUPERA
 }));
 
 // POST /api/events/:eventId/divisions/:div/drive/upload — upload file
-app.post('/api/events/:eventId/divisions/:div/drive/upload', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/drive/upload', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -2930,7 +2934,7 @@ app.delete('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (r
 }));
 
 // POST /api/events/:id/divisions/:div/updates — tambah diskusi/progres (supports replies)
-app.post('/api/events/:id/divisions/:div/updates', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+app.post('/api/events/:id/divisions/:div/updates', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
@@ -3133,7 +3137,7 @@ import {
 } from './division-rbac.mjs';
 
 // POST /api/events/:eventId/divisions/:div/submit — submit division for review
-app.post('/api/events/:eventId/divisions/:div/submit', wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/submit', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -3164,7 +3168,7 @@ app.post('/api/events/:eventId/divisions/:div/submit', wrap(async (req, res) => 
 }));
 
 // POST /api/events/:eventId/divisions/:div/approve — approve division
-app.post('/api/events/:eventId/divisions/:div/approve', wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/approve', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -3193,7 +3197,7 @@ app.post('/api/events/:eventId/divisions/:div/approve', wrap(async (req, res) =>
 }));
 
 // POST /api/events/:eventId/divisions/:div/reject — reject division
-app.post('/api/events/:eventId/divisions/:div/reject', wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/reject', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -3223,7 +3227,7 @@ app.post('/api/events/:eventId/divisions/:div/reject', wrap(async (req, res) => 
 }));
 
 // POST /api/events/:eventId/divisions/:div/publish — publish division to website
-app.post('/api/events/:eventId/divisions/:div/publish', wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/publish', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
@@ -3340,7 +3344,7 @@ app.get('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => 
 }));
 
 // POST /api/events/:eventId/divisions/:div/members — add/update member
-app.post('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => {
+app.post('/api/events/:eventId/divisions/:div/members', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const roles = (req.authUser.roles || []).map((r) => r.role);
   if (!roles.includes('SUPERADMIN') && !roles.includes('KOMISI') && !roles.includes('COMMITTEE')) {
@@ -3378,7 +3382,7 @@ app.post('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) =>
 }));
 
 // DELETE /api/events/:eventId/divisions/:div/members/:userId — remove member
-app.delete('/api/events/:eventId/divisions/:div/members/:userId', wrap(async (req, res) => {
+app.delete('/api/events/:eventId/divisions/:div/members/:userId', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const roles = (req.authUser.roles || []).map((r) => r.role);
   if (!roles.includes('SUPERADMIN') && !roles.includes('KOMISI') && !roles.includes('COMMITTEE')) {
@@ -6503,6 +6507,105 @@ async function resolvePromo(prisma, code, subtotal, isLoggedIn) {
   return { promo, discount, error: null };
 }
 
+// ---------- BZP: Sub-kategori terkelola (bilingual) ----------
+const BZP_SUBCAT_GROUPS = ['Fashion', 'Drinkware', 'Food', 'Lain'];
+
+app.get('/api/benzar/subcategories', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const all = String(req.query?.all || '') === '1' && (req.authUser?.roles || []).some((r) => BZP_WRITE_ROLES.includes(r.role));
+  const list = await prisma.bzpSubcategory.findMany({
+    where: all ? {} : { isActive: true },
+    orderBy: [{ sortOrder: 'asc' }, { nameId: 'asc' }],
+  });
+  res.json({ subcategories: list });
+}));
+
+app.post('/api/benzar/subcategories', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const nameId = String(req.body?.nameId || '').trim();
+  const nameEn = String(req.body?.nameEn || nameId).trim();
+  if (!nameId) return res.status(400).json({ error: 'nameId wajib.' });
+  const slug = String(req.body?.slug || nameEn || nameId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || `sub-${Date.now().toString(36)}`;
+  const dup = await prisma.bzpSubcategory.findUnique({ where: { slug } }).catch(() => null);
+  if (dup) return res.status(409).json({ error: 'Slug sub-kategori sudah dipakai.' });
+  const sub = await prisma.bzpSubcategory.create({
+    data: {
+      id: bzpId('subcat'), nameId, nameEn, slug,
+      group: req.body?.group ? String(req.body.group).slice(0, 40) : null,
+      hasSize: Boolean(req.body?.hasSize),
+      sizeChart: req.body?.sizeChart || null,
+      optionNames: Array.isArray(req.body?.optionNames) ? req.body.optionNames.slice(0, 4) : null,
+      isActive: req.body?.isActive === undefined ? true : Boolean(req.body.isActive),
+      sortOrder: Number(req.body?.sortOrder) || 0,
+    },
+  });
+  res.status(201).json({ subcategory: sub });
+}));
+
+app.patch('/api/benzar/subcategories/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const data = {};
+  for (const k of ['nameId', 'nameEn', 'group']) {
+    if (req.body?.[k] !== undefined) data[k] = req.body[k] ? String(req.body[k]) : null;
+  }
+  if (req.body?.hasSize !== undefined) data.hasSize = Boolean(req.body.hasSize);
+  if (req.body?.sizeChart !== undefined) data.sizeChart = req.body.sizeChart || null;
+  if (req.body?.optionNames !== undefined) data.optionNames = Array.isArray(req.body.optionNames) ? req.body.optionNames.slice(0, 4) : null;
+  if (req.body?.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+  if (req.body?.sortOrder !== undefined) data.sortOrder = Number(req.body.sortOrder) || 0;
+  const sub = await prisma.bzpSubcategory.update({ where: { id: req.params.id }, data });
+  res.json({ subcategory: sub });
+}));
+
+app.delete('/api/benzar/subcategories/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.bzpSubcategory.update({ where: { id: req.params.id }, data: { isActive: false } }).catch(() => null);
+  res.json({ ok: true });
+}));
+
+/** Sinkronkan opsi & varian produk (hapus lalu buat ulang). */
+async function syncProductVariants(prisma, productId, options, variants) {
+  await prisma.productOption.deleteMany({ where: { productId } });
+  let pos = 0;
+  for (const o of (Array.isArray(options) ? options : [])) {
+    const name = String(o?.name || '').trim().slice(0, 40);
+    const values = Array.isArray(o?.values) ? o.values.map((v) => String(v).trim()).filter(Boolean).slice(0, 30) : [];
+    if (!name || !values.length) continue;
+    await prisma.productOption.create({ data: { id: bzpId('opt'), productId, name, values, position: pos++ } });
+  }
+  await prisma.productVariant.deleteMany({ where: { productId } });
+  let vpos = 0;
+  for (const v of (Array.isArray(variants) ? variants : [])) {
+    const opts = v?.options && typeof v.options === 'object' ? v.options : null;
+    if (!opts || !Object.keys(opts).length) continue;
+    await prisma.productVariant.create({
+      data: {
+        id: bzpId('var'),
+        productId,
+        sku: v.sku ? String(v.sku).trim().slice(0, 60) : null,
+        options: opts,
+        price: v.price == null || v.price === '' ? null : Number(v.price) || 0,
+        buyPrice: v.buyPrice == null || v.buyPrice === '' ? null : Number(v.buyPrice) || 0,
+        stock: Math.max(0, Number(v.stock) || 0),
+        imageFileId: v.imageFileId ? String(v.imageFileId) : null,
+        isActive: v.isActive === undefined ? true : Boolean(v.isActive),
+        position: vpos++,
+      },
+    });
+  }
+}
+
+/** Stok produk = total stok varian aktif (bila memakai varian). */
+async function sumVariantStock(prisma, productId) {
+  const agg = await prisma.productVariant.aggregate({ where: { productId, isActive: true }, _sum: { stock: true } });
+  return Number(agg?._sum?.stock || 0);
+}
+
+// GET /api/benzar/subcategories sudah di atas.
 // GET /api/benzar/products — katalog produk (publik)
 // Query: category, subCategory, q (cari nama), onSale=1|0|all, includeInactive=1 (staf)
 app.get('/api/benzar/products', wrap(async (req, res) => {
@@ -6526,7 +6629,14 @@ app.get('/api/benzar/products', wrap(async (req, res) => {
   if (onSale === '1') where.isOnSale = true;
   if (onSale === '0') where.isOnSale = false;
   if (q && String(q).trim()) where.name = { contains: String(q).trim() };
-  const products = await prisma.product.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] });
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    include: {
+      variants: { orderBy: { position: 'asc' } },
+      options: { orderBy: { position: 'asc' } },
+    },
+  });
   res.json({ products });
 }));
 
@@ -6534,7 +6644,10 @@ app.get('/api/benzar/products', wrap(async (req, res) => {
 app.get('/api/benzar/products/:id', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+  const product = await prisma.product.findUnique({
+    where: { id: req.params.id },
+    include: { variants: { orderBy: { position: 'asc' } }, options: { orderBy: { position: 'asc' } } },
+  });
   if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
   res.json({ product });
 }));
@@ -6559,6 +6672,8 @@ function bzpProductData(body, { partial = false } = {}) {
   if (has('operatingCost')) data.operatingCost = body.operatingCost == null || body.operatingCost === '' ? null : Number(body.operatingCost) || 0;
   if (has('yieldQty')) data.yieldQty = body.yieldQty == null || body.yieldQty === '' ? null : Number(body.yieldQty) || 0;
   if (has('eventId')) data.eventId = body.eventId ? String(body.eventId) : null;
+  if (has('subcategoryId')) data.subcategoryId = body.subcategoryId ? String(body.subcategoryId) : null;
+  if (has('hasVariants')) data.hasVariants = Boolean(body.hasVariants);
   if (has('sortOrder')) data.sortOrder = Number(body.sortOrder) || 0;
 
   // Harga modal: manual bila diisi, jika tidak hitung dari COGS/operating/yield (bulk).
@@ -6585,7 +6700,7 @@ function bzpProductData(body, { partial = false } = {}) {
 }
 
 // POST /api/benzar/products — buat produk (staf BZP)
-app.post('/api/benzar/products', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.post('/api/benzar/products', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const built = bzpProductData(req.body || {});
@@ -6594,19 +6709,47 @@ app.post('/api/benzar/products', requireRole(...BZP_WRITE_ROLES), wrap(async (re
   const product = await prisma.product.create({
     data: { id, ...built.data, createdById: req.authUser?.id || 'unknown' },
   });
+  // Varian (opsional)
+  const wantsVariants = Boolean(req.body?.hasVariants) || (Array.isArray(req.body?.variants) && req.body.variants.length > 0);
+  let finalProduct = product;
+  if (wantsVariants) {
+    await syncProductVariants(prisma, product.id, req.body?.options, req.body?.variants);
+    const stock = await sumVariantStock(prisma, product.id);
+    finalProduct = await prisma.product.update({
+      where: { id: product.id },
+      data: { hasVariants: true, stock },
+      include: { variants: { orderBy: { position: 'asc' } }, options: { orderBy: { position: 'asc' } } },
+    });
+  }
   await recordPriceHistory(prisma, product.id, product.price, product.buyPrice, 'Produk dibuat', req.authUser?.id);
-  res.status(201).json({ product });
+  res.status(201).json({ product: finalProduct });
 }));
 
 // PATCH /api/benzar/products/:id — update produk (+ riwayat harga)
-app.patch('/api/benzar/products/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/products/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
   const built = bzpProductData(req.body || {}, { partial: true });
   if (built.error) return res.status(400).json({ error: built.error });
-  const product = await prisma.product.update({ where: { id: req.params.id }, data: built.data });
+  let product = await prisma.product.update({ where: { id: req.params.id }, data: built.data });
+  // Varian: sinkronkan bila dikirim
+  if (req.body?.variants !== undefined || req.body?.options !== undefined || req.body?.hasVariants !== undefined) {
+    await syncProductVariants(prisma, product.id, req.body?.options, req.body?.variants);
+    const hasVariants = Boolean(req.body?.hasVariants) || (Array.isArray(req.body?.variants) && req.body.variants.length > 0);
+    const stock = hasVariants ? await sumVariantStock(prisma, product.id) : product.stock;
+    product = await prisma.product.update({
+      where: { id: product.id },
+      data: { hasVariants, stock },
+      include: { variants: { orderBy: { position: 'asc' } }, options: { orderBy: { position: 'asc' } } },
+    });
+  } else {
+    product = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: { variants: { orderBy: { position: 'asc' } }, options: { orderBy: { position: 'asc' } } },
+    });
+  }
   const priceChanged = built.data.price !== undefined && Number(built.data.price) !== existing.price;
   const buyChanged = built.data.buyPrice !== undefined && Number(built.data.buyPrice || 0) !== Number(existing.buyPrice || 0);
   if (priceChanged || buyChanged) {
@@ -6623,7 +6766,7 @@ app.patch('/api/benzar/products/:id', requireRole(...BZP_WRITE_ROLES), wrap(asyn
 }));
 
 // GET /api/benzar/products/:id/history — riwayat harga jual & modal
-app.get('/api/benzar/products/:id/history', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.get('/api/benzar/products/:id/history', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const history = await prisma.productPriceHistory.findMany({
@@ -6635,7 +6778,7 @@ app.get('/api/benzar/products/:id/history', requireRole(...BZP_WRITE_ROLES), wra
 }));
 
 // PATCH /api/benzar/products/:id/images — ganti urutan / hapus / caption
-app.patch('/api/benzar/products/:id/images', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/products/:id/images', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const product = await prisma.product.findUnique({ where: { id: req.params.id } });
@@ -6646,7 +6789,8 @@ app.patch('/api/benzar/products/:id/images', requireRole(...BZP_WRITE_ROLES), wr
 }));
 
 // DELETE /api/benzar/products/:id — soft delete
-app.delete('/api/benzar/products/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.delete('/api/benzar/products/:id',
+    requireDivision('BENZARPR'), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
@@ -6680,12 +6824,36 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
       return res.status(400).json({ error: `Produk ${item.productId} tidak tersedia.` });
     }
     const qty = Number(item.qty) || 1;
-    if (product.stock > 0 && qty > product.stock) {
-      return res.status(400).json({ error: `Stok ${product.name} tidak cukup (tersisa ${product.stock}).` });
+    let price = product.price;
+    let label = null;
+    let variantId = null;
+    if (item.variantId) {
+      const variant = await prisma.productVariant.findUnique({ where: { id: String(item.variantId) } });
+      if (!variant || variant.productId !== product.id || !variant.isActive) {
+        return res.status(400).json({ error: `Varian produk ${product.name} tidak tersedia.` });
+      }
+      label = Object.values(variant.options || {}).join(' / ') || null;
+      if (variant.stock > 0 && qty > variant.stock) {
+        return res.status(400).json({ error: `Stok ${product.name}${label ? ` (${label})` : ''} tidak cukup (tersisa ${variant.stock}).` });
+      }
+      variantId = variant.id;
+      price = variant.price == null ? product.price : Number(variant.price);
+    } else {
+      if (product.hasVariants) return res.status(400).json({ error: `Pilih varian untuk ${product.name}.` });
+      if (product.stock > 0 && qty > product.stock) {
+        return res.status(400).json({ error: `Stok ${product.name} tidak cukup (tersisa ${product.stock}).` });
+      }
     }
     if (product.isPreorder) hasPreorder = true;
-    orderItems.push({ productId: product.id, qty, price: product.price, name: product.name });
-    subtotal += product.price * qty;
+    orderItems.push({
+      productId: product.id,
+      variantId,
+      variantLabel: label,
+      qty,
+      price,
+      name: label ? `${product.name} (${label})` : product.name,
+    });
+    subtotal += price * qty;
   }
 
   const ship = String(fulfillment || shipping || 'PICKUP').toUpperCase();
@@ -6735,9 +6903,15 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
   for (const oi of orderItems) {
     await prisma.orderItem.create({ data: { id: bzpId('oi'), orderId: order.id, ...oi } });
   }
-  // Kurangi stok (pre-order tetap kurangi agar tidak oversell)
+  // Kurangi stok (per varian bila ada; pre-order tetap kurangi agar tidak oversell)
   for (const oi of orderItems) {
-    await prisma.product.update({ where: { id: oi.productId }, data: { stock: { decrement: oi.qty } } });
+    if (oi.variantId) {
+      await prisma.productVariant.update({ where: { id: oi.variantId }, data: { stock: { decrement: oi.qty } } });
+      const stock = await sumVariantStock(prisma, oi.productId);
+      await prisma.product.update({ where: { id: oi.productId }, data: { stock } }).catch(() => null);
+    } else {
+      await prisma.product.update({ where: { id: oi.productId }, data: { stock: { decrement: oi.qty } } });
+    }
   }
 
   // Notifikasi ke pembeli login (opsional; guest tidak punya akun)
@@ -6771,7 +6945,7 @@ app.get('/api/benzar/orders/track', wrap(async (req, res) => {
 }));
 
 // GET /api/benzar/orders — list orders (BZP staff)
-app.get('/api/benzar/orders', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.get('/api/benzar/orders', requireDivision('BENZARPR'), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { status } = req.query;
@@ -6816,7 +6990,7 @@ app.get('/api/benzar/orders/:id', wrap(async (req, res) => {
 }));
 
 // PATCH /api/benzar/orders/:id/status — update status order (BZP staff)
-app.patch('/api/benzar/orders/:id/status', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/orders/:id/status', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const next = String(req.body?.status || '').toUpperCase();
@@ -6832,7 +7006,13 @@ app.patch('/api/benzar/orders/:id/status', requireRole(...BZP_WRITE_ROLES), wrap
   }
   if (next === 'CANCELLED' && order.status !== 'CANCELLED') {
     for (const item of (order.items || [])) {
-      await prisma.product.update({ where: { id: item.productId }, data: { stock: { increment: item.qty } } }).catch(() => null);
+      if (item.variantId) {
+        await prisma.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.qty } } }).catch(() => null);
+        const stock = await sumVariantStock(prisma, item.productId);
+        await prisma.product.update({ where: { id: item.productId }, data: { stock } }).catch(() => null);
+      } else {
+        await prisma.product.update({ where: { id: item.productId }, data: { stock: { increment: item.qty } } }).catch(() => null);
+      }
     }
   }
   const timeline = appendTimeline(order, next, req.authUser?.name || null, note || cancelReason || null);
@@ -6879,14 +7059,15 @@ app.get('/api/benzar/public-info', wrap(async (req, res) => {
 }));
 
 // ---------- BZP: Pengaturan ----------
-app.get('/api/benzar/settings', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.get('/api/benzar/settings', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const settings = await readBzpSettings(prisma);
   res.json({ settings });
 }));
 
-app.put('/api/benzar/settings', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.put('/api/benzar/settings',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const picPhones = Array.isArray(req.body?.picPhones)
@@ -6904,14 +7085,15 @@ app.put('/api/benzar/settings', requireRole(...BZP_WRITE_ROLES), wrap(async (req
 }));
 
 // ---------- BZP: Promo ----------
-app.get('/api/benzar/promos', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.get('/api/benzar/promos', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const promos = await prisma.promo.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
   res.json({ promos });
 }));
 
-app.post('/api/benzar/promos', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.post('/api/benzar/promos',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const code = String(req.body?.code || '').trim().toUpperCase();
@@ -6939,7 +7121,7 @@ app.post('/api/benzar/promos', requireRole(...BZP_WRITE_ROLES), wrap(async (req,
   res.status(201).json({ promo });
 }));
 
-app.patch('/api/benzar/promos/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/promos/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const data = {};
@@ -6955,7 +7137,8 @@ app.patch('/api/benzar/promos/:id', requireRole(...BZP_WRITE_ROLES), wrap(async 
   res.json({ promo });
 }));
 
-app.delete('/api/benzar/promos/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.delete('/api/benzar/promos/:id',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   await prisma.promo.delete({ where: { id: req.params.id } }).catch(() => null);
@@ -7019,7 +7202,7 @@ app.get('/api/benzar/campaigns/:slug', wrap(async (req, res) => {
   res.json({ campaign: { ...campaign, donations: undefined }, donations: publicDonations, ...t });
 }));
 
-app.post('/api/benzar/campaigns', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.post('/api/benzar/campaigns', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const title = String(req.body?.title || '').trim();
@@ -7045,7 +7228,7 @@ app.post('/api/benzar/campaigns', requireRole(...BZP_WRITE_ROLES), wrap(async (r
   res.status(201).json({ campaign });
 }));
 
-app.patch('/api/benzar/campaigns/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/campaigns/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const data = {};
@@ -7089,7 +7272,7 @@ app.post('/api/benzar/campaigns/:slug/donations', wrap(async (req, res) => {
 }));
 
 // PATCH /api/benzar/donations/:id/status — verifikasi donasi (staf)
-app.patch('/api/benzar/donations/:id/status', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/donations/:id/status', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const status = String(req.body?.status || '').toUpperCase();
@@ -7101,7 +7284,7 @@ app.patch('/api/benzar/donations/:id/status', requireRole(...BZP_WRITE_ROLES), w
 }));
 
 // ---------- BZP: Jadwal kelompok penjualan ----------
-app.get('/api/benzar/sales-shifts', requireRole(), wrap(async (req, res) => {
+app.get('/api/benzar/sales-shifts', requireDivision('BENZARPR'), requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { eventId, date } = req.query;
@@ -7117,7 +7300,8 @@ app.get('/api/benzar/sales-shifts', requireRole(), wrap(async (req, res) => {
   res.json({ shifts });
 }));
 
-app.post('/api/benzar/sales-shifts', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.post('/api/benzar/sales-shifts',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const date = String(req.body?.date || '').slice(0, 10);
@@ -7140,7 +7324,7 @@ app.post('/api/benzar/sales-shifts', requireRole(...BZP_WRITE_ROLES), wrap(async
   res.status(201).json({ shift });
 }));
 
-app.patch('/api/benzar/sales-shifts/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.patch('/api/benzar/sales-shifts/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const data = {};
@@ -7155,14 +7339,15 @@ app.patch('/api/benzar/sales-shifts/:id', requireRole(...BZP_WRITE_ROLES), wrap(
   res.json({ shift });
 }));
 
-app.delete('/api/benzar/sales-shifts/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.delete('/api/benzar/sales-shifts/:id',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   await prisma.salesShift.delete({ where: { id: req.params.id } }).catch(() => null);
   res.json({ ok: true });
 }));
 
-app.post('/api/benzar/sales-shifts/:id/assignments', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.post('/api/benzar/sales-shifts/:id/assignments', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const name = String(req.body?.name || '').trim();
@@ -7181,7 +7366,7 @@ app.post('/api/benzar/sales-shifts/:id/assignments', requireRole(...BZP_WRITE_RO
   res.status(201).json({ assignment });
 }));
 
-app.patch('/api/benzar/sales-assignments/:id', requireRole(), wrap(async (req, res) => {
+app.patch('/api/benzar/sales-assignments/:id', requireDivision('BENZARPR'), requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const status = String(req.body?.status || '').toUpperCase();
@@ -7192,7 +7377,8 @@ app.patch('/api/benzar/sales-assignments/:id', requireRole(), wrap(async (req, r
   res.json({ assignment });
 }));
 
-app.delete('/api/benzar/sales-assignments/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+app.delete('/api/benzar/sales-assignments/:id',
+    requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   await prisma.salesShiftAssignment.delete({ where: { id: req.params.id } }).catch(() => null);
@@ -7200,7 +7386,7 @@ app.delete('/api/benzar/sales-assignments/:id', requireRole(...BZP_WRITE_ROLES),
 }));
 
 // GET /api/benzar/caption/:id — data generator caption WA + deep link
-app.get('/api/benzar/caption/:id', wrap(async (req, res) => {
+app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const product = await prisma.product.findUnique({ where: { id: req.params.id } });
