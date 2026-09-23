@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Liturgia/Marturia/Koinonia: panel dirampingkan (24 Sep 2026)
+
+**Masalah:** pola duplikasi sama seperti Didaskalia — 6 tab generik identik (Ringkasan/Ibadah/Anggota/Diskusi/Drive/Rencana) di semua divisi; `Ringkasan`-nya "Rapat" ↔ tab `Rencana` (dua sistem rapat: `/events/:id/meetings` vs `/division-meetings`); `Diskusi` ↔ mini-feed di `Ibadah` ↔ "Aktivitas Terakhir"; `Drive` ↔ tombol "Drive Folder"; sebagian juga duplikat sidebar `Program & Event` (EventPenatalayanPanel + EventDivisionPhaseTabs + Rapat & Jadwal).
+
+**Hasil IA:**
+- **Liturgia: 7 → 3** — `Penatalayan`, `Ibadah`, `Anggota`
+- **Marturia: 9 → 4** — `Galeri`, `Kesaksian & Story`, `Ibadah`, `Anggota` (tab `Penatalayan` dihapus — domainnya Liturgia & endpoint-nya tidak di-scope per divisi)
+- **Koinonia: 7 → 3** — `Check-in`, `Ibadah`, `Anggota`
+- `Ringkasan`, `Diskusi`, `Drive`, `Rencana` dibuang dari ketiganya; **Rapat/Agenda diserahkan ke sidebar `Program & Event`** — termasuk dihapus dari Didaskalia · Studio › Jadwal & Meet (prop `extraJadwal` dibuang).
+- Strip ringkas (status penolakan + "Dari Rencana bulan") kini tampil untuk keempat divisi ber-panel ramping.
+- **Diakonia tidak diubah** (6 tab generik) — kandidat berikutnya.
+
+**Verifikasi:** `lint` bersih ✓ `test` 478 hijau ✓ `build` OK ✓ Browser (staging, `tech@gehc.demo` SUPERADMIN): Liturgia `[Penatalayan,Ibadah,Anggota]`, Marturia `[Galeri,Kesaksian & Story,Ibadah,Anggota]`, Koinonia `[Check-in,Ibadah,Anggota]`, Diakonia tetap 6 tab; Studio Didaskalia Jadwal & Meet tanpa "Rapat" (link Meet tetap); tanpa page error ✓ Prod & staging = `7af3fba` ✓
+
+**Catatan / follow-up (pra-ada):** `/api/penatalayan/schedules` tanpa scope divisi (kalender lintas divisi); route `events-checkin` dijaga `requireRole('KOMISI','COMMITTEE')` bukan scope Koinonia; tab editor role Penatalayan tetap ber-scope `[LITURGIA, MARTURIA]` di dalam tab Penatalayan Liturgia.
+
+### Next
+1. Uji alur di UI: Penatalayan (bulk assign) Liturgia; Galeri + Kesaksian Marturia; Check-in Koinonia; Ibadah (tugas fase) ketiganya.
+2. Kandidat berikutnya: rampingkan **Diakonia** (6 tab generik) dengan pola yang sama.
+
+
 ## Current — Didaskalia: panel dirampingkan jadi 3 sub-tab + Studio 6 sub-tab (24 Sep 2026)
 
 **Masalah:** panel Didaskalia punya 8 sub-tab dengan banyak duplikasi: Materi/Drive muncul di 3 tempat (tab Drive, kartu di tab Ibadah, `EventDidaskaliaMaterials` di Info Event); Diskusi 2 tempat (tab divisi vs Diskusi Internal Studio); Rapat 2 tempat (Ringkasan vs Rencana); Warta 2 tempat (tab divisi vs sidebar). Isi Studio satu scroll panjang (7 kartu).
