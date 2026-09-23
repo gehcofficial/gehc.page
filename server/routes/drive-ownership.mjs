@@ -1503,19 +1503,30 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       }
       const jpeg = await jpegFromBody(req.body);
       const dest = await ensureBzpOrderFolder(order.orderCode);
+      const kind = String(req.body?.kind || 'proof').toLowerCase() === 'invoice' ? 'invoice' : 'proof';
       const file = await uploadJpegToFolder(dest.drive, dest.folder.id, jpeg, {
-        filename: `bukti-tf-${Date.now()}.jpg`,
+        filename: `${kind === 'invoice' ? 'invoice' : 'bukti-tf'}-${Date.now()}.jpg`,
         publicReader: false,
+      });
+      const timeline = Array.isArray(order.timeline) ? [...order.timeline] : [];
+      timeline.push({
+        status: order.status,
+        at: new Date().toISOString(),
+        by: req.authUser?.name || null,
+        note: kind === 'invoice' ? 'Invoice dilampirkan' : 'Bukti bayar diunggah',
       });
       const updated = await prisma.order.update({
         where: { id: order.id },
-        data: { paymentProofDriveFileId: file.id, status: order.status === 'PENDING' ? 'PAID' : order.status },
+        data: kind === 'invoice'
+          ? { invoiceDriveFileId: file.id, timeline }
+          : { paymentProofDriveFileId: file.id, timeline, status: order.status === 'PENDING' ? 'PAID' : order.status },
       });
       res.json({
         order: {
           id: updated.id,
           status: updated.status,
           paymentProofDriveFileId: updated.paymentProofDriveFileId,
+          invoiceDriveFileId: updated.invoiceDriveFileId,
         },
       });
     }),

@@ -1,5 +1,33 @@
 # GEHC Portal — Handoff
 
+## Current — Benzarpreneurship v2 (analisis PDF "BZP Input" → semua kebutuhan) (23 Sep 2026)
+
+**Sumber kebutuhan:** `Services/Khotbah/BZP Input.pdf` (catatan feedback tim BZP).
+
+**Skema (migrasi `server/_migrate-bzp-v2.cjs`, sudah di staging & **prod**):**
+- **Product** + `sub_category, fundraising_type (SERVICE|PRODUCT), is_on_sale, is_preorder, fulfillment_options, cogs, operating_cost, yield_qty, event_id`
+- **Order** + `user_id` **nullable (guest)**, `guest_name/guest_phone/guest_email, subtotal, discount_total, delivery_fee, promo_code, fulfillment, cancel_reason, timeline, event_id`
+- **Baru:** `product_price_history, promos, campaigns, campaign_donations, bzp_settings, sales_shifts, sales_shift_assignments`
+
+**Backend (`server/index.mjs` + `routes/drive-ownership.mjs`):**
+- Produk: simpan **buyPrice** (bug utama diperbaiki) + **modal bulk** otomatis `(cogs+operatingCost)/yieldQty`; filter `q/category/subCategory/onSale/all`; **riwayat harga**; PATCH images (hapus/urut).
+- Pesanan: **guest checkout** (nama+HP), `fulfillment` (PICKUP/DELIVERY/DINE_IN/TAKEAWAY)+ongkir, **promo**, `subtotal/discount/total`, **timeline**; `PATCH status` (semua status + **alasan batal** + notifikasi); **track** `GET /orders/track?code=&phone=`; invoice/bukti via `kind=proof|invoice`.
+- Baru: **promos CRUD + validate**, **campaigns CRUD + donations + verifikasi**, **settings** (PIC 2–3, ongkir, QRIS, WA), **sales-shifts + assignments**, **caption** (`/api/benzar/caption/:id` → teks + deep link `#/benzarpreneurship?item=<id>`).
+
+**Frontend:**
+- **Publik** (`BenzarpreneurshipPage`): search bar, chip **sub-kategori**, pemisah **Sedang dijual / arsip**, **galeri** multi-foto, **checkout tamu** + dialog **"Simpan riwayat pesanan? (Abaikan / Login dulu)"**, pilihan pemenuhan + ongkir, **kode promo**, **Pesanan Saya/lacak**, **Campaign donasi** (progress + grand total + form donasi anonim), **PIC** di footer, tombol **bagikan/salin link** per produk.
+- **Portal** (`BenzarStoreTab`): 6 sub-tab — **Produk** (foto multi + preview + hapus, modal manual/bulk, sub-kategori, tipe fundraising, pre-order, on-sale, riwayat harga, caption WA), **Pesanan** (pipeline semua status, alasan batal, timeline, bukti TF/invoice, tampil guest), **Promo**, **Campaign** (+verifikasi donasi), **Jadwal Jual** (shift + role + assignment), **Pengaturan** (PIC/ongkir/QRIS/WA).
+
+**Verifikasi:**
+- `lint` bersih · **463 test** hijau · `build` OK.
+- **Smoke test API (staging)**: buyPrice tersimpan (55000) · modal bulk (20000) · promo validate (diskon 9000) · **guest order** total 81000 · track OK · campaign+donasi (grandTotal 50000) · shift+assignment · settings+PIC · caption deep link — **semua lolos**; data uji dibersihkan.
+- **Render lokal**: publik (search/track/filter/campaign) & portal (6 sub-tab) — 0 error.
+- **Migrasi prod** dijalankan & diverifikasi idempoten (30 item sudah ada, 0 perlu dibuat).
+
+### Next
+1. Isi **Pengaturan BZP** (PIC, ongkir, QRIS) lalu uji alur: buat produk+foto → promo → checkout tamu → verifikasi → invoice.
+2. Seed opsional: `node server/seed-benzar.mjs` (belum masuk `package.json`).
+
 ## Current — Full reset pekan 27 Sep + jaring pengaman Bagian A/B + AI image aktif (23 Sep 2026)
 
 **Goal:** Mulai simulasi dari awal untuk 2026-09 pekan 4; pastikan Bagian A/B selalu terisi; aktifkan AI image.

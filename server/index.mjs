@@ -6415,6 +6415,20 @@ app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) =
 const VALID_CATEGORIES = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
 const VALID_ORDER_STATUSES = ['PENDING', 'PAID', 'VERIFIED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED'];
 const VALID_SHIPPING = ['PICKUP', 'DELIVERY'];
+const VALID_FULFILLMENT = ['PICKUP', 'DELIVERY', 'DINE_IN', 'TAKEAWAY'];
+const VALID_FUNDRAISING_TYPES = ['SERVICE', 'PRODUCT'];
+const BZP_WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
+const BZP_SETTING_ID = 'bzp-settings';
+
+const ORDER_STATUS_LABEL = {
+  PENDING: 'Menunggu bayar',
+  PAID: 'Sudah bayar',
+  VERIFIED: 'Terverifikasi',
+  PROCESSING: 'Diproses',
+  READY: 'Siap',
+  COMPLETED: 'Selesai',
+  CANCELLED: 'Dibatalkan',
+};
 
 function generateOrderCode() {
   const d = new Date();
@@ -6423,16 +6437,96 @@ function generateOrderCode() {
   return `BZP-${dateStr}-${rand}`;
 }
 
-// GET /api/benzar/products — public katalog produk
+const bzpId = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`;
+
+/** Harga modal bulk per produk: (cogs + operatingCost) / yieldQty. */
+function computeBulkBuyPrice(body) {
+  const cogs = Number(body?.cogs);
+  const qty = Number(body?.yieldQty);
+  if (!Number.isFinite(cogs) || cogs <= 0) return null;
+  if (!Number.isFinite(qty) || qty <= 0) return null;
+  const op = Number(body?.operatingCost);
+  const total = cogs + (Number.isFinite(op) && op > 0 ? op : 0);
+  return Math.round(total / qty);
+}
+
+/** Catat riwayat harga jual/modal produk. */
+async function recordPriceHistory(prisma, productId, price, buyPrice, note, userId) {
+  try {
+    await prisma.productPriceHistory.create({
+      data: {
+        id: bzpId('pph'),
+        productId,
+        price: Number(price) || 0,
+        buyPrice: buyPrice == null ? null : Number(buyPrice),
+        note: note || null,
+        changedById: userId || null,
+      },
+    });
+  } catch (e) {
+    console.warn('[benzar] riwayat harga gagal:', e.message);
+  }
+}
+
+/** Tambah entri jejak status pesanan. */
+function appendTimeline(order, status, byName, note) {
+  const t = Array.isArray(order.timeline) ? [...order.timeline] : [];
+  t.push({ status, at: new Date().toISOString(), by: byName || null, note: note || null });
+  return t;
+}
+
+async function readBzpSettings(prisma) {
+  try {
+    return await prisma.bzpSetting.findUnique({ where: { id: BZP_SETTING_ID } });
+  } catch {
+    return null;
+  }
+}
+
+/** Validasi & hitung diskon promo. */
+async function resolvePromo(prisma, code, subtotal, isLoggedIn) {
+  const raw = String(code || '').trim().toUpperCase();
+  if (!raw) return { promo: null, discount: 0, error: null };
+  const promo = await prisma.promo.findUnique({ where: { code: raw } }).catch(() => null);
+  if (!promo || !promo.isActive) return { promo: null, discount: 0, error: 'Kode promo tidak valid.' };
+  const now = Date.now();
+  if (promo.startsAt && new Date(promo.startsAt).getTime() > now) return { promo: null, discount: 0, error: 'Promo belum berlaku.' };
+  if (promo.endsAt && new Date(promo.endsAt).getTime() < now) return { promo: null, discount: 0, error: 'Promo sudah berakhir.' };
+  if (promo.audience === 'INTERNAL' && !isLoggedIn) return { promo: null, discount: 0, error: 'Promo ini hanya untuk anggota internal (login).' };
+  if (promo.audience === 'GUEST' && isLoggedIn) return { promo: null, discount: 0, error: 'Promo ini hanya untuk pembeli tamu.' };
+  if (promo.minSpend && subtotal < promo.minSpend) {
+    return { promo: null, discount: 0, error: `Minimal belanja Rp${Number(promo.minSpend).toLocaleString('id-ID')}.` };
+  }
+  const discount = promo.type === 'PERCENT'
+    ? Math.round((subtotal * Math.max(0, Math.min(100, promo.value))) / 100)
+    : Math.max(0, Math.min(subtotal, promo.value));
+  return { promo, discount, error: null };
+}
+
+// GET /api/benzar/products — katalog produk (publik)
+// Query: category, subCategory, q (cari nama), onSale=1|0|all, includeInactive=1 (staf)
 app.get('/api/benzar/products', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { category } = req.query;
-  const where = { isActive: true };
-  if (category && VALID_CATEGORIES.includes(category.toUpperCase())) {
-    where.category = category.toUpperCase();
+  const { category, subCategory, q, onSale, includeInactive } = req.query;
+  const isStaff = (() => {
+    const roles = (req.authUser?.roles || []).map((r) => r.role);
+    return roles.some((r) => BZP_WRITE_ROLES.includes(r));
+  })();
+  const where = {};
+  if (includeInactive === '1' && isStaff) {
+    // staf: tampilkan semua (termasuk arsip)
+  } else {
+    where.isActive = true;
   }
-  const products = await prisma.product.findMany({ where, orderBy: { sortOrder: 'asc' } });
+  if (category && VALID_CATEGORIES.includes(String(category).toUpperCase())) {
+    where.category = String(category).toUpperCase();
+  }
+  if (subCategory) where.subCategory = String(subCategory);
+  if (onSale === '1') where.isOnSale = true;
+  if (onSale === '0') where.isOnSale = false;
+  if (q && String(q).trim()) where.name = { contains: String(q).trim() };
+  const products = await prisma.product.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] });
   res.json({ products });
 }));
 
@@ -6445,51 +6539,110 @@ app.get('/api/benzar/products/:id', wrap(async (req, res) => {
   res.json({ product });
 }));
 
-// POST /api/benzar/products — buat produk (BZP LEAD/CO_LEAD)
-app.post('/api/benzar/products', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+/** Susun data produk dari body (dipakai POST & PATCH BZP). */
+function bzpProductData(body, { partial = false } = {}) {
+  const data = {};
+  const has = (k) => body[k] !== undefined;
+  if (has('name')) data.name = String(body.name).trim();
+  if (has('description')) data.description = body.description ? String(body.description) : null;
+  if (has('price')) data.price = Number(body.price) || 0;
+  if (has('stock')) data.stock = Number(body.stock) || 0;
+  if (has('images')) data.images = Array.isArray(body.images) ? body.images : [];
+  if (has('category')) data.category = String(body.category).toUpperCase();
+  if (has('subCategory')) data.subCategory = body.subCategory ? String(body.subCategory).trim() : null;
+  if (has('fundraisingType')) data.fundraisingType = body.fundraisingType ? String(body.fundraisingType).toUpperCase() : null;
+  if (has('isActive')) data.isActive = Boolean(body.isActive);
+  if (has('isOnSale')) data.isOnSale = Boolean(body.isOnSale);
+  if (has('isPreorder')) data.isPreorder = Boolean(body.isPreorder);
+  if (has('fulfillmentOptions')) data.fulfillmentOptions = body.fulfillmentOptions || null;
+  if (has('cogs')) data.cogs = body.cogs == null || body.cogs === '' ? null : Number(body.cogs) || 0;
+  if (has('operatingCost')) data.operatingCost = body.operatingCost == null || body.operatingCost === '' ? null : Number(body.operatingCost) || 0;
+  if (has('yieldQty')) data.yieldQty = body.yieldQty == null || body.yieldQty === '' ? null : Number(body.yieldQty) || 0;
+  if (has('eventId')) data.eventId = body.eventId ? String(body.eventId) : null;
+  if (has('sortOrder')) data.sortOrder = Number(body.sortOrder) || 0;
+
+  // Harga modal: manual bila diisi, jika tidak hitung dari COGS/operating/yield (bulk).
+  const manual = has('buyPrice') && body.buyPrice !== '' && body.buyPrice != null;
+  const computed = computeBulkBuyPrice(body);
+  if (manual) data.buyPrice = Number(body.buyPrice) || 0;
+  else if (computed != null) data.buyPrice = computed;
+  else if (has('buyPrice')) data.buyPrice = null;
+
+  if (!partial) {
+    if (!data.name) return { error: 'name wajib.' };
+    if (data.price == null) return { error: 'price wajib.' };
+    if (!data.category) return { error: 'category wajib.' };
+    if (!data.images) data.images = [];
+    if (data.stock == null) data.stock = 0;
+  }
+  if (data.category && !VALID_CATEGORIES.includes(data.category)) {
+    return { error: `category harus salah satu dari: ${VALID_CATEGORIES.join(', ')}` };
+  }
+  if (data.fundraisingType && !VALID_FUNDRAISING_TYPES.includes(data.fundraisingType)) {
+    return { error: `fundraisingType harus salah satu dari: ${VALID_FUNDRAISING_TYPES.join(', ')}` };
+  }
+  return { data };
+}
+
+// POST /api/benzar/products — buat produk (staf BZP)
+app.post('/api/benzar/products', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { name, description, price, stock, images, category, sortOrder } = req.body || {};
-  if (!name || price == null || !category) {
-    return res.status(400).json({ error: 'name, price, category wajib.' });
-  }
-  if (!VALID_CATEGORIES.includes(category.toUpperCase())) {
-    return res.status(400).json({ error: `category harus salah satu dari: ${VALID_CATEGORIES.join(', ')}` });
-  }
-  const id = `prod-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`;
+  const built = bzpProductData(req.body || {});
+  if (built.error) return res.status(400).json({ error: built.error });
+  const id = bzpId('prod');
   const product = await prisma.product.create({
-    data: {
-      id, name, description: description || null, price: Number(price),
-      stock: Number(stock) || 0, images: images || [], category: category.toUpperCase(),
-      sortOrder: Number(sortOrder) || 0, createdById: req.authUser?.id || 'unknown',
-    },
+    data: { id, ...built.data, createdById: req.authUser?.id || 'unknown' },
   });
+  await recordPriceHistory(prisma, product.id, product.price, product.buyPrice, 'Produk dibuat', req.authUser?.id);
   res.status(201).json({ product });
 }));
 
-// PATCH /api/benzar/products/:id — update produk
-app.patch('/api/benzar/products/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+// PATCH /api/benzar/products/:id — update produk (+ riwayat harga)
+app.patch('/api/benzar/products/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
-  const { name, description, price, stock, images, category, sortOrder, isActive } = req.body || {};
-  const data = {};
-  if (name !== undefined) data.name = name;
-  if (description !== undefined) data.description = description;
-  if (price !== undefined) data.price = Number(price);
-  if (stock !== undefined) data.stock = Number(stock);
-  if (images !== undefined) data.images = images;
-  if (category !== undefined) {
-    if (!VALID_CATEGORIES.includes(category.toUpperCase())) {
-      return res.status(400).json({ error: `category harus salah satu dari: ${VALID_CATEGORIES.join(', ')}` });
-    }
-    data.category = category.toUpperCase();
+  const built = bzpProductData(req.body || {}, { partial: true });
+  if (built.error) return res.status(400).json({ error: built.error });
+  const product = await prisma.product.update({ where: { id: req.params.id }, data: built.data });
+  const priceChanged = built.data.price !== undefined && Number(built.data.price) !== existing.price;
+  const buyChanged = built.data.buyPrice !== undefined && Number(built.data.buyPrice || 0) !== Number(existing.buyPrice || 0);
+  if (priceChanged || buyChanged) {
+    await recordPriceHistory(
+      prisma,
+      product.id,
+      product.price,
+      product.buyPrice,
+      String(req.body?.priceNote || '').trim() || 'Perubahan harga',
+      req.authUser?.id
+    );
   }
-  if (sortOrder !== undefined) data.sortOrder = Number(sortOrder);
-  if (isActive !== undefined) data.isActive = Boolean(isActive);
-  const product = await prisma.product.update({ where: { id: req.params.id }, data });
   res.json({ product });
+}));
+
+// GET /api/benzar/products/:id/history — riwayat harga jual & modal
+app.get('/api/benzar/products/:id/history', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const history = await prisma.productPriceHistory.findMany({
+    where: { productId: req.params.id },
+    orderBy: { changedAt: 'desc' },
+    take: 50,
+  });
+  res.json({ history });
+}));
+
+// PATCH /api/benzar/products/:id/images — ganti urutan / hapus / caption
+app.patch('/api/benzar/products/:id/images', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+  const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 12) : [];
+  const updated = await prisma.product.update({ where: { id: product.id }, data: { images } });
+  res.json({ product: updated });
 }));
 
 // DELETE /api/benzar/products/:id — soft delete
@@ -6502,18 +6655,25 @@ app.delete('/api/benzar/products/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMM
   res.json({ ok: true });
 }));
 
-// POST /api/benzar/orders — buat pesanan
+// POST /api/benzar/orders — buat pesanan (login ATAU tamu/guest)
 app.post('/api/benzar/orders', wrap(async (req, res) => {
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { items: rawItems, shipping, shippingAddr, notes } = req.body || {};
+  const { items: rawItems, shipping, fulfillment, shippingAddr, notes, promoCode, guestName, guestPhone, guestEmail, eventId } = req.body || {};
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     return res.status(400).json({ error: 'items[] wajib minimal 1 produk.' });
   }
+  const isLoggedIn = Boolean(req.authUser);
+  const gName = String(guestName || '').trim();
+  const gPhone = String(guestPhone || '').trim();
+  if (!isLoggedIn && (!gName || !gPhone)) {
+    return res.status(400).json({ error: 'Untuk pesanan tamu, nama dan nomor HP wajib diisi.' });
+  }
+
   // Validate & build order items
   const orderItems = [];
-  let total = 0;
+  let subtotal = 0;
+  let hasPreorder = false;
   for (const item of rawItems) {
     const product = await prisma.product.findUnique({ where: { id: item.productId } });
     if (!product || !product.isActive) {
@@ -6523,35 +6683,91 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
     if (product.stock > 0 && qty > product.stock) {
       return res.status(400).json({ error: `Stok ${product.name} tidak cukup (tersisa ${product.stock}).` });
     }
+    if (product.isPreorder) hasPreorder = true;
     orderItems.push({ productId: product.id, qty, price: product.price, name: product.name });
-    total += product.price * qty;
+    subtotal += product.price * qty;
   }
-  if (shipping && !VALID_SHIPPING.includes(shipping.toUpperCase())) {
-    return res.status(400).json({ error: `shipping harus PICKUP atau DELIVERY.` });
+
+  const ship = String(fulfillment || shipping || 'PICKUP').toUpperCase();
+  if (!VALID_FULFILLMENT.includes(ship)) {
+    return res.status(400).json({ error: `fulfillment harus salah satu dari: ${VALID_FULFILLMENT.join(', ')}` });
   }
-  const orderId = `ord-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`;
+  const settings = await readBzpSettings(prisma);
+  let deliveryFee = 0;
+  if (ship === 'DELIVERY') {
+    const bodyFee = Number(req.body?.deliveryFee);
+    deliveryFee = Number.isFinite(bodyFee) && bodyFee >= 0
+      ? bodyFee
+      : Number(settings?.deliveryFee || 0);
+  }
+
+  const { promo, discount, error: promoError } = await resolvePromo(prisma, promoCode, subtotal, isLoggedIn);
+  if (promoError) return res.status(400).json({ error: promoError });
+  const total = Math.max(0, subtotal - discount) + deliveryFee;
+
+  const orderId = bzpId('ord');
   const orderCode = generateOrderCode();
+  const nowIso = new Date().toISOString();
   const order = await prisma.order.create({
     data: {
-      id: orderId, orderCode, userId: req.authUser.id, items: orderItems, total,
-      status: 'PENDING', shipping: (shipping || 'PICKUP').toUpperCase(),
-      shippingAddr: shippingAddr || null, notes: notes || null,
+      id: orderId,
+      orderCode,
+      userId: req.authUser?.id || null,
+      guestName: isLoggedIn ? null : gName,
+      guestPhone: isLoggedIn ? null : gPhone,
+      guestEmail: isLoggedIn ? null : (String(guestEmail || '').trim() || null),
+      items: orderItems,
+      subtotal,
+      discountTotal: discount,
+      deliveryFee,
+      promoCode: promo ? promo.code : null,
+      total,
+      status: 'PENDING',
+      shipping: ship === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
+      fulfillment: ship,
+      shippingAddr: shippingAddr || (isLoggedIn ? null : { name: gName, phone: gPhone, address: '' }),
+      notes: notes || null,
+      eventId: eventId ? String(eventId) : null,
+      timeline: [{ status: 'PENDING', at: nowIso, by: isLoggedIn ? (req.authUser?.name || null) : gName, note: hasPreorder ? 'Pesanan dibuat (pre-order)' : 'Pesanan dibuat' }],
     },
   });
-  // Create order items in relation table
+
   for (const oi of orderItems) {
-    await prisma.orderItem.create({
-      data: { id: `oi-${Date.now().toString(36)}-${Math.floor(Math.random() * 999)}`, orderId: order.id, ...oi },
-    });
+    await prisma.orderItem.create({ data: { id: bzpId('oi'), orderId: order.id, ...oi } });
   }
-  // Deduct stock
+  // Kurangi stok (pre-order tetap kurangi agar tidak oversell)
   for (const oi of orderItems) {
-    await prisma.product.update({
-      where: { id: oi.productId },
-      data: { stock: { decrement: oi.qty } },
-    });
+    await prisma.product.update({ where: { id: oi.productId }, data: { stock: { decrement: oi.qty } } });
+  }
+
+  // Notifikasi ke pembeli login (opsional; guest tidak punya akun)
+  if (isLoggedIn) {
+    try {
+      await notifyOrderUpdate(prisma, order, 'PENDING');
+    } catch { /* notifikasi opsional */ }
   }
   res.status(201).json({ order, orderCode });
+}));
+
+// GET /api/benzar/orders/track?code=&phone= — lacak pesanan (tamu/guest)
+app.get('/api/benzar/orders/track', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const code = String(req.query?.code || '').trim().toUpperCase();
+  const phone = String(req.query?.phone || '').trim();
+  if (!code) return res.status(400).json({ error: 'Kode pesanan wajib.' });
+  const order = await prisma.order.findUnique({ where: { orderCode: code } });
+  if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+  // Bila pesanan milik akun, wajib pemilik/staf; bila guest, cocokkan nomor HP.
+  if (order.userId) {
+    const isOwner = req.authUser?.id === order.userId;
+    const roles = (req.authUser?.roles || []).map((r) => r.role);
+    const isStaff = roles.some((r) => BZP_WRITE_ROLES.includes(r));
+    if (!isOwner && !isStaff) return res.status(403).json({ error: 'Akses ditolak.' });
+  } else if (order.guestPhone && phone && order.guestPhone !== phone) {
+    return res.status(403).json({ error: 'Nomor HP tidak cocok dengan pesanan ini.' });
+  }
+  res.json({ order, statusLabel: ORDER_STATUS_LABEL[order.status] || order.status });
 }));
 
 // GET /api/benzar/orders — list orders (BZP staff)
@@ -6600,29 +6816,40 @@ app.get('/api/benzar/orders/:id', wrap(async (req, res) => {
 }));
 
 // PATCH /api/benzar/orders/:id/status — update status order (BZP staff)
-app.patch('/api/benzar/orders/:id/status', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.patch('/api/benzar/orders/:id/status', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const { status } = req.body || {};
-  if (!status || !VALID_ORDER_STATUSES.includes(status.toUpperCase())) {
+  const next = String(req.body?.status || '').toUpperCase();
+  if (!next || !VALID_ORDER_STATUSES.includes(next)) {
     return res.status(400).json({ error: `status harus salah satu dari: ${VALID_ORDER_STATUSES.join(', ')}` });
   }
   const order = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
-  // If cancelling, restore stock
-  if (status.toUpperCase() === 'CANCELLED' && order.status !== 'CANCELLED') {
-    const items = order.items;
-    for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: { stock: { increment: item.qty } },
-      });
+  const cancelReason = String(req.body?.cancelReason || '').trim();
+  const note = String(req.body?.note || '').trim();
+  if (next === 'CANCELLED' && !cancelReason) {
+    return res.status(400).json({ error: 'Alasan pembatalan wajib diisi.' });
+  }
+  if (next === 'CANCELLED' && order.status !== 'CANCELLED') {
+    for (const item of (order.items || [])) {
+      await prisma.product.update({ where: { id: item.productId }, data: { stock: { increment: item.qty } } }).catch(() => null);
     }
   }
+  const timeline = appendTimeline(order, next, req.authUser?.name || null, note || cancelReason || null);
   const updated = await prisma.order.update({
-    where: { id: req.params.id }, data: { status: status.toUpperCase() },
+    where: { id: req.params.id },
+    data: {
+      status: next,
+      timeline,
+      cancelReason: next === 'CANCELLED' ? cancelReason : order.cancelReason,
+    },
   });
-  res.json({ order: updated });
+  if (updated.userId) {
+    try {
+      await notifyOrderUpdate(prisma, updated, next);
+    } catch { /* notifikasi opsional */ }
+  }
+  res.json({ order: updated, statusLabel: ORDER_STATUS_LABEL[next] || next });
 }));
 
 // GET /api/benzar/qris — return QRIS info (public)
@@ -6636,6 +6863,367 @@ app.get('/api/benzar/qris', wrap(async (req, res) => {
     accountNumber: process.env.QRIS_ACCOUNT_NUMBER || '',
     whatsapp: '081288646114',
     instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, kirim bukti transfer ke WA: 081288646114.',
+  });
+}));
+
+// GET /api/benzar/public-info — PIC, ongkir, grup WA, QRIS (publik)
+app.get('/api/benzar/public-info', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const settings = prisma ? await readBzpSettings(prisma) : null;
+  res.json({
+    picPhones: Array.isArray(settings?.picPhones) ? settings.picPhones : [],
+    deliveryFee: Number(settings?.deliveryFee || 0),
+    waGroupUrl: settings?.waGroupUrl || null,
+    qris: settings?.qris && typeof settings.qris === 'object' ? settings.qris : null,
+  });
+}));
+
+// ---------- BZP: Pengaturan ----------
+app.get('/api/benzar/settings', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const settings = await readBzpSettings(prisma);
+  res.json({ settings });
+}));
+
+app.put('/api/benzar/settings', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const picPhones = Array.isArray(req.body?.picPhones)
+    ? req.body.picPhones.slice(0, 3).map((p) => ({ name: String(p?.name || '').trim(), phone: String(p?.phone || '').trim() })).filter((p) => p.phone)
+    : [];
+  const qris = req.body?.qris && typeof req.body.qris === 'object' ? req.body.qris : null;
+  const deliveryFee = Math.max(0, Number(req.body?.deliveryFee) || 0);
+  const waGroupUrl = req.body?.waGroupUrl ? String(req.body.waGroupUrl).trim().slice(0, 300) : null;
+  const settings = await prisma.bzpSetting.upsert({
+    where: { id: BZP_SETTING_ID },
+    update: { picPhones, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
+    create: { id: BZP_SETTING_ID, picPhones, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
+  });
+  res.json({ settings });
+}));
+
+// ---------- BZP: Promo ----------
+app.get('/api/benzar/promos', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const promos = await prisma.promo.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
+  res.json({ promos });
+}));
+
+app.post('/api/benzar/promos', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const code = String(req.body?.code || '').trim().toUpperCase();
+  const name = String(req.body?.name || '').trim();
+  const type = String(req.body?.type || 'PERCENT').toUpperCase();
+  if (!code || !name) return res.status(400).json({ error: 'code & name wajib.' });
+  if (!['PERCENT', 'AMOUNT'].includes(type)) return res.status(400).json({ error: 'type harus PERCENT atau AMOUNT.' });
+  const audience = ['INTERNAL', 'GUEST', 'ALL'].includes(String(req.body?.audience || '').toUpperCase())
+    ? String(req.body.audience).toUpperCase() : 'ALL';
+  const existing = await prisma.promo.findUnique({ where: { code } }).catch(() => null);
+  if (existing) return res.status(409).json({ error: 'Kode promo sudah dipakai.' });
+  const promo = await prisma.promo.create({
+    data: {
+      id: bzpId('promo'), code, name, type,
+      value: Math.max(0, Number(req.body?.value) || 0),
+      audience,
+      minSpend: Math.max(0, Number(req.body?.minSpend) || 0),
+      isActive: req.body?.isActive === undefined ? true : Boolean(req.body.isActive),
+      startsAt: req.body?.startsAt ? new Date(req.body.startsAt) : null,
+      endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
+      eventId: req.body?.eventId ? String(req.body.eventId) : null,
+      createdById: req.authUser?.id || 'unknown',
+    },
+  });
+  res.status(201).json({ promo });
+}));
+
+app.patch('/api/benzar/promos/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const data = {};
+  if (req.body?.name !== undefined) data.name = String(req.body.name).trim();
+  if (req.body?.type !== undefined) data.type = String(req.body.type).toUpperCase();
+  if (req.body?.value !== undefined) data.value = Math.max(0, Number(req.body.value) || 0);
+  if (req.body?.audience !== undefined) data.audience = String(req.body.audience).toUpperCase();
+  if (req.body?.minSpend !== undefined) data.minSpend = Math.max(0, Number(req.body.minSpend) || 0);
+  if (req.body?.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+  if (req.body?.startsAt !== undefined) data.startsAt = req.body.startsAt ? new Date(req.body.startsAt) : null;
+  if (req.body?.endsAt !== undefined) data.endsAt = req.body.endsAt ? new Date(req.body.endsAt) : null;
+  const promo = await prisma.promo.update({ where: { id: req.params.id }, data });
+  res.json({ promo });
+}));
+
+app.delete('/api/benzar/promos/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.promo.delete({ where: { id: req.params.id } }).catch(() => null);
+  res.json({ ok: true });
+}));
+
+// POST /api/benzar/promos/validate — cek kode promo (publik)
+app.post('/api/benzar/promos/validate', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const subtotal = Math.max(0, Number(req.body?.subtotal) || 0);
+  const isLoggedIn = Boolean(req.authUser);
+  const { promo, discount, error } = await resolvePromo(prisma, req.body?.code, subtotal, isLoggedIn);
+  if (error) return res.status(400).json({ error });
+  res.json({ promo: { code: promo.code, name: promo.name, type: promo.type, value: promo.value }, discount });
+}));
+
+// ---------- BZP: Campaign donasi (ala Kitabisa) ----------
+function campaignTotals(donations) {
+  const verified = (donations || []).filter((d) => d.status === 'VERIFIED');
+  const grandTotal = verified.reduce((n, d) => n + (Number(d.amount) || 0), 0);
+  const pending = (donations || []).filter((d) => d.status === 'PENDING').reduce((n, d) => n + (Number(d.amount) || 0), 0);
+  return { grandTotal, pendingTotal: pending, donorCount: verified.length };
+}
+
+app.get('/api/benzar/campaigns', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const includeAll = String(req.query?.all || '') === '1';
+  const campaigns = await prisma.campaign.findMany({
+    where: includeAll ? {} : { isActive: true },
+    orderBy: { createdAt: 'desc' },
+    include: { donations: { where: { status: 'VERIFIED' }, select: { amount: true, status: true } } },
+    take: 100,
+  });
+  res.json({
+    campaigns: campaigns.map((c) => {
+      const t = campaignTotals(c.donations);
+      return { ...c, donations: undefined, grandTotal: t.grandTotal, donorCount: t.donorCount };
+    }),
+  });
+}));
+
+app.get('/api/benzar/campaigns/:slug', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const campaign = await prisma.campaign.findUnique({
+    where: { slug: req.params.slug },
+    include: { donations: { orderBy: { createdAt: 'desc' }, take: 100 } },
+  });
+  if (!campaign) return res.status(404).json({ error: 'Campaign tidak ditemukan.' });
+  const t = campaignTotals(campaign.donations);
+  const publicDonations = campaign.donations.map((d) => ({
+    id: d.id,
+    donorName: d.isAnonymous ? 'Hamba Tuhan' : d.donorName,
+    amount: d.amount,
+    message: d.message,
+    status: d.status,
+    createdAt: d.createdAt,
+  }));
+  res.json({ campaign: { ...campaign, donations: undefined }, donations: publicDonations, ...t });
+}));
+
+app.post('/api/benzar/campaigns', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const title = String(req.body?.title || '').trim();
+  if (!title) return res.status(400).json({ error: 'title wajib.' });
+  const slug = String(req.body?.slug || title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || `campaign-${Date.now().toString(36)}`;
+  const dup = await prisma.campaign.findUnique({ where: { slug } }).catch(() => null);
+  if (dup) return res.status(409).json({ error: 'Slug sudah dipakai.' });
+  const campaign = await prisma.campaign.create({
+    data: {
+      id: bzpId('cmp'),
+      title,
+      slug,
+      description: req.body?.description ? String(req.body.description) : null,
+      imageFileId: req.body?.imageFileId ? String(req.body.imageFileId) : null,
+      target: Math.max(0, Number(req.body?.target) || 0),
+      eventId: req.body?.eventId ? String(req.body.eventId) : null,
+      isActive: req.body?.isActive === undefined ? true : Boolean(req.body.isActive),
+      startsAt: req.body?.startsAt ? new Date(req.body.startsAt) : null,
+      endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
+      createdById: req.authUser?.id || 'unknown',
+    },
+  });
+  res.status(201).json({ campaign });
+}));
+
+app.patch('/api/benzar/campaigns/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const data = {};
+  for (const k of ['title', 'description', 'imageFileId', 'eventId']) {
+    if (req.body?.[k] !== undefined) data[k] = req.body[k] ? String(req.body[k]) : null;
+  }
+  if (req.body?.target !== undefined) data.target = Math.max(0, Number(req.body.target) || 0);
+  if (req.body?.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+  if (req.body?.startsAt !== undefined) data.startsAt = req.body.startsAt ? new Date(req.body.startsAt) : null;
+  if (req.body?.endsAt !== undefined) data.endsAt = req.body.endsAt ? new Date(req.body.endsAt) : null;
+  const campaign = await prisma.campaign.update({ where: { id: req.params.id }, data });
+  res.json({ campaign });
+}));
+
+// POST /api/benzar/campaigns/:slug/donations — donasi (login atau tamu)
+app.post('/api/benzar/campaigns/:slug/donations', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const campaign = await prisma.campaign.findUnique({ where: { slug: req.params.slug } });
+  if (!campaign || !campaign.isActive) return res.status(404).json({ error: 'Campaign tidak aktif.' });
+  const amount = Math.max(0, Number(req.body?.amount) || 0);
+  if (amount <= 0) return res.status(400).json({ error: 'Nominal donasi wajib > 0.' });
+  const isAnonymous = Boolean(req.body?.isAnonymous);
+  const donorName = String(req.body?.donorName || req.authUser?.name || '').trim();
+  if (!isAnonymous && !donorName) return res.status(400).json({ error: 'Nama donatur wajib (atau pilih anonim).' });
+  const donation = await prisma.campaignDonation.create({
+    data: {
+      id: bzpId('don'),
+      campaignId: campaign.id,
+      userId: req.authUser?.id || null,
+      donorName: donorName || 'Hamba Tuhan',
+      donorPhone: req.body?.donorPhone ? String(req.body.donorPhone).trim() : null,
+      isAnonymous,
+      amount,
+      message: req.body?.message ? String(req.body.message) : null,
+      status: 'PENDING',
+      proofDriveFileId: req.body?.proofDriveFileId ? String(req.body.proofDriveFileId) : null,
+    },
+  });
+  res.status(201).json({ donation });
+}));
+
+// PATCH /api/benzar/donations/:id/status — verifikasi donasi (staf)
+app.patch('/api/benzar/donations/:id/status', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const status = String(req.body?.status || '').toUpperCase();
+  if (!['PENDING', 'PAID', 'VERIFIED', 'CANCELLED'].includes(status)) {
+    return res.status(400).json({ error: 'status donasi tidak valid.' });
+  }
+  const donation = await prisma.campaignDonation.update({ where: { id: req.params.id }, data: { status } });
+  res.json({ donation });
+}));
+
+// ---------- BZP: Jadwal kelompok penjualan ----------
+app.get('/api/benzar/sales-shifts', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { eventId, date } = req.query;
+  const where = {};
+  if (eventId) where.eventId = String(eventId);
+  if (date) where.date = String(date);
+  const shifts = await prisma.salesShift.findMany({
+    where,
+    orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    include: { assignments: true },
+    take: 200,
+  });
+  res.json({ shifts });
+}));
+
+app.post('/api/benzar/sales-shifts', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const date = String(req.body?.date || '').slice(0, 10);
+  const title = String(req.body?.title || '').trim();
+  if (!date || !title) return res.status(400).json({ error: 'date & title wajib.' });
+  const shift = await prisma.salesShift.create({
+    data: {
+      id: bzpId('shift'),
+      eventId: req.body?.eventId ? String(req.body.eventId) : null,
+      date,
+      title,
+      startTime: String(req.body?.startTime || '08:00').slice(0, 5),
+      endTime: String(req.body?.endTime || '12:00').slice(0, 5),
+      roles: Array.isArray(req.body?.roles) ? req.body.roles.slice(0, 12) : [],
+      notes: req.body?.notes ? String(req.body.notes) : null,
+      createdById: req.authUser?.id || 'unknown',
+    },
+    include: { assignments: true },
+  });
+  res.status(201).json({ shift });
+}));
+
+app.patch('/api/benzar/sales-shifts/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const data = {};
+  if (req.body?.title !== undefined) data.title = String(req.body.title).trim();
+  if (req.body?.date !== undefined) data.date = String(req.body.date).slice(0, 10);
+  if (req.body?.startTime !== undefined) data.startTime = String(req.body.startTime).slice(0, 5);
+  if (req.body?.endTime !== undefined) data.endTime = String(req.body.endTime).slice(0, 5);
+  if (req.body?.roles !== undefined) data.roles = Array.isArray(req.body.roles) ? req.body.roles.slice(0, 12) : [];
+  if (req.body?.notes !== undefined) data.notes = req.body.notes ? String(req.body.notes) : null;
+  if (req.body?.eventId !== undefined) data.eventId = req.body.eventId ? String(req.body.eventId) : null;
+  const shift = await prisma.salesShift.update({ where: { id: req.params.id }, data, include: { assignments: true } });
+  res.json({ shift });
+}));
+
+app.delete('/api/benzar/sales-shifts/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.salesShift.delete({ where: { id: req.params.id } }).catch(() => null);
+  res.json({ ok: true });
+}));
+
+app.post('/api/benzar/sales-shifts/:id/assignments', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const name = String(req.body?.name || '').trim();
+  const role = String(req.body?.role || '').trim();
+  if (!name || !role) return res.status(400).json({ error: 'name & role wajib.' });
+  const assignment = await prisma.salesShiftAssignment.create({
+    data: {
+      id: bzpId('sasg'),
+      shiftId: req.params.id,
+      userId: req.body?.userId ? String(req.body.userId) : null,
+      name,
+      role,
+      status: 'INVITED',
+    },
+  });
+  res.status(201).json({ assignment });
+}));
+
+app.patch('/api/benzar/sales-assignments/:id', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const status = String(req.body?.status || '').toUpperCase();
+  if (!['INVITED', 'CONFIRMED', 'DECLINED'].includes(status)) {
+    return res.status(400).json({ error: 'status assignment tidak valid.' });
+  }
+  const assignment = await prisma.salesShiftAssignment.update({ where: { id: req.params.id }, data: { status } });
+  res.json({ assignment });
+}));
+
+app.delete('/api/benzar/sales-assignments/:id', requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.salesShiftAssignment.delete({ where: { id: req.params.id } }).catch(() => null);
+  res.json({ ok: true });
+}));
+
+// GET /api/benzar/caption/:id — data generator caption WA + deep link
+app.get('/api/benzar/caption/:id', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+  const settings = await readBzpSettings(prisma);
+  const origin = String(process.env.APP_URL || 'https://youth.gehc.page').replace(/\/$/, '');
+  const link = `${origin}/#/benzarpreneurship?item=${product.id}`;
+  const price = `Rp${Number(product.price).toLocaleString('id-ID')}`;
+  const lines = [
+    `🛍️ *${product.name}*`,
+    product.description ? product.description.slice(0, 240) : '',
+    `💰 ${price}${product.isPreorder ? ' (pre-order)' : ''}`,
+    '',
+    'Pesan sekarang 👇',
+    link,
+    '',
+    '#Benzarpreneurship #GEHCYouth',
+  ].filter(Boolean);
+  res.json({
+    product,
+    link,
+    caption: lines.join('\n'),
+    picPhones: Array.isArray(settings?.picPhones) ? settings.picPhones : [],
   });
 }));
 

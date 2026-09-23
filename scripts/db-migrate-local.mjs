@@ -295,6 +295,11 @@ const STEPS = [
     label: 'Normalisasi kind event mingguan (RECURRING → UMUM)',
     required: true,
   },
+  {
+    script: 'server/_migrate-bzp-v2.cjs',
+    label: 'BZP v2: harga/promo/campaign/settings/jadwal penjualan + order guest',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

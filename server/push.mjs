@@ -123,7 +123,7 @@ export async function notifyOrderUpdate(prisma, order, newStatus) {
     select: { body: true },
   });
   if (!userSubs.length) return [];
-  const statusLabels = { PENDING: 'Menunggu', CONFIRMED: 'Dikonfirmasi', PREPARING: 'Disiapkan', READY: 'Siap Diambil', COMPLETED: 'Selesai', CANCELLED: 'Dibatalkan' };
+  const statusLabels = { PENDING: 'Menunggu bayar', PAID: 'Sudah bayar', VERIFIED: 'Terverifikasi', PROCESSING: 'Diproses', READY: 'Siap', COMPLETED: 'Selesai', CANCELLED: 'Dibatalkan' };
   const payload = {
     title: 'Update Pesanan Toko',
     body: `Pesanan #${order.orderCode} - ${statusLabels[newStatus] || newStatus}`,

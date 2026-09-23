@@ -56,6 +56,7 @@
     "db:sync-retreat:staging": "dotenv -e .env.staging -- node server/_sync-retreat-beyonders.cjs",
     "db:seed:onboarding": "tsx server/seed-onboarding.ts",
     "db:push:staging": "dotenv -e .env.staging -- prisma db push",
+    "db:migrate:bzp-v2": "node server/_migrate-bzp-v2.cjs",
     "db:migrate:staging": "dotenv -e .env.staging -- prisma migrate deploy",
     "db:seed:staging": "dotenv -e .env.staging -- tsx server/seed.ts",
     "db:seed:onboarding:staging": "dotenv -e .env.staging -- tsx server/seed-onboarding.ts",
