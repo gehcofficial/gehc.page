@@ -386,29 +386,50 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
 
   const pillarMeta = pillarByName(selectedDiv);
 
-  // Sub-tab per divisi. Didaskalia: alur kerja kurikulum (Studio, Materi, Anggota) —
-  // tab generik (Ringkasan/Ibadah/Diskusi/Drive/Rencana/Warta) dihilangkan untuknya
-  // karena duplikat/ tidak relevan (Warta ada di sidebar, Diskusi ada di Studio).
-  const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = selectedDiv === 'DIDASKALIA'
-    ? [
+  // Sub-tab per divisi — hanya yang mission-critical. Tab generik yang duplikat
+  // (Ringkasan/Diskusi/Drive/Rencana) dihilangkan: Warta ada di sidebar, Rapat &
+  // Agenda ada di sidebar Program & Event, mini-feed diskusi ada di tab Ibadah.
+  const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = (() => {
+    const ibadahTab = { id: 'ibadah' as DetailTab, label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> };
+    const membersTab = { id: 'members' as DetailTab, label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> };
+    if (selectedDiv === 'DIDASKALIA') {
+      return [
         { id: 'studio', label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
         { id: 'materi', label: d.tabMateri, icon: <FolderOpen className="w-3.5 h-3.5" /> },
-        { id: 'members', label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
-      ]
-    : [
-        { id: 'overview', label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
-        { id: 'ibadah', label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> },
-        { id: 'members', label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
-        { id: 'discussions', label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
-        { id: 'drive', label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
-        { id: 'planning', label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
-        ...(selectedDiv === 'KOINONIA' ? [{ id: 'checkin' as DetailTab, label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> }] : []),
-        ...(selectedDiv === 'MARTURIA' ? [
-          { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
-          { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
-        ] : []),
-        ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
+        membersTab,
       ];
+    }
+    if (selectedDiv === 'LITURGIA') {
+      return [
+        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
+        ibadahTab,
+        membersTab,
+      ];
+    }
+    if (selectedDiv === 'MARTURIA') {
+      return [
+        { id: 'gallery', label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+        { id: 'kesaksian', label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+        ibadahTab,
+        membersTab,
+      ];
+    }
+    if (selectedDiv === 'KOINONIA') {
+      return [
+        { id: 'checkin', label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
+        ibadahTab,
+        membersTab,
+      ];
+    }
+    return [
+      { id: 'overview', label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
+      ibadahTab,
+      membersTab,
+      { id: 'discussions', label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+      { id: 'drive', label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+      { id: 'planning', label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
+    ];
+  })();
   const activeTab: DetailTab = divTabs.some((tab) => tab.id === detailTab) ? detailTab : (divTabs[0]?.id || 'overview');
   const divColor = pillarMeta?.color || '#6B7280';
 
@@ -1341,8 +1362,8 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               ))}
             </ScrollTabBar>
 
-            {/* Strip ringkas Didaskalia: status penolakan divisi + deliverable Rencana bulan */}
-            {selectedDiv === 'DIDASKALIA' && (
+            {/* Strip ringkas: status penolakan divisi + deliverable Rencana bulan */}
+            {['DIDASKALIA', 'LITURGIA', 'MARTURIA', 'KOINONIA'].includes(selectedDiv) && (
               (currentDiv?.approvalStatus === 'REJECTED' && !!currentDiv.rejectReason)
               || linkedPlans.some((p) => p.division === selectedDiv)
             ) && (
@@ -1743,12 +1764,6 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   yearMonth={studioYearMonth || undefined}
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}
-                  extraJadwal={(
-                    <div className="space-y-4">
-                      {rapatBlock}
-                      <DivisionPlanningTab division={selectedDiv} />
-                    </div>
-                  )}
                 />
               </div>
             )}

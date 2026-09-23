@@ -154,7 +154,7 @@ const ImageSlot: React.FC<{
   );
 };
 
-export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string; extraJadwal?: React.ReactNode }> = ({ yearMonth, weekIndex: weekIndexProp, eventName, extraJadwal }) => {
+export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
@@ -1366,7 +1366,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
             <button type="button" disabled={!canWrite || schedBusy} onClick={() => void saveLinks()} className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">Simpan link</button>
           </div>
-            {extraJadwal}
           </>)}
         </>
       )}
