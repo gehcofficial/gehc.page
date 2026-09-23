@@ -34,34 +34,35 @@ function assetUrl(fileId?: string): string | undefined {
 
 const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
   const img = assetUrl(slide.imageFileId);
-  return (
-    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white">
-      {slide.kicker && <p className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-300 print:text-sky-700">{slide.kicker}</p>}
-      <h1 className="text-2xl sm:text-4xl font-black leading-tight">{slide.title}</h1>
-      {slide.subtitle && <p className="text-sm sm:text-base text-white/70 print:text-black/70">{slide.subtitle}</p>}
-      {img && (
-        <img
-          src={img}
-          alt=""
-          loading="lazy"
-          className="w-full max-h-[42vh] object-cover rounded-2xl border border-white/10"
-        />
+  const isBg = Boolean(slide.background && img);
+
+  const body = (
+    <>
+      {slide.kicker && (
+        <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${isBg ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>
+          {slide.kicker}
+        </p>
+      )}
+      <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl text-white drop-shadow' : 'text-2xl sm:text-4xl'}`}>{slide.title}</h1>
+      {slide.subtitle && <p className={`text-sm sm:text-base ${isBg ? 'text-white/85' : 'text-white/70 print:text-black/70'}`}>{slide.subtitle}</p>}
+      {!isBg && img && (
+        <img src={img} alt="" loading="lazy" className="w-full max-h-[42vh] object-cover rounded-2xl border border-white/10" />
       )}
       {slide.paragraphs?.map((p, i) => (
-        <p key={i} className="text-sm sm:text-lg leading-relaxed text-white/85 print:text-black/85 whitespace-pre-line">{p}</p>
+        <p key={i} className={`text-sm sm:text-lg leading-relaxed whitespace-pre-line ${isBg ? 'text-white/90' : 'text-white/85 print:text-black/85'}`}>{p}</p>
       ))}
       {slide.callout && (
-        <div className="rounded-2xl bg-sky-500/15 border border-sky-400/30 p-4 print:bg-sky-50">
-          <p className="text-[10px] font-black uppercase tracking-wider text-sky-300 print:text-sky-700">{slide.callout.label}</p>
-          <p className="mt-1 text-sm sm:text-base italic leading-relaxed text-white/90 print:text-black/90 whitespace-pre-line">{slide.callout.value}</p>
+        <div className={`rounded-2xl p-4 border ${isBg ? 'bg-white/10 border-white/25 backdrop-blur-sm' : 'bg-sky-500/15 border-sky-400/30 print:bg-sky-50'}`}>
+          <p className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{slide.callout.label}</p>
+          <p className={`mt-1 text-sm sm:text-base italic leading-relaxed whitespace-pre-line ${isBg ? 'text-white/95' : 'text-white/90 print:text-black/90'}`}>{slide.callout.value}</p>
         </div>
       )}
       {!!slide.fields?.length && (
         <dl className="space-y-3">
           {slide.fields.map((f) => (
             <div key={f.label}>
-              <dt className="text-[10px] font-black uppercase tracking-wider text-white/50 print:text-black/50">{f.label}</dt>
-              <dd className="text-sm sm:text-base leading-relaxed text-white/90 print:text-black/90 whitespace-pre-line">{f.value}</dd>
+              <dt className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-white/60' : 'text-white/50 print:text-black/50'}`}>{f.label}</dt>
+              <dd className={`text-sm sm:text-base leading-relaxed whitespace-pre-line ${isBg ? 'text-white' : 'text-white/90 print:text-black/90'}`}>{f.value}</dd>
             </div>
           ))}
         </dl>
@@ -69,13 +70,29 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
       {!!slide.bullets?.length && (
         <ul className="space-y-2">
           {slide.bullets.map((b, i) => (
-            <li key={i} className="flex gap-2 text-sm sm:text-base leading-relaxed text-white/90 print:text-black/90">
-              <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-sky-400 shrink-0" />
+            <li key={i} className={`flex gap-2 text-sm sm:text-base leading-relaxed ${isBg ? 'text-white/95' : 'text-white/90 print:text-black/90'}`}>
+              <span className={`mt-[7px] h-1.5 w-1.5 rounded-full shrink-0 ${isBg ? 'bg-white' : 'bg-sky-400'}`} />
               <span>{b}</span>
             </li>
           ))}
         </ul>
       )}
+    </>
+  );
+
+  if (isBg) {
+    return (
+      <article className="relative overflow-hidden rounded-[26px] border border-white/10 min-h-[58vh] flex items-end print:border-black/20 [-webkit-print-color-adjust:exact] [print-color-adjust:exact]">
+        <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
+        <div className="relative z-10 w-full p-6 sm:p-10 space-y-4">{body}</div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white">
+      {body}
     </article>
   );
 };

@@ -76,6 +76,8 @@ export type DidaskaliaPresentationImages = {
   cover?: string;
   paths?: Record<string, string>;
   rhb?: Record<string, Record<string, string>>;
+  /** Riwayat gambar hasil AI (untuk kuota maks 3/pekan). */
+  aiImages?: string[];
 };
 
 export type DidaskaliaSlide = { title: string; bullets: string[]; visualNote: string };

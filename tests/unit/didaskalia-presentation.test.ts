@@ -78,6 +78,17 @@ describe('deck builders', () => {
     expect(sevenDay?.bullets).toHaveLength(7);
     expect(sevenDay?.bullets?.[0]).toContain('Minggu');
     expect(deck.find((s) => s.id === 'a-deliver')).toBeTruthy();
+    expect(deck[0].background).toBe(true);
+  });
+
+  it('summarizeWeek merangkum minggu untuk konteks kesinambungan', async () => {
+    const { summarizeWeek } = await import('../../server/lib/didaskalia-ai.mjs');
+    const studio = studioWithRhb();
+    const brief = summarizeWeek({ mentoringTheme: 'The Call to Serve' }, studio);
+    expect(brief?.theme).toBe('The Call to Serve');
+    expect(brief?.paths).toHaveLength(7);
+    expect(brief?.paths[0]).toContain('Minggu');
+    expect(summarizeWeek({}, {})).toBeNull();
   });
 
   it('RHB harian: cover + 5 section + penutup', () => {

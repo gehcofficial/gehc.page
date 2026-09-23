@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — Persona audiens, kesinambungan minggu, cover background + AI image (23 Sep 2026)
+
+**Goal:** Persona AI lebih tepat (mahasiswa & pekerja), konteks minggu lalu/depan, dan cover bergaya "gambar full-bleed + teks overlay" (opsi AI image).
+
+**Done:**
+- **Persona** (`server/lib/didaskalia-ai.mjs` SYSTEM): audiens **mayoritas mahasiswa & pekerja pabrik/kantor** + anak rantau Cikarang; ilustrasi/penerapan menyentuh kuliah (KRS, tugas, skripsi, magang), kerja (shift, lembur, target, gaji pertama), kos/kontrakan, keuangan, relasi.
+- **Kesinambungan**: `summarizeWeek()` (baru) → `buildContext` menyertakan blok **MINGGU LALU / MINGGU DEPAN** (tema, FF, Kitab Fokus, 7 judul Path + summary, ringkasan khotbah). Prompt: Path 1 menyambung eksplisit, Path 7 menjembatani. Dipakai di `/draft` dan `/enrich`. **Tanpa perubahan skema.** Referensi pendek cukup via **Diskusi Internal** (jadi `notes`).
+- **Cover background + overlay**: `DeckSlide.background` → deck merender cover **full-bleed** + scrim + teks putih; **PDF** `cover()` memakai `coverImage` sebagai **full-page background** + scrim; **RHB PDF** memakai **band background** (gambar + scrim) di atas 5 section.
+- **AI image (opsional)**: `generateImageBase64()` (`server/ai-provider.mjs`) + endpoint `POST /api/didaskalia/studio/:ym/:week/generate-image` (gpt-image-1-mini medium, 1024×1536, **tanpa teks** dalam gambar) → unggah ke Drive `04 Presentasi` → set `presentation.cover`; **kuota 3/pekan** (`presentation.aiImages`). Studio: kartu **"Gambar Cover"** (unggah manual + prompt + tombol generate + kuota).
+  - **Status akses**: kunci OpenAI saat ini **belum punya akses model gambar** (`gpt-image-1/-mini/-2` ditolak; `dall-e-3` error param) → endpoint mengembalikan pesan jelas (`IMAGE_MODEL_UNAVAILABLE`) dan UI menyarankan unggah manual. Fitur siap begitu akses diaktifkan (atau set `AI_IMAGE_MODEL`).
+  - **Biaya** (bila aktif): ditagih **per gambar** — mini medium ≈ **$0.015**; maks 3/pekan ≈ $0.045.
+- **Verifikasi**: `lint` bersih · **463 test** hijau · `build` OK · PDF anti-overlap dicek terprogram untuk cover **dengan** dan **tanpa** background (**TIDAK ADA OVERLAP**) · Studio menampilkan kartu cover + tombol AI + kuota, 0 error · endpoint generate-image diuji (auth/validasi/prompt jalan; gagal hanya di akses model).
+
+### Next
+1. Aktifkan akses model gambar di project OpenAI (atau set `AI_IMAGE_MODEL`) → uji "Generate gambar cover (AI)".
+2. Generate ulang 2026-09 pekan 4 (draf → diskusi → perkaya) lalu cek cover background di PDF & deck.
+3. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.
+
 ## Current — Pembekalan 2 fokus + PDF anti-overlap + Path mulai Minggu (23 Sep 2026)
 
 **Goal:** Sesuai masukan: Path 1 = Minggu; PDF rapi (tanpa tumpang-tindih); alur diskusi kontekstual; Pembekalan difokuskan ke persiapan/penyampaian khotbah + FGD, Path jadi ringkasan 7 hari.

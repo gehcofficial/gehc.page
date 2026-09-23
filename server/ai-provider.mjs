@@ -6,7 +6,7 @@
  */
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGroq } from '@ai-sdk/groq';
-import { generateText } from 'ai';
+import { generateText, generateImage } from 'ai';
 
 // ---------------------------------------------------------------------------
 // Provider factories
@@ -67,6 +67,23 @@ export async function jethroGenerateText({ system, prompt, maxTokens = 1024 }) {
   }
 
   throw lastError || new Error('No AI models available');
+}
+
+// ---------------------------------------------------------------------------
+// generateImageBase64 — OpenAI Images (gpt-image-1-mini default)
+// Ditagih PER GAMBAR (bukan token): medium 1024x1536 ≈ $0.015.
+// ---------------------------------------------------------------------------
+export async function generateImageBase64({ prompt, size = '1024x1536', quality = 'medium', outputFormat = 'jpeg', modelId } = {}) {
+  const id = modelId || process.env.AI_IMAGE_MODEL || 'gpt-image-1-mini';
+  const isGptImage = String(id).startsWith('gpt-image');
+  const { image } = await generateImage({
+    model: openai.image(id),
+    prompt,
+    size,
+    // gpt-image mendukung quality/outputFormat; dall-e tidak.
+    providerOptions: isGptImage ? { openai: { quality, outputFormat } } : undefined,
+  });
+  return { base64: image.base64, mediaType: image.mediaType || 'image/jpeg', model: id };
 }
 
 // ---------------------------------------------------------------------------

@@ -39,6 +39,8 @@ export type DeckSlide = {
   title: string;
   subtitle?: string;
   imageFileId?: string;
+  /** Cover: gambar dipakai full-bleed sebagai background + teks overlay. */
+  background?: boolean;
   paragraphs?: string[];
   bullets?: string[];
   fields?: { label: string; value: string }[];
@@ -135,6 +137,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       title: content.theme || content.kitabFokus || `Pekan ${content.weekIndex}`,
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
+      background: true,
     },
     {
       id: 'inti',
@@ -234,6 +237,7 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       title: path.title,
       subtitle: [content.chapterNo, path.bacaanRef].filter(Boolean).join(' · '),
       imageFileId: perDay.cover || path.coverImageFileId || undefined,
+      background: true,
       fields: [
         path.bacaanRef ? { label: 'Bacaan Alkitab', value: path.bacaanRef } : null,
         path.scriptureRef ? { label: 'Nats Pembimbing', value: path.scriptureRef } : null,
@@ -273,6 +277,7 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
       title: content.theme || `Pekan ${content.weekIndex}`,
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
+      background: true,
     },
     {
       id: 'inti',

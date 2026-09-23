@@ -39,7 +39,9 @@ export const RHB_SECTIONS = [
 
 const SYSTEM =
   'Kamu adalah asisten kurikulum pemuridan "Didaskalia" untuk Komisi Pemuda GMIM Eben Haezer Cikarang (GEHC Youth "Beyonders"). ' +
-  'Audiens: pemuda dan anak rantau di Cikarang. Gaya: hangat, jelas, Alkitabiah, kontekstual, tidak menggurui. ' +
+  'Audiens: pemuda dan anak rantau di Cikarang — MAYORITAS mahasiswa dan pekerja (pabrik/kantor). ' +
+  'Karena itu, ilustrasi dan penerapan HARUS menyentuh dunia mereka: kuliah (KRS, tugas, ujian, skripsi, magang), kerja (shift, lembur, target, atasan/rekan kerja, gaji pertama), kos/kontrakan, keuangan awal, relasi & keluarga jauh. ' +
+  'Gaya: hangat, jelas, Alkitabiah, kontekstual, tidak menggurui, tidak religius-kaku. ' +
   'Selalu menulis dalam Bahasa Indonesia. Jangan mengarang fakta di luar data yang diberikan.';
 
 /** Ambil objek JSON pertama dari keluaran model yang mungkin berbalut teks. */
@@ -179,6 +181,22 @@ export function clampDraft(raw) {
   };
 }
 
+/** Ringkas satu minggu (studio) untuk konteks kesinambungan. */
+export function summarizeWeek(week, studio) {
+  if (!week || !studio || typeof studio !== 'object') return null;
+  const paths = Array.isArray(studio.paths) ? studio.paths.slice(0, 7) : [];
+  const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
+  const hasContent = theme || studio.fundamentalFirman?.ref || studio.kitabFokus || paths.some((p) => p.title);
+  if (!hasContent) return null;
+  return {
+    theme,
+    fundamentalFirman: asStr(studio.fundamentalFirman?.ref),
+    kitabFokus: asStr(studio.kitabFokus),
+    paths: paths.map((p) => `${asStr(p.dayLabel)}: ${asStr(p.title)}${p.summary ? ` — ${asStr(p.summary)}` : ''}`),
+    ringkasanKhotbah: asStr(studio.sermon?.summary).slice(0, 500),
+  };
+}
+
 function buildContext(input) {
   const lines = [
     `Bulan (YYYY-MM): ${asStr(input.yearMonth)}`,
@@ -187,11 +205,15 @@ function buildContext(input) {
     `Chapter: ${asStr(input.chapterNo)}`,
     `Tema minggu: ${asStr(input.theme)}`,
     `Tema bulan: ${asStr(input.monthTheme)}`,
-    `Fundamental Firman (ayat dasar): ${asStr(input.fundamentalFirman?.ref)} ${asStr(input.fundamentalFirman?.text)}`.trim(),
+    `Fundamental Firman (ayat): ${asStr(input.fundamentalFirman?.ref)} ${asStr(input.fundamentalFirman?.text)}`.trim(),
     `Kitab/bagian fokus: ${asStr(input.kitabFokus)}`,
-    `Tema minggu sebelum (jembatan masuk): ${asStr(input.prevTheme) || '(tidak ada)'}`,
-    `Tema minggu berikutnya (jembatan keluar): ${asStr(input.nextTheme) || '(tidak ada)'}`,
     `Metode berkhotbah yang diminta: ${(input.methods && input.methods.length ? input.methods : ['otomatis pilih 2-3 yang paling cocok']).join(', ')}`,
+    input.prevWeek
+      ? `MINGGU LALU (untuk kesinambungan): ${JSON.stringify(input.prevWeek)}`
+      : `Tema minggu sebelum (jembatan masuk): ${asStr(input.prevTheme) || '(tidak ada)'}`,
+    input.nextWeek
+      ? `MINGGU DEPAN (jembatan keluar): ${JSON.stringify(input.nextWeek)}`
+      : `Tema minggu berikutnya (jembatan keluar): ${asStr(input.nextTheme) || '(tidak ada)'}`,
     input.notes ? `Catatan tim/diskusi: ${asStr(input.notes)}` : '',
   ];
   return lines.filter(Boolean).join('\n');
@@ -230,7 +252,7 @@ export async function generateWeekDraft(input) {
     '- "prepChecklist": 4-6 langkah konkret persiapan khotbah (riset teks, susun kerangka, latihan, doa, cek panggung/visual).',
     '- "discussionFlow": 4-6 langkah ALUR FGD hari Minggu yang KONTEKSTUAL dengan tema minggu ini (bukan generik) — mis. pertanyaan pemanasan spesifik tema, penggalian teks, penerapan nyata, komitmen.',
     '- FOKUS: dokumen ini untuk (A) pengkhotbah/deliverer mempersiapkan & menyampaikan khotbah, dan (B) mentor/co-mentor membawa FGD. 7 Path adalah RINGKASAN sepekan (Minggu→Sabtu), bukan breakdown panjang.',
-    '- Kesinambungan: hubungkan dengan tema minggu sebelumnya dan berikutnya (lihat konteks).',
+    '- KESINAMBUNGAN: Path 1 (Minggu) menyambung EKSPLISIT dari minggu lalu (lihat MINGGU LALU: tema, kitab fokus, judul path); Path 7 menjembatani ke minggu depan. Sebut kaitannya secara konkret, bukan basa-basi.',
     '- Kontekstual untuk anak muda & anak rantau di Cikarang (kerja, kos, komunitas).',
     '- Bahasa Indonesia yang hangat dan jelas (kecuali judul Path).',
     '',
@@ -280,6 +302,7 @@ export async function generateEnrichedDraft(input) {
     '- JANGAN mengubah struktur: tetap 7 Path dan 5 rhbSections per Path dengan key yang sama.',
     '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), isi rhbSections, dan ringkasan khotbah.',
     '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
+    '- Jaga KESINAMBUNGAN: Path 1 menyambung dari MINGGU LALU, Path 7 menjembatani MINGGU DEPAN (lihat konteks).',
     '- Integrasikan masukan dari "Catatan tim/diskusi" (jangan diabaikan).',
     '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
     '',

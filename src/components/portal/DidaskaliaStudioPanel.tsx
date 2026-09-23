@@ -178,6 +178,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [error, setError] = useState<string | null>(null);
   const [expandedPath, setExpandedPath] = useState<number | null>(1);
   const [comment, setComment] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [useDiscussionContext, setUseDiscussionContext] = useState(true);
   const paths = useMemo(() => ensurePaths(studio), [studio]);
 
@@ -352,8 +353,31 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     return `${typeof window !== 'undefined' ? window.location.origin : ''}/${path}`;
   };
 
-  const copyCaption = async (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {
-    const content = {
+  const aiImages = studio.presentation?.aiImages || [];
+
+  const generateAiCover = async () => {
+    if (!canWrite) return;
+    setBusy('ai-image');
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/generate-image`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
+      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      setAiPrompt('');
+      addToast({ type: 'success', title: `Gambar cover dibuat AI (${d.used}/${d.max})` });
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const copyCaption = async (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {    const content = {
       weekIndex,
       date: weekMeta?.date || '',
       theme: weekMeta?.theme || weekMeta?.mentoringTheme || weekMeta?.servingTheme || '',
@@ -435,10 +459,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     const pres = studio.presentation || {};
     const pathImages: Record<number, string> = {};
     const rhbSectionImages: Record<number, Record<string, string>> = {};
+    const rhbCoverImages: Record<number, string> = {};
     for (const p of ensurePaths(studio)) {
       const hero = await assetDataUrl(pres.paths?.[String(p.pathIndex)] || p.coverImageFileId);
       if (hero) pathImages[p.pathIndex] = hero;
       const day = pres.rhb?.[String(p.pathIndex)] || {};
+      const dayCover = await assetDataUrl(day.cover || p.coverImageFileId);
+      if (dayCover) rhbCoverImages[p.pathIndex] = dayCover;
       for (const s of ensureRhbSections(p.rhbSections)) {
         const d = await assetDataUrl(day[s.key] || s.imageFileId);
         if (d) {
@@ -447,7 +474,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         }
       }
     }
-    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages };
+    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages };
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
@@ -979,6 +1006,39 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <p className="text-[11px] text-[#8C8880]">
               Deck presentasi per pekan (Pembekalan/Khutbah) dan per hari (RHB). Konten dibekukan saat dokumen dirilis.
             </p>
+            <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+              <p className="text-[11px] font-black text-[#1B1B1B]">Gambar Cover — background + overlay teks</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <ImageSlot
+                  label="Cover pekan (unggah manual)"
+                  fileId={studio.presentation?.cover}
+                  onUpload={async (f) => setCoverImage(await uploadImage(f))}
+                  onClear={() => setCoverImage('')}
+                />
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Prompt gambar AI (opsional)</label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    rows={3}
+                    placeholder="mis. suasana pelayanan, tangan terbuka, cahaya hangat, ruang kosong di atas"
+                    className={inputCls}
+                  />
+                  <button
+                    type="button"
+                    disabled={!canWrite || busy === 'ai-image' || aiImages.length >= 3}
+                    onClick={() => void generateAiCover()}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    {busy === 'ai-image' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Generate gambar cover (AI)
+                  </button>
+                  <p className="text-[10px] text-[#8C8880]">
+                    Kuota AI: <b>{aiImages.length}/3</b> pekan ini · model gpt-image-1-mini (~$0.015/gambar). Teks ditulis otomatis di atas gambar.
+                    <br />Jika muncul "model belum aktif", aktifkan akses model gambar di project OpenAI — atau pakai unggah manual.
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
                 <ExternalLink className="w-3.5 h-3.5" /> Pembekalan

@@ -15,11 +15,13 @@ import {
   generateEnrichedDraft,
   generateSermon,
   refineField,
+  summarizeWeek,
   RITUAL_TYPES,
   RITUAL_LABELS,
   HOMILETIC_METHODS,
 } from '../lib/didaskalia-ai.mjs';
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
+import { generateImageBase64 } from '../ai-provider.mjs';
 
 const ymRe = /^\d{4}-\d{2}$/;
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
@@ -84,7 +86,8 @@ function sanitizeImages(raw) {
   if (r.rhb && typeof r.rhb === 'object') {
     for (const [day, secs] of Object.entries(r.rhb)) rhb[day] = mapOfStr(secs);
   }
-  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb };
+  const aiImages = Array.isArray(r.aiImages) ? r.aiImages.filter((x) => typeof x === 'string' && x).slice(0, 20) : [];
+  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages };
 }
 
 export function hashContent(obj) {
@@ -385,6 +388,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           kitabFokus: req.body?.kitabFokus ?? st.kitabFokus,
           prevTheme: prev.mentoringTheme || prev.servingTheme || prev.theme || '',
           nextTheme: next.mentoringTheme || next.servingTheme || next.theme || '',
+          prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
+          nextWeek: summarizeWeek(next, sanitizeStudio(next.studio)),
           methods: req.body?.methods ?? st.homileticMethods,
           notes: req.body?.notes,
         });
@@ -447,6 +452,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           kitabFokus: req.body?.kitabFokus ?? st.kitabFokus,
           prevTheme: prev.mentoringTheme || prev.servingTheme || prev.theme || '',
           nextTheme: next.mentoringTheme || next.servingTheme || next.theme || '',
+          prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
+          nextWeek: summarizeWeek(next, sanitizeStudio(next.studio)),
           methods: req.body?.methods ?? st.homileticMethods,
           notes: req.body?.notes,
           current: st,
@@ -543,6 +550,27 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
   // ---------- Presentasi materi (deck web per pekan/hari) ----------
   const PRESENTATION_IMAGE_SUBFOLDER = '04 Presentasi';
+  const MAX_AI_IMAGES = 3;
+
+  /** Folder Drive `04 Presentasi` untuk event (auto-provision bila perlu). */
+  async function resolvePresentationFolder(prisma, event) {
+    let division = await prisma.eventDivision.findUnique({
+      where: { eventId_division: { eventId: event.id, division: 'DIDASKALIA' } },
+      select: { id: true, driveFolderId: true },
+    });
+    if (!division?.driveFolderId) {
+      const { createEventFolder } = await import('../gdrive-events.mjs');
+      const ev = await prisma.eventProgram.findUnique({ where: { id: event.id } });
+      const fid = ev ? await createEventFolder(ev, 'DIDASKALIA') : null;
+      if (fid && division) await prisma.eventDivision.update({ where: { id: division.id }, data: { driveFolderId: fid } }).catch(() => null);
+      division = { id: division?.id || null, driveFolderId: fid };
+    }
+    if (!division?.driveFolderId) return null;
+    const subs = await listFolders(division.driveFolderId, 100);
+    let target = subs.find((f) => String(f.name || '').toLowerCase() === PRESENTATION_IMAGE_SUBFOLDER.toLowerCase());
+    if (!target) target = await createFolder(division.driveFolderId, PRESENTATION_IMAGE_SUBFOLDER);
+    return target?.id || division.driveFolderId;
+  }
 
   function effectiveRoles(req) {
     if (req.activeRole) return [req.activeRole];
@@ -644,23 +672,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini. Buat dulu di Ibadah Mingguan.' });
 
       try {
-        let division = await prisma.eventDivision.findUnique({
-          where: { eventId_division: { eventId: event.id, division: 'DIDASKALIA' } },
-          select: { id: true, driveFolderId: true },
-        });
-        if (!division?.driveFolderId) {
-          const { createEventFolder } = await import('../gdrive-events.mjs');
-          const ev = await prisma.eventProgram.findUnique({ where: { id: event.id } });
-          const fid = ev ? await createEventFolder(ev, 'DIDASKALIA') : null;
-          if (fid && division) await prisma.eventDivision.update({ where: { id: division.id }, data: { driveFolderId: fid } }).catch(() => null);
-          division = { id: division?.id || null, driveFolderId: fid };
-        }
-        if (!division?.driveFolderId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
-
-        const subs = await listFolders(division.driveFolderId, 100);
-        let target = subs.find((f) => String(f.name || '').toLowerCase() === PRESENTATION_IMAGE_SUBFOLDER.toLowerCase());
-        if (!target) target = await createFolder(division.driveFolderId, PRESENTATION_IMAGE_SUBFOLDER);
-        const parentId = target?.id || division.driveFolderId;
+        const parentId = await resolvePresentationFolder(prisma, event);
+        if (!parentId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
 
         const buffer = Buffer.from(data, 'base64');
         if (buffer.length > 5_000_000) return res.status(413).json({ error: 'Gambar >5MB tidak didukung.' });
@@ -668,6 +681,103 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, name: file.name });
       } catch (e) {
         res.status(500).json({ error: `Gagal mengunggah gambar: ${String(e.message || e).slice(0, 200)}` });
+      }
+    })
+  );
+
+  // POST /api/didaskalia/studio/:yearMonth/:weekIndex/generate-image
+  // AI membuat ilustrasi cover (tanpa teks) → unggah ke Drive → set sebagai cover.
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/generate-image',
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const studio = sanitizeStudio(week.studio);
+      const used = Array.isArray(studio.presentation?.aiImages) ? studio.presentation.aiImages.length : 0;
+      if (used >= MAX_AI_IMAGES) {
+        return res.status(429).json({ error: `Kuota gambar AI pekan ini sudah penuh (${MAX_AI_IMAGES}). Gunakan unggah manual.`, used, max: MAX_AI_IMAGES });
+      }
+
+      const event = await resolveEventId(prisma, week.date);
+      if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini.' });
+
+      const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
+      const extra = String(req.body?.prompt || '').trim().slice(0, 600);
+      const prompt = [
+        'Ilustrasi sampul untuk renungan/khotbah pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
+        theme ? `Tema minggu: ${theme}.` : '',
+        studio.fundamentalFirman?.ref ? `Ayat: ${studio.fundamentalFirman.ref}.` : '',
+        studio.kitabFokus ? `Bagian Alkitab: ${studio.kitabFokus}.` : '',
+        extra ? `Arahan tambahan: ${extra}` : '',
+        'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar (teks ditambahkan terpisah).',
+        'Sisakan ruang kosong (negative space) di bagian atas untuk overlay judul.',
+        'Warna & suasana selaras tema; relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
+      ].filter(Boolean).join(' ');
+
+      let img;
+      try {
+        img = await generateImageBase64({
+          prompt,
+          size: String(req.body?.size || '1024x1536'),
+          quality: String(req.body?.quality || 'medium'),
+        });
+      } catch (e) {
+        const msg = String(e.message || e);
+        if (/does not have access to model|model_not_found|permission|not have access/i.test(msg)) {
+          return res.status(503).json({
+            error: 'Model gambar AI belum aktif untuk kunci API ini. Aktifkan akses gpt-image-1-mini di project OpenAI (atau set AI_IMAGE_MODEL), lalu coba lagi. Sementara itu gunakan unggah manual.',
+            code: 'IMAGE_MODEL_UNAVAILABLE',
+          });
+        }
+        return res.status(502).json({ error: `AI gambar gagal: ${msg.slice(0, 200)}` });
+      }
+
+      try {
+        const parentId = await resolvePresentationFolder(prisma, event);
+        if (!parentId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
+        const buffer = Buffer.from(img.base64, 'base64');
+        const file = await uploadFile(parentId, {
+          originalname: `ai-cover-${yearMonth}-w${weekIndex}-${Date.now()}.jpg`,
+          mimetype: img.mediaType,
+          buffer,
+        });
+
+        let savedUsed = used + 1;
+        const saved = await saveStudioWeek(
+          prisma,
+          yearMonth,
+          weekIndex,
+          (w) => {
+            const s = { ...w.studio };
+            const pres = { ...(s.presentation || {}) };
+            pres.aiImages = [...(Array.isArray(pres.aiImages) ? pres.aiImages : []), file.id];
+            pres.cover = file.id;
+            savedUsed = pres.aiImages.length;
+            s.presentation = pres;
+            return { ...w, studio: s };
+          },
+          req.authUser?.id
+        );
+
+        res.status(201).json({
+          fileId: file.id,
+          url: `/api/didaskalia/asset/${file.id}`,
+          used: savedUsed,
+          max: MAX_AI_IMAGES,
+          model: img.model,
+          week: saved,
+        });
+      } catch (e) {
+        res.status(500).json({ error: `Gagal menyimpan gambar: ${String(e.message || e).slice(0, 200)}` });
       }
     })
   );

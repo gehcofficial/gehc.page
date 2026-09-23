@@ -234,6 +234,8 @@ export type PdfOptions = {
   pathImages?: Record<number, string>;
   /** Gambar per section RHB: { [pathIndex]: { [sectionKey]: dataUrl } } */
   rhbSectionImages?: Record<number, Record<string, string>>;
+  /** Gambar band cover per hari RHB: { [pathIndex]: dataUrl } */
+  rhbCoverImages?: Record<number, string>;
   /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
   serviceType?: string | null;
 };
@@ -250,6 +252,63 @@ function weekMeta(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptio
 
 function cover(w: Writer, week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions, docLabel: string) {
   const m = weekMeta(week, studio, opts);
+  const bg = opts.coverImage;
+
+  // Mode background: gambar full-bleed + scrim gelap + teks overlay.
+  if (bg) {
+    try {
+      w.doc.addImage(bg, 'JPEG', 0, 0, PAGE_W, PAGE_H, undefined, 'FAST');
+      w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 0.64 }));
+      setFill(w.doc, [0, 0, 0]);
+      w.doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+      w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 1 }));
+    } catch {
+      /* gambar gagal — lanjut dengan teks */
+    }
+    const WHITE: readonly [number, number, number] = [255, 255, 255];
+    w.y = 40;
+    w.doc.setFont('helvetica', 'bold');
+    w.doc.setFontSize(9);
+    setText(w.doc, WHITE);
+    w.doc.text(`${m.chapter ? `${m.chapter} · ` : ''}${docLabel}`.toUpperCase(), M, w.y, { charSpace: 0.6 });
+    w.y += 8;
+    w.doc.setFont('times', 'bold');
+    w.doc.setFontSize(30);
+    setText(w.doc, WHITE);
+    const titleLines = w.doc.splitTextToSize(m.theme || studio.chapterNo || 'Didaskalia', CONTENT_W);
+    w.doc.text(titleLines, M, w.y + 30 * 0.32);
+    w.y += titleLines.length * (30 * 0.42) + 4;
+    w.doc.setFont('helvetica', 'normal');
+    w.doc.setFontSize(11);
+    setText(w.doc, WHITE);
+    const sub = [m.monthLabel, m.dateLabel, `Minggu ke-${week.index}`].filter(Boolean).join(' · ');
+    w.doc.text(sub, M, w.y + 3.3);
+    w.y += 10;
+    if (studio.fundamentalFirman?.ref) {
+      w.doc.setFont('helvetica', 'bold');
+      w.doc.setFontSize(9);
+      setText(w.doc, WHITE);
+      w.doc.text(`FUNDAMENTAL FIRMAN — ${studio.fundamentalFirman.ref}`.toUpperCase(), M, w.y + 2.5, { charSpace: 0.4 });
+      w.y += 6;
+    }
+    if (studio.kitabFokus) {
+      w.doc.setFont('helvetica', 'normal');
+      w.doc.setFontSize(10);
+      setText(w.doc, WHITE);
+      w.doc.text(`Kitab / Bagian Fokus: ${studio.kitabFokus}`, M, w.y + 3);
+    }
+    // Footer putih
+    w.doc.setFont('helvetica', 'bold');
+    w.doc.setFontSize(10);
+    setText(w.doc, WHITE);
+    w.doc.text('GEHC YOUTH · BEYONDERS', M, PAGE_H - 34);
+    w.doc.setFont('helvetica', 'normal');
+    w.doc.setFontSize(9);
+    setText(w.doc, WHITE);
+    w.doc.text('Divisi Didaskalia — GMIM Eben Haezer Cikarang', M, PAGE_H - 28);
+    return;
+  }
+
   w.gradientBar(0, 12);
   w.y = 30;
   w.label(`${m.chapter ? `${m.chapter} · ` : ''}${docLabel}`, C.accent);
@@ -262,10 +321,6 @@ function cover(w: Writer, week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: 
   );
   if (studio.kitabFokus) w.field('Kitab / Bagian Fokus', studio.kitabFokus);
   if (studio.homileticMethods?.length) w.field('Metode Khotbah', studio.homileticMethods.join(' · '));
-  if (opts.coverImage) {
-    w.y = Math.min(w.y + 4, PAGE_H - 90);
-    w.image(opts.coverImage, 60);
-  }
   w.y = PAGE_H - 40;
   w.doc.setFont('helvetica', 'bold');
   w.doc.setFontSize(10);
@@ -392,14 +447,47 @@ export function buildRhbPdfs(week: DidaskaliaWeek, studio: DidaskaliaStudio, opt
   const v = opts.version || 1;
   for (const p of studio.paths.slice(0, 7)) {
     const w = buildCommon(week, studio, opts, `RHB Path ${p.pathIndex}`);
-    w.gradientBar(0, 10);
-    w.y = 26;
-    w.label(`RHB · Week ${week.index} · ${p.dayLabel}`, C.accent);
-    w.title(p.title, 24);
-    w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
-    w.divider(7);
-    if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
-    if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
+    const bg = opts.rhbCoverImages?.[p.pathIndex];
+    if (bg) {
+      // Band background (gambar + scrim) + header putih, isi section di bawahnya.
+      const BAND = 96;
+      try {
+        w.doc.addImage(bg, 'JPEG', 0, 0, PAGE_W, BAND, undefined, 'FAST');
+        w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 0.6 }));
+        setFill(w.doc, [0, 0, 0]);
+        w.doc.rect(0, 0, PAGE_W, BAND, 'F');
+        w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 1 }));
+      } catch {
+        /* gambar gagal — lanjut */
+      }
+      const WHITE: readonly [number, number, number] = [255, 255, 255];
+      w.y = 26;
+      w.doc.setFont('helvetica', 'bold');
+      w.doc.setFontSize(9);
+      setText(w.doc, WHITE);
+      w.doc.text(`RHB · WEEK ${week.index} · ${String(p.dayLabel || '').toUpperCase()}`, M, w.y, { charSpace: 0.6 });
+      w.y += 9;
+      w.doc.setFont('times', 'bold');
+      w.doc.setFontSize(24);
+      setText(w.doc, WHITE);
+      const tl = w.doc.splitTextToSize(p.title || '', CONTENT_W);
+      w.doc.text(tl, M, w.y + 24 * 0.32);
+      w.y += tl.length * (24 * 0.42) + 3;
+      w.doc.setFont('helvetica', 'normal');
+      w.doc.setFontSize(10);
+      setText(w.doc, WHITE);
+      w.doc.text([studio.chapterNo, p.bacaanRef, p.scriptureRef].filter(Boolean).join(' · '), M, w.y + 3.3);
+      w.y = BAND + 8;
+    } else {
+      w.gradientBar(0, 10);
+      w.y = 26;
+      w.label(`RHB · Week ${week.index} · ${p.dayLabel}`, C.accent);
+      w.title(p.title, 24);
+      w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
+      w.divider(7);
+      if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
+      if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
+    }
     w.image(opts.pathImages?.[p.pathIndex], 52);
     if (p.scriptureText) w.callout(p.scriptureRef || 'Nats Pembimbing', p.scriptureText);
 
