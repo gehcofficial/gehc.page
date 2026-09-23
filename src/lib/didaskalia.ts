@@ -101,11 +101,16 @@ export type DidaskaliaSermon = {
   discussionFlow: string[];
 };
 
+/** Ruang lingkup catatan diskusi agar umpan balik terfokus per bagian. */
+export type DidaskaliaCommentScope = string; // 'GENERAL' | 'INTI' | 'SERMON' | 'PATH:n' | 'RHB:n:KEY'
+
 export type DidaskaliaComment = {
   id: string;
   userId?: string | null;
   userName?: string | null;
   role?: string | null;
+  /** Bagian yang dikomentari (default GENERAL). */
+  scope?: DidaskaliaCommentScope;
   text: string;
   at: string;
   resolved?: boolean;
@@ -147,6 +152,47 @@ export type DidaskaliaPresentationSnapshot = {
   images: DidaskaliaPresentationImages;
 };
 
+export type RegenDiffEntry = { section: string; label: string; before: string; after: string };
+
+/** Usulan konten regenerate (hanya field teks; struktur dikunci). */
+export type DidaskaliaRegenProposal = {
+  chapterNo: string;
+  fundamentalFirman: { ref: string; text: string };
+  kitabFokus: string;
+  homileticMethods: string[];
+  methodMix: DidaskaliaMethodMix[];
+  paths: DidaskaliaPath[];
+  sermon: DidaskaliaSermon;
+};
+
+/** Pengajuan regenerate yang menunggu persetujuan HOD. */
+export type DidaskaliaPendingRegen = {
+  id: string;
+  kind: 'draft' | 'enrich';
+  requestedById?: string | null;
+  requestedByName?: string | null;
+  requestedAt: string;
+  targetGeneration: number;
+  summary: string;
+  diff: RegenDiffEntry[];
+  proposal: DidaskaliaRegenProposal;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason?: string | null;
+  decidedByName?: string | null;
+  decidedAt?: string | null;
+};
+
+/** Riwayat versi untuk undo. */
+export type DidaskaliaRegenHistory = {
+  id: string;
+  at: string;
+  byName?: string | null;
+  kind: 'draft' | 'enrich' | 'undo';
+  applied: boolean;
+  summary: string;
+  snapshot: DidaskaliaRegenProposal;
+};
+
 export type DidaskaliaStudio = {
   chapterNo: string;
   fundamentalFirman: { ref: string; text: string };
@@ -163,6 +209,10 @@ export type DidaskaliaStudio = {
   presentation?: DidaskaliaPresentationImages;
   /** Berapa kali AI diminta menyusun (disarankan maks 2–3). */
   generation?: number;
+  /** Pengajuan regenerate yang menunggu persetujuan HOD. */
+  pendingRegen?: DidaskaliaPendingRegen | null;
+  /** Riwayat versi (maks 20) untuk undo. */
+  regenHistory?: DidaskaliaRegenHistory[];
   render: Partial<Record<'pembekalan' | 'khutbah' | 'rhb', DidaskaliaRenderMeta>>;
 };
 
@@ -237,6 +287,8 @@ export function defaultStudio(): DidaskaliaStudio {
     rituals: [],
     presentation: {},
     generation: 0,
+    pendingRegen: null,
+    regenHistory: [],
     render: {},
   };
 }
@@ -283,4 +335,24 @@ export function needsRepublish(studio: DidaskaliaStudio, doc: 'pembekalan' | 'kh
       ? { fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, sermon: studio.sermon }
       : { chapterNo: studio.chapterNo, fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, paths: studio.paths };
   return hashContent(payload) !== meta.contentHash;
+}
+
+/** Label manusia untuk sebuah scope catatan. */
+export function scopeLabel(scope?: string): string {
+  const s = String(scope || 'GENERAL');
+  if (s === 'GENERAL') return 'Umum';
+  if (s === 'INTI') return 'Inti Pesan';
+  if (s === 'SERMON') return 'Ringkasan Khotbah';
+  const p = /^PATH:(\d+)$/.exec(s);
+  if (p) return `Path ${p[1]}`;
+  const r = /^RHB:(\d+):(.+)$/.exec(s);
+  if (r) return `Path ${r[1]} � ${r[2]}`;
+  return s;
+}
+
+/** Catatan yang relevan untuk sebuah scope (scope itu + GENERAL). */
+export function filterCommentsByScope<T extends { scope?: string }>(comments: T[], scope?: string): T[] {
+  const target = String(scope || 'GENERAL');
+  if (target === 'GENERAL') return (comments || []).filter((c) => !c.scope || c.scope === 'GENERAL');
+  return (comments || []).filter((c) => !c.scope || c.scope === 'GENERAL' || c.scope === target);
 }

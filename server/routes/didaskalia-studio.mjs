@@ -24,6 +24,8 @@ import {
 } from '../lib/didaskalia-ai.mjs';
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 import { generateImageBase64 } from '../ai-provider.mjs';
+import { computeRegenDiff, proposalFromDraft } from '../lib/didaskalia-diff.mjs';
+import { pushToUsers } from '../lib/notify.mjs';
 
 const ymRe = /^\d{4}-\d{2}$/;
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
@@ -112,6 +114,19 @@ function defaultStudio() {
     rituals: [],
     presentation: {},
     render: {},
+  };
+}
+
+function sanitizeSermonShape(raw) {
+  const s = raw && typeof raw === 'object' ? raw : {};
+  return {
+    methods: Array.isArray(s.methods) ? s.methods : [],
+    rationale: str(s.rationale, 8000),
+    summary: str(s.summary, 20000),
+    slideOutline: Array.isArray(s.slideOutline) ? s.slideOutline : [],
+    deliveryPlan: Array.isArray(s.deliveryPlan) ? s.deliveryPlan : [],
+    prepChecklist: Array.isArray(s.prepChecklist) ? s.prepChecklist : [],
+    discussionFlow: Array.isArray(s.discussionFlow) ? s.discussionFlow : [],
   };
 }
 
@@ -269,6 +284,49 @@ function defaultRitualTimes(options = {}) {
 }
 
 export function registerDidaskaliaStudioRoutes(app, { wrap }) {
+  /** Notifikasi pengajuan regenerate ke approver (kepala divisi Didaskalia/SUPERADMIN). */
+  async function notifyRegen(prisma, { yearMonth, weekIndex, summary, byName, kind }) {
+    try {
+      const { didaskaliaApproverIds } = await import('../lib/didaskalia-approval.mjs');
+      const ids = await didaskaliaApproverIds(prisma);
+      if (!ids.length) return;
+      const title = 'Persetujuan regenerate Didaskalia';
+      const message = `${byName || 'Tim'} mengajukan ${kind === 'enrich' ? 'perkaya' : 'draf'} ${yearMonth} pekan ${weekIndex}. ${summary}`;
+      const href = '#/portal';
+      await prisma.notification.createMany({
+        data: ids.map((uid) => ({
+          id: `ntf-${crypto.randomUUID()}`,
+          type: 'APPROVAL_ITEM',
+          memberId: uid,
+          title,
+          message,
+          payload: { href, category: 'tugas', queue: 'didaskalia-regen', itemId: `${yearMonth}-${weekIndex}` },
+          category: 'tugas',
+          status: 'OPEN',
+        })),
+      }).catch(() => null);
+      await pushToUsers(prisma, ids, { title, message, href, category: 'tugas', priority: 'TASK' }).catch(() => {});
+    } catch { /* notifikasi opsional */ }
+  }
+  /** Notifikasi hasil persetujuan ke pengusul. */
+  async function notifyRequester(prisma, userId, title, message) {
+    if (!userId) return;
+    try {
+      await prisma.notification.createMany({
+        data: [{
+          id: `ntf-${crypto.randomUUID()}`,
+          type: 'APPROVAL_ITEM',
+          memberId: userId,
+          title,
+          message,
+          payload: { href: '#/portal', category: 'tugas' },
+          category: 'tugas',
+          status: 'OPEN',
+        }],
+      }).catch(() => null);
+      await pushToUsers(prisma, [userId], { title, message, href: '#/portal', category: 'tugas', priority: 'TASK' }).catch(() => {});
+    } catch { /* opsional */ }
+  }
   // ---------- Ritual links (3 ruang Meet tetap) ----------
   app.get(
     '/api/didaskalia/ritual-links',
@@ -408,21 +466,29 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (w) => {
           const s = { ...w.studio };
-          if (draft.chapterNo) s.chapterNo = draft.chapterNo;
-          if (draft.fundamentalFirman?.ref || draft.fundamentalFirman?.text) s.fundamentalFirman = draft.fundamentalFirman;
-          if (draft.kitabFokus) s.kitabFokus = draft.kitabFokus;
-          s.homileticMethods = draft.homileticMethods || s.homileticMethods;
-          if (Array.isArray(draft.methodMix) && draft.methodMix.length) s.methodMix = draft.methodMix;
-          s.paths = draft.paths;
-          s.sermon = draft.sermon;
-          s.generation = (Number(s.generation) || 0) + 1;
+          const proposal = proposalFromDraft(draft, s);
+          const { diff, summary } = computeRegenDiff(s, proposal);
+          s.pendingRegen = {
+            id: egen- + Date.now().toString(36),
+            kind: 'draft',
+            requestedById: req.authUser?.id || null,
+            requestedByName: req.authUser?.name || null,
+            requestedAt: new Date().toISOString(),
+            targetGeneration: (Number(s.generation) || 0) + 1,
+            summary,
+            diff,
+            proposal,
+            status: 'PENDING',
+          };
           if (s.status === 'PUBLISHED') s.status = 'DRAFT';
           if (!s.authorId) s.authorId = req.authUser?.id || null;
           return { ...w, studio: s };
         },
         req.authUser?.id
       );
-      res.json({ week: saved, draft });
+      const pending = saved?.studio?.pendingRegen || null;
+      await notifyRegen(prisma, { yearMonth, weekIndex, summary: pending?.summary || '', byName: req.authUser?.name, kind: 'draft' });
+      res.json({ week: saved, pending: true, summary: pending?.summary || '', diff: pending?.diff || [] });
     })
   );
 
@@ -474,21 +540,30 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (w) => {
           const s = { ...w.studio };
-          if (draft.chapterNo) s.chapterNo = draft.chapterNo;
-          if (draft.fundamentalFirman?.ref || draft.fundamentalFirman?.text) s.fundamentalFirman = draft.fundamentalFirman;
-          if (draft.kitabFokus) s.kitabFokus = draft.kitabFokus;
-          s.homileticMethods = draft.homileticMethods || s.homileticMethods;
-          if (Array.isArray(draft.methodMix) && draft.methodMix.length) s.methodMix = draft.methodMix;
-          s.paths = draft.paths;
-          s.sermon = draft.sermon;
-          s.generation = (Number(s.generation) || 0) + 1;
+          const proposal = proposalFromDraft(draft, s);
+          const { diff, summary } = computeRegenDiff(s, proposal);
+          s.pendingRegen = {
+            id: 
+egen- + Date.now().toString(36),
+            kind: 'enrich',
+            requestedById: req.authUser?.id || null,
+            requestedByName: req.authUser?.name || null,
+            requestedAt: new Date().toISOString(),
+            targetGeneration: (Number(s.generation) || 0) + 1,
+            summary,
+            diff,
+            proposal,
+            status: 'PENDING',
+          };
           if (s.status === 'PUBLISHED') s.status = 'DRAFT';
           if (!s.authorId) s.authorId = req.authUser?.id || null;
           return { ...w, studio: s };
         },
         req.authUser?.id
       );
-      res.json({ week: saved, draft });
+      const pending = saved?.studio?.pendingRegen || null;
+      await notifyRegen(prisma, { yearMonth, weekIndex, summary: pending?.summary || '', byName: req.authUser?.name, kind: 'enrich' });
+      res.json({ week: saved, pending: true, summary: pending?.summary || '', diff: pending?.diff || [] });
     })
   );
 
@@ -851,6 +926,135 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     })
   );
 
+  // ---------- Regenerate: pengajuan & persetujuan HOD ----------
+  const regenSnapshotOf = (s) => ({
+    chapterNo: s.chapterNo || '',
+    fundamentalFirman: s.fundamentalFirman || { ref: '', text: '' },
+    kitabFokus: s.kitabFokus || '',
+    homileticMethods: s.homileticMethods || [],
+    methodMix: s.methodMix || [],
+    paths: s.paths || [],
+    sermon: s.sermon || {},
+  });
+
+  app.get('/api/didaskalia/studio/:yearMonth/:weekIndex/approval', requireDivision('DIDASKALIA'), requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const yearMonth = String(req.params.yearMonth || '');
+    const weekIndex = getWeekIndex(req);
+    if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+    const week = weekOrDefault(plan ? readWeeks(plan) : [], yearMonth, weekIndex);
+    const st = sanitizeStudio(week.studio);
+    const { isDidaskaliaApprover } = await import('../lib/didaskalia-approval.mjs');
+    res.json({
+      pending: st.pendingRegen || null,
+      history: (Array.isArray(st.regenHistory) ? st.regenHistory : []).slice(0, 20),
+      canApprove: await isDidaskaliaApprover(req.authUser),
+    });
+  }));
+
+  app.post('/api/didaskalia/studio/:yearMonth/:weekIndex/approval/approve', requireDivision('DIDASKALIA'), requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const yearMonth = String(req.params.yearMonth || '');
+    const weekIndex = getWeekIndex(req);
+    if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+    const { isDidaskaliaApprover } = await import('../lib/didaskalia-approval.mjs');
+    if (!(await isDidaskaliaApprover(req.authUser))) return res.status(403).json({ error: 'Hanya kepala divisi Didaskalia/SUPERADMIN yang dapat menyetujui.' });
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+    const before = sanitizeStudio(weekOrDefault(plan ? readWeeks(plan) : [], yearMonth, weekIndex).studio);
+    const pending = before.pendingRegen;
+    if (!pending || pending.status !== 'PENDING') return res.status(400).json({ error: 'Tidak ada pengajuan yang menunggu persetujuan.' });
+
+    const saved = await saveStudioWeek(prisma, yearMonth, weekIndex, (w) => {
+      const s = { ...w.studio };
+      const p = s.pendingRegen;
+      if (!p || p.status !== 'PENDING') return w;
+      const snapshot = regenSnapshotOf(s);
+      const prop = p.proposal || {};
+      if (prop.chapterNo !== undefined) s.chapterNo = prop.chapterNo;
+      if (prop.fundamentalFirman) s.fundamentalFirman = prop.fundamentalFirman;
+      if (prop.kitabFokus !== undefined) s.kitabFokus = prop.kitabFokus;
+      if (Array.isArray(prop.homileticMethods) && prop.homileticMethods.length) s.homileticMethods = prop.homileticMethods;
+      if (Array.isArray(prop.methodMix) && prop.methodMix.length) s.methodMix = prop.methodMix;
+      s.paths = sanitizePaths(prop.paths || []);
+      s.sermon = sanitizeSermonShape(prop.sermon || s.sermon);
+      s.generation = (Number(s.generation) || 0) + 1;
+      s.regenHistory = [
+        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: true, summary: p.summary || '', snapshot },
+        ...(Array.isArray(s.regenHistory) ? s.regenHistory : []),
+      ].slice(0, 20);
+      s.pendingRegen = { ...p, status: 'APPROVED', decidedByName: req.authUser?.name || null, decidedAt: new Date().toISOString() };
+      if (s.status === 'PUBLISHED') s.status = 'DRAFT';
+      return { ...w, studio: s };
+    }, req.authUser?.id);
+
+    await notifyRequester(prisma, pending.requestedById, 'Regenerate disetujui', `Pengajuan ${pending.kind === 'enrich' ? 'perkaya' : 'draf'} untuk ${yearMonth} pekan ${weekIndex} disetujui & diterapkan.`);
+    res.json({ week: saved, approved: true });
+  }));
+
+  app.post('/api/didaskalia/studio/:yearMonth/:weekIndex/approval/reject', requireDivision('DIDASKALIA'), requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const yearMonth = String(req.params.yearMonth || '');
+    const weekIndex = getWeekIndex(req);
+    const reason = String(req.body?.reason || '').trim();
+    if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+    const { isDidaskaliaApprover } = await import('../lib/didaskalia-approval.mjs');
+    if (!(await isDidaskaliaApprover(req.authUser))) return res.status(403).json({ error: 'Hanya kepala divisi Didaskalia/SUPERADMIN yang dapat menolak.' });
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+    const before = sanitizeStudio(weekOrDefault(plan ? readWeeks(plan) : [], yearMonth, weekIndex).studio);
+    const pending = before.pendingRegen;
+    if (!pending || pending.status !== 'PENDING') return res.status(400).json({ error: 'Tidak ada pengajuan yang menunggu persetujuan.' });
+
+    const saved = await saveStudioWeek(prisma, yearMonth, weekIndex, (w) => {
+      const s = { ...w.studio };
+      const p = s.pendingRegen;
+      if (!p) return w;
+      s.regenHistory = [
+        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: false, summary: `${p.summary || ''}${reason ? ` � ditolak: ${reason}` : ' � ditolak'}`, snapshot: p.proposal || regenSnapshotOf(s) },
+        ...(Array.isArray(s.regenHistory) ? s.regenHistory : []),
+      ].slice(0, 20);
+      s.pendingRegen = { ...p, status: 'REJECTED', reason: reason || null, decidedByName: req.authUser?.name || null, decidedAt: new Date().toISOString() };
+      return { ...w, studio: s };
+    }, req.authUser?.id);
+    await notifyRequester(prisma, pending.requestedById, 'Regenerate ditolak', `Pengajuan untuk ${yearMonth} pekan ${weekIndex} ditolak${reason ? `: ${reason}` : '.'} Silakan revisi & ajukan ulang.`);
+    res.json({ week: saved, rejected: true });
+  }));
+
+  app.post('/api/didaskalia/studio/:yearMonth/:weekIndex/regen-undo', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const yearMonth = String(req.params.yearMonth || '');
+    const weekIndex = getWeekIndex(req);
+    const historyId = String(req.body?.historyId || '');
+    if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+    const st = sanitizeStudio(weekOrDefault(plan ? readWeeks(plan) : [], yearMonth, weekIndex).studio);
+    const entry = (Array.isArray(st.regenHistory) ? st.regenHistory : []).find((h) => h.id === historyId);
+    if (!entry?.snapshot) return res.status(400).json({ error: 'Riwayat versi tidak ditemukan.' });
+
+    const saved = await saveStudioWeek(prisma, yearMonth, weekIndex, (w) => {
+      const s = { ...w.studio };
+      const snap = entry.snapshot;
+      const currentSnap = regenSnapshotOf(s);
+      if (snap.chapterNo !== undefined) s.chapterNo = snap.chapterNo;
+      if (snap.fundamentalFirman) s.fundamentalFirman = snap.fundamentalFirman;
+      if (snap.kitabFokus !== undefined) s.kitabFokus = snap.kitabFokus;
+      if (Array.isArray(snap.homileticMethods)) s.homileticMethods = snap.homileticMethods;
+      if (Array.isArray(snap.methodMix)) s.methodMix = snap.methodMix;
+      s.paths = sanitizePaths(snap.paths || []);
+      s.sermon = sanitizeSermonShape(snap.sermon || s.sermon);
+      s.regenHistory = [
+        { id: `undo-${Date.now().toString(36)}`, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: 'undo', applied: true, summary: `Kembali ke versi ${new Date(entry.at).toLocaleString('id-ID')}`, snapshot: currentSnap },
+        ...(Array.isArray(s.regenHistory) ? s.regenHistory : []),
+      ].slice(0, 20);
+      s.pendingRegen = null;
+      return { ...w, studio: s };
+    }, req.authUser?.id);
+    res.json({ week: saved, undone: true });
+  }));
   // ---------- Publish: catat versi + file Drive ----------
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/publish',

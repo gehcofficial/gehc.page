@@ -19,6 +19,7 @@ import {
   BookOpen,
   Users,
   Info,
+  ShieldCheck,
   ImagePlus,
   ExternalLink,
   MessageCircle,
@@ -37,7 +38,12 @@ import {
   hashContent,
   needsRepublish,
   statusLabel,
+  filterCommentsByScope,
+  scopeLabel,
+  type DidaskaliaComment,
   type DidaskaliaMethodMix,
+  type DidaskaliaPendingRegen,
+  type DidaskaliaRegenHistory,
   type DidaskaliaPath,
   type DidaskaliaRhbSection,
   type DidaskaliaStudio,
@@ -184,6 +190,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const [schedule, setSchedule] = useState<{ weeks: Array<WeekMeta & { rituals: RitualRow[] }>; theme: string } | null>(null);
   const [schedBusy, setSchedBusy] = useState(false);
+  const [approval, setApproval] = useState<{ pending: DidaskaliaPendingRegen | null; history: DidaskaliaRegenHistory[]; canApprove: boolean }>({ pending: null, history: [], canApprove: false });
+  const [suggest, setSuggest] = useState<Record<string, { label: string; before: string; text: string }>>({});
+  const [commentScope, setCommentScope] = useState<string>('GENERAL');
+  const [discussFilter, setDiscussFilter] = useState<string>('ALL');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -196,6 +206,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme });
       setEvent(d.event || null);
       setLinks(d.links || []);
+      fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/approval`, { credentials: 'include' })
+        .then((x) => (x.ok ? x.json() : null))
+        .then((a) => { if (a) setApproval({ pending: a.pending || null, history: a.history || [], canApprove: Boolean(a.canApprove) }); })
+        .catch(() => {});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Gagal memuat.');
     } finally {
@@ -287,8 +301,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       }
       addToast({
         type: 'success',
-        title: kind === 'draft' ? 'Draf 7 Path & ringkasan dibuat'
-          : kind === 'enrich' ? 'Draf diperkaya dengan diskusi tim'
+        title: kind === 'draft' ? 'Pengajuan draf dibuat — menunggu persetujuan HOD'
+          : kind === 'enrich' ? 'Pengajuan perkaya dibuat — menunggu persetujuan HOD'
             : 'Ringkasan khotbah dibuat',
       });
     } catch (e: unknown) {
@@ -319,6 +333,97 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       setBusy(null);
     }
   }, [addToast, canWrite, comment, weekIndex, weekMeta, ym]);
+
+  /** Usulan AI per cell — TIDAK langsung menimpa; menunggu "Terapkan". */
+  const aiSuggest = useCallback(async (key: string, fieldLabel: string, current: string, scope?: string) => {
+    if (!canWrite || !current.trim()) return;
+    setBusy(`suggest-${key}`);
+    try {
+      const scoped = filterCommentsByScope<DidaskaliaComment>(studio.discussion || [], scope)
+        .map((c) => `${c.userName || 'Tim'}: ${c.text}`)
+        .join('\n');
+      const instruction = [comment, scoped].filter(Boolean).join('\n') || 'Buat lebih jelas, hangat, dan mudah dipahami pemuda.';
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/refine`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fieldLabel, current, instruction, context: weekMeta?.theme || '' }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || 'AI gagal memperbaiki.');
+      setSuggest((s) => ({ ...s, [key]: { label: fieldLabel, before: current, text: d.text || current } }));
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
+    } finally {
+      setBusy(null);
+    }
+  }, [addToast, canWrite, comment, studio.discussion, weekIndex, weekMeta, ym]);
+
+  const dismissSuggestion = (key: string) => setSuggest((st) => { const c = { ...st }; delete c[key]; return c; });
+  const applySuggestion = (key: string, apply: (t: string) => void) => {
+    const s = suggest[key];
+    if (!s) return;
+    apply(s.text);
+    dismissSuggestion(key);
+    addToast({ type: 'success', title: 'Usulan diterapkan — klik Simpan' });
+  };
+  const suggestionBox = (key: string, apply: (t: string) => void) => {
+    const s = suggest[key];
+    if (!s) return null;
+    return (
+      <div className="mt-1 rounded-xl border border-sky-200 bg-sky-50 p-2 space-y-1">
+        <p className="text-[10px] font-black text-sky-800">Usulan AI · {s.label}</p>
+        <p className="text-[10px] text-[#8C8880] line-through max-h-20 overflow-y-auto whitespace-pre-line">{s.before}</p>
+        <p className="text-[11px] text-[#1B1B1B] max-h-40 overflow-y-auto whitespace-pre-line">{s.text}</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => applySuggestion(key, apply)} className="text-[10px] font-bold text-white bg-sky-600 px-3 py-1 rounded-full">Terapkan</button>
+          <button type="button" onClick={() => dismissSuggestion(key)} className="text-[10px] font-bold text-[#8C8880]">Batal</button>
+        </div>
+      </div>
+    );
+  };
+
+  /** Setujui/tolak pengajuan regenerate (HOD). */
+  const decideRegen = async (action: 'approve' | 'reject') => {
+    if (!canWrite) return;
+    let reason = '';
+    if (action === 'reject') {
+      reason = window.prompt('Alasan penolakan (akan tampil ke pengusul):') || '';
+      if (!reason.trim()) return;
+    }
+    setBusy(`regen-${action}`);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/approval/${action}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || 'Gagal memproses persetujuan.');
+      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      await load();
+      addToast({ type: 'success', title: action === 'approve' ? 'Regenerate disetujui & diterapkan' : 'Pengajuan ditolak' });
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal.' });
+    } finally { setBusy(null); }
+  };
+
+  /** Kembalikan ke versi riwayat (undo). */
+  const undoRegen = async (historyId: string) => {
+    if (!canWrite) return;
+    if (!confirm('Kembalikan ke versi ini? Perubahan setelahnya akan digantikan.')) return;
+    setBusy('regen-undo');
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/regen-undo`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historyId }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || 'Gagal mengembalikan versi.');
+      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      await load();
+      addToast({ type: 'success', title: 'Dikembalikan ke versi sebelumnya' });
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal.' });
+    } finally { setBusy(null); }
+  };
 
   const setPath = (i: number, patch: Partial<DidaskaliaPath>) => {
     setStudio((s) => {
@@ -428,6 +533,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       userId: authUser?.id || null,
       userName: currentUser?.name || authUser?.name || null,
       role: currentRole || null,
+      scope: commentScope,
     };
     const discussion = [...(studio.discussion || []), entry];
     setComment('');
@@ -683,6 +789,61 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat studio…</p>
       ) : tab === 'konten' ? (
         <>
+          {/* Persetujuan HOD & riwayat regenerate */}
+          {(approval.pending || (approval.history || []).length > 0) && (
+            <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#0EA5E9]" />
+                <h4 className="text-sm font-black text-[#1B1B1B]">Persetujuan Regenerate & Riwayat</h4>
+                {(approval.history || []).length > 0 && <span className="ml-auto text-[10px] text-[#8C8880]">{approval.history.length} versi</span>}
+              </div>
+              {approval.pending?.status === 'PENDING' ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-amber-900">
+                    Menunggu persetujuan HOD · {approval.pending.kind === 'enrich' ? 'Perkaya' : 'Draf'} oleh {approval.pending.requestedByName || 'Tim'}
+                  </p>
+                  <p className="text-[11px] text-amber-800">{approval.pending.summary}</p>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5">
+                    {(approval.pending.diff || []).map((d, i) => (
+                      <div key={i} className="rounded-lg bg-white/80 p-2">
+                        <p className="text-[10px] font-black text-[#1B1B1B]">{scopeLabel(d.section)} · {d.label}</p>
+                        <p className="text-[10px] text-[#8C8880] line-through">{d.before || '(kosong)'}</p>
+                        <p className="text-[10px] text-[#1B1B1B]">{d.after || '(kosong)'}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[#8C8880]">Total {(approval.pending.diff || []).length} perubahan.</p>
+                  {approval.canApprove ? (
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => void decideRegen('approve')} disabled={!!busy} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">Setujui & terapkan</button>
+                      <button type="button" onClick={() => void decideRegen('reject')} disabled={!!busy} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]">Tolak…</button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-amber-800">Hanya kepala divisi Didaskalia / SUPERADMIN yang dapat menyetujui.</p>
+                  )}
+                </div>
+              ) : approval.pending?.status === 'REJECTED' ? (
+                <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  Pengajuan terakhir ditolak{approval.pending.reason ? `: ${approval.pending.reason}` : '.'} — silakan revisi & ajukan ulang.
+                </p>
+              ) : null}
+              {(approval.history || []).length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-wider text-[#8C8880]">Riwayat versi</p>
+                  {approval.history.slice(0, 6).map((h) => (
+                    <div key={h.id} className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="font-bold text-[#1B1B1B]">{new Date(h.at).toLocaleString('id-ID')}</span>
+                      <span className="text-[#8C8880]">{h.kind} · {h.applied ? 'diterapkan' : 'ditolak'} · {h.byName || '-'}</span>
+                      {canWrite && h.kind !== 'undo' && (
+                        <button type="button" onClick={() => void undoRegen(h.id)} className="ml-auto text-[10px] font-bold text-sky-700">Kembalikan</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Input inti */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="grid sm:grid-cols-3 gap-3">
@@ -833,6 +994,14 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                     <span className="w-6 h-6 rounded-full bg-[#0EA5E9] text-white text-[11px] font-black grid place-items-center">{p.pathIndex}</span>
                     <span className="text-sm font-bold text-[#1B1B1B] truncate">{p.title}</span>
                     <span className="ml-auto text-[10px] text-[#8C8880]">{p.dayLabel}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setCommentScope(`PATH:${p.pathIndex}`); setDiscussFilter('ALL'); document.getElementById('didaskalia-discussion')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                      className="text-[10px] font-bold text-sky-700 border border-sky-200 bg-sky-50 rounded-full px-2 py-0.5"
+                      title="Tulis catatan untuk Path ini"
+                    >
+                      + Catatan
+                    </button>
                   </button>
                   {open && (
                     <div className="px-4 pb-4 space-y-2 border-t border-[#EFEDE8]">
@@ -852,9 +1021,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className={labelCls}>Perenungan</label>
-                          <button type="button" disabled={!!busy} onClick={() => void aiRefine('Perenungan', p.reflection, (t) => setPath(i, { reflection: t }))} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
+                          <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
                         </div>
                         <textarea value={p.reflection} onChange={(e) => setPath(i, { reflection: e.target.value })} rows={4} className={inputCls} />
+                        {suggestionBox(`path:${i}:reflection`, (t) => setPath(i, { reflection: t }))}
                       </div>
                       <div className="grid sm:grid-cols-3 gap-2">
                         <div><label className={labelCls}>Amati</label><input value={p.observeQ} onChange={(e) => setPath(i, { observeQ: e.target.value })} className={inputCls} /></div>
@@ -914,9 +1084,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className={labelCls}>Ringkasan</label>
-                <button type="button" disabled={!!busy} onClick={() => void aiRefine('Ringkasan Khotbah', studio.sermon?.summary || '', (t) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: t } })))} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
+                <button type="button" disabled={!!busy} onClick={() => void aiSuggest('sermon:summary', 'Ringkasan Khotbah', studio.sermon?.summary || '', 'SERMON')} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
               </div>
               <textarea value={studio.sermon?.summary || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: e.target.value } }))} rows={5} className={inputCls} />
+              {suggestionBox('sermon:summary', (t) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: t } })))}
             </div>
 
             {/* Bagian A — untuk pengkhotbah/deliverer */}
@@ -983,13 +1154,32 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           </div>
 
           {/* Diskusi */}
-          <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
-            <div className="flex items-center gap-2"><Users className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Diskusi Internal</h4></div>
+          <div id="didaskalia-discussion" className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
+            <div className="flex items-center gap-2"><Users className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Diskusi Internal</h4><span className="ml-auto text-[10px] text-[#8C8880]">bagian terpilih: <b>{scopeLabel(commentScope)}</b></span></div>
+                        <div className="flex flex-wrap gap-1.5">
+              {['ALL', 'GENERAL', 'INTI', 'SERMON'].map((v) => (
+                <button key={v} type="button" onClick={() => setDiscussFilter(v)} className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${discussFilter === v ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>
+                  {v === 'ALL' ? 'Semua' : scopeLabel(v)}
+                </button>
+              ))}
+              {(studio.discussion || []).some((c) => (c.scope || '').startsWith('PATH:')) && (
+                <select value={discussFilter} onChange={(e) => setDiscussFilter(e.target.value)} className="text-[10px] px-2 py-1 rounded-full border border-[#D9D7D0]">
+                  <option value="ALL">Semua bagian…</option>
+                  {Array.from(new Set<string>((studio.discussion || []).map((c) => String(c.scope || 'GENERAL')))).map((sc) => (
+                    <option key={sc} value={sc}>{scopeLabel(String(sc))}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div className="space-y-2">
-              {(studio.discussion || []).map((c) => (
+              {(studio.discussion || [])
+                .filter((c) => discussFilter === 'ALL' || (c.scope || 'GENERAL') === discussFilter)
+                .map((c) => (
                 <div key={c.id} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
                   <p className="text-[10px] font-bold text-[#1B1B1B]">
-                    {c.userName || 'Tim'}{c.role ? <span className="text-[#8C8880] font-normal"> · {c.role}</span> : null}
+                    {c.userName || 'Tim'}
+                    {c.role ? <span className="text-[#8C8880] font-normal"> · {c.role}</span> : null}
+                    <span className="ml-2 text-[9px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5">{scopeLabel(c.scope)}</span>
                   </p>
                   <p className="text-xs text-[#1B1B1B] whitespace-pre-wrap mt-0.5">{c.text}</p>
                   <p className="text-[10px] text-[#8C8880] mt-1">{new Date(c.at).toLocaleString('id-ID')}</p>
@@ -997,7 +1187,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               ))}
               {(studio.discussion || []).length === 0 && <p className="text-[11px] text-[#8C8880] italic">Belum ada catatan diskusi.</p>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={commentScope} onChange={(e) => setCommentScope(e.target.value)} className={`${inputCls} w-auto`}>
+                <option value="GENERAL">Bagian: Umum</option>
+                <option value="INTI">Bagian: Inti Pesan</option>
+                <option value="SERMON">Bagian: Ringkasan Khotbah</option>
+                {paths.map((p) => <option key={p.pathIndex} value={`PATH:${p.pathIndex}`}>Bagian: Path {p.pathIndex} · {p.dayLabel}</option>)}
+              </select>
               <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Tulis catatan/usulan untuk tim…" className={inputCls} />
               <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
             </div>
