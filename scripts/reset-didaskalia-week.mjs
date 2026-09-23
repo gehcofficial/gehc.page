@@ -80,6 +80,7 @@ console.log(`  prepChecklist   : ${(studio.sermon?.prepChecklist || []).length} 
 console.log(`  generation      : ${studio.generation || 0}`);
 console.log(`  aiImages        : ${(studio.presentation?.aiImages || []).length} · cover: ${studio.presentation?.cover || '-'}`);
 console.log(`  render (PDF)    : ${Object.keys(studio.render || {}).join(', ') || '(kosong)'}`);
+console.log(`  pendingRegen    : ${studio.pendingRegen?.status || '(kosong)'} � riwayat: ${(studio.regenHistory || []).length}`);
 
 console.log('\nSesudah (rencana):');
 console.log('  paths           : [] (dihapus)');
@@ -88,6 +89,7 @@ if (FULL) {
   console.log('  generation      : 0');
   console.log('  presentation    : {} (cover, gambar, kuota AI direset)');
   console.log('  render          : {}');
+  console.log('  pendingRegen    : null · riwayat: []');
 }
 console.log('  lainnya         : DIPERTAHANKAN (chapterNo, fundamentalFirman, kitabFokus, metode, mix, diskusi, ritual, status)');
 
@@ -106,6 +108,8 @@ if (FULL) {
   nextStudio.generation = 0;
   nextStudio.presentation = {};
   nextStudio.render = {};
+  nextStudio.pendingRegen = null;
+  nextStudio.regenHistory = [];
 }
 weeks[idx] = { ...week, studio: nextStudio };
 
@@ -119,6 +123,7 @@ console.log(`  sermon : ${String(w2.studio?.sermon?.summary || '').length} karak
 console.log(`  chapterNo tetap: ${w2.studio?.chapterNo || '(kosong)'} · kitabFokus tetap: ${w2.studio?.kitabFokus || '(kosong)'}`);
 if (FULL) {
   console.log(`  generation: ${w2.studio?.generation || 0} · presentation keys: ${Object.keys(w2.studio?.presentation || {}).join(',') || '(kosong)'} · render: ${Object.keys(w2.studio?.render || {}).join(',') || '(kosong)'}`);
+  console.log(`  pendingRegen: ${w2.studio?.pendingRegen?.status || '(kosong)'} · riwayat: ${(w2.studio?.regenHistory || []).length}`);
 }
 
 await prisma.$disconnect();
