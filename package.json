@@ -59,6 +59,7 @@
     "db:migrate:bzp-v2": "node server/_migrate-bzp-v2.cjs",
     "db:migrate:bzp-v3": "node server/_migrate-bzp-v3.cjs",
     "db:seed:bzp-catalog": "node server/seed-bzp-catalog.mjs",
+    "db:seed:bzp-products": "node server/seed-bzp-products.mjs",
     "db:migrate:staging": "dotenv -e .env.staging -- prisma migrate deploy",
     "db:seed:staging": "dotenv -e .env.staging -- tsx server/seed.ts",
     "db:seed:onboarding:staging": "dotenv -e .env.staging -- tsx server/seed-onboarding.ts",

@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Seed produk BZP di PROD (draf) (23 Sep 2026)
+
+**Goal:** Mengisi produk nyata ke prod: Kaos Eben Haezer (Putih/Ungu × ukuran), makanan & minuman yang pernah dijual.
+
+**Done:**
+- **Skrip** `server/seed-bzp-products.mjs` (idempoten, **dry-run default**, `--apply`; `npm run db:seed:bzp-products`).
+- **8 produk dibuat di prod sebagai DRAF** (`isActive:false`, harga 0 → belum tampil, aman dari salah harga):
+  - **Kaos Eben Haezer** (MERCHANDISE · `clothing`) — **28 varian** = Warna (Putih, Ungu) × Ukuran (Dewasa XS–5XL + Anak No.2–10).
+  - **Rice Bowl (Ayam Rica-rica)**, **Rice Bowl (Ayam Suir)**, **Sate Babi**, **Babi Utang** (FUNDRAISING·PRODUCT · `food`, tanpa varian).
+  - **Es Buah** (`beverage`) — varian *Isi*: Es Campur, Es Campur pakai Sirup.
+  - **Air Mineral** (`beverage`) — varian *Ukuran*: 330 ml, 600 ml, 1.500 ml.
+  - **Puding Sedot** (`dessert`) — varian *Rasa*: Coklat, Matcha, Strawberi, Buah.
+  - Total **37 varian**.
+- **Dibersihkan**: `Kaos Benzar` & `tes` dinonaktifkan (draf). `Onde-Onde` tetap aktif.
+- **Verifikasi prod**: 11 produk total · hanya `Onde-Onde` tampil di storefront (draf tersembunyi) · varian Kaos 28.
+
+**Catatan**: gambar produk **belum ada** (foto dikirim via chat) → unggah via panel; setelah itu isi harga/stok lalu aktifkan.
+
+### Next
+1. Di panel BZP: unggah foto kaos (Putih/Ungu) & varian lain, isi **harga jual/modal** + **stok varian**, lalu **aktifkan** produk.
+2. Aktifkan `Onde-Onde` bila stok berubah; hapus/nonaktifkan permanen `tes` bila perlu.
+
 ## Current — RBAC panel per-divisi + BZP v3 (sub-kategori, varian, size chart) (23 Sep 2026)
 
 ### A. Panel divisi hanya untuk divisinya (UI + server)
