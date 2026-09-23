@@ -7,6 +7,7 @@
 import {
   DAY_LABELS,
   RHB_SECTIONS,
+  defaultSermon,
   ensurePaths,
   ensureRhbSections,
   type DidaskaliaPath,
@@ -54,6 +55,8 @@ export type PresentationContent = {
   paths: DidaskaliaPath[];
   sermon: DidaskaliaSermon;
   images: DidaskaliaPresentationImages;
+  /** Label deliverer (dari jenis ibadah). */
+  deliverer?: string;
 };
 
 export type ParsedMaterialHash = {
@@ -122,7 +125,8 @@ function weekCoverSubtitle(content: PresentationContent): string {
 }
 
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
-  const { paths, images } = content;
+  const { paths, images, sermon } = content;
+  const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
   const slides: DeckSlide[] = [
     {
       id: 'cover',
@@ -133,66 +137,87 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       imageFileId: images.cover,
     },
     {
-      id: 'panduan',
+      id: 'inti',
       kind: 'section',
-      kicker: 'Panduan Pembekalan',
-      title: 'Panduan Pembekalan',
-      paragraphs: [
-        'Modul ini menuntun mentor & co-mentor menyiapkan pertemuan kelompok: mendaraskan firman, menuntun diskusi, lalu menutup dengan doa.',
-        'Gunakan alur di halaman berikut. Setiap Path memuat nats, lensa homiletik, pertanyaan bertingkat, dan jembatan ke Path berikutnya.',
-      ],
+      kicker: 'Inti Pesan & Fundamental Firman',
+      title: 'Big Idea & Arah Tema',
+      callout: content.fundamentalFirman?.text
+        ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
+        : undefined,
+      fields: [
+        content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
+      ].filter(Boolean) as { label: string; value: string }[],
+    },
+    // Bagian A — untuk pengkhotbah / deliverer
+    {
+      id: 'a-deliver',
+      kind: 'section',
+      kicker: `Bagian A · Untuk ${deliverer}`,
+      title: 'Persiapan & Penyampaian Khotbah',
+      bullets: (sermon.deliveryPlan || []).map((d) => `${d.method}: ${d.how}`),
     },
     {
-      id: 'alur',
+      id: 'a-ringkasan',
       kind: 'section',
-      kicker: 'Alur Diskusi',
-      title: 'Alur Diskusi (30–45 menit)',
-      bullets: [
-        'Hook — pertanyaan pembuka yang mudah',
-        'Ilustrasi — cerita singkat yang relevan',
-        'Amati teks (observe)',
-        'Pahami makna (interpret)',
-        'Terapkan (apply)',
-        'Jembatan ke Path berikutnya',
+      kicker: `Bagian A · Untuk ${deliverer}`,
+      title: 'Ringkasan Khotbah',
+      paragraphs: toParagraphs(sermon.summary),
+      callout: sermon.rationale ? { label: 'Pendekatan & Metode', value: sermon.rationale } : undefined,
+    },
+    ...(sermon.slideOutline || []).map((s, i) => ({
+      id: `a-slide-${i}`,
+      kind: 'section' as const,
+      kicker: `Kerangka Slide ${i + 1}`,
+      title: s.title,
+      bullets: s.bullets,
+      callout: s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
+    })),
+    {
+      id: 'a-checklist',
+      kind: 'section',
+      kicker: `Bagian A · Untuk ${deliverer}`,
+      title: 'Checklist Persiapan Khotbah',
+      bullets: sermon.prepChecklist || [],
+    },
+    // Bagian B — untuk mentor & co-mentor
+    {
+      id: 'b-fgd',
+      kind: 'section',
+      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+      title: 'Alur FGD Hari Minggu',
+      bullets: (sermon.discussionFlow || []).length
+        ? sermon.discussionFlow
+        : [
+            'Buka dengan pertanyaan pemanasan yang dekat dengan tema.',
+            'Gali teks bersama (amati → pahami).',
+            'Terapkan secara nyata dalam hidup pemuda/anak rantau.',
+            'Tutup dengan komitmen & doa.',
+          ],
+    },
+    {
+      id: 'b-7hari',
+      kind: 'section',
+      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+      title: 'Gambaran 7 Hari (Minggu–Sabtu)',
+      bullets: paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`),
+    },
+    {
+      id: 'closing',
+      kind: 'closing',
+      kicker: 'Penutup',
+      title: 'Tutup dengan doa syafaat',
+      paragraphs: [
+        'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
       ],
     },
   ];
 
-  paths.forEach((p, i) => {
-    slides.push({
-      id: `path-${i}`,
-      kind: 'path',
-      kicker: `Path ${p.pathIndex} · ${p.dayLabel}`,
-      title: p.title,
-      imageFileId: images.paths?.[String(p.pathIndex)] || p.coverImageFileId || undefined,
-      fields: [
-        p.bacaanRef ? { label: 'Bacaan Alkitab', value: p.bacaanRef } : null,
-        p.scriptureRef ? { label: 'Nats Pembimbing', value: p.scriptureRef } : null,
-        p.homileticLens.length ? { label: 'Lensa', value: p.homileticLens.join(' · ') } : null,
-        p.hookQuestion ? { label: 'Pertanyaan Pembuka', value: p.hookQuestion } : null,
-        p.illustration ? { label: 'Ilustrasi', value: p.illustration } : null,
-        p.reflection ? { label: 'Perenungan', value: p.reflection } : null,
-      ].filter(Boolean) as { label: string; value: string }[],
-      callout: p.scriptureText ? { label: 'Nats', value: p.scriptureText } : undefined,
-      bullets: [
-        p.observeQ ? `Amati: ${p.observeQ}` : '',
-        p.interpretQ ? `Pahami: ${p.interpretQ}` : '',
-        p.applyQ ? `Terapkan: ${p.applyQ}` : '',
-        ...(p.fgdQuestions || []),
-      ].filter(Boolean),
-    });
-  });
-
-  slides.push({
-    id: 'closing',
-    kind: 'closing',
-    kicker: 'Penutup',
-    title: 'Tutup dengan doa syafaat',
-    paragraphs: [
-      'Rangkum perjalanan 7 Path minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
-    ],
-  });
-  return slides;
+  // Buang slide opsional yang kosong (mis. belum ada deliveryPlan/checklist).
+  return slides.filter((s, i) =>
+    i === 0 ||
+    s.kind === 'closing' ||
+    Boolean(s.paragraphs?.length || s.bullets?.length || s.fields?.length || s.callout)
+  );
 }
 
 export function buildRhbDayDeck(content: PresentationContent, dayIndex: number): DeckSlide[] {
@@ -287,8 +312,16 @@ export function rhbDayList(content: PresentationContent): { dayIndex: number; da
   }));
 }
 
+/** Label deliverer berdasarkan jenis ibadah (mentoring/serving day). */
+export function delivererLabel(serviceType?: string | null): string {
+  const t = String(serviceType || '').toUpperCase();
+  if (t.includes('MENTORING')) return 'Perwakilan Tim Didaskalia';
+  if (t.includes('SERVING')) return 'Perwakilan yang akan Berkhotbah';
+  return 'Pengkhotbah / Deliverer';
+}
+
 /** Konten presentasi dari studio (live). */
-export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string): PresentationContent {
+export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null): PresentationContent {
   return {
     weekIndex,
     date,
@@ -297,8 +330,9 @@ export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, d
     fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
     kitabFokus: studio.kitabFokus || '',
     paths: ensurePaths(studio),
-    sermon: studio.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+    sermon: studio.sermon || defaultSermon(),
     images: studio.presentation || {},
+    deliverer: delivererLabel(serviceType),
   };
 }
 

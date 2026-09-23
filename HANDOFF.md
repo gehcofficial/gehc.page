@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — Pembekalan 2 fokus + PDF anti-overlap + Path mulai Minggu (23 Sep 2026)
+
+**Goal:** Sesuai masukan: Path 1 = Minggu; PDF rapi (tanpa tumpang-tindih); alur diskusi kontekstual; Pembekalan difokuskan ke persiapan/penyampaian khotbah + FGD, Path jadi ringkasan 7 hari.
+
+**Done:**
+- **Urutan hari**: `DAY_LABELS` → `['Minggu','Senin',…,'Sabtu']` (client + `didaskalia-ai.mjs`). **Path 1 = Minggu (hari khotbah) → Path 7 = Sabtu**.
+- **PDF anti-overlap** (`Writer`, `didaskaliaPdf.ts`): teks digambar dengan offset ascender (`y + size*0.32`) + `label` advance 6 → tidak ada lagi teks menimpa. **Diverifikasi terprogram**: ekstraksi posisi teks dari PDF hasil → **TIDAK ADA OVERLAP** (Pembekalan & RHB).
+- **Pembekalan (01) 2 fokus** (judul tetap "Modul Pembekalan Mentor & Co-Mentor"):
+  - **Bagian A — untuk deliverer** (label otomatis: `MENTORING_DAY` → "Perwakilan Tim Didaskalia"; `SERVING_DAY` → "Perwakilan yang akan Berkhotbah"): Panduan Deliver per Metode (+%), Ringkasan Khotbah, Kerangka Slide, Checklist Persiapan.
+  - **Bagian B — untuk mentor & co-mentor**: Alur FGD Hari Minggu (kontekstual) + **Gambaran 7 Hari (Minggu–Sabtu)** 1 halaman ringkas (hari + judul + 1 kalimat).
+  - **Dihapus**: breakdown 1 halaman per Path (PDF) & slide per-Path (deck).
+- **Field AI baru**: `sermon.deliveryPlan[]`, `sermon.prepChecklist[]`, `sermon.discussionFlow[]`, `paths[].summary` — diprompt, di-clamp, di-sanitize, dan bisa diedit di Studio.
+- **Studio**: field Ringkasan Hari per Path; kartu Bagian A (Panduan Deliver + Checklist) & Bagian B (Alur FGD); label deliverer dari jenis event; `serviceType` diteruskan ke PDF.
+- **Deck & PDF** memakai struktur baru (deck: kerangka slide per-slide; PDF: kerangka slide 1 halaman).
+- Verifikasi: `lint` bersih · **462 test** hijau · `build` OK · deck lokal: Pembekalan 4 slide (studio kosong → slide opsional difilter), RHB hari-1 7 slide, indeks RHB OK, 0 error.
+
+### Next
+1. Deploy `main`; generate ulang **2026-09 pekan 4** (Susun draf → diskusi → Perkaya) lalu cek PDF Pembekalan (Bagian A/B) & deck.
+2. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.
+
 ## Current — Didaskalia: Bacaan Alkitab + Nats Pembimbing, judul Path EN, alur 2 tahap (23 Sep 2026)
 
 **Goal:** Selaraskan materi dengan dokumen referensi (`Services/Youth/Didaskalia/06.09.26`): tiap hari punya **Bacaan Alkitab** (dari Kitab Fokus) + **Nats Pembimbing**; judul Path Bahasa Inggris; alur tema FF → Khotbah → Kitab Fokus; generasi ke-2 diperkaya diskusi.

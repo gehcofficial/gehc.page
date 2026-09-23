@@ -22,7 +22,8 @@ export const RITUAL_REF_BY_TYPE: Record<RitualType, string> = {
   GENERAL_EQUIPPING: 'EQUIP',
 };
 
-export const DAY_LABELS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+/** Minggu gerejawi: Path 1 = Minggu (hari khotbah) → Path 7 = Sabtu. */
+export const DAY_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
 /** Lima section baku RHB harian (urutan tetap). */
 export const RHB_SECTIONS = [
@@ -52,6 +53,8 @@ export type DidaskaliaPath = {
   scriptureText: string;
   /** Bacaan Alkitab harian — bagian dari rentang Kitab/Bagian Fokus. */
   bacaanRef: string;
+  /** Gambaran besar hari itu (1 kalimat) untuk halaman summary. */
+  summary: string;
   homileticLens: string[];
   hookQuestion: string;
   illustration: string;
@@ -80,11 +83,20 @@ export type DidaskaliaSlide = { title: string; bullets: string[]; visualNote: st
 /** Analisa komposisi metode khotbah (persen) untuk pembekalan. */
 export type DidaskaliaMethodMix = { method: string; percent: number; note?: string };
 
+/** Panduan praktis menyampaikan khotbah per metode. */
+export type DidaskaliaDeliveryStep = { method: string; how: string };
+
 export type DidaskaliaSermon = {
   methods: string[];
   rationale: string;
   summary: string;
   slideOutline: DidaskaliaSlide[];
+  /** Bagian A — panduan deliver per metode (untuk pengkhotbah). */
+  deliveryPlan: DidaskaliaDeliveryStep[];
+  /** Bagian A — checklist persiapan khotbah. */
+  prepChecklist: string[];
+  /** Bagian B — alur FGD hari Minggu, kontekstual tema. */
+  discussionFlow: string[];
 };
 
 export type DidaskaliaComment = {
@@ -165,6 +177,10 @@ export function defaultRhbSections(): DidaskaliaRhbSection[] {
   return RHB_SECTIONS.map((s) => ({ key: s.key, title: s.title, body: '' }));
 }
 
+export function defaultSermon(): DidaskaliaSermon {
+  return { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] };
+}
+
 export function defaultPath(i: number): DidaskaliaPath {
   return {
     pathIndex: i + 1,
@@ -173,6 +189,7 @@ export function defaultPath(i: number): DidaskaliaPath {
     scriptureRef: '',
     scriptureText: '',
     bacaanRef: '',
+    summary: '',
     homileticLens: [],
     hookQuestion: '',
     illustration: '',
@@ -213,7 +230,7 @@ export function defaultStudio(): DidaskaliaStudio {
     homileticMethods: [],
     methodMix: [],
     paths: Array.from({ length: 7 }, (_, i) => defaultPath(i)),
-    sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
+    sermon: defaultSermon(),
     discussion: [],
     rituals: [],
     presentation: {},

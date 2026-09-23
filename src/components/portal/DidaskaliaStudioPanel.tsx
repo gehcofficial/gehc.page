@@ -31,6 +31,7 @@ import {
   RITUAL_LABELS,
   RITUAL_TYPES,
   defaultStudio,
+  defaultSermon,
   ensurePaths,
   ensureRhbSections,
   hashContent,
@@ -43,7 +44,7 @@ import {
   type RitualType,
 } from '../../lib/didaskalia';
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
-import { materialHashPath } from '../../lib/didaskalia-presentation';
+import { materialHashPath, delivererLabel } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-caption';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string };
@@ -360,7 +361,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
       kitabFokus: studio.kitabFokus || '',
       paths,
-      sermon: studio.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+      sermon: studio.sermon || defaultSermon(),
       images: studio.presentation || {},
     };
     const text = dayIndex
@@ -451,7 +452,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
     if (!weekMeta) return;
-    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, ...(await buildPdfImages()) };
+    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, ...(await buildPdfImages()) };
     const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio };
     setBusy(`pdf-${doc}`);
     try {
@@ -786,7 +787,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   {open && (
                     <div className="px-4 pb-4 space-y-2 border-t border-[#EFEDE8]">
                       <div className="grid sm:grid-cols-2 gap-2 pt-3">
-                        <div><label className={labelCls}>Judul Path</label><input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} /></div>
+                        <div><label className={labelCls}>Judul Path (Inggris)</label><input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} /></div>
+                        <div><label className={labelCls}>Ringkasan Hari (1 kalimat)</label><input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} /></div>
                         <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Nats Pembimbing</label><input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} /></div>
@@ -866,6 +868,54 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
               <textarea value={studio.sermon?.summary || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: e.target.value } }))} rows={5} className={inputCls} />
             </div>
+
+            {/* Bagian A — untuk pengkhotbah/deliverer */}
+            <div className="rounded-xl bg-[#FFF7F9] border border-rose-100 p-3 space-y-2">
+              <p className="text-[11px] font-black text-rose-800">
+                Bagian A · Untuk {delivererLabel(event?.serviceType)}
+              </p>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className={labelCls}>Panduan Deliver per Metode</label>
+                  <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: [...(s.sermon?.deliveryPlan || []), { method: '', how: '' }] } }))} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
+                </div>
+                <div className="space-y-1.5">
+                  {(studio.sermon?.deliveryPlan || []).map((row, di) => (
+                    <div key={di} className="flex flex-wrap items-center gap-1.5">
+                      <input
+                        value={row.method}
+                        onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).map((x, xi) => xi === di ? { ...x, method: e.target.value } : x) } }))}
+                        placeholder="Metode"
+                        className={`${inputCls} w-40`}
+                      />
+                      <input
+                        value={row.how}
+                        onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).map((x, xi) => xi === di ? { ...x, how: e.target.value } : x) } }))}
+                        placeholder="Bagaimana menyampaikannya secara praktis…"
+                        className={`${inputCls} flex-1 min-w-[180px]`}
+                      />
+                      <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).filter((_, xi) => xi !== di) } }))} className="text-[10px] text-red-600 font-bold">Hapus</button>
+                    </div>
+                  ))}
+                  {(studio.sermon?.deliveryPlan || []).length === 0 && <p className="text-[10px] text-[#8C8880] italic">Belum ada. AI akan mengisi saat draf dibuat.</p>}
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Checklist Persiapan Khotbah (pisahkan dengan enter)</label>
+                <textarea value={(studio.sermon?.prepChecklist || []).join('\n')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, prepChecklist: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } }))} rows={3} className={inputCls} />
+              </div>
+            </div>
+
+            {/* Bagian B — untuk mentor & co-mentor */}
+            <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
+              <p className="text-[11px] font-black text-sky-800">Bagian B · Untuk Mentor &amp; Co-Mentor</p>
+              <div>
+                <label className={labelCls}>Alur FGD Hari Minggu (kontekstual tema; pisahkan dengan enter)</label>
+                <textarea value={(studio.sermon?.discussionFlow || []).join('\n')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, discussionFlow: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } }))} rows={4} className={inputCls} />
+              </div>
+              <p className="text-[10px] text-[#8C8880]">Gambaran 7 hari diambil dari ringkasan tiap Path di atas.</p>
+            </div>
+
             <div className="space-y-2">
               {(studio.sermon?.slideOutline || []).map((sl, si) => (
                 <div key={si} className="rounded-xl border border-[#EFEDE8] p-3 space-y-1.5">

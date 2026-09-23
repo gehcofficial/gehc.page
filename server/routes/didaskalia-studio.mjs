@@ -102,7 +102,7 @@ function defaultStudio() {
     homileticMethods: [],
     methodMix: [],
     paths: [],
-    sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
+    sermon: { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
     discussion: [],
     rituals: [],
     presentation: {},
@@ -114,6 +114,16 @@ function sanitizeStudio(raw) {
   const s = raw && typeof raw === 'object' ? { ...defaultStudio(), ...raw } : defaultStudio();
   s.paths = sanitizePaths(s.paths);
   s.presentation = sanitizeImages(s.presentation);
+  const sermon = s.sermon && typeof s.sermon === 'object' ? s.sermon : {};
+  s.sermon = {
+    methods: Array.isArray(sermon.methods) ? sermon.methods : [],
+    rationale: str(sermon.rationale, 8000),
+    summary: str(sermon.summary, 20000),
+    slideOutline: Array.isArray(sermon.slideOutline) ? sermon.slideOutline : [],
+    deliveryPlan: Array.isArray(sermon.deliveryPlan) ? sermon.deliveryPlan : [],
+    prepChecklist: Array.isArray(sermon.prepChecklist) ? sermon.prepChecklist : [],
+    discussionFlow: Array.isArray(sermon.discussionFlow) ? sermon.discussionFlow : [],
+  };
   return s;
 }
 
@@ -572,12 +582,14 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const week = weekOrDefault(weeks, yearMonth, weekIndex);
       const studio = sanitizeStudio(week.studio);
       const render = studio.render?.[doc] || null;
+      const event = await resolveEventId(prisma, week.date);
       res.json({
         doc,
         meta: {
           weekIndex: week.index,
           date: week.date || '',
           theme: week.mentoringTheme || week.servingTheme || week.theme || '',
+          serviceType: event?.serviceType || null,
         },
         studio,
         published: studio.status === 'PUBLISHED' && Boolean(render),
@@ -700,7 +712,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
                 kitabFokus: s.kitabFokus || '',
                 methodMix: Array.isArray(s.methodMix) ? s.methodMix : [],
                 paths: sanitizePaths(s.paths),
-                sermon: s.sermon || { methods: [], rationale: '', summary: '', slideOutline: [] },
+                sermon: s.sermon || { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
                 images: sanitizeImages(s.presentation),
               },
             },

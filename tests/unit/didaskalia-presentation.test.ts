@@ -15,9 +15,16 @@ import { defaultStudio, ensurePaths, ensureRhbSections } from '../../src/lib/did
 function studioWithRhb() {
   const studio = defaultStudio();
   studio.chapterNo = '3';
+  studio.sermon = {
+    ...studio.sermon,
+    deliveryPlan: [{ method: 'Teologi Historis', how: 'Buka latar sejarah pelayanan.' }],
+    prepChecklist: ['Riset teks', 'Latihan'],
+    discussionFlow: ['Pemanasan tema', 'Gali teks', 'Terapkan'],
+  };
   studio.paths = ensurePaths(studio).map((p, i) => ({
     ...p,
     title: `Path ${i + 1} judul`,
+    summary: `Ringkasan hari ${i + 1}`,
     rhbSections: ensureRhbSections(p.rhbSections).map((s, si) =>
       si === 0 ? { ...s, body: `Isi ${s.key} hari ${i + 1}` } : s
     ),
@@ -64,15 +71,20 @@ describe('deck builders', () => {
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema Pekan'));
     expect(deck[0].kind).toBe('cover');
     expect(deck[0].title).toBe('Tema Pekan');
-    expect(deck.filter((s) => s.kind === 'path')).toHaveLength(7);
     expect(deck[deck.length - 1].kind).toBe('closing');
+    // Tidak ada lagi slide breakdown per-Path (diganti 1 slide summary 7 hari).
+    expect(deck.filter((s) => s.kind === 'path')).toHaveLength(0);
+    const sevenDay = deck.find((s) => s.id === 'b-7hari');
+    expect(sevenDay?.bullets).toHaveLength(7);
+    expect(sevenDay?.bullets?.[0]).toContain('Minggu');
+    expect(deck.find((s) => s.id === 'a-deliver')).toBeTruthy();
   });
 
   it('RHB harian: cover + 5 section + penutup', () => {
     const studio = studioWithRhb();
     const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '2026-09-06', ''), 3);
     expect(deck[0].kind).toBe('cover');
-    expect(deck[0].kicker).toContain('Rabu');
+    expect(deck[0].kicker).toContain('Selasa');
     const sections = deck.filter((s) => s.kind === 'section');
     expect(sections).toHaveLength(5);
     expect(sections[0].title).toBe('Pengantar');
@@ -103,7 +115,7 @@ describe('deck builders', () => {
     const studio = studioWithRhb();
     const days = rhbDayList(contentFromStudio(studio, 1, '', ''));
     expect(days).toHaveLength(7);
-    expect(days[0].dayLabel).toBe('Senin');
+    expect(days[0].dayLabel).toBe('Minggu');
   });
 });
 

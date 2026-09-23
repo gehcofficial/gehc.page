@@ -330,7 +330,7 @@ export default function DidaskaliaPresentation() {
         if (r.status === 403) { setState({ status: 'forbidden', message: d.error || 'Tidak berhak mengakses materi ini.' }); return; }
         if (!r.ok) { setState({ status: 'error', message: d.error || `Gagal memuat (server ${r.status}).` }); return; }
         const studio = d.studio as DidaskaliaStudio;
-        const content = contentFromStudio(studio, route.weekIndex, d.meta?.date || '', d.meta?.theme || '');
+        const content = contentFromStudio(studio, route.weekIndex, d.meta?.date || '', d.meta?.theme || '', d.meta?.serviceType || null);
         if (d.snapshot) {
           const snap = d.snapshot as { paths?: DidaskaliaStudio['paths']; sermon?: DidaskaliaStudio['sermon']; images?: DidaskaliaStudio['presentation'] };
           content.paths = ensurePaths({ ...studio, paths: snap.paths || studio.paths });

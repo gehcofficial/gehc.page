@@ -8,7 +8,7 @@
  * DOM tersembunyi. Gambar opsional (data URL) untuk mempercantik halaman.
  */
 import { jsPDF } from 'jspdf';
-import type { DidaskaliaPath, DidaskaliaStudio, DidaskaliaWeek } from './didaskalia';
+import { DAY_LABELS, defaultSermon, type DidaskaliaStudio, type DidaskaliaWeek } from './didaskalia';
 import { effectiveRhbSections } from './didaskalia-presentation';
 
 const PAGE_W = 210;
@@ -77,8 +77,8 @@ class Writer {
     this.doc.setFont('helvetica', 'bold');
     this.doc.setFontSize(9);
     setText(this.doc, color);
-    this.doc.text(String(text || '').toUpperCase(), M, this.y, { charSpace: 0.6 });
-    this.y += 5;
+    this.doc.text(String(text || '').toUpperCase(), M, this.y + 2.7, { charSpace: 0.6 });
+    this.y += 6;
   }
 
   title(text: string, size = 24) {
@@ -87,7 +87,7 @@ class Writer {
     setText(this.doc, C.ink);
     const lines = this.doc.splitTextToSize(String(text || ''), CONTENT_W);
     this.ensure(lines.length * (size * 0.42) + 4);
-    this.doc.text(lines, M, this.y);
+    this.doc.text(lines, M, this.y + size * 0.32);
     this.y += lines.length * (size * 0.42) + 3;
   }
 
@@ -97,7 +97,7 @@ class Writer {
     setText(this.doc, C.muted);
     const lines = this.doc.splitTextToSize(String(text || ''), CONTENT_W);
     this.ensure(lines.length * 5 + 3);
-    this.doc.text(lines, M, this.y);
+    this.doc.text(lines, M, this.y + 3.3);
     this.y += lines.length * 5 + 3;
   }
 
@@ -117,7 +117,7 @@ class Writer {
     for (const para of String(text).split(/\n+/)) {
       const lines = this.doc.splitTextToSize(para.trim(), CONTENT_W);
       this.ensure(lines.length * lineH + 2);
-      this.doc.text(lines, M, this.y);
+      this.doc.text(lines, M, this.y + size * 0.3);
       this.y += lines.length * lineH + 1.5;
     }
   }
@@ -128,7 +128,7 @@ class Writer {
     this.doc.setFontSize(8.5);
     setText(this.doc, C.accent);
     this.ensure(6);
-    this.doc.text(String(label || '').toUpperCase(), M, this.y, { charSpace: 0.4 });
+    this.doc.text(String(label || '').toUpperCase(), M, this.y + 2.5, { charSpace: 0.4 });
     this.y += 4.5;
     this.paragraph(value, size);
     this.y += 1.5;
@@ -160,7 +160,7 @@ class Writer {
       this.doc.setFont('helvetica', 'normal');
       this.doc.setFontSize(10);
       setText(this.doc, C.ink);
-      this.doc.text(bodyLines, M + 5, ty);
+      this.doc.text(bodyLines, M + 5, ty + 1.5);
     }
     this.y += h + 4;
   }
@@ -172,8 +172,8 @@ class Writer {
     for (const it of items) {
       const lines = this.doc.splitTextToSize(String(it || ''), CONTENT_W - 6);
       this.ensure(lines.length * 5 + 2);
-      this.doc.text(bullet, M, this.y);
-      this.doc.text(lines, M + 4, this.y);
+      this.doc.text(bullet, M, this.y + 3);
+      this.doc.text(lines, M + 4, this.y + 3);
       this.y += lines.length * 5 + 1.2;
     }
   }
@@ -203,7 +203,7 @@ class Writer {
     this.doc.setFontSize(16);
     setText(this.doc, C.ink);
     const lines = this.doc.splitTextToSize(String(title || ''), CONTENT_W - 12);
-    this.doc.text(lines, M + 11, this.y + 1);
+    this.doc.text(lines, M + 11, this.y + 3);
     this.y += lines.length * 6.5 + 3;
   }
 
@@ -234,6 +234,8 @@ export type PdfOptions = {
   pathImages?: Record<number, string>;
   /** Gambar per section RHB: { [pathIndex]: { [sectionKey]: dataUrl } } */
   rhbSectionImages?: Record<number, Record<string, string>>;
+  /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
+  serviceType?: string | null;
 };
 
 function weekMeta(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions) {
@@ -275,36 +277,12 @@ function cover(w: Writer, week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: 
   w.doc.text('Divisi Didaskalia — GMIM Eben Haezer Cikarang', M, w.y + 5);
 }
 
-function pathPage(w: Writer, path: DidaskaliaPath, opts: PdfOptions, mode: 'modul' | 'rhb') {
-  w.newPage();
-  w.gradientBar(0, 1.5);
-  w.y = 20;
-  w.label(`Path ${path.pathIndex} · ${path.dayLabel}`, C.accent);
-  w.title(path.title, 20);
-  if (path.bacaanRef) w.field('Bacaan Alkitab', path.bacaanRef, 10);
-  if (path.scriptureRef) w.field('Nats Pembimbing', path.scriptureRef, 10);
-  if (path.homileticLens.length) w.field('Lensa', path.homileticLens.join(' · '), 9.5);
-  w.image(opts.pathImages?.[path.pathIndex], 42);
-  if (path.scriptureText) w.callout('Nats Pembimbing', path.scriptureText);
-  if (mode === 'modul') {
-    w.field('Pertanyaan Pembuka', path.hookQuestion);
-    w.field('Ilustrasi', path.illustration);
-  }
-  w.field('Perenungan', path.reflection);
-  if (mode === 'modul') {
-    w.field('Pertanyaan Diskusi', [path.observeQ, path.interpretQ, path.applyQ].filter(Boolean).join('\n'));
-    if (path.fgdQuestions?.length) {
-      w.doc.setFont('helvetica', 'bold');
-      w.doc.setFontSize(8.5);
-      setText(w.doc, C.accent);
-      w.doc.text('PERTANYAAN FGD', M, w.y);
-      w.y += 4.5;
-      w.bullets(path.fgdQuestions);
-    }
-  } else if (path.fgdQuestions?.length) {
-    w.field('Renungkan & Diskusikan', path.fgdQuestions.join('\n'));
-  }
-  if (path.bridge) w.callout('Jembatan ke Path Berikutnya', path.bridge);
+/** Label deliverer berdasarkan jenis ibadah. */
+export function delivererLabel(serviceType?: string | null): string {
+  const t = String(serviceType || '').toUpperCase();
+  if (t.includes('MENTORING')) return 'Perwakilan Tim Didaskalia';
+  if (t.includes('SERVING')) return 'Perwakilan yang akan Berkhotbah';
+  return 'Pengkhotbah / Deliverer';
 }
 
 function buildCommon(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions, label: string) {
@@ -312,28 +290,73 @@ function buildCommon(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOp
   return w;
 }
 
+/**
+ * Modul Pembekalan (01) — 2 fokus:
+ *   A. Untuk deliverer ibadah: persiapan & penyampaian khotbah.
+ *   B. Untuk mentor & co-mentor: alur FGD + gambaran 7 hari (ringkas).
+ */
 export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions = {}): { filename: string; blob: Blob } {
   const w = buildCommon(week, studio, opts, 'Modul Pembekalan');
+  const sermon = studio.sermon || defaultSermon();
   cover(w, week, studio, opts, 'Modul Pembekalan Mentor & Co-Mentor');
+
+  // Inti Pesan & Fundamental Firman
   w.newPage();
   w.y = 22;
-  w.label('Panduan Pembekalan', C.accent);
-  w.title('Cara Mendampingi Diskusi', 20);
-  w.paragraph(
-    'Modul ini memandu mentor dan co-mentor membimbing diskusi grup/sate: membuka dengan pertanyaan mudah, ' +
-      'menggunakan ilustrasi yang dekat dengan dunia anak muda, lalu menuntun diskusi bertingkat dari pengamatan teks ' +
-      'sampai penerapan praktis. Jangan menggurui — ajak peserta menemukan sendiri.'
+  w.label('Inti Pesan & Fundamental Firman', C.accent);
+  w.title('Big Idea & Arah Tema', 20);
+  w.callout(
+    studio.fundamentalFirman?.ref ? `Fundamental Firman — ${studio.fundamentalFirman.ref}` : 'Fundamental Firman',
+    studio.fundamentalFirman?.text || ''
   );
-  w.callout('Alur Diskusi (30–45 menit)', '1) Hook · 2) Ilustrasi · 3) Amati teks (observe) · 4) Pahami makna (interpret) · 5) Terapkan (apply) · 6) Jembatan ke path berikutnya.');
-  for (const p of studio.paths) pathPage(w, p, opts, 'modul');
+  if (studio.kitabFokus) w.field('Kitab / Bagian Fokus', studio.kitabFokus);
+  if (studio.methodMix?.length) {
+    w.field('Analisa Metode (%)', studio.methodMix.map((m) => `${m.method} — ${m.percent}%${m.note ? ` (${m.note})` : ''}`).join('\n'));
+  }
+
+  // BAGIAN A — untuk pengkhotbah / deliverer
   w.newPage();
-  w.y = 24;
-  w.label('Penutup', C.accent);
-  w.title('Sintesis & Doa', 20);
-  w.paragraph(
-    studio.sermon?.summary ||
-      'Rangkum perjalanan 7 Path minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.'
-  );
+  w.y = 22;
+  w.label(`Bagian A · Untuk ${delivererLabel(opts.serviceType)}`, C.accent);
+  w.title('Persiapan & Penyampaian Khotbah', 20);
+  const plan = sermon.deliveryPlan || [];
+  if (plan.length) w.field('Panduan Deliver per Metode', plan.map((d) => `${d.method}: ${d.how}`).join('\n'));
+  if (sermon.summary) w.field('Ringkasan Khotbah', sermon.summary);
+  if (sermon.rationale) w.callout('Pendekatan & Metode', sermon.rationale);
+  const checklist = sermon.prepChecklist || [];
+  if (checklist.length) w.field('Checklist Persiapan Khotbah', checklist.map((x, i) => `${i + 1}) ${x}`).join('\n'));
+
+  // Kerangka Slide (1 halaman ringkas)
+  const outline = sermon.slideOutline || [];
+  if (outline.length) {
+    w.newPage();
+    w.y = 22;
+    w.label('Kerangka Slide', C.accent);
+    w.title('Slide Khotbah', 20);
+    for (const s of outline) {
+      const body = [
+        ...(s.bullets || []).map((b) => `• ${b}`),
+        s.visualNote ? `Arahan visual: ${s.visualNote}` : '',
+      ].filter(Boolean).join('\n');
+      w.field(s.title, body);
+    }
+  }
+
+  // BAGIAN B — untuk mentor & co-mentor
+  w.newPage();
+  w.y = 22;
+  w.label('Bagian B · Untuk Mentor & Co-Mentor', C.accent);
+  w.title('Alur FGD Hari Minggu', 20);
+  const flow = sermon.discussionFlow || [];
+  if (flow.length) w.bullets(flow);
+  else {
+    w.paragraph(
+      'Buka dengan pertanyaan pemanasan yang dekat dengan tema, gali teks bersama, lalu tutup dengan penerapan nyata dan doa.'
+    );
+  }
+  const pathLines = studio.paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);
+  if (pathLines.length) w.field('Gambaran 7 Hari (Minggu–Sabtu)', pathLines.join('\n'));
+
   w.finishFooters();
   const v = opts.version || 1;
   return { filename: `W${week.index}-MODUL-${week.date || ''}-v${v}.pdf`, blob: w.blob() };
