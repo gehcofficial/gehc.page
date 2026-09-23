@@ -3,16 +3,20 @@
  * TANPA menyentuh brief: Chapter, Fundamental Firman, Kitab Fokus, metode, mix,
  * diskusi, ritual, gambar presentasi, dan status.
  *
+ * Mode --full: kosongkan juga generation, presentation (gambar + kuota AI), dan render.
+ *
  * AMAN: default DRY-RUN. Tambahkan --apply untuk menulis.
  *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4            # dry-run (staging)
- *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --apply    # apply (staging)
- *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4
- *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --apply
+ *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full     # dry-run (full)
+ *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full --apply
+ *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full
+ *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full --apply
  */
 import 'dotenv/config';
 import { getPrisma, getDbLabel } from '../server/db.mjs';
 
 const APPLY = process.argv.includes('--apply');
+const FULL = process.argv.includes('--full');
 
 function argValue(flag) {
   const i = process.argv.indexOf(flag);
@@ -37,7 +41,7 @@ if (!prisma) {
 }
 
 console.log(`Target DB : ${getDbLabel()}`);
-console.log(`Mode      : ${APPLY ? 'APPLY (menulis)' : 'DRY-RUN (tidak menulis)'}`);
+console.log(`Mode      : ${APPLY ? 'APPLY (menulis)' : 'DRY-RUN (tidak menulis)'}${FULL ? ' · FULL' : ''}`);
 console.log(`Sasaran   : ${yearMonth} minggu ke-${weekIndex}`);
 
 const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
@@ -70,12 +74,22 @@ console.log(`  homileticMethods: ${(studio.homileticMethods || []).length} metod
 console.log(`  methodMix       : ${(studio.methodMix || []).length} baris`);
 console.log(`  paths           : ${paths.length} Path (judul: ${paths.slice(0, 3).map((p) => p.title).join(' | ') || '-'})`);
 console.log(`  sermon.summary  : ${sermonLen} karakter`);
+console.log(`  deliveryPlan    : ${(studio.sermon?.deliveryPlan || []).length} baris`);
+console.log(`  discussionFlow  : ${(studio.sermon?.discussionFlow || []).length} baris`);
+console.log(`  prepChecklist   : ${(studio.sermon?.prepChecklist || []).length} baris`);
+console.log(`  generation      : ${studio.generation || 0}`);
+console.log(`  aiImages        : ${(studio.presentation?.aiImages || []).length} · cover: ${studio.presentation?.cover || '-'}`);
 console.log(`  render (PDF)    : ${Object.keys(studio.render || {}).join(', ') || '(kosong)'}`);
 
 console.log('\nSesudah (rencana):');
 console.log('  paths           : [] (dihapus)');
 console.log('  sermon          : { methods:[], rationale:"", summary:"", slideOutline:[] }');
-console.log('  lainnya         : DIPERTAHANKAN (chapterNo, fundamentalFirman, kitabFokus, metode, mix, diskusi, ritual, presentasi, status)');
+if (FULL) {
+  console.log('  generation      : 0');
+  console.log('  presentation    : {} (cover, gambar, kuota AI direset)');
+  console.log('  render          : {}');
+}
+console.log('  lainnya         : DIPERTAHANKAN (chapterNo, fundamentalFirman, kitabFokus, metode, mix, diskusi, ritual, status)');
 
 if (!APPLY) {
   console.log('\n(dry-run) Tambahkan --apply untuk menulis.');
@@ -86,8 +100,13 @@ if (!APPLY) {
 const nextStudio = {
   ...studio,
   paths: [],
-  sermon: { methods: [], rationale: '', summary: '', slideOutline: [] },
+  sermon: { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
 };
+if (FULL) {
+  nextStudio.generation = 0;
+  nextStudio.presentation = {};
+  nextStudio.render = {};
+}
 weeks[idx] = { ...week, studio: nextStudio };
 
 await prisma.ministryMonthPlan.update({ where: { id: plan.id }, data: { weeks } });
@@ -98,5 +117,8 @@ console.log('\nSelesai. Verifikasi:');
 console.log(`  paths  : ${(w2.studio?.paths || []).length}`);
 console.log(`  sermon : ${String(w2.studio?.sermon?.summary || '').length} karakter`);
 console.log(`  chapterNo tetap: ${w2.studio?.chapterNo || '(kosong)'} · kitabFokus tetap: ${w2.studio?.kitabFokus || '(kosong)'}`);
+if (FULL) {
+  console.log(`  generation: ${w2.studio?.generation || 0} · presentation keys: ${Object.keys(w2.studio?.presentation || {}).join(',') || '(kosong)'} · render: ${Object.keys(w2.studio?.render || {}).join(',') || '(kosong)'}`);
+}
 
 await prisma.$disconnect();

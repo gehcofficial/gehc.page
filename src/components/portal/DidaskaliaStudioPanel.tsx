@@ -261,7 +261,30 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      let merged: DidaskaliaStudio = { ...defaultStudio(), ...(d.week?.studio || {}) };
+      setStudio(merged);
+      // Jaring pengaman: lengkapi Bagian A/B bila draf tidak mengisinya.
+      if (kind !== 'sermon') {
+        const sm = merged.sermon || defaultSermon();
+        const missing = !(sm.deliveryPlan || []).length || !(sm.prepChecklist || []).length || !(sm.discussionFlow || []).length;
+        if (missing) {
+          try {
+            const r2 = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/extras`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notes }),
+            });
+            const d2 = await readJson(r2);
+            if (r2.ok && d2.week?.studio) {
+              merged = { ...defaultStudio(), ...d2.week.studio };
+              setStudio(merged);
+            }
+          } catch {
+            /* lanjut tanpa extras */
+          }
+        }
+      }
       addToast({
         type: 'success',
         title: kind === 'draft' ? 'Draf 7 Path & ringkasan dibuat'

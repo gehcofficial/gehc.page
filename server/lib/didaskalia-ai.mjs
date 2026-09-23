@@ -248,9 +248,9 @@ export async function generateWeekDraft(input) {
     '- Sertakan "methodMix": 2-3 metode dari daftar 7 dengan persentase (total ~100) dan catatan singkat alasan porsinya.',
     '- Manfaatkan "Catatan tim/diskusi" bila ada sebagai masukan nyata dari tim Didaskalia.',
     '- Ringkasan khotbah: methods, rationale, summary (3-5 paragraf), slideOutline (6-10 slide, tiap slide: title, bullets 2-5, visualNote).',
-    '- "deliveryPlan": panduan PRAKTIS menyampaikan khotbah untuk tiap metode yang dipakai (mis. "Teologi Historis (40%): buka dengan latar sejarah pelayanan di Perjanjian Lama untuk membangun ketegangan, baru bawa ke injil"). Sesuaikan dengan persentase methodMix.',
-    '- "prepChecklist": 4-6 langkah konkret persiapan khotbah (riset teks, susun kerangka, latihan, doa, cek panggung/visual).',
-    '- "discussionFlow": 4-6 langkah ALUR FGD hari Minggu yang KONTEKSTUAL dengan tema minggu ini (bukan generik) — mis. pertanyaan pemanasan spesifik tema, penggalian teks, penerapan nyata, komitmen.',
+    '- "deliveryPlan" (WAJIB, tidak boleh kosong): panduan PRAKTIS menyampaikan khotbah untuk tiap metode yang dipakai — sesuaikan jumlah & porsi dengan methodMix. Contoh: {"method":"Teologi Historis","how":"Buka dengan latar sejarah pelayanan di Perjanjian Lama untuk membangun ketegangan, baru bawa ke injil."}',
+    '- "prepChecklist" (WAJIB, 4-6 item): langkah konkret persiapan khotbah (riset teks, susun kerangka, latihan, doa, cek visual/panggung).',
+    '- "discussionFlow" (WAJIB, 4-6 langkah): ALUR FGD hari Minggu yang KONTEKSTUAL dengan tema minggu ini (bukan generik) — mis. pertanyaan pemanasan spesifik tema, penggalian teks, penerapan nyata, komitmen.',
     '- FOKUS: dokumen ini untuk (A) pengkhotbah/deliverer mempersiapkan & menyampaikan khotbah, dan (B) mentor/co-mentor membawa FGD. 7 Path adalah RINGKASAN sepekan (Minggu→Sabtu), bukan breakdown panjang.',
     '- KESINAMBUNGAN: Path 1 (Minggu) menyambung EKSPLISIT dari minggu lalu (lihat MINGGU LALU: tema, kitab fokus, judul path); Path 7 menjembatani ke minggu depan. Sebut kaitannya secara konkret, bukan basa-basi.',
     '- Kontekstual untuk anak muda & anak rantau di Cikarang (kerja, kos, komunitas).',
@@ -260,7 +260,7 @@ export async function generateWeekDraft(input) {
     '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
   ].join('\n');
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });
+  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 5120 });
   return clampDraft(extractJson(text));
 }
 
@@ -310,8 +310,41 @@ export async function generateEnrichedDraft(input) {
     '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
   ].filter(Boolean).join('\n');
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 4096 });
+  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 5120 });
   return clampDraft(extractJson(text));
+}
+
+/**
+ * Jaring pengaman: lengkapi Bagian A/B (deliveryPlan, prepChecklist, discussionFlow)
+ * bila draf utama tidak mengisinya.
+ */
+export async function generateWeekExtras(input) {
+  const prompt = [
+    'Lengkapi BAGIAN A & B untuk modul pembekalan minggu ini (Bahasa Indonesia).',
+    '',
+    'KONTEKS:',
+    buildContext(input),
+    input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
+    '',
+    'ATURAN:',
+    '- deliveryPlan: 2-4 baris, tiap metode yang dipakai (lihat methodMix) dengan cara praktis menyampaikannya.',
+    '- prepChecklist: 4-6 langkah konkret persiapan khotbah.',
+    '- discussionFlow: 4-6 langkah alur FGD hari Minggu yang spesifik tema ini (bukan generik).',
+    '- Kontekstual untuk mahasiswa & pekerja muda.',
+    '',
+    'Balas HANYA JSON valid: {"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}',
+  ].filter(Boolean).join('\n');
+  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 1600 });
+  const d = extractJson(text);
+  const plan = Array.isArray(d.deliveryPlan) ? d.deliveryPlan : [];
+  return {
+    deliveryPlan: plan
+      .slice(0, 7)
+      .map((x) => ({ method: asStr(x?.method), how: asStr(x?.how) }))
+      .filter((x) => x.method || x.how),
+    prepChecklist: asStrArray(d.prepChecklist, 10),
+    discussionFlow: asStrArray(d.discussionFlow, 8),
+  };
 }
 
 /**

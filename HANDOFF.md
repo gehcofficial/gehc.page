@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — Full reset pekan 27 Sep + jaring pengaman Bagian A/B + AI image aktif (23 Sep 2026)
+
+**Goal:** Mulai simulasi dari awal untuk 2026-09 pekan 4; pastikan Bagian A/B selalu terisi; aktifkan AI image.
+
+**Done:**
+- **Akses model gambar AKTIF** — diverifikasi: `GET /v1/models` → `gpt-4o-mini`, **`gpt-image-1-mini`**.
+- **Uji end-to-end (staging)**: `POST …/generate-image` → **201** (32,6 dtk, `gpt-image-1-mini`, kuota 1/3); `POST …/extras` → **200** (deliveryPlan 2 · prepChecklist 6 · discussionFlow 6).
+- **Jaring pengaman Bagian A/B**: `generateWeekExtras()` + endpoint `POST /api/didaskalia/studio/:ym/:week/extras`; **Studio otomatis memanggil `/extras`** setelah draf/enrich bila `deliveryPlan`/`prepChecklist`/`discussionFlow` kosong. Prompt dipertegas (WAJIB + contoh) dan `maxTokens` draft/enrich 4096 → **5120**.
+- **Skrip reset** `scripts/reset-didaskalia-week.mjs` kini punya flag **`--full`** (paths + sermon + `generation` + `presentation` + `render`).
+- **Full reset prod 2026-09 pekan 4 (27 Sep, "The Call to Serve")** — diverifikasi: `paths 0` · `sermon 0` · `generation 0` · `presentation {}` · `render {}`; brief tetap (Chapter `0`, FF `2 Kor 3:7-11`, Kitab Fokus `1 Timotius 3:1-13`, 3 metode, mix, diskusi).
+- **Staging** juga dibersihkan (uji tidak tertinggal).
+- Verifikasi: `lint` bersih · **463 test** hijau · `build` OK.
+
+### Next
+1. Simulasi di prod Studio pekan 4: **Susun draf** (otomatis lanjut `/extras` bila perlu) → diskusi internal → **Perkaya dengan diskusi** → **Generate gambar cover (AI)** (kuota 3) → terbitkan PDF & cek deck.
+2. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.
+
 ## Current — Persona audiens, kesinambungan minggu, cover background + AI image (23 Sep 2026)
 
 **Goal:** Persona AI lebih tepat (mahasiswa & pekerja), konteks minggu lalu/depan, dan cover bergaya "gambar full-bleed + teks overlay" (opsi AI image).

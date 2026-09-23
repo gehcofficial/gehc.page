@@ -13,6 +13,7 @@ import { wibDateOnly } from '../lib/event-venue.mjs';
 import {
   generateWeekDraft,
   generateEnrichedDraft,
+  generateWeekExtras,
   generateSermon,
   refineField,
   summarizeWeek,
@@ -483,6 +484,64 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         req.authUser?.id
       );
       res.json({ week: saved, draft });
+    })
+  );
+
+  // ---------- AI: lengkapi Bagian A/B (jaring pengaman) ----------
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/extras',
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const prev = weekOrDefault(weeks, yearMonth, weekIndex - 1);
+      const next = weekOrDefault(weeks, yearMonth, weekIndex + 1);
+      const st = sanitizeStudio(week.studio);
+      const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}${p.summary ? ` — ${p.summary}` : ''}`).join('\n');
+
+      let extras;
+      try {
+        extras = await generateWeekExtras({
+          yearMonth,
+          weekIndex,
+          date: week.date,
+          monthTheme: plan?.theme || '',
+          theme: week.mentoringTheme || week.servingTheme || week.theme || st.chapterNo || '',
+          fundamentalFirman: st.fundamentalFirman,
+          kitabFokus: st.kitabFokus,
+          methods: st.homileticMethods,
+          notes: req.body?.notes,
+          pathsOutline,
+          prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
+          nextWeek: summarizeWeek(next, sanitizeStudio(next.studio)),
+        });
+      } catch (e) {
+        return res.status(502).json({ error: `AI gagal melengkapi Bagian A/B: ${e.message}` });
+      }
+
+      const saved = await saveStudioWeek(
+        prisma,
+        yearMonth,
+        weekIndex,
+        (w) => {
+          const s = { ...w.studio };
+          const sermon = { ...(s.sermon || {}) };
+          if (extras.deliveryPlan?.length) sermon.deliveryPlan = extras.deliveryPlan;
+          if (extras.prepChecklist?.length) sermon.prepChecklist = extras.prepChecklist;
+          if (extras.discussionFlow?.length) sermon.discussionFlow = extras.discussionFlow;
+          s.sermon = sermon;
+          return { ...w, studio: s };
+        },
+        req.authUser?.id
+      );
+      res.json({ week: saved, extras });
     })
   );
 
