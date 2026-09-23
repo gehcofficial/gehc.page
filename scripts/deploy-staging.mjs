@@ -13,7 +13,7 @@ function run(cmd) {
 
 console.log('> vercel deploy (preview)…');
 let out = '';
-for (let attempt = 1; attempt <= 2 && !out; attempt++) {
+for (let attempt = 1; attempt <= 5 && !out; attempt++) {
   try {
     out = run('vercel.cmd deploy');
   } catch (e) {

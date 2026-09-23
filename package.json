@@ -14,6 +14,7 @@
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:all": "node dev-all.mjs",
     "deploy:staging": "node scripts/deploy-staging.mjs",
+    "staging:sync": "node scripts/sync-staging.mjs",
     "env:sync-bakutau-wa": "node scripts/sync-bakutau-wa-vercel.mjs",
     "env:sync-github-publish": "node scripts/sync-github-publish-vercel.mjs",
     "env:sync-gdrive-token": "node scripts/sync-gdrive-token-vercel.mjs",

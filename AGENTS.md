@@ -28,6 +28,7 @@ npm run test:e2e         # Playwright E2E
 npm run db:migrate:staging
 npm run db:seed-users:staging
 npm run db:seed:tenants:staging   # tenant unit English + defaultBipra
+npm run staging:sync             # selaraskan staging dengan main (branch+deploy+alias)
 npm run dns:list                 # DNS Cloudflare gehc.page
 ```
 
