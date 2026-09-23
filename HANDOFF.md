@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Staging diselaraskan dengan main (23 Sep 2026)
+
+**Masalah:** visual staging ≠ main. Ternyata **staging tertinggal 60 commit**.
+
+| | Commit |
+|---|---|
+| Main / produksi (`youth.gehc.page`) | `c71ce18` |
+| Staging (`staging-gehcpage.vercel.app`) — sebelum | `5423aa0` (commit main lama, 60 di belakang) |
+| Branch git `staging` — sebelum | `6799436` (114 di belakang) |
+
+**Penyebab:** `npm run deploy:staging` (`scripts/deploy-staging.mjs`) memakai `vercel deploy` dari **working tree** saat itu (bukan dari git) lalu memasang alias — jadi staging adalah snapshot build manual dan tidak ikut ter-update saat main berubah.
+
+**Dilakukan:**
+1. `vercel deploy --yes` (berhasil di percobaan ke-3; 2 percobaan pertama `fetch failed` — jaringan) → alias `staging-gehcpage.vercel.app` dipasang ke deployment itu.
+2. Branch `staging` di-fast-forward: `git push origin main:staging` → kini `staging` = `main` (`c71ce18`).
+3. Verifikasi: `staging/api/version` = **`c71cE18…` (sama dengan main)**; `/`, `/api/benzar/products`, `/subcategories` (16), `/pic` (Milithya — Bendahara Tim Kerja) semua **200**.
+
+**Catatan operasional:** deploy staging bisa gagal `fetch failed` (jaringan) — cukup ulangi `vercel.cmd deploy --yes` beberapa kali, lalu `vercel alias set <url> staging-gehcpage.vercel.app --scope gehc`.
+
+**Opsional (agar tidak drift lagi):** di dashboard Vercel, arahkan domain `staging-gehcpage.vercel.app` ke **branch `staging`** → setiap `git push origin main:staging` akan otomatis memperbarui staging (tanpa deploy manual).
+
 ## Current — BZP: pembayaran kapan pun + “Sudah Bayar” (verifikasi PIC) (23 Sep 2026)
 
 **Masalah:** modal QRIS hanya muncul sekali setelah checkout; begitu ditutup, tidak ada jalan bayar (pesanan menggantung “Menunggu Bayar”).
