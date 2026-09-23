@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia: Bacaan Alkitab + Nats Pembimbing, judul Path EN, alur 2 tahap (23 Sep 2026)
+
+**Goal:** Selaraskan materi dengan dokumen referensi (`Services/Youth/Didaskalia/06.09.26`): tiap hari punya **Bacaan Alkitab** (dari Kitab Fokus) + **Nats Pembimbing**; judul Path Bahasa Inggris; alur tema FF → Khotbah → Kitab Fokus; generasi ke-2 diperkaya diskusi.
+
+**Done (Tahap 1 — deployed `7ce2d4a`):**
+- **Model**: `DidaskaliaPath.bacaanRef` (Bacaan Alkitab); `scriptureRef/Text` = Nats Pembimbing; judul section RHB 4/5 → **"Pertanyaan untuk Refleksi Pribadi"** / **"Pertanyaan untuk Diskusi Kelompok"** (sesuai dokumen asli); `DidaskaliaStudio.generation`.
+- **Prompt AI** (`didaskalia-ai.mjs`): ALUR PEMIKIRAN (FF = jangkar tema → Ringkasan diturunkan dari FF → diarahkan ke Kitab Fokus; tiap metode sesuai % menajamkan FF); judul 7 Path **Bahasa Inggris** catchy; **Bacaan Alkitab = rentang Kitab Fokus dibagi 7 hari**; **Nats Pembimbing** per hari; kesinambungan tema minggu sebelum/sesudah.
+- **Tahap 2**: `POST /api/didaskalia/studio/:ym/:week/enrich` (`generateEnrichedDraft`) — memperkaya draf dengan diskusi internal tanpa membuang struktur; `generation` bertambah tiap draft/enrich.
+- **Studio**: field **Bacaan Alkitab** + **Nats Pembimbing**; tombol **"Perkaya dengan diskusi"**; indikator **"Generasi ke-N"** (peringatan bila >3).
+- **Deck & PDF** menampilkan Bacaan Alkitab + Nats Pembimbing (cover RHB, slide Path, PDF modul/RHB).
+- **Skrip** `scripts/reset-didaskalia-week.mjs` (`--ym --week`, dry-run default, `--apply`).
+
+**Done (Tahap 2 — prod):**
+- Hapus hasil AI **2026-09 minggu ke-4 (27 Sep, "The Call to Serve")**: `paths` → `[]`, `sermon` → kosong. Dipertahankan: Chapter `0`, FF `2 Kor 3:7-11`, Kitab Fokus `1 Timotius 3:1-13`, 3 metode, methodMix, diskusi, DRAFT. Verifikasi: paths 0 · sermon 0.
+
+**Verifikasi:** `lint` bersih · **462 test** hijau · `build` OK · prod `7ce2d4a` (`/` 200).
+
+### Next
+1. Generate ulang 2026-09 pekan 4 dengan aturan baru: **Susun draf** → diskusi internal → **Perkaya dengan diskusi** (maks 2–3×).
+2. Uji deck: `#/materi/pembekalan/2026-09/4`, `#/materi/rhb/2026-09/4`, harian `…/4/1`.
+3. **Backfill divisi** (`scripts/ensure-weekly-divisions.mjs --apply`) masih menunggu izin.
+
 ## Current — Studio Didaskalia: ayat picker, 7 metode, analisa %, diskusi ber-nama (23 Sep 2026)
 
 **Goal:** Permudah Studio: pilih referensi ayat, Chapter angka, 7 metode kanonik (tooltip), analisa metode %, dan Diskusi Internal ber-nama yang dipakai AI.
