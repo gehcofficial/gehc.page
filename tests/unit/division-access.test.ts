@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canSeeDivisionTab, divisionForTab, DIVISION_TAB_IDS } from '../../src/lib/portal-nav-config';
-import { isSuperadminUser, canAccessDivision } from '../../server/lib/division-access.mjs';
+import { isSuperadminUser, canAccessDivision, divisionCodesFor } from '../../server/lib/division-access.mjs';
 
 describe('canSeeDivisionTab (gating panel divisi)', () => {
   it('SUPERADMIN boleh semua panel divisi', () => {
@@ -52,8 +52,11 @@ describe('server division-access', () => {
     expect(await canAccessDivision(admin, 'divisi-ngawur')).toBe(false);
   });
 
-  it('canAccessDivision: user tanpa divisi ditolak (tanpa DB → daftar kosong)', async () => {
+  it('canAccessDivision: divisi tak dikenal ditolak; user null → tanpa divisi', async () => {
     const plain = { id: 'u2', roles: [{ role: 'KOMISI' }] };
-    expect(await canAccessDivision(plain, 'LITURGIA')).toBe(false);
+    // Divisi tak dikenal ditolak tanpa menyentuh DB.
+    expect(await canAccessDivision(plain, 'divisi-ngawur')).toBe(false);
+    // Tanpa authUser → tidak ada divisi.
+    expect(await divisionCodesFor(null)).toEqual([]);
   });
 });

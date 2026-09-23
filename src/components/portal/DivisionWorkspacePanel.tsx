@@ -31,7 +31,6 @@ import {
   Calendar,
   ClipboardList,
   Download,
-  Store,
   Image,
   Newspaper,
   BookOpen,
@@ -39,7 +38,7 @@ import {
   Plus,
   MessageSquareQuote,
 } from 'lucide-react';
-import BenzarStoreTab from './BenzarStoreTab';
+
 import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
@@ -121,7 +120,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'store' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -1076,7 +1075,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               )}
             </div>
 
-            {/* Sub-tabs: Overview | Ibadah (pre/during/post) | Members | Discussions | Drive | Store */}
+            {/* Sub-tabs divisi (BZP punya tab mandiri) */}
             <ScrollTabBar active={detailTab}>
               {([
                 { id: 'overview' as DetailTab, label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
@@ -1094,9 +1093,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   { id: 'gallery' as DetailTab, label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
                   { id: 'kesaksian' as DetailTab, label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
                 ] : []),
-                ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),
-                ...(selectedDiv === 'BENZARPR' ? [{ id: 'store' as DetailTab, label: d.tabStore, icon: <Store className="w-3.5 h-3.5" /> }] : []),
-              ]).map((tab) => (
+                ...((selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') ? [{ id: 'penatalayan' as DetailTab, label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> }] : []),              ]).map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -1719,13 +1716,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               <ManageTestimonials variant="curate" />
             )}
 
-            {/* Store Tab (Benzarpreneurship only) */}
-            {detailTab === 'store' && selectedDiv === 'BENZARPR' && (
-              <div>
-                <BenzarStoreTab eventId={selectedEvent?.id ?? ''} division={selectedDiv} />
-              </div>
-            )}
-          </div>
+                      </div>
         )}
 
         {/*

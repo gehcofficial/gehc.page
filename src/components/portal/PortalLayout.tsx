@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
@@ -14,6 +14,7 @@ import ManageChurchInfo from './ManageChurchInfo';
 import { MediaGuidePanel } from './MediaGuidePanel';
 import { EventWorkspacePanel } from './EventWorkspacePanel';
 import { DivisionWorkspacePanel } from './DivisionWorkspacePanel';
+import BenzarStoreTab from './BenzarStoreTab';
 import { MenteeKesaksianPanel } from './MenteeKesaksianPanel';
 import { WhatsAppChannelsPanel } from './WhatsAppChannelsPanel';
 import { IbadahMingguanPanel } from './IbadahMingguanPanel';
@@ -166,7 +167,7 @@ export const PortalLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Ctrl/Cmd+K — buka pencarian fitur & panduan.
+  // Ctrl/Cmd+K � buka pencarian fitur & panduan.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -284,7 +285,7 @@ export const PortalLayout: React.FC = () => {
     }
   }, [currentRole]);
 
-  // Alias lama: #/portal/<ns>/divisions → divisi pertama yang boleh.
+  // Alias lama: #/portal/<ns>/divisions ? divisi pertama yang boleh.
   useEffect(() => {
     if (activeTab !== 'divisions') return;
     const first = DIVISION_TAB_IDS.find((id) => isTabAllowed(id));
@@ -352,7 +353,7 @@ export const PortalLayout: React.FC = () => {
     setShowSearch(false);
   };
 
-  /** Keluar dari akun (hapus sesi) → landing publik. Berbeda dari "Keluar portal". */
+  /** Keluar dari akun (hapus sesi) ? landing publik. Berbeda dari "Keluar portal". */
   const handleLogoutAccount = async () => {
     if (typeof window !== 'undefined' && !window.confirm(t.portal.common.logoutAccountConfirm)) return;
     try {
@@ -369,7 +370,7 @@ export const PortalLayout: React.FC = () => {
     return <RolePickerScreen />;
   }
 
-  // Login tapi daftar peran kosong (sesi basi/gagal sinkron) — JANGAN tampilkan
+  // Login tapi daftar peran kosong (sesi basi/gagal sinkron) � JANGAN tampilkan
   // sebagai MENTEE grup pertama. Minta muat ulang / login ulang eksplisit.
   if (roleMissing && !isOnboarding) {
     return (
@@ -378,7 +379,7 @@ export const PortalLayout: React.FC = () => {
           <p className="text-base font-black">Sesi tanpa peran</p>
           <p className="text-xs text-[#8C8880] leading-relaxed">
             Kamu login sebagai {authUser?.name || 'jemaat'}, tapi daftar peran belum termuat.
-            Jangan lanjut sebagai tamu — muat ulang dulu. Bila tetap, keluar lalu masuk lagi atau hubungi Komisi.
+            Jangan lanjut sebagai tamu � muat ulang dulu. Bila tetap, keluar lalu masuk lagi atau hubungi Komisi.
           </p>
           <div className="flex gap-2 justify-center">
             <button
@@ -431,7 +432,7 @@ export const PortalLayout: React.FC = () => {
             collapsed ? 'w-[68px]' : 'w-72'
           } ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
-          {/* Zone 1: Header — Logo + Toggle */}
+          {/* Zone 1: Header � Logo + Toggle */}
           <div className={`shrink-0 border-b border-[#D9D7D0]/40 ${collapsed ? 'px-2.5 pt-3 pb-2' : 'px-4 pt-4 pb-3'}`}>
             <div className={`flex items-center ${collapsed ? 'flex-col gap-1' : 'justify-between'}`}>
               {/* Logo */}
@@ -498,7 +499,7 @@ export const PortalLayout: React.FC = () => {
               )}
             </div>
 
-            {/* Collapsed toggle — connected pill shape */}
+            {/* Collapsed toggle � connected pill shape */}
             {collapsed && (
               <div className="flex justify-center mt-1">
                 <button
@@ -511,7 +512,7 @@ export const PortalLayout: React.FC = () => {
               </div>
             )}
 
-            {/* Search — fitur & panduan */}
+            {/* Search � fitur & panduan */}
             <div className={`mt-2 ${collapsed ? 'flex justify-center' : ''}`}>
               <button
                 type="button"
@@ -525,7 +526,7 @@ export const PortalLayout: React.FC = () => {
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left text-[11px] font-semibold truncate">{t.portal.search.placeholder}</span>
-                    <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]">⌘K</kbd>
+                    <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]">?K</kbd>
                   </>
                 )}
               </button>
@@ -624,7 +625,7 @@ export const PortalLayout: React.FC = () => {
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
                   >
-                    {/* Nav button — icon left-aligned */}
+                    {/* Nav button � icon left-aligned */}
                     <button
                       onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 ${
@@ -638,7 +639,7 @@ export const PortalLayout: React.FC = () => {
                       }`} />
                     </button>
 
-                    {/* Flyout panel — appears on hover */}
+                    {/* Flyout panel � appears on hover */}
                     {hoveredItem === item.id && (
                       <div
                         className="absolute left-full top-0 ml-2 z-50 w-56 py-1.5 bg-white rounded-xl border border-[#D9D7D0]/60 shadow-xl shadow-black/10"
@@ -681,7 +682,7 @@ export const PortalLayout: React.FC = () => {
             })}
           </nav>
 
-          {/* Zone 3: Bottom — User Card + Logout (fixed) */}
+          {/* Zone 3: Bottom � User Card + Logout (fixed) */}
           <div className={`shrink-0 border-t border-[#D9D7D0]/60 pb-[calc(1rem+env(safe-area-inset-bottom))] ${collapsed ? 'px-2.5 pt-3' : 'px-4 pt-4'}`}>
             {collapsed ? (
               <div className="flex flex-col items-center gap-2">
@@ -986,7 +987,7 @@ export const PortalLayout: React.FC = () => {
           {DIVISION_TAB_IDS.map((id) => (
             activeTab === id
               ? (myDiv.canSee(id)
-                ? <DivisionWorkspacePanel key={id} division={divisionForTab(id) || undefined} />
+                ? (id === 'div-benzarpr' ? <BenzarStoreTab /> : <DivisionWorkspacePanel division={divisionForTab(id) || undefined} />)
                 : <DivisionAccessDenied key={id} />)
               : null
           ))}

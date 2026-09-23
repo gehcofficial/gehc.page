@@ -305,6 +305,11 @@ const STEPS = [
     label: 'BZP v3: sub-kategori terkelola + varian produk',
     required: true,
   },
+  {
+    script: 'server/_migrate-bzp-v4.cjs',
+    label: 'BZP v4: role jadwal jual + promo spesifik + PIC dari user',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

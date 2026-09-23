@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Package, ShoppingCart, Plus, Edit2, Trash2, Search, Eye, X, Ticket, HeartHandshake,
-  CalendarClock, Settings as SettingsIcon, Megaphone, Check, Loader2, History, Ruler, Wand2,
+  CalendarClock, Settings as SettingsIcon, Megaphone, Check, Loader2, History, Ruler, Wand2, Power, Users,
 } from 'lucide-react';
 import { DriveUploadButton } from './DriveUploadButton';
+import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import { CATEGORY_LABELS, CATEGORY_COLORS, STATUS_LABELS, STATUS_COLORS, FULFILLMENT_LABELS } from '../../types/benzar';
 import type {
   Product, ProductCategory, Order, OrderStatus, Fulfillment, Promo, Campaign, CampaignDonation,
-  SalesShift, BzpSettings, BzpSubcategory, ProductVariant, BzpSizeChart,
+  SalesShift, SalesShiftAssignment, BzpSettings, BzpSubcategory, ProductVariant, BzpSizeChart,
 } from '../../types/benzar';
 
 const CATEGORIES: ProductCategory[] = ['MERCHANDISE', 'FUNDRAISING', 'DONATION'];
@@ -176,6 +177,13 @@ export default function BenzarStoreTab(_props: Props) {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-1">
+                              <button
+                                title={p.isActive ? 'Nonaktifkan (sembunyikan dari katalog)' : 'Aktifkan (tampil di katalog)'}
+                                onClick={() => void toggleActive(p)}
+                                className={`p-1.5 rounded-lg hover:bg-gray-100 ${p.isActive ? 'text-emerald-600' : 'text-[#C9C5BD]'}`}
+                              >
+                                <Power className="w-3.5 h-3.5" />
+                              </button>
                               <button title="Caption WA" onClick={() => void copyCaption(p.id)} className="p-1.5 rounded-lg hover:bg-gray-100"><Megaphone className="w-3.5 h-3.5" /></button>
                               <button title="Edit" onClick={() => { setEditingProduct(p); setShowProductForm(true); }} className="p-1.5 rounded-lg hover:bg-gray-100"><Edit2 className="w-3.5 h-3.5" /></button>
                               <button title="Arsipkan" onClick={() => void archiveProduct(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -345,6 +353,8 @@ export default function BenzarStoreTab(_props: Props) {
       {showPromoForm && (
         <PromoFormModal
           promo={editingPromo}
+          products={products}
+          subcats={subcats}
           onClose={() => { setShowPromoForm(false); setEditingPromo(null); }}
           onSaved={() => { setShowPromoForm(false); setEditingPromo(null); fetchPromos(); notify('Promo tersimpan'); }}
         />
@@ -413,6 +423,17 @@ export default function BenzarStoreTab(_props: Props) {
     </div>
   );
 
+  async function toggleActive(p: Product) {
+    const r = await fetch(`/api/benzar/products/${p.id}`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !p.isActive }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { notify(d.error || 'Gagal mengubah status'); return; }
+    fetchProducts();
+    notify(!p.isActive ? 'Produk diaktifkan' : 'Produk dinonaktifkan');
+  }
+
   async function archiveProduct(id: string) {
     if (!confirm('Arsipkan produk ini? (tidak tampil di katalog)')) return;
     await fetch(`/api/benzar/products/${id}`, { method: 'DELETE', credentials: 'include' });
@@ -455,6 +476,7 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
     subCategory: product?.subCategory || '',
     subcategoryId: product?.subcategoryId || '',
     fundraisingType: product?.fundraisingType || '',
+    isActive: product?.isActive ?? true,
     isOnSale: product?.isOnSale ?? true,
     isPreorder: product?.isPreorder ?? false,
     cogs: product?.cogs ? String(product.cogs) : '',
@@ -475,7 +497,8 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
   const [saved, setSaved] = useState<Product | null>(product);
   const [history, setHistory] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
-  const [busyImg, setBusyImg] = useState(false);
+  const [busyImgs, setBusyImgs] = useState(false);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!saved?.id) return;
@@ -493,6 +516,10 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
     return null;
   })();
 
+  const hasVariantMode = variants.length > 0 || optNames.some((n) => n.trim());
+  const totalVariantStock = variants.reduce((n, v) => n + (Number(v.stock) || 0), 0);
+  const images = (saved?.images || []) as Array<{ driveFileId?: string; url: string; name?: string; caption?: string }>;
+
   const save = async () => {
     setSaving(true);
     try {
@@ -504,6 +531,7 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
         category: form.category,
         subCategory: form.subCategory,
         subcategoryId: form.subcategoryId || null,
+        isActive: form.isActive,
         hasVariants: variants.length > 0,
         options: optNames
           .map((n) => n.trim())
@@ -532,11 +560,10 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
       const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Gagal menyimpan.');
+      setSaved(d.product);
       if (!saved?.id) {
-        setSaved(d.product);
         onSaved('Produk dibuat — silakan unggah foto');
       } else {
-        setSaved(d.product);
         const h = await fetch(`/api/benzar/products/${saved.id}/history`, { credentials: 'include' }).then((x) => (x.ok ? x.json() : { history: [] }));
         setHistory(h.history || []);
         onSaved('Produk diperbarui');
@@ -546,21 +573,46 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
     } finally { setSaving(false); }
   };
 
-  const uploadImage = async (payload: { data: string; mimetype: string; filename: string }) => {
-    if (!saved?.id) return;
-    setBusyImg(true);
+  const fileToDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(f);
+  });
+
+  /** Unggah banyak foto sekaligus (nama file asli dipakai sebagai label). */
+  const uploadMany = async (files: FileList | null) => {
+    if (!saved?.id || !files?.length) return;
+    setBusyImgs(true);
     try {
-      await fetch(`/api/benzar/products/${saved.id}/images`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      for (const f of Array.from(files)) {
+        const data = await fileToDataUrl(f);
+        await fetch(`/api/benzar/products/${saved.id}/images`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: f.name, name: f.name, mimetype: f.type || 'image/jpeg', data }),
+        });
+      }
       const r = await fetch(`/api/benzar/products/${saved.id}`, { credentials: 'include' });
       const d = await r.json();
-      setSaved(d.product);
-    } finally { setBusyImg(false); }
+      if (r.ok) setSaved(d.product);
+    } finally { setBusyImgs(false); }
+  };
+
+  const renameImage = async (idx: number, name: string) => {
+    if (!saved?.id) return;
+    const next = images.map((im, i) => (i === idx ? { ...im, name } : im));
+    setSaved({ ...(saved as Product), images: next as any });
+    await fetch(`/api/benzar/products/${saved.id}/images`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: next }),
+    });
   };
 
   const removeImage = async (idx: number) => {
     if (!saved?.id) return;
-    const images = (saved.images || []).filter((_, i) => i !== idx);
-    const r = await fetch(`/api/benzar/products/${saved.id}/images`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images }) });
+    const next = images.filter((_, i) => i !== idx);
+    const r = await fetch(`/api/benzar/products/${saved.id}/images`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: next }) });
     const d = await r.json();
     if (r.ok) setSaved(d.product);
   };
@@ -580,16 +632,8 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
       const key = JSON.stringify(opts);
       const found = prev.find((p) => JSON.stringify(p.options) === key);
       return found || {
-        id: '',
-        productId: saved?.id || '',
-        sku: null,
-        options: opts,
-        price: null,
-        buyPrice: null,
-        stock: 0,
-        imageFileId: null,
-        isActive: true,
-        position: 0,
+        id: '', productId: saved?.id || '', sku: null, options: opts,
+        price: null, buyPrice: null, stock: 0, imageFileId: null, isActive: true, position: 0,
       } as ProductVariant;
     }));
   };
@@ -600,18 +644,31 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
   const variantCount = optNames
     .map((n) => n.trim())
     .filter(Boolean)
-    .reduce((n, name) => n * String(optValues[name] || '').split(',').map((x) => x.trim()).filter(Boolean).length, 1) || 0;
+    .reduce((n, name) => n * (String(optValues[name] || '').split(',').map((x) => x.trim()).filter(Boolean).length || 1), 1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-black mb-4">{saved?.id ? 'Edit Produk' : 'Tambah Produk'}</h3>
-        <div className="space-y-3">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 px-6 pt-6 pb-3 border-b border-[#EFEDE8]">
+          <h3 className="text-lg font-black">{saved?.id ? 'Edit Produk' : 'Tambah Produk'}</h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <div><label className={label}>Nama Produk</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} /></div>
           <div><label className={label}>Deskripsi</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={`${input} h-20 resize-none`} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={label}>Harga Jual (Rp)</label><input inputMode="numeric" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
-            <div><label className={label}>Stok</label><input inputMode="numeric" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
+            <div>
+              <label className={label}>Stok{hasVariantMode ? ' (otomatis dari varian)' : ''}</label>
+              <input
+                inputMode="numeric"
+                value={hasVariantMode ? String(totalVariantStock) : form.stock}
+                disabled={hasVariantMode}
+                onChange={(e) => setForm({ ...form, stock: e.target.value.replace(/[^0-9]/g, '') })}
+                className={`${input} ${hasVariantMode ? 'bg-[#F0EEE9] text-[#8C8880] cursor-not-allowed' : ''}`}
+                title={hasVariantMode ? 'Stok produk dihitung dari total stok varian' : ''}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={label}>Kategori</label>
@@ -630,7 +687,9 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
                     setOptNames(sc.optionNames);
                     setOptValues((v) => {
                       const m = { ...v };
-                      for (const n of sc.optionNames || []) m[n] = m[n] || (n.toLowerCase().includes('warna') || n.toLowerCase().includes('color') ? 'Putih, Ungu' : 'S, M, L, XL, 2XL, 3XL');
+                      for (const n of sc.optionNames || []) {
+                        m[n] = m[n] || (n.toLowerCase().includes('warna') || n.toLowerCase().includes('color') ? 'Putih, Ungu' : 'S, M, L, XL, 2XL, 3XL');
+                      }
                       return m;
                     });
                   }
@@ -667,6 +726,7 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-[#1B1B1B]"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> <span className={form.isActive ? 'text-emerald-700' : 'text-red-600'}>Aktif (tampil di katalog)</span></label>
             <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.isOnSale} onChange={(e) => setForm({ ...form, isOnSale: e.target.checked })} /> Sedang dijual</label>
             <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.isPreorder} onChange={(e) => setForm({ ...form, isPreorder: e.target.checked })} /> Pre-order</label>
           </div>
@@ -688,18 +748,8 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
             )}
             {optNames.map((n, i) => (
               <div key={i} className="flex gap-2 items-center">
-                <input
-                  value={n}
-                  onChange={(e) => setOptNames((ns) => ns.map((x, xi) => (xi === i ? e.target.value : x)))}
-                  placeholder="Nama opsi (mis. Warna)"
-                  className={`${input} w-36`}
-                />
-                <input
-                  value={optValues[n] || ''}
-                  onChange={(e) => setOptValues((v) => ({ ...v, [n]: e.target.value }))}
-                  placeholder="Nilai dipisah koma: Putih, Ungu"
-                  className={`${input} flex-1`}
-                />
+                <input value={n} onChange={(e) => setOptNames((ns) => ns.map((x, xi) => (xi === i ? e.target.value : x)))} placeholder="Nama opsi (mis. Warna)" className={`${input} w-36`} />
+                <input value={optValues[n] || ''} onChange={(e) => setOptValues((v) => ({ ...v, [n]: e.target.value }))} placeholder="Nilai dipisah koma: Putih, Ungu" className={`${input} flex-1`} />
                 <button onClick={() => setOptNames((ns) => ns.filter((_, xi) => xi !== i))} className="text-[10px] text-red-600 font-bold">×</button>
               </div>
             ))}
@@ -730,10 +780,10 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
                         <td><input inputMode="numeric" value={String(v.stock)} onChange={(e) => patchVariant(i, { stock: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} className="w-16 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
                         <td><input value={v.sku ?? ''} onChange={(e) => patchVariant(i, { sku: e.target.value })} className="w-24 px-2 py-1 rounded border border-[#D9D7D0]" /></td>
                         <td>
-                          <select value={v.imageFileId || ''} onChange={(e) => patchVariant(i, { imageFileId: e.target.value || null })} className="px-2 py-1 rounded border border-[#D9D7D0] max-w-[120px]">
+                          <select value={v.imageFileId || ''} onChange={(e) => patchVariant(i, { imageFileId: e.target.value || null })} className="px-2 py-1 rounded border border-[#D9D7D0] max-w-[140px]">
                             <option value="">—</option>
-                            {(saved?.images || []).map((im: any) => (
-                              <option key={im.url} value={im.driveFileId || im.url}>{im.caption || im.name || 'gambar'}</option>
+                            {images.map((im) => (
+                              <option key={im.url} value={im.driveFileId || im.url}>{im.name || im.caption || 'gambar'}</option>
                             ))}
                           </select>
                         </td>
@@ -745,26 +795,46 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
             )}
           </div>
 
-          {/* Images */}
+          {/* Foto produk */}
           <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-            <p className={label}>Foto produk (multi)</p>
+            <div className="flex items-center justify-between">
+              <p className={label}>Foto produk (bisa banyak sekaligus)</p>
+              {saved?.id && (
+                <button onClick={() => fileRef.current?.click()} disabled={busyImgs} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1 disabled:opacity-50">
+                  {busyImgs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Unggah foto
+                </button>
+              )}
+            </div>
             {!saved?.id ? (
-              <p className="text-[10px] text-[#8C8880] italic">Simpan produk dulu, lalu unggah foto.</p>
+              <p className="text-[10px] text-[#8C8880] italic">Simpan produk dulu, lalu unggah foto (bisa pilih beberapa sekaligus).</p>
             ) : (
               <>
-                <div className="flex flex-wrap gap-2">
-                  {(saved.images || []).map((im, i) => (
-                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#EFEDE8]">
-                      <img src={im.url} alt="" className="w-full h-full object-cover" />
-                      <button onClick={() => void removeImage(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-bl-lg px-1 text-[10px]">×</button>
-                    </div>
-                  ))}
-                  {(saved.images || []).length === 0 && <span className="text-[10px] text-[#8C8880] italic">Belum ada foto.</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <DriveUploadButton label="Unggah foto" onFile={uploadImage} />
-                  {busyImg && <Loader2 className="w-4 h-4 animate-spin text-[#8C8880]" />}
-                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => { const fl = e.target.files; e.target.value = ''; await uploadMany(fl); }}
+                />
+                {images.length === 0 ? (
+                  <p className="text-[10px] text-[#8C8880] italic">Belum ada foto. Nama file dipakai sebagai label agar mudah dipilih untuk varian.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {images.map((im, i) => (
+                      <div key={im.url} className="flex items-center gap-2">
+                        <img src={im.url} alt="" className="w-12 h-12 rounded-lg object-cover border border-[#EFEDE8]" />
+                        <input
+                          value={im.name || ''}
+                          onChange={(e) => void renameImage(i, e.target.value)}
+                          placeholder="nama file / label"
+                          className={`${input} flex-1`}
+                        />
+                        <button onClick={() => void removeImage(i)} className="text-[10px] text-red-600 font-bold">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -780,7 +850,8 @@ function ProductFormModal({ product, subcats, onClose, onSaved }: { product: Pro
             </div>
           )}
         </div>
-        <div className="flex gap-3 mt-6">
+
+        <div className="shrink-0 px-6 py-4 border-t border-[#EFEDE8] flex gap-3 bg-white rounded-b-3xl">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Tutup</button>
           <button onClick={() => void save()} disabled={saving || !form.name} className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">
             {saving ? 'Menyimpan...' : 'Simpan'}
@@ -904,24 +975,43 @@ function FileLinks({ orderId }: { orderId: string }) {
 }
 
 // ---------------- Promo form ----------------
-function PromoFormModal({ promo, onClose, onSaved }: { promo: Promo | null; onClose: () => void; onSaved: () => void }) {
+function PromoFormModal({ promo, products, subcats, onClose, onSaved }: { promo: Promo | null; products: Product[]; subcats: BzpSubcategory[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     code: promo?.code || '',
     name: promo?.name || '',
-    type: (promo?.type || 'PERCENT') as 'PERCENT' | 'AMOUNT',
+    type: (promo?.type || 'AMOUNT') as 'PERCENT' | 'AMOUNT',
     value: promo?.value != null ? String(promo.value) : '',
-    audience: (promo?.audience || 'ALL') as 'INTERNAL' | 'GUEST' | 'ALL',
+    audience: (promo?.audience || 'ALL') as 'ALL' | 'GUEST' | 'MEMBER' | 'INTERNAL',
+    scope: (promo?.scope || 'GLOBAL') as 'GLOBAL' | 'CATEGORY' | 'SUBCATEGORY' | 'PRODUCT',
     minSpend: promo?.minSpend != null ? String(promo.minSpend) : '',
+    maxDiscount: promo?.maxDiscount != null ? String(promo.maxDiscount) : '',
+    autoApply: promo?.autoApply ?? false,
     isActive: promo?.isActive ?? true,
   });
+  const [targets, setTargets] = useState<string[]>(() => {
+    const t = (promo as unknown as { targetIds?: unknown })?.targetIds;
+    return Array.isArray(t) ? t.map(String) : [];
+  });
   const [saving, setSaving] = useState(false);
+
+  const toggleTarget = (v: string) =>
+    setTargets((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
 
   const save = async () => {
     setSaving(true);
     try {
       const body = {
-        code: form.code, name: form.name, type: form.type, value: Number(form.value) || 0,
-        audience: form.audience, minSpend: Number(form.minSpend) || 0, isActive: form.isActive,
+        code: form.code,
+        name: form.name,
+        type: form.type,
+        value: Number(form.value) || 0,
+        audience: form.audience,
+        scope: form.scope,
+        targetIds: form.scope === 'GLOBAL' ? [] : targets,
+        autoApply: form.autoApply,
+        maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : null,
+        minSpend: Number(form.minSpend) || 0,
+        isActive: form.isActive,
       };
       const url = promo ? `/api/benzar/promos/${promo.id}` : '/api/benzar/promos';
       const r = await fetch(url, { method: promo ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -933,34 +1023,90 @@ function PromoFormModal({ promo, onClose, onSaved }: { promo: Promo | null; onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-black mb-4">{promo ? 'Edit Promo' : 'Promo Baru'}</h3>
-        <div className="space-y-3">
-          <div><label className={label}>Kode</label><input value={form.code} disabled={!!promo} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className={`${input} disabled:bg-[#FAF9F5]`} /></div>
-          <div><label className={label}>Nama</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={label}>Tipe</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })} className={input}>
-                <option value="PERCENT">Persen (%)</option>
-                <option value="AMOUNT">Nominal (Rp)</option>
-              </select>
-            </div>
-            <div><label className={label}>Nilai</label><input inputMode="numeric" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={label}>Audiens</label>
-              <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value as any })} className={input}>
-                <option value="ALL">Semua</option>
-                <option value="INTERNAL">Internal (login)</option>
-                <option value="GUEST">Tamu</option>
-              </select>
-            </div>
-            <div><label className={label}>Min. belanja</label><input inputMode="numeric" value={form.minSpend} onChange={(e) => setForm({ ...form, minSpend: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
-          </div>
-          <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Aktif</label>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 px-6 pt-6 pb-3 border-b border-[#EFEDE8]">
+          <h3 className="text-lg font-black">{promo ? 'Edit Promo' : 'Promo Baru'}</h3>
         </div>
-        <div className="flex gap-3 mt-6">
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={label}>Kode</label><input value={form.code} disabled={!!promo} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className={`${input} disabled:bg-[#FAF9F5]`} /></div>
+            <div><label className={label}>Nama</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} /></div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={label}>Tipe potongan</label>
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })} className={input}>
+                <option value="AMOUNT">Nominal (Rp)</option>
+                <option value="PERCENT">Persen (%)</option>
+              </select>
+            </div>
+            <div><label className={label}>{form.type === 'PERCENT' ? 'Persen (%)' : 'Nominal (Rp)'}</label><input inputMode="numeric" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
+          </div>
+
+          <div><label className={label}>Audiens</label>
+            <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value as any })} className={input}>
+              <option value="ALL">Semua orang</option>
+              <option value="MEMBER">Jemaat (login)</option>
+              <option value="GUEST">Tamu (tanpa login)</option>
+              <option value="INTERNAL">Internal (Komisi/Tim Kerja)</option>
+            </select>
+          </div>
+
+          <div><label className={label}>Berlaku untuk</label>
+            <select value={form.scope} onChange={(e) => { setForm({ ...form, scope: e.target.value as any }); setTargets([]); }} className={input}>
+              <option value="GLOBAL">Semua produk</option>
+              <option value="PRODUCT">Produk tertentu</option>
+              <option value="CATEGORY">Kategori tertentu</option>
+              <option value="SUBCATEGORY">Sub-kategori tertentu</option>
+            </select>
+          </div>
+
+          {form.scope === 'PRODUCT' && (
+            <div className="rounded-xl border border-[#EFEDE8] p-3 max-h-40 overflow-y-auto space-y-1">
+              {products.filter((p) => p.isActive).map((p) => (
+                <label key={p.id} className="flex items-center gap-2 text-xs text-[#1B1B1B]">
+                  <input type="checkbox" checked={targets.includes(p.id)} onChange={() => toggleTarget(p.id)} /> {p.name}
+                </label>
+              ))}
+              {products.filter((p) => p.isActive).length === 0 && <p className="text-[11px] text-[#8C8880] italic">Belum ada produk aktif.</p>}
+            </div>
+          )}
+          {form.scope === 'CATEGORY' && (
+            <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-1">
+              {CATEGORIES.map((c) => (
+                <label key={c} className="flex items-center gap-2 text-xs text-[#1B1B1B]">
+                  <input type="checkbox" checked={targets.includes(c)} onChange={() => toggleTarget(c)} /> {CATEGORY_LABELS[c]}
+                </label>
+              ))}
+            </div>
+          )}
+          {form.scope === 'SUBCATEGORY' && (
+            <div className="rounded-xl border border-[#EFEDE8] p-3 max-h-40 overflow-y-auto space-y-1">
+              {subcats.filter((s) => s.isActive).map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-xs text-[#1B1B1B]">
+                  <input type="checkbox" checked={targets.includes(s.slug)} onChange={() => toggleTarget(s.slug)} /> {s.nameId} / {s.nameEn}
+                </label>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={label}>Min. belanja (Rp)</label><input inputMode="numeric" value={form.minSpend} onChange={(e) => setForm({ ...form, minSpend: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
+            <div><label className={label}>Maks. potongan (Rp, opsional)</label><input inputMode="numeric" value={form.maxDiscount} onChange={(e) => setForm({ ...form, maxDiscount: e.target.value.replace(/[^0-9]/g, '') })} className={input} /></div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-[#1B1B1B]"><input type="checkbox" checked={form.autoApply} onChange={(e) => setForm({ ...form, autoApply: e.target.checked })} /> Terapkan otomatis (tanpa kode)</label>
+            <label className="flex items-center gap-1.5 text-xs text-[#8C8880]"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Aktif</label>
+          </div>
+          <p className="text-[10px] text-[#8C8880]">
+            Contoh promo jemaat: Kode <b>JEMAAT25</b> · Nominal Rp25.000 · Audiens <b>Jemaat (login)</b> · Produk tertentu (Kaos) · Terapkan otomatis.
+          </p>
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-[#EFEDE8] flex gap-3 bg-white rounded-b-3xl">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Batal</button>
           <button onClick={() => void save()} disabled={saving || !form.code || !form.name} className="flex-1 py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan…' : 'Simpan'}</button>
         </div>
@@ -1023,29 +1169,38 @@ function ShiftFormModal({ shift, onClose, onSaved }: { shift: SalesShift | null;
     endTime: shift?.endTime || '12:00',
     notes: shift?.notes || '',
   });
-  const [roles, setRoles] = useState<Array<{ role: string; qty: string }>>(
-    (shift?.roles || []).map((r) => ({ role: r.role, qty: String(r.qty) })) || [{ role: 'Kasir', qty: '1' }],
-  );
   const [savedId, setSavedId] = useState<string | null>(shift?.id || null);
-  const [assign, setAssign] = useState({ name: '', role: '' });
-  const [assignments, setAssignments] = useState(shift?.assignments || []);
-  const [saving, setSaving] = useState(false);
+  const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
+  const [assignments, setAssignments] = useState<SalesShiftAssignment[]>(shift?.assignments || []);
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [newRole, setNewRole] = useState('');
 
-  const refresh = async (id: string) => {
+  const loadRoles = useCallback(async () => {
+    const r = await fetch('/api/benzar/sales-roles', { credentials: 'include' });
+    const d = r.ok ? await r.json() : { roles: [] };
+    setRoles((d.roles || []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })));
+  }, []);
+
+  const refresh = useCallback(async (id: string) => {
     const r = await fetch('/api/benzar/sales-shifts', { credentials: 'include' });
-    const d = await r.json();
+    const d = r.ok ? await r.json() : { shifts: [] };
     const found = (d.shifts || []).find((s: SalesShift) => s.id === id);
     if (found) setAssignments(found.assignments || []);
-  };
+  }, []);
+
+  useEffect(() => { void loadRoles(); }, [loadRoles]);
+
+  const searchPeople = useCallback(async (q: string) => {
+    const r = await fetch(`/api/benzar/sales-people?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+    const d = r.ok ? await r.json() : { people: [] };
+    return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
+  }, []);
 
   const save = async () => {
-    setSaving(true);
+    setBusy('save');
     try {
-      const body = {
-        title: form.title, date: form.date, startTime: form.startTime, endTime: form.endTime,
-        notes: form.notes,
-        roles: roles.filter((r) => r.role.trim()).map((r) => ({ role: r.role.trim(), qty: Number(r.qty) || 1 })),
-      };
+      const body = { title: form.title, date: form.date, startTime: form.startTime, endTime: form.endTime, notes: form.notes };
       const url = savedId ? `/api/benzar/sales-shifts/${savedId}` : '/api/benzar/sales-shifts';
       const r = await fetch(url, { method: savedId ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
@@ -1054,14 +1209,25 @@ function ShiftFormModal({ shift, onClose, onSaved }: { shift: SalesShift | null;
       setAssignments(d.shift.assignments || []);
       onSaved();
     } catch (e) { alert(e instanceof Error ? e.message : 'Gagal.'); }
-    finally { setSaving(false); }
+    finally { setBusy(null); }
   };
 
-  const addAssignment = async () => {
-    if (!savedId || !assign.name.trim() || !assign.role.trim()) return;
-    await fetch(`/api/benzar/sales-shifts/${savedId}/assignments`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(assign) });
-    setAssign({ name: '', role: '' });
-    await refresh(savedId);
+  const addPeople = async (roleId: string) => {
+    if (!savedId) { alert('Simpan shift dulu.'); return; }
+    const userIds = picked[roleId] || [];
+    if (!userIds.length) return;
+    setBusy(`add-${roleId}`);
+    try {
+      const r = await fetch(`/api/benzar/sales-shifts/${savedId}/assignments/bulk`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salesRoleIds: [roleId], userIds }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal menambah petugas.');
+      setPicked((m) => ({ ...m, [roleId]: [] }));
+      await refresh(savedId);
+    } catch (e) { alert(e instanceof Error ? e.message : 'Gagal.'); }
+    finally { setBusy(null); }
   };
 
   const setAssignStatus = async (id: string, status: string) => {
@@ -1074,57 +1240,84 @@ function ShiftFormModal({ shift, onClose, onSaved }: { shift: SalesShift | null;
     if (savedId) await refresh(savedId);
   };
 
+  const addRole = async () => {
+    if (!newRole.trim()) return;
+    await fetch('/api/benzar/sales-roles', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newRole.trim() }) });
+    setNewRole('');
+    await loadRoles();
+  };
+
+  const byRole = (roleId: string) => assignments.filter((a) => a.salesRoleId === roleId);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-black mb-4">{shift ? 'Kelola Shift' : 'Shift Penjualan Baru'}</h3>
-        <div className="space-y-3">
-          <div><label className={label}>Judul</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={input} /></div>
-          <div className="grid grid-cols-3 gap-2">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 px-6 pt-6 pb-3 border-b border-[#EFEDE8]">
+          <h3 className="text-lg font-black">{shift ? 'Kelola Jadwal Jual' : 'Jadwal Jual Baru'}</h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div><label className={label}>Judul</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={input} /></div>
             <div><label className={label}>Tanggal</label><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={input} /></div>
             <div><label className={label}>Mulai</label><input type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className={input} /></div>
             <div><label className={label}>Selesai</label><input type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className={input} /></div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className={label}>Role dibutuhkan</label>
-              <button onClick={() => setRoles((r) => [...r, { role: '', qty: '1' }])} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
-            </div>
-            {roles.map((r, i) => (
-              <div key={i} className="flex gap-2 mb-1.5">
-                <input value={r.role} onChange={(e) => setRoles((rs) => rs.map((x, xi) => xi === i ? { ...x, role: e.target.value } : x))} placeholder="mis. Kasir" className={`${input} flex-1`} />
-                <input inputMode="numeric" value={r.qty} onChange={(e) => setRoles((rs) => rs.map((x, xi) => xi === i ? { ...x, qty: e.target.value.replace(/[^0-9]/g, '') } : x))} className={`${input} w-16`} />
-                <button onClick={() => setRoles((rs) => rs.filter((_, xi) => xi !== i))} className="text-[10px] text-red-600 font-bold">×</button>
-              </div>
-            ))}
-          </div>
           <div><label className={label}>Catatan</label><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={`${input} h-16 resize-none`} /></div>
-          <button onClick={() => void save()} disabled={saving || !form.title} className="w-full py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan…' : 'Simpan Shift'}</button>
+
+          <button onClick={() => void save()} disabled={busy === 'save' || !form.title} className="w-full py-2.5 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-sm font-bold disabled:opacity-50">
+            {busy === 'save' ? 'Menyimpan…' : savedId ? 'Simpan Perubahan' : 'Simpan Shift'}
+          </button>
 
           {savedId && (
-            <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-              <p className={label}>Tim penjualan (assignment)</p>
-              {assignments.length === 0 && <p className="text-[10px] text-[#8C8880] italic">Belum ada yang ditugaskan.</p>}
-              {assignments.map((a) => (
-                <div key={a.id} className="flex items-center gap-2">
-                  <span className="text-xs flex-1 truncate">{a.name} · {a.role}</span>
-                  <select value={a.status} onChange={(e) => void setAssignStatus(a.id, e.target.value)} className="text-[10px] px-2 py-1 rounded-lg border border-[#D9D7D0]">
-                    <option value="INVITED">Diundang</option>
-                    <option value="CONFIRMED">Konfirmasi</option>
-                    <option value="DECLINED">Tolak</option>
-                  </select>
-                  <button onClick={() => void removeAssignment(a.id)} className="text-[10px] text-red-600 font-bold">×</button>
+            <div className="space-y-3">
+              <p className={`${label} flex items-center gap-1.5`}><Users className="w-3.5 h-3.5" /> Petugas per role (cari Komisi & Tim Kerja)</p>
+              {roles.map((role) => (
+                <div key={role.id} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black text-[#1B1B1B]">{role.name}</p>
+                    <span className="text-[10px] text-[#8C8880]">{byRole(role.id).length} orang</span>
+                  </div>
+                  <SearchableMultiSelect
+                    values={picked[role.id] || []}
+                    onSearch={searchPeople}
+                    onChange={(vals) => setPicked((m) => ({ ...m, [role.id]: vals }))}
+                    exclude={byRole(role.id).map((a) => a.userId || '').filter(Boolean)}
+                    placeholder="Cari nama (Komisi/Tim Kerja)…"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => void addPeople(role.id)} disabled={busy === `add-${role.id}` || !(picked[role.id] || []).length} className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-40">
+                      {busy === `add-${role.id}` ? 'Menambah…' : 'Tambah petugas'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {byRole(role.id).map((a) => (
+                      <span key={a.id} className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full ${a.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700' : a.status === 'DECLINED' ? 'bg-red-50 text-red-600' : 'bg-[#FAF9F5] text-[#8C8880]'}`}>
+                        {a.name}
+                        <select value={a.status} onChange={(e) => void setAssignStatus(a.id, e.target.value)} className="bg-transparent text-[10px]">
+                          <option value="INVITED">Diundang</option>
+                          <option value="CONFIRMED">Konfirmasi</option>
+                          <option value="DECLINED">Tolak</option>
+                        </select>
+                        <button onClick={() => void removeAssignment(a.id)} className="text-red-600">×</button>
+                      </span>
+                    ))}
+                    {byRole(role.id).length === 0 && <span className="text-[10px] text-[#8C8880] italic">Belum ada petugas.</span>}
+                  </div>
                 </div>
               ))}
+              {roles.length === 0 && <p className="text-[11px] text-[#8C8880] italic">Daftar role belum ada — tambahkan di bawah.</p>}
               <div className="flex gap-2">
-                <input value={assign.name} onChange={(e) => setAssign((s) => ({ ...s, name: e.target.value }))} placeholder="Nama" className={`${input} flex-1`} />
-                <input value={assign.role} onChange={(e) => setAssign((s) => ({ ...s, role: e.target.value }))} placeholder="Role" className={`${input} w-28`} />
-                <button onClick={() => void addAssignment()} className="px-3 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold">Tambah</button>
+                <input value={newRole} onChange={(e) => setNewRole(e.target.value)} placeholder="Tambah role baru…" className={`${input} flex-1`} />
+                <button onClick={() => void addRole()} className="px-3 rounded-xl border border-[#D9D7D0] text-xs font-bold">Tambah role</button>
               </div>
             </div>
           )}
         </div>
-        <button onClick={onClose} className="w-full mt-4 py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Tutup</button>
+
+        <div className="shrink-0 px-6 py-4 border-t border-[#EFEDE8] flex gap-3 bg-white rounded-b-3xl">
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl border border-[#D9D7D0] text-sm font-bold">Tutup</button>
+        </div>
       </div>
     </div>
   );
@@ -1132,7 +1325,9 @@ function ShiftFormModal({ shift, onClose, onSaved }: { shift: SalesShift | null;
 
 // ---------------- Settings ----------------
 function SettingsPanel({ settings, onSaved, notify }: { settings: BzpSettings | null; onSaved: () => void; notify: (m: string) => void }) {
-  const [pics, setPics] = useState<Array<{ name: string; phone: string }>>(settings?.picPhones?.length ? settings.picPhones : [{ name: '', phone: '' }]);
+  const [picIds, setPicIds] = useState<string[]>(Array.isArray(settings?.picUserIds) ? settings.picUserIds.map(String) : []);
+  const [picPrefs, setPicPrefs] = useState<Array<{ name: string; phone: string }>>([]);
+  const [schedule, setSchedule] = useState<Array<{ name: string; phone: string; role: string }>>([]);
   const [deliveryFee, setDeliveryFee] = useState(settings?.deliveryFee != null ? String(settings.deliveryFee) : '0');
   const [waGroupUrl, setWaGroupUrl] = useState(settings?.waGroupUrl || '');
   const [qrisImage, setQrisImage] = useState(settings?.qris?.imageUrl || '');
@@ -1141,7 +1336,7 @@ function SettingsPanel({ settings, onSaved, notify }: { settings: BzpSettings | 
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setPics(settings?.picPhones?.length ? settings.picPhones : [{ name: '', phone: '' }]);
+    setPicIds(Array.isArray(settings?.picUserIds) ? settings.picUserIds.map(String) : []);
     setDeliveryFee(settings?.deliveryFee != null ? String(settings.deliveryFee) : '0');
     setWaGroupUrl(settings?.waGroupUrl || '');
     setQrisImage(settings?.qris?.imageUrl || '');
@@ -1149,13 +1344,26 @@ function SettingsPanel({ settings, onSaved, notify }: { settings: BzpSettings | 
     setQrisInstructions(settings?.qris?.instructions || '');
   }, [settings]);
 
+  useEffect(() => {
+    fetch('/api/benzar/pic', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { pics: [], schedule: [] }))
+      .then((d) => { setPicPrefs(d.pics || []); setSchedule(d.schedule || []); })
+      .catch(() => {});
+  }, [settings]);
+
+  const searchPicPeople = useCallback(async (q: string) => {
+    const r = await fetch('/api/benzar/sales-people?q=' + encodeURIComponent(q), { credentials: 'include' });
+    const d = r.ok ? await r.json() : { people: [] };
+    return (d.people || []).map((p: { id: string; name: string; phone?: string }) => ({ value: p.id, label: p.name, hint: p.phone || '' }));
+  }, []);
+
   const save = async () => {
     setSaving(true);
     try {
       const r = await fetch('/api/benzar/settings', {
         method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          picPhones: pics.filter((p) => p.phone.trim()).slice(0, 3),
+          picUserIds: picIds.slice(0, 3),
           deliveryFee: Number(deliveryFee) || 0,
           waGroupUrl,
           qris: { imageUrl: qrisImage, merchantName: qrisMerchant, instructions: qrisInstructions },
@@ -1172,19 +1380,32 @@ function SettingsPanel({ settings, onSaved, notify }: { settings: BzpSettings | 
   return (
     <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-4 max-w-2xl">
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className={label}>Nomor PIC BZP (maks 3)</label>
-          <button onClick={() => setPics((p) => [...p, { name: '', phone: '' }].slice(0, 3))} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
+        <label className={label}>PIC BZP (maks 3) � nama & nomor dari database</label>
+        <SearchableMultiSelect
+          values={picIds}
+          selectedOptions={picPrefs.map((p) => ({ value: (p as any).id || p.name, label: p.name, hint: p.phone }))}
+          onSearch={searchPicPeople}
+          onChange={(vals) => setPicIds(vals.slice(0, 3))}
+          max={3}
+          placeholder="Cari nama PIC (Komisi/Tim Kerja)�"
+        />
+        <div className="mt-2 space-y-1">
+          {picPrefs.map((p) => (
+            <p key={p.name} className="text-[11px] text-[#1B1B1B]">
+              <b>{p.name}</b>{(p as any).role ? <span className="text-[#8C8880]"> � {(p as any).role}</span> : null} � <span className="font-mono">{p.phone || '(nomor belum diisi)'}</span>
+            </p>
+          ))}
+          {picPrefs.length === 0 && <p className="text-[11px] text-[#8C8880] italic">Belum ada PIC � default Bendahara Tim Kerja.</p>}
         </div>
-        {pics.map((p, i) => (
-          <div key={i} className="flex gap-2 mb-1.5">
-            <input value={p.name} onChange={(e) => setPics((ps) => ps.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x))} placeholder="Nama" className={`${input} flex-1`} />
-            <input value={p.phone} onChange={(e) => setPics((ps) => ps.map((x, xi) => xi === i ? { ...x, phone: e.target.value.replace(/[^0-9+]/g, '') } : x))} placeholder="0812…" className={`${input} flex-1`} />
-            {pics.length > 1 && <button onClick={() => setPics((ps) => ps.filter((_, xi) => xi !== i))} className="text-[10px] text-red-600 font-bold">×</button>}
+        {schedule.length > 0 && (
+          <div className="mt-2 rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-2">
+            <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Penanggung jawab Jadwal Jual terdekat</p>
+            {schedule.map((s, i) => (
+              <p key={i} className="text-[11px] text-[#1B1B1B]">{s.name} <span className="text-[#8C8880]">� {s.role}</span>{s.phone ? ` � ${s.phone}` : ''}</p>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+        )}
+      </div>      <div className="grid grid-cols-2 gap-3">
         <div><label className={label}>Ongkir default (Rp)</label><input inputMode="numeric" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value.replace(/[^0-9]/g, ''))} className={input} /></div>
         <div><label className={label}>Link grup WA (opsional)</label><input value={waGroupUrl} onChange={(e) => setWaGroupUrl(e.target.value)} placeholder="https://chat.whatsapp.com/…" className={input} /></div>
       </div>

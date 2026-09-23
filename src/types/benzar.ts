@@ -143,7 +143,13 @@ export interface Promo {
   name: string;
   type: 'PERCENT' | 'AMOUNT';
   value: number;
-  audience: 'INTERNAL' | 'GUEST' | 'ALL';
+  audience: 'INTERNAL' | 'GUEST' | 'ALL' | 'MEMBER';
+  /** GLOBAL | CATEGORY | SUBCATEGORY | PRODUCT */
+  scope?: 'GLOBAL' | 'CATEGORY' | 'SUBCATEGORY' | 'PRODUCT';
+  /** Sasaran sesuai scope: productId[] | kategori[] | slug sub-kategori[] */
+  targetIds?: string[] | null;
+  autoApply?: boolean;
+  maxDiscount?: number | null;
   minSpend: number;
   isActive: boolean;
   startsAt?: string | null;
@@ -199,6 +205,7 @@ export interface SalesShift {
 export interface BzpSettings {
   id: string;
   picPhones?: Array<{ name: string; phone: string }> | null;
+  picUserIds?: string[] | null;
   deliveryFee: number;
   qris?: Partial<QRISInfo> | null;
   waGroupUrl?: string | null;

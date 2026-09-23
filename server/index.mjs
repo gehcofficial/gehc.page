@@ -1,4 +1,4 @@
-Ôªøimport 'dotenv/config';
+import 'dotenv/config';
 import crypto from 'node:crypto';
 import express from 'express';
 import { getDriveMode, listFolders, listFiles, getFileStream, testConnection as testDrive, getFolderChain, listFolderTree } from './gdrive.mjs';
@@ -170,7 +170,7 @@ const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
 
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(async (err) => {
-  console.error(`[api] ${req.method} ${req.path} ‚Üí`, err.message);
+  console.error(`[api] ${req.method} ${req.path} ?`, err.message);
   if (isTransientDbError(err)) {
     await resetPrisma();
     return res.status(503).json({ error: 'Database sedang reconnect. Muat ulang sebentar.', retry: true });
@@ -302,7 +302,7 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-/** POST /api/auth/forgot-password ‚Äî minta reset token (username atau email) */
+/** POST /api/auth/forgot-password ó minta reset token (username atau email) */
 app.post('/api/auth/forgot-password', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -326,7 +326,7 @@ app.post('/api/auth/forgot-password', wrap(async (req, res) => {
   res.json(payload);
 }));
 
-/** POST /api/auth/reset-password ‚Äî set password baru via token */
+/** POST /api/auth/reset-password ó set password baru via token */
 app.post('/api/auth/reset-password', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -742,7 +742,7 @@ app.delete('/api/institutions/:id', requireRole(...KOMISION_CORE), wrap(async (r
   const inst = await prisma.institution.findUnique({ where: { id: req.params.id } });
   if (!inst) return res.status(404).json({ error: 'Kampus tidak ditemukan.' });
   const used = await prisma.user.count({ where: { institutionId: inst.id } }).catch(() => 0);
-  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil ‚Äî ganti dulu profilnya.` });
+  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil ó ganti dulu profilnya.` });
   await prisma.institutionSuggestion.updateMany({
     where: { institutionId: inst.id },
     data: { institutionId: null },
@@ -959,7 +959,7 @@ app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
 });
 
-// GET /api/users/search?q=... ‚Äî search users for @mention
+// GET /api/users/search?q=... ó search users for @mention
 app.get('/api/users/search', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -999,7 +999,7 @@ app.get('/api/users/search', wrap(async (req, res) => {
   }
 }));
 
-// GET /api/users ‚Äî list all users (for admin panels)
+// GET /api/users ó list all users (for admin panels)
 app.get('/api/users', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -1014,7 +1014,7 @@ app.get('/api/users', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(asy
 }));
 
 // ---------- Notifications ----------
-// GET /api/notifications ‚Äî get current user's notifications
+// GET /api/notifications ó get current user's notifications
 app.get('/api/notifications', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -1059,7 +1059,7 @@ app.get('/api/notifications', wrap(async (req, res) => {
   }
 }));
 
-// PATCH /api/notifications/:id/read ‚Äî mark as read
+// PATCH /api/notifications/:id/read ó mark as read
 app.patch('/api/notifications/:id/read', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -1076,7 +1076,7 @@ app.patch('/api/notifications/:id/read', wrap(async (req, res) => {
   }
 }));
 
-// POST /api/notifications/read-all ‚Äî mark all as read
+// POST /api/notifications/read-all ó mark all as read
 app.post('/api/notifications/read-all', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -1094,7 +1094,7 @@ app.post('/api/notifications/read-all', wrap(async (req, res) => {
 }));
 
 // ---------- Division Analytics ----------
-// GET /api/events/:eventId/analytics ‚Äî get analytics for an event
+// GET /api/events/:eventId/analytics ó get analytics for an event
 app.get('/api/events/:eventId/analytics', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -1154,7 +1154,7 @@ app.get('/api/events/:eventId/analytics', wrap(async (req, res) => {
   }
 }));
 
-// GET /api/events/:eventId/divisions/:div/analytics ‚Äî get analytics for a specific division
+// GET /api/events/:eventId/divisions/:div/analytics ó get analytics for a specific division
 app.get('/api/events/:eventId/divisions/:div/analytics', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -1302,7 +1302,7 @@ app.get('/api/drive/files', wrap(async (req, res) => {
   }
 }));
 
-// Galeri grup publik ‚Äî kurasi khusus: tamu tidak perlu menelusuri parent
+// Galeri grup publik ó kurasi khusus: tamu tidak perlu menelusuri parent
 // [MENTOR]; policy dievaluasi pada folder tujuan (tag GROUP terdekat menang).
 app.get('/api/drive/group-files/:groupName', wrap(async (req, res) => {
   if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
@@ -1323,7 +1323,7 @@ app.get('/api/drive/group-files/:groupName', wrap(async (req, res) => {
     );
     if (!target) return res.status(404).json({ error: `Folder galeri untuk grup "${groupName}" belum dibuat.` });
 
-    // 3) Policy pada folder tujuan ‚Äî nearest tag wins, GROUP mengizinkan tamu baca.
+    // 3) Policy pada folder tujuan ó nearest tag wins, GROUP mengizinkan tamu baca.
     const chain = await getFolderChain(target.id);
     const verdict = await resolveAccess(chain, req.authUser);
     if (!verdict.allowed) return res.status(403).json({ error: verdict.reason });
@@ -1363,7 +1363,7 @@ app.get('/api/drive/test', wrap(async (req, res) => {
 }));
 
 // Versi kode yang sedang berjalan (untuk cek sinkronisasi deploy).
-// Vercel mengisi VERCEL_GIT_COMMIT_SHA saat build; lokal ‚Üí 'dev'.
+// Vercel mengisi VERCEL_GIT_COMMIT_SHA saat build; lokal ? 'dev'.
 const SERVER_STARTED_AT = new Date().toISOString();
 app.get('/api/version', wrap(async (_req, res) => {
   res.json({
@@ -1374,22 +1374,22 @@ app.get('/api/version', wrap(async (_req, res) => {
 }));
 
 // Redeploy Production via Deploy Hook (URL rahasia hanya di env server).
-// Dipakai setelah sync env (token dkk) ‚Äî perubahan env butuh redeploy agar aktif.
+// Dipakai setelah sync env (token dkk) ó perubahan env butuh redeploy agar aktif.
 app.post('/api/admin/redeploy', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
   const hook = process.env.VERCEL_DEPLOY_HOOK_URL || '';
   if (!hook) {
     return res.status(400).json({
-      error: 'VERCEL_DEPLOY_HOOK_URL belum dipasang. Buat di Vercel ‚Üí Settings ‚Üí Git ‚Üí Deploy Hooks (branch main), lalu tambah sebagai env Production.',
+      error: 'VERCEL_DEPLOY_HOOK_URL belum dipasang. Buat di Vercel ? Settings ? Git ? Deploy Hooks (branch main), lalu tambah sebagai env Production.',
     });
   }
   const r = await fetch(hook, { method: 'POST' });
   if (!r.ok) {
     return res.status(502).json({ error: `Deploy hook menolak (HTTP ${r.status}). Cek URL hook di Vercel.` });
   }
-  res.json({ ok: true, message: 'Redeploy Production dimulai. Tunggu ¬±1 menit lalu Cek lagi.' });
+  res.json({ ok: true, message: 'Redeploy Production dimulai. Tunggu ±1 menit lalu Cek lagi.' });
 }));
 
-// Status token OAuth pemilik (untuk unggah ‚Äî beda dari service account baca).
+// Status token OAuth pemilik (untuk unggah ó beda dari service account baca).
 // Hijau = unggah jalan; merah + authFailed = consent ulang (lihat runbook).
 app.get('/api/drive/token-status', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
   const { hasUserDriveToken, getUserDrive, isDriveAuthError } = await import('./lib/gdrive-user-oauth.mjs');
@@ -1420,7 +1420,7 @@ app.get('/api/drive/policy', wrap(async (req, res) => {
   res.json({ matrix: matrixForUser(req.authUser), authenticated: Boolean(req.authUser) });
 }));
 
-// Audit sinkronisasi DB ‚Üî Drive: grup & subdivisi pantatugas vs folder aktual
+// Audit sinkronisasi DB ? Drive: grup & subdivisi pantatugas vs folder aktual
 app.get('/api/drive/audit', requirePlatformRoot(), wrap(async (_req, res) => {
   const { runDriveAudit } = await import('./lib/drive-audit.mjs');
   const audit = await runDriveAudit();
@@ -1448,7 +1448,7 @@ function dedupeGroups(allGroups) {
   return [...seen.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
-// Lengkapi avatar mentor/comentor dari User ‚Äî mentor sering tak punya baris GroupMember.
+// Lengkapi avatar mentor/comentor dari User ó mentor sering tak punya baris GroupMember.
 async function attachBatchAvatars(prisma, groups) {
   const ids = [...new Set(groups.flatMap((g) => (g.batches || []).flatMap((b) => [b.mentorUserId, b.comentorUserId])).filter(Boolean))];
   if (!ids.length) return groups;
@@ -1463,7 +1463,7 @@ async function attachBatchAvatars(prisma, groups) {
   return groups;
 }
 
-// Kolom anggota yang aman untuk publik ‚Äî TANPA email/telepon/catatan (PII).
+// Kolom anggota yang aman untuk publik ó TANPA email/telepon/catatan (PII).
 const PUBLIC_MEMBER_SELECT = {  id: true,
   groupId: true,
   batchPeriod: true,
@@ -1478,7 +1478,7 @@ const PUBLIC_MEMBER_SELECT = {  id: true,
   user: { select: { id: true, avatar: true, name: true } },
 };
 
-// Family tree semua grup + batch regenerasi (PUBLIK ‚Äî minimisasi PII).
+// Family tree semua grup + batch regenerasi (PUBLIK ó minimisasi PII).
 app.get('/api/db/groups', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -1492,7 +1492,7 @@ app.get('/api/db/groups', wrap(async (req, res) => {
   res.json({ groups: await attachBatchAvatars(prisma, dedupeGroups(allGroups)) });
 }));
 
-// Versi lengkap (termasuk email/telepon/catatan anggota) ‚Äî hanya pengguna login.
+// Versi lengkap (termasuk email/telepon/catatan anggota) ó hanya pengguna login.
 app.get('/api/db/groups/full', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -1520,7 +1520,7 @@ app.get('/api/db/groups/:id/batches', requireRole(), wrap(async (req, res) => {
   res.json({ batches });
 }));
 
-// Anggota/mentee per grup & batch (PUBLIK ‚Äî minimisasi PII).
+// Anggota/mentee per grup & batch (PUBLIK ó minimisasi PII).
 app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -1541,7 +1541,7 @@ app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   res.json({ members });
 }));
 
-/** GET /api/portal/groups/:id/roster ‚Äî roster ber-nomor untuk Portal Mentor (auth).
+/** GET /api/portal/groups/:id/roster ó roster ber-nomor untuk Portal Mentor (auth).
  *  Hanya mentor grup tsb atau Komisi/SA. Endpoint publik grup tetap tanpa nomor. */
 app.get('/api/portal/groups/:id/roster', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -1589,7 +1589,7 @@ app.get('/api/db/groups/:id/attendance', requireRole(), wrap(async (req, res) =>
   res.json({ records });
 }));
 
-// Sinkronisasi data family tree dari frontend/portal ‚Üí TiDB (upsert per id)
+// Sinkronisasi data family tree dari frontend/portal ? TiDB (upsert per id)
 app.post('/api/db/sync-batches', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -1987,7 +1987,7 @@ function driveWriteEnabled() {
   return process.env.GDRIVE_WRITE === '1' || hasUserDriveToken();
 }
 
-// GET /api/events/:eventId/divisions/:div/drive ‚Äî list files in division's Drive folder
+// GET /api/events/:eventId/divisions/:div/drive ó list files in division's Drive folder
 app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -2010,7 +2010,7 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
     let targetId = division.driveFolderId;
     let targetName = null;
     if (wantSub) {
-      // RBAC by subfolder: 01 mentor-only, 02 all, 03 beyonders ‚Äî topeng aktif bila ada
+      // RBAC by subfolder: 01 mentor-only, 02 all, 03 beyonders ó topeng aktif bila ada
       const effRoles = req.activeRole ? [req.activeRole] : (req.authUser?.roles || []).map((r) => r.role);
       const isPriv = effRoles.includes('SUPERADMIN') || effRoles.includes('KOMISI') || effRoles.includes('COMMITTEE') || effRoles.includes('BPMJ');
       const isMentor = effRoles.includes('MENTOR') || effRoles.includes('CO_MENTOR');
@@ -2025,7 +2025,7 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
       let found = subs.find((f) => String(f.name || '').toLowerCase() === wantSub.toLowerCase());
       if (!found) found = subs.find((f) => String(f.name || '').toLowerCase().includes(wantSub.toLowerCase().slice(0, 6)));
       if (!found) {
-        return res.json({ files: [], folders: [], folderId: division.driveFolderId, subfolder: wantSub, hint: 'Subfolder belum ada ‚Äî upload pertama akan buat otomatis.' });
+        return res.json({ files: [], folders: [], folderId: division.driveFolderId, subfolder: wantSub, hint: 'Subfolder belum ada ó upload pertama akan buat otomatis.' });
       }
       targetId = found.id;
       targetName = found.name;
@@ -2050,7 +2050,7 @@ app.get('/api/events/:eventId/divisions/:div/drive', wrap(async (req, res) => {
   }
 }));
 
-// POST /api/events/:eventId/divisions/:div/drive/folder ‚Äî create subfolder
+// POST /api/events/:eventId/divisions/:div/drive/folder ó create subfolder
 app.post('/api/events/:eventId/divisions/:div/drive/folder', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -2079,7 +2079,7 @@ app.post('/api/events/:eventId/divisions/:div/drive/folder', requireDivision((re
   }
 }));
 
-// POST /api/events/:eventId/divisions/:div/drive/upload ‚Äî upload file
+// POST /api/events/:eventId/divisions/:div/drive/upload ó upload file
 app.post('/api/events/:eventId/divisions/:div/drive/upload', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -2149,13 +2149,13 @@ app.post('/api/events/:eventId/divisions/:div/drive/upload', requireDivision((re
     console.error('[drive] upload failed:', e);
     const msg = String(e.message || '');
     if (msg.includes('insufficientPermissions') || msg.includes('File not found')) {
-      return res.status(403).json({ error: `Drive akses ditolak: pastikan Service Account ${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? 'sudah di-share sebagai Editor ke folder Drive' : 'GDRIVE belum dikonfigurasi'} ‚Äî ${msg.slice(0,120)}` });
+      return res.status(403).json({ error: `Drive akses ditolak: pastikan Service Account ${process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? 'sudah di-share sebagai Editor ke folder Drive' : 'GDRIVE belum dikonfigurasi'} ó ${msg.slice(0,120)}` });
     }
     res.status(500).json({ error: `Gagal upload: ${msg.slice(0,300)}` });
   }
 }));
 
-// DELETE /api/drive/files/:fileId ‚Äî delete file/folder
+// DELETE /api/drive/files/:fileId ó delete file/folder
 app.delete('/api/drive/files/:fileId', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
   if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
   if (!driveWriteEnabled()) return res.status(403).json({ error: 'Delete belum diaktifkan (set GDRIVE_WRITE=1 atau hubungkan token Drive pemilik).' });
@@ -2168,7 +2168,7 @@ app.delete('/api/drive/files/:fileId', requireRole('SUPERADMIN', 'KOMISI'), wrap
   }
 }));
 
-// GET /api/drive/files/:fileId ‚Äî get file info
+// GET /api/drive/files/:fileId ó get file info
 app.get('/api/drive/files/:fileId', wrap(async (req, res) => {
   if (!(await guardDriveFolder(req, res, req.params.fileId))) return;
 
@@ -2185,7 +2185,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL tidak tersedia.' });
 
-  // Jalankan perintah DDL per baris ‚Äî aman untuk tabel baru.
+  // Jalankan perintah DDL per baris ó aman untuk tabel baru.
   const ddl = [
     "CREATE TABLE IF NOT EXISTS `EventProgram` (`id` VARCHAR(64) NOT NULL,`tenant_id` VARCHAR(16) NOT NULL,`slug` VARCHAR(60) NOT NULL,`name` VARCHAR(160) NOT NULL,`description` TEXT NULL,`status` VARCHAR(16) NOT NULL DEFAULT 'PLANNING',`start_date` DATETIME(3) NULL,`end_date` DATETIME(3) NULL,`drive_folder_id` VARCHAR(128) NULL,`gmeet_link` VARCHAR(512) NULL,`created_by_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, UNIQUE INDEX `EventProgram_slug_key`(`slug`), INDEX `EventProgram_tenant_id_idx`(`tenant_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `EventDivision` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`division` VARCHAR(24) NOT NULL,`drive_folder_id` VARCHAR(128) NULL,`extra_user_ids` JSON NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), UNIQUE INDEX `EventDivision_event_id_division_key`(`event_id`, `division`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
@@ -2202,7 +2202,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
     "ALTER TABLE `EventDivision` ADD COLUMN `published_at` DATETIME(3) NULL AFTER `reject_reason`;",
     "ALTER TABLE `EventDivision` ADD COLUMN `content_item_id` VARCHAR(64) NULL AFTER `published_at`, ADD UNIQUE INDEX `EventDivision_content_item_id_key`(`content_item_id`);",
     "ALTER TABLE `EventDivision` ADD INDEX `EventDivision_approval_status_idx`(`approval_status`);",
-    // Phase 1: New tables ‚Äî EventDivisionMember, EventApprovalLog
+    // Phase 1: New tables ó EventDivisionMember, EventApprovalLog
     "CREATE TABLE IF NOT EXISTS `EventDivisionMember` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`role` VARCHAR(16) NOT NULL DEFAULT 'MEMBER',`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), UNIQUE INDEX `EventDivisionMember_event_division_id_user_id_key`(`event_division_id`, `user_id`), INDEX `EventDivisionMember_user_id_idx`(`user_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `EventApprovalLog` (`id` VARCHAR(64) NOT NULL,`event_division_id` VARCHAR(64) NOT NULL,`action` VARCHAR(20) NOT NULL,`actor_id` VARCHAR(64) NOT NULL,`actor_role` VARCHAR(30) NOT NULL,`comment` TEXT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX `EventApprovalLog_event_division_id_idx`(`event_division_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "ALTER TABLE `EventDivisionMember` ADD CONSTRAINT `EventDivisionMember_event_division_id_fkey` FOREIGN KEY (`event_division_id`) REFERENCES `EventDivision`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;",
@@ -2261,7 +2261,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
       await prisma.$executeRawUnsafe(stmt);
       applied++;
     } catch (e) {
-      // Tabel/index sudah ada ‚Üí skip
+      // Tabel/index sudah ada ? skip
       if (!String(e.message || '').includes('already exists')) {
         errors.push({ stmt: stmt.slice(0, 80) + '...', error: String(e.message || e).slice(0, 120) });
       } else {
@@ -2283,7 +2283,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
           tenantId: 'tenant-youth',
           slug,
           name: 'BAKU TAU 4.0',
-          description: 'Program Kerja & Event Tahunan GEHC 2026 ‚Äî 6 divisi, kick-off & diskusi aktif.',
+          description: 'Program Kerja & Event Tahunan GEHC 2026 ó 6 divisi, kick-off & diskusi aktif.',
           status: 'ACTIVE',
           startDate: new Date('2026-01-01'),
           endDate: new Date('2026-12-31'),
@@ -2312,7 +2312,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
           eventId: ev.id,
           title: 'Kick-Off BAKU TAU 4.0',
           scheduledAt: new Date('2026-01-15T09:00:00+07:00'),
-          notes: 'Pertemuan awal seluruh divisi ‚Äî preview program tahunan.',
+          notes: 'Pertemuan awal seluruh divisi ó preview program tahunan.',
           createdById: 'usr-tech',
         },
       });
@@ -2320,9 +2320,9 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
         data: {
           id: `evtmt-${slug}-welcome-night`,
           eventId: ev.id,
-          title: 'BAKU TAU 4.0 ‚Äî Bakudapa di Rantau',
+          title: 'BAKU TAU 4.0 ó Bakudapa di Rantau',
           scheduledAt: new Date('2026-09-12T15:00:00+07:00'),
-          notes: 'Malam penyambutan mahasiswa baru ‚Äî GMIM Eben Haezer Cikarang, 15.00 WIB',
+          notes: 'Malam penyambutan mahasiswa baru ó GMIM Eben Haezer Cikarang, 15.00 WIB',
           createdById: 'usr-tech',
         },
       });
@@ -2335,7 +2335,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
   res.json(result);
 }));
 
-// POST /api/seed/events ‚Äî seed BAKU TAU 4.0 via raw SQL (idempotent)
+// POST /api/seed/events ó seed BAKU TAU 4.0 via raw SQL (idempotent)
 app.post('/api/seed/events', requireRole('SUPERADMIN'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2355,7 +2355,7 @@ app.post('/api/seed/events', requireRole('SUPERADMIN'), wrap(async (req, res) =>
       `INSERT INTO EventProgram (id, tenant_id, slug, name, description, status, start_date, end_date, created_by_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
       'evt-baku-tau-4-0', 'tenant-youth', 'baku-tau-4-0', 'BAKU TAU 4.0',
-      'Program Kerja & Event Tahunan GEHC 2026 ‚Äî 6 divisi, kick-off & diskusi aktif.',
+      'Program Kerja & Event Tahunan GEHC 2026 ó 6 divisi, kick-off & diskusi aktif.',
       'ACTIVE', '2026-01-01', '2026-12-31', 'usr-tech'
     );
 
@@ -2374,7 +2374,7 @@ app.post('/api/seed/events', requireRole('SUPERADMIN'), wrap(async (req, res) =>
        VALUES (?, ?, ?, ?, ?, ?, NOW(3))`,
       'evtmt-baku-tau-4-0-kickoff', 'evt-baku-tau-4-0',
       'Kick-Off BAKU TAU 4.0', '2026-01-15T09:00:00',
-      'Pertemuan awal seluruh divisi ‚Äî preview program tahunan.', 'usr-tech'
+      'Pertemuan awal seluruh divisi ó preview program tahunan.', 'usr-tech'
     );
 
     res.json({ ok: true, seeded: { event: 'evt-baku-tau-4-0', divisions: divisions.length, meetings: 1 } });
@@ -2394,7 +2394,7 @@ function slugify(text) {
 }
 
 // Helper: divisi yang bisa diakses user berdasarkan struktur_members
-/** 5 Panca Tugas + Benzarpreneurship ‚Äî sinkron dengan src/lib/pantatugas.ts */
+/** 5 Panca Tugas + Benzarpreneurship ó sinkron dengan src/lib/pantatugas.ts */
 const EVENT_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA', 'BENZARPR'];
 const EVENT_KINDS = ['UMUM', 'KHUSUS', 'INTERNAL', 'REKREASIONAL'];
 const EVENT_KIND_ALIASES = { RECURRING: 'REKREASIONAL', REKREASI: 'REKREASIONAL' };
@@ -2409,24 +2409,24 @@ async function canSeeEventDivision(authUser, division) {
   const roles = (authUser.roles || []).map((r) => r.role);
   if (roles.includes('SUPERADMIN') || roles.includes('KOMISI')) return true;
 
-  // COMMITTEE ‚Äî bedakan BOD vs PIC
+  // COMMITTEE ó bedakan BOD vs PIC
   if (roles.includes('COMMITTEE')) {
     const prisma = getPrisma();
     const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
     const smDiv = (sm?.division || '').toUpperCase();
-    // BOD = struktur division TIMKERJA (atau kosong) ‚Üí semua event
+    // BOD = struktur division TIMKERJA (atau kosong) ? semua event
     if (!smDiv || smDiv === 'TIMKERJA') return true;
-    // PIC ‚Üí scoped
+    // PIC ? scoped
     return smDiv === division;
   }
 
-  // MENTOR / CO_MENTOR / MENTEE ‚Üí cek struktur
+  // MENTOR / CO_MENTOR / MENTEE ? cek struktur
   const prisma = getPrisma();
   const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
   return (sm?.division || '').toUpperCase() === division;
 }
 
-// GET /api/events ‚Äî daftar event (filtered by visibility)
+// GET /api/events ó daftar event (filtered by visibility)
 app.get('/api/events', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2438,7 +2438,7 @@ app.get('/api/events', wrap(async (req, res) => {
       include: { divisions: true, meetings: true, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
-    // Fallback: Prisma model belum ada ‚Üí raw SQL
+    // Fallback: Prisma model belum ada ? raw SQL
     try {
       const rows = await prisma.$queryRawUnsafe(
         `SELECT e.*,
@@ -2481,7 +2481,7 @@ app.get('/api/events', wrap(async (req, res) => {
         })) : [],
       }));
     } catch (sqlErr) {
-      // Tabel belum ada ‚Üí return empty (bukan error)
+      // Tabel belum ada ? return empty (bukan error)
       const msg = String(sqlErr.message || sqlErr);
       if (msg.includes("doesn't exist") || msg.includes('does not exist') || msg.includes('Table') || msg.includes('Undefined table')) {
         return res.json({ events: [] });
@@ -2528,7 +2528,7 @@ app.get('/api/events', wrap(async (req, res) => {
   res.json({ events: accessible });
 }));
 
-// POST /api/events ‚Äî buat event baru + provision folder
+// POST /api/events ó buat event baru + provision folder
 app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2641,9 +2641,9 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   res.status(201).json({ event: ev, provisioned });
 }));
 
-// POST /api/events/:id/divisions ‚Äî aktifkan satu divisi pada event yang sudah ada.
+// POST /api/events/:id/divisions ó aktifkan satu divisi pada event yang sudah ada.
 // Tanpa ini, event lama (mis. BAKU TAU) tidak punya divisi sama sekali dan seluruh
-// ruang kerja divisi ‚Äî termasuk tab Check-in ‚Äî tidak bisa dijangkau dari UI.
+// ruang kerja divisi ó termasuk tab Check-in ó tidak bisa dijangkau dari UI.
 app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2681,7 +2681,7 @@ app.post('/api/events/:id/divisions', requireRole('SUPERADMIN', 'KOMISI', 'COMMI
   res.status(201).json({ division: { ...created, driveFolderId }, driveFolderId });
 }));
 
-// Pastikan SEMUA divisi punya workspace untuk event ini (idempoten) ‚Äî auto akses mingguan.
+// Pastikan SEMUA divisi punya workspace untuk event ini (idempoten) ó auto akses mingguan.
 app.post('/api/events/:id/divisions/ensure', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2711,7 +2711,7 @@ registerDidaskaliaStudioRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerEventQuestionRoutes(app, { wrap });
 
-// GET /api/events/:id ‚Äî detail event + divisi.
+// GET /api/events/:id ó detail event + divisi.
 // Jika id tidak ketemu, next() agar GET /api/events/:slug (events-public) yang menangani.
 app.get('/api/events/:id', wrap(async (req, res, next) => {
   const prisma = getPrisma();
@@ -2778,7 +2778,7 @@ app.get('/api/events/:id', wrap(async (req, res, next) => {
   });
 }));
 
-// PATCH /api/events/:id ‚Äî edit meta + divisions
+// PATCH /api/events/:id ó edit meta + divisions
 app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -2886,7 +2886,7 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   res.json({ event: ev, canEdit: true });
 }));
 
-// DELETE /api/events/:id ‚Äî hapus event KHUSUS bila belum punya data.
+// DELETE /api/events/:id ó hapus event KHUSUS bila belum punya data.
 // Diblokir bila ada pendaftar/check-in/jawaban/galeri/konten terbit/warta/deliverable.
 app.delete('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -2913,7 +2913,7 @@ app.delete('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (r
     deliverables && `${deliverables} deliverable rencana`,
   ].filter(Boolean);
   if (blockers.length) {
-    return res.status(400).json({ error: `Masih punya ${blockers.join(', ')} ‚Äî arsipkan saja.` });
+    return res.status(400).json({ error: `Masih punya ${blockers.join(', ')} ó arsipkan saja.` });
   }
 
   // Bersihkan baris milik event (draf konten, assignment soal, rapat, diskusi, divisi, tautan).
@@ -2933,7 +2933,7 @@ app.delete('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (r
   res.json({ ok: true });
 }));
 
-// POST /api/events/:id/divisions/:div/updates ‚Äî tambah diskusi/progres (supports replies)
+// POST /api/events/:id/divisions/:div/updates ó tambah diskusi/progres (supports replies)
 app.post('/api/events/:id/divisions/:div/updates', requireDivision((req) => req.params.div), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3031,7 +3031,7 @@ app.post('/api/events/:id/divisions/:div/updates', requireDivision((req) => req.
   res.status(201).json({ update: { ...update, authorName } });
 }));
 
-// GET /api/events/:id/divisions/:div/updates ‚Äî baca diskusi (threaded)
+// GET /api/events/:id/divisions/:div/updates ó baca diskusi (threaded)
 app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3047,7 +3047,7 @@ app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Resolve author names ‚Äî satu query, bukan findUnique per id (TiDB memutus
+  // Resolve author names ó satu query, bukan findUnique per id (TiDB memutus
   // koneksi pada rentetan query sekuensial).
   const authorIds = [...new Set(updates.map((u) => u.authorId))];
   const authorMap = new Map();
@@ -3073,7 +3073,7 @@ app.get('/api/events/:id/divisions/:div/updates', wrap(async (req, res) => {
   res.json({ updates: threaded, total: updates.length });
 }));
 
-// POST /api/events/:id/meetings ‚Äî tambah rapat
+// POST /api/events/:id/meetings ó tambah rapat
 app.post('/api/events/:id/meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3096,7 +3096,7 @@ app.post('/api/events/:id/meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMIT
   res.status(201).json({ meeting });
 }));
 
-// GET /api/events/:id/meetings ‚Äî daftar rapat
+// GET /api/events/:id/meetings ó daftar rapat
 app.get('/api/events/:id/meetings', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3105,7 +3105,7 @@ app.get('/api/events/:id/meetings', requireRole(), wrap(async (req, res) => {
   res.json({ meetings });
 }));
 
-// GET /api/events/meetings/:mid/ics ‚Äî generate .ics file
+// GET /api/events/meetings/:mid/ics ó generate .ics file
 app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3136,7 +3136,7 @@ import {
   isKomisiOrSuperadmin,
 } from './division-rbac.mjs';
 
-// POST /api/events/:eventId/divisions/:div/submit ‚Äî submit division for review
+// POST /api/events/:eventId/divisions/:div/submit ó submit division for review
 app.post('/api/events/:eventId/divisions/:div/submit', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -3167,7 +3167,7 @@ app.post('/api/events/:eventId/divisions/:div/submit', requireDivision((req) => 
   res.json({ division: updated });
 }));
 
-// POST /api/events/:eventId/divisions/:div/approve ‚Äî approve division
+// POST /api/events/:eventId/divisions/:div/approve ó approve division
 app.post('/api/events/:eventId/divisions/:div/approve', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -3196,7 +3196,7 @@ app.post('/api/events/:eventId/divisions/:div/approve', requireDivision((req) =>
   res.json({ division: updated });
 }));
 
-// POST /api/events/:eventId/divisions/:div/reject ‚Äî reject division
+// POST /api/events/:eventId/divisions/:div/reject ó reject division
 app.post('/api/events/:eventId/divisions/:div/reject', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -3226,7 +3226,7 @@ app.post('/api/events/:eventId/divisions/:div/reject', requireDivision((req) => 
   res.json({ division: updated });
 }));
 
-// POST /api/events/:eventId/divisions/:div/publish ‚Äî publish division to website
+// POST /api/events/:eventId/divisions/:div/publish ó publish division to website
 app.post('/api/events/:eventId/divisions/:div/publish', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -3248,9 +3248,9 @@ app.post('/api/events/:eventId/divisions/:div/publish', requireDivision((req) =>
     const contentData = {
       tenantId: division.event.tenantId,
       type: 'ACTIVITY',
-      title: `${division.event.name} ‚Äî ${div}`,
+      title: `${division.event.name} ó ${div}`,
       subtitle: division.event.description || '',
-      category: `Program Kerja ‚Äî ${div}`,
+      category: `Program Kerja ó ${div}`,
       schedule: division.event.startDate ? new Date(division.event.startDate).toLocaleDateString('id-ID') : '',
       location: 'GEHC Youth Portal',
       targetAudience: 'Seluruh Pemuda & Jemaat',
@@ -3290,7 +3290,7 @@ app.post('/api/events/:eventId/divisions/:div/publish', requireDivision((req) =>
   res.json({ division: updated, contentItemId });
 }));
 
-// GET /api/events/:eventId/divisions/:div/approval-logs ‚Äî get approval history
+// GET /api/events/:eventId/divisions/:div/approval-logs ó get approval history
 app.get('/api/events/:eventId/divisions/:div/approval-logs', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -3343,7 +3343,7 @@ app.get('/api/events/:eventId/divisions/:div/members', wrap(async (req, res) => 
   });
 }));
 
-// POST /api/events/:eventId/divisions/:div/members ‚Äî add/update member
+// POST /api/events/:eventId/divisions/:div/members ó add/update member
 app.post('/api/events/:eventId/divisions/:div/members', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const roles = (req.authUser.roles || []).map((r) => r.role);
@@ -3381,7 +3381,7 @@ app.post('/api/events/:eventId/divisions/:div/members', requireDivision((req) =>
   res.json({ member });
 }));
 
-// DELETE /api/events/:eventId/divisions/:div/members/:userId ‚Äî remove member
+// DELETE /api/events/:eventId/divisions/:div/members/:userId ó remove member
 app.delete('/api/events/:eventId/divisions/:div/members/:userId', requireDivision((req) => req.params.div), wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const roles = (req.authUser.roles || []).map((r) => r.role);
@@ -3445,7 +3445,7 @@ app.post('/api/db/attendance', wrap(async (req, res) => {
   res.json({ saved });
 }));
 
-// Struktur organisasi (publik ‚Äî dipakai landing pohon pantatugas)
+// Struktur organisasi (publik ó dipakai landing pohon pantatugas)
 app.get('/api/db/struktur', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3686,7 +3686,7 @@ app.patch('/api/jethro/placement/batch/:id/bulk-approve', requireRole(...KOMISIO
   res.json(result);
 }));
 
-/** Commit batch ‚Üí create RoleAssignments */
+/** Commit batch ? create RoleAssignments */
 app.post('/api/jethro/placement/batch/:id/commit', requireRole(...KOMISION), wrap(async (req, res) => {
   const result = await commitPlacementBatch({ batchId: req.params.id, committedBy: req.authUser.id });
   res.json(result);
@@ -3780,7 +3780,7 @@ app.post('/api/auth/local', wrap(async (req, res) => {
   }
 }));
 
-// ---------- Join Flow: Waitlist ¬∑ Invites ¬∑ People ¬∑ GiftTest ----------
+// ---------- Join Flow: Waitlist ∑ Invites ∑ People ∑ GiftTest ----------
 
 const wlPublic = (w) => ({
   id: w.id,
@@ -3803,7 +3803,7 @@ const wlPublic = (w) => ({
   createdAt: w.createdAt,
 });
 
-// Tahap A ‚Äî daftar cepat (publik, tanpa login)
+// Tahap A ó daftar cepat (publik, tanpa login)
 app.post('/api/waitlist', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3840,7 +3840,7 @@ app.get('/api/waitlist/by-token/:token', wrap(async (req, res) => {
   res.json({ entry: wlPublic(w) });
 }));
 
-// Tahap B ‚Äî lengkapi profil via token
+// Tahap B ó lengkapi profil via token
 app.patch('/api/waitlist/by-token/:token', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -3875,10 +3875,10 @@ app.get('/api/waitlist', requireRole(...KOMISION), wrap(async (req, res) => {
   res.json({ entries: entries.map(wlPublic) });
 }));
 
-// Panel: assign ke rumah (mentee baru) ‚Äî deprecated, gunakan Onboarding Pipeline
+// Panel: assign ke rumah (mentee baru) ó deprecated, gunakan Onboarding Pipeline
 app.post('/api/waitlist/:id/assign', requireRole(...KOMISION_CORE), wrap(async (_req, res) => {
   res.status(410).json({
-    error: 'Waitlist assign sudah tidak dipakai. Gunakan Onboarding Pipeline ‚Üí Jethro Placement Review.',
+    error: 'Waitlist assign sudah tidak dipakai. Gunakan Onboarding Pipeline ? Jethro Placement Review.',
     redirect: 'onboarding',
   });
 }));
@@ -4005,7 +4005,7 @@ app.post('/api/join', wrap(async (req, res) => {
   }
 }));
 
-// Join via invite ‚Äî akun LOKAL (email + password)
+// Join via invite ó akun LOKAL (email + password)
 app.post('/api/join/local', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -4091,7 +4091,7 @@ app.patch('/api/me', wrap(async (req, res) => {
   res.json({ ok: true, name: u.name });
 }));
 
-// ---------- Registrasi mandiri via Google (publik, PENDING ‚Üí approval Komisi) ----------
+// ---------- Registrasi mandiri via Google (publik, PENDING ? approval Komisi) ----------
 const registrationOpen = () => process.env.REGISTRATION_OPEN !== 'false';
 
 app.post('/api/register/google', wrap(async (req, res) => {
@@ -4385,7 +4385,7 @@ app.get('/api/events/upcoming', wrap(async (req, res) => {
 }));
 
 // ---------- OAuth Redirect Flow ala AISIGHT (prompt=select_account) ----------
-const oauthStates = new Map(); // state ‚Üí intent (TTL 10 menit)
+const oauthStates = new Map(); // state ? intent (TTL 10 menit)
 function newOAuthState(data) {
   const s = crypto.randomBytes(16).toString('hex');
   oauthStates.set(s, { ...data, exp: Date.now() + 10 * 60 * 1000 });
@@ -4508,13 +4508,13 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     res.status(400).send(
       `<html><body style="font-family:system-ui;background:#111;color:#fff;text-align:center;padding-top:80px">
        <h2>Login gagal</h2><p style="color:#f87171">${msg}</p>
-       <a href="/#/beyonders" style="color:#FF416C">‚Üê Kembali ke situs</a></body></html>`
+       <a href="/#/beyonders" style="color:#FF416C">? Kembali ke situs</a></body></html>`
     );
 
   try {
     if (req.query.error) throw new Error(req.query.error === 'access_denied' ? 'Login dibatalkan.' : String(req.query.error));
     const intent = takeOAuthState(String(req.query.state || ''));
-    if (!intent) throw new Error('Sesi otorisasi kedaluwarsa ‚Äî coba tombol Google lagi.');
+    if (!intent) throw new Error('Sesi otorisasi kedaluwarsa ó coba tombol Google lagi.');
 
     const { google } = await import('googleapis');
     const oauth2 = new google.auth.OAuth2({
@@ -4539,7 +4539,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
         `<html><body style="font-family:system-ui;background:#111;color:#fff;text-align:center;padding-top:80px">
          <h2>Drive terhubung</h2>
          <p>Token Google One disimpan. Jalankan <code>npm run drive:seed-visuals</code> di terminal.</p>
-         <a href="/#/leaders" style="color:#FF416C">‚Üê Kembali</a></body></html>`
+         <a href="/#/leaders" style="color:#FF416C">? Kembali</a></body></html>`
       );
     }
 
@@ -4557,7 +4557,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     if (intent.mode === 'register') {
       if (!registrationOpen()) throw new Error('Pendaftaran akun baru sedang ditutup.');
       const dup = await prisma.user.findFirst({ where: { OR: [{ id: idp.sub }, { email }] }, include: { roles: true } });
-      if (dup && (dup.roles || []).length > 0) throw new Error('Email sudah terdaftar ‚Äî silakan Masuk dengan Google.');
+      if (dup && (dup.roles || []).length > 0) throw new Error('Email sudah terdaftar ó silakan Masuk dengan Google.');
 
       const trusted = isSuperadminEmail(email);
       status = trusted ? 'ACTIVE' : 'PENDING';
@@ -4683,7 +4683,7 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
       return res.status(400).json({ error: 'Role tidak valid.' });
     }
     if (role === 'SUPERADMIN') {
-      return res.status(403).json({ error: 'Role SUPERADMIN deprecated ‚Äî gunakan Platform Operator / Admin Grant.' });
+      return res.status(403).json({ error: 'Role SUPERADMIN deprecated ó gunakan Platform Operator / Admin Grant.' });
     }
     const dup = await prisma.userRole.findFirst({
       where: { userId: req.params.id, role, groupId: req.body?.groupId ?? null },
@@ -4742,12 +4742,12 @@ const MEMBER_STATUS_VALUES = ['ACTIVE', 'ALUMNI', 'NONAKTIF'];
 
 function formatChurchRequestSummary(req, kolomById = new Map()) {
   const parts = [];
-  if (req.changeName && req.requestedName) parts.push(`Nama ‚Üí ${req.requestedName}`);
-  if (req.changeBipra && req.requestedBipra) parts.push(`BIPRA ‚Üí ${req.requestedBipra}`);
+  if (req.changeName && req.requestedName) parts.push(`Nama ? ${req.requestedName}`);
+  if (req.changeBipra && req.requestedBipra) parts.push(`BIPRA ? ${req.requestedBipra}`);
   if (req.changeKolom) {
-    parts.push(`Kolom ‚Üí ${req.requestedKolomId ? (kolomById.get(req.requestedKolomId)?.name || req.requestedKolomId) : 'Belum di-assign'}`);
+    parts.push(`Kolom ? ${req.requestedKolomId ? (kolomById.get(req.requestedKolomId)?.name || req.requestedKolomId) : 'Belum di-assign'}`);
   }
-  return parts.join(' ¬∑ ') || 'Perubahan data gereja';
+  return parts.join(' ∑ ') || 'Perubahan data gereja';
 }
 
 app.post('/api/profile/church-data-requests/:id/approve', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
@@ -4770,7 +4770,7 @@ app.post('/api/profile/church-data-requests/:id/approve', requireRole(...KOMISIO
     data.churchTitle = parts.churchTitle || null;
     data.academicTitles = parts.academicTitles;
   }
-    // Youth site menampung semua BIPRA; Beyonders murni Pemuda ‚Äî future subdomain: bapak|ibu|kolom.gehc.page (tenant-bapak|ibu|teritorial)
+    // Youth site menampung semua BIPRA; Beyonders murni Pemuda ó future subdomain: bapak|ibu|kolom.gehc.page (tenant-bapak|ibu|teritorial)
   if (record.changeBipra && record.requestedBipra) {
     if (!BIPRA_VALUES.includes(record.requestedBipra)) {
       return res.status(400).json({ error: 'BIPRA pada permintaan tidak valid.' });
@@ -5004,7 +5004,7 @@ app.post('/api/recreational', requireRole(...KOMISION_CORE), wrap(async (req, re
     parent = await prisma.recreationalGroup.findUnique({ where: { id: parentId } });
     if (!parent) return res.status(404).json({ error: 'Subkategori tidak ditemukan.' });
     if (parent.parentId) {
-      return res.status(400).json({ error: 'Item hanya bisa ditambah di bawah subkategori (Olahraga, Dance, ‚Ä¶).' });
+      return res.status(400).json({ error: 'Item hanya bisa ditambah di bawah subkategori (Olahraga, Dance, Ö).' });
     }
     kind = parent.kind;
     selectable = true;
@@ -5152,8 +5152,8 @@ app.delete('/api/recreational/:id', requireRole(...KOMISION_CORE), wrap(async (r
     prisma.recreationalMembership.count({ where: { groupId: group.id } }),
     prisma.recreationalGroup.count({ where: { parentId: group.id } }),
   ]);
-  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil ‚Äî arsipkan saja.` });
-  if (kids > 0) return res.status(400).json({ error: `Masih punya ${kids} sub-kategori ‚Äî hapus/arsipkan dulu.` });
+  if (used > 0) return res.status(400).json({ error: `Masih dipakai ${used} profil ó arsipkan saja.` });
+  if (kids > 0) return res.status(400).json({ error: `Masih punya ${kids} sub-kategori ó hapus/arsipkan dulu.` });
   await prisma.recreationalSuggestion.updateMany({
     where: { groupId: group.id },
     data: { groupId: null },
@@ -5271,7 +5271,7 @@ app.patch('/api/jemaat/:id/bipra-suggest', requireRole(...KOMISION_CORE), wrap(a
   res.json({ ok: true, user: serializeJemaat(updated) });
 }));
 
-/** PATCH /api/jemaat/:id ‚Äî update membership kind (simpatisan) dan/atau status keaktifan */
+/** PATCH /api/jemaat/:id ó update membership kind (simpatisan) dan/atau status keaktifan */
 app.patch('/api/jemaat/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5302,7 +5302,7 @@ app.patch('/api/jemaat/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   res.json({ ok: true, user: serializeJemaat(updated) });
 }));
 
-/** POST /api/jemaat/member-status/bulk ‚Äî tandai beberapa orang sekaligus (sinkron roster grup) */
+/** POST /api/jemaat/member-status/bulk ó tandai beberapa orang sekaligus (sinkron roster grup) */
 app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5316,7 +5316,7 @@ app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(a
     where: { id: { in: ids } },
     data: { memberStatus },
   });
-  // Sinkron ke roster grup: alumni ‚Üí GroupMember ALUMNI + cabut akses grup.
+  // Sinkron ke roster grup: alumni ? GroupMember ALUMNI + cabut akses grup.
   let roster = { updated: 0 };
   if (memberStatus === 'ALUMNI') {
     const snapData = await captureScope(prisma);
@@ -5331,7 +5331,7 @@ app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(a
   res.json({ ok: true, updated: result.count, rosterUpdated: roster.updated });
 }));
 
-/** POST /api/jemaat/placement/recommend ‚Äî usulan grup binaan (READ-ONLY, tidak menulis) */
+/** POST /api/jemaat/placement/recommend ó usulan grup binaan (READ-ONLY, tidak menulis) */
 app.post('/api/jemaat/placement/recommend', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5418,7 +5418,7 @@ app.post('/api/jemaat', requireRole(...KOMISION_CORE), wrap(async (req, res) => 
   res.json({ user: serializeJemaat(user) });
 }));
 
-/** POST /api/admin/users/invite-provision ‚Äî Buat akun + role + password sementara + claim link */
+/** POST /api/admin/users/invite-provision ó Buat akun + role + password sementara + claim link */
 app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5456,7 +5456,7 @@ app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async
   }
 }));
 
-/** POST /api/admin/users/invite-provision-bulk ‚Äî Bulk pre-provision (max 40) */
+/** POST /api/admin/users/invite-provision-bulk ó Bulk pre-provision (max 40) */
 app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5528,7 +5528,7 @@ app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(
   });
 }));
 
-/** GET /api/admin/groups-lite ‚Äî daftar grup mentoring (platform admin invite UI) */
+/** GET /api/admin/groups-lite ó daftar grup mentoring (platform admin invite UI) */
 app.get('/api/admin/groups-lite', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5570,7 +5570,7 @@ app.post('/api/admin/users/:id/unlink', requirePlatformRoot(), wrap(async (req, 
   res.json({ user });
 }));
 
-/** PATCH /api/admin/users/:id ‚Äî Admin edit profil jemaat */
+/** PATCH /api/admin/users/:id ó Admin edit profil jemaat */
 app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5589,15 +5589,15 @@ app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (re
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return res.status(400).json({ error: 'Format email tidak valid.' });
     if (raw !== String(existing.email || '').toLowerCase()) {
       if (existing.googleSub) {
-        return res.status(400).json({ error: 'Akun ini tertaut Google ‚Äî lepas tautan Google dulu sebelum mengganti email.' });
+        return res.status(400).json({ error: 'Akun ini tertaut Google ó lepas tautan Google dulu sebelum mengganti email.' });
       }
       const superadmins = String(process.env.SUPERADMIN_EMAILS || '')
         .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
       if (superadmins.includes(raw)) {
-        return res.status(403).json({ error: 'Email itu milik admin platform ‚Äî tidak boleh dipakai.' });
+        return res.status(403).json({ error: 'Email itu milik admin platform ó tidak boleh dipakai.' });
       }
       const op = await prisma.platformOperator.findUnique({ where: { email: raw } }).catch(() => null);
-      if (op) return res.status(403).json({ error: 'Email itu milik operator platform ‚Äî tidak boleh dipakai.' });
+      if (op) return res.status(403).json({ error: 'Email itu milik operator platform ó tidak boleh dipakai.' });
       const taken = await prisma.user.findFirst({ where: { email: raw, NOT: { id: req.params.id } }, select: { id: true } }).catch(() => null);
       if (taken) return res.status(409).json({ error: 'Email sudah dipakai akun lain.' });
       const [ag, sm] = await Promise.all([
@@ -5607,7 +5607,7 @@ app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (re
       const rights = [ag ? 'Grup Akses' : null, sm ? 'Struktur' : null].filter(Boolean).join(' & ');
       if (rights && req.body?.confirmRights !== true) {
         return res.status(409).json({
-          error: `Email itu terdaftar di ${rights} ‚Äî menggantinya akan mengubah hak akses. Kirim confirmRights=true untuk lanjut.`,
+          error: `Email itu terdaftar di ${rights} ó menggantinya akan mengubah hak akses. Kirim confirmRights=true untuk lanjut.`,
           needsConfirmRights: true,
         });
       }
@@ -5684,7 +5684,7 @@ app.patch('/api/admin/users/:id', requireKomisiOrPlatformAdmin(), wrap(async (re
   res.json({ user: serializeJemaat(user) });
 }));
 
-/** POST /api/groups/:id/members/bulk ‚Äî Bulk assign users into a mentoring group */
+/** POST /api/groups/:id/members/bulk ó Bulk assign users into a mentoring group */
 app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5742,7 +5742,7 @@ app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'CO
   });
 }));
 
-/** Access Groups ‚Äî RLS-like email bundles */
+/** Access Groups ó RLS-like email bundles */
 app.get('/api/admin/access-groups', requirePlatformAdmin(), wrap(async (_req, res) => {
   try {
     const groups = await listAccessGroups();
@@ -5788,7 +5788,7 @@ app.delete('/api/admin/access-groups/members/:memberId', requirePlatformAdmin(),
   }
 }));
 
-/** POST /api/admin/users/provision ‚Äî Bulk create local email+temp password (mustChangePassword) */
+/** POST /api/admin/users/provision ó Bulk create local email+temp password (mustChangePassword) */
 app.post('/api/admin/users/provision', requirePlatformAdmin(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -5827,7 +5827,7 @@ app.post('/api/admin/users/provision', requirePlatformAdmin(), wrap(async (req, 
         continue;
       }
       if (existing.linkStatus === 'LINKED' && existing.googleSub) {
-        errors.push({ userId, error: 'Sudah tertaut Google ‚Äî lewati.' });
+        errors.push({ userId, error: 'Sudah tertaut Google ó lewati.' });
         continue;
       }
 
@@ -5878,7 +5878,7 @@ app.post('/api/admin/users/provision', requirePlatformAdmin(), wrap(async (req, 
   });
 }));
 
-/** POST /api/me/password ‚Äî Ganti password (wajib jika mustChangePassword) */
+/** POST /api/me/password ó Ganti password (wajib jika mustChangePassword) */
 app.post('/api/me/password', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -5923,7 +5923,7 @@ app.post('/api/me/password', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-/** GET /api/me/username ‚Äî status username login */
+/** GET /api/me/username ó status username login */
 app.get('/api/me/username', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const u = req.authUser;
@@ -5934,7 +5934,7 @@ app.get('/api/me/username', wrap(async (req, res) => {
   });
 }));
 
-/** POST /api/me/username ‚Äî set / ganti username login */
+/** POST /api/me/username ó set / ganti username login */
 app.post('/api/me/username', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -5970,7 +5970,7 @@ app.post('/api/me/username', wrap(async (req, res) => {
   res.json({ ok: true, loginUsername: updated.loginUsername });
 }));
 
-/** POST /api/role-assignments ‚Äî Assign role to user (creates RoleAssignment + dual-write to UserRole) */
+/** POST /api/role-assignments ó Assign role to user (creates RoleAssignment + dual-write to UserRole) */
 app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6007,7 +6007,7 @@ app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req
   res.json({ ok: true, assignment, userRole });
 }));
 
-/** POST /api/role-assignments/bulk-individu ‚Äî Bulk assign MENTEE without group (Individu) */
+/** POST /api/role-assignments/bulk-individu ó Bulk assign MENTEE without group (Individu) */
 app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6105,7 +6105,7 @@ app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), w
   res.json(results);
 }));
 
-/** PATCH /api/role-assignments/:id ‚Äî Update sub-role detail */
+/** PATCH /api/role-assignments/:id ó Update sub-role detail */
 app.patch('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6131,7 +6131,7 @@ app.patch('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async
   res.json({ ok: true, assignment: updated });
 }));
 
-/** DELETE /api/role-assignments/:id ‚Äî Revoke role assignment */
+/** DELETE /api/role-assignments/:id ó Revoke role assignment */
 app.delete('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6144,7 +6144,7 @@ app.delete('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(asyn
   }
 }));
 
-/** GET /api/users/:id/roles ‚Äî List user's role assignments */
+/** GET /api/users/:id/roles ó List user's role assignments */
 app.get('/api/users/:id/roles', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6158,7 +6158,7 @@ app.get('/api/users/:id/roles', requireRole(...KOMISION_CORE), wrap(async (req, 
   res.json({ assignments });
 }));
 
-/** POST /api/role-assignments/cleanup-duplicates ‚Äî Clean duplicate RoleAssignments */
+/** POST /api/role-assignments/cleanup-duplicates ó Clean duplicate RoleAssignments */
 app.post('/api/role-assignments/cleanup-duplicates', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6203,7 +6203,7 @@ app.post('/api/role-assignments/cleanup-duplicates', requireRole(...KOMISION_COR
   res.json({ ok: true, deleted });
 }));
 
-/** POST /api/role-assignments/bulk-delete ‚Äî Bulk delete RoleAssignments by userIds */
+/** POST /api/role-assignments/bulk-delete ó Bulk delete RoleAssignments by userIds */
 app.post('/api/role-assignments/bulk-delete', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6272,7 +6272,7 @@ app.post('/api/gifttest', wrap(async (req, res) => {
 // ---------- Admin routes (modular) ----------
 registerOnboardingRoutes(app, { wrap });
 registerTitleCatalogRoutes(app, { wrap });
-// GET /api/events/:slug ‚Äî dijangkau lewat next() dari /api/events/:id saat id tidak cocok
+// GET /api/events/:slug ó dijangkau lewat next() dari /api/events/:id saat id tidak cocok
   registerEventsPublicRoutes(app, { wrap });
   registerEventSignupRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
@@ -6290,7 +6290,7 @@ registerVisualsPublishRoutes(app, { wrap });
   registerBirthdayRoutes(app, { wrap });
   registerMonitoringRoutes(app, { wrap });
 
-// ---------- Admin: Seed Gift Test Data (legacy inline ‚Äî SUPERADMIN only) ----------
+// ---------- Admin: Seed Gift Test Data (legacy inline ó SUPERADMIN only) ----------
 app.post('/api/admin/seed-gifts', requirePlatformRoot(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6487,24 +6487,139 @@ async function readBzpSettings(prisma) {
   }
 }
 
-/** Validasi & hitung diskon promo. */
-async function resolvePromo(prisma, code, subtotal, isLoggedIn) {
-  const raw = String(code || '').trim().toUpperCase();
-  if (!raw) return { promo: null, discount: 0, error: null };
-  const promo = await prisma.promo.findUnique({ where: { code: raw } }).catch(() => null);
-  if (!promo || !promo.isActive) return { promo: null, discount: 0, error: 'Kode promo tidak valid.' };
-  const now = Date.now();
-  if (promo.startsAt && new Date(promo.startsAt).getTime() > now) return { promo: null, discount: 0, error: 'Promo belum berlaku.' };
-  if (promo.endsAt && new Date(promo.endsAt).getTime() < now) return { promo: null, discount: 0, error: 'Promo sudah berakhir.' };
-  if (promo.audience === 'INTERNAL' && !isLoggedIn) return { promo: null, discount: 0, error: 'Promo ini hanya untuk anggota internal (login).' };
-  if (promo.audience === 'GUEST' && isLoggedIn) return { promo: null, discount: 0, error: 'Promo ini hanya untuk pembeli tamu.' };
-  if (promo.minSpend && subtotal < promo.minSpend) {
-    return { promo: null, discount: 0, error: `Minimal belanja Rp${Number(promo.minSpend).toLocaleString('id-ID')}.` };
+/** Resolusi PIC BZP: dari picUserIds ? fallback Bendahara Tim Kerja ? + penanggung jawab jadwal. */
+async function resolveBzpPics(prisma) {
+  const settings = await readBzpSettings(prisma);
+  const ids = Array.isArray(settings?.picUserIds) ? settings.picUserIds.map(String).filter(Boolean) : [];
+  let pics = [];
+  if (ids.length) {
+    const users = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, phone: true } }).catch(() => []);
+    const byId = new Map(users.map((u) => [u.id, u]));
+    pics = ids.map((id) => byId.get(id)).filter(Boolean).map((u) => ({ id: u.id, name: u.name, phone: u.phone || '', role: 'PIC BZP' }));
   }
-  const discount = promo.type === 'PERCENT'
-    ? Math.round((subtotal * Math.max(0, Math.min(100, promo.value))) / 100)
-    : Math.max(0, Math.min(subtotal, promo.value));
-  return { promo, discount, error: null };
+  if (!pics.length) {
+    let bend = await prisma.strukturMember
+      .findFirst({ where: { position: { contains: 'Bendahara Tim Kerja' } }, orderBy: { sortOrder: 'asc' }, select: { name: true, phone: true, userId: true, position: true } })
+      .catch(() => null);
+    if (!bend) {
+      bend = await prisma.strukturMember
+        .findFirst({ where: { position: { contains: 'Bendahara' } }, orderBy: { sortOrder: 'asc' }, select: { name: true, phone: true, userId: true, position: true } })
+        .catch(() => null);
+    }
+    if (bend) {
+      let name = bend.name;
+      let phone = bend.phone || '';
+      if (bend.userId) {
+        const u = await prisma.user.findUnique({ where: { id: bend.userId }, select: { name: true, phone: true } }).catch(() => null);
+        if (u) { name = u.name || name; phone = u.phone || phone; }
+      }
+      pics = [{ id: bend.userId || 'bendahara', name, phone, role: bend.position || 'Bendahara Tim Kerja' }];
+    }
+  }
+  // Penanggung jawab dari Jadwal Jual terdekat (nama & nomor dari DB)
+  let schedule = [];
+  let shiftDate = null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const shift = await prisma.salesShift.findFirst({ where: { date: { gte: today } }, orderBy: { date: 'asc' }, include: { assignments: true } });
+    if (shift) {
+      shiftDate = shift.date;
+      const rows = (shift.assignments || []).filter((a) => a.status !== 'DECLINED').slice(0, 6);
+      const uids = rows.map((a) => a.userId).filter(Boolean);
+      const users = uids.length ? await prisma.user.findMany({ where: { id: { in: uids } }, select: { id: true, phone: true } }).catch(() => []) : [];
+      const phoneById = new Map(users.map((u) => [u.id, u.phone || '']));
+      schedule = rows.map((a) => ({ name: a.name, phone: a.userId ? (phoneById.get(a.userId) || '') : '', role: a.role }));
+    }
+  } catch { /* opsional */ }
+  return { pics, schedule, shiftDate };
+}
+
+/**
+ * Validasi & hitung diskon promo (per baris item, mendukung scope & audiens jemaat).
+ * lines: [{ productId, category, subcategorySlug, qty, price }]
+ * Mengembalikan { promo, discount } dari kandidat paling menguntungkan.
+ */
+async function resolvePromos(prisma, { code, lines, isLoggedIn, isInternal }) {
+  const items = Array.isArray(lines) ? lines : [];
+  const subtotal = items.reduce((n, l) => n + (Number(l.price) || 0) * (Number(l.qty) || 0), 0);
+  const now = Date.now();
+
+  const eligible = (p) => {
+    if (!p.isActive) return false;
+    if (p.startsAt && new Date(p.startsAt).getTime() > now) return false;
+    if (p.endsAt && new Date(p.endsAt).getTime() < now) return false;
+    if (p.audience === 'INTERNAL') return Boolean(isInternal);
+    if (p.audience === 'MEMBER') return Boolean(isLoggedIn);
+    if (p.audience === 'GUEST') return !isLoggedIn;
+    return true;
+  };
+  const targets = (p) => (Array.isArray(p.targetIds) ? p.targetIds.map(String) : []);
+  const matchesScope = (p, line) => {
+    const t = targets(p);
+    if (p.scope === 'PRODUCT') return t.includes(String(line.productId));
+    if (p.scope === 'CATEGORY') return t.includes(String(line.category || '').toUpperCase());
+    if (p.scope === 'SUBCATEGORY') return t.includes(String(line.subcategorySlug || ''));
+    return true;
+  };
+  const discountOf = (p) => {
+    let total = 0;
+    for (const l of items) {
+      if (!matchesScope(p, l)) continue;
+      const base = (Number(l.price) || 0) * (Number(l.qty) || 0);
+      let d = p.type === 'PERCENT'
+        ? Math.round((base * Math.max(0, Math.min(100, Number(p.value) || 0))) / 100)
+        : Math.min(base, Math.max(0, Number(p.value) || 0));
+      if (p.maxDiscount) d = Math.min(d, Number(p.maxDiscount));
+      total += Math.max(0, d);
+    }
+    return total;
+  };
+
+  const all = await prisma.promo.findMany({ where: { isActive: true } }).catch(() => []);
+  const candidates = [];
+
+  const raw = String(code || '').trim().toUpperCase();
+  let manual = null;
+  if (raw) {
+    manual = all.find((p) => p.code === raw) || null;
+    if (!manual || !eligible(manual)) {
+      const msg = !manual
+        ? 'Kode promo tidak valid.'
+        : manual.audience === 'INTERNAL'
+          ? 'Promo ini hanya untuk Komisi/Tim Kerja.'
+          : manual.audience === 'MEMBER'
+            ? 'Promo ini hanya untuk jemaat yang sudah login.'
+            : 'Promo tidak berlaku saat ini.';
+      return { promo: null, discount: 0, error: msg };
+    }
+    if (manual.minSpend && subtotal < manual.minSpend) {
+      return { promo: null, discount: 0, error: `Minimal belanja Rp${Number(manual.minSpend).toLocaleString('id-ID')}.` };
+    }
+    if (!items.some((l) => matchesScope(manual, l))) {
+      return { promo: null, discount: 0, error: 'Kode promo tidak berlaku untuk produk di keranjang.' };
+    }
+    const d = discountOf(manual);
+    if (d > 0) candidates.push({ promo: manual, discount: d });
+  }
+
+  for (const p of all) {
+    if (!p.autoApply) continue;
+    if (manual && p.id === manual.id) continue;
+    if (!eligible(p)) continue;
+    if (p.minSpend && subtotal < p.minSpend) continue;
+    const d = discountOf(p);
+    if (d > 0) candidates.push({ promo: p, discount: d });
+  }
+
+  if (!candidates.length) return { promo: null, discount: 0, error: null };
+  candidates.sort((a, b) => b.discount - a.discount);
+  return { promo: candidates[0].promo, discount: candidates[0].discount, error: null };
+}
+
+/** Apakah user (role aktif) termasuk staf internal BZP? */
+function isInternalBuyer(authUser) {
+  const roles = (authUser?.roles || []).map((r) => r.role);
+  return ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].some((r) => roles.includes(r));
 }
 
 // ---------- BZP: Sub-kategori terkelola (bilingual) ----------
@@ -6606,7 +6721,7 @@ async function sumVariantStock(prisma, productId) {
 }
 
 // GET /api/benzar/subcategories sudah di atas.
-// GET /api/benzar/products ‚Äî katalog produk (publik)
+// GET /api/benzar/products ó katalog produk (publik)
 // Query: category, subCategory, q (cari nama), onSale=1|0|all, includeInactive=1 (staf)
 app.get('/api/benzar/products', wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -6640,7 +6755,7 @@ app.get('/api/benzar/products', wrap(async (req, res) => {
   res.json({ products });
 }));
 
-// GET /api/benzar/products/:id ‚Äî detail produk
+// GET /api/benzar/products/:id ó detail produk
 app.get('/api/benzar/products/:id', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6699,7 +6814,7 @@ function bzpProductData(body, { partial = false } = {}) {
   return { data };
 }
 
-// POST /api/benzar/products ‚Äî buat produk (staf BZP)
+// POST /api/benzar/products ó buat produk (staf BZP)
 app.post('/api/benzar/products', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6725,7 +6840,7 @@ app.post('/api/benzar/products', requireDivision('BENZARPR'), requireRole(...BZP
   res.status(201).json({ product: finalProduct });
 }));
 
-// PATCH /api/benzar/products/:id ‚Äî update produk (+ riwayat harga)
+// PATCH /api/benzar/products/:id ó update produk (+ riwayat harga)
 app.patch('/api/benzar/products/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6765,7 +6880,7 @@ app.patch('/api/benzar/products/:id', requireDivision('BENZARPR'), requireRole(.
   res.json({ product });
 }));
 
-// GET /api/benzar/products/:id/history ‚Äî riwayat harga jual & modal
+// GET /api/benzar/products/:id/history ó riwayat harga jual & modal
 app.get('/api/benzar/products/:id/history', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6777,7 +6892,7 @@ app.get('/api/benzar/products/:id/history', requireDivision('BENZARPR'), require
   res.json({ history });
 }));
 
-// PATCH /api/benzar/products/:id/images ‚Äî ganti urutan / hapus / caption
+// PATCH /api/benzar/products/:id/images ó ganti urutan / hapus / caption
 app.patch('/api/benzar/products/:id/images', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6788,7 +6903,7 @@ app.patch('/api/benzar/products/:id/images', requireDivision('BENZARPR'), requir
   res.json({ product: updated });
 }));
 
-// DELETE /api/benzar/products/:id ‚Äî soft delete
+// DELETE /api/benzar/products/:id ó soft delete
 app.delete('/api/benzar/products/:id',
     requireDivision('BENZARPR'), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -6799,7 +6914,7 @@ app.delete('/api/benzar/products/:id',
   res.json({ ok: true });
 }));
 
-// POST /api/benzar/orders ‚Äî buat pesanan (login ATAU tamu/guest)
+// POST /api/benzar/orders ó buat pesanan (login ATAU tamu/guest)
 app.post('/api/benzar/orders', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6816,6 +6931,8 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
 
   // Validate & build order items
   const orderItems = [];
+  const promoLines = [];
+  const subSlugById = new Map((await prisma.bzpSubcategory.findMany({ select: { id: true, slug: true } }).catch(() => [])).map((s) => [s.id, s.slug]));
   let subtotal = 0;
   let hasPreorder = false;
   for (const item of rawItems) {
@@ -6853,6 +6970,7 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
       price,
       name: label ? `${product.name} (${label})` : product.name,
     });
+    promoLines.push({ productId: product.id, category: product.category, subcategorySlug: subSlugById.get(product.subcategoryId || '') || '', qty, price });
     subtotal += price * qty;
   }
 
@@ -6869,7 +6987,7 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
       : Number(settings?.deliveryFee || 0);
   }
 
-  const { promo, discount, error: promoError } = await resolvePromo(prisma, promoCode, subtotal, isLoggedIn);
+  const { promo, discount, error: promoError } = await resolvePromos(prisma, { code: promoCode, lines: promoLines, isLoggedIn, isInternal: isInternalBuyer(req.authUser) });
   if (promoError) return res.status(400).json({ error: promoError });
   const total = Math.max(0, subtotal - discount) + deliveryFee;
 
@@ -6923,7 +7041,7 @@ app.post('/api/benzar/orders', wrap(async (req, res) => {
   res.status(201).json({ order, orderCode });
 }));
 
-// GET /api/benzar/orders/track?code=&phone= ‚Äî lacak pesanan (tamu/guest)
+// GET /api/benzar/orders/track?code=&phone= ó lacak pesanan (tamu/guest)
 app.get('/api/benzar/orders/track', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6944,7 +7062,7 @@ app.get('/api/benzar/orders/track', wrap(async (req, res) => {
   res.json({ order, statusLabel: ORDER_STATUS_LABEL[order.status] || order.status });
 }));
 
-// GET /api/benzar/orders ‚Äî list orders (BZP staff)
+// GET /api/benzar/orders ó list orders (BZP staff)
 app.get('/api/benzar/orders', requireDivision('BENZARPR'), requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -6960,7 +7078,7 @@ app.get('/api/benzar/orders', requireDivision('BENZARPR'), requireRole('SUPERADM
   res.json({ orders });
 }));
 
-// GET /api/benzar/orders/my ‚Äî list orders milik user login
+// GET /api/benzar/orders/my ó list orders milik user login
 app.get('/api/benzar/orders/my', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -6971,7 +7089,7 @@ app.get('/api/benzar/orders/my', wrap(async (req, res) => {
   res.json({ orders });
 }));
 
-// GET /api/benzar/orders/:id ‚Äî detail order
+// GET /api/benzar/orders/:id ó detail order
 app.get('/api/benzar/orders/:id', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
@@ -6989,7 +7107,7 @@ app.get('/api/benzar/orders/:id', wrap(async (req, res) => {
   res.json({ order });
 }));
 
-// PATCH /api/benzar/orders/:id/status ‚Äî update status order (BZP staff)
+// PATCH /api/benzar/orders/:id/status ó update status order (BZP staff)
 app.patch('/api/benzar/orders/:id/status', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7032,26 +7150,41 @@ app.patch('/api/benzar/orders/:id/status', requireDivision('BENZARPR'), requireR
   res.json({ order: updated, statusLabel: ORDER_STATUS_LABEL[next] || next });
 }));
 
-// GET /api/benzar/qris ‚Äî return QRIS info (public)
+// GET /api/benzar/qris ó return QRIS info (public)
 app.get('/api/benzar/qris', wrap(async (req, res) => {
-  // Static QRIS config ‚Äî admin ganti di Drive, ini fallback
+  const prisma = getPrisma();
+  const settings = prisma ? await readBzpSettings(prisma) : null;
+  const resolved = prisma ? await resolveBzpPics(prisma) : { pics: [], schedule: [] };
+  const qris = settings?.qris && typeof settings.qris === 'object' ? settings.qris : {};
+  const wa = resolved.pics[0]?.phone || '081288646114';
   res.json({
-    imageUrl: process.env.QRIS_IMAGE_URL || '/Gopay QRIS.png',
-    merchantName: process.env.QRIS_MERCHANT_NAME || 'GEHC Benzarpreneurship',
-    merchantId: process.env.QRIS_MERCHANT_ID || '',
-    bankName: process.env.QRIS_BANK_NAME || 'GoPay',
-    accountNumber: process.env.QRIS_ACCOUNT_NUMBER || '',
-    whatsapp: '081288646114',
-    instructions: 'Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, kirim bukti transfer ke WA: 081288646114.',
+    imageUrl: qris.imageUrl || process.env.QRIS_IMAGE_URL || '/Gopay QRIS.png',
+    merchantName: qris.merchantName || process.env.QRIS_MERCHANT_NAME || 'GEHC Benzarpreneurship',
+    merchantId: qris.merchantId || process.env.QRIS_MERCHANT_ID || '',
+    bankName: qris.bankName || process.env.QRIS_BANK_NAME || 'GoPay',
+    accountNumber: qris.accountNumber || process.env.QRIS_ACCOUNT_NUMBER || '',
+    whatsapp: wa,
+    instructions: qris.instructions || `Scan QRIS di atas untuk melakukan pembayaran. Setelah bayar, kirim bukti transfer ke WA: ${wa}.`,
+    picPhones: resolved.pics,
+    schedule: resolved.schedule,
+    deliveryFee: Number(settings?.deliveryFee || 0),
+    waGroupUrl: settings?.waGroupUrl || null,
   });
 }));
 
-// GET /api/benzar/public-info ‚Äî PIC, ongkir, grup WA, QRIS (publik)
+// GET /api/benzar/pic ó PIC BZP (dari user/Bendahara) + penanggung jawab jadwal (publik)
+app.get('/api/benzar/pic', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.json({ pics: [], schedule: [], shiftDate: null });
+  res.json(await resolveBzpPics(prisma));
+}));
+
+// GET /api/benzar/public-info ó PIC, ongkir, grup WA, QRIS (publik)
 app.get('/api/benzar/public-info', wrap(async (req, res) => {
   const prisma = getPrisma();
   const settings = prisma ? await readBzpSettings(prisma) : null;
   res.json({
-    picPhones: Array.isArray(settings?.picPhones) ? settings.picPhones : [],
+    picPhones: (await resolveBzpPics(prisma)).pics,
     deliveryFee: Number(settings?.deliveryFee || 0),
     waGroupUrl: settings?.waGroupUrl || null,
     qris: settings?.qris && typeof settings.qris === 'object' ? settings.qris : null,
@@ -7070,16 +7203,16 @@ app.put('/api/benzar/settings',
     requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const picPhones = Array.isArray(req.body?.picPhones)
-    ? req.body.picPhones.slice(0, 3).map((p) => ({ name: String(p?.name || '').trim(), phone: String(p?.phone || '').trim() })).filter((p) => p.phone)
+  const picUserIds = Array.isArray(req.body?.picUserIds)
+    ? [...new Set(req.body.picUserIds.map(String).filter(Boolean))].slice(0, 3)
     : [];
   const qris = req.body?.qris && typeof req.body.qris === 'object' ? req.body.qris : null;
   const deliveryFee = Math.max(0, Number(req.body?.deliveryFee) || 0);
   const waGroupUrl = req.body?.waGroupUrl ? String(req.body.waGroupUrl).trim().slice(0, 300) : null;
   const settings = await prisma.bzpSetting.upsert({
     where: { id: BZP_SETTING_ID },
-    update: { picPhones, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
-    create: { id: BZP_SETTING_ID, picPhones, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
+    update: { picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
+    create: { id: BZP_SETTING_ID, picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
   });
   res.json({ settings });
 }));
@@ -7101,7 +7234,7 @@ app.post('/api/benzar/promos',
   const type = String(req.body?.type || 'PERCENT').toUpperCase();
   if (!code || !name) return res.status(400).json({ error: 'code & name wajib.' });
   if (!['PERCENT', 'AMOUNT'].includes(type)) return res.status(400).json({ error: 'type harus PERCENT atau AMOUNT.' });
-  const audience = ['INTERNAL', 'GUEST', 'ALL'].includes(String(req.body?.audience || '').toUpperCase())
+  const audience = ['INTERNAL', 'GUEST', 'ALL', 'MEMBER'].includes(String(req.body?.audience || '').toUpperCase())
     ? String(req.body.audience).toUpperCase() : 'ALL';
   const existing = await prisma.promo.findUnique({ where: { code } }).catch(() => null);
   if (existing) return res.status(409).json({ error: 'Kode promo sudah dipakai.' });
@@ -7110,6 +7243,10 @@ app.post('/api/benzar/promos',
       id: bzpId('promo'), code, name, type,
       value: Math.max(0, Number(req.body?.value) || 0),
       audience,
+      scope: ['GLOBAL', 'CATEGORY', 'SUBCATEGORY', 'PRODUCT'].includes(String(req.body?.scope || '').toUpperCase()) ? String(req.body.scope).toUpperCase() : 'GLOBAL',
+      targetIds: Array.isArray(req.body?.targetIds) ? req.body.targetIds.map(String).slice(0, 200) : null,
+      autoApply: Boolean(req.body?.autoApply),
+      maxDiscount: req.body?.maxDiscount == null || req.body.maxDiscount === '' ? null : Math.max(0, Number(req.body.maxDiscount) || 0),
       minSpend: Math.max(0, Number(req.body?.minSpend) || 0),
       isActive: req.body?.isActive === undefined ? true : Boolean(req.body.isActive),
       startsAt: req.body?.startsAt ? new Date(req.body.startsAt) : null,
@@ -7129,6 +7266,10 @@ app.patch('/api/benzar/promos/:id', requireDivision('BENZARPR'), requireRole(...
   if (req.body?.type !== undefined) data.type = String(req.body.type).toUpperCase();
   if (req.body?.value !== undefined) data.value = Math.max(0, Number(req.body.value) || 0);
   if (req.body?.audience !== undefined) data.audience = String(req.body.audience).toUpperCase();
+  if (req.body?.scope !== undefined) data.scope = String(req.body.scope).toUpperCase();
+  if (req.body?.targetIds !== undefined) data.targetIds = Array.isArray(req.body.targetIds) ? req.body.targetIds.map(String).slice(0, 200) : null;
+  if (req.body?.autoApply !== undefined) data.autoApply = Boolean(req.body.autoApply);
+  if (req.body?.maxDiscount !== undefined) data.maxDiscount = req.body.maxDiscount == null || req.body.maxDiscount === '' ? null : Math.max(0, Number(req.body.maxDiscount) || 0);
   if (req.body?.minSpend !== undefined) data.minSpend = Math.max(0, Number(req.body.minSpend) || 0);
   if (req.body?.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
   if (req.body?.startsAt !== undefined) data.startsAt = req.body.startsAt ? new Date(req.body.startsAt) : null;
@@ -7145,15 +7286,33 @@ app.delete('/api/benzar/promos/:id',
   res.json({ ok: true });
 }));
 
-// POST /api/benzar/promos/validate ‚Äî cek kode promo (publik)
+// POST /api/benzar/promos/validate ó cek kode promo (publik)
 app.post('/api/benzar/promos/validate', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const subtotal = Math.max(0, Number(req.body?.subtotal) || 0);
   const isLoggedIn = Boolean(req.authUser);
-  const { promo, discount, error } = await resolvePromo(prisma, req.body?.code, subtotal, isLoggedIn);
+  const rawItems = Array.isArray(req.body?.items) ? req.body.items : [];
+  let lines = [];
+  if (rawItems.length) {
+    const subSlugById = new Map((await prisma.bzpSubcategory.findMany({ select: { id: true, slug: true } }).catch(() => [])).map((s) => [s.id, s.slug]));
+    for (const it of rawItems) {
+      const p = await prisma.product.findUnique({ where: { id: String(it.productId || '') } }).catch(() => null);
+      if (!p) continue;
+      const qty = Math.max(1, Number(it.qty) || 1);
+      let price = p.price;
+      if (it.variantId) {
+        const v = await prisma.productVariant.findUnique({ where: { id: String(it.variantId) } }).catch(() => null);
+        if (v?.price != null) price = Number(v.price);
+      }
+      lines.push({ productId: p.id, category: p.category, subcategorySlug: subSlugById.get(p.subcategoryId || '') || '', qty, price });
+    }
+  } else {
+    const subtotal = Math.max(0, Number(req.body?.subtotal) || 0);
+    lines = [{ productId: '', category: '', subcategorySlug: '', qty: 1, price: subtotal }];
+  }
+  const { promo, discount, error } = await resolvePromos(prisma, { code: req.body?.code, lines, isLoggedIn, isInternal: isInternalBuyer(req.authUser) });
   if (error) return res.status(400).json({ error });
-  res.json({ promo: { code: promo.code, name: promo.name, type: promo.type, value: promo.value }, discount });
+  res.json({ promo: promo ? { code: promo.code, name: promo.name, type: promo.type, value: promo.value, scope: promo.scope } : null, discount });
 }));
 
 // ---------- BZP: Campaign donasi (ala Kitabisa) ----------
@@ -7243,7 +7402,7 @@ app.patch('/api/benzar/campaigns/:id', requireDivision('BENZARPR'), requireRole(
   res.json({ campaign });
 }));
 
-// POST /api/benzar/campaigns/:slug/donations ‚Äî donasi (login atau tamu)
+// POST /api/benzar/campaigns/:slug/donations ó donasi (login atau tamu)
 app.post('/api/benzar/campaigns/:slug/donations', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7271,7 +7430,7 @@ app.post('/api/benzar/campaigns/:slug/donations', wrap(async (req, res) => {
   res.status(201).json({ donation });
 }));
 
-// PATCH /api/benzar/donations/:id/status ‚Äî verifikasi donasi (staf)
+// PATCH /api/benzar/donations/:id/status ó verifikasi donasi (staf)
 app.patch('/api/benzar/donations/:id/status', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7283,6 +7442,119 @@ app.patch('/api/benzar/donations/:id/status', requireDivision('BENZARPR'), requi
   res.json({ donation });
 }));
 
+// ---------- BZP: Role jadwal jual (terkelola) ----------
+app.get('/api/benzar/sales-roles', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const all = String(req.query?.all || '') === '1';
+  const roles = await prisma.bzpSalesRole.findMany({ where: all ? {} : { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+  res.json({ roles });
+}));
+
+app.post('/api/benzar/sales-roles', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name wajib.' });
+  const existing = await prisma.bzpSalesRole.findUnique({ where: { name } }).catch(() => null);
+  if (existing) {
+    const role = await prisma.bzpSalesRole.update({ where: { id: existing.id }, data: { isActive: true, description: req.body?.description ?? existing.description } });
+    return res.json({ role, reactivated: true });
+  }
+  const role = await prisma.bzpSalesRole.create({
+    data: { id: bzpId('srole'), name, description: req.body?.description ? String(req.body.description) : null, sortOrder: Number(req.body?.sortOrder) || 0 },
+  });
+  res.status(201).json({ role });
+}));
+
+app.patch('/api/benzar/sales-roles/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const data = {};
+  if (req.body?.name !== undefined) data.name = String(req.body.name).trim();
+  if (req.body?.description !== undefined) data.description = req.body.description ? String(req.body.description) : null;
+  if (req.body?.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+  if (req.body?.sortOrder !== undefined) data.sortOrder = Number(req.body.sortOrder) || 0;
+  const role = await prisma.bzpSalesRole.update({ where: { id: req.params.id }, data });
+  res.json({ role });
+}));
+
+app.delete('/api/benzar/sales-roles/:id', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  await prisma.bzpSalesRole.update({ where: { id: req.params.id }, data: { isActive: false } }).catch(() => null);
+  res.json({ ok: true });
+}));
+
+// GET /api/benzar/sales-people?q= ó cari user Komisi & Tim Kerja (opsi multi-pilih)
+app.get('/api/benzar/sales-people', requireDivision('BENZARPR'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const q = String(req.query.q || '').trim();
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 12));
+  if (q.length < 2) return res.json({ people: [] });
+  const people = await prisma.user.findMany({
+    where: {
+      accountStatus: 'ACTIVE',
+      roles: { some: { role: { in: ['KOMISI', 'COMMITTEE'] } } },
+      OR: [{ name: { contains: q } }, { givenName: { contains: q } }, { familyName: { contains: q } }],
+    },
+    select: { id: true, name: true, avatar: true, phone: true },
+    orderBy: { name: 'asc' },
+    take: limit,
+  });
+  res.json({ people });
+}));
+
+// POST /api/benzar/sales-shifts/:id/assignments/bulk ó { salesRoleIds[], userIds[] } idempoten + notifikasi
+app.post('/api/benzar/sales-shifts/:id/assignments/bulk', requireDivision('BENZARPR'), requireRole(...BZP_WRITE_ROLES), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const shift = await prisma.salesShift.findUnique({ where: { id: req.params.id }, include: { assignments: true } });
+  if (!shift) return res.status(404).json({ error: 'Shift tidak ditemukan.' });
+  const roleIds = [...new Set((Array.isArray(req.body?.salesRoleIds) ? req.body.salesRoleIds : []).map(String))];
+  const userIds = [...new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : []).map(String))];
+  if (!roleIds.length || !userIds.length) return res.status(400).json({ error: 'salesRoleIds[] dan userIds[] wajib.' });
+  const [roles, users] = await Promise.all([
+    prisma.bzpSalesRole.findMany({ where: { id: { in: roleIds } } }),
+    prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }),
+  ]);
+  const existing = new Set((shift.assignments || []).map((a) => `${a.salesRoleId}:${a.userId}`));
+  const created = [];
+  for (const r of roles) {
+    for (const u of users) {
+      const key = `${r.id}:${u.id}`;
+      if (existing.has(key)) continue;
+      await prisma.salesShiftAssignment.create({
+        data: { id: bzpId('sasg'), shiftId: shift.id, userId: u.id, salesRoleId: r.id, name: u.name, role: r.name, status: 'INVITED' },
+      });
+      created.push({ role: r.name, userId: u.id, name: u.name });
+    }
+  }
+  if (created.length) {
+    const dateLabel = String(shift.date || '').slice(0, 10);
+    const title = `Jadwal jual BZP ${dateLabel} ${shift.startTime}-${shift.endTime}`;
+    const message = `Anda ditugaskan pada ${shift.title} (${dateLabel} ${shift.startTime}-${shift.endTime}).`;
+    const notifyIds = [...new Set(created.map((c) => c.userId))];
+    try {
+      await prisma.notification.createMany({
+        data: notifyIds.map((uid) => ({
+          id: 'ntf-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+          type: 'IDLE_FLAG',
+          memberId: uid,
+          title,
+          message,
+          payload: { href: '#/portal', category: 'tugas', priority: 'TASK' },
+          category: 'tugas',
+          status: 'OPEN',
+        })),
+      }).catch(() => null);
+      await pushToUsers(prisma, notifyIds, { title, message, href: '#/portal', category: 'tugas', priority: 'TASK' }).catch(() => {});
+    } catch { /* notifikasi opsional */ }
+  }
+  const updated = await prisma.salesShift.findUnique({ where: { id: shift.id }, include: { assignments: true } });
+  res.status(201).json({ created: created.length, assignments: updated?.assignments || [], count: created.length });
+}));
 // ---------- BZP: Jadwal kelompok penjualan ----------
 app.get('/api/benzar/sales-shifts', requireDivision('BENZARPR'), requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -7385,7 +7657,7 @@ app.delete('/api/benzar/sales-assignments/:id',
   res.json({ ok: true });
 }));
 
-// GET /api/benzar/caption/:id ‚Äî data generator caption WA + deep link
+// GET /api/benzar/caption/:id ó data generator caption WA + deep link
 app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7396,11 +7668,11 @@ app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req,
   const link = `${origin}/#/benzarpreneurship?item=${product.id}`;
   const price = `Rp${Number(product.price).toLocaleString('id-ID')}`;
   const lines = [
-    `üõçÔ∏è *${product.name}*`,
+    `??? *${product.name}*`,
     product.description ? product.description.slice(0, 240) : '',
-    `üí∞ ${price}${product.isPreorder ? ' (pre-order)' : ''}`,
+    `?? ${price}${product.isPreorder ? ' (pre-order)' : ''}`,
     '',
-    'Pesan sekarang üëá',
+    'Pesan sekarang ??',
     link,
     '',
     '#Benzarpreneurship #GEHCYouth',
@@ -7409,13 +7681,13 @@ app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req,
     product,
     link,
     caption: lines.join('\n'),
-    picPhones: Array.isArray(settings?.picPhones) ? settings.picPhones : [],
+    picPhones: (await resolveBzpPics(prisma)).pics,
   });
 }));
 
 // ---------- PENATALAYAN SCHEDULING ----------
 
-// GET /api/penatalayan/roles ‚Äî list all service roles (division bisa CSV)
+// GET /api/penatalayan/roles ó list all service roles (division bisa CSV)
 app.get('/api/penatalayan/roles', wrap(async (req, res) => {
   const prisma = getPrisma();
   const { division, includeInactive } = req.query;
@@ -7431,7 +7703,7 @@ app.get('/api/penatalayan/roles', wrap(async (req, res) => {
   res.json({ roles });
 }));
 
-// POST /api/penatalayan/roles ‚Äî create service role
+// POST /api/penatalayan/roles ó create service role
 app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { name, division, description, sortOrder } = req.body || {};
@@ -7453,7 +7725,7 @@ app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
   res.status(201).json({ role });
 }));
 
-// PATCH /api/penatalayan/roles/:id ‚Äî edit nama/divisi/urutan/arsip
+// PATCH /api/penatalayan/roles/:id ó edit nama/divisi/urutan/arsip
 app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { name, division, description, sortOrder, isActive } = req.body || {};
@@ -7467,7 +7739,7 @@ app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COM
   res.json({ role });
 }));
 
-// DELETE /api/penatalayan/roles/:id ‚Äî hapus bila belum terpakai, jika tidak arsipkan
+// DELETE /api/penatalayan/roles/:id ó hapus bila belum terpakai, jika tidak arsipkan
 app.delete('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const used = await prisma.serviceSchedule.count({ where: { serviceRoleId: req.params.id } }).catch(() => 0);
@@ -7479,7 +7751,7 @@ app.delete('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'CO
   res.json({ ok: true, archived: false });
 }));
 
-// GET /api/penatalayan/schedules ‚Äî list schedules (filter by date range)
+// GET /api/penatalayan/schedules ó list schedules (filter by date range)
 app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { from, to, userId, eventId } = req.query;
@@ -7499,7 +7771,7 @@ app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
   res.json({ schedules });
 }));
 
-// POST /api/penatalayan/schedules ‚Äî assign person(s) to role for a date/event
+// POST /api/penatalayan/schedules ó assign person(s) to role for a date/event
 app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { serviceRoleId, userId, userIds, eventId, date, timeStart, timeEnd, notes } = req.body || {};
@@ -7593,7 +7865,7 @@ app.get('/api/penatalayan/my-schedule', requireRole(), wrap(async (req, res) => 
     orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
     take: limit,
   }).catch(() => []);
-  // Nama event (opsional) diambil terpisah ‚Äî ServiceSchedule tidak punya relasi event.
+  // Nama event (opsional) diambil terpisah ó ServiceSchedule tidak punya relasi event.
   const eventIds = [...new Set(rows.map((r) => r.eventId).filter(Boolean))];
   const events = eventIds.length
     ? await prisma.eventProgram.findMany({ where: { id: { in: eventIds } }, select: { id: true, name: true } }).catch(() => [])
@@ -7613,14 +7885,14 @@ app.get('/api/penatalayan/my-schedule', requireRole(), wrap(async (req, res) => 
   });
 }));
 
-// DELETE /api/penatalayan/schedules/:id ‚Äî remove schedule
+// DELETE /api/penatalayan/schedules/:id ó remove schedule
 app.delete('/api/penatalayan/schedules/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   await prisma.serviceSchedule.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 }));
 
-// POST /api/penatalayan/schedules/bulk ‚Äî bulk create for a date range (recurring ibadah)
+// POST /api/penatalayan/schedules/bulk ó bulk create for a date range (recurring ibadah)
 // GET /api/penatalayan/people?q=&limit= - cari personel (nama) untuk penugasan.
 // Ringan, urut alfabetis, pola sama seperti pencarian di Portal Doa.
 app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
@@ -7647,7 +7919,7 @@ app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
 }));
 
 // POST /api/penatalayan/schedules/bulk - penugasan massal:
-// komponen[] √ó orang[] √ó tanggal[] (idempoten; notifikasi ringkas per orang).
+// komponen[] ◊ orang[] ◊ tanggal[] (idempoten; notifikasi ringkas per orang).
 app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7760,7 +8032,7 @@ app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 
 
 const PENATALAYAN_DIVISIONS = ['LITURGIA', 'MARTURIA'];
 
-/** Event sebelumnya yang sudah punya jadwal ‚Äî sumber "salin dari sebelumnya". */
+/** Event sebelumnya yang sudah punya jadwal ó sumber "salin dari sebelumnya". */
 async function previousPenatalayanEvent(prisma, eventId, eventDate) {
   const cutoff = eventDate ? new Date(eventDate) : new Date();
   const rows = await prisma.serviceSchedule.findMany({
@@ -7779,7 +8051,7 @@ async function previousPenatalayanEvent(prisma, eventId, eventDate) {
   return { eventId: ev.id, name: ev.name, eventDate: ev.eventDate || candidate.date };
 }
 
-// GET /api/events/:id/penatalayan ‚Äî komponen + penugasan event ini + referensi sebelumnya
+// GET /api/events/:id/penatalayan ó komponen + penugasan event ini + referensi sebelumnya
 app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7817,7 +8089,7 @@ app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   res.json({ event, roles, assignments, previous });
 }));
 
-// POST /api/events/:id/penatalayan/copy ‚Äî salin penugasan dari event sebelumnya
+// POST /api/events/:id/penatalayan/copy ó salin penugasan dari event sebelumnya
 app.post('/api/events/:id/penatalayan/copy', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -7866,7 +8138,7 @@ app.post('/api/events/:id/penatalayan/copy', requireRole('SUPERADMIN', 'KOMISI',
 
 // ---------- DIVISION MEETINGS & AGENDAS ----------
 
-// GET /api/division-meetings ‚Äî list meetings by division
+// GET /api/division-meetings ó list meetings by division
 app.get('/api/division-meetings', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { division, status } = req.query;
@@ -7881,7 +8153,7 @@ app.get('/api/division-meetings', requireRole(), wrap(async (req, res) => {
   res.json({ meetings });
 }));
 
-// POST /api/division-meetings ‚Äî create meeting
+// POST /api/division-meetings ó create meeting
 app.post('/api/division-meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { division, meetingDate, title, agenda, attendees } = req.body;
@@ -7896,7 +8168,7 @@ app.post('/api/division-meetings', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
   res.status(201).json({ meeting });
 }));
 
-// GET /api/division-meetings/:id ‚Äî get meeting with agenda items
+// GET /api/division-meetings/:id ó get meeting with agenda items
 app.get('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const meeting = await prisma.divisionMeeting.findUnique({
@@ -7907,7 +8179,7 @@ app.get('/api/division-meetings/:id', requireRole(), wrap(async (req, res) => {
   res.json({ meeting });
 }));
 
-// PATCH /api/division-meetings/:id ‚Äî update meeting
+// PATCH /api/division-meetings/:id ó update meeting
 app.patch('/api/division-meetings/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { title, agenda, attendees, notes, status } = req.body;
@@ -7921,7 +8193,7 @@ app.patch('/api/division-meetings/:id', requireRole('SUPERADMIN', 'KOMISI', 'COM
   res.json({ meeting });
 }));
 
-// POST /api/division-meetings/:id/agenda ‚Äî add agenda item
+// POST /api/division-meetings/:id/agenda ó add agenda item
 app.post('/api/division-meetings/:id/agenda', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { title, description, division, component, personInChargeId, deadline } = req.body;
@@ -7936,7 +8208,7 @@ app.post('/api/division-meetings/:id/agenda', requireRole('SUPERADMIN', 'KOMISI'
   res.status(201).json({ item });
 }));
 
-// PATCH /api/division-meetings/agenda/:id ‚Äî update agenda item status
+// PATCH /api/division-meetings/agenda/:id ó update agenda item status
 app.patch('/api/division-meetings/agenda/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, personInChargeId, deadline, driveFolderId } = req.body;
@@ -7955,10 +8227,10 @@ app.patch('/api/division-meetings/agenda/:id', requireRole('SUPERADMIN', 'KOMISI
 // WARTA PUBLIK (Weekly Bulletin Workflow)
 // ============================================================
 
-// Status flow: DRAFT ‚Üí CONTENT_READY (Didaskalia) ‚Üí COPY_EDIT (Koinonia PR) ‚Üí DESIGN (Marturia) ‚Üí REVIEW (KOMISI) ‚Üí APPROVED ‚Üí PUBLISHED
+// Status flow: DRAFT ? CONTENT_READY (Didaskalia) ? COPY_EDIT (Koinonia PR) ? DESIGN (Marturia) ? REVIEW (KOMISI) ? APPROVED ? PUBLISHED
 const WARTA_STATUS_FLOW = ['DRAFT', 'CONTENT_READY', 'COPY_EDIT', 'DESIGN', 'REVIEW', 'APPROVED', 'PUBLISHED'];
 
-// GET /api/warta/desk ‚Äî rangkuman petugas penatalayan, penanggung/tuan rumah, pokok doa,
+// GET /api/warta/desk ó rangkuman petugas penatalayan, penanggung/tuan rumah, pokok doa,
 // dan jadwal minggu depan untuk satu tanggal ibadah (default: Minggu terdekat WIB).
 app.get('/api/warta/desk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'), wrap(async (req, res) => {
   const prisma = getPrisma();
@@ -8020,7 +8292,7 @@ app.get('/api/warta/desk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPM
   res.json(desk);
 }));
 
-// GET /api/warta ‚Äî list warta by status or date range
+// GET /api/warta ó list warta by status or date range
 app.get('/api/warta', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, from, to, limit: lim } = req.query;
@@ -8039,7 +8311,7 @@ app.get('/api/warta', requireRole(), wrap(async (req, res) => {
   res.json({ warta });
 }));
 
-// POST /api/warta ‚Äî create new warta (DRAFT)
+// POST /api/warta ó create new warta (DRAFT)
 app.post('/api/warta', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { weekDate, title, contentJson } = req.body;
@@ -8055,7 +8327,7 @@ app.post('/api/warta', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(as
   res.status(201).json({ warta });
 }));
 
-// PATCH /api/warta/:id ‚Äî update content or advance status
+// PATCH /api/warta/:id ó update content or advance status
 app.patch('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, contentJson, title, pdfUrl, pngUrl, rejectReason, driveFolderId } = req.body;
@@ -8075,13 +8347,13 @@ app.patch('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wr
     const nextIdx = WARTA_STATUS_FLOW.indexOf(status);
     if (nextIdx < 0 && status !== 'REJECTED') return res.status(400).json({ error: 'Status tidak valid' });
     const privileged = isKomisiOrSuperadmin(req.authUser);
-    // Alur divisi: Didaskalia CONTENT_READY ‚Üí Koinonia COPY_EDIT ‚Üí Marturia DESIGN ‚Üí Komisi REVIEW/PUBLISHED.
+    // Alur divisi: Didaskalia CONTENT_READY ? Koinonia COPY_EDIT ? Marturia DESIGN ? Komisi REVIEW/PUBLISHED.
     // Hanya Komisi/Superadmin yang boleh skip langkah atau APPROVED/PUBLISHED.
     if (!privileged && (status === 'APPROVED' || status === 'PUBLISHED')) {
       return res.status(403).json({ error: 'Hanya Komisi yang boleh menyetujui/menerbitkan.' });
     }
     if (!privileged && nextIdx > curIdx + 1) {
-      return res.status(400).json({ error: 'Ikuti alur status satu langkah ‚Äî tidak bisa lompat.' });
+      return res.status(400).json({ error: 'Ikuti alur status satu langkah ó tidak bisa lompat.' });
     }
     data.status = status;
     if (status === 'REJECTED') data.rejectReason = rejectReason || 'Ditolak';
@@ -8096,14 +8368,14 @@ app.patch('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wr
     notifyNewWarta(prisma, warta).catch(console.error);
     syncWartaToContentItem(prisma, warta).catch(console.error);
   } else if (contentJson !== undefined && warta.status === 'PUBLISHED') {
-    // Warta sudah terbit tapi isinya disunting ‚Üí teks di landing ikut diperbarui.
+    // Warta sudah terbit tapi isinya disunting ? teks di landing ikut diperbarui.
     syncWartaToContentItem(prisma, warta).catch(console.error);
   }
   
   res.json({ warta });
 }));
 
-// GET /api/warta/:id ‚Äî get single warta
+// GET /api/warta/:id ó get single warta
 app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id } });
@@ -8111,7 +8383,7 @@ app.get('/api/warta/:id', requireRole(), wrap(async (req, res) => {
   res.json({ warta });
 }));
 
-// DELETE /api/warta/:id ‚Äî delete draft warta
+// DELETE /api/warta/:id ó delete draft warta
 app.delete('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const warta = await prisma.wartaPublik.findUnique({ where: { id: req.params.id }, select: { status: true } });
@@ -8125,7 +8397,7 @@ app.delete('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
 // EVENT GALLERY (Photo/Video Upload & Approval)
 // ============================================================
 
-// GET /api/gallery ‚Äî list gallery items by event
+// GET /api/gallery ó list gallery items by event
 app.get('/api/gallery', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { eventId, division, status, approvedOnly } = req.query;
@@ -8144,7 +8416,7 @@ app.get('/api/gallery', requireRole(), wrap(async (req, res) => {
   res.json({ items });
 }));
 
-// POST /api/gallery ‚Äî upload media (creates PENDING entry)
+// POST /api/gallery ó upload media (creates PENDING entry)
 app.post('/api/gallery', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { eventId, title, description, mediaUrl, mediaType, thumbUrl, division, driveFileId } = req.body;
@@ -8169,7 +8441,7 @@ app.post('/api/gallery', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(
   res.status(201).json({ item });
 }));
 
-// PATCH /api/gallery/:id ‚Äî approve/reject
+// PATCH /api/gallery/:id ó approve/reject
 app.patch('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { status, rejectReason } = req.body;
@@ -8192,7 +8464,7 @@ app.patch('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), 
   res.json({ item });
 }));
 
-// DELETE /api/gallery/:id ‚Äî delete gallery item
+// DELETE /api/gallery/:id ó delete gallery item
 app.delete('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   await prisma.eventGallery.delete({ where: { id: req.params.id } });
@@ -8203,13 +8475,13 @@ app.delete('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
 // PAW NOTIFICATIONS (Web Push / In-App)
 // ============================================================
 
-// GET /api/push/config ‚Äî VAPID public key untuk client (tanpa auth)
+// GET /api/push/config ó VAPID public key untuk client (tanpa auth)
 app.get('/api/push/config', (req, res) => {
   const pub = process.env.VAPID_PUBLIC_KEY || 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENBnhEtZU_ra0zuabyFCBXFKEx1cfqkX6VK0P96LB6o2kW8COWEO2OuX99MGOry_nV9jTlhh2fp1-UPg9UkJQVA';
   res.json({ publicKey: pub });
 });
 
-// POST /api/paw/subscribe ‚Äî simpan langganan web push (alias /api/push/subscribe)
+// POST /api/paw/subscribe ó simpan langganan web push (alias /api/push/subscribe)
 async function handlePushSubscribe(req, res) {
   const prisma = getPrisma();
   const { endpoint, keys } = req.body || {};
@@ -8235,7 +8507,7 @@ async function handlePushSubscribe(req, res) {
 app.post('/api/paw/subscribe', requireRole(), wrap(handlePushSubscribe));
 app.post('/api/push/subscribe', requireRole(), wrap(handlePushSubscribe));
 
-// POST /api/push/unsubscribe ‚Äî hapus langganan perangkat ini
+// POST /api/push/unsubscribe ó hapus langganan perangkat ini
 app.post('/api/push/unsubscribe', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { endpoint } = req.body || {};
@@ -8245,7 +8517,7 @@ app.post('/api/push/unsubscribe', requireRole(), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// GET/PUT /api/notifications/preferences ‚Äî preferensi kategori per user
+// GET/PUT /api/notifications/preferences ó preferensi kategori per user
 app.get('/api/notifications/preferences', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const userId = req.authUser?.id;
@@ -8272,7 +8544,7 @@ app.put('/api/notifications/preferences', requireRole(), wrap(async (req, res) =
   res.json({ ok: true, preferences: prefs });
 }));
 
-// POST /api/paw/send ‚Äî kirim notifikasi ke 1 user (staf)
+// POST /api/paw/send ó kirim notifikasi ke 1 user (staf)
 app.post('/api/paw/send', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const { userId, title, message, url } = req.body || {};
   if (!userId || !title) return res.status(400).json({ error: 'userId & title wajib' });
@@ -8296,7 +8568,7 @@ app.post('/api/paw/send', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap
 app.use('/api', (req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 
 // ---------- Frontend terintegrasi (gaya AISIGHT: 1 proses, 1 port) ----------
-// DEV  : Vite middleware di-tanam ke Express ‚Üí hot-reload, satu port.
+// DEV  : Vite middleware di-tanam ke Express ? hot-reload, satu port.
 // PROD : sajikan dist/ hasil `vite build`.
 // API-only: set PURE_API=1 untuk mematikan penyajian frontend.
 import path from 'node:path';
@@ -8324,7 +8596,7 @@ if (serveFrontend && process.env.NODE_ENV !== 'production') {
   app.use(viteDev.middlewares);
 }
 
-// Di Vercel serverless: jangan listen ‚Äî app diekspor via api/index.mjs.
+// Di Vercel serverless: jangan listen ó app diekspor via api/index.mjs.
 // Di lokal (npm run dev / npm run server): jalankan HTTP listener seperti biasa.
 if (!process.env.VERCEL) {
   // eslint-disable-next-line no-inner-declarations
@@ -8332,7 +8604,7 @@ if (!process.env.VERCEL) {
     const mode = process.env.NODE_ENV === 'production'
       ? 'produksi (dist/)'
       : viteDev
-        ? 'development (Vite middleware ‚Äî hot-reload aktif)'
+        ? 'development (Vite middleware ó hot-reload aktif)'
         : 'API-only';
     console.log(`GEHC server berjalan di http://localhost:${PORT} [${mode}]`);
     console.log(`Google Drive mode: ${getDriveMode() ?? 'BELUM DIKONFIGURASI'}`);
@@ -8340,16 +8612,16 @@ if (!process.env.VERCEL) {
     if (isDbConfigured()) {
       testDb()
         .then(() => console.log('TiDB Cloud: connected'))
-        .catch((e) => console.error('TiDB Cloud: gagal connect ‚Äî', e.message));
+        .catch((e) => console.error('TiDB Cloud: gagal connect ó', e.message));
     }
 
-    // Peringatan dini untuk developer ‚Äî agar login/daftar Google tidak "diam" tanpa penjelasan
+    // Peringatan dini untuk developer ó agar login/daftar Google tidak "diam" tanpa penjelasan
     if (!process.env.GOOGLE_CLIENT_ID) {
-      console.warn('‚ö†Ô∏è  GOOGLE_CLIENT_ID belum diisi ‚Äî Login/Daftar via Google NONAKTIF.');
-      console.warn('    Panduan: drive-integration.md ¬ß8 (Setup Google Auth).');
+      console.warn('??  GOOGLE_CLIENT_ID belum diisi ó Login/Daftar via Google NONAKTIF.');
+      console.warn('    Panduan: drive-integration.md ß8 (Setup Google Auth).');
     }
     if (!process.env.SUPERADMIN_EMAILS) {
-      console.warn('‚ÑπÔ∏è  SUPERADMIN_EMAILS kosong ‚Äî tidak ada email yang otomatis menjadi SUPERADMIN saat login pertama.');
+      console.warn('??  SUPERADMIN_EMAILS kosong ó tidak ada email yang otomatis menjadi SUPERADMIN saat login pertama.');
     }
   });
 }

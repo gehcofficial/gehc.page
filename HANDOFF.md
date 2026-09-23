@@ -1,5 +1,37 @@
 # GEHC Portal — Handoff
 
+## Current — BZP v4: tab mandiri, jadwal penatalayanan, multi-foto, PIC DB, promo jemaat (23 Sep 2026)
+
+**A. BZP tanpa scaffolding divisi** — `div-benzarpr` tetap di grup **Divisi**, tetapi dirender **`BenzarStoreTab` langsung** (tanpa Program/Event, WhatsApp, kartu divisi, Submit for Review, Riwayat, dan tab Ringkasan·Ibadah·Anggota·Diskusi·Drive·Rencana). Tab `store` dihapus dari `DivisionWorkspacePanel`.
+
+**B. Jadwal Jual pola penatalayanan** — tabel **`BzpSalesRole`** + `sales_role_id`; **10 role** di-seed; `SearchableMultiSelect` mencari **Komisi & Tim Kerja** (`GET /api/benzar/sales-people?q=`); **bulk assign** idempoten + **notifikasi aplikasi**; shift = tanggal + jam.
+
+**C. Multi-foto + nama file** — unggah **banyak foto sekaligus**; tiap gambar menyimpan `name` (nama file asli, juga dipakai sebagai nama di Drive) dan bisa **rename**; **dropdown gambar varian menampilkan nama file**.
+
+**D. PIC dari database** — `bzp_settings.pic_user_ids` (maks 3); **default Bendahara Tim Kerja** (diverifikasi: “Milithya Christy Kerin Wuisan — Bendahara Tim Kerja”); nama & nomor dari `User`/`StrukturMember`; **plus** penanggung jawab dari Jadwal Jual terdekat; API publik `GET /api/benzar/pic` (juga dipakai `/qris` & `/public-info`).
+
+**E. Promo per-produk + jemaat** — `promos.scope` (GLOBAL/CATEGORY/SUBCATEGORY/PRODUCT) + `target_ids` + `auto_apply` + `max_discount`; audiens **MEMBER (jemaat login)**; diskon **per baris item**; jika beberapa cocok → **paling menguntungkan**; seed promo **`JEMAAT25`** = potongan **Rp25.000** untuk **Kaos Eben Haezer** (kode + otomatis saat login).
+
+**F. Bersihkan prod** — skrip `server/cleanup-bzp-prod.mjs` (dry-run default): **2 pesanan dihapus**, **3 produk** (`tes`, `Kaos Benzar`, `Onde-Onde`) dihapus permanen. Sisa: 8 produk seed (draf).
+
+**G. Status produk** — form kini punya toggle **“Aktif (tampil di katalog)”** (`isActive`, default **Aktif** untuk produk baru) terpisah dari “Sedang dijual”; tombol **aktif/nonaktif cepat** di tabel; input stok **disabled** saat memakai varian (stok = Σ varian).
+
+**H. Modal anti-scroll** — footer **sticky** di semua modal BZP (Produk, Promo, Campaign, Shift, Sub-kategori).
+
+**Migrasi & seed** (idempoten, sudah di **staging & prod**):
+- `server/_migrate-bzp-v4.cjs`: `bzp_sales_roles`, `sales_shift_assignments.sales_role_id`, `promos.{scope,target_ids,auto_apply,max_discount}`, `bzp_settings.pic_user_ids`.
+- `server/seed-bzp-sales.mjs` (`npm run db:seed:bzp-sales`): 10 role + promo `JEMAAT25`.
+- `server/cleanup-bzp-prod.mjs` (`npm run db:cleanup:bzp-prod`).
+
+**Verifikasi**: `lint` bersih · **472 test** hijau · `build` OK · uji lokal: BZP tanpa tab divisi (7 sub-tab), form punya toggle Aktif + sticky footer + dropdown sub-kategori, promo punya opsi **Jemaat** + scope **Produk tertentu** + auto-apply, PIC = Bendahara Tim Kerja dari DB, promo jemaat ditolak untuk tamu (400) · 0 error.
+
+catatan: promo otomatis bernilai 0 selama **harga produk masih 0 (draf)** — potongan di-cap ke nilai barang; akan berlaku setelah harga diisi.
+
+### Next
+1. Di panel BZP: unggah foto (multi, beri nama), isi harga/stok varian, lalu **aktifkan** produk (toggle “Aktif”).
+2. Uji promo jemaat (`JEMAAT25`) setelah harga Kaos diisi.
+3. Buat Jadwal Jual: pilih tanggal/jam → tambah petugas per role (cari Komisi/Tim Kerja).
+
 ## Current — Seed produk BZP di PROD (draf) (23 Sep 2026)
 
 **Goal:** Mengisi produk nyata ke prod: Kaos Eben Haezer (Putih/Ungu × ukuran), makanan & minuman yang pernah dijual.

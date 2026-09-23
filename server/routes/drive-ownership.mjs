@@ -1476,13 +1476,16 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const product = await prisma.product.findUnique({ where: { id: req.params.id } });
       if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
       const jpeg = await jpegFromBody(req.body);
+      const rawName = String(req.body?.name || req.body?.filename || '').trim();
+      const safeName = rawName.replace(/[^\w.\- ]+/g, '_').slice(0, 80) || `${Date.now()}.jpg`;
+      const driveName = /\.[a-z0-9]+$/i.test(safeName) ? safeName : `${safeName}.jpg`;
       const dest = await ensureBzpProductFolder(product.category, product.id);
       const file = await uploadJpegToFolder(dest.drive, dest.folder.id, jpeg, {
-        filename: `${Date.now()}.jpg`,
+        filename: driveName,
         publicReader: true,
       });
       const images = Array.isArray(product.images) ? [...product.images] : [];
-      images.push({ driveFileId: file.id, url: driveThumbUrl(file.id) });
+      images.push({ driveFileId: file.id, url: driveThumbUrl(file.id), name: safeName, caption: '' });
       const updated = await prisma.product.update({
         where: { id: product.id },
         data: { images },

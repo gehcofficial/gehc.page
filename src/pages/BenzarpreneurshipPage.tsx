@@ -154,7 +154,11 @@ export default function BenzarpreneurshipPage() {
     try {
       const r = await fetch('/api/benzar/promos/validate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ code: form.promoCode.trim(), subtotal: cartSubtotal }),
+        body: JSON.stringify({
+          code: form.promoCode.trim(),
+          items: cart.map((c) => ({ productId: c.product.id, variantId: c.variant?.id, qty: c.qty })),
+          subtotal: cartSubtotal,
+        }),
       });
       const d = await r.json();
       if (!r.ok) { setPromoErr(d.error || 'Promo tidak valid.'); return; }

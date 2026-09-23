@@ -1437,14 +1437,22 @@ model ProductPriceHistory {
   @@map("product_price_history")
 }
 
-/// Diskon/promo (internal vs guest).
+/// Diskon/promo (internal vs guest vs jemaat), bisa spesifik produk/kategori.
 model Promo {
   id          String    @id @db.VarChar(64)
   code        String    @unique @db.VarChar(32)
   name        String    @db.VarChar(120)
   type        String    @db.VarChar(16) // PERCENT | AMOUNT
   value       Int
-  audience    String    @default("ALL") @db.VarChar(16) // INTERNAL | GUEST | ALL
+  audience    String    @default("ALL") @db.VarChar(16) // ALL | GUEST | INTERNAL | MEMBER (jemaat)
+  /// GLOBAL | CATEGORY | SUBCATEGORY | PRODUCT
+  scope       String    @default("GLOBAL") @db.VarChar(16)
+  /// Sasaran sesuai scope: productId[] | subcategory slug[] | nama kategori[]
+  targetIds   Json?     @map("target_ids")
+  /// Terapkan otomatis tanpa kode (mis. potongan jemaat).
+  autoApply   Boolean   @default(false) @map("auto_apply")
+  /// Batas maksimum potongan (opsional).
+  maxDiscount Int?      @map("max_discount")
   minSpend    Int       @default(0) @map("min_spend")
   isActive    Boolean   @default(true) @map("is_active")
   startsAt    DateTime? @map("starts_at") @db.DateTime(3)
@@ -1503,7 +1511,8 @@ model CampaignDonation {
 /// Pengaturan BZP (single-row): PIC, ongkir, QRIS, grup WA.
 model BzpSetting {
   id          String   @id @db.VarChar(64)
-  picPhones   Json?    @map("pic_phones") // [{name, phone}]
+  /// Daftar userId PIC (maks 3) — nama & nomor diambil dari User/Struktur.
+  picUserIds  Json?    @map("pic_user_ids")
   deliveryFee Int      @default(0) @map("delivery_fee")
   qris        Json?    // {imageUrl, merchantName, merchantId, bankName, accountNumber, instructions}
   waGroupUrl  String?  @map("wa_group_url") @db.VarChar(300)
@@ -1511,6 +1520,22 @@ model BzpSetting {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@map("bzp_settings")
+}
+
+/// Daftar role untuk Jadwal Jual BZP (mirror ServiceRole penatalayanan).
+model BzpSalesRole {
+  id          String   @id @db.VarChar(64)
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  assignments SalesShiftAssignment[]
+
+  @@index([isActive])
+  @@map("bzp_sales_roles")
 }
 
 /// Penjadwalan kelompok penjualan (shift + role + assignment).
@@ -1534,18 +1559,22 @@ model SalesShift {
 }
 
 model SalesShiftAssignment {
-  id        String   @id @db.VarChar(64)
-  shiftId   String   @map("shift_id") @db.VarChar(64)
-  userId    String?  @map("user_id") @db.VarChar(64)
-  name      String   @db.VarChar(120)
-  role      String   @db.VarChar(60)
-  status    String   @default("INVITED") @db.VarChar(16) // INVITED | CONFIRMED | DECLINED
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  id          String   @id @db.VarChar(64)
+  shiftId     String   @map("shift_id") @db.VarChar(64)
+  userId      String?  @map("user_id") @db.VarChar(64)
+  /// Role terkelola (BzpSalesRole); `role` menyimpan nama sebagai snapshot.
+  salesRoleId String?  @map("sales_role_id") @db.VarChar(64)
+  name        String   @db.VarChar(120)
+  role        String   @db.VarChar(60)
+  status      String   @default("INVITED") @db.VarChar(16) // INVITED | CONFIRMED | DECLINED
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  shift SalesShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  shift     SalesShift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  salesRole BzpSalesRole? @relation(fields: [salesRoleId], references: [id])
 
   @@index([shiftId])
+  @@index([salesRoleId])
   @@map("sales_shift_assignments")
 }
 
