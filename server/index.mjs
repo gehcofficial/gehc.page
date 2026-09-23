@@ -6516,6 +6516,19 @@ async function resolveBzpPics(prisma) {
       pics = [{ id: bend.userId || 'bendahara', name, phone, role: bend.position || 'Bendahara Tim Kerja' }];
     }
   }
+  // Fallback: kepala divisi BENZARPR
+  if (!pics.length) {
+    const head = await prisma.eventDivisionMember
+      .findFirst({
+        where: { role: { in: ['LEAD', 'CO_LEAD'] }, eventDivision: { division: 'BENZARPR' } },
+        select: { userId: true, name: true },
+      })
+      .catch(() => null);
+    if (head?.userId) {
+      const u = await prisma.user.findUnique({ where: { id: head.userId }, select: { name: true, phone: true } }).catch(() => null);
+      pics = [{ id: head.userId, name: u?.name || head.name, phone: u?.phone || '', role: 'Kepala BZP' }];
+    }
+  }
   // Penanggung jawab dari Jadwal Jual terdekat (nama & nomor dari DB)
   let schedule = [];
   let shiftDate = null;
