@@ -1,5 +1,33 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia: persetujuan HOD untuk AI regenerate + diskusi ber-scope + preview per sel (24 Sep 2026)
+
+**Masalah:** AI langsung menimpa draf 7 Path/khotbah tanpa kontrol; diskusi internal tidak terarah ke bagian tertentu; tidak ada riwayat/undo; tidak ada pratinjau sebelum menimpa sel.
+
+**Solusi:**
+- **Semua generate AI (draft & perkaya) kini jadi PENGAJUAN** → disimpan di `studio.pendingRegen` (proposal + ringkasan + `diff`), **belum menimpa** data. Requester dapat notifikasi.
+- **Persetujuan HOD**: `GET /api/didaskalia/studio/:ym/:week/approval` → `{ pending, history, canApprove }`; `POST …/approval/approve` (terapkan + `generation++` + catat riwayat) & `POST …/approval/reject` (alasan, requester dapat notifikasi). Approver = **kepala divisi DIDASKALIA (LEAD/CO_LEAD)**, **SUPERADMIN** bebas, **KOMISI** fallback bila tak ada kepala.
+- **Riwayat + undo**: `POST …/regen-undo` mengembalikan snapshot versi sebelumnya (maks 20 entri).
+- **Struktur dikunci**: `proposalFromDraft` mempertahankan jumlah Path, urutan hari (`dayLabel`), dan key 5 section RHB dari data saat ini — AI hanya mengisi isi.
+- **Preview per sel**: tombol **AI** di Perenungan & Ringkasan Khotbah memanggil `/extras` dengan **scope diskusi** → hasil muncul sebagai kotak pratinjau **Terapkan / Batal** (tidak langsung menimpa).
+- **Diskusi ber-scope**: dropdown bagian (Umum / Inti Pesan / Ringkasan Khotbah / Path N), chip scope per catatan, filter + dropdown bagian, tombol **+ Catatan** di tiap kartu Path (auto-arahkan ke `#didaskalia-discussion`), dan AI memakai `filterCommentsByScope` (GENERAL selalu ikut).
+- **UI**: kartu **Persetujuan Regenerate & Riwayat** di panel Studio (diff before/after per bagian, Setujui/Tolak, daftar versi + Kembalikan).
+
+**Verifikasi:** `lint` bersih ✓ **478 test** hijau (6 test baru: `tests/unit/didaskalia-regen.test.ts`) ✓ `build` OK ✓ smoke endpoint staging: GET approval 200, APPROVE → paths 7 + generation 1 + riwayat 1, REJECT → REJECTED + alasan, UNDO → pulih, pending null. **Prod `youth.gehc.page/api/version` = `c590dad`** ✓ **staging `c590dad`** (sama) ✓ Branch `staging` git = `c590dad` (sinkron) ✓ Residu uji minggu 4 staging dibersihkan (`reset-didaskalia-week --full --apply`).
+
+### Next
+1. Uji manual di UI (prod/staging): ajukan draf → HOD menyetujui → terapkan; coba Tolak + alasan lalu ajukan ulang; Kembalikan versi.
+2. Uji preview per sel (Perenungan/Khotbah) + diskusi ber-scope (+ Catatan dari kartu Path).
+3. Backlog: `ensure-weekly-divisions --apply` (staging 13, prod 4 event), Fase C email (butuh API key), P1-6 react-query, P2-6 split `DivisionWorkspacePanel`.
+
+### Commands
+```powershell
+npm run lint; npm run test; npm run build
+npx dotenv -e .env.staging -- node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full --apply
+npm run staging:sync
+```
+
+
 ## Current — Staging diselaraskan dengan main (23 Sep 2026)
 
 **Masalah:** visual staging ≠ main. Ternyata **staging tertinggal 60 commit**.
