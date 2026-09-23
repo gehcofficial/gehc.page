@@ -1,5 +1,31 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia: panel dirampingkan jadi 3 sub-tab + Studio 6 sub-tab (24 Sep 2026)
+
+**Masalah:** panel Didaskalia punya 8 sub-tab dengan banyak duplikasi: Materi/Drive muncul di 3 tempat (tab Drive, kartu di tab Ibadah, `EventDidaskaliaMaterials` di Info Event); Diskusi 2 tempat (tab divisi vs Diskusi Internal Studio); Rapat 2 tempat (Ringkasan vs Rencana); Warta 2 tempat (tab divisi vs sidebar). Isi Studio satu scroll panjang (7 kartu).
+
+**Keputusan (pemilik):** pertahankan `EventDidaskaliaMaterials` di Info Event sebagai permukaan konsumsi mentor; riwayat Diskusi generik disembunyikan (data tetap); "Dari Rencana bulan" jadi strip ringkas.
+
+**Hasil IA:**
+- Panel divisi Didaskalia: **8 → 3 sub-tab** — `Studio`, `Kurikulum & Materi`, `Anggota`. Default = Studio.
+- **Kurikulum & Materi** = gabungan 3 kartu subfolder (Pembekalan/Khotbah/RHB) + browser Drive (Folder Baru/Upload/daftar).
+- Strip ringkas di atas konten: status penolakan divisi + "Dari Rencana bulan" (deliverable).
+- Studio: **2 → 6 sub-tab** — `Inti` (Persetujuan HOD + Input inti & tombol AI), `7 Path`, `Khotbah`, `Diskusi`, `Terbitkan` (PDF + Presentasi/Caption), `Jadwal & Meet` (ritual + link Meet + **Rapat & Agenda** dipindah dari Ringkasan/Rencana via prop `extraJadwal`).
+- Divisi lain **tidak berubah** (diverifikasi: Marturia 9 tab, Koinonia 7 tab).
+
+**Verifikasi:** `lint` bersih ✓ `test` 478 hijau ✓ `build` OK ✓ Browser (staging, `tech@gehc.demo` SUPERADMIN): panel = `["Studio","Kurikulum & Materi","Anggota"]`; Studio = `["Inti","7 Path","Khotbah","Diskusi","Terbitkan","Jadwal & Meet"]`; Materi memuat Kurikulum/Folder/Upload; Anggota memuat "Tambah Anggota"; tanpa page error ✓ Prod & staging = `553c580` ✓
+
+### Next
+1. Uji alur di UI: upload materi per subfolder + browse Drive; Rapat/Agenda di Jadwal & Meet; tombol "AI + PDF Pembekalan".
+2. (Opsional) Selaraskan `EventDidaskaliaMaterials` (Info Event) agar menautkan ke tab Kurikulum & Materi.
+
+### Commands
+```powershell
+npm run lint; npm run test; npm run build
+npm run staging:sync
+```
+
+
 ## Current — Didaskalia: persetujuan HOD untuk AI regenerate + diskusi ber-scope + preview per sel (24 Sep 2026)
 
 **Masalah:** AI langsung menimpa draf 7 Path/khotbah tanpa kontrol; diskusi internal tidak terarah ke bagian tertentu; tidak ada riwayat/undo; tidak ada pratinjau sebelum menimpa sel.
