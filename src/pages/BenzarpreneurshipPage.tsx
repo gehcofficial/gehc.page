@@ -40,8 +40,8 @@ export default function BenzarpreneurshipPage() {
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showQRIS, setShowQRIS] = useState(false);
-  const [orderCode, setOrderCode] = useState<string | null>(null);
+  const [payOrder, setPayOrder] = useState<{ id: string; orderCode: string; total: number } | null>(null);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [qrisInfo, setQrisInfo] = useState<QRISInfo | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<{ campaign: Campaign; donations: CampaignDonation[]; grandTotal: number; donorCount: number } | null>(null);
@@ -61,6 +61,32 @@ export default function BenzarpreneurshipPage() {
   const [guestAsk, setGuestAsk] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
+
+  // Notifikasi ringan + ingatan pesanan di perangkat (untuk tamu).
+  const [toast, setToast] = useState<string | null>(null);
+  const notify = useCallback((m: string) => { setToast(m); setTimeout(() => setToast(null), 2800); }, []);
+  const RECENT_KEY = 'bzp_recent_orders';
+  const readRecent = useCallback((): any[] => {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; }
+  }, []);
+  const pushRecent = useCallback((o: any) => {
+    const list = [o, ...readRecent().filter((x) => x.orderCode !== o.orderCode)].slice(0, 10);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch { /* storage diblokir */ }
+    setRecentOrders(list);
+  }, [readRecent]);
+
+  /** Pembeli/tamu menandai sudah bayar â†’ status Menunggu Verifikasi. */
+  const claimPaid = useCallback(async (order: { id: string; orderCode: string; total: number }, phone: string, note: string) => {
+    const r = await fetch(`/api/benzar/orders/${order.id}/claim-paid`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, note }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal menandai sudah bayar.');
+    setMyOrders((os) => os.map((x) => (x.id === order.id ? { ...x, status: 'PAID' } : x)));
+    pushRecent({ ...order, status: 'PAID', createdAt: new Date().toISOString() });
+    notify('Terima kasih! Pembayaran menunggu verifikasi PIC.');
+  }, [notify, pushRecent]);
 
   // Track / my orders
   const [showTrack, setShowTrack] = useState(false);
@@ -93,6 +119,7 @@ export default function BenzarpreneurshipPage() {
     fetch('/api/benzar/qris').then((r) => r.json()).then(setQrisInfo).catch(() => {});
     fetch('/api/benzar/campaigns').then((r) => (r.ok ? r.json() : { campaigns: [] })).then((d) => setCampaigns(d.campaigns || [])).catch(() => {});
     fetch('/api/benzar/subcategories').then((r) => (r.ok ? r.json() : { subcategories: [] })).then((d) => setSubcats(d.subcategories || [])).catch(() => {});
+    setRecentOrders(readRecent());
     fetch('/api/benzar/orders/my', { credentials: 'include' })
       .then(async (r) => {
         if (r.status === 401) { setLoggedIn(false); return; }
@@ -186,12 +213,15 @@ export default function BenzarpreneurshipPage() {
       });
       const d = await r.json();
       if (!r.ok) { setCheckoutErr(d.error || 'Gagal membuat pesanan.'); return; }
-      setOrderCode(d.orderCode);
       setShowCheckout(false);
-      setShowQRIS(true);
       setCart([]);
       setPromo(null);
       setForm((f) => ({ ...f, promoCode: '', notes: '' }));
+      const ord = { id: String(d.order?.id || ''), orderCode: String(d.orderCode || ''), total: Number(d.order?.total ?? cartSubtotal) };
+      if (ord.id) {
+        setPayOrder(ord);
+        pushRecent({ ...ord, status: 'PENDING', createdAt: new Date().toISOString() });
+      }
     } catch { setCheckoutErr('Gagal membuat pesanan.'); }
     finally { setSubmitting(false); }
   };
@@ -688,41 +718,20 @@ export default function BenzarpreneurshipPage() {
         </div>
       )}
 
-      {/* Order created + QRIS */}
-      {showQRIS && orderCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => { setShowQRIS(false); setOrderCode(null); }}>
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-            <h2 className="text-xl font-black mb-2">Pesanan Dibuat!</h2>
-            <p className="text-sm text-[#8C8880] mb-1">Kode Pesanan: <span className="font-mono font-bold text-[#1B1B1B]">{orderCode}</span></p>
-            {qrisInfo && (
-              <div className="my-4">
-                <img src={slots.benzar.qris || qrisInfo.imageUrl} alt="QRIS" className="w-48 h-48 mx-auto border rounded-xl" />
-                <p className="text-xs text-[#8C8880] mt-2">{qrisInfo.instructions}</p>
-                {qrisInfo.whatsapp && (
-                  <a
-                    href={`https://wa.me/62${String(qrisInfo.whatsapp).replace(/^0/, '')}?text=${encodeURIComponent(`Halo GEHC, saya sudah bayar pesanan ${orderCode}`)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600"
-                  >
-                    Kirim Bukti ke WA
-                  </a>
-                )}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setShowQRIS(false); setOrderCode(null); setShowTrack(true); setTrackCode(orderCode); }}
-                className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]"
-              >
-                Lacak Pesanan
-              </button>
-              <button onClick={() => { setShowQRIS(false); setOrderCode(null); }} className="flex-1 bg-[#1B1B1B] text-white py-2.5 rounded-xl text-xs font-bold">
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Modal pembayaran — bisa dibuka kapan pun dari Pesanan Saya / Lacak */}
+      {payOrder && (
+        <PaymentModal
+          order={payOrder}
+          qris={qrisInfo}
+          slotImage={slots.benzar.qris}
+          phone={loggedIn ? '' : form.phone}
+          onClaim={async (note, phoneNo) => {
+            await claimPaid(payOrder, phoneNo || form.phone, note);
+            setPayOrder(null);
+          }}
+          onClose={() => setPayOrder(null)}
+          onTrack={() => { setTrackCode(payOrder.orderCode); setShowTrack(true); setPayOrder(null); }}
+        />
       )}
 
       {/* Track / My orders */}
@@ -752,6 +761,9 @@ export default function BenzarpreneurshipPage() {
                   </span>
                 </div>
                 <p className="text-xs text-[#8C8880] mb-2">Total: <b className="text-[#1B1B1B]">{rupiah(tracked.order.total)}</b></p>
+                {tracked.order.status === 'PENDING' && (
+                  <button onClick={() => setPayOrder({ id: tracked.order.id, orderCode: tracked.order.orderCode, total: tracked.order.total })} className="mb-2 w-full py-2 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-xs font-black">Bayar sekarang</button>
+                )}
                 {(tracked.order.timeline || []).map((t: any, i: number) => (
                   <p key={i} className="text-[11px] text-[#8C8880]">
                     â€¢ {STATUS_LABELS[t.status as keyof typeof STATUS_LABELS] || t.status} â€” {new Date(t.at).toLocaleString('id-ID')}{t.note ? ` Â· ${t.note}` : ''}
@@ -764,11 +776,29 @@ export default function BenzarpreneurshipPage() {
               <div key={o.id} className="rounded-2xl border border-[#EFEDE8] p-3 mb-2">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs font-bold">{o.orderCode}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#8C8880]">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : o.status === 'PAID' ? 'bg-sky-50 text-sky-700' : 'bg-[#FAF9F5] text-[#8C8880]'}`}>
                     {STATUS_LABELS[o.status as keyof typeof STATUS_LABELS] || o.status}
                   </span>
                 </div>
-                <p className="text-[11px] text-[#8C8880] mt-1">{rupiah(o.total)} Â· {new Date(o.createdAt).toLocaleDateString('id-ID')}</p>
+                <p className="text-[11px] text-[#8C8880] mt-1">{rupiah(o.total)} - {new Date(o.createdAt).toLocaleDateString('id-ID')}</p>
+                {o.status === 'PENDING' && (
+                  <button onClick={() => setPayOrder({ id: o.id, orderCode: o.orderCode, total: o.total })} className="mt-2 w-full py-2 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-xs font-black">Bayar sekarang</button>
+                )}
+                {o.status === 'PAID' && <p className="text-[11px] text-sky-700 mt-1">Menunggu verifikasi PIC.</p>}
+              </div>
+            ))}
+            {recentOrders.filter((r) => !loggedIn || !myOrders.some((o) => o.orderCode === r.orderCode)).map((r) => (
+              <div key={r.orderCode} className="rounded-2xl border border-dashed border-[#D9D7D0] p-3 mb-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-bold">{r.orderCode}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'}`}>
+                    {STATUS_LABELS[r.status as keyof typeof STATUS_LABELS] || r.status}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#8C8880] mt-1">{rupiah(r.total)} - pesanan di perangkat ini</p>
+                {r.status === 'PENDING' && (
+                  <button onClick={() => setPayOrder({ id: r.id, orderCode: r.orderCode, total: r.total })} className="mt-2 w-full py-2 rounded-xl bg-[#F6AE4A] text-[#1B1B1B] text-xs font-black">Bayar sekarang</button>
+                )}
               </div>
             ))}
           </div>
@@ -816,6 +846,10 @@ export default function BenzarpreneurshipPage() {
           onClose={() => setDonateOpen(false)}
           onDone={() => { setDonateOpen(false); void openCampaign(activeCampaign.campaign.slug); }}
         />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] bg-[#1B1B1B] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">{toast}</div>
       )}
 
       {/* Footer */}
@@ -894,6 +928,107 @@ const DonateForm: React.FC<{ slug: string; defaultName: string; onClose: () => v
             {busy ? 'Mengirimâ€¦' : 'Kirim Donasi'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+// ---------------- Modal Pembayaran (bisa dibuka kapan pun) ----------------
+const PaymentModal: React.FC<{
+  order: { id: string; orderCode: string; total: number };
+  qris: QRISInfo | null;
+  slotImage?: string;
+  phone?: string;
+  onClaim: (note: string, phoneNo: string) => Promise<void>;
+  onClose: () => void;
+  onTrack: () => void;
+}> = ({ order, qris, slotImage, phone, onClaim, onClose, onTrack }) => {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  const wa = qris?.whatsapp || '081288646114';
+  const pics = qris?.picPhones || [];
+
+  const copyCode = async () => {
+    try { await navigator.clipboard.writeText(order.orderCode); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* skip */ }
+  };
+
+  const uploadProof = async (f: File) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const data = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result || ''));
+        r.onerror = () => rej(r.error);
+        r.readAsDataURL(f);
+      });
+      const r = await fetch(`/api/benzar/orders/${order.id}/payment-proof`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: f.name, name: f.name, mimetype: f.type || 'image/jpeg', data, phone, kind: 'proof' }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal mengunggah bukti.');
+      setUploaded(true);
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Gagal mengunggah bukti.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+        <h2 className="text-xl font-black mb-1">Pembayaran</h2>
+        <p className="text-sm text-[#8C8880] mb-3">
+          Kode: <span className="font-mono font-bold text-[#1B1B1B]">{order.orderCode}</span>{' '}
+          <button onClick={() => void copyCode()} className="text-[10px] font-bold text-sky-700">{copied ? 'tersalin' : 'salin'}</button>
+        </p>
+        <p className="text-lg font-black text-[#F6AE4A] mb-3">{``}Rp {Number(order.total).toLocaleString('id-ID')}</p>
+        {(slotImage || qris?.imageUrl) && (
+          <img src={slotImage || qris?.imageUrl} alt="QRIS" className="w-48 h-48 mx-auto border rounded-xl" />
+        )}
+        <p className="text-xs text-[#8C8880] mt-2">{qris?.instructions || 'Scan QRIS, lalu tekan “Sudah Bayar” agar PIC memverifikasi.'}</p>
+        {pics.length > 0 && (
+          <p className="text-[11px] text-[#8C8880] mt-2">
+            PIC: {pics.map((p) => `${p.name}${p.phone ? ` (${p.phone})` : ''}`).join(' · ')}
+          </p>
+        )}
+
+        <div className="mt-4 space-y-2">
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan (opsional): nama pengirim / 4 digit terakhir" className="w-full px-3 py-2 rounded-lg border border-[#D9D7D0] text-sm" />
+          <button onClick={() => void onClaim(note, phone || '')} disabled={busy} className="w-full bg-[#F6AE4A] text-[#1B1B1B] py-3 rounded-xl font-black disabled:opacity-50">
+            {busy ? 'Memproses…' : 'Sudah Bayar'}
+          </button>
+          <div className="flex gap-2">
+            <a
+              href={`https://wa.me/62${String(wa).replace(/^0/, '')}?text=${encodeURIComponent(`Halo GEHC, saya sudah bayar pesanan ${order.orderCode}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-green-500 text-white text-xs font-bold"
+            >
+              Kirim bukti ke WA
+            </a>
+            <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880] disabled:opacity-50">
+              {uploaded ? 'Bukti terunggah' : 'Unggah bukti (opsional)'}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => { const fl = e.target.files?.[0]; e.target.value = ''; if (fl) await uploadProof(fl); }}
+            />
+          </div>
+        </div>
+
+        {err && <p className="text-[11px] text-red-600 mt-2">{err}</p>}
+        <div className="flex gap-2 mt-3">
+          <button onClick={onTrack} className="flex-1 py-2.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]">Lacak Pesanan</button>
+          <button onClick={onClose} className="flex-1 bg-[#1B1B1B] text-white py-2.5 rounded-xl text-xs font-bold">Tutup</button>
+        </div>
+        <p className="text-[10px] text-[#8C8880] mt-2">Setelah menekan “Sudah Bayar”, status menjadi <b>Menunggu Verifikasi</b> hingga PIC memeriksa.</p>
       </div>
     </div>
   );

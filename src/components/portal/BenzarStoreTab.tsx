@@ -883,6 +883,26 @@ function OrderDetailModal({ order, onClose, onChanged }: { order: Order; onClose
     } catch (e) { alert(e instanceof Error ? e.message : 'Gagal.'); }
     finally { setBusy(false); }
   };
+  const quickStatus = async (next: OrderStatus, note = '') => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/benzar/orders/${order.id}/status`, {
+        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next, note }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Gagal memperbarui status.');
+      onChanged();
+      onClose();
+    } catch (e) { alert(e instanceof Error ? e.message : 'Gagal.'); }
+    finally { setBusy(false); }
+  };
+
+  const revertToPending = async () => {
+    const reason = window.prompt('Alasan dikembalikan ke Menunggu Bayar (akan tampil ke pembeli):') || '';
+    if (!reason.trim()) return;
+    await quickStatus('PENDING', `Dikembalikan ke menunggu bayar: ${reason.trim()}`);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -925,6 +945,15 @@ function OrderDetailModal({ order, onClose, onChanged }: { order: Order; onClose
             <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)} className={input}>
               {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </select>
+            {order.status === 'PAID' && (
+              <div className="rounded-xl bg-sky-50 border border-sky-200 p-2 space-y-1.5">
+                <p className="text-[11px] font-bold text-sky-800">Pembeli menandai sudah bayar — menunggu verifikasi.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => void quickStatus('VERIFIED', 'Pembayaran diverifikasi')} className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Verifikasi</button>
+                  <button onClick={() => void revertToPending()} className="flex-1 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880]">Kembalikan</button>
+                </div>
+              </div>
+            )}
             {status === 'CANCELLED' && (
               <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Alasan pembatalan (wajib)" className={input} />
             )}

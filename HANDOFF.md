@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — BZP: pembayaran kapan pun + “Sudah Bayar” (verifikasi PIC) (23 Sep 2026)
+
+**Masalah:** modal QRIS hanya muncul sekali setelah checkout; begitu ditutup, tidak ada jalan bayar (pesanan menggantung “Menunggu Bayar”).
+
+**Solusi:**
+- **Modal pembayaran (`PaymentModal`)** bisa dibuka kapan pun dari tombol **“Bayar sekarang”** di: **Pesanan Saya** (login), **hasil Lacak** (tamu), dan setelah checkout. Isi: kode (+ salin), total, **QRIS**, instruksi, **PIC dari DB**, **Kirim bukti ke WA**, **Unggah bukti (opsional)**, tombol utama **“Sudah Bayar”**.
+- **“Sudah Bayar”** → `POST /api/benzar/orders/:id/claim-paid` (publik; verifikasi pemilik akun **atau** kode+HP tamu) → status **PAID (Menunggu Verifikasi)** + **timeline** (siapa/kapan/catatan) + **notifikasi ke PIC BZP**. Idempoten bila sudah diklaim.
+- **Ingat pesanan di perangkat** (localStorage, maks 10) → tamu bisa kembali bayar tanpa login (“pesanan di perangkat ini”).
+- **Unggah bukti oleh tamu** diizinkan (`payment-proof` menerima `phone` untuk verifikasi; `requireRole()` dihapus dari rute itu) → status naik ke PAID.
+- **Portal (Pesanan)**: tombol **Verifikasi** (→ VERIFIED) & **Kembalikan** (ke Menunggu Bayar + **alasan** yang tampil ke pembeli), plus catatan klaim.
+- Tanpa migrasi DB (memakai `timeline` JSON + status yang ada).
+
+**Verifikasi:** `lint` bersih · **472 test** hijau · `build` OK · smoke staging: claim HP salah **403**, claim benar **200 PAID**, track menampilkan timeline+catatan, klaim ulang idempoten, admin kembalikan → PENDING + alasan, **upload bukti tamu 200** (status PAID).
+
+### Next
+1. Uji di prod: buat pesanan → tutup QRIS → buka **Pesanan Saya** → **Bayar sekarang** → **Sudah Bayar**.
+2. PIC menerima notifikasi; verifikasi/kembalikan dari panel Pesanan.
+
 ## Current — BZP v4: tab mandiri, jadwal penatalayanan, multi-foto, PIC DB, promo jemaat (23 Sep 2026)
 
 **A. BZP tanpa scaffolding divisi** — `div-benzarpr` tetap di grup **Divisi**, tetapi dirender **`BenzarStoreTab` langsung** (tanpa Program/Event, WhatsApp, kartu divisi, Submit for Review, Riwayat, dan tab Ringkasan·Ibadah·Anggota·Diskusi·Drive·Rencana). Tab `store` dihapus dari `DivisionWorkspacePanel`.

@@ -1496,13 +1496,16 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
 
   app.post(
     '/api/benzar/orders/:id/payment-proof',
-    requireRole(),
+    // Tamu boleh unggah bukti bila nomor HP cocok (dicek di body).
     wrap(async (req, res) => {
       const prisma = getPrisma();
       const order = await prisma.order.findUnique({ where: { id: req.params.id } });
       if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
-      const staff = await isBzpStaff(req.authUser);
-      if (order.userId !== req.authUser.id && !staff && !komisiGate(req.authUser)) {
+      const staff = req.authUser ? await isBzpStaff(req.authUser) : false;
+      const isOwner = Boolean(req.authUser?.id) && order.userId === req.authUser.id;
+      const proofPhone = String(req.body?.phone || '').trim();
+      const isGuestOwner = !order.userId && order.guestPhone && proofPhone && order.guestPhone === proofPhone;
+      if (!isOwner && !isGuestOwner && !staff && !komisiGate(req.authUser)) {
         return res.status(403).json({ error: 'Bukan pesanan Anda.' });
       }
       const jpeg = await jpegFromBody(req.body);
@@ -1543,8 +1546,11 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const prisma = getPrisma();
       const order = await prisma.order.findUnique({ where: { id: req.params.id } });
       if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
-      const staff = await isBzpStaff(req.authUser);
-      if (order.userId !== req.authUser.id && !staff && !komisiGate(req.authUser)) {
+      const staff = req.authUser ? await isBzpStaff(req.authUser) : false;
+      const isOwner = Boolean(req.authUser?.id) && order.userId === req.authUser.id;
+      const proofPhone = String(req.body?.phone || '').trim();
+      const isGuestOwner = !order.userId && order.guestPhone && proofPhone && order.guestPhone === proofPhone;
+      if (!isOwner && !isGuestOwner && !staff && !komisiGate(req.authUser)) {
         return res.status(403).json({ error: 'Bukan pesanan Anda.' });
       }
       res.json({

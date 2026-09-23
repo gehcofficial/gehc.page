@@ -7091,6 +7091,46 @@ app.get('/api/benzar/orders', requireDivision('BENZARPR'), requireRole('SUPERADM
   res.json({ orders });
 }));
 
+// POST /api/benzar/orders/:id/claim-paid — pembeli/tamu menandai sudah bayar (? PAID, perlu verifikasi admin)
+app.post('/api/benzar/orders/:id/claim-paid', wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!order) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+  const isOwner = Boolean(req.authUser?.id) && order.userId === req.authUser.id;
+  const phone = String(req.body?.phone || '').trim();
+  const isGuestOwner = !order.userId && order.guestPhone && phone && order.guestPhone === phone;
+  if (!isOwner && !isGuestOwner) return res.status(403).json({ error: 'Tidak berhak menandai pesanan ini.' });
+  if (order.status !== 'PENDING') {
+    return res.json({ order, statusLabel: ORDER_STATUS_LABEL[order.status] || order.status, already: true });
+  }
+  const note = String(req.body?.note || '').trim();
+  const byName = req.authUser?.name || order.guestName || 'Pembeli';
+  const timeline = appendTimeline(order, 'PAID', byName, `Pembeli menandai sudah bayar${note ? ` · ${note}` : ''}`);
+  const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'PAID', timeline } });
+  try {
+    const settings = await readBzpSettings(prisma);
+    const picIds = Array.isArray(settings?.picUserIds) ? settings.picUserIds.map(String).filter(Boolean) : [];
+    if (picIds.length) {
+      const title = 'Pembayaran diklaim pembeli';
+      const message = `Pesanan ${updated.orderCode} ditandai sudah bayar (Rp${Number(updated.total).toLocaleString('id-ID')}). Mohon verifikasi.`;
+      await prisma.notification.createMany({
+        data: picIds.map((uid) => ({
+          id: 'ntf-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+          type: 'IDLE_FLAG',
+          memberId: uid,
+          title,
+          message,
+          payload: { href: '#/portal', category: 'tugas', priority: 'TASK' },
+          category: 'tugas',
+          status: 'OPEN',
+        })),
+      }).catch(() => null);
+      await pushToUsers(prisma, picIds, { title, message, href: '#/portal', category: 'tugas', priority: 'TASK' }).catch(() => {});
+    }
+  } catch { /* notifikasi opsional */ }
+  res.json({ order: updated, statusLabel: ORDER_STATUS_LABEL.PAID });
+}));
 // GET /api/benzar/orders/my — list orders milik user login
 app.get('/api/benzar/orders/my', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
