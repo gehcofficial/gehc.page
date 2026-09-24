@@ -40,6 +40,7 @@ import {
 
 import { EventCheckInTab } from './EventCheckInTab';
 import PenatalayanCalendar from './PenatalayanCalendar';
+import { PenatalayanBoard } from './PenatalayanBoard';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
@@ -396,6 +397,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
       return [
         { id: 'studio', label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
         { id: 'materi', label: d.tabMateri, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
         membersTab,
       ];
     }
@@ -418,6 +420,14 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     if (selectedDiv === 'KOINONIA') {
       return [
         { id: 'checkin', label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
+        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
+        ibadahTab,
+        membersTab,
+      ];
+    }
+    if (selectedDiv === 'DIAKONIA') {
+      return [
+        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
         ibadahTab,
         membersTab,
       ];
@@ -1748,10 +1758,13 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               </div>
             )}
 
-            {/* Penatalayan Tab (Liturgia & Marturia) */}
-            {activeTab === 'penatalayan' && (selectedDiv === 'LITURGIA' || selectedDiv === 'MARTURIA') && (
+            {/* Penatalayan Tab (5 divisi) */}
+            {activeTab === 'penatalayan' && ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'].includes(selectedDiv) && (
               <div className="space-y-5">
-                <PenatalayanCalendar division={selectedDiv} />
+                <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
+                  <PenatalayanBoard focusDivision={selectedDiv} />
+                </div>
+                <PenatalayanCalendar division={selectedDiv} serviceType={selectedEvent?.serviceType || null} eventId={selectedEvent?.id || null} />
                 <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
                   <PenatalayanRolesEditor divisions={[selectedDiv]} divisionLabel={(dv) => dv === 'LITURGIA' ? 'Liturgia' : dv === 'MARTURIA' ? 'Marturia' : dv} />
                 </div>

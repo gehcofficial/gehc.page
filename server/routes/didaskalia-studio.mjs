@@ -741,11 +741,6 @@ egen- + Date.now().toString(36),
       const doc = String(req.query?.doc || 'pembekalan');
       if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
       if (!DOCS.includes(doc)) return res.status(400).json({ error: 'Jenis materi tidak valid.' });
-      if (!canViewDoc(req, doc)) {
-        return res.status(403).json({
-          error: doc === 'rhb' ? 'RHB hanya untuk Beyonders (mentor/mentee).' : 'Materi ini hanya untuk Mentor/Co-mentor & staf.',
-        });
-      }
 
       const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
       const weeks = plan ? readWeeks(plan) : [];
@@ -753,6 +748,19 @@ egen- + Date.now().toString(36),
       const studio = sanitizeStudio(week.studio);
       const render = studio.render?.[doc] || null;
       const event = await resolveEventId(prisma, week.date);
+
+      // RBAC: role ATAU ditugaskan sebagai petugas Didaskalia (mis. Pembaca Firman) pekan ini.
+      if (!canViewDoc(req, doc)) {
+        const { isAssignedDidaskaliaOfficer } = await import('../lib/penatalayan-access.mjs');
+        const assigned = doc === 'rhb'
+          ? false
+          : await isAssignedDidaskaliaOfficer(req.authUser, { eventId: event?.id || undefined, date: week.date });
+        if (!assigned) {
+          return res.status(403).json({
+            error: doc === 'rhb' ? 'RHB hanya untuk Beyonders (mentor/mentee).' : 'Materi ini hanya untuk Mentor/Co-mentor, staf, atau petugas yang ditugaskan.',
+          });
+        }
+      }
       res.json({
         doc,
         meta: {

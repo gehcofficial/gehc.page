@@ -3,24 +3,47 @@ import { Loader2, Plus, Save, Archive, RotateCcw } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
 
 type Props = {
-  /** Divisi yang dikelola, mis. ['LITURGIA','MARTURIA']. */
+  /** Divisi yang dikelola, mis. ['LITURGIA'] atau ['LITURGIA','MARTURIA']. */
   divisions: string[];
   /** Label bahasa Indonesia untuk divisi. */
   divisionLabel?: (division: string) => string;
   onChanged?: () => void;
 };
 
+type Edit = { name: string; division: string; subDivision: string; serviceTypes: string[]; checklist: string; sortOrder: number };
+
+const TYPES = [
+  { id: 'SERVING_DAY', label: 'Serving' },
+  { id: 'MENTORING_DAY', label: 'Mentoring' },
+];
+
+function parseTypes(csv?: string | null): string[] {
+  const list = String(csv || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  return list.length ? list : ['SERVING_DAY', 'MENTORING_DAY'];
+}
+
+function editFrom(role: ServiceRole): Edit {
+  return {
+    name: role.name,
+    division: role.division,
+    subDivision: role.subDivision || '',
+    serviceTypes: parseTypes(role.serviceTypes),
+    checklist: (role.checklistTemplate || []).join('\n'),
+    sortOrder: role.sortOrder,
+  };
+}
+
 /**
  * Editor daftar komponen penatalayan (ServiceRole) per divisi.
- * Dipakai di Panel Divisi (Liturgia/Marturia) dan workspace per-event.
+ * Mendukung sub-divisi, jenis ibadah (Serving/Mentoring), dan template checklist.
  */
 export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLabel, onChanged }) => {
   const [roles, setRoles] = useState<ServiceRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [draft, setDraft] = useState({ name: '', division: divisions[0] || 'LITURGIA' });
-  const [edits, setEdits] = useState<Record<string, { name: string; division: string; sortOrder: number }>>({});
+  const [draft, setDraft] = useState({ name: '', division: divisions[0] || 'LITURGIA', subDivision: '' });
+  const [edits, setEdits] = useState<Record<string, Edit>>({});
 
   const query = divisions.join(',');
 
@@ -50,13 +73,13 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: draft.name.trim(), division: draft.division }),
+        body: JSON.stringify({ name: draft.name.trim(), division: draft.division, subDivision: draft.subDivision.trim() || undefined }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
         throw new Error(d.error || 'Gagal menambah komponen.');
       }
-      setDraft({ name: '', division: draft.division });
+      setDraft({ name: '', division: draft.division, subDivision: draft.subDivision });
       await load();
       onChanged?.();
     } catch (e) {
@@ -67,15 +90,23 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
   };
 
   const saveRole = async (role: ServiceRole) => {
-    const draftEdit = edits[role.id];
-    if (!draftEdit) return;
+    const e = edits[role.id];
+    if (!e) return;
     setBusy(role.id);
     try {
+      const checklist = e.checklist.split('\n').map((s) => s.trim()).filter(Boolean);
       const r = await fetch(`/api/penatalayan/roles/${role.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: draftEdit.name, division: draftEdit.division, sortOrder: draftEdit.sortOrder }),
+        body: JSON.stringify({
+          name: e.name,
+          division: e.division,
+          subDivision: e.subDivision.trim(),
+          serviceTypes: e.serviceTypes.join(','),
+          checklistTemplate: checklist,
+          sortOrder: e.sortOrder,
+        }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -84,8 +115,8 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
       setEdits((prev) => { const next = { ...prev }; delete next[role.id]; return next; });
       await load();
       onChanged?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal menyimpan komponen.');
+    } catch (e2) {
+      setError(e2 instanceof Error ? e2.message : 'Gagal menyimpan komponen.');
     } finally {
       setBusy(null);
     }
@@ -125,7 +156,7 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
       <div className="flex items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-black text-[#1B1B1B]">Komponen Penatalayan</h3>
-          <p className="text-[11px] text-[#8C8880]">Daftar jabatan/komponen yang bisa ditugaskan. Bisa ditambah, diedit, atau diarsipkan.</p>
+          <p className="text-[11px] text-[#8C8880]">Jabatan/komponen yang bisa ditugaskan, beserta sub-divisi, jenis ibadah, dan checklist persiapan.</p>
         </div>
       </div>
 
@@ -148,49 +179,79 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
                   <p className="px-4 py-3 text-xs text-[#8C8880]">Belum ada komponen di divisi ini.</p>
                 )}
                 {items.map((role) => {
-                  const edit = edits[role.id] || { name: role.name, division: role.division, sortOrder: role.sortOrder };
+                  const edit = edits[role.id] || editFrom(role);
                   const dirty = edits[role.id] !== undefined;
+                  const setEdit = (patch: Partial<Edit>) => setEdits((prev) => ({ ...prev, [role.id]: { ...edit, ...patch } }));
+                  const toggleType = (id: string) => setEdit({ serviceTypes: edit.serviceTypes.includes(id) ? edit.serviceTypes.filter((x) => x !== id) : [...edit.serviceTypes, id] });
                   return (
-                    <div key={role.id} className={`px-4 py-2.5 flex flex-wrap items-center gap-2 ${role.isActive ? '' : 'opacity-50'}`}>
-                      <input
-                        value={edit.name}
-                        onChange={(e) => setEdits((prev) => ({ ...prev, [role.id]: { ...edit, name: e.target.value } }))}
-                        className="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg border border-[#D9D7D0] text-xs font-semibold"
-                      />
-                      <select
-                        value={edit.division}
-                        onChange={(e) => setEdits((prev) => ({ ...prev, [role.id]: { ...edit, division: e.target.value } }))}
-                        className="px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs"
-                      >
-                        {divisions.map((d) => <option key={d} value={d}>{label(d)}</option>)}
-                      </select>
-                      <input
-                        type="number"
-                        value={edit.sortOrder}
-                        onChange={(e) => setEdits((prev) => ({ ...prev, [role.id]: { ...edit, sortOrder: Number(e.target.value) || 0 } }))}
-                        className="w-16 px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs"
-                        title="Urutan"
-                      />
-                      {dirty && (
+                    <div key={role.id} className={`px-4 py-3 space-y-2 ${role.isActive ? '' : 'opacity-50'}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          value={edit.name}
+                          onChange={(e) => setEdit({ name: e.target.value })}
+                          className="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg border border-[#D9D7D0] text-xs font-semibold"
+                        />
+                        <input
+                          value={edit.subDivision}
+                          onChange={(e) => setEdit({ subDivision: e.target.value })}
+                          placeholder="Sub-divisi"
+                          className="w-40 px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs"
+                        />
+                        <select
+                          value={edit.division}
+                          onChange={(e) => setEdit({ division: e.target.value })}
+                          className="px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs"
+                        >
+                          {divisions.map((d) => <option key={d} value={d}>{label(d)}</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          value={edit.sortOrder}
+                          onChange={(e) => setEdit({ sortOrder: Number(e.target.value) || 0 })}
+                          className="w-16 px-2 py-1.5 rounded-lg border border-[#D9D7D0] text-xs"
+                          title="Urutan"
+                        />
+                        {dirty && (
+                          <button
+                            type="button"
+                            onClick={() => void saveRole(role)}
+                            disabled={busy === role.id}
+                            className="p-1.5 rounded-lg bg-[#181818] text-white hover:bg-black disabled:opacity-40"
+                            title="Simpan"
+                          >
+                            {busy === role.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => void saveRole(role)}
+                          onClick={() => void toggleArchive(role)}
                           disabled={busy === role.id}
-                          className="p-1.5 rounded-lg bg-[#181818] text-white hover:bg-black disabled:opacity-40"
-                          title="Simpan"
+                          className="p-1.5 rounded-lg hover:bg-[#F3F1EC] text-[#8C8880] disabled:opacity-40"
+                          title={role.isActive ? 'Arsipkan' : 'Aktifkan kembali'}
                         >
-                          {busy === role.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          {busy === role.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : role.isActive ? <Archive className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => void toggleArchive(role)}
-                        disabled={busy === role.id}
-                        className="p-1.5 rounded-lg hover:bg-[#F3F1EC] text-[#8C8880] disabled:opacity-40"
-                        title={role.isActive ? 'Arsipkan' : 'Aktifkan kembali'}
-                      >
-                        {busy === role.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : role.isActive ? <Archive className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                      </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[#8C8880]">Jenis ibadah:</span>
+                        {TYPES.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => toggleType(t.id)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${edit.serviceTypes.includes(t.id) ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                        <textarea
+                          value={edit.checklist}
+                          onChange={(e) => setEdit({ checklist: e.target.value })}
+                          rows={2}
+                          placeholder="Checklist persiapan (satu per baris)"
+                          className="flex-1 min-w-[240px] px-2 py-1 rounded-lg border border-[#D9D7D0] text-[11px]"
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -204,6 +265,12 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
               placeholder="Komponen baru (mis. Operator Slide)"
               className="flex-1 min-w-[180px] px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs"
+            />
+            <input
+              value={draft.subDivision}
+              onChange={(e) => setDraft((d) => ({ ...d, subDivision: e.target.value }))}
+              placeholder="Sub-divisi"
+              className="w-40 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs"
             />
             <select
               value={draft.division}

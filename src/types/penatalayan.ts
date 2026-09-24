@@ -2,6 +2,11 @@ export interface ServiceRole {
   id: string;
   name: string;
   division: string;
+  subDivision?: string | null;
+  /** CSV, mis. "SERVING_DAY,MENTORING_DAY". */
+  serviceTypes?: string | null;
+  /** Template item checklist (mis. persiapan Tuan Rumah). */
+  checklistTemplate?: string[] | null;
   description?: string | null;
   isActive: boolean;
   sortOrder: number;
@@ -18,12 +23,35 @@ export interface ServiceSchedule {
   timeStart?: string | null;
   timeEnd?: string | null;
   status: 'SCHEDULED' | 'CONFIRMED' | 'DONE' | 'CANCELLED';
+  statusNote?: string | null;
+  confirmedAt?: string | null;
+  confirmedById?: string | null;
+  doneAt?: string | null;
+  doneById?: string | null;
+  /** { [index]: { done: boolean; at?: string; by?: string } } */
+  checklistState?: Record<string, { done: boolean; at?: string; by?: string }> | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
   serviceRole?: ServiceRole;
   user?: { id: string; name: string; email?: string };
 }
+
+export const SERVICE_TYPES = ['SERVING_DAY', 'MENTORING_DAY'] as const;
+export type ServiceType = (typeof SERVICE_TYPES)[number];
+
+export const SERVICE_TYPE_LABELS: Record<string, string> = {
+  SERVING_DAY: 'Serving Day',
+  MENTORING_DAY: 'Mentoring Day',
+};
+
+/** Label & warna status penatalayan. */
+export const SERVICE_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Dijadwalkan',
+  CONFIRMED: 'Dikonfirmasi',
+  DONE: 'Selesai',
+  CANCELLED: 'Dibatalkan',
+};
 
 export interface DivisionMeeting {
   id: string;
@@ -65,13 +93,6 @@ export interface DivisionAgendaItem {
   createdAt: string;
   updatedAt: string;
 }
-
-export const SERVICE_STATUS_LABELS: Record<string, string> = {
-  SCHEDULED: 'Dijadwalkan',
-  CONFIRMED: 'Dikonfirmasi',
-  DONE: 'Selesai',
-  CANCELLED: 'Dibatalkan',
-};
 
 export const SERVICE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   SCHEDULED: { bg: 'bg-blue-100', text: 'text-blue-700' },

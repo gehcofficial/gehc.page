@@ -10,7 +10,7 @@ const SUBDIVISION_CHILDREN: Record<string, string[]> = {
   'Liturgi & Ibadah': ['Foto', 'Berkas', 'Berkas/rundown', 'Foto/ibadah'],
   'Musik & Vokal': ['Foto', 'Berkas', 'Berkas/chord', 'Foto/rehearsal'],
   'Doa & Intercession': ['Foto', 'Berkas', 'Berkas/pokok-doa'],
-  'Kurikulum & Pembekalan': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb', 'Foto/pembekalan', 'Berkas/materi-tim'],
+  'Kurikulum': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb', 'Foto/pembekalan', 'Berkas/materi-tim'],
   'Program & Acara': ['Foto', 'Berkas'],
   'Persekutuan & Integrasi': ['Foto', 'Berkas', 'Foto/welcome'],
   'Hubungan & Komunikasi': ['Foto', 'Berkas'],
@@ -52,7 +52,7 @@ const PHASE_TASKS: Record<string, Record<Phase, string[]>> = {
     during: ['Tim doa siaga (siapa petugas + jam)', 'Doa syafaat live intercession', 'Catat jawaban doa'],
     post: ['Rangkum jawaban doa untuk warta (field doa)', 'Follow-up anggota bergumul', 'Update pokok doa next week'],
   },
-  'Kurikulum & Pembekalan': {
+  'Kurikulum': {
     pre: ['Siapkan modul + materi pembekalan mentor/komentor untuk tema minggu ini (Kurikulum by-event 01..03)', 'Upload materi ke Drive Kurikulum/<Event>', 'Briefing Lead Equippers (Putri & Alvandi)', 'Jadwal sesi pembekalan H-3 — Mentoring: semua mentor/10 grup; Serving: penanggung+host 2 grup'],
     during: ['Rilis RHB harian 7 PDF Senin–Sabtu (by-event 03)', 'Absensi pembekalan terpisah per hari + sampaikan deck per event (by-event 01)', 'Pastikan mentor akses via Monitoring Kelompok', 'Foto pembekalan per hari'],
     post: ['Susun warta: ayat/khotbah/ringkasan (by-event 02)', 'Evaluasi pembekalan H+7 per hari + feedback modul batch', 'Arsip modul ke Foto/Berkas'],
@@ -175,7 +175,7 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
   const subDivs = CANONICAL_SUB_DIVISIONS[division as keyof typeof CANONICAL_SUB_DIVISIONS] || [];
   const Icon = DIVISION_ICON[division] || FileText;
   const getTasks = (sub: string, ph: Phase): string[] => {
-    if (sub === 'Kurikulum & Pembekalan' && serviceType) {
+    if (sub === 'Kurikulum' && serviceType) {
       const isMentoring = serviceType === 'MENTORING_DAY';
       const isServing = serviceType === 'SERVING_DAY';
       if (isMentoring) {

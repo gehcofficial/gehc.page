@@ -310,6 +310,11 @@ const STEPS = [
     label: 'BZP v4: role jadwal jual + promo spesifik + PIC dari user',
     required: true,
   },
+  {
+    script: 'server/_migrate-penatalayan-v2.cjs',
+    label: 'Penatalayanan v2: sub-divisi, jenis ibadah, checklist, audit status, agenda rapat',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

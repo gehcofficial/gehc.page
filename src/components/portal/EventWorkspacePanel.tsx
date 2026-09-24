@@ -65,11 +65,13 @@ interface EventDivision {
 interface EventMeeting {
   id: string;
   eventId: string;
-  division?: string;
+  division?: string | null;
   title: string;
   scheduledAt: string;
   gmeetLink?: string;
   notes?: string;
+  attendees?: Array<{ name?: string; userId?: string; role?: string }>;
+  agenda?: Array<{ title?: string; assignee?: string; deadline?: string }>;
   createdById: string;
   createdAt: string;
 }
@@ -185,7 +187,7 @@ export const EventWorkspacePanel: React.FC = () => {
 
   // Meetings
   const [showMeetingForm, setShowMeetingForm] = useState(false);
-  const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+  const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '', isJoint: false, agendaText: '', attendeesText: '' });
 
   // Edit event
   const [canEdit, setCanEdit] = useState(false);
@@ -338,17 +340,23 @@ export const EventWorkspacePanel: React.FC = () => {
     if (!selected || !meetingForm.title || !meetingForm.scheduledAt) return;
     setPosting(true);
     try {
+      const agenda = meetingForm.agendaText.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+        const [title, assignee, deadline] = l.split('|').map((x) => (x || '').trim());
+        return { title, assignee: assignee || '', deadline: deadline || '' };
+      });
+      const attendees = meetingForm.attendeesText.split('\n').map((l) => l.trim()).filter(Boolean).map((name) => ({ name }));
+      const { agendaText, attendeesText, isJoint, ...rest } = meetingForm;
       const r = await fetch(`/api/events/${selected.id}/meetings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(meetingForm),
+        body: JSON.stringify({ ...rest, division: isJoint ? null : undefined, agenda, attendees }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setSelected((prev) => prev ? { ...prev, meetings: [d.meeting, ...(prev.meetings || [])] } : prev);
       setShowMeetingForm(false);
-      setMeetingForm({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
+      setMeetingForm({ title: '', scheduledAt: '', gmeetLink: '', notes: '', isJoint: false, agendaText: '', attendeesText: '' });
       addToast({ type: 'success', title: 'Rapat ditambahkan' });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal menambah rapat', description: e.message });
@@ -882,6 +890,12 @@ export const EventWorkspacePanel: React.FC = () => {
               <input type="datetime-local" value={meetingForm.scheduledAt} onChange={(e) => setMeetingForm((f) => ({ ...f, scheduledAt: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]" />
               <input type="text" placeholder="Link Google Meet (opsional)" value={meetingForm.gmeetLink} onChange={(e) => setMeetingForm((f) => ({ ...f, gmeetLink: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]" />
               <textarea placeholder="Catatan (opsional)" value={meetingForm.notes} onChange={(e) => setMeetingForm((f) => ({ ...f, notes: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[60px]" />
+              <label className="flex items-center gap-2 text-xs font-semibold text-[#5C5850]">
+                <input type="checkbox" checked={meetingForm.isJoint} onChange={(e) => setMeetingForm((f) => ({ ...f, isJoint: e.target.checked }))} className="w-4 h-4 rounded border-[#D9D7D0]" />
+                Rapat Petugas Ibadah (gabungan semua divisi)
+              </label>
+              <textarea placeholder="Agenda petugas — satu per baris: Judul | PIC | deadline" value={meetingForm.agendaText} onChange={(e) => setMeetingForm((f) => ({ ...f, agendaText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[60px]" />
+              <textarea placeholder="Peserta (satu nama per baris)" value={meetingForm.attendeesText} onChange={(e) => setMeetingForm((f) => ({ ...f, attendeesText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[50px]" />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowMeetingForm(false)} className="text-xs px-4 py-2 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200">Batal</button>
                 <button onClick={addMeeting} disabled={!meetingForm.title || !meetingForm.scheduledAt || posting} className="text-xs px-4 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40 hover:bg-[#FF416C]/90">
@@ -895,8 +909,18 @@ export const EventWorkspacePanel: React.FC = () => {
               <div className="flex items-center gap-3 min-w-0">
                 <Clock className="w-4 h-4 text-[#8C8880] shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#1B1B1B] truncate">{m.title}</p>
+                  <p className="text-sm font-bold text-[#1B1B1B] truncate">
+                    {m.title}
+                    {!m.division && <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Petugas Ibadah</span>}
+                  </p>
                   <p className="text-xs text-[#8C8880]">{formatDate(m.scheduledAt)}</p>
+                  {(m.agenda?.length || m.attendees?.length) ? (
+                    <p className="text-[10px] text-[#8C8880]">
+                      {m.agenda?.length ? `${m.agenda.length} agenda` : ''}
+                      {m.agenda?.length && m.attendees?.length ? ' · ' : ''}
+                      {m.attendees?.length ? `${m.attendees.length} peserta` : ''}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

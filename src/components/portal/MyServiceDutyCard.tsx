@@ -26,7 +26,7 @@ export const MyServiceDutyCard: React.FC = () => {
 
   if (!duties.length) return null;
 
-  const setStatus = async (duty: ServiceDuty, status: 'CONFIRMED' | 'DONE') => {
+  const setStatus = async (duty: ServiceDuty, status: 'CONFIRMED' | 'SCHEDULED') => {
     const r = await fetch(`/api/penatalayan/schedules/${duty.id}`, {
       method: 'PATCH',
       credentials: 'include',
@@ -38,7 +38,7 @@ export const MyServiceDutyCard: React.FC = () => {
       addToast({ type: 'error', title: d.error || 'Gagal mengubah status tugas' });
       return;
     }
-    addToast({ type: 'success', title: status === 'CONFIRMED' ? md.confirmed : md.doneToast });
+    addToast({ type: 'success', title: status === 'CONFIRMED' ? md.confirmed : 'Status dikembalikan ke Dijadwalkan' });
     void qc.invalidateQueries({ queryKey: ['my-service-duty'] });
   };
 
@@ -90,10 +90,10 @@ export const MyServiceDutyCard: React.FC = () => {
               {s === 'CONFIRMED' && (
                 <button
                   type="button"
-                  onClick={() => void setStatus(duty, 'DONE')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold"
+                  onClick={() => void setStatus(duty, 'SCHEDULED')}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850]"
                 >
-                  <CheckCheck className="w-3 h-3" /> {md.done}
+                  <CheckCheck className="w-3 h-3" /> Kembalikan
                 </button>
               )}
             </li>

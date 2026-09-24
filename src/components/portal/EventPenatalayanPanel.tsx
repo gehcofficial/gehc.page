@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Users, Plus, X, Check, Clock, Copy, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Users, Plus, X, Check, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
@@ -33,8 +33,10 @@ type Assignment = {
 
 type Previous = { eventId: string; name: string; eventDate?: string | null } | null;
 
-const DIVISIONS = ['LITURGIA', 'MARTURIA'];
-const DIVISION_LABEL: Record<string, string> = { LITURGIA: 'Liturgia', MARTURIA: 'Marturia' };
+const DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'];
+const DIVISION_LABEL: Record<string, string> = {
+  LITURGIA: 'Liturgia', DIDASKALIA: 'Didaskalia', KOINONIA: 'Koinonia', DIAKONIA: 'Diakonia', MARTURIA: 'Marturia',
+};
 
 const STATUS_DOT: Record<string, string> = {
   SCHEDULED: 'bg-blue-500',
@@ -50,11 +52,13 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'Dibatalkan',
 };
 
-function nextStatus(status: string): Assignment['status'] {
-  if (status === 'SCHEDULED') return 'CONFIRMED';
-  if (status === 'CONFIRMED') return 'DONE';
-  return 'SCHEDULED';
-}
+/** Transisi yang diizinkan (mirror server). DONE = final. */
+const NEXT: Record<string, string[]> = {
+  SCHEDULED: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['DONE', 'SCHEDULED', 'CANCELLED'],
+  CANCELLED: ['SCHEDULED'],
+  DONE: [],
+};
 
 /**
  * Penatalayan per-event: daftar komponen Liturgia/Marturia + personel yang
@@ -150,16 +154,21 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     }
   };
 
-  const cycleStatus = async (a: Assignment) => {
+  const setStatus = async (a: Assignment, status: string) => {
     setBusy(a.id);
     try {
-      await fetch(`/api/penatalayan/schedules/${a.id}`, {
-        method: 'PATCH',
+      const r = await fetch('/api/penatalayan/schedules/bulk-status', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: nextStatus(a.status) }),
+        body: JSON.stringify({ ids: [a.id], status }),
       });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal mengubah status.');
+      if (d.skipped?.length) throw new Error(d.skipped[0].reason || 'Status tidak dapat diubah.');
       await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengubah status.');
     } finally {
       setBusy(null);
     }
@@ -288,21 +297,27 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
                                   {a.user?.name || '—'}
                                   {canEdit && (
                                     <>
-                                      <button
-                                        type="button"
-                                        onClick={() => void cycleStatus(a)}
-                                        disabled={busy === a.id}
-                                        className="p-0.5 rounded hover:bg-white"
-                                        title={`Ubah status (${STATUS_LABEL[a.status]})`}
-                                      >
-                                        <Clock className="w-3 h-3 text-[#8C8880]" />
-                                      </button>
+                                      {(NEXT[a.status] || []).length > 0 && (
+                                        <select
+                                          value=""
+                                          onChange={(e) => { if (e.target.value) void setStatus(a, e.target.value); }}
+                                          disabled={busy === a.id}
+                                          className="text-[10px] px-1 py-0.5 rounded border border-[#D9D7D0] bg-white"
+                                          title={`Status: ${STATUS_LABEL[a.status]}`}
+                                        >
+                                          <option value="">Status…</option>
+                                          {(NEXT[a.status] || []).map((st) => (
+                                            <option key={st} value={st}>{STATUS_LABEL[st]}</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                      {a.status === 'DONE' && <Check className="w-3 h-3 text-green-600" />}
                                       <button
                                         type="button"
                                         onClick={() => void removeAssignment(a.id)}
-                                        disabled={busy === a.id}
-                                        className="p-0.5 rounded hover:bg-white"
-                                        title="Hapus penugasan"
+                                        disabled={busy === a.id || a.status === 'DONE'}
+                                        className="p-0.5 rounded hover:bg-white disabled:opacity-30"
+                                        title={a.status === 'DONE' ? 'Sudah selesai (final)' : 'Hapus penugasan'}
                                       >
                                         <X className="w-3 h-3 text-red-500" />
                                       </button>

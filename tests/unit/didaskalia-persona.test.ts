@@ -35,7 +35,7 @@ describe('persona AI Didaskalia — kerangka Reformed', () => {
     expect(captured.system).toContain('Reformed');
 
     captured.system = '';
-    await refineField({ fieldLabel: 'Ringkasan', current: 'x', instruction: 'y' });
+    await refineField({ fieldLabel: 'Ringkasan', current: 'x', instruction: 'y', context: '' });
     expect(captured.system).toContain('Reformed');
   });
 });

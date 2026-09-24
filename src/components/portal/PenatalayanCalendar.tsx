@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Calendar,
   ChevronLeft,
@@ -6,8 +6,7 @@ import {
   Plus,
   Check,
   X,
-  Clock,
-  User,
+  ListChecks,
   Loader2,
 } from 'lucide-react';
 import type { ServiceRole, ServiceSchedule } from '../../types/penatalayan';
@@ -43,28 +42,44 @@ function nextSundays(iso: string, count = 4): string[] {
   return Array.from({ length: count }, (_, i) => new Date(first + i * 7 * 86400000).toISOString().slice(0, 10));
 }
 
+/** Transisi status yang diizinkan (mirror server/lib/penatalayan-status.mjs). */
+const NEXT: Record<string, string[]> = {
+  SCHEDULED: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['DONE', 'SCHEDULED', 'CANCELLED'],
+  CANCELLED: ['SCHEDULED'],
+  DONE: [],
+};
+
 const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 interface Props {
   division: string;
+  serviceType?: string | null;
+  eventId?: string | null;
 }
 
-export default function PenatalayanCalendar({ division }: Props) {
+export default function PenatalayanCalendar({ division, serviceType, eventId }: Props) {
+  const { addToast } = useApp();
   const [roles, setRoles] = useState<ServiceRole[]>([]);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showAssignForm, setShowAssignForm] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmStatus, setConfirmStatus] = useState<'DONE' | null>(null);
+  const [openChecklist, setOpenChecklist] = useState<string | null>(null);
 
   const fetchRoles = useCallback(async () => {
     try {
-      const r = await fetch(`/api/penatalayan/roles?division=${division}`, { credentials: 'include' });
+      const st = serviceType ? `&serviceType=${encodeURIComponent(serviceType)}` : '';
+      const r = await fetch(`/api/penatalayan/roles?division=${encodeURIComponent(division)}${st}`, { credentials: 'include' });
       const d = await r.json();
       setRoles(d.roles || []);
     } catch { /* skip */ }
-  }, [division]);
+  }, [division, serviceType]);
 
   const fetchSchedules = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -89,29 +104,76 @@ export default function PenatalayanCalendar({ division }: Props) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const prevMonth = () => setCurrentMonth(new Date(year, month - 1));
-  const nextMonth = () => setCurrentMonth(new Date(year, month + 1));
+  const prevMonth = () => { setCurrentMonth(new Date(year, month - 1)); setSelected([]); };
+  const nextMonth = () => { setCurrentMonth(new Date(year, month + 1)); setSelected([]); };
 
   const formatDate = (d: number) => `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
   const getSchedulesForDate = (dateStr: string) =>
     schedules.filter(s => s.date.startsWith(dateStr));
 
-  const handleStatusToggle = async (schedule: ServiceSchedule) => {
-    const nextStatus = schedule.status === 'SCHEDULED' ? 'CONFIRMED' : schedule.status === 'CONFIRMED' ? 'DONE' : 'SCHEDULED';
-    await fetch(`/api/penatalayan/schedules/${schedule.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    fetchSchedules();
-  };
+  const applyStatus = useCallback(async (ids: string[], status: string) => {
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      const r = await fetch('/api/penatalayan/schedules/bulk-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ids, status }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal mengubah status.');
+      addToast({
+        type: d.skipped?.length ? 'info' : 'success',
+        title: `${d.updated || 0} status diperbarui`,
+        description: d.skipped?.length ? `${d.skipped.length} dilewati (status final/tidak valid).` : undefined,
+      });
+      setSelected([]);
+      await fetchSchedules();
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal mengubah status.' });
+    } finally {
+      setBulkBusy(false);
+      setConfirmStatus(null);
+    }
+  }, [addToast, fetchSchedules]);
+
+  const toggleChecklistItem = useCallback(async (s: ServiceSchedule, idx: number) => {
+    const template = s.serviceRole?.checklistTemplate || [];
+    const cur = { ...(s.checklistState || {}) };
+    const key = String(idx);
+    cur[key] = { done: !cur[key]?.done, at: new Date().toISOString() };
+    try {
+      const r = await fetch(`/api/penatalayan/schedules/${s.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ checklistState: cur }),
+      });
+      if (!r.ok) throw new Error('Gagal menyimpan checklist.');
+      await fetchSchedules();
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan checklist.' });
+    }
+    void template;
+  }, [addToast, fetchSchedules]);
 
   const handleDeleteSchedule = async (id: string) => {
     await fetch(`/api/penatalayan/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+    setSelected((prev) => prev.filter((x) => x !== id));
     fetchSchedules();
   };
+
+  // Baris terpilih yang masih bisa diubah (bukan DONE).
+  const selectedRows = useMemo(() => schedules.filter((s) => selected.includes(s.id)), [schedules, selected]);
+  const bulkTargets = useMemo(
+    () => (['CONFIRMED', 'DONE', 'CANCELLED', 'SCHEDULED'] as const).map((st) => ({
+      status: st,
+      enabled: selectedRows.length > 0 && selectedRows.every((s) => (NEXT[s.status] || []).includes(st)),
+    })),
+    [selectedRows],
+  );
 
   return (
     <div className="space-y-4">
@@ -122,14 +184,37 @@ export default function PenatalayanCalendar({ division }: Props) {
         </h3>
         <div className="flex gap-2">
           <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100"><ChevronLeft className="w-4 h-4" /></button>
-          <button onClick={() => { setCurrentMonth(new Date()); }} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]">Hari Ini</button>
+          <button onClick={() => { setCurrentMonth(new Date()); setSelected([]); }} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]">Hari Ini</button>
           <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-gray-100"><ChevronRight className="w-4 h-4" /></button>
         </div>
       </div>
 
+      {/* Action bar (bulk status) */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] px-3 py-2">
+          <span className="text-xs font-bold text-[#1B1B1B]">{selected.length} dipilih</span>
+          {bulkTargets.map(({ status, enabled }) => (
+            <button
+              key={status}
+              type="button"
+              disabled={!enabled || bulkBusy}
+              onClick={() => (status === 'DONE' ? setConfirmStatus('DONE') : void applyStatus(selected, status))}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border disabled:opacity-40 ${
+                status === 'DONE' ? 'bg-emerald-600 text-white border-emerald-600'
+                  : status === 'CANCELLED' ? 'bg-white text-red-600 border-red-200'
+                    : status === 'CONFIRMED' ? 'bg-white text-green-700 border-green-200'
+                      : 'bg-white text-[#5C5850] border-[#D9D7D0]'
+              }`}
+            >
+              {status === 'SCHEDULED' ? 'Kembalikan' : SERVICE_STATUS_LABELS[status]}
+            </button>
+          ))}
+          <button type="button" onClick={() => setSelected([])} className="ml-auto text-[11px] font-bold text-[#8C8880]">Batal pilih</button>
+        </div>
+      )}
+
       {/* Calendar Grid */}
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 overflow-hidden">
-        {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-[#D9D7D0]/50">
           {DAYS.map(d => (
             <div key={d} className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
@@ -137,7 +222,6 @@ export default function PenatalayanCalendar({ division }: Props) {
             </div>
           ))}
         </div>
-        {/* Date cells */}
         <div className="grid grid-cols-7">
           {Array.from({ length: firstDay }).map((_, i) => (
             <div key={`empty-${i}`} className="h-24 border-b border-r border-[#D9D7D0]/30 bg-gray-50/50" />
@@ -207,25 +291,68 @@ export default function PenatalayanCalendar({ division }: Props) {
             <p className="text-xs text-[#8C8880] text-center py-4">Belum ada penatalayan dijadwalkan.</p>
           ) : (
             <div className="space-y-2">
-              {getSchedulesForDate(selectedDate).map(s => (
-                <div key={s.id} className="flex items-center gap-3 p-3 bg-[#FAF9F5] rounded-xl">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold">{s.serviceRole?.name}</p>
-                    <p className="text-xs text-[#8C8880]">{s.user?.name} {s.timeStart ? `• ${s.timeStart}` : ''}</p>
+              {getSchedulesForDate(selectedDate).map(s => {
+                const done = s.status === 'DONE';
+                const template = s.serviceRole?.checklistTemplate || [];
+                const state = s.checklistState || {};
+                const doneCount = template.filter((_, idx) => state[String(idx)]?.done).length;
+                return (
+                  <div key={s.id} className={`rounded-xl bg-[#FAF9F5] ${done ? 'opacity-90' : ''}`}>
+                    <div className="flex items-center gap-3 p-3">
+                      {!done && (
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(s.id)}
+                          onChange={(e) => setSelected((prev) => e.target.checked ? [...prev, s.id] : prev.filter((x) => x !== s.id))}
+                          className="w-4 h-4 rounded border-[#D9D7D0]"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold">
+                          {s.serviceRole?.name}
+                          {s.serviceRole?.subDivision ? <span className="ml-2 text-[10px] font-normal text-[#8C8880]">{s.serviceRole.subDivision}</span> : null}
+                        </p>
+                        <p className="text-xs text-[#8C8880]">
+                          {s.user?.name} {s.timeStart ? `• ${s.timeStart}` : ''}
+                          {s.status === 'DONE' && s.doneAt ? ` • selesai ${new Date(s.doneAt).toLocaleDateString('id-ID')}` : ''}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${SERVICE_STATUS_COLORS[s.status]?.bg} ${SERVICE_STATUS_COLORS[s.status]?.text}`}>
+                        {SERVICE_STATUS_LABELS[s.status]}
+                      </span>
+                      <div className="flex gap-1">
+                        {template.length > 0 && (
+                          <button
+                            onClick={() => setOpenChecklist(openChecklist === s.id ? null : s.id)}
+                            className="p-1.5 rounded-lg hover:bg-white inline-flex items-center gap-1 text-[10px] font-bold text-[#5C5850]"
+                            title="Checklist persiapan"
+                          >
+                            <ListChecks className="w-3.5 h-3.5" /> {doneCount}/{template.length}
+                          </button>
+                        )}
+                        {!done && (
+                          <button onClick={() => handleDeleteSchedule(s.id)} className="p-1.5 rounded-lg hover:bg-white" title="Hapus">
+                            <X className="w-3.5 h-3.5 text-red-500" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {openChecklist === s.id && template.length > 0 && (
+                      <div className="px-3 pb-3 space-y-1">
+                        {template.map((item, idx) => {
+                          const on = Boolean(state[String(idx)]?.done);
+                          return (
+                            <label key={idx} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input type="checkbox" checked={on} onChange={() => void toggleChecklistItem(s, idx)} className="w-3.5 h-3.5 rounded border-[#D9D7D0]" />
+                              <span className={on ? 'line-through text-[#8C8880]' : 'text-[#1B1B1B]'}>{item}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${SERVICE_STATUS_COLORS[s.status]?.bg} ${SERVICE_STATUS_COLORS[s.status]?.text}`}>
-                    {SERVICE_STATUS_LABELS[s.status]}
-                  </span>
-                  <div className="flex gap-1">
-                    <button onClick={() => handleStatusToggle(s)} className="p-1.5 rounded-lg hover:bg-white" title="Toggle status">
-                      <Check className="w-3.5 h-3.5 text-green-600" />
-                    </button>
-                    <button onClick={() => handleDeleteSchedule(s.id)} className="p-1.5 rounded-lg hover:bg-white" title="Hapus">
-                      <X className="w-3.5 h-3.5 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -236,23 +363,43 @@ export default function PenatalayanCalendar({ division }: Props) {
         <AssignModal
           date={selectedDate}
           roles={roles}
+          eventId={eventId}
           onClose={() => setShowAssignForm(false)}
           onChanged={() => fetchSchedules()}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmStatus === 'DONE'}
+        title="Tandai selesai (konfirmasi akhir)?"
+        confirmLabel="Ya, tandai selesai"
+        busy={bulkBusy}
+        onClose={() => setConfirmStatus(null)}
+        onConfirm={() => void applyStatus(selected, 'DONE')}
+        description={<p>{selected.length} penugasan akan ditandai <strong>Selesai</strong>. Setelah selesai, status tidak dapat diubah lagi.</p>}
+      />
     </div>
   );
 }
 
 // Assign Modal — penugasan massal: komponen[] × personel[] × tanggal[]
-function AssignModal({ date, roles, onClose, onChanged }: {
+function AssignModal({ date, roles, eventId, onClose, onChanged }: {
   date: string;
   roles: ServiceRole[];
+  eventId?: string | null;
   onClose: () => void;
   onChanged: () => void;
 }) {
   const { addToast } = useApp();
   const sortedRoles = [...roles].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  const grouped = useMemo(() => {
+    const map = new Map<string, ServiceRole[]>();
+    for (const r of sortedRoles) {
+      const key = r.subDivision || 'Lainnya';
+      map.set(key, [...(map.get(key) || []), r]);
+    }
+    return [...map.entries()];
+  }, [sortedRoles]);
   const [roleIds, setRoleIds] = useState<string[]>(() => (roles[0] ? [roles[0].id] : []));
   const [people, setPeople] = useState<string[]>([]);
   const [peopleOptions, setPeopleOptions] = useState<SearchableOption[]>([]);
@@ -266,7 +413,6 @@ function AssignModal({ date, roles, onClose, onChanged }: {
   const total = roleIds.length * people.length * dates.length;
   const canSave = roleIds.length > 0 && people.length > 0 && dates.length > 0 && !saving;
 
-  /** Cari personel langsung dari input (pola Portal Doa), hasil urut alfabetis. */
   const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
     const r = await fetch(`/api/penatalayan/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
     const d = await r.json().catch(() => ({}));
@@ -290,7 +436,7 @@ function AssignModal({ date, roles, onClose, onChanged }: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ serviceRoleIds: roleIds, userIds: people, dates, timeStart, timeEnd }),
+        body: JSON.stringify({ serviceRoleIds: roleIds, userIds: people, dates, timeStart, timeEnd, eventId: eventId || undefined }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal menyimpan penugasan.');
@@ -332,20 +478,27 @@ function AssignModal({ date, roles, onClose, onChanged }: {
                 {roleIds.length === sortedRoles.length ? 'Kosongkan' : 'Pilih semua'}
               </button>
             </div>
-            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5]">
-              {sortedRoles.map((r) => {
-                const on = roleIds.includes(r.id);
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => toggleRole(r.id)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${on ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white text-[#5C5850] border-[#D9D7D0]'}`}
-                  >
-                    {r.name}
-                  </button>
-                );
-              })}
+            <div className="max-h-48 overflow-y-auto p-2 rounded-2xl border border-[#D9D7D0] bg-[#FAF9F5] space-y-2">
+              {grouped.map(([sub, items]) => (
+                <div key={sub}>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[#8C8880] mb-1">{sub}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map((r) => {
+                      const on = roleIds.includes(r.id);
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => toggleRole(r.id)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${on ? 'bg-[#181818] text-white border-[#181818]' : 'bg-white text-[#5C5850] border-[#D9D7D0]'}`}
+                        >
+                          {r.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
