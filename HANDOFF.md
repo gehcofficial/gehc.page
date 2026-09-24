@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Persona AI Reformed + Penatalayan Marturia (24 Sep 2026)
+
+### 1. Persona AI Didaskalia berkerangka Reformed
+`server/lib/didaskalia-ai.mjs` — konstanta `SYSTEM` (dipakai SEMUA generator: draft, enrich, extras, sermon, refineField) ditambah blok kerangka teologis: GMIM = Protestan Kalvinis (Reformed); Sola Scriptura/Gratia/Fide/Christus/Deo Gloria; kedaulatan Allah, keberdosaan total, pemilihan & panggilan anugerah, penebusan Kristus, ketekunan, teologi perjanjian. Bingkai positif (bukan polemik), tanpa menyebut nama dokumen pengakuan. Prompt gambar & 7 metode homiletik tidak diubah.
+- Test baru: `tests/unit/didaskalia-persona.test.ts` (mock provider, assert isi system prompt di 3 generator).
+
+### 2. Penatalayan Marturia + filter jadwal per divisi
+**Masalah:** di panel Liturgia, komponen Marturia terlihat (editor) tapi tak bisa ditugaskan (AssignModal hanya divisi aktif); kalender menampilkan jadwal lintas-divisi; panel Marturia tak punya tab Penatalayan.
+**Solusi:**
+- `DivisionWorkspacePanel.tsx`: tab Marturia kini **5** — `Galeri · Kesaksian & Story · Penatalayan · Ibadah · Anggota`.
+- Editor komponen di tab Penatalayan di-scope per divisi: `divisions={[selectedDiv]}` (Liturgia kelola komponennya; Marturia kelola komponennya).
+- `PenatalayanCalendar.tsx`: kirim `&division=${division}` ke `/api/penatalayan/schedules`.
+- `server/index.mjs` — `GET /api/penatalayan/schedules` terima param opsional `division` (CSV) → `where.serviceRole = { division }`. Backward-compatible (KegiatanCalendar & WartaPublikTab tidak kirim param → tetap lintas-divisi).
+
+**Verifikasi:** `lint` bersih ✓ **480 test** hijau ✓ `build` OK ✓ Data prod: 24 komponen (18 LITURGIA + 6 MARTURIA), semua `division` valid ✓ Browser staging: tab Marturia `[Galeri,Kesaksian & Story,Penatalayan,Ibadah,Anggota]`; AssignModal Marturia hanya komponen Marturia (tanpa Worship Leader), Liturgia hanya Liturgia (tanpa Fotografer) ✓ Uji filter: buat penugasan Marturia 27 Sep → `division=MARTURIA` true, `division=LITURGIA` false, tanpa param true → lalu dihapus (staging bersih) ✓ Prod & staging = `f2f5a6d` ✓
+
+### Next
+1. Di UI prod: **Panel Marturia → Penatalayan**, tugaskan komponen Marturia untuk **27 Sep 2026** (AssignModal sekarang memuat 6 komponen Marturia).
+2. Uji keluaran AI Didaskalia (Susun draf) untuk memastikan nuansa Reformed muncul & tetap kontekstual.
+3. Kandidat berikutnya: rampingkan panel **Diakonia** (6 tab generik).
+
+
 ## Current — Liturgia/Marturia/Koinonia: panel dirampingkan (24 Sep 2026)
 
 **Masalah:** pola duplikasi sama seperti Didaskalia — 6 tab generik identik (Ringkasan/Ibadah/Anggota/Diskusi/Drive/Rencana) di semua divisi; `Ringkasan`-nya "Rapat" ↔ tab `Rencana` (dua sistem rapat: `/events/:id/meetings` vs `/division-meetings`); `Diskusi` ↔ mini-feed di `Ibadah` ↔ "Aktivitas Terakhir"; `Drive` ↔ tombol "Drive Folder"; sebagian juga duplikat sidebar `Program & Event` (EventPenatalayanPanel + EventDivisionPhaseTabs + Rapat & Jadwal).
