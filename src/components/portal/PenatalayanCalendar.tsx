@@ -73,11 +73,11 @@ export default function PenatalayanCalendar({ division }: Props) {
     const lastDay = new Date(year, month + 1, 0).getDate();
     const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     try {
-      const r = await fetch(`/api/penatalayan/schedules?from=${from}&to=${to}`, { credentials: 'include' });
+      const r = await fetch(`/api/penatalayan/schedules?from=${from}&to=${to}&division=${encodeURIComponent(division)}`, { credentials: 'include' });
       const d = await r.json();
       setSchedules(d.schedules || []);
     } catch { /* skip */ }
-  }, [currentMonth]);
+  }, [currentMonth, division]);
 
   useEffect(() => {
     setLoading(true);

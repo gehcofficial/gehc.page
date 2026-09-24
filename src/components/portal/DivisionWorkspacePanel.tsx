@@ -410,6 +410,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
       return [
         { id: 'gallery', label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
         { id: 'kesaksian', label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
         ibadahTab,
         membersTab,
       ];
@@ -1752,7 +1753,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               <div className="space-y-5">
                 <PenatalayanCalendar division={selectedDiv} />
                 <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
-                  <PenatalayanRolesEditor divisions={['LITURGIA', 'MARTURIA']} divisionLabel={(dv) => dv === 'LITURGIA' ? 'Liturgia' : dv === 'MARTURIA' ? 'Marturia' : dv} />
+                  <PenatalayanRolesEditor divisions={[selectedDiv]} divisionLabel={(dv) => dv === 'LITURGIA' ? 'Liturgia' : dv === 'MARTURIA' ? 'Marturia' : dv} />
                 </div>
               </div>
             )}
