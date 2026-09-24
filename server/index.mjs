@@ -3115,6 +3115,8 @@ app.patch('/api/events/meetings/:mid', requireRole('SUPERADMIN', 'KOMISI', 'COMM
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { title, scheduledAt, gmeetLink, notes, attendees, agenda } = req.body || {};
+  const found = await prisma.eventMeeting.findUnique({ where: { id: req.params.mid }, select: { id: true } });
+  if (!found) return res.status(404).json({ error: 'Rapat tidak ditemukan.' });
   const data = {};
   if (title !== undefined) data.title = title;
   if (scheduledAt !== undefined) data.scheduledAt = new Date(scheduledAt);
