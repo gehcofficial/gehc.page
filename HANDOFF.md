@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Penatalayanan Terpadu Fase A–E (25 Sep 2026)
+
+**Skema baru (migrasi `server/_migrate-penatalayan-v2.cjs`, idempotent):**
+- `service_roles`: `sub_division`, `service_types` (CSV Serving/Mentoring), `checklist_template` (JSON).
+- `service_schedules`: `status_note`, `confirmed_at/by_id`, `done_at/by_id`, `checklist_state` (JSON).
+- `EventMeeting`: `attendees`, `agenda` (JSON) — rapat petugas ibadah.
+
+**A. Pembagian role lintas divisi** — `PENATALAYAN_DIVISIONS` → 5 (LITURGIA, DIDASKALIA, KOINONIA, DIAKONIA, MARTURIA). Seed 30 komponen: **Pembaca Firman 1/2 pindah ke DIDASKALIA/Kurikulum**; KOINONIA baru (Koordinator Tuan Rumah, Penerima Tamu/Usher, Absensi Tamu, Dekorasi); DIAKONIA baru (Kebersihan & Penataan Ruang, Konsumsi). Tab **Penatalayan** kini ada di 5 panel (Didaskalia 4 tab, Koinonia 4, Diakonia 3). Bug key fase Didaskalia (`Kurikulum & Pembekalan` → `Kurikulum`) diperbaiki.
+**B. Siklus status** — `server/lib/penatalayan-status.mjs`: `SCHEDULED→CONFIRMED→DONE`, revert, batal; **DONE final** (hanya SUPERADMIN bisa buka); **DONE hanya koordinator** + konfirmasi akhir; audit `done_at/by`. Endpoint `POST /api/penatalayan/schedules/bulk-status` + notifikasi. UI: multi-select + action bar (Konfirmasi/Selesai/Batalkan/Kembalikan) di Calendar & Event panel; baris DONE terkunci.
+**C. Kontrol** — `GET /api/penatalayan/board?from&to` + komponen `PenatalayanBoard` (Papan Petugas Ibadah lintas divisi: terisi/kosong, status, progress checklist). Checklist Tuan Rumah: template di role + state per penugasan.
+**D. Akses pembekalan Pembaca Firman** — `server/lib/penatalayan-access.mjs`: `isAssignedDidaskaliaOfficer` dipakai di RBAC subfolder `01` & `canViewDoc`; `/api/me/penatalayan-access` → `useActiveAccess.canView01`. Saat ditugaskan ke role DIDASKALIA, notifikasi berisi deep link `#/materi/pembekalan/<YM>/<pekan>`.
+**E. Rapat Petugas Ibadah** — `EventMeeting` + attendees/agenda; `POST /api/events/:id/meetings` & `PATCH /api/events/meetings/:mid`; UI di Program & Event (checkbox gabungan + agenda `Judul | PIC | deadline` + peserta).
+
+**Verifikasi:** `lint` bersih ✓ **486 test** hijau (baru: `tests/unit/penatalayan-status.test.ts`) ✓ `build` OK ✓ Migrasi+seed **staging & prod** dijalankan ✓ API prod: 30 komponen (16 LITURGIA, 2 DIDASKALIA, 4 KOINONIA, 2 DIAKONIA, 6 MARTURIA) ✓ Browser staging: tabs 3 divisi benar; filter `serviceType` (Koinonia serving=4/mentoring=0); siklus status CONFIRM→DONE→(revert oleh SUPERADMIN)→checklist→hapus; Papan Petugas & Komponen tampil; tanpa page error ✓ Prod & staging = `dc53d41` ✓
+
+### Next
+1. Uji UI prod: tugaskan Pembaca Firman (Didaskalia) → cek notifikasi + akses pembekalan; Tuan Rumah/Diakonia/Koinonia untuk Serving Day; tandai selesai (koordinator).
+2. Rapat Petugas Ibadah: buat rapat gabungan + agenda ber-PIC di Program & Event.
+3. Kandidat lanjutan: akses operator check-in QR untuk grup Tuan Rumah (perluas `isKoinoniaOperator`), dan jadwal ritual pembinaan Pembaca Firman pada Serving Day.
+
+
 ## Current — Persona AI Reformed + Penatalayan Marturia (24 Sep 2026)
 
 ### 1. Persona AI Didaskalia berkerangka Reformed
