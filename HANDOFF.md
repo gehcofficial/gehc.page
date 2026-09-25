@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — Panel Voting Logo Kelompok `#/voting` (25 Sep 2026)
+
+**Fitur:** voting 1 dari 2 opsi logo per kelompok Beyonders, hanya anggota kelompok terkait (aktif/alumni) yang boleh memilih. Akses via link khusus `#/voting` (tanpa tab sidebar).
+
+**Skema (migrasi `server/_migrate-logo-vote.cjs`):** `group_logo_votes` (sesi: title/status DRAFT|OPEN|CLOSED/closesAt), `group_logo_options` (sessionId, groupId, optionNo, label, imageFileId, philosophy, voteCount), `group_logo_ballots` (unique sessionId+groupId+userId → 1 suara/orang/grup).
+**Server (`server/routes/logo-vote.mjs`):** `GET /api/voting` (sesi + grup & opsi + hak pilih + pilihan + tally), `POST /api/voting/ballot` (validasi OPEN + keanggotaan, recompute tally), `GET /api/voting/asset/:fileId` (proxy Drive login-gated + fallback service-account), `GET /api/voting/results` + `PUT /api/voting/session` (admin). Helper `myGroupIds`/`canVoteForGroup`/`isVoteAdmin`.
+**Client:** route baru `isVotingHash` (`src/lib/host-context.ts`) → `src/main.tsx` mount standalone `src/components/voting/GroupLogoVote.tsx` (wajib login, redirect `#/login?next=#/voting`): kartu per grup + filosofi + 2 logo + tombol pilih + tally live; kontrol admin Buka/Tutup + rekap.
+**Aset logo:** 20 gambar dari folder Drive bersama (`1mCRRWO0QmPR5qR4YUzgRmgjFT1DJoSoQ`, subfolder per grup, file `<Nama>-1.jpg`/`<Nama>-2.jpg`) diunduh + dikompres (sharp, max 900px q82) → **`public/logo-grup/`** (22 MB → 785 KB), `imageFileId` disimpan sebagai path statis. Seed `server/seed-logo-vote.mjs` idempotent (pakai aset statis bila ada, jika tidak pakai id Drive).
+
+**Verifikasi:** `lint` bersih ✓ **489 test** hijau ✓ `build` OK ✓ Migrasi+seed **staging & prod** (20 opsi, 10 grup) ✓ UI staging: `#/voting` tampil judul+filosofi+logo, gambar statis 200 ✓ Vote uji → tally naik → dibersihkan → sesi kembali DRAFT ✓ Prod static `/logo-grup/avodah-1.jpg` = 200 ✓ Prod & staging = `7b95df2` ✓
+
+**Cara pakai:** admin buka sesi dari halaman `#/voting` (tombol **Buka**), bagikan link `https://youth.gehc.page/#/voting` ke Beyonders via WA, lalu **Tutup** saat selesai dan lihat rekap.
+
+### Next
+1. Buka sesi + bagikan link; pantau rekap sampai ditutup.
+2. (Opsional) Tetapkan logo pemenang per grup setelah voting usai.
+
+
 ## Current — Didaskalia: Knowledge Base + Instruksi AI (Gems-like) + Reset Studio Prod (25 Sep 2026)
 
 **Masalah:** materi hasil AI belum sesuai pemikiran tim; konteks teologi saja tidak cukup; tim butuh memberi "pengetahuan" & instruksi.
