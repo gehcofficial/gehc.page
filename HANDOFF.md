@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — Info & Peluang: migrasi tabel PROD (25 Sep 2026)
+
+**Masalah:** di prod muncul `Prisma.InternalWarta.create() … The table internal_warta does not exist`.
+**Penyebab:** saat pengerjaan hanya migrasi **staging** + setup folder Drive (staging & prod) yang dijalankan; **migrasi tabel prod belum**.
+**Perbaikan (tanpa perubahan kode):**
+- `npm run db:migrate:internal-warta:prod` → `internal_warta` dibuat (17 kolom).
+- `npm run db:setup:internal-warta-folder:prod` → folder `1KenbF30ObmMuFk1bARROLKh2SnI3Lw6y` tersimpan di `channel_links` (`INTERNAL_WARTA`/`FOLDER`).
+- Verifikasi unggah Drive prod: upload+delete PDF uji ke folder tersebut → **OK**.
+
+Prod siap: silakan ulangi **Info & Peluang → Buat Warta → Publikasikan**.
+
+
 ## Current — Info & Peluang (Warta Internal) (25 Sep 2026)
 
 **Fitur:** papan berbagi **khusus pemilik akun** (semua peran): beasiswa, lowongan, peluang, kegiatan, kabar umum. Akses lewat tab sidebar **"Info & Peluang"** (grup Utama).
