@@ -1,5 +1,24 @@
 # GEHC Portal — Handoff
 
+## Current — Info & Peluang: caption WA + deep link per warta (25 Sep 2026)
+
+**Ditambahkan:**
+- **Caption siap-kirim WhatsApp** (auto + bisa disunting/disimpan): kolom baru `internal_warta.caption`; bila kosong dipakai caption otomatis (judul, kategori, ringkasan, deadline, sharer+nama, link, hashtag `#InfoPeluang #GEHCYouth`).
+- **Deep link per warta**: `https://youth.gehc.page/#/portal/<ns>/internal-warta?item=<id>` → panel **auto-membuka detail**. Namespace tidak divalidasi per peran, jadi aman dibagikan ke peran mana pun (wajib login).
+- **Tombol admin** (Superadmin/Komisi/Committee) di kartu & modal detail: **Salin caption** dan **Kirim ke WhatsApp** (`wa.me/?text=`, tujuan dipilih manual). Editor punya **textarea Caption (opsional)** + **pratinjau caption otomatis**.
+- Helper baru `src/lib/warta-caption.ts` (`buildWartaCaption`, `wartaAbsoluteUrl`), pakai `whatsappShareUrl`/`copyText` yang sudah ada.
+
+**Migrasi:** `server/_migrate-internal-warta-caption.cjs` (ALTER `caption`) — dijalankan ke **staging & prod**; bootstrap DDL + `db-migrate-local` + npm scripts diperbarui.
+
+**Verifikasi:** `lint` bersih ✓ **498 test** hijau (baru: `warta-caption.test.ts`) ✓ `build` OK ✓ Staging: create warta → **deep link `?item=<id>` membuka detail otomatis**, tombol **Salin caption** & **Kirim WA** tampil (admin) ✓ Residu uji dibersihkan ✓ Prod & staging = `f6b920a` ✓
+
+**Catatan:** WA teks tidak melampirkan file → caption memuat link ke warta; PDF diunduh dari halaman (login).
+
+### Next
+1. Prod: publikasikan warta → **Salin caption** → tempel/bagikan ke grup WA.
+2. (Opsional) Tombol khusus ke nomor/grup WA tetap bila diperlukan.
+
+
 ## Current — Info & Peluang: migrasi tabel PROD (25 Sep 2026)
 
 **Masalah:** di prod muncul `Prisma.InternalWarta.create() … The table internal_warta does not exist`.
