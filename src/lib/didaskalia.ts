@@ -7,18 +7,20 @@ import { HOMILETIC_METHOD_NAMES } from '../data/homiletic-methods';
 
 export const HOMILETIC_METHODS: readonly string[] = HOMILETIC_METHOD_NAMES;
 
-export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'GENERAL_EQUIPPING'] as const;
+export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'READER_COACHING', 'GENERAL_EQUIPPING'] as const;
 export type RitualType = (typeof RITUAL_TYPES)[number];
 
 export const RITUAL_LABELS: Record<RitualType, string> = {
   INTERNAL_SYNC: 'Internal Sync',
   SERVING_BRIEFING: 'Serving Group Briefing',
+  READER_COACHING: 'Pembinaan Pembaca Firman',
   GENERAL_EQUIPPING: 'General Equipping',
 };
 
 export const RITUAL_REF_BY_TYPE: Record<RitualType, string> = {
   INTERNAL_SYNC: 'SYNC',
   SERVING_BRIEFING: 'SERVING',
+  READER_COACHING: 'READER',
   GENERAL_EQUIPPING: 'EQUIP',
 };
 

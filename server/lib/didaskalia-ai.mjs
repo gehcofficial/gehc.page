@@ -17,11 +17,12 @@ export const HOMILETIC_METHODS = [
   'Teologi Historis',
 ];
 
-export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'GENERAL_EQUIPPING'];
+export const RITUAL_TYPES = ['INTERNAL_SYNC', 'SERVING_BRIEFING', 'READER_COACHING', 'GENERAL_EQUIPPING'];
 
 export const RITUAL_LABELS = {
   INTERNAL_SYNC: 'Internal Sync',
   SERVING_BRIEFING: 'Serving Group Briefing',
+  READER_COACHING: 'Pembinaan Pembaca Firman',
   GENERAL_EQUIPPING: 'General Equipping',
 };
 

@@ -30,11 +30,12 @@ import { pushToUsers } from '../lib/notify.mjs';
 const ymRe = /^\d{4}-\d{2}$/;
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const RITUAL_KIND = 'DIDASKALIA_RITUAL';
-const RITUAL_REFS = ['SYNC', 'SERVING', 'EQUIP'];
+const RITUAL_REFS = ['SYNC', 'SERVING', 'READER', 'EQUIP'];
 
 const RITUAL_REF_BY_TYPE = {
   INTERNAL_SYNC: 'SYNC',
   SERVING_BRIEFING: 'SERVING',
+  READER_COACHING: 'READER',
   GENERAL_EQUIPPING: 'EQUIP',
 };
 
@@ -279,6 +280,7 @@ function defaultRitualTimes(options = {}) {
   return {
     internal: { offsetDays: -6, timeStart: '20:00', timeEnd: '21:00', ...(options.internal || {}) },
     serving: { offsetDays: -4, timeStart: '20:00', timeEnd: '21:00', ...(options.serving || {}) },
+    reader: { offsetDays: -3, timeStart: '19:30', timeEnd: '20:30', ...(options.reader || {}) },
     equip: { offsetDays: -2, timeStart: '20:00', timeEnd: '21:30', ...(options.equip || {}) },
   };
 }
@@ -1152,6 +1154,15 @@ egen- + Date.now().toString(36),
                 date: mondayOfSunday(date, options.serving.offsetDays),
                 timeStart: options.serving.timeStart,
                 timeEnd: options.serving.timeEnd,
+                status: 'PLANNED',
+                notes: '',
+              });
+              // Pelayanan hari Minggu (Serving) → pembinaan khusus Pembaca Firman.
+              rituals.push({
+                type: 'READER_COACHING',
+                date: mondayOfSunday(date, options.reader.offsetDays),
+                timeStart: options.reader.timeStart,
+                timeEnd: options.reader.timeEnd,
                 status: 'PLANNED',
                 notes: '',
               });

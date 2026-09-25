@@ -3137,7 +3137,17 @@ app.get('/api/events/:id/meetings', requireRole(), wrap(async (req, res) => {
   res.json({ meetings });
 }));
 
-// GET /api/events/meetings/:mid/ics � generate .ics file
+// GET /api/events/:id/checkin-access — bolehkah user mengoperasikan absensi event ini?
+app.get('/api/events/:id/checkin-access', requireRole(), wrap(async (req, res) => {
+  try {
+    const { isKoinoniaOperator } = await import('./lib/checkin-access.mjs');
+    res.json({ allowed: await isKoinoniaOperator(req.authUser, { eventId: req.params.id }) });
+  } catch {
+    res.json({ allowed: false });
+  }
+}));
+
+// GET /api/events/meetings/:mid/ics — generate .ics file
 app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });

@@ -1319,7 +1319,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 {schedBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Generate dari rencana bulan
               </button>
             </div>
-            <p className="text-[11px] text-[#8C8880]">Pola: Internal Sync (Senin/Selasa), Serving Group Briefing (Rabu/Kamis, hanya minggu Serving), General Equipping (Jumat/Sabtu).</p>
+            <p className="text-[11px] text-[#8C8880]">Pola: Internal Sync (Senin/Selasa), Serving Group Briefing + Pembinaan Pembaca Firman (Rabu/Kamis, hanya minggu Serving), General Equipping (Jumat/Sabtu).</p>
             <div className="space-y-2">
               {(schedule?.weeks || []).map((wk) => (
                 <div key={wk.index} className="rounded-xl border border-[#EFEDE8] p-3">

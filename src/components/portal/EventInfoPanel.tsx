@@ -3,6 +3,7 @@ import { Loader2, RefreshCw, CalendarDays, MessageCircle, ArrowRight } from 'luc
 import { BakuTauWelcomeCard } from './BakuTauWelcomeCard';
 import { EventThankYouCard } from './EventThankYouCard';
 import { EventDidaskaliaMaterials } from './EventDidaskaliaMaterials';
+import { EventHostCheckIn } from './EventHostCheckIn';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
 import { EventProfileCompleteCard } from './EventProfileCompleteCard';
 import { EventSelfAnswersCard } from './EventSelfAnswersCard';
@@ -335,7 +336,8 @@ export const EventInfoPanel: React.FC = () => {
       )}
 
       {/* Materi Didaskalia event ini */}
-          <EventDidaskaliaMaterials eventId={ev.id} eventName={ev.name} eventDate={ev.eventDate} />
+            <EventDidaskaliaMaterials eventId={ev.id} eventName={ev.name} eventDate={ev.eventDate} />
+            <EventHostCheckIn eventId={ev.id} eventName={ev.name} />
     </div>
   );
 };

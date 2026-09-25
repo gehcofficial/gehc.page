@@ -144,9 +144,17 @@ async function requireCheckInOp(req, res) {
     res.status(401).json({ error: 'Belum login.' });
     return false;
   }
-  const ok = await isKoinoniaOperator(req.authUser);
+  let eventId;
+  try {
+    const prisma = getPrisma();
+    if (prisma) {
+      const resolved = await resolveEvent(prisma, req.params.slug);
+      eventId = resolved?.id;
+    }
+  } catch { /* abaikan — izin dasar tetap diperiksa */ }
+  const ok = await isKoinoniaOperator(req.authUser, { eventId });
   if (!ok) {
-    res.status(403).json({ error: 'Check-in hanya untuk Komisi, Tim Kerja BOD, atau Koinonia.' });
+    res.status(403).json({ error: 'Check-in hanya untuk Komisi, Tim Kerja BOD, Koinonia, atau Tuan Rumah event.' });
     return false;
   }
   return true;

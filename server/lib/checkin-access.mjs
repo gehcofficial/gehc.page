@@ -13,7 +13,13 @@ export async function strukturDivision(authUser) {
   }
 }
 
-export async function isKoinoniaOperator(authUser) {
+/**
+ * Boleh mengoperasikan check-in?
+ * @param authUser
+ * @param {{ eventId?: string }} opts — bila eventId diberikan, anggota grup Tuan Rumah
+ *   (host group) atau petugas komponen KOINONIA pada event itu juga diizinkan.
+ */
+export async function isKoinoniaOperator(authUser, { eventId } = {}) {
   if (!authUser) return false;
   if (isKomisiOrSuperadmin(authUser)) return true;
   if (await isBodTimkerja(authUser)) return true;
@@ -29,7 +35,24 @@ export async function isKoinoniaOperator(authUser) {
     const member = await prisma.eventDivisionMember.findFirst({
       where: { userId: authUser.id, eventDivision: { division: 'KOINONIA' } },
     });
-    return !!member;
+    if (member) return true;
+    // Tuan Rumah event: anggota grup host, atau ditugaskan pada komponen KOINONIA event ini.
+    if (eventId) {
+      const sg = await prisma.servingAssignment.findFirst({ where: { eventId }, select: { hostGroupId: true } }).catch(() => null);
+      if (sg?.hostGroupId) {
+        const gm = await prisma.groupMember.findFirst({
+          where: { userId: authUser.id, groupId: sg.hostGroupId, status: 'ACTIVE' },
+          select: { id: true },
+        }).catch(() => null);
+        if (gm) return true;
+      }
+      const duty = await prisma.serviceSchedule.findFirst({
+        where: { userId: authUser.id, eventId, status: { not: 'CANCELLED' }, serviceRole: { division: 'KOINONIA' } },
+        select: { id: true },
+      }).catch(() => null);
+      if (duty) return true;
+    }
+    return false;
   } catch {
     return false;
   }
