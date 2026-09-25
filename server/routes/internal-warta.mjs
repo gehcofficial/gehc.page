@@ -206,6 +206,8 @@ export function registerInternalWartaRoutes(app, { wrap }) {
 
   // POST /api/internal-warta/upload (admin) — unggah lampiran ke Drive
   app.post('/api/internal-warta/upload', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
     const { filename, mimetype, data } = req.body || {};
     const name = String(filename || '').trim() || `lampiran-${Date.now()}`;
