@@ -29,4 +29,11 @@ describe('penjagaan JSON keluaran AI', () => {
     expect(out.paths.length).toBeGreaterThanOrEqual(2);
     expect(out.paths[0].title).toBe('A');
   });
+
+  it('memperbaiki newline literal di dalam string (JSON invalid)', () => {
+    const raw = '{"reflection":"baris1\nbaris2","n":1}';
+    const out = extractJson(raw);
+    expect(out.n).toBe(1);
+    expect(out.reflection).toBe('baris1\nbaris2');
+  });
 });

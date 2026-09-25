@@ -90,7 +90,7 @@ export function repairJson(text) {
   for (let attempt = 0; attempt < 40 && body.length > 2; attempt++) {
     const candidate = closeOpen(body);
     try {
-      return JSON.parse(candidate);
+      return JSON.parse(sanitizeJsonText(candidate));
     } catch {
       // Potong ke pemisah elemen terakhir sebelumnya.
       const cut = Math.max(body.lastIndexOf('},'), body.lastIndexOf('],'), body.lastIndexOf(','), body.lastIndexOf('}'));
@@ -99,7 +99,7 @@ export function repairJson(text) {
     }
   }
   // Terakhir: coba apa adanya dengan penutup.
-  try { return JSON.parse(closeOpen(body)); } catch { return null; }
+  try { return JSON.parse(sanitizeJsonText(closeOpen(body))); } catch { return null; }
 }
 
 /** Tutup string & bracket/brace yang masih terbuka (urutan stack benar). */
@@ -126,6 +126,48 @@ function closeOpen(str) {
   return out;
 }
 
+/**
+ * Normalisasi JSON keluaran LLM:
+ * - escape newline/tab literal di dalam string,
+ * - sisipkan koma yang hilang antar nilai (luar string),
+ * - buang koma menggantung sebelum } / ].
+ */
+export function sanitizeJsonText(str) {
+  const isTokenChar = (c) => /[0-9A-Za-z._+\-]/.test(c);
+  const needsComma = (last) => last === '}' || last === ']' || last === '"' || isTokenChar(last);
+  let out = '';
+  let inStr = false;
+  let esc = false;
+  let inToken = false;
+  let lastSig = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (inStr) {
+      if (esc) { out += ch; esc = false; continue; }
+      if (ch === '\\') { out += ch; esc = true; continue; }
+      if (ch === '"') { out += ch; inStr = false; lastSig = '"'; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') { out += '\\r'; continue; }
+      if (ch === '\t') { out += '\\t'; continue; }
+      out += ch;
+      continue;
+    }
+    if (inToken) {
+      if (isTokenChar(ch)) { out += ch; continue; }
+      inToken = false;
+    }
+    if (ch === '"') { if (needsComma(lastSig)) out += ','; inStr = true; out += ch; lastSig = '"'; continue; }
+    if (ch === '{' || ch === '[') { if (needsComma(lastSig)) out += ','; out += ch; lastSig = ch; continue; }
+    if (ch === '}' || ch === ']') { out += ch; lastSig = ch; continue; }
+    if (ch === ':') { out += ch; lastSig = ':'; continue; }
+    if (ch === ',') { out += ch; lastSig = ','; continue; }
+    if (/\s/.test(ch)) { out += ch; continue; }
+    if (needsComma(lastSig)) out += ',';
+    out += ch; lastSig = ch; inToken = true;
+  }
+  return out.replace(/,\s*([}\]])/g, '$1');
+}
+
 /** Ambil objek JSON pertama dari keluaran model yang mungkin berbalut teks. */
 export function extractJson(text) {
   const s = String(text || '');
@@ -136,10 +178,11 @@ export function extractJson(text) {
     const raw = s.slice(start, end + 1);
     try {
       return JSON.parse(raw);
-    } catch (e) {
+    } catch {
+      try { return JSON.parse(sanitizeJsonText(raw)); } catch { /* lanjut repair */ }
       const repaired = repairJson(raw);
       if (repaired) return repaired;
-      throw new Error(`JSON tidak valid: ${e.message}`);
+      throw new Error('JSON tidak valid.');
     }
   }
   // Terpotong → coba perbaiki.
