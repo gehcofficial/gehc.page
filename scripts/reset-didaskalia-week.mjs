@@ -1,22 +1,24 @@
 /**
- * Reset hasil AI untuk satu minggu Didaskalia (hapus 7 Path + Ringkasan Khotbah),
- * TANPA menyentuh brief: Chapter, Fundamental Firman, Kitab Fokus, metode, mix,
- * diskusi, ritual, gambar presentasi, dan status.
+ * Reset hasil AI Studio Didaskalia.
  *
- * Mode --full: kosongkan juga generation, presentation (gambar + kuota AI), dan render.
+ * Menyisakan HANYA: 2 referensi bacaan (fundamentalFirman + kitabFokus) dan
+ * metode yang akan dipakai (homileticMethods + methodMix). Semua keluaran AI
+ * lain dibersihkan (paths, sermon, discussion, rituals, generation, presentation,
+ * render, pendingRegen, regenHistory), chapterNo dikosongkan, status → DRAFT.
  *
  * AMAN: default DRY-RUN. Tambahkan --apply untuk menulis.
- *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4            # dry-run (staging)
- *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full     # dry-run (full)
- *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full --apply
- *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full
- *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4 --full --apply
+ *
+ *   node scripts/reset-didaskalia-week.mjs --ym 2026-09 --week 4            # 1 pekan (dry-run)
+ *   node scripts/reset-didaskalia-week.mjs --ym 2026-09                     # semua pekan bulan itu
+ *   node scripts/reset-didaskalia-week.mjs --all                            # semua bulan
+ *   npm run db:reset:didaskalia:staging                                     # --all --apply (staging)
+ *   $env:GEHC_ENV='production'; node scripts/reset-didaskalia-week.mjs --all --apply
  */
 import 'dotenv/config';
 import { getPrisma, getDbLabel } from '../server/db.mjs';
 
 const APPLY = process.argv.includes('--apply');
-const FULL = process.argv.includes('--full');
+const ALL = process.argv.includes('--all');
 
 function argValue(flag) {
   const i = process.argv.indexOf(flag);
@@ -24,13 +26,15 @@ function argValue(flag) {
 }
 
 const yearMonth = argValue('--ym');
-const weekIndex = Number(argValue('--week'));
-if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
-  console.error('Wajib: --ym YYYY-MM (mis. --ym 2026-09)');
+const weekArg = argValue('--week');
+const weekIndex = weekArg ? Number(weekArg) : null;
+
+if (!ALL && !/^\d{4}-\d{2}$/.test(yearMonth)) {
+  console.error('Wajib: --ym YYYY-MM (mis. --ym 2026-09) atau --all.');
   process.exit(1);
 }
-if (!Number.isInteger(weekIndex) || weekIndex < 1 || weekIndex > 6) {
-  console.error('Wajib: --week 1..6 (mis. --week 4)');
+if (weekArg && (!Number.isInteger(weekIndex) || weekIndex < 1 || weekIndex > 6)) {
+  console.error('--week harus 1..6.');
   process.exit(1);
 }
 
@@ -40,90 +44,80 @@ if (!prisma) {
   process.exit(1);
 }
 
+function resetStudio(studio) {
+  const s = studio && typeof studio === 'object' ? studio : {};
+  return {
+    fundamentalFirman: s.fundamentalFirman || { ref: '', text: '' },
+    kitabFokus: s.kitabFokus || '',
+    homileticMethods: Array.isArray(s.homileticMethods) ? s.homileticMethods : [],
+    methodMix: Array.isArray(s.methodMix) ? s.methodMix : [],
+    authorId: s.authorId ?? null,
+    reviewerId: s.reviewerId ?? null,
+    chapterNo: '',
+    status: 'DRAFT',
+    paths: [],
+    sermon: { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
+    discussion: [],
+    rituals: [],
+    generation: 0,
+    presentation: {},
+    render: {},
+    pendingRegen: null,
+    regenHistory: [],
+  };
+}
+
 console.log(`Target DB : ${getDbLabel()}`);
-console.log(`Mode      : ${APPLY ? 'APPLY (menulis)' : 'DRY-RUN (tidak menulis)'}${FULL ? ' · FULL' : ''}`);
-console.log(`Sasaran   : ${yearMonth} minggu ke-${weekIndex}`);
+console.log(`Mode      : ${APPLY ? 'APPLY (menulis)' : 'DRY-RUN (tidak menulis)'}`);
+console.log(`Sasaran   : ${ALL ? 'SEMUA bulan' : yearMonth}${weekIndex ? ` · pekan ${weekIndex}` : ' · semua pekan'}`);
+console.log('Menyisakan: fundamentalFirman, kitabFokus, homileticMethods, methodMix\n');
 
-const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
-if (!plan) {
-  console.error(`Rencana bulan ${yearMonth} tidak ditemukan.`);
+const plans = ALL
+  ? await prisma.ministryMonthPlan.findMany({ orderBy: { yearMonth: 'asc' } })
+  : await prisma.ministryMonthPlan.findMany({ where: { yearMonth } });
+
+if (!plans.length) {
+  console.error('Tidak ada rencana bulan yang cocok.');
   await prisma.$disconnect();
   process.exit(1);
 }
 
-const weeks = Array.isArray(plan.weeks) ? plan.weeks.map((w) => ({ ...w })) : [];
-const idx = weeks.findIndex((w) => Number(w?.index) === weekIndex);
-if (idx < 0) {
-  console.error(`Minggu ke-${weekIndex} tidak ada di ${yearMonth}.`);
-  await prisma.$disconnect();
-  process.exit(1);
+let changedPlans = 0;
+let changedWeeks = 0;
+
+for (const plan of plans) {
+  const weeks = Array.isArray(plan.weeks) ? plan.weeks.map((w) => ({ ...w })) : [];
+  let planChanged = false;
+
+  weeks.forEach((w, idx) => {
+    const wi = Number(w?.index) || idx + 1;
+    if (weekIndex && wi !== weekIndex) return;
+    const before = w?.studio && typeof w.studio === 'object' ? w.studio : {};
+    const after = resetStudio(before);
+    const hadOutput = (Array.isArray(before.paths) && before.paths.length)
+      || String(before.sermon?.summary || '').length
+      || (before.generation || 0) > 0
+      || (Array.isArray(before.discussion) && before.discussion.length)
+      || (Array.isArray(before.rituals) && before.rituals.length)
+      || before.chapterNo || (before.presentation && Object.keys(before.presentation).length)
+      || (before.render && Object.keys(before.render).length)
+      || before.pendingRegen;
+    if (!hadOutput && !before.chapterNo && before.status !== 'DRAFT') return;
+    weeks[idx] = { ...w, studio: after };
+    planChanged = true;
+    changedWeeks += 1;
+    console.log(`  ${plan.yearMonth} · W${wi} -> paths/sermon/discussion/rituals/generation dibersihkan; bacaan & metode dipertahankan`);
+  });
+
+  if (planChanged) {
+    changedPlans += 1;
+    if (APPLY) {
+      await prisma.ministryMonthPlan.update({ where: { id: plan.id }, data: { weeks } });
+    }
+  }
 }
 
-const week = weeks[idx];
-const studio = week.studio && typeof week.studio === 'object' ? { ...week.studio } : {};
-const paths = Array.isArray(studio.paths) ? studio.paths : [];
-const sermonLen = String(studio.sermon?.summary || '').length;
-
-console.log('\nSebelum:');
-console.log(`  tema            : ${week.mentoringTheme || week.servingTheme || week.theme || '(kosong)'}`);
-console.log(`  status          : ${studio.status || '(kosong)'}`);
-console.log(`  chapterNo       : ${studio.chapterNo || '(kosong)'}`);
-console.log(`  fundamentalFirman: ${studio.fundamentalFirman?.ref || '(kosong)'}`);
-console.log(`  kitabFokus      : ${studio.kitabFokus || '(kosong)'}`);
-console.log(`  homileticMethods: ${(studio.homileticMethods || []).length} metode`);
-console.log(`  methodMix       : ${(studio.methodMix || []).length} baris`);
-console.log(`  paths           : ${paths.length} Path (judul: ${paths.slice(0, 3).map((p) => p.title).join(' | ') || '-'})`);
-console.log(`  sermon.summary  : ${sermonLen} karakter`);
-console.log(`  deliveryPlan    : ${(studio.sermon?.deliveryPlan || []).length} baris`);
-console.log(`  discussionFlow  : ${(studio.sermon?.discussionFlow || []).length} baris`);
-console.log(`  prepChecklist   : ${(studio.sermon?.prepChecklist || []).length} baris`);
-console.log(`  generation      : ${studio.generation || 0}`);
-console.log(`  aiImages        : ${(studio.presentation?.aiImages || []).length} · cover: ${studio.presentation?.cover || '-'}`);
-console.log(`  render (PDF)    : ${Object.keys(studio.render || {}).join(', ') || '(kosong)'}`);
-console.log(`  pendingRegen    : ${studio.pendingRegen?.status || '(kosong)'} � riwayat: ${(studio.regenHistory || []).length}`);
-
-console.log('\nSesudah (rencana):');
-console.log('  paths           : [] (dihapus)');
-console.log('  sermon          : { methods:[], rationale:"", summary:"", slideOutline:[] }');
-if (FULL) {
-  console.log('  generation      : 0');
-  console.log('  presentation    : {} (cover, gambar, kuota AI direset)');
-  console.log('  render          : {}');
-  console.log('  pendingRegen    : null · riwayat: []');
-}
-console.log('  lainnya         : DIPERTAHANKAN (chapterNo, fundamentalFirman, kitabFokus, metode, mix, diskusi, ritual, status)');
-
-if (!APPLY) {
-  console.log('\n(dry-run) Tambahkan --apply untuk menulis.');
-  await prisma.$disconnect();
-  process.exit(0);
-}
-
-const nextStudio = {
-  ...studio,
-  paths: [],
-  sermon: { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
-};
-if (FULL) {
-  nextStudio.generation = 0;
-  nextStudio.presentation = {};
-  nextStudio.render = {};
-  nextStudio.pendingRegen = null;
-  nextStudio.regenHistory = [];
-}
-weeks[idx] = { ...week, studio: nextStudio };
-
-await prisma.ministryMonthPlan.update({ where: { id: plan.id }, data: { weeks } });
-
-const after = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
-const w2 = (after?.weeks || []).find((w) => Number(w?.index) === weekIndex) || {};
-console.log('\nSelesai. Verifikasi:');
-console.log(`  paths  : ${(w2.studio?.paths || []).length}`);
-console.log(`  sermon : ${String(w2.studio?.sermon?.summary || '').length} karakter`);
-console.log(`  chapterNo tetap: ${w2.studio?.chapterNo || '(kosong)'} · kitabFokus tetap: ${w2.studio?.kitabFokus || '(kosong)'}`);
-if (FULL) {
-  console.log(`  generation: ${w2.studio?.generation || 0} · presentation keys: ${Object.keys(w2.studio?.presentation || {}).join(',') || '(kosong)'} · render: ${Object.keys(w2.studio?.render || {}).join(',') || '(kosong)'}`);
-  console.log(`  pendingRegen: ${w2.studio?.pendingRegen?.status || '(kosong)'} · riwayat: ${(w2.studio?.regenHistory || []).length}`);
-}
+console.log(`\n${APPLY ? 'Selesai' : '(dry-run)'} — ${changedWeeks} pekan pada ${changedPlans} bulan${APPLY ? ' ditulis' : ' akan ditulis'}.`);
+if (!APPLY) console.log('Tambahkan --apply untuk menulis.');
 
 await prisma.$disconnect();

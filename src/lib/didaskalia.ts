@@ -24,6 +24,32 @@ export const RITUAL_REF_BY_TYPE: Record<RitualType, string> = {
   GENERAL_EQUIPPING: 'EQUIP',
 };
 
+/** Knowledge base AI (Gems-like). */
+export type DidaskaliaKnowledge = {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags?: string[] | null;
+  source: string;
+  fileName?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdById?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const KNOWLEDGE_CATEGORIES = ['FORMAT', 'TEOLOGI', 'REFERENSI', 'CATATAN'] as const;
+export type KnowledgeCategory = (typeof KNOWLEDGE_CATEGORIES)[number];
+
+export const KNOWLEDGE_CATEGORY_LABELS: Record<string, string> = {
+  FORMAT: 'Format & Gaya',
+  TEOLOGI: 'Teologi',
+  REFERENSI: 'Referensi',
+  CATATAN: 'Catatan Tim',
+};
+
 /** Minggu gerejawi: Path 1 = Minggu (hari khotbah) → Path 7 = Sabtu. */
 export const DAY_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 

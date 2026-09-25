@@ -226,6 +226,41 @@ function buildContext(input) {
 }
 
 /**
+ * Blok konteks tim: instruksi khusus + knowledge base (Gems-like).
+ * Dipakai semua generator agar output selaras pemikiran tim Didaskalia.
+ */
+function teamContextBlock(input) {
+  const lines = [];
+  const instr = asStr(input?.instruction);
+  if (instr) {
+    lines.push('INSTRUKSI KHUSUS TIM (WAJIB DIPATUHI, di atas gaya bawaan):');
+    lines.push(instr);
+    lines.push('');
+  }
+  const docs = Array.isArray(input?.knowledge) ? input.knowledge : [];
+  if (docs.length) {
+    const max = Math.min(60000, Math.max(1000, Number(input?.maxKnowledgeChars) || 12000));
+    let used = 0;
+    const parts = [];
+    for (const d of docs) {
+      const head = `--- ${asStr(d?.title) || 'Dokumen'}${d?.category ? ` [${d.category}]` : ''} ---`;
+      const body = asStr(d?.content);
+      const room = max - used - head.length - 2;
+      if (room <= 200) break;
+      const slice = body.slice(0, room);
+      parts.push(`${head}\n${slice}`);
+      used += head.length + slice.length + 2;
+    }
+    if (parts.length) {
+      lines.push('PENGETAHUAN TIM (referensi internal — jadikan panduan pola/gaya, jangan salin mentah):');
+      lines.push(parts.join('\n\n'));
+      lines.push('');
+    }
+  }
+  return lines;
+}
+
+/**
  * Susun draf satu minggu: 7 Path berurutan + kerangka Ringkasan Khotbah.
  */
 export async function generateWeekDraft(input) {
@@ -234,6 +269,7 @@ export async function generateWeekDraft(input) {
     '',
     'KONTEKS:',
     buildContext(input),
+    ...teamContextBlock(input),
     '',
     'ALUR PEMIKIRAN (WAJIB DIPATUHI):',
     '- Fundamental Firman (ayat) adalah JANGKAR TEMA minggu ini. Seluruh isi harus bertumpu pada ayat dasar ini.',
@@ -281,6 +317,7 @@ export async function generateEnrichedDraft(input) {
     '',
     'KONTEKS:',
     buildContext(input),
+    ...teamContextBlock(input),
     '',
     'ALUR PEMIKIRAN (WAJIB):',
     '- Fundamental Firman = jangkar tema; Ringkasan Khotbah diturunkan darinya lalu diarahkan ke Kitab/Bagian Fokus.',
@@ -330,6 +367,7 @@ export async function generateWeekExtras(input) {
     '',
     'KONTEKS:',
     buildContext(input),
+    ...teamContextBlock(input),
     input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
     '',
     'ATURAN:',
@@ -362,6 +400,7 @@ export async function generateSermon(input) {
     '',
     'KONTEKS:',
     buildContext(input),
+    ...teamContextBlock(input),
     input.pathsOutline ? `Kerangka 7 Path yang sudah ada:\n${asStr(input.pathsOutline)}` : '',
     '',
     'ATURAN:',
@@ -380,9 +419,10 @@ export async function generateSermon(input) {
 /**
  * Perbaiki satu bagian tertentu (mis. satu Path atau ringkasan).
  */
-export async function refineField({ fieldLabel, current, instruction, context }) {
+export async function refineField({ fieldLabel = '', current = '', instruction = '', context = '', teamInstruction = '' } = {}) {
   const prompt = [
     `Perbaiki bagian "${asStr(fieldLabel)}" berikut.`,
+    teamInstruction ? `Instruksi khusus tim: ${asStr(teamInstruction)}` : '',
     context ? `Konteks:\n${asStr(context)}` : '',
     `Teks saat ini:\n${asStr(current)}`,
     `Instruksi: ${asStr(instruction) || 'Buat lebih jelas, hangat, dan mudah dipahami pemuda.'}`,

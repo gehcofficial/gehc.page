@@ -955,6 +955,40 @@ model MinistryMonthPlan {
   @@map("ministry_month_plans")
 }
 
+// ============================================================
+// DIDASKALIA — KNOWLEDGE BASE & INSTRUKSI AI (Gems-like)
+// ============================================================
+
+model DidaskaliaKnowledge {
+  id          String   @id @db.VarChar(64)
+  title       String   @db.VarChar(200)
+  /// Isi dokumen (markdown/teks). Diunggah manual atau dari diskusi internal.
+  content     String   @db.MediumText
+  category    String   @default("REFERENSI") @db.VarChar(30) // FORMAT | TEOLOGI | REFERENSI | CATATAN
+  tags        Json?
+  source      String   @default("MANUAL") @db.VarChar(20) // MANUAL | UPLOAD | DISCUSSION
+  fileName    String?  @map("file_name") @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdById String?  @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([isActive, sortOrder])
+  @@map("didaskalia_knowledge")
+}
+
+model DidaskaliaAiConfig {
+  id                String   @id @db.VarChar(64) // singleton: 'didaskalia-ai'
+  /// Instruksi khusus tim (di atas persona dasar) — mis. gaya, penekanan, larangan.
+  instruction       String?  @db.Text
+  maxKnowledgeChars Int      @default(12000) @map("max_knowledge_chars")
+  updatedById       String?  @map("updated_by_id") @db.VarChar(64)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("didaskalia_ai_config")
+}
+
 model MinistryWeekDeliverable {
   id          String  @id @db.VarChar(64)
   planId      String  @map("plan_id") @db.VarChar(64)

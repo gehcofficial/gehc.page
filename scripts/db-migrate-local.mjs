@@ -315,6 +315,11 @@ const STEPS = [
     label: 'Penatalayanan v2: sub-divisi, jenis ibadah, checklist, audit status, agenda rapat',
     required: true,
   },
+  {
+    script: 'server/_migrate-didaskalia-knowledge.cjs',
+    label: 'Didaskalia knowledge base + instruksi AI',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

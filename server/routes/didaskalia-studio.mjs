@@ -286,6 +286,27 @@ function defaultRitualTimes(options = {}) {
 }
 
 export function registerDidaskaliaStudioRoutes(app, { wrap }) {
+  /** Konteks tim untuk AI: instruksi khusus + knowledge base aktif (Gems-like). */
+  async function loadTeamContext(prisma) {
+    try {
+      const [cfg, docs] = await Promise.all([
+        prisma.didaskaliaAiConfig.findUnique({ where: { id: 'didaskalia-ai' } }).catch(() => null),
+        prisma.didaskaliaKnowledge.findMany({
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
+          select: { title: true, category: true, content: true },
+        }).catch(() => []),
+      ]);
+      return {
+        instruction: cfg?.instruction || '',
+        maxKnowledgeChars: Number(cfg?.maxKnowledgeChars) || 12000,
+        knowledge: docs,
+      };
+    } catch {
+      return { instruction: '', maxKnowledgeChars: 12000, knowledge: [] };
+    }
+  }
+
   /** Notifikasi pengajuan regenerate ke approver (kepala divisi Didaskalia/SUPERADMIN). */
   async function notifyRegen(prisma, { yearMonth, weekIndex, summary, byName, kind }) {
     try {
@@ -362,6 +383,86 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       res.json({ links: await readRitualLinks(prisma) });
     })
   );
+
+  // ---------- Knowledge base + instruksi AI (Gems-like) ----------
+  app.get('/api/didaskalia/knowledge', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ knowledge: [] });
+    const all = String(req.query?.all || '') === '1';
+    const knowledge = await prisma.didaskaliaKnowledge.findMany({
+      where: all ? {} : { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
+    }).catch(() => []);
+    res.json({ knowledge });
+  }));
+
+  app.post('/api/didaskalia/knowledge', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const { title, content, category, source, fileName, tags, sortOrder } = req.body || {};
+    const cleanTitle = String(title || '').trim().slice(0, 200);
+    const cleanContent = String(content || '').trim();
+    if (!cleanTitle || !cleanContent) return res.status(400).json({ error: 'title & content wajib.' });
+    if (cleanContent.length > 300000) return res.status(413).json({ error: 'Dokumen terlalu besar (maks ~300 KB teks).' });
+    const CATS = ['FORMAT', 'TEOLOGI', 'REFERENSI', 'CATATAN'];
+    const cat = CATS.includes(String(category || '').toUpperCase()) ? String(category).toUpperCase() : 'REFERENSI';
+    const knowledge = await prisma.didaskaliaKnowledge.create({
+      data: {
+        id: `dk-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        title: cleanTitle,
+        content: cleanContent,
+        category: cat,
+        source: ['MANUAL', 'UPLOAD', 'DISCUSSION'].includes(String(source || '').toUpperCase()) ? String(source).toUpperCase() : 'MANUAL',
+        fileName: fileName ? String(fileName).slice(0, 255) : null,
+        tags: Array.isArray(tags) ? tags : [],
+        sortOrder: Number(sortOrder) || 0,
+        createdById: req.authUser?.id || null,
+      },
+    });
+    res.status(201).json({ knowledge });
+  }));
+
+  app.patch('/api/didaskalia/knowledge/:id', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const { title, content, category, isActive, sortOrder, tags } = req.body || {};
+    const data = {};
+    if (title !== undefined) data.title = String(title).trim().slice(0, 200);
+    if (content !== undefined) data.content = String(content);
+    if (category !== undefined) data.category = String(category).toUpperCase();
+    if (isActive !== undefined) data.isActive = Boolean(isActive);
+    if (sortOrder !== undefined) data.sortOrder = Number(sortOrder) || 0;
+    if (tags !== undefined) data.tags = Array.isArray(tags) ? tags : [];
+    const knowledge = await prisma.didaskaliaKnowledge.update({ where: { id: req.params.id }, data });
+    res.json({ knowledge });
+  }));
+
+  app.delete('/api/didaskalia/knowledge/:id', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    await prisma.didaskaliaKnowledge.delete({ where: { id: req.params.id } }).catch(() => null);
+    res.json({ ok: true });
+  }));
+
+  app.get('/api/didaskalia/ai-config', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ config: { instruction: '', maxKnowledgeChars: 12000 } });
+    const cfg = await prisma.didaskaliaAiConfig.findUnique({ where: { id: 'didaskalia-ai' } }).catch(() => null);
+    res.json({ config: { instruction: cfg?.instruction || '', maxKnowledgeChars: cfg?.maxKnowledgeChars || 12000 } });
+  }));
+
+  app.put('/api/didaskalia/ai-config', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const { instruction, maxKnowledgeChars } = req.body || {};
+    const cap = Math.min(60000, Math.max(1000, Number(maxKnowledgeChars) || 12000));
+    const config = await prisma.didaskaliaAiConfig.upsert({
+      where: { id: 'didaskalia-ai' },
+      update: { instruction: instruction === undefined ? undefined : String(instruction), maxKnowledgeChars: cap, updatedById: req.authUser?.id || null },
+      create: { id: 'didaskalia-ai', instruction: String(instruction || ''), maxKnowledgeChars: cap, updatedById: req.authUser?.id || null },
+    });
+    res.json({ config: { instruction: config.instruction || '', maxKnowledgeChars: config.maxKnowledgeChars } });
+  }));
 
   // ---------- Get satu minggu ----------
   app.get(
@@ -441,8 +542,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const st = sanitizeStudio(week.studio);
 
       let draft;
+      const team = await loadTeamContext(prisma);
       try {
         draft = await generateWeekDraft({
+          ...team,
           yearMonth,
           weekIndex,
           date: week.date,
@@ -514,8 +617,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const st = sanitizeStudio(week.studio);
 
       let draft;
+      const team = await loadTeamContext(prisma);
       try {
         draft = await generateEnrichedDraft({
+          ...team,
           yearMonth,
           weekIndex,
           date: week.date,
@@ -590,8 +695,10 @@ egen- + Date.now().toString(36),
       const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}${p.summary ? ` — ${p.summary}` : ''}`).join('\n');
 
       let extras;
+      const team = await loadTeamContext(prisma);
       try {
         extras = await generateWeekExtras({
+          ...team,
           yearMonth,
           weekIndex,
           date: week.date,
@@ -647,8 +754,10 @@ egen- + Date.now().toString(36),
       const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}`).join('\n');
 
       let sermon;
+      const team = await loadTeamContext(prisma);
       try {
         sermon = await generateSermon({
+          ...team,
           yearMonth,
           weekIndex,
           date: week.date,
@@ -684,7 +793,8 @@ egen- + Date.now().toString(36),
       const { fieldLabel, current, instruction, context } = req.body || {};
       if (!current) return res.status(400).json({ error: 'current wajib.' });
       try {
-        const text = await refineField({ fieldLabel, current, instruction, context });
+        const team = await loadTeamContext(prisma);
+        const text = await refineField({ fieldLabel, current, instruction, context, teamInstruction: team.instruction });
         res.json({ text });
       } catch (e) {
         res.status(502).json({ error: `AI gagal memperbaiki: ${e.message}` });

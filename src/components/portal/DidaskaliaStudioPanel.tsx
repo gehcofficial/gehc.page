@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2,
   Sparkles,
@@ -52,6 +52,7 @@ import {
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
 import { materialHashPath, delivererLabel } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-caption';
+import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -158,7 +159,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
-  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'jadwal'>('inti');
+  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'>('inti');
   const [ym, setYm] = useState(yearMonth || currentYearMonth());
   const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
@@ -540,6 +541,46 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     await save({ discussion });
   };
 
+  /** Unggah berkas .md/.txt dari Diskusi → jadi dokumen Pengetahuan tim (konteks AI). */
+  const discussionFileRef = useRef<HTMLInputElement | null>(null);
+  const uploadDiscussionFile = async (file?: File | null) => {
+    if (!file || !canWrite) return;
+    if (!/\.(md|markdown|txt)$/i.test(file.name)) {
+      addToast({ type: 'error', title: 'Hanya berkas .md atau .txt' });
+      return;
+    }
+    setBusy('discussion-upload');
+    try {
+      const content = await file.text();
+      const title = file.name.replace(/\.(md|markdown|txt)$/i, '').slice(0, 200) || 'Dokumen';
+      const r = await fetch('/api/didaskalia/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title, content, category: 'REFERENSI', source: 'DISCUSSION', fileName: file.name }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal mengunggah.');
+      const entry = {
+        id: `c-${Date.now()}`,
+        text: `Berkas ditambahkan ke Pengetahuan tim: ${title} (${file.name})`,
+        at: new Date().toISOString(),
+        resolved: false,
+        userId: authUser?.id || null,
+        userName: currentUser?.name || authUser?.name || null,
+        role: currentRole || null,
+        scope: commentScope,
+      };
+      await save({ discussion: [...(studio.discussion || []), entry] });
+      addToast({ type: 'success', title: `Berkas "${file.name}" masuk Pengetahuan` });
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal mengunggah.' });
+    } finally {
+      setBusy(null);
+      if (discussionFileRef.current) discussionFileRef.current.value = '';
+    }
+  };
+
   const uploadToDrive = async (files: Array<{ filename: string; blob: Blob; pathIndex?: number }>, subfolder: string) => {
     if (!event?.id) throw new Error('Belum ada event ibadah untuk minggu ini. Buat dulu di Ibadah Mingguan.');
     const uploaded: Array<{ name: string; driveFileId: string; pathIndex?: number }> = [];
@@ -733,12 +774,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 
-  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'jadwal'; label: string }> = [
+  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'; label: string }> = [
     { id: 'inti', label: 'Inti' },
     { id: 'paths', label: '7 Path' },
     { id: 'khotbah', label: 'Khotbah' },
     { id: 'diskusi', label: 'Diskusi' },
     { id: 'terbitkan', label: 'Terbitkan' },
+    { id: 'pengetahuan', label: 'Pengetahuan' },
     { id: 'jadwal', label: 'Jadwal & Meet' },
   ];
 
@@ -1213,6 +1255,16 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </select>
               <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Tulis catatan/usulan untuk tim…" className={inputCls} />
               <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
+              <button
+                type="button"
+                onClick={() => discussionFileRef.current?.click()}
+                disabled={!canWrite || busy === 'discussion-upload'}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50"
+                title="Unggah .md/.txt sebagai pengetahuan tim untuk AI"
+              >
+                {busy === 'discussion-upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} .md
+              </button>
+              <input ref={discussionFileRef} type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="hidden" onChange={(e) => void uploadDiscussionFile(e.target.files?.[0])} />
             </div>
           </div>
 
@@ -1309,6 +1361,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
           </div>
           </>)}
+          {tab === 'pengetahuan' && (<>
+          <DidaskaliaKnowledgePanel canWrite={canWrite} />
+          </>)}
+
           {tab === 'jadwal' && (<>
           {/* Jadwal */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
