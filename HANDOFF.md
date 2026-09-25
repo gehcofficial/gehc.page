@@ -1,5 +1,20 @@
 # GEHC Portal — Handoff
 
+## Current — Penatalayanan Terpadu: sisa item (25 Sep 2026)
+
+**1. Absensi QR oleh Tuan Rumah** — `isKoinoniaOperator(authUser, { eventId })` diperluas: anggota **grup host (Tuan Rumah)** event atau petugas komponen KOINONIA pada event itu boleh mengoperasikan check-in. `requireCheckInOp` kini me-resolve event dari `req.params.slug` sebelum memeriksa izin. Surface baru untuk Tuan Rumah (mentee/mentor tanpa akses panel Koinonia): endpoint `GET /api/events/:id/checkin-access` + komponen **`EventHostCheckIn`** di **Info Event** (blok "Absensi Kehadiran", collapsible, hanya tampil bila diizinkan).
+
+**2. Ritual Pembinaan Pembaca Firman (Serving)** — jenis ritual baru **`READER_COACHING`** ("Pembinaan Pembaca Firman"), ref Meet `READER`, offset H-3 (19:30–20:30). Di-generate otomatis pada **minggu Serving** (bersama `SERVING_BRIEFING`). Ditambahkan di `src/lib/didaskalia.ts`, `server/lib/didaskalia-ai.mjs`, `server/routes/didaskalia-studio.mjs` (REFS, `defaultRitualTimes`, generate), dan tab Jadwal & Meet Studio (editor link kini 4 ruang meet).
+
+**Verifikasi:** `lint` bersih ✓ **486 test** hijau ✓ `build` OK ✓ Staging API: ritual-links = 4 (incl. READER); generate 2026-10 → W1 Mentoring = Sync+Equip, W2–W4 Serving = + Servbriefing + Reader Coaching ✓ `checkin-access` = `{allowed:true}` (SUPERADMIN) ✓ Browser: blok "Absensi Kehadiran" tampil di Info Event (respons 200) dan label "Pembinaan Pembaca Firman" tampil di Studio › Jadwal & Meet ✓ Prod & staging = `0ac9698` ✓
+
+**Catatan:** bundle baru bisa tertunda di browser karena cache **service worker PWA** — muat ulang keras bila belum melihat perubahan.
+
+### Next
+1. Uji prod: tugaskan Tuan Rumah/Koinonia untuk Serving → buka Info Event → Absensi; regenerate jadwal ritual bulanan agar `READER_COACHING` muncul.
+2. Kandidat: integrasi agenda Rapat Petugas Ibadah dengan penugasan penatalayan (auto-assign per agenda).
+
+
 ## Current — Penatalayanan Terpadu Fase A–E (25 Sep 2026)
 
 **Skema baru (migrasi `server/_migrate-penatalayan-v2.cjs`, idempotent):**
