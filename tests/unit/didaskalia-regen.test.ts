@@ -59,6 +59,22 @@ describe('proposalFromDraft (struktur dikunci)', () => {
     expect(prop.paths[0].rhbSections[0].body).toBe('AI body 0-0');
     expect(prop.chapterNo).toBe('1');
   });
+
+  it('setelah reset (paths kosong) RHB dari AI tetap dipakai', () => {
+    const cur = { ...studioBase(), paths: [] };
+    const draft = {
+      chapterNo: '0',
+      paths: Array.from({ length: 7 }, (_, i) => ({
+        title: `AI ${i + 1}`,
+        dayLabel: 'XXXX',
+        rhbSections: ensureRhbSections([]).map((s, si) => ({ key: s.key, title: s.title, body: `Isi ${i}-${si}` })),
+      })),
+      sermon: { ...cur.sermon, summary: 'AI' },
+    };
+    const prop = proposalFromDraft(draft, cur);
+    expect(prop.paths[0].rhbSections).toHaveLength(5);
+    expect(prop.paths[0].rhbSections[0].body).toBe('Isi 0-0');
+  });
 });
 
 describe('scope diskusi', () => {

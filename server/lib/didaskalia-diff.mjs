@@ -87,15 +87,18 @@ export function proposalFromDraft(draft, current) {
   const mergedPaths = Array.from({ length: 7 }, (_, i) => {
     const base = (cur.paths || [])[i] || {};
     const next = paths[i] || {};
+    const baseRhb = Array.isArray(base.rhbSections) ? base.rhbSections : [];
+    const nextRhb = Array.isArray(next.rhbSections) ? next.rhbSections : [];
+    // Bila struktur lama belum ada (mis. setelah reset), pakai RHB dari AI.
+    const rhbSections = baseRhb.length
+      ? baseRhb.map((s, si) => ({ ...s, body: nextRhb[si]?.body ?? s.body }))
+      : nextRhb;
     return {
       ...base,
       ...next,
       pathIndex: i + 1,
       dayLabel: base.dayLabel || next.dayLabel || '',
-      rhbSections: (base.rhbSections || []).map((s, si) => ({
-        ...s,
-        body: (next.rhbSections || [])[si]?.body ?? s.body,
-      })),
+      rhbSections,
     };
   });
   return {
