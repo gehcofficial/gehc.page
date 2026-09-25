@@ -44,8 +44,13 @@ function cleanAttachments(raw) {
 let cachedFolderId = null;
 
 export function registerInternalWartaRoutes(app, { wrap }) {
-  async function resolveFolder() {
+  /** Folder Drive lampiran: dari DB (ChannelLink), atau buat via root env lalu disimpan. */
+  async function resolveFolder(prisma) {
     if (cachedFolderId) return cachedFolderId;
+    try {
+      const link = await prisma.channelLink.findUnique({ where: { kind_refId: { kind: 'INTERNAL_WARTA', refId: 'FOLDER' } } }).catch(() => null);
+      if (link?.url) { cachedFolderId = link.url; return cachedFolderId; }
+    } catch { /* lanjut */ }
     const rootId = process.env.GDRIVE_ROOT_FOLDER_ID;
     if (!rootId) return null;
     const subs = await listFolders(rootId, 100).catch(() => []);
@@ -54,7 +59,13 @@ export function registerInternalWartaRoutes(app, { wrap }) {
       const created = await createFolder(rootId, FOLDER_NAME).catch(() => null);
       folder = created ? { id: created.id } : null;
     }
-    cachedFolderId = folder?.id || null;
+    if (!folder?.id) return null;
+    cachedFolderId = folder.id;
+    await prisma.channelLink.upsert({
+      where: { kind_refId: { kind: 'INTERNAL_WARTA', refId: 'FOLDER' } },
+      update: { url: folder.id },
+      create: { id: 'cl-internal-warta-folder', kind: 'INTERNAL_WARTA', refId: 'FOLDER', label: FOLDER_NAME, url: folder.id },
+    }).catch(() => null);
     return cachedFolderId;
   }
 
@@ -205,8 +216,8 @@ export function registerInternalWartaRoutes(app, { wrap }) {
     if (!ALLOWED_MIME.test(mime)) return res.status(415).json({ error: 'Jenis berkas tidak diizinkan (PDF, gambar, Word/PowerPoint/Excel).' });
     const buffer = Buffer.from(raw.replace(/^data:[^;]+;base64,/, ''), 'base64');
     if (buffer.length > 8_000_000) return res.status(413).json({ error: 'Berkas terlalu besar (maks ~8MB).' });
-    const folderId = await resolveFolder();
-    if (!folderId) return res.status(503).json({ error: 'Folder penyimpanan belum siap.' });
+    const folderId = await resolveFolder(prisma);
+    if (!folderId) return res.status(503).json({ error: 'Folder penyimpanan belum siap. Jalankan: npm run db:setup:internal-warta-folder' });
     const file = await uploadFile(folderId, { filename: name, mimetype: mime, buffer });
     res.status(201).json({ file: { fileId: file.id, name: file.name || name, mimetype: mime, size: buffer.length } });
   }));
