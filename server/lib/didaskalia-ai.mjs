@@ -179,10 +179,16 @@ export function extractJson(text) {
     try {
       return JSON.parse(raw);
     } catch {
-      try { return JSON.parse(sanitizeJsonText(raw)); } catch { /* lanjut repair */ }
-      const repaired = repairJson(raw);
-      if (repaired) return repaired;
-      throw new Error('JSON tidak valid.');
+      try {
+        return JSON.parse(sanitizeJsonText(raw));
+      } catch (e2) {
+        const m = /position (\d+)/.exec(String(e2.message));
+        const repaired = repairJson(raw);
+        if (repaired) return repaired;
+        const pos = m ? Number(m[1]) : -1;
+        const snippet = pos >= 0 ? raw.slice(Math.max(0, pos - 100), pos + 100) : '';
+        throw new Error(`JSON tidak valid: ${e2.message}${snippet ? ` | ...${snippet}...` : ''}`);
+      }
     }
   }
   // Terpotong → coba perbaiki.
@@ -380,7 +386,15 @@ async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 
       meta = { modelId: r2.modelId, finishReason: r2.finishReason, retried: true };
     } catch { /* pakai hasil pertama (diperbaiki) */ }
   }
-  return { data: extractJson(res.text), meta };
+  let data;
+  try {
+    data = extractJson(res.text);
+  } catch (e) {
+    e.rawTail = String(res.text || '').slice(-400);
+    e.rawLen = String(res.text || '').length;
+    throw e;
+  }
+  return { data, meta, raw: res.text };
 }
 
 const DRAFT_PATHS_SCHEMA = '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}]}';
@@ -395,16 +409,13 @@ export async function generateWeekDraft(input) {
     ...teamContextBlock(input),
     '',
   ];
-  const PATHS_RULES = [
-    'ATURAN 7 PATH (WAJIB):',
-    '- Fundamental Firman (ayat) adalah JANGKAR TEMA; Kitab/Bagian Fokus dibagi 7 hari berurutan (Path 1 - 7).',
-    '- URUTAN HARI: Path 1 = MINGGU (hari khotbah) - Path 2 = Senin - ... - Path 7 = Sabtu.',
-    '- Judul tiap Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
-    '- Tiap Path: title, summary (maks 100 karakter), bacaanRef (rentang Kitab Fokus progresif), scriptureRef (Nats Pembimbing), scriptureText (maks 200 karakter), homileticLens (2-3 metode), hookQuestion, illustration (maks 150 karakter), reflection (maks 3 kalimat), observeQ/interpretQ/applyQ, fgdQuestions (2-3), bridge (1 kalimat).',
-    '- TEPAT 5 "rhbSections" per Path dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. body WAJIB 1 paragraf pendek, MAKS 250 karakter (jangan lebih).',
-    '- "methodMix": 2-3 metode dari 7 pendekatan dengan persentase (~100) + catatan singkat.',
-    '- Path 1 menyambung eksplisit dari minggu lalu; Path 7 menjembatani minggu depan.',
-    '- PENTING: JAGA RINGKAS agar JSON tidak terpotong; utamakan struktur & field wajib lengkap.',
+  const PATH_RULES = [
+    'ATURAN (WAJIB):',
+    '- Fundamental Firman adalah JANGKAR TEMA; bagian hari ini diambil progresif dari Kitab/Bagian Fokus.',
+    '- Judul Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
+    '- Field: pathIndex, dayLabel, title, summary (maks 100 karakter), bacaanRef, scriptureRef (Nats Pembimbing), scriptureText (maks 180 karakter), homileticLens (2-3), hookQuestion, illustration (maks 140 karakter), reflection (maks 3 kalimat), observeQ, interpretQ, applyQ, fgdQuestions (2-3), bridge (1 kalimat), imageStem "".',
+    '- rhbSections: TEPAT 5 dengan key PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK; body 1 paragraf, WAJIB MAKS 220 karakter.',
+    '- JAGA SANGAT RINGKAS. Jangan menambah field lain di luar skema.',
     '',
     'Balas HANYA JSON valid (padat, tanpa markdown):',
     DRAFT_PATHS_SCHEMA,
@@ -415,57 +426,75 @@ export async function generateWeekDraft(input) {
     '- methods: 2-3 metode; rationale: bagaimana metode menajamkan Fundamental Firman.',
     '- summary: 2-3 paragraf pendek (maks 80 kata).',
     '- slideOutline: 6-8 slide (title, bullets 2-4, visualNote maks 60 karakter).',
-    '- deliveryPlan: satu baris per metode (method, how).',
-    '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah FGD kontekstual tema ini).',
-    '- JAGA RINGKAS agar JSON tidak terpotong.',
+    '- deliveryPlan: satu baris per metode.',
+    '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah).',
     '',
     'Balas HANYA JSON valid (padat, tanpa markdown):',
     DRAFT_SERMON_SCHEMA,
   ];
 
-  const pathsPrompt = [...HEAD, ...PATHS_RULES].join('\n');
-  const { data: parsedA } = await generateJson({ prompt: pathsPrompt, maxOutputTokens: 12000, timeoutMs: 48000 });
-  let paths = Array.isArray(parsedA.paths) ? [...parsedA.paths] : [];
+  const focus = asStr(input.kitabFokus);
+  const onePathPrompt = (i) => [
+    ...HEAD,
+    `TUGAS: buat HANYA Path ke-${i} dari 7 (hari ${DAY_LABELS[i - 1]}).`,
+    focus ? `Kitab/bagian fokus: ${focus} — tentukan porsi hari ke-${i} secara progresif.` : "",
+    ...PATH_RULES,
+  ].filter(Boolean).join("\n");
 
-  // Penjagaan: lengkapi Path yang belum berisi RHB secara bertahap (batch maks 4).
-  const hasPath = (p) => Array.isArray(p?.rhbSections) && p.rhbSections.some((s) => asStr(s?.body).trim());
-  for (let round = 0; round < 2; round++) {
-    const missing = [];
-    for (let i = 0; i < 7; i++) if (!hasPath(paths[i])) missing.push(i + 1);
-    if (!missing.length) break;
-    const batch = missing.slice(0, 4);
-    const batchPrompt = [
-      ...HEAD,
-      `LENGKAPI HANYA Path berikut: ${batch.join(', ')}. Sertakan "paths" berisi TEPAT ${batch.length} Path dengan pathIndex ${batch.join(', ')}.`,
-      ...PATHS_RULES.slice(0, -2),
-      'Balas HANYA JSON valid (padat, tanpa markdown):',
-      DRAFT_PATHS_SCHEMA,
-    ].join('\n');
-    try {
-      const { data: g } = await generateJson({ prompt: batchPrompt, maxOutputTokens: 6000, timeoutMs: 32000 });
-      const got = Array.isArray(g.paths) ? g.paths : [];
-      got.forEach((p, k) => {
-        const idx = (Number(p?.pathIndex) || batch[k]) - 1;
-        if (idx >= 0 && idx < 7 && hasPath(p)) paths[idx] = { ...(paths[idx] || {}), ...p, pathIndex: idx + 1 };
-      });
-    } catch { break; }
+  const results = new Array(7).fill(null);
+  let brief = { methodMix: [], homileticMethods: [] };
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < 7) {
+      const i = cursor++;
+      try {
+        const { data } = await generateJson({ prompt: onePathPrompt(i + 1), maxOutputTokens: 3500, timeoutMs: 30000 });
+        const p = Array.isArray(data.paths) ? data.paths[0] : null;
+        const hasRhb = Array.isArray(p?.rhbSections) && p.rhbSections.some((x) => asStr(x?.body).trim());
+        if (p && hasRhb) {
+          results[i] = { ...p, pathIndex: i + 1, dayLabel: p.dayLabel || DAY_LABELS[i] };
+          if (!brief.methodMix.length && Array.isArray(data.methodMix)) brief.methodMix = data.methodMix;
+          if (!brief.homileticMethods.length && Array.isArray(data.homileticMethods)) brief.homileticMethods = data.homileticMethods;
+        }
+      } catch (err) {
+        console.error('[didaskalia-ai] path', i + 1, 'gagal:', err?.message || err);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 3 }, worker));
+
+  const missing = results.map((p, i) => (p ? null : i + 1)).filter(Boolean);
+  if (missing.length) {
+    console.error('[didaskalia-ai] Path belum lengkap:', missing.join(', '));
+    // Coba sekali lagi berurutan untuk yang gagal.
+    for (const idx of missing) {
+      try {
+        const { data } = await generateJson({ prompt: onePathPrompt(idx), maxOutputTokens: 3500, timeoutMs: 30000 });
+        const p = Array.isArray(data.paths) ? data.paths[0] : null;
+        if (p) results[idx - 1] = { ...p, pathIndex: idx, dayLabel: p.dayLabel || DAY_LABELS[idx - 1] };
+      } catch { /* biarkan default */ }
+    }
   }
-  const a = { ...parsedA, paths };
 
-  const outline = (Array.isArray(a.paths) ? a.paths : []).map((p, i) => `Path ${p.pathIndex || i + 1}: ${asStr(p.title)}`).join('\n');
-  const sermonPrompt = [...HEAD, outline ? `KERANGKA 7 PATH:\n${outline}` : '', ...SERMON_RULES].filter(Boolean).join('\n');
+  const paths = results.map((p, i) => p || { pathIndex: i + 1, dayLabel: DAY_LABELS[i] });
+  const outline = paths.map((p, i) => `Path ${i + 1}: ${asStr(p.title)}`).join("\n");
   let sermon = {};
   try {
-    const { data: b } = await generateJson({ prompt: sermonPrompt, maxOutputTokens: 4000, timeoutMs: 40000 });
-    sermon = b.sermon || b || {};
-  } catch { /* kosong → clampSermon mengisi default */ }
-
-  if (!Array.isArray(a.paths) || a.paths.length === 0) {
-    const fullPrompt = [...HEAD, ...PATHS_RULES.slice(0, -2), ...SERMON_RULES.slice(0, -2), '', 'Balas HANYA JSON valid (padat, tanpa markdown):', DRAFT_FULL_SCHEMA].join('\n');
-    const { data: full } = await generateJson({ prompt: fullPrompt, maxOutputTokens: 14000, timeoutMs: 55000 });
-    return clampDraft(full);
+    const { data: sdata } = await generateJson({ prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES].join("\n"), maxOutputTokens: 5000, timeoutMs: 45000 });
+    sermon = sdata.sermon || sdata || {};
+  } catch (e) {
+    console.error('[didaskalia-ai] ringkasan khotbah gagal:', e?.message || e);
   }
-  return clampDraft({ ...a, sermon });
+
+  return clampDraft({
+    chapterNo: input.chapterNo || "",
+    fundamentalFirman: input.fundamentalFirman || { ref: "", text: "" },
+    kitabFokus: input.kitabFokus || "",
+    homileticMethods: brief.homileticMethods,
+    methodMix: brief.methodMix,
+    paths,
+    sermon,
+  });
 }
 /**
  * Tahap 2 — perkaya draf yang sudah ada dengan diskusi internal tim.
