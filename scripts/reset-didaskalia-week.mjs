@@ -99,10 +99,12 @@ for (const plan of plans) {
       || (before.generation || 0) > 0
       || (Array.isArray(before.discussion) && before.discussion.length)
       || (Array.isArray(before.rituals) && before.rituals.length)
-      || before.chapterNo || (before.presentation && Object.keys(before.presentation).length)
+      || !!before.chapterNo
+      || (before.presentation && Object.keys(before.presentation).length)
       || (before.render && Object.keys(before.render).length)
-      || before.pendingRegen;
-    if (!hadOutput && !before.chapterNo && before.status !== 'DRAFT') return;
+      || !!before.pendingRegen
+      || before.status !== 'DRAFT';
+    if (!hadOutput) return;
     weeks[idx] = { ...w, studio: after };
     planChanged = true;
     changedWeeks += 1;
