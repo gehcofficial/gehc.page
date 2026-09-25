@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Portal Jemaat: fondasi P0 (25 Sep 2026)
+
+**Keputusan pemilik:** portal jemaat di **hub `gehc.page`** (tanpa subdomain baru); unit/posisi berbasis **`division` + `position`** (tanpa enum `Role` baru); keuangan **cashbook sederhana**; penyewaan **booking + invoice manual**; **satu BZP** di bawah Bendahara (+ petty cash allowance); urutan **P0 → Fasilitas+Keuangan → BZP/Bendahara → THL → Panji/Kolom**.
+
+**Dokumen desain:** `docs/product/church-portal.md` (tujuan, org, RBAC, model P1–P4, API, nav, fase, data yang diminta).
+
+**P0 yang dibangun:**
+- `src/lib/church-org.ts` + `server/lib/church-org.mjs` — katalog 4 unit: **PEMBANGUNAN** (Ketua/Bendahara/Kostor/Asisten Kostor; Fasilitas & Penyewaan · Pemeliharaan), **THL** (Stewardship · MDS), **TECHTEAM**, **PANJI**.
+- `server/lib/church-access.mjs` — `churchUnitsOf`, `canAccessChurchUnit`, `isChurchLeader`, `isBendahara`, `requireChurchUnit`.
+- Endpoint: `GET /api/me/church-units`, `GET /api/church/org`.
+- Client: `useMyChurchUnits` + tab sidebar grup **"Jemaat" → Unit & Struktur Jemaat** (`church-org`) + `ChurchOrgPanel` (unit, sub-divisi, posisi, pengurus/posisi terbuka) + i18n id/en + guide.
+- Seed `server/seed-church-org.mjs` (11 posisi terbuka) — dijalankan ke **staging & prod**; npm scripts `db:seed:church-org[:staging|:prod]`.
+- Perbaikan: reset tab menu menunggu `myDiv/myChurch.loading` selesai (deep-link tidak ter-reset).
+
+**Verifikasi:** `lint` bersih ✓ **498 test** hijau ✓ `build` OK ✓ API staging: 4 unit (11 anggota) ✓ Browser (SUPERADMIN): sidebar **JEMAAT › Unit & Struktur Jemaat** tampil; panel memuat 4 unit + posisi (Kostor/Asisten Kostor) + posisi terbuka ✓ Prod & staging = `e4b824c` ✓
+
+### Next
+1. **P1** — Fasilitas & Penyewaan + Keuangan (kas, transaksi, petty cash, pengajuan dana, distribusi) sesuai `docs/product/church-portal.md`.
+2. Lengkapi data pengurus tiap unit (menggantikan baris "Posisi Terbuka") + daftar Kolom & tarif sewa.
+
+
 ## Current — Info & Peluang: caption WA + deep link per warta (25 Sep 2026)
 
 **Ditambahkan:**
