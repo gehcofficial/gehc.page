@@ -67,6 +67,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },
   { id: 'kegiatan', label: 'Kegiatan', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Umum/Khusus/Internal/Rekreasional — by event' },
+  { id: 'internal-warta', label: 'Info & Peluang', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Beasiswa, lowongan & kabar komunitas' },
   { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
   { id: 'people', label: 'Orang & Undangan', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Akun & link undangan' },
   { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
@@ -111,6 +112,7 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
   SUPERADMIN: [
     'event-info',
     'kegiatan',
+    'internal-warta',
     'dashboard',
     'people',
     'onboarding',
@@ -135,12 +137,12 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'church-info',
     'account',
   ],
-  KOMISI: ['event-info', 'kegiatan', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
-  COMMITTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'wa-channels', 'media-guide', 'account'],
-  MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
-  CO_MENTOR: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
-  MENTEE: ['event-info', 'kegiatan', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
-  BPMJ: ['event-info', 'kegiatan', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
+  KOMISI: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
+  COMMITTEE: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'wa-channels', 'media-guide', 'account'],
+  MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
+  CO_MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'pastoral-care', 'account'],
+  MENTEE: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
+  BPMJ: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
 };
 
 function monitoringLabel(ctx: NavBuildContext): string {

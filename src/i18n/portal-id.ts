@@ -494,6 +494,13 @@ export const portalId: typeof portalEn = {
       when: 'Untuk menemukan kegiatan apa dan siapa yang bisa akses.',
       notFor: 'Upload tetap di Panel Divisi. Halaman ini baca saja.',
     },
+    'internal-warta': {
+      title: 'Info & Peluang',
+      purpose: 'Warta internal untuk pemilik akun: beasiswa, lowongan, peluang, dan kabar komunitas. Admin mengkurasi dan memilih siapa (nama + foto) yang tampil sebagai pemberi info.',
+      steps: ['Cari atau filter per kategori (beasiswa, lowongan, peluang, kegiatan, umum).', 'Buka kartu untuk membaca isi lengkap & lampiran (PDF/tautan).', 'Admin memakai "Buat Warta" untuk menerbitkan (opsional notifikasi push ke semua akun).'],
+      when: 'Untuk berbagi atau menemukan peluang bagi seluruh komunitas.',
+      notFor: 'Bukan warta jemaat publik (itu tab Warta). Yang ini khusus akun (login).',
+    },
     dashboard: {
       title: 'Dashboard & Ringkasan',
       purpose: 'Cuplikan: kelompok, kepatuhan monitoring, konten terbit, HUT.',

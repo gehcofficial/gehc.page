@@ -500,6 +500,13 @@ export const portalEn = {
       when: 'Use this to find any activity and see who can access it.',
       notFor: 'Upload stays in Division Panel. This page is read-only.',
     },
+    'internal-warta': {
+      title: 'Info & Opportunities',
+      purpose: 'Internal bulletin for account holders: scholarships, jobs, opportunities and community news. Admin curates and chooses whose name/photo appears as the sharer.',
+      steps: ['Search or filter by category (scholarship, job, opportunity, activity, general).', 'Open a card to read the full content and attachments (PDF/links).', 'Admins use "Create Warta" to publish (optional push notification to all accounts).'],
+      when: 'Use this to share or find opportunities with the whole community.',
+      notFor: 'Not the public church bulletin (that is Warta). This one is login-only.',
+    },
     dashboard: {
       title: 'Dashboard & Summary',
       purpose: 'A snapshot: groups, monitoring compliance, published content, birthdays.',

@@ -325,6 +325,11 @@ const STEPS = [
     label: 'Voting logo kelompok',
     required: true,
   },
+  {
+    script: 'server/_migrate-internal-warta.cjs',
+    label: 'Info & Peluang (warta internal)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

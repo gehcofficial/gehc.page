@@ -1047,6 +1047,36 @@ model GroupLogoBallot {
   @@map("group_logo_ballots")
 }
 
+// ============================================================
+// INFO & PELUANG (Warta Internal — login-only)
+// ============================================================
+
+model InternalWarta {
+  id          String    @id @db.VarChar(64)
+  title       String    @db.VarChar(200)
+  summary     String?   @db.Text
+  body        String?   @db.MediumText
+  category    String    @default("UMUM") @db.VarChar(30) // BEASISWA | LOWONGAN | PELUANG | KEGIATAN | UMUM
+  /// User yang "berbagi" (nama + foto profil tampil di feed).
+  shareUserId String?   @map("share_user_id") @db.VarChar(64)
+  /// Keterangan sharer, mis. "Alumni · Penerima Beasiswa Korsel".
+  shareNote   String?   @map("share_note") @db.VarChar(190)
+  attachments Json?
+  link        String?   @db.VarChar(500)
+  deadline    DateTime? @db.Date
+  status      String    @default("DRAFT") @db.VarChar(20) // DRAFT | PUBLISHED | ARCHIVED
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  viewCount   Int       @default(0) @map("view_count")
+  createdById String?   @map("created_by_id") @db.VarChar(64)
+  publishedAt DateTime? @map("published_at") @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status, publishedAt])
+  @@index([category])
+  @@map("internal_warta")
+}
+
 model MinistryWeekDeliverable {
   id          String  @id @db.VarChar(64)
   planId      String  @map("plan_id") @db.VarChar(64)

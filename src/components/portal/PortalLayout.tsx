@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
 import { WartaWorkspacePanel } from './WartaWorkspacePanel';
+import { InternalWartaPanel } from './InternalWartaPanel';
 import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
@@ -889,6 +890,7 @@ export const PortalLayout: React.FC = () => {
               <PortalDashboard onNavigate={(tab) => setActiveTab(tab)} />
             </div>
           )}
+          {activeTab === 'internal-warta' && <InternalWartaPanel />}
           {activeTab === 'content-weekly' && (
             <div className="space-y-4">
               <PanelGuide guideId="content-weekly" />
