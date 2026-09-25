@@ -574,7 +574,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           const proposal = proposalFromDraft(draft, s);
           const { diff, summary } = computeRegenDiff(s, proposal);
           s.pendingRegen = {
-            id: egen- + Date.now().toString(36),
+            id: `regen-${Date.now().toString(36)}`,
             kind: 'draft',
             requestedById: req.authUser?.id || null,
             requestedByName: req.authUser?.name || null,
@@ -650,8 +650,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           const proposal = proposalFromDraft(draft, s);
           const { diff, summary } = computeRegenDiff(s, proposal);
           s.pendingRegen = {
-            id: 
-egen- + Date.now().toString(36),
+            id: `regen-${Date.now().toString(36)}`,
             kind: 'enrich',
             requestedById: req.authUser?.id || null,
             requestedByName: req.authUser?.name || null,
