@@ -47,8 +47,10 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, type PortalNavParentDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, type PortalNavParentDef } from '../../lib/portal-nav-config';
 import { useMyDivisions } from '../../hooks/useMyDivisions';
+import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
+import { ChurchOrgPanel } from './ChurchOrgPanel';
 import {
   LayoutDashboard,
   BookOpen,
@@ -77,6 +79,7 @@ import {
   Crown,
   Search,
   Megaphone,
+  Landmark,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -119,6 +122,7 @@ export const PortalLayout: React.FC = () => {
   } = useApp();
   const { t, lang } = useLang();
   const myDiv = useMyDivisions();
+  const myChurch = useMyChurchUnits();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
@@ -261,11 +265,13 @@ export const PortalLayout: React.FC = () => {
     'wa-channels': MessageCircle,
     integrations: FolderSync,
     'pwa-settings': Bell,
+    'church-org': Landmark,
   };
 
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
   // KOMISI/Tim Kerja tanpa divisi tidak lagi otomatis melihat semua panel divisi.
   const extraDivDefs = divisionNavDefs().filter((d) => myDiv.canSee(d.id));
+  const extraChurchDefs = churchNavDefs().filter((d) => myChurch.canSee(d.id));
   const allowedDivisionTabs = DIVISION_TAB_IDS.filter((id) => myDiv.canSee(id));
 
   const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
@@ -872,6 +878,7 @@ export const PortalLayout: React.FC = () => {
               onSectionChange={setAccountSection}
             />
           )}
+          {activeTab === 'church-org' && <ChurchOrgPanel />}
           {activeTab === 'event-info' && (
             <div className="space-y-4">
               <PanelGuide guideId="event-info" />

@@ -149,6 +149,7 @@ export const portalEn = {
     'ibadah-mingguan': 'Weekly Worship',
     kegiatan: 'Activities',
     'internal-warta': 'Info & Opportunities',
+    'church-org': 'Church Units & Structure',
     dashboard: 'Dashboard & Summary',
     people: 'People & Invitations',
     onboarding: 'Onboarding Pipeline',
@@ -189,6 +190,7 @@ export const portalEn = {
     Divisi: 'Divisions',
     Kerja: 'Work',
     Sistem: 'System',
+    Jemaat: 'Church',
   },
   layout: {
     userPortal: 'User Portal',
@@ -507,6 +509,13 @@ export const portalEn = {
       steps: ['Search or filter by category (scholarship, job, opportunity, activity, general).', 'Open a card to read the full content and attachments (PDF/links).', 'Admins use "Create Warta" to publish (optional push notification to all accounts).'],
       when: 'Use this to share or find opportunities with the whole community.',
       notFor: 'Not the public church bulletin (that is Warta). This one is login-only.',
+    },
+    'church-org': {
+      title: 'Church Units & Structure',
+      purpose: 'Church ministry units under BPMJ: Building & Development (facilities & rental), THL (Stewardship + MDS), Tech Team, and Panji Yosua (security).',
+      steps: ['See each unit with its sub-divisions and positions (Chair, Treasurer, Custodian, etc.).', 'Check officers & members; open roles are flagged.', 'Membership changes go through Congregation/People by Komisi.'],
+      when: 'Use this to understand church-level ministry responsibilities.',
+      notFor: 'Not the daily operational panel (facilities/finance) — those are later modules.',
     },
     dashboard: {
       title: 'Dashboard & Summary',

@@ -63,6 +63,34 @@ export function canSeeDivisionTab(
   return set.has(div);
 }
 
+/** Panel unit jemaat (BPMJ + 4 unit). Gating per-unit via useMyChurchUnits. */
+export const CHURCH_TABS: { id: string; unit: string; label: string }[] = [
+  { id: 'church-org', unit: '*', label: 'Unit & Struktur Jemaat' },
+];
+
+export const CHURCH_TAB_IDS = CHURCH_TABS.map((c) => c.id);
+
+export function churchTabById(tabId: string): { id: string; unit: string; label: string } | null {
+  return CHURCH_TABS.find((c) => c.id === tabId) || null;
+}
+
+export function churchNavDefs(): PortalNavItemDef[] {
+  return CHURCH_TABS.map((c) => ({ id: c.id, label: c.label, roles: CHURCH_ROLES.all, group: 'Jemaat' }));
+}
+
+/** Boleh membuka tab jemaat? BPMJ/SUPERADMIN, atau anggota unit jemaat. */
+export function canSeeChurchTab(
+  me: { isSuperadmin: boolean; isBpmj: boolean; units: string[] },
+  tabId: string,
+): boolean {
+  const t = churchTabById(tabId);
+  if (!t) return false;
+  if (me.isSuperadmin || me.isBpmj) return true;
+  const set = new Set((me.units || []).map((x) => String(x).toUpperCase()));
+  if (t.unit === '*') return set.size > 0;
+  return set.has(t.unit);
+}
+
 const BASE_NAV: PortalNavItemDef[] = [
   { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },

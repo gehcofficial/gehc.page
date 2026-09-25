@@ -977,6 +977,36 @@ app.get('/api/ai/health', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap
   }
 }));
 
+// Unit jemaat pengguna (untuk gating nav/panel jemaat).
+app.get('/api/me/church-units', requireRole(), wrap(async (req, res) => {
+  try {
+    const { churchUnitsOf, isBendahara, isBpmjUser, isSuperadminUser } = await import('./lib/church-access.mjs');
+    const [units, bendahara] = await Promise.all([churchUnitsOf(req.authUser), isBendahara(req.authUser)]);
+    res.json({ units, isBpmj: isBpmjUser(req.authUser), isBendahara: bendahara, isSuperadmin: isSuperadminUser(req.authUser) });
+  } catch {
+    res.json({ units: [], isBpmj: false, isBendahara: false, isSuperadmin: false });
+  }
+}));
+
+// Katalog + struktur unit pelayanan jemaat.
+app.get('/api/church/org', requireRole(), wrap(async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const { CHURCH_UNITS, CHURCH_UNIT_CODES } = await import('./lib/church-org.mjs');
+    const members = prisma
+      ? await prisma.strukturMember.findMany({
+        where: { division: { in: CHURCH_UNIT_CODES } },
+        orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, position: true, subdivision: true, division: true, photoUrl: true, isOpenRole: true, role: true },
+      }).catch(() => [])
+      : [];
+    const units = CHURCH_UNITS.map((u) => ({ ...u, members: members.filter((m) => String(m.division).toUpperCase() === u.code) }));
+    res.json({ units });
+  } catch (e) {
+    res.status(500).json({ error: `Gagal memuat struktur jemaat: ${String(e?.message || e)}` });
+  }
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });

@@ -143,6 +143,7 @@ export const portalId: typeof portalEn = {
     'ibadah-mingguan': 'Ibadah Mingguan',
     kegiatan: 'Kegiatan',
     'internal-warta': 'Info & Peluang',
+    'church-org': 'Unit & Struktur Jemaat',
     dashboard: 'Dashboard & Ringkasan',
     people: 'Orang & Undangan',
     onboarding: 'Onboarding Pipeline',
@@ -183,6 +184,7 @@ export const portalId: typeof portalEn = {
     Divisi: 'Divisi',
     Kerja: 'Kerja',
     Sistem: 'Sistem',
+    Jemaat: 'Jemaat',
   },
   layout: {
     userPortal: 'Portal Pengguna',
@@ -501,6 +503,13 @@ export const portalId: typeof portalEn = {
       steps: ['Cari atau filter per kategori (beasiswa, lowongan, peluang, kegiatan, umum).', 'Buka kartu untuk membaca isi lengkap & lampiran (PDF/tautan).', 'Admin memakai "Buat Warta" untuk menerbitkan (opsional notifikasi push ke semua akun).'],
       when: 'Untuk berbagi atau menemukan peluang bagi seluruh komunitas.',
       notFor: 'Bukan warta jemaat publik (itu tab Warta). Yang ini khusus akun (login).',
+    },
+    'church-org': {
+      title: 'Unit & Struktur Jemaat',
+      purpose: 'Struktur unit pelayanan jemaat di bawah BPMJ: Departemen Pembangunan (fasilitas & penyewaan), THL (Stewardship + MDS), Tim Tech, dan Panji Yosua (keamanan).',
+      steps: ['Lihat daftar unit beserta sub-divisi dan posisi (Ketua, Bendahara, Kostor, dsb.).', 'Cek pengurus & anggota tiap unit; posisi terbuka ditandai.', 'Perubahan keanggotaan dilakukan lewat Jemaat/Orang & Undangan oleh Komisi.'],
+      when: 'Untuk mengenal pembagian tanggung jawab pelayanan di tingkat jemaat.',
+      notFor: 'Bukan panel operasional harian (fasilitas/keuangan) — itu modul lanjutan.',
     },
     dashboard: {
       title: 'Dashboard & Ringkasan',
