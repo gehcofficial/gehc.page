@@ -1057,6 +1057,8 @@ model InternalWarta {
   summary     String?   @db.Text
   body        String?   @db.MediumText
   category    String    @default("UMUM") @db.VarChar(30) // BEASISWA | LOWONGAN | PELUANG | KEGIATAN | UMUM
+  /// Caption kustom siap-kirim (opsional; bila kosong dipakai auto-caption).
+  caption     String?   @db.Text
   /// User yang "berbagi" (nama + foto profil tampil di feed).
   shareUserId String?   @map("share_user_id") @db.VarChar(64)
   /// Keterangan sharer, mis. "Alumni · Penerima Beasiswa Korsel".

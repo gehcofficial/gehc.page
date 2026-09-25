@@ -85,6 +85,7 @@ export function registerInternalWartaRoutes(app, { wrap }) {
       summary: row.summary,
       body: row.body,
       category: row.category,
+      caption: row.caption,
       share: sharer ? { id: sharer.id, name: sharer.name, avatar: sharer.avatar } : null,
       shareNote: row.shareNote,
       attachments: Array.isArray(row.attachments) ? row.attachments : [],
@@ -140,7 +141,7 @@ export function registerInternalWartaRoutes(app, { wrap }) {
   app.post('/api/internal-warta', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const { title, summary, body, category, shareUserId, shareNote, attachments, link, deadline, status, isPinned, notify } = req.body || {};
+    const { title, summary, body, category, caption, shareUserId, shareNote, attachments, link, deadline, status, isPinned, notify } = req.body || {};
     const cleanTitle = String(title || '').trim().slice(0, 200);
     if (!cleanTitle) return res.status(400).json({ error: 'Judul wajib.' });
     const cat = WARTA_CATEGORIES.includes(String(category || '').toUpperCase()) ? String(category).toUpperCase() : 'UMUM';
@@ -152,6 +153,7 @@ export function registerInternalWartaRoutes(app, { wrap }) {
         summary: summary ? String(summary).slice(0, 2000) : null,
         body: body ? String(body) : null,
         category: cat,
+        caption: caption ? String(caption).slice(0, 4000) : null,
         shareUserId: shareUserId ? String(shareUserId) : null,
         shareNote: shareNote ? String(shareNote).slice(0, 190) : null,
         attachments: cleanAttachments(attachments),
@@ -178,6 +180,7 @@ export function registerInternalWartaRoutes(app, { wrap }) {
     if (b.title !== undefined) data.title = String(b.title).trim().slice(0, 200);
     if (b.summary !== undefined) data.summary = b.summary ? String(b.summary).slice(0, 2000) : null;
     if (b.body !== undefined) data.body = b.body ? String(b.body) : null;
+    if (b.caption !== undefined) data.caption = b.caption ? String(b.caption).slice(0, 4000) : null;
     if (b.category !== undefined) data.category = WARTA_CATEGORIES.includes(String(b.category).toUpperCase()) ? String(b.category).toUpperCase() : 'UMUM';
     if (b.shareUserId !== undefined) data.shareUserId = b.shareUserId ? String(b.shareUserId) : null;
     if (b.shareNote !== undefined) data.shareNote = b.shareNote ? String(b.shareNote).slice(0, 190) : null;

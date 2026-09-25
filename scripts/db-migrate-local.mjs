@@ -330,6 +330,11 @@ const STEPS = [
     label: 'Info & Peluang (warta internal)',
     required: true,
   },
+  {
+    script: 'server/_migrate-internal-warta-caption.cjs',
+    label: 'Info & Peluang: kolom caption',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

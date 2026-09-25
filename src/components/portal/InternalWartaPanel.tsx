@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Plus, Search, Pin, Paperclip, Link2, ExternalLink, CalendarClock, Trash2, Pencil, X, Upload, BookMarked } from 'lucide-react';
+import { Loader2, Plus, Search, Pin, Paperclip, Link2, ExternalLink, CalendarClock, Trash2, Pencil, X, Upload, BookMarked, Copy, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { displayAvatar } from '../../lib/avatar';
+import { parseHashSearch, parsePortalHash } from '../../lib/portal-routes';
+import { buildWartaCaption } from '../../lib/warta-caption';
+import { whatsappShareUrl, copyText } from '../../lib/rhb-caption';
 
 type WartaAttachment = { kind: 'FILE' | 'LINK'; fileId?: string; name?: string; mimetype?: string; size?: number; label?: string; url?: string };
 type Warta = {
   id: string; title: string; summary?: string | null; body?: string | null; category: string;
+  caption?: string | null;
   share?: { id: string; name: string; avatar?: string | null } | null;
   shareNote?: string | null; attachments: WartaAttachment[]; link?: string | null;
   deadline?: string | null; status: string; isPinned: boolean; viewCount: number; publishedAt?: string | null; createdAt: string;
@@ -77,6 +81,32 @@ export const InternalWartaPanel: React.FC = () => {
     } finally { setBusy(null); }
   };
 
+  const shareNs = () => (typeof window !== 'undefined' ? (parsePortalHash(window.location.hash)?.namespace || 'superadmin') : 'superadmin');
+  const shareCaption = (w: Warta) => buildWartaCaption(w, { origin: typeof window !== 'undefined' ? window.location.origin : '', ns: shareNs() });
+  const copyCaption = async (w: Warta) => {
+    const ok = await copyText(shareCaption(w));
+    addToast({ type: ok ? 'success' : 'error', title: ok ? 'Caption disalin' : 'Gagal menyalin caption' });
+  };
+  const waCaption = (w: Warta) => {
+    if (typeof window !== 'undefined') window.open(whatsappShareUrl(shareCaption(w)), '_blank', 'noopener');
+  };
+
+  // Deep link: #/portal/<ns>/internal-warta?item=<id> → buka detail otomatis.
+  const deepDone = useRef(false);
+  useEffect(() => {
+    if (deepDone.current) return;
+    const id = parseHashSearch(typeof window !== 'undefined' ? window.location.hash : '').get('item');
+    if (!id) { deepDone.current = true; return; }
+    if (!rows.length) return;
+    deepDone.current = true;
+    const row = rows.find((r) => r.id === id);
+    if (row) { void openDetail(row); return; }
+    fetch(`/api/internal-warta/${id}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.warta) setDetail(d.warta); })
+      .catch(() => {});
+  }, [rows]);
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
@@ -122,6 +152,8 @@ export const InternalWartaPanel: React.FC = () => {
                 {w.status === 'ARCHIVED' && <span className="text-[10px] font-bold text-[#8C8880]">Arsip</span>}
                 {canAdmin && (
                   <div className="ml-auto flex items-center gap-1">
+                    <button type="button" onClick={() => void copyCaption(w)} className="p-1.5 rounded-lg hover:bg-[#F3F1EC]" title="Salin caption WA"><Copy className="w-3.5 h-3.5 text-[#8C8880]" /></button>
+                    <button type="button" onClick={() => waCaption(w)} className="p-1.5 rounded-lg hover:bg-[#F3F1EC]" title="Kirim ke WhatsApp"><MessageCircle className="w-3.5 h-3.5 text-emerald-700" /></button>
                     <button type="button" onClick={() => setEditor(w)} className="p-1.5 rounded-lg hover:bg-[#F3F1EC]" title="Edit"><Pencil className="w-3.5 h-3.5 text-[#8C8880]" /></button>
                     <button type="button" onClick={() => void remove(w)} disabled={busy === w.id} className="p-1.5 rounded-lg hover:bg-[#F3F1EC] disabled:opacity-40" title="Hapus"><Trash2 className="w-3.5 h-3.5 text-red-500" /></button>
                   </div>
@@ -160,7 +192,18 @@ export const InternalWartaPanel: React.FC = () => {
         </div>
       )}
 
-      {detail && <DetailModal w={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <DetailModal
+          w={detail}
+          onClose={() => setDetail(null)}
+          actions={canAdmin ? (
+            <>
+              <button type="button" onClick={() => void copyCaption(detail)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#5C5850]"><Copy className="w-3 h-3" /> Salin caption</button>
+              <button type="button" onClick={() => waCaption(detail)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold"><MessageCircle className="w-3 h-3" /> Kirim WA</button>
+            </>
+          ) : null}
+        />
+      )}
       {editor && (
         <EditorModal
           initial={editor === 'new' ? null : editor}
@@ -173,13 +216,14 @@ export const InternalWartaPanel: React.FC = () => {
   );
 };
 
-const DetailModal: React.FC<{ w: Warta; onClose: () => void }> = ({ w, onClose }) => (
+const DetailModal: React.FC<{ w: Warta; onClose: () => void; actions?: React.ReactNode }> = ({ w, onClose, actions }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
     <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-start gap-2">
         <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5">{CAT_LABEL[w.category] || w.category}</span>
         <button type="button" onClick={onClose} className="ml-auto p-1.5 rounded-lg hover:bg-[#F3F1EC]"><X className="w-4 h-4" /></button>
       </div>
+      {actions && <div className="flex flex-wrap gap-2 mt-2">{actions}</div>}
       <h3 className="text-lg font-black text-[#1B1B1B] mt-2">{w.title}</h3>
       {w.share && (
         <div className="flex items-center gap-2 mt-2">
@@ -219,6 +263,7 @@ const EditorModal: React.FC<{ initial: Warta | null; onClose: () => void; onSave
     category: initial?.category || 'PELUANG',
     summary: initial?.summary || '',
     body: initial?.body || '',
+    caption: initial?.caption || '',
     shareNote: initial?.shareNote || '',
     deadline: initial?.deadline ? String(initial.deadline).slice(0, 10) : '',
     link: initial?.link || '',
@@ -316,6 +361,33 @@ const EditorModal: React.FC<{ initial: Warta | null; onClose: () => void; onSave
           </div>
           <div><label className={labelCls}>Ringkasan singkat</label><input value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} placeholder="1-2 kalimat" className={inputCls} /></div>
           <div><label className={labelCls}>Isi lengkap</label><textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} rows={5} className={inputCls} /></div>
+
+          {/* Caption WhatsApp */}
+          <div className="rounded-2xl border border-[#EFEDE8] p-3 space-y-2">
+            <label className={labelCls}>Caption WhatsApp (opsional — kosong = otomatis)</label>
+            <textarea
+              value={form.caption}
+              onChange={(e) => setForm((f) => ({ ...f, caption: e.target.value }))}
+              rows={4}
+              placeholder="Biarkan kosong untuk caption otomatis (judul, kategori, ringkasan, deadline, sharer, link)."
+              className={inputCls}
+            />
+            {!form.caption.trim() && (
+              <div className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1">Pratinjau caption otomatis</p>
+                <pre className="text-[11px] whitespace-pre-wrap text-[#1B1B1B] font-sans">{buildWartaCaption({
+                  id: initial?.id || '',
+                  title: form.title || '(judul)',
+                  category: form.category,
+                  summary: form.summary,
+                  deadline: form.deadline || null,
+                  share,
+                  shareNote: form.shareNote,
+                  link: form.link,
+                }, { origin: typeof window !== 'undefined' ? window.location.origin : '', ns: typeof window !== 'undefined' ? (parsePortalHash(window.location.hash)?.namespace || 'superadmin') : 'superadmin' })}</pre>
+              </div>
+            )}
+          </div>
 
           {/* Sharer */}
           <div className="rounded-2xl border border-[#EFEDE8] p-3 space-y-2">
