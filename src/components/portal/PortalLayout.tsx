@@ -287,10 +287,12 @@ export const PortalLayout: React.FC = () => {
   const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
 
   useEffect(() => {
+    // Tunggu gating divisi/unit jemaat selesai dimuat agar deep-link tidak di-reset.
+    if (myDiv.loading || myChurch.loading) return;
     if (!isTabAllowed(activeTab) && activeTab !== 'account') {
       setActiveTab(navItems[0]?.id || 'dashboard');
     }
-  }, [currentRole]);
+  }, [currentRole, myDiv.loading, myChurch.loading, activeTab]);
 
   // Alias lama: #/portal/<ns>/divisions ? divisi pertama yang boleh.
   useEffect(() => {
