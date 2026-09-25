@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Voting logo: anti-bypass admin + turnout + deadline + reset (25 Sep 2026)
+
+**Masalah:** akun admin (SUPERADMIN) bisa memilih di semua grup (bypass), keanggotaan tak difilter aktif, dan tidak ada rekap partisipasi/deadline.
+
+**Perbaikan (`server/routes/logo-vote.mjs`):**
+- **Tanpa bypass**: `canVoteForGroup(authUser, groupId, activeRole)` wajib `activeRole ∈ {MENTOR, CO_MENTOR, MENTEE, ALUMNI}` **dan** grup ada di `beyonderGroupIds` (RoleAssignment **isActive** + GroupMember ACTIVE/ALUMNI). Staf boleh memilih **hanya** lewat topeng Beyonder.
+- **Turnout**: `eligibleVoterIds` (userId unik per grup) → tiap grup punya `voters {voted,total}` + total keseluruhan; tampil "X dari Y sudah memilih".
+- **Deadline**: `closesAt` (WIB) + **auto-close** saat lewat; `PUT /api/voting/session` menerima `action: open|close|draft|reset`, `closesAt`, `clearDeadline`.
+- **Reset suara** (admin): hapus semua ballot sesi + nolkan hitungan.
+
+**Client (`src/components/voting/GroupLogoVote.tsx`):** banner "Voting hanya untuk Beyonders" + tombol **Ganti ke peran MENTEE/MENTOR** (via `POST /api/auth/active-role`), grup terdeteksi, progress turnout per grup + keseluruhan, kontrol deadline (preset **Minggu 17:00 WIB** + kustom + countdown), tombol **Reset suara** (ConfirmDialog), tombol pilih hanya untuk grup sendiri.
+
+**Verifikasi (staging):** admin `tech@gehc.demo` (SUPERADMIN) → `roleAllowed=false`, `canVote=false`, ballot ditolak; beyonder `alvandi.saerang@gehc.demo` → default topeng COMMITTEE (tak boleh) → ganti topeng MENTEE → hanya **Logos (grp-6)** bisa, ballot grup sendiri **200**, grup lain **403**; turnout Logos `0→1 dari 9`; deadline tersimpan (`2026-10-04 17:00 WIB`); **Reset** → 0 suara + sesi DRAFT (staging bersih). `lint` bersih ✓ **489 test** hijau ✓ `build` OK ✓ Prod & staging = `f9cfa83` ✓
+
+**Catatan:** kolom `closesAt` & tabel ballot sudah ada sejak fitur awal — tidak ada migrasi baru. Prod sesi masih **DRAFT** (belum dibuka) & 0 suara.
+
+### Next
+1. Buka sesi di prod + set deadline (mis. Minggu 17:00 WIB), lalu bagikan `https://youth.gehc.page/#/voting`.
+2. Bagi yang memakai akun multi-peran (mis. staf merangkap mentee): klik **Ganti ke peran MENTEE/MENTOR** di halaman voting.
+
+
 ## Current — Panel Voting Logo Kelompok `#/voting` (25 Sep 2026)
 
 **Fitur:** voting 1 dari 2 opsi logo per kelompok Beyonders, hanya anggota kelompok terkait (aktif/alumni) yang boleh memilih. Akses via link khusus `#/voting` (tanpa tab sidebar).
