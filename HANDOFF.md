@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — Info & Peluang (Warta Internal) (25 Sep 2026)
+
+**Fitur:** papan berbagi **khusus pemilik akun** (semua peran): beasiswa, lowongan, peluang, kegiatan, kabar umum. Akses lewat tab sidebar **"Info & Peluang"** (grup Utama).
+
+**Skema (migrasi `server/_migrate-internal-warta.cjs`):** `internal_warta` — `title, summary, body, category (BEASISWA|LOWONGAN|PELUANG|KEGIATAN|UMUM), share_user_id, share_note, attachments Json, link, deadline, status (DRAFT|PUBLISHED|ARCHIVED), is_pinned, view_count, created_by_id, published_at`.
+**Server (`server/routes/internal-warta.mjs`):** `GET /api/internal-warta` (feed + filter kategori/cari + arsip + auto-arsip saat deadline lewat), `GET /:id` (detail + viewCount), `POST/PATCH/DELETE` (admin SUPERADMIN/KOMISI/COMMITTEE), `POST /upload` (lampiran ke Drive), `GET /attachment/:fileId` (proxy login). Notifikasi **push ke semua akun** saat dipublikasikan (opsional `notify:false`).
+**Client:** tab nav `internal-warta` (label i18n id/en) + `src/components/portal/InternalWartaPanel.tsx` — feed kartu (chip kategori, **sharer foto+nama+note**, lampiran file/link, deadline, jumlah dilihat), modal detail, editor admin (**pilih sharer** via `/api/users/search`, unggah berkas, tambah tautan, deadline, sematkan, Draf/Publikasikan).
+**Folder lampiran:** `Info & Peluang [PRIVAT]` di Drive, id tersimpan di `ChannelLink` (`INTERNAL_WARTA`/`FOLDER`) via `npm run db:setup:internal-warta-folder[:staging|:prod]` (sudah dijalankan untuk staging & prod).
+
+**Verifikasi:** `lint` bersih ✓ **495 test** hijau ✓ `build` OK ✓ Sidebar menampilkan **"Info & Peluang"** ✓ Panel terbuka (tombol Buat Warta untuk admin) ✓ API staging: CREATE → mentee melihat di feed (sharer tampil) → detail + viewCount → delete ✓ Migrasi staging & prod ✓ Prod & staging = `8ce5752` ✓
+
+**Catatan:** unggah lampiran di **staging** gagal `invalid_grant` (kredensial Drive khusus environment staging Vercel) — berjalan normal secara lokal & seharusnya di **prod**; sementara itu tombol **Tambah tautan** tetap bisa dipakai. Folder Drive sudah dibuat di staging & prod.
+
+### Next
+1. Prod: buat warta pertama (mis. "Peluang Beasiswa Korsel"), pilih sharer, unggah PDF/link, publikasikan → cek notifikasi + feed untuk mentee.
+2. (Opsional) periksa kredensial Google Drive di environment **staging** Vercel bila ingin upload berfungsi di staging.
+
+
 ## Current — Perbaikan generate Studio Didaskalia (JSON terpotong) + diagnostik AI (25 Sep 2026)
 
 **Masalah:** sejak update (persona Reformed + knowledge base), "Susun draf 7 Path" gagal dengan **"JSON terpotong."**.
