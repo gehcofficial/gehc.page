@@ -6,7 +6,7 @@
  */
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGroq } from '@ai-sdk/groq';
-import { generateText, generateImage } from 'ai';
+import { generateText, generateImage, generateObject } from 'ai';
 
 // ---------------------------------------------------------------------------
 // Provider factories
@@ -50,7 +50,7 @@ function isRetryableError(error) {
  * @param {{ system?: string; prompt: string; maxOutputTokens?: number; timeoutMs?: number }} opts
  * @returns {Promise<string>} teks keluaran
  */
-export async function jethroGenerateText({ system, prompt, maxOutputTokens = 2048, timeoutMs } = {}) {
+export async function jethroGenerateText({ system, prompt, maxOutputTokens = 2048, timeoutMs, json = false } = {}) {
   const models = [mainModel(), fallbackModel()].filter(Boolean);
 
   let lastError;
@@ -66,6 +66,7 @@ export async function jethroGenerateText({ system, prompt, maxOutputTokens = 204
           prompt,
           maxOutputTokens,
           abortSignal: controller ? controller.signal : undefined,
+          providerOptions: json ? { openai: { responseFormat: { type: 'json' } } } : undefined,
         });
         text = res.text;
         finishReason = res.finishReason;
@@ -128,27 +129,33 @@ export async function probeModels({ prompt = 'Balas satu kata: OK' } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// jethroGenerateObject — structured output with JSON
+// jethroGenerateObject — structured output (schema dipaksa provider)
 // ---------------------------------------------------------------------------
-export async function jethroGenerateObject({ system, prompt, schema }) {
+export async function jethroGenerateObject({ system, prompt, schema, maxOutputTokens = 4096, timeoutMs = 45000 } = {}) {
   const models = [mainModel(), fallbackModel()].filter(Boolean);
-
   let lastError;
   for (const model of models) {
     try {
-      const { object } = await generateText({
-        model,
-        system,
-        prompt,
-        experimental_output: schema,
-      });
-      return object;
+      const controller = timeoutMs ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      try {
+        const res = await generateObject({
+          model,
+          system,
+          prompt,
+          schema,
+          maxOutputTokens,
+          abortSignal: controller ? controller.signal : undefined,
+        });
+        return { object: res.object, finishReason: res.finishReason, modelId: model?.modelId };
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     } catch (err) {
-      console.error('[ai-provider] Object generation failed:', model?.modelId || model, err.message);
+      console.error('[ai-provider] Object gagal:', model?.modelId || model, err.message);
       if (!isRetryableError(err)) throw err;
       lastError = err;
     }
   }
-
   throw lastError || new Error('No AI models available');
 }

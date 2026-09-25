@@ -5,7 +5,8 @@
  *
  * Prinsip: keluaran AI adalah USULAN. Manusia tetap menyunting & menyetujui.
  */
-import { jethroGenerateText } from '../ai-provider.mjs';
+import { z } from 'zod';
+import { jethroGenerateText, jethroGenerateObject } from '../ai-provider.mjs';
 
 export const HOMILETIC_METHODS = [
   'Teologi Sistematika',
@@ -376,12 +377,12 @@ function teamContextBlock(input) {
 
 /** Panggil AI & parse JSON dengan penjagaan: cap token, retry bila terpotong, repair. */
 async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 }) {
-  let res = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens, timeoutMs });
+  let res = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens, timeoutMs, json: true });
   let meta = { modelId: res.modelId, finishReason: res.finishReason };
   if (res.finishReason === "length") {
     const bigger = Math.min(16000, Math.round(maxOutputTokens * 1.5));
     try {
-      const r2 = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens: bigger, timeoutMs });
+      const r2 = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens: bigger, timeoutMs, json: true });
       res = r2;
       meta = { modelId: r2.modelId, finishReason: r2.finishReason, retried: true };
     } catch { /* pakai hasil pertama (diperbaiki) */ }
@@ -400,6 +401,42 @@ async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 
 const DRAFT_PATHS_SCHEMA = '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}]}';
 const DRAFT_SERMON_SCHEMA = '{"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}';
 const DRAFT_FULL_SCHEMA = DRAFT_PATHS_SCHEMA.slice(0, -1) + ',"sermon":' + DRAFT_SERMON_SCHEMA.slice('{"sermon":'.length);
+
+/** Skema terstruktur (dipaksa provider) untuk 1 Path. */
+const RhbSectionSchema = z.object({
+  key: z.enum(['PENGANTAR', 'PEMBAHASAN_TEMATIS', 'MAKNA_IMPLIKASI', 'REFLEKSI_PRIBADI', 'DISKUSI_KELOMPOK']),
+  title: z.string(),
+  body: z.string(),
+});
+const PathObjectSchema = z.object({
+  pathIndex: z.number(),
+  dayLabel: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  bacaanRef: z.string(),
+  scriptureRef: z.string(),
+  scriptureText: z.string(),
+  homileticLens: z.array(z.string()),
+  hookQuestion: z.string(),
+  illustration: z.string(),
+  reflection: z.string(),
+  observeQ: z.string(),
+  interpretQ: z.string(),
+  applyQ: z.string(),
+  fgdQuestions: z.array(z.string()),
+  bridge: z.string(),
+  imageStem: z.string(),
+  rhbSections: z.array(RhbSectionSchema),
+});
+const SermonObjectSchema = z.object({
+  methods: z.array(z.string()),
+  rationale: z.string(),
+  summary: z.string(),
+  slideOutline: z.array(z.object({ title: z.string(), bullets: z.array(z.string()), visualNote: z.string() })),
+  deliveryPlan: z.array(z.object({ method: z.string(), how: z.string() })),
+  prepChecklist: z.array(z.string()),
+  discussionFlow: z.array(z.string()),
+});
 export async function generateWeekDraft(input) {
   const HEAD = [
     'Susun draf pembelajaran satu minggu untuk komunitas pemuda (Beyonders).',
@@ -434,64 +471,65 @@ export async function generateWeekDraft(input) {
   ];
 
   const focus = asStr(input.kitabFokus);
-  const onePathPrompt = (i) => [
+  const onePathPrompt = (i, extra) => [
     ...HEAD,
-    `TUGAS: buat HANYA Path ke-${i} dari 7 (hari ${DAY_LABELS[i - 1]}).`,
-    focus ? `Kitab/bagian fokus: ${focus} — tentukan porsi hari ke-${i} secara progresif.` : "",
-    ...PATH_RULES,
-  ].filter(Boolean).join("\n");
+    `TUGAS: buat Path ke-${i} dari 7 (hari ${DAY_LABELS[i - 1]}).`,
+    focus ? `Kitab/bagian fokus: ${focus} — tentukan porsi hari ke-${i} secara progresif.` : '',
+    extra || '',
+    ...PATH_RULES.slice(0, -2),
+  ].filter(Boolean).join('\n');
 
   const results = new Array(7).fill(null);
-  let brief = { methodMix: [], homileticMethods: [] };
-  let cursor = 0;
-  const worker = async () => {
-    while (cursor < 7) {
-      const i = cursor++;
-      try {
-        const { data } = await generateJson({ prompt: onePathPrompt(i + 1), maxOutputTokens: 3500, timeoutMs: 30000 });
-        const p = Array.isArray(data.paths) ? data.paths[0] : null;
-        const hasRhb = Array.isArray(p?.rhbSections) && p.rhbSections.some((x) => asStr(x?.body).trim());
-        if (p && hasRhb) {
-          results[i] = { ...p, pathIndex: i + 1, dayLabel: p.dayLabel || DAY_LABELS[i] };
-          if (!brief.methodMix.length && Array.isArray(data.methodMix)) brief.methodMix = data.methodMix;
-          if (!brief.homileticMethods.length && Array.isArray(data.homileticMethods)) brief.homileticMethods = data.homileticMethods;
-        }
-      } catch (err) {
-        console.error('[didaskalia-ai] path', i + 1, 'gagal:', err?.message || err);
+  const genOne = async (i, used) => {
+    try {
+      const dup = used.length ? `Judul yang SUDAH DIPAKAI (jangan diulang): ${used.join(' | ')}.` : '';
+      const { object } = await jethroGenerateObject({ system: SYSTEM, prompt: onePathPrompt(i, dup), schema: PathObjectSchema, maxOutputTokens: 3000, timeoutMs: 30000 });
+      if (object && Array.isArray(object.rhbSections) && object.rhbSections.length >= 3) {
+        results[i - 1] = { ...object, pathIndex: i, dayLabel: object.dayLabel || DAY_LABELS[i - 1] };
       }
+    } catch (err) {
+      console.error('[didaskalia-ai] path', i, 'gagal:', err?.message || err);
     }
   };
-  await Promise.all(Array.from({ length: 3 }, worker));
 
-  const missing = results.map((p, i) => (p ? null : i + 1)).filter(Boolean);
-  if (missing.length) {
-    console.error('[didaskalia-ai] Path belum lengkap:', missing.join(', '));
-    // Coba sekali lagi berurutan untuk yang gagal.
-    for (const idx of missing) {
-      try {
-        const { data } = await generateJson({ prompt: onePathPrompt(idx), maxOutputTokens: 3500, timeoutMs: 30000 });
-        const p = Array.isArray(data.paths) ? data.paths[0] : null;
-        if (p) results[idx - 1] = { ...p, pathIndex: idx, dayLabel: p.dayLabel || DAY_LABELS[idx - 1] };
-      } catch { /* biarkan default */ }
-    }
+  // Gelombang 1: Path 1-4 paralel; Gelombang 2: Path 5-7 (judul menghindari yang sudah dipakai).
+  const usedTitles = [];
+  await Promise.all([1, 2, 3, 4].map((i) => genOne(i, [])));
+  results.forEach((p) => { if (p?.title) usedTitles.push(String(p.title)); });
+  await Promise.all([5, 6, 7].map((i) => genOne(i, usedTitles)));
+
+  const retry = results.map((p, i) => (p ? null : i + 1)).filter(Boolean);
+  for (const idx of retry) {
+    await genOne(idx, usedTitles);
   }
 
   const paths = results.map((p, i) => p || { pathIndex: i + 1, dayLabel: DAY_LABELS[i] });
-  const outline = paths.map((p, i) => `Path ${i + 1}: ${asStr(p.title)}`).join("\n");
+  const outline = paths.map((p, i) => `Path ${i + 1}: ${asStr(p.title)}`).join('\n');
   let sermon = {};
   try {
-    const { data: sdata } = await generateJson({ prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES].join("\n"), maxOutputTokens: 5000, timeoutMs: 45000 });
-    sermon = sdata.sermon || sdata || {};
+    const { object } = await jethroGenerateObject({
+      system: SYSTEM,
+      prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES.slice(0, -2)].join('\n'),
+      schema: SermonObjectSchema,
+      maxOutputTokens: 4000,
+      timeoutMs: 40000,
+    });
+    sermon = object || {};
   } catch (e) {
     console.error('[didaskalia-ai] ringkasan khotbah gagal:', e?.message || e);
   }
+
+  const methods = Array.isArray(input.methods) ? input.methods.filter(Boolean).slice(0, 3) : [];
+  const methodMix = methods.length
+    ? methods.map((m) => ({ method: m, percent: Math.round(100 / methods.length), note: '' }))
+    : [];
 
   return clampDraft({
     chapterNo: input.chapterNo || "",
     fundamentalFirman: input.fundamentalFirman || { ref: "", text: "" },
     kitabFokus: input.kitabFokus || "",
-    homileticMethods: brief.homileticMethods,
-    methodMix: brief.methodMix,
+    homileticMethods: methods,
+    methodMix,
     paths,
     sermon,
   });
