@@ -142,6 +142,7 @@ import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
 import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
+import { registerLogoVoteRoutes } from './routes/logo-vote.mjs';
 import { registerPortalAssistRoutes } from './routes/portal-assist.mjs';
 import { registerAnnouncementRoutes } from './routes/announcements.mjs';
 import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
@@ -2238,6 +2239,10 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
     // Didaskalia knowledge base + instruksi AI
     "CREATE TABLE IF NOT EXISTS `didaskalia_knowledge` (`id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`content` MEDIUMTEXT NOT NULL,`category` VARCHAR(30) NOT NULL DEFAULT 'REFERENSI',`tags` JSON NULL,`source` VARCHAR(20) NOT NULL DEFAULT 'MANUAL',`file_name` VARCHAR(255) NULL,`is_active` BOOLEAN NOT NULL DEFAULT true,`sort_order` INT NOT NULL DEFAULT 0,`created_by_id` VARCHAR(64) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `didaskalia_knowledge_active_sort_idx`(`is_active`, `sort_order`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `didaskalia_ai_config` (`id` VARCHAR(64) NOT NULL,`instruction` TEXT NULL,`max_knowledge_chars` INT NOT NULL DEFAULT 12000,`updated_by_id` VARCHAR(64) NULL,`updated_at` DATETIME(3) NOT NULL, PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    // Voting logo kelompok
+    "CREATE TABLE IF NOT EXISTS `group_logo_votes` (`id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',`closes_at` DATETIME(3) NULL,`created_by_id` VARCHAR(64) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `group_logo_options` (`id` VARCHAR(64) NOT NULL,`session_id` VARCHAR(64) NOT NULL,`group_id` VARCHAR(64) NOT NULL,`option_no` INT NOT NULL,`label` VARCHAR(100) NOT NULL,`image_file_id` VARCHAR(120) NULL,`philosophy` TEXT NULL,`vote_count` INT NOT NULL DEFAULT 0,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, UNIQUE INDEX `group_logo_options_session_group_no_key`(`session_id`, `group_id`, `option_no`), INDEX `group_logo_options_group_id_idx`(`group_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+    "CREATE TABLE IF NOT EXISTS `group_logo_ballots` (`id` VARCHAR(64) NOT NULL,`session_id` VARCHAR(64) NOT NULL,`group_id` VARCHAR(64) NOT NULL,`option_id` VARCHAR(64) NOT NULL,`user_id` VARCHAR(64) NOT NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, UNIQUE INDEX `group_logo_ballots_session_group_user_key`(`session_id`, `group_id`, `user_id`), INDEX `group_logo_ballots_option_id_idx`(`option_id`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     // Warta Publik & Event Gallery
     "CREATE TABLE IF NOT EXISTS `warta_publik` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NULL,`week_date` DATE NOT NULL,`title` VARCHAR(200) NOT NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',`content_json` JSON NULL,`pdf_url` VARCHAR(500) NULL,`png_url` VARCHAR(500) NULL,`drive_folder_id` VARCHAR(64) NULL,`reject_reason` TEXT NULL,`created_by_id` VARCHAR(64) NULL,`reviewed_by_id` VARCHAR(64) NULL,`published_at` DATETIME(3) NULL,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `warta_publik_week_date_idx`(`week_date`), INDEX `warta_publik_status_idx`(`status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
     "CREATE TABLE IF NOT EXISTS `event_gallery` (`id` VARCHAR(64) NOT NULL,`event_id` VARCHAR(64) NOT NULL,`title` VARCHAR(200) NOT NULL,`description` TEXT NULL,`media_url` VARCHAR(500) NOT NULL,`media_type` VARCHAR(20) NOT NULL,`thumb_url` VARCHAR(500) NULL,`uploaded_by_id` VARCHAR(64) NOT NULL,`division` VARCHAR(20) NULL,`status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',`approved_by_id` VARCHAR(64) NULL,`approved_at` DATETIME(3) NULL,`reject_reason` TEXT NULL,`drive_file_id` VARCHAR(64) NULL,`sort_order` INT NOT NULL DEFAULT 0,`created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),`updated_at` DATETIME(3) NOT NULL, INDEX `event_gallery_event_id_status_idx`(`event_id`, `status`), INDEX `event_gallery_division_status_idx`(`division`, `status`), PRIMARY KEY (`id`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
@@ -2723,6 +2728,7 @@ registerServiceOverrideRoutes(app, { wrap });
 registerServiceSwapRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
 registerDidaskaliaStudioRoutes(app, { wrap });
+registerLogoVoteRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerEventQuestionRoutes(app, { wrap });
 

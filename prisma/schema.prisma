@@ -989,6 +989,64 @@ model DidaskaliaAiConfig {
   @@map("didaskalia_ai_config")
 }
 
+// ============================================================
+// VOTING — pemilihan logo kelompok (Beyonders)
+// ============================================================
+
+model GroupLogoVote {
+  id          String    @id @db.VarChar(64)
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  status      String    @default("DRAFT") @db.VarChar(20) // DRAFT | OPEN | CLOSED
+  closesAt    DateTime? @map("closes_at") @db.DateTime(3)
+  createdById String?   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  options GroupLogoOption[]
+  ballots GroupLogoBallot[]
+
+  @@map("group_logo_votes")
+}
+
+model GroupLogoOption {
+  id          String   @id @db.VarChar(64)
+  sessionId   String   @map("session_id") @db.VarChar(64)
+  groupId     String   @map("group_id") @db.VarChar(64)
+  optionNo    Int      @map("option_no")
+  label       String   @db.VarChar(100)
+  /// Drive file id untuk gambar logo (disajikan via proxy login-gated).
+  imageFileId String?  @map("image_file_id") @db.VarChar(120)
+  philosophy  String?  @db.Text
+  voteCount   Int      @default(0) @map("vote_count")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  session GroupLogoVote    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  ballots GroupLogoBallot[]
+
+  @@unique([sessionId, groupId, optionNo])
+  @@index([groupId])
+  @@map("group_logo_options")
+}
+
+model GroupLogoBallot {
+  id        String   @id @db.VarChar(64)
+  sessionId String   @map("session_id") @db.VarChar(64)
+  groupId   String   @map("group_id") @db.VarChar(64)
+  optionId  String   @map("option_id") @db.VarChar(64)
+  userId    String   @map("user_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  session GroupLogoVote   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  option  GroupLogoOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, groupId, userId])
+  @@index([optionId])
+  @@map("group_logo_ballots")
+}
+
 model MinistryWeekDeliverable {
   id          String  @id @db.VarChar(64)
   planId      String  @map("plan_id") @db.VarChar(64)

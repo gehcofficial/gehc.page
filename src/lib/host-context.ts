@@ -74,6 +74,12 @@ export function isMaterialHash(hash: string): boolean {
   return h === '#/materi' || h.startsWith('#/materi/') || h.startsWith('#/materi?');
 }
 
+/** Halaman voting logo kelompok (Beyonders). */
+export function isVotingHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/voting' || h.startsWith('#/voting/') || h.startsWith('#/voting?');
+}
+
 /** Presentasi Mentor & Co-Mentor (regenerasi + fitur portal). */
 export function isMentorPitchHash(hash: string): boolean {
   const h = String(hash || '');

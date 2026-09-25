@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isMaterialHash, isMentorPitchHash, isPitchHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isMaterialHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
@@ -15,6 +15,7 @@ const UnitComingSoon = React.lazy(() => import('./components/hub/UnitComingSoon.
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
+const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hostUnit = resolveHostUnit(host);
@@ -62,6 +63,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <DidaskaliaPresentation />
+      </Suspense>
+    );
+  }
+
+  // Voting logo kelompok: standalone, wajib login.
+  if (isVotingHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <GroupLogoVote />
       </Suspense>
     );
   }

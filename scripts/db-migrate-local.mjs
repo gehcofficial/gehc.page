@@ -320,6 +320,11 @@ const STEPS = [
     label: 'Didaskalia knowledge base + instruksi AI',
     required: true,
   },
+  {
+    script: 'server/_migrate-logo-vote.cjs',
+    label: 'Voting logo kelompok',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
