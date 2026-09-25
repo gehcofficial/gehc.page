@@ -278,6 +278,7 @@ export const PortalLayout: React.FC = () => {
   const navItemDefs = [
     ...baseNavDefs,
     ...extraDivDefs.filter((d) => !baseNavDefs.some((x) => x.id === d.id)),
+    ...extraChurchDefs.filter((d) => !baseNavDefs.some((x) => x.id === d.id) && !extraDivDefs.some((y) => y.id === d.id)),
   ];
   const navItems = navItemDefs.map((item) => ({
     ...item,
@@ -312,6 +313,9 @@ export const PortalLayout: React.FC = () => {
   const sidebarRows = [
     ...baseSidebarRows,
     ...extraDivDefs
+      .filter((d) => !baseSidebarRows.some((r) => r.type === 'item' && r.item.id === d.id))
+      .map((item) => ({ type: 'item' as const, item })),
+    ...extraChurchDefs
       .filter((d) => !baseSidebarRows.some((r) => r.type === 'item' && r.item.id === d.id))
       .map((item) => ({ type: 'item' as const, item })),
   ];
