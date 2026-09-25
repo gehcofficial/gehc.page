@@ -1,5 +1,31 @@
 # GEHC Portal — Handoff
 
+## Current — Perbaikan generate Studio Didaskalia (JSON terpotong) + diagnostik AI (25 Sep 2026)
+
+**Masalah:** sejak update (persona Reformed + knowledge base), "Susun draf 7 Path" gagal dengan **"JSON terpotong."**.
+
+**Akar masalah (3 lapis):**
+1. **`maxTokens` diabaikan.** SDK `ai` sudah **v7** yang memakai `maxOutputTokens` → limit keluaran tak terkontrol.
+2. **JSON cacat dari model:** newline literal di dalam string, **koma hilang**, dan `rhbSections` ditaruh **di luar** objek Path (struktur salah) — keluaran besar (7 Path × 5 RHB) rawan cacat.
+3. **Bug kode lama:** template `id: `regen-${...}`` korup menjadi `egen-` (karakter backtick hilang) → `egen is not defined` begitu JSON berhasil. Juga `proposalFromDraft` menjatuhkan RHB dari AI saat struktur lama kosong (setelah reset).
+
+**Perbaikan:**
+- `server/ai-provider.mjs`: `maxOutputTokens` + `finishReason`/`usage` + `timeoutMs` (AbortSignal) + opsi **`json` (OpenAI JSON mode)**; tambah `jethroGenerateObject` (structured output via zod).
+- `server/lib/didaskalia-ai.mjs`: **generate per-Path paralel 2 gelombang** memakai **structured output zod** (`PathObjectSchema`) + khotbah (`SermonObjectSchema`) → valid & cepat (~18–27s); normalizer JSON (`sanitizeJsonText`: escape newline, sisip koma hilang, buang koma menggantung) + `repairJson` untuk jalur teks; prompt lebih ringkas (body RHB ≤ 220 karakter).
+- `server/routes/didaskalia-studio.mjs`: perbaiki template `id` pendingRegen (draft & enrich).
+- `server/lib/didaskalia-diff.mjs`: RHB dari AI tetap dipakai bila struktur lama kosong (kasus setelah reset prod).
+- **Diagnostik**: `GET /api/ai/health` (SUPERADMIN/KOMISI/COMMITTEE) — uji main & fallback → `{modelId, ok, finishReason, ms}`.
+- UI: pesan galat ramah + tombol **Coba lagi** di Studio.
+
+**Verifikasi:** `lint` bersih ✓ **495 test** hijau (baru: `didaskalia-json-repair.test.ts`) ✓ `build` OK ✓ `GET /api/ai/health`: `gpt-4o-mini` ok (`finishReason: stop`) ✓ Staging `/draft` 2026-09 W4 → **200, ~27s, 7 Path lengkap dengan RHB + khotbah** ✓ Residu uji staging dibersihkan ✓ Prod & staging = `93c9161` ✓
+
+**Catatan:** Prod studio masih dalam kondisi ter-reset (bacaan + metode tersisa). Silakan coba **Generate draf** di prod; bila perlu, pantau `GET /api/ai/health`.
+
+### Next
+1. Uji generate di prod (2026-09 W4) → tinjau pengajuan (Persetujuan HOD) → Setujui.
+2. (Opsional) Judul Path bisa sesekali berulang — tambah penguncian judul lintas-Path bila perlu.
+
+
 ## Current — Voting logo: anti-bypass admin + turnout + deadline + reset (25 Sep 2026)
 
 **Masalah:** akun admin (SUPERADMIN) bisa memilih di semua grup (bypass), keanggotaan tak difilter aktif, dan tidak ada rekap partisipasi/deadline.
