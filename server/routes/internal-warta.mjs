@@ -220,7 +220,12 @@ export function registerInternalWartaRoutes(app, { wrap }) {
     if (buffer.length > 8_000_000) return res.status(413).json({ error: 'Berkas terlalu besar (maks ~8MB).' });
     const folderId = await resolveFolder(prisma);
     if (!folderId) return res.status(503).json({ error: 'Folder penyimpanan belum siap. Jalankan: npm run db:setup:internal-warta-folder' });
-    const file = await uploadFile(folderId, { filename: name, mimetype: mime, buffer });
+    let file;
+    try {
+      file = await uploadFile(folderId, { filename: name, mimetype: mime, buffer });
+    } catch (e) {
+      return res.status(502).json({ error: `Gagal mengunggah ke Drive: ${String(e?.message || e)}. Sementara itu gunakan "Tambah tautan" untuk menempelkan link.` });
+    }
     res.status(201).json({ file: { fileId: file.id, name: file.name || name, mimetype: mime, size: buffer.length } });
   }));
 
