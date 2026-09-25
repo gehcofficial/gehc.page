@@ -357,8 +357,8 @@ export async function generateWeekDraft(input) {
     '- Fundamental Firman (ayat) adalah JANGKAR TEMA; Kitab/Bagian Fokus dibagi 7 hari berurutan (Path 1 - 7).',
     '- URUTAN HARI: Path 1 = MINGGU (hari khotbah) - Path 2 = Senin - ... - Path 7 = Sabtu.',
     '- Judul tiap Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
-    '- Tiap Path: title, summary (1 kalimat), bacaanRef (rentang Kitab Fokus progresif), scriptureRef (Nats Pembimbing), scriptureText (ringkas), homileticLens (2-3 metode), hookQuestion, illustration (maks 250 karakter), reflection (2-3 paragraf pendek), observeQ/interpretQ/applyQ, fgdQuestions (2-4), bridge.',
-    '- TEPAT 5 "rhbSections" per Path dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. body WAJIB ringkas (maks 450 karakter).',
+    '- Tiap Path: title, summary (maks 100 karakter), bacaanRef (rentang Kitab Fokus progresif), scriptureRef (Nats Pembimbing), scriptureText (maks 200 karakter), homileticLens (2-3 metode), hookQuestion, illustration (maks 150 karakter), reflection (maks 3 kalimat), observeQ/interpretQ/applyQ, fgdQuestions (2-3), bridge (1 kalimat).',
+    '- TEPAT 5 "rhbSections" per Path dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. body WAJIB 1 paragraf pendek, MAKS 250 karakter (jangan lebih).',
     '- "methodMix": 2-3 metode dari 7 pendekatan dengan persentase (~100) + catatan singkat.',
     '- Path 1 menyambung eksplisit dari minggu lalu; Path 7 menjembatani minggu depan.',
     '- PENTING: JAGA RINGKAS agar JSON tidak terpotong; utamakan struktur & field wajib lengkap.',
@@ -370,8 +370,8 @@ export async function generateWeekDraft(input) {
     'ATURAN RINGKASAN KHOTBAH (WAJIB):',
     '- Turunkan dari Fundamental Firman, diarahkan ke Kitab/Bagian Fokus.',
     '- methods: 2-3 metode; rationale: bagaimana metode menajamkan Fundamental Firman.',
-    '- summary: 3-4 paragraf pendek.',
-    '- slideOutline: 6-8 slide (title, bullets 2-4, visualNote singkat).',
+    '- summary: 2-3 paragraf pendek (maks 80 kata).',
+    '- slideOutline: 6-8 slide (title, bullets 2-4, visualNote maks 60 karakter).',
     '- deliveryPlan: satu baris per metode (method, how).',
     '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah FGD kontekstual tema ini).',
     '- JAGA RINGKAS agar JSON tidak terpotong.',
@@ -381,7 +381,33 @@ export async function generateWeekDraft(input) {
   ];
 
   const pathsPrompt = [...HEAD, ...PATHS_RULES].join('\n');
-  const { data: a } = await generateJson({ prompt: pathsPrompt, maxOutputTokens: 8000, timeoutMs: 48000 });
+  const { data: parsedA } = await generateJson({ prompt: pathsPrompt, maxOutputTokens: 12000, timeoutMs: 48000 });
+  let paths = Array.isArray(parsedA.paths) ? [...parsedA.paths] : [];
+
+  // Penjagaan: lengkapi Path yang belum berisi RHB secara bertahap (batch maks 4).
+  const hasPath = (p) => Array.isArray(p?.rhbSections) && p.rhbSections.some((s) => asStr(s?.body).trim());
+  for (let round = 0; round < 2; round++) {
+    const missing = [];
+    for (let i = 0; i < 7; i++) if (!hasPath(paths[i])) missing.push(i + 1);
+    if (!missing.length) break;
+    const batch = missing.slice(0, 4);
+    const batchPrompt = [
+      ...HEAD,
+      `LENGKAPI HANYA Path berikut: ${batch.join(', ')}. Sertakan "paths" berisi TEPAT ${batch.length} Path dengan pathIndex ${batch.join(', ')}.`,
+      ...PATHS_RULES.slice(0, -2),
+      'Balas HANYA JSON valid (padat, tanpa markdown):',
+      DRAFT_PATHS_SCHEMA,
+    ].join('\n');
+    try {
+      const { data: g } = await generateJson({ prompt: batchPrompt, maxOutputTokens: 6000, timeoutMs: 32000 });
+      const got = Array.isArray(g.paths) ? g.paths : [];
+      got.forEach((p, k) => {
+        const idx = (Number(p?.pathIndex) || batch[k]) - 1;
+        if (idx >= 0 && idx < 7 && hasPath(p)) paths[idx] = { ...(paths[idx] || {}), ...p, pathIndex: idx + 1 };
+      });
+    } catch { break; }
+  }
+  const a = { ...parsedA, paths };
 
   const outline = (Array.isArray(a.paths) ? a.paths : []).map((p, i) => `Path ${p.pathIndex || i + 1}: ${asStr(p.title)}`).join('\n');
   const sermonPrompt = [...HEAD, outline ? `KERANGKA 7 PATH:\n${outline}` : '', ...SERMON_RULES].filter(Boolean).join('\n');
