@@ -49,7 +49,7 @@ export function registerPortalAssistRoutes(app, { wrap }) {
 
     let text;
     try {
-      text = await jethroGenerateText({ system, prompt: question, maxTokens: 400 });
+      text = (await jethroGenerateText({ system, prompt: question, maxOutputTokens: 400 })).text;
     } catch (e) {
       console.error('[portal-assist] gagal:', e?.message || e);
       return res.status(502).json({ error: 'Asisten gagal menjawab. Coba pencarian kata kunci.' });

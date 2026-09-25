@@ -6,7 +6,7 @@ vi.mock('../../server/ai-provider.mjs', () => ({
   jethroGenerateText: vi.fn(async ({ system, prompt }: { system: string; prompt: string }) => {
     captured.system = system;
     captured.prompt = prompt;
-    return '{}';
+    return { text: '{}', finishReason: 'stop', modelId: 'mock' };
   }),
   generateImageBase64: vi.fn(async () => ({ base64: '', mediaType: 'image/jpeg', model: 'mock' })),
 }));

@@ -55,7 +55,7 @@ export async function analyzePlacementRecommendations(recommendations, groupStat
     JSON.stringify(facts),
   ].join('\n');
 
-  const analysis = await jethroGenerateText({ system, prompt, maxTokens: 1024 });
+  const { text: analysis } = await jethroGenerateText({ system, prompt, maxOutputTokens: 1024 });
 
   return {
     analysis: analysis || '(tidak ada keluaran)',
@@ -107,7 +107,7 @@ export async function narrateDashboard() {
     JSON.stringify(facts),
   ].join('\n');
 
-  const summary = await jethroGenerateText({ system, prompt, maxTokens: 768 });
+  const { text: summary } = await jethroGenerateText({ system, prompt, maxOutputTokens: 768 });
 
   return {
     summary: summary || '(tidak ada keluaran)',

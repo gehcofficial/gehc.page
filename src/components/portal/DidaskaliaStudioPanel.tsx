@@ -155,6 +155,15 @@ const ImageSlot: React.FC<{
   );
 };
 
+/** Pesan galat AI yang bisa ditindaklanjuti. */
+function friendlyAiError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : 'AI gagal.';
+  if (/terpotong|JSON tidak valid/i.test(msg)) {
+    return 'Keluaran AI terpotong — coba lagi, atau kurangi dokumen pengetahuan aktif di tab "Pengetahuan".';
+  }
+  return msg;
+}
+
 export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
@@ -183,6 +192,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastAiKind, setLastAiKind] = useState<'draft' | 'sermon' | 'enrich' | null>(null);
   const [expandedPath, setExpandedPath] = useState<number | null>(1);
   const [comment, setComment] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -259,6 +269,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     if (!canWrite) return;
     await save(); // jangan buang edit terakhir
     setBusy(kind);
+    setLastAiKind(kind);
     setError(null);
     try {
       const discussionText = (studio.discussion || [])
@@ -307,7 +318,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             : 'Ringkasan khotbah dibuat',
       });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'AI gagal.');
+      setError(friendlyAiError(e));
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
     } finally {
       setBusy(null);
@@ -720,7 +731,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       download(filename, blob);
       addToast({ type: 'success', title: 'AI menyusun 7 Path & PDF Pembekalan diunduh' });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'AI gagal.');
+      setError(friendlyAiError(e));
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
     } finally {
       setBusy(null);
@@ -834,7 +845,16 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           </div>
         </div>
         {!canWrite && <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Mode baca — hanya Komisi/Tim Kerja/Didaskalia yang dapat mengubah.</p>}
-        {error && <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
+        {error && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="flex-1 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>
+            {lastAiKind && canWrite && (
+              <button type="button" onClick={() => void runAi(lastAiKind)} disabled={!!busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Coba lagi
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (

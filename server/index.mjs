@@ -965,6 +965,17 @@ app.get('/api/me/penatalayan-access', requireRole(), wrap(async (req, res) => {
   }
 }));
 
+// Diagnostik AI: uji cepat model main + fallback (admin).
+app.get('/api/ai/health', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  try {
+    const { probeModels } = await import('./ai-provider.mjs');
+    const models = await probeModels();
+    res.json({ ok: models.some((m) => m.ok), models });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });

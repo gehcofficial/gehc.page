@@ -46,19 +46,35 @@ function isRetryableError(error) {
 // ---------------------------------------------------------------------------
 // jethroGenerateText — try main, fallback on retryable error
 // ---------------------------------------------------------------------------
-export async function jethroGenerateText({ system, prompt, maxTokens = 1024 }) {
+/**
+ * @param {{ system?: string; prompt: string; maxOutputTokens?: number; timeoutMs?: number }} opts
+ * @returns {Promise<string>} teks keluaran
+ */
+export async function jethroGenerateText({ system, prompt, maxOutputTokens = 2048, timeoutMs } = {}) {
   const models = [mainModel(), fallbackModel()].filter(Boolean);
 
   let lastError;
   for (const model of models) {
     try {
-      const { text } = await generateText({
-        model,
-        system,
-        prompt,
-        maxTokens,
-      });
-      return text.trim();
+      const controller = timeoutMs ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      let text, finishReason, usage, modelId;
+      try {
+        const res = await generateText({
+          model,
+          system,
+          prompt,
+          maxOutputTokens,
+          abortSignal: controller ? controller.signal : undefined,
+        });
+        text = res.text;
+        finishReason = res.finishReason;
+        usage = res.usage;
+        modelId = model?.modelId;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      return { text: String(text || '').trim(), finishReason, usage, modelId };
     } catch (err) {
       console.error('[ai-provider] Model failed:', model?.modelId || model, err.message);
       if (!isRetryableError(err)) throw err;
@@ -84,6 +100,31 @@ export async function generateImageBase64({ prompt, size = '1024x1536', quality 
     providerOptions: isGptImage ? { openai: { quality, outputFormat } } : undefined,
   });
   return { base64: image.base64, mediaType: image.mediaType || 'image/jpeg', model: id };
+}
+
+// ---------------------------------------------------------------------------
+// probeModels — uji cepat tiap model (diagnostik /api/ai/health)
+// ---------------------------------------------------------------------------
+export async function probeModels({ prompt = 'Balas satu kata: OK' } = {}) {
+  const candidates = [['main', mainModel()], ['fallback', fallbackModel()]].filter(([, m]) => m);
+  const out = [];
+  for (const [label, model] of candidates) {
+    const started = Date.now();
+    try {
+      const res = await generateText({ model, prompt, maxOutputTokens: 32 });
+      out.push({
+        label,
+        modelId: model?.modelId,
+        ok: true,
+        finishReason: res.finishReason,
+        ms: Date.now() - started,
+        text: String(res.text || '').trim().slice(0, 40),
+      });
+    } catch (e) {
+      out.push({ label, modelId: model?.modelId, ok: false, error: String(e?.message || e).slice(0, 200), ms: Date.now() - started });
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

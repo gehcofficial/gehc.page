@@ -50,11 +50,8 @@ const SYSTEM =
   'Sajikan sebagai keyakinan yang menghidupkan dan membangun — hangat, bukan polemik atau menyerang aliran/gereja lain. ' +
   'Jangan menyiratkan keselamatan karena perbuatan baik atau "Allah + usaha manusia" sejajar; pemuridan adalah respons syukur dan pengudusan, bukan sarana memperoleh keselamatan.';
 
-/** Ambil objek JSON pertama dari keluaran model yang mungkin berbalut teks. */
-export function extractJson(text) {
-  const s = String(text || '');
-  const start = s.indexOf('{');
-  if (start < 0) throw new Error('Keluaran AI tidak memuat JSON.');
+/** Cari akhir objek JSON (brace seimbang) mulai dari `start`; -1 bila belum tertutup. */
+function findJsonEnd(s, start) {
   let depth = 0;
   let inStr = false;
   let esc = false;
@@ -70,16 +67,84 @@ export function extractJson(text) {
     else if (ch === '{') depth++;
     else if (ch === '}') {
       depth--;
-      if (depth === 0) {
-        const raw = s.slice(start, i + 1);
-        try {
-          return JSON.parse(raw);
-        } catch (e) {
-          throw new Error(`JSON tidak valid: ${e.message}`);
-        }
-      }
+      if (depth === 0) return i;
     }
   }
+  return -1;
+}
+
+/**
+ * Perbaiki JSON yang terpotong: buang sisa elemen tak lengkap di ujung dan
+ * tutup string/bracket/brace yang menggantung. Best-effort.
+ */
+export function repairJson(text) {
+  const s = String(text || '');
+  const start = s.indexOf('{');
+  if (start < 0) return null;
+  let body = s.slice(start).trim();
+
+  // Buang pagar markdown / teks penutup.
+  body = body.replace(/```[a-zA-Z]*\s*$/,'').replace(/```\s*$/,'').trim();
+
+  // Coba perbaikan bertingkat: potong pada koma/penutup terakhir yang aman.
+  for (let attempt = 0; attempt < 40 && body.length > 2; attempt++) {
+    const candidate = closeOpen(body);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Potong ke pemisah elemen terakhir sebelumnya.
+      const cut = Math.max(body.lastIndexOf('},'), body.lastIndexOf('],'), body.lastIndexOf(','), body.lastIndexOf('}'));
+      if (cut < 0) break;
+      body = body.slice(0, cut + 1);
+    }
+  }
+  // Terakhir: coba apa adanya dengan penutup.
+  try { return JSON.parse(closeOpen(body)); } catch { return null; }
+}
+
+/** Tutup string & bracket/brace yang masih terbuka (urutan stack benar). */
+function closeOpen(str) {
+  const stack = [];
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  let out = str;
+  if (inStr) out += '"';
+  out = out.replace(/[,\s]+$/, '');
+  while (stack.length) out += stack.pop() === '{' ? '}' : ']';
+  return out;
+}
+
+/** Ambil objek JSON pertama dari keluaran model yang mungkin berbalut teks. */
+export function extractJson(text) {
+  const s = String(text || '');
+  const start = s.indexOf('{');
+  if (start < 0) throw new Error('Keluaran AI tidak memuat JSON.');
+  const end = findJsonEnd(s, start);
+  if (end >= 0) {
+    const raw = s.slice(start, end + 1);
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      const repaired = repairJson(raw);
+      if (repaired) return repaired;
+      throw new Error(`JSON tidak valid: ${e.message}`);
+    }
+  }
+  // Terpotong → coba perbaiki.
+  const repaired = repairJson(s.slice(start));
+  if (repaired) return repaired;
   throw new Error('JSON terpotong.');
 }
 
@@ -260,52 +325,79 @@ function teamContextBlock(input) {
   return lines;
 }
 
-/**
- * Susun draf satu minggu: 7 Path berurutan + kerangka Ringkasan Khotbah.
- */
+/** Panggil AI & parse JSON dengan penjagaan: cap token, retry bila terpotong, repair. */
+async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 }) {
+  let res = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens, timeoutMs });
+  let meta = { modelId: res.modelId, finishReason: res.finishReason };
+  if (res.finishReason === "length") {
+    const bigger = Math.min(16000, Math.round(maxOutputTokens * 1.5));
+    try {
+      const r2 = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens: bigger, timeoutMs });
+      res = r2;
+      meta = { modelId: r2.modelId, finishReason: r2.finishReason, retried: true };
+    } catch { /* pakai hasil pertama (diperbaiki) */ }
+  }
+  return { data: extractJson(res.text), meta };
+}
+
+const DRAFT_PATHS_SCHEMA = '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}]}';
+const DRAFT_SERMON_SCHEMA = '{"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}';
+const DRAFT_FULL_SCHEMA = DRAFT_PATHS_SCHEMA.slice(0, -1) + ',"sermon":' + DRAFT_SERMON_SCHEMA.slice('{"sermon":'.length);
 export async function generateWeekDraft(input) {
-  const prompt = [
+  const HEAD = [
     'Susun draf pembelajaran satu minggu untuk komunitas pemuda (Beyonders).',
     '',
     'KONTEKS:',
     buildContext(input),
     ...teamContextBlock(input),
     '',
-    'ALUR PEMIKIRAN (WAJIB DIPATUHI):',
-    '- Fundamental Firman (ayat) adalah JANGKAR TEMA minggu ini. Seluruh isi harus bertumpu pada ayat dasar ini.',
-    '- Ringkasan Khotbah DITURUNKAN dari Fundamental Firman, lalu DIARAHKAN ke Kitab/Bagian Fokus minggu ini.',
-    '- Setiap metode berkhotbah yang dipakai (lihat persentasenya) harus terasa MENAJAMKAN & MEMPERDALAM Fundamental Firman — bukan tempelan.',
-    '- Kitab/Bagian Fokus adalah TUJUAN HARIAN: bagi rentangnya menjadi 7 bagian berurutan (Path 1 → Path 7).',
+  ];
+  const PATHS_RULES = [
+    'ATURAN 7 PATH (WAJIB):',
+    '- Fundamental Firman (ayat) adalah JANGKAR TEMA; Kitab/Bagian Fokus dibagi 7 hari berurutan (Path 1 - 7).',
+    '- URUTAN HARI: Path 1 = MINGGU (hari khotbah) - Path 2 = Senin - ... - Path 7 = Sabtu.',
+    '- Judul tiap Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
+    '- Tiap Path: title, summary (1 kalimat), bacaanRef (rentang Kitab Fokus progresif), scriptureRef (Nats Pembimbing), scriptureText (ringkas), homileticLens (2-3 metode), hookQuestion, illustration (maks 250 karakter), reflection (2-3 paragraf pendek), observeQ/interpretQ/applyQ, fgdQuestions (2-4), bridge.',
+    '- TEPAT 5 "rhbSections" per Path dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. body WAJIB ringkas (maks 450 karakter).',
+    '- "methodMix": 2-3 metode dari 7 pendekatan dengan persentase (~100) + catatan singkat.',
+    '- Path 1 menyambung eksplisit dari minggu lalu; Path 7 menjembatani minggu depan.',
+    '- PENTING: JAGA RINGKAS agar JSON tidak terpotong; utamakan struktur & field wajib lengkap.',
     '',
-    'ATURAN:',
-    '- Hasilkan TEPAT 7 Path yang saling terhubung dan berurutan (Path 1 sampai 7).',
-    '- URUTAN HARI: Path 1 = MINGGU (hari khotbah/ibadah) → Path 2 = Senin → … → Path 7 = Sabtu. dayLabel wajib sesuai urutan ini.',
-    '- Judul tiap Path WAJIB Bahasa Inggris yang menarik/kece untuk anak muda (2-5 kata, mis. "Redefining Greatness", "Ambassadors of Grace"). Isi lain tetap Bahasa Indonesia.',
-    '- Path 7 adalah KESIMPULAN minggu ini sekaligus JEMBATAN ke tema minggu berikutnya.',
-    '- Tiap Path wajib punya: title (Inggris), summary (1 kalimat gambaran besar hari itu), bacaanRef (Bacaan Alkitab harian dari rentang Kitab Fokus), scriptureRef (Nats Pembimbing — satu ayat kunci), scriptureText (teks Nats Pembimbing, ringkas), homileticLens (2-3 metode), hookQuestion (pertanyaan pembuka mudah), illustration (ilustrasi singkat relevan), reflection (2-4 paragraf pendek), observeQ/interpretQ/applyQ (pertanyaan diskusi bertingkat), fgdQuestions (2-4 pertanyaan), bridge (kalimat jembatan ke Path berikutnya).',
-    '- Bacaan Alkitab: bagi rentang Kitab/Bagian Fokus secara merata untuk 7 hari (progresif). Contoh: bila Kitab Fokus = 1 Timotius 3:1-13, hari 1 ≈ 1 Timotius 3:1-2, hari 2 ≈ 3:3-4, dst.',
-    '- Nats Pembimbing: ayat kunci tiap hari yang diulas dan berasosiasi dengan Fundamental Firman/tema minggu.',
-    '- Tiap Path juga wajib punya "rhbSections": TEPAT 5 section RHB harian berurutan dengan key: PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK. Masing-masing {key, title, body} dengan body 1-3 paragraf pendek (boleh dipisah baris kosong). "Makna & Implikasi bagi Beyonders" harus konkret untuk pemuda/anak rantau; "Diskusi Kelompok" 3-5 pertanyaan; "Refleksi Pribadi" 1-3 pertanyaan.',
-    '- Kombinasikan metode berkhotbah dari 7 pendekatan (Teologi Sistematika, Teologi Biblika, Pengajaran Tematika, Pengajaran Ekspositori, Apologetika, Teologi Praktika/Pastoral, Teologi Historis) sesuai kebutuhan; jelaskan pada sermon.rationale BAGAIMANA pilihan itu menajamkan Fundamental Firman.',
-    '- Sertakan "methodMix": 2-3 metode dari daftar 7 dengan persentase (total ~100) dan catatan singkat alasan porsinya.',
-    '- Manfaatkan "Catatan tim/diskusi" bila ada sebagai masukan nyata dari tim Didaskalia.',
-    '- Ringkasan khotbah: methods, rationale, summary (3-5 paragraf), slideOutline (6-10 slide, tiap slide: title, bullets 2-5, visualNote).',
-    '- "deliveryPlan" (WAJIB, tidak boleh kosong): panduan PRAKTIS menyampaikan khotbah untuk tiap metode yang dipakai — sesuaikan jumlah & porsi dengan methodMix. Contoh: {"method":"Teologi Historis","how":"Buka dengan latar sejarah pelayanan di Perjanjian Lama untuk membangun ketegangan, baru bawa ke injil."}',
-    '- "prepChecklist" (WAJIB, 4-6 item): langkah konkret persiapan khotbah (riset teks, susun kerangka, latihan, doa, cek visual/panggung).',
-    '- "discussionFlow" (WAJIB, 4-6 langkah): ALUR FGD hari Minggu yang KONTEKSTUAL dengan tema minggu ini (bukan generik) — mis. pertanyaan pemanasan spesifik tema, penggalian teks, penerapan nyata, komitmen.',
-    '- FOKUS: dokumen ini untuk (A) pengkhotbah/deliverer mempersiapkan & menyampaikan khotbah, dan (B) mentor/co-mentor membawa FGD. 7 Path adalah RINGKASAN sepekan (Minggu→Sabtu), bukan breakdown panjang.',
-    '- KESINAMBUNGAN: Path 1 (Minggu) menyambung EKSPLISIT dari minggu lalu (lihat MINGGU LALU: tema, kitab fokus, judul path); Path 7 menjembatani ke minggu depan. Sebut kaitannya secara konkret, bukan basa-basi.',
-    '- Kontekstual untuk anak muda & anak rantau di Cikarang (kerja, kos, komunitas).',
-    '- Bahasa Indonesia yang hangat dan jelas (kecuali judul Path).',
+    'Balas HANYA JSON valid (padat, tanpa markdown):',
+    DRAFT_PATHS_SCHEMA,
+  ];
+  const SERMON_RULES = [
+    'ATURAN RINGKASAN KHOTBAH (WAJIB):',
+    '- Turunkan dari Fundamental Firman, diarahkan ke Kitab/Bagian Fokus.',
+    '- methods: 2-3 metode; rationale: bagaimana metode menajamkan Fundamental Firman.',
+    '- summary: 3-4 paragraf pendek.',
+    '- slideOutline: 6-8 slide (title, bullets 2-4, visualNote singkat).',
+    '- deliveryPlan: satu baris per metode (method, how).',
+    '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah FGD kontekstual tema ini).',
+    '- JAGA RINGKAS agar JSON tidak terpotong.',
     '',
-    'Balas HANYA dengan JSON valid (tanpa markdown) dengan bentuk:',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
-  ].join('\n');
+    'Balas HANYA JSON valid (padat, tanpa markdown):',
+    DRAFT_SERMON_SCHEMA,
+  ];
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 5120 });
-  return clampDraft(extractJson(text));
+  const pathsPrompt = [...HEAD, ...PATHS_RULES].join('\n');
+  const { data: a } = await generateJson({ prompt: pathsPrompt, maxOutputTokens: 8000, timeoutMs: 48000 });
+
+  const outline = (Array.isArray(a.paths) ? a.paths : []).map((p, i) => `Path ${p.pathIndex || i + 1}: ${asStr(p.title)}`).join('\n');
+  const sermonPrompt = [...HEAD, outline ? `KERANGKA 7 PATH:\n${outline}` : '', ...SERMON_RULES].filter(Boolean).join('\n');
+  let sermon = {};
+  try {
+    const { data: b } = await generateJson({ prompt: sermonPrompt, maxOutputTokens: 4000, timeoutMs: 40000 });
+    sermon = b.sermon || b || {};
+  } catch { /* kosong → clampSermon mengisi default */ }
+
+  if (!Array.isArray(a.paths) || a.paths.length === 0) {
+    const fullPrompt = [...HEAD, ...PATHS_RULES.slice(0, -2), ...SERMON_RULES.slice(0, -2), '', 'Balas HANYA JSON valid (padat, tanpa markdown):', DRAFT_FULL_SCHEMA].join('\n');
+    const { data: full } = await generateJson({ prompt: fullPrompt, maxOutputTokens: 14000, timeoutMs: 55000 });
+    return clampDraft(full);
+  }
+  return clampDraft({ ...a, sermon });
 }
-
 /**
  * Tahap 2 — perkaya draf yang sudah ada dengan diskusi internal tim.
  * Tidak membuang struktur; hanya menajamkan/ memperdalam isi.
@@ -353,8 +445,8 @@ export async function generateEnrichedDraft(input) {
     '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
   ].filter(Boolean).join('\n');
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 5120 });
-  return clampDraft(extractJson(text));
+  const { data } = await generateJson({ prompt, maxOutputTokens: 12000, timeoutMs: 50000 });
+  return clampDraft(data);
 }
 
 /**
@@ -378,8 +470,7 @@ export async function generateWeekExtras(input) {
     '',
     'Balas HANYA JSON valid: {"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}',
   ].filter(Boolean).join('\n');
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 1600 });
-  const d = extractJson(text);
+  const { data: d } = await generateJson({ prompt, maxOutputTokens: 3000, timeoutMs: 30000 });
   const plan = Array.isArray(d.deliveryPlan) ? d.deliveryPlan : [];
   return {
     deliveryPlan: plan
@@ -412,8 +503,8 @@ export async function generateSermon(input) {
     'Balas HANYA JSON valid: {"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}',
   ].filter(Boolean).join('\n');
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 2048 });
-  return clampSermon(extractJson(text));
+  const { data } = await generateJson({ prompt, maxOutputTokens: 4000, timeoutMs: 35000 });
+  return clampSermon(data);
 }
 
 /**
@@ -430,6 +521,6 @@ export async function refineField({ fieldLabel = '', current = '', instruction =
     'Balas HANYA dengan teks hasil perbaikan (tanpa tanda kutip pembuka/penutup, tanpa penjelasan).',
   ].filter(Boolean).join('\n');
 
-  const text = await jethroGenerateText({ system: SYSTEM, prompt, maxTokens: 1200 });
+  const { text } = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens: 2000, timeoutMs: 30000 });
   return String(text || '').trim();
 }

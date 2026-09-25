@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const captured = vi.hoisted(() => ({ prompt: '' }));
 
 vi.mock('../../server/ai-provider.mjs', () => ({
-  jethroGenerateText: vi.fn(async ({ prompt }: { prompt: string }) => { captured.prompt = prompt; return '{}'; }),
+  jethroGenerateText: vi.fn(async ({ prompt }: { prompt: string }) => { captured.prompt = prompt; return { text: '{}', finishReason: 'stop', modelId: 'mock' }; }),
   generateImageBase64: vi.fn(async () => ({ base64: '', mediaType: 'image/jpeg', model: 'mock' })),
 }));
 
