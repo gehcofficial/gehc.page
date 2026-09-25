@@ -75,21 +75,7 @@ async function getDrive() {
   if (!mode) throw new Error('Google Drive belum dikonfigurasi pada environment server.');
 
   if (mode === 'service-account') {
-    let credentials;
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      credentials = parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-    } else {
-      const { readFileSync } = await import('node:fs');
-      credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
-    }
-
-    const auth = new google.auth.JWT({
-      email: credentials.client_email,
-      key: credentials.private_key,
-      scopes: [getDriveScope()],
-      subject: process.env.GDRIVE_IMPERSONATE || undefined,
-    });
-    cachedClient = google.drive({ version: 'v3', auth });
+    cachedClient = await buildServiceAccountClient();
     cachedScope = curScope;
   } else {
     // API key string dipakai langsung sebagai auth sederhana
@@ -98,6 +84,37 @@ async function getDrive() {
   }
 
   return cachedClient;
+}
+
+/** Client khusus Service Account (mengabaikan user OAuth) — untuk folder yang di-share ke SA. */
+async function buildServiceAccountClient() {
+  if (getDriveMode() !== 'service-account') return null;
+  let credentials;
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    credentials = parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } else {
+    const { readFileSync } = await import('node:fs');
+    credentials = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
+  }
+  const auth = new google.auth.JWT({
+    email: credentials.client_email,
+    key: credentials.private_key,
+    scopes: [getDriveScope()],
+    subject: process.env.GDRIVE_IMPERSONATE || undefined,
+  });
+  return google.drive({ version: 'v3', auth });
+}
+
+/** Stream via Service Account (fallback bila user OAuth tak punya akses ke folder). */
+export async function getFileStreamAsServiceAccount(fileId) {
+  const drive = await buildServiceAccountClient();
+  if (!drive) throw new Error('Service account Drive tidak tersedia.');
+  const meta = await drive.files.get({ fileId, fields: 'id, name, mimeType', supportsAllDrives: true });
+  const content = await drive.files.get(
+    { fileId, alt: 'media', supportsAllDrives: true },
+    { responseType: 'stream' },
+  );
+  return { meta: meta.data, stream: content.data };
 }
 
 function mapFile(file) {

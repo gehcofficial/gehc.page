@@ -145,11 +145,12 @@ export default function GroupLogoVote() {
               {g.options.map((o) => {
                 const mine = g.myOptionId === o.id;
                 const pct = g.total ? Math.round(((o.voteCount || 0) / g.total) * 100) : 0;
+                const src = o.imageFileId ? (o.imageFileId.startsWith('/') ? o.imageFileId : `/api/voting/asset/${o.imageFileId}`) : '';
                 return (
                   <div key={o.id} className={`rounded-2xl border p-4 space-y-3 transition-colors ${mine ? 'border-emerald-400 bg-emerald-50/40' : 'border-[#D9D7D0] bg-[#FAF9F5]'}`}>
                     <div className="aspect-square rounded-xl bg-white border border-[#EFEDE8] overflow-hidden flex items-center justify-center">
-                      {o.imageFileId
-                        ? <img src={`/api/voting/asset/${o.imageFileId}`} alt={`${g.name} ${o.label}`} className="w-full h-full object-contain p-4" loading="lazy" />
+                      {src
+                        ? <img src={src} alt={`${g.name} ${o.label}`} className="w-full h-full object-contain p-4" loading="lazy" />
                         : <span className="text-[11px] text-[#8C8880]">Gambar belum tersedia</span>}
                     </div>
                     <div className="flex items-center justify-between gap-2">

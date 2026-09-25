@@ -5,10 +5,13 @@
  *   npm run db:seed:logo-vote[:staging|:prod]
  */
 import 'dotenv/config';
+import { existsSync } from 'node:fs';
 import { getPrisma, getDbLabel } from './db.mjs';
 import { listFolders, listFiles, getDriveMode } from './gdrive.mjs';
 
 const SOURCE_FOLDER_ID = process.env.LOGO_VOTE_FOLDER_ID || '1mCRRWO0QmPR5qR4YUzgRmgjFT1DJoSoQ';
+
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const PHILOSOPHY = {
   Agape: 'Sometimes, sebagai pemuda, kita merasa harus menghadapi semuanya sendiri. Agape mengingatkan bahwa kasih Tuhan selalu menerima dan merangkul kita. Garis lengkung yang melindungi api di pusat logo melambangkan kasih tanpa syarat, serta komunitas yang menjaga dan menumbuhkan iman setiap anggotanya dalam kasih Kristus.',
@@ -55,8 +58,11 @@ async function main() {
     const files = await listFiles({ folderId: sub.id, pageSize: 50, fresh: true }).catch(() => []);
     const pick = (n) => files.find((f) => new RegExp(`-${n}\\.(jpe?g|png)$`, 'i').test(f.name))?.id || null;
     for (const n of [1, 2]) {
-      const imageFileId = pick(n);
-      if (!imageFileId) { console.log(`  lewat ${sub.name} opsi ${n} (file tidak ada)`); continue; }
+      const driveId = pick(n);
+      if (!driveId) { console.log(`  lewat ${sub.name} opsi ${n} (file tidak ada)`); continue; }
+      // Pakai aset statis bila tersedia (cepat & tak bergantung akses Drive di produksi).
+      const relPath = `/logo-grup/${slug(sub.name)}-${n}.jpg`;
+      const imageFileId = existsSync(`public${relPath}`) ? relPath : driveId;
       const existing = await prisma.groupLogoOption.findUnique({
         where: { sessionId_groupId_optionNo: { sessionId: session.id, groupId: group.id, optionNo: n } },
       }).catch(() => null);

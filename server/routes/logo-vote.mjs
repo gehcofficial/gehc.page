@@ -5,7 +5,7 @@
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { isKomisiOrSuperadmin, globalRoles } from '../division-rbac.mjs';
-import { getDriveMode, getFileStream } from '../gdrive.mjs';
+import { getDriveMode, getFileStream, getFileStreamAsServiceAccount } from '../gdrive.mjs';
 
 /** Grup milik user: GroupMember (ACTIVE/ALUMNI) + RoleAssignment.groupId. */
 export async function myGroupIds(authUser) {
@@ -157,15 +157,17 @@ export function registerLogoVoteRoutes(app, { wrap }) {
     if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
     const fileId = String(req.params.fileId || '');
     if (!fileId) return res.status(400).json({ error: 'fileId wajib.' });
-    try {
-      const { meta, stream } = await getFileStream(fileId);
-      res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
-      res.setHeader('Cache-Control', 'private, max-age=3600');
-      stream.on('error', () => { try { res.end(); } catch { /* abaikan */ } });
-      stream.pipe(res);
-    } catch {
-      res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+    let got = null;
+    try { got = await getFileStream(fileId); } catch { /* coba service account */ }
+    if (!got) {
+      try { got = await getFileStreamAsServiceAccount(fileId); } catch { /* gagal */ }
     }
+    if (!got) return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+    const { meta, stream } = got;
+    res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    stream.on('error', () => { try { res.end(); } catch { /* abaikan */ } });
+    stream.pipe(res);
   }));
 
   // GET /api/voting/results — rekap semua grup (admin)
