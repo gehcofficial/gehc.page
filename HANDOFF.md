@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia: Knowledge Base + Instruksi AI (Gems-like) + Reset Studio Prod (25 Sep 2026)
+
+**Masalah:** materi hasil AI belum sesuai pemikiran tim; konteks teologi saja tidak cukup; tim butuh memberi "pengetahuan" & instruksi.
+
+**Skema baru** (migrasi `server/_migrate-didaskalia-knowledge.cjs`):
+- `didaskalia_knowledge`: `title, content (MediumText), category (FORMAT|TEOLOGI|REFERENSI|CATATAN), tags, source (MANUAL|UPLOAD|DISCUSSION), fileName, isActive, sortOrder, createdById`.
+- `didaskalia_ai_config` (singleton `didaskalia-ai`): `instruction`, `maxKnowledgeChars` (default 12000).
+
+**Server:** CRUD `GET/POST/PATCH/DELETE /api/didaskalia/knowledge` + `GET/PUT /api/didaskalia/ai-config` (RBAC Didaskalia + SUPERADMIN/KOMISI/COMMITTEE). `server/lib/didaskalia-ai.mjs` menambah `teamContextBlock()` yang menyisipkan INSTRUKSI KHUSUS TIM + PENGETAHUAN TIM (semua dokumen aktif, dipotong ke `maxKnowledgeChars`) ke prompt draft/enrich/extras/sermon; `refineField` menerima `teamInstruction`.
+**Client:** sub-tab "Pengetahuan" di Studio (kelola dokumen, unggah .md/.txt, editor instruksi + batas karakter) lewat `DidaskaliaKnowledgePanel.tsx`. Tombol ".md" di Diskusi Internal menjadikan berkas sebagai dokumen pengetahuan (source DISCUSSION) + entri diskusi.
+**Seed:** `server/seed-didaskalia-knowledge.mjs` berisi "Panduan Format Khotbah — Tim Didaskalia" (kategori FORMAT): komposisi 20% Pendahuluan Tematis menjadi 30% Peninjauan Historis menjadi 50% Eksposisi Biblika + alur & catatan gaya (dari file Gemini tim, digeneralisasi).
+
+**Reset Studio Prod** — `scripts/reset-didaskalia-week.mjs` kini bulk (`--all` / `--ym`), menyisakan HANYA `fundamentalFirman` + `kitabFokus` (2 referensi bacaan) + `homileticMethods` + `methodMix` (metode); membersihkan paths/sermon/discussion/rituals/generation/presentation/render/pendingRegen/history, chapterNo dikosongkan, status ke DRAFT. Idempotent & dry-run akurat. **Prod dijalankan: 10 pekan pada 3 bulan (2026-09/10/11) dibersihkan** (verifikasi ulang = 0 perubahan). Script: `db:reset:didaskalia:dry|:staging|:prod`.
+
+**Verifikasi:** `lint` bersih; **489 test** hijau (baru: `didaskalia-knowledge.test.ts` — instruksi & knowledge masuk prompt, batas karakter dipatuhi); `build` OK; migrasi+seed **staging & prod**; API staging knowledge=[Panduan Format Khotbah/FORMAT], CREATE/PATCH/DELETE 200; UI tab "Pengetahuan" + Instruksi + Panduan tampil; tanpa error.
+
+### Next
+1. Tim Didaskalia: isi Instruksi Khusus Tim + unggah dokumen pengetahuan via tab Pengetahuan / Diskusi.
+2. Susun ulang draf minggu yang sudah direset (Generate draf) lalu nilai apakah sudah sesuai pemikiran tim.
+
+
 ## Current — Penatalayanan Terpadu: sisa item (25 Sep 2026)
 
 **1. Absensi QR oleh Tuan Rumah** — `isKoinoniaOperator(authUser, { eventId })` diperluas: anggota **grup host (Tuan Rumah)** event atau petugas komponen KOINONIA pada event itu boleh mengoperasikan check-in. `requireCheckInOp` kini me-resolve event dari `req.params.slug` sebelum memeriksa izin. Surface baru untuk Tuan Rumah (mentee/mentor tanpa akses panel Koinonia): endpoint `GET /api/events/:id/checkin-access` + komponen **`EventHostCheckIn`** di **Info Event** (blok "Absensi Kehadiran", collapsible, hanya tampil bila diizinkan).
