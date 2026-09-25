@@ -148,6 +148,7 @@ export const portalEn = {
     'event-info': 'Event Info',
     'ibadah-mingguan': 'Weekly Worship',
     kegiatan: 'Activities',
+    'internal-warta': 'Info & Opportunities',
     dashboard: 'Dashboard & Summary',
     people: 'People & Invitations',
     onboarding: 'Onboarding Pipeline',

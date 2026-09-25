@@ -142,6 +142,7 @@ export const portalId: typeof portalEn = {
     'event-info': 'Info Event',
     'ibadah-mingguan': 'Ibadah Mingguan',
     kegiatan: 'Kegiatan',
+    'internal-warta': 'Info & Peluang',
     dashboard: 'Dashboard & Ringkasan',
     people: 'Orang & Undangan',
     onboarding: 'Onboarding Pipeline',
