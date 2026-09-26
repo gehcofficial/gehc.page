@@ -1,5 +1,41 @@
 # GEHC Portal — Handoff
 
+## Current — Staging host paritas domain (26 Sep 2026)
+
+**Tujuan:** staging kini punya **host paritas** dengan produksi, sehingga bisa dibandingkan *apple-to-apple*.
+
+| Peran | Staging | Produksi |
+|---|---|---|
+| Hub | `staging.gehc.page` | `gehc.page` |
+| Unit | `staging-<unit>.gehc.page` (youth/teen/kids/men/women/districts/community) | `<unit>.gehc.page` |
+
+**Yang dibangun:**
+- `src/lib/host-context.ts` + `server/lib/host-context.mjs` (mirror): `STAGING_HUB_HOST='staging.gehc.page'`, prefix `staging-`; `isHubHost`/`resolveHostUnit` mengenali host staging; fallback tak dikenal tetap Pemuda.
+- `src/lib/portal-profiles.ts`: override `?portal=` hanya untuk host **tak dikenal** (`isKnownHost`); host berstruktur (gehc.page, staging-*.gehc.page) tidak bisa di-override.
+- `scripts/staging-hosts.mjs` (baru) — daftar host; `deploy-staging.mjs` & `sync-staging.mjs` **loop alias** ke semua host + legacy `staging-gehcpage.vercel.app`; verifikasi kirim `x-vercel-protection-bypass` bila `VERCEL_AUTOMATION_BYPASS_SECRET` ada.
+- Docs: `docs/tech/staging-parity.md` + `AGENTS.md`.
+
+**Infra terpasang (sekali):**
+- DNS Cloudflare: 8 CNAME DNS-only (`staging`, `staging-youth/teen/kids/men/women/districts/community`) → target Vercel.
+- Vercel: 8 domain ditambahkan ke project `gehc.page` + alias ke deployment staging.
+
+**Verifikasi:** `lint` bersih ✓ **519 test** hijau ✓ `build` OK ✓ 8 host staging `/api/version` = `486391c` (preview) ✓ Browser: `staging.gehc.page` → badge **Lingkup: Jemaat** (modul Pemuda absen, `org-hierarchy`/`integrations` tampil); `staging-youth.gehc.page` → **Lingkup: Pemuda** (Divisi lengkap) ✓
+
+**Catatan/proteksi:** **Password Protection butuh paket Pro** (gagal 428) — belum aktif. Opsi pengganti: (a) upgrade Pro → aktifkan Password Protection; (b) Vercel Authentication (SSO, hanya anggota tim Vercel); (c) Cloudflare Access; (d) Basic Auth tingkat aplikasi untuk host staging. **Staging kini memuat data produksi (PII) + password akun = `password123`** — jangan biarkan terbuka sebelum proteksi dipasang.
+
+### Next
+1. Pilih mekanisme proteksi staging (lihat catatan) lalu aktifkan.
+2. Merge `cursor/church-staging-subdomains` → `main` agar `staging:sync` berikutnya tidak meregresi host staging.
+3. Tambah origin staging di Google Console (opsional, untuk login Google di host staging).
+
+### Commands
+```powershell
+npm run deploy:staging          # deploy + alias ke semua host staging
+npm run staging:sync            # selaraskan staging = main
+npm run dns:list                # DNS Cloudflare
+```
+
+
 ## Current — Portal per domain: F1 profil portal + tag nav (26 Sep 2026)
 
 **Keputusan pemilik:** jemaat = payung; Pemuda salah satu BIPRA. Tiap domain/subdomain punya **portal sendiri** (jemaat, youth, men, women, kids, kolom, …). Modul jemaat **tampil di kedua portal** dengan **lingkup** berbeda (Jemaat = seluruh BIPRA+Kolom; Pemuda = hanya pemuda) — kecuali modul admin jemaat (`org-hierarchy`, `integrations`) yang khusus portal Jemaat, dan modul Pemuda (Beyonders/5 Divisi) yang tetap khusus Pemuda. Hub `gehc.page` = **Portal Jemaat**.
