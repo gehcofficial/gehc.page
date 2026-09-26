@@ -41,11 +41,11 @@ describe('tenant-roles — applyTenantScope', () => {
     expect(user.rolesScoped).toBe(true);
   });
 
-  it('fallback longgar bila tak ada peran di tenant (anti-terkunci)', () => {
+  it('ketat: peran tenant lain tidak berlaku (tanpa fallback)', () => {
     const user: Record<string, any> = { id: 'u2', roles: [{ role: 'MENTEE', tenantId: 'tenant-youth' }] };
     applyTenantScope(user, 'tenant-men');
-    expect(user.roles).toHaveLength(1);
-    expect(user.rolesScoped).toBe(false);
+    expect(user.roles).toEqual([]);
+    expect(user.rolesScoped).toBe(true);
     expect(user.rolesAll).toHaveLength(1);
   });
 
