@@ -1,5 +1,37 @@
 # GEHC Portal — Handoff
 
+## Current — Portal per domain: F1 profil portal + tag nav (26 Sep 2026)
+
+**Keputusan pemilik:** jemaat = payung; Pemuda salah satu BIPRA. Tiap domain/subdomain punya **portal sendiri** (jemaat, youth, men, women, kids, kolom, …). Modul jemaat **tampil di kedua portal** dengan **lingkup** berbeda (Jemaat = seluruh BIPRA+Kolom; Pemuda = hanya pemuda) — kecuali modul admin jemaat (`org-hierarchy`, `integrations`) yang khusus portal Jemaat, dan modul Pemuda (Beyonders/5 Divisi) yang tetap khusus Pemuda. Hub `gehc.page` = **Portal Jemaat**.
+
+**F1 yang dibangun (nav-only, tanpa ubah API/RBAC/data):**
+- `src/lib/portal-profiles.ts` — `PortalId` (jemaat/youth/men/women/teen/kids/kolom/community), `PORTAL_PROFILES`, `portalIdForHost` (hub→jemaat; host tak dikenal→youth), `resolvePortalId` (host + override `?portal=` **non-produksi**), `portalScopeOf`, `isProductionHost`.
+- `src/lib/portal-nav-config.ts` — field `portals?: PortalId[]` pada `PortalNavItemDef`; tagging seluruh `BASE_NAV` (10 item Pemuda-only, 2 item Jemaat-only, sisanya semua portal); `buildPortalNavItems`/`buildPortalSidebarItems` menerima `portalId` (tanpa argumen = perilaku lama, backward-compatible).
+- `src/hooks/usePortalProfile.ts` — host → profil portal (SSR-safe) + override uji `?portal=jemaat`.
+- `src/components/portal/PortalLayout.tsx` — badge **"Lingkup: Jemaat/Pemuda"** di sidebar; nav + panel divisi/unit difilter per portal.
+- i18n: `portal.portalNames` + `layout.scopePrefix` (id/en).
+
+**Tooling data (request pemilik):** `server/_copy-prod-to-staging.cjs` + npm `db:copy:prod-to-staging[:apply]` — tarik **data PROD → STAGING** (manifest tabel otomatis dari `prisma/schema.prisma`, dry-run default, `--truncate` FK-off, `--apply`), **passwordHash diganti** `DEMO_PASSWORD` (akun prod tidak bisa login di staging), kecualikan tabel rahasia/opsional (operator/secret/push/ai-config/blob avatar). Staging kini berisi data produksi terakhir + akun demo.
+
+**Verifikasi:** `lint` bersih ✓ **515 test** hijau (baru: `portal-profiles.test.ts`, `portal-nav-config.test.ts`) ✓ `build` OK ✓ Staging (`9b5bd2e`): portal **Jemaat** → badge "Lingkup: Jemaat", modul Pemuda (Liturgia/Didaskalia/Monitoring/Regenerasi) **absen**, `org-hierarchy`/`integrations` tampil ✓ portal **Pemuda** → Divisi lengkap, badge "Lingkup: Pemuda" ✓
+
+### Next
+1. **Verifikasi staging oleh pemilik** → bila setuju: merge branch ke `main` (prod).
+2. **F2** — pindahkan modul JEMAAT ke slot portal Jemaat (komponen sama) + pintasan.
+3. **F4/scope** — filter data per portal (`scope` JEMAAT|BIPRA|KOLOM) + peran jemaat netral.
+4. **P1** — Fasilitas & Penyewaan + Keuangan (sesuai `docs/product/church-portal.md`).
+
+### Commands
+```powershell
+npm run db:copy:prod-to-staging          # dry-run (baca prod)
+npm run db:copy:prod-to-staging:apply    # truncate + tulis ke staging
+npm run db:seed-users:staging            # pulihkan akun demo
+npm run lint; npm run test; npm run build
+git push origin cursor/church-portal-f1-portal-profiles
+npm run deploy:staging                   # working tree -> staging-gehcpage.vercel.app
+```
+
+
 ## Current — Portal Jemaat: fondasi P0 (25 Sep 2026)
 
 **Keputusan pemilik:** portal jemaat di **hub `gehc.page`** (tanpa subdomain baru); unit/posisi berbasis **`division` + `position`** (tanpa enum `Role` baru); keuangan **cashbook sederhana**; penyewaan **booking + invoice manual**; **satu BZP** di bawah Bendahara (+ petty cash allowance); urutan **P0 → Fasilitas+Keuangan → BZP/Bendahara → THL → Panji/Kolom**.
