@@ -78,3 +78,17 @@ describe('portal-nav-config — sidebar mengikuti portal', () => {
     expect(flat).toContain('org-hierarchy');
   });
 });
+
+describe('portal-nav-config — tier anggota (MEMBER)', () => {
+  it('anggota melihat nav dasar, bukan panel pengurus', () => {
+    const list = buildPortalNavItems('MEMBER', CTX, false, 'men').map((i) => i.id);
+    expect(list).toContain('event-info');
+    expect(list).toContain('kegiatan');
+    expect(list).toContain('internal-warta');
+    expect(list).toContain('dashboard');
+    expect(list).toContain('account');
+    expect(list).not.toContain('people');
+    expect(list).not.toContain('org-hierarchy');
+    expect(list).not.toContain('div-liturgia');
+  });
+});

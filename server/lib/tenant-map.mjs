@@ -30,6 +30,25 @@ export function tenantForBipra(bipra) {
   return BIPRA_TENANT[String(bipra).toUpperCase()] || null;
 }
 
+/** tenant → BIPRA default (kebalikan BIPRA_TENANT). */
+export const TENANT_BIPRA = Object.fromEntries(
+  Object.entries(BIPRA_TENANT).map(([bipra, tenant]) => [tenant, bipra]),
+);
+
+/**
+ * Keanggotaan unit (tier dasar) dari BIPRA/Kolom.
+ *  - unit kategorial → `users.bipra` cocok dengan BIPRA tenant
+ *  - `tenant-districts` (Kolom) → user punya `kolomId`
+ *  - jemaat/community → bukan tier keanggotaan (false)
+ */
+export function isUnitMember(user, tenantId) {
+  if (!user || !tenantId) return false;
+  if (tenantId === 'tenant-districts') return Boolean(user.kolomId);
+  const bipra = TENANT_BIPRA[tenantId];
+  if (!bipra) return false;
+  return String(user.bipra || '').toUpperCase() === bipra;
+}
+
 export function isJemaatRole(role) {
   return JEMAAT_ROLES.includes(String(role || '').toUpperCase());
 }

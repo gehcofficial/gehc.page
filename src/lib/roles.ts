@@ -14,6 +14,7 @@ export const ROLE_PRECEDENCE: Record<UserRole, number> = {
   CO_MENTOR: 6,
   MENTEE: 7,
   ALUMNI: 8,
+  MEMBER: 9,
 };
 
 export function uniqueRolesByName<T extends { role: UserRole }>(roles: T[]): T[] {
@@ -49,4 +50,6 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   CO_MENTOR: 'Co-Mentor',
   MENTEE: 'Mentee',
   ALUMNI: 'Alumni',
+  MEMBER: 'Anggota',
 };
+

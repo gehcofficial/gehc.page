@@ -9,6 +9,7 @@ export const ROLE_NAMESPACE: Record<UserRole, string> = {
   CO_MENTOR: 'co-mentor',
   MENTEE: 'mentee',
   ALUMNI: 'alumni',
+  MEMBER: 'anggota',
 };
 
 export const NAMESPACE_ROLE: Record<string, UserRole> = Object.fromEntries(

@@ -28,7 +28,7 @@ export type NavBuildContext = {
 };
 
 const CHURCH_ROLES = {
-  all: ['BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'] as UserRole[],
+  all: ['BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI', 'MEMBER'] as UserRole[],
   komisi: ['KOMISI'] as UserRole[],
   committee: ['COMMITTEE'] as UserRole[],
   komisiCommittee: ['KOMISI', 'COMMITTEE'] as UserRole[],
@@ -107,7 +107,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event', portals: ALL_PORTAL_IDS },
   { id: 'kegiatan', label: 'Kegiatan', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Umum/Khusus/Internal/Rekreasional — by event', portals: ALL_PORTAL_IDS },
   { id: 'internal-warta', label: 'Info & Peluang', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Beasiswa, lowongan & kabar komunitas', portals: ALL_PORTAL_IDS },
-  { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama', portals: ALL_PORTAL_IDS },
+  { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI', 'MEMBER'], group: 'Utama', portals: ALL_PORTAL_IDS },
   { id: 'people', label: 'Orang & Undangan', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Akun & link undangan', portals: ALL_PORTAL_IDS },
   { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment', portals: ALL_PORTAL_IDS },
   { id: 'jethro-placement', label: 'Review Penempatan', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer', portals: YOUTH_ONLY_PORTALS },

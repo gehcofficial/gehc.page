@@ -703,10 +703,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     authUser ?? (allUsers.find((u) => u.id === currentUserId) || allUsers[0]);
 
   // Semua peran milik user di tenant aktif, terurut precedensi
+  const isUnitMember = Boolean(authUser?.membership?.isMember);
   const myRoleMappings = sortRoles(
     uniqueRolesByName(rolesForActiveTenant(currentUser.roles, currentTenantId))
   );
-  const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
+  // Tier keanggotaan: anggota unit tanpa peran tetap dapat nav dasar (role sintetis MEMBER).
+  const myRoleOptions: UserRole[] = myRoleMappings.length
+    ? myRoleMappings.map((r) => r.role)
+    : isUnitMember
+      ? ['MEMBER']
+      : [];
 
   useEffect(() => {
     if (!authUser) setRoleOverride(null);
@@ -753,7 +759,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const currentRoleMapping: UserRoleMapping =
     myRoleMappings.find((r) => r.role === effectiveUserRole) || {
       tenantId: currentTenantId,
-      role: 'MENTEE' as UserRole,
+      role: (isUnitMember ? 'MEMBER' : 'MENTEE') as UserRole,
       groupId: undefined,
     };
 
@@ -784,7 +790,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const roleMissing =
     Boolean(authUser) &&
     authUser?.onboardingStatus !== 'WAITING_POOL' &&
-    myRoleOptions.length === 0;
+    myRoleOptions.length === 0 &&
+    !isUnitMember;
 
   const {
     isSuperAdmin,

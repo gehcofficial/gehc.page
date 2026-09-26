@@ -40,7 +40,8 @@ import {
 import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
-import { withTenant, tenantWhere, tenantForWrite } from './lib/tenant-scope.mjs';
+import { withTenant, tenantWhere, tenantForWrite, activeTenantId } from './lib/tenant-scope.mjs';
+import { isUnitMember } from './lib/tenant-map.mjs';
 import {
   applyPlatformAdminPortalRole,
   ensurePortalSuperadminForGrant,
@@ -284,10 +285,17 @@ app.get('/api/auth/me', wrap(async (req, res) => {
   const u = req.authUser;
   const segments = profileSegments(u);
   const ctx = resolveSessionContext(req.sessionMeta, u);
+  const activeTenant = activeTenantId(req);
   res.json({
     user: u,
     activeRole: ctx.activeRole,
     activeNamespace: ctx.activeNamespace,
+    membership: {
+      isMember: isUnitMember(u, activeTenant),
+      tenantId: activeTenant || null,
+      bipra: u.bipra || null,
+      kolomId: u.kolomId || null,
+    },
     reminderDue: reminderDue(u),
     segments,
     profileIncomplete: profileIncompleteForUser(u),

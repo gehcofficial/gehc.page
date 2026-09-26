@@ -23,6 +23,7 @@ export interface MeResponse {
   platformCapabilities?: string[];
   isPlatformOperator?: boolean;
   isBodTimkerja?: boolean;
+  membership?: { isMember: boolean; tenantId: string | null; bipra?: string | null; kolomId?: string | null };
 }
 
 interface ApiUser {
@@ -104,8 +105,10 @@ export async function fetchMeFull(): Promise<{
 }> {
   const res = await fetch('/api/auth/me', { credentials: 'include' });
   const data = await handle<MeResponse>(res);
+  const user = mapUser(data.user, { hasPassword: data.hasPassword, googleLinked: data.googleLinked });
+  if (data.membership) user.membership = data.membership;
   return {
-    user: mapUser(data.user, { hasPassword: data.hasPassword, googleLinked: data.googleLinked }),
+    user,
     activeRole: (data.activeRole as UserRole) || null,
     activeNamespace: data.activeNamespace || null,
     platformAdmin: Boolean(data.platformAdmin),

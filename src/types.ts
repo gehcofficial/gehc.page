@@ -6,7 +6,9 @@
   | 'MENTOR'
   | 'CO_MENTOR'
   | 'MENTEE'
-  | 'ALUMNI';
+  | 'ALUMNI'
+  /** Anggota unit (tier dasar) — disintesis klien dari keanggotaan BIPRA/Kolom. */
+  | 'MEMBER';
 
 export interface Tenant {
   id: string;
@@ -54,6 +56,13 @@ export interface User {
   rolesAll?: UserRoleMapping[];
   /** True bila `roles` benar-benar ter-scope ke tenant aktif (bukan fallback). */
   rolesScoped?: boolean;
+  /** Keanggotaan unit portal aktif (dari BIPRA/Kolom) — tier akses dasar. */
+  membership?: {
+    isMember: boolean;
+    tenantId: string | null;
+    bipra?: string | null;
+    kolomId?: string | null;
+  };
 }
 
 export interface YouthGroup {
