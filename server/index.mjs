@@ -39,7 +39,7 @@ import {
 } from './auth.mjs';
 import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
-import { resolveHostContext, hostFromReq, isStagingHost } from './lib/host-context.mjs';
+import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
 import {
   applyPlatformAdminPortalRole,
   ensurePortalSuperadminForGrant,
@@ -172,13 +172,13 @@ const app = createApp();
 const PORT = Number(process.env.PORT || 8787);
 
 /**
- * Basic Auth khusus HOST STAGING (staging.gehc.page / staging-<unit>.gehc.page).
- * Melindungi data (termasuk PII hasil salinan prod). Aktif bila env
- * STAGING_BASIC_AUTH terisi (`user:password`). Host non-staging tidak terpengaruh.
+ * Basic Auth khusus HOST STAGING (staging.gehc.page / staging-<unit>.gehc.page,
+ * alias legacy & URL preview CLI). Melindungi data (termasuk PII hasil salinan prod).
+ * Aktif bila env STAGING_BASIC_AUTH terisi (`user:password`). Host produksi tidak terpengaruh.
  */
 const STAGING_BASIC_AUTH = (process.env.STAGING_BASIC_AUTH || '').trim();
 app.use((req, res, next) => {
-  if (!STAGING_BASIC_AUTH || !isStagingHost(hostFromReq(req))) return next();
+  if (!STAGING_BASIC_AUTH || !isStagingProtectedHost(hostFromReq(req))) return next();
   const header = req.get?.('authorization') || req.headers?.authorization || '';
   if (header.startsWith('Basic ')) {
     const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');

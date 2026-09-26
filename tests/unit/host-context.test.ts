@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost } from '../../src/lib/host-context';
-import { isStagingHost, resolveHostContext } from '../../server/lib/host-context.mjs';
+import { isStagingHost, isStagingProtectedHost, resolveHostContext } from '../../server/lib/host-context.mjs';
 
 describe('host-context (frontend)', () => {
   it('normalizeHost membuang port & lowercase', () => {
@@ -122,5 +122,15 @@ describe('host-context (server)', () => {
     expect(isStagingHost('youth.gehc.page')).toBe(false);
     expect(isStagingHost('staging-gehcpage.vercel.app')).toBe(false);
     expect(isStagingHost('localhost')).toBe(false);
+  });
+
+  it('isStagingProtectedHost mencakup alias legacy & preview CLI, bukan prod lama', () => {
+    expect(isStagingProtectedHost('staging.gehc.page')).toBe(true);
+    expect(isStagingProtectedHost('staging-men.gehc.page')).toBe(true);
+    expect(isStagingProtectedHost('staging-gehcpage.vercel.app')).toBe(true);
+    expect(isStagingProtectedHost('gehcpage-m17rjbtvf-gehc.vercel.app')).toBe(true);
+    expect(isStagingProtectedHost('gehcpage.vercel.app')).toBe(false);
+    expect(isStagingProtectedHost('youth.gehc.page')).toBe(false);
+    expect(isStagingProtectedHost('gehc.page')).toBe(false);
   });
 });

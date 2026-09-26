@@ -50,6 +50,18 @@ export function isStagingHost(host) {
   return label.startsWith(STAGING_UNIT_PREFIX);
 }
 
+/**
+ * Host staging yang datanya WAJIB dilindungi: host staging paritas, alias legacy
+ * `staging-gehcpage.vercel.app`, dan URL preview CLI `gehcpage-<hash>-gehc.vercel.app`.
+ * (Alias produksi lama `gehcpage.vercel.app` TIDAK termasuk — QR lama harus tetap jalan.)
+ */
+export function isStagingProtectedHost(host) {
+  const h = normalizeHost(host);
+  if (isStagingHost(h)) return true;
+  if (h === 'staging-gehcpage.vercel.app') return true;
+  return /^gehcpage-[a-z0-9]+-gehc\.vercel\.app$/.test(h);
+}
+
 /** Konteks unit efektif untuk sebuah request (host hub → netral). */
 export function resolveHostContext(req) {
   const host = hostFromReq(req);
