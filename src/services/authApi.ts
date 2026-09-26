@@ -40,6 +40,20 @@ interface ApiUser {
   avatarSource?: string | null;
   avatarGoogle?: string | null;
   roles: { userId?: string; tenantId: string; role: string; groupId?: string | null }[];
+  rolesAll?: { userId?: string; tenantId: string; role: string; groupId?: string | null }[];
+  rolesScoped?: boolean;
+}
+
+function mapRoles(
+  roles: { userId?: string; tenantId: string; role: string; groupId?: string | null }[] | undefined,
+): UserRoleMapping[] {
+  return (roles || []).map(
+    (r): UserRoleMapping => ({
+      tenantId: r.tenantId,
+      role: r.role as UserRole,
+      groupId: r.groupId ?? undefined,
+    }),
+  );
 }
 
 function mapUser(u: ApiUser, meta?: { hasPassword?: boolean; googleLinked?: boolean }): User {
@@ -59,13 +73,9 @@ function mapUser(u: ApiUser, meta?: { hasPassword?: boolean; googleLinked?: bool
     giftsTop5: u.giftsTop5,
     isBeyonders: u.isBeyonders,
     mustChangePassword: Boolean(u.mustChangePassword),
-    roles: (u.roles || []).map(
-      (r): UserRoleMapping => ({
-        tenantId: r.tenantId,
-        role: r.role as UserRole,
-        groupId: r.groupId ?? undefined,
-      }),
-    ),
+    roles: mapRoles(u.roles),
+    rolesAll: mapRoles(u.rolesAll || u.roles),
+    rolesScoped: u.rolesScoped,
   };
 }
 

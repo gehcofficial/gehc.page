@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — F3.2: Identitas ter-scope per unit (26 Sep 2026)
+
+**Yang dibangun:**
+- `server/lib/tenant-roles.mjs` (baru) — `JEMAAT_TENANT_ID`, `rolesInTenant(roles, tenantId)`, `applyTenantScope(user, tenantId)`. Peran berlaku di unit bila milik tenant itu, atau `tenant-jemaat` (payung lintas unit), atau SUPERADMIN.
+- `server/auth.mjs` — `attachUser` kini menetapkan `req.activeTenantId` (dari host) dan meng-scope `req.authUser.roles` ke tenant itu; `rolesAll` menyimpan seluruh peran; konteks sesi (`activeRole`/`activeNamespace`) tetap dihitung dari seluruh peran.
+- Efek: **semua** `requireRole()`/`globalRoles()`/cek `r.role` otomatis menjadi **per-unit** tanpa mengubah ~363 call-site.
+- `server/index.mjs` `/api/auth/me` — mengembalikan `user.rolesAll` + `rolesScoped` (lewat objek user).
+- `src/types.ts` + `src/services/authApi.ts` — `User.rolesAll` & `User.rolesScoped` (mapping dari API).
+- **Fallback aman** (sementara): bila user tak punya peran di tenant aktif → peran tidak difilter (`rolesScoped:false`), mencegah unit terkunci sebelum migrasi peran (F3.3).
+- Tes: `tests/unit/tenant-roles.test.ts`.
+
+**Verifikasi:** `lint` bersih ✓ test hijau ✓ `build` OK ✓
+
+### Next
+1. **F3.3** — migrasi peran per BIPRA (youth→tenant unit sesuai `User.bipra`; BPMJ/Bendahara → `tenant-jemaat`) → lalu **hapus fallback** agar scoping ketat.
+2. **F3.4** — `tenantScope()` pada 7 tabel ber-`tenantId`.
+3. **F3.5** — modul khas unit.
+
 ## Current — F3.1: Portal per unit aktif (26 Sep 2026)
 
 **Keputusan pemilik (F3-full):** tiap domain = portal sendiri. Keanggotaan via **BIPRA**; peran **bertingkat per jenis unit**; **BPMJ/Bendahara/SUPERADMIN lintas unit**; data **unit terfilter, jemaat lihat semua**. Roadmap: F3.1 aktivasi host → F3.2 identitas ter-scope → F3.3 migrasi peran per BIPRA → F3.4 data ter-scope → F3.5 modul khas unit.

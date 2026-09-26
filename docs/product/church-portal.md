@@ -97,7 +97,7 @@ subdomain punya portalnya sendiri:
 - **F1** ✓ — profil portal + tag nav (`portals[]`): hub `gehc.page` = Portal **Jemaat**; `youth` = Portal **Pemuda**; override `?portal=` hanya di host tak dikenal.
 - **F2** (nanti) — pindahkan modul jemaat ke slot portal Jemaat + pintasan.
 - **F3.1** ✓ — **aktivasi host**: `tenant-jemaat`, semua unit URL langsung membuka portalnya, tenant & branding dari host, hub tetap landing.
-- **F3.2** — **identitas ter-scope**: `req.activeTenantId` dari host; filter `req.authUser.roles` per tenant (peran jemaat lintas unit: BPMJ/Bendahara/SUPERADMIN); `rolesAll` untuk role picker.
+- **F3.2** ✓ — **identitas ter-scope**: `req.activeTenantId` dari host; `req.authUser.roles` difilter per tenant (peran jemaat lintas unit: BPMJ/Bendahara/SUPERADMIN); `rolesAll` untuk role picker; `server/lib/tenant-roles.mjs`. Fallback longgar sementara sampai F3.3.
 - **F3.3** — **migrasi peran per BIPRA**: peran `tenant-youth` → tenant sesuai `User.bipra`; peran jemaat → `tenant-jemaat`.
 - **F3.4** — **data ter-scope**: `tenantScope(req)`; unit → `tenantId IN (unit, jemaat)`; jemaat → semua. Tabel: `UserRole, Group, ContentItem, ChurchProgram, ChurchCalendarEntry, EventProgram, Testimonial`.
 - **F3.5** — **modul khas unit** (Kaum Bapa/Ibu, Anak, Kolom).

@@ -50,6 +50,10 @@ export interface User {
   isBeyonders?: boolean;
   mustChangePassword?: boolean;
   roles: UserRoleMapping[];
+  /** Seluruh peran lintas tenant (dari server; untuk role picker). */
+  rolesAll?: UserRoleMapping[];
+  /** True bila `roles` benar-benar ter-scope ke tenant aktif (bukan fallback). */
+  rolesScoped?: boolean;
 }
 
 export interface YouthGroup {

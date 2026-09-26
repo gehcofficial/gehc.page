@@ -13,6 +13,8 @@ import { shouldAutoGrantSuperadminEmail } from './platform-operators.mjs';
 import { roleToNamespace, namespaceToRole } from './portal-namespace.mjs';
 import { googleAvatarCreate, googleAvatarPatch } from './lib/user-avatar.mjs';
 import { resolveDisplayName } from './lib/person-name.mjs';
+import { resolveHostContext } from './lib/host-context.mjs';
+import { applyTenantScope } from './lib/tenant-roles.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -213,9 +215,13 @@ export async function attachUser(req, _res, next) {
       }
     }
     if (req.authUser) {
+      // Konteks sesi dihitung dari SELURUH peran (agar activeRole tetap sah),
+      // lalu peran di-scope ke tenant host (hub → tenant-jemaat).
       const ctx = resolveSessionContext(session, req.authUser);
       req.activeRole = ctx.activeRole;
       req.activeNamespace = ctx.activeNamespace;
+      req.activeTenantId = resolveHostContext(req).tenantId;
+      applyTenantScope(req.authUser, req.activeTenantId);
     }
   }
   next();
