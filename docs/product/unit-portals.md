@@ -136,10 +136,10 @@ Saat ini portal unit hanya untuk yang punya **peran** di unit itu/jemaat. Anggot
 
 1. **F3.5.0 — Keanggotaan & nav dasar** ✓ (opsi B) → anggota bisa membuka portal unitnya.
 2. **F3.5.1 — Pengurus Unit** ✓ (memperluas `StrukturMember` + `tenantId`; panel "Pengurus Unit").
-3. **F3.5.2 — Modul Kolom** (data KK + ibadah Kolom) — dampak besar untuk penggembalaan teritorial.
-4. **F3.5.3 — Kaum Bapa & Kaum Ibu** (koinonia + kegiatan + kunjungan).
-5. **F3.5.4 — Remaja & Anak** (kelompok/kelas + kurikulum + absensi).
-6. **F3.5.5 — Komunitas/Rekreasional** (grup minat + jadwal).
+3. **F3.5.2 — Modul Kolom** ✓ (Kelola kolom + lihat anggota; data KK ditautkan ke data jemaat).
+4. **F3.5.3 — Kaum Bapa & Kaum Ibu**: dasar ✓ (Anggota Unit + Pengurus Unit + Kegiatan ter-scope); koinonia/kunjungan khusus menyusul.
+5. **F3.5.4 — Remaja & Anak**: dasar ✓ (Anggota + Pengurus); kelas/kurikulum/absensi menyusul.
+6. **F3.5.5 — Komunitas/Rekreasional**: dasar ✓; grup minat & jadwal menyusul.
 7. Integrasi **Kas Unit** menyusul fase P1 Keuangan.
 
 ---
@@ -151,3 +151,4 @@ Saat ini portal unit hanya untuk yang punya **peran** di unit itu/jemaat. Anggot
 3. **Modul mana** yang wajib ada vs opsional per unit (agar tidak over-build).
 4. **Data anggota**: apakah portal unit boleh menampilkan daftar anggota (nama/HP) ke pengurus unit? (privasi)
 5. **Kolom**: apakah data KK boleh disimpan (nama+alamat) atau cukup tautan ke data jemaat yang ada?
+

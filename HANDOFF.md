@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — F3.5.2–F3.5.5: Modul unit generik (Anggota, Kolom, Pengurus) (26 Sep 2026)
+
+**Pendekatan:** satu set modul unit **generik** yang melayani semua unit (Kaum Bapa/Ibu, Remaja, Anak, Kolom, Komunitas, Pemuda), bukan enam modul terpisah.
+
+**Yang dibangun:**
+- `server/lib/unit-members.mjs` — `unitMemberWhere(tenantId,{kolomId})` (kategorial = BIPRA; Kolom = `kolomId`; jemaat/community = semua), `canSeeMemberPii(roles)` (SUPERADMIN/BPMJ/KOMISI/COMMITTEE), `memberSelect(pii)`.
+- Endpoint baru:
+  - `GET /api/unit/members?q=&kolomId=` — daftar anggota unit aktif (kontak hanya bila pengurus).
+  - `GET /api/church/kolom` (+ jumlah anggota), `POST /api/church/kolom`, `PATCH /api/church/kolom/:id`, `GET /api/church/kolom/:id/members`.
+- Klien: nav **"Anggota Unit"** (`unit-members`, semua portal) + **"Kolom & Wilayah"** (`kolom`, portal Jemaat & Kolom) + **"Pengurus Unit"** (F3.5.1). Panel `UnitMembersPanel` (cari nama; kontak bila pengurus) & `KolomPanel` (kelola kolom + lihat anggota). i18n id/en + guide.
+
+**Deferred (dicatat, alasan):** modul khas per unit — kelas/kurikulum Remaja & Anak, grup minat Komunitas, **Kas Unit** (menunggu fase **P1 Keuangan**). Fondasi yang dipakai semuanya (anggota + pengurus + kegiatan ter-scope) sudah ada.
+
+**Verifikasi staging:** `/api/unit/members` → men 10 (BAPAK), women 3 (IBU), youth 134 (PEMUDA), hub 267 (semua) ✓; `pii=true` untuk pengurus ✓; `/api/church/kolom` → 5 kolom (7/7/2/6/1 anggota) + daftar anggota ✓; POST kolom → `kol-99` dibuat lalu dibersihkan ✓. `lint` bersih ✓ **546 test** hijau ✓ `build` OK ✓
+
+### Next
+1. **Kas Unit** setelah **P1 Keuangan** (akun `KAS_UNIT`).
+2. Modul khas Remaja/Anak (kelas + kurikulum + absensi) & Komunitas (grup minat) bila diperlukan.
+3. (Opsional) hub `#/portal` mengarahkan pengguna Pemuda ke `youth.gehc.page`.
+
 ## Current — F3.5.1: Pengurus Unit (26 Sep 2026)
 
 **Yang dibangun:**
