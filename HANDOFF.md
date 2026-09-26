@@ -1,5 +1,20 @@
 # GEHC Portal — Handoff
 
+## Current — F3.5.1: Pengurus Unit (26 Sep 2026)
+
+**Yang dibangun:**
+- `StrukturMember.tenantId` (kolom baru, nullable, index) — memperluas struktur gereja ke per-unit. Migrasi idempotent `server/_migrate-struktur-tenant.cjs` (ALTER + retag: divisi Panca Tugas Pemuda → `tenant-youth`; sisanya → `tenant-jemaat`); npm `db:migrate:struktur-tenant[:staging|:prod]` + wiring `db-migrate-local`.
+- `GET /api/db/struktur` — difilter `withTenant(req)` (unit → unit+jemaat; jemaat → semua).
+- `POST /api/db/sync-struktur` — kini **per-tenant**: upsert menyegel `tenantId` aktif; tolak baris milik tenant lain (`canAccessTenant`); hapus hanya baris tenant itu (hub juga baris legacy `null`).
+- Nav baru **"Pengurus Unit"** (`unit-pengurus`, grup Struktur, semua portal) + `UnitPengurusPanel` (tambah/edit/hapus baris; baca-saja untuk non-pengurus). i18n id/en + guide.
+
+**Verifikasi staging:** `/api/db/struktur` → youth 39, men 10 (jemaat saja), hub 39 ✓; tulis sync di `staging-men` → men 11, youth tetap 39; cleanup `removed=1` → men 10 ✓. `lint` bersih ✓ **541 test** hijau ✓ `build` OK ✓
+
+### Next
+1. **F3.5.2** — Modul Kolom (data KK + ibadah Kolom).
+2. **F3.5.3** — Kaum Bapa & Kaum Ibu. 3. **F3.5.4** — Remaja & Anak. 4. **F3.5.5** — Komunitas.
+5. (Opsional) hub `#/portal` mengarahkan pengguna Pemuda ke `youth.gehc.page`.
+
 ## Current — F3.5.0: Tier anggota (MEMBER) + nav dasar (26 Sep 2026)
 
 **Keputusan pemilik:** ikut semua rekomendasi `docs/product/unit-portals.md` — keanggotaan **opsi B** (implisit via BIPRA/Kolom, tanpa ubah enum DB), roadmap F3.5 bertahap.

@@ -135,7 +135,7 @@ Saat ini portal unit hanya untuk yang punya **peran** di unit itu/jemaat. Anggot
 ## 6. Roadmap F3.5 (usulan bertahap)
 
 1. **F3.5.0 — Keanggotaan & nav dasar** ✓ (opsi B) → anggota bisa membuka portal unitnya.
-2. **F3.5.1 — Pengurus Unit** (struktur per unit).
+2. **F3.5.1 — Pengurus Unit** ✓ (memperluas `StrukturMember` + `tenantId`; panel "Pengurus Unit").
 3. **F3.5.2 — Modul Kolom** (data KK + ibadah Kolom) — dampak besar untuk penggembalaan teritorial.
 4. **F3.5.3 — Kaum Bapa & Kaum Ibu** (koinonia + kegiatan + kunjungan).
 5. **F3.5.4 — Remaja & Anak** (kelompok/kelas + kurikulum + absensi).
