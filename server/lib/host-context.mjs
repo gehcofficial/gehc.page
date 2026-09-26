@@ -41,6 +41,15 @@ export function hostFromReq(req) {
   return normalizeHost(req?.get?.('host') || req?.headers?.host || '');
 }
 
+/** True bila host adalah host staging (hub `staging.gehc.page` / `staging-<unit>.gehc.page`). */
+export function isStagingHost(host) {
+  const h = normalizeHost(host);
+  if (h === STAGING_HUB_HOST) return true;
+  if (!h.endsWith(ZONE_SUFFIX)) return false;
+  const label = h.slice(0, -ZONE_SUFFIX.length);
+  return label.startsWith(STAGING_UNIT_PREFIX);
+}
+
 /** Konteks unit efektif untuk sebuah request (host hub → netral). */
 export function resolveHostContext(req) {
   const host = hostFromReq(req);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost } from '../../src/lib/host-context';
-import { resolveHostContext } from '../../server/lib/host-context.mjs';
+import { isStagingHost, resolveHostContext } from '../../server/lib/host-context.mjs';
 
 describe('host-context (frontend)', () => {
   it('normalizeHost membuang port & lowercase', () => {
@@ -112,5 +112,15 @@ describe('host-context (server)', () => {
       unit: 'youth',
       tenantId: 'tenant-youth',
     });
+  });
+
+  it('isStagingHost mendeteksi host staging saja', () => {
+    expect(isStagingHost('staging.gehc.page')).toBe(true);
+    expect(isStagingHost('staging-youth.gehc.page')).toBe(true);
+    expect(isStagingHost('staging-bogus.gehc.page')).toBe(true);
+    expect(isStagingHost('gehc.page')).toBe(false);
+    expect(isStagingHost('youth.gehc.page')).toBe(false);
+    expect(isStagingHost('staging-gehcpage.vercel.app')).toBe(false);
+    expect(isStagingHost('localhost')).toBe(false);
   });
 });

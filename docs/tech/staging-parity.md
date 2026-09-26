@@ -43,22 +43,40 @@ npm run deploy:staging
 
 ## Proteksi akses (WAJIB — staging memuat data produksi)
 
-Aktifkan **Vercel → Settings → Deployment Protection** untuk **Preview**
-(**Password Protection**, atau **Vercel Authentication** bila paket tidak mendukung).
+Password Protection Vercel **butuh paket Pro**. Karena paket kami belum Pro, staging
+dilindungi **Basic Auth tingkat aplikasi** untuk host staging (hub + unit).
 
-Automation (skrip/curl) perlu **Protection Bypass for Automation**:
-1. Settings → Deployment Protection → *Protection Bypass for Automation* → buat secret.
-2. Simpan ke `.env`: `VERCEL_AUTOMATION_BYPASS_SECRET=<secret>`.
-   `sync-staging.mjs` otomatis mengirim header `x-vercel-protection-bypass` saat verifikasi.
+Cara kerja (`server/index.mjs`):
+- Bila env `STAGING_BASIC_AUTH` terisi (`user:password`) **dan** host request adalah
+  host staging (`isStagingHost`), semua endpoint `/api/*` meminta Basic Auth (401 +
+  `WWW-Authenticate`). Host produksi/tak dikenal tidak terpengaruh.
+- Browser akan menampilkan prompt Basic saat memuat data portal; kredensial di-cache
+  per origin sehingga cukup sekali per host.
 
-Verifikasi manual dengan bypass:
-
+Set kredensial (sekali):
 ```powershell
-curl -H "x-vercel-protection-bypass: $env:VERCEL_AUTOMATION_BYPASS_SECRET" https://staging.gehc.page/api/version
+# Vercel — environment Preview
+"gehc:<password>" | vercel.cmd env add STAGING_BASIC_AUTH preview --scope gehc
+# Lokal (untuk skrip verifikasi / curl) — .env tidak ikut git
+Add-Content .env 'STAGING_BASIC_AUTH=gehc:<password>'
+```
+Ganti password: `vercel env rm STAGING_BASIC_AUTH preview --scope gehc` lalu `env add`
+ulang, dan **redeploy** staging (`npm run deploy:staging`) agar env baru terpakai.
+
+Verifikasi:
+```powershell
+curl -H "Authorization: Basic <base64(user:password)>" https://staging.gehc.page/api/version
+# tanpa header → 401 "Autentikasi staging diperlukan."
 ```
 
-Di browser, buka sekali dengan query bypass (menyimpan cookie):
-`https://staging.gehc.page/?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=<secret>`
+Catatan:
+- Hanya `/api/*` yang dijaga Express; aset statis (HTML/JS) tetap publik, tetapi
+  **tidak memuat PII** — seluruh data sensitif mengalir lewat `/api`.
+- Login Google di host staging akan terblokir Basic; gunakan login password/demo.
+- Cron Vercel berjalan di host produksi (tidak terpengaruh).
+- Alternatif bila nanti upgrade ke Pro: aktifkan Password Protection Vercel +
+  `VERCEL_AUTOMATION_BYPASS_SECRET` (header `x-vercel-protection-bypass`, sudah
+  didukung `sync-staging.mjs`).
 
 ## Kenapa staging bisa tertinggal (drift)
 
@@ -107,8 +125,10 @@ membuat staging ter-deploy otomatis.
 ## Verifikasi cepat
 
 ```powershell
-curl -H "x-vercel-protection-bypass: $env:VERCEL_AUTOMATION_BYPASS_SECRET" https://staging.gehc.page/api/version
-curl -H "x-vercel-protection-bypass: $env:VERCEL_AUTOMATION_BYPASS_SECRET" https://staging-youth.gehc.page/api/version
+# Basic Auth diperlukan untuk host staging (lihat bagian Proteksi)
+$b = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:STAGING_BASIC_AUTH))
+curl -H "Authorization: Basic $b" https://staging.gehc.page/api/version
+curl -H "Authorization: Basic $b" https://staging-youth.gehc.page/api/version
 curl https://youth.gehc.page/api/version
 # `commit` ketiganya harus sama (build yang sama).
 ```

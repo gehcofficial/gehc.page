@@ -21,6 +21,8 @@ const STAGING_URL = `https://${STAGING_HUB_HOST}`;
 const MAIN_URL = 'https://youth.gehc.page';
 /** Bypass Deployment Protection (bila staging dilindungi). */
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '';
+/** Basic Auth host staging (`user:password`) bila aktif. */
+const BASIC = process.env.STAGING_BASIC_AUTH || '';
 
 const args = process.argv.slice(2);
 const BRANCH_ONLY = args.includes('--branch-only');
@@ -45,7 +47,9 @@ function tryRun(cmd, attempts = 1, label = cmd) {
 
 async function fetchCommit(base) {
   try {
-    const headers = BYPASS ? { 'x-vercel-protection-bypass': BYPASS } : undefined;
+    const headers = {};
+    if (BYPASS) headers['x-vercel-protection-bypass'] = BYPASS;
+    if (BASIC) headers.authorization = `Basic ${Buffer.from(BASIC).toString('base64')}`;
     const r = await fetch(`${base}/api/version`, { cache: 'no-store', headers });
     if (!r.ok) return null;
     const d = await r.json();
