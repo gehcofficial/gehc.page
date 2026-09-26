@@ -126,6 +126,8 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten', portals: ALL_PORTAL_IDS },
   { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur', portals: ALL_PORTAL_IDS },
   { id: 'unit-pengurus', label: 'Pengurus Unit', roles: CHURCH_ROLES.all, group: 'Struktur', subtitle: 'Susunan pengurus unit ini', portals: ALL_PORTAL_IDS },
+  { id: 'kolom', label: 'Kolom & Wilayah', roles: CHURCH_ROLES.all, group: 'Struktur', subtitle: 'Kolom teritorial & anggotanya', portals: ['jemaat', 'kolom'] },
+  { id: 'unit-members', label: 'Anggota Unit', roles: CHURCH_ROLES.all, group: 'Komunitas', subtitle: 'Daftar anggota unit ini', portals: ALL_PORTAL_IDS },
   { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event', portals: ALL_PORTAL_IDS },
   { id: 'div-liturgia', label: 'Liturgia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Ibadah, penatalayan & liturgi', portals: YOUTH_ONLY_PORTALS },
   { id: 'div-didaskalia', label: 'Didaskalia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Studio, RHB & warta', portals: YOUTH_ONLY_PORTALS },

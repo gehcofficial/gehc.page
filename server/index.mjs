@@ -1033,10 +1033,89 @@ app.get('/api/church/org', requireRole(), wrap(async (req, res) => {
   }
 }));
 
+// ---------- F3.5: Anggota unit & Kolom ----------
+
+// Daftar anggota unit aktif (dari BIPRA/Kolom). PII hanya untuk pengurus.
+app.get('/api/unit/members', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { unitMemberWhere, canSeeMemberPii, memberSelect } = await import('./lib/unit-members.mjs');
+  const tenantId = activeTenantId(req);
+  const q = String(req.query.q || '').trim();
+  const kolomId = String(req.query.kolomId || '').trim() || undefined;
+  const where = { ...unitMemberWhere(tenantId, { kolomId }) };
+  if (q) where.name = { contains: q };
+  const pii = canSeeMemberPii(req.authUser?.roles);
+  const members = await prisma.user
+    .findMany({ where, orderBy: { name: 'asc' }, take: 500, select: memberSelect(pii) })
+    .catch(() => []);
+  res.json({ tenantId, pii, members });
+}));
+
+// Daftar Kolom + jumlah anggota.
+app.get('/api/church/kolom', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const koloms = await prisma.kolom.findMany({ orderBy: { number: 'asc' } }).catch(() => []);
+  let counts = [];
+  try {
+    counts = await prisma.user.groupBy({ by: ['kolomId'], _count: { _all: true }, where: { kolomId: { not: null } } });
+  } catch { /* groupBy tak tersedia — abaikan */ }
+  const map = new Map(counts.map((c) => [c.kolomId, c._count?._all ?? 0]));
+  res.json({ koloms: koloms.map((k) => ({ ...k, memberCount: map.get(k.id) || 0 })) });
+}));
+
+// Buat Kolom (pengurus jemaat/kolom).
+app.post('/api/church/kolom', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const number = Number(req.body?.number);
+  const name = String(req.body?.name || '').trim();
+  const area = String(req.body?.area || '').trim() || null;
+  if (!Number.isInteger(number) || number < 1 || !name) {
+    return res.status(400).json({ error: 'number (bilangan) & name wajib.' });
+  }
+  const existing = await prisma.kolom.findFirst({ where: { number } });
+  if (existing) return res.status(409).json({ error: `Kolom nomor ${number} sudah ada.` });
+  const created = await prisma.kolom.create({ data: { id: `kol-${number}`, number, name, area } });
+  res.status(201).json({ kolom: created });
+}));
+
+// Ubah Kolom.
+app.patch('/api/church/kolom/:id', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const existing = await prisma.kolom.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: 'Kolom tidak ditemukan.' });
+  const data = {};
+  if (req.body?.name !== undefined) data.name = String(req.body.name).trim();
+  if (req.body?.area !== undefined) data.area = String(req.body.area || '').trim() || null;
+  if (req.body?.number !== undefined) {
+    const number = Number(req.body.number);
+    if (Number.isInteger(number) && number >= 1) data.number = number;
+  }
+  const kolom = await prisma.kolom.update({ where: { id: existing.id }, data });
+  res.json({ kolom });
+}));
+
+// Anggota sebuah Kolom.
+app.get('/api/church/kolom/:id/members', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const { canSeeMemberPii, memberSelect } = await import('./lib/unit-members.mjs');
+  const pii = canSeeMemberPii(req.authUser?.roles);
+  const members = await prisma.user
+    .findMany({ where: { kolomId: req.params.id }, orderBy: { name: 'asc' }, take: 500, select: memberSelect(pii) })
+    .catch(() => []);
+  res.json({ kolomId: req.params.id, pii, members });
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
-});// GET /api/users/search?q=... � search users for @mention
+});
+
+// GET /api/users/search?q=... — search users for @mention
 app.get('/api/users/search', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
   const prisma = getPrisma();
