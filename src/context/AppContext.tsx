@@ -28,6 +28,7 @@ import {
 } from '../data/initialData';
 import { fetchAuthConfig, fetchMeFull, loginWithGoogle, logout as logoutApi, setActiveRole } from '../services/authApi';
 import { effectiveRole, sortRoles, uniqueRolesByName } from '../lib/roles';
+import { tenantIdForHost } from '../lib/portal-profiles';
 import { useRoleFlags } from '../hooks/useRoleFlags';
 import { tabFromHash as tabFromHashRoute, LEGACY_HASH_MAP, eventSlugFromHash } from '../app/routes';
 import { parseHashRoute } from '../lib/hash-routes';
@@ -43,6 +44,42 @@ import { isAdminHash } from '../lib/admin-routes';
 import { fetchPlatformContext } from '../services/platformApi';
 import { AUTH_SESSION_EVENT } from '../lib/auth-redirect';
 import { clearStored, readStoredJson, readStoredString, writeStored } from '../lib/safe-storage';
+
+/** Tenant jemaat (payung) — peran di sini berlaku lintas unit. */
+const JEMAAT_TENANT_ID = 'tenant-jemaat';
+
+/**
+ * Peran yang relevan untuk tenant aktif: milik tenant itu, peran jemaat
+ * (berlaku lintas unit), atau SUPERADMIN. Bila kosong, jatuh ke semua peran
+ * (longgar sampai scoping ketat F3.2 diterapkan).
+ */
+function rolesForActiveTenant(roles: UserRoleMapping[] | undefined, tenantId: string): UserRoleMapping[] {
+  const list = roles || [];
+  const scoped = list.filter(
+    (r) => r.tenantId === tenantId || r.tenantId === JEMAAT_TENANT_ID || r.role === 'SUPERADMIN',
+  );
+  return scoped.length ? scoped : list;
+}
+
+/** Pilih mapping peran untuk tenant aktif (fallback jemaat lalu pertama). */
+function pickRoleForTenant(roles: UserRoleMapping[] | undefined, tenantId: string): UserRoleMapping | undefined {
+  const list = roles || [];
+  return (
+    list.find((r) => r.tenantId === tenantId) ||
+    list.find((r) => r.tenantId === JEMAAT_TENANT_ID) ||
+    list[0]
+  );
+}
+
+/** Tenant awal dari host (hub → jemaat; unit → tenant unit; tak dikenal → youth). */
+function hostTenantId(): string {
+  if (typeof window === 'undefined') return 'tenant-youth';
+  try {
+    return tenantIdForHost(window.location.hostname);
+  } catch {
+    return 'tenant-youth';
+  }
+}
 
 type PublicTab =
   | 'beyonders'
@@ -237,7 +274,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [currentTenantId, setCurrentTenantId] = useState<string>('tenant-youth');
+  const [currentTenantId, setCurrentTenantId] = useState<string>(hostTenantId);
 
   // Load Persisted Data or Fallback
   const [allTenants] = useState<Tenant[]>(() => {
@@ -667,9 +704,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Semua peran milik user di tenant aktif, terurut precedensi
   const myRoleMappings = sortRoles(
-    uniqueRolesByName(
-      currentUser.roles?.filter((r) => r.tenantId === currentTenantId || r.role === 'SUPERADMIN') || []
-    )
+    uniqueRolesByName(rolesForActiveTenant(currentUser.roles, currentTenantId))
   );
   const myRoleOptions: UserRole[] = myRoleMappings.map((r) => r.role);
 
@@ -799,7 +834,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const target = allUsers.find((u) => u.id === userId);
     if (!target) return;
     setCurrentUserId(userId);
-    const roleMap = target.roles.find((r) => r.tenantId === currentTenantId);
+    const roleMap = pickRoleForTenant(target.roles, currentTenantId);
     const roleName = roleMap ? roleMap.role : 'MENTEE';
     addToast({
       type: 'success',
@@ -1211,7 +1246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStrukturMembers(INITIAL_STRUKTUR);
     setGroupBatches(INITIAL_GROUP_BATCHES);
     setIntegrationConfig(INITIAL_INTEGRATION_CONFIG);
-    setCurrentTenantId('tenant-youth');
+    setCurrentTenantId(hostTenantId());
     addToast({
       type: 'info',
       title: 'Data Direset ke Awal',

@@ -1,5 +1,29 @@
 # GEHC Portal — Handoff
 
+## Current — F3.1: Portal per unit aktif (26 Sep 2026)
+
+**Keputusan pemilik (F3-full):** tiap domain = portal sendiri. Keanggotaan via **BIPRA**; peran **bertingkat per jenis unit**; **BPMJ/Bendahara/SUPERADMIN lintas unit**; data **unit terfilter, jemaat lihat semua**. Roadmap: F3.1 aktivasi host → F3.2 identitas ter-scope → F3.3 migrasi peran per BIPRA → F3.4 data ter-scope → F3.5 modul khas unit.
+
+**F3.1 dibangun:**
+- `tenant-jemaat` (payung) di `src/data/initialData.ts`; semua tenant unit `is_active: true`.
+- `src/lib/portal-profiles.ts`: profil `jemaat` → `tenantId:'tenant-jemaat'`; helper `tenantIdForHost(host)`.
+- `server/lib/host-context.mjs`: hub → `tenantId:'tenant-jemaat'`.
+- `src/main.tsx`: **semua host unit** (`youth`/`teen`/`kids`/`men`/`women`/`districts`/`community`) membuka `<App/>` (portal); cabang `UnitComingSoon` dihapus (file disimpan).
+- `src/context/AppContext.tsx`: `currentTenantId` diturunkan dari host (hub→jemaat, unit→tenant unit); filter peran **longgar** (tenant aktif + jemaat + SUPERADMIN, fallback semua peran) sampai F3.2 mengetatkan.
+- `src/data/churchUnits.ts` + `ChurchHub.tsx`: semua unit **Aktif** + `unitPortalUrl()` (tautan prod/staging otomatis).
+- `src/lib/host-context.ts`: `isStagingHost` (klien) untuk URL staging.
+
+**Verifikasi:** `lint` bersih ✓ test hijau ✓ `build` OK ✓ Staging: `staging-men…` dst. membuka portal (Lingkup: Kaum Bapa) ✓ (diisi setelah deploy).
+
+### Next
+1. **F3.2** — identitas ter-scope di server (`activeTenantId` + filter `req.authUser.roles` + `rolesAll` untuk role picker).
+2. **F3.3** — migrasi peran per BIPRA (youth→tenant unit; jemaat→`tenant-jemaat`).
+3. **F3.4** — `tenantScope()` pada 7 tabel ber-`tenantId`.
+4. **F3.5** — modul khas unit.
+
+### Catatan
+- Tanpa F3.2, peran belum dipisah di server (KOMISI mana pun dianggap sama) & data belum ter-scope.
+
 ## Current — Staging host paritas domain (26 Sep 2026)
 
 **Tujuan:** staging kini punya **host paritas** dengan produksi, sehingga bisa dibandingkan *apple-to-apple*.

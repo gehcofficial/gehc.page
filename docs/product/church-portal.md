@@ -89,6 +89,23 @@ Memakai `StrukturMember` (`division`, `subdivision`, `position`, `isOpenRole`), 
 
 ---
 
+## 5b. Fase portal per-domain (F1–F3)
+
+Selain fase P0–P4 di atas (modul jemaat), ada jalur **portal per domain** agar tiap
+subdomain punya portalnya sendiri:
+
+- **F1** ✓ — profil portal + tag nav (`portals[]`): hub `gehc.page` = Portal **Jemaat**; `youth` = Portal **Pemuda**; override `?portal=` hanya di host tak dikenal.
+- **F2** (nanti) — pindahkan modul jemaat ke slot portal Jemaat + pintasan.
+- **F3.1** ✓ — **aktivasi host**: `tenant-jemaat`, semua unit URL langsung membuka portalnya, tenant & branding dari host, hub tetap landing.
+- **F3.2** — **identitas ter-scope**: `req.activeTenantId` dari host; filter `req.authUser.roles` per tenant (peran jemaat lintas unit: BPMJ/Bendahara/SUPERADMIN); `rolesAll` untuk role picker.
+- **F3.3** — **migrasi peran per BIPRA**: peran `tenant-youth` → tenant sesuai `User.bipra`; peran jemaat → `tenant-jemaat`.
+- **F3.4** — **data ter-scope**: `tenantScope(req)`; unit → `tenantId IN (unit, jemaat)`; jemaat → semua. Tabel: `UserRole, Group, ContentItem, ChurchProgram, ChurchCalendarEntry, EventProgram, Testimonial`.
+- **F3.5** — **modul khas unit** (Kaum Bapa/Ibu, Anak, Kolom).
+
+Keputusan: keanggotaan via **BIPRA** (PEMUDA→youth, BAPAK→men, IBU→women, REMAJA→teen, ANAK→kids; Kolom→districts); peran **bertingkat per jenis unit**; **BPMJ/Bendahara/SUPERADMIN lintas unit**.
+
+---
+
 ## 6. Permukaan API (rencana)
 
 - **P0**: `GET /api/church/org`, `GET /api/me/church-units`.

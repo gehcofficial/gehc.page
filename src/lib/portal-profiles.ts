@@ -71,7 +71,7 @@ export const PORTAL_PROFILES: Record<PortalId, PortalProfile> = {
     shortLabel: 'Jemaat',
     host: 'gehc.page',
     bipra: null,
-    tenantId: null,
+    tenantId: 'tenant-jemaat',
   },
   youth: {
     id: 'youth',
@@ -155,6 +155,11 @@ export function isPortalId(value: unknown): value is PortalId {
 
 export function portalProfile(id: PortalId): PortalProfile {
   return PORTAL_PROFILES[id] || PORTAL_PROFILES.youth;
+}
+
+/** Tenant unit untuk host (hub → tenant-jemaat; tak dikenal → tenant-youth). */
+export function tenantIdForHost(host: string): string {
+  return portalProfile(portalIdForHost(host)).tenantId || 'tenant-youth';
 }
 
 /** True bila host produksi (gehc.page atau subdomainnya). */

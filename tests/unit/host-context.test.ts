@@ -48,10 +48,10 @@ describe('host-context (frontend)', () => {
 });
 
 describe('host-context (server)', () => {
-  it('hub → netral tanpa tenant/bipra', () => {
+  it('hub → jemaat (netral bipra, tenant jemaat)', () => {
     expect(resolveHostContext('gehc.page')).toEqual({
       unit: 'hub',
-      tenantId: null,
+      tenantId: 'tenant-jemaat',
       bipra: null,
       isHub: true,
     });
@@ -93,7 +93,7 @@ describe('host-context (server)', () => {
   it('staging: hub netral + unit kategorial', () => {
     expect(resolveHostContext('staging.gehc.page')).toEqual({
       unit: 'hub',
-      tenantId: null,
+      tenantId: 'tenant-jemaat',
       bipra: null,
       isHub: true,
     });

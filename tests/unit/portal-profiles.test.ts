@@ -10,6 +10,7 @@ import {
   portalOverrideFromSearch,
   portalScopeOf,
   resolvePortalId,
+  tenantIdForHost,
 } from '../../src/lib/portal-profiles';
 
 describe('portal-profiles — host ke portal', () => {
@@ -107,5 +108,17 @@ describe('portal-profiles — lingkup', () => {
   it('isJemaatPortal', () => {
     expect(isJemaatPortal('jemaat')).toBe(true);
     expect(isJemaatPortal('youth')).toBe(false);
+  });
+});
+
+describe('portal-profiles — tenant per host', () => {
+  it('hub → tenant-jemaat; unit → tenant unit; tak dikenal → youth', () => {
+    expect(tenantIdForHost('gehc.page')).toBe('tenant-jemaat');
+    expect(tenantIdForHost('staging.gehc.page')).toBe('tenant-jemaat');
+    expect(tenantIdForHost('youth.gehc.page')).toBe('tenant-youth');
+    expect(tenantIdForHost('men.gehc.page')).toBe('tenant-men');
+    expect(tenantIdForHost('districts.gehc.page')).toBe('tenant-districts');
+    expect(tenantIdForHost('staging-women.gehc.page')).toBe('tenant-women');
+    expect(tenantIdForHost('localhost')).toBe('tenant-youth');
   });
 });

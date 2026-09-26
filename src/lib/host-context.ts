@@ -49,6 +49,14 @@ export function isHubHost(host: string): boolean {
   return (HUB_HOSTS as readonly string[]).includes(h) || h === STAGING_HUB_HOST;
 }
 
+/** True bila host adalah host staging (`staging.gehc.page` / `staging-<unit>.gehc.page`). */
+export function isStagingHost(host: string): boolean {
+  const h = normalizeHost(host);
+  if (h === STAGING_HUB_HOST) return true;
+  if (!h.endsWith(ZONE_SUFFIX)) return false;
+  return h.slice(0, -ZONE_SUFFIX.length).startsWith(STAGING_UNIT_PREFIX);
+}
+
 /** Unit efektif untuk sebuah host (host tak dikenal → 'default' = Pemuda). */
 export function resolveHostUnit(host: string): HostUnit {
   const h = normalizeHost(host);

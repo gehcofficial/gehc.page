@@ -30,11 +30,13 @@ import {
   CHURCH_GROUP_LABELS,
   DEFAULT_MAP_URL,
   CHURCH_ADDRESS,
+  unitPortalUrl,
   type ChurchUnit,
   type ChurchUnitGroup,
 } from '../../data/churchUnits';
 
-const YOUTH_PORTAL_URL = 'https://youth.gehc.page';
+/** URL portal Pemuda sesuai lingkungan (prod/staging). */
+const youthPortalUrl = () => unitPortalUrl('youth') || 'https://youth.gehc.page';
 
 const UNIT_ICONS: Record<ChurchUnit['id'], LucideIcon> = {
   youth: Users,
@@ -138,7 +140,7 @@ const ChurchHub: React.FC = () => {
               <span className="hidden sm:inline">Pitch</span>
             </a>
             <a
-              href={YOUTH_PORTAL_URL}
+              href={youthPortalUrl()}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold uppercase tracking-wider shadow-lg hover:opacity-95 transition-all"
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -182,7 +184,7 @@ const ChurchHub: React.FC = () => {
                 Lihat Presentasi
               </a>
               <a
-                href={YOUTH_PORTAL_URL}
+                href={youthPortalUrl()}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
               >
                 Portal Pemuda
@@ -279,7 +281,7 @@ const ChurchHub: React.FC = () => {
                   return active ? (
                     <a
                       key={unit.id}
-                      href={`https://${unit.host}`}
+                      href={unitPortalUrl(unit.id) || `https://${unit.host}`}
                       className="group relative flex flex-col overflow-hidden rounded-[28px] bg-white border border-[#D9D7D0] p-6 hover:shadow-xl hover:-translate-y-0.5 transition-all"
                     >
                       <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${unit.accent}`} />
@@ -403,7 +405,7 @@ const ChurchHub: React.FC = () => {
           </div>
           <div className="flex flex-col justify-center gap-4 relative">
             <a
-              href={YOUTH_PORTAL_URL}
+              href={youthPortalUrl()}
               className="rounded-[24px] bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] p-6 hover:opacity-95 transition-all"
             >
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">

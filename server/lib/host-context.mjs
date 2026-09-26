@@ -27,7 +27,7 @@ export const HOST_UNIT_MAP = {
 };
 
 const FALLBACK = { unit: 'youth', tenantId: 'tenant-youth', bipra: 'PEMUDA', isHub: false };
-const HUB = { unit: 'hub', tenantId: null, bipra: null, isHub: true };
+const HUB = { unit: 'hub', tenantId: 'tenant-jemaat', bipra: null, isHub: true };
 
 export function normalizeHost(host) {
   return String(host || '')

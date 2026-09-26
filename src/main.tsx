@@ -11,14 +11,12 @@ import './index.css';
 
 /** Hub, coming-soon unit, dan pitch deck dimuat terpisah dari bundle portal Pemuda. */
 const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
-const UnitComingSoon = React.lazy(() => import('./components/hub/UnitComingSoon.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
-const hostUnit = resolveHostUnit(host);
 const hubHost = isHubHost(host);
 
 const HubFallback: React.FC = () => (
@@ -91,18 +89,12 @@ const AppRoot: React.FC = () => {
     );
   }
 
-  if (hostUnit === 'youth' || hostUnit === 'default') {
-    return (
-      <AppHashRouter>
-        <App />
-      </AppHashRouter>
-    );
-  }
-
+  // Semua host unit (youth/teen/kids/men/women/districts/community + fallback
+  // tak dikenal) membuka portal unitnya. Hub ditangani di atas.
   return (
-    <Suspense fallback={<HubFallback />}>
-      <UnitComingSoon unit={hostUnit} />
-    </Suspense>
+    <AppHashRouter>
+      <App />
+    </AppHashRouter>
   );
 };
 
