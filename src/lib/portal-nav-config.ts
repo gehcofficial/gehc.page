@@ -1,4 +1,10 @@
 import { UserRole } from '../types';
+import {
+  ALL_PORTAL_IDS,
+  JEMAAT_ONLY_PORTALS,
+  YOUTH_ONLY_PORTALS,
+  type PortalId,
+} from './portal-profiles';
 
 export type PortalNavItemDef = {
   id: string;
@@ -8,6 +14,11 @@ export type PortalNavItemDef = {
   subtitle?: string;
   accountOnly?: boolean;
   onboardingOnly?: boolean;
+  /**
+   * Portal tempat item ini tampil. `undefined` = legacy (tanpa filter portal).
+   * Lihat src/lib/portal-profiles.ts.
+   */
+  portals?: PortalId[];
 };
 
 export type NavBuildContext = {
@@ -75,7 +86,7 @@ export function churchTabById(tabId: string): { id: string; unit: string; label:
 }
 
 export function churchNavDefs(): PortalNavItemDef[] {
-  return CHURCH_TABS.map((c) => ({ id: c.id, label: c.label, roles: CHURCH_ROLES.all, group: 'Jemaat' }));
+  return CHURCH_TABS.map((c) => ({ id: c.id, label: c.label, roles: CHURCH_ROLES.all, group: 'Jemaat', portals: ALL_PORTAL_IDS }));
 }
 
 /** Boleh membuka tab jemaat? BPMJ/SUPERADMIN, atau anggota unit jemaat. */
@@ -92,38 +103,38 @@ export function canSeeChurchTab(
 }
 
 const BASE_NAV: PortalNavItemDef[] = [
-  { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true },
-  { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event' },
-  { id: 'kegiatan', label: 'Kegiatan', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Umum/Khusus/Internal/Rekreasional — by event' },
-  { id: 'internal-warta', label: 'Info & Peluang', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Beasiswa, lowongan & kabar komunitas' },
-  { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama' },
-  { id: 'people', label: 'Orang & Undangan', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Akun & link undangan' },
-  { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment' },
-  { id: 'jethro-placement', label: 'Review Penempatan', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer' },
-  { id: 'youth-gehc', label: 'Jemaat', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT' },
-  { id: 'catalog', label: 'Katalog Minat, Kampus & Gelar', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Minat, kampus, gelar pelayanan/akademis' },
-  { id: 'org-hierarchy', label: 'Kelola Hirarki', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain' },
-  { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['KOMISI', 'BPMJ', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas' },
-  { id: 'beyonders-leaders', label: 'Pemimpin 10 Rumah', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Nama landing & generasi Retreat' },
-  { id: 'pastoral-care', label: 'Portal Doa', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', subtitle: 'Kabar penggembalaan (privat)' },
-  { id: 'jethro', label: 'Regenerasi Kelompok', roles: ['KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok' },
-  { id: 'content-weekly', label: 'Warta', roles: ['KOMISI', 'COMMITTEE'] as UserRole[], group: 'Konten', subtitle: 'Publikasi & arsip warta' },
-  { id: 'content-activities', label: 'Kelola Agenda Kegiatan', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS agenda publik' },
-  { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisi, group: 'Konten', subtitle: 'Collage landing' },
-  { id: 'announcements', label: 'Pengumuman', roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ', 'MENTOR', 'CO_MENTOR'] as UserRole[], group: 'Konten', subtitle: 'Notifikasi push ke peran/divisi/kelompok' },
-  { id: 'kesaksian', label: 'Kesaksian', roles: ['MENTEE'] as UserRole[], group: 'Komunitas', subtitle: 'Tulis kesaksian sendiri' },
-  { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten' },
-  { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur' },
-  { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event' },
-  { id: 'div-liturgia', label: 'Liturgia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Ibadah, penatalayan & liturgi' },
-  { id: 'div-didaskalia', label: 'Didaskalia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Studio, RHB & warta' },
-  { id: 'div-koinonia', label: 'Koinonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Hubungan, komunikasi & check-in' },
-  { id: 'div-diakonia', label: 'Diakonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Kasih peduli & benevolence' },
-  { id: 'div-marturia', label: 'Marturia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Dokumentasi, galeri & kesaksian' },
-  { id: 'div-benzarpr', label: 'Benzarpreneurship', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Usaha & fundraising' },
-  { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event' },
-  { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem' },
-  { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit' },
+  { id: 'account', label: 'Akun Saya', roles: CHURCH_ROLES.all, group: 'Utama', accountOnly: true, portals: ALL_PORTAL_IDS },
+  { id: 'event-info', label: 'Info Event', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Pendaftaran, QR & grup WA per event', portals: ALL_PORTAL_IDS },
+  { id: 'kegiatan', label: 'Kegiatan', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Umum/Khusus/Internal/Rekreasional — by event', portals: ALL_PORTAL_IDS },
+  { id: 'internal-warta', label: 'Info & Peluang', roles: CHURCH_ROLES.all, group: 'Utama', subtitle: 'Beasiswa, lowongan & kabar komunitas', portals: ALL_PORTAL_IDS },
+  { id: 'dashboard', label: 'Dashboard & Ringkasan', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'], group: 'Utama', portals: ALL_PORTAL_IDS },
+  { id: 'people', label: 'Orang & Undangan', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Akun & link undangan', portals: ALL_PORTAL_IDS },
+  { id: 'onboarding', label: 'Onboarding Pipeline', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Newcomer → role assignment', portals: ALL_PORTAL_IDS },
+  { id: 'jethro-placement', label: 'Review Penempatan', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Approve batch newcomer', portals: YOUTH_ONLY_PORTALS },
+  { id: 'youth-gehc', label: 'Jemaat', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Direktori BIPRA & HUT', portals: ALL_PORTAL_IDS },
+  { id: 'catalog', label: 'Katalog Minat, Kampus & Gelar', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Minat, kampus, gelar pelayanan/akademis', portals: ALL_PORTAL_IDS },
+  { id: 'org-hierarchy', label: 'Kelola Hirarki', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain', portals: JEMAAT_ONLY_PORTALS },
+  { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['KOMISI', 'BPMJ', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', portals: YOUTH_ONLY_PORTALS },
+  { id: 'beyonders-leaders', label: 'Pemimpin 10 Rumah', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Nama landing & generasi Retreat', portals: YOUTH_ONLY_PORTALS },
+  { id: 'pastoral-care', label: 'Portal Doa', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', subtitle: 'Kabar penggembalaan (privat)', portals: ALL_PORTAL_IDS },
+  { id: 'jethro', label: 'Regenerasi Kelompok', roles: ['KOMISI', 'BPMJ'], group: 'Komunitas', subtitle: 'Mitosis & merger kelompok', portals: YOUTH_ONLY_PORTALS },
+  { id: 'content-weekly', label: 'Warta', roles: ['KOMISI', 'COMMITTEE'] as UserRole[], group: 'Konten', subtitle: 'Publikasi & arsip warta', portals: ALL_PORTAL_IDS },
+  { id: 'content-activities', label: 'Kelola Agenda Kegiatan', roles: CHURCH_ROLES.committee, group: 'Konten', subtitle: 'CMS agenda publik', portals: ALL_PORTAL_IDS },
+  { id: 'content-testimonials', label: 'Kelola Testimoni', roles: CHURCH_ROLES.komisi, group: 'Konten', subtitle: 'Collage landing', portals: ALL_PORTAL_IDS },
+  { id: 'announcements', label: 'Pengumuman', roles: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ', 'MENTOR', 'CO_MENTOR'] as UserRole[], group: 'Konten', subtitle: 'Notifikasi push ke peran/divisi/kelompok', portals: ALL_PORTAL_IDS },
+  { id: 'kesaksian', label: 'Kesaksian', roles: ['MENTEE'] as UserRole[], group: 'Komunitas', subtitle: 'Tulis kesaksian sendiri', portals: YOUTH_ONLY_PORTALS },
+  { id: 'media-guide', label: 'Panduan Media (Drive)', roles: CHURCH_ROLES.komisiCommittee, group: 'Konten', portals: ALL_PORTAL_IDS },
+  { id: 'struktur', label: 'Struktur Organisasi', roles: CHURCH_ROLES.committee, group: 'Struktur', portals: ALL_PORTAL_IDS },
+  { id: 'events', label: 'Program & Event', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Workspace per event', portals: ALL_PORTAL_IDS },
+  { id: 'div-liturgia', label: 'Liturgia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Ibadah, penatalayan & liturgi', portals: YOUTH_ONLY_PORTALS },
+  { id: 'div-didaskalia', label: 'Didaskalia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Studio, RHB & warta', portals: YOUTH_ONLY_PORTALS },
+  { id: 'div-koinonia', label: 'Koinonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Hubungan, komunikasi & check-in', portals: YOUTH_ONLY_PORTALS },
+  { id: 'div-diakonia', label: 'Diakonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Kasih peduli & benevolence', portals: YOUTH_ONLY_PORTALS },
+  { id: 'div-marturia', label: 'Marturia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Dokumentasi, galeri & kesaksian', portals: YOUTH_ONLY_PORTALS },
+  { id: 'div-benzarpr', label: 'Benzarpreneurship', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Usaha & fundraising', portals: ALL_PORTAL_IDS },
+  { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event', portals: ALL_PORTAL_IDS },
+  { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem', portals: JEMAAT_ONLY_PORTALS },
+  { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit', portals: ALL_PORTAL_IDS },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];
@@ -183,6 +194,7 @@ export function buildPortalNavItems(
   currentRole: UserRole,
   ctx: NavBuildContext,
   isOnboarding: boolean,
+  portalId?: PortalId,
 ): PortalNavItemDef[] {
   const withLabels = BASE_NAV.map((item) => {
     if (item.id === 'groups-monitoring') {
@@ -193,6 +205,7 @@ export function buildPortalNavItems(
 
   const filtered = withLabels.filter((item) => {
     if (currentRole !== 'SUPERADMIN' && !item.roles.includes(currentRole)) return false;
+    if (portalId && item.portals && !item.portals.includes(portalId)) return false;
     // Onboarding: hanya Info Event + Akun (akses penuh belum dibuka).
     if (isOnboarding) return item.id === 'event-info' || item.id === 'account';
     if (item.onboardingOnly) return false;
@@ -255,8 +268,9 @@ export function buildPortalSidebarItems(
   currentRole: UserRole,
   ctx: NavBuildContext,
   isOnboarding: boolean,
+  portalId?: PortalId,
 ): PortalSidebarItem[] {
-  const items = buildPortalNavItems(currentRole, ctx, isOnboarding);
+  const items = buildPortalNavItems(currentRole, ctx, isOnboarding, portalId);
   if (!PORTAL_NAV_GROUPED_ROLES.includes(currentRole)) {
     return items.map((item) => ({ type: 'item', item }));
   }

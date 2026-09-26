@@ -192,6 +192,16 @@ export const portalEn = {
     Sistem: 'System',
     Jemaat: 'Church',
   },
+  portalNames: {
+    jemaat: 'Church',
+    youth: 'Youth',
+    men: 'Men',
+    women: 'Women',
+    teen: 'Teens',
+    kids: 'Kids',
+    kolom: 'Districts',
+    community: 'Community',
+  },
   layout: {
     userPortal: 'User Portal',
     collapseSidebar: 'Collapse sidebar',
@@ -206,6 +216,7 @@ export const portalEn = {
     openRolePicker: 'Open role picker →',
     active: 'Active',
     rolesAndPanels: 'Roles & workspaces',
+    scopePrefix: 'Scope',
   },
   pwaInstall: {
     title: 'Install GEHC Youth',

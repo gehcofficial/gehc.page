@@ -47,9 +47,10 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, type PortalNavParentDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, type PortalNavParentDef, type PortalNavItemDef } from '../../lib/portal-nav-config';
 import { useMyDivisions } from '../../hooks/useMyDivisions';
 import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
+import { usePortalProfile } from '../../hooks/usePortalProfile';
 import { ChurchOrgPanel } from './ChurchOrgPanel';
 import {
   LayoutDashboard,
@@ -123,6 +124,7 @@ export const PortalLayout: React.FC = () => {
   const { t, lang } = useLang();
   const myDiv = useMyDivisions();
   const myChurch = useMyChurchUnits();
+  const portal = usePortalProfile();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
@@ -270,11 +272,17 @@ export const PortalLayout: React.FC = () => {
 
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
   // KOMISI/Tim Kerja tanpa divisi tidak lagi otomatis melihat semua panel divisi.
-  const extraDivDefs = divisionNavDefs().filter((d) => myDiv.canSee(d.id));
-  const extraChurchDefs = churchNavDefs().filter((d) => myChurch.canSee(d.id));
-  const allowedDivisionTabs = DIVISION_TAB_IDS.filter((id) => myDiv.canSee(id));
+  // Filter portal: item bertag `portals` hanya tampil di portal yang cocok.
+  const inActivePortal = (d: PortalNavItemDef) => !d.portals || d.portals.includes(portal.id);
+  const divisionDefs = divisionNavDefs();
+  const extraDivDefs = divisionDefs.filter((d) => myDiv.canSee(d.id) && inActivePortal(d));
+  const extraChurchDefs = churchNavDefs().filter((d) => myChurch.canSee(d.id) && inActivePortal(d));
+  const allowedDivisionTabs = DIVISION_TAB_IDS.filter((id) => {
+    const def = divisionDefs.find((d) => d.id === id);
+    return myDiv.canSee(id) && (!def || inActivePortal(def));
+  });
 
-  const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id);
   const navItemDefs = [
     ...baseNavDefs,
     ...extraDivDefs.filter((d) => !baseNavDefs.some((x) => x.id === d.id)),
@@ -309,7 +317,7 @@ export const PortalLayout: React.FC = () => {
     | { type: 'item'; item: typeof navItems[number] }
     | { type: 'parent'; parent: PortalNavParentDef; children: typeof navItems }
   > = [];
-  const baseSidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding);
+  const baseSidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id);
   const sidebarRows = [
     ...baseSidebarRows,
     ...extraDivDefs
@@ -511,6 +519,17 @@ export const PortalLayout: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {!collapsed && (
+              <div className="mt-2 px-0.5">
+                <span
+                  className="inline-flex items-center text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FF416C]/10 text-[#FF416C]"
+                  title={portal.profile.label}
+                >
+                  {`${t.portal.layout.scopePrefix}: ${t.portal.portalNames[portal.id]}`}
+                </span>
+              </div>
+            )}
 
             {/* Collapsed toggle � connected pill shape */}
             {collapsed && (

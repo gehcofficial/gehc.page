@@ -186,6 +186,16 @@ export const portalId: typeof portalEn = {
     Sistem: 'Sistem',
     Jemaat: 'Jemaat',
   },
+  portalNames: {
+    jemaat: 'Jemaat',
+    youth: 'Pemuda',
+    men: 'Kaum Bapa',
+    women: 'Kaum Ibu',
+    teen: 'Remaja',
+    kids: 'Anak',
+    kolom: 'Kolom',
+    community: 'Komunitas',
+  },
   layout: {
     userPortal: 'Portal Pengguna',
     collapseSidebar: 'Tutup sidebar',
@@ -200,6 +210,7 @@ export const portalId: typeof portalEn = {
     openRolePicker: 'Buka Role Picker →',
     active: 'Aktif',
     rolesAndPanels: 'Peran & panel kerja',
+    scopePrefix: 'Lingkup',
   },
   pwaInstall: {
     title: 'Pasang GEHC Youth',
