@@ -21,18 +21,20 @@
 
 **Verifikasi:** `lint` bersih ✓ **519 test** hijau ✓ `build` OK ✓ 8 host staging `/api/version` = `486391c` (preview) ✓ Browser: `staging.gehc.page` → badge **Lingkup: Jemaat** (modul Pemuda absen, `org-hierarchy`/`integrations` tampil); `staging-youth.gehc.page` → **Lingkup: Pemuda** (Divisi lengkap) ✓
 
-**Catatan/proteksi:** **Password Protection butuh paket Pro** (gagal 428) — belum aktif. Opsi pengganti: (a) upgrade Pro → aktifkan Password Protection; (b) Vercel Authentication (SSO, hanya anggota tim Vercel); (c) Cloudflare Access; (d) Basic Auth tingkat aplikasi untuk host staging. **Staging kini memuat data produksi (PII) + password akun = `password123`** — jangan biarkan terbuka sebelum proteksi dipasang.
+**Proteksi:** Password Protection Vercel butuh paket Pro (gagal 428) → dipakai **Basic Auth tingkat aplikasi** untuk host staging (`server/index.mjs`, env `STAGING_BASIC_AUTH` = `user:password`). Berlaku untuk host staging paritas, alias legacy `staging-gehcpage.vercel.app`, dan URL preview CLI `gehcpage-<hash>-gehc.vercel.app`; **host produksi tidak terpengaruh**. Kredensial ada di `.env` (lokal, gitignored) & Vercel env Preview. **Rotasi terakhir diterapkan 26 Sep 2026.**
+
+**Verifikasi:** `lint` bersih ✓ **520 test** hijau ✓ `build` OK ✓ Staging: `staging.gehc.page` **401 tanpa kredensial / 200 dengan kredensial** ✓ browser (header Basic) → badge **Lingkup: Jemaat** + nav jemaat ✓ Prod `youth.gehc.page` tetap **200** ✓ commit `08ceee3` di prod & staging ✓
 
 ### Next
-1. Pilih mekanisme proteksi staging (lihat catatan) lalu aktifkan.
-2. Merge `cursor/church-staging-subdomains` → `main` agar `staging:sync` berikutnya tidak meregresi host staging.
-3. Tambah origin staging di Google Console (opsional, untuk login Google di host staging).
+1. Tambah origin staging di Google Console (opsional, untuk login Google di host staging; login password/demo sudah jalan).
+2. Tentukan jadwal rotasi kredensial staging.
 
 ### Commands
 ```powershell
 npm run deploy:staging          # deploy + alias ke semua host staging
 npm run staging:sync            # selaraskan staging = main
 npm run dns:list                # DNS Cloudflare
+# kredensial staging (Basic Auth): lihat STAGING_BASIC_AUTH di .env
 ```
 
 
