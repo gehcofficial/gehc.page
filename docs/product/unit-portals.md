@@ -128,11 +128,13 @@ Saat ini portal unit hanya untuk yang punya **peran** di unit itu/jemaat. Anggot
 
 **Rekomendasi:** **B** dulu (cepat, aman), **A** menyusul bila butuh penugasan anggota per unit.
 
+> **Keputusan (26 Sep 2026): B dipilih & sudah diterapkan (F3.5.0).** Role sintetis `MEMBER` (tanpa ubah enum DB) dari `User.bipra` (kategorial) / `kolomId` (Kolom); nav dasar: Info Event, Kegiatan, Info & Peluang, Dashboard, Akun. `isMember` dari `/api/auth/me`.
+
 ---
 
 ## 6. Roadmap F3.5 (usulan bertahap)
 
-1. **F3.5.0 — Keanggotaan & nav dasar** (opsi §5) → anggota bisa membuka portal unitnya.
+1. **F3.5.0 — Keanggotaan & nav dasar** ✓ (opsi B) → anggota bisa membuka portal unitnya.
 2. **F3.5.1 — Pengurus Unit** (struktur per unit).
 3. **F3.5.2 — Modul Kolom** (data KK + ibadah Kolom) — dampak besar untuk penggembalaan teritorial.
 4. **F3.5.3 — Kaum Bapa & Kaum Ibu** (koinonia + kegiatan + kunjungan).

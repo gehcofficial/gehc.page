@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — F3.5.0: Tier anggota (MEMBER) + nav dasar (26 Sep 2026)
+
+**Keputusan pemilik:** ikut semua rekomendasi `docs/product/unit-portals.md` — keanggotaan **opsi B** (implisit via BIPRA/Kolom, tanpa ubah enum DB), roadmap F3.5 bertahap.
+
+**Yang dibangun:**
+- `server/lib/tenant-map.mjs` — `TENANT_BIPRA` (kebalikan) + `isUnitMember(user, tenantId)`: kategorial via `users.bipra`; `tenant-districts` via `kolomId`; jemaat/community bukan tier keanggotaan.
+- `server/index.mjs` `/api/auth/me` — menambah `membership: { isMember, tenantId, bipra, kolomId }`.
+- Klien: `User.membership`; `UserRole` + `'MEMBER'` (sintetis, bukan enum DB); `portal-routes` `MEMBER ↔ 'anggota'`; `roles.ts` presedensi/label MEMBER.
+- `portal-nav-config.ts` — `'MEMBER'` masuk `CHURCH_ROLES.all` + dashboard → nav dasar: Info Event, Kegiatan, Info & Peluang, Dashboard, Akun.
+- `AppContext.tsx` — bila tidak ada peran scoped **tetapi** `membership.isMember` → role efektif `MEMBER`; `roleMissing` dimatikan.
+
+**Verifikasi staging (user uji BAPAK tanpa peran unit):** `staging-men` → `roles=[]`, `isMember=true` (→ tier MEMBER, portal terbuka); `staging-youth`/`staging-women` → `isMember=false` (tetap terkunci) ✓. `lint` bersih ✓ **541 test** hijau ✓ `build` OK ✓ (user uji dihapus setelah verifikasi).
+
+### Next
+1. **F3.5.1** — Pengurus Unit (struktur per unit).
+2. **F3.5.2** — Modul Kolom (data KK + ibadah Kolom).
+3. **F3.5.3** — Kaum Bapa & Kaum Ibu (+ Kas Unit setelah P1 Keuangan).
+4. **F3.5.4** — Remaja & Anak. 5. **F3.5.5** — Komunitas.
+5. (Opsional) hub `#/portal` mengarahkan pengguna Pemuda ke `youth.gehc.page`.
+
 ## Current — F3.4: Data ter-scope per unit (26 Sep 2026)
 
 **Yang dibangun:**
