@@ -98,7 +98,7 @@ subdomain punya portalnya sendiri:
 - **F2** (nanti) — pindahkan modul jemaat ke slot portal Jemaat + pintasan.
 - **F3.1** ✓ — **aktivasi host**: `tenant-jemaat`, semua unit URL langsung membuka portalnya, tenant & branding dari host, hub tetap landing.
 - **F3.2** ✓ — **identitas ter-scope**: `req.activeTenantId` dari host; `req.authUser.roles` difilter per tenant (peran jemaat lintas unit: BPMJ/Bendahara/SUPERADMIN); `rolesAll` untuk role picker; `server/lib/tenant-roles.mjs`. Fallback longgar sementara sampai F3.3.
-- **F3.3** — **migrasi peran per BIPRA**: peran `tenant-youth` → tenant sesuai `User.bipra`; peran jemaat → `tenant-jemaat`.
+- **F3.3** ✓ — **migrasi peran per BIPRA**: peran jemaat (SUPERADMIN/BPMJ) → `tenant-jemaat`; peran unit-lead (KOMISI/COMMITTEE/ALUMNI) digandakan ke tenant `User.bipra`; MENTOR/CO_MENTOR/MENTEE tetap Pemuda. Scoping peran **ketat** (fallback longgar dihapus). `server/_migrate-roles-per-tenant.cjs`, `server/lib/tenant-map.mjs`.
 - **F3.4** — **data ter-scope**: `tenantScope(req)`; unit → `tenantId IN (unit, jemaat)`; jemaat → semua. Tabel: `UserRole, Group, ContentItem, ChurchProgram, ChurchCalendarEntry, EventProgram, Testimonial`.
 - **F3.5** — **modul khas unit** (Kaum Bapa/Ibu, Anak, Kolom).
 

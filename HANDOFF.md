@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — F3.3: Migrasi peran per BIPRA + scoping ketat (26 Sep 2026)
+
+**Yang dibangun:**
+- `server/lib/tenant-map.mjs` (baru) — `BIPRA_TENANT` (PEMUDA→youth, REMAJA→teen, ANAK→kids, BAPAK→men, IBU→women), `JEMAAT_ROLES=[SUPERADMIN,BPMJ]`, `UNIT_LEAD_ROLES=[KOMISI,COMMITTEE,ALUMNI]`, `tenantForBipra()`.
+- `server/_migrate-roles-per-tenant.cjs` (baru, idempotent, dry-run default) — (1) **pindah** peran jemaat (SUPERADMIN/BPMJ) → `tenant-jemaat`; (2) **gandakan** peran unit-lead (KOMISI/COMMITTEE/ALUMNI) ke tenant sesuai `users.bipra` (groupId dikosongkan); (3) MENTOR/CO_MENTOR/MENTEE dibiarkan (khusus Pemuda). npm: `db:migrate:roles-per-tenant[:staging|:prod]`.
+- `server/lib/tenant-roles.mjs` — scoping kini **ketat** (fallback longgar dihapus).
+- Tes: `tests/unit/tenant-map.test.ts` + update `tenant-roles.test.ts`.
+
+**Dijalankan di staging:** 16 peran jemaat dipindah, 1 COMMITTEE digandakan (REMAJA→tenant-teen).
+
+**Verifikasi staging (login nyata):** youth+stevania → `KOMISI+MENTOR@tenant-youth` ✓; men+meyke(BPMJ) → `BPMJ@tenant-jemaat` (lintas unit) ✓; men+stevania → **`[]`** (ketat, terkunci) ✓; teen+putri(REMAJA) → `COMMITTEE@tenant-teen` ✓; hub+meyke → `BPMJ@tenant-jemaat` ✓.
+
+### Catatan/perilaku (penting)
+- Portal **unit hanya untuk peran unit itu / jemaat / SUPERADMIN**. User yang hanya punya peran Pemuda **tidak** bisa membuka portal unit lain (mis. `men`) — sesuai pilihan "ketat".
+- **`gehc.page/#/portal` (hub = Portal Jemaat)** kini hanya untuk peran jemaat (BPMJ/SUPERADMIN). Pengguna Pemuda memakai `youth.gehc.page`.
+- Belum ada peran dasar keanggotaan (opsi `MEMBER` ditunda) — anggota tanpa peran tetap tanpa akses portal.
+
+### Next
+1. **F3.4** — data ter-scope (`tenantScope()` pada 7 tabel ber-`tenantId`).
+2. **F3.5** — modul khas unit (+ opsi peran `MEMBER`/keanggotaan bila diinginkan).
+3. (Opsional) hub `#/portal` mengarahkan pengguna Pemuda ke `youth.gehc.page`.
+
 ## Current — F3.2: Identitas ter-scope per unit (26 Sep 2026)
 
 **Yang dibangun:**
