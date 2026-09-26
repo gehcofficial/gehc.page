@@ -4,6 +4,7 @@ import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import { getDriveMode, listFolders, listFiles, getFolderChain } from '../gdrive.mjs';
 import { resolveAccess } from '../gdrive-policy.mjs';
 import { fromDbContent, toDbContent, syncWartaToContentItem } from '../lib/content-map.mjs';
+import { tenantWhere, tenantForWrite } from '../lib/tenant-scope.mjs';
 import { loadUserAvatarBlob, avatarStem } from '../lib/user-avatar.mjs';
 import {
   VISUAL_SLOTS,
@@ -290,12 +291,12 @@ async function loadDriveSlots() {
 }
 
 export function registerContentPublicRoutes(app, { wrap }) {
-  app.get('/api/content/public', wrap(async (_req, res) => {
+  app.get('/api/content/public', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     const items = await prisma.contentItem.findMany({
-      where: { isPublished: true },
+      where: { isPublished: true, ...(tenantWhere(req) || {}) },
       orderBy: [{ publishedAt: 'desc' }],
       take: 100,
     });
@@ -313,7 +314,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     }
 
     const id = body.id || `cnt-${Date.now()}`;
-    const data = toDbContent(body, { id });
+    const data = { ...toDbContent(body, { id }), tenantId: tenantForWrite(req) };
     const created = await prisma.contentItem.create({ data });
     res.status(201).json({ item: fromDbContent(created) });
   }));
@@ -396,7 +397,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
         return res.status(400).json({ error: 'Banner wajib untuk diterbitkan (draf boleh kosong).' });
       }
       const data = {
-        tenantId: 'tenant-youth',
+        tenantId: tenantForWrite(req),
         type: 'ACTIVITY',
         title: title.slice(0, 255),
         subtitle: String(body.subtitle || '').trim().slice(0, 255) || null,
@@ -540,31 +541,36 @@ export function registerContentPublicRoutes(app, { wrap }) {
     };
   }
 
-  async function listTestimonials(prisma, { publishedOnly } = {}) {
+  async function listTestimonials(prisma, { publishedOnly, tenantFilter } = {}) {
     if (prisma.testimonial) {
       const items = await prisma.testimonial.findMany({
-        where: publishedOnly ? { isPublished: true } : undefined,
+        where: { ...(publishedOnly ? { isPublished: true } : {}), ...(tenantFilter || {}) },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         take: publishedOnly ? 50 : 200,
         include: { user: { select: { id: true, avatar: true, name: true } } },
       });
       return items.map(mapTestimonial);
     }
+    const tf = tenantFilter?.tenantId?.in;
+    const tenantSql = tf ? ' AND tenant_id IN (?, ?)' : '';
+    const tp = tf || [];
     const rows = publishedOnly
       ? await prisma.$queryRawUnsafe(
-          `SELECT * FROM testimonials WHERE is_published = 1 ORDER BY sort_order ASC, created_at DESC LIMIT 50`
+          `SELECT * FROM testimonials WHERE is_published = 1${tenantSql} ORDER BY sort_order ASC, created_at DESC LIMIT 50`,
+          ...tp,
         )
       : await prisma.$queryRawUnsafe(
-          `SELECT * FROM testimonials ORDER BY sort_order ASC, created_at DESC LIMIT 200`
+          `SELECT * FROM testimonials WHERE 1=1${tenantSql} ORDER BY sort_order ASC, created_at DESC LIMIT 200`,
+          ...tp,
         );
     return (rows || []).map(mapTestimonial);
   }
 
-  app.get('/api/testimonials/public', wrap(async (_req, res) => {
+  app.get('/api/testimonials/public', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     try {
-      const items = await listTestimonials(prisma, { publishedOnly: true });
+      const items = await listTestimonials(prisma, { publishedOnly: true, tenantFilter: tenantWhere(req) });
       res.json({ items });
     } catch {
       res.json({ items: [] });
@@ -575,7 +581,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     try {
-      const items = await listTestimonials(prisma, { publishedOnly: false });
+      const items = await listTestimonials(prisma, { publishedOnly: false, tenantFilter: tenantWhere(req) });
       res.json({ items });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Gagal membaca testimoni' });
@@ -605,7 +611,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
       const item = await prisma.testimonial.create({
         data: {
           id,
-          tenantId: 'tenant-youth',
+          tenantId: tenantForWrite(req),
           authorName: authorName.trim(),
           groupName: gName,
           quote: quote.trim(),
@@ -622,8 +628,9 @@ export function registerContentPublicRoutes(app, { wrap }) {
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO testimonials (id, tenant_id, author_name, group_name, quote, photo_url, is_published, sort_order)
-       VALUES (?, 'tenant-youth', ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
+      tenantForWrite(req),
       authorName.trim(),
       gName,
       quote.trim(),
@@ -634,7 +641,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     res.status(201).json({
       item: mapTestimonial({
         id,
-        tenant_id: 'tenant-youth',
+        tenant_id: tenantForWrite(req),
         author_name: authorName.trim(),
         group_name: gName,
         quote: quote.trim(),
@@ -718,3 +725,4 @@ export function registerContentPublicRoutes(app, { wrap }) {
 }
 
 export { syncWartaToContentItem };
+

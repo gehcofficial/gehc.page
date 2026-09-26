@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — F3.4: Data ter-scope per unit (26 Sep 2026)
+
+**Yang dibangun:**
+- `server/lib/tenant-scope.mjs` (baru) — `activeTenantId(req)`, `isJemaatScope`, `tenantWhere(req)` (unit → `{ tenantId: { in: [unit, 'tenant-jemaat'] } }`; jemaat → `null`), `withTenant`, `tenantForWrite(req)`, `canAccessTenant(req, rowTenantId)`.
+- **Daftar/list difilter, detail per-id dibiarkan** (deep link tetap jalan). Penulisan baru menyegel `tenantId` aktif.
+- Diterapkan pada:
+  - `GET /api/events` (`server/index.mjs`) — Prisma + fallback raw SQL.
+  - `server/routes/church-calendar.mjs` — publik + daftar + create/patch/delete + generate (via `canAccessTenant`).
+  - `server/routes/church-programs.mjs` — daftar + create/patch.
+  - `server/routes/content-public.mjs` — `/api/content/public`, `/api/testimonials/public` (+ daftar admin) difilter; create konten/testimoni & aktivitas event menyegel tenant.
+  - `POST /api/events` + draf konten event (`server/index.mjs`) — tenant dari host.
+- Tes: `tests/unit/tenant-scope.test.ts`.
+
+### Catatan/perilaku
+- **Jemaat (hub)** melihat semua; **unit** melihat data unitnya + data jemaat.
+- Data lama bertanda `tenant-youth` (event, konten, kalender) → muncul di **Pemuda** & **Jemaat**, **tidak** di unit lain (men/women/teen/kids) sampai dibuatkan konten/event unit.
+- `Group`/`UserRole` tidak difilter (domain Pemuda) — dapat ditambah bila unit punya kelompok sendiri.
+
+### Next
+1. **F3.5** — modul khas unit (Kaum Bapa/Ibu, Anak, Kolom) + opsi keanggotaan (`MEMBER`).
+2. (Opsional) hub `#/portal` mengarahkan pengguna Pemuda ke `youth.gehc.page`.
+
 ## Current — F3.3: Migrasi peran per BIPRA + scoping ketat (26 Sep 2026)
 
 **Yang dibangun:**

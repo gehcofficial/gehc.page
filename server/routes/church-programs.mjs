@@ -2,13 +2,13 @@ import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { isKomisiOrSuperadmin, globalRoles } from '../division-rbac.mjs';
+import { canAccessTenant, tenantForWrite, tenantWhere } from '../lib/tenant-scope.mjs';
 
 const SCOPES = ['BPMJ', 'KOMISI', 'KOLOM'];
 const SEASONS = ['NATAL', 'PASKAH', 'HUT', 'REGULAR'];
 const TENANT_DEFAULT = 'tenant-youth';
 const idOf = () => `cprog-${crypto.randomUUID()}`;
 
-const tenantOf = (req) => req.authUser?.tenantId || process.env.TENANT_ID || TENANT_DEFAULT;
 
 function canCreateScope(authUser, scope) {
   if (isKomisiOrSuperadmin(authUser)) return scope !== 'BPMJ' || globalRoles(authUser).includes('SUPERADMIN');
@@ -25,7 +25,7 @@ export function registerChurchProgramRoutes(app, { wrap }) {
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-      const where = { tenantId: tenantOf(req) };
+      const where = { ...(tenantWhere(req) || {}) };
       if (req.query.scope) where.scope = String(req.query.scope).toUpperCase();
       if (req.query.season) where.season = String(req.query.season).toUpperCase();
       if (req.query.year) where.year = Number(req.query.year);
@@ -62,7 +62,7 @@ export function registerChurchProgramRoutes(app, { wrap }) {
       const created = await prisma.churchProgram.create({
         data: {
           id: idOf(),
-          tenantId: tenantOf(req),
+          tenantId: tenantForWrite(req),
           scope,
           parentId: req.body?.parentId || null,
           kolomId: req.body?.kolomId || null,
@@ -85,7 +85,7 @@ export function registerChurchProgramRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const existing = await prisma.churchProgram.findUnique({ where: { id: req.params.id } });
-      if (!existing || existing.tenantId !== tenantOf(req)) {
+      if (!existing || !canAccessTenant(req, existing.tenantId)) {
         return res.status(404).json({ error: 'Payung tidak ditemukan.' });
       }
       if (!canCreateScope(req.authUser, existing.scope)) {
@@ -133,7 +133,7 @@ export function registerChurchProgramRoutes(app, { wrap }) {
           calendarEntries: { select: { id: true } },
         },
       });
-      if (!existing || existing.tenantId !== tenantOf(req)) {
+      if (!existing || !canAccessTenant(req, existing.tenantId)) {
         return res.status(404).json({ error: 'Payung tidak ditemukan.' });
       }
       if (!canCreateScope(req.authUser, existing.scope)) {
@@ -151,3 +151,4 @@ export function registerChurchProgramRoutes(app, { wrap }) {
     }),
   );
 }
+

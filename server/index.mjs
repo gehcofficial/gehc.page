@@ -40,6 +40,7 @@ import {
 import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
+import { withTenant, tenantWhere, tenantForWrite } from './lib/tenant-scope.mjs';
 import {
   applyPlatformAdminPortalRole,
   ensurePortalSuperadminForGrant,
@@ -2361,7 +2362,7 @@ app.post('/api/migrate/events', requireRole('SUPERADMIN'), wrap(async (req, res)
       const ev = await prisma.eventProgram.create({
         data: {
           id,
-          tenantId: 'tenant-youth',
+          tenantId: tenantForWrite(req),
           slug,
           name: 'BAKU TAU 4.0',
           description: 'Program Kerja & Event Tahunan GEHC 2026 � 6 divisi, kick-off & diskusi aktif.',
@@ -2515,19 +2516,23 @@ app.get('/api/events', wrap(async (req, res) => {
   let events;
   try {
     events = await prisma.eventProgram.findMany({
+      where: withTenant(req),
       orderBy: { startDate: 'desc' },
       include: { divisions: true, meetings: true, churchProgram: { select: { id: true, name: true, scope: true } } },
     });
   } catch (prismaErr) {
     // Fallback: Prisma model belum ada ? raw SQL
     try {
+      const tf = tenantWhere(req);
+      const whereSql = tf ? 'WHERE e.tenant_id IN (?, ?)' : '';
       const rows = await prisma.$queryRawUnsafe(
         `SELECT e.*,
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',d.id,'eventId',d.event_id,'division',d.division,'driveFolderId',d.drive_folder_id,'approvalStatus',d.approval_status,'publishedAt',d.published_at,'createdAt',d.created_at))
            FROM EventDivision d WHERE d.event_id = e.id) as divisions,
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id',m.id,'title',m.title,'scheduledAt',m.scheduled_at,'division',m.division))
            FROM EventMeeting m WHERE m.event_id = e.id) as meetings
-         FROM EventProgram e ORDER BY e.start_date DESC`
+         FROM EventProgram e ${whereSql} ORDER BY e.start_date DESC`,
+        ...(tf ? tf.tenantId.in : []),
       );
       events = (rows || []).map((r) => ({
         id: r.id,
@@ -2643,7 +2648,7 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   const ev = await prisma.eventProgram.create({
     data: {
       id,
-      tenantId: 'tenant-youth',
+      tenantId: tenantForWrite(req),
       slug,
       name,
       description: description || null,
@@ -2692,7 +2697,7 @@ app.post('/api/events', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(a
   await prisma.contentItem.create({
     data: {
       id: `cnt-${Date.now().toString(36)}${crypto.randomBytes(2).toString('hex')}`,
-      tenantId: 'tenant-youth',
+      tenantId: tenantForWrite(req),
       type: 'ACTIVITY',
       title: name.slice(0, 255),
       subtitle: description ? String(description).slice(0, 255) : null,

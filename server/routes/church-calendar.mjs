@@ -12,13 +12,13 @@ import {
   TENANT_DEFAULT,
 } from '../lib/church-year.mjs';
 import { runbookTasks } from '../lib/runbook-template.mjs';
+import { canAccessTenant, tenantForWrite, tenantWhere } from '../lib/tenant-scope.mjs';
 
 const LEVELS = ['SINODE', 'WILAYAH', 'JEMAAT', 'KOMISI', 'KOLOM'];
 const SOURCES = ['LITURGICAL', 'GMIM_FIXED', 'JEMAAT'];
 const isoRe = /^\d{4}-\d{2}-\d{2}$/;
 
 const idOf = () => `ccal-${crypto.randomUUID()}`;
-const tenantOf = (req) => req.authUser?.tenantId || process.env.TENANT_ID || TENANT_DEFAULT;
 
 /** Kolom DATE dibaca sebagai Date UTC; kirim sebagai YYYY-MM-DD saja. */
 function serialize(entry) {
@@ -62,9 +62,8 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       if (!prisma) return res.json({ entries: [] });
 
       const { from, to } = parseRange(req);
-      const tenantId = process.env.TENANT_ID || TENANT_DEFAULT;
       const rows = await prisma.churchCalendarEntry.findMany({
-        where: { tenantId, isPublic: true, startDate: { gte: from, lte: to } },
+        where: { ...(tenantWhere(req) || {}), isPublic: true, startDate: { gte: from, lte: to } },
         orderBy: { startDate: 'asc' },
         take: 200,
       });
@@ -98,7 +97,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       const pengurus = roles.some((r) => ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].includes(r));
       const rows = await prisma.churchCalendarEntry.findMany({
         where: {
-          tenantId: tenantOf(req),
+          ...(tenantWhere(req) || {}),
           startDate: { gte: from, lte: to },
           ...(pengurus ? {} : { isPublic: true }),
         },
@@ -141,7 +140,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       const created = await prisma.churchCalendarEntry.create({
         data: {
           id: idOf(),
-          tenantId: tenantOf(req),
+          tenantId: tenantForWrite(req),
           startDate: start,
           endDate,
           allDay: req.body?.allDay !== false,
@@ -170,7 +169,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const existing = await prisma.churchCalendarEntry.findUnique({ where: { id: req.params.id } });
-      if (!existing || existing.tenantId !== tenantOf(req)) {
+      if (!existing || !canAccessTenant(req, existing.tenantId)) {
         return res.status(404).json({ error: 'Entri kalender tidak ditemukan.' });
       }
 
@@ -212,7 +211,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const existing = await prisma.churchCalendarEntry.findUnique({ where: { id: req.params.id } });
-      if (!existing || existing.tenantId !== tenantOf(req)) {
+      if (!existing || !canAccessTenant(req, existing.tenantId)) {
         return res.status(404).json({ error: 'Entri kalender tidak ditemukan.' });
       }
       if (existing.source !== 'JEMAAT') {
@@ -236,7 +235,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       const year = Number(req.params.year);
       if (!(year >= 1900 && year <= 2200)) return res.status(400).json({ error: 'Tahun tidak valid.' });
 
-      const tenantId = tenantOf(req);
+      const tenantId = tenantForWrite(req);
       const computed = churchYearEntries(year);
       const existing = await prisma.churchCalendarEntry.findMany({
         where: { tenantId, startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } },
@@ -279,7 +278,7 @@ export function registerChurchCalendarRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
       const entry = await prisma.churchCalendarEntry.findUnique({ where: { id: req.params.id } });
-      if (!entry || entry.tenantId !== tenantOf(req)) {
+      if (!entry || !canAccessTenant(req, entry.tenantId)) {
         return res.status(404).json({ error: 'Entri kalender tidak ditemukan.' });
       }
 
@@ -381,3 +380,4 @@ async function notifyRunbook(prisma, { entry, divisions, requestedById, created 
     console.warn('[church-calendar] notifikasi RUNBOOK_DUE gagal:', e?.message || e);
   }
 }
+
