@@ -164,11 +164,21 @@ export function isProductionHost(host: string): boolean {
 }
 
 /**
- * Override portal via query `?portal=<id>` — HANYA di non-produksi (localhost,
- * preview, staging) agar portal Jemaat bisa diuji tanpa menyetel hosts.
+ * Host yang sudah menentukan portal lewat strukturnya sendiri (hub/unit, termasuk
+ * staging.gehc.page & staging-<unit>.gehc.page). Host tak dikenal (localhost,
+ * *.vercel.app) bukan "known" → boleh pakai override `?portal=`.
+ */
+export function isKnownHost(host: string): boolean {
+  return resolveHostUnit(host) !== 'default';
+}
+
+/**
+ * Override portal via query `?portal=<id>` — HANYA untuk host tak dikenal
+ * (localhost, preview). Host yang sudah jelas (gehc.page, staging-*.gehc.page)
+ * tidak boleh di-override agar paritas domain tetap terjaga.
  */
 export function portalOverrideFromSearch(search: string, host: string): PortalId | null {
-  if (!search || isProductionHost(host)) return null;
+  if (!search || isKnownHost(host)) return null;
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   const value = params.get('portal');
   return isPortalId(value) ? value : null;

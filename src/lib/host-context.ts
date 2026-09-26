@@ -8,6 +8,13 @@
 
 export const HUB_HOSTS = ['gehc.page', 'www.gehc.page'] as const;
 
+/** Host hub di staging — paritas domain dengan produksi. */
+export const STAGING_HUB_HOST = 'staging.gehc.page';
+
+/** Zone jemaat & prefix unit staging (`staging-youth.gehc.page` → youth). */
+const ZONE_SUFFIX = '.gehc.page';
+const STAGING_UNIT_PREFIX = 'staging-';
+
 export type HostUnit =
   | 'hub'
   | 'youth'
@@ -38,14 +45,25 @@ export function normalizeHost(host: string): string {
 }
 
 export function isHubHost(host: string): boolean {
-  return (HUB_HOSTS as readonly string[]).includes(normalizeHost(host));
+  const h = normalizeHost(host);
+  return (HUB_HOSTS as readonly string[]).includes(h) || h === STAGING_HUB_HOST;
 }
 
 /** Unit efektif untuk sebuah host (host tak dikenal → 'default' = Pemuda). */
 export function resolveHostUnit(host: string): HostUnit {
   const h = normalizeHost(host);
   if (isHubHost(h)) return 'hub';
-  return HOST_UNIT_MAP[h] || 'default';
+  const direct = HOST_UNIT_MAP[h];
+  if (direct) return direct;
+  // Staging: staging-youth.gehc.page → unit youth.
+  if (h.endsWith(ZONE_SUFFIX)) {
+    const label = h.slice(0, -ZONE_SUFFIX.length);
+    if (label.startsWith(STAGING_UNIT_PREFIX)) {
+      const unit = HOST_UNIT_MAP[`${label.slice(STAGING_UNIT_PREFIX.length)}${ZONE_SUFFIX}`];
+      if (unit) return unit;
+    }
+  }
+  return 'default';
 }
 
 /** True bila host ini harus menampilkan aplikasi Pemuda (portal). */

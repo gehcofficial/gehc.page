@@ -12,12 +12,15 @@
  * (2) deploy preview + pasang alias (dengan retry — jaringan sering gagal),
  * (3) bandingkan /api/version staging vs main.
  */
+import 'dotenv/config';
 import { execSync } from 'node:child_process';
+import { ALL_STAGING_ALIASES, STAGING_HUB_HOST } from './staging-hosts.mjs';
 
-const ALIAS = 'staging-gehcpage.vercel.app';
 const SCOPE = 'gehc';
-const STAGING_URL = `https://${ALIAS}`;
+const STAGING_URL = `https://${STAGING_HUB_HOST}`;
 const MAIN_URL = 'https://youth.gehc.page';
+/** Bypass Deployment Protection (bila staging dilindungi). */
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '';
 
 const args = process.argv.slice(2);
 const BRANCH_ONLY = args.includes('--branch-only');
@@ -42,7 +45,8 @@ function tryRun(cmd, attempts = 1, label = cmd) {
 
 async function fetchCommit(base) {
   try {
-    const r = await fetch(`${base}/api/version`, { cache: 'no-store' });
+    const headers = BYPASS ? { 'x-vercel-protection-bypass': BYPASS } : undefined;
+    const r = await fetch(`${base}/api/version`, { cache: 'no-store', headers });
     if (!r.ok) return null;
     const d = await r.json();
     return d?.commit || null;
@@ -89,8 +93,10 @@ if (NO_DEPLOY) {
     process.exit(1);
   }
   console.log(`  deployment: ${url}`);
-  tryRun(`vercel.cmd alias set ${url} ${ALIAS} --scope ${SCOPE}`, 2, 'vercel alias set');
-  console.log(`  alias → https://${ALIAS}`);
+  for (const alias of ALL_STAGING_ALIASES) {
+    tryRun(`vercel.cmd alias set ${url} ${alias} --scope ${SCOPE}`, 2, `alias ${alias}`);
+    console.log(`  alias → https://${alias}`);
+  }
 }
 
 if (NO_VERIFY) {

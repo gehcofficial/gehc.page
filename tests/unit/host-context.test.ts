@@ -31,6 +31,19 @@ describe('host-context (frontend)', () => {
     expect(isYouthAppHost('preview-abc.vercel.app')).toBe(true);
     expect(isYouthAppHost('youth.gehc.page')).toBe(true);
     expect(isYouthAppHost('gehc.page')).toBe(false);
+    expect(isYouthAppHost('staging.gehc.page')).toBe(false);
+  });
+
+  it('staging: hub + unit ber-prefix staging-', () => {
+    expect(isHubHost('staging.gehc.page')).toBe(true);
+    expect(resolveHostUnit('staging.gehc.page')).toBe('hub');
+    expect(resolveHostUnit('staging-youth.gehc.page')).toBe('youth');
+    expect(resolveHostUnit('staging-men.gehc.page')).toBe('men');
+    expect(resolveHostUnit('staging-districts.gehc.page')).toBe('districts');
+    expect(isYouthAppHost('staging-youth.gehc.page')).toBe(true);
+    // Host tak dikenal tetap default Pemuda (bukan 'hub').
+    expect(resolveHostUnit('staging-bogus.gehc.page')).toBe('default');
+    expect(resolveHostUnit('a.staging-youth.gehc.page')).toBe('default');
   });
 });
 
@@ -73,6 +86,30 @@ describe('host-context (server)', () => {
       isHub: false,
     });
     expect(resolveHostContext({ headers: { host: 'localhost:8787' } })).toMatchObject({
+      tenantId: 'tenant-youth',
+    });
+  });
+
+  it('staging: hub netral + unit kategorial', () => {
+    expect(resolveHostContext('staging.gehc.page')).toEqual({
+      unit: 'hub',
+      tenantId: null,
+      bipra: null,
+      isHub: true,
+    });
+    expect(resolveHostContext('staging-youth.gehc.page')).toMatchObject({
+      unit: 'youth',
+      tenantId: 'tenant-youth',
+      bipra: 'PEMUDA',
+      isHub: false,
+    });
+    expect(resolveHostContext('staging-women.gehc.page')).toMatchObject({
+      unit: 'women',
+      tenantId: 'tenant-women',
+      bipra: 'IBU',
+    });
+    expect(resolveHostContext('staging-bogus.gehc.page')).toMatchObject({
+      unit: 'youth',
       tenantId: 'tenant-youth',
     });
   });

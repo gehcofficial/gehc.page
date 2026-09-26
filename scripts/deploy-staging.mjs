@@ -1,10 +1,13 @@
 /**
- * Deploy PREVIEW ke Vercel + pasang alias permanen staging-gehcpage.vercel.app.
+ * Deploy PREVIEW ke Vercel + pasang alias staging (hub + unit).
  * Jalankan: npm run deploy:staging   (harus sudah `vercel link` & login)
+ *
+ * Alias: staging.gehc.page + staging-<unit>.gehc.page (+ legacy vercel.app).
+ * Daftar host ada di scripts/staging-hosts.mjs.
  */
 import { execSync } from 'node:child_process';
+import { ALL_STAGING_ALIASES, STAGING_HUB_HOST } from './staging-hosts.mjs';
 
-const ALIAS = 'staging-gehcpage.vercel.app';
 const SCOPE = 'gehc';
 
 function run(cmd) {
@@ -28,12 +31,21 @@ if (!url) {
   process.exit(1);
 }
 console.log(`> deployment : ${url}`);
-console.log(`> alias → https://${ALIAS} …`);
-try {
-  run(`vercel alias set ${url} ${ALIAS} --scope ${SCOPE}`);
-} catch (e) {
-  // Retry sekali — kadang transient (network / token refresh)
-  console.warn('  percobaan pertama gagal, mengulang…');
-  run(`vercel alias set ${url} ${ALIAS} --scope ${SCOPE}`);
+
+for (const alias of ALL_STAGING_ALIASES) {
+  console.log(`> alias → https://${alias} …`);
+  try {
+    run(`vercel alias set ${url} ${alias} --scope ${SCOPE}`);
+  } catch (e) {
+    // Retry sekali — kadang transient (network / token refresh)
+    console.warn(`  ${alias} gagal, mengulang… (${e.message?.slice(0, 80)})`);
+    try {
+      run(`vercel alias set ${url} ${alias} --scope ${SCOPE}`);
+    } catch (e2) {
+      console.warn(`  ! ${alias} gagal: ${e2.message?.slice(0, 120)}`);
+    }
+  }
 }
-console.log(`\n✓ Staging siap : https://${ALIAS}`);
+
+console.log(`\n✓ Staging siap : https://${STAGING_HUB_HOST}`);
+console.log(`  Unit: ${ALL_STAGING_ALIASES.filter((h) => h !== STAGING_HUB_HOST).join(', ')}`);

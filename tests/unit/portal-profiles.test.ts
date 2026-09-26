@@ -3,6 +3,7 @@ import {
   ALL_PORTAL_IDS,
   PORTAL_PROFILES,
   isJemaatPortal,
+  isKnownHost,
   isPortalId,
   isProductionHost,
   portalIdForHost,
@@ -34,6 +35,14 @@ describe('portal-profiles — host ke portal', () => {
     expect(portalIdForHost('staging-gehcpage.vercel.app')).toBe('youth');
   });
 
+  it('host staging memetakan ke portal yang sama seperti prod', () => {
+    expect(portalIdForHost('staging.gehc.page')).toBe('jemaat');
+    expect(portalIdForHost('staging-youth.gehc.page')).toBe('youth');
+    expect(portalIdForHost('staging-men.gehc.page')).toBe('men');
+    expect(portalIdForHost('staging-women.gehc.page')).toBe('women');
+    expect(portalIdForHost('staging-districts.gehc.page')).toBe('kolom');
+  });
+
   it('setiap id punya profil', () => {
     for (const id of ALL_PORTAL_IDS) {
       expect(PORTAL_PROFILES[id]?.id).toBe(id);
@@ -51,11 +60,21 @@ describe('portal-profiles — override ?portal= (non-produksi)', () => {
     expect(isProductionHost('staging-gehcpage.vercel.app')).toBe(false);
   });
 
-  it('override aktif hanya di non-produksi', () => {
+  it('override aktif hanya di host tak dikenal', () => {
     expect(portalOverrideFromSearch('?portal=jemaat', 'localhost')).toBe('jemaat');
     expect(portalOverrideFromSearch('?portal=youth', 'staging-gehcpage.vercel.app')).toBe('youth');
     expect(portalOverrideFromSearch('?portal=jemaat', 'gehc.page')).toBeNull();
     expect(portalOverrideFromSearch('?portal=jemaat', 'youth.gehc.page')).toBeNull();
+    expect(portalOverrideFromSearch('?portal=youth', 'staging.gehc.page')).toBeNull();
+    expect(portalOverrideFromSearch('?portal=jemaat', 'staging-youth.gehc.page')).toBeNull();
+  });
+
+  it('isKnownHost membedakan host berstruktur vs tak dikenal', () => {
+    expect(isKnownHost('gehc.page')).toBe(true);
+    expect(isKnownHost('staging.gehc.page')).toBe(true);
+    expect(isKnownHost('staging-youth.gehc.page')).toBe(true);
+    expect(isKnownHost('localhost')).toBe(false);
+    expect(isKnownHost('staging-gehcpage.vercel.app')).toBe(false);
   });
 
   it('override abaikan id tak dikenal / kosong', () => {
@@ -69,6 +88,10 @@ describe('portal-profiles — override ?portal= (non-produksi)', () => {
     expect(resolvePortalId('localhost')).toBe('youth');
     expect(resolvePortalId('localhost', '?portal=jemaat')).toBe('jemaat');
     expect(resolvePortalId('gehc.page', '?portal=jemaat')).toBe('jemaat');
+    expect(resolvePortalId('staging.gehc.page')).toBe('jemaat');
+    expect(resolvePortalId('staging-youth.gehc.page')).toBe('youth');
+    // Host sudah menentukan portal → override diabaikan.
+    expect(resolvePortalId('staging.gehc.page', '?portal=youth')).toBe('jemaat');
   });
 });
 
