@@ -40,7 +40,7 @@ import {
 import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
-import { withTenant, tenantWhere, tenantForWrite, activeTenantId } from './lib/tenant-scope.mjs';
+import { withTenant, tenantWhere, tenantForWrite, activeTenantId, canAccessTenant, isJemaatScope } from './lib/tenant-scope.mjs';
 import { isUnitMember } from './lib/tenant-map.mjs';
 import {
   applyPlatformAdminPortalRole,
@@ -3575,7 +3575,7 @@ app.post('/api/db/attendance', wrap(async (req, res) => {
 app.get('/api/db/struktur', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const members = await prisma.strukturMember.findMany({ orderBy: { sortOrder: 'asc' } });
+  const members = await prisma.strukturMember.findMany({ where: withTenant(req), orderBy: { sortOrder: 'asc' } });
   const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))];
   const emails = [...new Set(members.filter((m) => !m.userId && m.email).map((m) => String(m.email).toLowerCase()))];
   const users = userIds.length || emails.length
@@ -3608,9 +3608,15 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const list = Array.isArray(req.body?.members) ? req.body.members : [];
+  const writeTenant = tenantForWrite(req);
   const ops = [];
   for (const [i, m] of list.entries()) {
     if (!m?.id || !m?.name) continue;
+    // Tolak baris milik tenant lain (tak boleh "mencuri").
+    if (m.id) {
+      const existing = await prisma.strukturMember.findUnique({ where: { id: m.id }, select: { tenantId: true } });
+      if (existing && !canAccessTenant(req, existing.tenantId)) continue;
+    }
     const data = {
       name: m.name,
       position: m.position ?? null,
@@ -3629,13 +3635,18 @@ app.post('/api/db/sync-struktur', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE
       isDoubleRole: Boolean(m.isDoubleRole ?? false),
       subRoleId: m.subRoleId ?? null,
       groupId: m.groupId ?? null,
+      tenantId: writeTenant,
     };
     ops.push(prisma.strukturMember.upsert({ where: { id: m.id }, create: { id: m.id, ...data }, update: data }));
   }
   if (ops.length) await prisma.$transaction(ops);
   const keepIds = list.map((m) => m.id).filter(Boolean);
+  // Hapus hanya baris milik tenant ini (hub juga menyertakan baris legacy null).
+  const scopeWhere = isJemaatScope(req)
+    ? { OR: [{ tenantId: writeTenant }, { tenantId: null }] }
+    : { tenantId: writeTenant };
   const removed = await prisma.strukturMember.deleteMany({
-    where: keepIds.length ? { id: { notIn: keepIds } } : {},
+    where: { ...scopeWhere, ...(keepIds.length ? { id: { notIn: keepIds } } : {}) },
   });
   res.json({ synced: list.length, removed: removed.count });
 }));

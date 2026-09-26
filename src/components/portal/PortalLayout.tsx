@@ -52,6 +52,7 @@ import { useMyDivisions } from '../../hooks/useMyDivisions';
 import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
 import { usePortalProfile } from '../../hooks/usePortalProfile';
 import { ChurchOrgPanel } from './ChurchOrgPanel';
+import { UnitPengurusPanel } from './UnitPengurusPanel';
 import {
   LayoutDashboard,
   BookOpen,
@@ -81,6 +82,7 @@ import {
   Search,
   Megaphone,
   Landmark,
+  Contact,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -268,6 +270,7 @@ export const PortalLayout: React.FC = () => {
     integrations: FolderSync,
     'pwa-settings': Bell,
     'church-org': Landmark,
+    'unit-pengurus': Contact,
   };
 
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
@@ -988,6 +991,11 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="struktur" />
               <ManageStruktur />
+            </div>
+          )}
+          {activeTab === 'unit-pengurus' && (
+            <div className="space-y-4">
+              <UnitPengurusPanel />
             </div>
           )}
           {activeTab === 'integrations' && (

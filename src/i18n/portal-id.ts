@@ -163,6 +163,7 @@ export const portalId: typeof portalEn = {
     kesaksian: 'Kesaksian',
     'media-guide': 'Panduan Media (Drive)',
     struktur: 'Struktur Organisasi',
+    'unit-pengurus': 'Pengurus Unit',
     events: 'Program & Event',
     divisions: 'Panel Divisi (6 Divisi)',
     'div-liturgia': 'Liturgia',
@@ -701,6 +702,13 @@ export const portalId: typeof portalEn = {
       steps: ['Edit di tampilan Chart atau Tabel.', 'Tandai peran terbuka (chip putus-putus di landing).', 'Simpan menyinkron ke struktur_members di situs.'],
       when: 'Nama atau foto di gehc.page/leaders harus berubah.',
       notFor: 'Slot assignment dan peran portal ada di Kelola Hirarki. Mentor 10 rumah Beyonders (kartu #/beyonders) ada di Pemimpin 10 Rumah, bukan chart Pengurus ini.',
+    },
+    'unit-pengurus': {
+      title: 'Pengurus Unit',
+      purpose: 'Susunan pengurus unit ini (ketua, sekretaris, bendahara, seksi). Hanya menampilkan pengurus unit yang sedang dibuka.',
+      steps: ['Tambah baris: isi nama & jabatan (kontak opsional).', 'Simpan untuk menyinkron ke struktur unit.'],
+      when: 'Menata/memperbarui pengurus unit: Kaum Bapa/Ibu, Remaja, Anak, Kolom, Komunitas, atau Pemuda.',
+      notFor: 'Struktur payung jemaat/landing ada di Struktur Organisasi; assignment peran portal ada di Kelola Hirarki.',
     },
     events: {
       title: 'Program & Event',

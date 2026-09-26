@@ -674,9 +674,13 @@ model StrukturMember {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  /// Tenant/unit pemilik baris struktur (null = jemaat/legacy).
+  tenantId String? @map("tenant_id") @db.VarChar(64)
+
   @@index([division])
   @@index([groupId])
   @@index([userId])
+  @@index([tenantId])
   @@map("struktur_members")
 }
 

@@ -169,6 +169,7 @@ export const portalEn = {
     kesaksian: 'Testimony',
     'media-guide': 'Media Guide (Drive)',
     struktur: 'Org Chart',
+    'unit-pengurus': 'Unit Leaders',
     events: 'Programs & Events',
     divisions: 'Division Panel (6)',
     'div-liturgia': 'Liturgia',
@@ -707,6 +708,13 @@ export const portalEn = {
       steps: ['Edit in Chart or Table view.', 'Mark a role as open (dashed chip on the landing).', 'Save syncs to struktur_members on the website.'],
       when: 'Names or photos on gehc.page/leaders must change.',
       notFor: 'Assignment slots and portal roles live in Manage Hierarchy. Mentors of the 10 Beyonders homes (cards on #/beyonders) are 10 House Leaders, not this Pengurus chart.',
+    },
+    'unit-pengurus': {
+      title: 'Unit Leaders',
+      purpose: 'Leadership roster for this unit (chair, secretary, treasurer, sections). Shows only the currently open unit.',
+      steps: ['Add a row: fill name & position (contact optional).', 'Save to sync into the unit structure.'],
+      when: 'Organising/updating unit leaders: Men, Women, Teens, Kids, Districts, Community, or Youth.',
+      notFor: 'The church-wide/landing structure is Org Chart; portal role assignment is Manage Hierarchy.',
     },
     events: {
       title: 'Programs & Events',

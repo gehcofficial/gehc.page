@@ -335,6 +335,11 @@ const STEPS = [
     label: 'Info & Peluang: kolom caption',
     required: true,
   },
+  {
+    script: 'server/_migrate-struktur-tenant.cjs',
+    label: 'Struktur pengurus: kolom tenant_id per unit',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
