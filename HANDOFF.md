@@ -1,5 +1,16 @@
 # GEHC Portal — Handoff
 
+## Current — P8: PDF laporan server-side (pdfkit) (27 Sep 2026)
+
+- Dependency baru: **`pdfkit`** (pure JS, aman di Vercel serverless).
+- `server/lib/report-data.mjs` (baru) — agregasi laporan dipakai bersama: `kasReport`, `facilityReport`, `bpmjReport`, `unitReport` (+ katalog `UNIT_LABEL/UNIT_TENANT`). Endpoint JSON P6 kini tipis (memakai lib ini).
+- `server/lib/report-pdf.mjs` (baru) — penyusun section murni (`kasSections`/`facilitySections`/`bpmjSections`/`unitSections`) + `streamReportPdf` (pdfkit: judul, field, bullet, tabel dengan page-break & lebar kolom).
+- `GET /api/church/reports/<kas|fasilitas|bpmj|unit>.pdf?period=[&unit=]` — RBAC sama dengan JSON (kas/fasilitas → pengurus; bpmj → BPMJ/SA/KOMISI; unit → auth). Nama berkas `laporan-<jenis>-<periode>.pdf`.
+- UI: tombol **PDF** di header halaman laporan + di panel Keuangan/Fasilitas/Dasbor BPMJ (CSV & print-to-PDF tetap ada).
+- Tes: `tests/unit/report-pdf.test.ts` (section builders).
+
+**Verifikasi staging:** `kas.pdf` 200 `application/pdf` `%PDF-` (2.917 B) ✓; `bpmj.pdf`/`fasilitas.pdf`/`unit.pdf` (BAPAK) juga `%PDF-` ✓; KOMISI Pemuda minta `kas.pdf` → **403** ✓. `lint` bersih ✓ **585 test** hijau ✓ `build` OK ✓
+
 ## Current — P7: Tren bulanan di Dasbor BPMJ (27 Sep 2026)
 
 - `server/lib/report-trends.mjs` (baru) — `lastMonths(n)`, `mergeTrend(months, rows)`, `maxOf`.
