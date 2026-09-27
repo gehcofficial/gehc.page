@@ -78,8 +78,8 @@ Memakai `StrukturMember` (`division`, `subdivision`, `position`, `isOpenRole`), 
 - **`FundingRequest`** — `unit, title, description, amount, neededBy?, status(SUBMITTED|APPROVED|REJECTED|DISBURSED|SETTLED), requesterUserId, approverUserId?, approvedAt?, rejectReason?, disbursedAt?, accountId?, settleNote?`
 - **`Distribution`** — `sourceType(BZP_CAMPAIGN|BZP_SALES|DONATION|OTHER), sourceRef?, targetUnit, amount, status(PROPOSED|APPROVED|PAID), decidedByUserId, decidedAt, note`
 
-### P2 — BZP di bawah Bendahara
-`BzpSetting.pettyCashAllowanceAccountId?`; `Campaign.fundingRequestId?`; alur campaign → `FundingRequest` → penjualan → `Distribution` ke unit.
+### P2 ✓ — BZP di bawah Bendahara
+`BzpSetting.pettyCashAllowanceAccountId` (akun petty cash, panel Keuangan); `Campaign.fundingRequestId`; endpoint `/api/church/bzp/overview`, `/api/church/bzp/petty-cash`, `/api/church/bzp/distribute`; alur campaign → `FundingRequest` → penjualan → `Distribution` ke unit.
 
 ### P3 — THL (Stewardship + MDS)
 `ServiceRole.scope(UNIT|CHURCH)` (+ division `THL_STEWARDSHIP` / `THL_MDS`); kalender petugas jemaat; MDS memakai ulang galeri/Drive.
