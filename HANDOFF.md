@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — P3: THL (Stewardship + MDS) (26 Sep 2026)
+
+**Schema (migrasi `server/_migrate-thl-scope.cjs`):** `ServiceRole.scope` enum `ServiceScope { UNIT | CHURCH }` default `UNIT`; divisi `THL_STEWARDSHIP` & `THL_MDS` otomatis ber-scope CHURCH.
+
+**API (perluasan penatalayan):**
+- `GET /api/penatalayan/roles` — dukung `?scope=`; **bawaan = UNIT** (pemuda) kecuali diminta CHURCH atau divisi THL.
+- `GET/POST/PATCH /api/penatalayan/roles` — menerima `scope` (THL dipaksa CHURCH); divisi baru `THL_STEWARDSHIP`/`THL_MDS` diizinkan.
+- `GET /api/penatalayan/board?scope=CHURCH&division=THL_MDS` — jadwal petugas jemaat; **bawaan UNIT** agar board Pemuda tak berubah.
+
+**UI:** nav grup **Jemaat** → **Stewardship (THL)** & **MDS (Multimedia)**; panel `ChurchDutyPanel` (peran + jadwal + konfirmasi/selesai). MDS memakai mesin penatalayan yang sama (division `THL_MDS`), galeri/Drive tetap lewat Integrasi.
+
+**Verifikasi staging:** buat peran `THL_MDS` → `scope=CHURCH` otomatis ✓; jadwalkan petugas → tampil di board `scope=CHURCH&division=THL_MDS` ✓; board bawaan (UNIT) tetap 30 peran & **tanpa** THL ✓ (data uji dibersihkan). `lint` bersih ✓ **549 test** hijau ✓ `build` OK ✓
+
+### Next
+1. **P4** — Panji Yosua (`IncidentLog`, pos jaga) + dasbor BPMJ lintas unit.
+2. (Opsional) guard THL berbasis unit jemaat (`canAccessChurchUnit('THL')`) untuk tulis.
+
 ## Current — P2: BZP di bawah Bendahara (26 Sep 2026)
 
 **Schema (migrasi `server/_migrate-bzp-bendahara.cjs`):**
