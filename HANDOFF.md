@@ -1,5 +1,24 @@
 # GEHC Portal — Handoff
 
+## Current — P1: Fasilitas & Keuangan (portal jemaat) (26 Sep 2026)
+
+**Model data (7 tabel, migrasi `server/_migrate-church-p1.cjs`):** `facilities`, `facility_bookings`, `maintenance_logs`, `cash_accounts`, `cash_transactions`, `funding_requests`, `distributions` — sesuai `docs/product/church-portal.md` §5. npm `db:migrate:church-p1[:staging|:prod]` + wiring `db-migrate-local`.
+
+**API (`server/routes/church-p1.mjs`), RBAC:**
+- Fasilitas/pemeliharaan: pengelola = SUPERADMIN | BPMJ | anggota unit **PEMBANGUNAN**.
+- Keuangan (kas/transaksi/pengajuan/distribusi): **Bendahara** | BPMJ | SUPERADMIN.
+- Pengajuan (booking/funding) boleh semua pengguna login; unit diambil dari host (`unitOfTenant`).
+- Rute: `/api/church/facilities`, `/bookings` (+setujui/tolak/invoice/lunas), `/maintenance`, `/cash/accounts` (+saldo), `/cash/transactions`, `/funding` (+approve/reject/disburse/settle), `/distributions`. Buku kas otomatis tercatat saat booking lunas (IN) & dana dicairkan (OUT).
+
+**UI:** nav grup **Jemaat** → **Fasilitas & Penyewaan** (`church-facilities`) + **Keuangan** (`church-finance`); panel `ChurchFacilitiesPanel` & `ChurchFinancePanel`; i18n id/en + guide.
+
+**Verifikasi staging (end-to-end):** buat fasilitas → booking (SUBMITTED→APPROVED) → terbitkan invoice → **tandai lunas** (kas IN 500k) → ajukan dana 200k → approve → **cairkan** (kas OUT) → saldo akun `1.000.000 + 500.000 − 200.000 = 1.300.000` ✓ (data uji dibersihkan). `lint` bersih ✓ **549 test** hijau ✓ `build` OK ✓
+
+### Next
+1. **P2** — BZP di bawah Bendahara (`BzpSetting.pettyCashAllowanceAccountId`, `Campaign.fundingRequestId`, alur campaign → FundingRequest → penjualan → Distribution).
+2. **P3** — THL (Stewardship + MDS). 3. **P4** — Panji Yosua + kategorial/Kolom + dasbor BPMJ lintas unit.
+4. Kas Unit (akun `KAS_UNIT`) kini bisa dibuat lewat panel Keuangan.
+
 ## Current — F3.5.2–F3.5.5: Modul unit generik (Anggota, Kolom, Pengurus) (26 Sep 2026)
 
 **Pendekatan:** satu set modul unit **generik** yang melayani semua unit (Kaum Bapa/Ibu, Remaja, Anak, Kolom, Komunitas, Pemuda), bukan enam modul terpisah.
