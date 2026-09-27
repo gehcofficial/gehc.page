@@ -1,5 +1,24 @@
 # GEHC Portal — Handoff
 
+## Current — P5: Guard per-unit, Kas Unit otomatis, Laporan CSV (27 Sep 2026)
+
+**1. Guard tulis per-unit (bukan lagi sekadar KOMISI/COMMITTEE):**
+- `facilityManagerReq` (PEMBANGUNAN/BPMJ/SA) & `isTreasurerReq` (Bendahara/BPMJ/SA) di `index.mjs` (sejajar dengan `church-p1.mjs`).
+- `canManageChurchDuty` (THL/Panji/BPMJ/SA): peran penatalayan **scope CHURCH** (`THL_STEWARDSHIP`/`THL_MDS`/`PANJI`) hanya bisa dibuat/diubah/dijadwalkan oleh pengelola jemaat; scope UNIT tetap KOMISI/COMMITTEE.
+
+**2. Kas unit otomatis:**
+- `server/lib/church-cash.mjs` — katalog `UNIT_ACCOUNTS` (KAS-JEMAAT + 6 unit + PETTY-BZP) + `toCsv`/`csvCell`/`monthRange`.
+- `server/seed-church-cash.mjs` (+ npm `db:seed:church-cash[:staging|:prod]`) & endpoint `POST /api/church/cash/accounts/ensure` (Bendahara) — idempotent; menautkan `BzpSetting.pettyCashAllowanceAccountId` ke `PETTY-BZP`.
+
+**3. Laporan CSV:**
+- `GET /api/church/reports/cash.csv?month=YYYY-MM` (Bendahara) & `GET /api/church/reports/bookings.csv` (pengelola fasilitas). Tombol unduh di panel Keuangan & Fasilitas.
+
+**Verifikasi staging:** 9 akun kas dibuat (balance 0) ✓; `ensure` idempotent (`created=0`) + petty BZP tertaut ✓; `cash.csv`/`bookings.csv` header benar ✓; guard: KOMISI Pemuda bikin peran **THL_MDS → 403**, peran **LITURGIA → 201 (UNIT)** ✓ (data uji dibersihkan). `lint` bersih ✓ **562 test** hijau ✓ `build` OK ✓
+
+### Next (opsional)
+1. Laporan bulanan ringkas di Dasbor BPMJ (tren bulanan).
+2. Ekspor PDF (bukan hanya CSV).
+
 ## Current — F3.6: Rapikan visibilitas nav per peran/tenant (27 Sep 2026)
 
 **Latar:** audit ulang matriks nav menemukan 5 kebocoran. Diperbaiki:
