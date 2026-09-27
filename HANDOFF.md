@@ -1,5 +1,29 @@
 # GEHC Portal — Handoff
 
+## Current — P6: Laporan presentasi + PDF (pola Didaskalia) (27 Sep 2026)
+
+**Pola:** halaman presentasi **standalone** + **cetak PDF** (print-to-PDF), seperti `#/materi` Didaskalia.
+
+**Rute:** `#/laporan/<jenis>/<periode>[/<unit>]`
+- `#/laporan/kas/2026-09` (bulan) · `#/laporan/kas/2026-W38` (minggu ISO)
+- `#/laporan/fasilitas/2026-09` · `#/laporan/bpmj/2026-09` · `#/laporan/unit/pemuda/2026-09`
+- Standalone (di luar shell portal), **wajib login**, bisa dibuka dari host mana pun; RBAC di endpoint.
+
+**Yang dibangun:**
+- `server/lib/report-period.mjs` — `monthPeriod`, `isoWeekRange`, `parsePeriod` (bulan/minggu).
+- `src/lib/report-routing.ts` — `parseReportHash`/`isReportHash`/`reportHashPath`/`reportAbsoluteUrl`, `unitCodeForPortal`, `currentPeriodKeys`/`isoWeekKey`.
+- `src/lib/report-decks.ts` — `buildKasDeck`/`buildFacilityDeck`/`buildBpmjDeck`/`buildUnitDeck`.
+- `src/components/reports/ReportPresentation.tsx` — `DeckShell` + blok `hidden print:block` (semua slide, `break-after-page`) + **Cetak (PDF)** + **Salin tautan** + **caption WA**.
+- API JSON: `GET /api/church/reports/{kas|fasilitas|bpmj|unit}` (RBAC: kas/fasilitas → pengurus; bpmj → BPMJ/SA/KOMISI; unit → auth). `reports/cash.csv` kini menerima `period` (bulan/minggu).
+- `main.tsx` + `host-context.ts` — `isReportHash` (lazy route sebelum cabang host).
+- Pintu masuk: tombol **Laporan (presentasi)** di panel Keuangan (bulan & minggu), Fasilitas, Dasbor BPMJ, dan Anggota Unit.
+
+**Verifikasi staging:** `kas/2026-09` (9 akun, label September 2026) ✓; `kas/2026-W38` (type=week, "Minggu 38 · 14–20 Sep 2026") ✓; `fasilitas` ✓; `bpmj` (267 anggota) ✓; `unit/BAPAK` (Kaum Bapa, 10 anggota, 1 akun kas) ✓; `cash.csv?period=2026-W38` → `kas-2026-W38.csv` ✓. `lint` bersih ✓ **577 test** hijau ✓ `build` OK ✓
+
+### Next (opsional)
+1. Tren bulanan di Dasbor BPMJ.
+2. PDF server-side (bila butuh hasil seragam lintas browser).
+
 ## Current — P5: Guard per-unit, Kas Unit otomatis, Laporan CSV (27 Sep 2026)
 
 **1. Guard tulis per-unit (bukan lagi sekadar KOMISI/COMMITTEE):**
