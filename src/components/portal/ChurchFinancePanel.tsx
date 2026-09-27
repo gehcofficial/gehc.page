@@ -25,6 +25,9 @@ export const ChurchFinancePanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [txnForm, setTxnForm] = useState({ accountId: '', direction: 'OUT', amount: '', category: 'MANUAL', description: '' });
   const [fundForm, setFundForm] = useState({ title: '', amount: '', neededBy: '' });
+  const [bzp, setBzp] = useState<{ salesTotal: number; ordersPaid: number; donations: { status: string; _sum?: { amount?: number } }[]; campaigns: { id: string; title: string; fundingRequestId?: string | null }[]; pettyCashAllowanceAccountId?: string | null; distributions: { id: string; targetUnit: string; amount: number; status: string }[] } | null>(null);
+  const [pettyId, setPettyId] = useState('');
+  const [distForm, setDistForm] = useState({ sourceType: 'BZP_SALES', targetUnit: 'PEMUDA', amount: '', note: '' });
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +43,13 @@ export const ChurchFinancePanel: React.FC = () => {
         setTxnForm((s) => ({ ...s, accountId: s.accountId || list[0].id }));
         const t = await fetch(`/api/church/cash/transactions?accountId=${encodeURIComponent(list[0].id)}`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { transactions: [] }));
         setTxns(Array.isArray(t?.transactions) ? t.transactions : []);
+      }
+      if (isTreasurer) {
+        const ov = await fetch('/api/church/bzp/overview', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (ov) {
+          setBzp(ov);
+          setPettyId(ov.pettyCashAllowanceAccountId || '');
+        }
       }
     } catch {
       /* ignore */
@@ -100,6 +110,36 @@ export const ChurchFinancePanel: React.FC = () => {
   };
 
   const total = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+
+  const savePetty = async () => {
+    const res = await fetch('/api/church/bzp/petty-cash', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: pettyId || null }),
+    });
+    if (!res.ok) {
+      addToast({ type: 'error', title: 'Gagal menyimpan petty cash', description: (await res.json().catch(() => ({}))).error });
+      return;
+    }
+    addToast({ type: 'success', title: 'Akun petty cash BZP disimpan' });
+  };
+
+  const distribute = async () => {
+    const res = await fetch('/api/church/bzp/distribute', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...distForm, amount: Number(distForm.amount) }),
+    });
+    if (!res.ok) {
+      addToast({ type: 'error', title: 'Gagal distribusi', description: (await res.json().catch(() => ({}))).error });
+      return;
+    }
+    setDistForm((s) => ({ ...s, amount: '', note: '' }));
+    addToast({ type: 'success', title: 'Distribusi dibuat' });
+    load();
+  };
 
   return (
     <div className="space-y-4">
@@ -203,6 +243,61 @@ export const ChurchFinancePanel: React.FC = () => {
           ))
         )}
       </div>
+
+      {isTreasurer && bzp && (
+        <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-3">
+          <h4 className="text-xs font-black uppercase tracking-wide">BZP (Benzarpreneurship) → Bendahara</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div className="p-3 rounded-2xl border border-[#EFEDE8]">
+              <p className="text-[10px] text-[#8C8880]">Penjualan lunas</p>
+              <p className="font-black">{rupiah(bzp.salesTotal)}</p>
+              <p className="text-[10px] text-[#8C8880]">{bzp.ordersPaid} pesanan</p>
+            </div>
+            {bzp.donations.map((d) => (
+              <div key={d.status} className="p-3 rounded-2xl border border-[#EFEDE8]">
+                <p className="text-[10px] text-[#8C8880]">Donasi {d.status}</p>
+                <p className="font-black">{rupiah(Number(d._sum?.amount || 0))}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1.5fr_auto] gap-2 items-center pt-2 border-t border-[#EFEDE8]">
+            <select value={pettyId} onChange={(e) => setPettyId(e.target.value)} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs">
+              <option value="">— Petty cash BZP: (belum diatur) —</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>Petty cash BZP → {a.name}</option>
+              ))}
+            </select>
+            <button type="button" onClick={savePetty} className="px-3 py-2 rounded-full bg-[#181818] text-white text-xs font-bold">Simpan petty cash</button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_.8fr_1.4fr_auto] gap-2 items-center">
+            <select value={distForm.sourceType} onChange={(e) => setDistForm((s) => ({ ...s, sourceType: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs">
+              <option value="BZP_SALES">Sumber: Penjualan BZP</option>
+              <option value="BZP_CAMPAIGN">Sumber: Campaign BZP</option>
+            </select>
+            <select value={distForm.targetUnit} onChange={(e) => setDistForm((s) => ({ ...s, targetUnit: e.target.value }))} className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs">
+              {['JEMAAT', 'PEMUDA', 'REMAJA', 'ANAK', 'BAPAK', 'IBU', 'KOLOM', 'KOMUNITAS'].map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+            <input value={distForm.amount} onChange={(e) => setDistForm((s) => ({ ...s, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="Jumlah" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+            <input value={distForm.note} onChange={(e) => setDistForm((s) => ({ ...s, note: e.target.value }))} placeholder="Catatan" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
+            <button type="button" onClick={distribute} className="px-3 py-2 rounded-full bg-[#181716] text-white text-xs font-bold">Distribusi</button>
+          </div>
+
+          {bzp.distributions.length > 0 && (
+            <div className="space-y-1">
+              {bzp.distributions.slice(0, 8).map((d) => (
+                <div key={d.id} className="flex items-center justify-between text-xs p-2 rounded-xl border border-[#EFEDE8]">
+                  <span>→ {d.targetUnit}</span>
+                  <span className="font-bold">{rupiah(d.amount)} <span className="opacity-60">· {d.status}</span></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

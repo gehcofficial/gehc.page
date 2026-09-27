@@ -345,6 +345,11 @@ const STEPS = [
     label: 'P1: fasilitas & keuangan (facilities, bookings, kas, funding, distributions)',
     required: true,
   },
+  {
+    script: 'server/_migrate-bzp-bendahara.cjs',
+    label: 'P2: BZP di bawah Bendahara (petty cash + campaign funding)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

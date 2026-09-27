@@ -42,6 +42,7 @@ import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
 import { withTenant, tenantWhere, tenantForWrite, activeTenantId, canAccessTenant, isJemaatScope } from './lib/tenant-scope.mjs';
 import { isUnitMember } from './lib/tenant-map.mjs';
+import { isBendahara, isBpmjUser, isSuperadminUser } from './lib/church-access.mjs';
 import {
   applyPlatformAdminPortalRole,
   ensurePortalSuperadminForGrant,
@@ -1109,6 +1110,68 @@ app.get('/api/church/kolom/:id/members', requireRole(), wrap(async (req, res) =>
     .findMany({ where: { kolomId: req.params.id }, orderBy: { name: 'asc' }, take: 500, select: memberSelect(pii) })
     .catch(() => []);
   res.json({ kolomId: req.params.id, pii, members });
+}));
+
+// ---------- P2: BZP di bawah Bendahara ----------
+const isTreasurerReq = async (req) =>
+  isSuperadminUser(req.authUser) || isBpmjUser(req.authUser) || (await isBendahara(req.authUser).catch(() => false));
+
+app.get('/api/church/bzp/overview', requireRole(), wrap(async (req, res) => {
+  if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  const prisma = getPrisma();
+  const paidAgg = await prisma.order.aggregate({ _sum: { total: true }, where: { status: 'PAID' } }).catch(() => ({ _sum: { total: 0 } }));
+  const ordersPaid = await prisma.order.count({ where: { status: 'PAID' } }).catch(() => 0);
+  const donations = await prisma.campaignDonation.groupBy({ by: ['status'], _sum: { amount: true } }).catch(() => []);
+  const campaigns = await prisma.campaign
+    .findMany({ orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, title: true, slug: true, target: true, isActive: true, fundingRequestId: true } })
+    .catch(() => []);
+  const settings = await prisma.bzpSetting.findUnique({ where: { id: BZP_SETTING_ID } }).catch(() => null);
+  const distributions = await prisma.distribution
+    .findMany({ where: { sourceType: { in: ['BZP_CAMPAIGN', 'BZP_SALES'] } }, orderBy: { createdAt: 'desc' }, take: 50 })
+    .catch(() => []);
+  res.json({
+    salesTotal: paidAgg?._sum?.total || 0,
+    ordersPaid,
+    donations,
+    campaigns,
+    pettyCashAllowanceAccountId: settings?.pettyCashAllowanceAccountId || null,
+    distributions,
+  });
+}));
+
+app.patch('/api/church/bzp/petty-cash', requireRole(), wrap(async (req, res) => {
+  if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  const prisma = getPrisma();
+  const accountId = req.body?.accountId ? String(req.body.accountId) : null;
+  const settings = await prisma.bzpSetting.upsert({
+    where: { id: BZP_SETTING_ID },
+    update: { pettyCashAllowanceAccountId: accountId, updatedById: req.authUser.id },
+    create: { id: BZP_SETTING_ID, pettyCashAllowanceAccountId: accountId, updatedById: req.authUser.id },
+  });
+  res.json({ pettyCashAllowanceAccountId: settings.pettyCashAllowanceAccountId || null });
+}));
+
+app.post('/api/church/bzp/distribute', requireRole(), wrap(async (req, res) => {
+  if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  const prisma = getPrisma();
+  const sourceType = String(req.body?.sourceType || 'BZP_SALES').toUpperCase();
+  if (!['BZP_CAMPAIGN', 'BZP_SALES'].includes(sourceType)) return res.status(400).json({ error: 'sourceType BZP_CAMPAIGN|BZP_SALES.' });
+  const targetUnit = String(req.body?.targetUnit || '').toUpperCase();
+  const amount = Number(req.body?.amount);
+  if (!targetUnit || !(amount > 0)) return res.status(400).json({ error: 'targetUnit & amount (>0) wajib.' });
+  const created = await prisma.distribution.create({
+    data: {
+      id: `dst-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`,
+      sourceType,
+      sourceRef: req.body?.sourceRef ? String(req.body.sourceRef) : null,
+      targetUnit,
+      amount,
+      status: 'PROPOSED',
+      decidedByUserId: req.authUser.id,
+      note: req.body?.note ? String(req.body.note) : null,
+    },
+  });
+  res.status(201).json({ distribution: created });
 }));
 
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
@@ -7480,10 +7543,22 @@ app.put('/api/benzar/settings',
   const qris = req.body?.qris && typeof req.body.qris === 'object' ? req.body.qris : null;
   const deliveryFee = Math.max(0, Number(req.body?.deliveryFee) || 0);
   const waGroupUrl = req.body?.waGroupUrl ? String(req.body.waGroupUrl).trim().slice(0, 300) : null;
+  // P2: petty cash BZP hanya boleh diubah Bendahara/BPMJ/SUPERADMIN.
+  const canSetPetty = isSuperadminUser(req.authUser) || isBpmjUser(req.authUser) || (await isBendahara(req.authUser).catch(() => false));
+  const pettyCashAllowanceAccountId =
+    req.body?.pettyCashAllowanceAccountId !== undefined && canSetPetty
+      ? (req.body.pettyCashAllowanceAccountId ? String(req.body.pettyCashAllowanceAccountId) : null)
+      : undefined;
   const settings = await prisma.bzpSetting.upsert({
     where: { id: BZP_SETTING_ID },
-    update: { picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
-    create: { id: BZP_SETTING_ID, picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null },
+    update: {
+      picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null,
+      ...(pettyCashAllowanceAccountId !== undefined ? { pettyCashAllowanceAccountId } : {}),
+    },
+    create: {
+      id: BZP_SETTING_ID, picUserIds, qris, deliveryFee, waGroupUrl, updatedById: req.authUser?.id || null,
+      pettyCashAllowanceAccountId: pettyCashAllowanceAccountId ?? null,
+    },
   });
   res.json({ settings });
 }));
@@ -7649,6 +7724,7 @@ app.post('/api/benzar/campaigns', requireDivision('BENZARPR'), requireRole(...BZ
       imageFileId: req.body?.imageFileId ? String(req.body.imageFileId) : null,
       target: Math.max(0, Number(req.body?.target) || 0),
       eventId: req.body?.eventId ? String(req.body.eventId) : null,
+      fundingRequestId: req.body?.fundingRequestId ? String(req.body.fundingRequestId) : null,
       isActive: req.body?.isActive === undefined ? true : Boolean(req.body.isActive),
       startsAt: req.body?.startsAt ? new Date(req.body.startsAt) : null,
       endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
@@ -7662,7 +7738,7 @@ app.patch('/api/benzar/campaigns/:id', requireDivision('BENZARPR'), requireRole(
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const data = {};
-  for (const k of ['title', 'description', 'imageFileId', 'eventId']) {
+  for (const k of ['title', 'description', 'imageFileId', 'eventId', 'fundingRequestId']) {
     if (req.body?.[k] !== undefined) data[k] = req.body[k] ? String(req.body[k]) : null;
   }
   if (req.body?.target !== undefined) data.target = Math.max(0, Number(req.body.target) || 0);

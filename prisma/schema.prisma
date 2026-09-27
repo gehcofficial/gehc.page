@@ -1605,6 +1605,8 @@ model Campaign {
   imageFileId String?   @map("image_file_id") @db.VarChar(128)
   target      Int       @default(0)
   eventId     String?   @map("event_id") @db.VarChar(64)
+  /// P2: pengajuan dana terkait (BZP → Bendahara).
+  fundingRequestId String? @map("funding_request_id") @db.VarChar(64)
   isActive    Boolean   @default(true) @map("is_active")
   startsAt    DateTime? @map("starts_at") @db.DateTime(3)
   endsAt      DateTime? @map("ends_at") @db.DateTime(3)
@@ -1646,6 +1648,8 @@ model BzpSetting {
   deliveryFee Int      @default(0) @map("delivery_fee")
   qris        Json? // {imageUrl, merchantName, merchantId, bankName, accountNumber, instructions}
   waGroupUrl  String?  @map("wa_group_url") @db.VarChar(300)
+  /// P2: akun kas petty-cash BZP (di bawah Bendahara).
+  pettyCashAllowanceAccountId String? @map("petty_cash_allowance_account_id") @db.VarChar(64)
   updatedById String?  @map("updated_by_id") @db.VarChar(64)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
