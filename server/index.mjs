@@ -8056,10 +8056,13 @@ app.get('/api/penatalayan/roles', wrap(async (req, res) => {
   const prisma = getPrisma();
   const { division, includeInactive, serviceType, scope } = req.query;
   const where = includeInactive ? {} : { isActive: true };
-  if (String(scope || '').trim()) {
-    const sc = String(scope).trim().toUpperCase();
-    if (SERVICE_SCOPES.includes(sc)) where.scope = sc;
-  }
+  const divList = String(division || '')
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+  const scopeParam = String(scope || '').trim().toUpperCase();
+  if (SERVICE_SCOPES.includes(scopeParam)) where.scope = scopeParam;
+  else if (!divList.some(isChurchDivision)) where.scope = 'UNIT';
   if (division) {
     const list = String(division).split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
     if (list.length) where.division = list.length > 1 ? { in: list } : list[0];
@@ -8319,15 +8322,16 @@ app.get('/api/penatalayan/board', requireRole(), wrap(async (req, res) => {
     .split(',')
     .map((s) => s.trim().toUpperCase())
     .filter((s) => SERVICE_DIVISION_SET.has(s));
-  const roleWhere = { isActive: true };
-  if (scopeFilter) roleWhere.scope = scopeFilter;
+  // Bawaan = UNIT (pemuda); CHURCH hanya bila diminta eksplisit atau divisi THL.
+  const effectiveScope = scopeFilter || (divFilter.length && divFilter.every(isChurchDivision) ? 'CHURCH' : 'UNIT');
+  const roleWhere = { isActive: true, scope: effectiveScope };
   if (divFilter.length) roleWhere.division = divFilter.length > 1 ? { in: divFilter } : divFilter[0];
   const [schedules, roles, events] = await Promise.all([
     prisma.serviceSchedule.findMany({
       where: {
         date: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) },
         status: { not: 'CANCELLED' },
-        ...(scopeFilter || divFilter.length ? { serviceRole: { ...(scopeFilter ? { scope: scopeFilter } : {}), ...(divFilter.length ? { division: divFilter.length > 1 ? { in: divFilter } : divFilter[0] } : {}) } } : {}),
+        serviceRole: { scope: effectiveScope, ...(divFilter.length ? { division: divFilter.length > 1 ? { in: divFilter } : divFilter[0] } : {}) },
       },
       include: { serviceRole: true, user: { select: { id: true, name: true } } },
       orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
