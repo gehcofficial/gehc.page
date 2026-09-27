@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — F3.6: Rapikan visibilitas nav per peran/tenant (27 Sep 2026)
+
+**Latar:** audit ulang matriks nav menemukan 5 kebocoran. Diperbaiki:
+
+1. **Panel Divisi per divisi** — `PortalLayout` kini memfilter `div-*` (nav + sidebar) lewat `filterDivisionTabs(defs, allowedDivisionTabs, isSuperadmin)`; KOMISI/COMMITTEE hanya melihat divisi yang diikuti (API tetap `requireDivision`).
+2. **BZP** — `div-benzarpr.portals: ['jemaat','youth']` (hilang dari men/women/teen/kids/kolom/community).
+3. **Modul jemaat: pengurus vs anggota** — `church-facilities` & `church-finance` → `CHURCH_ROLES.leaders` (SUPERADMIN/BPMJ/KOMISI/COMMITTEE); Stewardship/MDS/Keamanan/Anggota/Pengurus Unit tetap semua baca.
+4. **Dasbor BPMJ** — `roles: ['SUPERADMIN','BPMJ']`.
+5. **Redirect hub → portal unit** — di Portal Jemaat, pengguna tanpa peran jemaat tetapi ber-unit/BIPRA diarahkan ke host unitnya (`hubRedirectHost`), sadar prod/staging. `gehc.page/#/portal` bagi pengguna Pemuda kini mendarat di `youth.gehc.page`.
+
+**Helper murni:** `filterDivisionTabs` (portal-nav-config), `hubRedirectHost`/`unitHostForTenant`/`unitHostForPortal` (portal-profiles).
+
+**Verifikasi:** tes baru (visibilitas BZP, Fasilitas/Keuangan pengurus, Dasbor BPMJ, filter divisi, redirect hub) ✓ `lint` bersih ✓ **556 test** hijau ✓ `build` OK ✓ staging `8e5f363` ✓ (cek browser staging terhalang Basic Auth; logika diuji unit).
+
+### Next
+1. Guard tulis per-unit jemaat (`canAccessChurchUnit`) — opsional.
+2. Kas Unit otomatis + laporan bulanan/ekspor (opsional).
+
 ## Current — P4: Panji Yosua + Dasbor BPMJ (26 Sep 2026)
 
 **Schema (migrasi `server/_migrate-panji.cjs`):** tabel `incident_logs` (`title, category, severity, occurredAt, location, description, actionTaken, reporterUserId, eventId, status(OPEN|HANDLED|CLOSED), handledById, handledAt`).
