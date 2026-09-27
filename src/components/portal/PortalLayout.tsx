@@ -47,10 +47,11 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, type PortalNavParentDef, type PortalNavItemDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, filterDivisionTabs, isDivisionTab, type PortalNavParentDef, type PortalNavItemDef } from '../../lib/portal-nav-config';
 import { useMyDivisions } from '../../hooks/useMyDivisions';
 import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
 import { usePortalProfile } from '../../hooks/usePortalProfile';
+import { hubRedirectHost } from '../../lib/portal-profiles';
 import { ChurchOrgPanel } from './ChurchOrgPanel';
 import { UnitPengurusPanel } from './UnitPengurusPanel';
 import { UnitMembersPanel } from './UnitMembersPanel';
@@ -305,7 +306,11 @@ export const PortalLayout: React.FC = () => {
     return myDiv.canSee(id) && (!def || inActivePortal(def));
   });
 
-  const baseNavDefs = buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id);
+  const baseNavDefs = filterDivisionTabs(
+    buildPortalNavItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id),
+    allowedDivisionTabs,
+    currentRole === 'SUPERADMIN',
+  );
   const navItemDefs = [
     ...baseNavDefs,
     ...extraDivDefs.filter((d) => !baseNavDefs.some((x) => x.id === d.id)),
@@ -335,12 +340,36 @@ export const PortalLayout: React.FC = () => {
     window.location.hash = buildPortalPath({ namespace: roleToNamespace(currentRole), page: first }).slice(1);
   }, [activeTab, currentRole]);
 
+  // Hub (Portal Jemaat) untuk pengguna ber-unit: arahkan ke portal unitnya
+  // bila pengguna tidak punya peran jemaat (mis. MENTEE/MEMBER Pemuda).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!portal.isJemaat || !authUser || !roleMissing) return;
+    const unitTenants: string[] = Array.from(
+      new Set(
+        ((authUser.rolesAll || []) as { tenantId?: string }[])
+          .map((r) => String(r.tenantId || ''))
+          .filter((t) => t && t !== 'tenant-jemaat'),
+      ),
+    );
+    const target = hubRedirectHost({
+      unitTenants,
+      bipra: authUser.membership?.bipra || null,
+      host: window.location.hostname,
+    });
+    if (target) window.location.href = `https://${target}/#/portal`;
+  }, [portal.isJemaat, authUser?.id, roleMissing]);
+
   const navWithHeaders: Array<
     | { type: 'header'; label: string }
     | { type: 'item'; item: typeof navItems[number] }
     | { type: 'parent'; parent: PortalNavParentDef; children: typeof navItems }
   > = [];
-  const baseSidebarRows = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id);
+  const baseSidebarRowsAll = buildPortalSidebarItems(currentRole, { isGroupMentor, isMentee, isBodTimkerja }, isOnboarding, portal.id);
+  // Sembunyikan item divisi yang bukan milik pengguna (kecuali SUPERADMIN).
+  const baseSidebarRows = currentRole === 'SUPERADMIN'
+    ? baseSidebarRowsAll
+    : baseSidebarRowsAll.filter((r) => r.type !== 'item' || !isDivisionTab(r.item.id) || allowedDivisionTabs.includes(r.item.id));
   const sidebarRows = [
     ...baseSidebarRows,
     ...extraDivDefs

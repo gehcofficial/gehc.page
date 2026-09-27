@@ -32,6 +32,8 @@ const CHURCH_ROLES = {
   komisi: ['KOMISI'] as UserRole[],
   committee: ['COMMITTEE'] as UserRole[],
   komisiCommittee: ['KOMISI', 'COMMITTEE'] as UserRole[],
+  /** Pengurus: mengelola keuangan/fasilitas (lihat + aksi dibatasi server). */
+  leaders: ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE'] as UserRole[],
 };
 
 /** Panel per-divisi (Fase 1 IA): tiap divisi = destinasi sendiri di sidebar. */
@@ -52,6 +54,20 @@ export function divisionForTab(tabId: string): string | null {
 
 export function isDivisionTab(tabId: string): boolean {
   return DIVISION_TAB_IDS.includes(tabId);
+}
+
+/**
+ * Sembunyikan tab divisi yang bukan milik pengguna (kecuali SUPERADMIN).
+ * `allowedDivisionTabIds` = DIVISION_TAB_IDS yang lolos `myDiv.canSee`.
+ */
+export function filterDivisionTabs<T extends { id: string }>(
+  defs: T[],
+  allowedDivisionTabIds: string[],
+  isSuperadmin: boolean,
+): T[] {
+  if (isSuperadmin) return defs;
+  const allowed = new Set(allowedDivisionTabIds);
+  return defs.filter((d) => !isDivisionTab(d.id) || allowed.has(d.id));
 }
 
 /** Definisi nav untuk 6 panel divisi (untuk gating anggota divisi). */
@@ -134,16 +150,16 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'div-koinonia', label: 'Koinonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Hubungan, komunikasi & check-in', portals: YOUTH_ONLY_PORTALS },
   { id: 'div-diakonia', label: 'Diakonia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Kasih peduli & benevolence', portals: YOUTH_ONLY_PORTALS },
   { id: 'div-marturia', label: 'Marturia', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Dokumentasi, galeri & kesaksian', portals: YOUTH_ONLY_PORTALS },
-  { id: 'div-benzarpr', label: 'Benzarpreneurship', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Usaha & fundraising', portals: ALL_PORTAL_IDS },
+  { id: 'div-benzarpr', label: 'Benzarpreneurship', roles: CHURCH_ROLES.komisiCommittee, group: 'Divisi', subtitle: 'Usaha & fundraising', portals: ['jemaat', 'youth'] },
   { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event', portals: ALL_PORTAL_IDS },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem', portals: JEMAAT_ONLY_PORTALS },
   { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit', portals: ALL_PORTAL_IDS },
-  { id: 'church-facilities', label: 'Fasilitas & Penyewaan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Katalog fasilitas, booking & invoice', portals: ALL_PORTAL_IDS },
-  { id: 'church-finance', label: 'Keuangan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Kas, transaksi & pengajuan dana', portals: ALL_PORTAL_IDS },
+  { id: 'church-facilities', label: 'Fasilitas & Penyewaan', roles: CHURCH_ROLES.leaders, group: 'Jemaat', subtitle: 'Katalog fasilitas, booking & invoice', portals: ALL_PORTAL_IDS },
+  { id: 'church-finance', label: 'Keuangan', roles: CHURCH_ROLES.leaders, group: 'Jemaat', subtitle: 'Kas, transaksi & pengajuan dana', portals: ALL_PORTAL_IDS },
   { id: 'church-stewardship', label: 'Stewardship (THL)', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Penatalayanan ibadah jemaat', portals: ALL_PORTAL_IDS },
   { id: 'church-mds', label: 'MDS (Multimedia)', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Multimedia, dokumentasi & sound', portals: ALL_PORTAL_IDS },
   { id: 'church-security', label: 'Keamanan (Panji Yosua)', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Pos jaga & laporan insiden', portals: ALL_PORTAL_IDS },
-  { id: 'church-dashboard', label: 'Dasbor BPMJ', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Jemaat', subtitle: 'Ringkasan lintas unit', portals: ALL_PORTAL_IDS },
+  { id: 'church-dashboard', label: 'Dasbor BPMJ', roles: ['SUPERADMIN', 'BPMJ'], group: 'Jemaat', subtitle: 'Ringkasan lintas unit', portals: ALL_PORTAL_IDS },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];
@@ -320,3 +336,4 @@ export function findParentForTab(
   }
   return null;
 }
+

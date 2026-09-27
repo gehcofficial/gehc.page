@@ -15,7 +15,7 @@
  * (lihat F4). Di F1 hanya dipakai untuk nav, label, dan badge "Lingkup".
  */
 
-import { resolveHostUnit, type HostUnit } from './host-context';
+import { resolveHostUnit, isStagingHost, type HostUnit } from './host-context';
 
 export type PortalId =
   | 'jemaat'
@@ -192,6 +192,51 @@ export function portalOverrideFromSearch(search: string, host: string): PortalId
 /** Portal efektif untuk host + query (memperhitungkan override non-produksi). */
 export function resolvePortalId(host: string, search = ''): PortalId {
   return portalOverrideFromSearch(search, host) || portalIdForHost(host);
+}
+
+/** BIPRA (kategorial) → portal unit. */
+export const BIPRA_PORTAL: Record<string, PortalId> = {
+  PEMUDA: 'youth',
+  REMAJA: 'teen',
+  ANAK: 'kids',
+  BAPAK: 'men',
+  IBU: 'women',
+};
+
+/** Host kanonik portal unit (staging menyesuaikan host saat ini). */
+export function unitHostForPortal(portalId: PortalId, currentHost: string): string | null {
+  if (portalId === 'jemaat') return null;
+  const prod = PORTAL_PROFILES[portalId]?.host;
+  if (!prod) return null;
+  return isStagingHost(currentHost) ? prod.replace(/^([a-z]+)\./, 'staging-$1.') : prod;
+}
+
+/** Host portal unit untuk tenant (null bila tenant jemaat/unknown). */
+export function unitHostForTenant(tenantId: string, currentHost: string): string | null {
+  const entry = ALL_PORTAL_IDS.find((id) => PORTAL_PROFILES[id].tenantId === tenantId);
+  return entry ? unitHostForPortal(entry, currentHost) : null;
+}
+
+/**
+ * Target redirect dari hub (Jemaat) untuk pengguna ber-unit — null bila tidak.
+ * Dipakai bila pengguna tidak punya peran jemaat: arahkan ke portal unitnya
+ * (prioritas BIPRA, lalu tenant unit pertama dari perannya).
+ */
+export function hubRedirectHost({
+  unitTenants = [],
+  bipra = null,
+  host,
+}: {
+  unitTenants?: string[];
+  bipra?: string | null;
+  host: string;
+}): string | null {
+  const fromBipra = bipra ? BIPRA_PORTAL[String(bipra).toUpperCase()] : undefined;
+  const candidateTenant = fromBipra
+    ? PORTAL_PROFILES[fromBipra].tenantId
+    : unitTenants.find((t) => t && t !== 'tenant-jemaat') || null;
+  if (!candidateTenant) return null;
+  return unitHostForTenant(candidateTenant, host);
 }
 
 export function isJemaatPortal(id: PortalId): boolean {

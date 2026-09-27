@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ALL_PORTAL_IDS,
   PORTAL_PROFILES,
+  hubRedirectHost,
   isJemaatPortal,
   isKnownHost,
   isPortalId,
@@ -11,6 +12,7 @@ import {
   portalScopeOf,
   resolvePortalId,
   tenantIdForHost,
+  unitHostForTenant,
 } from '../../src/lib/portal-profiles';
 
 describe('portal-profiles — host ke portal', () => {
@@ -120,5 +122,22 @@ describe('portal-profiles — tenant per host', () => {
     expect(tenantIdForHost('districts.gehc.page')).toBe('tenant-districts');
     expect(tenantIdForHost('staging-women.gehc.page')).toBe('tenant-women');
     expect(tenantIdForHost('localhost')).toBe('tenant-youth');
+  });
+});
+
+describe('portal-profiles — redirect hub → portal unit', () => {
+  it('unitHostForTenant sadar prod/staging', () => {
+    expect(unitHostForTenant('tenant-men', 'gehc.page')).toBe('men.gehc.page');
+    expect(unitHostForTenant('tenant-men', 'staging.gehc.page')).toBe('staging-men.gehc.page');
+    expect(unitHostForTenant('tenant-jemaat', 'gehc.page')).toBeNull();
+  });
+
+  it('hubRedirectHost prioritas BIPRA, lalu tenant unit dari peran', () => {
+    expect(hubRedirectHost({ bipra: 'BAPAK', host: 'gehc.page' })).toBe('men.gehc.page');
+    expect(hubRedirectHost({ bipra: 'PEMUDA', host: 'gehc.page' })).toBe('youth.gehc.page');
+    expect(hubRedirectHost({ unitTenants: ['tenant-women'], host: 'gehc.page' })).toBe('women.gehc.page');
+    expect(hubRedirectHost({ unitTenants: ['tenant-jemaat'], host: 'gehc.page' })).toBeNull();
+    expect(hubRedirectHost({ host: 'gehc.page' })).toBeNull();
+    expect(hubRedirectHost({ bipra: 'BAPAK', host: 'staging.gehc.page' })).toBe('staging-men.gehc.page');
   });
 });

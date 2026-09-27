@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPortalNavItems,
   buildPortalSidebarItems,
+  filterDivisionTabs,
 } from '../../src/lib/portal-nav-config';
 import type { UserRole } from '../../src/types';
 
@@ -90,5 +91,47 @@ describe('portal-nav-config — tier anggota (MEMBER)', () => {
     expect(list).not.toContain('people');
     expect(list).not.toContain('org-hierarchy');
     expect(list).not.toContain('div-liturgia');
+  });
+});
+
+describe('portal-nav-config — visibilitas modul (F3.6)', () => {
+  it('BZP hanya di portal Jemaat & Pemuda', () => {
+    expect(buildPortalNavItems('KOMISI', CTX, false, 'youth').map((i) => i.id)).toContain('div-benzarpr');
+    expect(buildPortalNavItems('KOMISI', CTX, false, 'jemaat').map((i) => i.id)).toContain('div-benzarpr');
+    expect(buildPortalNavItems('KOMISI', CTX, false, 'men').map((i) => i.id)).not.toContain('div-benzarpr');
+    expect(buildPortalNavItems('KOMISI', CTX, false, 'women').map((i) => i.id)).not.toContain('div-benzarpr');
+  });
+
+  it('Fasilitas & Keuangan hanya untuk pengurus (bukan MEMBER/MENTEE)', () => {
+    const men = buildPortalNavItems('MEMBER', CTX, false, 'men').map((i) => i.id);
+    expect(men).not.toContain('church-facilities');
+    expect(men).not.toContain('church-finance');
+    const komisi = buildPortalNavItems('KOMISI', CTX, false, 'men').map((i) => i.id);
+    expect(komisi).toContain('church-facilities');
+    expect(komisi).toContain('church-finance');
+  });
+
+  it('Modul baca (Stewardship/MDS/Keamanan) tetap untuk anggota', () => {
+    const list = buildPortalNavItems('MEMBER', CTX, false, 'men').map((i) => i.id);
+    expect(list).toContain('church-stewardship');
+    expect(list).toContain('church-mds');
+    expect(list).toContain('church-security');
+    expect(list).toContain('unit-members');
+  });
+
+  it('Dasbor BPMJ hanya BPMJ/SUPERADMIN', () => {
+    expect(buildPortalNavItems('KOMISI', CTX, false, 'jemaat').map((i) => i.id)).not.toContain('church-dashboard');
+    expect(buildPortalNavItems('BPMJ', CTX, false, 'jemaat').map((i) => i.id)).toContain('church-dashboard');
+    expect(buildPortalNavItems('SUPERADMIN', CTX, false, 'jemaat').map((i) => i.id)).toContain('church-dashboard');
+  });
+
+  it('filterDivisionTabs menyembunyikan divisi di luar izin', () => {
+    const defs = [
+      { id: 'div-liturgia' },
+      { id: 'div-didaskalia' },
+      { id: 'event-info' },
+    ];
+    expect(filterDivisionTabs(defs, ['div-liturgia'], false).map((d) => d.id)).toEqual(['div-liturgia', 'event-info']);
+    expect(filterDivisionTabs(defs, [], true).map((d) => d.id)).toEqual(['div-liturgia', 'div-didaskalia', 'event-info']);
   });
 });
