@@ -1174,6 +1174,106 @@ app.post('/api/church/bzp/distribute', requireRole(), wrap(async (req, res) => {
   res.status(201).json({ distribution: created });
 }));
 
+// ---------- P4: Panji Yosua (insiden) + Dasbor BPMJ ----------
+const isPanjiReq = async (req) => {
+  const u = req.authUser;
+  if (!u) return false;
+  if (isSuperadminUser(u) || isBpmjUser(u)) return true;
+  const { canAccessChurchUnit } = await import('./lib/church-access.mjs');
+  return canAccessChurchUnit(u, 'PANJI').catch(() => false);
+};
+
+app.get('/api/church/incidents', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const where = {};
+  if (req.query.status) where.status = String(req.query.status).toUpperCase();
+  if (!(await isPanjiReq(req))) where.reporterUserId = req.authUser.id;
+  const incidents = await prisma.incidentLog.findMany({ where, orderBy: { occurredAt: 'desc' }, take: 300 });
+  res.json({ incidents });
+}));
+
+app.post('/api/church/incidents', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const b = req.body || {};
+  const title = String(b.title || '').trim();
+  if (!title) return res.status(400).json({ error: 'title wajib.' });
+  const severity = ['RINGAN', 'SEDANG', 'BERAT'].includes(String(b.severity || '').toUpperCase())
+    ? String(b.severity).toUpperCase()
+    : 'RINGAN';
+  const created = await prisma.incidentLog.create({
+    data: {
+      id: `inc-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`,
+      title,
+      category: String(b.category || 'LAIN').toUpperCase().slice(0, 60),
+      severity,
+      occurredAt: b.occurredAt ? new Date(String(b.occurredAt)) : new Date(),
+      location: b.location || null,
+      description: b.description || null,
+      actionTaken: b.actionTaken || null,
+      reporterUserId: req.authUser.id,
+      eventId: b.eventId || null,
+      status: 'OPEN',
+    },
+  });
+  res.status(201).json({ incident: created });
+}));
+
+app.patch('/api/church/incidents/:id', requireRole(), wrap(async (req, res) => {
+  if (!(await isPanjiReq(req))) return res.status(403).json({ error: 'Hanya Panji Yosua/BPMJ.' });
+  const prisma = getPrisma();
+  const b = req.body || {};
+  const data = {};
+  if (b.status !== undefined) {
+    const status = String(b.status).toUpperCase();
+    if (!['OPEN', 'HANDLED', 'CLOSED'].includes(status)) return res.status(400).json({ error: 'status tidak valid.' });
+    data.status = status;
+    if (status !== 'OPEN') { data.handledById = req.authUser.id; data.handledAt = new Date(); }
+  }
+  if (b.actionTaken !== undefined) data.actionTaken = b.actionTaken || null;
+  if (b.severity !== undefined && ['RINGAN', 'SEDANG', 'BERAT'].includes(String(b.severity).toUpperCase())) {
+    data.severity = String(b.severity).toUpperCase();
+  }
+  const incident = await prisma.incidentLog.update({ where: { id: req.params.id }, data });
+  res.json({ incident });
+}));
+
+/** Dasbor BPMJ lintas unit: ringkasan jemaat. */
+app.get('/api/church/bpmj/dashboard', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DB belum dikonfigurasi.' });
+  const safe = (p, fb) => p.catch(() => fb);
+  const [membersByBipra, membersByKolom, paidSum, accounts, openBookings, openFunding, openIncidents, upcomingDuties, campaigns, recentWarta] = await Promise.all([
+    safe(prisma.user.groupBy({ by: ['bipra'], _count: { _all: true } }), []),
+    safe(prisma.user.groupBy({ by: ['kolomId'], _count: { _all: true }, where: { kolomId: { not: null } } }), []),
+    safe(prisma.order.aggregate({ _sum: { total: true }, where: { status: 'PAID' } }), { _sum: { total: 0 } }),
+    safe(prisma.cashAccount.findMany({ select: { id: true, name: true, kind: true, openingBalance: true } }), []),
+    safe(prisma.facilityBooking.count({ where: { status: { in: ['SUBMITTED', 'APPROVED'] } } }), 0),
+    safe(prisma.fundingRequest.count({ where: { status: { in: ['SUBMITTED', 'APPROVED'] } } }), 0),
+    safe(prisma.incidentLog.count({ where: { status: { in: ['OPEN', 'HANDLED'] } } }), 0),
+    safe(prisma.serviceSchedule.count({ where: { date: { gte: new Date() }, status: { not: 'CANCELLED' } } }), 0),
+    safe(prisma.campaign.findMany({ where: { isActive: true }, take: 5, select: { id: true, title: true, target: true } }), []),
+    safe(prisma.internalWarta.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, title: true, status: true } }), []),
+  ]);
+  const txSums = await safe(prisma.cashTransaction.groupBy({ by: ['accountId', 'direction'], _sum: { amount: true } }), []);
+  const bal = new Map();
+  for (const s of txSums) {
+    const arr = bal.get(s.accountId) || [];
+    arr.push({ direction: s.direction, sum: s._sum?.amount });
+    bal.set(s.accountId, arr);
+  }
+  const { accountBalance } = await import('./lib/church-p1.mjs');
+  const cashTotal = accounts.reduce((sum, a) => sum + accountBalance(a.openingBalance, bal.get(a.id) || []), 0);
+  const totalMembers = membersByBipra.reduce((s, r) => s + (r._count?._all || 0), 0);
+  res.json({
+    members: { total: totalMembers, byBipra: membersByBipra.map((r) => ({ bipra: r.bipra, count: r._count?._all || 0 })), byKolom: membersByKolom.length },
+    finance: { bzpPaid: paidSum?._sum?.total || 0, cashTotal, openFunding, openBookings },
+    security: { openIncidents },
+    duties: { upcoming: upcomingDuties },
+    campaigns,
+    recentWarta,
+  });
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });
@@ -8036,8 +8136,8 @@ app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req,
 
 // Divisi yang boleh punya komponen penatalayan (whitelist) + dipakai filter per-event.
 const PENATALAYAN_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'];
-/** P3: divisi THL (lingkup jemaat). */
-const CHURCH_DIVISIONS = ['THL_STEWARDSHIP', 'THL_MDS'];
+/** P3/P4: divisi THL & Panji (lingkup jemaat). */
+const CHURCH_DIVISIONS = ['THL_STEWARDSHIP', 'THL_MDS', 'PANJI'];
 const SERVICE_DIVISION_SET = new Set([...PENATALAYAN_DIVISIONS, ...CHURCH_DIVISIONS]);
 const SERVICE_SCOPES = ['UNIT', 'CHURCH'];
 /** Divisi THL otomatis ber-scope CHURCH. */

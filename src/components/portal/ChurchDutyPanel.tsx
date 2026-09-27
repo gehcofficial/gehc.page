@@ -13,8 +13,8 @@ const STATUS_STYLE: Record<string, string> = {
   DONE: 'bg-emerald-50 text-emerald-700',
 };
 
-/** Penatalayanan lingkup jemaat (THL) — Stewardship / MDS. */
-export const ChurchDutyPanel: React.FC<{ division: 'THL_STEWARDSHIP' | 'THL_MDS' }> = ({ division }) => {
+/** Penatalayanan lingkup jemaat (THL / Panji). */
+export const ChurchDutyPanel: React.FC<{ division: 'THL_STEWARDSHIP' | 'THL_MDS' | 'PANJI' }> = ({ division }) => {
   const { currentRole, addToast } = useApp();
   const canEdit = CAN_EDIT.includes(currentRole);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -95,7 +95,7 @@ export const ChurchDutyPanel: React.FC<{ division: 'THL_STEWARDSHIP' | 'THL_MDS'
     load();
   };
 
-  const label = division === 'THL_MDS' ? 'MDS (Multimedia, Dokumentasi, Sound)' : 'Stewardship (Penatalayanan Ibadah)';
+  const label = division === 'THL_MDS' ? 'MDS (Multimedia, Dokumentasi, Sound)' : division === 'PANJI' ? 'Panji Yosua (Pos Jaga)' : 'Stewardship (Penatalayanan Ibadah)';
   const sorted = useMemo(() => [...schedules].sort((a, b) => String(a.date).localeCompare(String(b.date))), [schedules]);
 
   return (

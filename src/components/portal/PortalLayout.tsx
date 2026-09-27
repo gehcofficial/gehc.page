@@ -58,6 +58,8 @@ import { KolomPanel } from './KolomPanel';
 import { ChurchFacilitiesPanel } from './ChurchFacilitiesPanel';
 import { ChurchFinancePanel } from './ChurchFinancePanel';
 import { ChurchDutyPanel } from './ChurchDutyPanel';
+import { ChurchSecurityPanel } from './ChurchSecurityPanel';
+import { BpmjDashboardPanel } from './BpmjDashboardPanel';
 import {
   LayoutDashboard,
   BookOpen,
@@ -91,6 +93,8 @@ import {
   MapPin,
   Building2,
   Wallet,
+  ShieldAlert,
+  LayoutGrid,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -285,6 +289,8 @@ export const PortalLayout: React.FC = () => {
     'church-finance': Wallet,
     'church-stewardship': ClipboardList,
     'church-mds': Images,
+    'church-security': ShieldAlert,
+    'church-dashboard': LayoutGrid,
   };
 
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
@@ -1040,6 +1046,16 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'church-mds' && (
             <div className="space-y-4">
               <ChurchDutyPanel division="THL_MDS" />
+            </div>
+          )}
+          {activeTab === 'church-security' && (
+            <div className="space-y-4">
+              <ChurchSecurityPanel />
+            </div>
+          )}
+          {activeTab === 'church-dashboard' && (
+            <div className="space-y-4">
+              <BpmjDashboardPanel />
             </div>
           )}
           {activeTab === 'integrations' && (

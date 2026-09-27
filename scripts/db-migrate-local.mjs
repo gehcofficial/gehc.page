@@ -355,6 +355,11 @@ const STEPS = [
     label: 'P3: THL — service_roles.scope (UNIT|CHURCH)',
     required: true,
   },
+  {
+    script: 'server/_migrate-panji.cjs',
+    label: 'P4: Panji Yosua — incident_logs',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

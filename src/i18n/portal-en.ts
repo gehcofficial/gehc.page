@@ -176,6 +176,8 @@ export const portalEn = {
     'church-finance': 'Finance',
     'church-stewardship': 'Stewardship (THL)',
     'church-mds': 'MDS (Multimedia)',
+    'church-security': 'Security (Panji Yosua)',
+    'church-dashboard': 'BPMJ Dashboard',
     events: 'Programs & Events',
     divisions: 'Division Panel (6)',
     'div-liturgia': 'Liturgia',
@@ -764,6 +766,20 @@ export const portalEn = {
       when: 'Organising the church sound/documentation/multimedia team.',
       notFor: 'Youth event galleries live in the Marturia division; Drive files via Google Drive Integration.',
     },
+    'church-security': {
+      title: 'Security (Panji Yosua)',
+      purpose: 'Guard posts (roles & schedules) and church incident reports.',
+      steps: ['Report an incident (title, category, severity, location).', 'Panji: handle then close.', 'Set guard posts: add roles & schedule servers.'],
+      when: 'Managing worship/event security and recording incidents.',
+      notFor: 'Other worship server scheduling is in Stewardship/MDS.',
+    },
+    'church-dashboard': {
+      title: 'BPMJ Dashboard',
+      purpose: 'Cross-unit summary: members by category, cash, bookings/funds, incidents, duties, campaigns.',
+      steps: ['Read the summary numbers.', 'Follow up in the related panels (Finance, Facilities, Panji).' ],
+      when: 'Council meetings / decision making.',
+      notFor: 'Operational detail lives in each panel.',
+    },
     events: {
       title: 'Programs & Events',
       purpose: 'Operational event workspace: create, schedule, edit WA/venue, questions, attendees.',
@@ -885,5 +901,6 @@ export const portalEn = {
     },
   },
 };
+
 
 

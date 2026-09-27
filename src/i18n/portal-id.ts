@@ -170,6 +170,8 @@ export const portalId: typeof portalEn = {
     'church-finance': 'Keuangan',
     'church-stewardship': 'Stewardship (THL)',
     'church-mds': 'MDS (Multimedia)',
+    'church-security': 'Keamanan (Panji Yosua)',
+    'church-dashboard': 'Dasbor BPMJ',
     events: 'Program & Event',
     divisions: 'Panel Divisi (6 Divisi)',
     'div-liturgia': 'Liturgia',
@@ -758,6 +760,20 @@ export const portalId: typeof portalEn = {
       when: 'Mengatur tim sound/dokumentasi/multimedia ibadah jemaat.',
       notFor: 'Galeri & dokumentasi event pemuda ada di Divisi Marturia; berkas Drive lewat Integrasi Google Drive.',
     },
+    'church-security': {
+      title: 'Keamanan (Panji Yosua)',
+      purpose: 'Pos jaga (peran & jadwal petugas) dan laporan insiden jemaat.',
+      steps: ['Laporkan insiden (judul, kategori, tingkat, lokasi).', 'Panji: tangani lalu tutup.', 'Atur pos jaga: tambah peran & jadwalkan petugas.'],
+      when: 'Mengelola keamanan ibadah/kegiatan dan mencatat kejadian.',
+      notFor: 'Penjadwalan petugas ibadah lain ada di Stewardship/MDS.',
+    },
+    'church-dashboard': {
+      title: 'Dasbor BPMJ',
+      purpose: 'Ringkasan lintas unit: anggota per BIPRA, kas, booking/dana, insiden, petugas, campaign.' ,
+      steps: ['Lihat angka ringkas.', 'Tindak lanjuti ke panel terkait (Keuangan, Fasilitas, Panji).' ],
+      when: 'Rapat/pengambilan keputusan majelis.',
+      notFor: 'Detail operasional ada di masing-masing panel.',
+    },
     events: {
       title: 'Program & Event',
       purpose: 'Workspace event operasional: buat, jadwal, edit WA/lokasi, soal, peserta.',
@@ -879,4 +895,5 @@ export const portalId: typeof portalEn = {
     },
   },
 };
+
 

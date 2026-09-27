@@ -1598,21 +1598,21 @@ model Promo {
 
 /// Campaign donasi (ala Kitabisa): target, progress, grand total.
 model Campaign {
-  id          String    @id @db.VarChar(64)
-  title       String    @db.VarChar(200)
-  slug        String    @unique @db.VarChar(80)
-  description String?   @db.Text
-  imageFileId String?   @map("image_file_id") @db.VarChar(128)
-  target      Int       @default(0)
-  eventId     String?   @map("event_id") @db.VarChar(64)
+  id               String    @id @db.VarChar(64)
+  title            String    @db.VarChar(200)
+  slug             String    @unique @db.VarChar(80)
+  description      String?   @db.Text
+  imageFileId      String?   @map("image_file_id") @db.VarChar(128)
+  target           Int       @default(0)
+  eventId          String?   @map("event_id") @db.VarChar(64)
   /// P2: pengajuan dana terkait (BZP → Bendahara).
-  fundingRequestId String? @map("funding_request_id") @db.VarChar(64)
-  isActive    Boolean   @default(true) @map("is_active")
-  startsAt    DateTime? @map("starts_at") @db.DateTime(3)
-  endsAt      DateTime? @map("ends_at") @db.DateTime(3)
-  createdById String    @map("created_by_id") @db.VarChar(64)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  fundingRequestId String?   @map("funding_request_id") @db.VarChar(64)
+  isActive         Boolean   @default(true) @map("is_active")
+  startsAt         DateTime? @map("starts_at") @db.DateTime(3)
+  endsAt           DateTime? @map("ends_at") @db.DateTime(3)
+  createdById      String    @map("created_by_id") @db.VarChar(64)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
 
   donations CampaignDonation[]
 
@@ -1642,16 +1642,16 @@ model CampaignDonation {
 
 /// Pengaturan BZP (single-row): PIC, ongkir, QRIS, grup WA.
 model BzpSetting {
-  id          String   @id @db.VarChar(64)
+  id                          String   @id @db.VarChar(64)
   /// Daftar userId PIC (maks 3) — nama & nomor diambil dari User/Struktur.
-  picUserIds  Json?    @map("pic_user_ids")
-  deliveryFee Int      @default(0) @map("delivery_fee")
-  qris        Json? // {imageUrl, merchantName, merchantId, bankName, accountNumber, instructions}
-  waGroupUrl  String?  @map("wa_group_url") @db.VarChar(300)
+  picUserIds                  Json?    @map("pic_user_ids")
+  deliveryFee                 Int      @default(0) @map("delivery_fee")
+  qris                        Json? // {imageUrl, merchantName, merchantId, bankName, accountNumber, instructions}
+  waGroupUrl                  String?  @map("wa_group_url") @db.VarChar(300)
   /// P2: akun kas petty-cash BZP (di bawah Bendahara).
-  pettyCashAllowanceAccountId String? @map("petty_cash_allowance_account_id") @db.VarChar(64)
-  updatedById String?  @map("updated_by_id") @db.VarChar(64)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  pettyCashAllowanceAccountId String?  @map("petty_cash_allowance_account_id") @db.VarChar(64)
+  updatedById                 String?  @map("updated_by_id") @db.VarChar(64)
+  updatedAt                   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@map("bzp_settings")
 }
@@ -1717,19 +1717,19 @@ model SalesShiftAssignment {
 // ============================================================
 
 model ServiceRole {
-  id                String   @id @db.VarChar(64)
-  name              String   @unique @db.VarChar(100)
-  division          String   @db.VarChar(20) // LITURGIA | DIDASKALIA | KOINONIA | DIAKONIA | MARTURIA | THL_STEWARDSHIP | THL_MDS
+  id                String       @id @db.VarChar(64)
+  name              String       @unique @db.VarChar(100)
+  division          String       @db.VarChar(20) // LITURGIA | DIDASKALIA | KOINONIA | DIAKONIA | MARTURIA | THL_STEWARDSHIP | THL_MDS
   /// P3: lingkup penatalayanan — UNIT (pemuda) atau CHURCH (jemaat/THL).
   scope             ServiceScope @default(UNIT)
-  subDivision       String?  @map("sub_division") @db.VarChar(100)
-  serviceTypes      String   @default("SERVING_DAY,MENTORING_DAY") @map("service_types") @db.VarChar(64) // CSV
-  checklistTemplate Json?    @map("checklist_template")
-  description       String?  @db.Text
-  isActive          Boolean  @default(true) @map("is_active")
-  sortOrder         Int      @default(0) @map("sort_order")
-  createdAt         DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  subDivision       String?      @map("sub_division") @db.VarChar(100)
+  serviceTypes      String       @default("SERVING_DAY,MENTORING_DAY") @map("service_types") @db.VarChar(64) // CSV
+  checklistTemplate Json?        @map("checklist_template")
+  description       String?      @db.Text
+  isActive          Boolean      @default(true) @map("is_active")
+  sortOrder         Int          @default(0) @map("sort_order")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
 
   schedules ServiceSchedule[]
 
@@ -2499,4 +2499,27 @@ model Distribution {
 
   @@index([status])
   @@map("distributions")
+}
+
+// ---------- P4: Panji Yosua ----------
+
+model IncidentLog {
+  id             String    @id @db.VarChar(64)
+  title          String    @db.VarChar(200)
+  category       String    @default("LAIN") @db.VarChar(60)
+  severity       String    @default("RINGAN") @db.VarChar(20) // RINGAN | SEDANG | BERAT
+  occurredAt     DateTime  @map("occurred_at") @db.DateTime(3)
+  location       String?   @db.VarChar(190)
+  description    String?   @db.Text
+  actionTaken    String?   @map("action_taken") @db.Text
+  reporterUserId String?   @map("reporter_user_id") @db.VarChar(64)
+  eventId        String?   @map("event_id") @db.VarChar(64)
+  status         String    @default("OPEN") @db.VarChar(20) // OPEN | HANDLED | CLOSED
+  handledById    String?   @map("handled_by_id") @db.VarChar(64)
+  handledAt      DateTime? @map("handled_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([status, occurredAt])
+  @@index([eventId])
+  @@map("incident_logs")
 }
