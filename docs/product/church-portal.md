@@ -167,3 +167,4 @@ Tiap fase: migrasi idempotent, seed per-env, `lint/test/build`, verifikasi stagi
 2. Nama pejabat per unit (Ketua/Bendahara/Kostor/Asisten Kostor; THL; Tim Tech; Panji Yosua).
 3. Perkiraan **tarif sewa** ruang/gedung & jenis fasilitas yang disewakan.
 4. Default tarif/petty cash (mis. batas petty cash pemuda).
+

@@ -1,5 +1,26 @@
 # GEHC Portal — Handoff
 
+## Current — P2: BZP di bawah Bendahara (26 Sep 2026)
+
+**Schema (migrasi `server/_migrate-bzp-bendahara.cjs`):**
+- `BzpSetting.pettyCashAllowanceAccountId` — akun petty cash BZP (di bawah Bendahara).
+- `Campaign.fundingRequestId` — tautan campaign ke pengajuan dana.
+
+**API:**
+- `GET /api/church/bzp/overview` (Bendahara/BPMJ/SA) — total penjualan lunas, jumlah pesanan, donasi per status, campaigns (+`fundingRequestId`), petty cash, distribusi BZP.
+- `PATCH /api/church/bzp/petty-cash` (Bendahara/BPMJ/SA) — set akun petty cash BZP.
+- `POST /api/church/bzp/distribute` (Bendahara/BPMJ/SA) — buat `Distribution` (source `BZP_SALES`/`BZP_CAMPAIGN` → target unit).
+- `PUT /api/benzar/settings` kini menerima `pettyCashAllowanceAccountId` **hanya** bila pemanggil Bendahara/BPMJ/SA; `POST/PATCH /api/benzar/campaigns` menerima `fundingRequestId`.
+
+**UI:** panel **Keuangan** mendapat bagian **BZP → Bendahara** (ringkasan penjualan/donasi, penyetelan petty cash, dan formulir distribusi ke unit).
+
+**Verifikasi staging:** `overview` (penjualan lunas 300k, 3 pesanan) ✓; set petty cash ke akun baru ✓; `distribute` → `Distribution PROPOSED BZP_SALES` ✓; campaign menerima `fundingRequestId` ✓; overview mencerminkan keduanya ✓ (data uji dibersihkan). `lint` bersih ✓ **549 test** hijau ✓ `build` OK ✓
+
+### Next
+1. **P3** — THL (Stewardship + MDS): `ServiceRole.scope(UNIT|CHURCH)`, kalender petugas jemaat, MDS memakai ulang galeri/Drive.
+2. **P4** — Panji Yosua (`IncidentLog`, pos jaga) + dasbor BPMJ lintas unit.
+3. Alur campaign → FundingRequest → penjualan → Distribution kini bisa dirangkai lewat panel Keuangan.
+
 ## Current — P1: Fasilitas & Keuangan (portal jemaat) (26 Sep 2026)
 
 **Model data (7 tabel, migrasi `server/_migrate-church-p1.cjs`):** `facilities`, `facility_bookings`, `maintenance_logs`, `cash_accounts`, `cash_transactions`, `funding_requests`, `distributions` — sesuai `docs/product/church-portal.md` §5. npm `db:migrate:church-p1[:staging|:prod]` + wiring `db-migrate-local`.
