@@ -340,6 +340,11 @@ const STEPS = [
     label: 'Struktur pengurus: kolom tenant_id per unit',
     required: true,
   },
+  {
+    script: 'server/_migrate-church-p1.cjs',
+    label: 'P1: fasilitas & keuangan (facilities, bookings, kas, funding, distributions)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

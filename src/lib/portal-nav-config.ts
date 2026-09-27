@@ -138,6 +138,8 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'wa-channels', label: 'Kanal WhatsApp', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Kerja', subtitle: 'Link grup permanen & event', portals: ALL_PORTAL_IDS },
   { id: 'integrations', label: 'Integrasi Google Drive', roles: CHURCH_ROLES.komisi, group: 'Sistem', portals: JEMAAT_ONLY_PORTALS },
   { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit', portals: ALL_PORTAL_IDS },
+  { id: 'church-facilities', label: 'Fasilitas & Penyewaan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Katalog fasilitas, booking & invoice', portals: ALL_PORTAL_IDS },
+  { id: 'church-finance', label: 'Keuangan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Kas, transaksi & pengajuan dana', portals: ALL_PORTAL_IDS },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];

@@ -94,6 +94,7 @@ import { MAX_BULK_ROWS, buildAssignments, rowKey, summarizeByUser } from './lib/
 import { registerChurchProgramRoutes } from './routes/church-programs.mjs';
 import { registerMinistryPlanRoutes } from './routes/ministry-plans.mjs';
 import { registerChurchCalendarRoutes } from './routes/church-calendar.mjs';
+import { registerChurchP1Routes } from './routes/church-p1.mjs';
 import { registerEventQuestionRoutes } from './routes/event-questions.mjs';
 import {
   applyLifeAddressFields,
@@ -2884,6 +2885,7 @@ registerDidaskaliaStudioRoutes(app, { wrap });
 registerLogoVoteRoutes(app, { wrap });
 registerInternalWartaRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
+registerChurchP1Routes(app, { wrap });
 registerEventQuestionRoutes(app, { wrap });
 
 // GET /api/events/:id � detail event + divisi.
