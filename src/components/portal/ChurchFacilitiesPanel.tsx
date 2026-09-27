@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarPlus, Check, X, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { currentPeriodKeys } from '../../lib/report-routing';
 
 type Facility = { id: string; code: string; name: string; kind: string; isActive: boolean; hourlyRate?: number | null; dailyRate?: number | null };
 type Booking = {
@@ -95,8 +96,16 @@ export const ChurchFacilitiesPanel: React.FC = () => {
           {pending > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{pending} menunggu</span>}
           {canManage && (
             <a
+              href={`#/laporan/fasilitas/${currentPeriodKeys().month}`}
+              className="ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700"
+            >
+              Laporan (presentasi)
+            </a>
+          )}
+          {canManage && (
+            <a
               href="/api/church/reports/bookings.csv"
-              className="ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
+              className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
             >
               Unduh CSV booking
             </a>

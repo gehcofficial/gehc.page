@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Wallet, Plus, Check, X, Send } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { currentPeriodKeys } from '../../lib/report-routing';
 
 type Account = { id: string; code: string; name: string; kind: string; unit: string; balance: number };
 type Txn = { id: string; accountId: string; direction: string; amount: number; category: string; description?: string; occurredAt: string; approvedAt?: string | null };
@@ -164,11 +165,17 @@ export const ChurchFinancePanel: React.FC = () => {
               <button type="button" onClick={ensureAccounts} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F3F1EC] hover:bg-[#E9E8E4]">
                 Siapkan akun kas unit
               </button>
+              <a href={`#/laporan/kas/${currentPeriodKeys().month}`} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700">
+                Laporan bulanan (presentasi)
+              </a>
+              <a href={`#/laporan/kas/${currentPeriodKeys().week}`} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700">
+                Laporan mingguan
+              </a>
               <a
-                href={`/api/church/reports/cash.csv?month=${new Date().toISOString().slice(0, 7)}`}
+                href={`/api/church/reports/cash.csv?period=${currentPeriodKeys().month}`}
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
               >
-                Unduh CSV kas bulan ini
+                CSV bulan ini
               </a>
             </span>
           )}

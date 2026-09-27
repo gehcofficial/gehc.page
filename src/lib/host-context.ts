@@ -100,6 +100,12 @@ export function isMaterialHash(hash: string): boolean {
   return h === '#/materi' || h.startsWith('#/materi/') || h.startsWith('#/materi?');
 }
 
+/** Halaman presentasi laporan (#/laporan/<jenis>/<periode>[/<unit>]). */
+export function isReportHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/laporan' || h.startsWith('#/laporan/') || h.startsWith('#/laporan?');
+}
+
 /** Halaman voting logo kelompok (Beyonders). */
 export function isVotingHash(hash: string): boolean {
   const h = String(hash || '');

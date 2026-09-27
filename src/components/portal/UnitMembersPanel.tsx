@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Mail, Phone } from 'lucide-react';
+import { usePortalProfile } from '../../hooks/usePortalProfile';
+import { currentPeriodKeys, unitCodeForPortal } from '../../lib/report-routing';
 
 type Member = {
   id: string;
@@ -25,6 +27,8 @@ const BIPRA_LABEL: Record<string, string> = {
 
 /** Daftar anggota unit aktif (dari BIPRA/Kolom). Kontak tampil bila diizinkan server. */
 export const UnitMembersPanel: React.FC = () => {
+  const portal = usePortalProfile();
+  const unitCode = unitCodeForPortal(portal.id);
   const [members, setMembers] = useState<Member[]>([]);
   const [koloms, setKoloms] = useState<Kolom[]>([]);
   const [q, setQ] = useState('');
@@ -69,6 +73,14 @@ export const UnitMembersPanel: React.FC = () => {
             Anggota unit ini (dari BIPRA/Kolom). Kontak hanya tampil untuk pengurus.
           </p>
         </div>
+        {unitCode && (
+          <a
+            href={`#/laporan/unit/${unitCode}/${currentPeriodKeys().month}`}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700"
+          >
+            Laporan unit (presentasi)
+          </a>
+        )}
         <div className="relative">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#BDBAB2]" />
           <input

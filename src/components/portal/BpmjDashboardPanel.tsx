@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LayoutGrid, Users, Wallet, ShieldAlert, CalendarClock, Megaphone } from 'lucide-react';
+import { currentPeriodKeys } from '../../lib/report-routing';
 
 type Dashboard = {
   members: { total: number; byBipra: { bipra: string | null; count: number }[]; byKolom: number };
@@ -41,7 +42,15 @@ export const BpmjDashboardPanel: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-4">
-        <h3 className="text-sm font-black uppercase tracking-wide">Dasbor BPMJ — lintas unit</h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="text-sm font-black uppercase tracking-wide">Dasbor BPMJ — lintas unit</h3>
+          <a
+            href={`#/laporan/bpmj/${currentPeriodKeys().month}`}
+            className="ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700"
+          >
+            Laporan bulanan (presentasi)
+          </a>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {cards.map((c) => (
             <div key={c.label} className="p-4 rounded-2xl border border-[#EFEDE8]">

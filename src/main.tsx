@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isMaterialHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
@@ -14,6 +14,7 @@ const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
+const ReportPresentation = React.lazy(() => import('./components/reports/ReportPresentation.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
@@ -61,6 +62,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <DidaskaliaPresentation />
+      </Suspense>
+    );
+  }
+
+  // Laporan presentasi (kas/fasilitas/bpmj/unit): standalone, wajib login.
+  if (isReportHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <ReportPresentation />
       </Suspense>
     );
   }
@@ -144,3 +154,4 @@ createRoot(document.getElementById('root')!).render(
     </AppErrorBoundary>
   </StrictMode>,
 );
+
