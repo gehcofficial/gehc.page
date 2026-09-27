@@ -1116,6 +1116,28 @@ app.get('/api/church/kolom/:id/members', requireRole(), wrap(async (req, res) =>
 const isTreasurerReq = async (req) =>
   isSuperadminUser(req.authUser) || isBpmjUser(req.authUser) || (await isBendahara(req.authUser).catch(() => false));
 
+/** P5: pengelola fasilitas (Pembangunan/BPMJ/SA). */
+const facilityManagerReq = async (req) => {
+  const u = req.authUser;
+  if (!u) return false;
+  if (isSuperadminUser(u) || isBpmjUser(u)) return true;
+  const { canAccessChurchUnit } = await import('./lib/church-access.mjs');
+  return canAccessChurchUnit(u, 'PEMBANGUNAN').catch(() => false);
+};
+
+/** P5: pengelola penatalayanan lingkup jemaat (THL/Panji/BPMJ/SA). */
+const canManageChurchDuty = async (req) => {
+  const u = req.authUser;
+  if (!u) return false;
+  if (isSuperadminUser(u) || isBpmjUser(u)) return true;
+  const { canAccessChurchUnit } = await import('./lib/church-access.mjs');
+  const [thl, panji] = await Promise.all([
+    canAccessChurchUnit(u, 'THL').catch(() => false),
+    canAccessChurchUnit(u, 'PANJI').catch(() => false),
+  ]);
+  return thl || panji;
+};
+
 app.get('/api/church/bzp/overview', requireRole(), wrap(async (req, res) => {
   if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
   const prisma = getPrisma();
@@ -1272,6 +1294,75 @@ app.get('/api/church/bpmj/dashboard', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'
     campaigns,
     recentWarta,
   });
+}));
+
+// ---------- P5: kas unit otomatis + laporan CSV ----------
+app.post('/api/church/cash/accounts/ensure', requireRole(), wrap(async (req, res) => {
+  if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  const prisma = getPrisma();
+  const { UNIT_ACCOUNTS, BZP_PETTY_CODE } = await import('./lib/church-cash.mjs');
+  let created = 0;
+  for (const a of UNIT_ACCOUNTS) {
+    const existing = await prisma.cashAccount.findUnique({ where: { code: a.code } }).catch(() => null);
+    if (existing) continue;
+    await prisma.cashAccount.create({ data: { id: `acc-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`, ...a } }).catch(() => null);
+    created += 1;
+  }
+  const petty = await prisma.cashAccount.findUnique({ where: { code: BZP_PETTY_CODE } }).catch(() => null);
+  if (petty) {
+    await prisma.bzpSetting.upsert({
+      where: { id: BZP_SETTING_ID },
+      update: { pettyCashAllowanceAccountId: petty.id, updatedById: req.authUser.id },
+      create: { id: BZP_SETTING_ID, pettyCashAllowanceAccountId: petty.id, updatedById: req.authUser.id },
+    }).catch(() => null);
+  }
+  res.json({ created, pettyCashAllowanceAccountId: petty?.id || null });
+}));
+
+app.get('/api/church/reports/cash.csv', requireRole(), wrap(async (req, res) => {
+  if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  const prisma = getPrisma();
+  const { toCsv, monthRange } = await import('./lib/church-cash.mjs');
+  const { from, to, ym } = monthRange(req.query.month);
+  const [txns, accounts] = await Promise.all([
+    prisma.cashTransaction.findMany({ where: { occurredAt: { gte: from, lt: to } }, orderBy: { occurredAt: 'asc' } }).catch(() => []),
+    prisma.cashAccount.findMany().catch(() => []),
+  ]);
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const csv = toCsv(txns, [
+    { key: 'occurredAt', label: 'Tanggal', value: (r) => (r.occurredAt instanceof Date ? r.occurredAt.toISOString().slice(0, 10) : String(r.occurredAt || '').slice(0, 10)) },
+    { key: 'accountId', label: 'Akun', value: (r) => byId.get(r.accountId)?.name || r.accountId },
+    { key: 'direction', label: 'Arah' },
+    { key: 'amount', label: 'Jumlah', value: (r) => Number(r.amount || 0) },
+    { key: 'category', label: 'Kategori' },
+    { key: 'unit', label: 'Unit' },
+    { key: 'refType', label: 'Ref' },
+    { key: 'description', label: 'Keterangan' },
+  ]);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="kas-${ym}.csv"`);
+  res.send(csv);
+}));
+
+app.get('/api/church/reports/bookings.csv', requireRole(), wrap(async (req, res) => {
+  if (!(await facilityManagerReq(req))) return res.status(403).json({ error: 'Hanya pengelola fasilitas/BPMJ.' });
+  const prisma = getPrisma();
+  const { toCsv } = await import('./lib/church-cash.mjs');
+  const rows = await prisma.facilityBooking.findMany({ orderBy: { startAt: 'desc' }, take: 1000, include: { facility: { select: { name: true } } } }).catch(() => []);
+  const csv = toCsv(rows, [
+    { key: 'startAt', label: 'Mulai', value: (r) => (r.startAt instanceof Date ? r.startAt.toISOString().slice(0, 16).replace('T', ' ') : '') },
+    { key: 'endAt', label: 'Selesai', value: (r) => (r.endAt instanceof Date ? r.endAt.toISOString().slice(0, 16).replace('T', ' ') : '') },
+    { key: 'facility', label: 'Fasilitas', value: (r) => r.facility?.name || '' },
+    { key: 'title', label: 'Keperluan' },
+    { key: 'unit', label: 'Unit' },
+    { key: 'status', label: 'Status' },
+    { key: 'rateAmount', label: 'Tarif', value: (r) => Number(r.rateAmount || 0) },
+    { key: 'invoiceNo', label: 'Invoice' },
+    { key: 'paidAt', label: 'Lunas', value: (r) => (r.paidAt instanceof Date ? r.paidAt.toISOString().slice(0, 10) : '') },
+  ]);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="booking-fasilitas.csv"');
+  res.send(csv);
 }));
 
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
@@ -8187,6 +8278,9 @@ app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
   if (!cleanName || !cleanDiv) return res.status(400).json({ error: 'name & division wajib' });
   if (!SERVICE_DIVISION_SET.has(cleanDiv)) return res.status(400).json({ error: `division harus salah satu: ${[...SERVICE_DIVISION_SET].join(', ')}` });
   const cleanScope = normScope(scope, cleanDiv);
+  if (cleanScope === 'CHURCH' && !(await canManageChurchDuty(req))) {
+    return res.status(403).json({ error: 'Hanya THL/Panji/BPMJ yang mengelola penatalayanan jemaat.' });
+  }
   const existing = await prisma.serviceRole.findUnique({ where: { name: cleanName } }).catch(() => null);
   if (existing) {
     const role = await prisma.serviceRole.update({
@@ -8237,6 +8331,9 @@ app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COM
   }
   if (division !== undefined || scope !== undefined) {
     data.scope = normScope(scope ?? existing?.scope, division !== undefined ? division : existing?.division);
+    if (data.scope === 'CHURCH' && !(await canManageChurchDuty(req))) {
+      return res.status(403).json({ error: 'Hanya THL/Panji/BPMJ yang mengelola penatalayanan jemaat.' });
+    }
   }
   if (subDivision !== undefined) data.subDivision = String(subDivision).trim() || null;
   if (serviceTypes !== undefined) data.serviceTypes = normServiceTypes(serviceTypes);
@@ -8290,6 +8387,10 @@ app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMM
   const { serviceRoleId, userId, userIds, eventId, date, timeStart, timeEnd, notes } = req.body || {};
   const ids = Array.isArray(userIds) && userIds.length ? userIds : (userId ? [userId] : []);
   if (!serviceRoleId || !ids.length || !date) return res.status(400).json({ error: 'serviceRoleId, userId(s), date wajib' });
+  const roleScope = await prisma.serviceRole.findUnique({ where: { id: serviceRoleId }, select: { scope: true } }).catch(() => null);
+  if (roleScope?.scope === 'CHURCH' && !(await canManageChurchDuty(req))) {
+    return res.status(403).json({ error: 'Hanya THL/Panji/BPMJ yang menjadwalkan petugas jemaat.' });
+  }
   const created = [];
   for (const uid of ids) {
     const id = 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

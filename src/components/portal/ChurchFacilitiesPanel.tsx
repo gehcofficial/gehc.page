@@ -93,6 +93,14 @@ export const ChurchFacilitiesPanel: React.FC = () => {
           <Building2 className="w-4 h-4 text-[#FF416C]" />
           <h3 className="text-sm font-black uppercase tracking-wide">Fasilitas &amp; Penyewaan</h3>
           {pending > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{pending} menunggu</span>}
+          {canManage && (
+            <a
+              href="/api/church/reports/bookings.csv"
+              className="ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
+            >
+              Unduh CSV booking
+            </a>
+          )}
         </div>
 
         {loading ? (

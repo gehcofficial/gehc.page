@@ -105,6 +105,9 @@
     "db:migrate:panji": "node server/_migrate-panji.cjs",
     "db:migrate:panji:staging": "dotenv -e .env.staging -- node server/_migrate-panji.cjs",
     "db:migrate:panji:prod": "dotenv -e .env.production -- node server/_migrate-panji.cjs",
+    "db:seed:church-cash": "node server/seed-church-cash.mjs",
+    "db:seed:church-cash:staging": "dotenv -e .env.staging -- node server/seed-church-cash.mjs",
+    "db:seed:church-cash:prod": "dotenv -e .env.production -- node server/seed-church-cash.mjs",
     "db:setup:internal-warta-folder": "node scripts/setup-internal-warta-folder.mjs",
     "db:setup:internal-warta-folder:staging": "dotenv -e .env.staging -- node scripts/setup-internal-warta-folder.mjs",
     "db:setup:internal-warta-folder:prod": "dotenv -e .env.production -- node scripts/setup-internal-warta-folder.mjs",
@@ -221,5 +224,6 @@
     "vitest": "^3.2.4"
   }
 }
+
 
 

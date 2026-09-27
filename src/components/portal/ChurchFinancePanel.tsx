@@ -111,6 +111,17 @@ export const ChurchFinancePanel: React.FC = () => {
 
   const total = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
 
+  const ensureAccounts = async () => {
+    const res = await fetch('/api/church/cash/accounts/ensure', { method: 'POST', credentials: 'include' });
+    if (!res.ok) {
+      addToast({ type: 'error', title: 'Gagal menyiapkan akun', description: (await res.json().catch(() => ({}))).error });
+      return;
+    }
+    const d = await res.json().catch(() => ({}));
+    addToast({ type: 'success', title: `Akun kas unit disiapkan (${d.created ?? 0} baru)` });
+    load();
+  };
+
   const savePetty = async () => {
     const res = await fetch('/api/church/bzp/petty-cash', {
       method: 'PATCH',
@@ -144,10 +155,23 @@ export const ChurchFinancePanel: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Wallet className="w-4 h-4 text-[#FF416C]" />
           <h3 className="text-sm font-black uppercase tracking-wide">Keuangan</h3>
           {isTreasurer && <span className="text-[10px] text-[#8C8880]">Total kas: <b>{rupiah(total)}</b></span>}
+          {isTreasurer && (
+            <span className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={ensureAccounts} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F3F1EC] hover:bg-[#E9E8E4]">
+                Siapkan akun kas unit
+              </button>
+              <a
+                href={`/api/church/reports/cash.csv?month=${new Date().toISOString().slice(0, 7)}`}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
+              >
+                Unduh CSV kas bulan ini
+              </a>
+            </span>
+          )}
         </div>
 
         {loading ? (
