@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — P4: Panji Yosua + Dasbor BPMJ (26 Sep 2026)
+
+**Schema (migrasi `server/_migrate-panji.cjs`):** tabel `incident_logs` (`title, category, severity, occurredAt, location, description, actionTaken, reporterUserId, eventId, status(OPEN|HANDLED|CLOSED), handledById, handledAt`).
+
+**API:**
+- `GET/POST/PATCH /api/church/incidents` — lapor insiden (semua login); Penanganan (HANDLED/CLOSED) hanya Panji Yosua/BPMJ/SA (`canAccessChurchUnit('PANJI')`).
+- Pos jaga memakai penatalayan: divisi **`PANJI`** kini ber-scope CHURCH (`ServiceRole.scope`).
+- `GET /api/church/bpmj/dashboard` (SUPERADMIN/BPMJ/KOMISI) — anggota per BIPRA & jumlah kolom, kas total + BZP lunas, booking/dana aktif, insiden terbuka, petugas mendatang, campaign aktif, warta terbaru.
+
+**UI:** nav grup **Jemaat** → **Keamanan (Panji Yosua)** (laporan insiden + pos jaga) & **Dasbor BPMJ**; panel `ChurchSecurityPanel` + `BpmjDashboardPanel`.
+
+**Verifikasi staging:** buat insiden → `OPEN` → `HANDLED` ✓; peran `PANJI` → `scope=CHURCH` otomatis ✓; dasbor → 267 anggota, 5 baris BIPRA, insiden terbuka 1, warta 1 ✓ (data uji dibersihkan). `lint` bersih ✓ **549 test** hijau ✓ `build` OK ✓
+
+### Catatan: fase P0–P4 `docs/product/church-portal.md` **selesai** (portal jemaat lengkap: unit & struktur, fasilitas & keuangan, BZP→Bendahara, THL stewardship+MDS, Panji Yosua, kategorial/Kolom, dasbor BPMJ).
+
+### Next (opsional/pengembangan lanjutan)
+1. Guard tulis per-unit jemaat (`canAccessChurchUnit('THL'|'PANJI'|...)`) alih-alih SUPERADMIN/KOMISI.
+2. Kas Unit otomatis per unit (akun `KAS_UNIT` + petty cash BZP sudah tersedia).
+3. Laporan bulanan/ekspor (PDF/CSV) untuk BPMJ & Bendahara.
+
 ## Current — P3: THL (Stewardship + MDS) (26 Sep 2026)
 
 **Schema (migrasi `server/_migrate-thl-scope.cjs`):** `ServiceRole.scope` enum `ServiceScope { UNIT | CHURCH }` default `UNIT`; divisi `THL_STEWARDSHIP` & `THL_MDS` otomatis ber-scope CHURCH.
