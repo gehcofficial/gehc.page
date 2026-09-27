@@ -1527,6 +1527,29 @@ app.get('/api/church/reports/unit', requireRole(), wrap(async (req, res) => {
   });
 }));
 
+// ---------- P7: tren bulanan (Dasbor BPMJ) ----------
+app.get('/api/church/bpmj/trends', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  const { lastMonths, mergeTrend } = await import('./lib/report-trends.mjs');
+  const months = Math.min(24, Math.max(3, Number(req.query.months) || 6));
+  const keys = lastMonths(months);
+  const from = new Date(`${keys[0]}-01T00:00:00.000Z`);
+  const safe = async (sql) => {
+    try {
+      return await prisma.$queryRawUnsafe(sql, from);
+    } catch {
+      return [];
+    }
+  };
+  const [cash, bzp, bookings, incidents] = await Promise.all([
+    safe("SELECT DATE_FORMAT(occurred_at,'%Y-%m') ym, direction, SUM(amount) total FROM cash_transactions WHERE occurred_at >= ? GROUP BY ym, direction"),
+    safe("SELECT DATE_FORMAT(created_at,'%Y-%m') ym, SUM(total) total FROM orders WHERE status='PAID' AND created_at >= ? GROUP BY ym"),
+    safe("SELECT DATE_FORMAT(start_at,'%Y-%m') ym, COUNT(*) count FROM facility_bookings WHERE start_at >= ? GROUP BY ym"),
+    safe("SELECT DATE_FORMAT(occurred_at,'%Y-%m') ym, COUNT(*) count FROM incident_logs WHERE occurred_at >= ? GROUP BY ym"),
+  ]);
+  res.json({ months: keys, trend: mergeTrend(keys, { cash, bzp, bookings, incidents }) });
+}));
+
 // Contoh proteksi endpoint RBAC (dipakai fitur portal lanjutan):
 app.get('/api/auth/admin-check', requirePlatformAdmin(), (req, res) => {
   res.json({ ok: true, email: req.authUser.email });

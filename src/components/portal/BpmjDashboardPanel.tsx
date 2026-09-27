@@ -11,18 +11,30 @@ type Dashboard = {
   recentWarta: { id: string; title: string; status: string }[];
 };
 
+type TrendRow = { ym: string; cashIn: number; cashOut: number; net: number; bzp: number; bookings: number; incidents: number };
+
 const rupiah = (n: number) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 const BIPRA: Record<string, string> = { BAPAK: 'Kaum Bapa', IBU: 'Kaum Ibu', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak' };
+const shortMonth = (ym: string) => {
+  const [y, m] = ym.split('-');
+  return `${['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][Number(m) - 1]} ${y.slice(2)}`;
+};
 
 /** Dasbor BPMJ lintas unit. */
 export const BpmjDashboardPanel: React.FC = () => {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [trend, setTrend] = useState<TrendRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/church/bpmj/dashboard', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setData(d))
+    Promise.all([
+      fetch('/api/church/bpmj/dashboard', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/church/bpmj/trends?months=6', { credentials: 'include' }).then((r) => (r.ok ? r.json() : { trend: [] })),
+    ])
+      .then(([d, t]) => {
+        setData(d);
+        setTrend(Array.isArray(t?.trend) ? t.trend : []);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -62,6 +74,33 @@ export const BpmjDashboardPanel: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {trend.length > 0 && (() => {
+        const max = Math.max(1, ...trend.flatMap((t) => [t.cashIn, t.cashOut]));
+        return (
+          <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wide">Tren 6 bulan (kas &amp; aktivitas)</h4>
+            <div className="space-y-2.5">
+              {trend.map((t) => (
+                <div key={t.ym} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-[#8C8880]">
+                    <span className="font-bold text-[#1B1B1B]">{shortMonth(t.ym)}</span>
+                    <span className="truncate">
+                      masuk {rupiah(t.cashIn)} · keluar {rupiah(t.cashOut)} · BZP {rupiah(t.bzp)} · {t.bookings} booking · {t.incidents} insiden
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#F3F1EC] overflow-hidden">
+                    <div className="h-full bg-emerald-400" style={{ width: `${(t.cashIn / max) * 100}%` }} title="Kas masuk" />
+                  </div>
+                  <div className="h-2 rounded-full bg-[#F3F1EC] overflow-hidden">
+                    <div className="h-full bg-rose-400" style={{ width: `${(t.cashOut / max) * 100}%` }} title="Kas keluar" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-2">
