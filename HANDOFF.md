@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — P7: Tren bulanan di Dasbor BPMJ (27 Sep 2026)
+
+- `server/lib/report-trends.mjs` (baru) — `lastMonths(n)`, `mergeTrend(months, rows)`, `maxOf`.
+- `GET /api/church/bpmj/trends?months=6` (SUPERADMIN/BPMJ/KOMISI) — agregat per bulan (kas masuk/keluar, BZP lunas, booking, insiden) via raw SQL `DATE_FORMAT`.
+- `BpmjDashboardPanel` — kartu **“Tren 6 bulan”** dengan bar CSS (masuk hijau / keluar merah) + ringkasan teks per bulan.
+- Tes: `tests/unit/report-trends.test.ts`.
+
+**Verifikasi staging:** `trends?months=6` → 6 bulan (2026-04…2026-09), BZP 2026-09 = 300.000 (dari data), sisanya 0 ✓. `lint` bersih ✓ **581 test** hijau ✓ `build` OK ✓
+
+### Next (opsional)
+1. PDF server-side (bila butuh hasil seragam lintas browser) — butuh dependency; print-to-PDF sudah tersedia.
+
 ## Current — P6: Laporan presentasi + PDF (pola Didaskalia) (27 Sep 2026)
 
 **Pola:** halaman presentasi **standalone** + **cetak PDF** (print-to-PDF), seperti `#/materi` Didaskalia.
