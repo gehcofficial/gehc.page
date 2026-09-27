@@ -350,6 +350,11 @@ const STEPS = [
     label: 'P2: BZP di bawah Bendahara (petty cash + campaign funding)',
     required: true,
   },
+  {
+    script: 'server/_migrate-thl-scope.cjs',
+    label: 'P3: THL — service_roles.scope (UNIT|CHURCH)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

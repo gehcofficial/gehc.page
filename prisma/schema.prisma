@@ -1719,7 +1719,9 @@ model SalesShiftAssignment {
 model ServiceRole {
   id                String   @id @db.VarChar(64)
   name              String   @unique @db.VarChar(100)
-  division          String   @db.VarChar(20) // LITURGIA | DIDASKALIA | KOINONIA | DIAKONIA | MARTURIA
+  division          String   @db.VarChar(20) // LITURGIA | DIDASKALIA | KOINONIA | DIAKONIA | MARTURIA | THL_STEWARDSHIP | THL_MDS
+  /// P3: lingkup penatalayanan — UNIT (pemuda) atau CHURCH (jemaat/THL).
+  scope             ServiceScope @default(UNIT)
   subDivision       String?  @map("sub_division") @db.VarChar(100)
   serviceTypes      String   @default("SERVING_DAY,MENTORING_DAY") @map("service_types") @db.VarChar(64) // CSV
   checklistTemplate Json?    @map("checklist_template")
@@ -1733,6 +1735,11 @@ model ServiceRole {
 
   @@index([division, isActive])
   @@map("service_roles")
+}
+
+enum ServiceScope {
+  UNIT
+  CHURCH
 }
 
 model ServiceSchedule {

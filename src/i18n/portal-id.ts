@@ -168,6 +168,8 @@ export const portalId: typeof portalEn = {
     'unit-members': 'Anggota Unit',
     'church-facilities': 'Fasilitas & Penyewaan',
     'church-finance': 'Keuangan',
+    'church-stewardship': 'Stewardship (THL)',
+    'church-mds': 'MDS (Multimedia)',
     events: 'Program & Event',
     divisions: 'Panel Divisi (6 Divisi)',
     'div-liturgia': 'Liturgia',
@@ -742,6 +744,20 @@ export const portalId: typeof portalEn = {
       when: 'Mencatat/meninjau arus kas, atau mengajukan dana kegiatan.',
       notFor: 'Tagihan sewa fasilitas dibuat di Fasilitas & Penyewaan; penjualan BZP di panel Benzarpreneurship.',
     },
+    'church-stewardship': {
+      title: 'Stewardship (THL)',
+      purpose: 'Penatalayanan ibadah jemaat: peran petugas (penerima tamu, kolektan, dst) & jadwalnya.',
+      steps: ['Tambah peran THL bila perlu.', 'Jadwalkan petugas (peran + orang + tanggal/jam).', 'Konfirmasi & tandai selesai.'],
+      when: 'Menyusun petugas ibadah jemaat / ibadah raya.',
+      notFor: 'Penatalayan ibadah pemuda ada di panel Divisi Liturgia.',
+    },
+    'church-mds': {
+      title: 'MDS (Multimedia)',
+      purpose: 'Multimedia, dokumentasi & sound jemaat: peran & jadwal petugas MDS.',
+      steps: ['Tambah peran (Sound Operator, Operator PPT, Kamera, dst).', 'Jadwalkan petugas untuk tiap ibadah/kegiatan.'],
+      when: 'Mengatur tim sound/dokumentasi/multimedia ibadah jemaat.',
+      notFor: 'Galeri & dokumentasi event pemuda ada di Divisi Marturia; berkas Drive lewat Integrasi Google Drive.',
+    },
     events: {
       title: 'Program & Event',
       purpose: 'Workspace event operasional: buat, jadwal, edit WA/lokasi, soal, peserta.',
@@ -863,3 +879,4 @@ export const portalId: typeof portalEn = {
     },
   },
 };
+

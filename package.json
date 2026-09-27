@@ -99,6 +99,9 @@
     "db:migrate:bzp-bendahara": "node server/_migrate-bzp-bendahara.cjs",
     "db:migrate:bzp-bendahara:staging": "dotenv -e .env.staging -- node server/_migrate-bzp-bendahara.cjs",
     "db:migrate:bzp-bendahara:prod": "dotenv -e .env.production -- node server/_migrate-bzp-bendahara.cjs",
+    "db:migrate:thl-scope": "node server/_migrate-thl-scope.cjs",
+    "db:migrate:thl-scope:staging": "dotenv -e .env.staging -- node server/_migrate-thl-scope.cjs",
+    "db:migrate:thl-scope:prod": "dotenv -e .env.production -- node server/_migrate-thl-scope.cjs",
     "db:setup:internal-warta-folder": "node scripts/setup-internal-warta-folder.mjs",
     "db:setup:internal-warta-folder:staging": "dotenv -e .env.staging -- node scripts/setup-internal-warta-folder.mjs",
     "db:setup:internal-warta-folder:prod": "dotenv -e .env.production -- node scripts/setup-internal-warta-folder.mjs",
@@ -215,3 +218,4 @@
     "vitest": "^3.2.4"
   }
 }
+

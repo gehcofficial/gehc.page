@@ -140,6 +140,8 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'church-info', label: 'Info Gereja', roles: ['SUPERADMIN', 'BPMJ', 'KOMISI'], group: 'Sistem', subtitle: 'Profil, kontak & sosial gereja/unit', portals: ALL_PORTAL_IDS },
   { id: 'church-facilities', label: 'Fasilitas & Penyewaan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Katalog fasilitas, booking & invoice', portals: ALL_PORTAL_IDS },
   { id: 'church-finance', label: 'Keuangan', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Kas, transaksi & pengajuan dana', portals: ALL_PORTAL_IDS },
+  { id: 'church-stewardship', label: 'Stewardship (THL)', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Penatalayanan ibadah jemaat', portals: ALL_PORTAL_IDS },
+  { id: 'church-mds', label: 'MDS (Multimedia)', roles: CHURCH_ROLES.all, group: 'Jemaat', subtitle: 'Multimedia, dokumentasi & sound', portals: ALL_PORTAL_IDS },
   // 'pwa-settings' sengaja tidak ada di sidebar — pengaturan pribadi tinggal di
   // Akun Saya → Notifikasi. Rutenya tetap hidup untuk tautan langsung.
 ];

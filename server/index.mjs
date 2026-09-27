@@ -8036,7 +8036,14 @@ app.get('/api/benzar/caption/:id', requireDivision('BENZARPR'), wrap(async (req,
 
 // Divisi yang boleh punya komponen penatalayan (whitelist) + dipakai filter per-event.
 const PENATALAYAN_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'];
-const SERVICE_DIVISION_SET = new Set(PENATALAYAN_DIVISIONS);
+/** P3: divisi THL (lingkup jemaat). */
+const CHURCH_DIVISIONS = ['THL_STEWARDSHIP', 'THL_MDS'];
+const SERVICE_DIVISION_SET = new Set([...PENATALAYAN_DIVISIONS, ...CHURCH_DIVISIONS]);
+const SERVICE_SCOPES = ['UNIT', 'CHURCH'];
+/** Divisi THL otomatis ber-scope CHURCH. */
+const isChurchDivision = (div) => CHURCH_DIVISIONS.includes(String(div || '').toUpperCase());
+const normScope = (scope, division) =>
+  isChurchDivision(division) ? 'CHURCH' : SERVICE_SCOPES.includes(String(scope || '').toUpperCase()) ? String(scope).toUpperCase() : 'UNIT';
 const SERVICE_TYPES = ['SERVING_DAY', 'MENTORING_DAY'];
 
 function normServiceTypes(raw) {
@@ -8047,8 +8054,12 @@ function normServiceTypes(raw) {
 // GET /api/penatalayan/roles — list service roles (division & serviceType bisa CSV)
 app.get('/api/penatalayan/roles', wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { division, includeInactive, serviceType } = req.query;
+  const { division, includeInactive, serviceType, scope } = req.query;
   const where = includeInactive ? {} : { isActive: true };
+  if (String(scope || '').trim()) {
+    const sc = String(scope).trim().toUpperCase();
+    if (SERVICE_SCOPES.includes(sc)) where.scope = sc;
+  }
   if (division) {
     const list = String(division).split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
     if (list.length) where.division = list.length > 1 ? { in: list } : list[0];
@@ -8067,17 +8078,19 @@ app.get('/api/penatalayan/roles', wrap(async (req, res) => {
 // POST /api/penatalayan/roles — create service role
 app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { name, division, description, sortOrder, subDivision, serviceTypes, checklistTemplate } = req.body || {};
+  const { name, division, description, sortOrder, subDivision, serviceTypes, checklistTemplate, scope } = req.body || {};
   const cleanName = String(name || '').trim();
   const cleanDiv = String(division || '').trim().toUpperCase();
   if (!cleanName || !cleanDiv) return res.status(400).json({ error: 'name & division wajib' });
-  if (!SERVICE_DIVISION_SET.has(cleanDiv)) return res.status(400).json({ error: `division harus salah satu: ${PENATALAYAN_DIVISIONS.join(', ')}` });
+  if (!SERVICE_DIVISION_SET.has(cleanDiv)) return res.status(400).json({ error: `division harus salah satu: ${[...SERVICE_DIVISION_SET].join(', ')}` });
+  const cleanScope = normScope(scope, cleanDiv);
   const existing = await prisma.serviceRole.findUnique({ where: { name: cleanName } }).catch(() => null);
   if (existing) {
     const role = await prisma.serviceRole.update({
       where: { id: existing.id },
       data: {
         division: cleanDiv,
+        scope: cleanScope,
         description: description ?? existing.description,
         sortOrder: sortOrder ?? existing.sortOrder,
         subDivision: subDivision !== undefined ? (String(subDivision).trim() || null) : existing.subDivision,
@@ -8094,6 +8107,7 @@ app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
       id,
       name: cleanName,
       division: cleanDiv,
+      scope: cleanScope,
       subDivision: subDivision !== undefined ? (String(subDivision).trim() || null) : null,
       serviceTypes: normServiceTypes(serviceTypes),
       checklistTemplate: Array.isArray(checklistTemplate) ? checklistTemplate : null,
@@ -8107,13 +8121,19 @@ app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
 // PATCH /api/penatalayan/roles/:id — edit nama/divisi/sub-divisi/jenis/urutan/arsip
 app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { name, division, description, sortOrder, isActive, subDivision, serviceTypes, checklistTemplate } = req.body || {};
+  const { name, division, description, sortOrder, isActive, subDivision, serviceTypes, checklistTemplate, scope } = req.body || {};
   const data = {};
   if (name !== undefined) data.name = String(name).trim();
+  const existing = division !== undefined || scope !== undefined
+    ? await prisma.serviceRole.findUnique({ where: { id: req.params.id } }).catch(() => null)
+    : null;
   if (division !== undefined) {
     const cleanDiv = String(division).trim().toUpperCase();
-    if (!SERVICE_DIVISION_SET.has(cleanDiv)) return res.status(400).json({ error: `division harus salah satu: ${PENATALAYAN_DIVISIONS.join(', ')}` });
+    if (!SERVICE_DIVISION_SET.has(cleanDiv)) return res.status(400).json({ error: `division harus salah satu: ${[...SERVICE_DIVISION_SET].join(', ')}` });
     data.division = cleanDiv;
+  }
+  if (division !== undefined || scope !== undefined) {
+    data.scope = normScope(scope ?? existing?.scope, division !== undefined ? division : existing?.division);
   }
   if (subDivision !== undefined) data.subDivision = String(subDivision).trim() || null;
   if (serviceTypes !== undefined) data.serviceTypes = normServiceTypes(serviceTypes);
@@ -8294,13 +8314,25 @@ app.get('/api/penatalayan/board', requireRole(), wrap(async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const from = String(req.query.from || today).slice(0, 10);
   const to = String(req.query.to || new Date(Date.now() + 27 * 86400000).toISOString().slice(0, 10)).slice(0, 10);
+  const scopeFilter = SERVICE_SCOPES.includes(String(req.query.scope || '').toUpperCase()) ? String(req.query.scope).toUpperCase() : null;
+  const divFilter = String(req.query.division || '')
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => SERVICE_DIVISION_SET.has(s));
+  const roleWhere = { isActive: true };
+  if (scopeFilter) roleWhere.scope = scopeFilter;
+  if (divFilter.length) roleWhere.division = divFilter.length > 1 ? { in: divFilter } : divFilter[0];
   const [schedules, roles, events] = await Promise.all([
     prisma.serviceSchedule.findMany({
-      where: { date: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) }, status: { not: 'CANCELLED' } },
+      where: {
+        date: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) },
+        status: { not: 'CANCELLED' },
+        ...(scopeFilter || divFilter.length ? { serviceRole: { ...(scopeFilter ? { scope: scopeFilter } : {}), ...(divFilter.length ? { division: divFilter.length > 1 ? { in: divFilter } : divFilter[0] } : {}) } } : {}),
+      },
       include: { serviceRole: true, user: { select: { id: true, name: true } } },
       orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
     }).catch(() => []),
-    prisma.serviceRole.findMany({ where: { isActive: true }, orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }] }).catch(() => []),
+    prisma.serviceRole.findMany({ where: roleWhere, orderBy: [{ division: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }] }).catch(() => []),
     prisma.eventProgram.findMany({
       where: { eventDate: { gte: new Date(`${from}T00:00:00.000Z`), lte: new Date(`${to}T00:00:00.000Z`) } },
       select: { id: true, name: true, eventDate: true, serviceType: true },
@@ -8327,7 +8359,7 @@ app.get('/api/penatalayan/board', requireRole(), wrap(async (req, res) => {
         user: s.user ? { id: s.user.id, name: s.user.name } : null,
       };
     }),
-    roles: roles.map((r) => ({ id: r.id, name: r.name, division: r.division, subDivision: r.subDivision, serviceTypes: r.serviceTypes })),
+    roles: roles.map((r) => ({ id: r.id, name: r.name, division: r.division, scope: r.scope, subDivision: r.subDivision, serviceTypes: r.serviceTypes })),
     events: events.map((e) => ({
       id: e.id,
       name: e.name,

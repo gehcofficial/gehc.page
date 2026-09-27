@@ -174,6 +174,8 @@ export const portalEn = {
     'unit-members': 'Unit Members',
     'church-facilities': 'Facilities & Rentals',
     'church-finance': 'Finance',
+    'church-stewardship': 'Stewardship (THL)',
+    'church-mds': 'MDS (Multimedia)',
     events: 'Programs & Events',
     divisions: 'Division Panel (6)',
     'div-liturgia': 'Liturgia',
@@ -748,6 +750,20 @@ export const portalEn = {
       when: 'Recording/reviewing cash flow, or requesting funds for an activity.',
       notFor: 'Rental invoices are issued in Facilities & Rentals; BZP sales live in the Benzarpreneurship panel.',
     },
+    'church-stewardship': {
+      title: 'Stewardship (THL)',
+      purpose: 'Church worship stewardship: server roles (ushers, offering, etc.) and their schedule.',
+      steps: ['Add a THL role if needed.', 'Schedule a server (role + person + date/time).', 'Confirm & mark done.'],
+      when: 'Arranging church worship / Sunday service servers.',
+      notFor: 'Youth worship servants live in the Liturgia division panel.',
+    },
+    'church-mds': {
+      title: 'MDS (Multimedia)',
+      purpose: 'Church multimedia, documentation & sound: MDS roles and schedules.',
+      steps: ['Add roles (Sound Operator, PPT Operator, Camera, etc.).', 'Schedule servers per service/activity.'],
+      when: 'Organising the church sound/documentation/multimedia team.',
+      notFor: 'Youth event galleries live in the Marturia division; Drive files via Google Drive Integration.',
+    },
     events: {
       title: 'Programs & Events',
       purpose: 'Operational event workspace: create, schedule, edit WA/venue, questions, attendees.',
@@ -869,4 +885,5 @@ export const portalEn = {
     },
   },
 };
+
 

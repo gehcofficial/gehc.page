@@ -57,6 +57,7 @@ import { UnitMembersPanel } from './UnitMembersPanel';
 import { KolomPanel } from './KolomPanel';
 import { ChurchFacilitiesPanel } from './ChurchFacilitiesPanel';
 import { ChurchFinancePanel } from './ChurchFinancePanel';
+import { ChurchDutyPanel } from './ChurchDutyPanel';
 import {
   LayoutDashboard,
   BookOpen,
@@ -282,6 +283,8 @@ export const PortalLayout: React.FC = () => {
     'unit-members': UsersRound,
     'church-facilities': Building2,
     'church-finance': Wallet,
+    'church-stewardship': ClipboardList,
+    'church-mds': Images,
   };
 
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
@@ -1027,6 +1030,16 @@ export const PortalLayout: React.FC = () => {
           {activeTab === 'church-finance' && (
             <div className="space-y-4">
               <ChurchFinancePanel />
+            </div>
+          )}
+          {activeTab === 'church-stewardship' && (
+            <div className="space-y-4">
+              <ChurchDutyPanel division="THL_STEWARDSHIP" />
+            </div>
+          )}
+          {activeTab === 'church-mds' && (
+            <div className="space-y-4">
+              <ChurchDutyPanel division="THL_MDS" />
             </div>
           )}
           {activeTab === 'integrations' && (
