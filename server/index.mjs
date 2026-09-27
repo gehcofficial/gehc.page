@@ -1366,167 +1366,67 @@ app.get('/api/church/reports/bookings.csv', requireRole(), wrap(async (req, res)
   res.send(csv);
 }));
 
-// ---------- P6: laporan presentasi (JSON) + period-aware CSV ----------
-const periodInfo = (p) => ({ key: p.key, label: p.label, type: p.type });
-
+// ---------- P6/P8: laporan (JSON + PDF) ----------
 app.get('/api/church/reports/kas', requireRole(), wrap(async (req, res) => {
   if (!(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
-  const prisma = getPrisma();
-  const { parsePeriod } = await import('./lib/report-period.mjs');
-  const { accountBalance } = await import('./lib/church-p1.mjs');
-  const p = parsePeriod(req.query.period);
-  const [accounts, txns] = await Promise.all([
-    prisma.cashAccount.findMany({ orderBy: [{ kind: 'asc' }, { name: 'asc' }] }).catch(() => []),
-    prisma.cashTransaction.findMany({ where: { occurredAt: { gte: p.from, lt: p.to } }, orderBy: { occurredAt: 'asc' } }).catch(() => []),
-  ]);
-  const byAcc = new Map();
-  for (const t of txns) {
-    const a = byAcc.get(t.accountId) || { in: 0, out: 0 };
-    if (t.direction === 'IN') a.in += Number(t.amount || 0);
-    else a.out += Number(t.amount || 0);
-    byAcc.set(t.accountId, a);
-  }
-  const nameById = new Map(accounts.map((a) => [a.id, a.name]));
-  const rows = accounts.map((a) => {
-    const agg = byAcc.get(a.id) || { in: 0, out: 0 };
-    return {
-      code: a.code, name: a.name, unit: a.unit, kind: a.kind,
-      opening: Number(a.openingBalance || 0), in: agg.in, out: agg.out,
-      balance: accountBalance(a.openingBalance, [{ direction: 'IN', sum: agg.in }, { direction: 'OUT', sum: agg.out }]),
-    };
-  });
-  const totals = rows.reduce((s, r) => ({ in: s.in + r.in, out: s.out + r.out, balance: s.balance + r.balance }), { in: 0, out: 0, balance: 0 });
-  res.json({
-    period: periodInfo(p),
-    accounts: rows,
-    totals,
-    transactions: txns.map((t) => ({
-      occurredAt: t.occurredAt, accountName: nameById.get(t.accountId) || '',
-      direction: t.direction, amount: Number(t.amount || 0), category: t.category, unit: t.unit, description: t.description,
-    })),
-  });
+  const { kasReport } = await import('./lib/report-data.mjs');
+  res.json(await kasReport(getPrisma(), req.query.period));
 }));
 
 app.get('/api/church/reports/fasilitas', requireRole(), wrap(async (req, res) => {
   if (!(await facilityManagerReq(req))) return res.status(403).json({ error: 'Hanya pengelola fasilitas/BPMJ.' });
-  const prisma = getPrisma();
-  const { parsePeriod } = await import('./lib/report-period.mjs');
-  const p = parsePeriod(req.query.period);
-  const bookings = await prisma.facilityBooking.findMany({
-    where: { startAt: { gte: p.from, lt: p.to } },
-    orderBy: { startAt: 'desc' },
-    include: { facility: { select: { name: true } } },
-  }).catch(() => []);
-  const countsMap = new Map();
-  const topMap = new Map();
-  let revenue = 0;
-  for (const b of bookings) {
-    countsMap.set(b.status, (countsMap.get(b.status) || 0) + 1);
-    if (b.paidAt) revenue += Number(b.paidAmount || b.rateAmount || 0);
-    const fn = b.facility?.name || 'â€”';
-    topMap.set(fn, (topMap.get(fn) || 0) + 1);
-  }
-  res.json({
-    period: periodInfo(p),
-    counts: [...countsMap.entries()].map(([status, count]) => ({ status, count })),
-    revenue,
-    topFacilities: [...topMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5),
-    bookings: bookings.map((b) => ({ title: b.title, facility: b.facility?.name, unit: b.unit, status: b.status, startAt: b.startAt, rateAmount: b.rateAmount == null ? null : Number(b.rateAmount) })),
-  });
+  const { facilityReport } = await import('./lib/report-data.mjs');
+  res.json(await facilityReport(getPrisma(), req.query.period));
 }));
 
 app.get('/api/church/reports/bpmj', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  const { parsePeriod } = await import('./lib/report-period.mjs');
-  const { accountBalance } = await import('./lib/church-p1.mjs');
-  const p = parsePeriod(req.query.period);
-  const safe = (q, fb) => q.catch(() => fb);
-  const [membersByBipra, membersByKolom, paidSum, accounts, txSums, openBookings, openFunding, openIncidents, upcomingDuties, campaigns, recentWarta] = await Promise.all([
-    safe(prisma.user.groupBy({ by: ['bipra'], _count: { _all: true } }), []),
-    safe(prisma.user.groupBy({ by: ['kolomId'], _count: { _all: true }, where: { kolomId: { not: null } } }), []),
-    safe(prisma.order.aggregate({ _sum: { total: true }, where: { status: 'PAID' } }), { _sum: { total: 0 } }),
-    safe(prisma.cashAccount.findMany(), []),
-    safe(prisma.cashTransaction.groupBy({ by: ['accountId', 'direction'], _sum: { amount: true } }), []),
-    safe(prisma.facilityBooking.count({ where: { status: { in: ['SUBMITTED', 'APPROVED'] } } }), 0),
-    safe(prisma.fundingRequest.count({ where: { status: { in: ['SUBMITTED', 'APPROVED'] } } }), 0),
-    safe(prisma.incidentLog.count({ where: { status: { in: ['OPEN', 'HANDLED'] } } }), 0),
-    safe(prisma.serviceSchedule.count({ where: { date: { gte: new Date() }, status: { not: 'CANCELLED' } } }), 0),
-    safe(prisma.campaign.findMany({ where: { isActive: true }, take: 10, select: { title: true } }), []),
-    safe(prisma.internalWarta.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { title: true, status: true } }), []),
-  ]);
-  const bal = new Map();
-  for (const s of txSums) {
-    const arr = bal.get(s.accountId) || [];
-    arr.push({ direction: s.direction, sum: s._sum?.amount });
-    bal.set(s.accountId, arr);
-  }
-  const cashTotal = accounts.reduce((sum, a) => sum + accountBalance(a.openingBalance, bal.get(a.id) || []), 0);
-  const total = membersByBipra.reduce((s, r) => s + (r._count?._all || 0), 0);
-  res.json({
-    period: periodInfo(p),
-    members: { total, byBipra: membersByBipra.map((r) => ({ bipra: r.bipra, count: r._count?._all || 0 })), byKolom: membersByKolom.length },
-    finance: { bzpPaid: Number(paidSum?._sum?.total || 0), cashTotal, openFunding, openBookings },
-    security: { openIncidents },
-    duties: { upcoming: upcomingDuties },
-    campaigns,
-    recentWarta,
-  });
+  const { bpmjReport } = await import('./lib/report-data.mjs');
+  res.json(await bpmjReport(getPrisma(), req.query.period));
 }));
-
-const UNIT_LABEL = {
-  JEMAAT: 'Jemaat', PEMUDA: 'Pemuda', REMAJA: 'Remaja', ANAK: 'Anak', BAPAK: 'Kaum Bapa', IBU: 'Kaum Ibu',
-  KOLOM: 'Kolom', KOMUNITAS: 'Komunitas', PEMBANGUNAN: 'Departemen Pembangunan', THL: 'THL', TECHTEAM: 'Tim Tech', PANJI: 'Panji Yosua',
-};
-const UNIT_TENANT = {
-  JEMAAT: 'tenant-jemaat', PEMUDA: 'tenant-youth', REMAJA: 'tenant-teen', ANAK: 'tenant-kids',
-  BAPAK: 'tenant-men', IBU: 'tenant-women', KOLOM: 'tenant-districts', KOMUNITAS: 'tenant-community',
-  PEMBANGUNAN: 'tenant-jemaat', THL: 'tenant-jemaat', TECHTEAM: 'tenant-jemaat', PANJI: 'tenant-jemaat',
-};
-const UNIT_BIPRA = { PEMUDA: 'PEMUDA', REMAJA: 'REMAJA', ANAK: 'ANAK', BAPAK: 'BAPAK', IBU: 'IBU' };
-const UNIT_DIVISION = { PEMBANGUNAN: 'PEMBANGUNAN', THL: ['THL_STEWARDSHIP', 'THL_MDS'], PANJI: ['PANJI'] };
 
 app.get('/api/church/reports/unit', requireRole(), wrap(async (req, res) => {
-  const prisma = getPrisma();
-  const { parsePeriod } = await import('./lib/report-period.mjs');
-  const { accountBalance } = await import('./lib/church-p1.mjs');
-  const code = String(req.query.unit || '').toUpperCase();
-  if (!UNIT_LABEL[code]) return res.status(400).json({ error: 'unit tidak dikenal.' });
-  const p = parsePeriod(req.query.period);
-  const safe = (q, fb) => q.catch(() => fb);
-
-  const memberWhere = code === 'KOLOM' ? { kolomId: { not: null } } : UNIT_BIPRA[code] ? { bipra: UNIT_BIPRA[code] } : {};
-  const [memberCount, accounts, txSums, events, duties] = await Promise.all([
-    safe(prisma.user.count({ where: memberWhere }), 0),
-    safe(prisma.cashAccount.findMany({ where: { unit: code } }), []),
-    safe(prisma.cashTransaction.groupBy({ by: ['accountId', 'direction'], _sum: { amount: true } }), []),
-    safe(prisma.eventProgram.findMany({
-      where: { tenantId: UNIT_TENANT[code], startDate: { gte: p.from, lt: p.to } },
-      orderBy: { startDate: 'desc' }, take: 20, select: { name: true, status: true, startDate: true },
-    }), []),
-    UNIT_DIVISION[code]
-      ? safe(prisma.serviceSchedule.findMany({
-          where: { date: { gte: p.from, lt: p.to }, serviceRole: { division: Array.isArray(UNIT_DIVISION[code]) ? { in: UNIT_DIVISION[code] } : UNIT_DIVISION[code] } },
-          orderBy: { date: 'asc' }, take: 20,
-          include: { serviceRole: { select: { name: true } }, user: { select: { name: true } } },
-        }), [])
-      : Promise.resolve([]),
-  ]);
-  const bal = new Map();
-  for (const s of txSums) {
-    const arr = bal.get(s.accountId) || [];
-    arr.push({ direction: s.direction, sum: s._sum?.amount });
-    bal.set(s.accountId, arr);
-  }
-  res.json({
-    period: periodInfo(p),
-    unitLabel: UNIT_LABEL[code],
-    memberCount,
-    cash: accounts.map((a) => ({ name: a.name, balance: accountBalance(a.openingBalance, bal.get(a.id) || []) })),
-    events: events.map((e) => ({ name: e.name, status: e.status, startDate: e.startDate })),
-    duties: duties.map((d) => ({ role: d.serviceRole?.name, user: d.user?.name, date: d.date, status: d.status })),
-  });
+  const { unitReport } = await import('./lib/report-data.mjs');
+  const d = await unitReport(getPrisma(), req.query.unit, req.query.period);
+  if (!d) return res.status(400).json({ error: 'unit tidak dikenal.' });
+  res.json(d);
 }));
 
+// PDF server-side (pdfkit) — hasil seragam lintas browser.
+app.get('/api/church/reports/:file', requireRole(), wrap(async (req, res) => {
+  const file = String(req.params.file || '');
+  if (!file.endsWith('.pdf')) return res.status(404).json({ error: 'Tidak ditemukan.' });
+  const kind = file.slice(0, -4);
+  if (!['kas', 'fasilitas', 'bpmj', 'unit'].includes(kind)) return res.status(404).json({ error: 'Tidak ditemukan.' });
+  if (kind === 'kas' && !(await isTreasurerReq(req))) return res.status(403).json({ error: 'Hanya Bendahara/BPMJ.' });
+  if (kind === 'fasilitas' && !(await facilityManagerReq(req))) return res.status(403).json({ error: 'Hanya pengelola fasilitas/BPMJ.' });
+  if (kind === 'bpmj') {
+    const roles = (req.authUser?.roles || []).map((r) => r.role);
+    if (!roles.some((r) => ['SUPERADMIN', 'BPMJ', 'KOMISI'].includes(r))) return res.status(403).json({ error: 'Akses dibatasi.' });
+  }
+  const prisma = getPrisma();
+  const data = await import('./lib/report-data.mjs');
+  const pdf = await import('./lib/report-pdf.mjs');
+  const TITLES = { kas: 'Laporan Kas', fasilitas: 'Laporan Fasilitas & Penyewaan', bpmj: 'Laporan BPMJ — Lintas Unit', unit: 'Laporan Unit' };
+  let d;
+  let sections;
+  if (kind === 'kas') { d = await data.kasReport(prisma, req.query.period); sections = pdf.kasSections(d); }
+  else if (kind === 'fasilitas') { d = await data.facilityReport(prisma, req.query.period); sections = pdf.facilitySections(d); }
+  else if (kind === 'bpmj') { d = await data.bpmjReport(prisma, req.query.period); sections = pdf.bpmjSections(d); }
+  else {
+    d = await data.unitReport(prisma, req.query.unit, req.query.period);
+    if (!d) return res.status(400).json({ error: 'unit tidak dikenal.' });
+    sections = pdf.unitSections(d);
+  }
+  const fname = kind === 'unit'
+    ? `laporan-unit-${String(req.query.unit || '').toLowerCase()}-${d?.period?.key || ''}.pdf`
+    : `laporan-${kind}-${d?.period?.key || ''}.pdf`;
+  pdf.streamReportPdf(res, {
+    title: kind === 'unit' ? `${TITLES[kind]} — ${d.unitLabel}` : TITLES[kind],
+    subtitle: d?.period?.label || '',
+    sections,
+    filename: fname,
+  });
+}));
 // ---------- P7: tren bulanan (Dasbor BPMJ) ----------
 app.get('/api/church/bpmj/trends', requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'), wrap(async (req, res) => {
   const prisma = getPrisma();

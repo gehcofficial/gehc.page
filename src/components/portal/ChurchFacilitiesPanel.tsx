@@ -110,6 +110,14 @@ export const ChurchFacilitiesPanel: React.FC = () => {
               Unduh CSV booking
             </a>
           )}
+          {canManage && (
+            <a
+              href={`/api/church/reports/fasilitas.pdf?period=${currentPeriodKeys().month}`}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700"
+            >
+              PDF
+            </a>
+          )}
         </div>
 
         {loading ? (

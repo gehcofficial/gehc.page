@@ -171,6 +171,9 @@ export const ChurchFinancePanel: React.FC = () => {
               <a href={`#/laporan/kas/${currentPeriodKeys().week}`} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700">
                 Laporan mingguan
               </a>
+              <a href={`/api/church/reports/kas.pdf?period=${currentPeriodKeys().month}`} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700">
+                PDF
+              </a>
               <a
                 href={`/api/church/reports/cash.csv?period=${currentPeriodKeys().month}`}
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#181818] text-white"
@@ -334,3 +337,4 @@ export const ChurchFinancePanel: React.FC = () => {
 };
 
 export default ChurchFinancePanel;
+

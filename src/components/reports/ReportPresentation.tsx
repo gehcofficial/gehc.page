@@ -4,7 +4,7 @@
  * Cetak → window.print() dengan blok khusus cetak (semua slide, satu per halaman).
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Loader2, MessageCircle, Printer, ShieldAlert } from 'lucide-react';
+import { Copy, Download, Loader2, MessageCircle, Printer, ShieldAlert } from 'lucide-react';
 import { DeckShell } from '../presentation/DeckShell';
 import { copyText, whatsappShareUrl } from '../../lib/rhb-caption';
 import {
@@ -162,6 +162,9 @@ export const ReportPresentation: React.FC = () => {
   const slides = state.slides;
   const url = reportAbsoluteUrl(route);
   const caption = `${reportKindLabel(route.kind)} — ${state.periodLabel}\n${url}`;
+  const pdfUrl = route.kind === 'unit'
+    ? `/api/church/reports/unit.pdf?unit=${encodeURIComponent(route.unit || '')}&period=${encodeURIComponent(route.period)}`
+    : `/api/church/reports/${route.kind}.pdf?period=${encodeURIComponent(route.period)}`;
 
   return (
     <>
@@ -197,6 +200,13 @@ export const ReportPresentation: React.FC = () => {
             >
               <Printer className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Cetak</span>
             </button>
+            <a
+              href={pdfUrl}
+              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/90 hover:bg-sky-500 px-3 py-1.5 text-xs font-bold text-white transition"
+              title="Unduh PDF (server)"
+            >
+              <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">PDF</span>
+            </a>
           </div>
         }
         renderSlide={(i) => <SlideView slide={slides[i]} />}

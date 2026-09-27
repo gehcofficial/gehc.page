@@ -62,6 +62,12 @@ export const BpmjDashboardPanel: React.FC = () => {
           >
             Laporan bulanan (presentasi)
           </a>
+          <a
+            href={`/api/church/reports/bpmj.pdf?period=${currentPeriodKeys().month}`}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700"
+          >
+            PDF
+          </a>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {cards.map((c) => (
