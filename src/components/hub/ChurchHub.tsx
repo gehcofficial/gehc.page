@@ -111,13 +111,13 @@ const ChurchHub: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] relative overflow-x-hidden">
-      {/* Watermark background: logo GMIM + GEHC sama besar, berdampingan (opacity rendah) */}
+      {/* Watermark background (SATU saja): logo GMIM + GEHC, sangat besar, berdampingan */}
       <div
         aria-hidden="true"
-        className="crest-watermark pointer-events-none select-none absolute top-16 sm:top-24 left-1/2 -translate-x-1/2 flex items-center justify-center gap-8 sm:gap-16 opacity-[0.04] z-0"
+        className="crest-watermark pointer-events-none select-none absolute top-24 sm:top-32 left-1/2 -translate-x-1/2 flex items-center justify-center gap-6 sm:gap-10 opacity-[0.05] z-0"
       >
-        <img src={gmimLogo} alt="" className="w-[240px] sm:w-[380px] h-auto object-contain" />
-        <img src={gehcLogo} alt="" className="w-[240px] sm:w-[380px] h-auto object-contain" />
+        <img src={gmimLogo} alt="" className="w-[300px] sm:w-[520px] h-auto object-contain" />
+        <img src={gehcLogo} alt="" className="w-[300px] sm:w-[520px] h-auto object-contain" />
       </div>
 
       {/* Top bar */}
@@ -171,19 +171,6 @@ const ChurchHub: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div className="max-w-3xl relative">
-            <div className="flex items-center gap-4 sm:gap-6 mb-6">
-              {[
-                { src: gmimLogo, alt: 'GMIM' },
-                { src: gehcLogo, alt: 'GEHC' },
-              ].map((l) => (
-                <span key={l.alt} className="relative group">
-                  <span className="absolute inset-0 rounded-full bg-brand/20 blur-xl scale-125 transition-transform group-hover:scale-150" />
-                  <span className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#FFFDF8] border border-[#D9D7D0] shadow-sm flex items-center justify-center p-2.5 transition-transform group-hover:scale-105">
-                    <img src={l.src} alt={l.alt} className="w-full h-full object-contain" />
-                  </span>
-                </span>
-              ))}
-            </div>
             <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand bg-brand/10 px-3 py-1.5 rounded-full">
               <Landmark className="w-3.5 h-3.5" />
               Rumah Digital Jemaat
@@ -226,14 +213,6 @@ const ChurchHub: React.FC = () => {
           {/* Dinding foto (collage berotasi) */}
           <div className="relative">
             <HeroPhotoWall />
-            {gmimLogo && (
-              <img
-                src={gmimLogo}
-                alt=""
-                aria-hidden="true"
-                className="pointer-events-none select-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] max-w-[70%] opacity-[0.04] -z-10"
-              />
-            )}
           </div>
         </div>
       </section>
@@ -365,14 +344,6 @@ const ChurchHub: React.FC = () => {
       {/* Church info */}
       <section className={`${CONTAINER} pb-20`}>
         <div className="rounded-[28px] bg-[#151515] text-white p-8 sm:p-12 grid grid-cols-1 md:grid-cols-2 gap-10 relative overflow-hidden">
-          {gmimLogo && (
-            <img
-              src={gmimLogo}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none select-none absolute -right-10 -bottom-10 w-[360px] opacity-[0.06]"
-            />
-          )}
           <div className="relative">
             <h2 className="font-display text-2xl sm:text-3xl font-black">
               {profile.name || 'Bersekutu bersama'}
