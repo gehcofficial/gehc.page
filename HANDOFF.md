@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — D3: Branding tema per unit dari DB (staging review) (28 Sep 2026)
+
+**Schema (migrasi `server/_migrate-tenant-branding.cjs`; staging dijalankan):** `Tenant.brandAccent`, `brandAccent2`, `brandInk`, `logoUrl`, `heroImageUrl`, `themeTone`.
+
+**API:**
+- `GET /api/portal/theme` (publik) — resolusi tenant dari host → `{ tenantId, branding }` (null bila belum diatur).
+- `PUT /api/tenants/:slug/profile` — menerima field branding (hex divalidasi/normalisasi; tone `NETRAL|FORMAL|HANGAT|CERIA`). `GET /api/tenants` & profil unit otomatis memuat field baru.
+
+**Klien:**
+- `portal-themes.ts` — `fetchBranding`, `brandingToOverride`, `getBrandingOnce`, `initPortalTheme` (default kode → override DB).
+- `main.tsx` — `initPortalTheme` saat mount.
+- `src/hooks/usePortalTheme.ts` (baru) — tema aktif (dengan override) untuk komponen; `PortalLayout` memakai `theme.logo` (ganti logo GEHC bila diatur).
+- **Info Gereja** — per unit: color picker (aksen, aksen-2, teks di atas aksen) + URL logo/hero + nada (tone).
+
+**Verifikasi staging:** `GET /api/portal/theme` di `staging-men` → `tenantId=tenant-men`, branding null ✓; `PUT /api/tenants/men/profile {brandAccent:'#0055ff', themeTone:'FORMAL'}` → tersimpan `#0055FF`/`FORMAL` ✓; theme endpoint mengembalikan override ✓; **direset** ke null ✓. `lint` bersih ✓ **597 test** hijau ✓ `build` OK ✓ **Belum di-merge ke prod.**
+
+### Next
+1. Tinjau staging; set warna/logo unit via Info Gereja; merge ke prod bila setuju.
+2. (Opsional) D4 — tone/tipografi per unit (perilaku visual, bukan hanya warna).
+
 ## Current — D1: Tema portal per domain/subdomain (staging review) (28 Sep 2026)
 
 **Tujuan:** tiap portal (host) punya identitas warna sendiri; Pemuda tetap merah/oranye, Jemaat netral emas/ink, unit lain pakai aksen masing-masing.
