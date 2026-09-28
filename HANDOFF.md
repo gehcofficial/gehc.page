@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — L1: Logo GMIM + GEHC di hub (staging review) (29 Sep 2026)
+
+- **Aset**: logo **GMIM resmi** diambil dari situs Sinode (`gmim.or.id/assets/images/logo-gmim.png`, 493×480 transparan) → dioptimalkan (22 kB) ke `public/visuals/brand/logo-gmim.png`. Logo **GEHC** memakai `public/visuals/brand/logo-gehc.png` (sudah versi terbaik).
+- **`ChurchHub.tsx`**:
+  - Header: **GMIM** (h-9) + teks "GMIM EBEN HAEZER / Cikarang · Laman Hub" + pemisah + **GEHC** (lockup).
+  - Hero: **GMIM** dalam lingkaran (halo) + badge **GEHC**.
+  - **Watermark background = logo GEHC** (opacity 4%, `crest-watermark`, `pointer-events-none`, `aria-hidden`, dimatikan saat print).
+  - Section gelap (Info Gereja): watermark **GMIM** 6%. Footer: **GMIM + GEHC**.
+  - Fallback: slot Drive (`brand.logoGmim`/`brand.logoGehc`) → static `public/visuals/brand/*`; `ChurchCrest` tetap tersedia bila keduanya kosong.
+- **Fix encoding**: refactor tema D1 (PowerShell) sempat merusak karakter non-ASCII di 11 file → diperbaiki (bandingkan versi pra-refactor, patch UTF-8 aman via Node). **Sisa 39 `�` adalah pra-existing** (bukan regresi; kandidat pembersihan terpisah).
+
+**Verifikasi:** `lint` bersih ✓ **597 test** hijau ✓ `build` OK ✓ staging `9afc164`; `…/visuals/brand/logo-gmim.png` → 200 (22 kB) ✓ (belum prod)
+
+### Next
+1. Tinjau hub staging (header/hero GMIM+GEHC, watermark GEHC, footer).
+2. **H2** — marquee data-driven, direktori unit dari DB, Majelis, Jadwal+Lokasi.
+3. (Opsional) bersihkan 39 mojibake pra-existing.
+
 ## Current — H1: Sistem visual hub (glass, crest, aksen ungu) — staging review (28 Sep 2026)
 
 **Latar:** adopsi sebagian pola desain dari mock `gehc-·-gmim-eben-haezer-cikarang.zip` (AI Studio) ke hub.
