@@ -4,7 +4,7 @@ import { InviteJoinPage, LegacyWaitlistPage } from './auth/InviteJoinPage';
 
 export { GiftTestWizard } from './auth/shared/GiftTestWizard';
 
-/** Legacy redirect hub � `#/join` tanpa inv/token ? register; event=bakutau ? event page. */
+/** Legacy redirect hub — `#/join` tanpa inv/token → register; event=bakutau → event page. */
 export const JoinPage: React.FC = () => {
   useEffect(() => {
     const { params, tab } = parseHashRoute();
@@ -48,7 +48,7 @@ export const JoinPage: React.FC = () => {
 
   return (
     <section className="pt-[130px] pb-24 px-4 max-w-xl mx-auto text-center">
-      <p className="text-sm text-[#8C8880]">Mengalihkan�</p>
+      <p className="text-sm text-[#8C8880]">Mengalihkan…</p>
     </section>
   );
 };

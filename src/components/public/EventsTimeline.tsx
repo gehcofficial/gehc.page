@@ -44,7 +44,7 @@ type LandingCompact = {
 };
 
 /**
- * EVENTS TIMELINE [home] — 3 lapis dari /api/events/landing:
+ * EVENTS TIMELINE [home] â€” 3 lapis dari /api/events/landing:
  * full = konten terbit (+venue event), compact = event bertanggal tanpa
  * konten terbit, DONE/ARSIP tidak tampil. Versi penuh ada di tab Kegiatan.
  */
@@ -111,7 +111,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
         month: 'long',
         year: 'numeric',
       })
-      : '—';
+      : 'â€”';
 
   const fmtWib = (iso?: string) =>
     iso

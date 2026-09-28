@@ -132,7 +132,7 @@ export const KomisiSection: React.FC = () => {
                           {[m.subdivision, m.position]
                             .filter(Boolean)
                             .map((s) => trLabel(t.orgTree.labels, s as string))
-                            .join(' · ')}
+                            .join(' Â· ')}
                         </span>
                       </div>
                     </div>
@@ -147,7 +147,7 @@ export const KomisiSection: React.FC = () => {
                             [m.subdivision, m.position]
                               .filter(Boolean)
                               .map((s) => trLabel(t.orgTree.labels, s as string))
-                              .join(' · ') || trLabel(t.orgTree.labels, m.name)
+                              .join(' Â· ') || trLabel(t.orgTree.labels, m.name)
                           }
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[9px] font-bold uppercase tracking-wider text-[#8C8880]"
                         >

@@ -58,7 +58,7 @@ export const GroupDetailPage: React.FC = () => {
     let cancelled = false;
     setGalleryState('loading');
     (async () => {
-      // 1) Album publik (tanpa login) ó selalu aman ditampilkan.
+      // 1) Album publik (tanpa login) ‚Äî selalu aman ditampilkan.
       let publicList: PublicAlbum[] = [];
       try {
         const r = await fetch(`/api/db/groups/${selectedGroupId}/albums`);
@@ -186,7 +186,7 @@ export const GroupDetailPage: React.FC = () => {
                   }`}
                   style={onPhoto ? undefined : { color: group.color }}
                 >
-                  Beyonders ï Mentoring Home
+                  Beyonders ‚Ä¢ Mentoring Home
                 </span>
                 <h1
                   className={`text-4xl sm:text-6xl font-black tracking-tight font-display leading-none mt-1 ${
@@ -200,7 +200,7 @@ export const GroupDetailPage: React.FC = () => {
                     onPhoto ? 'text-white/80' : 'text-[#8C8880]'
                   }`}
                 >
-                  ì{group.meaning}î
+                  ‚Äú{group.meaning}‚Äù
                 </p>
               </div>
             </div>
@@ -270,7 +270,7 @@ export const GroupDetailPage: React.FC = () => {
               </span>
             </div>
             <p className="text-sm sm:text-base italic text-[#1B1B1B] leading-relaxed">
-              ì{group.scripture}î
+              ‚Äú{group.scripture}‚Äù
             </p>
             {group.description && (
               <p className="text-xs text-[#8C8880] mt-4 leading-relaxed">{group.description}</p>
@@ -283,7 +283,7 @@ export const GroupDetailPage: React.FC = () => {
             <div className="flex items-center gap-2 mb-5">
               <Users className="w-4 h-4" style={{ color: group.color }} />
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1B1B1B]">
-                Family Tree ó {activeBatch.period}
+                Family Tree ‚Äî {activeBatch.period}
               </h2>
               {activeBatch.isCurrent && (
                 <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
@@ -293,7 +293,7 @@ export const GroupDetailPage: React.FC = () => {
             </div>
             <FullFamilyTree
               mentor={activeBatch.mentor}
-              comentor={activeBatch.comentor || 'ó'}
+              comentor={activeBatch.comentor || '‚Äî'}
               mentees={(activeBatch.mentees || []).map((m) => ({ name: m.name, note: m.note, avatar: m.avatar }))}
               color={group.color || 'var(--color-brand)'}
               mentorAvatar={activeBatch.mentorAvatar}
@@ -385,7 +385,7 @@ export const GroupDetailPage: React.FC = () => {
                               : st === 'MOVED'
                               ? 'bg-sky-100 border-sky-200 text-sky-700'
                               : 'bg-white border-[#D9D7D0] text-[#1B1B1B]';
-                            const tag = st === 'ALUMNI' ? ' ∑ Alumni' : st === 'PAST' ? ' ∑ Gen lalu' : st === 'MOVED' ? ' ∑ Pindah' : '';
+                            const tag = st === 'ALUMNI' ? ' ¬∑ Alumni' : st === 'PAST' ? ' ¬∑ Gen lalu' : st === 'MOVED' ? ' ¬∑ Pindah' : '';
                             return (
                               <span
                                 key={m.name}
@@ -418,7 +418,7 @@ export const GroupDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-[#1B1B1B]">
-                  {group.meetingSchedule || 'ó'}
+                  {group.meetingSchedule || '‚Äî'}
                 </p>
               </div>
               <div className="p-5 rounded-[24px] bg-white border border-[#D9D7D0]/60">
@@ -429,7 +429,7 @@ export const GroupDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-[#1B1B1B]">
-                  {group.meetingLocation || 'ó'}
+                  {group.meetingLocation || '‚Äî'}
                 </p>
               </div>
             </div>
@@ -454,11 +454,11 @@ export const GroupDetailPage: React.FC = () => {
                       </span>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#1B1B1B]">
-                          {b.theme || b.batchLabel || 'ó'}
+                          {b.theme || b.batchLabel || '‚Äî'}
                         </p>
                         <p className="text-[11px] text-[#8C8880] mt-0.5">
                           {shortName(b.mentor)}
-                          {b.comentor ? ` ∑ ${shortName(b.comentor)}` : ''}
+                          {b.comentor ? ` ¬∑ ${shortName(b.comentor)}` : ''}
                         </p>
                       </div>
                     </li>
@@ -481,7 +481,7 @@ export const GroupDetailPage: React.FC = () => {
                 {t.groupDetail.docsRestricted}
               </div>
             ) : galleryState === 'loading' ? (
-              <p className="text-xs text-[#8C8880]">Memuat albumÖ</p>
+              <p className="text-xs text-[#8C8880]">Memuat album‚Ä¶</p>
             ) : galleryState === 'empty' || !galleryItems.length ? (
               <div className="rounded-[24px] border border-dashed border-[#D9D7D0] bg-[#FAF9F5]/60 p-5 flex items-center gap-3 text-xs text-[#8C8880]">
                 <ImageOff className="w-4 h-4 shrink-0 opacity-60" />
@@ -510,7 +510,7 @@ export const GroupDetailPage: React.FC = () => {
                         <p className="text-sm font-bold text-[#1B1B1B]">{album.title}</p>
                         <p className="text-[11px] text-[#8C8880]">
                           {String(album.occurredOn).slice(0, 10)}
-                          {album.location ? ` ∑ ${album.location}` : ''}
+                          {album.location ? ` ¬∑ ${album.location}` : ''}
                         </p>
                         <div className="flex gap-1">
                           {previews.map((p, idx) => (

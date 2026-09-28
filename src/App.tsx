@@ -45,7 +45,7 @@ const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
 const SessionRestoreScreen: React.FC = () => (
   <div className="min-h-screen bg-[#111111] text-white flex items-center justify-center">
     <p className="text-sm text-white/60 flex items-center gap-2">
-      <Loader2 className="w-4 h-4 animate-spin" /> Memulihkan sesi…
+      <Loader2 className="w-4 h-4 animate-spin" /> Memulihkan sesiâ€¦
     </p>
   </div>
 );

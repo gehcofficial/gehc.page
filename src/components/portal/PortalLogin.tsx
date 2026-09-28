@@ -64,14 +64,14 @@ export const PortalLogin: React.FC = () => {
 
         <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
           {authLoading ? (
-            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masuk…</p>
+            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masukâ€¦</p>
           ) : ssoClientId ? (
             <div className="flex justify-center pb-1">
               <GoogleLoginButton clientId={ssoClientId} onCredential={onCredential} onError={setErr} />
             </div>
           ) : (
             <p className="text-[11px] text-white/40 text-center leading-relaxed">
-              Login Google sementara tidak tersedia — gunakan username &amp; kata sandi.
+              Login Google sementara tidak tersedia â€” gunakan username &amp; kata sandi.
             </p>
           )}
 

@@ -423,7 +423,7 @@ const ManageChurchInfo: React.FC = () => {
               className={inputCls}
               value={profile.whatsappGroupUrl}
               onChange={(e) => setField('whatsappGroupUrl', e.target.value)}
-              placeholder="https://chat.whatsapp.com/� (mis. grup Pemuda)"
+              placeholder="https://chat.whatsapp.com/… (mis. grup Pemuda)"
             />
             <span className="text-[10px] text-[#8C8880]">
               Dipakai otomatis saat membuat event ibadah mingguan. Bisa diubah per event bila ada grup khusus.

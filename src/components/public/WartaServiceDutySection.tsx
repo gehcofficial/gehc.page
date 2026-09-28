@@ -27,13 +27,13 @@ const dayLabel = (iso: string) =>
 
 /**
  * Kelompokkan petugas per nama: satu nama = satu baris, role unik digabung
- * dengan “ · ” mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
- * info kegiatan) — publik hanya butuh nama + role.
+ * dengan â€œ Â· â€ mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
+ * info kegiatan) â€” publik hanya butuh nama + role.
  */
 export const mergeDutiesByName = (duties: Duty[]) => {
   const byName = new Map<string, { name: string; roles: string[] }>();
   for (const d of duties) {
-    const name = String(d.name || '').trim() || '—';
+    const name = String(d.name || '').trim() || 'â€”';
     const role = String(d.role || '').trim();
     const entry = byName.get(name) || { name, roles: [] };
     if (role && !entry.roles.includes(role)) entry.roles.push(role);
@@ -42,7 +42,7 @@ export const mergeDutiesByName = (duties: Duty[]) => {
   return [...byName.values()];
 };
 
-/** Blok “Pelayanan” untuk satu hari (dipakai kartu Warta & detail Warta). */
+/** Blok â€œPelayananâ€ untuk satu hari (dipakai kartu Warta & detail Warta). */
 const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> = ({ day, duties, serving }) => (
   <div className="space-y-3">
     {serving.responsible && (
@@ -59,7 +59,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
             {mergeDutiesByName(duties).map((p) => (
               <li key={p.name} className="text-[11px] text-[#1B1B1B] flex flex-wrap gap-x-1.5">
                 <span className="font-bold">{p.name}</span>
-                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' · ')}</span>}
+                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' Â· ')}</span>}
               </li>
             ))}
           </ul>
@@ -80,7 +80,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
         </p>
         {(serving.hostMembers || []).length > 0 ? (
           <p className="mt-1 text-[11px] text-[#5C5850] leading-relaxed">
-            {(serving.hostMembers || []).join(' · ')}
+            {(serving.hostMembers || []).join(' Â· ')}
           </p>
         ) : (
           <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>
@@ -93,7 +93,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
 );
 
 /**
- * Blok publik “Petugas Ibadah” untuk tab Warta.
+ * Blok publik â€œPetugas Ibadahâ€ untuk tab Warta.
  * Penanggung Jawab ? daftar petugas penatalayan; Tuan Rumah ? semua nama anggota.
  * Kartu disembunyikan hanya bila tidak ada penanggung, tuan rumah, maupun petugas.
  */
@@ -160,7 +160,7 @@ export const WartaServiceDutySection: React.FC = () => {
 };
 
 /**
- * Blok “Pelayanan” untuk satu tanggal warta (dipakai di detail Warta).
+ * Blok â€œPelayananâ€ untuk satu tanggal warta (dipakai di detail Warta).
  * Struktur sama: Penanggung Jawab ? petugas; Tuan Rumah ? semua anggota.
  */
 export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }) => {

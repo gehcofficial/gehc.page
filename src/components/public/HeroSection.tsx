@@ -76,7 +76,7 @@ export const HeroSection: React.FC = () => {
           hour: '2-digit',
           minute: '2-digit',
           timeZone: 'Asia/Jakarta',
-        }) + ' WIB' + (featured.venueName ? ` · ${featured.venueName}` : ''),
+        }) + ' WIB' + (featured.venueName ? ` Â· ${featured.venueName}` : ''),
       ].filter(Boolean).join(' ')
     : t.hero.bDesc;
 
