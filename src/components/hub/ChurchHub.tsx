@@ -123,7 +123,11 @@ const ChurchHub: React.FC = () => {
       <header className="sticky top-0 z-40 apple-glass border-b border-[#D9D7D0]/60">
         <div className={`${CONTAINER} h-16 flex items-center justify-between`}>
           <div className="flex items-center gap-3 min-w-0">
-            <img src={gmimLogo} alt="GMIM" className="h-9 w-9 object-contain shrink-0" />
+            <div className="flex items-center gap-2 shrink-0">
+              <img src={gmimLogo} alt="GMIM" className="h-9 w-9 object-contain" />
+              <span className="h-7 w-px bg-[#D9D7D0]" aria-hidden="true" />
+              <img src={gehcLogo} alt="GEHC" className="h-9 w-9 object-contain rounded-full bg-white/70 p-0.5" />
+            </div>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-[11px] tracking-tight truncate">
                 GMIM EBEN HAEZER
@@ -132,12 +136,6 @@ const ChurchHub: React.FC = () => {
                 Cikarang · Laman Hub
               </span>
             </div>
-            <span className="hidden sm:block h-6 w-px bg-[#D9D7D0]" aria-hidden="true" />
-            <img
-              src={gehcLogo}
-              alt="GEHC"
-              className="hidden sm:block h-7 w-7 object-contain rounded-full bg-white/70 p-0.5 shrink-0"
-            />
           </div>
           <div className="flex items-center gap-2">
             <a
@@ -172,17 +170,18 @@ const ChurchHub: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div className="max-w-3xl relative">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="relative group">
-                <span className="absolute inset-0 rounded-full bg-brand/20 blur-xl scale-125 transition-transform group-hover:scale-150" />
-                <span className="relative w-16 h-16 rounded-full bg-[#FFFDF8] border border-[#D9D7D0] shadow-sm flex items-center justify-center p-1.5 transition-transform group-hover:scale-105">
-                  <img src={gmimLogo} alt="GMIM" className="w-full h-full object-contain" />
+            <div className="flex items-center gap-4 sm:gap-6 mb-6">
+              {[
+                { src: gmimLogo, alt: 'GMIM' },
+                { src: gehcLogo, alt: 'GEHC' },
+              ].map((l) => (
+                <span key={l.alt} className="relative group">
+                  <span className="absolute inset-0 rounded-full bg-brand/20 blur-xl scale-125 transition-transform group-hover:scale-150" />
+                  <span className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#FFFDF8] border border-[#D9D7D0] shadow-sm flex items-center justify-center p-2.5 transition-transform group-hover:scale-105">
+                    <img src={l.src} alt={l.alt} className="w-full h-full object-contain" />
+                  </span>
                 </span>
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/70 border border-[#D9D7D0] px-3 py-1.5 shadow-sm">
-                <img src={gehcLogo} alt="GEHC" className="h-6 w-6 object-contain rounded-full" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#8C8880]">GEHC</span>
-              </span>
+              ))}
             </div>
             <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand bg-brand/10 px-3 py-1.5 rounded-full">
               <Landmark className="w-3.5 h-3.5" />
