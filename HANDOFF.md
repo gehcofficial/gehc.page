@@ -15,6 +15,13 @@
 
 **Verifikasi:** `lint` bersih ✓ **591 test** hijau ✓ `build` OK ✓ CSS hasil build memakai `var(--color-brand)` (35×) + `color-mix` (13×) sehingga override runtime berlaku. **Di-deploy ke staging untuk ditinjau** (belum prod).
 
+**Tambahan (sementara) — panel jemaat disembunyikan dari portal Pemuda:**
+- `portal-nav-config.ts`: `JEMAAT_PANELS_LIVE_IN_YOUTH = false` + `HIDDEN_IN_YOUTH_PORTAL` (8 panel: `unit-pengurus`, `unit-members`, `church-facilities`, `church-finance`, `church-stewardship`, `church-mds`, `church-security`, `church-dashboard`) + `isHiddenInPortal()`.
+- `buildPortalNavItems`: **SUPERADMIN menembus** filter `portals` **dan** daftar sembunyi (inspector: lihat semua di portal mana pun); peran lain → sembunyi di portal `youth`.
+- `PortalLayout`: `inActivePortal` bypass SUPERADMIN; extras juga difilter `isHiddenInPortal`.
+- Menampilkan kembali nanti = ubah **satu konstanta** `JEMAAT_PANELS_LIVE_IN_YOUTH = true`.
+- Tes: KOMISI Pemuda tanpa 8 panel; SUPERADMIN melihat semua (termasuk `org-hierarchy`/`integrations` di Pemuda); portal lain tak berubah. **596 test** hijau ✓
+
 ### Next
 1. Tinjau staging per portal (hub/youth/men/women/teen/kids/kolom/community).
 2. **D3** — branding DB (`Tenant.brandAccent/brandAccent2/brandInk/logoUrl/heroImageUrl/themeTone`) + UI Info Gereja + logo per unit.

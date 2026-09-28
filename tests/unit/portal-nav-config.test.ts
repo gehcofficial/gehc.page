@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  HIDDEN_IN_YOUTH_PORTAL,
+  JEMAAT_PANELS_LIVE_IN_YOUTH,
   buildPortalNavItems,
   buildPortalSidebarItems,
   filterDivisionTabs,
+  isHiddenInPortal,
 } from '../../src/lib/portal-nav-config';
 import type { UserRole } from '../../src/types';
 
@@ -133,5 +136,43 @@ describe('portal-nav-config — visibilitas modul (F3.6)', () => {
     ];
     expect(filterDivisionTabs(defs, ['div-liturgia'], false).map((d) => d.id)).toEqual(['div-liturgia', 'event-info']);
     expect(filterDivisionTabs(defs, [], true).map((d) => d.id)).toEqual(['div-liturgia', 'div-didaskalia', 'event-info']);
+  });
+});
+
+describe('portal-nav-config — panel jemaat disembunyikan dari Pemuda', () => {
+  it('flag sementara nonaktif (panel belum live di Pemuda)', () => {
+    expect(JEMAAT_PANELS_LIVE_IN_YOUTH).toBe(false);
+    expect(HIDDEN_IN_YOUTH_PORTAL).toHaveLength(8);
+  });
+
+  it('KOMISI Pemuda tidak melihat panel jemaat/BIPRA', () => {
+    const youth = buildPortalNavItems('KOMISI', CTX, false, 'youth').map((i) => i.id);
+    for (const id of HIDDEN_IN_YOUTH_PORTAL) expect(youth, id).not.toContain(id);
+    // modul Pemuda tetap ada
+    expect(youth).toContain('groups-monitoring');
+    expect(youth).toContain('div-liturgia');
+  });
+
+  it('SUPERADMIN melihat semuanya di portal Pemuda (inspector)', () => {
+    const admin = buildPortalNavItems('SUPERADMIN', CTX, false, 'youth').map((i) => i.id);
+    for (const id of HIDDEN_IN_YOUTH_PORTAL) expect(admin, id).toContain(id);
+    // juga menembus filter portal: modul jemaat-only tampil di Pemuda
+    expect(admin).toContain('org-hierarchy');
+    expect(admin).toContain('integrations');
+  });
+
+  it('portal Jemaat/unit lain tidak terpengaruh', () => {
+    const jemaat = buildPortalNavItems('KOMISI', CTX, false, 'jemaat').map((i) => i.id);
+    expect(jemaat).toContain('church-stewardship');
+    expect(jemaat).not.toContain('church-dashboard'); // dashboard hanya BPMJ/SA
+    const men = buildPortalNavItems('KOMISI', CTX, false, 'men').map((i) => i.id);
+    expect(men).toContain('church-finance');
+  });
+
+  it('isHiddenInPortal: hanya portal youth, bukan SUPERADMIN', () => {
+    expect(isHiddenInPortal('youth', 'church-finance', 'KOMISI')).toBe(true);
+    expect(isHiddenInPortal('youth', 'church-finance', 'SUPERADMIN')).toBe(false);
+    expect(isHiddenInPortal('men', 'church-finance', 'KOMISI')).toBe(false);
+    expect(isHiddenInPortal('youth', 'dashboard', 'KOMISI')).toBe(false);
   });
 });

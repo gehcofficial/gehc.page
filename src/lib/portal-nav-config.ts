@@ -209,6 +209,32 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
   BPMJ: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
 };
 
+/**
+ * SEMENTARA — panel jemaat/BIPRA disembunyikan dari portal Pemuda.
+ * Ubah `JEMAAT_PANELS_LIVE_IN_YOUTH = true` untuk menampilkannya kembali.
+ * SUPERADMIN selalu melihat semuanya (inspector).
+ */
+export const JEMAAT_PANELS_LIVE_IN_YOUTH = false;
+
+export const HIDDEN_IN_YOUTH_PORTAL: string[] = [
+  'unit-pengurus',
+  'unit-members',
+  'church-facilities',
+  'church-finance',
+  'church-stewardship',
+  'church-mds',
+  'church-security',
+  'church-dashboard',
+];
+
+/** Item disembunyikan dari portal ini untuk peran ini? (SUPERADMIN selalu melihat). */
+export function isHiddenInPortal(portalId: PortalId | undefined, itemId: string, role: UserRole): boolean {
+  if (role === 'SUPERADMIN') return false;
+  if (JEMAAT_PANELS_LIVE_IN_YOUTH) return false;
+  if (portalId !== 'youth') return false;
+  return HIDDEN_IN_YOUTH_PORTAL.includes(itemId);
+}
+
 function monitoringLabel(ctx: NavBuildContext): string {
   if (ctx.isGroupMentor) return 'Monitoring Kelompok Binaan';
   if (ctx.isMentee) return 'Monitoring Kelompok Saya';
@@ -230,7 +256,11 @@ export function buildPortalNavItems(
 
   const filtered = withLabels.filter((item) => {
     if (currentRole !== 'SUPERADMIN' && !item.roles.includes(currentRole)) return false;
-    if (portalId && item.portals && !item.portals.includes(portalId)) return false;
+    // SUPERADMIN menembus filter portal (inspector: lihat semua di portal mana pun).
+    if (currentRole !== 'SUPERADMIN') {
+      if (portalId && item.portals && !item.portals.includes(portalId)) return false;
+      if (isHiddenInPortal(portalId, item.id, currentRole)) return false;
+    }
     // Onboarding: hanya Info Event + Akun (akses penuh belum dibuka).
     if (isOnboarding) return item.id === 'event-info' || item.id === 'account';
     if (item.onboardingOnly) return false;

@@ -47,7 +47,7 @@ import {
   isPortalHash,
   type AccountSection,
 } from '../../lib/portal-routes';
-import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, filterDivisionTabs, isDivisionTab, type PortalNavParentDef, type PortalNavItemDef } from '../../lib/portal-nav-config';
+import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISION_TAB_IDS, divisionForTab, divisionNavDefs, churchNavDefs, filterDivisionTabs, isDivisionTab, isHiddenInPortal, type PortalNavParentDef, type PortalNavItemDef } from '../../lib/portal-nav-config';
 import { useMyDivisions } from '../../hooks/useMyDivisions';
 import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
 import { usePortalProfile } from '../../hooks/usePortalProfile';
@@ -297,10 +297,15 @@ export const PortalLayout: React.FC = () => {
   // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
   // KOMISI/Tim Kerja tanpa divisi tidak lagi otomatis melihat semua panel divisi.
   // Filter portal: item bertag `portals` hanya tampil di portal yang cocok.
-  const inActivePortal = (d: PortalNavItemDef) => !d.portals || d.portals.includes(portal.id);
+  const inActivePortal = (d: PortalNavItemDef) =>
+    currentRole === 'SUPERADMIN' || !d.portals || d.portals.includes(portal.id);
   const divisionDefs = divisionNavDefs();
-  const extraDivDefs = divisionDefs.filter((d) => myDiv.canSee(d.id) && inActivePortal(d));
-  const extraChurchDefs = churchNavDefs().filter((d) => myChurch.canSee(d.id) && inActivePortal(d));
+  const extraDivDefs = divisionDefs.filter(
+    (d) => myDiv.canSee(d.id) && inActivePortal(d) && !isHiddenInPortal(portal.id, d.id, currentRole),
+  );
+  const extraChurchDefs = churchNavDefs().filter(
+    (d) => myChurch.canSee(d.id) && inActivePortal(d) && !isHiddenInPortal(portal.id, d.id, currentRole),
+  );
   const allowedDivisionTabs = DIVISION_TAB_IDS.filter((id) => {
     const def = divisionDefs.find((d) => d.id === id);
     return myDiv.canSee(id) && (!def || inActivePortal(def));
