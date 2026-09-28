@@ -357,7 +357,12 @@ const STEPS = [
   },
   {
     script: 'server/_migrate-panji.cjs',
-    label: 'P4: Panji Yosua — incident_logs',
+    label: 'P4: Panji Yosua - incident_logs',
+    required: true,
+  },
+  {
+    script: 'server/_migrate-tenant-branding.cjs',
+    label: 'D3: branding tema portal per unit (tenants)',
     required: true,
   },
 ];
@@ -448,3 +453,4 @@ function maskDbUrl(url) {
 }
 
 main();
+

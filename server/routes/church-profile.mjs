@@ -1,8 +1,17 @@
 ﻿import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
+import { resolveHostContext } from '../lib/host-context.mjs';
 
 const CHURCH_PROFILE_ID = 'church-profile';
 const SOCIAL_KEYS = ['instagram', 'facebook', 'tiktok', 'youtube'];
+
+/** Hex warna valid (#RGB / #RRGGBB) atau null. */
+const hexOrNull = (v) => {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s) ? s.toUpperCase() : null;
+};
+const THEME_TONES = ['NETRAL', 'FORMAL', 'HANGAT', 'CERIA'];
 
 const DEFAULT_MAP_URL = 'https://share.google/Ro2jBSuGfrzfg49nP';
 const DEFAULT_MAP_QUERY = 'GMIM Eben Haezer Cikarang';
@@ -140,6 +149,30 @@ export function registerChurchProfileRoutes(app, { wrap }) {
     res.json({ tenant });
   }));
 
+  /** Publik: branding tema portal untuk host ini (fallback tema kode di klien). */
+  app.get('/api/portal/theme', wrap(async (req, res) => {
+    const prisma = getPrisma();
+    const ctx = resolveHostContext(req);
+    let tenant = null;
+    if (prisma && ctx?.tenantId) {
+      tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } }).catch(() => null);
+    }
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.json({
+      tenantId: ctx?.tenantId || null,
+      branding: tenant
+        ? {
+            brand: tenant.brandAccent || null,
+            brandEnd: tenant.brandAccent2 || null,
+            brandInk: tenant.brandInk || null,
+            logo: tenant.logoUrl || null,
+            hero: tenant.heroImageUrl || null,
+            tone: tenant.themeTone || null,
+          }
+        : null,
+    });
+  }));
+
   app.put(
     '/api/tenants/:slug/profile',
     requireRole('SUPERADMIN', 'BPMJ', 'KOMISI'),
@@ -155,6 +188,16 @@ export function registerChurchProfileRoutes(app, { wrap }) {
       if (b.contactEmail !== undefined) data.contactEmail = str(b.contactEmail, 190);
       const socials = pickSocials(b.socials);
       if (socials !== undefined) data.socials = socials;
+      // D3: branding tema per unit.
+      if (b.brandAccent !== undefined) data.brandAccent = hexOrNull(b.brandAccent);
+      if (b.brandAccent2 !== undefined) data.brandAccent2 = hexOrNull(b.brandAccent2);
+      if (b.brandInk !== undefined) data.brandInk = hexOrNull(b.brandInk);
+      if (b.logoUrl !== undefined) data.logoUrl = str(b.logoUrl, 2000);
+      if (b.heroImageUrl !== undefined) data.heroImageUrl = str(b.heroImageUrl, 2000);
+      if (b.themeTone !== undefined) {
+        const tone = String(b.themeTone || '').toUpperCase();
+        data.themeTone = THEME_TONES.includes(tone) ? tone : null;
+      }
       if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
 
       const updated = await prisma.tenant.update({ where: { id: tenant.id }, data });

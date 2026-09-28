@@ -105,6 +105,9 @@
     "db:migrate:panji": "node server/_migrate-panji.cjs",
     "db:migrate:panji:staging": "dotenv -e .env.staging -- node server/_migrate-panji.cjs",
     "db:migrate:panji:prod": "dotenv -e .env.production -- node server/_migrate-panji.cjs",
+    "db:migrate:tenant-branding": "node server/_migrate-tenant-branding.cjs",
+    "db:migrate:tenant-branding:staging": "dotenv -e .env.staging -- node server/_migrate-tenant-branding.cjs",
+    "db:migrate:tenant-branding:prod": "dotenv -e .env.production -- node server/_migrate-tenant-branding.cjs",
     "db:seed:church-cash": "node server/seed-church-cash.mjs",
     "db:seed:church-cash:staging": "dotenv -e .env.staging -- node server/seed-church-cash.mjs",
     "db:seed:church-cash:prod": "dotenv -e .env.production -- node server/seed-church-cash.mjs",
@@ -225,3 +228,4 @@
     "vitest": "^3.2.4"
   }
 }
+

@@ -29,6 +29,13 @@ model Tenant {
   contactEmail     String?  @map("contact_email") @db.VarChar(190)
   /// Sosial unit: { instagram, facebook, tiktok, youtube }.
   socials          Json?
+  /// D3: branding tema portal per unit (opsional; fallback tema kode).
+  brandAccent      String?  @map("brand_accent") @db.VarChar(20)
+  brandAccent2     String?  @map("brand_accent_2") @db.VarChar(20)
+  brandInk         String?  @map("brand_ink") @db.VarChar(20)
+  logoUrl          String?  @map("logo_url") @db.Text
+  heroImageUrl     String?  @map("hero_image_url") @db.Text
+  themeTone        String?  @map("theme_tone") @db.VarChar(20)
   createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   users  UserRole[]

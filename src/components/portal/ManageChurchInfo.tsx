@@ -39,8 +39,25 @@ type Tenant = {
   contactEmail: string | null;
   socials: Socials | null;
   isActive: boolean;
+  // D3: branding tema
+  brandAccent?: string | null;
+  brandAccent2?: string | null;
+  brandInk?: string | null;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
+  themeTone?: string | null;
 };
-type UnitDraft = { tagline: string; contactEmail: string; socials: Socials };
+type UnitDraft = {
+  tagline: string;
+  contactEmail: string;
+  socials: Socials;
+  brandAccent: string;
+  brandAccent2: string;
+  brandInk: string;
+  logoUrl: string;
+  heroImageUrl: string;
+  themeTone: string;
+};
 type GalleryPhoto = { id: string; name: string; thumbnailUrl: string; viewUrl: string };
 
 /** Kompres gambar di klien (maks sisi terpanjang) sebelum unggah. */
@@ -155,6 +172,12 @@ const ManageChurchInfo: React.FC = () => {
                 tagline: t.tagline || '',
                 contactEmail: t.contactEmail || '',
                 socials: t.socials && typeof t.socials === 'object' ? { ...t.socials } : {},
+                brandAccent: t.brandAccent || '',
+                brandAccent2: t.brandAccent2 || '',
+                brandInk: t.brandInk || '',
+                logoUrl: t.logoUrl || '',
+                heroImageUrl: t.heroImageUrl || '',
+                themeTone: t.themeTone || '',
               },
             ]),
           ),
@@ -277,8 +300,11 @@ const ManageChurchInfo: React.FC = () => {
     }
   };
 
-  const setUnitField = (slug: string, key: 'tagline' | 'contactEmail', value: string) =>
-    setDrafts((d) => ({ ...d, [slug]: { ...d[slug], [key]: value } }));
+  const setUnitField = (
+    slug: string,
+    key: 'tagline' | 'contactEmail' | 'brandAccent' | 'brandAccent2' | 'brandInk' | 'logoUrl' | 'heroImageUrl' | 'themeTone',
+    value: string,
+  ) => setDrafts((d) => ({ ...d, [slug]: { ...d[slug], [key]: value } }));
 
   const setUnitSocial = (slug: string, key: keyof Socials, value: string) =>
     setDrafts((d) => ({ ...d, [slug]: { ...d[slug], socials: { ...d[slug].socials, [key]: value } } }));
@@ -397,7 +423,7 @@ const ManageChurchInfo: React.FC = () => {
               className={inputCls}
               value={profile.whatsappGroupUrl}
               onChange={(e) => setField('whatsappGroupUrl', e.target.value)}
-              placeholder="https://chat.whatsapp.com/� (mis. grup Pemuda)"
+              placeholder="https://chat.whatsapp.com/� (mis. grup Pemuda)"
             />
             <span className="text-[10px] text-[#8C8880]">
               Dipakai otomatis saat membuat event ibadah mingguan. Bisa diubah per event bila ada grup khusus.
@@ -478,7 +504,10 @@ const ManageChurchInfo: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 gap-4">
           {activeTenants.map((t) => {
-            const draft = drafts[t.slug] || { tagline: '', contactEmail: '', socials: {} };
+            const draft = drafts[t.slug] || {
+              tagline: '', contactEmail: '', socials: {},
+              brandAccent: '', brandAccent2: '', brandInk: '', logoUrl: '', heroImageUrl: '', themeTone: '',
+            };
             return (
               <div key={t.id} className="rounded-2xl border border-[#E9E8E4] bg-[#FAF9F5] p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -513,6 +542,54 @@ const ManageChurchInfo: React.FC = () => {
                       />
                     </label>
                   ))}
+                </div>
+
+                {/* D3: branding tema unit */}
+                <div className="rounded-xl border border-[#E9E8E4] bg-white p-3 space-y-2">
+                  <p className="text-[11px] font-bold text-[#1B1B1B]">Tema portal unit</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {([
+                      ['brandAccent', 'Warna aksen'],
+                      ['brandAccent2', 'Warna aksen 2'],
+                      ['brandInk', 'Teks di atas aksen'],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="space-y-1">
+                        <span className="text-[11px] text-[#8C8880]">{label}</span>
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={/^#[0-9A-Fa-f]{6}$/.test(draft[key]) ? draft[key] : '#FF416C'}
+                            onChange={(e) => setUnitField(t.slug, key, e.target.value.toUpperCase())}
+                            className="w-9 h-9 rounded-lg border border-[#D9D7D0] bg-white p-0.5"
+                          />
+                          <input
+                            className={inputCls}
+                            value={draft[key]}
+                            placeholder="#RRGGBB (kosong = tema bawaan)"
+                            onChange={(e) => setUnitField(t.slug, key, e.target.value)}
+                          />
+                        </span>
+                      </label>
+                    ))}
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-[#8C8880]">URL Logo</span>
+                      <input className={inputCls} value={draft.logoUrl} placeholder="https://…" onChange={(e) => setUnitField(t.slug, 'logoUrl', e.target.value)} />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-[#8C8880]">URL Hero/Gambar</span>
+                      <input className={inputCls} value={draft.heroImageUrl} placeholder="https://…" onChange={(e) => setUnitField(t.slug, 'heroImageUrl', e.target.value)} />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-[#8C8880]">Nada (tone)</span>
+                      <select className={inputCls} value={draft.themeTone} onChange={(e) => setUnitField(t.slug, 'themeTone', e.target.value)}>
+                        <option value="">(bawaan)</option>
+                        <option value="NETRAL">Netral</option>
+                        <option value="FORMAL">Formal</option>
+                        <option value="HANGAT">Hangat</option>
+                        <option value="CERIA">Ceria</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
                 <button
                   type="button"

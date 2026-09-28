@@ -70,3 +70,54 @@ export function applyThemeForHost(host: string, search = ''): PortalTheme {
   return theme;
 }
 
+// ---------- D3: branding dari DB (opsional, menimpa default kode) ----------
+
+export type PortalBranding = {
+  brand?: string | null;
+  brandEnd?: string | null;
+  brandInk?: string | null;
+  logo?: string | null;
+  hero?: string | null;
+  tone?: string | null;
+};
+
+/** Ambil branding tenant untuk host ini (publik). */
+export async function fetchBranding(): Promise<PortalBranding | null> {
+  try {
+    const r = await fetch('/api/portal/theme', { credentials: 'include' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d?.branding as PortalBranding) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function brandingToOverride(b?: PortalBranding | null): Partial<PortalTheme> | null {
+  if (!b) return null;
+  const o: Partial<PortalTheme> = {};
+  if (b.brand) o.brand = b.brand;
+  if (b.brandEnd) o.brandEnd = b.brandEnd;
+  if (b.brandInk) o.brandInk = b.brandInk;
+  if (b.logo) o.logo = b.logo;
+  return Object.keys(o).length ? o : null;
+}
+
+let brandingPromise: Promise<PortalBranding | null> | null = null;
+
+/** Ambil branding sekali per sesi (cache). */
+export function getBrandingOnce(): Promise<PortalBranding | null> {
+  if (!brandingPromise) brandingPromise = fetchBranding();
+  return brandingPromise;
+}
+
+/** Terapkan tema default lalu override dari DB (bila ada). */
+export async function initPortalTheme(host: string, search = ''): Promise<PortalTheme> {
+  const base = applyThemeForHost(host, search);
+  const override = brandingToOverride(await getBrandingOnce());
+  if (!override) return base;
+  const merged = resolvePortalTheme(host, search, override);
+  applyPortalTheme(merged);
+  return merged;
+}
+

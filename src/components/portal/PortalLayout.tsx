@@ -51,6 +51,7 @@ import { buildPortalNavItems, buildPortalSidebarItems, findParentForTab, DIVISIO
 import { useMyDivisions } from '../../hooks/useMyDivisions';
 import { useMyChurchUnits } from '../../hooks/useMyChurchUnits';
 import { usePortalProfile } from '../../hooks/usePortalProfile';
+import { usePortalTheme } from '../../hooks/usePortalTheme';
 import { hubRedirectHost } from '../../lib/portal-profiles';
 import { ChurchOrgPanel } from './ChurchOrgPanel';
 import { UnitPengurusPanel } from './UnitPengurusPanel';
@@ -140,6 +141,7 @@ export const PortalLayout: React.FC = () => {
   const myDiv = useMyDivisions();
   const myChurch = useMyChurchUnits();
   const portal = usePortalProfile();
+  const portalTheme = usePortalTheme();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
 
@@ -522,12 +524,21 @@ export const PortalLayout: React.FC = () => {
                     : 'gap-2.5 p-2 -ml-1 flex-1 min-w-0 hover:bg-white hover:shadow-sm'
                 }`}
               >
-                <GehcLogo
-                  size={collapsed ? 40 : 36}
-                  rounded="xl"
-                  fallbackLabel={collapsed ? 'GE' : 'GEHC'}
-                  className="shadow-md shadow-brand/20 group-hover:shadow-lg group-hover:shadow-brand/30 group-hover:scale-105 transition-all duration-200"
-                />
+                {portalTheme.logo ? (
+                  <img
+                    src={portalTheme.logo}
+                    alt={portal.profile.shortLabel}
+                    className="shadow-md shadow-brand/20 group-hover:shadow-lg group-hover:shadow-brand/30 group-hover:scale-105 transition-all duration-200 object-contain"
+                    style={{ width: collapsed ? 40 : 36, height: collapsed ? 40 : 36 }}
+                  />
+                ) : (
+                  <GehcLogo
+                    size={collapsed ? 40 : 36}
+                    rounded="xl"
+                    fallbackLabel={collapsed ? 'GE' : 'GEHC'}
+                    className="shadow-md shadow-brand/20 group-hover:shadow-lg group-hover:shadow-brand/30 group-hover:scale-105 transition-all duration-200"
+                  />
+                )}
                 {!collapsed && (
                   <div className="min-w-0 text-left">
                     <h4 className="text-[11px] font-black uppercase text-[#1B1B1B] truncate leading-tight">

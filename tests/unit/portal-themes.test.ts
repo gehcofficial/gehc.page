@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PORTAL_THEMES, resolvePortalTheme, themeForPortal } from '../../src/lib/portal-themes';
+import { PORTAL_THEMES, brandingToOverride, resolvePortalTheme, themeForPortal } from '../../src/lib/portal-themes';
 
 describe('portal-themes', () => {
   it('tiap portal punya palet; youth tetap merah/oranye', () => {
@@ -38,5 +38,14 @@ describe('portal-themes', () => {
 
   it('themeForPortal fallback', () => {
     expect(themeForPortal('youth').brand).toBe('#FF416C');
+  });
+
+  it('brandingToOverride: hanya field terisi', () => {
+    expect(brandingToOverride(null)).toBeNull();
+    expect(brandingToOverride({})).toBeNull();
+    expect(brandingToOverride({ brand: '#112233', logo: 'https://x/y.png' })).toEqual({ brand: '#112233', logo: 'https://x/y.png' });
+    const merged = resolvePortalTheme('men.gehc.page', '', brandingToOverride({ brand: '#112233' }));
+    expect(merged.brand).toBe('#112233');
+    expect(merged.brandEnd).toBe('#1D4ED8');
   });
 });
