@@ -21,7 +21,7 @@ import {
   Presentation,
   type LucideIcon,
 } from 'lucide-react';
-import { GehcLogo } from '../brand/GehcLogo';
+import { ChurchCrest } from '../brand/ChurchCrest';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
 import HeroPhotoWall from './HeroPhotoWall';
@@ -110,12 +110,20 @@ const ChurchHub: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B]">
+    <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] relative overflow-x-hidden">
+      {/* Watermark crest (satu, di tengah) */}
+      <ChurchCrest
+        variant="watermark"
+        size={680}
+        color="#7E22CE"
+        className="crest-watermark absolute top-16 sm:top-24 left-1/2 -translate-x-1/2 opacity-[0.05] z-0"
+      />
+
       {/* Top bar */}
-      <header className="sticky top-0 z-40 backdrop-blur bg-[#FAF9F5]/85 border-b border-[#D9D7D0]">
+      <header className="sticky top-0 z-40 apple-glass border-b border-[#D9D7D0]/60">
         <div className={`${CONTAINER} h-16 flex items-center justify-between`}>
           <div className="flex items-center gap-3 min-w-0">
-            <GehcLogo size={36} />
+            <ChurchCrest variant="emblem" size={36} />
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-[11px] tracking-tight truncate">
                 GMIM EBEN HAEZER
@@ -151,9 +159,21 @@ const ChurchHub: React.FC = () => {
       </header>
 
       {/* Hero */}
-      <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12 relative`}>
+      <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12 relative z-10`}>
+        {/* ambient glow */}
+        <div className="absolute inset-0 -z-10 pointer-events-none flex justify-center">
+          <div className="w-[680px] h-[400px] bg-gradient-to-tr from-brand/20 via-brand/10 to-brand-end/15 blur-[130px] rounded-full -translate-y-20" />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div className="max-w-3xl relative">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="relative group">
+                <span className="absolute inset-0 rounded-full bg-brand/20 blur-xl scale-125 transition-transform group-hover:scale-150" />
+                <span className="relative w-14 h-14 rounded-full bg-[#FFFDF8] border border-[#D9D7D0] shadow-sm flex items-center justify-center transition-transform group-hover:scale-105">
+                  <ChurchCrest variant="emblem" size={52} />
+                </span>
+              </span>
+            </div>
             <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand bg-brand/10 px-3 py-1.5 rounded-full">
               <Landmark className="w-3.5 h-3.5" />
               Rumah Digital Jemaat

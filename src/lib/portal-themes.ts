@@ -23,7 +23,7 @@ export type PortalTheme = {
 
 /** Palet per portal (selaras dengan aksen kartu unit di hub). */
 export const PORTAL_THEMES: Record<PortalId, PortalTheme> = {
-  jemaat: { brand: '#8A6A1F', brandEnd: '#C8A24A', brandInk: '#FFFFFF' },
+  jemaat: { brand: '#7E22CE', brandEnd: '#4F46E5', brandInk: '#FFFFFF' },
   youth: { brand: '#FF416C', brandEnd: '#FF4B2B', brandInk: '#FFFFFF' },
   men: { brand: '#0EA5E9', brandEnd: '#1D4ED8', brandInk: '#FFFFFF' },
   women: { brand: '#EC4899', brandEnd: '#8B5CF6', brandInk: '#FFFFFF' },

@@ -5,7 +5,7 @@ describe('portal-themes', () => {
   it('tiap portal punya palet; youth tetap merah/oranye', () => {
     expect(PORTAL_THEMES.youth.brand).toBe('#FF416C');
     expect(PORTAL_THEMES.youth.brandEnd).toBe('#FF4B2B');
-    expect(PORTAL_THEMES.jemaat.brand).toBe('#8A6A1F');
+    expect(PORTAL_THEMES.jemaat.brand).toBe('#7E22CE');
     for (const id of Object.keys(PORTAL_THEMES)) {
       expect(PORTAL_THEMES[id as keyof typeof PORTAL_THEMES].brand).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
@@ -14,7 +14,7 @@ describe('portal-themes', () => {
   it('resolve dari host (prod & staging)', () => {
     expect(resolvePortalTheme('men.gehc.page').brand).toBe('#0EA5E9');
     expect(resolvePortalTheme('staging-men.gehc.page').brand).toBe('#0EA5E9');
-    expect(resolvePortalTheme('gehc.page').brand).toBe('#8A6A1F');
+    expect(resolvePortalTheme('gehc.page').brand).toBe('#7E22CE');
     expect(resolvePortalTheme('youth.gehc.page').brand).toBe('#FF416C');
     expect(resolvePortalTheme('districts.gehc.page').brand).toBe('#10B981');
   });
@@ -25,8 +25,8 @@ describe('portal-themes', () => {
   });
 
   it('override ?portal= hanya non-produksi', () => {
-    expect(resolvePortalTheme('localhost', '?portal=jemaat').brand).toBe('#8A6A1F');
-    expect(resolvePortalTheme('gehc.page', '?portal=youth').brand).toBe('#8A6A1F');
+    expect(resolvePortalTheme('localhost', '?portal=jemaat').brand).toBe('#7E22CE');
+    expect(resolvePortalTheme('gehc.page', '?portal=youth').brand).toBe('#7E22CE');
   });
 
   it('override DB menimpa sebagian saja', () => {
