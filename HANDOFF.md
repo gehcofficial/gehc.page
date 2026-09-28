@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — H1: Sistem visual hub (glass, crest, aksen ungu) — staging review (28 Sep 2026)
+
+**Latar:** adopsi sebagian pola desain dari mock `gehc-·-gmim-eben-haezer-cikarang.zip` (AI Studio) ke hub.
+
+**Yang dibangun:**
+- `src/index.css` — utility **Apple-glass** (`.apple-glass`, `.apple-glass-card(-hover)`, `.apple-glass-glow`, `.apple-glass-dark`), alias `.font-serif-display`, dan aturan **print** (glass/watermark dimatikan). (Marquee sudah ada.)
+- `src/components/brand/ChurchCrest.tsx` (baru) — crest GMIM (SVG statis: salib, merpati, Alkitab, pita) varian `full|emblem|watermark`; tanpa aset biner.
+- `PORTAL_THEMES.jemaat` → **ungu→indigo** (`#7E22CE`/`#4F46E5`) menggantikan emas.
+- `ChurchHub.tsx` — **watermark crest** (opacity 5%), **header sticky glass** + emblem crest, hero dengan **ambient glow** + emblem.
+
+**Verifikasi:** `lint` bersih ✓ **597 test** hijau ✓ `build` OK ✓ staging `0316afc` ✓ (belum prod)
+
+### Next
+1. Tinjau hub staging (`staging.gehc.page`): ungu + glass + crest/watermark.
+2. **H2** — marquee data-driven (Info & Peluang), direktori unit dari DB (`/api/tenants`) + `colorTheme` terstruktur, Majelis, Jadwal+Lokasi.
+3. **H3** — mobile bottom dock + modal (detail unit, peta, pitch).
+
 ## Current — D3: Branding tema per unit dari DB (staging review) (28 Sep 2026)
 
 **Schema (migrasi `server/_migrate-tenant-branding.cjs`; staging dijalankan):** `Tenant.brandAccent`, `brandAccent2`, `brandInk`, `logoUrl`, `heroImageUrl`, `themeTone`.
