@@ -111,13 +111,14 @@ const ChurchHub: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] relative overflow-x-hidden">
-      {/* Watermark background: logo GEHC (opacity rendah, standar watermark) */}
-      <img
-        src={gehcLogo}
-        alt=""
+      {/* Watermark background: logo GMIM + GEHC sama besar, berdampingan (opacity rendah) */}
+      <div
         aria-hidden="true"
-        className="crest-watermark pointer-events-none select-none absolute top-16 sm:top-24 left-1/2 -translate-x-1/2 w-[680px] max-w-[85%] opacity-[0.04] z-0"
-      />
+        className="crest-watermark pointer-events-none select-none absolute top-16 sm:top-24 left-1/2 -translate-x-1/2 flex items-center justify-center gap-8 sm:gap-16 opacity-[0.04] z-0"
+      >
+        <img src={gmimLogo} alt="" className="w-[240px] sm:w-[380px] h-auto object-contain" />
+        <img src={gehcLogo} alt="" className="w-[240px] sm:w-[380px] h-auto object-contain" />
+      </div>
 
       {/* Top bar */}
       <header className="sticky top-0 z-40 apple-glass border-b border-[#D9D7D0]/60">
