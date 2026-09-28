@@ -99,7 +99,7 @@ export const OperatorLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1a1a1a] p-8 shadow-2xl">
-        <p className="text-xs uppercase tracking-widest text-[#FF416C] font-semibold mb-2">GEHC Platform</p>
+        <p className="text-xs uppercase tracking-widest text-brand font-semibold mb-2">GEHC Platform</p>
         <h1 className="text-2xl font-bold mb-1">Operator Login</h1>
         <p className="text-sm text-white/60 mb-6">Akun bootstrap Tim Tech — terpisah dari portal jemaat.</p>
 
@@ -107,14 +107,14 @@ export const OperatorLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
           <button
             type="button"
             onClick={() => setMode('passkey')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium ${mode === 'passkey' ? 'bg-[#FF416C] text-white' : 'bg-white/5'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${mode === 'passkey' ? 'bg-brand text-white' : 'bg-white/5'}`}
           >
             Passkey
           </button>
           <button
             type="button"
             onClick={() => setMode('local')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium ${mode === 'local' ? 'bg-[#FF416C] text-white' : 'bg-white/5'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${mode === 'local' ? 'bg-brand text-white' : 'bg-white/5'}`}
           >
             Break-glass
           </button>
@@ -134,7 +134,7 @@ export const OperatorLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
             type="button"
             disabled={busy || !email}
             onClick={() => void passkeyLogin()}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-[#FF416C] font-semibold disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-brand font-semibold disabled:opacity-50"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
             Login dengan Passkey
@@ -167,3 +167,4 @@ export const OperatorLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
     </div>
   );
 };
+

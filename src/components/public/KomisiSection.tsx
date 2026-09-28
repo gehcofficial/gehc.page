@@ -1,4 +1,4 @@
-ï»¿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Crown, Landmark, Network, Users2, Loader2, Sparkles } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
@@ -65,7 +65,7 @@ export const KomisiSection: React.FC = () => {
 
         {bpmjTeam.length > 0 && (
           <PhotoTeam
-            icon={<Crown className="w-4 h-4 text-[#FF416C]" />}
+            icon={<Crown className="w-4 h-4 text-brand" />}
             title={t.leadersPage.bpmjLabel}
             members={bpmjTeam}
             badge={t.leadersPage.bpmjLabel}
@@ -75,7 +75,7 @@ export const KomisiSection: React.FC = () => {
 
         {coreTeam.length > 0 && (
           <PhotoTeam
-            icon={<Landmark className="w-4 h-4 text-[#FF416C]" />}
+            icon={<Landmark className="w-4 h-4 text-brand" />}
             title={t.leadersPage.coreLabel}
             members={coreTeam}
             badge={t.leadersPage.coreLabel}
@@ -85,7 +85,7 @@ export const KomisiSection: React.FC = () => {
 
         {workingTeam.length > 0 && (
           <PhotoTeam
-            icon={<Network className="w-4 h-4 text-[#FF416C]" />}
+            icon={<Network className="w-4 h-4 text-brand" />}
             title={t.leadersPage.supportLabel}
             members={workingTeam}
             badge={t.leadersPage.supportLabel}
@@ -95,7 +95,7 @@ export const KomisiSection: React.FC = () => {
 
         <div>
           <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/60">
-            <Users2 className="w-4 h-4 text-[#FF416C]" />
+            <Users2 className="w-4 h-4 text-brand" />
             <h3 className="text-lg sm:text-xl font-bold">{t.leadersPage.pillarsLabel}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -132,7 +132,7 @@ export const KomisiSection: React.FC = () => {
                           {[m.subdivision, m.position]
                             .filter(Boolean)
                             .map((s) => trLabel(t.orgTree.labels, s as string))
-                            .join(' Â· ')}
+                            .join(' · ')}
                         </span>
                       </div>
                     </div>
@@ -147,7 +147,7 @@ export const KomisiSection: React.FC = () => {
                             [m.subdivision, m.position]
                               .filter(Boolean)
                               .map((s) => trLabel(t.orgTree.labels, s as string))
-                              .join(' Â· ') || trLabel(t.orgTree.labels, m.name)
+                              .join(' · ') || trLabel(t.orgTree.labels, m.name)
                           }
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F3F1EC] border border-dashed border-[#8C8880]/40 text-[9px] font-bold uppercase tracking-wider text-[#8C8880]"
                         >
@@ -225,7 +225,7 @@ const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge
       <div className="p-5">
         <h4 className="text-base font-bold leading-snug">{member.name}</h4>
         {member.position && (
-          <p className="text-xs font-semibold text-[#FF416C] mt-1">
+          <p className="text-xs font-semibold text-brand mt-1">
             {trLabel(t.orgTree.labels, member.position)}
           </p>
         )}
@@ -236,3 +236,4 @@ const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge
     </div>
   );
 };
+

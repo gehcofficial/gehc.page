@@ -30,7 +30,7 @@ export const RolePickerScreen: React.FC = () => {
               key={role}
               type="button"
               onClick={() => setActiveUserRole(role)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#D9D7D0] hover:border-[#FF416C] hover:shadow-md transition-all text-left group"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#D9D7D0] hover:border-brand hover:shadow-md transition-all text-left group"
             >
               <div className="w-11 h-11 rounded-xl bg-[#1B1B1B] text-white flex items-center justify-center shrink-0">
                 {ROLE_ICONS[role] || <Users className="w-5 h-5" />}
@@ -39,7 +39,7 @@ export const RolePickerScreen: React.FC = () => {
                 <p className="text-sm font-bold text-[#1B1B1B]">{portalRoleLabel(t, role)}</p>
                 <p className="text-[11px] text-[#8C8880] mt-0.5 font-mono">#/portal/{roleToNamespace(role)}</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#D9D7D0] group-hover:text-[#FF416C] shrink-0" />
+              <ChevronRight className="w-4 h-4 text-[#D9D7D0] group-hover:text-brand shrink-0" />
             </button>
           ))}
         </div>
@@ -54,3 +54,4 @@ export const RolePickerScreen: React.FC = () => {
     </div>
   );
 };
+

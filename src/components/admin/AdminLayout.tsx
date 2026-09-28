@@ -40,7 +40,7 @@ const AdminIntegrationsPanel: React.FC = () => (
     </p>
     <a
       href="#/portal/komisi/integrations"
-      className="inline-block text-sm text-[#FF416C] underline"
+      className="inline-block text-sm text-brand underline"
     >
       Buka integrasi portal komisi →
     </a>
@@ -137,7 +137,7 @@ export const AdminLayout: React.FC = () => {
                   key={item.id}
                   type="button"
                   onClick={() => go(item.id)}
-                  className="text-left p-4 rounded-xl border border-[#E8E4DC] hover:border-[#FF416C]/40 bg-white"
+                  className="text-left p-4 rounded-xl border border-[#E8E4DC] hover:border-brand/40 bg-white"
                 >
                   <div className="font-semibold">{item.label}</div>
                 </button>
@@ -154,7 +154,7 @@ export const AdminLayout: React.FC = () => {
         className={`${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static z-40 w-64 bg-[#1B1B1B] text-white min-h-screen flex flex-col transition-transform`}
       >
         <div className="p-4 border-b border-white/10 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#FF416C]" />
+          <Shield className="w-5 h-5 text-brand" />
           <span className="font-bold text-sm">GEHC Admin</span>
         </div>
         <nav className="flex-1 p-3 space-y-1">
@@ -164,7 +164,7 @@ export const AdminLayout: React.FC = () => {
               type="button"
               onClick={() => go(item.id)}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm ${
-                adminPage === item.id ? 'bg-[#FF416C] text-white' : 'hover:bg-white/10'
+                adminPage === item.id ? 'bg-brand text-white' : 'hover:bg-white/10'
               }`}
             >
               {item.label}
@@ -199,3 +199,4 @@ export const AdminLayout: React.FC = () => {
     </div>
   );
 };
+

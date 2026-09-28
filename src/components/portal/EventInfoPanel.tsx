@@ -194,7 +194,7 @@ export const EventInfoPanel: React.FC = () => {
       {/* Penjelajah tanggal ibadah — tiap tanggal punya drive/materi sendiri */}
       {dateOptions.length > 1 && (
         <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 px-4 py-3 flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-[#FF416C] shrink-0" />
+          <CalendarDays className="w-4 h-4 text-brand shrink-0" />
           <label htmlFor="event-date-picker" className="text-[10px] font-black uppercase tracking-widest text-[#8C8880] shrink-0">Tanggal</label>
           <select
             id="event-date-picker"
@@ -213,7 +213,7 @@ export const EventInfoPanel: React.FC = () => {
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-1">
+            <p className="text-[11px] font-black uppercase tracking-widest text-brand mb-1">
               {isBaku ? 'BAKU TAU 4.0' : 'Info Event'}
             </p>
             <h2 className="text-2xl font-black tracking-tight">{ev.name}</h2>
@@ -296,7 +296,7 @@ export const EventInfoPanel: React.FC = () => {
             <a
               href="#/event/bakutau"
               onClick={(e) => { e.preventDefault(); window.location.hash = '#/event/bakutau'; }}
-              className="inline-block px-4 py-2 rounded-full bg-[#FF416C] text-white text-xs font-black uppercase"
+              className="inline-block px-4 py-2 rounded-full bg-brand text-white text-xs font-black uppercase"
             >
               Daftar Kehadiran
             </a>
@@ -341,3 +341,4 @@ export const EventInfoPanel: React.FC = () => {
     </div>
   );
 };
+

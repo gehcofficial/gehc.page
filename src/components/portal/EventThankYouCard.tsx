@@ -119,7 +119,7 @@ export const EventThankYouCard: React.FC<Props> = ({
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ height: 8, borderRadius: 999, background: 'linear-gradient(90deg,#FF416C,#FF4B2B)', marginBottom: 28 }} />
+          <div style={{ height: 8, borderRadius: 999, background: 'linear-gradient(90deg,var(--color-brand),var(--color-brand-end))', marginBottom: 28 }} />
           <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#059669', margin: 0 }}>GEHC Youth · Beyonders</p>
           <p style={{ fontSize: 11, color: '#8C8880', margin: '6px 0 26px' }}>{eventName}</p>
           <p style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.25, margin: '0 0 16px', fontFamily: "'Playfair Display', Georgia, serif" }}>
@@ -135,3 +135,4 @@ export const EventThankYouCard: React.FC<Props> = ({
     </div>
   );
 };
+

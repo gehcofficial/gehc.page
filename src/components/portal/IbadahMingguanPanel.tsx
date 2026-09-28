@@ -113,7 +113,7 @@ export const IbadahMingguanPanel: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-          <BookOpen className="w-3.5 h-3.5 text-[#FF416C]" />
+          <BookOpen className="w-3.5 h-3.5 text-brand" />
           <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Kegiatan — by event</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B1B1B]">Kegiatan</h2>
@@ -244,3 +244,4 @@ export const IbadahMingguanPanel: React.FC = () => {
     </div>
   );
 };
+

@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — D1: Tema portal per domain/subdomain (staging review) (28 Sep 2026)
+
+**Tujuan:** tiap portal (host) punya identitas warna sendiri; Pemuda tetap merah/oranye, Jemaat netral emas/ink, unit lain pakai aksen masing-masing.
+
+**Yang dibangun:**
+- Token baru di `src/index.css` `@theme`: `--color-brand-ink`, `--color-brand-soft` (tint via `color-mix`).
+- `src/lib/portal-themes.ts` — `PORTAL_THEMES` (per portal), `themeForPortal`, `resolvePortalTheme(host, search, override?)`, `applyPortalTheme` (set CSS var di `document.documentElement`), `applyThemeForHost`.
+- `src/main.tsx` — terapkan tema saat mount (host + `?portal=` non-produksi).
+- **Refactor warna → token** di **108 file** (`src/**`): `#FF416C`→`brand`, `#FF4B2B`→`brand-end`, `[#…]`→utility, sisa hex→`var(--color-brand)`. Dikecualikan: `src/index.css` (definisi), `src/data/churchUnits.ts` & `src/data/initialData.ts` & `youth-gehc-helpers.ts` (warna identitas grup/unit).
+- Tes: `tests/unit/portal-themes.test.ts`.
+
+**Palet:** jemaat `#8A6A1F`/`#C8A24A` · youth `#FF416C`/`#FF4B2B` · men `#0EA5E9`/`#1D4ED8` · women `#EC4899`/`#8B5CF6` · teen `#7C3AED`/`#DB2777` · kids `#F59E0B`/`#EF4444` · kolom `#10B981`/`#047857` · community `#6366F1`/`#0EA5E9`.
+
+**Verifikasi:** `lint` bersih ✓ **591 test** hijau ✓ `build` OK ✓ CSS hasil build memakai `var(--color-brand)` (35×) + `color-mix` (13×) sehingga override runtime berlaku. **Di-deploy ke staging untuk ditinjau** (belum prod).
+
+### Next
+1. Tinjau staging per portal (hub/youth/men/women/teen/kids/kolom/community).
+2. **D3** — branding DB (`Tenant.brandAccent/brandAccent2/brandInk/logoUrl/heroImageUrl/themeTone`) + UI Info Gereja + logo per unit.
+3. (Opsional) D4 — tone/tipografi per unit.
+
 ## Current — P8: PDF laporan server-side (pdfkit) (27 Sep 2026)
 
 - Dependency baru: **`pdfkit`** (pure JS, aman di Vercel serverless).

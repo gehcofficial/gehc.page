@@ -46,7 +46,7 @@ export const LegacyWaitlistPage: React.FC<{ token: string }> = ({ token }) => {
   return (
     <div className="space-y-5">
       <div className="rounded-[28px] bg-gradient-to-br from-[#181818] to-[#262626] p-5 text-white">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C]">Lengkapi Profil</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-brand">Lengkapi Profil</p>
         <h3 className="text-lg font-black mt-1">{entry?.name}</h3>
         <p className="text-xs text-white/50">WA: {entry?.phone}</p>
       </div>
@@ -264,7 +264,7 @@ export const InviteJoinPage: React.FC<{ code: string }> = ({ code }) => {
                 .finally(() => setBusy(false));
             }}
             disabled={busy}
-            className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50"
+            className="w-full py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50"
           >
             Daftar dengan Email
           </button>
@@ -274,3 +274,4 @@ export const InviteJoinPage: React.FC<{ code: string }> = ({ code }) => {
     </div>
   );
 };
+

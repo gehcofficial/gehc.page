@@ -563,7 +563,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <TrendingUp className="w-3.5 h-3.5 text-[#FF416C]" />
+            <TrendingUp className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Group Management & Monitoring Engine
             </span>
@@ -701,7 +701,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
               : 'bg-white text-[#1B1B1B] hover:bg-[#F0EFEB] border border-[#D9D7D0]'
           }`}
         >
-          <Plus className="w-3.5 h-3.5 text-[#FF416C]" />
+          <Plus className="w-3.5 h-3.5 text-brand" />
           <span>{mon.tabForm}</span>
         </button>
 
@@ -1050,7 +1050,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
               <div className="pt-4 border-t border-[#D9D7D0]/50 flex items-center justify-end gap-3">
                 <button
                   type="submit"
-                  className="px-6 py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs sm:text-sm font-bold shadow-lg hover:opacity-95 transition-all flex items-center gap-2"
+                  className="px-6 py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs sm:text-sm font-bold shadow-lg hover:opacity-95 transition-all flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Simpan Laporan Monitoring</span>
@@ -1803,3 +1803,4 @@ export const ManageGroupsMonitoring: React.FC = () => {
     </div>
   );
 };
+

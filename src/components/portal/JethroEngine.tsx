@@ -205,7 +205,7 @@ export const JethroEngine: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand to-brand-end flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Jethro Engine</h2>
@@ -236,7 +236,7 @@ export const JethroEngine: React.FC = () => {
 
       {aiSummary && (
         <div className="bg-gradient-to-br from-[#181818] to-[#2A2A2A] rounded-3xl p-6">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-2 flex items-center gap-1.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-2 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3" /> Ringkasan Eksekutif — Jethro AI
           </p>
           <p className="text-xs leading-relaxed whitespace-pre-wrap text-white/90">{aiSummary}</p>
@@ -277,7 +277,7 @@ export const JethroEngine: React.FC = () => {
       {/* Placement Recommender */}
       <div className="bg-white rounded-3xl border border-[#D9D7D0]/60 p-5">
         <h3 className="text-sm font-bold flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#FF416C]" /> Placement Recommender
+          <Users className="w-4 h-4 text-brand" /> Placement Recommender
         </h3>
         <p className="text-xs text-[#8C8880] mt-1">Distribusi newcomer otomatis ke slot kosong grup.</p>
         <div className="flex items-center gap-2 mt-3">
@@ -363,7 +363,7 @@ export const JethroEngine: React.FC = () => {
                         )
                       }
                       disabled={busy || !draft.newName.trim() || draft.m1 === draft.m2}
-                      className="sm:col-span-4 px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold disabled:opacity-50"
+                      className="sm:col-span-4 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50"
                     >
                       Promote & Buka Grup Baru
                     </button>
@@ -468,3 +468,4 @@ export const JethroEngine: React.FC = () => {
     </div>
   );
 };
+

@@ -185,7 +185,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-wider text-[#FF416C]">Galeri Event</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-brand">Galeri Event</p>
             <p className="text-sm font-bold text-[#1B1B1B] truncate">{ev?.name || (eventId ? 'Memuat event…' : 'Pilih event dulu')}</p>
             {ev && (
               <p className="text-[11px] text-[#8C8880]">
@@ -248,12 +248,12 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
                   key={i.id}
                   type="button"
                   onClick={() => setPreviewIds((prev) => (on ? prev.filter((x) => x !== id) : (prev.length >= 5 ? prev : [...prev, id])))}
-                  className={`relative aspect-square rounded-xl overflow-hidden border-2 ${on ? 'border-[#FF416C]' : 'border-transparent'}`}
+                  className={`relative aspect-square rounded-xl overflow-hidden border-2 ${on ? 'border-brand' : 'border-transparent'}`}
                   title={i.title}
                 >
                   <img src={i.thumbUrl || i.mediaUrl} alt="" className="w-full h-full object-cover" />
                   {on && (
-                    <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[#FF416C] text-white text-[10px] font-black flex items-center justify-center">
+                    <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-brand text-white text-[10px] font-black flex items-center justify-center">
                       {idx + 1}
                     </span>
                   )}

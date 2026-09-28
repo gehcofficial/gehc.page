@@ -25,7 +25,7 @@ export const PortalAccountSwitcher: React.FC = () => {
               ROLE_CHIP_COLORS[role] || 'bg-gray-100 text-gray-700'
             } ${
               role === currentRole
-                ? 'ring-2 ring-[#FF416C] ring-offset-1 shadow-sm'
+                ? 'ring-2 ring-brand ring-offset-1 shadow-sm'
                 : 'opacity-70 hover:opacity-100 hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-[#181818]/25'
             }`}
           >
@@ -36,3 +36,4 @@ export const PortalAccountSwitcher: React.FC = () => {
     </div>
   );
 };
+

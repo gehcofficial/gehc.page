@@ -32,7 +32,7 @@ interface RoleAssignmentWizardProps {
 type WizardMode = 'superadmin' | 'org';
 
 const GROUPS = [
-  { id: 'grp-1', name: 'Avodah', color: '#FF416C' },
+  { id: 'grp-1', name: 'Avodah', color: 'var(--color-brand)' },
   { id: 'grp-2', name: 'Agape', color: '#E94057' },
   { id: 'grp-3', name: 'Shalom', color: '#2A81FF' },
   { id: 'grp-4', name: 'Hesed', color: '#8A2387' },
@@ -462,7 +462,7 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
           <button
             onClick={assignRole}
             disabled={!selectedUser || assigning || (mode === 'org' && !selectedSlot)}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
             {assigning ? 'Menugaskan…' : 'Assign Role'}
@@ -490,3 +490,4 @@ export const RoleAssignmentWizard: React.FC<RoleAssignmentWizardProps> = ({
     document.body,
   );
 };
+

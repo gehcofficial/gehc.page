@@ -157,7 +157,7 @@ export const ChurchFinancePanel: React.FC = () => {
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <Wallet className="w-4 h-4 text-[#FF416C]" />
+          <Wallet className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-black uppercase tracking-wide">Keuangan</h3>
           {isTreasurer && <span className="text-[10px] text-[#8C8880]">Total kas: <b>{rupiah(total)}</b></span>}
           {isTreasurer && (
@@ -337,4 +337,5 @@ export const ChurchFinancePanel: React.FC = () => {
 };
 
 export default ChurchFinancePanel;
+
 

@@ -144,7 +144,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
         <a
           href="#/portal"
           onClick={(e) => { e.preventDefault(); window.location.hash = '#/portal'; }}
-          className="block text-center text-[11px] font-bold text-[#FF416C] hover:underline"
+          className="block text-center text-[11px] font-bold text-brand hover:underline"
         >
           Buka Info Event di portal →
         </a>
@@ -152,3 +152,4 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
     </div>
   );
 };
+

@@ -46,7 +46,7 @@ export const GiftTestWizard: React.FC<{
               <span className="w-6 h-6 rounded-full bg-[#181818] text-white text-[10px] font-black flex items-center justify-center">{i + 1}</span>
               <span className="text-sm font-bold">{g.label}</span>
               <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden ml-2">
-                <div className="h-full bg-[#FF416C]" style={{ width: `${(g.score / 15) * 100}%` }} />
+                <div className="h-full bg-brand" style={{ width: `${(g.score / 15) * 100}%` }} />
               </div>
               <span className="text-[10px] font-bold tabular-nums">{g.score}/15</span>
             </div>
@@ -76,7 +76,7 @@ export const GiftTestWizard: React.FC<{
         </p>
       </div>
       <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden mb-4">
-        <div className="h-full bg-[#FF416C] transition-all" style={{ width: `${(answeredCount / totalItems) * 100}%` }} />
+        <div className="h-full bg-brand transition-all" style={{ width: `${(answeredCount / totalItems) * 100}%` }} />
       </div>
       <p className="text-base font-semibold leading-relaxed min-h-[72px]">{current.text}</p>
       <div className="grid grid-cols-5 gap-1.5 mt-5">
@@ -111,3 +111,4 @@ export const GiftTestWizard: React.FC<{
     </div>
   );
 };
+

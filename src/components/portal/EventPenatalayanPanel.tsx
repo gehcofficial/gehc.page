@@ -200,7 +200,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-black text-[#1B1B1B] flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#FF416C]" /> Penatalayan & Liturgi
+            <Users className="w-4 h-4 text-brand" /> Penatalayan & Liturgi
           </h3>
           <p className="text-[11px] text-[#8C8880] mt-0.5">
             Susun komponen ibadah (Liturgia) dan multimedia (Marturia) untuk event ini.
@@ -411,3 +411,4 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     </div>
   );
 };
+

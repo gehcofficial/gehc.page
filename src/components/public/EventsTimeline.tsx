@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
@@ -44,7 +44,7 @@ type LandingCompact = {
 };
 
 /**
- * EVENTS TIMELINE [home] — 3 lapis dari /api/events/landing:
+ * EVENTS TIMELINE [home] � 3 lapis dari /api/events/landing:
  * full = konten terbit (+venue event), compact = event bertanggal tanpa
  * konten terbit, DONE/ARSIP tidak tampil. Versi penuh ada di tab Kegiatan.
  */
@@ -111,7 +111,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
         month: 'long',
         year: 'numeric',
       })
-      : '—';
+      : '�';
 
   const fmtWib = (iso?: string) =>
     iso
@@ -144,7 +144,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
     const count = isBakutau ? registeredCount : (item.stats?.registered ?? null);
     const showStats = count !== null;
     const closed = (isBakutau && eventClosed) || item.venue?.status === 'ARCHIVED';
-    // Badge mengikuti tanggal WIB: hari-H → hijau, selain itu "Akan Datang".
+    // Badge mengikuti tanggal WIB: hari-H ? hijau, selain itu "Akan Datang".
     const happening = eventDayState(item.venue?.eventDate || item.event_date) === 'today';
     return (
       <div key={item.id} className="relative overflow-hidden rounded-[36px] bg-[#111111] text-white shadow-2xl">
@@ -163,7 +163,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 {t.events.happeningToday}
               </span>
             ) : (
-              <span className="inline-block px-3 py-1 rounded-full bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-widest mb-3">
+              <span className="inline-block px-3 py-1 rounded-full bg-brand text-white text-[10px] font-black uppercase tracking-widest mb-3">
                 {t.events.featuredBadge}
               </span>
             )}
@@ -175,12 +175,12 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
             )}
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-4 text-xs text-white/80">
               <span className="flex items-center gap-1.5 capitalize">
-                <CalendarDays className="w-3.5 h-3.5 text-[#FF416C]" />
+                <CalendarDays className="w-3.5 h-3.5 text-brand" />
                 {cardDate(item)}
               </span>
               {cardLocation(item) && (
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#FF416C]" />
+                  <MapPin className="w-3.5 h-3.5 text-brand" />
                   {cardLocation(item)}
                 </span>
               )}
@@ -212,7 +212,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                   onClick={() => {
                     setPublicTab('event-signup', { eventSlug: isBakutau ? 'bakutau' : item.venue!.slug! });
                   }}
-                  className="w-full px-4 py-2.5 rounded-full bg-[#FF416C] hover:bg-[#ff2d5e] text-white text-xs font-black uppercase tracking-wider shadow-lg transition-colors"
+                  className="w-full px-4 py-2.5 rounded-full bg-brand hover:bg-[#ff2d5e] text-white text-xs font-black uppercase tracking-wider shadow-lg transition-colors"
                 >
                   {t.events.joinCta}
                 </button>
@@ -256,12 +256,12 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                   <div className="h-full bg-white rounded-[24px] border border-[#D9D7D0]/50 p-5 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="text-sm font-black text-[#1B1B1B] leading-snug">{e.name}</h4>
-                      <span className="shrink-0 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FF416C]/10 text-[#FF416C]">
+                      <span className="shrink-0 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand">
                         {e.status}
                       </span>
                     </div>
                     <p className="text-xs text-[#8C8880] mt-2 flex items-center gap-1.5 capitalize">
-                      <CalendarDays className="w-3.5 h-3.5 text-[#FF416C]" />
+                      <CalendarDays className="w-3.5 h-3.5 text-brand" />
                       {fmtDate(e.eventDate)}
                     </p>
                   </div>
@@ -283,7 +283,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
               {pastShown.map((a, i) => (
                 <Reveal key={a.id} delay={i * 0.06}>
                   <div className="relative bg-white rounded-[24px] border border-[#D9D7D0]/50 p-5 hover:shadow-lg transition-shadow">
-                    <span className="absolute -left-[22px] top-6 w-3 h-3 rounded-full border-[3px] border-[#FF416C] bg-white" />
+                    <span className="absolute -left-[22px] top-6 w-3 h-3 rounded-full border-[3px] border-brand bg-white" />
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h4 className="text-sm font-black text-[#1B1B1B]">{a.title}</h4>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F3F1EC] text-[#8C8880] shrink-0">
@@ -292,7 +292,7 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                     </div>
                     {a.subtitle && <p className="text-xs text-[#8C8880] mt-1 line-clamp-2">{a.subtitle}</p>}
                     {a.category && (
-                      <span className="inline-block mt-2 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FF416C]/10 text-[#FF416C]">
+                      <span className="inline-block mt-2 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand">
                         {a.category}
                       </span>
                     )}
@@ -318,3 +318,4 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
     </section>
   );
 };
+

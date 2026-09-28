@@ -1,4 +1,4 @@
-ï»¿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
@@ -64,14 +64,14 @@ export const PortalLogin: React.FC = () => {
 
         <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
           {authLoading ? (
-            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masukâ€¦</p>
+            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masuk…</p>
           ) : ssoClientId ? (
             <div className="flex justify-center pb-1">
               <GoogleLoginButton clientId={ssoClientId} onCredential={onCredential} onError={setErr} />
             </div>
           ) : (
             <p className="text-[11px] text-white/40 text-center leading-relaxed">
-              Login Google sementara tidak tersedia â€” gunakan username &amp; kata sandi.
+              Login Google sementara tidak tersedia — gunakan username &amp; kata sandi.
             </p>
           )}
 
@@ -84,18 +84,18 @@ export const PortalLogin: React.FC = () => {
               type="text" required placeholder="Username atau email"
               value={form.login}
               onChange={(e) => setForm({ ...form, login: e.target.value })}
-              className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-[#FF416C]"
+              className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-brand"
               autoComplete="username"
             />
             <input
               type="password" required placeholder="Kata sandi"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-[#FF416C]"
+              className="w-full px-4 py-3 rounded-2xl bg-[#181818] border border-white/15 text-sm font-medium focus:outline-none focus:border-brand"
             />
             <button
               disabled={busy}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider shadow-lg disabled:opacity-50"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider shadow-lg disabled:opacity-50"
             >
               Masuk
             </button>
@@ -144,3 +144,4 @@ export const PortalLogin: React.FC = () => {
     </div>
   );
 };
+

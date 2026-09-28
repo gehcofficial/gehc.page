@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Save,
   Loader2,
@@ -92,7 +92,7 @@ const EMPTY_PROFILE: Profile = {
 };
 
 const inputCls =
-  'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm text-[#1B1B1B] outline-none focus:border-[#FF416C]';
+  'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm text-[#1B1B1B] outline-none focus:border-brand';
 const labelCls = 'text-[11px] font-bold uppercase tracking-wider text-[#8C8880]';
 
 const ManageChurchInfo: React.FC = () => {
@@ -307,7 +307,7 @@ const ManageChurchInfo: React.FC = () => {
   if (loading) {
     return (
       <div className="py-20 flex items-center justify-center text-sm text-[#8C8880]">
-        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat info gerejaâ€¦
+        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat info gereja…
       </div>
     );
   }
@@ -315,7 +315,7 @@ const ManageChurchInfo: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF416C] to-[#FF4B2B] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand to-brand-end flex items-center justify-center">
           <Church className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -397,7 +397,7 @@ const ManageChurchInfo: React.FC = () => {
               className={inputCls}
               value={profile.whatsappGroupUrl}
               onChange={(e) => setField('whatsappGroupUrl', e.target.value)}
-              placeholder="https://chat.whatsapp.com/… (mis. grup Pemuda)"
+              placeholder="https://chat.whatsapp.com/� (mis. grup Pemuda)"
             />
             <span className="text-[10px] text-[#8C8880]">
               Dipakai otomatis saat membuat event ibadah mingguan. Bisa diubah per event bila ada grup khusus.
@@ -414,7 +414,7 @@ const ManageChurchInfo: React.FC = () => {
                 <span className="text-[11px] text-[#8C8880]">{label}</span>
                 <input
                   className={inputCls}
-                  placeholder={`https://â€¦`}
+                  placeholder={`https://…`}
                   value={profile.socials[key] || ''}
                   onChange={(e) => setSocial(key, e.target.value)}
                 />
@@ -430,7 +430,7 @@ const ManageChurchInfo: React.FC = () => {
             <button
               type="button"
               onClick={addSchedule}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF416C]"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-brand"
             >
               <Plus className="w-3.5 h-3.5" /> Tambah
             </button>
@@ -462,7 +462,7 @@ const ManageChurchInfo: React.FC = () => {
             type="button"
             onClick={saveChurch}
             disabled={saving === 'church'}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold uppercase tracking-wider disabled:opacity-60"
           >
             {saving === 'church' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Simpan Info Gereja
@@ -473,7 +473,7 @@ const ManageChurchInfo: React.FC = () => {
       {/* Units */}
       <section className="rounded-[24px] border border-[#D9D7D0] bg-white p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Share2 className="w-4 h-4 text-[#FF416C]" />
+          <Share2 className="w-4 h-4 text-brand" />
           <h3 className="font-bold text-sm text-[#1B1B1B]">Kontak & Sosial per Unit</h3>
         </div>
         <div className="grid grid-cols-1 gap-4">
@@ -533,7 +533,7 @@ const ManageChurchInfo: React.FC = () => {
       <section className="rounded-[24px] border border-[#D9D7D0] bg-white p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Images className="w-4 h-4 text-[#FF416C]" />
+            <Images className="w-4 h-4 text-brand" />
             <h3 className="font-bold text-sm text-[#1B1B1B]">Galeri Hub (gehc.page)</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ const ManageChurchInfo: React.FC = () => {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={galleryBusy}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-[11px] font-bold uppercase tracking-wider disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-[11px] font-bold uppercase tracking-wider disabled:opacity-60"
             >
               {galleryBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
               Unggah foto
@@ -578,12 +578,12 @@ const ManageChurchInfo: React.FC = () => {
           </div>
         </div>
         <p className="text-xs text-[#8C8880]">
-          Foto publik untuk carousel di hub <strong>gehc.page</strong>. Muncul bila ada â‰¥4 foto.
+          Foto publik untuk carousel di hub <strong>gehc.page</strong>. Muncul bila ada ≥4 foto.
         </p>
 
         {galleryLoading ? (
           <div className="py-8 flex items-center justify-center text-sm text-[#8C8880]">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat galeriâ€¦
+            <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat galeri…
           </div>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-[#FAF9F5] p-8 text-center">
@@ -621,3 +621,4 @@ const ManageChurchInfo: React.FC = () => {
 };
 
 export default ManageChurchInfo;
+

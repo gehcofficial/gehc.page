@@ -28,3 +28,4 @@ export const SECTION_PAD = 'py-14 sm:py-20';
 
 /** Radius kartu standar. */
 export const CARD_RADIUS = 'rounded-[28px]';
+

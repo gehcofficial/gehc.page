@@ -283,7 +283,7 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
               type="button"
               onClick={() => void addRole()}
               disabled={busy === 'new' || !draft.name.trim()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-bold disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-white text-xs font-bold disabled:opacity-40"
             >
               {busy === 'new' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               Tambah
@@ -294,3 +294,4 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
     </div>
   );
 };
+

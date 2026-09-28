@@ -39,7 +39,7 @@ export const PanelGuide: React.FC<{ guideId: string }> = ({ guideId }) => {
     <div className="rounded-[24px] border border-[#D9D7D0]/70 bg-[#FAF9F5] p-4 sm:p-5 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <CircleHelp className="w-4 h-4 text-[#FF416C] shrink-0" />
+          <CircleHelp className="w-4 h-4 text-brand shrink-0" />
           <h3 className="text-sm font-black text-[#1B1B1B]">{guide.title}</h3>
         </div>
         <button
@@ -68,10 +68,11 @@ export const PanelGuide: React.FC<{ guideId: string }> = ({ guideId }) => {
       <button
         type="button"
         onClick={dismiss}
-        className="text-[10px] font-black uppercase tracking-wider text-[#FF416C]"
+        className="text-[10px] font-black uppercase tracking-wider text-brand"
       >
         {t.portal.common.understand}
       </button>
     </div>
   );
 };
+

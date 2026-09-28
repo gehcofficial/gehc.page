@@ -320,7 +320,7 @@ export const JethroPlacementReview: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#FF416C]" />
+            <Sparkles className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Jethro Placement Review
             </span>
@@ -346,7 +346,7 @@ export const JethroPlacementReview: React.FC = () => {
             <button
               onClick={handleGenerate}
               disabled={eligibleNewcomers.length === 0 || generating}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-2"
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               {generating ? 'Menganalisis...' : 'Generate Rekomendasi'}
@@ -406,7 +406,7 @@ export const JethroPlacementReview: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#FF416C]" />
+              <Sparkles className="w-3.5 h-3.5 text-brand" />
               <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
                 Jethro Placement Review
               </span>
@@ -524,7 +524,7 @@ export const JethroPlacementReview: React.FC = () => {
               <button
                 onClick={handleCommit}
                 disabled={loading}
-                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
               >
                 <Send className="w-3.5 h-3.5" /> Commit ke Youth GEHC
               </button>
@@ -652,7 +652,7 @@ const PlacementItemCard: React.FC<{
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-bold text-[#8C8880]">Jethro Confidence</p>
-            <p className="text-lg font-black text-[#FF416C]">{Math.round(item.confidence * 100)}%</p>
+            <p className="text-lg font-black text-brand">{Math.round(item.confidence * 100)}%</p>
           </div>
           {item.recommendedGroupName && (
             <div className="text-right hidden sm:block">
@@ -685,7 +685,7 @@ const PlacementItemCard: React.FC<{
             {/* Jethro Recommendation Details */}
             <div className="rounded-xl bg-white border border-[#D9D7D0]/50 p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Brain className="w-4 h-4 text-[#FF416C]" />
+                <Brain className="w-4 h-4 text-brand" />
                 <h4 className="text-sm font-bold">Jethro Engine Recommendation</h4>
                 <span className={`ml-auto px-2 py-0.5 rounded text-[9px] font-bold ${ROLE_COLORS[item.recommendedRole] || 'bg-gray-100 text-gray-600'}`}>
                   {ROLE_LABELS[item.recommendedRole] || item.recommendedRole}
@@ -699,7 +699,7 @@ const PlacementItemCard: React.FC<{
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-[#8C8880]">Confidence</p>
-                  <p className="text-sm font-bold text-[#FF416C]">{Math.round(item.confidence * 100)}%</p>
+                  <p className="text-sm font-bold text-brand">{Math.round(item.confidence * 100)}%</p>
                 </div>
               </div>
 
@@ -747,7 +747,7 @@ const PlacementItemCard: React.FC<{
             {!readOnly && isPending && (
               <div className="rounded-xl bg-white border border-[#D9D7D0]/50 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-[#1B1B1B] flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-[#FF416C]" />
+                  <Edit2 className="w-4 h-4 text-brand" />
                   Override (Optional)
                 </h4>
 
@@ -785,7 +785,7 @@ const PlacementItemCard: React.FC<{
                         type="checkbox"
                         checked={overrideIndividu}
                         onChange={(e) => setOverrideIndividu(e.target.checked)}
-                        className="w-4 h-4 rounded border-[#D9D7D0] text-[#FF416C] focus:ring-[#FF416C]"
+                        className="w-4 h-4 rounded border-[#D9D7D0] text-brand focus:ring-brand"
                       />
                       <span className="text-xs font-medium text-[#1B1B1B]">Individu (Tanpa Kelompok)</span>
                     </label>

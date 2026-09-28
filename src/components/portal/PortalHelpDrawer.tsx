@@ -58,7 +58,7 @@ export const PortalHelpDrawer: React.FC<{
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <CircleHelp className="w-4 h-4 text-[#FF416C]" />
+              <CircleHelp className="w-4 h-4 text-brand" />
               <h2 className="text-sm font-black">{t.portal.layout.helpTitle}</h2>
             </div>
             <p className="text-[11px] text-[#8C8880] mt-1">{t.portal.layout.helpHint}</p>
@@ -81,7 +81,7 @@ export const PortalHelpDrawer: React.FC<{
 
         {grouped.map(([group, items]) => (
           <section key={group} className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/70">{portalNavGroup(t, group)}</h3>
+            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-brand/70">{portalNavGroup(t, group)}</h3>
             {items.map((item) => {
               const guide = portalGuide(t, item.id);
               return (
@@ -108,7 +108,7 @@ export const PortalHelpDrawer: React.FC<{
 
         {otherGuides.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/70">{t.portal.search.groups.page}</h3>
+            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-brand/70">{t.portal.search.groups.page}</h3>
             {otherGuides.map(({ id, guide, page }) => (
               <details key={id} className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-3 group">
                 <summary className="cursor-pointer list-none">
@@ -135,3 +135,4 @@ export const PortalHelpDrawer: React.FC<{
     </div>
   );
 };
+

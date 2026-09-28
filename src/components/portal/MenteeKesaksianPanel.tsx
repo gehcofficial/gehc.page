@@ -80,7 +80,7 @@ export const MenteeKesaksianPanel: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-black text-[#1B1B1B] flex items-center gap-2">
-          <MessageSquareQuote className="w-5 h-5 text-[#FF416C]" />
+          <MessageSquareQuote className="w-5 h-5 text-brand" />
           {t.portal.nav.kesaksian}
         </h2>
         <p className="text-sm text-[#8C8880] mt-1">{t.portal.guides.kesaksian.purpose}</p>
@@ -157,3 +157,4 @@ export const MenteeKesaksianPanel: React.FC = () => {
     </div>
   );
 };
+

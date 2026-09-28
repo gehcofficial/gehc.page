@@ -141,7 +141,7 @@ const ChurchHub: React.FC = () => {
             </a>
             <a
               href={youthPortalUrl()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold uppercase tracking-wider shadow-lg hover:opacity-95 transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold uppercase tracking-wider shadow-lg hover:opacity-95 transition-all"
             >
               <LogIn className="w-3.5 h-3.5" />
               Masuk Portal
@@ -154,14 +154,14 @@ const ChurchHub: React.FC = () => {
       <section className={`${CONTAINER} pt-16 sm:pt-24 pb-12 relative`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div className="max-w-3xl relative">
-            <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#FF416C] bg-[#FF416C]/10 px-3 py-1.5 rounded-full">
+            <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand bg-brand/10 px-3 py-1.5 rounded-full">
               <Landmark className="w-3.5 h-3.5" />
               Rumah Digital Jemaat
             </span>
             <h1 className="font-display text-4xl sm:text-6xl font-black leading-[1.05] mt-6">
               Satu gereja,
               <br />
-              <span className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-brand to-brand-end bg-clip-text text-transparent">
                 banyak pelayanan.
               </span>
             </h1>
@@ -268,7 +268,7 @@ const ChurchHub: React.FC = () => {
                       <p className="text-xs text-[#8C8880] leading-relaxed mt-3 flex-1">{unit.desc}</p>
                       <div className="mt-5 flex items-center gap-1.5 text-xs font-bold">
                         {active ? (
-                          <span className="text-[#FF416C] inline-flex items-center gap-1">
+                          <span className="text-brand inline-flex items-center gap-1">
                             Masuk <ArrowUpRight className="w-4 h-4" />
                           </span>
                         ) : (
@@ -354,7 +354,7 @@ const ChurchHub: React.FC = () => {
             <div className="flex flex-col gap-4 mt-8">
               {schedules.map((s, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <Clock className="w-4 h-4 text-[#FF416C] mt-0.5 shrink-0" />
+                  <Clock className="w-4 h-4 text-brand mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-bold">{s.label || s.day || 'Ibadah'}</p>
                     <p className="text-xs text-white/60">
@@ -371,7 +371,7 @@ const ChurchHub: React.FC = () => {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold uppercase tracking-wider transition-all"
               >
-                <MapPin className="w-4 h-4 text-[#FF416C]" />
+                <MapPin className="w-4 h-4 text-brand" />
                 Buka di Peta
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
@@ -380,7 +380,7 @@ const ChurchHub: React.FC = () => {
                   href={`mailto:${profile.contactEmail}`}
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold transition-all"
                 >
-                  <Mail className="w-4 h-4 text-[#FF416C]" />
+                  <Mail className="w-4 h-4 text-brand" />
                   {profile.contactEmail}
                 </a>
               )}
@@ -406,7 +406,7 @@ const ChurchHub: React.FC = () => {
           <div className="flex flex-col justify-center gap-4 relative">
             <a
               href={youthPortalUrl()}
-              className="rounded-[24px] bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] p-6 hover:opacity-95 transition-all"
+              className="rounded-[24px] bg-gradient-to-r from-brand to-brand-end p-6 hover:opacity-95 transition-all"
             >
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">
                 Portal Komunitas
@@ -448,3 +448,4 @@ const ChurchHub: React.FC = () => {
 };
 
 export default ChurchHub;
+

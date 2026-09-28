@@ -41,7 +41,7 @@ export const EventRegisterCard: React.FC<{
   return (
     <form onSubmit={submit} className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
       <div className="flex items-center gap-2">
-        <Ticket className="w-4 h-4 text-[#FF416C]" />
+        <Ticket className="w-4 h-4 text-brand" />
         <p className="text-sm font-black">Daftar {eventName}</p>
       </div>
       <p className="text-[10px] text-[#8C8880] leading-relaxed">
@@ -51,7 +51,7 @@ export const EventRegisterCard: React.FC<{
       <button
         type="submit"
         disabled={busy}
-        className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {busy && <Loader2 className="w-4 h-4 animate-spin" />}
         Konfirmasi daftar
@@ -59,3 +59,4 @@ export const EventRegisterCard: React.FC<{
     </form>
   );
 };
+

@@ -16,7 +16,7 @@ type PublicEntry = {
 };
 
 const SOURCE_STYLE: Record<string, string> = {
-  LITURGICAL: 'bg-[#FF416C]/10 text-[#FF416C]',
+  LITURGICAL: 'bg-brand/10 text-brand',
   GMIM_FIXED: 'bg-amber-500/10 text-amber-700',
   JEMAAT: 'bg-emerald-500/10 text-emerald-700',
 };
@@ -66,7 +66,7 @@ export const ChurchYearSection: React.FC<{ limit?: number }> = ({ limit = 6 }) =
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-[#8C8880] flex items-center gap-1.5">
-            <Church className="w-3.5 h-3.5 text-[#FF416C]" /> {t.events.churchYearEyebrow}
+            <Church className="w-3.5 h-3.5 text-brand" /> {t.events.churchYearEyebrow}
           </p>
           <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-[#1B1B1B] mt-1">
             {t.events.churchYearTitle}
@@ -97,7 +97,7 @@ export const ChurchYearSection: React.FC<{ limit?: number }> = ({ limit = 6 }) =
                 </span>
               </div>
               <p className="text-xs text-[#8C8880] mt-2 flex items-center gap-1.5 capitalize">
-                <CalendarDays className="w-3.5 h-3.5 text-[#FF416C]" />
+                <CalendarDays className="w-3.5 h-3.5 text-brand" />
                 {fmt(e.startDate)}
               </p>
               {e.scriptureRef && (
@@ -110,3 +110,4 @@ export const ChurchYearSection: React.FC<{ limit?: number }> = ({ limit = 6 }) =
     </section>
   );
 };
+

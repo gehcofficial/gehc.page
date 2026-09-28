@@ -1,4 +1,4 @@
-ï»¿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, HandHeart, Home, Users } from 'lucide-react';
 import { SectionHeader } from './ui/SectionHeader';
 
@@ -27,13 +27,13 @@ const dayLabel = (iso: string) =>
 
 /**
  * Kelompokkan petugas per nama: satu nama = satu baris, role unik digabung
- * dengan â€œ Â· â€ mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
- * info kegiatan) â€” publik hanya butuh nama + role.
+ * dengan “ · ” mengikuti urutan jadwal. Jam tidak ditampilkan (sudah ada di
+ * info kegiatan) — publik hanya butuh nama + role.
  */
 export const mergeDutiesByName = (duties: Duty[]) => {
   const byName = new Map<string, { name: string; roles: string[] }>();
   for (const d of duties) {
-    const name = String(d.name || '').trim() || 'â€”';
+    const name = String(d.name || '').trim() || '—';
     const role = String(d.role || '').trim();
     const entry = byName.get(name) || { name, roles: [] };
     if (role && !entry.roles.includes(role)) entry.roles.push(role);
@@ -42,7 +42,7 @@ export const mergeDutiesByName = (duties: Duty[]) => {
   return [...byName.values()];
 };
 
-/** Blok â€œPelayananâ€ untuk satu hari (dipakai kartu Warta & detail Warta). */
+/** Blok “Pelayanan” untuk satu hari (dipakai kartu Warta & detail Warta). */
 const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> = ({ day, duties, serving }) => (
   <div className="space-y-3">
     {serving.responsible && (
@@ -59,7 +59,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
             {mergeDutiesByName(duties).map((p) => (
               <li key={p.name} className="text-[11px] text-[#1B1B1B] flex flex-wrap gap-x-1.5">
                 <span className="font-bold">{p.name}</span>
-                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' Â· ')}</span>}
+                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' · ')}</span>}
               </li>
             ))}
           </ul>
@@ -80,7 +80,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
         </p>
         {(serving.hostMembers || []).length > 0 ? (
           <p className="mt-1 text-[11px] text-[#5C5850] leading-relaxed">
-            {(serving.hostMembers || []).join(' Â· ')}
+            {(serving.hostMembers || []).join(' · ')}
           </p>
         ) : (
           <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>
@@ -93,8 +93,8 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
 );
 
 /**
- * Blok publik â€œPetugas Ibadahâ€ untuk tab Warta.
- * Penanggung Jawab â†’ daftar petugas penatalayan; Tuan Rumah â†’ semua nama anggota.
+ * Blok publik “Petugas Ibadah” untuk tab Warta.
+ * Penanggung Jawab ? daftar petugas penatalayan; Tuan Rumah ? semua nama anggota.
  * Kartu disembunyikan hanya bila tidak ada penanggung, tuan rumah, maupun petugas.
  */
 export const WartaServiceDutySection: React.FC = () => {
@@ -148,7 +148,7 @@ export const WartaServiceDutySection: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {days.map(([day, list]) => (
           <div key={day} className="rounded-3xl border border-[#D9D7D0]/60 bg-white p-5">
-            <p className="text-[11px] font-black uppercase tracking-wider text-[#FF416C] flex items-center gap-1.5 mb-3">
+            <p className="text-[11px] font-black uppercase tracking-wider text-brand flex items-center gap-1.5 mb-3">
               <CalendarDays className="w-3.5 h-3.5" /> {dayLabel(day)}
             </p>
             <DutyDayBlock day={day} duties={list} serving={serving[day] || {}} />
@@ -160,8 +160,8 @@ export const WartaServiceDutySection: React.FC = () => {
 };
 
 /**
- * Blok â€œPelayananâ€ untuk satu tanggal warta (dipakai di detail Warta).
- * Struktur sama: Penanggung Jawab â†’ petugas; Tuan Rumah â†’ semua anggota.
+ * Blok “Pelayanan” untuk satu tanggal warta (dipakai di detail Warta).
+ * Struktur sama: Penanggung Jawab ? petugas; Tuan Rumah ? semua anggota.
  */
 export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }) => {
   const day = String(date || '').slice(0, 10);
@@ -186,10 +186,11 @@ export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }
 
   return (
     <div className="rounded-[24px] border border-[#D9D7D0]/60 bg-white p-5">
-      <p className="text-[11px] font-black uppercase tracking-wider text-[#FF416C] mb-3 flex items-center gap-1.5">
+      <p className="text-[11px] font-black uppercase tracking-wider text-brand mb-3 flex items-center gap-1.5">
         <Users className="w-3.5 h-3.5" /> Pelayanan
       </p>
       <DutyDayBlock day={day} duties={duties} serving={serving} />
     </div>
   );
 };
+

@@ -900,7 +900,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                       {meetings.slice(0, 3).map((m) => (
                         <div key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#D9D7D0]">
                           <div className="flex items-center gap-2">
-                            <Video className="w-4 h-4 text-[#FF416C] shrink-0" />
+                            <Video className="w-4 h-4 text-brand shrink-0" />
                             <div>
                               <p className="text-xs font-bold text-[#1B1B1B]">{m.title}</p>
                               <p className="text-[10px] text-[#8C8880]">
@@ -1107,7 +1107,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <Users className="w-3.5 h-3.5 text-[#FF416C]" />
+            <Users className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Division Workspace
             </span>
@@ -1468,7 +1468,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                     <div className="space-y-2">
                       {discussions.slice(-3).reverse().map((post) => (
                         <div key={post.id} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#FF416C] mt-1.5 shrink-0" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 shrink-0" />
                           <div>
                             <p className="text-xs text-[#1B1B1B]">{post.body.slice(0, 80)}{post.body.length > 80 ? '...' : ''}</p>
                             <p className="text-[10px] text-[#8C8880]">
@@ -2157,3 +2157,4 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     </div>
   );
 };
+

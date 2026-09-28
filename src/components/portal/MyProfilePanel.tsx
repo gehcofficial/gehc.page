@@ -428,7 +428,7 @@ export const MyProfilePanel: React.FC<{
               alt={user?.name || 'Profil'}
               className="w-16 h-16 rounded-full object-cover border-2 border-[#D9D7D0]"
             />
-            <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#181818] text-white flex items-center justify-center cursor-pointer shadow-md hover:bg-[#FF416C] transition-colors">
+            <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#181818] text-white flex items-center justify-center cursor-pointer shadow-md hover:bg-brand transition-colors">
               {avatarBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
               <input
                 type="file"
@@ -445,7 +445,7 @@ export const MyProfilePanel: React.FC<{
           </div>
           <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-              <User className="w-3.5 h-3.5 text-[#FF416C]" />
+              <User className="w-3.5 h-3.5 text-brand" />
               <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">Profil saya</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight truncate">{user?.name}</h2>
@@ -464,7 +464,7 @@ export const MyProfilePanel: React.FC<{
                   type="button"
                   disabled={avatarBusy}
                   onClick={() => void restoreGoogleAvatar()}
-                  className="text-[10px] font-bold text-[#FF416C] inline-flex items-center gap-1 hover:underline disabled:opacity-50"
+                  className="text-[10px] font-bold text-brand inline-flex items-center gap-1 hover:underline disabled:opacity-50"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Kembalikan foto Google
@@ -487,7 +487,7 @@ export const MyProfilePanel: React.FC<{
         {isMentee && authUser?.onboardingStatus !== 'WAITING_POOL' && (
           <div className="mt-4 rounded-[24px] border border-[#D9D7D0]/50 bg-white p-4 space-y-2">
             <p className="text-xs font-bold flex items-center gap-1.5">
-              <MessageSquareQuote className="w-4 h-4 text-[#FF416C]" />
+              <MessageSquareQuote className="w-4 h-4 text-brand" />
               Kesaksian
             </p>
             <p className="text-[10px] text-[#8C8880]">
@@ -515,7 +515,7 @@ export const MyProfilePanel: React.FC<{
           <p className="mt-3 text-[10px] text-[#8C8880]">
             Umur {age} tahun
             {daysToBday !== null && daysToBday <= 60 && (
-              <span className="ml-2 text-[#FF416C] font-bold">
+              <span className="ml-2 text-brand font-bold">
                 · HUT {daysToBday === 0 ? 'hari ini!' : `${daysToBday} hari lagi`}
               </span>
             )}
@@ -615,7 +615,7 @@ export const MyProfilePanel: React.FC<{
                     setForm((f) => ({ ...f, institutionId: id }));
                   }}
                 />
-                <button type="button" onClick={() => setShowInstOther((v) => !v)} className="text-[10px] font-bold text-[#FF416C]">
+                <button type="button" onClick={() => setShowInstOther((v) => !v)} className="text-[10px] font-bold text-brand">
                   Lainnya… (kampus tidak ada di daftar)
                 </button>
                 {showInstOther && (
@@ -733,3 +733,4 @@ export const MyProfilePanel: React.FC<{
     </div>
   );
 };
+

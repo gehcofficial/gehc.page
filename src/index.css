@@ -10,6 +10,8 @@
   --color-black-block: #181818;
   --color-brand: #FF416C;
   --color-brand-end: #FF4B2B;
+  --color-brand-ink: #FFFFFF;
+  --color-brand-soft: color-mix(in oklab, var(--color-brand) 12%, white);
   --font-display: "Playfair Display", Georgia, serif;
   --radius-card: 28px;
   --radius-card-lg: 32px;

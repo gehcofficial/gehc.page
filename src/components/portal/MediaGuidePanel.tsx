@@ -181,7 +181,7 @@ export const MediaGuidePanel: React.FC = () => {
     <div className="space-y-5">
       <div className="rounded-[28px] bg-gradient-to-r from-[#181818] to-[#262626] p-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Images className="w-6 h-6 text-[#FF416C]" />
+          <Images className="w-6 h-6 text-brand" />
           <div>
             <h3 className="text-sm font-black text-white">Panduan Media — Visual Website</h3>
             <p className="text-[10px] text-white/50">
@@ -201,7 +201,7 @@ export const MediaGuidePanel: React.FC = () => {
       <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h4 className="text-xs font-black uppercase tracking-widest text-[#FF416C]">
+            <h4 className="text-xs font-black uppercase tracking-widest text-brand">
               Publish otomatis
             </h4>
             <p className="text-[11px] text-[#8C8880] mt-1 max-w-md leading-relaxed">
@@ -287,7 +287,7 @@ export const MediaGuidePanel: React.FC = () => {
                 href={runUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-[#FF416C] font-bold hover:underline"
+                className="inline-flex items-center gap-1 mt-2 text-brand font-bold hover:underline"
               >
                 <ExternalLink className="w-3 h-3" /> Lihat log GitHub Actions
               </a>
@@ -335,7 +335,7 @@ export const MediaGuidePanel: React.FC = () => {
       </div>
 
       <div className="rounded-[28px] bg-white border border-[#D9D7D0]/60 p-6 space-y-4">
-        <h4 className="text-xs font-black uppercase tracking-widest text-[#FF416C]">
+        <h4 className="text-xs font-black uppercase tracking-widest text-brand">
           Langkah Update Foto
         </h4>
         {[
@@ -404,3 +404,4 @@ export const MediaGuidePanel: React.FC = () => {
     </div>
   );
 };
+

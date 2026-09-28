@@ -140,7 +140,7 @@ export const ManageWeeklyInfo: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <BookOpen className="w-3.5 h-3.5 text-[#FF416C]" />
+            <BookOpen className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Dynamic CMS
             </span>
@@ -155,7 +155,7 @@ export const ManageWeeklyInfo: React.FC = () => {
 
         <button
           onClick={handleOpenCreate}
-          className="px-5 py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
+          className="px-5 py-3 rounded-full bg-gradient-to-r from-brand to-brand-end hover:opacity-95 text-white text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>+ Tulis Warta Baru</span>
@@ -437,3 +437,4 @@ export const ManageWeeklyInfo: React.FC = () => {
     </div>
   );
 };
+

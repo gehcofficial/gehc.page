@@ -128,7 +128,7 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
           <button
             type="button"
             onClick={() => setAiMode((v) => !v)}
-            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${aiMode ? 'bg-[#FF416C] text-white' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#5C5850]'}`}
+            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${aiMode ? 'bg-brand text-white' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#5C5850]'}`}
             title={search.askToggle}
           >
             <Sparkles className="w-3.5 h-3.5" /> {search.askToggle}
@@ -146,7 +146,7 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
                 onChange={(e) => setAiQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void askAi(); }}
                 placeholder={search.askPlaceholder}
-                className="flex-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm outline-none focus:ring-1 focus:ring-[#FF416C]"
+                className="flex-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-sm outline-none focus:ring-1 focus:ring-brand"
               />
               <button
                 type="button"
@@ -178,7 +178,7 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
                   <button
                     type="button"
                     onClick={() => { onNavigate(ai.page as string); onClose(); }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-bold"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-white text-xs font-bold"
                   >
                     {search.open} <ArrowRight className="w-3.5 h-3.5" />
                   </button>
@@ -202,7 +202,7 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
                         onClick={() => openEntry(entry)}
                         className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2.5 ${idx === selected ? 'bg-[#FAF9F5]' : 'hover:bg-[#FAF9F5]/60'}`}
                       >
-                        <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${entry.kind === 'action' ? 'bg-[#FF416C]' : 'bg-[#1B1B1B]/30'}`} />
+                        <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${entry.kind === 'action' ? 'bg-brand' : 'bg-[#1B1B1B]/30'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
                             <span className="text-xs font-bold text-[#1B1B1B] truncate">{entry.title}</span>
@@ -232,7 +232,7 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
                     <button
                       type="button"
                       onClick={() => openEntry(active)}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-bold"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-white text-xs font-bold"
                     >
                       {search.switchTo.replace('{role}', (active.requiredRoles || []).find((r) => myRoleOptions.includes(r)) || '')} <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -268,3 +268,4 @@ export const PortalSearchPalette: React.FC<Props> = ({ open, onClose, isGroupMen
     </div>
   );
 };
+

@@ -91,7 +91,7 @@ export const ChurchFacilitiesPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-[#FF416C]" />
+          <Building2 className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-black uppercase tracking-wide">Fasilitas &amp; Penyewaan</h3>
           {pending > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{pending} menunggu</span>}
           {canManage && (
@@ -205,3 +205,4 @@ export const ChurchFacilitiesPanel: React.FC = () => {
 };
 
 export default ChurchFacilitiesPanel;
+

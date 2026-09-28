@@ -12,7 +12,7 @@ export const RegenerationFlowSection: React.FC = () => {
   const reduce = useReducedMotion();
 
   const stages = [
-    { icon: Flame, color: '#FF4B2B', title: t.flow.s1t, text: t.flow.s1d },
+    { icon: Flame, color: 'var(--color-brand-end)', title: t.flow.s1t, text: t.flow.s1d },
     { icon: Users, color: '#7C3AED', title: t.flow.s2t, text: t.flow.s2d },
     { icon: Split, color: '#0EA5E9', title: t.flow.s3t, text: t.flow.s3d },
     { icon: InfinityIcon, color: '#059669', title: t.flow.s4t, text: t.flow.s4d },
@@ -21,7 +21,7 @@ export const RegenerationFlowSection: React.FC = () => {
   return (
     <section className="relative py-20 sm:py-28 bg-[#111111] overflow-hidden">
       <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-3xl opacity-15 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #FF416C 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(circle, var(--color-brand) 0%, transparent 70%)' }} />
       <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full blur-3xl opacity-10 pointer-events-none"
         style={{ background: 'radial-gradient(circle, #0EA5E9 0%, transparent 70%)' }} />
 
@@ -33,7 +33,7 @@ export const RegenerationFlowSection: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="text-center max-w-2xl mx-auto"
         >
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#FF416C]">
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-brand">
             {t.flow.eyebrow}
           </span>
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-3 leading-tight">
@@ -90,3 +90,4 @@ export const RegenerationFlowSection: React.FC = () => {
     </section>
   );
 };
+

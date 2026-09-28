@@ -545,12 +545,12 @@ export const EventQuestionsBlock: React.FC<{ eventId: string }> = ({ eventId }) 
                           <button type="button" title="Aktifkan lagi" onClick={() => void reactivateBank(q)} className="px-1.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-[9px] font-bold">
                             Aktifkan
                           </button>
-                          <button type="button" title="Hapus permanen termasuk penugasan & jawaban" onClick={() => void forceDeleteBank(q)} className="p-1 text-[#8C8880] hover:text-[#FF416C]">
+                          <button type="button" title="Hapus permanen termasuk penugasan & jawaban" onClick={() => void forceDeleteBank(q)} className="p-1 text-[#8C8880] hover:text-brand">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </>
                       ) : (
-                        <button type="button" title="Hapus soal" onClick={() => void deleteBank(q)} className="p-1 text-[#8C8880] hover:text-[#FF416C]">
+                        <button type="button" title="Hapus soal" onClick={() => void deleteBank(q)} className="p-1 text-[#8C8880] hover:text-brand">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -641,3 +641,4 @@ export const EventQuestionsBlock: React.FC<{ eventId: string }> = ({ eventId }) 
     </div>
   );
 };
+

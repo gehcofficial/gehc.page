@@ -289,7 +289,7 @@ export const OrgHierarchyPanel: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black flex items-center gap-2">
-            <Network className="w-6 h-6 text-[#FF416C]" />
+            <Network className="w-6 h-6 text-brand" />
             Kelola Hirarki
           </h1>
           <p className="text-xs text-[#8C8880] mt-1">Konfigurasi pohon organisasi per domain — terpisah dari RBAC portal.</p>
@@ -310,7 +310,7 @@ export const OrgHierarchyPanel: React.FC = () => {
             type="button"
             onClick={() => setDomain(d.id)}
             className={`px-4 py-2 rounded-full text-xs font-bold ${
-              domain === d.id ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'
+              domain === d.id ? 'bg-brand text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'
             }`}
           >
             {d.label}
@@ -411,3 +411,4 @@ export const OrgHierarchyPanel: React.FC = () => {
     </div>
   );
 };
+

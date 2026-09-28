@@ -102,7 +102,7 @@ export const ChurchDutyPanel: React.FC<{ division: 'THL_STEWARDSHIP' | 'THL_MDS'
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <CalendarClock className="w-4 h-4 text-[#FF416C]" />
+          <CalendarClock className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-black uppercase tracking-wide">THL · {label}</h3>
         </div>
 
@@ -181,3 +181,4 @@ export const ChurchDutyPanel: React.FC<{ division: 'THL_STEWARDSHIP' | 'THL_MDS'
 };
 
 export default ChurchDutyPanel;
+

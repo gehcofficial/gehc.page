@@ -16,7 +16,7 @@ import { PITCH_SLIDES, type PitchSlide } from '../../data/pitchSlides';
 import { GehcLogo } from '../brand/GehcLogo';
 
 /** Palet highlight per poin (rotasi otomatis). */
-const PALETTE = ['#FF416C', '#FF4B2B', '#F59E0B', '#22C55E', '#0EA5E9', '#8B5CF6', '#EC4899'];
+const PALETTE = ['var(--color-brand)', 'var(--color-brand-end)', '#F59E0B', '#22C55E', '#0EA5E9', '#8B5CF6', '#EC4899'];
 
 type ScaleKey = 'normal' | 'besar' | 'tv';
 const SCALE_VALUES: Record<ScaleKey, number> = { normal: 1, besar: 1.2, tv: 1.45 };
@@ -53,7 +53,7 @@ function Header({ slide, step }: { slide: PitchSlide; step: number }) {
         <motion.p
           initial={false}
           animate={{ opacity: step >= 0 ? 1 : 0 }}
-          className="text-[0.85em] font-bold uppercase tracking-[0.32em] text-[#FF416C]"
+          className="text-[0.85em] font-bold uppercase tracking-[0.32em] text-brand"
         >
           {slide.eyebrow}
         </motion.p>
@@ -210,7 +210,7 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
     return (
       <div className="text-center">
         {slide.eyebrow && (
-          <motion.p initial={false} animate={{ opacity: reveal(0) ? 1 : 0 }} className="text-[0.9em] font-bold uppercase tracking-[0.32em] text-[#FF416C]">
+          <motion.p initial={false} animate={{ opacity: reveal(0) ? 1 : 0 }} className="text-[0.9em] font-bold uppercase tracking-[0.32em] text-brand">
             {slide.eyebrow}
           </motion.p>
         )}
@@ -234,7 +234,7 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
             transition={{ duration: 0.35 }}
             className="inline-flex items-center gap-[0.5em] mt-[1.2em] px-[1em] py-[0.5em] rounded-full bg-white/10 text-[0.9em] font-bold uppercase tracking-wider"
           >
-            <Landmark className="w-[1em] h-[1em] text-[#FF416C]" />
+            <Landmark className="w-[1em] h-[1em] text-brand" />
             Rumah Digital Jemaat
           </motion.div>
         )}
@@ -587,7 +587,7 @@ const PitchDeck: React.FC<{
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); start(); }}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-lg font-black uppercase tracking-wider shadow-2xl"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-lg font-black uppercase tracking-wider shadow-2xl"
             >
               <Play className="w-5 h-5" /> Mulai Presentasi
             </button>
@@ -599,14 +599,14 @@ const PitchDeck: React.FC<{
       <footer className="px-4 sm:px-8 py-5 shrink-0">
         <div className="max-w-[min(1600px,94vw)] mx-auto">
           <div className="h-1 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] transition-all duration-300" style={{ width: `${(globalStep / totalSteps) * 100}%` }} />
+            <div className="h-full bg-gradient-to-r from-brand to-brand-end transition-all duration-300" style={{ width: `${(globalStep / totalSteps) * 100}%` }} />
           </div>
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center gap-2">
               <button type="button" onClick={prev} disabled={pos.i === 0 && pos.s === 0} className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold disabled:opacity-30 transition-all">
                 <ChevronLeft className="w-4 h-4" /> Sebelumnya
               </button>
-              <button type="button" onClick={next} disabled={pos.i === total - 1 && pos.s === steps - 1} className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-xs font-bold disabled:opacity-30 transition-all">
+              <button type="button" onClick={next} disabled={pos.i === total - 1 && pos.s === steps - 1} className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-gradient-to-r from-brand to-brand-end text-xs font-bold disabled:opacity-30 transition-all">
                 Berikutnya <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -618,7 +618,7 @@ const PitchDeck: React.FC<{
                   type="button"
                   onClick={() => goSlide(i)}
                   aria-label={`Slide ${i + 1}`}
-                  className={`h-2 rounded-full transition-all ${i === pos.i ? 'bg-[#FF416C] w-5' : 'w-2 bg-white/25 hover:bg-white/50'}`}
+                  className={`h-2 rounded-full transition-all ${i === pos.i ? 'bg-brand w-5' : 'w-2 bg-white/25 hover:bg-white/50'}`}
                 />
               ))}
             </div>
@@ -637,3 +637,4 @@ const PitchDeck: React.FC<{
 };
 
 export default PitchDeck;
+

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLang } from '../../context/LangContext';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { IMG_PROPS, slugifyPerson } from '../../config/media';
@@ -50,7 +50,7 @@ export const VisualCollage: React.FC = () => {
     return () => clearInterval(timer);
   }, [testimonials.length, expanded]);
 
-  // Ganti kesaksian → tutup mode baca penuh + reset status foto.
+  // Ganti kesaksian ? tutup mode baca penuh + reset status foto.
   useEffect(() => {
     setExpanded(false);
     setImgBroken(false);
@@ -107,7 +107,7 @@ export const VisualCollage: React.FC = () => {
             alt={c.praiseTitle}
           />
           <div className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/60 backdrop-blur-md border border-white/70 flex items-center justify-center shadow-md">
-            <Sparkles className="w-4 h-4 text-[#FF416C]" />
+            <Sparkles className="w-4 h-4 text-brand" />
           </div>
           <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md rounded-xl p-2.5 text-white">
             <p className="text-[11px] font-bold">{c.praiseTitle}</p>
@@ -126,7 +126,7 @@ export const VisualCollage: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shadow-md text-white">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-brand to-brand-end flex items-center justify-center shadow-md text-white">
               <Heart className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
@@ -165,7 +165,7 @@ export const VisualCollage: React.FC = () => {
             alt={c.scripture}
           />
           <div className="absolute bottom-4 left-4 bg-white/70 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-white/60 shadow-sm flex items-center gap-2">
-            <Radio className="w-3.5 h-3.5 text-[#FF416C]" />
+            <Radio className="w-3.5 h-3.5 text-brand" />
             <span className="text-[10px] font-bold text-[#1B1B1B] uppercase tracking-wider">
               {c.scripture}
             </span>
@@ -217,7 +217,7 @@ export const VisualCollage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setExpanded((v) => !v)}
-                  className="self-start mt-0.5 text-[10px] font-bold text-[#FF416C] hover:underline"
+                  className="self-start mt-0.5 text-[10px] font-bold text-brand hover:underline"
                 >
                   {expanded ? 'Tutup' : 'Selengkapnya'}
                 </button>
@@ -230,3 +230,4 @@ export const VisualCollage: React.FC = () => {
     </section>
   );
 };
+

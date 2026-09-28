@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -45,7 +45,7 @@ const AUTH_PUBLIC_TABS = new Set(['login', 'register']);
 const SessionRestoreScreen: React.FC = () => (
   <div className="min-h-screen bg-[#111111] text-white flex items-center justify-center">
     <p className="text-sm text-white/60 flex items-center gap-2">
-      <Loader2 className="w-4 h-4 animate-spin" /> Memulihkan sesi…
+      <Loader2 className="w-4 h-4 animate-spin" /> Memulihkan sesi�
     </p>
   </div>
 );
@@ -92,7 +92,7 @@ const MainAppContent: React.FC = () => {
   const authShell = AUTH_PUBLIC_TABS.has(publicTab);
 
   return (
-    <div className={`min-h-screen flex flex-col justify-between selection:bg-[#FF416C] selection:text-white ${
+    <div className={`min-h-screen flex flex-col justify-between selection:bg-brand selection:text-white ${
       authShell ? 'bg-[#FAF9F5] text-[#1B1B1B]' : 'bg-[#FAF9F5] text-[#1B1B1B]'
     }`}>
       {!authShell && <Navbar />}
@@ -158,3 +158,4 @@ export default function App() {
     </AppProvider>
   );
 }
+

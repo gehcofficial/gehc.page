@@ -48,7 +48,7 @@ export const SectionHeader: React.FC<Props> = ({
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                dark ? 'bg-[#FF416C]' : 'bg-gradient-to-r from-[#FF416C] to-[#FF4B2B]'
+                dark ? 'bg-brand' : 'bg-gradient-to-r from-brand to-brand-end'
               }`}
             />
             <span
@@ -101,3 +101,4 @@ export const Reveal: React.FC<{
     </motion.div>
   );
 };
+

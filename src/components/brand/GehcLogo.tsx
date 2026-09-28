@@ -40,10 +40,11 @@ export const GehcLogo: React.FC<GehcLogoProps> = ({
 
   return (
     <div
-      className={`${roundCls} bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] flex items-center justify-center shrink-0 ${textCls} ${className}`}
+      className={`${roundCls} bg-gradient-to-tr from-brand to-brand-end flex items-center justify-center shrink-0 ${textCls} ${className}`}
       style={{ width: size, height: size }}
     >
       <span className="text-white font-black tracking-tight leading-none">{fallbackLabel}</span>
     </div>
   );
 };
+

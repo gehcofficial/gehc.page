@@ -185,7 +185,7 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
         <button
           type="submit"
           disabled={busy}
-          className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {busy && <Loader2 className="w-4 h-4 animate-spin" />}
           Daftar dengan Email
@@ -203,3 +203,4 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
     </div>
   );
 };
+

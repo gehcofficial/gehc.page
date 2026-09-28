@@ -17,7 +17,7 @@ export const PortalGuidePreview: React.FC<Props> = ({ title, purpose, steps, whe
   return (
     <div className={`space-y-3 ${compact ? '' : 'p-1'}`}>
       <div className="flex items-center gap-2">
-        <CircleHelp className="w-4 h-4 text-[#FF416C] shrink-0" />
+        <CircleHelp className="w-4 h-4 text-brand shrink-0" />
         <h3 className="text-sm font-black text-[#1B1B1B]">{title}</h3>
       </div>
       {purpose && <p className="text-xs text-[#5C5850] leading-relaxed">{purpose}</p>}
@@ -53,3 +53,4 @@ export const PortalGuidePreview: React.FC<Props> = ({ title, purpose, steps, whe
     </div>
   );
 };
+

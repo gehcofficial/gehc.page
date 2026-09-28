@@ -65,7 +65,7 @@ export const ForgotPasswordPage: React.FC = () => {
           {resetUrl && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
               <p className="text-[10px] font-bold text-amber-900 mb-1">Mode dev — taut reset:</p>
-              <a href={resetUrl.replace(/^https?:\/\/[^/]+/, '')} className="text-[10px] text-[#FF416C] break-all">
+              <a href={resetUrl.replace(/^https?:\/\/[^/]+/, '')} className="text-[10px] text-brand break-all">
                 {resetUrl}
               </a>
             </div>
@@ -83,3 +83,4 @@ export const ForgotPasswordPage: React.FC = () => {
     </div>
   );
 };
+

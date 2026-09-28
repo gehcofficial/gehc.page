@@ -81,7 +81,7 @@ const GroupHouseCard: React.FC<GroupCardProps> = ({
     <MiniFamilyTree
       mentor={mentor}
       comentor={comentor || '—'}
-      color={grp.color || '#FF416C'}
+      color={grp.color || 'var(--color-brand)'}
       mentorAvatar={mentorAvatar}
       comentorAvatar={comentorAvatar}
     />
@@ -187,3 +187,4 @@ export const GroupsCarousel: React.FC = () => {
     </section>
   );
 };
+

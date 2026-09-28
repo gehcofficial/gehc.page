@@ -34,12 +34,12 @@ const UnitComingSoon: React.FC<{ unit: HostUnit }> = ({ unit }) => {
         <div className="max-w-lg text-center py-20">
           <div
             className={`w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br ${
-              info?.accent || 'from-[#FF416C] to-[#FF4B2B]'
+              info?.accent || 'from-brand to-brand-end'
             } flex items-center justify-center shadow-lg`}
           >
             <Lock className="w-6 h-6 text-white" />
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF416C] mt-6">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-brand mt-6">
             {info?.nameEn || 'Unit'} · Coming soon
           </p>
           <h1 className="font-display text-3xl sm:text-4xl font-black mt-2">
@@ -76,3 +76,4 @@ const UnitComingSoon: React.FC<{ unit: HostUnit }> = ({ unit }) => {
 };
 
 export default UnitComingSoon;
+

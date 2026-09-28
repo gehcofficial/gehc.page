@@ -124,14 +124,14 @@ export const BakutauEventPage: React.FC = () => {
       <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto text-center">
         <h1 className="text-2xl font-black mb-2">BAKU TAU 4.0 — Arsip</h1>
         <p className="text-sm text-[#8C8880] mb-6">Acara ini sudah selesai. Lihat dokumentasi di warta.</p>
-        <a href="#/bulletin" className="text-sm font-bold text-[#FF416C]">Buka warta →</a>
+        <a href="#/bulletin" className="text-sm font-bold text-brand">Buka warta →</a>
       </section>
     );
   }
 
   return (
     <section className="pt-[130px] sm:pt-[160px] pb-24 px-4 max-w-xl mx-auto">
-      <p className="text-[11px] font-black uppercase tracking-widest text-[#FF416C] mb-2">
+      <p className="text-[11px] font-black uppercase tracking-widest text-brand mb-2">
         BAKU TAU 4.0 — Bakudapa di Rantau
       </p>
       <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight mb-2 font-display">
@@ -147,7 +147,7 @@ export const BakutauEventPage: React.FC = () => {
 
       {stats && (
         <div className="rounded-2xl bg-[#181818] text-white p-4 flex items-center gap-3 mb-4">
-          <Users className="w-4 h-4 text-[#FF416C]" />
+          <Users className="w-4 h-4 text-brand" />
           <span className="text-xs font-bold">{stats.registered} peserta terdaftar</span>
         </div>
       )}
@@ -322,7 +322,7 @@ const GuestBakutauFlow: React.FC = () => {
           <Field label="No. WhatsApp *" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required />
           {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
           <button type="submit" disabled={busy}
-            className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
             Simpan & tautkan Google
           </button>
@@ -331,3 +331,4 @@ const GuestBakutauFlow: React.FC = () => {
     </div>
   );
 };
+

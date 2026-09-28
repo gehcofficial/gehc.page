@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { useLandingMedia } from '../../hooks/useLandingMedia';
@@ -76,7 +76,7 @@ export const HeroSection: React.FC = () => {
           hour: '2-digit',
           minute: '2-digit',
           timeZone: 'Asia/Jakarta',
-        }) + ' WIB' + (featured.venueName ? ` · ${featured.venueName}` : ''),
+        }) + ' WIB' + (featured.venueName ? ` � ${featured.venueName}` : ''),
       ].filter(Boolean).join(' ')
     : t.hero.bDesc;
 
@@ -93,7 +93,7 @@ export const HeroSection: React.FC = () => {
       )}
 
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border border-[#D9D7D0] shadow-sm mb-6 animate-fade-in">
-        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] animate-pulse"></span>
+        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-brand to-brand-end animate-pulse"></span>
         <span className="text-xs font-semibold tracking-wide text-[#1B1B1B]">
           {t.hero.chip}
         </span>
@@ -112,13 +112,13 @@ export const HeroSection: React.FC = () => {
           onClick={() => setPublicTab('beyonders')}
           className="px-6 py-3 rounded-full bg-[#181818] hover:bg-black text-white text-xs sm:text-sm font-bold tracking-wide transition-all shadow-xl hover:shadow-2xl flex items-center gap-2"
         >
-          <Users className="w-4 h-4 text-[#FF416C]" />
+          <Users className="w-4 h-4 text-brand" />
           <span>{t.hero.cta1}</span>
         </button>
 
         <button
           onClick={() => setPublicTab('bulletin')}
-          className="px-5 py-3 rounded-full text-[#1B1B1B]/70 hover:text-[#1B1B1B] text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 underline-offset-4 hover:underline decoration-[#FF416C] decoration-2"
+          className="px-5 py-3 rounded-full text-[#1B1B1B]/70 hover:text-[#1B1B1B] text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 underline-offset-4 hover:underline decoration-brand decoration-2"
         >
           <BookOpen className="w-4 h-4" />
           <span>{t.hero.cta2}</span>
@@ -126,7 +126,7 @@ export const HeroSection: React.FC = () => {
 
         <button
           onClick={() => setPublicTab('events')}
-          className="px-5 py-3 rounded-full text-[#1B1B1B]/70 hover:text-[#1B1B1B] text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 underline-offset-4 hover:underline decoration-[#FF416C] decoration-2"
+          className="px-5 py-3 rounded-full text-[#1B1B1B]/70 hover:text-[#1B1B1B] text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 underline-offset-4 hover:underline decoration-brand decoration-2"
         >
           <Calendar className="w-4 h-4" />
           <span>{t.hero.cta3}</span>
@@ -179,3 +179,4 @@ export const HeroSection: React.FC = () => {
     </section>
   );
 };
+

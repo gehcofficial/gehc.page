@@ -29,7 +29,7 @@ export const EventVenueMap: React.FC<Props> = ({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className={`text-xs font-bold flex items-center gap-1.5 ${titleCls}`}>
-            <MapPin className="w-3.5 h-3.5 text-[#FF416C] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-brand shrink-0" />
             {venueName}
           </p>
           {locationDetail && (
@@ -61,3 +61,4 @@ export const EventVenueMap: React.FC<Props> = ({
     </div>
   );
 };
+

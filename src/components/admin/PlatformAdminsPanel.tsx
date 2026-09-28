@@ -171,7 +171,7 @@ export const PlatformAdminsPanel: React.FC = () => {
           type="button"
           disabled={busy || !selected}
           onClick={() => void grant()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FF416C] text-white text-sm font-medium disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium disabled:opacity-50"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
           Assign Admin
@@ -216,3 +216,4 @@ export const PlatformAdminsPanel: React.FC = () => {
     </div>
   );
 };
+

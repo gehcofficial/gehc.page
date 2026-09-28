@@ -59,7 +59,7 @@ export const PersonNameFields: React.FC<{
   }, []);
   const dark = theme === 'dark';
   const fieldClass = dark
-    ? 'w-full px-3.5 py-2.5 rounded-xl bg-[#181818] border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-[#FF416C]'
+    ? 'w-full px-3.5 py-2.5 rounded-xl bg-[#181818] border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-brand'
     : 'w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black';
   const labelClass = dark
     ? 'text-[10px] font-bold uppercase text-white/60 block mb-1'
@@ -265,3 +265,4 @@ const AcademicTitlesField: React.FC<{
     </div>
   );
 };
+

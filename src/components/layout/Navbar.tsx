@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { GehcLogo } from '../brand/GehcLogo';
@@ -120,7 +120,7 @@ export const Navbar: React.FC = () => {
             </nav>
           ) : (
             <div className="hidden md:flex items-center gap-2 text-white/70 text-xs font-medium bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
-              <LayoutDashboard className="w-3.5 h-3.5 text-[#FF416C]" />
+              <LayoutDashboard className="w-3.5 h-3.5 text-brand" />
               <span>User Portal: <strong className="text-white">{currentTenant.name}</strong></span>
             </div>
           )}
@@ -229,7 +229,7 @@ export const Navbar: React.FC = () => {
                 )}
                 <button
                   onClick={() => setActiveView('portal')}
-                  className="bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
+                  className="bg-gradient-to-r from-brand to-brand-end hover:opacity-90 text-white font-bold rounded-full transition-all duration-300 shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 text-[10px] sm:text-xs h-[34px] shadow-md uppercase tracking-wider"
                 >
                   <span>Portal</span>
                   <ArrowRight className="w-3 h-3" />
@@ -337,7 +337,7 @@ export const Navbar: React.FC = () => {
                     setActiveView('portal');
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white font-bold text-center text-sm shadow-xl"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-brand to-brand-end text-white font-bold text-center text-sm shadow-xl"
                 >
                   Buka Portal
                 </button>
@@ -360,3 +360,4 @@ export const Navbar: React.FC = () => {
     </>
   );
 };
+

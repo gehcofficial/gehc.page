@@ -50,10 +50,10 @@ export const AboutSection: React.FC = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
-            className="mt-8 pl-5 border-l-4 border-[#FF416C]"
+            className="mt-8 pl-5 border-l-4 border-brand"
           >
             <p className="text-base sm:text-lg italic text-[#1B1B1B] leading-relaxed">{t.about.verse}</p>
-            <p className="mt-2 text-xs font-bold text-[#FF416C] tracking-wide uppercase">{t.about.verseRef}</p>
+            <p className="mt-2 text-xs font-bold text-brand tracking-wide uppercase">{t.about.verseRef}</p>
           </motion.blockquote>
         </div>
 
@@ -70,8 +70,8 @@ export const AboutSection: React.FC = () => {
                   transition={{ duration: 0.5, delay: i * 0.1 }}
                   className="flex items-start gap-4 p-5 rounded-[24px] bg-white border border-[#D9D7D0]/50 shadow-sm"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FF416C]/15 to-[#FF4B2B]/15 flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-[#FF416C]" />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand/15 to-brand-end/15 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-brand" />
                   </div>
                   <div>
                     <p className="text-sm font-black text-[#1B1B1B]">{f}</p>
@@ -89,7 +89,7 @@ export const AboutSection: React.FC = () => {
             transition={{ duration: 0.55 }}
             className="rounded-[28px] bg-gradient-to-br from-[#181818] to-[#262626] p-6"
           >
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-3">
               {t.leadersPage.coreLabel} · {t.leadersPage.supportLabel}
             </p>
 
@@ -128,3 +128,4 @@ export const AboutSection: React.FC = () => {
     </section>
   );
 };
+

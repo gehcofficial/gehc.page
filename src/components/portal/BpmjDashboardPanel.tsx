@@ -72,7 +72,7 @@ export const BpmjDashboardPanel: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {cards.map((c) => (
             <div key={c.label} className="p-4 rounded-2xl border border-[#EFEDE8]">
-              <c.icon className="w-4 h-4 text-[#FF416C]" />
+              <c.icon className="w-4 h-4 text-brand" />
               <p className="text-[10px] text-[#8C8880] mt-2">{c.label}</p>
               <p className="text-lg font-black">{c.value}</p>
               <p className="text-[10px] text-[#8C8880]">{c.sub}</p>
@@ -142,3 +142,4 @@ export const BpmjDashboardPanel: React.FC = () => {
 };
 
 export default BpmjDashboardPanel;
+

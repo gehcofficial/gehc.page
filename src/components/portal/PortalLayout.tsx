@@ -521,7 +521,7 @@ export const PortalLayout: React.FC = () => {
                   size={collapsed ? 40 : 36}
                   rounded="xl"
                   fallbackLabel={collapsed ? 'GE' : 'GEHC'}
-                  className="shadow-md shadow-[#FF416C]/20 group-hover:shadow-lg group-hover:shadow-[#FF416C]/30 group-hover:scale-105 transition-all duration-200"
+                  className="shadow-md shadow-brand/20 group-hover:shadow-lg group-hover:shadow-brand/30 group-hover:scale-105 transition-all duration-200"
                 />
                 {!collapsed && (
                   <div className="min-w-0 text-left">
@@ -555,7 +555,7 @@ export const PortalLayout: React.FC = () => {
                 >
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF416C] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-brand text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -575,7 +575,7 @@ export const PortalLayout: React.FC = () => {
             {!collapsed && (
               <div className="mt-2 px-0.5">
                 <span
-                  className="inline-flex items-center text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FF416C]/10 text-[#FF416C]"
+                  className="inline-flex items-center text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-brand/10 text-brand"
                   title={portal.profile.label}
                 >
                   {`${t.portal.layout.scopePrefix}: ${t.portal.portalNames[portal.id]}`}
@@ -588,7 +588,7 @@ export const PortalLayout: React.FC = () => {
               <div className="flex justify-center mt-1">
                 <button
                   onClick={() => setCollapsed(false)}
-                  className="relative p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-[#FF416C] hover:border-[#FF416C]/30 hover:shadow-md hover:shadow-[#FF416C]/10 transition-all duration-200"
+                  className="relative p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-brand hover:border-brand/30 hover:shadow-md hover:shadow-brand/10 transition-all duration-200"
                   title={t.portal.layout.expandSidebar}
                 >
                   <PanelLeftOpen className="w-4 h-4" />
@@ -602,7 +602,7 @@ export const PortalLayout: React.FC = () => {
                 type="button"
                 onClick={() => setShowSearch(true)}
                 className={collapsed
-                  ? 'p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-[#FF416C] hover:border-[#FF416C]/30 hover:shadow-md transition-all duration-200'
+                  ? 'p-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:text-brand hover:border-brand/30 hover:shadow-md transition-all duration-200'
                   : 'w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#D9D7D0]/60 text-[#8C8880] hover:border-[#1B1B1B]/20 hover:shadow-sm transition-all duration-200'}
                 title={t.portal.search.title}
               >
@@ -623,7 +623,7 @@ export const PortalLayout: React.FC = () => {
               if (row.type === 'header') {
                 if (collapsed) return null;
                 return (
-                  <span key={`h-${row.label}-${idx}`} className="block px-3 pt-4 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#FF416C]/60">
+                  <span key={`h-${row.label}-${idx}`} className="block px-3 pt-4 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-brand/60">
                     {portalNavGroup(t, row.label)}
                   </span>
                 );
@@ -647,7 +647,7 @@ export const PortalLayout: React.FC = () => {
                             : 'text-[#8C8880] hover:bg-white hover:text-[#1B1B1B] hover:shadow-sm'
                         }`}
                       >
-                        <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-[#FF416C]' : ''}`} />
+                        <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-brand' : ''}`} />
                       </button>
                       {hoveredItem === row.parent.id && (
                         <div
@@ -667,7 +667,7 @@ export const PortalLayout: React.FC = () => {
                                 onClick={() => handleNavClick(child.id)}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
-                                  <ChildIcon className={`w-4 h-4 shrink-0 ${childActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                                  <ChildIcon className={`w-4 h-4 shrink-0 ${childActive ? 'text-brand' : 'text-[#8C8880]'}`} />
                                   <span className="text-[13px] font-semibold truncate">{portalNavLabel(t, child.id, { isGroupMentor, isMentee })}</span>
                                 </div>
                               </div>
@@ -689,10 +689,10 @@ export const PortalLayout: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                      <ParentIcon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${isActive ? 'text-brand' : 'text-[#8C8880]'}`} />
                       <span className="truncate text-[13px]">{row.parent.label}</span>
                     </div>
-                    <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                    <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-brand' : 'text-[#8C8880]'}`} />
                   </button>
                 );
               }
@@ -719,7 +719,7 @@ export const PortalLayout: React.FC = () => {
                       }`}
                     >
                       <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${
-                        isActive ? 'text-[#FF416C]' : ''
+                        isActive ? 'text-brand' : ''
                       }`} />
                     </button>
 
@@ -734,7 +734,7 @@ export const PortalLayout: React.FC = () => {
                           isActive ? 'bg-[#181818] text-white' : 'hover:bg-[#FAF9F5] text-[#1B1B1B]'
                         }`} onClick={() => handleNavClick(item.id)}>
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'}`} />
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-brand' : 'text-[#8C8880]'}`} />
                             <span className="text-[13px] font-semibold truncate">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                           </div>
                         </div>
@@ -757,7 +757,7 @@ export const PortalLayout: React.FC = () => {
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors duration-200 ${
-                      isActive ? 'text-[#FF416C]' : 'text-[#8C8880]'
+                      isActive ? 'text-brand' : 'text-[#8C8880]'
                     }`} />
                     <span className="truncate text-[13px]">{portalNavLabel(t, item.id, { isGroupMentor, isMentee })}</span>
                   </div>
@@ -774,7 +774,7 @@ export const PortalLayout: React.FC = () => {
                   <img
                     src={displayAvatar(currentUser.name, currentUser.avatar)}
                     alt={currentUser.name}
-                    className="w-9 h-9 rounded-full bg-gray-100 border-2 border-[#D9D7D0]/60 hover:border-[#FF416C]/40 transition-all duration-200"
+                    className="w-9 h-9 rounded-full bg-gray-100 border-2 border-[#D9D7D0]/60 hover:border-brand/40 transition-all duration-200"
                   />
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#FAF9F5]" />
                 </div>
@@ -806,7 +806,7 @@ export const PortalLayout: React.FC = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h5 className="text-xs font-bold text-[#1B1B1B] truncate leading-tight">{currentUser.name}</h5>
-                    <span className="text-[10px] font-bold text-[#FF416C] uppercase tracking-wider">{currentRole}</span>
+                    <span className="text-[10px] font-bold text-brand uppercase tracking-wider">{currentRole}</span>
                   </div>
                 </div>
 
@@ -875,7 +875,7 @@ export const PortalLayout: React.FC = () => {
                   >
                     <p className="text-xs font-bold text-[#1B1B1B]">{n.title}</p>
                     {typeof n.payload?.senderRole === 'string' && n.payload.senderRole ? (
-                      <p className="text-[9px] font-bold text-[#FF416C] mt-0.5">Dari: {n.payload.senderRole}</p>
+                      <p className="text-[9px] font-bold text-brand mt-0.5">Dari: {n.payload.senderRole}</p>
                     ) : null}
                     <p className="text-[10px] text-[#8C8880] mt-0.5">{n.message}</p>
                     <p className="text-[9px] text-[#D9D7D0] mt-1">
@@ -1153,3 +1153,4 @@ export const PortalLayout: React.FC = () => {
     </div>
   );
 };
+

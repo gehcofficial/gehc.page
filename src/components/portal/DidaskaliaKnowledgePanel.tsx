@@ -10,7 +10,7 @@ import { useApp } from '../../context/AppContext';
 type Props = { canWrite: boolean };
 
 const labelCls = 'block text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1';
-const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#FF416C]';
+const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm focus:outline-none focus:ring-1 focus:ring-brand';
 
 /** Pengelolaan knowledge base + instruksi khusus tim untuk AI Didaskalia (Gems-like). */
 export const DidaskaliaKnowledgePanel: React.FC<Props> = ({ canWrite }) => {
@@ -201,7 +201,7 @@ export const DidaskaliaKnowledgePanel: React.FC<Props> = ({ canWrite }) => {
               </select>
             </div>
             <textarea value={draft.content} onChange={(e) => setDraft((s) => ({ ...s, content: e.target.value }))} rows={5} placeholder="Isi markdown/teks…" className={inputCls} />
-            <button type="button" onClick={() => void addDoc()} disabled={busy === 'new' || !draft.title.trim() || !draft.content.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-bold disabled:opacity-40">
+            <button type="button" onClick={() => void addDoc()} disabled={busy === 'new' || !draft.title.trim() || !draft.content.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand text-white text-xs font-bold disabled:opacity-40">
               {busy === 'new' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Tambah dokumen
             </button>
           </div>
@@ -212,3 +212,4 @@ export const DidaskaliaKnowledgePanel: React.FC<Props> = ({ canWrite }) => {
 };
 
 export default DidaskaliaKnowledgePanel;
+

@@ -341,7 +341,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       {/* Header */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-          <ClipboardList className="w-3.5 h-3.5 text-[#FF416C]" />
+          <ClipboardList className="w-3.5 h-3.5 text-brand" />
           <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
             Onboarding Pipeline
           </span>
@@ -368,7 +368,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setBakuTauOnly((v) => !v)}
-          className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${bakuTauOnly ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0]'}`}
+          className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${bakuTauOnly ? 'bg-brand text-white' : 'bg-white border border-[#D9D7D0]'}`}
         >
           BAKU TAU 4.0
         </button>
@@ -477,7 +477,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                         type="checkbox"
                         checked={selectedIds.size === (pendingApproval || []).length}
                         onChange={() => toggleSelectAll((pendingApproval || []).map(e => e.id))}
-                        className="w-4 h-4 rounded border-[#D9D7D0] text-[#FF416C] focus:ring-[#FF416C]"
+                        className="w-4 h-4 rounded border-[#D9D7D0] text-brand focus:ring-brand"
                       />
                       <span className="text-xs font-bold text-[#1B1B1B]">Select All ({selectedIds.size})</span>
                     </label>
@@ -523,7 +523,7 @@ export const WaitingPoolPanel: React.FC<WaitingPoolPanelProps> = ({ onNavigate }
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(entry.id)}
-                          className="w-4 h-4 rounded border-[#D9D7D0] text-[#FF416C] focus:ring-[#FF416C] shrink-0"
+                          className="w-4 h-4 rounded border-[#D9D7D0] text-brand focus:ring-brand shrink-0"
                         />
 
                         <img
@@ -811,7 +811,7 @@ const PoolList: React.FC<{
                 <button
                   onClick={() => onReminder(entry)}
                   disabled={sendingReminder === entry.id}
-                  className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white disabled:opacity-50 flex items-center gap-1"
+                  className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-brand to-brand-end text-white disabled:opacity-50 flex items-center gap-1"
                 >
                   {sendingReminder === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                   Reminder

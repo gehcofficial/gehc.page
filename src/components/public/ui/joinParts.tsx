@@ -29,7 +29,7 @@ export const Field: React.FC<{
   const labelClass = theme === 'dark' ? 'text-white/60' : 'text-[#1B1B1B]';
   const inputClass =
     theme === 'dark'
-      ? 'bg-[#181818] border-white/15 text-white placeholder:text-white/30 focus:border-[#FF416C]'
+      ? 'bg-[#181818] border-white/15 text-white placeholder:text-white/30 focus:border-brand'
       : 'bg-white border-[#D9D7D0] text-[#1B1B1B] focus:border-black';
   const hintClass = theme === 'dark' ? 'text-white/40' : 'text-[#8C8880]';
 
@@ -87,3 +87,4 @@ export const DoneCard: React.FC<{ title: string; body: string }> = ({ title, bod
     <p className="text-xs text-[#8C8880] mt-2 leading-relaxed">{body}</p>
   </div>
 );
+

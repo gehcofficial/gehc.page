@@ -18,7 +18,7 @@ export const AccountRolesSection: React.FC = () => {
     <div className="space-y-4 max-w-xl">
       <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5">
         <h2 className="text-sm font-bold text-[#1B1B1B] flex items-center gap-2 mb-1">
-          <Shield className="w-4 h-4 text-[#FF416C]" />
+          <Shield className="w-4 h-4 text-brand" />
           {t.portal.layout.rolesAndPanels}
         </h2>
         <p className="text-[11px] text-[#8C8880] mb-4">
@@ -32,7 +32,7 @@ export const AccountRolesSection: React.FC = () => {
               onClick={() => openPanel(role)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                 role === currentRole
-                  ? 'border-[#FF416C] bg-[#FF416C]/5'
+                  ? 'border-brand bg-brand/5'
                   : 'border-[#D9D7D0] hover:border-[#1B1B1B]'
               }`}
             >
@@ -43,7 +43,7 @@ export const AccountRolesSection: React.FC = () => {
                 </p>
               </div>
               {role === currentRole && (
-                <span className="text-[9px] font-bold uppercase text-[#FF416C] shrink-0">{t.portal.layout.active}</span>
+                <span className="text-[9px] font-bold uppercase text-brand shrink-0">{t.portal.layout.active}</span>
               )}
               <ChevronRight className="w-4 h-4 text-[#D9D7D0] shrink-0" />
             </button>
@@ -60,3 +60,4 @@ export const AccountRolesSection: React.FC = () => {
     </div>
   );
 };
+

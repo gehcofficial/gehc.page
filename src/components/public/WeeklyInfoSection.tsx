@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import { SectionHeader } from './ui/SectionHeader';
@@ -151,7 +151,7 @@ export const WeeklyInfoSection: React.FC = () => {
               {/* Card Body */}
               <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-xl font-bold tracking-tight text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-2 mb-2">
+                  <h3 className="text-xl font-bold tracking-tight text-[#1B1B1B] group-hover:text-brand transition-colors line-clamp-2 mb-2">
                     {item.title}
                   </h3>
 
@@ -173,7 +173,7 @@ export const WeeklyInfoSection: React.FC = () => {
                     Oleh: {item.author}
                   </span>
                   <span className="text-xs font-bold text-[#1B1B1B] group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    Baca Selengkapnya →
+                    Baca Selengkapnya ?
                   </span>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export const WeeklyInfoSection: React.FC = () => {
               {/* Scripture Highlight */}
               {selectedItem.scripture && (
                 <div className="p-5 rounded-2xl bg-white border border-[#D9D7D0] shadow-sm flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-[#FF416C] shrink-0 mt-0.5" />
+                  <Sparkles className="w-5 h-5 text-brand shrink-0 mt-0.5" />
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">
                       Ayat & Nats Renungan Minggu Ini
@@ -247,13 +247,13 @@ export const WeeklyInfoSection: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-[#F0EFEB] border border-[#D9D7D0]/50 text-xs">
                   {selectedItem.schedule && (
                     <div className="flex items-center gap-2 text-[#1B1B1B]">
-                      <Clock className="w-4 h-4 text-[#FF416C] shrink-0" />
+                      <Clock className="w-4 h-4 text-brand shrink-0" />
                       <span>{selectedItem.schedule}</span>
                     </div>
                   )}
                   {selectedItem.location && (
                     <div className="flex items-center gap-2 text-[#1B1B1B]">
-                      <MapPin className="w-4 h-4 text-[#FF416C] shrink-0" />
+                      <MapPin className="w-4 h-4 text-brand shrink-0" />
                       <span>{selectedItem.location}</span>
                     </div>
                   )}
@@ -344,3 +344,4 @@ export const WeeklyInfoSection: React.FC = () => {
     </section>
   );
 };
+

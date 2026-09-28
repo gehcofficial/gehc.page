@@ -304,7 +304,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
               const sel = alumniSel.some((x) => x.id === p.id);
               return (
                 <button key={p.id} type="button" onClick={() => setAlumniSel((prev) => sel ? prev.filter((x) => x.id !== p.id) : [...prev, p])}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${sel ? 'bg-[#FF416C] text-white border-[#FF416C]' : 'bg-white border-[#D9D7D0] text-[#5C5850]'}`}>
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${sel ? 'bg-brand text-white border-brand' : 'bg-white border-[#D9D7D0] text-[#5C5850]'}`}>
                   {p.name}
                 </button>
               );
@@ -480,7 +480,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
               return (
                 <button key={p.id} type="button"
                   onClick={() => setAssignSel((prev) => sel ? prev.filter((x) => x.id !== p.id) : [...prev, p])}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${sel ? 'bg-[#FF416C] text-white border-[#FF416C]' : 'bg-white border-[#D9D7D0] text-[#5C5850]'}`}>
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${sel ? 'bg-brand text-white border-brand' : 'bg-white border-[#D9D7D0] text-[#5C5850]'}`}>
                   {p.name}
                 </button>
               );
@@ -494,7 +494,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
                 confirmLabel: 'Assign',
                 run: runAssign,
               })}
-              className="px-3 py-1.5 rounded-xl bg-[#FF416C] text-white text-[11px] font-bold disabled:opacity-40">
+              className="px-3 py-1.5 rounded-xl bg-brand text-white text-[11px] font-bold disabled:opacity-40">
               {busy === 'assign' ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : `Assign ${assignSel.length} orang`}
             </button>
           )}
@@ -535,3 +535,4 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
     </div>
   );
 };
+

@@ -103,7 +103,7 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
     <div className="space-y-6">
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#FF416C]" />
+          <ShieldCheck className="w-3.5 h-3.5 text-brand" />
           <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">{p.badge}</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{p.title}</h2>
@@ -228,7 +228,7 @@ export const PeopleInvites: React.FC<{ onNavigate?: (tabId: string) => void }> =
       {tab === 'invite' && (
         <div className="space-y-6">
           <div className="bg-white rounded-[28px] border border-[#D9D7D0]/50 p-6 space-y-4">
-            <h3 className="text-sm font-black flex items-center gap-2"><UserPlus className="w-4 h-4 text-[#FF416C]" /> {p.createInvite}</h3>
+            <h3 className="text-sm font-black flex items-center gap-2"><UserPlus className="w-4 h-4 text-brand" /> {p.createInvite}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <select value={newInvite.type} onChange={(e) => setNewInvite({ ...newInvite, type: e.target.value, maxUses: e.target.value === 'SINGLE' ? 1 : 25 })}
                 className="px-3 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-semibold">
@@ -426,3 +426,4 @@ const CopyBtn: React.FC<{ text: string }> = ({ text }) => {
     </button>
   );
 };
+

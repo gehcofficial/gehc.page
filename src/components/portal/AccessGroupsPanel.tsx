@@ -143,7 +143,7 @@ export const AccessGroupsPanel: React.FC = () => {
           type="button"
           disabled={busy || !newGroup.name.trim()}
           onClick={create}
-          className="px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50"
+          className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-black uppercase disabled:opacity-50"
         >
           {p.createGroup}
         </button>
@@ -214,3 +214,4 @@ export const AccessGroupsPanel: React.FC = () => {
     </div>
   );
 };
+

@@ -6,6 +6,7 @@ import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
 import { isHubHost, isAppHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { applyThemeForHost } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
@@ -32,6 +33,12 @@ const AppRoot: React.FC = () => {
   const [hash, setHash] = useState(() =>
     typeof window !== 'undefined' ? window.location.hash : '',
   );
+
+  // Tema portal (per domain/subdomain): set CSS variable brand sekali saat mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    applyThemeForHost(window.location.hostname, window.location.search);
+  }, []);
 
   useEffect(() => {
     const onHash = () => setHash(window.location.hash);

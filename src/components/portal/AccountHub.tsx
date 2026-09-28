@@ -91,7 +91,7 @@ export const AccountHub: React.FC<{
           <button
             type="button"
             onClick={() => { window.location.hash = '#/forgot-password'; }}
-            className="text-xs font-bold text-[#FF416C] hover:underline"
+            className="text-xs font-bold text-brand hover:underline"
           >
             {a.forgotPassword}
           </button>
@@ -106,3 +106,4 @@ export const AccountHub: React.FC<{
     </div>
   );
 };
+

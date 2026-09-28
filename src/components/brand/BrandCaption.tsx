@@ -16,7 +16,7 @@ const lineCls = {
 const pillCls = {
   dark: 'inline-flex shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-[#FAF9F5] uppercase tracking-wider',
   light:
-    'inline-flex shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF416C]/10 text-[#FF416C] uppercase tracking-wider',
+    'inline-flex shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-brand/10 text-brand uppercase tracking-wider',
 };
 
 export const BrandCaption: React.FC<BrandCaptionProps> = ({
@@ -38,3 +38,4 @@ export const BrandCaption: React.FC<BrandCaptionProps> = ({
     </div>
   );
 };
+

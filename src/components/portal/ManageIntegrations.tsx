@@ -357,7 +357,7 @@ const DriveAuditPanel: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <GitCompareArrows className="w-3.5 h-3.5 text-[#FF416C]" />
+            <GitCompareArrows className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Audit Sinkronisasi
             </span>
@@ -570,7 +570,7 @@ export const ManageIntegrations: React.FC = () => {
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <FolderSync className="w-3.5 h-3.5 text-[#FF416C]" />
+            <FolderSync className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               Google Drive Cloud Storage Bridge
             </span>
@@ -631,7 +631,7 @@ export const ManageIntegrations: React.FC = () => {
       {/* Configuration Form */}
       <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm max-w-2xl">
         <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/40">
-          <Settings2 className="w-4 h-4 text-[#FF416C]" />
+          <Settings2 className="w-4 h-4 text-brand" />
           <h3 className="text-base font-bold text-[#1B1B1B]">
             Pengaturan Root Folder & Filter File
           </h3>
@@ -736,3 +736,4 @@ export const ManageIntegrations: React.FC = () => {
     </div>
   );
 };
+

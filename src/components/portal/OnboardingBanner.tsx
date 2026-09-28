@@ -106,7 +106,7 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
             <button
               type="button"
               onClick={onStartGiftTest}
-              className="px-4 py-2 rounded-full bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
+              className="px-4 py-2 rounded-full bg-brand text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
             >
               <Sparkles className="w-3.5 h-3.5" /> Tes Karunia
             </button>
@@ -133,3 +133,4 @@ export const OnboardingBanner: React.FC<Props> = ({ onCompleteProfile, onStartGi
     </div>
   );
 };
+

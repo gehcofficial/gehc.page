@@ -297,7 +297,7 @@ export const ProvisionInviteWizard: React.FC = () => {
   return (
     <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <UserPlus className="w-5 h-5 text-[#FF416C]" />
+        <UserPlus className="w-5 h-5 text-brand" />
         <h3 className="text-sm font-bold">{p.provisionTitle}</h3>
       </div>
       <p className="text-[11px] text-[#8C8880]">{p.provisionHint}</p>
@@ -314,7 +314,7 @@ export const ProvisionInviteWizard: React.FC = () => {
               key={id}
               type="button"
               onClick={() => setInviteType(id)}
-              className={`text-[10px] font-bold px-3 py-1.5 rounded-full ${inviteType === id ? 'bg-[#FF416C] text-white' : 'bg-gray-100 text-[#8C8880]'}`}
+              className={`text-[10px] font-bold px-3 py-1.5 rounded-full ${inviteType === id ? 'bg-brand text-white' : 'bg-gray-100 text-[#8C8880]'}`}
             >
               {label}
             </button>
@@ -373,7 +373,7 @@ export const ProvisionInviteWizard: React.FC = () => {
             <input className={`${inputClass} font-mono`} placeholder={p.usernameOptional} value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
             <input className={inputClass} placeholder={p.emailOptional} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <button type="button" disabled={busy || !singleReady || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
+          <button type="button" disabled={busy || !singleReady || (inviteType === 'staff' && !orgNodeId)} onClick={submitSingle} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
             {p.createInviteBtn}
           </button>
@@ -444,11 +444,11 @@ export const ProvisionInviteWizard: React.FC = () => {
               {p.addPerson}
             </button>
             {namedDrafts.length > 0 && (
-              <span className="text-[10px] font-bold text-[#FF416C]">{fmt(p.provisionN, { n: namedDrafts.length })}</span>
+              <span className="text-[10px] font-bold text-brand">{fmt(p.provisionN, { n: namedDrafts.length })}</span>
             )}
           </div>
           <p className="text-[10px] text-[#8C8880]">{p.afterInviteJemaat}</p>
-          <button type="button" disabled={busy || namedDrafts.length === 0} onClick={submitBulk} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF416C] text-white text-xs font-black uppercase disabled:opacity-50">
+          <button type="button" disabled={busy || namedDrafts.length === 0} onClick={submitBulk} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-xs font-black uppercase disabled:opacity-50">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
             {fmt(p.provisionN, { n: namedDrafts.length })}
           </button>
@@ -488,3 +488,4 @@ export const ProvisionInviteWizard: React.FC = () => {
     </div>
   );
 };
+

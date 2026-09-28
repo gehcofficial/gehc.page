@@ -130,7 +130,7 @@ export const KolomPanel: React.FC = () => {
       {active && (
         <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-[#FF416C]" />
+            <MapPin className="w-4 h-4 text-brand" />
             <h4 className="text-xs font-black uppercase tracking-wide">
               Kolom {active.number} · {active.name}
             </h4>
@@ -158,3 +158,4 @@ export const KolomPanel: React.FC = () => {
 };
 
 export default KolomPanel;
+

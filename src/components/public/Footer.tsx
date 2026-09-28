@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { MapPin, ArrowUpRight, ExternalLink, Mail, MessageCircle, Phone, Instagram, Facebook, Youtube, Music2 } from 'lucide-react';
@@ -175,10 +175,10 @@ export const Footer: React.FC = () => {
                 rel="noopener noreferrer"
                 className="pt-2 flex items-start gap-2 group hover:text-white transition-colors"
               >
-                <MapPin className="w-3.5 h-3.5 text-[#FF416C] mt-0.5 shrink-0" />
+                <MapPin className="w-3.5 h-3.5 text-brand mt-0.5 shrink-0" />
                 <span className="leading-snug text-[11px] text-white/60 group-hover:text-white/90 whitespace-pre-line">
                   {address}
-                  <span className="inline-flex items-center gap-1 ml-1 text-[#FF416C] font-bold">
+                  <span className="inline-flex items-center gap-1 ml-1 text-brand font-bold">
                     {t.footer.mapCta}
                     <ExternalLink className="w-3 h-3" />
                   </span>
@@ -196,7 +196,7 @@ export const Footer: React.FC = () => {
             </p>
             <button
               onClick={() => setActiveView('portal')}
-              className="w-full py-3 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-brand to-brand-end hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all"
             >
               <span>{t.footer.portalBtn}</span>
               <ArrowUpRight className="w-4 h-4" />
@@ -206,17 +206,17 @@ export const Footer: React.FC = () => {
               <div className="mt-5 flex flex-col gap-2 text-[11px]">
                 {email && (
                   <a href={`mailto:${email}`} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
-                    <Mail className="w-3.5 h-3.5 text-[#FF416C]" /> {email}
+                    <Mail className="w-3.5 h-3.5 text-brand" /> {email}
                   </a>
                 )}
                 {wa && (
                   <a href={wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
-                    <MessageCircle className="w-3.5 h-3.5 text-[#FF416C]" /> WhatsApp
+                    <MessageCircle className="w-3.5 h-3.5 text-brand" /> WhatsApp
                   </a>
                 )}
                 {phone && (
                   <a href={`tel:${phone.replace(/\s+/g, '')}`} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
-                    <Phone className="w-3.5 h-3.5 text-[#FF416C]" /> {phone}
+                    <Phone className="w-3.5 h-3.5 text-brand" /> {phone}
                   </a>
                 )}
               </div>
@@ -235,10 +235,11 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-white/40">
-          <p>© {new Date().getFullYear()} GMIM Eben Haezer Cikarang (GEHC). All rights reserved.</p>
+          <p>� {new Date().getFullYear()} GMIM Eben Haezer Cikarang (GEHC). All rights reserved.</p>
           <p className="italic">{t.footer.lineage}</p>
         </div>
       </div>
     </footer>
   );
 };
+

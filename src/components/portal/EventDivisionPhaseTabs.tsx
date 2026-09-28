@@ -225,7 +225,7 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
             <div key={sub} className="rounded-xl border border-[#EFEDE8] bg-[#FFFBF5] p-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-xs font-black text-[#1B1B1B] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#FF416C] shrink-0" />{sub}</p>
+                  <p className="text-xs font-black text-[#1B1B1B] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" />{sub}</p>
                   <p className="text-[11px] text-[#8C8880] leading-relaxed">{children.length ? `Drive: ${children.slice(0,3).join(' · ')}${children.length>3 ? ' …' : ''}` : ''}</p>
                 </div>
                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${PHASE_LABEL[phase].color}`}>{phase}</span>
@@ -285,7 +285,7 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
           <input
             type="text"
             placeholder={`Tulis update ${PHASE_LABEL[phase].label.toLowerCase()} untuk ${division}… (Enter kirim)`}
-            className="flex-1 text-xs px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]"
+            className="flex-1 text-xs px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand"
             onKeyDown={(e) => {
               const target = e.target as HTMLInputElement;
               if (e.key === 'Enter' && target.value.trim() && onPostUpdate) {
@@ -302,3 +302,4 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
     </div>
   );
 };
+

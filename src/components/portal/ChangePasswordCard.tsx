@@ -55,7 +55,7 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
   return (
     <div className="rounded-2xl border border-[#D9D7D0] bg-white p-5 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-[#FF416C]/10 text-[#FF416C] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center">
           <KeyRound className="w-5 h-5" />
         </div>
         <div>
@@ -117,3 +117,4 @@ export const ChangePasswordCard: React.FC<{ allowSkipCurrent?: boolean }> = ({ a
     </div>
   );
 };
+

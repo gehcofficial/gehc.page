@@ -525,7 +525,7 @@ export const EventWorkspacePanel: React.FC = () => {
       <div className="space-y-6">
         {/* Header */}
           <div className="flex items-start gap-4">
-          <button onClick={() => { setView('list'); setSelected(null); }} className="mt-1 text-[#8C8880] hover:text-[#FF416C] transition-colors">
+          <button onClick={() => { setView('list'); setSelected(null); }} className="mt-1 text-[#8C8880] hover:text-brand transition-colors">
             <ChevronRight className="w-5 h-5 rotate-180" />
           </button>
           <div className="flex-1 min-w-0">
@@ -775,7 +775,7 @@ export const EventWorkspacePanel: React.FC = () => {
             )}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setShowEdit(false)} className="text-xs px-3 py-2 rounded-xl text-[#8C8880]">Batal</button>
-              <button type="submit" disabled={savingEdit || !editForm.name.trim()} className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40">
+              <button type="submit" disabled={savingEdit || !editForm.name.trim()} className="text-xs px-3 py-2 rounded-xl bg-brand text-white font-bold disabled:opacity-40">
                 {savingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Simpan'}
               </button>
             </div>
@@ -828,7 +828,7 @@ export const EventWorkspacePanel: React.FC = () => {
                       type="button"
                       onClick={() => void addDivision(divName)}
                       disabled={addingDivision === divName}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FF416C] text-white text-[11px] font-bold disabled:opacity-40"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-brand text-white text-[11px] font-bold disabled:opacity-40"
                     >
                       {addingDivision === divName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                       {divName}
@@ -886,19 +886,19 @@ export const EventWorkspacePanel: React.FC = () => {
           </div>
           {showMeetingForm && (
             <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
-              <input type="text" placeholder="Judul rapat" value={meetingForm.title} onChange={(e) => setMeetingForm((f) => ({ ...f, title: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]" />
-              <input type="datetime-local" value={meetingForm.scheduledAt} onChange={(e) => setMeetingForm((f) => ({ ...f, scheduledAt: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]" />
-              <input type="text" placeholder="Link Google Meet (opsional)" value={meetingForm.gmeetLink} onChange={(e) => setMeetingForm((f) => ({ ...f, gmeetLink: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C]" />
-              <textarea placeholder="Catatan (opsional)" value={meetingForm.notes} onChange={(e) => setMeetingForm((f) => ({ ...f, notes: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[60px]" />
+              <input type="text" placeholder="Judul rapat" value={meetingForm.title} onChange={(e) => setMeetingForm((f) => ({ ...f, title: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />
+              <input type="datetime-local" value={meetingForm.scheduledAt} onChange={(e) => setMeetingForm((f) => ({ ...f, scheduledAt: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />
+              <input type="text" placeholder="Link Google Meet (opsional)" value={meetingForm.gmeetLink} onChange={(e) => setMeetingForm((f) => ({ ...f, gmeetLink: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />
+              <textarea placeholder="Catatan (opsional)" value={meetingForm.notes} onChange={(e) => setMeetingForm((f) => ({ ...f, notes: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand min-h-[60px]" />
               <label className="flex items-center gap-2 text-xs font-semibold text-[#5C5850]">
                 <input type="checkbox" checked={meetingForm.isJoint} onChange={(e) => setMeetingForm((f) => ({ ...f, isJoint: e.target.checked }))} className="w-4 h-4 rounded border-[#D9D7D0]" />
                 Rapat Petugas Ibadah (gabungan semua divisi)
               </label>
-              <textarea placeholder="Agenda petugas — satu per baris: Judul | PIC | deadline" value={meetingForm.agendaText} onChange={(e) => setMeetingForm((f) => ({ ...f, agendaText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[60px]" />
-              <textarea placeholder="Peserta (satu nama per baris)" value={meetingForm.attendeesText} onChange={(e) => setMeetingForm((f) => ({ ...f, attendeesText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-[#FF416C] min-h-[50px]" />
+              <textarea placeholder="Agenda petugas — satu per baris: Judul | PIC | deadline" value={meetingForm.agendaText} onChange={(e) => setMeetingForm((f) => ({ ...f, agendaText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand min-h-[60px]" />
+              <textarea placeholder="Peserta (satu nama per baris)" value={meetingForm.attendeesText} onChange={(e) => setMeetingForm((f) => ({ ...f, attendeesText: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand min-h-[50px]" />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowMeetingForm(false)} className="text-xs px-4 py-2 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200">Batal</button>
-                <button onClick={addMeeting} disabled={!meetingForm.title || !meetingForm.scheduledAt || posting} className="text-xs px-4 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40 hover:bg-[#FF416C]/90">
+                <button onClick={addMeeting} disabled={!meetingForm.title || !meetingForm.scheduledAt || posting} className="text-xs px-4 py-2 rounded-xl bg-brand text-white font-bold disabled:opacity-40 hover:bg-brand/90">
                   {posting ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Simpan'}
                 </button>
               </div>
@@ -1063,7 +1063,7 @@ export const EventWorkspacePanel: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowCreate(false)} className="text-xs px-3 py-2 rounded-xl text-[#8C8880]">Batal</button>
-                <button type="submit" disabled={creating || !createForm.name.trim() || createForm.divisions.length === 0} className="text-xs px-3 py-2 rounded-xl bg-[#FF416C] text-white font-bold disabled:opacity-40">
+                <button type="submit" disabled={creating || !createForm.name.trim() || createForm.divisions.length === 0} className="text-xs px-3 py-2 rounded-xl bg-brand text-white font-bold disabled:opacity-40">
                   {creating ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Buat event'}
                 </button>
               </div>
@@ -1081,10 +1081,10 @@ export const EventWorkspacePanel: React.FC = () => {
                 <button
                   key={ev.id}
                   onClick={() => openDetail(ev)}
-                  className="text-left rounded-2xl border border-[#D9D7D0] bg-white p-5 shadow-sm hover:shadow-md hover:border-[#FF416C]/30 transition-all group"
+                  className="text-left rounded-2xl border border-[#D9D7D0] bg-white p-5 shadow-sm hover:shadow-md hover:border-brand/30 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-2 gap-2">
-                    <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-[#FF416C] transition-colors line-clamp-1 flex-1">{ev.name}</h3>
+                    <h3 className="text-sm font-black text-[#1B1B1B] group-hover:text-brand transition-colors line-clamp-1 flex-1">{ev.name}</h3>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusColor(ev.status)}`}>
                       {ev.status}
                     </span>
@@ -1120,3 +1120,4 @@ export const EventWorkspacePanel: React.FC = () => {
     </div>
   );
 };
+

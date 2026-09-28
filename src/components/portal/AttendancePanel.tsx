@@ -144,7 +144,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
-            <CalendarCheck className="w-4 h-4 text-[#FF416C]" />
+            <CalendarCheck className="w-4 h-4 text-brand" />
             Absensi Mingguan — {groupName}
           </h3>
           <p className="text-[11px] text-[#8C8880] mt-0.5">
@@ -157,7 +157,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
             <button
               onClick={save}
               disabled={saving || loading}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Simpan
@@ -219,7 +219,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
               <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#D9D7D0] p-4 z-50 animate-fade-in">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-bold text-[#1B1B1B]">Pilih Anggota</span>
-                  <button onClick={selectAll} className="text-[11px] font-bold text-[#FF416C] hover:underline">
+                  <button onClick={selectAll} className="text-[11px] font-bold text-brand hover:underline">
                     {selectedMembers.size === members.length ? 'Batal Pilih' : 'Pilih Semua'}
                   </button>
                 </div>
@@ -234,7 +234,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
                         type="checkbox"
                         checked={selectedMembers.has(m.id)}
                         onChange={() => toggleMemberSelect(m.id)}
-                        className="w-4 h-4 rounded text-[#FF416C] focus:ring-0"
+                        className="w-4 h-4 rounded text-brand focus:ring-0"
                       />
                       <span className="text-xs font-medium text-[#1B1B1B] truncate">{m.name}</span>
                       {marks[m.id] && (
@@ -261,7 +261,7 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
                   <button
                     onClick={applyBulkStatus}
                     disabled={selectedMembers.size === 0}
-                    className="px-3 py-1.5 rounded-xl bg-[#FF416C] text-white text-xs font-bold disabled:opacity-40 hover:bg-[#FF416C]/90 transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-brand text-white text-xs font-bold disabled:opacity-40 hover:bg-brand/90 transition-colors flex items-center gap-1"
                   >
                     <Check className="w-3.5 h-3.5" />
                     Terapkan ({selectedMembers.size})
@@ -359,3 +359,4 @@ export const AttendancePanel: React.FC<Props> = ({ groupId, groupName, canWrite,
     </div>
   );
 };
+

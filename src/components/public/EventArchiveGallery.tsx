@@ -44,7 +44,7 @@ export const EventArchiveGallery: React.FC = () => {
   return (
     <section id="galeri-arsip" className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto border-t border-[#D9D7D0]/60">
       <div className="mb-6">
-        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FF416C]">
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-brand">
           {t.gallery.eyebrow}
         </span>
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B1B1B] font-display mt-1">
@@ -100,3 +100,4 @@ export const EventArchiveGallery: React.FC = () => {
     </section>
   );
 };
+

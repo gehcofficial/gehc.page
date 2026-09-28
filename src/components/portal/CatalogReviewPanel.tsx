@@ -620,7 +620,7 @@ export const CatalogReviewPanel: React.FC = () => {
                             aria-label={`Hapus ${leaf.name}`}
                             title="Hapus dari katalog"
                             onClick={() => deleteRec(leaf)}
-                            className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
+                            className="p-0.5 text-[#8C8880] hover:text-brand"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -682,7 +682,7 @@ export const CatalogReviewPanel: React.FC = () => {
                         aria-label={`Hapus ${i.name}`}
                         title="Hapus dari katalog"
                         onClick={() => deleteInst(i)}
-                        className="p-0.5 text-sky-700 hover:text-[#FF416C]"
+                        className="p-0.5 text-sky-700 hover:text-brand"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -779,7 +779,7 @@ export const CatalogReviewPanel: React.FC = () => {
                         aria-label={`Hapus ${t.abbr}`}
                         title={t.locked ? 'Hapus gelar inti (wajib ketik singkatan)' : 'Hapus dari katalog'}
                         onClick={() => deleteTitle(t)}
-                        className="p-0.5 text-[#8C8880] hover:text-[#FF416C]"
+                        className="p-0.5 text-[#8C8880] hover:text-brand"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -837,3 +837,4 @@ export const CatalogReviewPanel: React.FC = () => {
     </div>
   );
 };
+

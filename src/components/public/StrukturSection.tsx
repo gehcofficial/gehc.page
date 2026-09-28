@@ -18,7 +18,7 @@ const structuralNames = ['BPMJ', 'KOMISI', 'LITURGIA', 'DIDASKALIA', 'KOINONIA',
 // Warna per divisi struktur (BPMJ, Komisi, dll)
 const STRUCTURAL_COLORS = {
   BPMJ: '#ED8936',
-  KOMISI: '#FF416C',
+  KOMISI: 'var(--color-brand)',
   LITURGIA: '#7C3AED',
   DIDASKALIA: '#0EA5E9',
   KOINONIA: '#059669',
@@ -232,7 +232,7 @@ export const OrgTreeSection: React.FC = () => {
   return (
     <section className="max-w-[1200px] mx-auto space-y-4">
       <div className="flex items-center gap-2 mb-6">
-        <span className="w-8 h-1 rounded-full bg-[#FF416C]" />
+        <span className="w-8 h-1 rounded-full bg-brand" />
         <h3 className="text-lg sm:text-xl font-bold text-[#1B1B1B]">{t.orgTree.heading}</h3>
       </div>
 
@@ -271,8 +271,8 @@ export const OrgTreeSection: React.FC = () => {
       </div>
 
       {/* Level 2: Komisi Pemuda */}
-      <div className="rounded-3xl border-2 border-[#FF416C]/25 bg-white p-5">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-3">
+      <div className="rounded-3xl border-2 border-brand/25 bg-white p-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-3">
           {t.orgTree.komisiTitle}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -345,8 +345,8 @@ export const OrgTreeSection: React.FC = () => {
       </div>
 
       {/* Beyonders note — kelompok mentoring (detail di navbar #/beyonders) */}
-      <div className="mt-6 p-4 rounded-[20px] border border-[#FF416C]/25 bg-white">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C] mb-1">
+      <div className="mt-6 p-4 rounded-[20px] border border-brand/25 bg-white">
+        <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-1">
           {t.orgTree.beyondersTitle}
         </p>
         <p className="text-[11px] text-[#8C8880] leading-relaxed">{t.orgTree.beyondersNote}</p>

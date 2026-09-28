@@ -105,7 +105,7 @@ export const EventProfileCompleteCard: React.FC<{
   return (
     <form onSubmit={submit} className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-6 space-y-4">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#FF416C]">Lengkapi profil</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-brand">Lengkapi profil</p>
         <p className="text-xs text-[#8C8880] mt-1 leading-relaxed">
           Gender, asal daerah (termasuk Sulut / luar Sulut), dan domisili. Dipakai ulang untuk acara berikutnya.
         </p>
@@ -193,3 +193,4 @@ export const EventProfileCompleteCard: React.FC<{
     </form>
   );
 };
+

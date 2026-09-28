@@ -76,7 +76,7 @@ export const PortalWelcomeModal: React.FC = () => {
     };
     return shell(
       <>
-        <div className="bg-gradient-to-br from-[#FF416C] to-[#E94057] px-5 py-4 text-white">
+        <div className="bg-gradient-to-br from-brand to-[#E94057] px-5 py-4 text-white">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
             <p className="text-sm font-black">Selamat datang di portal GEHC</p>
@@ -91,21 +91,21 @@ export const PortalWelcomeModal: React.FC = () => {
           </p>
           <ul className="space-y-2">
             <li className="flex items-start gap-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] px-3 py-2.5">
-              <AtSign className="w-4 h-4 text-[#FF416C] shrink-0 mt-0.5" />
+              <AtSign className="w-4 h-4 text-brand shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-bold text-[#1B1B1B]">Username</p>
-                <p className="text-[11px] font-mono text-[#FF416C]">{authUser.loginUsername || '—'}</p>
+                <p className="text-[11px] font-mono text-brand">{authUser.loginUsername || '—'}</p>
               </div>
             </li>
             <li className="flex items-start gap-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] px-3 py-2.5">
-              <KeyRound className="w-4 h-4 text-[#FF416C] shrink-0 mt-0.5" />
+              <KeyRound className="w-4 h-4 text-brand shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-bold text-[#1B1B1B]">Password</p>
                 <p className="text-[11px] text-[#8C8880]">Pakai password yang diberikan admin (sudah diganti jika diminta).</p>
               </div>
             </li>
             <li className="flex items-start gap-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] px-3 py-2.5">
-              <UserCheck className="w-4 h-4 text-[#FF416C] shrink-0 mt-0.5" />
+              <UserCheck className="w-4 h-4 text-brand shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-bold text-[#1B1B1B]">Google (opsional)</p>
                 <p className="text-[11px] text-[#8C8880]">Tautkan nanti di Akun → Keamanan. Password tetap jadi cadangan.</p>
@@ -174,3 +174,4 @@ export const PortalWelcomeModal: React.FC = () => {
     </>,
   );
 };
+

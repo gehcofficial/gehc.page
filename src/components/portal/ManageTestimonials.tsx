@@ -172,7 +172,7 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-[32px] p-6 sm:p-8 border border-[#D9D7D0]/50 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-            <MessageSquareQuote className="w-3.5 h-3.5 text-[#FF416C]" />
+            <MessageSquareQuote className="w-3.5 h-3.5 text-brand" />
             <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
               {variant === 'curate' ? 'Kesaksian & Story' : 'Landing Collage'}
             </span>
@@ -241,7 +241,7 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
                           <button
                             type="button"
                             onClick={() => void useForPost(item)}
-                            className="px-2 py-1 rounded-lg bg-pink-50 text-[#FF416C] text-[10px] font-bold"
+                            className="px-2 py-1 rounded-lg bg-pink-50 text-brand text-[10px] font-bold"
                             title="Tandai review dan salin kutipan untuk posting"
                           >
                             Pakai posting
@@ -403,3 +403,4 @@ export const ManageTestimonials: React.FC<{ variant?: 'cms' | 'curate' }> = ({ v
 };
 
 export default ManageTestimonials;
+

@@ -122,16 +122,16 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
       {isGroupMentor && (
         <a
           href="#/pitch-mentor"
-          className="flex items-center gap-2 rounded-2xl border border-[#D9D7D0] bg-white px-4 py-3 text-xs font-bold text-[#1B1B1B] hover:border-[#FF416C] transition-colors"
+          className="flex items-center gap-2 rounded-2xl border border-[#D9D7D0] bg-white px-4 py-3 text-xs font-bold text-[#1B1B1B] hover:border-brand transition-colors"
         >
-          <BookOpen className="w-4 h-4 text-[#FF416C] shrink-0" />
+          <BookOpen className="w-4 h-4 text-brand shrink-0" />
           <span>Panduan Mentor &amp; Co-Mentor — cara kerja regenerasi, penempatan anggota baru, dan fitur portal</span>
           <ArrowRight className="w-3.5 h-3.5 ml-auto shrink-0" />
         </a>
       )}
 
       <div className="bg-gradient-to-r from-[#181818] via-[#222222] to-[#181818] rounded-[32px] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-white/10">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-[#FF416C]/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-brand/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -145,7 +145,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
               {fmt(t.portal.dashboard.greeting, { name: currentUser.name })}
             </h2>
             <p className="text-xs sm:text-sm text-white/70 max-w-xl">
-              Hak akses aktif Anda adalah <strong className="text-[#FF416C] uppercase">{currentRole}</strong>.
+              Hak akses aktif Anda adalah <strong className="text-brand uppercase">{currentRole}</strong>.
               {isGroupScoped && assignedGroup && (
                 <span> Kelompok <strong>{assignedGroup.name}</strong>.</span>
               )}
@@ -156,7 +156,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
             {showContentCta && (
               <button
                 onClick={() => onNavigate('content-weekly')}
-                className="px-4 py-2.5 rounded-full bg-[#FF416C] hover:bg-[#FF4B2B] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                className="px-4 py-2.5 rounded-full bg-brand hover:bg-brand-end text-white text-xs font-bold transition-all shadow-md flex items-center gap-2"
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>+ Buat Warta Baru</span>
@@ -262,7 +262,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
               <div className="bg-white rounded-3xl p-6 border border-[#D9D7D0]/50 shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Agenda Aktif</span>
-                  <div className="w-9 h-9 rounded-2xl bg-pink-50 text-[#FF416C] flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-2xl bg-pink-50 text-brand flex items-center justify-center">
                     <Calendar className="w-4 h-4" />
                   </div>
                 </div>
@@ -303,7 +303,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#D9D7D0]/40">
             <div>
               <h3 className="text-lg font-bold text-[#1B1B1B] flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#FF416C]" />
+                <TrendingUp className="w-4 h-4 text-brand" />
                 {isGroupScoped
                   ? `Monitoring — ${assignedGroup?.name || 'Kelompok'}`
                   : 'Status Monitoring 10 Kelompok Sel Pemuda'}
@@ -318,7 +318,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
             {showMonitoringCta && (
               <button
                 onClick={() => onNavigate('groups-monitoring')}
-                className="text-xs font-bold text-[#1B1B1B] hover:text-[#FF416C] flex items-center gap-1 transition-colors self-start sm:self-auto"
+                className="text-xs font-bold text-[#1B1B1B] hover:text-brand flex items-center gap-1 transition-colors self-start sm:self-auto"
               >
                 <span>Buka Modul Monitoring Lengkap</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -412,7 +412,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-6 rounded-[28px] bg-white border border-[#D9D7D0]/50 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF416C] to-[#FF4B2B] text-white flex items-center justify-center shadow-md">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand to-brand-end text-white flex items-center justify-center shadow-md">
                 <FolderSync className="w-5 h-5" />
               </div>
               <div>
@@ -454,3 +454,4 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
     </div>
   );
 };
+

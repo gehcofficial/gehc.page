@@ -96,7 +96,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-medium text-left focus:outline-none focus:border-[#FF416C] disabled:opacity-50"
+        className="w-full flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-medium text-left focus:outline-none focus:border-brand disabled:opacity-50"
       >
         <Calendar className="w-4 h-4 text-[#8C8880] shrink-0" />
         <span className={value ? 'text-[#1B1B1B]' : 'text-[#8C8880]'}>
@@ -145,9 +145,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   disabled={isDisabled}
                   className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
                     isSelected
-                      ? 'bg-[#FF416C] text-white'
+                      ? 'bg-brand text-white'
                       : isToday
-                      ? 'bg-[#FAF9F5] text-[#FF416C] border border-[#FF416C]/30'
+                      ? 'bg-[#FAF9F5] text-brand border border-brand/30'
                       : isDisabled
                       ? 'text-gray-300 cursor-not-allowed'
                       : 'hover:bg-[#FAF9F5] text-[#1B1B1B]'
@@ -168,7 +168,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 onChange(formatDate(t.getFullYear(), t.getMonth(), t.getDate()));
                 setIsOpen(false);
               }}
-              className="text-[11px] font-bold text-[#FF416C] hover:underline"
+              className="text-[11px] font-bold text-brand hover:underline"
             >
               Hari Ini
             </button>
@@ -178,3 +178,4 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     </div>
   );
 };
+

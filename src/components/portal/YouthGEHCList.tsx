@@ -91,8 +91,8 @@ function InlineBulkAssignPanel({
   className?: string;
 }) {
   return (
-    <div className={`rounded-2xl border border-[#FF416C]/25 bg-[#FF416C]/5 p-3 space-y-2 ${className}`}>
-      <p className="text-[10px] font-black uppercase tracking-wider text-[#FF416C]">
+    <div className={`rounded-2xl border border-brand/25 bg-brand/5 p-3 space-y-2 ${className}`}>
+      <p className="text-[10px] font-black uppercase tracking-wider text-brand">
         Assign di baris ini · {selectedCount} dipilih
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -126,7 +126,7 @@ function InlineBulkAssignPanel({
           type="button"
           disabled={bulkBusy || !bulkGroupId}
           onClick={onAssign}
-          className="px-3 py-2 rounded-xl bg-[#FF416C] text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
+          className="px-3 py-2 rounded-xl bg-brand text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center gap-1"
         >
           {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
           Assign ({selectedCount})
@@ -989,7 +989,7 @@ export const YouthGEHCList: React.FC = () => {
           <button
             type="button"
             onClick={(e) => openAssignWizard(y, e.currentTarget)}
-            className="p-2 rounded-xl bg-[#FF416C]/10 hover:bg-[#FF416C]/20 text-[#FF416C] shrink-0 transition-colors"
+            className="p-2 rounded-xl bg-brand/10 hover:bg-brand/20 text-brand shrink-0 transition-colors"
             title="Assign Role"
           >
             <Edit2 className="w-3.5 h-3.5" />
@@ -1037,7 +1037,7 @@ export const YouthGEHCList: React.FC = () => {
               <button
                 type="button"
                 onClick={(e) => openAssignWizard(y, e.currentTarget)}
-                className="w-full py-2 rounded-xl border border-dashed border-[#FF416C]/40 text-[10px] font-bold text-[#FF416C] hover:bg-[#FF416C]/5"
+                className="w-full py-2 rounded-xl border border-dashed border-brand/40 text-[10px] font-bold text-brand hover:bg-brand/5"
               >
                 Tambah role
               </button>
@@ -1082,7 +1082,7 @@ export const YouthGEHCList: React.FC = () => {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] mb-2">
-              <Users className="w-3.5 h-3.5 text-[#FF416C]" />
+              <Users className="w-3.5 h-3.5 text-brand" />
               <span className="text-[11px] font-bold text-[#8C8880] uppercase tracking-wider">
                 Jemaat · {mainCounts.ALL} orang
               </span>
@@ -1160,7 +1160,7 @@ export const YouthGEHCList: React.FC = () => {
             key={t.id || 'all'}
             onClick={() => setBipraFilter(t.id)}
             className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
-              bipraFilter === t.id ? 'bg-[#FF416C] text-white' : 'bg-[#F3F1EC] text-[#8C8880]'
+              bipraFilter === t.id ? 'bg-brand text-white' : 'bg-[#F3F1EC] text-[#8C8880]'
             }`}
           >
             {t.label}
@@ -1251,7 +1251,7 @@ export const YouthGEHCList: React.FC = () => {
           type="button"
           onClick={() => setBirthdayFilter((v) => !v)}
           className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
-            birthdayFilter ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'
+            birthdayFilter ? 'bg-brand text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'
           }`}
         >
           Ulang tahun 30 hari
@@ -1302,8 +1302,8 @@ export const YouthGEHCList: React.FC = () => {
               onClick={() => setSubFilter(subFilter === sf.key ? null : sf.key)}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold whitespace-nowrap transition-all shrink-0 ${
                 subFilter === sf.key
-                  ? 'bg-[#FF416C] text-white'
-                  : 'bg-white border border-[#D9D7D0] text-[#8C8880] hover:border-[#FF416C]/40'
+                  ? 'bg-brand text-white'
+                  : 'bg-white border border-[#D9D7D0] text-[#8C8880] hover:border-brand/40'
               }`}
             >
               {sf.label}
@@ -1322,7 +1322,7 @@ export const YouthGEHCList: React.FC = () => {
         <p className="text-[10px] font-bold text-[#8C8880]">
           Menampilkan {displayed.length} dari {mainCounts.ALL} anggota
           {mainFilter !== 'ALL' && (
-            <button onClick={() => setMainFilter('ALL')} className="ml-2 text-[#FF416C] hover:underline">
+            <button onClick={() => setMainFilter('ALL')} className="ml-2 text-brand hover:underline">
               Reset filter
             </button>
           )}
@@ -1331,7 +1331,7 @@ export const YouthGEHCList: React.FC = () => {
           <button
             type="button"
             onClick={() => setPlacementOnly((v) => !v)}
-            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${placementOnly ? 'bg-[#FF416C] text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'}`}
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${placementOnly ? 'bg-brand text-white' : 'bg-white border border-[#D9D7D0] text-[#8C8880]'}`}
             title="Pemuda aktif yang belum punya kelompok binaan"
           >
             Perlu penempatan
@@ -1349,12 +1349,12 @@ export const YouthGEHCList: React.FC = () => {
               <button
                 type="button"
                 onClick={selectDisplayed}
-                className="text-[10px] font-bold text-[#8C8880] hover:text-[#FF416C]"
+                className="text-[10px] font-bold text-[#8C8880] hover:text-brand"
               >
                 Pilih tampilan
               </button>
               {selectedIds.size > 0 && (
-                <button type="button" onClick={clearSelection} className="text-[10px] font-bold text-[#FF416C]">
+                <button type="button" onClick={clearSelection} className="text-[10px] font-bold text-brand">
                   Hapus pilihan ({selectedIds.size})
                 </button>
               )}
@@ -1476,7 +1476,7 @@ export const YouthGEHCList: React.FC = () => {
                           </span>
                           <button
                             onClick={() => openEditModal(member.user)}
-                            className="p-1.5 rounded-lg hover:bg-[#FF416C]/10 text-[#FF416C]"
+                            className="p-1.5 rounded-lg hover:bg-brand/10 text-brand"
                             title="Edit profil"
                           >
                             <Pencil className="w-3 h-3" />
@@ -1484,7 +1484,7 @@ export const YouthGEHCList: React.FC = () => {
                           <button
                             type="button"
                             onClick={(e) => openAssignWizard(member.user, e.currentTarget)}
-                            className="p-1.5 rounded-lg hover:bg-[#FF416C]/10 text-[#FF416C]"
+                            className="p-1.5 rounded-lg hover:bg-brand/10 text-brand"
                             title="Assign Role"
                           >
                             <Edit2 className="w-3 h-3" />
@@ -1632,7 +1632,7 @@ export const YouthGEHCList: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => { setAddingKey(kindKey); setAddingName(''); }}
-                            className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#FF416C]"
+                            className="inline-flex items-center gap-0.5 text-[9px] font-bold text-brand"
                           >
                             <Plus className="w-3 h-3" /> Subkategori
                           </button>
@@ -1666,7 +1666,7 @@ export const YouthGEHCList: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => { setAddingKey(catKey); setAddingName(''); }}
-                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#8C8880] hover:text-[#FF416C]"
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#8C8880] hover:text-brand"
                                 >
                                   <Plus className="w-3 h-3" /> Item
                                 </button>
@@ -1855,7 +1855,7 @@ export const YouthGEHCList: React.FC = () => {
                   <div key={c.userId} className="rounded-xl bg-[#FAF9F5] px-3 py-2 text-[11px]">
                     <p className="font-bold text-[#1B1B1B]">{c.name}</p>
                     <p className="text-[#8C8880]">{c.email}</p>
-                    <p className="font-mono text-[#FF416C]">{c.temporaryPassword}</p>
+                    <p className="font-mono text-brand">{c.temporaryPassword}</p>
                   </div>
                 ))
               )}

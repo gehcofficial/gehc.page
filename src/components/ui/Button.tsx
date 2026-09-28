@@ -3,7 +3,7 @@ import React from 'react';
 type ButtonVariant = 'primary' | 'ghost' | 'dark' | 'pill';
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-gradient-to-r from-brand to-[#FF4B2B] text-white hover:opacity-95',
+  primary: 'bg-gradient-to-r from-brand to-brand-end text-white hover:opacity-95',
   ghost: 'bg-white/15 hover:bg-white/25 text-white border border-white/20',
   dark: 'bg-black-block hover:bg-black text-white',
   pill: 'bg-page text-ink hover:bg-panel border border-line',
@@ -19,3 +19,4 @@ export const Button: React.FC<
     {children}
   </button>
 );
+

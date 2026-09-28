@@ -55,7 +55,7 @@ export const GroupPrayerNotes: React.FC<{ groupId: string; compact?: boolean; on
     }
   };
 
-  if (loading) return <p className="text-xs text-[#8C8880] flex items-center gap-2"><span className="w-3 h-3 border-2 border-[#FF416C] border-t-transparent rounded-full animate-spin inline-block" /> Memuat catatan doa…</p>;
+  if (loading) return <p className="text-xs text-[#8C8880] flex items-center gap-2"><span className="w-3 h-3 border-2 border-brand border-t-transparent rounded-full animate-spin inline-block" /> Memuat catatan doa…</p>;
   if (!notes.length) return <p className="text-xs text-[#8C8880]">Belum ada catatan doa untuk anggota kelompok ini.</p>;
 
   return (
@@ -94,3 +94,4 @@ export const GroupPrayerNotes: React.FC<{ groupId: string; compact?: boolean; on
     </div>
   );
 };
+

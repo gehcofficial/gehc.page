@@ -83,7 +83,7 @@ export const ProfileRecreationalSection: React.FC<{
               <button
                 type="button"
                 onClick={() => { setSuggestKey(kindKey); setSuggestName(''); }}
-                className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#FF416C]"
+                className="inline-flex items-center gap-0.5 text-[9px] font-bold text-brand"
               >
                 <Plus className="w-3 h-3" /> Lainnya…
               </button>
@@ -118,7 +118,7 @@ export const ProfileRecreationalSection: React.FC<{
                     <button
                       type="button"
                       onClick={() => { setSuggestKey(catKey); setSuggestName(''); }}
-                      className="text-[9px] font-bold text-[#8C8880] hover:text-[#FF416C]"
+                      className="text-[9px] font-bold text-[#8C8880] hover:text-brand"
                     >
                       Lainnya…
                     </button>
@@ -183,3 +183,4 @@ export const ProfileRecreationalSection: React.FC<{
     </div>
   );
 };
+

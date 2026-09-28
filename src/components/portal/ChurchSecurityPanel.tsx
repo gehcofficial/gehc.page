@@ -82,7 +82,7 @@ export const ChurchSecurityPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="rounded-[24px] bg-white border border-[#D9D7D0] p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-[#FF416C]" />
+          <ShieldAlert className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-black uppercase tracking-wide">Keamanan (Panji Yosua)</h3>
         </div>
 
@@ -134,3 +134,4 @@ export const ChurchSecurityPanel: React.FC = () => {
 };
 
 export default ChurchSecurityPanel;
+

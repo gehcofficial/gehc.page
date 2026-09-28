@@ -179,14 +179,14 @@ export const AnnouncementComposer: React.FC = () => {
     return <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-white p-6 text-sm text-[#8C8880]">Peran Anda tidak memiliki izin mengirim pengumuman.</div>;
   }
 
-  const chip = (active: boolean) => `px-2.5 py-1 rounded-full text-[10px] font-bold border ${active ? 'bg-[#FF416C] text-white border-[#FF416C]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`;
+  const chip = (active: boolean) => `px-2.5 py-1 rounded-full text-[10px] font-bold border ${active ? 'bg-brand text-white border-brand' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`;
   const scopedDivisions = caps.scopeDivision ? [caps.scopeDivision] : DIVISIONS;
 
   return (
     <div className="space-y-6">
       <div className="rounded-[28px] border border-[#D9D7D0]/60 bg-white p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Megaphone className="w-4 h-4 text-[#FF416C]" />
+          <Megaphone className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-black text-[#1B1B1B]">Buat Pengumuman</h3>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">Dari: {caps.role}</span>
         </div>
@@ -264,7 +264,7 @@ export const AnnouncementComposer: React.FC = () => {
             type="button"
             onClick={() => void submit()}
             disabled={sending || !form.title.trim() || !audienceReady}
-            className="ml-auto inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#FF416C] text-white text-xs font-bold disabled:opacity-40"
+            className="ml-auto inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand text-white text-xs font-bold disabled:opacity-40"
           >
             {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             {form.scheduled ? 'Jadwalkan' : 'Kirim sekarang'}
@@ -302,3 +302,4 @@ export const AnnouncementComposer: React.FC = () => {
     </div>
   );
 };
+

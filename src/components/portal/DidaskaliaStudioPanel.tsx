@@ -1027,7 +1027,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold disabled:opacity-50">
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
               </button>
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Tahap 2: perkaya draf dengan diskusi internal tim">
@@ -1153,7 +1153,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           {/* Ringkasan Khotbah + slide */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <Presentation className="w-4 h-4 text-[#FF416C]" />
+              <Presentation className="w-4 h-4 text-brand" />
               <h4 className="text-sm font-black text-[#1B1B1B]">Ringkasan Khotbah & Kerangka Slide</h4>
             </div>
             <div><label className={labelCls}>Metode</label><input value={(studio.sermon?.methods || []).join(', ')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, methods: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } }))} className={inputCls} /></div>
@@ -1338,7 +1338,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                     type="button"
                     disabled={!canWrite || busy === 'ai-image' || aiImages.length >= 3}
                     onClick={() => void generateAiCover()}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] text-white text-xs font-bold disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50"
                   >
                     {busy === 'ai-image' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Generate gambar cover (AI)
                   </button>
@@ -1448,3 +1448,4 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 };
+

@@ -92,7 +92,7 @@ export const OrgSlotPicker: React.FC<{
   return (
     <div className="rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <Building className="w-4 h-4 text-[#FF416C]" />
+        <Building className="w-4 h-4 text-brand" />
         <span className="text-[10px] font-bold text-[#8C8880] uppercase tracking-wider">Slot posisi organisasi</span>
         {treeLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
       </div>
@@ -180,3 +180,4 @@ export const OrgSlotPicker: React.FC<{
     </div>
   );
 };
+

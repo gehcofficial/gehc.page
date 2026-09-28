@@ -30,7 +30,7 @@ const fileUrl = (a: WartaAttachment) => (a.kind === 'FILE' ? `/api/internal-wart
 const kb = (n?: number) => (n ? `${Math.round(n / 1024)} KB` : '');
 
 const labelCls = 'block text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mb-1';
-const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#FF416C]';
+const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm focus:outline-none focus:ring-1 focus:ring-brand';
 
 /** Info & Peluang — warta internal (login-only). Feed + admin editor. */
 export const InternalWartaPanel: React.FC = () => {
@@ -458,3 +458,4 @@ const EditorModal: React.FC<{ initial: Warta | null; onClose: () => void; onSave
 };
 
 export default InternalWartaPanel;
+
