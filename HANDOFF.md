@@ -1,5 +1,42 @@
 # GEHC Portal — Handoff
 
+## Current — F5.2: Segmen hari-H + catatan peserta + simulasi 3 lantai (staging) (29 Sep 2026)
+
+**Latar:** hasil simulasi pemilik — timer/segmen perlu dipisah, arah ruangan harus jelas, peserta butuh catatan (bisa jadi PDF), dan Lesson Learned baru muncul setelah 20 menit + tautan ke layar proyektor.
+
+**Skema/migrasi:** `worship_notes` (`session_id`, `user_id`, `topic_code` = HUBUNGAN|PEKERJAAN|KELUARGA|KESIMPULAN, `content`; unik per sesi+user+topik) — `server/_migrate-worship-notes.cjs`, npm `db:migrate:worship-notes[:staging|:prod]`.
+
+**API (`server/routes/worship.mjs`):**
+- `PUT /api/worship/notes` (upsert; konten kosong = hapus) + `notes` di `GET /api/worship/session/:slug`.
+- **Auto-wrapup** lazy (`ensureAutoState`): `RUNNING` + waktu habis → `WRAPUP` pada pembacaan state (peserta/layar/detail admin).
+- `PUT /state` + aksi **`extend`** (`+5 menit`, clamp 60–1800 s; membatalkan WRAPUP bila sudah lewat).
+- Detail admin menyertakan **catatan peserta** (untuk role penulis) + `export.csv` menambah kolom `Catatan_<TOPIK>` & `Kesimpulan`.
+- Payload peserta menambah `me`, `notes`, `rooms[].rank`, `progress`.
+
+**Peserta (`MentoringDay.tsx` → 4 segmen + `SegmentStepper.tsx`):** Likert → **Arah Pos** (prioritas + **rute berurutan** + progres `n/total` + “menunggu aba-aba panitia” + pesan lanjut lantai berikutnya) → **Kunjungan & Catatan** (timer besar, catatan 3 pos + kesimpulan dengan **auto-save batch**, tombol **Unduh PDF rekap**) → **Lesson Learned** (chip, afirmasi, **“Lihat layar utama”** ke `.../layar`, PDF). Auto-lompat segmen idempoten (tidak pernah menarik mundur).
+
+**PDF:** `src/lib/mentoringPdf.ts` (jsPDF deterministik) — identitas, prioritas+lantai, tabel Likert, catatan, chip.
+
+**Kontrol:** tombol **+5 menit**; Start menampilkan konfirmasi `n/total` bila belum penuh; panel **Catatan peserta**.
+
+**Simulasi:** `scripts/worship-sim.mjs` (npm `worship:sim`, `worship:sim:reset`) — driver HTTP staging (Basic Auth dari `.env`), menyalin soal/chip dari template `mentoring-2026-10-04`, distribusi dominasi PEKERJAAN 40% / HUBUNGAN 35% / KELUARGA 25%, mode `final` (sampai CLOSED) + `live` (dibiarkan RUNNING). Guard menolak host produksi kecuali `--force`.
+
+**Hasil simulasi staging (60 peserta):**
+- `demo-mentoring-3-lantai-final` — **CLOSED**, 60/60 Likert, 42 peserta beri catatan (96 baris), 39 kirim chip. Ranking: **Lantai 2 Pekerjaan (24)**, **Lantai 1 Hubungan (21)**, **Lantai 3 Keluarga (15)**. Top chip: `#BebasValidasi(19)`, `#Integritas(19)`, `#BukanHustleCulture(14)`.
+- `demo-mentoring-3-lantai-live` — **RUNNING**, 36/60 terisi (layar proyektor menampilkan timer + progres + word cloud parsial).
+
+**Verifikasi:** `lint` bersih ✓ **613 test** hijau (+6) ✓ `build` OK ✓ E2E lokal 4 segmen (Likert → arah+progres → kunjungan+catatan auto-save → lesson+chip+tautan layar) ✓ PDF terunduh (9,9 kB) ✓ staging: live/CLOSED via API ✓
+
+**Docs:** [`docs/product/worship-patterns.md`](docs/product/worship-patterns.md) (katalog pola, modul, alur, API, simulasi).
+
+### Next
+1. Tinjau staging: control room sesi demo (`.../kontrol`) + layar (`.../layar`, kode dari panel).
+2. Isi sesi asli 4 Okt (`mentoring-2026-10-04`, sudah DRAFT + 9 soal + 12 chip).
+3. Migrasi prod (`db:migrate:worship-notes:prod`) + merge ke `main` bila sudah OK.
+4. Modul pola berikutnya: `DEBAT` (rounds), `BEDAH_FILM` (screening), `THREE_SEQUENCES` (teams).
+5. Bersihkan data demo kapan pun: `npm run worship:sim:reset`.
+
+
 ## Current — F5: Pola Ibadah & Mentoring Day (Didaskalia) — staging review (29 Sep 2026)
 
 **Tujuan:** katalog **pola ibadah** (skenario siap pakai) di Didaskalia + sesi hari-H ber-*modul web* yang diakses Pemuda/Beyonders lewat routing khusus `#/mentoring/<slug>`.

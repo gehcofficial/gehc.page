@@ -31,6 +31,7 @@ const RESET = Boolean(flag('reset', false));
 const FORCE = Boolean(flag('force', false));
 const ADMIN_EMAIL = String(flag('admin', 'tech@gehc.demo'));
 const PASSWORD = String(flag('password', 'password123'));
+const TEMPLATE_SLUG = String(flag('template', 'mentoring-2026-10-04'));
 const SLUG_FINAL = 'demo-mentoring-3-lantai-final';
 const SLUG_LIVE = 'demo-mentoring-3-lantai-live';
 const PREFIX = 'demo-mentoring-3-lantai';
@@ -204,7 +205,8 @@ async function loadParticipants(limit) {
     `SELECT u.id, u.name, u.email
        FROM users u
        JOIN user_roles r ON r.user_id = u.id
-      WHERE u.email LIKE '%@gehc.demo' AND r.role IN ('MENTEE','CO_MENTOR','MENTOR')
+      WHERE u.email LIKE '%@gehc.demo' AND u.password_hash IS NOT NULL
+        AND r.role IN ('MENTEE','CO_MENTOR','MENTOR')
       GROUP BY u.id, u.name, u.email
       ORDER BY u.email
       LIMIT ?`,
@@ -213,6 +215,16 @@ async function loadParticipants(limit) {
   await conn.end();
   if (!rows.length) throw new Error('Tidak ada akun @gehc.demo di DB ini.');
   return rows;
+}
+
+const loginCache = new Map();
+/** Login sekali per peserta, pakai ulang cookie sesi di semua fase. */
+async function clientFor(email) {
+  if (loginCache.has(email)) return loginCache.get(email);
+  const c = new Client(email);
+  await c.post('/api/auth/local', { login: email, password: PASSWORD });
+  loginCache.set(email, c);
+  return c;
 }
 
 async function resetDemoSessions() {
@@ -251,22 +263,58 @@ async function ensureSession(admin, { slug, title, expectedCount, timerSeconds }
   const patterns = await admin.get('/api/worship/patterns');
   const pattern = (patterns.patterns || []).find((p) => p.code === 'POST_TO_POST');
   if (!pattern) throw new Error('Pola POST_TO_POST tidak ditemukan.');
+
+  const template = await admin
+    .get(`/api/worship/sessions/${TEMPLATE_SLUG}`)
+    .catch(() => null);
+  const templateConfig = template?.session?.config || {};
+
   const sessions = await admin.get('/api/worship/sessions');
-  let existing = (sessions.sessions || []).find((s) => s.slug === slug);
+  let existing = (sessions.sessions || []).find((x) => x.slug === slug);
   if (!existing) {
     const created = await admin.post('/api/worship/sessions', {
       patternCode: 'POST_TO_POST',
       slug,
       title,
       sessionDate: '2026-10-04',
-      config: { expectedCount, timerSeconds },
+      config: { ...templateConfig, timerSeconds, expectedCount },
     });
     existing = created.session;
     console.log(`  sesi dibuat: ${slug} (kode ${existing.accessCode})`);
   } else {
     console.log(`  sesi dipakai ulang: ${slug}`);
   }
-  const detail = await admin.get(`/api/worship/sessions/${existing.id}`);
+
+  let detail = await admin.get(`/api/worship/sessions/${existing.id}`);
+  if (!detail.session.config?.topics?.length && templateConfig.topics?.length) {
+    await admin.put(`/api/worship/sessions/${existing.id}`, {
+      config: { ...templateConfig, timerSeconds, expectedCount },
+    });
+    detail = await admin.get(`/api/worship/sessions/${existing.id}`);
+  }
+  if (!(detail.likertItems || []).length && template?.likertItems?.length) {
+    for (const item of template.likertItems) {
+      await admin.post(`/api/worship/sessions/${existing.id}/likert-items`, {
+        topicCode: item.topicCode,
+        text: item.text,
+        gospelNote: item.gospelNote,
+        sortOrder: item.sortOrder,
+      });
+    }
+    console.log(`  soal disalin dari ${TEMPLATE_SLUG}: ${template.likertItems.length}`);
+  }
+  if (!(detail.chips || []).length && template?.chips?.length) {
+    for (const chip of template.chips) {
+      await admin.post(`/api/worship/sessions/${existing.id}/chips`, {
+        code: chip.code,
+        label: chip.label,
+        topicCode: chip.topicCode,
+        sortOrder: chip.sortOrder,
+      });
+    }
+    console.log(`  chip disalin dari ${TEMPLATE_SLUG}: ${template.chips.length}`);
+  }
+  detail = await admin.get(`/api/worship/sessions/${existing.id}`);
   return { id: existing.id, slug, detail };
 }
 
@@ -274,9 +322,10 @@ async function main() {
   console.log(`▶ Simulasi Mentoring Day — base ${BASE} · peserta ${PARTICIPANTS} · mode ${MODE}`);
   assertSafeBase();
 
+  const modeExplicit = args.includes('--mode');
   if (RESET) {
     await resetDemoSessions();
-    if (MODE === 'reset') return;
+    if (MODE === 'reset' || !modeExplicit) return;
   }
 
   const admin = new Client('admin');
@@ -308,8 +357,7 @@ async function main() {
     let submitted = 0;
     for (let i = 0; i < participants.length; i += 1) {
       const p = participants[i];
-      const c = new Client(p.email);
-      await c.post('/api/auth/local', { login: p.email, password: PASSWORD });
+      const c = await clientFor(p.email);
       const dominant = dominantTopicFor(i, participants.length);
       await c.post('/api/worship/likert', { slug: SLUG_FINAL, answers: answersFor(dominant, items) });
       submitted += 1;
@@ -323,8 +371,7 @@ async function main() {
     let noters = 0;
     for (let i = 0; i < participants.length; i += 1) {
       const p = participants[i];
-      const c = new Client(p.email);
-      await c.post('/api/auth/local', { login: p.email, password: PASSWORD });
+      const c = await clientFor(p.email);
       if (rand() < 0.2) continue;
       const dominant = dominantTopicFor(i, participants.length);
       const notes = [{ topicCode: dominant, content: pick(NOTE_TEMPLATES[dominant]) }];
@@ -343,8 +390,7 @@ async function main() {
     for (let i = 0; i < participants.length; i += 1) {
       if (rand() < 0.25) continue;
       const p = participants[i];
-      const c = new Client(p.email);
-      await c.post('/api/auth/local', { login: p.email, password: PASSWORD });
+      const c = await clientFor(p.email);
       const codes = chipsFor(3).filter((code) => chipCodes.includes(code));
       if (!codes.length) continue;
       await c.post('/api/worship/chips', { slug: SLUG_FINAL, codes });
@@ -375,8 +421,7 @@ async function main() {
     const liveCount = Math.round(participants.length * 0.6);
     for (let i = 0; i < liveCount; i += 1) {
       const p = participants[i];
-      const c = new Client(p.email);
-      await c.post('/api/auth/local', { login: p.email, password: PASSWORD });
+      const c = await clientFor(p.email);
       await c.post('/api/worship/likert', {
         slug: SLUG_LIVE,
         answers: answersFor(dominantTopicFor(i, participants.length), items),
@@ -386,8 +431,7 @@ async function main() {
     for (let i = 0; i < liveCount; i += 1) {
       if (rand() < 0.5) continue;
       const p = participants[i];
-      const c = new Client(p.email);
-      await c.post('/api/auth/local', { login: p.email, password: PASSWORD });
+      const c = await clientFor(p.email);
       const codes = chipsFor(3).filter((code) => chipCodes.includes(code));
       if (codes.length) await c.post('/api/worship/chips', { slug: SLUG_LIVE, codes }).catch(() => null);
     }
