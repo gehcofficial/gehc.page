@@ -1,30 +1,57 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock, Loader2, MapPin, Send, Sparkles, Timer } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Clock,
+  Download,
+  ExternalLink,
+  Info,
+  Loader2,
+  MapPin,
+  NotebookPen,
+  Send,
+  Sparkles,
+  Timer,
+} from 'lucide-react';
 import {
   SCALE_LABELS,
   STATUS_LABELS,
+  canOpenSegment,
+  orderedRoute,
   parseMentoringHash,
+  segmentFor,
   type MentoringSessionPayload,
+  type SegmentId,
 } from '../../lib/mentoring';
+import { buildMentoringRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import SessionTimer from './SessionTimer';
+import SegmentStepper from './SegmentStepper';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
-
-type LikertDraft = Record<string, number>;
+const TEXTAREA =
+  'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm leading-relaxed focus:outline-none focus:border-brand';
 
 const MentoringDay: React.FC = () => {
-  const route = useMemo(() => parseMentoringHash(typeof window !== 'undefined' ? window.location.hash : ''), []);
+  const route = useMemo(
+    () => parseMentoringHash(typeof window !== 'undefined' ? window.location.hash : ''),
+    [],
+  );
   const slug = route?.slug || '';
 
   const [data, setData] = useState<MentoringSessionPayload | null>(null);
   const [state, setState] = useState<{ status: 'loading' | 'ok' | 'error' | 'auth'; message?: string }>({
     status: 'loading',
   });
-  const [draft, setDraft] = useState<LikertDraft>({});
+  const [segment, setSegment] = useState<SegmentId>('likert');
+  const [visited, setVisited] = useState<SegmentId[]>([]);
+  const [draft, setDraft] = useState<Record<string, number>>({});
+  const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [chipDone, setChipDone] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const noteTimer = useRef<number | null>(null);
+  const pendingNotes = useRef<Record<string, string>>({});
+  const autoJumped = useRef<SegmentId | null>(null);
 
   const load = useCallback(async () => {
     if (!slug) {
@@ -41,9 +68,9 @@ const MentoringDay: React.FC = () => {
         setState({ status: 'auth' });
         return;
       }
-      const d = await r.json();
+      const d: MentoringSessionPayload = await r.json();
       if (!r.ok) {
-        setState({ status: 'error', message: d?.error || `Gagal memuat (server ${r.status}).` });
+        setState({ status: 'error', message: (d as unknown as { error?: string })?.error || 'Gagal memuat.' });
         return;
       }
       setData(d);
@@ -54,6 +81,7 @@ const MentoringDay: React.FC = () => {
         }
         return next;
       });
+      setNoteDraft((prev) => ({ ...d.notes, ...prev }));
       setPicked((prev) => (prev.length ? prev : d.chips?.mine || []));
       setState({ status: 'ok' });
     } catch (e) {
@@ -66,6 +94,32 @@ const MentoringDay: React.FC = () => {
     const id = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(id);
   }, [load]);
+
+  useEffect(
+    () => () => {
+      if (noteTimer.current) window.clearTimeout(noteTimer.current);
+    },
+    [],
+  );
+
+  const status = data?.session.status || 'DRAFT';
+  const answered = Boolean(data?.likert.answered);
+
+  // Ikuti transisi maju dari server sekali per tahap (tanpa menarik user mundur).
+  useEffect(() => {
+    const target = segmentFor(status, answered);
+    if (autoJumped.current === target) return;
+    const order: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
+    if (order.indexOf(target) > order.indexOf(segment)) {
+      autoJumped.current = target;
+      setSegment(target);
+      window.scrollTo({ top: 0 });
+    }
+  }, [status, answered, segment]);
+
+  useEffect(() => {
+    if (!visited.includes(segment)) setVisited((v) => [...v, segment]);
+  }, [segment, visited]);
 
   const submitLikert = async () => {
     if (!data) return;
@@ -80,13 +134,47 @@ const MentoringDay: React.FC = () => {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal mengirim jawaban.');
-      setNote('Jawaban tersimpan. Arahkan ke pos sesuai topik prioritasmu.');
       await load();
+      setSegment('arah');
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Gagal mengirim jawaban.');
     } finally {
       setBusy(false);
     }
+  };
+
+  const saveNotes = useCallback(
+    async (entries: Record<string, string>) => {
+      const payload = Object.entries(entries).map(([topicCode, content]) => ({ topicCode, content }));
+      if (!payload.length) return;
+      try {
+        const r = await fetch('/api/worship/notes', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ slug, notes: payload }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          throw new Error(d?.error || 'Gagal menyimpan catatan.');
+        }
+        setSavedAt(new Date().toLocaleTimeString('id-ID'));
+      } catch (e) {
+        setNote(e instanceof Error ? e.message : 'Gagal menyimpan catatan.');
+      }
+    },
+    [slug],
+  );
+
+  const onNoteChange = (topicCode: string, value: string) => {
+    setNoteDraft((prev) => ({ ...prev, [topicCode]: value }));
+    pendingNotes.current[topicCode] = value;
+    if (noteTimer.current) window.clearTimeout(noteTimer.current);
+    noteTimer.current = window.setTimeout(() => {
+      const batch = pendingNotes.current;
+      pendingNotes.current = {};
+      void saveNotes(batch);
+    }, 800);
   };
 
   const submitChips = async () => {
@@ -120,6 +208,22 @@ const MentoringDay: React.FC = () => {
     });
   };
 
+  const downloadPdf = () => {
+    if (!data) return;
+    const chipLabels = data.chips.list.filter((c) => picked.includes(c.code));
+    const { filename, blob } = buildMentoringRecapPdf({
+      session: data.session,
+      participantName: data.me?.name || 'Peserta',
+      values: data.likert.myValues,
+      items: data.likert.items,
+      notes: noteDraft,
+      chips: chipLabels,
+      result: data.myResult,
+      rooms: data.rooms,
+    });
+    downloadBlob(filename, blob);
+  };
+
   if (state.status === 'loading') {
     return (
       <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center text-sm text-[#8C8880]">
@@ -136,122 +240,180 @@ const MentoringDay: React.FC = () => {
     );
   }
 
-  const { session, likert, chips, myResult, rooms, timer } = data;
+  const { session, likert, chips, myResult, rooms, timer, progress } = data;
   const itemsByTopic = session.topics.map((t) => ({
     topic: t,
     items: likert.items.filter((i) => i.topicCode === t.code),
   }));
-  const showChips = chips.open || chipDone;
-  const activeRooms = rooms.filter((r) => r.count > 0 || r.total > 0);
+  const activeRooms = orderedRoute(rooms);
+  const showChips = (chips.open && segment !== 'likert') || chipDone || segment === 'lesson';
+  const pct = progress.total > 0 ? Math.min(100, Math.round((progress.submitted / progress.total) * 100)) : 0;
+  const doneSegments: SegmentId[] = [
+    ...(answered ? (['likert'] as SegmentId[]) : []),
+    ...(visited.includes('arah') && answered ? (['arah'] as SegmentId[]) : []),
+    ...(visited.includes('kunjungan') && ['RUNNING', 'WRAPUP', 'CLOSED'].includes(status)
+      ? (['kunjungan'] as SegmentId[])
+      : []),
+  ];
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] pb-24">
       <header className="sticky top-0 z-30 apple-glass border-b border-[#D9D7D0]/60">
-        <div className="max-w-[900px] mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Mentoring Day</p>
-            <h1 className="font-display text-sm sm:text-base font-black truncate">{session.title}</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-brand/10 text-brand">
-              {STATUS_LABELS[session.status]}
-            </span>
-            {session.status === 'RUNNING' && (
-              <span className="inline-flex items-center gap-1.5">
-                <Timer className="w-3.5 h-3.5 text-brand" />
-                <SessionTimer timer={timer} />
+        <div className="max-w-[900px] mx-auto px-4 py-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Mentoring Day</p>
+              <h1 className="font-display text-sm sm:text-base font-black truncate">{session.title}</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {status === 'RUNNING' && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Timer className="w-3.5 h-3.5 text-brand" />
+                  <SessionTimer timer={timer} />
+                </span>
+              )}
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-brand/10 text-brand">
+                {STATUS_LABELS[status]}
               </span>
-            )}
+            </div>
           </div>
+          <SegmentStepper
+            active={segment}
+            done={doneSegments}
+            status={status}
+            answered={answered}
+            onSelect={(s) => {
+              if (!canOpenSegment(s, status, answered)) return;
+              setSegment(s);
+              window.scrollTo({ top: 0 });
+            }}
+          />
         </div>
       </header>
 
-      <main className="max-w-[900px] mx-auto px-4 pt-6 space-y-4">
-        {session.status === 'DRAFT' && (
-          <div className={`${CARD} text-center py-12`}>
-            <Clock className="w-8 h-8 text-brand mx-auto" />
-            <p className="font-display text-xl font-black mt-4">Menunggu panitia</p>
-            <p className="text-sm text-[#8C8880] mt-2">
-              Form akan terbuka otomatis begitu panitia menekan “Buka Akses Likert”. Layar ini menyegarkan sendiri.
-            </p>
-          </div>
-        )}
-
-        {session.status === 'CLOSED' && (
-          <div className={`${CARD} text-center py-12`}>
-            <Sparkles className="w-8 h-8 text-brand mx-auto" />
-            <p className="font-display text-xl font-black mt-4">Sesi selesai</p>
-            <p className="text-sm text-[#8C8880] mt-2">Terima kasih sudah bertumbuh bersama hari ini.</p>
-          </div>
-        )}
-
-        {(session.status === 'LIKERT_OPEN' || session.status === 'RUNNING') && !likert.answered && (
-          <div className={`${CARD} space-y-5`}>
-            <div>
-              <p className="font-display text-lg font-black">Skala Likert</p>
-              <p className="text-xs text-[#8C8880] mt-1">
-                Jawab jujur 1–5 untuk setiap pernyataan. Hasilnya menentukan topik prioritas & posmu hari ini.
-              </p>
-            </div>
-            {itemsByTopic.map(({ topic, items }) => (
-              <div key={topic.code} className="rounded-xl border border-[#EFEDE8] p-3 space-y-4">
-                <p className="text-xs font-black text-brand uppercase tracking-wider">{topic.label}</p>
-                {items.map((item) => (
-                  <div key={item.id} className="space-y-2">
-                    <p className="text-sm leading-relaxed">{item.text}</p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={draft[item.id] ?? 3}
-                        onChange={(e) => setDraft((d) => ({ ...d, [item.id]: Number(e.target.value) }))}
-                        className="flex-1 accent-brand"
-                      />
-                      <span className="w-8 text-center text-sm font-black tabular-nums text-brand">
-                        {draft[item.id] ?? 3}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#BDBAB2]">{SCALE_LABELS[(draft[item.id] ?? 3) - 1]}</p>
+      <main className="max-w-[900px] mx-auto px-4 pt-5 space-y-4">
+        {segment === 'likert' && (
+          <>
+            {status === 'DRAFT' && (
+              <div className={`${CARD} text-center py-10`}>
+                <Clock className="w-8 h-8 text-brand mx-auto" />
+                <p className="font-display text-xl font-black mt-4">Menunggu panitia</p>
+                <p className="text-sm text-[#8C8880] mt-2">
+                  Form akan terbuka otomatis begitu panitia menekan “Buka Akses Likert”.
+                </p>
+              </div>
+            )}
+            {status === 'CLOSED' && (
+              <div className={`${CARD} text-center py-10`}>
+                <Sparkles className="w-8 h-8 text-brand mx-auto" />
+                <p className="font-display text-xl font-black mt-4">Sesi selesai</p>
+                <p className="text-sm text-[#8C8880] mt-2">Terima kasih sudah bertumbuh bersama hari ini.</p>
+              </div>
+            )}
+            {['LIKERT_OPEN', 'RUNNING'].includes(status) && !answered && (
+              <div className={`${CARD} space-y-5`}>
+                <div>
+                  <p className="font-display text-lg font-black">Skala Likert</p>
+                  <p className="text-xs text-[#8C8880] mt-1">
+                    Jawab jujur 1–5 untuk setiap pernyataan. Hasilnya menentukan topik prioritas & posmu hari ini.
+                  </p>
+                </div>
+                {itemsByTopic.map(({ topic, items }) => (
+                  <div key={topic.code} className="rounded-xl border border-[#EFEDE8] p-3 space-y-4">
+                    <p className="text-xs font-black text-brand uppercase tracking-wider">{topic.label}</p>
+                    {items.map((item) => (
+                      <div key={item.id} className="space-y-2">
+                        <p className="text-sm leading-relaxed">{item.text}</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={draft[item.id] ?? 3}
+                            onChange={(e) => setDraft((d) => ({ ...d, [item.id]: Number(e.target.value) }))}
+                            className="flex-1 accent-brand"
+                          />
+                          <span className="w-8 text-center text-sm font-black tabular-nums text-brand">
+                            {draft[item.id] ?? 3}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#BDBAB2]">{SCALE_LABELS[(draft[item.id] ?? 3) - 1]}</p>
+                      </div>
+                    ))}
                   </div>
                 ))}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void submitLikert()}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+                >
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Kirim jawaban
+                </button>
               </div>
-            ))}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void submitLikert()}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold uppercase tracking-wider disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Kirim jawaban
-            </button>
-          </div>
+            )}
+          </>
         )}
 
-        {myResult && !showChips && (
+        {segment === 'arah' && myResult && (
           <div className={`${CARD} space-y-4`}>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#8C8880]">Topik prioritas kamu</p>
             <div className="rounded-2xl bg-gradient-to-r from-brand to-brand-end text-white p-5">
               <p className="font-display text-2xl font-black">{myResult.topicLabel}</p>
-              <p className="text-xs text-white/80 mt-1 inline-flex items-center gap-1.5">
+              <p className="text-xs text-white/85 mt-1 inline-flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" /> Silakan menuju {myResult.floorLabel}
               </p>
             </div>
+
+            {status === 'LIKERT_OPEN' && (
+              <div className="rounded-xl border border-brand/20 bg-brand/5 p-3">
+                <p className="text-sm font-bold">Sudah mengisi: {progress.submitted}/{progress.total}</p>
+                <div className="mt-2 h-2 rounded-full bg-white overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-brand to-brand-end transition-all duration-700"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[#8C8880] mt-2">
+                  Menunggu aba-aba panitia untuk mulai berkunjung (sesi 20 menit dimulai oleh admin).
+                </p>
+              </div>
+            )}
+
             {activeRooms.length > 0 && (
               <div>
-                <p className="text-[11px] font-bold text-[#8C8880] mb-2">Peta ruangan hari ini</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {rooms.map((room) => (
-                    <div key={room.code} className="rounded-xl border border-[#EFEDE8] p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#BDBAB2]">{room.floorLabel}</p>
-                      <p className="text-sm font-bold mt-1">{room.label}</p>
+                <p className="text-[11px] font-bold text-[#8C8880] mb-2">Rute kunjungan (berurutan)</p>
+                <div className="space-y-2">
+                  {activeRooms.map((room, idx) => (
+                    <div
+                      key={room.code}
+                      className={`rounded-xl border p-3 flex items-center gap-3 ${
+                        room.code === myResult.topicCode ? 'border-brand bg-brand/5' : 'border-[#EFEDE8]'
+                      }`}
+                    >
+                      <span className="w-7 h-7 rounded-full bg-brand/10 text-brand text-xs font-black flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#BDBAB2]">
+                          {room.floorLabel}
+                        </p>
+                        <p className="text-sm font-bold truncate">{room.label}</p>
+                      </div>
+                      <span className="ml-auto text-[11px] text-[#8C8880]">{room.count} peserta</span>
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-[#8C8880] mt-2 inline-flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  Jika concern-mu sudah terjawab di lantai ini, kamu bebas lanjut ke lantai prioritas topik
+                  berikutnya sesuai urutan di atas.
+                </p>
               </div>
             )}
+
             {myResult.affirmations.length > 0 && (
               <div className="rounded-xl bg-brand/5 border border-brand/20 p-3">
                 {myResult.affirmations.map((a, i) => (
@@ -264,34 +426,78 @@ const MentoringDay: React.FC = () => {
           </div>
         )}
 
-        {(session.status === 'RUNNING' || session.status === 'WRAPUP') && likert.answered && (
-          <div className={`${CARD} space-y-3`}>
-            <p className="font-display text-lg font-black">Catatan pribadimu</p>
-            <p className="text-xs text-[#8C8880]">
-              Bebas berpindah pos kapan saja jika pertanyaanmu sudah terjawab. Gunakan catatan ini saat berkonsultasi
-              dengan PIC.
-            </p>
-            <ul className="space-y-2">
-              {likert.items.map((item) => (
-                <li key={item.id} className="rounded-xl border border-[#EFEDE8] p-3">
-                  <p className="text-xs text-[#8C8880]">{item.text}</p>
-                  <p className="text-sm font-bold mt-1">
-                    Jawabanmu: {likert.myValues[item.id] ?? '—'}/5
-                  </p>
-                  {item.gospelNote && <p className="text-[11px] text-brand mt-1">Koneksi Injil: {item.gospelNote}</p>}
-                </li>
+        {segment === 'kunjungan' && (
+          <div className={`${CARD} space-y-4`}>
+            <div className="flex flex-wrap items-center gap-3">
+              <Timer className="w-5 h-5 text-brand" />
+              <SessionTimer timer={timer} size="lg" />
+              <span className="text-xs text-[#8C8880] ml-auto">
+                {savedAt ? `Catatan tersimpan ${savedAt}` : 'Catatan tersimpan otomatis'}
+              </span>
+            </div>
+
+            {myResult && (
+              <div className="rounded-xl border border-brand/20 bg-brand/5 p-3 text-sm">
+                Prioritasmu: <strong>{myResult.topicLabel}</strong> — {myResult.floorLabel}. Bebas pindah pos kapan
+                saja bila pertanyaanmu sudah terjawab.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {activeRooms.map((room) => (
+                <div key={room.code} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-brand" />
+                    <p className="text-xs font-black">
+                      {room.floorLabel} — {room.label}
+                    </p>
+                  </div>
+                  <textarea
+                    className={TEXTAREA}
+                    rows={3}
+                    placeholder="Tulis catatan / pertanyaanmu di pos ini…"
+                    value={noteDraft[room.code] || ''}
+                    onChange={(e) => onNoteChange(room.code, e.target.value)}
+                  />
+                </div>
               ))}
-            </ul>
+              <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <NotebookPen className="w-3.5 h-3.5 text-brand" />
+                  <p className="text-xs font-black">Kesimpulan / doa</p>
+                </div>
+                <textarea
+                  className={TEXTAREA}
+                  rows={3}
+                  placeholder="Apa yang Tuhan ajarkan hari ini?"
+                  value={noteDraft.KESIMPULAN || ''}
+                  onChange={(e) => onNoteChange('KESIMPULAN', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={downloadPdf}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#D9D7D0] text-xs font-bold uppercase tracking-wider hover:bg-white"
+            >
+              <Download className="w-3.5 h-3.5" /> Unduh PDF rekap
+            </button>
           </div>
         )}
 
-        {showChips && (
+        {segment === 'lesson' && (
           <div className={`${CARD} space-y-4`}>
-            {chipDone ? (
-              <div className="text-center py-8">
+            {showChips && chipDone ? (
+              <div className="text-center py-6 space-y-3">
                 <Sparkles className="w-8 h-8 text-brand mx-auto" />
-                <p className="font-display text-xl font-black mt-4">Thank you!</p>
-                <p className="text-sm text-[#8C8880] mt-2">Lihat layar utama di depan.</p>
+                <p className="font-display text-xl font-black">Thank you!</p>
+                <p className="text-sm text-[#8C8880]">Lihat layar utama di depan.</p>
+                {(myResult?.affirmations || []).slice(0, 1).map((a, i) => (
+                  <p key={i} className="text-sm text-brand font-bold max-w-md mx-auto">
+                    {a}
+                  </p>
+                ))}
               </div>
             ) : (
               <>
@@ -331,6 +537,24 @@ const MentoringDay: React.FC = () => {
                 </button>
               </>
             )}
+
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#EFEDE8]">
+              <a
+                href={`#/mentoring/${session.slug}/layar`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold uppercase tracking-wider"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Lihat layar utama
+              </a>
+              <button
+                type="button"
+                onClick={downloadPdf}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#D9D7D0] text-xs font-bold uppercase tracking-wider hover:bg-white"
+              >
+                <Download className="w-3.5 h-3.5" /> Unduh PDF rekap
+              </button>
+            </div>
           </div>
         )}
 

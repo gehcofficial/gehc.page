@@ -88,10 +88,31 @@ function buildRooms(ranked, totals, priorityCount, config) {
       label: config.topics.find((t) => t.code === code)?.label || code,
       floor,
       floorLabel: floorLabel(config, floor),
+      rank: idx + 1,
       total: totals[code] || 0,
       count: priorityCount[code] || 0,
     };
   });
+}
+
+/**
+ * Auto-transisi RUNNING → WRAPUP saat waktu sesi habis (lazy, idempoten).
+ * Dipanggil pada pembacaan state agar segmen Lesson Learned terbuka tanpa
+ * bergantung pada trigger admin.
+ */
+export async function ensureAutoState(prisma, session) {
+  if (!session || session.status !== 'RUNNING' || !session.startedAt) return session;
+  const config = normalizeConfig(session.config);
+  const endsAtMs = new Date(session.startedAt).getTime() + config.timerSeconds * 1000;
+  if (Date.now() < endsAtMs) return session;
+  try {
+    return await prisma.worshipSession.update({
+      where: { id: session.id },
+      data: { status: 'WRAPUP', wrapUpAt: new Date(endsAtMs) },
+    });
+  } catch {
+    return session;
+  }
 }
 
 async function loadAggregates(prisma, session) {
@@ -198,14 +219,18 @@ export function registerWorshipRoutes(app, { wrap }) {
         include: { pattern: true },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const live = await ensureAutoState(prisma, session);
 
-      const config = normalizeConfig(session.config);
-      const [items, myResponses, myVotes] = await Promise.all([
-        prisma.worshipLikertItem.findMany({ where: { sessionId: session.id }, orderBy: { sortOrder: 'asc' } }),
-        prisma.worshipLikertResponse.findMany({ where: { sessionId: session.id, userId: req.authUser.id } }),
-        prisma.worshipChipVote.findMany({ where: { sessionId: session.id, userId: req.authUser.id } }),
+      const config = normalizeConfig(live.config);
+      const [items, myResponses, myVotes, myNotes] = await Promise.all([
+        prisma.worshipLikertItem.findMany({ where: { sessionId: live.id }, orderBy: { sortOrder: 'asc' } }),
+        prisma.worshipLikertResponse.findMany({ where: { sessionId: live.id, userId: req.authUser.id } }),
+        prisma.worshipChipVote.findMany({ where: { sessionId: live.id, userId: req.authUser.id } }),
+        prisma.worshipNote.findMany({ where: { sessionId: live.id, userId: req.authUser.id } }).catch(() => []),
       ]);
-      const agg = await loadAggregates(prisma, session);
+      const agg = await loadAggregates(prisma, live);
+      const notes = {};
+      for (const n of myNotes) notes[n.topicCode] = n.content;
 
       const myValues = {};
       for (const r of myResponses) myValues[r.itemId] = r.value;
@@ -228,16 +253,16 @@ export function registerWorshipRoutes(app, { wrap }) {
       res.setHeader('Cache-Control', 'no-store');
       res.json({
         session: {
-          id: session.id,
-          slug: session.slug,
-          title: session.title,
-          status: session.status,
-          sessionDate: session.sessionDate,
-          pattern: publicPattern(session.pattern),
+          id: live.id,
+          slug: live.slug,
+          title: live.title,
+          status: live.status,
+          sessionDate: live.sessionDate,
+          pattern: publicPattern(live.pattern),
           topics: config.topics,
           chipLimit: config.chipLimit,
         },
-        timer: timerPayload(session, config),
+        timer: timerPayload(live, config),
         likert: {
           items: items.map((i) => ({
             id: i.id,
@@ -245,22 +270,25 @@ export function registerWorshipRoutes(app, { wrap }) {
             text: i.text,
             gospelNote: i.gospelNote,
           })),
-          open: ['LIKERT_OPEN', 'RUNNING'].includes(session.status),
+          open: ['LIKERT_OPEN', 'RUNNING'].includes(live.status),
           answered: Object.keys(myValues).length > 0,
           myValues,
         },
         chips: {
           list: (
             await prisma.worshipChip.findMany({
-              where: { sessionId: session.id, isActive: true },
+              where: { sessionId: live.id, isActive: true },
               orderBy: { sortOrder: 'asc' },
             })
           ).map((c) => ({ code: c.code, label: c.label, topicCode: c.topicCode })),
           mine: myVotes.map((v) => v.chipCode),
-          open: ['RUNNING', 'WRAPUP'].includes(session.status),
+          open: ['RUNNING', 'WRAPUP'].includes(live.status),
         },
+        me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
+        notes,
         myResult,
         rooms: agg.rooms,
+        progress: { submitted: agg.submitted, total: config.expectedCount || (await youthUserCount(prisma)) },
       });
     }),
   );
@@ -375,6 +403,53 @@ export function registerWorshipRoutes(app, { wrap }) {
     }),
   );
 
+  app.put(
+    '/api/worship/notes',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+
+      const session = await prisma.worshipSession.findUnique({ where: { slug: String(req.body?.slug || '') } });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const live = await ensureAutoState(prisma, session);
+      if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(live.status)) {
+        return res.status(409).json({ error: 'Catatan hanya bisa diisi saat sesi berlangsung.' });
+      }
+
+      const config = normalizeConfig(live.config);
+      const allowed = new Set([...config.topics.map((t) => t.code), 'KESIMPULAN']);
+      const raw = Array.isArray(req.body?.notes) ? req.body.notes : [];
+      const rows = [];
+      for (const entry of raw) {
+        const topicCode = String(entry?.topicCode || '').toUpperCase().slice(0, 40);
+        if (!allowed.has(topicCode)) continue;
+        const content = str(entry?.content, 4000);
+        rows.push({ topicCode, content });
+      }
+      if (!rows.length) return res.status(400).json({ error: 'Tidak ada catatan yang dikirim.' });
+
+      for (const { topicCode, content } of rows) {
+        const key = { sessionId_userId_topicCode: { sessionId: live.id, userId: req.authUser.id, topicCode } };
+        if (!content) {
+          await prisma.worshipNote.deleteMany({ where: { sessionId: live.id, userId: req.authUser.id, topicCode } });
+          continue;
+        }
+        await prisma.worshipNote.upsert({
+          where: key,
+          create: { id: uid('wn'), sessionId: live.id, userId: req.authUser.id, topicCode, content },
+          update: { content },
+        });
+      }
+
+      const mine = await prisma.worshipNote.findMany({ where: { sessionId: live.id, userId: req.authUser.id } });
+      const notes = {};
+      for (const n of mine) notes[n.topicCode] = n.content;
+      res.json({ ok: true, notes });
+    }),
+  );
+
   app.get(
     '/api/worship/live/:slug',
     wrap(async (req, res) => {
@@ -391,24 +466,25 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!req.authUser && !codeOk) {
         return res.status(401).json({ error: 'Butuh login atau kode sesi proyektor.' });
       }
+      const liveState = await ensureAutoState(prisma, session);
 
-      const agg = await loadAggregates(prisma, session);
+      const agg = await loadAggregates(prisma, liveState);
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
       res.setHeader('Cache-Control', 'no-store');
       res.json({
         session: {
-          id: session.id,
-          slug: session.slug,
-          title: session.title,
-          status: session.status,
-          pattern: publicPattern(session.pattern),
+          id: liveState.id,
+          slug: liveState.slug,
+          title: liveState.title,
+          status: liveState.status,
+          pattern: publicPattern(liveState.pattern),
           topics: agg.config.topics,
         },
-        timer: timerPayload(session, agg.config),
+        timer: timerPayload(liveState, agg.config),
         progress: { submitted: agg.submitted, total: expected },
         rooms: agg.rooms,
         wordcloud: agg.wordcloud,
-        wrapUpAt: session.wrapUpAt ? new Date(session.wrapUpAt).toISOString() : null,
+        wrapUpAt: liveState.wrapUpAt ? new Date(liveState.wrapUpAt).toISOString() : null,
       });
     }),
   );
@@ -527,22 +603,45 @@ export function registerWorshipRoutes(app, { wrap }) {
         },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const agg = await loadAggregates(prisma, session);
+      const liveSession = await ensureAutoState(prisma, session);
+      const agg = await loadAggregates(prisma, liveSession);
+      const noteRows = await prisma.worshipNote
+        .findMany({ where: { sessionId: liveSession.id }, orderBy: { updatedAt: 'desc' } })
+        .catch(() => []);
+      const noteUsers = noteRows.length
+        ? await prisma.user.findMany({
+            where: { id: { in: [...new Set(noteRows.map((n) => n.userId))] } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
+      const userById = new Map(noteUsers.map((u) => [u.id, u]));
+      const canReadNotes = (req.authUser?.roles || []).some((r) =>
+        ['SUPERADMIN', 'KOMISI', 'COMMITTEE'].includes(r.role),
+      );
       res.json({
         session: {
-          id: session.id,
-          slug: session.slug,
-          title: session.title,
-          status: session.status,
-          sessionDate: session.sessionDate,
-          accessCode: session.accessCode,
+          id: liveSession.id,
+          slug: liveSession.slug,
+          title: liveSession.title,
+          status: liveSession.status,
+          sessionDate: liveSession.sessionDate,
+          accessCode: liveSession.accessCode,
           config: agg.config,
-          pattern: session.pattern,
+          pattern: liveSession.pattern,
         },
-        likertItems: session.likertItems,
-        chips: session.chips,
+        likertItems: liveSession.likertItems,
+        chips: liveSession.chips,
         rooms: agg.rooms,
         wordcloud: agg.wordcloud,
+        notes: canReadNotes
+          ? noteRows.map((n) => ({
+              userId: n.userId,
+              userName: userById.get(n.userId)?.name || n.userId,
+              topicCode: n.topicCode,
+              content: n.content,
+              updatedAt: n.updatedAt,
+            }))
+          : [],
         progress: { submitted: agg.submitted, total: agg.config.expectedCount || (await youthUserCount(prisma)) },
       });
     }),
@@ -641,6 +740,14 @@ export function registerWorshipRoutes(app, { wrap }) {
         data.startedAt = null;
         data.wrapUpAt = null;
         data.closedAt = null;
+      } else if (action === 'extend') {
+        const seconds = Math.min(1800, Math.max(60, intOrNull(req.body?.seconds) || 300));
+        const cfg = normalizeConfig(session.config);
+        data.config = { ...cfg, timerSeconds: cfg.timerSeconds + seconds };
+        if (session.status === 'WRAPUP') {
+          data.status = 'RUNNING';
+          data.wrapUpAt = null;
+        }
       } else {
         return res.status(400).json({ error: 'Aksi tidak dikenal.' });
       }
@@ -781,18 +888,24 @@ export function registerWorshipRoutes(app, { wrap }) {
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const agg = await loadAggregates(prisma, session);
-      const [users, votes] = await Promise.all([
+      const [users, votes, noteRows] = await Promise.all([
         prisma.user.findMany({
           where: { id: { in: [...agg.perUser.keys()] } },
           select: { id: true, name: true, email: true, bipra: true },
         }),
         prisma.worshipChipVote.findMany({ where: { sessionId: session.id }, select: { userId: true, chipCode: true } }),
+        prisma.worshipNote.findMany({ where: { sessionId: session.id } }).catch(() => []),
       ]);
       const userById = new Map(users.map((u) => [u.id, u]));
       const chipsByUser = new Map();
       for (const v of votes) {
         if (!chipsByUser.has(v.userId)) chipsByUser.set(v.userId, []);
         chipsByUser.get(v.userId).push(v.chipCode);
+      }
+      const notesByUser = new Map();
+      for (const n of noteRows) {
+        if (!notesByUser.has(n.userId)) notesByUser.set(n.userId, {});
+        notesByUser.get(n.userId)[n.topicCode] = n.content;
       }
 
       const topics = agg.config.topics;
@@ -805,12 +918,15 @@ export function registerWorshipRoutes(app, { wrap }) {
         'Chip1',
         'Chip2',
         'Chip3',
+        ...topics.map((t) => `Catatan_${t.code}`),
+        'Kesimpulan',
       ];
       const lines = [headers.map(csvEscape).join(',')];
       for (const [userId, scores] of agg.perUser) {
         const u = userById.get(userId);
         const best = rankTopics(scores, agg.config)[0] || '';
         const chips = (chipsByUser.get(userId) || []).slice(0, 3);
+        const myNotes = notesByUser.get(userId) || {};
         const cells = [
           u?.name || userId,
           u?.email || '',
@@ -820,6 +936,8 @@ export function registerWorshipRoutes(app, { wrap }) {
           chips[0] || '',
           chips[1] || '',
           chips[2] || '',
+          ...topics.map((t) => myNotes[t.code] || ''),
+          myNotes.KESIMPULAN || '',
         ];
         lines.push(cells.map(csvEscape).join(','));
       }

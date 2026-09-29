@@ -11,6 +11,7 @@ export type MentoringRoom = {
   label: string;
   floor: number;
   floorLabel: string;
+  rank: number;
   total: number;
   count: number;
 };
@@ -67,8 +68,11 @@ export type MentoringSessionPayload = {
     myValues: Record<string, number>;
   };
   chips: { list: { code: string; label: string; topicCode?: string | null }[]; mine: string[]; open: boolean };
+  me: { id: string; name: string };
+  notes: Record<string, string>;
   myResult: MentoringMyResult | null;
   rooms: MentoringRoom[];
+  progress: { submitted: number; total: number };
 };
 
 export type MentoringLivePayload = {
@@ -114,6 +118,38 @@ export function fmtClock(totalSeconds: number): string {
 }
 
 export const SCALE_LABELS = ['Sangat tidak setuju', 'Tidak setuju', 'Netral', 'Setuju', 'Sangat setuju'];
+
+export type SegmentId = 'likert' | 'arah' | 'kunjungan' | 'lesson';
+
+export const SEGMENTS: { id: SegmentId; label: string }[] = [
+  { id: 'likert', label: 'Likert' },
+  { id: 'arah', label: 'Arah Pos' },
+  { id: 'kunjungan', label: 'Kunjungan & Catatan' },
+  { id: 'lesson', label: 'Lesson Learned' },
+];
+
+/**
+ * Segmen yang seharusnya aktif, mengikuti status server + progres peserta.
+ * Urutan: Likert → Arah Pos → Kunjungan → Lesson Learned.
+ */
+export function segmentFor(status: MentoringStatus, answered: boolean): SegmentId {
+  if (status === 'WRAPUP' || status === 'CLOSED') return 'lesson';
+  if (status === 'RUNNING') return answered ? 'kunjungan' : 'likert';
+  if (status === 'LIKERT_OPEN') return answered ? 'arah' : 'likert';
+  return 'likert';
+}
+
+export function canOpenSegment(segment: SegmentId, status: MentoringStatus, answered: boolean): boolean {
+  if (segment === 'lesson') return status === 'WRAPUP' || status === 'CLOSED';
+  if (segment === 'kunjungan') return status === 'RUNNING' || status === 'WRAPUP' || status === 'CLOSED';
+  if (segment === 'arah') return answered;
+  return true;
+}
+
+/** Rute kunjungan berurutan sesuai ranking kerentanan (rank 1 dulu). */
+export function orderedRoute(rooms: MentoringRoom[]): MentoringRoom[] {
+  return [...rooms].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+}
 
 export const STATUS_LABELS: Record<MentoringStatus, string> = {
   DRAFT: 'Belum dibuka',

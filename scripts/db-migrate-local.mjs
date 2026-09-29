@@ -375,6 +375,11 @@ const STEPS = [
     label: 'F5: pola ibadah & mentoring day (worship_*)',
     required: true,
   },
+  {
+    script: 'server/_migrate-worship-notes.cjs',
+    label: 'F5.2: catatan peserta mentoring (worship_notes)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

@@ -33,6 +33,7 @@ type SessionRow = {
 type ItemRow = { id: string; topicCode: string; text: string; gospelNote?: string | null; sortOrder: number };
 type ChipRow = { id: string; code: string; label: string; topicCode?: string | null; sortOrder: number };
 
+type NoteRow = { userId: string; userName: string; topicCode: string; content: string };
 type SessionDetail = {
   session: {
     id: string;
@@ -54,6 +55,7 @@ type SessionDetail = {
   chips: ChipRow[];
   rooms: { code: string; label: string; floorLabel: string; count: number; total: number }[];
   wordcloud: { code: string; label: string; count: number }[];
+  notes?: NoteRow[];
   progress: { submitted: number; total: number };
 };
 
@@ -61,6 +63,7 @@ const ACTIONS: { action: string; label: string; tone: string }[] = [
   { action: 'open-likert', label: 'Buka Akses Likert', tone: 'bg-sky-600' },
   { action: 'start', label: 'Start Sesi', tone: 'bg-emerald-600' },
   { action: 'wrapup', label: 'Trigger Lesson Learned', tone: 'bg-amber-600' },
+  { action: 'extend', label: '+5 menit', tone: 'bg-sky-500' },
   { action: 'close', label: 'Tutup Sesi', tone: 'bg-[#1B1B1B]' },
   { action: 'reset', label: 'Reset ke Draft', tone: 'bg-white !text-[#8C8880] border border-[#D9D7D0]' },
 ];
@@ -134,15 +137,24 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
     return () => window.clearInterval(id);
   }, [loadLive]);
 
-  const doAction = async (action: string) => {
+  const doAction = async (action: string, extra?: Record<string, unknown>) => {
     if (!detail) return;
+    if (action === 'start') {
+      const p = live?.progress || detail.progress;
+      if (p && p.submitted < p.total) {
+        const ok = window.confirm(
+          `Baru ${p.submitted}/${p.total} peserta mengisi Likert. Tetap mulai sesi 20 menit?`,
+        );
+        if (!ok) return;
+      }
+    }
     setBusy(true);
     try {
       const r = await fetch(`/api/worship/sessions/${detail.session.id}/state`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...(extra || {}) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal mengubah status.');
@@ -342,7 +354,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                   key={a.action}
                   type="button"
                   disabled={busy}
-                  onClick={() => void doAction(a.action)}
+                  onClick={() => void doAction(a.action, a.action === 'extend' ? { seconds: 300 } : undefined)}
                   className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${a.tone}`}
                 >
                   {a.label}
@@ -457,6 +469,29 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                   </span>
                 ))}
               </div>
+            )}
+
+            {(detail.notes || []).length > 0 && (
+              <details className="mt-4 rounded-xl border border-[#EFEDE8] p-3">
+                <summary className="text-xs font-bold cursor-pointer">
+                  Catatan peserta ({new Set((detail.notes || []).map((n) => n.userId)).size} orang)
+                </summary>
+                <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
+                  {[...new Set((detail.notes || []).map((n) => n.userId))].map((userId) => {
+                    const rows = (detail.notes || []).filter((n) => n.userId === userId);
+                    return (
+                      <div key={userId} className="rounded-xl border border-[#EFEDE8] p-3">
+                        <p className="text-xs font-bold">{rows[0]?.userName || userId}</p>
+                        {rows.map((n) => (
+                          <p key={`${n.userId}-${n.topicCode}`} className="text-[11px] text-[#8C8880] mt-1">
+                            <span className="font-bold text-brand">{n.topicCode}</span> — {n.content}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
             )}
           </div>
 

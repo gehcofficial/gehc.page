@@ -2584,6 +2584,7 @@ model WorshipSession {
   responses WorshipLikertResponse[]
   chips     WorshipChip[]
   chipVotes WorshipChipVote[]
+  notes     WorshipNote[]
 
   @@index([tenantId, status])
   @@index([patternId])
@@ -2653,4 +2654,21 @@ model WorshipChipVote {
   @@unique([sessionId, userId, chipCode])
   @@index([sessionId, chipCode])
   @@map("worship_chip_votes")
+}
+
+model WorshipNote {
+  id        String   @id @db.VarChar(64)
+  sessionId String   @map("session_id") @db.VarChar(64)
+  userId    String   @map("user_id") @db.VarChar(64)
+  /// HUBUNGAN | PEKERJAAN | KELUARGA | KESIMPULAN
+  topicCode String   @map("topic_code") @db.VarChar(40)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  session WorshipSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, userId, topicCode])
+  @@index([sessionId, topicCode])
+  @@map("worship_notes")
 }
