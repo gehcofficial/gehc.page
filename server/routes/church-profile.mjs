@@ -184,10 +184,18 @@ export function registerChurchProfileRoutes(app, { wrap }) {
 
       const b = req.body || {};
       const data = {};
+      if (b.name !== undefined) {
+        const name = str(b.name, 150);
+        if (name) data.name = name;
+      }
+      if (b.description !== undefined) data.description = str(b.description, 2000);
       if (b.tagline !== undefined) data.tagline = str(b.tagline, 300);
       if (b.contactEmail !== undefined) data.contactEmail = str(b.contactEmail, 190);
       const socials = pickSocials(b.socials);
       if (socials !== undefined) data.socials = socials;
+      // F4: jadwal ibadah/persekutuan per unit (landing unit).
+      const schedules = pickSchedules(b.schedules);
+      if (schedules !== undefined) data.schedules = schedules;
       // D3: branding tema per unit.
       if (b.brandAccent !== undefined) data.brandAccent = hexOrNull(b.brandAccent);
       if (b.brandAccent2 !== undefined) data.brandAccent2 = hexOrNull(b.brandAccent2);

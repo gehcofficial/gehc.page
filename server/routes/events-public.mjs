@@ -8,6 +8,7 @@ import {
 import { venueOf } from '../lib/event-venue.mjs';
 import { fromDbContent } from '../lib/content-map.mjs';
 import { eventSignupStats } from '../lib/event-signup-stats.mjs';
+import { tenantWhere } from '../lib/tenant-scope.mjs';
 import { resolveWhatsAppUrl } from '../lib/event-question-showif.mjs';
 import { findEventProgramPublic } from '../lib/event-program-public.mjs';
 import {
@@ -69,14 +70,14 @@ export function registerEventsPublicRoutes(app, { wrap }) {
   // Landing Kegiatan 3 lapis — WAJIB sebelum '/api/events/:slug' agar tak tertelan param.
   // full: konten ACTIVITY terbit (+venue event tertaut). compact: event
   // PLANNING/ACTIVE bertanggal tanpa konten terbit. DONE/ARCHIVED: tidak tampil.
-  app.get('/api/events/landing', wrap(async (_req, res) => {
+  app.get('/api/events/landing', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     let full = [];
     let linkedIds = [];
     try {
       const rows = await prisma.contentItem.findMany({
-        where: { type: 'ACTIVITY', isPublished: true },
+        where: { type: 'ACTIVITY', isPublished: true, ...(tenantWhere(req) || {}) },
         orderBy: [{ isFeaturedEvent: 'desc' }, { publishedAt: 'desc' }],
         take: 20,
       });

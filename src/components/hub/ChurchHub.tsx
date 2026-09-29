@@ -229,7 +229,7 @@ const ChurchHub: React.FC = () => {
             </h2>
           </div>
           <p className="hidden sm:block text-xs text-[#8C8880] max-w-xs leading-relaxed">
-            Unit yang sudah aktif punya portalnya sendiri; selebihnya sedang disiapkan.
+            Setiap unit punya laman publik dan portalnya sendiri.
           </p>
         </div>
 
@@ -278,7 +278,7 @@ const ChurchHub: React.FC = () => {
                       <div className="mt-5 flex items-center gap-1.5 text-xs font-bold">
                         {active ? (
                           <span className="text-brand inline-flex items-center gap-1">
-                            Masuk <ArrowUpRight className="w-4 h-4" />
+                            Kunjungi <ArrowUpRight className="w-4 h-4" />
                           </span>
                         ) : (
                           <span className="text-[#BDBAB2]">Segera hadir</span>
@@ -422,12 +422,14 @@ const ChurchHub: React.FC = () => {
             </a>
             <div className="rounded-[24px] bg-white/5 p-6">
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                Dalam pengembangan
+                Presentasi
               </p>
               <p className="text-xs text-white/60 mt-2 leading-relaxed">
-                Portal untuk anak, pra remaja, kaum bapa & ibu, serta wilayah/Kolom
-                sedang disiapkan. Nantikan.
+                Lihat gambaran rumah digital jemaat dan rencana pelayanan tiap unit.
               </p>
+              <a href="#/pitch" className="inline-flex items-center gap-1 text-xs font-bold mt-3">
+                Buka pitch deck <ArrowUpRight className="w-4 h-4" />
+              </a>
             </div>
           </div>
         </div>

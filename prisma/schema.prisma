@@ -36,6 +36,8 @@ model Tenant {
   logoUrl          String?  @map("logo_url") @db.Text
   heroImageUrl     String?  @map("hero_image_url") @db.Text
   themeTone        String?  @map("theme_tone") @db.VarChar(20)
+  /// Jadwal ibadah/persekutuan unit: [{ label, day, time }].
+  schedules        Json?    @map("schedules")
   createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
 
   users  UserRole[]

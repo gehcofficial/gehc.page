@@ -83,9 +83,18 @@ export function isYouthAppHost(host: string): boolean {
 /** Rute aplikasi (portal/admin/auth) — di host hub ini memicu portal, bukan landing. */
 const APP_HASH_PREFIXES = ['#/portal', '#/admin', '#/claim', '#/forgot-password', '#/reset-password'];
 
+/** Rute publik yang tetap dirender aplikasi di host unit (login/daftar/signup event). */
+const AUTH_HASH_PREFIXES = ['#/login', '#/register', '#/join', '#/event'];
+
 export function isAppHash(hash: string): boolean {
   const h = String(hash || '');
   return APP_HASH_PREFIXES.some((p) => h === p || h.startsWith(`${p}/`) || h.startsWith(`${p}?`));
+}
+
+/** True bila hash harus tetap menampilkan aplikasi (bukan landing unit). */
+export function isAuthHash(hash: string): boolean {
+  const h = String(hash || '');
+  return AUTH_HASH_PREFIXES.some((p) => h === p || h.startsWith(`${p}/`) || h.startsWith(`${p}?`));
 }
 
 /** Halaman presentasi (pitch deck). */

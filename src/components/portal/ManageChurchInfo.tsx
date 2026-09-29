@@ -46,6 +46,8 @@ type Tenant = {
   logoUrl?: string | null;
   heroImageUrl?: string | null;
   themeTone?: string | null;
+  // F4: jadwal landing unit
+  schedules?: Schedule[] | null;
 };
 type UnitDraft = {
   tagline: string;
@@ -57,6 +59,7 @@ type UnitDraft = {
   logoUrl: string;
   heroImageUrl: string;
   themeTone: string;
+  schedules: Schedule[];
 };
 type GalleryPhoto = { id: string; name: string; thumbnailUrl: string; viewUrl: string };
 
@@ -178,6 +181,9 @@ const ManageChurchInfo: React.FC = () => {
                 logoUrl: t.logoUrl || '',
                 heroImageUrl: t.heroImageUrl || '',
                 themeTone: t.themeTone || '',
+                schedules: Array.isArray(t.schedules)
+                  ? t.schedules.map((s) => ({ label: s.label || '', day: s.day || '', time: s.time || '' }))
+                  : [],
               },
             ]),
           ),
@@ -308,6 +314,27 @@ const ManageChurchInfo: React.FC = () => {
 
   const setUnitSocial = (slug: string, key: keyof Socials, value: string) =>
     setDrafts((d) => ({ ...d, [slug]: { ...d[slug], socials: { ...d[slug].socials, [key]: value } } }));
+
+  const setUnitSchedule = (slug: string, idx: number, key: keyof Schedule, value: string) =>
+    setDrafts((d) => ({
+      ...d,
+      [slug]: {
+        ...d[slug],
+        schedules: d[slug].schedules.map((s, i) => (i === idx ? { ...s, [key]: value } : s)),
+      },
+    }));
+
+  const addUnitSchedule = (slug: string) =>
+    setDrafts((d) => ({
+      ...d,
+      [slug]: { ...d[slug], schedules: [...d[slug].schedules, { label: '', day: '', time: '' }] },
+    }));
+
+  const removeUnitSchedule = (slug: string, idx: number) =>
+    setDrafts((d) => ({
+      ...d,
+      [slug]: { ...d[slug], schedules: d[slug].schedules.filter((_, i) => i !== idx) },
+    }));
 
   const saveUnit = async (slug: string) => {
     setSaving(slug);
@@ -507,6 +534,7 @@ const ManageChurchInfo: React.FC = () => {
             const draft = drafts[t.slug] || {
               tagline: '', contactEmail: '', socials: {},
               brandAccent: '', brandAccent2: '', brandInk: '', logoUrl: '', heroImageUrl: '', themeTone: '',
+              schedules: [],
             };
             return (
               <div key={t.id} className="rounded-2xl border border-[#E9E8E4] bg-[#FAF9F5] p-4 space-y-3">
@@ -590,6 +618,38 @@ const ManageChurchInfo: React.FC = () => {
                       </select>
                     </label>
                   </div>
+                </div>
+
+                {/* F4: jadwal unit untuk landing publik */}
+                <div className="rounded-xl border border-[#E9E8E4] bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-[#1B1B1B]">Jadwal unit (landing)</p>
+                    <button
+                      type="button"
+                      onClick={() => addUnitSchedule(t.slug)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-brand"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Tambah
+                    </button>
+                  </div>
+                  {draft.schedules.length === 0 && (
+                    <p className="text-xs text-[#8C8880]">Belum ada jadwal unit.</p>
+                  )}
+                  {draft.schedules.map((s, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                      <input className={inputCls} placeholder="Label" value={s.label} onChange={(e) => setUnitSchedule(t.slug, idx, 'label', e.target.value)} />
+                      <input className={inputCls} placeholder="Hari" value={s.day} onChange={(e) => setUnitSchedule(t.slug, idx, 'day', e.target.value)} />
+                      <input className={inputCls} placeholder="Jam" value={s.time} onChange={(e) => setUnitSchedule(t.slug, idx, 'time', e.target.value)} />
+                      <button
+                        type="button"
+                        onClick={() => removeUnitSchedule(t.slug, idx)}
+                        className="p-2 rounded-lg text-[#8C8880] hover:bg-red-50 hover:text-red-600"
+                        title="Hapus"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
                 <button
                   type="button"

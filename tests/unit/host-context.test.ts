@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost } from '../../src/lib/host-context';
+import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost, isAppHash, isAuthHash } from '../../src/lib/host-context';
 import { isStagingHost, isStagingProtectedHost, resolveHostContext } from '../../server/lib/host-context.mjs';
 
 describe('host-context (frontend)', () => {
@@ -44,6 +44,30 @@ describe('host-context (frontend)', () => {
     // Host tak dikenal tetap default Pemuda (bukan 'hub').
     expect(resolveHostUnit('staging-bogus.gehc.page')).toBe('default');
     expect(resolveHostUnit('a.staging-youth.gehc.page')).toBe('default');
+  });
+});
+
+describe('host-context (hash permukaan aplikasi)', () => {
+  it('isAppHash hanya portal/admin/auth jemaat', () => {
+    expect(isAppHash('#/portal')).toBe(true);
+    expect(isAppHash('#/portal/mentor/dashboard')).toBe(true);
+    expect(isAppHash('#/admin/users')).toBe(true);
+    expect(isAppHash('#/claim')).toBe(true);
+    expect(isAppHash('#/forgot-password')).toBe(true);
+    expect(isAppHash('#/reset-password')).toBe(true);
+    expect(isAppHash('#/beyonders')).toBe(false);
+    expect(isAppHash('#/register')).toBe(false);
+    expect(isAppHash('')).toBe(false);
+  });
+
+  it('isAuthHash menandai login/daftar/signup agar landing unit tidak menelannya', () => {
+    expect(isAuthHash('#/login')).toBe(true);
+    expect(isAuthHash('#/register')).toBe(true);
+    expect(isAuthHash('#/join')).toBe(true);
+    expect(isAuthHash('#/event/retreat-pemuda')).toBe(true);
+    expect(isAuthHash('#/events')).toBe(false);
+    expect(isAuthHash('#/portal')).toBe(false);
+    expect(isAuthHash('')).toBe(false);
   });
 });
 

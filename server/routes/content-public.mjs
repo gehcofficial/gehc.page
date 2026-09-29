@@ -429,6 +429,20 @@ export function registerContentPublicRoutes(app, { wrap }) {
     if (eventId) where.eventId = eventId;
     if (division) where.division = division;
 
+    // F4: scope per tenant — unit hanya melihat galeri event unitnya + jemaat.
+    const tf = tenantWhere(req);
+    if (tf) {
+      const evs = await prisma.eventProgram
+        .findMany({ where: tf, select: { id: true } })
+        .catch(() => []);
+      const allowed = evs.map((e) => e.id);
+      if (eventId) {
+        if (!allowed.includes(String(eventId))) return res.json({ items: [] });
+      } else {
+        where.eventId = { in: allowed };
+      }
+    }
+
     const items = await prisma.eventGallery.findMany({
       where,
       orderBy: { sortOrder: 'asc' },

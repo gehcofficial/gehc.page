@@ -365,6 +365,11 @@ const STEPS = [
     label: 'D3: branding tema portal per unit (tenants)',
     required: true,
   },
+  {
+    script: 'server/_migrate-tenant-schedules.cjs',
+    label: 'Landing unit: jadwal per unit (tenants.schedules)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

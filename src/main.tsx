@@ -5,13 +5,15 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { resolvePortalId } from './lib/portal-profiles.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
 
 /** Hub, coming-soon unit, dan pitch deck dimuat terpisah dari bundle portal Pemuda. */
 const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
+const UnitLanding = React.lazy(() => import('./components/unit/UnitLanding.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
@@ -20,6 +22,9 @@ const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hubHost = isHubHost(host);
+
+/** Portal unit yang punya landing publik sendiri (selain Pemuda). */
+const UNIT_LANDING_PORTALS = new Set(['men', 'women', 'teen', 'kids', 'kolom', 'community']);
 
 const HubFallback: React.FC = () => (
   <div className="min-h-screen bg-[#FAF9F5]" aria-busy="true" />
@@ -103,6 +108,16 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <ChurchHub />
+      </Suspense>
+    );
+  }
+
+  // Host unit non-Pemuda: landing publik unit (portal tetap lewat hash #/portal).
+  const portalId = resolvePortalId(host, typeof window !== 'undefined' ? window.location.search : '');
+  if (UNIT_LANDING_PORTALS.has(portalId) && !isAppHash(hash) && !isAuthHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <UnitLanding />
       </Suspense>
     );
   }

@@ -124,6 +124,7 @@ import { requirePlatformRoot, requirePlatformAdmin, requireKomisiOrPlatformAdmin
 import { registerOnboardingRoutes } from './routes/onboarding.mjs';
 import { registerOrgRoutes } from './routes/org.mjs';
 import { registerChurchProfileRoutes } from './routes/church-profile.mjs';
+import { registerUnitLandingRoutes } from './routes/unit-landing.mjs';
 import { registerHubGalleryRoutes } from './routes/hub-gallery.mjs';
 import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
 import { registerDigestRoutes } from './routes/digest.mjs';
@@ -1391,7 +1392,7 @@ app.get('/api/church/reports/unit', requireRole(), wrap(async (req, res) => {
   res.json(d);
 }));
 
-// PDF server-side (pdfkit) — hasil seragam lintas browser.
+// PDF server-side (pdfkit) ï¿½ hasil seragam lintas browser.
 app.get('/api/church/reports/:file', requireRole(), wrap(async (req, res) => {
   const file = String(req.params.file || '');
   if (!file.endsWith('.pdf')) return res.status(404).json({ error: 'Tidak ditemukan.' });
@@ -1406,7 +1407,7 @@ app.get('/api/church/reports/:file', requireRole(), wrap(async (req, res) => {
   const prisma = getPrisma();
   const data = await import('./lib/report-data.mjs');
   const pdf = await import('./lib/report-pdf.mjs');
-  const TITLES = { kas: 'Laporan Kas', fasilitas: 'Laporan Fasilitas & Penyewaan', bpmj: 'Laporan BPMJ — Lintas Unit', unit: 'Laporan Unit' };
+  const TITLES = { kas: 'Laporan Kas', fasilitas: 'Laporan Fasilitas & Penyewaan', bpmj: 'Laporan BPMJ ï¿½ Lintas Unit', unit: 'Laporan Unit' };
   let d;
   let sections;
   if (kind === 'kas') { d = await data.kasReport(prisma, req.query.period); sections = pdf.kasSections(d); }
@@ -1421,7 +1422,7 @@ app.get('/api/church/reports/:file', requireRole(), wrap(async (req, res) => {
     ? `laporan-unit-${String(req.query.unit || '').toLowerCase()}-${d?.period?.key || ''}.pdf`
     : `laporan-${kind}-${d?.period?.key || ''}.pdf`;
   pdf.streamReportPdf(res, {
-    title: kind === 'unit' ? `${TITLES[kind]} — ${d.unitLabel}` : TITLES[kind],
+    title: kind === 'unit' ? `${TITLES[kind]} ï¿½ ${d.unitLabel}` : TITLES[kind],
     subtitle: d?.period?.label || '',
     sections,
     filename: fname,
@@ -6841,6 +6842,7 @@ registerAdminRoutes(app, { wrap });
 registerVisualsPublishRoutes(app, { wrap });
   registerOrgRoutes(app, { wrap });
   registerChurchProfileRoutes(app, { wrap });
+  registerUnitLandingRoutes(app, { wrap });
   registerHubGalleryRoutes(app, { wrap });
   registerEventLifecycleRoutes(app, { wrap });
   registerDigestRoutes(app, { wrap });

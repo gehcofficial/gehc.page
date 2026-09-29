@@ -1,5 +1,32 @@
 # GEHC Portal — Handoff
 
+## Current — F4: Landing publik per subdomain unit (staging review) (29 Sep 2026)
+
+**Tujuan:** subdomain unit (men/women/teen/kids/districts/community) menampilkan **landing publik unit** (bukan landing Pemuda); portal tetap di `#/portal`. Pemuda tidak diubah.
+
+**Skema/migrasi:** `Tenant.schedules Json?` — `server/_migrate-tenant-schedules.cjs` (didaftarkan di `scripts/db-migrate-local.mjs` + npm `db:migrate:tenant-schedules[:staging|:prod]`). Catatan: `.env` lokal memakai DB **staging** (user sama), jadi migrasi lokal sudah mencakup staging.
+
+**API publik:**
+- `GET /api/unit/landing` — profil unit dari host (`?portal=` hanya berlaku untuk host tak dikenal) → `{ unit, tenant, church }`: nama, tagline, deskripsi, kontak, sosial, logo, hero, jadwal, branding, `registrationOpen`.
+- `GET /api/units/:slug/pengurus` — `StrukturMember` ber-`tenantId` unit (name/position/subdivision/photoUrl/isOpenRole).
+- `PUT /api/tenants/:slug/profile` — kini menerima `name`, `description`, `schedules`.
+- Scope tenant ditambahkan: `GET /api/gallery/public` (join `EventProgram.tenantId`) & `GET /api/events/landing`.
+
+**Frontend:**
+- `src/components/unit/UnitLanding.tsx` (baru, lazy) — hero+identitas, jadwal (fallback jadwal gereja), agenda (`/api/events`), galeri (filter gambar, bukan folder Drive), pengurus, kontak/sosial, CTA portal + daftar; watermark GMIM+GEHC; tema per unit via `usePortalTheme()`.
+- `src/main.tsx` — host unit non-Pemuda & bukan hash app/auth → `UnitLanding`. `isAuthHash()` baru di `src/lib/host-context.ts` agar `#/login|#/register|#/join|#/event` tetap aplikasi.
+- `ManageChurchInfo.tsx` — editor **jadwal unit** di panel Info Gereja.
+- `ChurchHub.tsx` — copy "coming soon"/"dalam pengembangan" diganti; `UnitComingSoon.tsx` (tak terpakai) dihapus.
+
+**Verifikasi:** `lint` bersih ✓ **602 test** hijau (+5: `unit-landing.test.ts`, hash di `host-context.test.ts`) ✓ `build` OK (chunk `UnitLanding` 14,5 kB) ✓ lokal: `?portal=men` → landing unit; `#/portal` → login; `#/register` → daftar; tanpa override → landing Pemuda tetap.
+
+### Next
+1. Tinjau staging: `staging-men|women|teen|kids|districts|community.gehc.page`.
+2. **Migrasi prod** `npm run db:migrate:tenant-schedules:prod` sebelum merge ke `main`.
+3. Isi konten unit (tagline/deskripsi/jadwal/logo/hero) via Info Gereja.
+4. (Opsional) copy halaman login/daftar masih "Beyonders" di host unit non-Pemuda.
+
+
 ## Current — L1: Logo GMIM + GEHC di hub (staging review) (29 Sep 2026)
 
 - **Aset**: logo **GMIM resmi** diambil dari situs Sinode (`gmim.or.id/assets/images/logo-gmim.png`, 493×480 transparan) → dioptimalkan (22 kB) ke `public/visuals/brand/logo-gmim.png`. Logo **GEHC** memakai `public/visuals/brand/logo-gehc.png` (sudah versi terbaik).
