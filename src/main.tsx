@@ -7,6 +7,7 @@ import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
 import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
+import { parseMentoringHash } from './lib/mentoring.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
@@ -19,6 +20,9 @@ const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'))
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 const ReportPresentation = React.lazy(() => import('./components/reports/ReportPresentation.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
+const MentoringDay = React.lazy(() => import('./components/mentoring/MentoringDay.tsx'));
+const MentoringScreen = React.lazy(() => import('./components/mentoring/MentoringScreen.tsx'));
+const MentoringControl = React.lazy(() => import('./components/mentoring/MentoringControl.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hubHost = isHubHost(host);
@@ -93,6 +97,22 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <GroupLogoVote />
+      </Suspense>
+    );
+  }
+
+  // Mentoring Day / pola ibadah (Didaskalia): peserta, layar proyektor, control room.
+  const mentoring = parseMentoringHash(hash);
+  if (mentoring) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        {mentoring.view === 'layar' ? (
+          <MentoringScreen />
+        ) : mentoring.view === 'kontrol' ? (
+          <MentoringControl initialSlug={mentoring.slug} />
+        ) : (
+          <MentoringDay />
+        )}
       </Suspense>
     );
   }

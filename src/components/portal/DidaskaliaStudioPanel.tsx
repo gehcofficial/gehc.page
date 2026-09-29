@@ -53,6 +53,7 @@ import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from 
 import { materialHashPath, delivererLabel } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-caption';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
+import { MentoringControl } from '../mentoring/MentoringControl';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -785,7 +786,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 
-  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'; label: string }> = [
+  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal' | 'pola'; label: string }> = [
     { id: 'inti', label: 'Inti' },
     { id: 'paths', label: '7 Path' },
     { id: 'khotbah', label: 'Khotbah' },
@@ -793,6 +794,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     { id: 'terbitkan', label: 'Terbitkan' },
     { id: 'pengetahuan', label: 'Pengetahuan' },
     { id: 'jadwal', label: 'Jadwal & Meet' },
+    { id: 'pola', label: 'Pola Ibadah' },
   ];
 
   return (
@@ -1383,6 +1385,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           </>)}
           {tab === 'pengetahuan' && (<>
           <DidaskaliaKnowledgePanel canWrite={canWrite} />
+          </>)}
+
+          {tab === 'pola' && (<>
+          <MentoringControl />
           </>)}
 
           {tab === 'jadwal' && (<>

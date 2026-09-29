@@ -1,5 +1,36 @@
 # GEHC Portal — Handoff
 
+## Current — F5: Pola Ibadah & Mentoring Day (Didaskalia) — staging review (29 Sep 2026)
+
+**Tujuan:** katalog **pola ibadah** (skenario siap pakai) di Didaskalia + sesi hari-H ber-*modul web* yang diakses Pemuda/Beyonders lewat routing khusus `#/mentoring/<slug>`.
+
+**Skema/migrasi (`server/_migrate-worship.cjs`, wired `db-migrate-local.mjs` + npm `db:migrate:worship[:staging|:prod]`):** `worship_patterns`, `worship_sessions`, `worship_likert_items`, `worship_likert_responses`, `worship_chips`, `worship_chip_votes` (+ `Worship*` di `prisma/schema.prisma`).
+
+**Seed (`server/_seed-worship-patterns.cjs`, npm `db:seed:worship[:staging|:prod]`):** 5 pola (POST_TO_POST, DUAL_MONOLOG, DEBAT, BEDAH_FILM, THREE_SEQUENCES) lengkap dengan `phases` + `playbook` (dari doc retreat & doc mentoring) + sesi `mentoring-2026-10-04` (3 topik × 3 soal Likert, 12 chip, timer 1200 s, kode akses 6 karakter).
+
+**API (`server/routes/worship.mjs`):**
+- Peserta (login + tenant youth/SUPERADMIN): `GET /api/worship/session/:slug` (state + soal + hasil personal), `POST /api/worship/likert` (upsert 9 jawaban → topik prioritas + lantai), `POST /api/worship/chips` (maks 3), `GET /api/worship/live/:slug` (progres, ranking topik→lantai, word cloud).
+- Proyektor: `GET /api/worship/live/:slug?code=XXXXXX` (read-only tanpa login; kode bisa dirotasi).
+- Admin (`requireDivision('DIDASKALIA')` + `requireRole(SUPERADMIN|KOMISI|COMMITTEE)`): CRUD pola & sesi, `PUT .../state` (`open-likert|start|wrapup|close|reset`), CRUD soal & chip, `export.csv`. Endpoint admin menerima **id atau slug**.
+
+**Frontend:**
+- `#/mentoring/<slug>` → `MentoringDay` (peserta: Likert → prioritas+lantai+afirmasi → catatan → chip words → thank you; polling 5 s).
+- `#/mentoring/<slug>/layar` → `MentoringScreen` (proyektor; gerbang **kode sesi**, progres + timer raksasa + alokasi pos + live word cloud; polling 3 s).
+- `#/mentoring/<slug>/kontrol` → `MentoringControl` (5 tombol trigger, timer/target, kode + tautan salin, monitor hari-H, editor soal & chip, ekspor CSV, rundown pola).
+- Panel Didaskalia dapat sub-tab **“Pola Ibadah”** (`DidaskaliaStudioPanel.tsx`) yang memuat `MentoringControl`.
+- `src/lib/mentoring.ts` (routing + tipe + `fmtClock`), `SessionTimer` (timer server-authoritative via `serverNow`), `WordCloud` (skala √count).
+
+**Algoritma:** kerentanan topik = `Σ (6 − skor)`; ranking → lantai dari `config.rankFloors` (default `[2,1,3]` = terbesar/kedua/terkecil); timer hitung mundur dari `startedAt`; wrap-up menampilkan chip → word cloud.
+
+**Verifikasi (lokal, DB = staging):** `lint` bersih ✓ `build` OK ✓ **607 test** hijau (+5 `tests/unit/worship.test.ts`) ✓ E2E manual: kode proyektor → layar; login → Likert → “Hubungan → Lantai 2” + afirmasi; kontrol `Buka Likert → Start → Trigger Lesson Learned`; chip `2/3` → “Thank you”; word cloud muncul di layar proyektor. Data uji dihapus & status direset ke `DRAFT`.
+
+### Next
+1. Tinjau di staging: login `tech@gehc.demo` → panel Didaskalia → tab **Pola Ibadah**; tautan peserta/layar/kontrol + kode 6 karakter.
+2. Migrasi + seed prod sebelum merge ke `main` (`db:migrate:worship:prod`, `db:seed:worship:prod`).
+3. Modul menyusul untuk pola lain (DEBAT `rounds`, BEDAH_FILM `screening`, THREE_SEQUENCES `teams`).
+4. Opsional: word cloud animasi + rekap evaluasi per sesi di panel.
+
+
 ## Current — F4: Landing publik per subdomain unit (staging review) (29 Sep 2026)
 
 **Tujuan:** subdomain unit (men/women/teen/kids/districts/community) menampilkan **landing publik unit** (bukan landing Pemuda); portal tetap di `#/portal`. Pemuda tidak diubah.

@@ -370,6 +370,11 @@ const STEPS = [
     label: 'Landing unit: jadwal per unit (tenants.schedules)',
     required: true,
   },
+  {
+    script: 'server/_migrate-worship.cjs',
+    label: 'F5: pola ibadah & mentoring day (worship_*)',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
