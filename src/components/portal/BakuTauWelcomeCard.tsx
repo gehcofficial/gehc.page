@@ -102,7 +102,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
       ) : (
         <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-4 text-center">
           <p className="text-[11px] font-semibold text-emerald-800">QR daftar ulang sedang disiapkan</p>
-          <p className="text-[10px] text-[#8C8880] mt-1">Refresh halaman, atau buka Portal → Info Event.</p>
+          <p className="text-[10px] text-[#8C8880] mt-1">Muat ulang halaman ini sesaat lagi.</p>
         </div>
       )}
 
@@ -119,7 +119,7 @@ export const BakuTauWelcomeCard: React.FC<Props> = ({
       ) : (
         <div className="rounded-2xl bg-white border border-dashed border-emerald-200 p-3 text-center">
           <p className="text-[11px] text-emerald-700 font-semibold leading-relaxed">
-            Link grup belum tersedia. Admin isi di Program & Event → Edit → Grup WhatsApp peserta, lalu refresh halaman ini.
+            Link grup belum tersedia. Info menyusul dari panitia — cek lagi nanti.
           </p>
           <button
             type="button"
