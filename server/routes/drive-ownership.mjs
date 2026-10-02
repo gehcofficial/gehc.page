@@ -185,7 +185,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           },
           include: {
             serviceRole: { select: { name: true, division: true } },
-            user: { select: { name: true } },
+            user: { select: { name: true, avatar: true } },
           },
           orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
           take: 400,
@@ -264,7 +264,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           const members = await prisma.groupMember
             .findMany({
               where: { groupId: { in: hostIds }, status: 'ACTIVE' },
-              select: { groupId: true, user: { select: { name: true } }, name: true },
+              select: { groupId: true, user: { select: { name: true, avatar: true } }, name: true },
             })
             .catch(() => []);
           const byGroup = new Map();
@@ -272,13 +272,13 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
             const name = String(m.user?.name || m.name || '').trim();
             if (!name) continue;
             const list = byGroup.get(m.groupId) || [];
-            list.push(name);
+            if (!list.some((p) => p.name === name)) list.push({ name, avatar: m.user?.avatar || null });
             byGroup.set(m.groupId, list);
           }
           for (const entry of Object.values(serving)) {
             if (!entry.hostGroupId) continue;
             const names = byGroup.get(entry.hostGroupId) || [];
-            entry.hostMembers = [...new Set(names)].sort((a, b) => a.localeCompare(b, 'id'));
+            entry.hostMembers = [...names].sort((a, b) => a.name.localeCompare(b.name, 'id'));
           }
         }
       } catch { /* daftar anggota opsional */ }
@@ -287,6 +287,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         role: r.serviceRole?.name || 'Petugas',
         division: r.serviceRole?.division || null,
         name: r.user?.name || '—',
+        avatar: r.user?.avatar || null,
         timeStart: r.timeStart || null,
         timeEnd: r.timeEnd || null,
         status: r.status,

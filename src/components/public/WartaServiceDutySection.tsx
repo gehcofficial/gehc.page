@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, HandHeart, Home, Users } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { SectionHeader } from './ui/SectionHeader';
+import { DutyAvatarStack, type DutyPerson } from './DutyPersonChip';
 
 type Duty = {
   date: string;
   role: string;
   division?: string | null;
   name: string;
+  avatar?: string | null;
   timeStart?: string | null;
   timeEnd?: string | null;
   status?: string | null;
@@ -16,7 +19,7 @@ type Serving = {
   responsible?: string | null;
   host?: string | null;
   hostGroupId?: string | null;
-  hostMembers?: string[];
+  hostMembers?: Array<{ name: string; avatar?: string | null }>;
   projected?: boolean;
 };
 
@@ -43,54 +46,55 @@ export const mergeDutiesByName = (duties: Duty[]) => {
 };
 
 /** Blok “Pelayanan” untuk satu hari (dipakai kartu Warta & detail Warta). */
-const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> = ({ day, duties, serving }) => (
-  <div className="space-y-3">
-    {serving.responsible && (
-      <div>
-        <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
-          <HandHeart className="w-3.5 h-3.5" /> Penanggung Jawab
-        </p>
-        <p className="text-xs font-bold text-[#1B1B1B]">
-          {serving.responsible}
-          {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
-        </p>
-        {duties.length > 0 ? (
-          <ul className="mt-1.5 space-y-1">
-            {mergeDutiesByName(duties).map((p) => (
-              <li key={p.name} className="text-[11px] text-[#1B1B1B] flex flex-wrap gap-x-1.5">
-                <span className="font-bold">{p.name}</span>
-                {p.roles.length > 0 && <span className="text-[#8C8880]">{p.roles.join(' · ')}</span>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[10px] text-[#B8B4AC] mt-0.5">Petugas belum ada.</p>
-        )}
-      </div>
-    )}
-
-    {serving.host && (
-      <div className="border-t border-[#EFEDE8] pt-2">
-        <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
-          <Home className="w-3.5 h-3.5" /> Tuan Rumah
-        </p>
-        <p className="text-xs font-bold text-[#1B1B1B]">
-          {serving.host}
-          {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
-        </p>
-        {(serving.hostMembers || []).length > 0 ? (
-          <p className="mt-1 text-[11px] text-[#5C5850] leading-relaxed">
-            {(serving.hostMembers || []).join(' · ')}
+const DutyDayBlock: React.FC<{ duties: Duty[]; serving: Serving }> = ({ duties, serving }) => {
+  const [openDuties, setOpenDuties] = useState(false);
+  const [openHost, setOpenHost] = useState(false);
+  const officers: DutyPerson[] = duties.map((d) => ({ name: d.name, avatar: d.avatar, role: d.role, division: d.division }));
+  const members: DutyPerson[] = (serving.hostMembers || []).map((m) => ({ name: m.name, avatar: m.avatar }));
+  return (
+    <div className="space-y-3">
+      {(serving.responsible || officers.length > 0) && (
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
+            <HandHeart className="w-3.5 h-3.5" /> {serving.responsible ? 'Penanggung Jawab' : 'Petugas'}
           </p>
-        ) : (
-          <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>
-        )}
-      </div>
-    )}
+          {serving.responsible && (
+            <p className="text-xs font-bold text-[#1B1B1B]">
+              {serving.responsible}
+              {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
+            </p>
+          )}
+          {officers.length > 0 ? (
+            <div className="mt-1.5">
+              <DutyAvatarStack people={officers} expanded={openDuties} onToggle={() => setOpenDuties((v) => !v)} label="Petugas" />
+            </div>
+          ) : (
+            <p className="text-[10px] text-[#B8B4AC] mt-0.5">Petugas belum ada.</p>
+          )}
+        </div>
+      )}
 
-    <p className="sr-only">{day}</p>
-  </div>
-);
+      {serving.host && (
+        <div className="border-t border-[#EFEDE8] pt-2">
+          <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
+            <Home className="w-3.5 h-3.5" /> Tuan Rumah
+          </p>
+          <p className="text-xs font-bold text-[#1B1B1B]">
+            {serving.host}
+            {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
+          </p>
+          {members.length > 0 ? (
+            <div className="mt-1.5">
+              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" />
+            </div>
+          ) : (
+            <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /**
  * Blok publik “Petugas Ibadah” untuk tab Warta.
@@ -100,6 +104,7 @@ const DutyDayBlock: React.FC<{ day: string; duties: Duty[]; serving: Serving }> 
 export const WartaServiceDutySection: React.FC = () => {
   const [duties, setDuties] = useState<Duty[]>([]);
   const [serving, setServing] = useState<Record<string, Serving>>({});
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -146,13 +151,20 @@ export const WartaServiceDutySection: React.FC = () => {
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {days.map(([day, list]) => (
-          <div key={day} className="rounded-3xl border border-[#D9D7D0]/60 bg-white p-5">
+        {days.map(([day, list], i) => (
+          <motion.div
+            key={day}
+            className="rounded-3xl border border-[#D9D7D0]/60 bg-white p-5"
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.45, delay: Math.min(i, 2) * 0.08 }}
+          >
             <p className="text-[11px] font-black uppercase tracking-wider text-brand flex items-center gap-1.5 mb-3">
               <CalendarDays className="w-3.5 h-3.5" /> {dayLabel(day)}
             </p>
-            <DutyDayBlock day={day} duties={list} serving={serving[day] || {}} />
-          </div>
+            <DutyDayBlock duties={list} serving={serving[day] || {}} />
+          </motion.div>
         ))}
       </div>
     </section>
@@ -189,7 +201,7 @@ export const WartaPelayananBlock: React.FC<{ date?: string | null }> = ({ date }
       <p className="text-[11px] font-black uppercase tracking-wider text-brand mb-3 flex items-center gap-1.5">
         <Users className="w-3.5 h-3.5" /> Pelayanan
       </p>
-      <DutyDayBlock day={day} duties={duties} serving={serving} />
+      <DutyDayBlock duties={duties} serving={serving} />
     </div>
   );
 };

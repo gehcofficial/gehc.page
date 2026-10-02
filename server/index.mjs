@@ -8940,6 +8940,43 @@ app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   res.json({ event, roles, assignments, previous });
 }));
 
+// GET /api/events/:id/worship — sesi pola ibadah untuk event ini (kartu Info Event).
+// Publik internal: semua peran portal yang login; tanpa PII, tanpa kontrol state.
+app.get('/api/events/:id/worship', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const event = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, name: true, eventDate: true },
+  });
+  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  const withPattern = { pattern: { select: { code: true, name: true } } };
+  let session = await prisma.worshipSession.findFirst({
+    where: { eventId: event.id },
+    include: withPattern,
+    orderBy: { createdAt: 'desc' },
+  }).catch(() => null);
+  if (!session && event.eventDate) {
+    const day = new Date(event.eventDate).toISOString().slice(0, 10);
+    session = await prisma.worshipSession.findFirst({
+      where: { sessionDate: new Date(`${day}T00:00:00.000Z`) },
+      include: withPattern,
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => null);
+  }
+  if (!session) return res.json({ session: null });
+  res.json({
+    session: {
+      slug: session.slug,
+      title: session.title,
+      status: session.status,
+      sessionDate: session.sessionDate,
+      patternCode: session.pattern?.code || null,
+      patternName: session.pattern?.name || null,
+    },
+  });
+}));
+
 // POST /api/events/:id/penatalayan/copy � salin penugasan dari event sebelumnya
 app.post('/api/events/:id/penatalayan/copy', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();

@@ -1,6 +1,30 @@
 # GEHC Portal — Handoff
 
-## Current — F5.2: Segmen hari-H + catatan peserta + simulasi 3 lantai (staging) (29 Sep 2026)
+## Current — Penatalayanan demo 4 Okt + petugas interaktif Warta (2 Okt 2026)
+
+**Data staging:** 10 penugasan CONFIRMED tgl `2026-10-04` (2 peran × 5 divisi panca: Liturgist+Holly, Singer+Glenity, Firman1+Putri, Firman2+Alvandi, KoordTR+Theodore, Usher+Zhanon, Bersih+Prichel, Konsumsi+Artjuna, Multimedia+Gievara, Fotografer+Milithya; `eventId` = event Mentoring 4 Okt). Idempoten (skip bila sudah ada).
+
+**API (`server/routes/drive-ownership.mjs`):** `/api/db/service-schedule` kini mengirim `avatar` per petugas + `hostMembers` sebagai `{name, avatar}` (resolve via `groupMember.user`; tetap tanpa email/telepon, tetap hanya CONFIRMED/DONE).
+
+**UI:** baru `src/components/public/DutyPersonChip.tsx` — `DutyPersonChip` (foto + nama + badge ikon; ikon spesifik ~30 kata kunci peran → fallback ikon divisi Flame/BookOpen/Heart/HandHeart/Megaphone + warna divisi baku) + `DutyAvatarStack` (foto overlap +n, klik expand). Dipakai di `WartaServiceDutySection` (kartu + entrance stagger motion, hormati reduced-motion), `WartaPelayananBlock`, dan `EventServiceDutyCard` (sekaligus fallback render daftar petugas saat tanpa pasangan penanggung/tuan rumah — kasus Mentoring Day).
+
+**Verifikasi:** `lint` bersih ✓ **623 test** hijau (+4 `duty-person-chip.test.ts`) ✓ `build` OK ✓ data staging terverifikasi via query ✓ browser lokal vs DB staging: Warta → kartu 4 Okt (stack + expand 10 chip) + 11/18 Okt (proyeksi + anggota) ✓ Info Event 4 Okt → kartu Pelayanan + kartu Post-to-Post (`Segera` + link mentoring) ✓ fix hooks `useReducedMotion` (early-return) ✓
+
+**Next:** deploy ke staging agar terlihat publik — Vercel CLI setempat `Not authorized` (`deploy:staging` gagal). Opsi: `vercel login` lalu `npm run deploy:staging`, atau push branch → preview Vercel. Cek visual staging (tab Warta + Info Event 4 Okt); deploy `main` bila OK.
+
+## Prior — Info Event: Pelayanan + link Post-to-Post 4 Okt (staging) (2 Okt 2026)
+
+**Data:** prod punya agenda `Ibadah Pemuda Mentoring: More Than Good News - 04 Okt 2026` (`evt-ibadah-pemuda-mentoring-more-than-good-n-munvbmqezm`, MENTORING_DAY, ACTIVE) tapi `service-schedule` 4 Okt masih kosong. Pull scoped prod→staging (`_copy-prod-to-staging.cjs --only=EventProgram,serving_assignments,serving_cycle_pairs,service_week_overrides,service_roles,service_schedules --truncate --apply`, 71 baris; worship_* dikecualikan — belum ada di prod). Sesi `mentoring-2026-10-04` (POST_TO_POST, 9 soal, 12 chip) di-link `event_id` + reset WRAPUP→DRAFT.
+
+**API:** `GET /api/events/:id/worship` (`requireRole()`, tanpa PII) — sesi via `eventId`, fallback `session_date` = tanggal event.
+
+**UI (`EventInfoPanel.tsx`):** kartu `EventServiceDutyCard` (penanggung jawab + petugas, tuan rumah + anggota dari endpoint publik `service-schedule`; kosong → sembunyi, tanpa teks admin) + `EventWorshipCard` (nama pola + badge status + `Buka Sesi Mentoring →`; DRAFT → `Panduan menyusul dari Didaskalia`).
+
+**Verifikasi:** `lint` bersih ✓ test hijau (+6 `event-info-cards.test.ts`) ✓ `build` OK ✓ data staging terverifikasi via query langsung ✓
+
+**Next:** cek visual di `staging-youth` (Info Event 4 Okt → kartu Pelayanan bila sudah ada petugas + kartu Post-to-Post); isi penatalayan 4 Okt di Program & Event; deploy `main` bila OK.
+
+## Prior — F5.2: Segmen hari-H + catatan peserta + simulasi 3 lantai (staging) (29 Sep 2026)
 
 **Latar:** hasil simulasi pemilik — timer/segmen perlu dipisah, arah ruangan harus jelas, peserta butuh catatan (bisa jadi PDF), dan Lesson Learned baru muncul setelah 20 menit + tautan ke layar proyektor.
 
