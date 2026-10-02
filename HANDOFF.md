@@ -10,7 +10,7 @@
 
 **Verifikasi:** `lint` bersih ✓ **623 test** hijau (+4 `duty-person-chip.test.ts`) ✓ `build` OK ✓ data staging terverifikasi via query ✓ browser lokal vs DB staging: Warta → kartu 4 Okt (stack + expand 10 chip) + 11/18 Okt (proyeksi + anggota) ✓ Info Event 4 Okt → kartu Pelayanan + kartu Post-to-Post (`Segera` + link mentoring) ✓ fix hooks `useReducedMotion` (early-return) ✓
 
-**Deploy (2 Okt 2026):** commit `d430d7e` (fix WA overshare) + `ec47c6e` (feat pelayanan/worship) di `cursor/mentoring-day` → push branch → FF-merge ke `main` → push `main` (Vercel Production auto-deploy) + push `main:staging` (branch staging terupdate). Alias `staging.gehc.page` masih menunjuk build lama — perlu `vercel login` + `npm run deploy:staging` untuk pindah alias.
+**Sinkron DB prod (2 Okt 2026):** `db:migrate:worship:prod` + `worship-notes:prod` (7 tabel baru) → `db:seed:worship:prod` (5 pola + sesi `mentoring-2026-10-04` DRAFT, 9 soal, 12 chip) → sesi di-link `event_id` event Mentoring 4 Okt → 10 penugasan CONFIRMED 4 Okt (orang asli: Holly, Glenity Marchella, Putri Claudia Massie, Alvandi, Theodore, Zhanon, Prichel, Artjuna, Gievara, MilithyaCh). Verifikasi: `/api/version` prod = `31c6d68` ✓ `/api/db/service-schedule?from=2026-10-04` → 10 duties + avatar Google asli ✓ Sisa: alias `staging.*` masih build lama (perlu `vercel login` + `deploy:staging`).
 
 ## Prior — Info Event: Pelayanan + link Post-to-Post 4 Okt (staging) (2 Okt 2026)
 
