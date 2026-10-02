@@ -1,6 +1,10 @@
 # GEHC Portal — Handoff
 
-## Current — Standar Pola RHB Beyonders terkunci untuk AI (3 Okt 2026)
+## Current — Merge main: gate divisi + standar RHB live di prod (3 Okt 2026)
+
+`cursor/division-gate` (3 commit: gate panel Panca+BZP, catatan, standar RHB) → FF-merge → push `main` → `/api/version` prod = `09e8f5b` ✓ live. Gate ulang sebelum merge: lint + 627 test + build hijau. DB prod sudah sinkron sebelumnya (tak perlu migrasi). Sisa: alias `staging.*` masih build lama (perlu `vercel login`).
+
+**Next:** cek visual prod (KOMISI → 6 panel divisi; PIC non-BOD → hanya divisinya); generate uji RHB 1 hari; validator pasca-generate (opsional).
 
 **Standar** (disetujui pemilik: nada pas, label emoji 🎒🎓💼, ilustrasi 1–2 kontekstual): tiap hari = Pengantar (konteks + ilustrasi) → Pembahasan → Makna → Refleksi Pribadi (tepat 3 pertanyaan berlabel konteks) → Diskusi Kelompok (2–3, alur observasi → interpretasi → aplikasi).
 
