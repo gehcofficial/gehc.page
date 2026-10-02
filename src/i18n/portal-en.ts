@@ -439,7 +439,6 @@ export const portalEn = {
     tabKesaksian: 'Testimony & Story',
     tabPenatalayan: 'Stewards',
     tabStore: 'Benzarpreneurship',
-    tabMateri: 'Curriculum & Materials',
   },
   monitoring: {
     tabForm: 'Monitoring form',
