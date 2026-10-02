@@ -10,7 +10,7 @@
 
 **Verifikasi:** `lint` bersih ✓ **623 test** hijau (+4 `duty-person-chip.test.ts`) ✓ `build` OK ✓ data staging terverifikasi via query ✓ browser lokal vs DB staging: Warta → kartu 4 Okt (stack + expand 10 chip) + 11/18 Okt (proyeksi + anggota) ✓ Info Event 4 Okt → kartu Pelayanan + kartu Post-to-Post (`Segera` + link mentoring) ✓ fix hooks `useReducedMotion` (early-return) ✓
 
-**Next:** deploy ke staging agar terlihat publik — Vercel CLI setempat `Not authorized` (`deploy:staging` gagal). Opsi: `vercel login` lalu `npm run deploy:staging`, atau push branch → preview Vercel. Cek visual staging (tab Warta + Info Event 4 Okt); deploy `main` bila OK.
+**Deploy (2 Okt 2026):** commit `d430d7e` (fix WA overshare) + `ec47c6e` (feat pelayanan/worship) di `cursor/mentoring-day` → push branch → FF-merge ke `main` → push `main` (Vercel Production auto-deploy) + push `main:staging` (branch staging terupdate). Alias `staging.gehc.page` masih menunjuk build lama — perlu `vercel login` + `npm run deploy:staging` untuk pindah alias.
 
 ## Prior — Info Event: Pelayanan + link Post-to-Post 4 Okt (staging) (2 Okt 2026)
 
