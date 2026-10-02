@@ -53,6 +53,17 @@ describe('konteks tim (instruksi + knowledge)', () => {
     expect(allPrompts()).not.toContain('INSTRUKSI KHUSUS TIM');
   });
 
+  it('pola RHB Beyonders selalu ikut di aturan generate', async () => {
+    captured.prompts = []; captured.systems = [];
+    await generateWeekDraft({ ...base });
+    expect(allPrompts()).toContain('REFLEKSI_PRIBADI');
+    expect(allPrompts()).toContain('🎒 Pelajar');
+    expect(allPrompts()).toContain('🎓 Mahasiswa');
+    expect(allPrompts()).toContain('💼 Pekerja');
+    expect(allPrompts()).toContain('DISKUSI_KELOMPOK');
+    expect(allPrompts()).toContain('observasi → interpretasi → aplikasi');
+  });
+
   it('mematuhi batas karakter pengetahuan', async () => {
     captured.prompts = []; captured.systems = [];
     const big = 'A'.repeat(5000);

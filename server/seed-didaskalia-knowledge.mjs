@@ -8,6 +8,42 @@ import { getPrisma, getDbLabel } from './db.mjs';
 
 const DOCS = [
   {
+    id: 'dk-format-rhb',
+    title: 'Standar Pola RHB Beyonders',
+    category: 'FORMAT',
+    source: 'MANUAL',
+    sortOrder: 11,
+    content: `# STANDAR POLA RHB BEYONDERS — TIM DIDASKALIA
+
+Standar penyusunan Renungan Harian Beyonders (7 Path/hari). AI WAJIB mengikuti struktur, proporsi, dan nada di bawah ini. Keluaran AI adalah usulan — tim menyunting sebelum rilis.
+
+## 1. Struktur tiap hari (urutan tetap)
+
+1. **Pengantar** — konteks "renungan hari ini tentang apa" (boleh panjang) + **1–2 ilustrasi konkret dunia anak muda** (kuliah: KRS/tugas/skripsi; kerja: shift/lembur/atasan; kos, gaji pertama, relasi, keluarga jauh) yang memperjelas inti dan kontekstual dengan materi. Ilustrasi membuka, bukan tempelan.
+2. **Pembahasan Tematis** — kupas nats pembimbing + bacaan harian, 1 paragraf padat.
+3. **Makna & Implikasi bagi Beyonders** — "jadi apa buatku minggu ini", respons syukur (bukan usaha memperoleh keselamatan).
+4. **Refleksi Pribadi — tepat 3 pertanyaan**, masing-masing 1 kalimat, masing-masing berlabel konteks:
+   - 🎒 Pelajar — …?
+   - 🎓 Mahasiswa — …?
+   - 💼 Pekerja — …?
+
+   Menohok tapi tidak menghakimi. Awalan yang disukai: "Kapan terakhir…?", "Apa yang berubah… jika…?", "Siapa/apa yang paling…?"
+5. **Diskusi Kelompok — 2–3 pertanyaan** beralur observasi → interpretasi → aplikasi.
+
+## 2. Nada (skala yang disepakati)
+
+Hangat, bahasa anak muda, hormat. Tidak baku-kaku, tidak kasual-berlebihan.
+
+- CONTOH BAIK: "Pernah nggak sih merasa sudah sibuk pelayanan tapi hati kering? Itu sinyal, bukan vonis."
+- CONTOH BAIK: "Skripsi nggak kelar-kelar bisa bikin kita mempertanyakan penyertaan Tuhan — padahal justru di sanalah Dia bekerja."
+- JANGAN: "Saudara-saudara yang dikasihi Tuhan, marilah kita merenungkan…" (terlalu baku).
+- JANGAN: nada meremehkan kekudusan atau menjadikan Tuhan "chill".
+
+## 3. Rambu teologi (tetap)
+
+Reformed: Sola Scriptura/Gratia/Fide, Solus Christus, Soli Deo Gloria. Pemuridan = respons syukur, bukan syarat keselamatan. Jangan menyiratkan "Allah + usahamu".`,
+  },
+  {
     id: 'dk-format-khotbah',
     title: 'Panduan Format Khotbah — Tim Didaskalia',
     category: 'FORMAT',

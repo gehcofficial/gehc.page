@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Standar Pola RHB Beyonders terkunci untuk AI (3 Okt 2026)
+
+**Standar** (disetujui pemilik: nada pas, label emoji 🎒🎓💼, ilustrasi 1–2 kontekstual): tiap hari = Pengantar (konteks + ilustrasi) → Pembahasan → Makna → Refleksi Pribadi (tepat 3 pertanyaan berlabel konteks) → Diskusi Kelompok (2–3, alur observasi → interpretasi → aplikasi).
+
+**Dikunci 2 lapis:** (1) dokumen `FORMAT` baru `dk-format-rhb` di `server/seed-didaskalia-knowledge.mjs` → seed staging+prod (masuk tiap generate via `teamContextBlock`); (2) `PATH_RULES` di `server/lib/didaskalia-ai.mjs` (berlaku untuk generate mingguan + per-path; batas 220 karakter dilonggarkan khusus Pengantar/Refleksi/Diskusi). Skema Zod tidak berubah. Prinsip tetap: AI = usulan, tim menyunting.
+
+**Verifikasi:** `lint` bersih ✓ **627 test** hijau (+1 pola RHB, mock provider) ✓ `build` OK ✓ seed staging+prod (1 dibuat + 1 selaras) ✓
+
+**Next:** generate uji 1 hari pekan berjalan → nilai → massal; opsi validator pasca-generate (tandai draf kurang lengkap).
+
 ## Current — Gate panel Panca + BZP: Admin/Komisi/BOD/divisi (staging) (3 Okt 2026)
 
 **Aturan baru:** panel divisi (5 Panca + BZP) hanya untuk SUPERADMIN, KOMISI, COMMITTEE yang BOD Tim Kerja, dan anggota/kepala divisi itu. BPMJ + COMMITTEE non-BOD + peran lain tanpa divisi: tidak lihat. Tulis tidak berubah (tetap `requireRole` per endpoint). Sebelumnya justru lebih ketat (KOMISI/BOD tanpa divisi pun tertutup).
