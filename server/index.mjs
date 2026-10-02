@@ -975,14 +975,21 @@ app.post('/api/me/unlink-google', requireRole(), wrap(async (req, res) => {
 // Divisi yang boleh dilihat pengguna (gating nav per-divisi).
 app.get('/api/me/divisions', requireRole(), wrap(async (req, res) => {
   try {
-    const { divisionCodesFor, headDivisions, isSuperadminUser } = await import('./lib/division-access.mjs');
-    const [divisions, heads] = await Promise.all([
+    const { divisionCodesFor, headDivisions, isSuperadminUser, isKomisiUser, isBodCommittee } = await import('./lib/division-access.mjs');
+    const [divisions, heads, bod] = await Promise.all([
       divisionCodesFor(req.authUser),
       headDivisions(req.authUser),
+      isBodCommittee(req.authUser),
     ]);
-    res.json({ divisions, headDivisions: heads, isSuperadmin: isSuperadminUser(req.authUser) });
+    res.json({
+      divisions,
+      headDivisions: heads,
+      isSuperadmin: isSuperadminUser(req.authUser),
+      isKomisi: isKomisiUser(req.authUser),
+      isBodCommittee: bod,
+    });
   } catch {
-    res.json({ divisions: [], headDivisions: [], isSuperadmin: false });
+    res.json({ divisions: [], headDivisions: [], isSuperadmin: false, isKomisi: false, isBodCommittee: false });
   }
 }));
 

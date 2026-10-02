@@ -7,6 +7,8 @@ export type MyDivisions = {
   /** Divisi tempat user menjadi kepala (LEAD/CO_LEAD). */
   headDivisions: string[];
   isSuperadmin: boolean;
+  isKomisi: boolean;
+  isBodCommittee: boolean;
   loading: boolean;
   /** True bila tab panel divisi boleh dibuka user ini. */
   canSee: (tabId: string) => boolean;
@@ -14,7 +16,14 @@ export type MyDivisions = {
 
 /** Divisi pengguna untuk gating nav/panel per-divisi. */
 export function useMyDivisions(): MyDivisions {
-  const [state, setState] = useState({ divisions: [] as string[], headDivisions: [] as string[], isSuperadmin: false, loading: true });
+  const [state, setState] = useState({
+    divisions: [] as string[],
+    headDivisions: [] as string[],
+    isSuperadmin: false,
+    isKomisi: false,
+    isBodCommittee: false,
+    loading: true,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +36,8 @@ export function useMyDivisions(): MyDivisions {
           divisions: up(d?.divisions),
           headDivisions: up(d?.headDivisions),
           isSuperadmin: Boolean(d?.isSuperadmin),
+          isKomisi: Boolean(d?.isKomisi),
+          isBodCommittee: Boolean(d?.isBodCommittee),
           loading: false,
         });
       })
@@ -37,7 +48,13 @@ export function useMyDivisions(): MyDivisions {
   return {
     ...state,
     canSee: (tabId: string) => canSeeDivisionTab(
-      { isSuperadmin: state.isSuperadmin, divisions: state.divisions, headDivisions: state.headDivisions },
+      {
+        isSuperadmin: state.isSuperadmin,
+        isKomisi: state.isKomisi,
+        isBodCommittee: state.isBodCommittee,
+        divisions: state.divisions,
+        headDivisions: state.headDivisions,
+      },
       tabId,
     ),
   };

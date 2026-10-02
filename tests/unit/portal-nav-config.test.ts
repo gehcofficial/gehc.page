@@ -4,6 +4,7 @@ import {
   JEMAAT_PANELS_LIVE_IN_YOUTH,
   buildPortalNavItems,
   buildPortalSidebarItems,
+  canSeeDivisionTab,
   filterDivisionTabs,
   isHiddenInPortal,
 } from '../../src/lib/portal-nav-config';
@@ -136,6 +137,41 @@ describe('portal-nav-config — visibilitas modul (F3.6)', () => {
     ];
     expect(filterDivisionTabs(defs, ['div-liturgia'], false).map((d) => d.id)).toEqual(['div-liturgia', 'event-info']);
     expect(filterDivisionTabs(defs, [], true).map((d) => d.id)).toEqual(['div-liturgia', 'div-didaskalia', 'event-info']);
+  });
+});
+
+describe('canSeeDivisionTab — Admin, Komisi, BOD, divisi sendiri', () => {
+  const ALL_DIVS = ['div-liturgia', 'div-didaskalia', 'div-koinonia', 'div-diakonia', 'div-marturia', 'div-benzarpr'];
+  const sees = (me: Parameters<typeof canSeeDivisionTab>[0]) => ALL_DIVS.filter((id) => canSeeDivisionTab(me, id));
+
+  it('SUPERADMIN & KOMISI melihat semua 6 panel', () => {
+    const none = { divisions: [], headDivisions: [] };
+    expect(sees({ isSuperadmin: true, ...none })).toEqual(ALL_DIVS);
+    expect(sees({ isSuperadmin: false, isKomisi: true, ...none })).toEqual(ALL_DIVS);
+  });
+
+  it('COMMITTEE BOD melihat semua; non-BOD hanya divisinya', () => {
+    const none = { divisions: [], headDivisions: [] };
+    expect(sees({ isSuperadmin: false, isBodCommittee: true, ...none })).toEqual(ALL_DIVS);
+    expect(sees({ isSuperadmin: false, isBodCommittee: false, divisions: ['DIAKONIA'], headDivisions: [] }))
+      .toEqual(['div-diakonia']);
+  });
+
+  it('anggota/kepala divisi hanya melihat panelnya (termasuk BZP)', () => {
+    expect(canSeeDivisionTab(
+      { isSuperadmin: false, divisions: ['BENZARPR'], headDivisions: [] }, 'div-benzarpr',
+    )).toBe(true);
+    expect(canSeeDivisionTab(
+      { isSuperadmin: false, divisions: ['BENZARPR'], headDivisions: [] }, 'div-liturgia',
+    )).toBe(false);
+    expect(canSeeDivisionTab(
+      { isSuperadmin: false, divisions: [], headDivisions: ['MARTURIA'] }, 'div-marturia',
+    )).toBe(true);
+  });
+
+  it('MENTEE/BPMJ tanpa divisi tidak melihat panel divisi', () => {
+    const none = { divisions: [], headDivisions: [] };
+    expect(sees({ isSuperadmin: false, ...none })).toEqual([]);
   });
 });
 

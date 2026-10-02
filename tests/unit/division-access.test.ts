@@ -1,62 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { canSeeDivisionTab, divisionForTab, DIVISION_TAB_IDS } from '../../src/lib/portal-nav-config';
-import { isSuperadminUser, canAccessDivision, divisionCodesFor } from '../../server/lib/division-access.mjs';
+import {
+  DIVISION_TAB_IDS,
+  canSeeDivisionTab,
+  divisionForTab,
+} from '../../src/lib/portal-nav-config';
+import {
+  canAccessDivision,
+  isBodCommittee,
+  isKomisiUser,
+  isSuperadminUser,
+} from '../../server/lib/division-access.mjs';
 
-describe('canSeeDivisionTab (gating panel divisi)', () => {
-  it('SUPERADMIN boleh semua panel divisi', () => {
-    const me = { isSuperadmin: true, divisions: [], headDivisions: [] };
-    for (const id of DIVISION_TAB_IDS) expect(canSeeDivisionTab(me, id)).toBe(true);
+const user = (...roles: string[]) => ({ roles: roles.map((role) => ({ role })) });
+
+describe('division-access — gate panel divisi (server)', () => {
+  it('isKomisiUser hanya true untuk KOMISI', () => {
+    expect(isKomisiUser(user('KOMISI'))).toBe(true);
+    expect(isKomisiUser(user('COMMITTEE'))).toBe(false);
+    expect(isKomisiUser(user('BPMJ'))).toBe(false);
   });
 
-  it('anggota divisi hanya divisinya', () => {
-    const me = { isSuperadmin: false, divisions: ['DIDASKALIA'], headDivisions: [] };
-    expect(canSeeDivisionTab(me, 'div-didaskalia')).toBe(true);
-    expect(canSeeDivisionTab(me, 'div-benzarpr')).toBe(false);
-    expect(canSeeDivisionTab(me, 'div-liturgia')).toBe(false);
+  it('isBodCommittee false tanpa peran COMMITTEE (tanpa DB)', async () => {
+    expect(await isBodCommittee(user('MENTEE'))).toBe(false);
+    expect(await isBodCommittee(user('KOMISI'))).toBe(false);
+    expect(await isBodCommittee(user('BPMJ'))).toBe(false);
   });
 
-  it('kepala divisi dapat panel divisinya (per-divisi)', () => {
-    const me = { isSuperadmin: false, divisions: [], headDivisions: ['LITURGIA'] };
-    expect(canSeeDivisionTab(me, 'div-liturgia')).toBe(true);
-    expect(canSeeDivisionTab(me, 'div-marturia')).toBe(false);
+  it('divisi tak dikenal selalu ditolak', async () => {
+    expect(await canAccessDivision(user('SUPERADMIN'), 'ASING')).toBe(false);
+    expect(await canAccessDivision(user('KOMISI'), '')).toBe(false);
   });
 
-  it('tanpa divisi (mis. KOMISI) tidak dapat panel apa pun', () => {
-    const me = { isSuperadmin: false, divisions: [], headDivisions: [] };
-    for (const id of DIVISION_TAB_IDS) expect(canSeeDivisionTab(me, id)).toBe(false);
+  it('SUPERADMIN & KOMISI lolos tanpa perlu keanggotaan divisi', async () => {
+    expect(await canAccessDivision(user('SUPERADMIN'), 'LITURGIA')).toBe(true);
+    expect(await canAccessDivision(user('KOMISI'), 'BENZARPR')).toBe(true);
   });
 
-  it('toleran huruf besar/kecil & menolak tab non-divisi', () => {
+  it('tanpa user (null) → tanpa divisi', async () => {
+    expect(await canAccessDivision(null, 'LITURGIA')).toBe(false);
+  });
+
+  it('isSuperadminUser mendeteksi role SUPERADMIN', () => {
+    expect(isSuperadminUser(user('SUPERADMIN'))).toBe(true);
+    expect(isSuperadminUser(user('KOMISI'))).toBe(false);
+  });
+
+  it('DIVISION_TAB_IDS memetakan ke 6 divisi (5 Panca + BZP)', () => {
+    expect(DIVISION_TAB_IDS).toHaveLength(6);
+    expect(DIVISION_TAB_IDS).toContain('div-benzarpr');
+    for (const id of DIVISION_TAB_IDS) expect(divisionForTab(id)).not.toBeNull();
+  });
+
+  it('canSeeDivisionTab toleran huruf & menolak tab non-divisi', () => {
     const me = { isSuperadmin: false, divisions: ['didaskalia'], headDivisions: [] };
     expect(canSeeDivisionTab(me, 'div-didaskalia')).toBe(true);
-    expect(canSeeDivisionTab(me, 'dashboard')).toBe(false);
-  });
-
-  it('DIVISION_TAB_IDS memetakan ke 6 divisi', () => {
-    expect(DIVISION_TAB_IDS).toHaveLength(6);
-    expect(divisionForTab('div-benzarpr')).toBe('BENZARPR');
-    expect(divisionForTab('nope')).toBeNull();
-  });
-});
-
-describe('server division-access', () => {
-  it('isSuperadminUser mendeteksi role SUPERADMIN', () => {
-    expect(isSuperadminUser({ roles: [{ role: 'SUPERADMIN' }] })).toBe(true);
-    expect(isSuperadminUser({ roles: [{ role: 'KOMISI' }] })).toBe(false);
-    expect(isSuperadminUser(null)).toBe(false);
-  });
-
-  it('canAccessDivision: SUPERADMIN lolos, divisi tak dikenal ditolak', async () => {
-    const admin = { id: 'u1', roles: [{ role: 'SUPERADMIN' }] };
-    expect(await canAccessDivision(admin, 'BENZARPR')).toBe(true);
-    expect(await canAccessDivision(admin, 'divisi-ngawur')).toBe(false);
-  });
-
-  it('canAccessDivision: divisi tak dikenal ditolak; user null → tanpa divisi', async () => {
-    const plain = { id: 'u2', roles: [{ role: 'KOMISI' }] };
-    // Divisi tak dikenal ditolak tanpa menyentuh DB.
-    expect(await canAccessDivision(plain, 'divisi-ngawur')).toBe(false);
-    // Tanpa authUser → tidak ada divisi.
-    expect(await divisionCodesFor(null)).toEqual([]);
+    expect(canSeeDivisionTab(me, 'event-info')).toBe(false);
+    expect(canSeeDivisionTab(me, 'div-asing')).toBe(false);
   });
 });

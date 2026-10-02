@@ -296,8 +296,8 @@ export const PortalLayout: React.FC = () => {
     'church-dashboard': LayoutGrid,
   };
 
-  // Panel divisi hanya untuk divisi masing-masing (anggota/kepala) + SUPERADMIN.
-  // KOMISI/Tim Kerja tanpa divisi tidak lagi otomatis melihat semua panel divisi.
+  // Panel divisi (5 Panca + BZP): SUPERADMIN + KOMISI + BOD Tim Kerja (semua panel),
+  // selebihnya hanya divisinya masing-masing (anggota/kepala).
   // Filter portal: item bertag `portals` hanya tampil di portal yang cocok.
   const inActivePortal = (d: PortalNavItemDef) =>
     currentRole === 'SUPERADMIN' || !d.portals || d.portals.includes(portal.id);

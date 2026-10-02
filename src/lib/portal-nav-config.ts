@@ -77,15 +77,16 @@ export function divisionNavDefs(): PortalNavItemDef[] {
 
 /**
  * Boleh membuka panel divisi? Aturan (sama dengan server/lib/division-access.mjs):
- * SUPERADMIN, anggota divisi itu, atau kepala divisi itu (LEAD/CO_LEAD per-divisi).
+ * SUPERADMIN, KOMISI, COMMITTEE yang BOD Tim Kerja (semua panel),
+ * atau anggota/kepala divisi itu (per-divisi).
  */
 export function canSeeDivisionTab(
-  me: { isSuperadmin: boolean; divisions: string[]; headDivisions: string[] },
+  me: { isSuperadmin: boolean; isKomisi?: boolean; isBodCommittee?: boolean; divisions: string[]; headDivisions: string[] },
   tabId: string,
 ): boolean {
   const div = divisionForTab(tabId);
   if (!div) return false;
-  if (me.isSuperadmin) return true;
+  if (me.isSuperadmin || me.isKomisi || me.isBodCommittee) return true;
   const set = new Set([...(me.divisions || []), ...(me.headDivisions || [])].map((x) => String(x).toUpperCase()));
   return set.has(div);
 }

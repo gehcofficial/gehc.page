@@ -1,13 +1,17 @@
 /**
  * Akses panel divisi — satu sumber kebenaran (server).
  *
- * Aturan (keputusan pemilik): panel `div-<DIV>` hanya untuk
+ * Aturan (keputusan pemilik): panel `div-<DIV>` (5 Panca Tugas + BZP) hanya untuk
+ *   - SUPERADMIN
+ *   - KOMISI (semua panel)
+ *   - COMMITTEE yang BOD Tim Kerja (semua panel)
  *   - anggota divisi itu (struktur / RoleAssignment / anggota Tim Kerja event)
  *   - kepala divisi itu (LEAD/CO_LEAD pada divisi tersebut) — per-divisi
- *   - SUPERADMIN
- * KOMISI/Tim Kerja yang tidak terdaftar di divisi mana pun TIDAK mendapat panel divisi.
+ * BPMJ, COMMITTEE non-BOD, dan peran lain tanpa keanggotaan divisi TIDAK mendapat panel divisi.
+ * (Hak TULIS tetap diatur per-endpoint via requireRole — ini hanya visibilitas/baca.)
  */
 import { getPrisma } from '../db.mjs';
+import { isBodTimkerja } from '../division-rbac.mjs';
 import { scopedDivisionCodes, DIVISION_CATALOG } from './channel-link-access.mjs';
 
 export const DIVISION_IDS = new Set(DIVISION_CATALOG.map((d) => d.id));
@@ -18,6 +22,20 @@ export function globalRoles(authUser) {
 
 export function isSuperadminUser(authUser) {
   return globalRoles(authUser).includes('SUPERADMIN');
+}
+
+export function isKomisiUser(authUser) {
+  return globalRoles(authUser).includes('KOMISI');
+}
+
+/** COMMITTEE yang BOD Tim Kerja (definisi sama dengan division-rbac isBodTimkerja). */
+export async function isBodCommittee(authUser) {
+  if (!globalRoles(authUser).includes('COMMITTEE')) return false;
+  try {
+    return await isBodTimkerja(authUser);
+  } catch {
+    return false;
+  }
 }
 
 /** Divisi tempat user menjadi kepala (LEAD/CO_LEAD) — per-divisi, bukan lintas divisi. */
@@ -55,6 +73,8 @@ export async function canAccessDivision(authUser, division) {
   const div = String(division || '').toUpperCase();
   if (!DIVISION_IDS.has(div)) return false;
   if (isSuperadminUser(authUser)) return true;
+  if (isKomisiUser(authUser)) return true;
+  if (await isBodCommittee(authUser)) return true;
   const codes = await divisionCodesFor(authUser);
   return codes.includes(div);
 }
