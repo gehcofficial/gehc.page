@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Gate panel Panca + BZP: Admin/Komisi/BOD/divisi (staging) (3 Okt 2026)
+
+**Aturan baru:** panel divisi (5 Panca + BZP) hanya untuk SUPERADMIN, KOMISI, COMMITTEE yang BOD Tim Kerja, dan anggota/kepala divisi itu. BPMJ + COMMITTEE non-BOD + peran lain tanpa divisi: tidak lihat. Tulis tidak berubah (tetap `requireRole` per endpoint). Sebelumnya justru lebih ketat (KOMISI/BOD tanpa divisi pun tertutup).
+
+**Ubah:** `server/lib/division-access.mjs` (`isKomisiUser`, `isBodCommittee`, `canAccessDivision`) → `/api/me/divisions` (+flag) → `useMyDivisions` → `canSeeDivisionTab` → guard deep-link & API ikut otomatis. Endpoint publik BZP (produk/landing) tidak disentuh.
+
+**Verifikasi:** `lint` bersih ✓ **626 test** hijau (623−1 usang+4 baru; coverage lama yang tertimpa dipulihkan) ✓ `build` OK ✓ commit `7109a83` → `cursor/division-gate` + `staging` (alias staging.* masih build lama — perlu `vercel login`).
+
+**Next:** cek visual staging (KOMISI → 6 panel; PIC non-BOD → hanya divisinya; MENTEE/BPMJ → tidak ada); merge ke `main` bila OK.
+
 ## Current — Penatalayanan demo 4 Okt + petugas interaktif Warta (2 Okt 2026)
 
 **Data staging:** 10 penugasan CONFIRMED tgl `2026-10-04` (2 peran × 5 divisi panca: Liturgist+Holly, Singer+Glenity, Firman1+Putri, Firman2+Alvandi, KoordTR+Theodore, Usher+Zhanon, Bersih+Prichel, Konsumsi+Artjuna, Multimedia+Gievara, Fotografer+Milithya; `eventId` = event Mentoring 4 Okt). Idempoten (skip bila sudah ada).
