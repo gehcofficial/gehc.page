@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Calendar, FileText, BookOpen, Users, Loader2, ExternalLink } from 'lucide-react';
+import { Calendar, FileText, BookOpen, Users, Loader2, ExternalLink, Presentation } from 'lucide-react';
 import { EVENT_KINDS, normalizeEventKind } from '../../lib/event-kinds';
 import { KegiatanCalendar } from './KegiatanCalendar';
 import { useActiveAccess } from '../../hooks/useActiveAccess';
+import { yearMonthWib, weekIndexForDateWib } from '../../lib/church-week';
+import { materialHashPath } from '../../lib/didaskalia-presentation';
 
 type ServiceEvent = { id: string; slug?: string; name: string; eventDate: string | null; serviceType?: string | null; venueName?: string | null; kind?: string | null; metadata?: unknown };
 
@@ -160,7 +162,35 @@ export const IbadahMingguanPanel: React.FC = () => {
           {subLoading ? (
             <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat file by event…</p>
           ) : (
-            (() => {
+            <>
+              {(() => {
+                const ym = yearMonthWib(selected.eventDate);
+                const weekIndex = selected.eventDate ? weekIndexForDateWib(selected.eventDate) : 1;
+                if (!ym) return null;
+                return (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
+                    <p className="text-xs font-black text-sky-800 flex items-center gap-1.5">
+                      <Presentation className="w-3.5 h-3.5" /> Presentasi Web (Studio)
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {canView01 && (
+                        <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+                          <ExternalLink className="w-3 h-3" /> Pembekalan
+                        </a>
+                      )}
+                      <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+                        <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
+                      </a>
+                      {canView03 && (
+                        <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
+                          <ExternalLink className="w-3 h-3" /> RHB 7 Hari
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+              {(() => {
               // Kartu yang tampil mengikuti topeng aktif — 01 tidak dirender sama sekali untuk mentee.
               // Nomor dinamis 1..n sesuai kartu yang terlihat (kode folder Drive tetap di caption).
               const show01 = canView01 && !forbidden01;
@@ -221,7 +251,8 @@ export const IbadahMingguanPanel: React.FC = () => {
                   ))}
                 </div>
               );
-            })()
+            })()}
+            </>
           )}
           <div className="pt-3 border-t border-[#D9D7D0]/50 flex flex-wrap gap-2 text-[11px]">
             <a href={`#/portal/${portalNs}/groups-monitoring?event=${encodeURIComponent(selected.slug || selected.id)}`} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] font-bold hover:bg-white"><Users className="w-3 h-3" /> Isi Monitoring Kelompok</a>

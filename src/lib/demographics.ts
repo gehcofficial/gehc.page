@@ -34,3 +34,16 @@ export function formatBirthDateInput(d: string | Date | null | undefined): strin
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Long-date Indonesia untuk konfirmasi input ("Senin, 10 Maret 2026").
+ * Parse YYYY-MM-DD sebagai tanggal lokal (tanpa geser zona waktu).
+ * Kosong/invalid → ''.
+ */
+export function formatLongDateId(ymd: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || '').trim());
+  if (!m) return '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(d.getTime()) || d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return '';
+  return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}

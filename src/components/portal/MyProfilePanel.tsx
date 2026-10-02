@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Circle, Camera, Loader2, Mail, RotateCcw, User, MessageSquareQuote, ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AddressForm, addressFromUser, emptyAddress } from './AddressForm';
+import { BirthDateField } from '../shared/BirthDateField';
 import { ProfileGiftsSection } from './ProfileGiftsSection';
 import { ProfileRecreationalSection } from './ProfileRecreationalSection';
 import { useMyChannels } from '../../hooks/usePortalQueries';
@@ -562,13 +563,9 @@ export const MyProfilePanel: React.FC<{
               <option value="PEREMPUAN">Perempuan</option>
             </select>
             <div>
-              <label className="text-[10px] font-bold uppercase text-[#8C8880] block mb-1">Tanggal lahir</label>
-              <input
-                type="date"
-                className={field}
+              <BirthDateField
                 value={form.birthDate}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, birthDate: v }))}
               />
             </div>
             <input className={field} placeholder="Nomor HP" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />

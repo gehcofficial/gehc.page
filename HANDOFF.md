@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Konfirmasi tanggal lahir + link Studio di Kegiatan (3 Okt 2026)
+
+**Latar:** input `type="date"` mengikuti locale browser (en-US → mm/dd/yyyy) — dua kasus HUT kemarin salah bulan karenanya. Data wire selalu YYYY-MM-DD (server benar).
+
+**Ubah:** komponen bersama `BirthDateField` (native picker + konfirmasi long-date ID + usia, mis. `Rabu, 10 Maret 2004 · usia 22 th`) + helper `formatLongDateId()`; dipasang di edit admin (`YouthGEHCList`) & profil mandiri (`MyProfilePanel`). **Kegiatan** (`IbadahMingguanPanel`): blok Presentasi Web Studio (Pembekalan/Ringkasan/RHB, hormati canView01/03) per event terpilih — sama seperti Info Event.
+
+**Verifikasi:** `lint` bersih ✓ **630 test** hijau (+3) ✓ `build` OK ✓ (satu temuan samping: `formatBirthDateInput` rapuh zona waktu — di luar scope, tidak diubah).
+
+**Next:** cek visual (form HUT + Kegiatan) di staging/prod setelah deploy.
+
 ## Current — Merge main: gate divisi + standar RHB live di prod (3 Okt 2026)
 
 `cursor/division-gate` (3 commit: gate panel Panca+BZP, catatan, standar RHB) → FF-merge → push `main` → `/api/version` prod = `09e8f5b` ✓ live. Gate ulang sebelum merge: lint + 627 test + build hijau. DB prod sudah sinkron sebelumnya (tak perlu migrasi). Sisa: alias `staging.*` masih build lama (perlu `vercel login`).

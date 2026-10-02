@@ -6,6 +6,7 @@ import { type RecreationalNode } from '../../lib/recreational';
 import { AddressForm, addressFromUser, emptyAddress, type AddressValue } from './AddressForm';
 import { churchRequestSummaryForAdmin, type ChurchDataRequest } from './ProfileChurchDataRequestPanel';
 import { PersonNameFields } from './PersonNameFields';
+import { BirthDateField } from '../shared/BirthDateField';
 import { hasBeyonderWithGroup, needsPlacement } from '../../lib/jemaat-filter';
 import { downloadCsv, toCsv, type CsvColumn } from '../../lib/csv';
 import {
@@ -1731,13 +1732,10 @@ export const YouthGEHCList: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5">Tanggal lahir</label>
-                <input
-                  type="date"
+                <BirthDateField
                   value={editForm.birthDate}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setEditForm({ ...editForm, birthDate: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
+                  onChange={(v) => setEditForm({ ...editForm, birthDate: v })}
+                  labelClassName="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider block mb-1.5"
                 />
               </div>
               <div>
