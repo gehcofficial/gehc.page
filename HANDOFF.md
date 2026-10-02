@@ -10,7 +10,19 @@
 
 **Next:** cek visual (form HUT + Kegiatan) di staging/prod setelah deploy.
 
-## Current — Merge main: gate divisi + standar RHB live di prod (3 Okt 2026)
+## Prior — Vonis Alvandi + hapus tab Materi Didaskalia (staging) (3 Okt 2026)
+
+**Vonis kasus Alvandi (diagnosis DB prod):** ia memegang **SUPERADMIN** (tenant-jemaat) + COMMITTEE + RA aktif DIDASKALIA + struktur kosong (= terdeteksi BOD). Topeng Tim Kerja tidak menyembunyikan SUPERADMIN/BOD — jadi lihat semua panel. Perilaku ini sudah ada sebelum gate kemarin (bukan regresi).
+
+**Fix aturan (spesifik > umum):** pemegang divisi aktif hanya melihat divisinya, BOD tanpa divisi melihat semua, KOMISI/SA tetap semua. Berlaku server (`canAccessDivision`) + client (`canSeeDivisionTab`). BOD inti (Theodore/Zhanon/Milithya, RA TIMKERJA, tanpa divisi panel) tidak terdampak — tetap semua.
+
+**Tab Kurikulum & Materi dihapus total** dari panel Didaskalia (Studio satu-satunya jalan; tersisa Studio/Penatalayan/Anggota). Daftar sub-tab diekstrak ke `divisionDetailTabIds()` (teruji). Upload/listing Drive per-event ikut terbuang; backend Drive + tampilan file di Info Event/Kegiatan tidak berubah.
+
+**Verifikasi:** `lint` bersih ✓ **630 test** hijau (+4) ✓ `build` OK ✓
+
+**Next:** commit+push staging; putuskan pencabutan SUPERADMIN Alvandi (dan Theodore?) — tanpa itu ia tetap lihat semua; cek visual staging; merge `main` bila OK.
+
+## Prior — Merge main: gate divisi + standar RHB live di prod (3 Okt 2026)
 
 `cursor/division-gate` (3 commit: gate panel Panca+BZP, catatan, standar RHB) → FF-merge → push `main` → `/api/version` prod = `09e8f5b` ✓ live. Gate ulang sebelum merge: lint + 627 test + build hijau. DB prod sudah sinkron sebelumnya (tak perlu migrasi). Sisa: alias `staging.*` masih build lama (perlu `vercel login`).
 

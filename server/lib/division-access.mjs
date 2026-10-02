@@ -4,10 +4,10 @@
  * Aturan (keputusan pemilik): panel `div-<DIV>` (5 Panca Tugas + BZP) hanya untuk
  *   - SUPERADMIN
  *   - KOMISI (semua panel)
- *   - COMMITTEE yang BOD Tim Kerja (semua panel)
- *   - anggota divisi itu (struktur / RoleAssignment / anggota Tim Kerja event)
- *   - kepala divisi itu (LEAD/CO_LEAD pada divisi tersebut) — per-divisi
- * BPMJ, COMMITTEE non-BOD, dan peran lain tanpa keanggotaan divisi TIDAK mendapat panel divisi.
+ *   - pemegang divisi aktif — anggota (struktur / RoleAssignment / anggota Tim Kerja
+ *     event) atau kepala divisi (LEAD/CO_LEAD) — hanya divisinya
+ *   - COMMITTEE yang BOD Tim Kerja dan TIDAK memegang divisi (semua panel)
+ * BPMJ, COMMITTEE non-BOD, dan peran lain tanpa divisi TIDAK mendapat panel divisi.
  * (Hak TULIS tetap diatur per-endpoint via requireRole — ini hanya visibilitas/baca.)
  */
 import { getPrisma } from '../db.mjs';
@@ -74,9 +74,12 @@ export async function canAccessDivision(authUser, division) {
   if (!DIVISION_IDS.has(div)) return false;
   if (isSuperadminUser(authUser)) return true;
   if (isKomisiUser(authUser)) return true;
-  if (await isBodCommittee(authUser)) return true;
+  // Spesifik mengalahkan umum: yang memegang divisi aktif hanya melihat divisinya,
+  // BOD tanpa divisi melihat semua panel.
   const codes = await divisionCodesFor(authUser);
-  return codes.includes(div);
+  if (codes.length) return codes.includes(div);
+  if (await isBodCommittee(authUser)) return true;
+  return false;
 }
 
 /**

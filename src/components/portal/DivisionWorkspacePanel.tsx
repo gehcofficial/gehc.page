@@ -51,7 +51,7 @@ import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 import { WhatsAppJoinCard } from './WhatsAppJoinCard';
-import { useActiveAccess } from '../../hooks/useActiveAccess';
+import { divisionDetailTabIds } from '../../lib/portal-nav-config';
 import { yearMonthWib, weekIndexForDateWib } from '../../lib/church-week';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
@@ -119,15 +119,13 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio' | 'materi';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
   const queryClient = useQueryClient();
   const { t } = useLang();
   const d = t.portal.divisions;
-  // RBAC by subfolder: 01 mentor-only, 02 all, 03 beyonders — topeng aktif (BE also enforces)
-  const { canView01, canView03 } = useActiveAccess();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventQuery, setEventQuery] = useState('');
@@ -225,7 +223,6 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
       })
       .catch(() => setServingInfo(null));
   }, [selectedEvent?.eventDate, selectedEvent?.serviceType]);
-  const [rhbUploading, setRhbUploading] = useState<string | null>(null);
   const [didaskaliaSubFiles, setDidaskaliaSubFiles] = useState<Record<string, Array<{ id: string; name: string; webViewLink?: string }>>>({});
   const fetchDidaskaliaSub = useCallback(async (sub: string) => {
     if (!selectedEvent) return;
@@ -241,59 +238,6 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     const subs = ['01 Pembekalan Mentor - Co mentor', '02 Ringkasan Khotbah', '03 RHB 7 Hari'];
     subs.forEach((s) => fetchDidaskaliaSub(s));
   }, [selectedEvent?.id, selectedDiv, fetchDidaskaliaSub]);
-  const handleDidaskaliaUpload = async (file: File | null, subfolder: string) => {
-    if (!file || !selectedEvent) return;
-    if (file.size > 8_000_000) { addToast({ type: 'error', title: 'File terlalu besar', description: 'Maks 8MB. Kompres PDF.' }); return; }
-    setRhbUploading(subfolder);
-    try {
-      const buf = await file.arrayBuffer();
-      const u8 = new Uint8Array(buf);
-      let binary = '';
-      for (let i = 0; i < u8.length; i += 0x8000) binary += String.fromCharCode(...u8.subarray(i, i + 0x8000));
-      const data = btoa(binary);
-      // Upload ke subfolder per-event: Kurikulum - Event - 3 sub (Pembekalan/Ringkasan/RHB)
-      const r = await fetch(`/api/events/${selectedEvent.id}/divisions/DIDASKALIA/drive/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, mimetype: file.type, data, subfolder }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || 'Upload gagal');
-      addToast({ type: 'success', title: 'File terupload', description: `${file.name} → ${subfolder}` });
-      await fetchDidaskaliaSub(subfolder);
-    } catch (e: unknown) { addToast({ type: 'error', title: 'Upload gagal', description: e instanceof Error ? e.message : '' }); } finally { setRhbUploading(null); }
-  };
-  const handleDidaskaliaUploadMulti = async (files: FileList | null, subfolder: string) => {
-    if (!files?.length || !selectedEvent) return;
-    const list = Array.from(files);
-    const tooBig = list.filter((f) => f.size > 8_000_000);
-    if (tooBig.length) { addToast({ type: 'error', title: 'Ada file >8MB', description: tooBig.map((f) => f.name).join(', ') + ' — kompres dulu.' }); return; }
-    setRhbUploading(subfolder);
-    let ok = 0; let fail = 0;
-    for (const file of list) {
-      try {
-        const buf = await file.arrayBuffer();
-        const u8 = new Uint8Array(buf);
-        let binary = '';
-        for (let i = 0; i < u8.length; i += 0x8000) binary += String.fromCharCode(...u8.subarray(i, i + 0x8000));
-        const data = btoa(binary);
-        const r = await fetch(`/api/events/${selectedEvent.id}/divisions/DIDASKALIA/drive/upload`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, mimetype: file.type || 'application/octet-stream', data, subfolder }),
-        });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || 'Upload gagal');
-        ok++;
-      } catch (e) { fail++; addToast({ type: 'error', title: `Gagal ${file.name}`, description: e instanceof Error ? e.message : '' }); }
-    }
-    if (ok) addToast({ type: 'success', title: `${ok} file terupload`, description: `${ok} → ${subfolder}${fail ? `, ${fail} gagal` : ''}` });
-    await fetchDidaskaliaSub(subfolder);
-    setRhbUploading(null);
-  };
-  const handleRhbUpload = (file: File | null) => handleDidaskaliaUpload(file, '03 RHB 7 Hari');
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ title: '', scheduledAt: '', gmeetLink: '', notes: '' });
   const [creatingMeeting, setCreatingMeeting] = useState(false);
@@ -390,57 +334,22 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
   // Sub-tab per divisi — hanya yang mission-critical. Tab generik yang duplikat
   // (Ringkasan/Diskusi/Drive/Rencana) dihilangkan: Warta ada di sidebar, Rapat &
   // Agenda ada di sidebar Program & Event, mini-feed diskusi ada di tab Ibadah.
-  const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = (() => {
-    const ibadahTab = { id: 'ibadah' as DetailTab, label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> };
-    const membersTab = { id: 'members' as DetailTab, label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> };
-    if (selectedDiv === 'DIDASKALIA') {
-      return [
-        { id: 'studio', label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
-        { id: 'materi', label: d.tabMateri, icon: <FolderOpen className="w-3.5 h-3.5" /> },
-        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
-        membersTab,
-      ];
-    }
-    if (selectedDiv === 'LITURGIA') {
-      return [
-        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
-        ibadahTab,
-        membersTab,
-      ];
-    }
-    if (selectedDiv === 'MARTURIA') {
-      return [
-        { id: 'gallery', label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
-        { id: 'kesaksian', label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
-        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
-        ibadahTab,
-        membersTab,
-      ];
-    }
-    if (selectedDiv === 'KOINONIA') {
-      return [
-        { id: 'checkin', label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
-        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
-        ibadahTab,
-        membersTab,
-      ];
-    }
-    if (selectedDiv === 'DIAKONIA') {
-      return [
-        { id: 'penatalayan', label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
-        ibadahTab,
-        membersTab,
-      ];
-    }
-    return [
-      { id: 'overview', label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
-      ibadahTab,
-      membersTab,
-      { id: 'discussions', label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
-      { id: 'drive', label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
-      { id: 'planning', label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
-    ];
-  })();
+  // Daftar id per divisi: divisionDetailTabIds (teruji unit).
+  const TAB_META: Record<string, { label: string; icon: React.ReactNode }> = {
+    overview: { label: d.tabOverview, icon: <ChevronRight className="w-3.5 h-3.5" /> },
+    ibadah: { label: 'Ibadah', icon: <Calendar className="w-3.5 h-3.5" /> },
+    members: { label: d.tabMembers, icon: <Users className="w-3.5 h-3.5" /> },
+    discussions: { label: d.tabDiscussions, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+    drive: { label: d.tabDrive, icon: <FolderOpen className="w-3.5 h-3.5" /> },
+    penatalayan: { label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
+    planning: { label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
+    gallery: { label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+    kesaksian: { label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+    checkin: { label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
+    studio: { label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
+  };
+  const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> =
+    divisionDetailTabIds(selectedDiv).map((id) => ({ id: id as DetailTab, ...TAB_META[id] }));
   const activeTab: DetailTab = divTabs.some((tab) => tab.id === detailTab) ? detailTab : (divTabs[0]?.id || 'overview');
   const divColor = pillarMeta?.color || '#6B7280';
 
@@ -644,7 +553,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     finally { setDriveLoading(false); }
   }, [selectedEvent, currentDiv, selectedDiv]);
 
-  useEffect(() => { if (activeTab === 'drive' || activeTab === 'materi') fetchDrive(); }, [activeTab, fetchDrive]);
+  useEffect(() => { if (activeTab === 'drive') fetchDrive(); }, [activeTab, fetchDrive]);
 
   // Create folder
   const handleCreateFolder = async () => {
@@ -1022,84 +931,6 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                 )}
               </div>
   );
-
-  const materialBlock = (
-                      <div className="space-y-3">
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                          <p className="text-xs font-black text-emerald-800">Kurikulum — {selectedEvent?.name || 'event'} — 3 folder per event</p>
-                          <p className="text-[11px] text-emerald-700 leading-relaxed">Pola baru: <span className="font-bold">Kurikulum / (Nama Event) / 3 subfolder</span> — file per subfolder, bukan di pilar. Upload di bawah ini masuk ke folder event yang sesuai dan langsung muncul di Monitor.</p>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-amber-800">01 Pembekalan Mentor – Co mentor</p>
-                            <p className="text-[11px] text-amber-700">Deck SOP, materi pembekalan per event (mentor-only).</p>
-                            {canView01 ? (
-                              <>
-                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-amber-200 text-xs font-bold text-amber-800 hover:bg-amber-100 cursor-pointer">
-                                  {rhbUploading === '01 Pembekalan Mentor - Co mentor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Pembekalan
-                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '01 Pembekalan Mentor - Co mentor'); e.currentTarget.value=''; }} />
-                                </label>
-                                <p className="text-[10px] text-amber-600">Bisa pilih banyak file sekaligus.</p>
-                                {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 ? (
-                                  <ul className="space-y-1 pt-2 border-t border-amber-100">
-                                    {(didaskaliaSubFiles['01 Pembekalan Mentor - Co mentor'] || []).map((f) => (
-                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-[11px] text-amber-600 italic">Belum ada file — upload pertama akan buat subfolder.</p>
-                                )}
-                              </>
-                            ) : (
-                              <div className="p-3 rounded-xl bg-white border border-amber-200 text-[11px] text-amber-800">🔒 Hanya Mentor/Co-mentor yang bisa akses materi pembekalan.</div>
-                            )}
-                          </div>
-                          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-sky-800">02 Ringkasan Khotbah</p>
-                            <p className="text-[11px] text-sky-700">File khotbah/ringkasan per event (portal) — <span className="font-bold">semua pemuda bisa akses</span> termasuk non-beyonders.</p>
-                            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-sky-200 text-xs font-bold text-sky-800 hover:bg-sky-100 cursor-pointer">
-                              {rhbUploading === '02 Ringkasan Khotbah' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Upload Ringkasan
-                              <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '02 Ringkasan Khotbah'); e.currentTarget.value=''; }} />
-                            </label>
-                            <p className="text-[10px] text-sky-600">Bisa pilih banyak file sekaligus.</p>
-                            {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).length > 0 ? (
-                              <ul className="space-y-1 pt-2 border-t border-sky-100">
-                                {(didaskaliaSubFiles['02 Ringkasan Khotbah'] || []).map((f) => (
-                                  <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-sky-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-[11px] text-sky-600 italic">Belum ada ringkasan — akan muncul di Info Event portal.</p>
-                            )}
-                          </div>
-                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-                            <p className="text-xs font-black text-emerald-800">03 RHB 7 Hari</p>
-                            <p className="text-[11px] text-emerald-700">7 PDF Senin–Sabtu untuk semua 10 grup — <span className="font-bold">semua beyonders (mentee/mentor)</span>.</p>
-                            {canView03 ? (
-                              <>
-                                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer">
-                                  {rhbUploading === '03 RHB 7 Hari' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Pilih PDF RHB
-                                  <input type="file" accept="application/pdf,image/*" multiple className="hidden" disabled={!!rhbUploading} onChange={(e) => { handleDidaskaliaUploadMulti(e.target.files, '03 RHB 7 Hari'); e.currentTarget.value=''; }} />
-                                </label>
-                                <p className="text-[10px] text-emerald-600">Bisa pilih 7 PDF sekaligus (Senin–Sabtu).</p>
-                                {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).length > 0 ? (
-                                  <ul className="space-y-1 pt-2 border-t border-emerald-100">
-                                    {(didaskaliaSubFiles['03 RHB 7 Hari'] || []).map((f) => (
-                                      <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-800 hover:underline flex items-center gap-1"><FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span></a></li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-[11px] text-emerald-600 italic">Belum ada RHB — akan muncul di Monitor 10 Groups.</p>
-                                )}
-                              </>
-                            ) : (
-                              <div className="p-3 rounded-xl bg-white border border-emerald-200 text-[11px] text-emerald-800">🔒 RHB hanya untuk Beyonders (mentor/mentee). Hubungi mentor untuk akses.</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-  );
-
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -1735,13 +1566,6 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                     ))}
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'materi' && selectedDiv === 'DIDASKALIA' && currentDiv && (
-              <div className="space-y-4">
-                {materialBlock}
-                {driveBrowserBlock}
               </div>
             )}
 

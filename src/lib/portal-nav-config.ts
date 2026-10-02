@@ -52,6 +52,22 @@ export function divisionForTab(tabId: string): string | null {
   return DIVISION_TABS.find((d) => d.id === tabId)?.division || null;
 }
 
+/**
+ * Sub-tab per divisi (sumber tunggal — dipakai DivisionWorkspacePanel).
+ * Didaskalia: Studio + Penatalayan + Anggota (tab Kurikulum & Materi dihapus —
+ * Studio satu-satunya jalan materi).
+ */
+export function divisionDetailTabIds(division: string): string[] {
+  switch (String(division || '').toUpperCase()) {
+    case 'DIDASKALIA': return ['studio', 'penatalayan', 'members'];
+    case 'LITURGIA': return ['penatalayan', 'ibadah', 'members'];
+    case 'MARTURIA': return ['gallery', 'kesaksian', 'penatalayan', 'ibadah', 'members'];
+    case 'KOINONIA': return ['checkin', 'penatalayan', 'ibadah', 'members'];
+    case 'DIAKONIA': return ['penatalayan', 'ibadah', 'members'];
+    default: return ['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning'];
+  }
+}
+
 export function isDivisionTab(tabId: string): boolean {
   return DIVISION_TAB_IDS.includes(tabId);
 }
@@ -77,8 +93,8 @@ export function divisionNavDefs(): PortalNavItemDef[] {
 
 /**
  * Boleh membuka panel divisi? Aturan (sama dengan server/lib/division-access.mjs):
- * SUPERADMIN, KOMISI, COMMITTEE yang BOD Tim Kerja (semua panel),
- * atau anggota/kepala divisi itu (per-divisi).
+ * SUPERADMIN & KOMISI (semua panel); selebihnya yang memegang divisi aktif
+ * hanya melihat divisinya; BOD Tim Kerja tanpa divisi melihat semua panel.
  */
 export function canSeeDivisionTab(
   me: { isSuperadmin: boolean; isKomisi?: boolean; isBodCommittee?: boolean; divisions: string[]; headDivisions: string[] },
@@ -86,9 +102,10 @@ export function canSeeDivisionTab(
 ): boolean {
   const div = divisionForTab(tabId);
   if (!div) return false;
-  if (me.isSuperadmin || me.isKomisi || me.isBodCommittee) return true;
+  if (me.isSuperadmin || me.isKomisi) return true;
   const set = new Set([...(me.divisions || []), ...(me.headDivisions || [])].map((x) => String(x).toUpperCase()));
-  return set.has(div);
+  if (set.size) return set.has(div);
+  return Boolean(me.isBodCommittee);
 }
 
 /** Panel unit jemaat (BPMJ + 4 unit). Gating per-unit via useMyChurchUnits. */

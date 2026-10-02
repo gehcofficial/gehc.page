@@ -5,6 +5,7 @@ import {
   buildPortalNavItems,
   buildPortalSidebarItems,
   canSeeDivisionTab,
+  divisionDetailTabIds,
   filterDivisionTabs,
   isHiddenInPortal,
 } from '../../src/lib/portal-nav-config';
@@ -157,6 +158,11 @@ describe('canSeeDivisionTab — Admin, Komisi, BOD, divisi sendiri', () => {
       .toEqual(['div-diakonia']);
   });
 
+  it('BOD yang memegang divisi hanya melihat divisinya (spesifik > umum)', () => {
+    expect(sees({ isSuperadmin: false, isBodCommittee: true, divisions: ['DIDASKALIA'], headDivisions: [] }))
+      .toEqual(['div-didaskalia']);
+  });
+
   it('anggota/kepala divisi hanya melihat panelnya (termasuk BZP)', () => {
     expect(canSeeDivisionTab(
       { isSuperadmin: false, divisions: ['BENZARPR'], headDivisions: [] }, 'div-benzarpr',
@@ -172,6 +178,21 @@ describe('canSeeDivisionTab — Admin, Komisi, BOD, divisi sendiri', () => {
   it('MENTEE/BPMJ tanpa divisi tidak melihat panel divisi', () => {
     const none = { divisions: [], headDivisions: [] };
     expect(sees({ isSuperadmin: false, ...none })).toEqual([]);
+  });
+});
+
+describe('divisionDetailTabIds — sub-tab per divisi', () => {
+  it('Didaskalia tanpa tab Kurikulum & Materi (Studio satu-satunya)', () => {
+    expect(divisionDetailTabIds('DIDASKALIA')).toEqual(['studio', 'penatalayan', 'members']);
+    expect(divisionDetailTabIds('didaskalia')).toEqual(['studio', 'penatalayan', 'members']);
+  });
+
+  it('divisi lain tidak berubah', () => {
+    expect(divisionDetailTabIds('LITURGIA')).toEqual(['penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('MARTURIA')).toEqual(['gallery', 'kesaksian', 'penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('KOINONIA')).toEqual(['checkin', 'penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('DIAKONIA')).toEqual(['penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('BENZARPR')).toEqual(['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning']);
   });
 });
 
