@@ -107,18 +107,18 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
     {
       name: 'Liturgi & Ibadah',
       label: 'Liturgi & Ibadah',
-      tagline: 'Urutan ibadah Word-centered: pembaca firman, liturgist, WL, banners, flow Minggu/acara',
+      tagline: 'Urutan ibadah Word-centered: pembaca firman, pemimpin liturgi/pujian, spanduk, alur Minggu/acara',
       color: '#7C3AED',
     },
     {
       name: 'Musik & Vokal',
       label: 'Musik & Vokal',
-      tagline: 'Band, singers, kantoria, rebanda, rehearsal — musik sebagai respons pujian',
+      tagline: 'Band, penyanyi, paduan suara, rebana, latihan — musik sebagai respons pujian',
       color: '#7C3AED',
     },
     {
-      name: 'Doa & Intercession',
-      label: 'Doa & Intercession',
+      name: 'Doa & Syafaat',
+      label: 'Doa & Syafaat',
       tagline: 'Doa korporat mingguan, doa pastoral, prayer covering pra–selama–pasca acara',
       color: '#7C3AED',
     },
@@ -171,8 +171,8 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
       color: '#EA580C',
     },
     {
-      name: 'Kasih Peduli & Benevolence',
-      label: 'Kasih Peduli & Benevolence',
+      name: 'Kasih Peduli & Kedermawanan',
+      label: 'Kasih Peduli & Kedermawanan',
       tagline: 'Bantuan praktis member susah, kunjungan sakit, koordinasi dengan mentor/Komisi',
       color: '#EA580C',
     },
@@ -197,8 +197,8 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
       color: '#DC2626',
     },
     {
-      name: 'Kesaksian & Story',
-      label: 'Kesaksian & Story',
+      name: 'Kesaksian & Cerita',
+      label: 'Kesaksian & Cerita',
       tagline: 'Kurasi testimoni mentee, wall of testimony (approve Komisi), narrative witness',
       color: '#DC2626',
     },
@@ -211,8 +211,8 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
   ],
   BENZARPR: [
     {
-      name: 'Merchandise & Produk',
-      label: 'Merchandise & Produk',
+      name: 'Cenderamata & Produk',
+      label: 'Cenderamata & Produk',
       tagline: 'Katalog, stok, fulfillment toko portal — Eben Haezer Goods',
       color: '#F6AE4A',
     },
@@ -235,8 +235,8 @@ export const SUB_DIVISIONS: Record<string, SubDivisionMeta[]> = {
 export const SUBDIVISION_MIGRATION: Record<string, Record<string, string>> = {
   LITURGIA: {
     'Liturgi & Musik': 'Musik & Vokal',
-    Pendoa: 'Doa & Intercession',
-    Intercessor: 'Doa & Intercession',
+    Pendoa: 'Doa & Syafaat',
+    Intercessor: 'Doa & Syafaat',
   },
   DIDASKALIA: {
     'Kurikulum & Pembekalan': 'Kurikulum',
@@ -257,7 +257,7 @@ export const SUBDIVISION_MIGRATION: Record<string, Record<string, string>> = {
     'Penginjilan Praktis': 'Penginjilan & Misi',
   },
   BENZARPR: {
-    Merchandise: 'Merchandise & Produk',
+    Merchandise: 'Cenderamata & Produk',
     Fundraising: 'Penggalangan Dana',
     Donation: 'Persembahan & Donasi',
   },

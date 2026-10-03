@@ -53,8 +53,8 @@ export const KomisiSection: React.FC = () => {
     <section id="our-people" className="py-12 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto scroll-mt-28">
       <SectionHeader
         eyebrow={t.leadersPage.eyebrow}
-        title={t.leadersPage.title}
-        subtitle=""
+        title={t.leadersPage.bpmjHeading}
+        subtitle={t.orgTree.bpmjSub}
         align="center"
       />
 
@@ -67,6 +67,13 @@ export const KomisiSection: React.FC = () => {
             members={bpmjTeam}
           />
         )}
+
+        <SectionHeader
+          eyebrow=""
+          title={t.leadersPage.title}
+          subtitle=""
+          align="center"
+        />
 
         {coreTeam.length > 0 && (
           <PhotoTeam
@@ -92,7 +99,7 @@ export const KomisiSection: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {pillarGroups.map(({ pillar, displayLabel, filled, open }, i) => {
               const canonical = (SUB_DIVISIONS[pillar.name] || []).map((s) => s.name);
-              const { head, groups, ungrouped } = groupPillarMembers(filled, canonical);
+              const { head, groups, ungrouped } = groupPillarMembers(filled, canonical, pillar.name);
               const row = (m: Member) => (
                 <div
                   key={m.id}

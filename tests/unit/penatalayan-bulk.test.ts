@@ -50,7 +50,7 @@ describe('buildAssignments', () => {
 });
 
 describe('summarizeByUser', () => {
-  const roleNames = { r1: 'Liturgist', r2: 'Doa Syafaat' };
+  const roleNames = { r1: 'Pemimpin Liturgi', r2: 'Doa Syafaat' };
 
   it('satu pesan per orang berisi komponen + tanggal', () => {
     const rows = [
@@ -62,7 +62,7 @@ describe('summarizeByUser', () => {
     expect(out).toHaveLength(2);
     const u1 = out.find((x) => x.userId === 'u1');
     expect(u1?.count).toBe(2);
-    expect(u1?.message).toContain('Liturgist (27 Sep)');
+    expect(u1?.message).toContain('Pemimpin Liturgi (27 Sep)');
     expect(u1?.message).toContain('Doa Syafaat (27 Sep)');
     const u2 = out.find((x) => x.userId === 'u2');
     expect(u2?.message).toContain('4 Okt');

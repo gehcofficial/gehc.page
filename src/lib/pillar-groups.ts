@@ -16,6 +16,32 @@ export function isHeadOfDivision(position?: string | null): boolean {
   return /kepala divisi/i.test(String(position || ''));
 }
 
+/** Alias sub-divisi ke bucket tampil (display-only, DB tidak diubah). */
+const SUB_ALIASES: Record<string, Record<string, string>> = {
+  DIDASKALIA: {
+    kurikulum: 'Kurikulum dan Modul',
+    'kurikulum pemuridan': 'Kurikulum dan Modul',
+    'kurikulum & pembekalan': 'Kurikulum dan Modul',
+    'pembekalan tim': 'Kurikulum dan Modul',
+  },
+};
+
+const DIDASKALIA_SUBS = ['Kurikulum dan Modul'];
+
+/** Canonical subs divisi (urutan tampil); Didaskalia memakai bucket tunggal. */
+export function canonicalSubsFor(division: string, fallback: string[]): string[] {
+  if (String(division || '').toUpperCase() === 'DIDASKALIA') return DIDASKALIA_SUBS;
+  return fallback;
+}
+
+/** Petakan sub mentah ke bucket tampil. */
+export function bucketSubOf(division: string, subdivision?: string | null): string | null {
+  const sub = String(subdivision || '').trim();
+  if (!sub) return null;
+  const alias = SUB_ALIASES[String(division || '').toUpperCase()]?.[sub.toLowerCase()];
+  return alias || sub;
+}
+
 /** Gabung sub-divisi + jabatan; bila sama (abaikan kapital/spasi) tampil sekali. */
 export function dedupeRoleLine(subdivision?: string | null, position?: string | null): string {
   const parts = [subdivision, position].map((s) => String(s || '').trim()).filter(Boolean);
@@ -37,30 +63,28 @@ export function dedupeRoleLine(subdivision?: string | null, position?: string | 
 export function groupPillarMembers(
   members: PublicOrgMember[],
   canonicalSubs: string[],
+  division?: string,
 ): { head: PublicOrgMember[]; groups: PillarSubGroup[]; ungrouped: PublicOrgMember[] } {
+  const div = String(division || members[0]?.division || '').toUpperCase();
+  const canonical = div === 'DIDASKALIA' ? canonicalSubsFor(div, canonicalSubs) : canonicalSubs;
   const head = members.filter((m) => isHeadOfDivision(m.position));
   const rest = members.filter((m) => !isHeadOfDivision(m.position));
   const bySub = new Map<string, PublicOrgMember[]>();
   const ungrouped: PublicOrgMember[] = [];
   for (const m of rest) {
-    const sub = String(m.subdivision || '').trim();
-    const canonical = canonicalSubs.find((c) => c.toLowerCase() === sub.toLowerCase());
-    if (canonical) {
-      const list = bySub.get(canonical) || [];
+    const bucket = bucketSubOf(div, m.subdivision);
+    if (bucket) {
+      const list = bySub.get(bucket) || [];
       list.push(m);
-      bySub.set(canonical, list);
-    } else if (sub) {
-      const list = bySub.get(sub) || [];
-      list.push(m);
-      bySub.set(sub, list);
+      bySub.set(bucket, list);
     } else {
       ungrouped.push(m);
     }
   }
   const groups: PillarSubGroup[] = [];
-  for (const c of canonicalSubs) groups.push({ sub: c, people: bySub.get(c) || [] });
+  for (const c of canonical) groups.push({ sub: c, people: bySub.get(c) || [] });
   for (const [sub, people] of bySub) {
-    if (!canonicalSubs.some((c) => c.toLowerCase() === sub.toLowerCase())) groups.push({ sub, people });
+    if (!canonical.some((c) => c.toLowerCase() === sub.toLowerCase())) groups.push({ sub, people });
   }
   return { head, groups, ungrouped };
 }

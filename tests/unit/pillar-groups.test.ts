@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dedupeRoleLine, groupPillarMembers, isHeadOfDivision } from '../../src/lib/pillar-groups';
+import { bucketSubOf, canonicalSubsFor, dedupeRoleLine, groupPillarMembers, isHeadOfDivision } from '../../src/lib/pillar-groups';
 import type { PublicOrgMember } from '../../src/hooks/usePublicOrgTree';
 
 const m = (over: Partial<PublicOrgMember> & { name: string }): PublicOrgMember => ({
@@ -53,5 +53,23 @@ describe('groupPillarMembers', () => {
     const { groups, ungrouped } = groupPillarMembers([m({ name: 'X', subdivision: 'Tim Khusus' })], canonical);
     expect(groups.map((g) => g.sub)).toEqual([...canonical, 'Tim Khusus']);
     expect(ungrouped).toEqual([]);
+  });
+
+  it('Didaskalia: varian kurikulum + pembekalan menyatu ke Kurikulum dan Modul', () => {
+    expect(canonicalSubsFor('DIDASKALIA', ['Kurikulum'])).toEqual(['Kurikulum dan Modul']);
+    expect(canonicalSubsFor('LITURGIA', ['A'])).toEqual(['A']);
+    expect(bucketSubOf('DIDASKALIA', 'Kurikulum Pemuridan')).toBe('Kurikulum dan Modul');
+    expect(bucketSubOf('DIDASKALIA', 'Pembekalan Tim')).toBe('Kurikulum dan Modul');
+    expect(bucketSubOf('DIDASKALIA', null)).toBeNull();
+    const { groups } = groupPillarMembers(
+      [
+        m({ name: 'P', subdivision: 'Kurikulum Pemuridan' }),
+        m({ name: 'Q', subdivision: 'Pembekalan Tim' }),
+      ],
+      ['Kurikulum'],
+      'DIDASKALIA',
+    );
+    expect(groups.map((g) => g.sub)).toEqual(['Kurikulum dan Modul']);
+    expect(groups[0].people.map((x) => x.name).sort()).toEqual(['P', 'Q']);
   });
 });

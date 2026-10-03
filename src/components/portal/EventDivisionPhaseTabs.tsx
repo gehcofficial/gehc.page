@@ -38,12 +38,12 @@ const PHASE_LABEL: Record<Phase, { label: string; hint: string; color: string }>
 
 const PHASE_TASKS: Record<string, Record<Phase, string[]>> = {
   'Liturgi & Ibadah': {
-    pre: ['Susun liturgi Word-centered (pembaca firman, liturgist, WL, banner)', 'Finalisasi rundown ibadah + alur transisi', 'Briefing WL & liturgist, upload Berkas/rundown ke Drive'],
-    during: ['Jalankan flow ibadah sesuai rundown', 'Standby ganti WL/liturgist darurat', 'Centang checklist rundown live'],
-    post: ['Upload final rundown ke Arsip Acara', 'Terima kasih kepada WL/liturgist (catat di Updates)', 'Evaluasi H+7 untuk ibadah berikut'],
+    pre: ['Susun liturgi Word-centered (pembaca firman, pemimpin liturgi, Pemimpin Pujian, banner)', 'Finalisasi rundown ibadah + alur transisi', 'Briefing Pemimpin Pujian & pemimpin liturgi, upload Berkas/rundown ke Drive'],
+    during: ['Jalankan flow ibadah sesuai rundown', 'Standby ganti Pemimpin Pujian/pemimpin liturgi darurat', 'Centang checklist rundown live'],
+    post: ['Upload final rundown ke Arsip Acara', 'Terima kasih kepada Pemimpin Pujian/pemimpin liturgi (catat di Updates)', 'Evaluasi H+7 untuk ibadah berikut'],
   },
   'Musik & Vokal': {
-    pre: ['Pilih lagu & siapkan chord sheet (Berkas/chord)', 'Assign band/singer/kantoria/rebana via ServiceSchedule', 'Jadwal rehearsal & sebar undangan latihan'],
+    pre: ['Pilih lagu & siapkan chord sheet (Berkas/chord)', 'Assign band/penyanyi/paduan suara/rebana via ServiceSchedule', 'Jadwal rehearsal & sebar undangan latihan'],
     during: ['Cek sound & setlist tampil', 'Pimpin pujian sesuai rundown', 'Dokumentasi rehearsal Foto/rehearsal'],
     post: ['Upload rekaman rehearsal ke Drive', 'Evaluasi chord & setlist next week', 'Catat kebutuhan alat'],
   },

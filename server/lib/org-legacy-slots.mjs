@@ -3,8 +3,9 @@
 export const SUBDIVISION_MIGRATION = {
   LITURGIA: {
     'Liturgi & Musik': 'Musik & Vokal',
-    Pendoa: 'Doa & Intercession',
-    Intercessor: 'Doa & Intercession',
+    Pendoa: 'Doa & Syafaat',
+    Intercessor: 'Doa & Syafaat',
+    'Doa & Intercession': 'Doa & Syafaat',
   },
   DIDASKALIA: {
     'Kurikulum & Pembekalan': 'Kurikulum Pemuridan',
@@ -17,31 +18,34 @@ export const SUBDIVISION_MIGRATION = {
     'Logistik & Akomodasi': 'Logistik & Fasilitas',
     Konsumsi: 'Konsumsi & Keramahan',
     'Medis & First Aid': 'Kesehatan & Keselamatan',
+    'Kasih Peduli & Benevolence': 'Kasih Peduli & Kedermawanan',
   },
   MARTURIA: {
     Dokumentasi: 'Dokumentasi Visual',
     'Penginjilan Praktis': 'Penginjilan & Misi',
+    'Kesaksian & Story': 'Kesaksian & Cerita',
   },
   BENZARPR: {
-    Merchandise: 'Merchandise & Produk',
+    Merchandise: 'Cenderamata & Produk',
+    'Merchandise & Produk': 'Cenderamata & Produk',
     Fundraising: 'Penggalangan Dana',
     Donation: 'Persembahan & Donasi',
   },
 };
 
 export const CURRENT_PILLAR_SUBS = {
-  LITURGIA: ['Liturgi & Ibadah', 'Musik & Vokal', 'Doa & Intercession'],
+  LITURGIA: ['Liturgi & Ibadah', 'Musik & Vokal', 'Doa & Syafaat'],
   DIDASKALIA: ['Kurikulum Pemuridan', 'Pembekalan Tim'],
   KOINONIA: ['Program & Acara', 'Persekutuan & Integrasi', 'Hubungan & Komunikasi'],
   DIAKONIA: [
     'Logistik & Fasilitas',
     'Konsumsi & Keramahan',
     'Kesehatan & Keselamatan',
-    'Kasih Peduli & Benevolence',
+    'Kasih Peduli & Kedermawanan',
     'Dukungan Perantau',
   ],
-  MARTURIA: ['Dokumentasi Visual', 'Desain & Publikasi', 'Kesaksian & Story', 'Penginjilan & Misi'],
-  BENZARPR: ['Merchandise & Produk', 'Penggalangan Dana', 'Persembahan & Donasi'],
+  MARTURIA: ['Dokumentasi Visual', 'Desain & Publikasi', 'Kesaksian & Cerita', 'Penginjilan & Misi'],
+  BENZARPR: ['Cenderamata & Produk', 'Penggalangan Dana', 'Persembahan & Donasi'],
 };
 
 export function parseOrgMeta(raw) {

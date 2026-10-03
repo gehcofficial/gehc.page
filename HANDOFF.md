@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — Istilah baku Indonesia (3 Okt 2026)
+
+**Keputusan:** sub-divisi + jabatan + peran dinas dibakukan KBBI-proper (Benevolence→Kedermawanan, Merchandise→Cenderamata, Story→Cerita, Intercession→Syafaat; Chairperson/Secretary/Treasurer awalan dibuang; Comentor→Co-mentor; PIC→Penanggung Jawab) + dedupe fungsi (Song Leader→Pemimpin Pujian; Firman 1/2→Pembaca Firman; Liturgist→Pemimpin Liturgi; dst, 30→27 peran).
+
+**Ubah:** `pantatugas.ts`, `org-legacy-slots`, seeds (users/initialData/onboarding/service-roles), i18n ID+EN, keywords ikon, prosa runbook, test fixtures. Migrasi `server/migrate-istilah-baku.cjs` (+`drive-rename.mjs`, dry-run default): DB + folder Drive.
+
+**Jalan:** staging penuh (subs 4, posisi 13, role 11, pindah 1, nonaktif 2, org 8, Drive 4 folder) ✓ prod penuh (DB + 3 folder Drive; timeout sekali di tengah — rerun idempoten selesai) ✓ browser staging: chip nama + ikon baru ✓ data uji Okt prod utuh (panitia aktif edit, bukan efek migrasi) ✓
+
+**Verifikasi:** `lint` bersih ✓ **658 test** hijau ✓ `build` OK ✓
+
+**Next:** push staging+main; catatan: folder Drive lama tak tersisa duplikat; role kustom (Cajon, Drama, Pengawas Agenda, Liturgist-Shyllo) tak disentuh.
+
 ## Current — Header BPMJ nama lengkap (3 Okt 2026)
 
 **Ubah:** seksi BPMJ di Orang Kami berjudul `BPMJ — Badan Pekerja Majelis Jemaat` + sub `Payung tertinggi pelayanan pemuda` (ID+EN). Murni label.

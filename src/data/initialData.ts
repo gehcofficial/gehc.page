@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   Tenant,
   User,
   YouthGroup,
@@ -18,7 +18,7 @@ export const INITIAL_TENANTS: Tenant[] = [
     slug: 'jemaat',
     domain: 'gehc.page',
     badge: 'Jemaat',
-    description: 'Jemaat GMIM Eben Haezer Cikarang — payung seluruh BIPRA & Kolom',
+    description: 'Jemaat GMIM Eben Haezer Cikarang � payung seluruh BIPRA & Kolom',
     is_active: true,
     defaultBipra: null,
     registrationOpen: false,
@@ -103,7 +103,7 @@ export const INITIAL_TENANTS: Tenant[] = [
 ];
 
 /**
- * User fallback lokal untuk preview UI offline — bukan sesi server.
+ * User fallback lokal untuk preview UI offline � bukan sesi server.
  * Akun sungguhan dimuat lewat login Google / email+password.
  */
 const demoAvatar = (seed: string) =>
@@ -145,7 +145,7 @@ export const INITIAL_USERS: User[] = [
     avatar: demoAvatar('Glenity Siauw'),
     roles: [
       { tenantId: YOUTH, role: 'KOMISI' }, // Sekretaris Komisi
-      { tenantId: YOUTH, role: 'MENTEE', groupId: 'grp-7' }, // Metanoia — multi-role
+      { tenantId: YOUTH, role: 'MENTEE', groupId: 'grp-7' }, // Metanoia � multi-role
     ],
   },
   {
@@ -177,7 +177,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Avodah',
     meaning: 'Ibadah & Pelayanan yang Nyata dalam Karya',
-    scripture: 'Kolose 3:23 — "Apapun juga yang kamu perbuat, perbuatlah dengan segenap hatimu seperti untuk Tuhan dan bukan untuk manusia."',
+    scripture: 'Kolose 3:23 � "Apapun juga yang kamu perbuat, perbuatlah dengan segenap hatimu seperti untuk Tuhan dan bukan untuk manusia."',
     mentorNames: ['Zhanon Lausan', 'Farendy Lumintang'],
     mentorUserIds: [],
     memberCount: 8,
@@ -192,7 +192,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Agape',
     meaning: 'Kasih yang Tulus dan Tanpa Syarat',
-    scripture: '1 Korintus 13:4-7 — "Kasih itu sabar; kasih itu murah hati; ia tidak cemburu. Ia tidak memegahkan diri dan tidak sombong."',
+    scripture: '1 Korintus 13:4-7 � "Kasih itu sabar; kasih itu murah hati; ia tidak cemburu. Ia tidak memegahkan diri dan tidak sombong."',
     mentorNames: ['Prichel Kampong', 'Syallomitha Mawitjere'],
     mentorUserIds: [],
     memberCount: 8,
@@ -207,7 +207,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Shalom',
     meaning: 'Damai Sejahtera dan Ketenangan Batin',
-    scripture: 'Yohanes 14:27 — "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu."',
+    scripture: 'Yohanes 14:27 � "Damai sejahtera Kutinggalkan bagimu. Damai sejahtera-Ku Kuberikan kepadamu."',
     mentorNames: ['Theodore Kowaas', 'Fladyna Mondoringin'],
     mentorUserIds: [],
     memberCount: 8,
@@ -222,7 +222,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Hesed',
     meaning: 'Kasih Setia Allah yang Kekal & Rahmat Berkelanjutan',
-    scripture: 'Ratapan 3:22-23 — "Tak berkesudahan kasih setia TUHAN, tak habis-habisnya rahmat-Nya, selalu baru tiap pagi."',
+    scripture: 'Ratapan 3:22-23 � "Tak berkesudahan kasih setia TUHAN, tak habis-habisnya rahmat-Nya, selalu baru tiap pagi."',
     mentorNames: ['Milithya Wuisan', 'Christian Lombogia'],
     mentorUserIds: [],
     memberCount: 8,
@@ -237,7 +237,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Kairos',
     meaning: 'Waktu Perkenanan dan Rencana Indah Tuhan',
-    scripture: 'Pengkhotbah 3:11 — "Ia membuat segala sesuatu indah pada waktunya."',
+    scripture: 'Pengkhotbah 3:11 � "Ia membuat segala sesuatu indah pada waktunya."',
     mentorNames: ['Michel Lonteng', 'Artjuna Timbuleng'],
     mentorUserIds: [],
     memberCount: 8,
@@ -252,7 +252,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Logos',
     meaning: 'Firman Hidup yang Menjadi Landasan Kebenaran',
-    scripture: 'Yohanes 1:1 — "Pada mulanya adalah Firman; Firman itu bersama-sama dengan Allah dan Firman itu adalah Allah."',
+    scripture: 'Yohanes 1:1 � "Pada mulanya adalah Firman; Firman itu bersama-sama dengan Allah dan Firman itu adalah Allah."',
     mentorNames: ['Mighty Rengkung', 'Reiner Montolalu'],
     mentorUserIds: [],
     memberCount: 8,
@@ -267,7 +267,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Metanoia',
     meaning: 'Pembaruan Budi dan Transformasi Hidup',
-    scripture: 'Roma 12:2 — "Berubahlah oleh pembaharuan budimu, sehingga kamu dapat membedakan manakah kehendak Allah."',
+    scripture: 'Roma 12:2 � "Berubahlah oleh pembaharuan budimu, sehingga kamu dapat membedakan manakah kehendak Allah."',
     mentorNames: ['Stefanus Tambariki', 'Julivie Irot'],
     mentorUserIds: [],
     memberCount: 8,
@@ -282,7 +282,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Ruach',
     meaning: 'Nafas Roh Kudus yang Menghidupkan & Mengobarkan Semangat',
-    scripture: 'Yehezkiel 37:9 — "Masuklah nafas hidup ke dalam mereka, sehingga mereka hidup kembali."',
+    scripture: 'Yehezkiel 37:9 � "Masuklah nafas hidup ke dalam mereka, sehingga mereka hidup kembali."',
     mentorNames: ['Krisetia Mamoto', 'Filipo Karinda'],
     mentorUserIds: [],
     memberCount: 8,
@@ -297,7 +297,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Dunamis',
     meaning: 'Kekuatan dan Kuasa Ilahi yang Dahsyat',
-    scripture: 'Kisah Para Rasul 1:8 — "Tetapi kamu akan menerima kuasa, kalau Roh Kudus turun ke atas kamu, dan kamu akan menjadi saksi-Ku."',
+    scripture: 'Kisah Para Rasul 1:8 � "Tetapi kamu akan menerima kuasa, kalau Roh Kudus turun ke atas kamu, dan kamu akan menjadi saksi-Ku."',
     mentorNames: ['Jeremiah Mewengkang', 'Patrisha Lengkey'],
     mentorUserIds: [],
     memberCount: 8,
@@ -312,7 +312,7 @@ export const INITIAL_GROUPS: YouthGroup[] = [
     tenant_id: 'tenant-youth',
     name: 'Echad',
     meaning: 'Kesatuan Sejati dalam Kasih Kristus',
-    scripture: 'Efesus 4:3 — "Dan berusahalah memelihara kesatuan Roh oleh ikatan damai sejahtera."',
+    scripture: 'Efesus 4:3 � "Dan berusahalah memelihara kesatuan Roh oleh ikatan damai sejahtera."',
     mentorNames: ['Holly Kalele', 'Aditya Wellem'],
     mentorUserIds: [],
     memberCount: 8,
@@ -411,8 +411,8 @@ export const INITIAL_CONTENT: ContentItem[] = [
     id: 'cnt-bakutau',
     tenant_id: 'tenant-youth',
     type: 'ACTIVITY',
-    title: 'BAKU TAU 4.0 — Bakudapa di Rantau',
-    subtitle: 'Malam penyambutan mahasiswa baru di perantauan — bertemu & terhubung di GMIM Eben Haezer',
+    title: 'BAKU TAU 4.0 � Bakudapa di Rantau',
+    subtitle: 'Malam penyambutan mahasiswa baru di perantauan � bertemu & terhubung di GMIM Eben Haezer',
     category: 'Welcome Night',
     published_at: '2026-08-20',
     event_date: '2026-09-12',
@@ -422,7 +422,7 @@ export const INITIAL_CONTENT: ContentItem[] = [
     author: 'Komisi Pemuda GEHC',
     bannerUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=1200&auto=format&fit=crop',
     tags: ['BAKU TAU', 'Welcome', 'President University', 'Community'],
-    body: `BAKU TAU berasal dari bahasa Manado: BAKUdapa di ranTAU — "saling mengenal di perantauan". Malam perkenalan tahunan ini menyambut mahasiswa baru President University agar tidak sendirian menempuh masa studi di Cikarang. Kenali sepuluh kelompok mentoring kami, temukan rumah pertumbuhan imanmu, dan mulai perjalanan Beyond the Sunday Walk bersama kami.`,
+    body: `BAKU TAU berasal dari bahasa Manado: BAKUdapa di ranTAU � "saling mengenal di perantauan". Malam perkenalan tahunan ini menyambut mahasiswa baru President University agar tidak sendirian menempuh masa studi di Cikarang. Kenali sepuluh kelompok mentoring kami, temukan rumah pertumbuhan imanmu, dan mulai perjalanan Beyond the Sunday Walk bersama kami.`,
   },
 
 ];
@@ -440,7 +440,7 @@ const avatar = (seed: string) =>
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1b1b1b`;
 
 export const INITIAL_STRUKTUR: StrukturMember[] = [
-  // ---- BPMJ — Badan Pekerja Majelis Jemaat (nama asli, payung tertinggi) ----
+  // ---- BPMJ � Badan Pekerja Majelis Jemaat (nama asli, payung tertinggi) ----
   { id: 'st-bpmj-1', name: 'Pdt Meyke Poluan Sth Mpdk', position: 'Ketua BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Meyke Poluan'), bio: 'Payung tertinggi pelayanan pemuda; seluruh komisi bertanggung jawab kepada Ketua BPMJ.', phone: '', email: '', order: 1 },
   { id: 'st-bpmj-2', name: 'Pnt Veky Lengkong', position: 'Wakil Ketua BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Veky Lengkong'), bio: '', phone: '', email: '', order: 2 },
   { id: 'st-bpmj-3', name: 'Pnt Noldy Wanget', position: 'Sekretaris BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Noldy Wanget'), bio: '', phone: '', email: '', order: 3 },
@@ -448,54 +448,54 @@ export const INITIAL_STRUKTUR: StrukturMember[] = [
   { id: 'st-bpmj-5', name: 'Dkn Selfi Lumbu', position: 'Bendahara BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Selfi Lumbu'), bio: '', phone: '', email: '', order: 5 },
   { id: 'st-bpmj-6', name: 'Dkn Bonny Rondonuwu', position: 'Anggota Bendahara BPMJ', division: 'BPMJ', period: PERIODE, photoUrl: avatar('Bonny Rondonuwu'), bio: '', phone: '', email: '', order: 6 },
 
-  // ---- Komisi Pemuda — dipimpin Penatua Pemuda (periode 5 tahun) ----
-  { id: 'st-komisi-1', name: 'Pnt Stevania Hadinda', position: 'Chairperson — Penatua Pemuda / Ketua Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Stevania Hadinda'), bio: 'Memimpin Komisi Pemuda periode 2025–2029 dan mengawal arah pelayanan Beyonders; bertanggung jawab kepada BPMJ.', phone: '', email: '', order: 7 },
+  // ---- Komisi Pemuda � dipimpin Penatua Pemuda (periode 5 tahun) ----
+  { id: 'st-komisi-1', name: 'Pnt Stevania Hadinda', position: 'Ketua Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Stevania Hadinda'), bio: 'Memimpin Komisi Pemuda periode 2025�2029 dan mengawal arah pelayanan Beyonders; bertanggung jawab kepada BPMJ.', phone: '', email: '', order: 7 },
   { id: 'st-komisi-2', name: 'Kevin Moniaga', position: 'Wakil Ketua Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Kevin Moniaga'), bio: 'Menemani ketua dan mengawal operasional program komisi.', phone: '', email: '', order: 8 },
-  { id: 'st-komisi-3', name: 'Glenity Siauw', position: 'Secretary — Sekretaris Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Glenity Siauw'), bio: 'Administrasi, notulen, dan surat-menyurat komisi. Rangkap mentee Metanoia.', phone: '', email: '', order: 9 },
-  { id: 'st-komisi-4', name: 'Rendy Lumintang', position: 'Treasurer — Bendahara Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Rendy Lumintang'), bio: 'Mengelola kas komisi dan pertanggungjawaban keuangan.', phone: '', email: '', order: 10 },
+  { id: 'st-komisi-3', name: 'Glenity Siauw', position: 'Secretary � Sekretaris Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Glenity Siauw'), bio: 'Administrasi, notulen, dan surat-menyurat komisi. Rangkap mentee Metanoia.', phone: '', email: '', order: 9 },
+  { id: 'st-komisi-4', name: 'Rendy Lumintang', position: 'Treasurer � Bendahara Komisi', division: 'KOMISI', period: PERIODE, photoUrl: avatar('Rendy Lumintang'), bio: 'Mengelola kas komisi dan pertanggungjawaban keuangan.', phone: '', email: '', order: 10 },
 
-  // ---- BOD Tim Kerja — pelaksara program di bawah Komisi ----
+  // ---- BOD Tim Kerja � pelaksara program di bawah Komisi ----
   { id: 'st-timkerja-1', name: 'Theodore Beckham Milano Kowaas', position: 'Ketua Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Theodore Kowaas'), bio: 'Memimpin Tim Kerja yang mengerjakan program pelayanan pemua; membawahi 5 Panca Tugas + Benzarpreneurship.', phone: '', email: '', order: 11 },
   { id: 'st-timkerja-2', name: 'Zhanon Varelie Lausan', position: 'Sekretaris Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Zhanon Lausan'), bio: 'Administrasi tim kerja; rangkap mentor Avodah.', phone: '', email: '', order: 12 },
   { id: 'st-timkerja-3', name: 'Milithya Christy Kerin Wuisan', position: 'Bendahara Tim Kerja', division: 'TIMKERJA', period: PERIODE, photoUrl: avatar('Milithya Wuisan'), bio: 'Keuangan tim kerja; rangkap mentor Hesed.', phone: '', email: '', order: 13 },
 
   // ---- KOINONIA ----
-  { id: 'st-koi-hod', name: 'Kepala Divisi — Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'KOINONIA', period: PERIODE, photoUrl: avatar('HoD Koinonia'), bio: 'Memimpin seluruh fungsi persekutuan & relasi pemuda.', phone: '', email: '', order: 14, isOpenRole: true },
-  { id: 'st-koi-1', name: 'Krisetia Mamoto', position: 'PIC Acara & Rundown', division: 'KOINONIA', subdivision: 'Program & Acara', period: PERIODE, photoUrl: avatar('Krisetia Mamoto'), bio: 'Mengkonsep rundown keseluruhan kegiatan pra-during-pasca retreat.', phone: '', email: '', order: 15 },
-  { id: 'st-koi-2', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Persekutuan & Integrasi', division: 'KOINONIA', subdivision: 'Persekutuan & Integrasi', period: PERIODE, photoUrl: avatar('Persekutuan Integrasi'), bio: 'Welcome newcomer, hospitality, care ringan antar anggota.', phone: '', email: '', order: 16, isOpenRole: true },
-  { id: 'st-koi-3', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Hubungan & Komunikasi', division: 'KOINONIA', subdivision: 'Hubungan & Komunikasi', period: PERIODE, photoUrl: avatar('Hubungan Komunikasi'), bio: 'MC, sosmed, broadcast, input newcomer → Jethro Engine.', phone: '', email: '', order: 17, isOpenRole: true },
+  { id: 'st-koi-hod', name: 'Kepala Divisi � Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'KOINONIA', period: PERIODE, photoUrl: avatar('HoD Koinonia'), bio: 'Memimpin seluruh fungsi persekutuan & relasi pemuda.', phone: '', email: '', order: 14, isOpenRole: true },
+  { id: 'st-koi-1', name: 'Krisetia Mamoto', position: 'Penanggung Jawab Acara & Rundown', division: 'KOINONIA', subdivision: 'Program & Acara', period: PERIODE, photoUrl: avatar('Krisetia Mamoto'), bio: 'Mengkonsep rundown keseluruhan kegiatan pra-during-pasca retreat.', phone: '', email: '', order: 15 },
+  { id: 'st-koi-2', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Persekutuan & Integrasi', division: 'KOINONIA', subdivision: 'Persekutuan & Integrasi', period: PERIODE, photoUrl: avatar('Persekutuan Integrasi'), bio: 'Welcome newcomer, hospitality, care ringan antar anggota.', phone: '', email: '', order: 16, isOpenRole: true },
+  { id: 'st-koi-3', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Hubungan & Komunikasi', division: 'KOINONIA', subdivision: 'Hubungan & Komunikasi', period: PERIODE, photoUrl: avatar('Hubungan Komunikasi'), bio: 'MC, sosmed, broadcast, input newcomer ? Jethro Engine.', phone: '', email: '', order: 17, isOpenRole: true },
 
   // ---- LITURGIA ----
-  { id: 'st-lit-hod', name: 'Holly Kalele', position: 'Kepala Divisi', division: 'LITURGIA', period: PERIODE, photoUrl: avatar('Holly Kalele'), bio: 'Memimpin fungsi Liturgia — ibadah, musik, dan doa.', phone: '', email: '', order: 18 },
-  { id: 'st-lit-1', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Liturgi & Ibadah', division: 'LITURGIA', subdivision: 'Liturgi & Ibadah', period: PERIODE, photoUrl: avatar('Liturgi Ibadah'), bio: 'Urutan ibadah Word-centered, WL, banners, flow Minggu/acara.', phone: '', email: '', order: 19, isOpenRole: true },
-  { id: 'st-lit-2', name: 'Holly Kalele', position: 'PIC Musik & Vokal', division: 'LITURGIA', subdivision: 'Musik & Vokal', period: PERIODE, photoUrl: avatar('Holly Kalele Musik'), bio: 'Band, singers, kantoria, rebanda, rehearsal.', phone: '', email: '', order: 20 },
-  { id: 'st-lit-3', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Doa & Intercession', division: 'LITURGIA', subdivision: 'Doa & Intercession', period: PERIODE, photoUrl: avatar('Doa Intercession'), bio: 'Doa korporat, pastoral, prayer covering acara.', phone: '', email: '', order: 21, isOpenRole: true },
+  { id: 'st-lit-hod', name: 'Holly Kalele', position: 'Kepala Divisi', division: 'LITURGIA', period: PERIODE, photoUrl: avatar('Holly Kalele'), bio: 'Memimpin fungsi Liturgia � ibadah, musik, dan doa.', phone: '', email: '', order: 18 },
+  { id: 'st-lit-1', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Liturgi & Ibadah', division: 'LITURGIA', subdivision: 'Liturgi & Ibadah', period: PERIODE, photoUrl: avatar('Liturgi Ibadah'), bio: 'Urutan ibadah Word-centered, WL, banners, flow Minggu/acara.', phone: '', email: '', order: 19, isOpenRole: true },
+  { id: 'st-lit-2', name: 'Holly Kalele', position: 'Penanggung Jawab Musik & Vokal', division: 'LITURGIA', subdivision: 'Musik & Vokal', period: PERIODE, photoUrl: avatar('Holly Kalele Musik'), bio: 'Band, penyanyi, paduan suara, rebana, latihan.', phone: '', email: '', order: 20 },
+  { id: 'st-lit-3', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Doa & Syafaat', division: 'LITURGIA', subdivision: 'Doa & Syafaat', period: PERIODE, photoUrl: avatar('Doa Intercession'), bio: 'Doa korporat, pastoral, prayer covering acara.', phone: '', email: '', order: 21, isOpenRole: true },
 
   // ---- DIDASKALIA ----
-  { id: 'st-did-hod', name: 'Kepala Divisi — Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'DIDASKALIA', period: PERIODE, photoUrl: avatar('HoD Didaskalia'), bio: 'Memimpin fungsi pengajaran & pemuridan materi.', phone: '', email: '', order: 22, isOpenRole: true },
-  { id: 'st-did-1', name: 'Koordinator — Posisi Terbuka', position: 'Penyusun Modul & Kurikulum', division: 'DIDASKALIA', subdivision: 'Kurikulum Pemuridan', period: PERIODE, photoUrl: avatar('Kurikulum Pemuridan'), bio: 'Modul Beyonders/SG, tes karunia, worldview pemuda.', phone: '', email: '', order: 23, isOpenRole: true },
-  { id: 'st-did-2', name: 'Putri Massie', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim', period: PERIODE, photoUrl: avatar('Putri Massie'), bio: 'Fasilitator pembekalan mentor/comentor. Rangkap mentee Ruach.', phone: '', email: '', order: 24 },
-  { id: 'st-did-3', name: 'Alvandi Saerang', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim', period: PERIODE, photoUrl: avatar('Alvandi Saerang'), bio: 'Fasilitator pembekalan bersama Putri. Rangkap mentee Logos.', phone: '', email: '', order: 25 },
+  { id: 'st-did-hod', name: 'Kepala Divisi � Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'DIDASKALIA', period: PERIODE, photoUrl: avatar('HoD Didaskalia'), bio: 'Memimpin fungsi pengajaran & pemuridan materi.', phone: '', email: '', order: 22, isOpenRole: true },
+  { id: 'st-did-1', name: 'Koordinator � Posisi Terbuka', position: 'Penyusun Modul & Kurikulum', division: 'DIDASKALIA', subdivision: 'Kurikulum Pemuridan', period: PERIODE, photoUrl: avatar('Kurikulum Pemuridan'), bio: 'Modul Beyonders/SG, tes karunia, worldview pemuda.', phone: '', email: '', order: 23, isOpenRole: true },
+  { id: 'st-did-2', name: 'Putri Massie', position: 'Pembekal Mentor & Co-mentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim', period: PERIODE, photoUrl: avatar('Putri Massie'), bio: 'Fasilitator pembekalan mentor/comentor. Rangkap mentee Ruach.', phone: '', email: '', order: 24 },
+  { id: 'st-did-3', name: 'Alvandi Saerang', position: 'Pembekal Mentor & Co-mentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim', period: PERIODE, photoUrl: avatar('Alvandi Saerang'), bio: 'Fasilitator pembekalan bersama Putri. Rangkap mentee Logos.', phone: '', email: '', order: 25 },
 
   // ---- DIAKONIA ----
-  { id: 'st-dia-hod', name: 'Kepala Divisi — Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'DIAKONIA', period: PERIODE, photoUrl: avatar('HoD Diakonia'), bio: 'Memimpin fungsi pelayanan praktis & kasih peduli.', phone: '', email: '', order: 26, isOpenRole: true },
-  { id: 'st-dia-1', name: 'Prichel Kampong', position: 'PIC Logistik & Fasilitas', division: 'DIAKONIA', subdivision: 'Logistik & Fasilitas', period: PERIODE, photoUrl: avatar('Prichel Kampong'), bio: 'Venue, peralatan, transport, layout.', phone: '', email: '', order: 27 },
-  { id: 'st-dia-2', name: 'Artjuna Timbuleng', position: 'PIC Konsumsi & Keramahan', division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan', period: PERIODE, photoUrl: avatar('Artjuna Timbuleng'), bio: 'Menu, vendor/self-made, distribusi.', phone: '', email: '', order: 28 },
-  { id: 'st-dia-3', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Kesehatan & Keselamatan', division: 'DIAKONIA', subdivision: 'Kesehatan & Keselamatan', period: PERIODE, photoUrl: avatar('Kesehatan Keselamatan'), bio: 'First aid, protokol darurat, obat.', phone: '', email: '', order: 29, isOpenRole: true },
-  { id: 'st-dia-4', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Kasih Peduli', division: 'DIAKONIA', subdivision: 'Kasih Peduli & Benevolence', period: PERIODE, photoUrl: avatar('Kasih Peduli'), bio: 'Bantuan praktis member susah, kunjungan sakit.', phone: '', email: '', order: 30, isOpenRole: true },
-  { id: 'st-dia-5', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Dukungan Perantau', division: 'DIAKONIA', subdivision: 'Dukungan Perantau', period: PERIODE, photoUrl: avatar('Dukungan Perantau'), bio: 'Adaptasi hidup Cikarang, burnout kerja, resource perantau.', phone: '', email: '', order: 31, isOpenRole: true },
+  { id: 'st-dia-hod', name: 'Kepala Divisi � Rekrutmen Berlangsung', position: 'Kepala Divisi', division: 'DIAKONIA', period: PERIODE, photoUrl: avatar('HoD Diakonia'), bio: 'Memimpin fungsi pelayanan praktis & kasih peduli.', phone: '', email: '', order: 26, isOpenRole: true },
+  { id: 'st-dia-1', name: 'Prichel Kampong', position: 'Penanggung Jawab Logistik & Fasilitas', division: 'DIAKONIA', subdivision: 'Logistik & Fasilitas', period: PERIODE, photoUrl: avatar('Prichel Kampong'), bio: 'Venue, peralatan, transport, layout.', phone: '', email: '', order: 27 },
+  { id: 'st-dia-2', name: 'Artjuna Timbuleng', position: 'Penanggung Jawab Konsumsi & Keramahan', division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan', period: PERIODE, photoUrl: avatar('Artjuna Timbuleng'), bio: 'Menu, vendor/self-made, distribusi.', phone: '', email: '', order: 28 },
+  { id: 'st-dia-3', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Kesehatan & Keselamatan', division: 'DIAKONIA', subdivision: 'Kesehatan & Keselamatan', period: PERIODE, photoUrl: avatar('Kesehatan Keselamatan'), bio: 'First aid, protokol darurat, obat.', phone: '', email: '', order: 29, isOpenRole: true },
+  { id: 'st-dia-4', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Kasih Peduli', division: 'DIAKONIA', subdivision: 'Kasih Peduli & Kedermawanan', period: PERIODE, photoUrl: avatar('Kasih Peduli'), bio: 'Bantuan praktis member susah, kunjungan sakit.', phone: '', email: '', order: 30, isOpenRole: true },
+  { id: 'st-dia-5', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Dukungan Perantau', division: 'DIAKONIA', subdivision: 'Dukungan Perantau', period: PERIODE, photoUrl: avatar('Dukungan Perantau'), bio: 'Adaptasi hidup Cikarang, burnout kerja, resource perantau.', phone: '', email: '', order: 31, isOpenRole: true },
 
   // ---- MARTURIA ----
   { id: 'st-mar-hod', name: 'Gievara Bogar', position: 'Kepala Divisi', division: 'MARTURIA', period: PERIODE, photoUrl: avatar('Gievara Bogar'), bio: 'Memimpin fungsi kesaksian & penginjilan.', phone: '', email: '', order: 32 },
-  { id: 'st-mar-1', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Dokumentasi Visual', division: 'MARTURIA', subdivision: 'Dokumentasi Visual', period: PERIODE, photoUrl: avatar('Dokumentasi Visual'), bio: 'Foto/video acara, arsip Drive.', phone: '', email: '', order: 33, isOpenRole: true },
-  { id: 'st-mar-2', name: 'Gievara Bogar', position: 'PIC Desain & Publikasi', division: 'MARTURIA', subdivision: 'Desain & Publikasi', period: PERIODE, photoUrl: avatar('Gievara Desain'), bio: 'Poster, deck, brand asset; handoff ke Hubungan & Komunikasi.', phone: '', email: '', order: 34 },
-  { id: 'st-mar-3', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Kesaksian & Story', division: 'MARTURIA', subdivision: 'Kesaksian & Story', period: PERIODE, photoUrl: avatar('Kesaksian Story'), bio: 'Testimoni wall, narrative witness (approve Komisi).', phone: '', email: '', order: 35, isOpenRole: true },
-  { id: 'st-mar-4', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Penginjilan & Misi', division: 'MARTURIA', subdivision: 'Penginjilan & Misi', period: PERIODE, photoUrl: avatar('Penginjilan Misi'), bio: 'Outreach rutin, pre-evangelism, mission trip.', phone: '', email: '', order: 36, isOpenRole: true },
+  { id: 'st-mar-1', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Dokumentasi Visual', division: 'MARTURIA', subdivision: 'Dokumentasi Visual', period: PERIODE, photoUrl: avatar('Dokumentasi Visual'), bio: 'Foto/video acara, arsip Drive.', phone: '', email: '', order: 33, isOpenRole: true },
+  { id: 'st-mar-2', name: 'Gievara Bogar', position: 'Penanggung Jawab Desain & Publikasi', division: 'MARTURIA', subdivision: 'Desain & Publikasi', period: PERIODE, photoUrl: avatar('Gievara Desain'), bio: 'Poster, deck, brand asset; handoff ke Hubungan & Komunikasi.', phone: '', email: '', order: 34 },
+  { id: 'st-mar-3', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Kesaksian & Cerita', division: 'MARTURIA', subdivision: 'Kesaksian & Cerita', period: PERIODE, photoUrl: avatar('Kesaksian Story'), bio: 'Testimoni wall, narrative witness (approve Komisi).', phone: '', email: '', order: 35, isOpenRole: true },
+  { id: 'st-mar-4', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Penginjilan & Misi', division: 'MARTURIA', subdivision: 'Penginjilan & Misi', period: PERIODE, photoUrl: avatar('Penginjilan Misi'), bio: 'Outreach rutin, pre-evangelism, mission trip.', phone: '', email: '', order: 36, isOpenRole: true },
 
-  // ---- BENZARPRENEURSHIP (BZP) — tanpa HoD, lapor BOD Tim Kerja ----
-  { id: 'st-bzp-1', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Merchandise & Produk', division: 'BENZARPR', subdivision: 'Merchandise & Produk', period: PERIODE, photoUrl: avatar('Merchandise BZP'), bio: 'Katalog, stok, fulfillment toko portal.', phone: '', email: '', order: 37, isOpenRole: true },
+  // ---- BENZARPRENEURSHIP (BZP) � tanpa HoD, lapor BOD Tim Kerja ----
+  { id: 'st-bzp-1', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Cenderamata & Produk', division: 'BENZARPR', subdivision: 'Cenderamata & Produk', period: PERIODE, photoUrl: avatar('Merchandise BZP'), bio: 'Katalog, stok, fulfillment toko portal.', phone: '', email: '', order: 37, isOpenRole: true },
   { id: 'st-bzp-2', name: 'Fladyna Mondoringin', position: 'Koordinator Penggalangan Dana', division: 'BENZARPR', subdivision: 'Penggalangan Dana', period: PERIODE, photoUrl: avatar('Fladyna Mondoringin'), bio: 'Jual makan-minum mingguan & penggalangan dana program. Melapor ke Bendahara Tim Kerja.', phone: '', email: '', order: 38 },
-  { id: 'st-bzp-3', name: 'Koordinator — Posisi Terbuka', position: 'Koordinator Persembahan & Donasi', division: 'BENZARPR', subdivision: 'Persembahan & Donasi', period: PERIODE, photoUrl: avatar('Persembahan Donasi'), bio: 'QRIS, donasi khusus, rekonsiliasi ke Bendahara Tim Kerja.', phone: '', email: '', order: 39, isOpenRole: true },
+  { id: 'st-bzp-3', name: 'Koordinator � Posisi Terbuka', position: 'Koordinator Persembahan & Donasi', division: 'BENZARPR', subdivision: 'Persembahan & Donasi', period: PERIODE, photoUrl: avatar('Persembahan Donasi'), bio: 'QRIS, donasi khusus, rekonsiliasi ke Bendahara Tim Kerja.', phone: '', email: '', order: 39, isOpenRole: true },
 ];
 
 export const INITIAL_DRIVE_FOLDERS: DriveFolder[] = [];
@@ -507,17 +507,17 @@ export const INITIAL_INTEGRATION_CONFIG: IntegrationConfig = {
   is_connected: false,
   account_email: '',
   root_folder_id: '',
-  root_folder_name: 'GEHC Youth — Google Drive',
+  root_folder_name: 'GEHC Youth � Google Drive',
   last_synced: new Date().toISOString(),
   allowed_mime_types: [],
 } as IntegrationConfig;
 
-// Data struktur mentoring asli — sumber: "Retreat Attendance_GEHC YOUTH 2026.xlsx"
+// Data struktur mentoring asli � sumber: "Retreat Attendance_GEHC YOUTH 2026.xlsx"
 export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
   {
     id: 'bat-2026-shalom',
     group_id: 'grp-3',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Theodore Kowaas',
     comentor: 'Fladyna Mondoringin',
@@ -529,13 +529,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Kimberly Turambi' },
       { name: 'Kevin Budianto' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-avodah',
     group_id: 'grp-1',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Zhanon Lausan',
     comentor: 'Farendy Lumintang',
@@ -547,13 +547,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Jeremy Walangitan' },
       { name: 'Kimmy Casey Liogu' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-echad',
     group_id: 'grp-10',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Holly Kalele',
     comentor: 'Aditya Wellem',
@@ -565,13 +565,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Daud Lumanauw' },
       { name: 'Pnt. Kevin Kamagi', note: '(G)' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-ruach',
     group_id: 'grp-8',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Krisetia Mamoto',
     comentor: 'Filipo Karinda',
@@ -583,13 +583,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Mega Welan' },
       { name: 'Putri Massie', note: '(G)' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-hesed',
     group_id: 'grp-4',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Milithya Wuisan',
     comentor: 'Christian Lombogia',
@@ -601,13 +601,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Akwila Gente' },
       { name: 'Timothy Mewengkang' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-dunamis',
     group_id: 'grp-9',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Jeremiah Mewengkang',
     comentor: 'Patrisha Lengkey',
@@ -619,13 +619,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Avriel Singal' },
       { name: 'Imanuel Yimna Esau' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-agape',
     group_id: 'grp-2',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Prichel Kampong',
     comentor: 'Syallomitha Mawitjere',
@@ -637,13 +637,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Hoky Theos' },
       { name: 'Kezia Joseph' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-kairos',
     group_id: 'grp-5',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Michel Lonteng',
     comentor: 'Artjuna Timbuleng',
@@ -655,13 +655,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Resty Budianto' },
       { name: 'David Pesoth' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-metanoia',
     group_id: 'grp-7',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Stefanus Tambariki',
     comentor: 'Julivie Irot',
@@ -673,13 +673,13 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Jonathan Tintingon' },
       { name: 'Yuen Pajow' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
   {
     id: 'bat-2026-logos',
     group_id: 'grp-6',
-    batchLabel: 'Batch 2026 — Retreat UNSHAKABLE',
+    batchLabel: 'Batch 2026 � Retreat UNSHAKABLE',
     period: '2026',
     mentor: 'Mighty Rengkung',
     comentor: 'Reiner Montolalu',
@@ -691,7 +691,7 @@ export const INITIAL_GROUP_BATCHES: GroupBatch[] = [
       { name: 'Jacqson Naharia' },
       { name: 'Alvandi Saerang', note: '(G)' },
     ],
-    theme: 'UNSHAKABLE — Highland Camp Puncak, 18-19 Juli 2026',
+    theme: 'UNSHAKABLE � Highland Camp Puncak, 18-19 Juli 2026',
     isCurrent: true,
   },
 ];

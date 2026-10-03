@@ -11,21 +11,21 @@ const duty = (name: string, role: string, timeStart?: string) => ({
 describe('mergeDutiesByName', () => {
   it('menggabungkan multi-role satu nama sesuai urutan jadwal', () => {
     const out = mergeDutiesByName([
-      duty('Holly Kalele', 'Liturgist', '13:00'),
-      duty('Holly Kalele', 'Worship Leader', '13:00'),
+      duty('Holly Kalele', 'Pemimpin Liturgi', '13:00'),
+      duty('Holly Kalele', 'Pemimpin Pujian', '13:00'),
     ]);
-    expect(out).toEqual([{ name: 'Holly Kalele', roles: ['Liturgist', 'Worship Leader'] }]);
+    expect(out).toEqual([{ name: 'Holly Kalele', roles: ['Pemimpin Liturgi', 'Pemimpin Pujian'] }]);
   });
 
   it('mempertahankan urutan kemunculan nama', () => {
     const out = mergeDutiesByName([
       duty('Chelsea Tjheuw', 'Pembaca Firman'),
-      duty('Holly Kalele', 'Liturgist'),
-      duty('Aditya Wellem', 'Worship Leader'),
-      duty('Aditya Wellem', 'Liturgist'),
+      duty('Holly Kalele', 'Pemimpin Liturgi'),
+      duty('Aditya Wellem', 'Pemimpin Pujian'),
+      duty('Aditya Wellem', 'Pemimpin Liturgi'),
     ]);
     expect(out.map((p) => p.name)).toEqual(['Chelsea Tjheuw', 'Holly Kalele', 'Aditya Wellem']);
-    expect(out[2].roles).toEqual(['Worship Leader', 'Liturgist']);
+    expect(out[2].roles).toEqual(['Pemimpin Pujian', 'Pemimpin Liturgi']);
   });
 
   it('tidak menggandakan role yang sama', () => {

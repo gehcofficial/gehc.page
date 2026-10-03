@@ -19,13 +19,13 @@ const schedule = (role, division, sortOrder, people) => people.map((name, i) => 
 describe('groupOfficers', () => {
   it('kelompokkan per komponen, urut divisi lalu sortOrder, orang digabung', () => {
     const rows = [
-      ...schedule('Operator Sound', 'MARTURIA', 2, ['Sari']),
-      ...schedule('Liturgist', 'LITURGIA', 1, ['Budi']),
+      ...schedule('Operator Tata Suara', 'MARTURIA', 2, ['Sari']),
+      ...schedule('Pemimpin Liturgi', 'LITURGIA', 1, ['Budi']),
       ...schedule('Doa Syafaat', 'LITURGIA', 13, ['Ani', 'Tono']),
-      ...schedule('Worship Leader', 'LITURGIA', 2, ['Rina', 'Rina']),
+      ...schedule('Pemimpin Pujian', 'LITURGIA', 2, ['Rina', 'Rina']),
     ];
     const officers = groupOfficers(rows);
-    expect(officers.map((o) => o.role)).toEqual(['Liturgist', 'Worship Leader', 'Doa Syafaat', 'Operator Sound']);
+    expect(officers.map((o) => o.role)).toEqual(['Pemimpin Liturgi', 'Pemimpin Pujian', 'Doa Syafaat', 'Operator Tata Suara']);
     expect(officers[1].people).toEqual(['Rina']);
     expect(officers[2].people).toEqual(['Ani', 'Tono']);
     expect(officers.map((o) => o.division)).toEqual(['LITURGIA', 'LITURGIA', 'LITURGIA', 'MARTURIA']);
@@ -89,8 +89,8 @@ describe('maskPrayerSuggestions', () => {
 
 describe('buildWartaPelayanan', () => {
   const officers = groupOfficers([
-    ...schedule('Liturgist', 'LITURGIA', 1, ['Budi']),
-    ...schedule('Operator Sound', 'MARTURIA', 2, ['Sari', 'Tono']),
+    ...schedule('Pemimpin Liturgi', 'LITURGIA', 1, ['Budi']),
+    ...schedule('Operator Tata Suara', 'MARTURIA', 2, ['Sari', 'Tono']),
   ]);
 
   it('memuat penanggung, tuan rumah, dan komponen per divisi', () => {
@@ -102,9 +102,9 @@ describe('buildWartaPelayanan', () => {
     expect(text).toContain('Penanggung Jawab: Agape');
     expect(text).toContain('Tuan Rumah: Hesed');
     expect(text).toContain('— LITURGIA —');
-    expect(text).toContain('Liturgist: Budi');
+    expect(text).toContain('Pemimpin Liturgi: Budi');
     expect(text).toContain('— MARTURIA —');
-    expect(text).toContain('Operator Sound: Sari, Tono');
+    expect(text).toContain('Operator Tata Suara: Sari, Tono');
   });
 
   it('state kosong diberi keterangan', () => {
@@ -168,7 +168,7 @@ describe('buildWartaDesk', () => {
       date: '2026-09-06',
       serving: { row: { eventDate: '2026-09-06', responsibleGroup: { name: 'Agape' }, hostGroup: { name: 'Hesed' } }, projected: false },
       nextServing: { row: { eventDate: '2026-09-13', responsibleGroup: { name: 'Hesed' }, hostGroup: { name: 'Kairos' } }, projected: false },
-      schedules: schedule('Liturgist', 'LITURGIA', 1, ['Budi']),
+      schedules: schedule('Pemimpin Liturgi', 'LITURGIA', 1, ['Budi']),
       monthPlan: { theme: 'Bertumbuh Bersama', weeks: [{ date: '2026-09-06', theme: 'Berakar', verse: 'Kolose 2:6-7' }] },
       prayerNotes: [{ kind: 'SAKIT', subject: { name: 'Budi Santoso' }, occurredOn: '2026-09-03' }],
     });
@@ -178,7 +178,7 @@ describe('buildWartaDesk', () => {
     expect(desk.suggestionsPrivate).toBe(true);
     expect(desk.suggestions[0].name).toBe('Budi');
     expect(desk.next.responsibleGroup.name).toBe('Hesed');
-    expect(desk.texts.pelayanan).toContain('Liturgist: Budi');
+    expect(desk.texts.pelayanan).toContain('Pemimpin Liturgi: Budi');
     expect(desk.texts.doa).toContain('Tema: Berakar');
     expect(desk.texts.jadwal).toContain('Tuan Rumah: Kairos');
   });

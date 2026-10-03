@@ -18,14 +18,16 @@ describe('divisionStyleFor', () => {
 
 describe('roleIconName', () => {
   it('memetakan peran umum ke ikon spesifik', () => {
-    expect(roleIconName('Worship Leader', 'LITURGIA')).toBe('Mic');
-    expect(roleIconName('Singer', 'LITURGIA')).toBe('Music');
+    expect(roleIconName('Pemimpin Pujian', 'LITURGIA')).toBe('Mic');
+    expect(roleIconName('Penyanyi', 'LITURGIA')).toBe('Music');
     expect(roleIconName('Pemusik — Gitar', 'LITURGIA')).toBe('Guitar');
-    expect(roleIconName('Pembaca Firman 1', 'DIDASKALIA')).toBe('BookOpen');
-    expect(roleIconName('Penerima Tamu / Usher', 'KOINONIA')).toBe('DoorOpen');
+    expect(roleIconName('Pembaca Firman', 'DIDASKALIA')).toBe('BookOpen');
+    expect(roleIconName('Penerima Tamu', 'KOINONIA')).toBe('DoorOpen');
     expect(roleIconName('Konsumsi', 'DIAKONIA')).toBe('UtensilsCrossed');
     expect(roleIconName('Fotografer', 'MARTURIA')).toBe('Camera');
     expect(roleIconName('Koordinator Tuan Rumah', 'KOINONIA')).toBe('Users');
+    expect(roleIconName('Operator Tata Suara', 'MARTURIA')).toBe('Volume2');
+    expect(roleIconName('Videografer', 'MARTURIA')).toBe('Video');
   });
 
   it('fallback ke ikon divisi bila peran tak dikenal', () => {

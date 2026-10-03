@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   PUBLIC_DUTY_STATUSES,
   assignCycleIndexes,
@@ -31,15 +31,15 @@ describe('aturan tampil publik petugas', () => {
 
 describe('groupDutiesByDay', () => {
   const rows = [
-    { date: '2026-09-27', status: 'CONFIRMED', timeStart: '13:00', serviceRole: { name: 'Singer', division: 'LITURGIA' }, user: { name: 'Budi' } },
-    { date: '2026-09-27', status: 'CONFIRMED', timeStart: '07:00', serviceRole: { name: 'Operator Sound', division: 'MARTURIA' }, user: { name: 'Sari' } },
-    { date: new Date('2026-10-04T00:00:00Z'), status: 'DONE', serviceRole: { name: 'Liturgist', division: 'LITURGIA' }, user: { name: 'Ani' } },
+    { date: '2026-09-27', status: 'CONFIRMED', timeStart: '13:00', serviceRole: { name: 'Penyanyi', division: 'LITURGIA' }, user: { name: 'Budi' } },
+    { date: '2026-09-27', status: 'CONFIRMED', timeStart: '07:00', serviceRole: { name: 'Operator Tata Suara', division: 'MARTURIA' }, user: { name: 'Sari' } },
+    { date: new Date('2026-10-04T00:00:00Z'), status: 'DONE', serviceRole: { name: 'Pemimpin Liturgi', division: 'LITURGIA' }, user: { name: 'Ani' } },
   ];
 
   it('mengelompokkan per tanggal & urut jam', () => {
     const out = groupDutiesByDay(rows);
     expect(Object.keys(out).sort()).toEqual(['2026-09-27', '2026-10-04']);
-    expect(out['2026-09-27'].map((x) => x.role)).toEqual(['Operator Sound', 'Singer']);
+    expect(out['2026-09-27'].map((x) => x.role)).toEqual(['Operator Tata Suara', 'Penyanyi']);
     expect(out['2026-09-27'][1]).toMatchObject({ name: 'Budi', division: 'LITURGIA', timeStart: '13:00' });
   });
 
