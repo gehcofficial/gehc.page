@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Header BPMJ nama lengkap (3 Okt 2026)
+
+**Ubah:** seksi BPMJ di Orang Kami berjudul `BPMJ — Badan Pekerja Majelis Jemaat` + sub `Payung tertinggi pelayanan pemuda` (ID+EN). Murni label.
+
+**Verifikasi:** `lint` bersih ✓ (staging tak ada data org → cek visual di prod yang berdata).
+
+**Next:** push staging+main.
+
 ## Current — BPMJ teratas + pilar per sub-divisi (3 Okt 2026)
 
 **Ubah:** urutan BPMJ → Komisi → Tim Kerja → pilar (struktur gereja) ✓ tiap kartu divisi: Kepala Divisi dulu, lalu per sub-divisi canonical (yang kosong tetap tampil + `Belum ada anggota.`), tanpa teks ganda bila sub == jabatan ✓ (`pillar-groups.ts`: `isHeadOfDivision`, `dedupeRoleLine`, `groupPillarMembers`).

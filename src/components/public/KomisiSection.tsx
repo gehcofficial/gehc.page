@@ -62,7 +62,8 @@ export const KomisiSection: React.FC = () => {
         {bpmjTeam.length > 0 && (
           <PhotoTeam
             icon={<Crown className="w-4 h-4 text-brand" />}
-            title={t.leadersPage.bpmjLabel}
+            title={t.orgTree.bpmjTitle}
+            subtitle={t.orgTree.bpmjSub}
             members={bpmjTeam}
           />
         )}
@@ -173,15 +174,21 @@ export const KomisiSection: React.FC = () => {
 const PhotoTeam: React.FC<{
   icon: React.ReactNode;
   title: string;
+  subtitle?: string;
   members: Member[];
-}> = ({ icon, title, members }) => {
+}> = ({ icon, title, subtitle, members }) => {
   const { t } = useLang();
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/60">
-        {icon}
-        <h3 className="text-lg sm:text-xl font-bold">{title}</h3>
-        <span className="ml-auto text-[11px] font-bold text-[#8C8880]">{members.length} orang</span>
+      <div className="mb-6 pb-4 border-b border-[#D9D7D0]/60">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="text-lg sm:text-xl font-bold">{title}</h3>
+          <span className="ml-auto text-[11px] font-bold text-[#8C8880]">{members.length} orang</span>
+        </div>
+        {subtitle && (
+          <p className="text-xs text-[#8C8880] mt-1 ml-6">{subtitle}</p>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {members.map((member) => (
