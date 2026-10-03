@@ -236,6 +236,8 @@ export type PdfOptions = {
   rhbSectionImages?: Record<number, Record<string, string>>;
   /** Gambar band cover per hari RHB: { [pathIndex]: dataUrl } */
   rhbCoverImages?: Record<number, string>;
+  /** Ilustrasi AI per slide ringkasan khotbah: { [slideIndex]: dataUrl } */
+  khutbahSlideImages?: Record<number, string>;
   /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
   serviceType?: string | null;
 };
@@ -389,10 +391,7 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
     w.label('Kerangka Slide', C.accent);
     w.title('Slide Khotbah', 20);
     for (const s of outline) {
-      const body = [
-        ...(s.bullets || []).map((b) => `• ${b}`),
-        s.visualNote ? `Arahan visual: ${s.visualNote}` : '',
-      ].filter(Boolean).join('\n');
+      const body = (s.bullets || []).map((b) => `• ${b}`).join('\n');
       w.field(s.title, body);
     }
   }
@@ -427,15 +426,14 @@ export function buildKhutbahPdf(week: DidaskaliaWeek, studio: DidaskaliaStudio, 
   w.paragraph(studio.sermon?.summary || '');
   if (studio.sermon?.rationale) w.callout('Pendekatan & Metode', studio.sermon.rationale);
   const slides = studio.sermon?.slideOutline || [];
-  for (const s of slides) {
+  for (const [si, s] of slides.entries()) {
     w.newPage();
     w.gradientBar(0, 1.5);
     w.y = 24;
     w.label('Slide', C.pink);
     w.title(s.title, 22);
-    w.image(opts.pathImages?.[1], 40);
+    w.image(opts.khutbahSlideImages?.[si] || opts.pathImages?.[1], 40);
     if (s.bullets?.length) w.bullets(s.bullets);
-    if (s.visualNote) w.field('Arahan Visual', s.visualNote, 9.5);
   }
   w.finishFooters();
   const v = opts.version || 1;

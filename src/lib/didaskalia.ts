@@ -104,6 +104,8 @@ export type DidaskaliaPresentationImages = {
   cover?: string;
   paths?: Record<string, string>;
   rhb?: Record<string, Record<string, string>>;
+  /** Ilustrasi AI per slide ringkasan khotbah: { [slideIndex]: fileId }. */
+  khutbah?: Record<string, string>;
   /** Riwayat gambar hasil AI (untuk kuota maks 3/pekan). */
   aiImages?: string[];
 };

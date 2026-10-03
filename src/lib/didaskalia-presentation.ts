@@ -175,7 +175,6 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       kicker: `Kerangka Slide ${i + 1}`,
       title: s.title,
       bullets: s.bullets,
-      callout: s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
     })),
     {
       id: 'a-checklist',
@@ -299,13 +298,15 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
     },
   ];
   (sermon.slideOutline || []).forEach((s, i) => {
+    const imgId = images.khutbah?.[String(i)];
     slides.push({
       id: `slide-${i}`,
       kind: 'section',
       kicker: `Slide ${i + 1}`,
       title: s.title,
+      imageFileId: imgId,
       bullets: s.bullets,
-      callout: s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
+      callout: !imgId && s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
     });
   });
   return slides;

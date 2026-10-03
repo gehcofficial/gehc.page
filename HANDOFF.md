@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — RHB panjang + teknis pola + gambar slide AI (3 Okt 2026)
+
+**Masukan mentor:** terlalu pendek; mau naskah siap-baca; terikat teknis pola; default trio metode; ringkasan bergambar AI; pembekalan tanpa arahan visual.
+
+**Ubah:** batas summary 150 kata / section 300–600 char + MAKNA wajib naskah siap-baca (direct speech) ✓ `patternBlock` teknis per pola (fase/durasi/pemilik dari DB) ✓ default metode Praktika/Tematika/Biblika ✓ endpoint `POST .../sermon-image` per slide (kuota terpisah 8/minggu; tanpa teks di gambar) + tombol per-slide & bulk di Studio ✓ deck web + PDF khutbah render gambar per slide ✓ callout Arahan Visual dihapus dari deck + PDF pembekalan (visualNote tetap jadi prompt gambar) ✓ token naik (path 4500, sermon 6000).
+
+**Verifikasi:** `lint` bersih ✓ **643 test** hijau (+2) ✓ `build` OK ✓
+
+**Next:** push staging+main; generate uji 1 pekan (catatan: biaya gambar OpenAI per slide).
+
 ## Current — AI membaca pola ibadah mingguan (3 Okt 2026)
 
 **Masalah:** AI tidak pernah diberi tahu pola — prompt FGD di-hardcode, pola hanya dipakai sesi hari-H.

@@ -117,4 +117,18 @@ describe('pola ibadah minggu ini', () => {
     expect(allPrompts()).toContain('POLA IBADAH MINGGU INI');
     expect(allPrompts()).toContain('ronde debat');
   });
+
+  it('metode default terkunci (Praktika + Tematika + Biblika) bila tak dipilih', async () => {
+    const draft = await generateWeekDraft({ ...base });
+    expect(draft.homileticMethods).toEqual([
+      'Teologi Praktika / Pastoral',
+      'Pengajaran Tematika',
+      'Teologi Biblika',
+    ]);
+  });
+
+  it('metode pilihan manual dipertahankan', async () => {
+    const draft = await generateWeekDraft({ ...base, methods: ['Apologetika'] });
+    expect(draft.homileticMethods).toEqual(['Apologetika']);
+  });
 });

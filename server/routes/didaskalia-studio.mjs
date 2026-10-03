@@ -92,7 +92,8 @@ function sanitizeImages(raw) {
     for (const [day, secs] of Object.entries(r.rhb)) rhb[day] = mapOfStr(secs);
   }
   const aiImages = Array.isArray(r.aiImages) ? r.aiImages.filter((x) => typeof x === 'string' && x).slice(0, 20) : [];
-  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages };
+  const khutbah = mapOfStr(r.khutbah);
+  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages, khutbah };
 }
 
 export function hashContent(obj) {
@@ -208,11 +209,18 @@ async function resolveWeekPattern(prisma, week, override) {
   const pick = async (c) => {
     try {
       const row = await prisma.worshipPattern.findUnique({ where: { code: c } });
-      if (row) return { code: row.code, name: row.name, summary: row.summary || '', playbook: String(row.playbook || '').slice(0, 4000) };
+      if (row) {
+        let phases = [];
+        try {
+          const raw = typeof row.phases === 'string' ? JSON.parse(row.phases) : row.phases;
+          if (Array.isArray(raw)) phases = raw.slice(0, 8).map((f) => ({ no: f?.no, title: String(f?.title || ''), minutes: Number(f?.minutes) || 0, owner: String(f?.owner || '') }));
+        } catch { /* abaikan */ }
+        return { code: row.code, name: row.name, summary: row.summary || '', phases, playbook: String(row.playbook || '').slice(0, 4000) };
+      }
     } catch { /* tabel pola belum ada — fallback literal */ }
     return null;
   };
-  return (await pick(code)) || (await pick('MONOLOG')) || { code: 'MONOLOG', name: 'Monolog & FGD (Standar)', summary: '', playbook: '' };
+  return (await pick(code)) || (await pick('MONOLOG')) || { code: 'MONOLOG', name: 'Monolog & FGD (Standar)', summary: '', phases: [], playbook: '' };
 }
 
 async function saveStudioWeek(prisma, yearMonth, weekIndex, mutator, userId) {
@@ -831,6 +839,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   // ---------- Presentasi materi (deck web per pekan/hari) ----------
   const PRESENTATION_IMAGE_SUBFOLDER = '04 Presentasi';
   const MAX_AI_IMAGES = 3;
+  /** Kuota terpisah: ilustrasi AI per slide ringkasan khotbah. */
+  const MAX_SLIDE_IMAGES = 8;
 
   /** Folder Drive `04 Presentasi` untuk event (auto-provision bila perlu). */
   async function resolvePresentationFolder(prisma, event) {
@@ -1067,6 +1077,92 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           model: img.model,
           week: saved,
         });
+      } catch (e) {
+        res.status(500).json({ error: `Gagal menyimpan gambar: ${String(e.message || e).slice(0, 200)}` });
+      }
+    })
+  );
+
+  // POST /api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image
+  // AI mengilustrasikan SATU slide ringkasan khotbah (prompt = visualNote slide).
+  // Kuota terpisah dari cover (MAX_SLIDE_IMAGES/minggu). Body: { slide: <index> }.
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const studio = sanitizeStudio(week.studio);
+      const slides = Array.isArray(studio.sermon?.slideOutline) ? studio.sermon.slideOutline : [];
+      const idx = Number(req.body?.slide);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= slides.length) {
+        return res.status(400).json({ error: 'Parameter slide tidak valid.' });
+      }
+      const have = studio.presentation?.khutbah && typeof studio.presentation.khutbah === 'object'
+        ? studio.presentation.khutbah
+        : {};
+      const used = Object.keys(have).length;
+      if (used >= MAX_SLIDE_IMAGES && !have[String(idx)]) {
+        return res.status(429).json({ error: `Kuota ilustrasi slide pekan ini penuh (${MAX_SLIDE_IMAGES}).`, used, max: MAX_SLIDE_IMAGES });
+      }
+
+      const event = await resolveEventId(prisma, week.date);
+      if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini.' });
+      const slide = slides[idx] || {};
+      const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
+      const prompt = [
+        'Ilustrasi untuk satu slide khotbah pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
+        theme ? `Tema: ${theme}. Slide: ${slide.title || ''}.` : `Slide: ${slide.title || ''}.`,
+        slide.visualNote ? `Arahan visual: ${slide.visualNote}.` : '',
+        Array.isArray(slide.bullets) && slide.bullets.length ? `Isi: ${slide.bullets.slice(0, 3).join(' / ')}.` : '',
+        'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar. Sisakan ruang kosong di tepi untuk teks slide.',
+        'Warna & suasana relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
+      ].filter(Boolean).join(' ');
+
+      let img;
+      try {
+        img = await generateImageBase64({ prompt, size: '1536x1024', quality: 'medium' });
+      } catch (e) {
+        const msg = String(e.message || e);
+        if (/does not have access to model|model_not_found|permission|not have access/i.test(msg)) {
+          return res.status(503).json({ error: 'Model gambar AI belum aktif untuk kunci API ini.', code: 'IMAGE_MODEL_UNAVAILABLE' });
+        }
+        return res.status(502).json({ error: `AI gambar gagal: ${msg.slice(0, 200)}` });
+      }
+
+      try {
+        const parentId = await resolvePresentationFolder(prisma, event);
+        if (!parentId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
+        const buffer = Buffer.from(img.base64, 'base64');
+        const file = await uploadFile(parentId, {
+          originalname: `ai-sermon-${yearMonth}-w${weekIndex}-s${idx}-${Date.now()}.jpg`,
+          mimetype: img.mediaType,
+          buffer,
+        });
+        const saved = await saveStudioWeek(
+          prisma,
+          yearMonth,
+          weekIndex,
+          (w) => {
+            const s = { ...w.studio };
+            const pres = { ...(s.presentation || {}) };
+            pres.khutbah = { ...((pres.khutbah && typeof pres.khutbah === 'object') ? pres.khutbah : {}), [String(idx)]: file.id };
+            s.presentation = pres;
+            return { ...w, studio: s };
+          },
+          req.authUser?.id
+        );
+        const total = Object.keys(saved?.studio?.presentation?.khutbah || {}).length;
+        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, slide: idx, used: total, max: MAX_SLIDE_IMAGES, model: img.model, week: saved });
       } catch (e) {
         res.status(500).json({ error: `Gagal menyimpan gambar: ${String(e.message || e).slice(0, 200)}` });
       }

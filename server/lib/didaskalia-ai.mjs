@@ -383,9 +383,15 @@ function teamContextBlock(input) {
 export function patternBlock(pattern) {
   const p = pattern && typeof pattern === 'object' ? pattern : null;
   const code = String(p?.code || 'MONOLOG').toUpperCase() || 'MONOLOG';
-  const lines = ['POLA IBADAH MINGGU INI (WAJIB DIIKUTI BENTUKNYA):'];
+  const lines = ['POLA IBADAH MINGGU INI (WAJIB DIIKUTI BENTUK DAN TEKNISNYA):'];
   lines.push(`- Pola: ${p?.name || code}${code === 'MONOLOG' ? ' (default)' : ''}`);
   if (p?.summary) lines.push(`- Gambaran: ${p.summary}`);
+  if (Array.isArray(p?.phases) && p.phases.length) {
+    lines.push('- Fase baku pola (durasi & penanggung jawab — JANGAN diubah totalnya, sesuaikan isi dengan tema):');
+    for (const f of p.phases.slice(0, 8)) {
+      lines.push(`  ${f.no || ''}. ${f.title || ''}${f.minutes ? ` (${f.minutes}')` : ''}${f.owner ? ` — ${f.owner}` : ''}`);
+    }
+  }
   if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);
   if (code === 'MONOLOG') {
     lines.push('- Bentuk: monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).');
@@ -484,7 +490,8 @@ export async function generateWeekDraft(input) {
     '- PENGANTAR: konteks "renungan tentang apa" (boleh panjang) + 1-2 ilustrasi konkret yang memperjelas inti.',
     '- REFLEKSI_PRIBADI: TEPAT 3 pertanyaan, masing-masing 1 kalimat dan berlabel konteks — "🎒 Pelajar — …?", "🎓 Mahasiswa — …?", "💼 Pekerja — …?". Menohok, tidak menghakimi.',
     '- DISKUSI_KELOMPOK: 2-3 pertanyaan beralur observasi → interpretasi → aplikasi.',
-    '- PEMBAHASAN_TEMATIS & MAKNA_IMPLIKASI: body 1 paragraf, WAJIB MAKS 220 karakter.',
+    '- PEMBAHASAN_TEMATIS & MAKNA_IMPLIKASI: body 1 paragraf kaya, WAJIB 300–600 karakter (bukan renungan kilat).',
+    '- MAKNA_IMPLIKASI wajib berupa NASKAH SIAP-BACA: narasi utuh di bawah alur kaya, ditutup 2-3 kalimat yang tinggal diucapkan mentor apa adanya (direct speech, hangat).',
     '- Nada: hangat, bahasa anak muda, hormat — tidak baku-kaku, tidak kasual-berlebihan.',
     '- JAGA SANGAT RINGKAS. Jangan menambah field lain di luar skema.',
     '',
@@ -495,8 +502,8 @@ export async function generateWeekDraft(input) {
     'ATURAN RINGKASAN KHOTBAH (WAJIB):',
     '- Turunkan dari Fundamental Firman, diarahkan ke Kitab/Bagian Fokus.',
     '- methods: 2-3 metode; rationale: bagaimana metode menajamkan Fundamental Firman.',
-    '- summary: 2-3 paragraf pendek (maks 80 kata).',
-    '- slideOutline: 6-8 slide (title, bullets 2-4, visualNote maks 60 karakter).',
+    '- summary: 3-5 paragraf (100–150 kata), naratif dan kontekstual untuk pemuda/anak rantau — enak dibaca keras sebagai renungan.',
+    '- slideOutline: 6-8 slide (title, bullets 2-4). JANGAN sertakan visualNote/arahan visual (diisi terpisah).',
     '- deliveryPlan: satu baris per metode.',
     '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah).',
     '',
@@ -517,7 +524,7 @@ export async function generateWeekDraft(input) {
   const genOne = async (i, used) => {
     try {
       const dup = used.length ? `Judul yang SUDAH DIPAKAI (jangan diulang): ${used.join(' | ')}.` : '';
-      const { object } = await jethroGenerateObject({ system: SYSTEM, prompt: onePathPrompt(i, dup), schema: PathObjectSchema, maxOutputTokens: 3000, timeoutMs: 30000 });
+      const { object } = await jethroGenerateObject({ system: SYSTEM, prompt: onePathPrompt(i, dup), schema: PathObjectSchema, maxOutputTokens: 4500, timeoutMs: 30000 });
       if (object && Array.isArray(object.rhbSections) && object.rhbSections.length >= 3) {
         results[i - 1] = { ...object, pathIndex: i, dayLabel: object.dayLabel || DAY_LABELS[i - 1] };
       }
@@ -545,7 +552,7 @@ export async function generateWeekDraft(input) {
       system: SYSTEM,
       prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES.slice(0, -2)].join('\n'),
       schema: SermonObjectSchema,
-      maxOutputTokens: 4000,
+      maxOutputTokens: 6000,
       timeoutMs: 40000,
     });
     sermon = object || {};
@@ -553,10 +560,11 @@ export async function generateWeekDraft(input) {
     console.error('[didaskalia-ai] ringkasan khotbah gagal:', e?.message || e);
   }
 
-  const methods = Array.isArray(input.methods) ? input.methods.filter(Boolean).slice(0, 3) : [];
-  const methodMix = methods.length
-    ? methods.map((m) => ({ method: m, percent: Math.round(100 / methods.length), note: '' }))
-    : [];
+  const DEFAULT_METHODS = ['Teologi Praktika / Pastoral', 'Pengajaran Tematika', 'Teologi Biblika'];
+  const picked = Array.isArray(input.methods) ? input.methods.filter(Boolean).slice(0, 3) : [];
+  // Default terkunci (keputusan pemilik): Praktika + Tematika + Biblika bila tak dipilih.
+  const methods = picked.length ? picked : DEFAULT_METHODS;
+  const methodMix = methods.map((m) => ({ method: m, percent: Math.round(100 / methods.length), note: '' }));
 
   return clampDraft({
     chapterNo: input.chapterNo || "",
@@ -675,7 +683,7 @@ export async function generateSermon(input) {
     'Balas HANYA JSON valid: {"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}',
   ].filter(Boolean).join('\n');
 
-  const { data } = await generateJson({ prompt, maxOutputTokens: 4000, timeoutMs: 35000 });
+  const { data } = await generateJson({ prompt, maxOutputTokens: 6000, timeoutMs: 35000 });
   return clampSermon(data);
 }
 
