@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Foto jemaat → kurasi 10 Marturia (3 Okt 2026)
+
+**Alur:** peserta terdaftar upload di Info Event (`EventPhotoShare`, PENDING, subfolder Foto Jemaat auto, 8MB, 5/orang, H−1..H+7) → Marturia approve → sematkan 10 (`previewList`/archive/pin 5→10 + counter n/10) → Warta/landing. Endpoint `POST /api/gallery/jemaat` (aturan murni di `server/lib/gallery-jemaat.mjs`).
+
+**Verifikasi:** `lint` bersih ✓ **647 test** hijau (+4) ✓ `build` OK ✓ E2E staging: 403 tak terdaftar → 201 PENDING → approve → Disetujui; counter 0/10 ✓ data uji dibersihkan (DB + Drive) ✓
+
+**Next:** push staging+main; Marturia mulai kurasi foto 4 Okt.
+
 ## Current — RHB panjang + teknis pola + gambar slide AI (3 Okt 2026)
 
 **Masukan mentor:** terlalu pendek; mau naskah siap-baca; terikat teknis pola; default trio metode; ringkasan bergambar AI; pembekalan tanpa arahan visual.

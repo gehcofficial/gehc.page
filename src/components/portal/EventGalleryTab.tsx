@@ -118,7 +118,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ previewFileIds: previewIds.slice(0, 5) }),
+        body: JSON.stringify({ previewFileIds: previewIds.slice(0, 10) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setNotice(d.error || 'Gagal menyimpan preview.'); return; }
@@ -223,11 +223,11 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
           </div>
         </div>
         <p className="text-[11px] text-[#8C8880]">
-          Foto otomatis masuk folder arsip event di Drive dan langsung disetujui. Sematkan hingga 5 sebagai preview landing.
+          Foto otomatis masuk folder arsip event di Drive dan langsung disetujui. Sematkan hingga 10 sebagai preview landing & Warta.
         </p>
         {notice && <p className="text-[11px] font-semibold text-emerald-700">{notice}</p>}
         <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#D9D7D0]/40">
-          <p className="text-[11px] font-bold text-[#1B1B1B]">Preview landing: {Math.min(previewIds.length, 5)}/5</p>
+          <p className="text-[11px] font-bold text-[#1B1B1B]">Preview landing: {Math.min(previewIds.length, 10)}/10</p>
           <button
             type="button"
             onClick={() => void savePreviews()}
@@ -247,7 +247,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
                 <button
                   key={i.id}
                   type="button"
-                  onClick={() => setPreviewIds((prev) => (on ? prev.filter((x) => x !== id) : (prev.length >= 5 ? prev : [...prev, id])))}
+                  onClick={() => setPreviewIds((prev) => (on ? prev.filter((x) => x !== id) : (prev.length >= 10 ? prev : [...prev, id])))}
                   className={`relative aspect-square rounded-xl overflow-hidden border-2 ${on ? 'border-brand' : 'border-transparent'}`}
                   title={i.title}
                 >

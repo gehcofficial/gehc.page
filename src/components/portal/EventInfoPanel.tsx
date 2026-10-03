@@ -9,6 +9,7 @@ import { EventWorshipCard } from './EventWorshipCard';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
 import { EventProfileCompleteCard } from './EventProfileCompleteCard';
 import { EventSelfAnswersCard } from './EventSelfAnswersCard';
+import { EventPhotoShare } from './EventPhotoShare';
 import { parseHashSearch, parsePortalHash } from '../../lib/portal-routes';
 
 const BAKU_TAU_EVENT_ID = 'evt-baku-tau-4-0';
@@ -289,6 +290,7 @@ export const EventInfoPanel: React.FC = () => {
               <EventSelfAnswersCard eventId={ev.id} />
             </>
           )}
+          <EventPhotoShare eventId={ev.id} eventName={ev.name} />
         </>
       ) : (
         <div className="rounded-[28px] border border-dashed border-[#D9D7D0] bg-white p-6 text-center space-y-3">

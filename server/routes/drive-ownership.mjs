@@ -59,7 +59,7 @@ const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
 function previewList(ids) {
   const arr = Array.isArray(ids) ? ids : [];
-  return arr.slice(0, 5).filter(Boolean).map((id) => ({
+  return arr.slice(0, 10).filter(Boolean).map((id) => ({
     id,
     thumbnailUrl: driveThumbUrl(id),
     webViewLink: driveViewUrl(id),
@@ -1372,7 +1372,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const ids = (Array.isArray(req.body?.previewFileIds) ? req.body.previewFileIds : [])
         .map(String)
         .filter(Boolean)
-        .slice(0, 5);
+        .slice(0, 10);
       if (ids.length) {
         const drive = await requireUserDrive();
         for (const id of ids) await setPublicReader(drive, id);

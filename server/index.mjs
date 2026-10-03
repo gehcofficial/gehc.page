@@ -9336,6 +9336,105 @@ app.post('/api/gallery', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(
   res.status(201).json({ item });
 }));
 
+// POST /api/gallery/jemaat — upload foto peserta terdaftar (PENDING, kurasi Marturia).
+// Syarat: login + terdaftar di event + dalam jendela H-1..H+7 + maks 5 foto/orang/event.
+app.post('/api/gallery/jemaat', requireRole(), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum tersedia.' });
+  const userId = req.authUser?.id;
+  if (!userId) return res.status(401).json({ error: 'Belum login.' });
+  if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+  if (!driveWriteEnabled()) return res.status(403).json({ error: 'Upload belum diaktifkan.' });
+
+  const { eventId, filename, mimetype, data } = req.body || {};
+  if (!eventId) return res.status(400).json({ error: 'eventId wajib.' });
+  if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
+  if (typeof data === 'string' && data.length > 11_000_000) {
+    return res.status(400).json({ error: 'File terlalu besar (maks ~8MB).' });
+  }
+  if (!String(mimetype || '').startsWith('image/')) {
+    return res.status(400).json({ error: 'Hanya file gambar.' });
+  }
+
+  const event = await prisma.eventProgram.findUnique({ where: { id: String(eventId) } });
+  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  // Jendela upload H-1..H+7 (bila event bertanggal).
+  const { isWithinUploadWindow, remainingQuota, JEMAAT_PHOTO_MAX_BYTES } = await import('./lib/gallery-jemaat.mjs');
+  if (!isWithinUploadWindow(event.eventDate)) {
+    return res.status(400).json({ error: 'Pengunggahan hanya H-1 sampai H+7 event.' });
+  }
+
+  // Harus terdaftar: waiting pool (nama event) atau attendee.
+  const sourceEvent = String(event.name || '').trim();
+  let registered = false;
+  try {
+    if (sourceEvent) {
+      const pool = await prisma.waitingPool.findFirst({ where: { userId, sourceEvent } });
+      registered = Boolean(pool);
+    }
+    if (!registered) {
+      const att = await prisma.eventAttendee.findUnique({ where: { eventId_userId: { eventId: event.id, userId } } }).catch(() => null);
+      registered = Boolean(att);
+    }
+  } catch { /* abaikan — anggap belum terdaftar */ }
+  if (!registered) return res.status(403).json({ error: 'Hanya peserta terdaftar yang bisa mengunggah foto.' });
+
+  const mine = await prisma.eventGallery.count({ where: { eventId: event.id, uploadedById: userId } }).catch(() => 0);
+  if (remainingQuota(mine) <= 0) return res.status(400).json({ error: 'Maksimal 5 foto per orang per event.' });
+
+  // Subfolder "Foto Jemaat" di bawah folder Marturia event (fallback: folder arsip).
+  let targetFolderId = null;
+  try {
+    const marturia = await prisma.eventDivision.findUnique({
+      where: { eventId_division: { eventId: event.id, division: 'MARTURIA' } },
+    });
+    if (marturia?.driveFolderId) {
+      const subs = await listFolders(marturia.driveFolderId, 100).catch(() => []);
+      const found = subs.find((f) => String(f.name || '').toLowerCase() === 'foto jemaat');
+      if (found) targetFolderId = found.id;
+      else {
+        const created = await gdriveCreateFolder(marturia.driveFolderId, 'Foto Jemaat').catch(() => null);
+        targetFolderId = created?.id || null;
+      }
+    }
+    if (!targetFolderId && event.archiveFolderId) targetFolderId = event.archiveFolderId;
+  } catch (e) {
+    console.warn('[gallery-jemaat] folder gagal:', e.message);
+  }
+  if (!targetFolderId) return res.status(400).json({ error: 'Folder foto event belum siap.' });
+
+  try {
+    const buffer = Buffer.from(String(data), 'base64');
+    if (buffer.length > JEMAAT_PHOTO_MAX_BYTES) return res.status(413).json({ error: 'File >8MB tidak didukung.' });
+    const file = await gdriveUploadFile(targetFolderId, {
+      originalname: String(filename).slice(0, 120),
+      mimetype: mimetype || 'image/jpeg',
+      buffer,
+    });
+    const id = 'gal-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const title = `Foto jemaat — ${req.authUser?.name || 'peserta'}`;
+    const item = await prisma.eventGallery.create({
+      data: {
+        id, eventId: event.id, title, mediaUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w1200`,
+        mediaType: 'PHOTO', thumbUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`,
+        division: 'MARTURIA', driveFileId: file.id, uploadedById: userId, status: 'PENDING',
+      },
+    });
+    void notifyApprovalItem(prisma, {
+      queue: 'galeri',
+      itemId: id,
+      title: `Foto jemaat menunggu kurasi: ${event.name}`,
+      message: 'Perlu tinjauan Marturia di galeri event.',
+      url: '#/portal/komisi/divisions',
+    });
+    res.status(201).json({ item: { id: item.id, status: item.status } });
+  } catch (e) {
+    console.error('[gallery-jemaat] upload failed:', e);
+    res.status(500).json({ error: `Gagal mengunggah: ${String(e.message || e).slice(0, 200)}` });
+  }
+}));
+
 // PATCH /api/gallery/:id � approve/reject
 app.patch('/api/gallery/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
