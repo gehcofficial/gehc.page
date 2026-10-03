@@ -45,7 +45,8 @@ type SessionDetail = {
     config: {
       timerSeconds: number;
       topics: { code: string; label: string }[];
-      floors: { floor: number; label: string }[];
+      floors: { floor: number; label: string; venueId?: string | null; capacity?: number }[];
+      rankFloors?: number[];
       expectedCount: number | null;
       chipLimit: number;
     };
@@ -53,10 +54,20 @@ type SessionDetail = {
   };
   likertItems: ItemRow[];
   chips: ChipRow[];
-  rooms: { code: string; label: string; floorLabel: string; count: number; total: number }[];
+  rooms: { code: string; label: string; floorLabel: string; count: number; total: number; capacity?: number; isFull?: boolean }[];
   wordcloud: { code: string; label: string; count: number }[];
   notes?: NoteRow[];
   progress: { submitted: number; total: number };
+};
+
+type VenueRow = {
+  id: string;
+  code: string;
+  name: string;
+  capacity: number;
+  kind: string;
+  note?: string | null;
+  isActive: boolean;
 };
 
 const ACTIONS: { action: string; label: string; tone: string }[] = [
@@ -78,6 +89,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
   const [newItem, setNewItem] = useState({ topicCode: '', text: '', gospelNote: '' });
   const [newChip, setNewChip] = useState({ label: '', topicCode: '' });
   const [configDraft, setConfigDraft] = useState({ timerSeconds: 1200, expectedCount: '' });
+  const [venues, setVenues] = useState<VenueRow[]>([]);
+  const [rankVenues, setRankVenues] = useState<string[]>(['', '', '']);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -212,6 +225,66 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
       await loadDetail();
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan konfigurasi.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    fetch('/api/worship/venues', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { venues: [] }))
+      .then((d) => setVenues((d.venues || []) as VenueRow[]))
+      .catch(() => setVenues([]));
+  }, []);
+
+  // rankVenues[i] = venueId untuk prioritas rank i+1.
+  useEffect(() => {
+    const cfg = detail?.session.config;
+    if (!cfg) return;
+    const ranks: number[] = Array.isArray(cfg.rankFloors) && cfg.rankFloors.length === 3 ? cfg.rankFloors : [1, 2, 3];
+    setRankVenues(
+      ranks.map((floor) => cfg.floors.find((f) => f.floor === floor)?.venueId || ''),
+    );
+  }, [detail?.session.id]);
+
+  const venueTotal = rankVenues.reduce((n, id) => {
+    const v = venues.find((x) => x.id === id);
+    return n + (v?.capacity || 0);
+  }, 0);
+
+  const saveVenues = async () => {
+    if (!detail) return;
+    const picked = rankVenues.map((id) => venues.find((v) => v.id === id));
+    if (picked.some((v) => !v)) {
+      setMsg({ kind: 'err', text: 'Pilih tempat untuk Rank 1, 2, dan 3.' });
+      return;
+    }
+    if (new Set(rankVenues).size !== rankVenues.length) {
+      setMsg({ kind: 'err', text: 'Tiga rank harus memakai tempat berbeda.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const floors = picked.map((v, i) => ({
+        floor: i + 1,
+        label: v?.name || `Pos ${i + 1}`,
+        venueId: v?.id || null,
+        capacity: v?.capacity || 0,
+      }));
+      const r = await fetch(`/api/worship/sessions/${detail.session.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          config: { ...detail.session.config, floors, rankFloors: [1, 2, 3] },
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan tempat.');
+      setMsg({ kind: 'ok', text: 'Tempat pos tersimpan.' });
+      await loadDetail();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan tempat.' });
     } finally {
       setBusy(false);
     }
@@ -399,6 +472,45 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               </div>
             </div>
 
+            <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-brand" />
+                <p className="text-[11px] font-bold">Tempat pos per prioritas</p>
+                <span className="ml-auto text-[11px] font-bold text-[#8C8880] tabular-nums">
+                  Total {venueTotal} kursi
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[0, 1, 2].map((rank) => (
+                  <label key={rank} className="space-y-1">
+                    <span className="text-[11px] text-[#8C8880]">Rank {rank + 1}</span>
+                    <select
+                      className={INPUT}
+                      value={rankVenues[rank] || ''}
+                      disabled={busy}
+                      onChange={(e) => setRankVenues((prev) => prev.map((v, i) => (i === rank ? e.target.value : v)))}
+                    >
+                      <option value="">— Pilih tempat —</option>
+                      {venues.map((v) => (
+                        <option key={v.id} value={v.id} disabled={!v.isActive}>
+                          {v.name} · {v.capacity}
+                          {v.isActive ? '' : ' (nonaktif)'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void saveVenues()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
+              >
+                <Save className="w-3.5 h-3.5" /> Simpan tempat
+              </button>
+            </div>
+
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-brand" />
@@ -457,7 +569,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                 <div key={room.code} className="rounded-xl border border-[#EFEDE8] p-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[#BDBAB2]">{room.floorLabel}</p>
                   <p className="text-sm font-bold mt-1">{room.label}</p>
-                  <p className="text-[11px] text-[#8C8880] mt-1">{room.count} peserta</p>
+                  <p className="text-[11px] text-[#8C8880] mt-1 tabular-nums">
+                    {room.count}{(room.capacity || 0) > 0 ? `/${room.capacity}` : ''} peserta
+                    {room.isFull ? ' · Penuh' : ''}
+                  </p>
                 </div>
               ))}
             </div>

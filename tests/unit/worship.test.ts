@@ -30,6 +30,26 @@ describe('worship: config & ranking', () => {
     expect(d.floors).toHaveLength(3);
   });
 
+  it('normalizeConfig meneruskan venueId + capacity per slot', () => {
+    const d = normalizeConfig({
+      floors: [
+        { floor: 1, label: 'Lt 1', venueId: 'wv-1', capacity: 40 },
+        { floor: 2, label: 'Teras Kiri', venueId: 'wv-5', capacity: 25 },
+        { floor: 3, label: 'Teras Kanan', venueId: 'wv-4', capacity: 20 },
+      ],
+      rankFloors: [1, 2, 3],
+    });
+    expect(d.floors[0]).toMatchObject({ floor: 1, venueId: 'wv-1', capacity: 40 });
+    expect(d.floors[1]).toMatchObject({ floor: 2, venueId: 'wv-5', capacity: 25 });
+    expect(d.rankFloors).toEqual([1, 2, 3]);
+  });
+
+  it('normalizeConfig default venue kosong (kompatibel sesi lama)', () => {
+    const d = normalizeConfig({ floors: [{ floor: 1, label: 'Lantai 1' }] });
+    expect(d.floors[0].venueId).toBeNull();
+    expect(d.floors[0].capacity).toBe(0);
+  });
+
   it('rankTopics: kerentanan tertinggi lebih dulu', () => {
     expect(rankTopics({ HUBUNGAN: 3, PEKERJAAN: 9, KELUARGA: 6 }, CONFIG)).toEqual([
       'PEKERJAAN',
@@ -90,9 +110,9 @@ describe('worship: segmen hari-H', () => {
 
   it('orderedRoute mengurutkan sesuai rank', () => {
     const rooms = [
-      { code: 'C', label: 'c', floor: 3, floorLabel: 'L3', rank: 3, total: 0, count: 0 },
-      { code: 'A', label: 'a', floor: 2, floorLabel: 'L2', rank: 1, total: 0, count: 0 },
-      { code: 'B', label: 'b', floor: 1, floorLabel: 'L1', rank: 2, total: 0, count: 0 },
+      { code: 'C', label: 'c', floor: 3, floorLabel: 'L3', capacity: 0, isFull: false, rank: 3, total: 0, count: 0 },
+      { code: 'A', label: 'a', floor: 2, floorLabel: 'L2', capacity: 0, isFull: false, rank: 1, total: 0, count: 0 },
+      { code: 'B', label: 'b', floor: 1, floorLabel: 'L1', capacity: 0, isFull: false, rank: 2, total: 0, count: 0 },
     ];
     expect(orderedRoute(rooms).map((r) => r.code)).toEqual(['A', 'B', 'C']);
   });

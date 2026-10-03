@@ -11,6 +11,9 @@ export type MentoringRoom = {
   label: string;
   floor: number;
   floorLabel: string;
+  venue?: { id: string; name: string; capacity: number } | null;
+  capacity: number;
+  isFull: boolean;
   rank: number;
   total: number;
   count: number;
@@ -45,6 +48,7 @@ export type MentoringMyResult = {
   topicLabel: string;
   floor: number;
   floorLabel: string;
+  venue?: { id: string; name: string; capacity: number } | null;
   vulnerability: number;
   affirmations: string[];
 };

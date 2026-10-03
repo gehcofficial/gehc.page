@@ -365,6 +365,9 @@ const MentoringDay: React.FC = () => {
               <p className="text-xs text-white/85 mt-1 inline-flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" /> Silakan menuju {myResult.floorLabel}
               </p>
+              {myResult.venue && myResult.venue.capacity > 0 && (
+                <p className="text-[11px] text-white/70 mt-1">Daya tampung pos: {myResult.venue.capacity} orang</p>
+              )}
             </div>
 
             {status === 'LIKERT_OPEN' && (
@@ -402,7 +405,14 @@ const MentoringDay: React.FC = () => {
                         </p>
                         <p className="text-sm font-bold truncate">{room.label}</p>
                       </div>
-                      <span className="ml-auto text-[11px] text-[#8C8880]">{room.count} peserta</span>
+                      <span className="ml-auto text-[11px] text-[#8C8880] tabular-nums">
+                        {room.count}{room.capacity > 0 ? `/${room.capacity}` : ''} peserta
+                      </span>
+                      {room.isFull && (
+                        <span className="shrink-0 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                          Penuh
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

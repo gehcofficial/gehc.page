@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — Database tempat pos + peta 4 Okt (Lt1/Teras) (3 Okt 2026)
+
+**Latar:** Lt 2 dipakai rapat BPMJ/Komisi 4 Okt. Master `worship_venues` (7 tempat + kapasitas) + sesi menunjuk 3 tempat per prioritas; hitung/kapasitas tampil, tanpa alih otomatis.
+
+**Ubah:** tabel `WorshipVenue` + migrasi/seed npm (`db:migrate:worship-venues`, `db:seed:worship-venues` [:staging|:prod]) → config sesi `floors[]` bawa `venueId/capacity` → endpoint `GET/POST/PUT /api/worship/venues` (baca semua peran; tulis Didaskalia) → picker Rank1/2/3 di control room (+ total kursi, validasi beda & aktif) → payload `rooms`/`myResult` bawa `venue/capacity/isFull` → UI peserta (`12/25` + badge Penuh), layar proyektor, monitor kontrol.
+
+**Data:** seed 7 tempat staging+prod ✓ peta 4 Okt Rank1→Lt 1 (40), Rank2→Teras Kiri (25), Rank3→Teras Kanan (20), total 85 ✓ kedua sesi DRAFT; data uji kemarin dibersihkan (prod 9+3+4, staging 9+3) — PENTING: sesi prod sempat WRAPUP (ada yang mengetes di prod), sudah reset.
+
+**Verifikasi:** `lint` bersih ✓ **637 test** hijau (+2 venue config) ✓ `build` OK ✓
+
+**Next:** push staging+main; cek control room (pilih tempat) + layar proyektor besok; Lt 2 bisa diaktifkan lagi via master setelah rapat.
+
 ## Current — Petugas per divisi + Kegiatan Studio-first (3 Okt 2026)
 
 **Ubah:** daftar chip petugas (Warta + Info Event) dikelompokkan per Panca Tugas — header ikon+warna+jumlah (`groupPeopleByDivision`, `DivisionDutyGroup`); tuan rumah tetap datar. Grid Drive 01/02/03 di Kegiatan hanya tampil bila ada file; bila kosong → `Materi Studio menyusul dari Didaskalia.` Sekaligus menghapus teks bocor admin (`upload di Panel Divisi → …`) di 4 titik. Blok Presentasi Web Studio tetap acuan utama.

@@ -2533,6 +2533,25 @@ model IncidentLog {
   @@map("incident_logs")
 }
 
+// ---------- F5.3: Tempat pos pola ibadah (Didaskalia) ----------
+
+model WorshipVenue {
+  id        String   @id @db.VarChar(64)
+  code      String   @unique @db.VarChar(24)
+  name      String   @db.VarChar(150)
+  capacity  Int      @default(0)
+  /// LANTAI | TERAS | CITYWALK
+  kind      String   @default("LANTAI") @db.VarChar(16)
+  note      String?  @db.VarChar(500)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([isActive, sortOrder])
+  @@map("worship_venues")
+}
+
 // ---------- F5: Pola Ibadah & Mentoring Day (Didaskalia) ----------
 
 model WorshipPattern {

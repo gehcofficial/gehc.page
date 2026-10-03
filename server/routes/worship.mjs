@@ -50,7 +50,12 @@ export function normalizeConfig(raw) {
     Array.isArray(c.rankFloors) && c.rankFloors.length === floors.length ? c.rankFloors : DEFAULT_RANK_FLOORS;
   return {
     timerSeconds: intOrNull(c.timerSeconds) || 1200,
-    floors: floors.map((f) => ({ floor: intOrNull(f.floor) || 1, label: str(f.label, 60) || `Lantai ${f.floor}` })),
+    floors: floors.map((f) => ({
+      floor: intOrNull(f.floor) || 1,
+      label: str(f.label, 60) || `Lantai ${f.floor}`,
+      venueId: str(f.venueId, 64),
+      capacity: Math.max(0, intOrNull(f.capacity) || 0),
+    })),
     rankFloors: rankFloors.map((n) => intOrNull(n) || 1),
     topics: Array.isArray(c.topics)
       ? c.topics
@@ -67,8 +72,12 @@ export function normalizeConfig(raw) {
   };
 }
 
+function floorEntry(config, floor) {
+  return (config.floors || []).find((f) => f.floor === floor) || null;
+}
+
 function floorLabel(config, floor) {
-  return config.floors.find((f) => f.floor === floor)?.label || `Lantai ${floor}`;
+  return floorEntry(config, floor)?.label || `Lantai ${floor}`;
 }
 
 /** Ranking topik dari total kerentanan (Σ 6 − skor); tie-break urutan config. */
@@ -83,14 +92,22 @@ export function rankTopics(totals, config) {
 function buildRooms(ranked, totals, priorityCount, config) {
   return ranked.map((code, idx) => {
     const floor = config.rankFloors[idx] ?? DEFAULT_RANK_FLOORS[idx] ?? 1;
+    const entry = floorEntry(config, floor);
+    const capacity = Math.max(0, Number(entry?.capacity) || 0);
+    const count = priorityCount[code] || 0;
     return {
       code,
       label: config.topics.find((t) => t.code === code)?.label || code,
       floor,
       floorLabel: floorLabel(config, floor),
+      venue: entry?.venueId
+        ? { id: entry.venueId, name: entry.label, capacity }
+        : null,
+      capacity,
+      isFull: capacity > 0 && count >= capacity,
       rank: idx + 1,
       total: totals[code] || 0,
-      count: priorityCount[code] || 0,
+      count,
     };
   });
 }
@@ -240,11 +257,15 @@ export function registerWorshipRoutes(app, { wrap }) {
         const best = rankTopics(mine, config)[0];
         const idx = agg.ranked.indexOf(best);
         const floor = config.rankFloors[idx] ?? 1;
+        const entry = floorEntry(config, floor);
         myResult = {
           topicCode: best,
           topicLabel: config.topics.find((t) => t.code === best)?.label || best,
           floor,
           floorLabel: floorLabel(config, floor),
+          venue: entry?.venueId
+            ? { id: entry.venueId, name: entry.label, capacity: Math.max(0, Number(entry.capacity) || 0) }
+            : null,
           vulnerability: mine[best] || 0,
           affirmations: config.affirmations?.[best] || [],
         };
@@ -561,11 +582,89 @@ export function registerWorshipRoutes(app, { wrap }) {
     }),
   );
 
+  // ---------------- Tempat pos (master Didaskalia) ----------------
+
+  const serializeVenue = (v) => ({
+    id: v.id,
+    code: v.code,
+    name: v.name,
+    capacity: v.capacity ?? 0,
+    kind: v.kind,
+    note: v.note || null,
+    isActive: v.isActive !== false,
+    sortOrder: v.sortOrder ?? 0,
+  });
+
   app.get(
-    '/api/worship/sessions',
+    '/api/worship/venues',
     requireRole(),
     wrap(async (req, res) => {
       const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const onlyActive = String(req.query.active || '') !== '0';
+      const venues = await prisma.worshipVenue
+        .findMany({
+          where: onlyActive ? { isActive: true } : {},
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        })
+        .catch(() => []);
+      res.json({ venues: venues.map(serializeVenue) });
+    }),
+  );
+
+  app.post(
+    '/api/worship/venues',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const code = String(req.body?.code || '').toUpperCase().trim().slice(0, 24);
+      const name = str(req.body?.name, 150);
+      if (!code || !name) return res.status(400).json({ error: 'code dan name wajib.' });
+      const exists = await prisma.worshipVenue.findUnique({ where: { code } }).catch(() => null);
+      if (exists) return res.status(409).json({ error: 'Kode tempat sudah dipakai.' });
+      const created = await prisma.worshipVenue.create({
+        data: {
+          id: uid('wv'),
+          code,
+          name,
+          capacity: Math.max(0, intOrNull(req.body?.capacity) || 0),
+          kind: ['LANTAI', 'TERAS', 'CITYWALK'].includes(String(req.body?.kind)) ? String(req.body.kind) : 'LANTAI',
+          note: str(req.body?.note, 500),
+          sortOrder: intOrNull(req.body?.sortOrder) || 0,
+        },
+      });
+      res.status(201).json({ venue: serializeVenue(created) });
+    }),
+  );
+
+  app.put(
+    '/api/worship/venues/:id',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await prisma.worshipVenue.findUnique({ where: { id: String(req.params.id) } }).catch(() => null);
+      if (!found) return res.status(404).json({ error: 'Tempat tidak ditemukan.' });
+      const b = req.body || {};
+      const data = {};
+      if (b.name !== undefined) data.name = str(b.name, 150) || found.name;
+      if (b.capacity !== undefined) data.capacity = Math.max(0, intOrNull(b.capacity) || 0);
+      if (b.kind !== undefined && ['LANTAI', 'TERAS', 'CITYWALK'].includes(String(b.kind))) data.kind = String(b.kind);
+      if (b.note !== undefined) data.note = str(b.note, 500);
+      if (b.sortOrder !== undefined) data.sortOrder = intOrNull(b.sortOrder) || 0;
+      if (b.isActive !== undefined) data.isActive = Boolean(b.isActive);
+      const updated = await prisma.worshipVenue.update({ where: { id: found.id }, data });
+      res.json({ venue: serializeVenue(updated) });
+    }),
+  );
+
+  app.get(
+    '/api/worship/sessions',
+    requireRole(),
+    wrap(async (req, res) => {      const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const sessions = await prisma.worshipSession.findMany({
         include: { pattern: { select: { code: true, name: true } } },

@@ -157,7 +157,14 @@ const MentoringScreen: React.FC = () => {
                 <div key={room.code} className="rounded-2xl bg-white/5 p-5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-brand">{room.floorLabel}</p>
                   <p className="font-display text-xl font-black mt-1">{room.label}</p>
-                  <p className="text-xs text-white/50 mt-2">{room.count} peserta diarahkan ke sini</p>
+                  <p className="text-xs text-white/50 mt-2 tabular-nums">
+                    {room.count}{room.capacity > 0 ? `/${room.capacity}` : ''} peserta diarahkan ke sini
+                  </p>
+                  {room.isFull && (
+                    <p className="mt-2 inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-300/30">
+                      Penuh
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
