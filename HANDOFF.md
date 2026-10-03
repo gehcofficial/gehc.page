@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Hapus Warta 1 + backfill Drive semua event (3 Okt 2026)
+
+**Warta 1** (`cnt-warta-warta-mtodkwj1yeqo`) dihapus permanen staging+prod ✓ feed publik bersih ✓.
+
+**Backfill** `server/_backfill-event-drives.cjs` (+ npm `drive:backfill-events[:staging|:prod]`, dry-run default): 6 divisi + folder Drive per divisi + folder arsip Marturia per event. Staging: 7 divisi + 29 folder + 6 arsip. Prod: 16 divisi + 43 folder + 9 arsip, 0 gagal. `public-archive` prod: 9 event `hasArchive=true` (termasuk ARCHIVED BAKU TAU) ✓ previews masih kosong → giliran kurasi Marturia.
+
+**Next:** kurasi 10 foto/event (Marturia) → Warta etalase; upload susulan jemaat jalan via folder yang sudah ada.
+
 ## Current — Seksi PJ/TR collapsible + grup TR tetap tampil (staging) (3 Okt 2026)
 
 **Ubah:** `ServiceDutySections` — Penanggung Jawab (Liturgia/Didaskalia/Marturia + nama grup) + Tuan Rumah (Koinonia/Diakonia + **nama grup tetap tampil** walau kosong, tanpa dump anggota). Trigger chevron kiri + mini-stack foto, default tertutup. Konsisten mentoring & serving day (Warta + Info Event).
