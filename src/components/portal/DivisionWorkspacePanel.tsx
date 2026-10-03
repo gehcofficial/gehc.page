@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 
 import { EventCheckInTab } from './EventCheckInTab';
+import { EventInviteCard } from './EventInviteCard';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import { PenatalayanBoard } from './PenatalayanBoard';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
@@ -119,7 +120,7 @@ interface EventItem {
   divisions: DivisionRecord[];
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ibadah' | 'studio';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ajak' | 'ibadah' | 'studio';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -346,6 +347,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     gallery: { label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
     kesaksian: { label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
     checkin: { label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
+    ajak: { label: d.tabAjak, icon: <Send className="w-3.5 h-3.5" /> },
     studio: { label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
   };
   const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> =
@@ -1573,6 +1575,12 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
 
             {activeTab === 'checkin' && selectedDiv === 'KOINONIA' && selectedEvent && (
               <EventCheckInTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
+            )}
+
+            {activeTab === 'ajak' && selectedDiv === 'KOINONIA' && (
+              <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
+                <EventInviteCard />
+              </div>
             )}
 
             {/* Planning Tab (all divisions) */}

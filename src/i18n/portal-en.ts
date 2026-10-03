@@ -434,6 +434,7 @@ export const portalEn = {
     tabDrive: 'Drive',
     tabPlanning: 'Plan',
     tabCheckin: 'Check-in',
+    tabAjak: 'Invite & Welcome',
     tabWarta: 'Bulletin',
     tabGallery: 'Gallery',
     tabKesaksian: 'Testimony & Story',

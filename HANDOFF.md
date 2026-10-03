@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Tab Ajak & Jemput Koinonia (3 Okt 2026)
+
+**Fitur:** caption siap-tempel (`event-invite-caption.ts`): sapaan + event/tanggal/venue + link `#/event/<slug>` (tanpa login) + 3 langkah daftar + absensi QR (tegaskan BUKAN QRIS) + 4 manfaat (QR, WA carpool, tercatat, kartu terima kasih). Tab `ajak` baru di panel Koinonia: pilih event terdekat → pratinjau editable → Salin / Kirim WA.
+
+**Verifikasi:** `lint` bersih ✓ **652 test** hijau (+5) ✓ `build` OK ✓ browser staging: tab tampil, caption terisi data event, Salin + wa.me ter-encode ✓
+
+**Next:** push staging+main; Tuan Rumah tinggal pakai tiap minggu.
+
 ## Current — Foto jemaat → kurasi 10 Marturia (3 Okt 2026)
 
 **Alur:** peserta terdaftar upload di Info Event (`EventPhotoShare`, PENDING, subfolder Foto Jemaat auto, 8MB, 5/orang, H−1..H+7) → Marturia approve → sematkan 10 (`previewList`/archive/pin 5→10 + counter n/10) → Warta/landing. Endpoint `POST /api/gallery/jemaat` (aturan murni di `server/lib/gallery-jemaat.mjs`).

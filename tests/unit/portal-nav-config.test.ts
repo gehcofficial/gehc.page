@@ -190,7 +190,7 @@ describe('divisionDetailTabIds — sub-tab per divisi', () => {
   it('divisi lain tidak berubah', () => {
     expect(divisionDetailTabIds('LITURGIA')).toEqual(['penatalayan', 'ibadah', 'members']);
     expect(divisionDetailTabIds('MARTURIA')).toEqual(['gallery', 'kesaksian', 'penatalayan', 'ibadah', 'members']);
-    expect(divisionDetailTabIds('KOINONIA')).toEqual(['checkin', 'penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('KOINONIA')).toEqual(['checkin', 'ajak', 'penatalayan', 'ibadah', 'members']);
     expect(divisionDetailTabIds('DIAKONIA')).toEqual(['penatalayan', 'ibadah', 'members']);
     expect(divisionDetailTabIds('BENZARPR')).toEqual(['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning']);
   });
