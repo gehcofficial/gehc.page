@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — AI membaca pola ibadah mingguan (3 Okt 2026)
+
+**Masalah:** AI tidak pernah diberi tahu pola — prompt FGD di-hardcode, pola hanya dipakai sesi hari-H.
+
+**Ubah:** seed pola ke-6 `MONOLOG` (default eksplisit) staging+prod ✓ pekan Studio simpan `patternCode` (default MONOLOG) ✓ blok `patternBlock()` disuntik ke generate draft/sermon/extras (MONOLOG→FGD; Post-to-Post→rute kunjungan; Debat→ronde; Bedah Film→pleno; else→skenario pola) ✓ dropdown pola di Studio (tersimpan, ikut semua generate) ✓ deck Pembekalan Bagian B judul + fallback mengikuti pola ✓ standar isi RHB tetap di semua pola.
+
+**Verifikasi:** `lint` bersih ✓ **641 test** hijau (+4 pola, mock provider) ✓ `build` OK ✓ minggu lama tak tersentuh (hanya generate baru).
+
+**Next:** push staging+main; generate uji 1 pekan Post-to-Post.
+
 ## Current — Hapus Warta 1 + backfill Drive semua event (3 Okt 2026)
 
 **Warta 1** (`cnt-warta-warta-mtodkwj1yeqo`) dihapus permanen staging+prod ✓ feed publik bersih ✓.

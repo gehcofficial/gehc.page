@@ -117,7 +117,38 @@ Subteam 1 (11 orang, Lantai 2) memecahkan sandi → *pass message* berantai → 
 ## Penutup
 Presentasi hasil (20', maks 4'/tim) → khotbah penutup & persembahan (15') → **Commissioning & Declaration** (15'): penumpangan tangan + doa personal + deklarasi bersama.`;
 
+const MONOLOG_PLAYBOOK = `# Monolog & FGD (Standar)
+
+**Tema:** Khotbah monolog sentral + pendalaman kelompok. **Durasi:** 60–90'.
+
+## Alur
+1. Praise & Worship (10–15').
+2. Monolog khotbah oleh Main Speaker (25–35'): eksposisi teks, aplikasi, panggilan.
+3. Briefing FGD (3'): bagi kelompok, bagikan panduan diskusi.
+4. FGD hari Minggu (30–40'): observasi → interpretasi → aplikasi, tutup komitmen & doa.
+5. Persembahan & doa berkat (10').
+
+## Catatan
+Pola default bila pekan tidak memilih pola khusus. Cocok untuk tema doktrinal yang perlu penyampaian utuh sebelum diskusi.`;
+
 const PATTERNS = [
+  {
+    code: 'MONOLOG',
+    name: 'Monolog & FGD (Standar)',
+    summary:
+      'Pola default: khotbah monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).',
+    defaultDurationMin: 90,
+    modules: ['timer', 'notes'],
+    phases: [
+      { no: 1, title: 'Praise & Worship', minutes: 15, owner: 'Liturgia' },
+      { no: 2, title: 'Monolog khotbah', minutes: 30, owner: 'Main Speaker (Didaskalia)' },
+      { no: 3, title: 'Briefing FGD', minutes: 3, owner: 'Main Speaker' },
+      { no: 4, title: 'FGD kelompok', minutes: 35, owner: 'Mentor' },
+      { no: 5, title: 'Persembahan & doa berkat', minutes: 10, owner: 'Main Speaker' },
+    ],
+    playbook: MONOLOG_PLAYBOOK,
+    sortOrder: 5,
+  },
   {
     code: 'POST_TO_POST',
     name: 'Post-to-Post (Mentoring Day)',

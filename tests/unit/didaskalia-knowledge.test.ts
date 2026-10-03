@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const captured = vi.hoisted(() => ({ prompts: [] as string[], systems: [] as string[] }));
-
 const PATH_OBJECT = {
   pathIndex: 1, dayLabel: 'Minggu', title: 'T', summary: 's', bacaanRef: 'b',
   scriptureRef: 'r', scriptureText: 't', homileticLens: ['a'], hookQuestion: 'h',
@@ -26,7 +25,8 @@ vi.mock('../../server/ai-provider.mjs', () => ({
   generateImageBase64: vi.fn(async () => ({ base64: '', mediaType: 'image/jpeg', model: 'mock' })),
 }));
 
-import { generateWeekDraft } from '../../server/lib/didaskalia-ai.mjs';
+import { generateWeekDraft, generateSermon } from '../../server/lib/didaskalia-ai.mjs';
+import { patternBlock } from '../../server/lib/didaskalia-ai.mjs';
 
 const base = { yearMonth: '2026-09', weekIndex: 4, date: '2026-09-27' };
 const allPrompts = () => captured.prompts.join('\n');
@@ -80,5 +80,41 @@ describe('konteks tim (instruksi + knowledge)', () => {
     const perCallMax = Math.max(...captured.prompts.map((p) => (p.match(/A/g) || []).length));
     expect(perCallMax).toBeLessThanOrEqual(1600);
     expect(aCount).toBeGreaterThan(500);
+  });
+});
+
+describe('pola ibadah minggu ini', () => {
+  it('patternBlock default MONOLOG (FGD)', () => {
+    const lines = patternBlock(undefined).join('\n');
+    expect(lines).toContain('POLA IBADAH MINGGU INI');
+    expect(lines).toContain('MONOLOG');
+    expect(lines).toContain('FGD');
+  });
+
+  it('patternBlock POST_TO_POST memakai rute kunjungan', () => {
+    const lines = patternBlock({ code: 'POST_TO_POST', name: 'Post-to-Post', summary: 'Pos', playbook: 'Skenario' }).join('\n');
+    expect(lines).toContain('RUTE KUNJUNGAN');
+    expect(lines).toContain('BUKAN FGD');
+    expect(lines).toContain('Skenario');
+  });
+
+  it('generateWeekDraft menyertakan blok pola', async () => {
+    captured.prompts = []; captured.systems = [];
+    await generateWeekDraft({
+      ...base,
+      pattern: { code: 'POST_TO_POST', name: 'Post-to-Post', summary: 'Pos', playbook: 'Skenario' },
+    });
+    expect(allPrompts()).toContain('POLA IBADAH MINGGU INI');
+    expect(allPrompts()).toContain('Post-to-Post');
+  });
+
+  it('generateSermon menyertakan blok pola', async () => {
+    captured.prompts = []; captured.systems = [];
+    await generateSermon({
+      ...base,
+      pattern: { code: 'DEBAT', name: 'Debat', summary: '', playbook: '' },
+    });
+    expect(allPrompts()).toContain('POLA IBADAH MINGGU INI');
+    expect(allPrompts()).toContain('ronde debat');
   });
 });

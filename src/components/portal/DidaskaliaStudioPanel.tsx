@@ -55,7 +55,7 @@ import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-capti
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 import { MentoringControl } from '../mentoring/MentoringControl';
 
-type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string };
+type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
 
 function currentYearMonth() {
@@ -187,6 +187,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const [studio, setStudio] = useState<DidaskaliaStudio>(defaultStudio());
   const [weekMeta, setWeekMeta] = useState<WeekMeta | null>(null);
+  const [patterns, setPatterns] = useState<{ code: string; name: string }[]>([]);
   const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null } | null>(null);
   const [links, setLinks] = useState<Array<{ refId: string; label: string; url: string }>>([]);
   const [loading, setLoading] = useState(false);
@@ -215,7 +216,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal memuat studio (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme });
+      setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme, patternCode: d.week?.patternCode || 'MONOLOG' });
       setEvent(d.event || null);
       setLinks(d.links || []);
       fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/approval`, { credentials: 'include' })
@@ -230,6 +231,31 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   }, [ym, weekIndex]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    fetch('/api/worship/patterns', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { patterns: [] }))
+      .then((d) => setPatterns(((d.patterns || []) as { code: string; name: string }[]).filter((p) => p.code)))
+      .catch(() => setPatterns([]));
+  }, []);
+
+  /** Simpan pola ibadah pekan ini (AI generate berikutnya mengikutinya). */
+  const savePattern = useCallback(async (code: string) => {
+    if (!canWrite) return;
+    const next = code || 'MONOLOG';
+    setWeekMeta((m) => (m ? { ...m, patternCode: next } : m));
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternCode: next }),
+      });
+      if (!r.ok) throw new Error('Gagal menyimpan pola.');
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan pola.' });
+    }
+  }, [addToast, canWrite, weekIndex, ym]);
 
   const loadSchedule = useCallback(async () => {
     try {
@@ -284,7 +310,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ methods: studio.homileticMethods, notes }),
+        body: JSON.stringify({ methods: studio.homileticMethods, notes, patternCode: weekMeta?.patternCode }),
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
@@ -300,7 +326,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ notes }),
+              body: JSON.stringify({ notes, patternCode: weekMeta?.patternCode }),
             });
             const d2 = await readJson(r2);
             if (r2.ok && d2.week?.studio) {
@@ -714,7 +740,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ methods: studio.homileticMethods, notes }),
+        body: JSON.stringify({ methods: studio.homileticMethods, notes, patternCode: weekMeta?.patternCode }),
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
@@ -1029,6 +1055,23 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
+              <label className="inline-flex items-center gap-2 text-[11px] font-bold text-[#8C8880]">
+                Pola ibadah
+                <select
+                  value={weekMeta?.patternCode || 'MONOLOG'}
+                  disabled={!canWrite || !!busy}
+                  onChange={(e) => void savePattern(e.target.value)}
+                  className="rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-xs font-bold text-[#1B1B1B] focus:outline-none focus:border-black disabled:opacity-50"
+                  title="AI generate berikutnya mengikuti pola ini"
+                >
+                  {[{ code: 'MONOLOG', name: 'Monolog & FGD (Standar)' }, ...patterns.filter((p) => p.code !== 'MONOLOG' && (p as { status?: string }).status !== 'ARCHIVED')].map((p) => (
+                    <option key={p.code} value={p.code}>{p.name}</option>
+                  ))}
+                  {weekMeta?.patternCode && weekMeta.patternCode !== 'MONOLOG' && !patterns.some((p) => p.code === weekMeta.patternCode) && (
+                    <option value={weekMeta.patternCode}>{weekMeta.patternCode}</option>
+                  )}
+                </select>
+              </label>
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
               </button>

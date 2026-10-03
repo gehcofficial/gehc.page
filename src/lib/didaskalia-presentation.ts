@@ -59,6 +59,8 @@ export type PresentationContent = {
   images: DidaskaliaPresentationImages;
   /** Label deliverer (dari jenis ibadah). */
   deliverer?: string;
+  /** Nama pola ibadah pekan ini (untuk judul Bagian B). */
+  patternName?: string;
 };
 
 export type ParsedMaterialHash = {
@@ -182,20 +184,28 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       title: 'Checklist Persiapan Khotbah',
       bullets: sermon.prepChecklist || [],
     },
-    // Bagian B — untuk mentor & co-mentor
+    // Bagian B — untuk mentor & co-mentor (mengikuti pola ibadah pekan ini)
     {
       id: 'b-fgd',
       kind: 'section',
       kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: 'Alur FGD Hari Minggu',
+      title: !content.patternName || content.patternName === 'Monolog & FGD (Standar)'
+        ? 'Alur FGD Hari Minggu'
+        : `Alur ${content.patternName} Hari Minggu`,
       bullets: (sermon.discussionFlow || []).length
         ? sermon.discussionFlow
-        : [
-            'Buka dengan pertanyaan pemanasan yang dekat dengan tema.',
-            'Gali teks bersama (amati → pahami).',
-            'Terapkan secara nyata dalam hidup pemuda/anak rantau.',
-            'Tutup dengan komitmen & doa.',
-          ],
+        : (!content.patternName || content.patternName === 'Monolog & FGD (Standar)'
+          ? [
+              'Buka dengan pertanyaan pemanasan yang dekat dengan tema.',
+              'Gali teks bersama (amati → pahami).',
+              'Terapkan secara nyata dalam hidup pemuda/anak rantau.',
+              'Tutup dengan komitmen & doa.',
+            ]
+          : [
+              `Ikuti skenario pola ${content.patternName}.`,
+              'Sesuaikan dengan tema dan audiens minggu ini.',
+              'Tutup dengan komitmen & doa.',
+            ]),
     },
     {
       id: 'b-7hari',
@@ -326,7 +336,7 @@ export function delivererLabel(serviceType?: string | null): string {
 }
 
 /** Konten presentasi dari studio (live). */
-export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null): PresentationContent {
+export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null, patternName?: string | null): PresentationContent {
   return {
     weekIndex,
     date,
@@ -338,6 +348,7 @@ export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, d
     sermon: studio.sermon || defaultSermon(),
     images: studio.presentation || {},
     deliverer: delivererLabel(serviceType),
+    patternName: patternName || undefined,
   };
 }
 

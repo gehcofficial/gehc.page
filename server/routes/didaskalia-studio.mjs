@@ -160,6 +160,7 @@ function defaultWeeks(yearMonth) {
     mentoringVerse: '',
     servingVerse: '',
     liturgiaPic: '',
+    patternCode: 'MONOLOG',
     year: y,
     month: m,
     studio: defaultStudio(),
@@ -193,9 +194,25 @@ async function ensurePlan(prisma, yearMonth, userId) {
 
 function weekOrDefault(weeks, yearMonth, weekIndex) {
   const found = weeks.find((w) => Number(w?.index) === weekIndex);
-  if (found) return { ...found, studio: sanitizeStudio(found.studio) };
+  if (found) return { ...found, patternCode: String(found.patternCode || 'MONOLOG').toUpperCase(), studio: sanitizeStudio(found.studio) };
   const fallback = defaultWeeks(yearMonth).find((w) => w.index === weekIndex);
-  return fallback || { index: weekIndex, date: '', studio: defaultStudio() };
+  return fallback || { index: weekIndex, date: '', patternCode: 'MONOLOG', studio: defaultStudio() };
+}
+
+/**
+ * Pola ibadah pekan ini (dropdown Studio; default MONOLOG).
+ * Mengembalikan { code, name, summary, playbook } untuk prompt AI.
+ */
+async function resolveWeekPattern(prisma, week, override) {
+  const code = String(override || week?.patternCode || 'MONOLOG').toUpperCase().slice(0, 40) || 'MONOLOG';
+  const pick = async (c) => {
+    try {
+      const row = await prisma.worshipPattern.findUnique({ where: { code: c } });
+      if (row) return { code: row.code, name: row.name, summary: row.summary || '', playbook: String(row.playbook || '').slice(0, 4000) };
+    } catch { /* tabel pola belum ada — fallback literal */ }
+    return null;
+  };
+  return (await pick(code)) || (await pick('MONOLOG')) || { code: 'MONOLOG', name: 'Monolog & FGD (Standar)', summary: '', playbook: '' };
 }
 
 async function saveStudioWeek(prisma, yearMonth, weekIndex, mutator, userId) {
@@ -482,7 +499,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const event = await resolveEventId(prisma, week.date);
       const links = await readRitualLinks(prisma);
       res.json({
-        week: { index: week.index, date: week.date, theme: week.theme || '', mentoringTheme: week.mentoringTheme || '', servingTheme: week.servingTheme || '', studio: sanitizeStudio(week.studio) },
+        week: { index: week.index, date: week.date, theme: week.theme || '', mentoringTheme: week.mentoringTheme || '', servingTheme: week.servingTheme || '', patternCode: week.patternCode || 'MONOLOG', studio: sanitizeStudio(week.studio) },
         event,
         links,
         methods: HOMILETIC_METHODS,
@@ -512,9 +529,12 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals', 'presentation', 'generation']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
+          const next = { ...week, studio: st };
+          const pc = req.body?.patternCode !== undefined ? req.body.patternCode : body.patternCode;
+          if (pc !== undefined) next.patternCode = String(pc || 'MONOLOG').toUpperCase().slice(0, 40) || 'MONOLOG';
           if (st.status && st.status === 'REVIEW' && !st.reviewerId) st.reviewerId = req.authUser?.id || null;
           if (!st.authorId) st.authorId = req.authUser?.id || null;
-          return { ...week, studio: st };
+          return next;
         },
         req.authUser?.id
       );
@@ -543,6 +563,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
       let draft;
       const team = await loadTeamContext(prisma);
+      const pattern = await resolveWeekPattern(prisma, week, req.body?.patternCode);
+      if (pattern.code !== (week.patternCode || 'MONOLOG')) {
+        await saveStudioWeek(prisma, yearMonth, weekIndex, (w) => ({ ...w, patternCode: pattern.code }), req.authUser?.id);
+      }
       try {
         draft = await generateWeekDraft({
           ...team,
@@ -554,6 +578,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           chapterNo: req.body?.chapterNo ?? st.chapterNo,
           fundamentalFirman: req.body?.fundamentalFirman ?? st.fundamentalFirman,
           kitabFokus: req.body?.kitabFokus ?? st.kitabFokus,
+          pattern,
           prevTheme: prev.mentoringTheme || prev.servingTheme || prev.theme || '',
           nextTheme: next.mentoringTheme || next.servingTheme || next.theme || '',
           prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
@@ -708,6 +733,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           methods: st.homileticMethods,
           notes: req.body?.notes,
           pathsOutline,
+          pattern: await resolveWeekPattern(prisma, week, req.body?.patternCode),
           prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
           nextWeek: summarizeWeek(next, sanitizeStudio(next.studio)),
         });
@@ -767,6 +793,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           methods: req.body?.methods ?? st.homileticMethods,
           notes: req.body?.notes,
           pathsOutline,
+          pattern: await resolveWeekPattern(prisma, week, req.body?.patternCode),
         });
       } catch (e) {
         return res.status(502).json({ error: `AI gagal menyusun ringkasan: ${e.message}` });
@@ -879,6 +906,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           date: week.date || '',
           theme: week.mentoringTheme || week.servingTheme || week.theme || '',
           serviceType: event?.serviceType || null,
+          patternName: (await resolveWeekPattern(prisma, week)).name,
         },
         studio,
         published: studio.status === 'PUBLISHED' && Boolean(render),

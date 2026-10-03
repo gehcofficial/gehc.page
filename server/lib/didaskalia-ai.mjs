@@ -375,6 +375,33 @@ function teamContextBlock(input) {
   return lines;
 }
 
+/**
+ * Blok pola ibadah minggu ini: AI menyesuaikan BENTUK penyampaian
+ * (pembekalan, ringkasan, alur diskusi) dengan pola — bukan default
+ * monolog & FGD terus. Standar isi RHB tetap berlaku di semua pola.
+ */
+export function patternBlock(pattern) {
+  const p = pattern && typeof pattern === 'object' ? pattern : null;
+  const code = String(p?.code || 'MONOLOG').toUpperCase() || 'MONOLOG';
+  const lines = ['POLA IBADAH MINGGU INI (WAJIB DIIKUTI BENTUKNYA):'];
+  lines.push(`- Pola: ${p?.name || code}${code === 'MONOLOG' ? ' (default)' : ''}`);
+  if (p?.summary) lines.push(`- Gambaran: ${p.summary}`);
+  if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);
+  if (code === 'MONOLOG') {
+    lines.push('- Bentuk: monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).');
+  } else if (code === 'POST_TO_POST') {
+    lines.push('- Bentuk: monolog SINGKAT + briefing pos; discussionFlow = RUTE KUNJUNGAN berurutan rank 1→3 (BUKAN FGD duduk); deliveryPlan tekankan briefing aturan main & manajemen 3 pos.');
+  } else if (code === 'DEBAT') {
+    lines.push('- Bentuk: ronde debat + konklusi teologis; discussionFlow = alur ronde, peran, penjurian; deliveryPlan tekankan moderasi netral & timer mutlak.');
+  } else if (code === 'BEDAH_FILM') {
+    lines.push('- Bentuk: screening + pleno analisa; discussionFlow = panduan pleno + deep sharing identitas; deliveryPlan tekankan setup pemutaran & fasilitasi pleno.');
+  } else {
+    lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
+  }
+  lines.push('');
+  return lines;
+}
+
 /** Panggil AI & parse JSON dengan penjagaan: cap token, retry bila terpotong, repair. */
 async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 }) {
   let res = await jethroGenerateText({ system: SYSTEM, prompt, maxOutputTokens, timeoutMs, json: true });
@@ -398,6 +425,7 @@ async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 
   return { data, meta, raw: res.text };
 }
 
+/** Perintah jangkar skema JSON untuk draf mingguan (dipakai validasi prompt). */
 const DRAFT_PATHS_SCHEMA = '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}]}';
 const DRAFT_SERMON_SCHEMA = '{"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}';
 const DRAFT_FULL_SCHEMA = DRAFT_PATHS_SCHEMA.slice(0, -1) + ',"sermon":' + DRAFT_SERMON_SCHEMA.slice('{"sermon":'.length);
@@ -444,6 +472,7 @@ export async function generateWeekDraft(input) {
     'KONTEKS:',
     buildContext(input),
     ...teamContextBlock(input),
+    ...patternBlock(input.pattern),
     '',
   ];
   const PATH_RULES = [
@@ -601,12 +630,13 @@ export async function generateWeekExtras(input) {
     'KONTEKS:',
     buildContext(input),
     ...teamContextBlock(input),
+    ...patternBlock(input.pattern),
     input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
     '',
     'ATURAN:',
-    '- deliveryPlan: 2-4 baris, tiap metode yang dipakai (lihat methodMix) dengan cara praktis menyampaikannya.',
+    '- deliveryPlan: 2-4 baris, tiap metode yang dipakai (lihat methodMix) dengan cara praktis menyampaikannya — selaraskan dengan POLA IBADAH minggu ini.',
     '- prepChecklist: 4-6 langkah konkret persiapan khotbah.',
-    '- discussionFlow: 4-6 langkah alur FGD hari Minggu yang spesifik tema ini (bukan generik).',
+    '- discussionFlow: 4-6 langkah alur diskusi hari Minggu MENGIKUTI POLA IBADAH (FGD hanya untuk MONOLOG; Post-to-Post = rute kunjungan; pola lain = alurnya masing-masing), spesifik tema ini (bukan generik).',
     '- Kontekstual untuk mahasiswa & pekerja muda.',
     '',
     'Balas HANYA JSON valid: {"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}',
@@ -633,6 +663,7 @@ export async function generateSermon(input) {
     'KONTEKS:',
     buildContext(input),
     ...teamContextBlock(input),
+    ...patternBlock(input.pattern),
     input.pathsOutline ? `Kerangka 7 Path yang sudah ada:\n${asStr(input.pathsOutline)}` : '',
     '',
     'ATURAN:',
