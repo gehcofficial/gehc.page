@@ -230,22 +230,25 @@ export const IbadahMingguanPanel: React.FC = () => {
                   emptyCls: 'text-[11px] text-emerald-600 italic',
                 }] : []),
               ];
-              const gridCls = cards.length <= 1 ? 'grid gap-4 md:grid-cols-1' : cards.length === 2 ? 'grid gap-4 md:grid-cols-2' : 'grid gap-4 md:grid-cols-3';
+              // Studio presentasi web adalah acuan utama — kartu Drive hanya tampil bila ada file.
+              const withFiles = cards.filter((c) => c.files.length > 0);
+              if (!withFiles.length) {
+                return (
+                  <p className="text-[11px] text-[#8C8880] italic">Materi Studio menyusul dari Didaskalia.</p>
+                );
+              }
+              const gridCls = withFiles.length <= 1 ? 'grid gap-4 md:grid-cols-1' : withFiles.length === 2 ? 'grid gap-4 md:grid-cols-2' : 'grid gap-4 md:grid-cols-3';
               return (
                 <div className={gridCls}>
-                  {cards.map((c, i) => (
+                  {withFiles.map((c, i) => (
                     <div key={c.folder} className={c.box}>
                       <p className={c.titleCls}>{i + 1}. {c.title}</p>
                       <p className={c.descCls}>{c.desc} — by event <span className="font-bold">{selected.name}</span></p>
-                      {c.files.length ? (
-                        <ul className="space-y-1">
-                          {c.files.map((f) => (
-                            <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sky-700 hover:underline flex items-center gap-1"><FileText className="w-3 h-3" /> {f.name}</a></li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className={c.emptyCls}>{c.empty}</p>
-                      )}
+                      <ul className="space-y-1">
+                        {c.files.map((f) => (
+                          <li key={f.id}><a href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sky-700 hover:underline flex items-center gap-1"><FileText className="w-3 h-3" /> {f.name}</a></li>
+                        ))}
+                      </ul>
                       <p className="text-[10px] text-[#8C8880]/70">Folder: {c.folder}</p>
                     </div>
                   ))}
@@ -265,7 +268,7 @@ export const IbadahMingguanPanel: React.FC = () => {
           <p className="text-xs font-black text-[#1B1B1B]">{selected.name} — {visibleKinds.find((k)=>k.id===selectedKind)?.label}</p>
           {dateLabel && <p className="text-[11px] text-[#8C8880]">{dateLabel} {selected.venueName ? `· ${selected.venueName}` : ''}</p>}
           <p className="text-xs text-[#8C8880] leading-relaxed">{visibleKinds.find((k)=>k.id===selectedKind)?.tooltip}</p>
-          <p className="text-[11px] text-[#8C8880] italic">File untuk jenis ini dikelola di Panel Divisi / Program & Event — akan muncul di sini setelah upload by event.</p>
+          <p className="text-[11px] text-[#8C8880] italic">File menyusul — cek lagi nanti.</p>
           <div className="pt-2 flex flex-wrap gap-2">
             <a href={`#/portal/${portalNs}/event-info?event=${encodeURIComponent(selected.slug || selected.id)}`} className="text-[11px] font-bold text-sky-700 hover:underline">Info Event — {selected.name.slice(0, 22)} →</a>
             <a href={`#/portal/${portalNs}/events`} className="text-[11px] font-bold text-[#8C8880] hover:underline">Program & Event →</a>

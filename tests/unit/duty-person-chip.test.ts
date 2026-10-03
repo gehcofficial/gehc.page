@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { divisionStyleFor, roleIconName } from '../../src/components/public/DutyPersonChip';
+import { divisionStyleFor, groupPeopleByDivision, roleIconName } from '../../src/components/public/DutyPersonChip';
 
 describe('divisionStyleFor', () => {
   it('mengembalikan warna + ikon baku per divisi panca', () => {
@@ -31,5 +31,24 @@ describe('roleIconName', () => {
   it('fallback ke ikon divisi bila peran tak dikenal', () => {
     expect(roleIconName('Peran Misterius', 'MARTURIA')).toBe('Megaphone');
     expect(roleIconName(null, 'DIAKONIA')).toBe('HandHeart');
+  });
+});
+
+describe('groupPeopleByDivision', () => {
+  it('mengelompokkan sesuai urutan panca + Lainnya terakhir', () => {
+    const groups = groupPeopleByDivision([
+      { name: 'Mighty', division: 'MARTURIA' },
+      { name: 'Holly', division: 'LITURGIA' },
+      { name: 'Putri', division: 'DIDASKALIA' },
+      { name: 'Anon' },
+      { name: 'Artjuna', division: 'diakonia' },
+    ]);
+    expect(groups.map((g) => g.division)).toEqual(['LITURGIA', 'DIDASKALIA', 'DIAKONIA', 'MARTURIA', null]);
+    expect(groups[0].people.map((p) => p.name)).toEqual(['Holly']);
+    expect(groups[4].people.map((p) => p.name)).toEqual(['Anon']);
+  });
+
+  it('kosong bila tidak ada orang', () => {
+    expect(groupPeopleByDivision([])).toEqual([]);
   });
 });

@@ -99,6 +99,56 @@ export function roleIconFor(role?: string | null, division?: string | null): Luc
   return ICONS[roleIconName(role, division)] || ICONS[divisionStyleFor(division).icon] || Users;
 }
 
+/** Urutan seksi divisi (Lainnya selalu terakhir). */
+export const DIVISION_ORDER = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'];
+
+export type DivisionPeopleGroup = {
+  /** Kode divisi panca, atau null = Lainnya. */
+  division: string | null;
+  people: DutyPerson[];
+};
+
+/** Kelompokkan orang per divisi panca sesuai urutan baku. */
+export function groupPeopleByDivision(people: DutyPerson[]): DivisionPeopleGroup[] {
+  const buckets = new Map<string | null, DutyPerson[]>();
+  for (const p of people) {
+    const div = String(p.division || '').toUpperCase();
+    const key = (DIVISION_ORDER as string[]).includes(div) ? div : null;
+    const list = buckets.get(key) || [];
+    list.push(p);
+    buckets.set(key, list);
+  }
+  const out: DivisionPeopleGroup[] = [];
+  for (const div of DIVISION_ORDER) {
+    const list = buckets.get(div);
+    if (list?.length) out.push({ division: div, people: list });
+  }
+  const rest = buckets.get(null);
+  if (rest?.length) out.push({ division: null, people: rest });
+  return out;
+}
+
+/** Seksi satu divisi: header ikon+warna+jumlah + chip anggotanya. */
+export const DivisionDutyGroup: React.FC<{ group: DivisionPeopleGroup }> = ({ group }) => {
+  const style = divisionStyleFor(group.division);
+  const Icon = ICONS[style.icon] || Users;
+  const label = group.division
+    ? group.division.charAt(0) + group.division.slice(1).toLowerCase()
+    : 'Lainnya';
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: style.color }}>
+        <Icon className="w-3 h-3" /> {label} · {group.people.length}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {group.people.map((p) => (
+          <DutyPersonChip key={`${p.name}-${p.role || ''}`} person={p} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /** Chip satu orang: foto + nama + badge ikon peran/divisi. */
 export const DutyPersonChip: React.FC<{ person: DutyPerson; color?: string }> = ({ person, color }) => {
   const style = divisionStyleFor(person.division);
@@ -127,14 +177,16 @@ export const DutyPersonChip: React.FC<{ person: DutyPerson; color?: string }> = 
   );
 };
 
-/** Tumpukan foto overlap +n; klik membuka daftar chip penuh. */
+/** Tumpukan foto overlap +n; klik membuka daftar chip penuh (dikelompokkan divisi). */
 export const DutyAvatarStack: React.FC<{
   people: DutyPerson[];
   max?: number;
   expanded: boolean;
   onToggle: () => void;
   label: string;
-}> = ({ people, max = 6, expanded, onToggle, label }) => {
+  /** false = daftar datar (mis. anggota tuan rumah yang tak berdivisi). */
+  grouped?: boolean;
+}> = ({ people, max = 6, expanded, onToggle, label, grouped = true }) => {
   if (!people.length) return null;
   const shown = expanded ? people : people.slice(0, max);
   const rest = people.length - shown.length;
@@ -166,11 +218,19 @@ export const DutyAvatarStack: React.FC<{
         </button>
       </div>
       {expanded && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {people.map((p) => (
-            <DutyPersonChip key={`${p.name}-${p.role || ''}`} person={p} />
-          ))}
-        </div>
+        grouped ? (
+          <div className="mt-2 space-y-3">
+            {groupPeopleByDivision(people).map((g) => (
+              <DivisionDutyGroup key={g.division || 'lainnya'} group={g} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {people.map((p) => (
+              <DutyPersonChip key={`${p.name}-${p.role || ''}`} person={p} />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

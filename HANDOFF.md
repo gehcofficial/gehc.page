@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Petugas per divisi + Kegiatan Studio-first (3 Okt 2026)
+
+**Ubah:** daftar chip petugas (Warta + Info Event) dikelompokkan per Panca Tugas — header ikon+warna+jumlah (`groupPeopleByDivision`, `DivisionDutyGroup`); tuan rumah tetap datar. Grid Drive 01/02/03 di Kegiatan hanya tampil bila ada file; bila kosong → `Materi Studio menyusul dari Didaskalia.` Sekaligus menghapus teks bocor admin (`upload di Panel Divisi → …`) di 4 titik. Blok Presentasi Web Studio tetap acuan utama.
+
+**Verifikasi:** `lint` bersih ✓ **635 test** hijau (+5) ✓ `build` OK ✓ browser vs DB staging: Warta 4 Okt (5 seksi divisi ×2) ✓ Kegiatan (link Studio + tanpa grid) ✓
+
+**Next:** cek visual prod setelah deploy.
+
 ## Current — Konfirmasi tanggal lahir + link Studio di Kegiatan (3 Okt 2026)
 
 **Latar:** input `type="date"` mengikuti locale browser (en-US → mm/dd/yyyy) — dua kasus HUT kemarin salah bulan karenanya. Data wire selalu YYYY-MM-DD (server benar).

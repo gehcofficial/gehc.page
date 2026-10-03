@@ -85,7 +85,7 @@ const DutyDayBlock: React.FC<{ duties: Duty[]; serving: Serving }> = ({ duties, 
           </p>
           {members.length > 0 ? (
             <div className="mt-1.5">
-              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" />
+              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" grouped={false} />
             </div>
           ) : (
             <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>

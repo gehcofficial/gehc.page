@@ -100,7 +100,7 @@ export const EventServiceDutyCard: React.FC<{ eventDate?: string | null }> = ({ 
           </p>
           {members.length > 0 && (
             <div className="mt-1.5">
-              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" />
+              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" grouped={false} />
             </div>
           )}
         </div>
