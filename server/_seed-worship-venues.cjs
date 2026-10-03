@@ -9,11 +9,11 @@ const mysql = require('mysql2/promise');
 const crypto = require('node:crypto');
 
 const VENUES = [
-  { code: 'LT1', name: 'Lt 1 — Ruang Utama', capacity: 40, kind: 'LANTAI', note: 'Ruang ibadah utama', sortOrder: 10 },
-  { code: 'LT2', name: 'Lt 2', capacity: 100, kind: 'LANTAI', note: '', sortOrder: 20 },
-  { code: 'LT3', name: 'Lt 3', capacity: 25, kind: 'LANTAI', note: '', sortOrder: 30 },
-  { code: 'TR_KANAN', name: 'Teras Kanan', capacity: 20, kind: 'TERAS', note: 'Depan gereja antara GMIM dan GNKP', sortOrder: 40 },
-  { code: 'TR_KIRI', name: 'Teras Kiri', capacity: 25, kind: 'TERAS', note: 'Gereja antara GMIM dan HKBP', sortOrder: 50 },
+  { code: 'LT1', name: 'Lt 1 — Ruang Utama', capacity: 40, kind: 'LANTAI', note: 'Ruang ibadah utama lantai 1 — tempat utama Mentoring Day', sortOrder: 10 },
+  { code: 'LT2', name: 'Lt 2', capacity: 100, kind: 'LANTAI', note: 'Aula lantai 2 — dipakai bergantian bila tidak ada rapat', sortOrder: 20 },
+  { code: 'LT3', name: 'Lt 3', capacity: 25, kind: 'LANTAI', note: 'Ruang lantai 3', sortOrder: 30 },
+  { code: 'TR_KANAN', name: 'Teras Kanan', capacity: 20, kind: 'TERAS', note: 'Teras depan gereja antara GMIM dan GNKP', sortOrder: 40 },
+  { code: 'TR_KIRI', name: 'Teras Kiri', capacity: 25, kind: 'TERAS', note: 'Teras gereja antara GMIM dan HKBP', sortOrder: 50 },
   { code: 'CW1', name: 'Citywalk 1', capacity: 30, kind: 'CITYWALK', note: 'Area Arbies, Makyes', sortOrder: 60 },
   { code: 'CW2', name: 'Citywalk 2', capacity: 30, kind: 'CITYWALK', note: 'Area dekat PUSH', sortOrder: 70 },
 ];

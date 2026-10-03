@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Seksi PJ/TR collapsible + grup TR tetap tampil (staging) (3 Okt 2026)
+
+**Ubah:** `ServiceDutySections` — Penanggung Jawab (Liturgia/Didaskalia/Marturia + nama grup) + Tuan Rumah (Koinonia/Diakonia + **nama grup tetap tampil** walau kosong, tanpa dump anggota). Trigger chevron kiri + mini-stack foto, default tertutup. Konsisten mentoring & serving day (Warta + Info Event).
+
+**Verifikasi:** `lint` bersih ✓ **637 test** hijau ✓ `build` OK ✓ browser vs DB staging: PJ·6/TR·4 + expand per divisi ✓ TR 11 Okt: `Hesed (perkiraan)` + `Belum ada.` ✓
+
+**Next:** push staging (ini); cek visual; merge `main` bila OK.
+
 ## Current — Database tempat pos + peta 4 Okt (Lt1/Teras) (3 Okt 2026)
 
 **Latar:** Lt 2 dipakai rapat BPMJ/Komisi 4 Okt. Master `worship_venues` (7 tempat + kapasitas) + sesi menunjuk 3 tempat per prioritas; hitung/kapasitas tampil, tanpa alih otomatis.

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, HandHeart, Home, Users } from 'lucide-react';
+import { CalendarDays, Users } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { SectionHeader } from './ui/SectionHeader';
-import { DutyAvatarStack, type DutyPerson } from './DutyPersonChip';
+import { ServiceDutySections, type DutyPerson } from './DutyPersonChip';
 
 type Duty = {
   date: string;
@@ -18,8 +18,6 @@ type Duty = {
 type Serving = {
   responsible?: string | null;
   host?: string | null;
-  hostGroupId?: string | null;
-  hostMembers?: Array<{ name: string; avatar?: string | null }>;
   projected?: boolean;
 };
 
@@ -47,52 +45,9 @@ export const mergeDutiesByName = (duties: Duty[]) => {
 
 /** Blok “Pelayanan” untuk satu hari (dipakai kartu Warta & detail Warta). */
 const DutyDayBlock: React.FC<{ duties: Duty[]; serving: Serving }> = ({ duties, serving }) => {
-  const [openDuties, setOpenDuties] = useState(false);
-  const [openHost, setOpenHost] = useState(false);
   const officers: DutyPerson[] = duties.map((d) => ({ name: d.name, avatar: d.avatar, role: d.role, division: d.division }));
-  const members: DutyPerson[] = (serving.hostMembers || []).map((m) => ({ name: m.name, avatar: m.avatar }));
   return (
-    <div className="space-y-3">
-      {(serving.responsible || officers.length > 0) && (
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
-            <HandHeart className="w-3.5 h-3.5" /> {serving.responsible ? 'Penanggung Jawab' : 'Petugas'}
-          </p>
-          {serving.responsible && (
-            <p className="text-xs font-bold text-[#1B1B1B]">
-              {serving.responsible}
-              {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
-            </p>
-          )}
-          {officers.length > 0 ? (
-            <div className="mt-1.5">
-              <DutyAvatarStack people={officers} expanded={openDuties} onToggle={() => setOpenDuties((v) => !v)} label="Petugas" />
-            </div>
-          ) : (
-            <p className="text-[10px] text-[#B8B4AC] mt-0.5">Petugas belum ada.</p>
-          )}
-        </div>
-      )}
-
-      {serving.host && (
-        <div className="border-t border-[#EFEDE8] pt-2">
-          <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] flex items-center gap-1.5">
-            <Home className="w-3.5 h-3.5" /> Tuan Rumah
-          </p>
-          <p className="text-xs font-bold text-[#1B1B1B]">
-            {serving.host}
-            {serving.projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
-          </p>
-          {members.length > 0 ? (
-            <div className="mt-1.5">
-              <DutyAvatarStack people={members} expanded={openHost} onToggle={() => setOpenHost((v) => !v)} label="Anggota" grouped={false} />
-            </div>
-          ) : (
-            <p className="text-[10px] text-[#B8B4AC] mt-0.5">Daftar anggota belum tersedia.</p>
-          )}
-        </div>
-      )}
-    </div>
+    <ServiceDutySections duties={officers} responsible={serving.responsible} host={serving.host} projected={serving.projected} />
   );
 };
 

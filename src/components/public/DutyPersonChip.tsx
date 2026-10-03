@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BookOpen,
   Brush,
   Camera,
+  ChevronDown,
+  ChevronRight,
   Clapperboard,
   ClipboardCheck,
   DoorOpen,
@@ -12,6 +14,7 @@ import {
   Guitar,
   HandHeart,
   Heart,
+  Home,
   Megaphone,
   Mic,
   Music,
@@ -48,8 +51,8 @@ export function divisionStyleFor(division?: string | null): { color: string; ico
 }
 
 const ICONS: Record<string, LucideIcon> = {
-  BookOpen, Brush, Camera, Clapperboard, ClipboardCheck, DoorOpen, Drum, Flame, Gift, Guitar,
-  HandHeart, Heart, Megaphone, Mic, Music, Palette, Piano, Sparkles, User, Users,
+  BookOpen, Brush, Camera, ChevronDown, ChevronRight, Clapperboard, ClipboardCheck, DoorOpen, Drum, Flame, Gift, Guitar,
+  HandHeart, Heart, Home, Megaphone, Mic, Music, Palette, Piano, Sparkles, User, Users,
   UtensilsCrossed, Video, Volume2,
 };
 
@@ -149,6 +152,99 @@ export const DivisionDutyGroup: React.FC<{ group: DivisionPeopleGroup }> = ({ gr
   );
 };
 
+/** Divisi di bawah Penanggung Jawab vs Tuan Rumah. */
+const JAWAB_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'MARTURIA'];
+const RUMAH_DIVISIONS = ['KOINONIA', 'DIAKONIA'];
+
+const inDivs = (people: DutyPerson[], divs: string[]) =>
+  people.filter((p) => divs.includes(String(p.division || '').toUpperCase()));
+
+/** Satu seksi collapsible (trigger kiri): Penanggung Jawab / Tuan Rumah. */
+const DutySection: React.FC<{
+  title: string;
+  icon: LucideIcon;
+  people: DutyPerson[];
+  children: React.ReactNode;
+}> = ({ title, icon: Icon, people, children }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#8C8880] hover:text-[#1B1B1B] transition-colors"
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
+        <Icon className="w-3.5 h-3.5 shrink-0" />
+        <span>{title} · {people.length}</span>
+        {!open && people.length > 0 && (
+          <span className="flex items-center ml-1">
+            {people.slice(0, 4).map((p) => (
+              <img
+                key={p.name}
+                src={displayAvatar(p.name, p.avatar)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="w-5 h-5 rounded-full object-cover border border-white bg-[#EFEDE8] -ml-1.5 first:ml-0"
+              />
+            ))}
+          </span>
+        )}
+      </button>
+      {open && <div className="mt-2 space-y-3">{children}</div>}
+    </div>
+  );
+};
+
+/**
+ * Blok pelayanan satu hari: Penanggung Jawab (Liturgia/Didaskalia/Marturia)
+ * + Tuan Rumah (Koinonia/Diakonia dari role yang di-assign). Nama grup
+ * (penanggung & tuan rumah) tetap tampil walau petugas belum ada;
+ * daftar anggota otomatis tidak ditampilkan. Konsisten mentoring & serving day.
+ */
+export const ServiceDutySections: React.FC<{
+  duties: DutyPerson[];
+  responsible?: string | null;
+  host?: string | null;
+  projected?: boolean;
+}> = ({ duties, responsible, host, projected }) => {
+  const jawab = groupPeopleByDivision(inDivs(duties, JAWAB_DIVISIONS));
+  const rumah = groupPeopleByDivision(inDivs(duties, RUMAH_DIVISIONS));
+  const jawabPeople = jawab.flatMap((g) => g.people);
+  const rumahPeople = rumah.flatMap((g) => g.people);
+  if (!responsible && !host && !jawabPeople.length && !rumahPeople.length) return null;
+  return (
+    <div className="space-y-3">
+      <DutySection title="Penanggung Jawab" icon={HandHeart} people={jawabPeople}>
+        {responsible && (
+          <p className="text-xs font-bold text-[#1B1B1B]">
+            {responsible}
+            {projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
+          </p>
+        )}
+        {jawab.map((g) => (
+          <DivisionDutyGroup key={g.division || 'lainnya'} group={g} />
+        ))}
+        {!jawabPeople.length && <p className="text-[10px] text-[#B8B4AC]">Petugas belum ada.</p>}
+      </DutySection>
+      <DutySection title="Tuan Rumah" icon={Home} people={rumahPeople}>
+        {host && (
+          <p className="text-xs font-bold text-[#1B1B1B]">
+            {host}
+            {projected ? <span className="font-normal text-[#8C8880]"> (perkiraan)</span> : null}
+          </p>
+        )}
+        {rumah.map((g) => (
+          <DivisionDutyGroup key={g.division || 'lainnya'} group={g} />
+        ))}
+        {!rumahPeople.length && <p className="text-[10px] text-[#B8B4AC]">Belum ada.</p>}
+      </DutySection>
+    </div>
+  );
+};
+
 /** Chip satu orang: foto + nama + badge ikon peran/divisi. */
 export const DutyPersonChip: React.FC<{ person: DutyPerson; color?: string }> = ({ person, color }) => {
   const style = divisionStyleFor(person.division);
@@ -177,61 +273,3 @@ export const DutyPersonChip: React.FC<{ person: DutyPerson; color?: string }> = 
   );
 };
 
-/** Tumpukan foto overlap +n; klik membuka daftar chip penuh (dikelompokkan divisi). */
-export const DutyAvatarStack: React.FC<{
-  people: DutyPerson[];
-  max?: number;
-  expanded: boolean;
-  onToggle: () => void;
-  label: string;
-  /** false = daftar datar (mis. anggota tuan rumah yang tak berdivisi). */
-  grouped?: boolean;
-}> = ({ people, max = 6, expanded, onToggle, label, grouped = true }) => {
-  if (!people.length) return null;
-  const shown = expanded ? people : people.slice(0, max);
-  const rest = people.length - shown.length;
-  return (
-    <div>
-      <div className="flex items-center">
-        {shown.map((p) => (
-          <img
-            key={p.name}
-            src={displayAvatar(p.name, p.avatar)}
-            alt={p.name}
-            title={p.name}
-            loading="lazy"
-            decoding="async"
-            className="w-8 h-8 rounded-full object-cover border-2 border-white bg-[#EFEDE8] -ml-2 first:ml-0"
-          />
-        ))}
-        {rest > 0 && (
-          <span className="-ml-2 w-8 h-8 rounded-full bg-[#1B1B1B] text-white text-[10px] font-black flex items-center justify-center border-2 border-white">
-            +{rest}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="ml-2 text-[11px] font-bold text-[#8C8880] hover:text-[#1B1B1B] underline-offset-2 hover:underline shrink-0"
-        >
-          {expanded ? 'Tutup' : `${label} (${people.length})`}
-        </button>
-      </div>
-      {expanded && (
-        grouped ? (
-          <div className="mt-2 space-y-3">
-            {groupPeopleByDivision(people).map((g) => (
-              <DivisionDutyGroup key={g.division || 'lainnya'} group={g} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {people.map((p) => (
-              <DutyPersonChip key={`${p.name}-${p.role || ''}`} person={p} />
-            ))}
-          </div>
-        )
-      )}
-    </div>
-  );
-};

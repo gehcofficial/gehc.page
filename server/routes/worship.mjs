@@ -643,8 +643,7 @@ export function registerWorshipRoutes(app, { wrap }) {
     '/api/worship/venues/:id',
     requireDivision('DIDASKALIA'),
     requireRole(...WRITE_ROLES),
-    wrap(async (req, res) => {
-      const prisma = getPrisma();
+    wrap(async (req, res) => {      const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const found = await prisma.worshipVenue.findUnique({ where: { id: String(req.params.id) } }).catch(() => null);
       if (!found) return res.status(404).json({ error: 'Tempat tidak ditemukan.' });
@@ -658,6 +657,35 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (b.isActive !== undefined) data.isActive = Boolean(b.isActive);
       const updated = await prisma.worshipVenue.update({ where: { id: found.id }, data });
       res.json({ venue: serializeVenue(updated) });
+    }),
+  );
+
+  app.delete(
+    '/api/worship/venues/:id',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await prisma.worshipVenue.findUnique({ where: { id: String(req.params.id) } }).catch(() => null);
+      if (!found) return res.status(404).json({ error: 'Tempat tidak ditemukan.' });
+      // Tolak hapus fisik bila masih dipakai config sesi mana pun (pakai nonaktif).
+      let usedBy = 0;
+      try {
+        const rows = await prisma.worshipSession.findMany({ select: { id: true, config: true } });
+        for (const s of rows) {
+          const cfg = s.config && typeof s.config === 'object' ? s.config : null;
+          const floors = Array.isArray(cfg?.floors) ? cfg.floors : [];
+          if (floors.some((f) => String(f?.venueId || '') === found.id)) usedBy += 1;
+        }
+      } catch {
+        usedBy = 0;
+      }
+      if (usedBy > 0) {
+        return res.status(409).json({ error: `Dipakai ${usedBy} sesi — nonaktifkan saja, jangan hapus.` });
+      }
+      await prisma.worshipVenue.delete({ where: { id: found.id } });
+      res.json({ ok: true });
     }),
   );
 

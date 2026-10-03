@@ -4,6 +4,7 @@ import {
   Download,
   KeyRound,
   Loader2,
+  MapPin,
   MonitorPlay,
   Plus,
   RefreshCw,
@@ -91,6 +92,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
   const [configDraft, setConfigDraft] = useState({ timerSeconds: 1200, expectedCount: '' });
   const [venues, setVenues] = useState<VenueRow[]>([]);
   const [rankVenues, setRankVenues] = useState<string[]>(['', '', '']);
+  const [venueDraft, setVenueDraft] = useState({ name: '', capacity: '', kind: 'TERAS', note: '' });
+  const [venueEdit, setVenueEdit] = useState<Record<string, { capacity: string; note: string }>>({});
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -231,11 +234,18 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
   };
 
   useEffect(() => {
-    fetch('/api/worship/venues', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { venues: [] }))
-      .then((d) => setVenues((d.venues || []) as VenueRow[]))
-      .catch(() => setVenues([]));
+    void loadVenues();
   }, []);
+
+  const loadVenues = async () => {
+    try {
+      const r = await fetch('/api/worship/venues?active=0', { credentials: 'include' });
+      const d = r.ok ? await r.json() : { venues: [] };
+      setVenues((d.venues || []) as VenueRow[]);
+    } catch {
+      setVenues([]);
+    }
+  };
 
   // rankVenues[i] = venueId untuk prioritas rank i+1.
   useEffect(() => {
@@ -285,6 +295,74 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
       await loadDetail();
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan tempat.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addVenue = async () => {
+    if (!venueDraft.name.trim()) {
+      setMsg({ kind: 'err', text: 'Nama tempat wajib diisi.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const code = venueDraft.name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || `V${Date.now().toString(36).toUpperCase()}`;
+      const r = await fetch('/api/worship/venues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code,
+          name: venueDraft.name.trim(),
+          capacity: Number(venueDraft.capacity) || 0,
+          kind: venueDraft.kind,
+          note: venueDraft.note.trim() || null,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menambah tempat.');
+      setVenueDraft({ name: '', capacity: '', kind: 'TERAS', note: '' });
+      setMsg({ kind: 'ok', text: 'Tempat ditambahkan.' });
+      await loadVenues();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menambah tempat.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const patchVenue = async (id: string, patch: Record<string, unknown>) => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/worship/venues/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(patch),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan tempat.');
+      setMsg({ kind: 'ok', text: 'Tempat diperbarui.' });
+      await loadVenues();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan tempat.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteVenue = async (id: string, name: string) => {
+    if (!window.confirm(`Hapus tempat "${name}"? Hanya bisa bila tidak dipakai sesi mana pun.`)) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/worship/venues/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menghapus.');
+      setMsg({ kind: 'ok', text: 'Tempat dihapus.' });
+      await loadVenues();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menghapus.' });
     } finally {
       setBusy(false);
     }
@@ -509,6 +587,144 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               >
                 <Save className="w-3.5 h-3.5" /> Simpan tempat
               </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-brand" />
+                <p className="text-[11px] font-bold">Daftar tempat &amp; daya tampung</p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void loadVenues()}
+                  className="ml-auto text-[11px] font-bold text-[#8C8880] hover:text-[#1B1B1B]"
+                >
+                  Muat ulang
+                </button>
+              </div>
+              <ul className="space-y-2">
+                {venues.map((v) => {
+                  const edit = venueEdit[v.id] || { capacity: String(v.capacity), note: v.note || '' };
+                  return (
+                    <li key={v.id} className={`rounded-xl border p-3 space-y-2 ${v.isActive ? 'border-[#EFEDE8]' : 'border-[#EFEDE8] bg-[#FAF9F5] opacity-70'}`}>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-black text-[#1B1B1B]">{v.name}</p>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] font-bold text-[#8C8880]">{v.kind}</span>
+                        {!v.isActive && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">Nonaktif</span>
+                        )}
+                        <span className="ml-auto flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void patchVenue(v.id, { isActive: !v.isActive })}
+                            className="text-[11px] font-bold text-sky-700 hover:underline"
+                          >
+                            {v.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void deleteVenue(v.id, v.name)}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:underline disabled:opacity-60"
+                          >
+                            <Trash2 className="w-3 h-3" /> Hapus
+                          </button>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-[96px_1fr] gap-2 items-center">
+                        <label className="space-y-1">
+                          <span className="text-[10px] text-[#8C8880]">Kapasitas</span>
+                          <input
+                            className={INPUT}
+                            type="number"
+                            min={0}
+                            value={edit.capacity}
+                            disabled={busy}
+                            onChange={(e) => setVenueEdit((prev) => ({ ...prev, [v.id]: { ...edit, capacity: e.target.value } }))}
+                          />
+                        </label>
+                        <label className="space-y-1">
+                          <span className="text-[10px] text-[#8C8880]">Deskripsi detail</span>
+                          <input
+                            className={INPUT}
+                            value={edit.note}
+                            disabled={busy}
+                            placeholder="cth. antara GMIM dan HKBP"
+                            onChange={(e) => setVenueEdit((prev) => ({ ...prev, [v.id]: { ...edit, note: e.target.value } }))}
+                          />
+                        </label>
+                      </div>
+                      {(edit.capacity !== String(v.capacity) || (edit.note || '') !== (v.note || '')) && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void patchVenue(v.id, { capacity: Number(edit.capacity) || 0, note: edit.note.trim() || null })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60"
+                        >
+                          <Save className="w-3 h-3" /> Simpan
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className="space-y-1 col-span-2">
+                  <span className="text-[10px] text-[#8C8880]">Nama tempat baru</span>
+                  <input
+                    className={INPUT}
+                    value={venueDraft.name}
+                    disabled={busy}
+                    placeholder="cth. Teras Belakang"
+                    onChange={(e) => setVenueDraft((d) => ({ ...d, name: e.target.value }))}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[10px] text-[#8C8880]">Kapasitas</span>
+                  <input
+                    className={INPUT}
+                    type="number"
+                    min={0}
+                    value={venueDraft.capacity}
+                    disabled={busy}
+                    onChange={(e) => setVenueDraft((d) => ({ ...d, capacity: e.target.value }))}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[10px] text-[#8C8880]">Jenis</span>
+                  <select
+                    className={INPUT}
+                    value={venueDraft.kind}
+                    disabled={busy}
+                    onChange={(e) => setVenueDraft((d) => ({ ...d, kind: e.target.value }))}
+                  >
+                    {['LANTAI', 'TERAS', 'CITYWALK'].map((k) => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 col-span-2 sm:col-span-3">
+                  <span className="text-[10px] text-[#8C8880]">Deskripsi detail</span>
+                  <input
+                    className={INPUT}
+                    value={venueDraft.note}
+                    disabled={busy}
+                    placeholder="cth. antara GMIM dan HKBP"
+                    onChange={(e) => setVenueDraft((d) => ({ ...d, note: e.target.value }))}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void addVenue()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Tambah
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
