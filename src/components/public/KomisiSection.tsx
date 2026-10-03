@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Crown, Landmark, Network, Users2, Loader2, Sparkles } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
-import { PANTATUGAS } from '../../lib/pantatugas';
+import { PANTATUGAS, SUB_DIVISIONS } from '../../lib/pantatugas';
+import { dedupeRoleLine, groupPillarMembers } from '../../lib/pillar-groups';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { usePublicOrgTree, type PublicOrgMember } from '../../hooks/usePublicOrgTree';
 import { slugifyPerson } from '../../config/media';
@@ -58,6 +59,14 @@ export const KomisiSection: React.FC = () => {
       />
 
       <div className="mt-14 space-y-14">
+        {bpmjTeam.length > 0 && (
+          <PhotoTeam
+            icon={<Crown className="w-4 h-4 text-brand" />}
+            title={t.leadersPage.bpmjLabel}
+            members={bpmjTeam}
+          />
+        )}
+
         {coreTeam.length > 0 && (
           <PhotoTeam
             icon={<Landmark className="w-4 h-4 text-brand" />}
@@ -74,21 +83,30 @@ export const KomisiSection: React.FC = () => {
           />
         )}
 
-        {bpmjTeam.length > 0 && (
-          <PhotoTeam
-            icon={<Crown className="w-4 h-4 text-brand" />}
-            title={t.leadersPage.bpmjLabel}
-            members={bpmjTeam}
-          />
-        )}
-
         <div>
           <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/60">
             <Users2 className="w-4 h-4 text-brand" />
             <h3 className="text-lg sm:text-xl font-bold">{t.leadersPage.pillarsLabel}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {pillarGroups.map(({ pillar, displayLabel, filled, open }, i) => (
+            {pillarGroups.map(({ pillar, displayLabel, filled, open }, i) => {
+              const canonical = (SUB_DIVISIONS[pillar.name] || []).map((s) => s.name);
+              const { head, groups, ungrouped } = groupPillarMembers(filled, canonical);
+              const row = (m: Member) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/40 mb-2"
+                >
+                  <PersonThumb member={m} />
+                  <div className="min-w-0">
+                    <span className="block text-xs font-bold truncate">{m.name}</span>
+                    <span className="block text-[10px] text-[#8C8880] truncate">
+                      {trLabel(t.orgTree.labels, dedupeRoleLine(m.subdivision, m.position))}
+                    </span>
+                  </div>
+                </div>
+              );
+              return (
               <Reveal key={pillar.name} delay={i * 0.05}>
                 <div
                   className="h-full bg-white rounded-[28px] p-6 border-t-4 hover:shadow-xl transition-shadow duration-300"
@@ -109,23 +127,18 @@ export const KomisiSection: React.FC = () => {
                     </span>
                   </div>
 
-                  {filled.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FAF9F5] border border-[#D9D7D0]/40 mb-2"
-                    >
-                      <PersonThumb member={m} />
-                      <div className="min-w-0">
-                        <span className="block text-xs font-bold truncate">{m.name}</span>
-                        <span className="block text-[10px] text-[#8C8880] truncate">
-                          {[m.subdivision, m.position]
-                            .filter(Boolean)
-                            .map((s) => trLabel(t.orgTree.labels, s as string))
-                            .join(' · ')}
-                        </span>
-                      </div>
+                  {head.map(row)}
+                  {groups.map((g) => (
+                    <div key={g.sub || 'lainnya'} className="mt-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1.5">
+                        {g.sub || 'Lainnya'}
+                      </p>
+                      {g.people.length > 0 ? g.people.map(row) : (
+                        <p className="text-[10px] text-[#B8B4AC] italic mb-2">Belum ada anggota.</p>
+                      )}
                     </div>
                   ))}
+                  {ungrouped.map(row)}
 
                   {open.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
@@ -148,7 +161,8 @@ export const KomisiSection: React.FC = () => {
                   )}
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

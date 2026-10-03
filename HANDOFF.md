@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — BPMJ teratas + pilar per sub-divisi (3 Okt 2026)
+
+**Ubah:** urutan BPMJ → Komisi → Tim Kerja → pilar (struktur gereja) ✓ tiap kartu divisi: Kepala Divisi dulu, lalu per sub-divisi canonical (yang kosong tetap tampil + `Belum ada anggota.`), tanpa teks ganda bila sub == jabatan ✓ (`pillar-groups.ts`: `isHeadOfDivision`, `dedupeRoleLine`, `groupPillarMembers`).
+
+**Verifikasi:** `lint` bersih ✓ **657 test** hijau (+5) ✓ `build` OK ✓ browser staging: struktur tampil (org staging kosong → semua sub `Belum ada anggota.`, sesuai desain) ✓
+
+**Next:** push staging+main; cek prod (data nyata: HoD + sub terisi).
+
 ## Current — Rapikan halaman Orang Kami (3 Okt 2026)
 
 **Ubah:** Komisi Pemuda + Tim Kerja paling atas → BPMJ → 6 pilar; buang bagan OrgTree + mini-list About (rangkap); kartu foto besar → baris nama+jabatan; narasi Siapa Kami dipadatkan (ID+EN); typo `Mengasihi`; deskripsi 6 pelayanan sumber tunggal `PANTATUGAS` (id.ts menumpang, en.ts terjemahan).
