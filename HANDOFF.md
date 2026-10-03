@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Rapikan halaman Orang Kami (3 Okt 2026)
+
+**Ubah:** Komisi Pemuda + Tim Kerja paling atas → BPMJ → 6 pilar; buang bagan OrgTree + mini-list About (rangkap); kartu foto besar → baris nama+jabatan; narasi Siapa Kami dipadatkan (ID+EN); typo `Mengasihi`; deskripsi 6 pelayanan sumber tunggal `PANTATUGAS` (id.ts menumpang, en.ts terjemahan).
+
+**Data:** `Midun XCp` → `Pnt Noldy Wanget` (prod + staging; akun noldyjwnew@). Audit: struktur staging 39 baris bersih; prod 11 placeholder OK; users/groups/assignments disisir untuk 'midun'.
+
+**Verifikasi:** `lint` bersih ✓ **652 test** hijau ✓ `build` OK ✓ browser staging: urutan + narasi + tanpa foto besar ✓
+
+**Next:** push staging+main; cek prod.
+
 ## Current — Tab Ajak & Jemput Koinonia (3 Okt 2026)
 
 **Fitur:** caption siap-tempel (`event-invite-caption.ts`): sapaan + event/tanggal/venue + link `#/event/<slug>` (tanpa login) + 3 langkah daftar + absensi QR (tegaskan BUKAN QRIS) + 4 manfaat (QR, WA carpool, tercatat, kartu terima kasih). Tab `ajak` baru di panel Koinonia: pilih event terdekat → pratinjau editable → Salin / Kirim WA.

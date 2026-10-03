@@ -2,31 +2,17 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Landmark, GraduationCap, Home } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
-import { trLabel } from '../../i18n';
-import { displayAvatar } from '../../lib/avatar';
-import { usePublicOrgTree } from '../../hooks/usePublicOrgTree';
 
 const FACT_ICONS = [Landmark, GraduationCap, Home];
 
 /**
  * ABOUT — "Tentang Pemuda GEHC" untuk audiens global.
- * Preview pengurus dari pohon organisasi (org assignments + User.avatar).
+ * Narasi + ayat + fakta. Daftar pengurus ada di seksi Orang Kami.
  */
 export const AboutSection: React.FC = () => {
   const { t } = useLang();
-  const { data, isLoading } = usePublicOrgTree();
   const facts = [t.about.fact1t, t.about.fact2t, t.about.fact3t];
   const factDescs = [t.about.fact1d, t.about.fact2d, t.about.fact3d];
-
-  const leaders = (data?.members || [])
-    .filter((m) => !m.isOpenRole && ['KOMISI', 'TIMKERJA', 'BPMJ'].includes((m.division || '').toUpperCase()))
-    .sort((a, b) => {
-      const rank = (d: string) => (d === 'KOMISI' ? 0 : d === 'TIMKERJA' ? 1 : 2);
-      const ra = rank((a.division || '').toUpperCase());
-      const rb = rank((b.division || '').toUpperCase());
-      return ra - rb || a.order - b.order;
-    })
-    .slice(0, 3);
 
   return (
     <section id="about" className="py-16 sm:py-24 px-4 sm:px-8 max-w-[1200px] mx-auto">
@@ -81,48 +67,6 @@ export const AboutSection: React.FC = () => {
               );
             })}
           </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.55 }}
-            className="rounded-[28px] bg-gradient-to-br from-[#181818] to-[#262626] p-6"
-          >
-            <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-3">
-              {t.leadersPage.coreLabel} · {t.leadersPage.supportLabel}
-            </p>
-
-            {isLoading ? null : leaders.length > 0 ? (
-              <div className="space-y-2.5">
-                {leaders.map((l) => (
-                  <div key={l.id} className="flex items-center gap-3">
-                    <img
-                      src={displayAvatar(l.name, l.photoUrl)}
-                      alt={l.name}
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                      decoding="async"
-                      className="w-9 h-9 rounded-full object-cover border border-white/20"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{l.name}</p>
-                      {l.position && (
-                        <p className="text-[10px] text-white/50 truncate">
-                          {trLabel(t.orgTree.labels, l.position)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                <h3 className="text-lg font-black text-white">{t.about.leadTitle}</h3>
-                <p className="text-xs text-white/60 mt-2 leading-relaxed">{t.about.leadSoon}</p>
-              </>
-            )}
-          </motion.div>
         </div>
       </div>
     </section>

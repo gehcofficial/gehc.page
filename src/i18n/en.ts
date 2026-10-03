@@ -41,9 +41,9 @@ export const en = {
     eyebrow: 'Who We Are',
     title: 'Young faith in Indonesia’s industrial heartland',
     intro1:
-      'Cikarang, on the eastern edge of Jakarta, hosts some of Southeast Asia’s largest industrial estates. Every year, thousands of students and young workers arrive from across the Indonesian archipelago — far from the homes they grew up in.',
+      'Thousands of students and young workers arrive in Cikarang every year — far from their hometowns.',
     intro2:
-      'GEHC Youth is the young generation of GMIM Eben Haezer, a Protestant congregation serving this city. We believe faith was never meant to fit into one morning a week — so we walk together through everything else: study nights, deadlines, homesickness, and joy.',
+      'GEHC Youth is the young generation of GMIM Eben Haezer. We believe faith is not for one morning a week — we walk together through assignments, deadlines, homesickness, and joy.',
     fact1t: 'A church away from home',
     fact1d:
       'Part of GMIM — one of Indonesia’s oldest Protestant churches — planted in the middle of Cikarang’s industrial community.',

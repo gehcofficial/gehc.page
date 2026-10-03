@@ -3,7 +3,6 @@ import { Crown, Landmark, Network, Users2, Loader2, Sparkles } from 'lucide-reac
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
 import { PANTATUGAS } from '../../lib/pantatugas';
-import { OrgTreeSection } from './StrukturSection';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { usePublicOrgTree, type PublicOrgMember } from '../../hooks/usePublicOrgTree';
 import { slugifyPerson } from '../../config/media';
@@ -59,27 +58,11 @@ export const KomisiSection: React.FC = () => {
       />
 
       <div className="mt-14 space-y-14">
-        <Reveal>
-          <OrgTreeSection />
-        </Reveal>
-
-        {bpmjTeam.length > 0 && (
-          <PhotoTeam
-            icon={<Crown className="w-4 h-4 text-brand" />}
-            title={t.leadersPage.bpmjLabel}
-            members={bpmjTeam}
-            badge={t.leadersPage.bpmjLabel}
-            cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          />
-        )}
-
         {coreTeam.length > 0 && (
           <PhotoTeam
             icon={<Landmark className="w-4 h-4 text-brand" />}
             title={t.leadersPage.coreLabel}
             members={coreTeam}
-            badge={t.leadersPage.coreLabel}
-            cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
           />
         )}
 
@@ -88,8 +71,14 @@ export const KomisiSection: React.FC = () => {
             icon={<Network className="w-4 h-4 text-brand" />}
             title={t.leadersPage.supportLabel}
             members={workingTeam}
-            badge={t.leadersPage.supportLabel}
-            cols="grid-cols-1 sm:grid-cols-3"
+          />
+        )}
+
+        {bpmjTeam.length > 0 && (
+          <PhotoTeam
+            icon={<Crown className="w-4 h-4 text-brand" />}
+            title={t.leadersPage.bpmjLabel}
+            members={bpmjTeam}
           />
         )}
 
@@ -171,23 +160,33 @@ const PhotoTeam: React.FC<{
   icon: React.ReactNode;
   title: string;
   members: Member[];
-  badge: string;
-  cols: string;
-}> = ({ icon, title, members, badge, cols }) => (
-  <div>
-    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/60">
-      {icon}
-      <h3 className="text-lg sm:text-xl font-bold">{title}</h3>
+}> = ({ icon, title, members }) => {
+  const { t } = useLang();
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#D9D7D0]/60">
+        {icon}
+        <h3 className="text-lg sm:text-xl font-bold">{title}</h3>
+        <span className="ml-auto text-[11px] font-bold text-[#8C8880]">{members.length} orang</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {members.map((member) => (
+          <div key={member.id} className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-[#D9D7D0]/40">
+            <PersonThumb member={member} />
+            <div className="min-w-0">
+              <span className="block text-xs font-bold truncate">{member.name}</span>
+              {member.position && (
+                <span className="block text-[10px] text-[#8C8880] truncate">
+                  {trLabel(t.orgTree.labels, member.position)}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
-    <div className={`grid ${cols} gap-5`}>
-      {members.map((member, i) => (
-        <Reveal key={member.id} delay={i * 0.06}>
-          <PersonCard member={member} badge={badge} />
-        </Reveal>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 const PersonThumb: React.FC<{ member: Member }> = ({ member }) => {
   const slots = useMediaSlots();
@@ -200,40 +199,6 @@ const PersonThumb: React.FC<{ member: Member }> = ({ member }) => {
       decoding="async"
       className="w-9 h-9 rounded-full object-cover border border-[#D9D7D0]"
     />
-  );
-};
-
-const PersonCard: React.FC<{ member: Member; badge: string }> = ({ member, badge }) => {
-  const { t } = useLang();
-  const slots = useMediaSlots();
-  return (
-    <div className="group h-full bg-white rounded-[32px] overflow-hidden border border-[#D9D7D0]/40 shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-      <div className="h-44 w-full relative overflow-hidden bg-[#F0EFEB]">
-        <img
-          src={displayAvatar(member.name, member.photoUrl || slots.pengurus[slugifyPerson(member.name)])}
-          alt={member.name}
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-        <span className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur text-[9px] font-black uppercase tracking-wider text-[#1B1B1B]">
-          {badge}
-        </span>
-      </div>
-      <div className="p-5">
-        <h4 className="text-base font-bold leading-snug">{member.name}</h4>
-        {member.position && (
-          <p className="text-xs font-semibold text-brand mt-1">
-            {trLabel(t.orgTree.labels, member.position)}
-          </p>
-        )}
-        {member.bio && (
-          <p className="text-[11px] text-[#8C8880] mt-2 line-clamp-3 leading-relaxed">{member.bio}</p>
-        )}
-      </div>
-    </div>
   );
 };
 

@@ -1,5 +1,6 @@
 ﻿import { Dict } from './en';
 import { portalId } from './portal-id';
+import { PANTATUGAS } from '../lib/pantatugas';
 
 /** Kamus bahasa INDONESIA — harus mencermati struktur en.ts. */
 export const id: Dict = {
@@ -39,9 +40,9 @@ export const id: Dict = {
     eyebrow: 'Siapa Kami',
     title: 'Iman muda di jantung industri Indonesia',
     intro1:
-      'Cikarang, di sisi timur Jakarta, menjadi rumah beberapa kawasan industri terbesar di Asia Tenggara. Setiap tahun, ribuan mahasiswa dan pekerja muda datang dari seluruh penjuru nusantara — jauh dari kampung halaman mereka.',
+      'Ribuan mahasiswa dan pekerja muda datang ke Cikarang setiap tahun — jauh dari kampung halaman.',
     intro2:
-      'GEHC Youth adalah generasi muda GMIM Eben Haezer, jemaat Protestan yang melayani kota ini. Kami percaya iman tidak pernah dirancang hanya untuk satu pagi dalam seminggu — karena itu kami berjalan bersama dalam segala hal: tugas kuliah, deadline, rindu kampung, dan sukacita.',
+      'GEHC Youth adalah generasi muda GMIM Eben Haezer. Kami percaya iman bukan untuk satu pagi seminggu — kami berjalan bersama dalam tugas, deadline, rindu kampung, dan sukacita.',
     fact1t: 'Gereja jauh dari rumah',
     fact1d:
       'Bagian dari GMIM — salah satu gereja Protestan tertua di Indonesia — hadir di tengah komunitas industri Cikarang.',
@@ -80,17 +81,11 @@ export const id: Dict = {
   },
   serve: {
     eyebrow: 'Enam Pelayanan Kami',
-    title: 'Cara Kami Mengasi Allah & Kota Ini',
+    title: 'Cara Kami Mengasihi Allah & Kota Ini',
     sub: 'Seluruh pelayanan kami mengalir melalui panggilan abadi Gereja — ibadah, pengajaran, persekutuan, pelayanan, kesaksian, dan usaha yang memuliakan Tuhan.',
     cta: 'Jelajahi Struktur Kami',
-    items: [
-      { label: 'Liturgia', tagline: 'Memuliakan Tuhan dalam ibadah & doa' },
-      { label: 'Didaskalia', tagline: 'Mengajar & memperlengkapi lewat firman' },
-      { label: 'Koinonia', tagline: 'Memelihara persekutuan & relasi' },
-      { label: 'Diakonia', tagline: 'Melayani kebutuhan praktis & kasih peduli' },
-      { label: 'Marturia', tagline: 'Menjadi saksi & menginjili' },
-      { label: 'Benzarpreneurship', tagline: 'Usaha & dana: Merchandise · Penggalangan · Persembahan' },
-    ],
+    // Sumber tunggal: PANTATUGAS (label+tagline Indonesia). en.ts hanya untuk terjemahan Inggris.
+    items: PANTATUGAS.map((p) => ({ label: p.label, tagline: p.tagline })),
   },
   events: {
     eyebrow: 'Yang Sedang & Akan Berlangsung',
