@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost, isAppHash, isAuthHash } from '../../src/lib/host-context';
+import { isHubHost, isYouthAppHost, resolveHostUnit, normalizeHost, isAppHash, isAuthHash, isPelsusHash } from '../../src/lib/host-context';
 import { isStagingHost, isStagingProtectedHost, resolveHostContext } from '../../server/lib/host-context.mjs';
 
 describe('host-context (frontend)', () => {
@@ -58,6 +58,16 @@ describe('host-context (hash permukaan aplikasi)', () => {
     expect(isAppHash('#/beyonders')).toBe(false);
     expect(isAppHash('#/register')).toBe(false);
     expect(isAppHash('')).toBe(false);
+  });
+
+  it('isPelsusHash menandai rute pemilihan 11 Okt', () => {
+    expect(isPelsusHash('#/pelsus')).toBe(true);
+    expect(isPelsusHash('#/pelsus/abc')).toBe(true);
+    expect(isPelsusHash('#/pelsus/abc/bilik')).toBe(true);
+    expect(isPelsusHash('#/pelsus/abc/layar')).toBe(true);
+    expect(isPelsusHash('#/voting')).toBe(false);
+    expect(isPelsusHash('#/portal')).toBe(false);
+    expect(isPelsusHash('')).toBe(false);
   });
 
   it('isAuthHash menandai login/daftar/signup agar landing unit tidak menelannya', () => {

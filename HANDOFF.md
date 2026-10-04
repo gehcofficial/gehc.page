@@ -1,5 +1,19 @@
 # GEHC Portal — Handoff
 
+## Current — Voting Pelsus 11 Okt 2026 (4 Okt 2026)
+
+**Kebutuhan:** Pemilihan Pelsus level gereja (Penatua BIPRA, Penatua/Diaken Kolom, BPMJ fase-2) di GEHC.page — akun sendiri + 5 laptop bilik (token) + manual tervalidasi, anti-ganda, layar per election (partisipasi live, hasil setelah CLOSED). Alur warta: Juklak → Absensi/Kuorum → Cara → Pilih.
+
+**Ubah:** skema `Pelsus*` (6 model `prisma/schema.prisma`) + migrasi `server/_migrate-pelsus.cjs` (wired `db-migrate-local` + npm `db:migrate:pelsus[:staging|:prod]`) → API `server/routes/pelsus.mjs` (list/detail/ballot 1-submisi immutable/live-cache 2,5 dtk/results+CSV Berita Acara/elections CRUD+DPT sync-import/kandidat/token bilik 10 mnt/checkin manual/promote BPMJ; `requireRole`, admin = SUPERADMIN/BPMJ/KOMISI/COMMITTEE) → frontend `#/pelsus` (`src/lib/pelsus.ts`, `isPelsusHash`, `PelsusApp.tsx`: home + surat suara + bilik kiosk auto-reset + layar kode + panel panitia; polling 15 dtk/5 dtk + backoff anti-thundering-herd) → seed `server/seed-pelsus.mjs` (19 elections DRAFT + DPT dari User) → panduan `docs/product/pelsus-panduan.md` (warta + bilik + WA) + test `pelsus.test.ts` (+1 host-context).
+
+**Anti-kambuh Likert:** agregat GROUP BY + count (tanpa full-scan), ballot 1 transaksi pendek + increment atomik + unique DB final, live cache, retry/backoff klien.
+
+**Data:** migrasi jalan (6 tabel) ✓ seed 19 elections + 193 DPT ✓ (DB `.env`).
+
+**Verifikasi:** `lint` bersih ✓ **669 test** hijau (+11) ✓ `build` OK (chunk PelsusApp 24 kB) ✓ `db:schema:check` sinkron ✓
+
+**Next:** kandidat via panel (DRAFT) → gladi H-1 (bilik + layar + token + CSV) → `db:migrate:pelsus:staging` + seed staging → `staging:sync` → prod (`:prod`) → OPEN hari-H.
+
 ## Current — Sub Pembekalan dan Pengarahan Didaskalia (4 Okt 2026)
 
 **Missed lalu:** Didaskalia punya sub `Pembekalan dan Pengarahan` (Diferd + Putri). Struktur kini: HoD + `Kurikulum dan Modul` + `Pembekalan dan Pengarahan`.

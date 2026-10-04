@@ -149,6 +149,7 @@ import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerLogoVoteRoutes } from './routes/logo-vote.mjs';
+import { registerPelsusRoutes } from './routes/pelsus.mjs';
 import { registerInternalWartaRoutes } from './routes/internal-warta.mjs';
 import { registerPortalAssistRoutes } from './routes/portal-assist.mjs';
 import { registerAnnouncementRoutes } from './routes/announcements.mjs';
@@ -3231,6 +3232,7 @@ registerServiceSwapRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
 registerDidaskaliaStudioRoutes(app, { wrap });
 registerLogoVoteRoutes(app, { wrap });
+registerPelsusRoutes(app, { wrap });
 registerInternalWartaRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerChurchP1Routes(app, { wrap });

@@ -380,6 +380,11 @@ const STEPS = [
     label: 'F5.2: catatan peserta mentoring (worship_notes)',
     required: true,
   },
+  {
+    script: 'server/_migrate-pelsus.cjs',
+    label: 'Pelsus 11 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

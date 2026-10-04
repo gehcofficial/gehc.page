@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
@@ -20,6 +20,7 @@ const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'))
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 const ReportPresentation = React.lazy(() => import('./components/reports/ReportPresentation.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
+const PelsusApp = React.lazy(() => import('./components/pelsus/PelsusApp.tsx'));
 const MentoringDay = React.lazy(() => import('./components/mentoring/MentoringDay.tsx'));
 const MentoringScreen = React.lazy(() => import('./components/mentoring/MentoringScreen.tsx'));
 const MentoringControl = React.lazy(() => import('./components/mentoring/MentoringControl.tsx'));
@@ -88,6 +89,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <ReportPresentation />
+      </Suspense>
+    );
+  }
+
+  // Pelsus 11 Okt: standalone (pemilih wajib login; bilik pakai token; layar pakai kode).
+  if (isPelsusHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <PelsusApp />
       </Suspense>
     );
   }
