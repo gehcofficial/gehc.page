@@ -61,3 +61,49 @@ Bawa HP + login. Tanpa akun ke bilik/manual. 🙏
 - [ ] H-1: gladi 5 laptop bilik + 1 layar + validator manual; uji token + checkin + tutup + CSV.
 - [ ] Hari-H: OPEN per election → awasi kuorum → tutup → umumkan hasil → unduh CSV Berita Acara.
 - [ ] Fase-2 BPMJ: dari election sumber CLOSED → promote topN → DPT BPMJ → OPEN.
+
+## 8. Video simulasi (5 klip, `public/media/pelsus/`)
+
+Jalankan ulang kapan pun: `npm run pelsus:sim` (lokal + DB staging, election
+`SIMULASI-*`, bersih otomatis). Putar dari HP/laptop atau langsung dari situs:
+`https://youth.gehc.page/media/pelsus/01-panitia-buka.webm` (dst, 02–05).
+
+| Klip | Isi | Untuk |
+|---|---|---|
+| `01-panitia-buka.webm` | Login panitia → daftar pemilihan → Panel panitia → **Buka** | Panitia |
+| `02-pemilih-hp.webm` | Login peserta → surat suara → pilih → Kirim → bukti vote ganda ditolak | Peserta |
+| `03-bilik-token.webm` | Token petugas → bilik tanpa login → pilih → Kirim → auto-reset | Petugas bilik + peserta |
+| `04-layar-kuorum.webm` | Kode layar → partisipasi + kuorum live → validasi manual → Tutup → hasil | Semua (proyektor) |
+| `05-berita-acara.webm` | Unduh CSV → Reset → Hapus election → staging bersih | Panitia |
+
+## 9. Jalur Panitia (step-by-step, rujuk klip 01/04/05)
+
+1. H-2: buka `#/pelsus` → per election: Sync DPT dari DB + Import susulan (CSV
+   `nama,bipra,kolomId`) + Tambah kandidat (masih DRAFT). (klip 01)
+2. H-1 gladi: Buka 1 election uji → vote 1 suara → Tutup → Unduh CSV → Reset →
+   Hapus election. (klip 05)
+3. Hari-H: Buka tiap election (klip 01) → pantau layar `#/pelsus/<id>/layar`
+   + kode (klip 04) → sah bila kuorum 2/3.
+4. Bilik: cari nama → **Token** (10 menit) → dampingi tanpa mengintip. (klip 03)
+5. Manual: cari nama → cek SUDAH/BELUM → **Manual** (tolak bila SUDAH). (klip 04)
+6. Selesai: Tutup → umumkan hasil di layar → Unduh CSV Berita Acara. (klip 04–05)
+7. Jangan: membuka hasil sebelum CLOSED, menerbitkan 2 token untuk 1 orang,
+   menghapus election yang masih OPEN (ditolak sistem).
+
+## 10. Jalur Peserta/Jemaat (step-by-step, rujuk klip 02/03)
+
+1. Buka `https://gehc.page/#/pelsus` di HP → login (Google / email+sandi).
+2. Pilih surat suara BIPRA/Kolom Anda (hanya yang Anda terdaftar yang bisa dibuka).
+3. Ketuk 1 kandidat → **Kirim**. Selesai bila muncul "Suara tersimpan ✓".
+   Tidak bisa mengubah / memilih dua kali — sistem menolak otomatis. (klip 02)
+4. Tanpa akun: ke meja bilik → sebut nama → terima token → ketik di
+   `#/pelsus/<id>/bilik` → pilih → Kirim. (klip 03)
+5. Dilarang: memfoto surat suara, menitipkan pilihan, memakai token orang lain.
+
+## 11. Naskah voice-over per klip (opsional, 1–2 kalimat)
+
+1. "Panitia membuka pemilihan dari panel — perhatikan status berubah menjadi Dibuka."
+2. "Peserta memilih dari HP — satu suara, tidak dapat diubah, pilihan ganda otomatis ditolak."
+3. "Di bilik, pemilih tanpa akun memakai token sekali pakai — petugas tidak mengintip."
+4. "Layar hanya menampilkan partisipasi dan kuorum — hasil dibuka setelah panitia menutup."
+5. "Berita Acara diunduh sebagai CSV — lalu data simulasi dihapus hingga bersih."

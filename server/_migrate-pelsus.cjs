@@ -133,6 +133,34 @@ const DDL = [
     console.log(`✓ tabel ${name} dibuat`);
   }
 
+  // FK best-effort (abaikan bila DB tidak mendukung / sudah ada).
+  // Cascade utama tetap dijamin kode aplikasi (DELETE route).
+  const FKS = [
+    ['pelsus_candidates', 'fk_pelsus_cand_election', 'election_id', 'pelsus_elections', 'id'],
+    ['pelsus_voters', 'fk_pelsus_voter_election', 'election_id', 'pelsus_elections', 'id'],
+    ['pelsus_ballots', 'fk_pelsus_ballot_election', 'election_id', 'pelsus_elections', 'id'],
+    ['pelsus_ballots', 'fk_pelsus_ballot_voter', 'voter_id', 'pelsus_voters', 'id'],
+    ['pelsus_ballots', 'fk_pelsus_ballot_candidate', 'candidate_id', 'pelsus_candidates', 'id'],
+    ['pelsus_kiosk_tokens', 'fk_pelsus_token_election', 'election_id', 'pelsus_elections', 'id'],
+    ['pelsus_kiosk_tokens', 'fk_pelsus_token_voter', 'voter_id', 'pelsus_voters', 'id'],
+    ['pelsus_audit_logs', 'fk_pelsus_audit_election', 'election_id', 'pelsus_elections', 'id'],
+  ];
+  for (const [table, name, col, refTable, refCol] of FKS) {
+    try {
+      const [exists] = await conn.query(
+        `SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?`,
+        [table, name],
+      );
+      if (exists.length) { console.log(`fk ${name} sudah ada`); continue; }
+      await conn.query(
+        `ALTER TABLE \`${table}\` ADD CONSTRAINT \`${name}\` FOREIGN KEY (\`${col}\`) REFERENCES \`${refTable}\` (\`${refCol}\`) ON DELETE CASCADE`,
+      );
+      console.log(`✓ fk ${name}`);
+    } catch (err) {
+      console.log(`– fk ${name} dilewati (${String(err?.message || err).slice(0, 90)})`);
+    }
+  }
+
   await conn.end();
   console.log('✓ Selesai (Pelsus: 6 tabel).');
 })().catch((e) => {

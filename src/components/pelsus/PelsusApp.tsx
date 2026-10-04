@@ -273,6 +273,13 @@ function AdminPanel({ id, onChange }: { id: string; onChange: () => void }) {
         <button disabled={busy} onClick={() => { if (confirm('Reset semua suara?')) void act({ action: 'reset' }); }} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-red-200 text-red-600 text-xs font-bold"><RotateCcw className="w-3.5 h-3.5" /> Reset</button>
         <button disabled={busy} onClick={() => void act({}, 'voters/sync')} className="px-3 py-2 rounded-xl border text-xs font-bold">Sync DPT dari DB</button>
         <a href={`/api/pelsus/${encodeURIComponent(id)}/export.csv`} className="px-3 py-2 rounded-xl border text-xs font-bold">Unduh Berita Acara (CSV)</a>
+        <button disabled={busy} onClick={() => {
+          if (!confirm('Hapus pemilihan ini + seluruh data (DPT, suara, token)?')) return;
+          setBusy(true);
+          api(`/api/pelsus/${encodeURIComponent(id)}`, { method: 'DELETE' })
+            .then(() => { window.location.hash = '#/pelsus'; })
+            .catch((e) => { alert(e instanceof Error ? e.message : 'Gagal'); setBusy(false); });
+        }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 text-xs font-bold">Hapus election</button>
       </div>
       <div className="mt-3 space-y-2">
         <p className="text-[11px] font-bold">Tambah kandidat (DRAFT)</p>

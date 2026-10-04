@@ -93,7 +93,7 @@ async function submitBallots(prisma, { election, voter, candidateIds, channel, a
     await prisma.$transaction(async (tx) => {
       const fresh = await tx.pelsusVoter.findUnique({ where: { id: voter.id } });
       if (!fresh || fresh.hasVoted) throw Object.assign(new Error('Suara Anda sudah tercatat. 1 orang 1 suara.'), { status: 409 });
-      if (!abstain) {
+      if (!abstain && valid.length) {
         await tx.pelsusBallot.createMany({
           data: valid.map((c) => ({ id: uid('pbl'), electionId: election.id, voterId: voter.id, candidateId: c.id, channel })),
         });
@@ -347,9 +347,14 @@ export function registerPelsusRoutes(app, { wrap }) {
     if (!PELSUS_SCOPES.includes(scope)) return res.status(400).json({ error: 'scope harus BIPRA|KOLOM|BPMJ.' });
     const title = str(req.body?.title, 200);
     if (!title) return res.status(400).json({ error: 'title wajib.' });
+    // id kustom hanya untuk namespace simulasi/uji (sim-*) agar mudah dibersihkan.
+    const customId = /^sim-[a-z0-9]{1,32}$/.test(String(req.body?.id || '')) ? String(req.body.id) : null;
+    if (customId && await prisma.pelsusElection.findUnique({ where: { id: customId } }).catch(() => null)) {
+      return res.status(409).json({ error: 'id simulasi sudah dipakai.' });
+    }
     const e = await prisma.pelsusElection.create({
       data: {
-        id: `pel-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        id: customId || `pel-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
         scope, title,
         bipra: req.body?.bipra ? String(req.body.bipra).toUpperCase() : null,
         kolomId: str(req.body?.kolomId, 64),
@@ -393,6 +398,26 @@ export function registerPelsusRoutes(app, { wrap }) {
     await audit(prisma, e.id, req.authUser.id, `ELECTION_${status}`, {});
     liveCache.delete(e.id);
     res.json({ election: updated });
+  }));
+
+  // DELETE /api/pelsus/:id — hapus election + seluruh data (khusus DRAFT/CLOSED; cascade)
+  app.delete('/api/pelsus/:id', requireRole(...PELSUS_ADMIN_ROLES), wrap(async (req, res) => {
+    const prisma = prismaOf(res);
+    if (!prisma) return;
+    const e = await prisma.pelsusElection.findUnique({ where: { id: String(req.params.id) } });
+    if (!e) return res.status(404).json({ error: 'Pemilihan tidak ditemukan.' });
+    if (e.status === 'OPEN') return res.status(409).json({ error: 'Tutup dulu sebelum menghapus.' });
+    // Cascade eksplisit di aplikasi (tidak mengandalkan FK DB): ballot → token → voter → kandidat → audit → election.
+    await prisma.$transaction([
+      prisma.pelsusBallot.deleteMany({ where: { electionId: e.id } }),
+      prisma.pelsusKioskToken.deleteMany({ where: { electionId: e.id } }),
+      prisma.pelsusVoter.deleteMany({ where: { electionId: e.id } }),
+      prisma.pelsusCandidate.deleteMany({ where: { electionId: e.id } }),
+      prisma.pelsusAuditLog.deleteMany({ where: { electionId: e.id } }),
+      prisma.pelsusElection.delete({ where: { id: e.id } }),
+    ]);
+    liveCache.delete(e.id);
+    res.json({ ok: true, deleted: e.id });
   }));
 
   // POST /api/pelsus/:id/voters/sync — bangun DPT dari User (BIPRA/KOLOM)
@@ -547,14 +572,17 @@ export function registerPelsusRoutes(app, { wrap }) {
     if (!voter) return res.status(404).json({ error: 'Pemilih tidak ada di DPT.' });
     if (voter.hasVoted) return res.status(409).json({ error: `${voter.name} sudah memilih — 1 orang 1 suara.` });
     try {
+      // markOnly = hadir untuk kuorum tanpa pilihan (surat kertas dihitung terpisah / abstain).
+      const markOnly = req.body?.markOnly === true;
+      const abstained = Boolean(req.body?.abstain) || markOnly;
       const r = await submitBallots(prisma, {
         election: e, voter,
-        candidateIds: req.body?.candidateIds, channel: 'MANUAL',
-        abstain: Boolean(req.body?.abstain) || (Array.isArray(req.body?.candidateIds) && req.body.candidateIds.length === 0 && req.body?.markOnly === true),
+        candidateIds: markOnly ? [] : req.body?.candidateIds, channel: 'MANUAL',
+        abstain: abstained,
       });
       await audit(prisma, e.id, req.authUser.id, 'VOTE_MANUAL', { voterId: voter.id });
       liveCache.delete(e.id);
-      res.json({ ok: true, votedAt: r.votedAt, abstain });
+      res.json({ ok: true, votedAt: r.votedAt, abstain: abstained });
     } catch (err) {
       const s = typeof err?.status === 'number' ? err.status : 500;
       return res.status(s).json({ error: err.message || 'Gagal mencatat.' });
