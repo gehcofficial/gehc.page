@@ -22,11 +22,11 @@ const SUB_ALIASES: Record<string, Record<string, string>> = {
     kurikulum: 'Kurikulum dan Modul',
     'kurikulum pemuridan': 'Kurikulum dan Modul',
     'kurikulum & pembekalan': 'Kurikulum dan Modul',
-    'pembekalan tim': 'Kurikulum dan Modul',
+    'pembekalan tim': 'Pembekalan dan Pengarahan',
   },
 };
 
-const DIDASKALIA_SUBS = ['Kurikulum dan Modul'];
+const DIDASKALIA_SUBS = ['Kurikulum dan Modul', 'Pembekalan dan Pengarahan'];
 
 /** Canonical subs divisi (urutan tampil); Didaskalia memakai bucket tunggal. */
 export function canonicalSubsFor(division: string, fallback: string[]): string[] {

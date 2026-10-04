@@ -9,6 +9,7 @@ export const SUBDIVISION_MIGRATION = {
   },
   DIDASKALIA: {
     'Kurikulum & Pembekalan': 'Kurikulum Pemuridan',
+    'Pembekalan Tim': 'Pembekalan dan Pengarahan',
   },
   KOINONIA: {
     'Program Persekutuan': 'Program & Acara',

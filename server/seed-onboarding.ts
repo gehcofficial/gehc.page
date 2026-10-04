@@ -175,8 +175,8 @@ async function seedRoleAssignments() {
     { userId: 'usr-prichel-kampong', name: 'Prichel Kampong', position: 'Penanggung Jawab Logistik & Fasilitas', division: 'DIAKONIA', subdivision: 'Logistik & Fasilitas' },
     { userId: 'usr-gievara-bogar', name: 'Gievara Bogar', position: 'Kepala Divisi', division: 'MARTURIA' },
     { userId: 'usr-artjuna-timbuleng', name: 'Artjuna Timbuleng', position: 'Penanggung Jawab Konsumsi & Keramahan', division: 'DIAKONIA', subdivision: 'Konsumsi & Keramahan' },
-    { userId: 'usr-putri-massie', name: 'Putri Massie', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim' },
-    { userId: 'usr-alvandi-saerang', name: 'Alvandi Saerang', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan Tim' },
+    { userId: 'usr-putri-massie', name: 'Putri Massie', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan dan Pengarahan' },
+    { userId: 'usr-alvandi-saerang', name: 'Alvandi Saerang', position: 'Lead Equipper — Pembekal Mentor & Comentor', division: 'DIDASKALIA', subdivision: 'Pembekalan dan Pengarahan' },
   ];
 
   for (const c of COMMITTEE_MAP) {

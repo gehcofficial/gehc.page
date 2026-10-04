@@ -55,11 +55,11 @@ describe('groupPillarMembers', () => {
     expect(ungrouped).toEqual([]);
   });
 
-  it('Didaskalia: varian kurikulum + pembekalan menyatu ke Kurikulum dan Modul', () => {
-    expect(canonicalSubsFor('DIDASKALIA', ['Kurikulum'])).toEqual(['Kurikulum dan Modul']);
+  it('Didaskalia: kurikulum vs pembekalan jadi dua sub terpisah', () => {
+    expect(canonicalSubsFor('DIDASKALIA', ['Kurikulum'])).toEqual(['Kurikulum dan Modul', 'Pembekalan dan Pengarahan']);
     expect(canonicalSubsFor('LITURGIA', ['A'])).toEqual(['A']);
     expect(bucketSubOf('DIDASKALIA', 'Kurikulum Pemuridan')).toBe('Kurikulum dan Modul');
-    expect(bucketSubOf('DIDASKALIA', 'Pembekalan Tim')).toBe('Kurikulum dan Modul');
+    expect(bucketSubOf('DIDASKALIA', 'Pembekalan Tim')).toBe('Pembekalan dan Pengarahan');
     expect(bucketSubOf('DIDASKALIA', null)).toBeNull();
     const { groups } = groupPillarMembers(
       [
@@ -69,7 +69,8 @@ describe('groupPillarMembers', () => {
       ['Kurikulum'],
       'DIDASKALIA',
     );
-    expect(groups.map((g) => g.sub)).toEqual(['Kurikulum dan Modul']);
-    expect(groups[0].people.map((x) => x.name).sort()).toEqual(['P', 'Q']);
+    expect(groups.map((g) => g.sub)).toEqual(['Kurikulum dan Modul', 'Pembekalan dan Pengarahan']);
+    expect(groups[0].people.map((x) => x.name)).toEqual(['P']);
+    expect(groups[1].people.map((x) => x.name)).toEqual(['Q']);
   });
 });

@@ -218,7 +218,7 @@ export const id: Dict = {
       'Musik & Vokal': 'Musik & Vokal',
       'Doa & Syafaat': 'Doa & Syafaat',
       'Kurikulum Pemuridan': 'Kurikulum Pemuridan',
-      'Pembekalan Tim': 'Pembekalan Tim',
+      'Pembekalan dan Pengarahan': 'Pembekalan dan Pengarahan',
       'Program & Acara': 'Program & Acara',
       'Persekutuan & Integrasi': 'Persekutuan & Integrasi',
       'Hubungan & Komunikasi': 'Hubungan & Komunikasi',

@@ -24,6 +24,7 @@ const SUBS = {
   'Merchandise & Produk': 'Cenderamata & Produk',
   'Kesaksian & Story': 'Kesaksian & Cerita',
   'Doa & Intercession': 'Doa & Syafaat',
+  'Pembekalan Tim': 'Pembekalan dan Pengarahan',
 };
 
 const POSITIONS = {
@@ -88,6 +89,7 @@ async function main() {
   const run = async (fn) => (APPLY ? fn() : 0);
 
   // 1. Sub-divisi: role_assignments + struktur_members.
+  // (Nilai sub juga bisa duduk di kolom position — ikut dipetakan di langkah 2.)
   for (const [from, to] of Object.entries(SUBS)) {
     const a = await run(() => updateWhere(conn, 'role_assignments', 'subdivision', from, to));
     const b = await run(() => updateWhere(conn, 'struktur_members', 'subdivision', from, to));
@@ -102,14 +104,25 @@ async function main() {
   }
 
   // 2. Posisi: role_assignments + struktur_members (+ yang memuat nama sub lama).
-  const posMap = { ...POSITIONS };
+  // Termasuk org_assignments (tampil di kartu Orang Kami) dan nilai sub
+  // yang duduk di kolom position.
+  const posMap = { ...POSITIONS, ...SUBS };
   for (const [fromSub, toSub] of Object.entries(SUBS)) {
     posMap[`Koordinator ${fromSub}`] = `Koordinator ${toSub}`;
   }
   for (const [from, to] of Object.entries(posMap)) {
     const a = await run(() => updateWhere(conn, 'role_assignments', 'position', from, to));
     const b = await run(() => updateWhere(conn, 'struktur_members', 'position', from, to));
-    stats.positions += a + b;
+    let c = 0;
+    try {
+      const [r] = await conn.query('UPDATE `org_assignments` SET `position` = ? WHERE `position` = ?', [to, from]);
+      c = APPLY ? (r.affectedRows || 0) : 0;
+      if (!APPLY) {
+        const [[x]] = await conn.query('SELECT COUNT(*) n FROM org_assignments WHERE position=?', [from]);
+        if (x.n) console.log(`- posisi org "${from}" → "${to}": ${x.n} baris`);
+      }
+    } catch (e) { console.warn(`  ! org_assignments dilewati: ${e.message.slice(0, 100)}`); }
+    stats.positions += a + b + c;
     if (!APPLY) {
       const [[x]] = await conn.query(
         'SELECT (SELECT COUNT(*) FROM role_assignments WHERE position=?) + (SELECT COUNT(*) FROM struktur_members WHERE position=?) n',

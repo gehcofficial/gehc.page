@@ -48,11 +48,11 @@ export const SUBDIVISION_CHILDREN = {
   'Liturgi & Ibadah': ['Foto', 'Berkas', 'Berkas/rundown', 'Foto/ibadah'],
   'Musik & Vokal': ['Foto', 'Berkas', 'Berkas/chord', 'Foto/rehearsal'],
   'Doa & Intercession': ['Foto', 'Berkas', 'Berkas/pokok-doa'],
-  // Didaskalia single source: Kurikulum by-event → 3 sub per event (01..03) diatur di gdrive-events.mjs, bukan di sini
-  // legacy entries tetap dikenali tapi tidak diprovision lagi
+  // Didaskalia: Kurikulum by-event → 3 sub per event (01..03) diatur di gdrive-events.mjs;
+  // pengarahan tim di sub sendiri. Legacy entries tetap dikenali tapi tidak diprovision lagi.
   Kurikulum: [],
-  'Kurikulum Pemuridan': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb'],
-  'Pembekalan Tim': ['Foto', 'Berkas', 'Foto/pembekalan', 'Berkas/materi-tim'],
+  'Kurikulum dan Modul': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb'],
+  'Pembekalan dan Pengarahan': ['Foto', 'Berkas', 'Foto/pembekalan', 'Berkas/materi-tim'],
   'Program & Acara': ['Foto', 'Berkas'],
   'Persekutuan & Integrasi': ['Foto', 'Berkas', 'Foto/welcome'],
   'Hubungan & Komunikasi': ['Foto', 'Berkas'],

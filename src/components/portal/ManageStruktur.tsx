@@ -611,7 +611,7 @@ export const ManageStruktur: React.FC = () => {
                     className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D9D7D0] text-xs font-medium focus:outline-none focus:border-black"
                   >
                     <option value="LITURGIA">LITURGIA — Liturgi, Musik & Doa</option>
-                    <option value="DIDASKALIA">DIDASKALIA — Kurikulum & Pembekalan Tim</option>
+                    <option value="DIDASKALIA">DIDASKALIA — Kurikulum dan Modul, Pembekalan dan Pengarahan</option>
                     <option value="KOINONIA">KOINONIA — Acara, Persekutuan & Komunikasi</option>
                     <option value="DIAKONIA">DIAKONIA — Logistik, Mercy & Perantau</option>
                     <option value="MARTURIA">MARTURIA — Dokumentasi, Desain & Kesaksian</option>

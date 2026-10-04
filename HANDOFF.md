@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — Sub Pembekalan dan Pengarahan Didaskalia (4 Okt 2026)
+
+**Missed lalu:** Didaskalia punya sub `Pembekalan dan Pengarahan` (Diferd + Putri). Struktur kini: HoD + `Kurikulum dan Modul` + `Pembekalan dan Pengarahan`.
+
+**Ubah:** alias display + canonical (`pillar-groups.ts`), `SUBDIVISION_CHILDREN`, seeds, i18n ID (`Equipping & Briefing`) + EN, opsi ManageStruktur, peta legacy; migrasi `migrate-istilah-baku` diperluas (termasuk `org_assignments.position` yang ketinggalan ronde lalu — ketahuan saat verifikasi).
+
+**Data:** staging + prod applied ✓ prod: HoD Alvandi, Kurikulum dan Modul (Jeremia, Michel), Pembekalan dan Pengarahan (Diferd, Putri) ✓
+
+**Verifikasi:** `lint` bersih ✓ **658 test** hijau ✓ `build` OK ✓ browser staging ✓
+
+**Next:** push staging+main; cek prod.
+
 ## Current — Istilah baku Indonesia (3 Okt 2026)
 
 **Keputusan:** sub-divisi + jabatan + peran dinas dibakukan KBBI-proper (Benevolence→Kedermawanan, Merchandise→Cenderamata, Story→Cerita, Intercession→Syafaat; Chairperson/Secretary/Treasurer awalan dibuang; Comentor→Co-mentor; PIC→Penanggung Jawab) + dedupe fungsi (Song Leader→Pemimpin Pujian; Firman 1/2→Pembaca Firman; Liturgist→Pemimpin Liturgi; dst, 30→27 peran).

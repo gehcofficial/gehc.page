@@ -225,7 +225,7 @@ export const en = {
       'Musik & Vokal': 'Music & Vocals',
       'Doa & Syafaat': 'Prayer & Intercession',
       'Kurikulum Pemuridan': 'Discipleship Curriculum',
-      'Pembekalan Tim': 'Team Equipping',
+      'Pembekalan dan Pengarahan': 'Equipping & Briefing',
       'Program & Acara': 'Programs & Events',
       'Persekutuan & Integrasi': 'Fellowship & Integration',
       'Hubungan & Komunikasi': 'Relations & Communications',
