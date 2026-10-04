@@ -265,7 +265,7 @@ export function registerPelsusRoutes(app, { wrap }) {
     const sorted = [...cands].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
     res.json({
       election: { id: e.id, title: e.title, status: e.status },
-      turnout: { voted, total, abstain: Math.max(0, voted - (await prisma.pelsusVoter.count({ where: { electionId: e.id, hasVoted: true, ballots: { none: {} } } }).catch(() => 0))) },
+      turnout: { voted, total, abstain: await prisma.pelsusVoter.count({ where: { electionId: e.id, hasVoted: true, ballots: { none: {} } } }).catch(() => 0) },
       ballotCount,
       quorum: { need: quorumNeed(total, e.quorumNum, e.quorumDen), met: quorumMet(voted, total, e.quorumNum, e.quorumDen) },
       candidates: cands.map((c) => ({ id: c.id, nomor: c.nomor, name: c.name, roleTarget: c.roleTarget, voteCount: c.voteCount || 0 })),
