@@ -12,7 +12,9 @@
 
 **Verifikasi:** `lint` bersih ✓ **712 test** hijau (+7) ✓ `build` OK ✓ audit lokal jalan ✓
 
-**Next:** audit staging (`audit:event-access:staging`) → commit + push → `staging:sync` → uji 1 akun tanpa divisi di staging → prod + audit prod.
+**Status deploy:** commit `a35d46a` → push main ✓ → `staging:sync` ✓ (main & staging `a35d46a`) → audit staging: akun `cocok=0/2` terkonfirmasi (kini terlihat via fallback) ✓ working tree bersih ✓
+
+**Next:** uji 1 akun tanpa divisi di staging (buka Info Event → event muncul) → prod (push/merge) + audit prod.
 
 ## Current — Tab Draft Sesi: kosongan per pola + Isi dari AI + guard sesi terisi (5 Okt 2026)
 
