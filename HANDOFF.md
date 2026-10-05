@@ -1,5 +1,19 @@
 # GEHC Portal — Handoff
 
+## Current — Fix global "Belum ada event" per-akun (5 Okt 2026)
+
+**Gejala:** beberapa HP (iPhone & Samsung) tidak melihat info event (QRIS, post-to-post, materi Didaskalia, absensi); HP model sama bisa tampil di user lain; akun yang dipakai sama dengan saat daftar.
+
+**Akar (satu sebab, semua gejala):** `GET /api/events` (`server/index.mjs`) hanya menampilkan event yang ≥1 divisinya cocok `StrukturMember.division` user (`canSeeEventDivision`). User tanpa baris struktur / divisi tak cocok → daftar kosong → `EventInfoPanel` "Belum ada event" → tanpa `ev.id` tidak ada fetch registrasi (QR), worship, materi, absensi. Audit lokal membuktikan: **256/256 akun peran portal tanpa baris struktur** (cocok 0/2 event). Bukan masalah device.
+
+**Ubah:** `server/lib/event-visibility.mjs` (baru: `hasPortalRole`, `memberListAccess`, `sameDivision`; prinsip keberadaan event ≠ akses panel divisi) → `GET /api/events`: staf tetap full; peran portal valid melihat semua event + `meta.access` (`full|division|open|none`) + log server bila fallback terpakai; tanpa peran → kosong + alasan → `canSeeEventDivision` samakan struktur via `userId` dulu (tetap ketat; dipakai gate diskusi divisi) → `EventInfoPanel`: empty-state bedakan "belum punya peran jemaat" vs "belum ada event" → `scripts/audit-event-access.mjs` (baru: laporan + `--email` + `--apply` taut userId; npm `audit:event-access[:staging|:prod]`) → test `event-visibility.test.ts` (+7).
+
+**Panel divisi TIDAK dilonggarkan** (403 drive, requireDivision, diskusi divisi tetap).
+
+**Verifikasi:** `lint` bersih ✓ **712 test** hijau (+7) ✓ `build` OK ✓ audit lokal jalan ✓
+
+**Next:** audit staging (`audit:event-access:staging`) → commit + push → `staging:sync` → uji 1 akun tanpa divisi di staging → prod + audit prod.
+
 ## Current — Tab Draft Sesi: kosongan per pola + Isi dari AI + guard sesi terisi (5 Okt 2026)
 
 **Kebutuhan:** tab khusus berisi draft kosongan per pola yang tersinkron AI pembekalan/RHB/khotbah — setelah pilih pola ibadah, isi draft pola ikut terisi; sesi 4 Okt yang sudah ada isi tidak boleh tersentuh.

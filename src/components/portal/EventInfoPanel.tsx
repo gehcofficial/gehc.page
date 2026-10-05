@@ -87,6 +87,7 @@ export const EventInfoPanel: React.FC = () => {
   const [eventKey, setEventKey] = useState<string | null>(() => currentEventKey());
   const [ev, setEv] = useState<EvInfo | null>(null);
   const [allEvents, setAllEvents] = useState<EvInfo[]>([]);
+  const [listAccess, setListAccess] = useState<string | null>(null);
   const [reg, setReg] = useState<RegInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,6 +110,9 @@ export const EventInfoPanel: React.FC = () => {
         const ld = await lr.json().catch(() => ({}));
         list = (ld.events || []) as EvInfo[];
         setAllEvents(list);
+        setListAccess((ld.meta?.access as string) || null);
+      } else {
+        setListAccess(null);
       }
       let target: EvInfo | null = null;
       if (eventKey) {
@@ -151,10 +155,15 @@ export const EventInfoPanel: React.FC = () => {
   }
 
   if (!ev) {
+    const noRole = listAccess === 'none';
     return (
       <div className="rounded-[28px] border border-dashed border-[#D9D7D0] bg-white p-6 text-center max-w-2xl">
-        <p className="text-sm font-bold text-[#1B1B1B]">Belum ada event</p>
-        <p className="text-xs text-[#8C8880] mt-1">{error || 'Event akan muncul di sini begitu dijadwalkan.'}</p>
+        <p className="text-sm font-bold text-[#1B1B1B]">{noRole ? 'Akun belum punya peran jemaat' : 'Belum ada event'}</p>
+        <p className="text-xs text-[#8C8880] mt-1">
+          {noRole
+            ? 'Info event, QR, materi, dan absensi muncul setelah akunmu diberi peran (mis. Mentee/Mentor). Hubungi komisi atau panitia bila kamu sudah daftar.'
+            : (error || 'Event akan muncul di sini begitu dijadwalkan.')}
+        </p>
       </div>
     );
   }

@@ -41,6 +41,7 @@ import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
 import { withTenant, tenantWhere, tenantForWrite, activeTenantId, canAccessTenant, isJemaatScope } from './lib/tenant-scope.mjs';
+import { hasPortalRole, sameDivision } from './lib/event-visibility.mjs';
 import { isUnitMember } from './lib/tenant-map.mjs';
 import { isBendahara, isBpmjUser, isSuperadminUser } from './lib/church-access.mjs';
 import {
@@ -2939,10 +2940,14 @@ async function canSeeEventDivision(authUser, division) {
   const roles = (authUser.roles || []).map((r) => r.role);
   if (roles.includes('SUPERADMIN') || roles.includes('KOMISI')) return true;
 
+  // Samakan baris struktur via userId dulu (tahan terhadap ganti email login),
+  // lalu fallback email seperti sebelumnya.
+  const prisma = getPrisma();
+  const sm = prisma ? await prisma.strukturMember.findFirst({ where: { userId: authUser.id || '' } }).catch(() => null)
+    || await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }).catch(() => null) : null;
+
   // COMMITTEE � bedakan BOD vs PIC
   if (roles.includes('COMMITTEE')) {
-    const prisma = getPrisma();
-    const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
     const smDiv = (sm?.division || '').toUpperCase();
     // BOD = struktur division TIMKERJA (atau kosong) ? semua event
     if (!smDiv || smDiv === 'TIMKERJA') return true;
@@ -2951,8 +2956,6 @@ async function canSeeEventDivision(authUser, division) {
   }
 
   // MENTOR / CO_MENTOR / MENTEE ? cek struktur
-  const prisma = getPrisma();
-  const sm = prisma ? await prisma.strukturMember.findFirst({ where: { email: authUser.email || '' } }) : null;
   return (sm?.division || '').toUpperCase() === division;
 }
 
@@ -3031,7 +3034,10 @@ app.get('/api/events', wrap(async (req, res) => {
     events = events.filter((e) => want.has(String(e.status || '').toUpperCase()));
   }
 
-  // Filter berdasarkan role
+  // Filter berdasarkan role.
+  // Keberadaan event ≠ akses panel divisi: pengguna dengan peran portal valid
+  // melihat daftar event (panel per-divisi tetap dijaga gate masing-masing:
+  // 403 drive, requireDivision, canSeeEventDivision pada diskusi).
   const roles = (req.authUser?.roles || []).map((r) => r.role);
   const isKomsaOrBod = roles.includes('SUPERADMIN') || roles.includes('KOMISI');
   let isBodTimkerja = false;
@@ -3043,23 +3049,31 @@ app.get('/api/events', wrap(async (req, res) => {
   } catch { /* strukturMember query failed, skip */ }
 
   if (isKomsaOrBod || isBodTimkerja) {
-    return res.json({ events });
+    return res.json({ events, meta: { access: 'full' } });
   }
 
-  // Filter: hanya event yang punya division yang bisa diakses user
-  const accessible = [];
+  if (!hasPortalRole(roles)) {
+    return res.json({ events: [], meta: { access: 'none', reason: 'NO_PORTAL_ROLE' } });
+  }
+
+  // Anggota: tampilkan semua event; kecocokan divisi hanya penanda diagnosis.
+  // (Satu query struktur — dulu satu query per-divisi-per-event.)
+  let smDiv = '';
   try {
-    for (const ev of events) {
-      for (const d of ev.divisions) {
-        if (await canSeeEventDivision(req.authUser, d.division)) {
-          const { whatsappGroupUrl: _waHidden, ...safeEv } = ev;
-          accessible.push(safeEv);
-          break;
-        }
-      }
-    }
-  } catch(e) { /* canSeeEventDivision failed, return empty */ }
-  res.json({ events: accessible });
+    const sm = await prisma.strukturMember.findFirst({ where: { userId: req.authUser?.id || '' } }).catch(() => null)
+      || await prisma.strukturMember.findFirst({ where: { email: req.authUser?.email || '' } }).catch(() => null);
+    smDiv = sm?.division || '';
+  } catch { /* abaikan — tetap tampil sebagai open */ }
+  const visible = events.map((ev) => {
+    const match = (ev.divisions || []).some((d) => sameDivision(smDiv, d.division));
+    const { whatsappGroupUrl: _waHidden, ...safeEv } = ev;
+    return match ? safeEv : { ...safeEv, openAccess: true };
+  });
+  const matched = visible.filter((e) => !e.openAccess).length;
+  if (matched < visible.length) {
+    console.warn(`[events] open fallback user=${req.authUser?.id || '?'} shown=${visible.length} matched=${matched}`);
+  }
+  res.json({ events: visible, meta: { access: matched < visible.length ? 'open' : 'division' } });
 }));
 
 // POST /api/events � buat event baru + provision folder
