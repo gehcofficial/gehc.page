@@ -8,6 +8,8 @@
 
 **Next:** commit + push (staging & main, menunggu perintah) → seed worship staging (modules baru) → uji E2E ringan per pola di staging.
 
+**Status staging (5 Okt, fase 1+2):** branch `cursor/session-stage-fase2` (`b2c9ef9`) → push origin ✓ + `staging` ref ✓ (main tetap `22524f1`, prod aman) → `deploy:staging` ✓ (READY, semua alias menunjuk build baru) → `db:seed:worship:staging` ✓ (6 pola termutakhirkan modules, sesi 4 Okt utuh).
+
 ## Current — Engine sesi generik + testimony + FGD tuntas + doc hari-H 180-max (5 Okt 2026)
 
 **Kebutuhan:** cara kerja teknis terstruktur per pola (setara post-to-post: likert, catatan, arahan pos); catatan + komitmen + unduhan di semua pola; undian kesaksian otomatis 4 orang (2 Mentee + 1 Mentor + 1 Co-mentor, spin wheel dari yang hadir); dokumen hari-H satu file (180 max, merger default, trek paralel, terima kasih tuan rumah saja).
