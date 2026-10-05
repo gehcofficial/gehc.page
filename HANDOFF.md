@@ -42,7 +42,7 @@
 
 **Next:** commit di branch (push staging & main menunggu perintah) → backfill `--apply` staging → uji 1 confirm + 1 scan di staging.
 
-**Status push (5 Okt):** `fb85f71` → merge main → push main + `staging` ref ✓ → `deploy:staging` ✓ (tunggu verifikasi versi).
+**Status push (5 Okt):** `9d5872f` → merge main → push main ✓ + `staging` ref ✓ → `deploy:staging` ✓ READY (build 22:57, semua alias) → remote main = staging = `9d5872f` ✓. Main = prod — deploy prod mengikuti Vercel Production.
 
 ## Current — Ronde Debat + penanda film + papan tim: PatternDay generik (5 Okt 2026)
 
