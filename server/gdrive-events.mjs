@@ -71,8 +71,23 @@ export async function createEventFolder(event, division) {
     parentForEvent = (exactKurikulum || kurikulum).id;
   }
 
+  // MARTURIA: semua event masuk Marturia/Arsip Event/<Event> (rapi seperti Didaskalia/Kurikulum)
+  if (division === 'MARTURIA') {
+    const MARTURIA_PARENT = 'Arsip Event';
+    let parent = await findNamed(pillar.id, new RegExp(`^${MARTURIA_PARENT}$`, 'i'));
+    if (!parent) {
+      const created = await createFolder(pillar.id, MARTURIA_PARENT);
+      parent = { id: created.id, name: created.name };
+    }
+    parentForEvent = parent.id;
+  }
+
   const wantName = eventFolderName(event, division);
   let eventFolder = await findNamed(parentForEvent, new RegExp(`\\[EV:${event.slug}:${division}\\]`, 'i'));
+  // fallback: event lama mungkin masih di root Marturia sebelum migrasi Arsip Event
+  if (!eventFolder && division === 'MARTURIA') {
+    eventFolder = await findNamed(pillar.id, new RegExp(`\\[EV:${event.slug}:${division}\\]`, 'i'));
+  }
   // fallback: event lama mungkin masih di root Didaskalia atau di folder legacy sebelum migrasi
   if (!eventFolder && division === 'DIDASKALIA') {
     eventFolder = await findNamed(pillar.id, new RegExp(`\\[EV:${event.slug}:${division}\\]`, 'i'));

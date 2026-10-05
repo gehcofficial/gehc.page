@@ -17,7 +17,7 @@ const ALLOWED_MIME = new Set([
   'image/heic-sequence',
 ]);
 
-export function decodeImageUpload({ mimetype, data, filename } = {}) {
+export function decodeImageUpload({ mimetype, data, filename } = {}, { maxBytes } = {}) {
   const mime = String(mimetype || '').toLowerCase().split(';')[0].trim();
   const name = String(filename || '').toLowerCase();
   const looksHeic = /\.(heic|heif)$/.test(name);
@@ -28,7 +28,8 @@ export function decodeImageUpload({ mimetype, data, filename } = {}) {
   if (!raw) throw new Error('Data foto kosong.');
   const buffer = Buffer.from(raw, 'base64');
   if (!buffer.length) throw new Error('Data foto tidak valid.');
-  if (buffer.length > MAX_UPLOAD_BYTES) throw new Error('Ukuran foto maksimal 8 MB.');
+  const limit = Number(maxBytes) > 0 ? Number(maxBytes) : MAX_UPLOAD_BYTES;
+  if (buffer.length > limit) throw new Error(`Ukuran foto maksimal ${Math.round(limit / 1024 / 1024)} MB.`);
   return { buffer, mime: mime || (looksHeic ? 'image/heic' : 'image/jpeg') };
 }
 

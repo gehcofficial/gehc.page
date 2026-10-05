@@ -69,6 +69,8 @@ export function normalizeConfig(raw) {
     affirmations: c.affirmations && typeof c.affirmations === 'object' ? c.affirmations : {},
     chipLimit: intOrNull(c.chipLimit) || 3,
     expectedCount: intOrNull(c.expectedCount) || null,
+    // Draft sesi hari-H per pola (diisi tab Draft Sesi Studio; tanpa migrasi skema).
+    draft: c.draft && typeof c.draft === 'object' && !Array.isArray(c.draft) ? c.draft : null,
   };
 }
 
@@ -707,6 +709,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           status: s.status,
           sessionDate: s.sessionDate,
           accessCode: s.accessCode,
+          eventId: s.eventId || null,
           pattern: s.pattern,
         })),
       });
@@ -753,6 +756,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           status: liveSession.status,
           sessionDate: liveSession.sessionDate,
           accessCode: liveSession.accessCode,
+          eventId: liveSession.eventId || null,
           config: agg.config,
           pattern: liveSession.pattern,
         },
@@ -997,6 +1001,101 @@ export function registerWorshipRoutes(app, { wrap }) {
       await prisma.worshipChipVote.deleteMany({ where: { sessionId: chip.sessionId, chipCode: code } });
       await prisma.worshipChip.delete({ where: { id: chip.id } });
       res.json({ ok: true });
+    }),
+  );
+
+  // Terapkan draft sesi dari tab Draft Sesi Studio (isi AI yang sudah direview).
+  // Guard server-side: hanya sesi DRAFT tanpa jawaban peserta & tanpa isi
+  // (sesi jalan/terisi seperti 4 Okt dikunci — ubah manual via kontrol hari-H).
+  app.post(
+    '/api/worship/sessions/:id/apply-draft',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const session = await findSession(prisma, req.params.id);
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      if (String(session.status || '').toUpperCase() !== 'DRAFT') {
+        return res.status(409).json({ error: `Sesi berstatus ${session.status} — hanya sesi DRAFT yang bisa diisi otomatis.` });
+      }
+      const [respCount, itemCount, chipCount] = await Promise.all([
+        prisma.worshipLikertResponse.count({ where: { sessionId: session.id } }),
+        prisma.worshipLikertItem.count({ where: { sessionId: session.id } }),
+        prisma.worshipChip.count({ where: { sessionId: session.id } }),
+      ]);
+      if (respCount > 0) {
+        return res.status(409).json({ error: 'Sudah ada jawaban peserta — isi sesi dikunci.' });
+      }
+      if (itemCount > 0 || chipCount > 0) {
+        return res.status(409).json({ error: 'Sesi sudah berisi soal/chip — ubah manual via kontrol hari-H.' });
+      }
+      const b = req.body || {};
+      const kind = String(b.kind || '').toUpperCase();
+      const cleanDraft = (raw) => {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        const out = {};
+        for (const [sk, fv] of Object.entries(raw).slice(0, 20)) {
+          if (!fv || typeof fv !== 'object' || Array.isArray(fv)) continue;
+          out[String(sk).slice(0, 60)] = {};
+          for (const [fk, vv] of Object.entries(fv).slice(0, 30)) {
+            out[String(sk).slice(0, 60)][String(fk).slice(0, 80)] = String(vv ?? '').slice(0, 2000);
+          }
+        }
+        return out;
+      };
+      if (kind === 'POST_TO_POST') {
+        const d = b.draft || {};
+        const topics = (Array.isArray(d.topics) ? d.topics : []).slice(0, 3).map((x) => ({
+          code: String(x?.code || '').toUpperCase().slice(0, 40),
+          label: str(x?.label, 120) || String(x?.code || ''),
+          pic: str(x?.pic, 120),
+        })).filter((x) => x.code);
+        const items = (Array.isArray(d.items) ? d.items : []).slice(0, 12).map((x) => ({
+          topicCode: String(x?.topicCode || '').toUpperCase().slice(0, 40),
+          text: str(x?.text, 2000),
+          gospelNote: str(x?.gospelNote, 2000),
+        })).filter((x) => x.topicCode && x.text);
+        const chips = (Array.isArray(d.chips) ? d.chips : []).slice(0, 16).map((x) => {
+          const code = String(x?.code || x?.label || '').toUpperCase().replace(/[^A-Z0-9_]/g, '_').slice(0, 40);
+          const label = str(x?.label, 80);
+          return { code, label: label.startsWith('#') ? label : `#${label}`, topicCode: str(x?.topicCode, 40) };
+        }).filter((x) => x.code && x.label.replace('#', ''));
+        if (!topics.length || !items.length) {
+          return res.status(400).json({ error: 'Draft Post-to-Post wajib berisi topik + soal Likert.' });
+        }
+        const affirm = d.affirmations && typeof d.affirmations === 'object' ? d.affirmations : {};
+        const timerSeconds = Math.min(7200, Math.max(60, intOrNull(d.timerSeconds) || 1200));
+        const cfg = normalizeConfig({
+          ...(session.config || {}),
+          topics,
+          affirmations: affirm,
+          chipLimit: 3,
+          timerSeconds,
+          draft: cleanDraft(b.storedDraft),
+        });
+        await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
+        let order = 0;
+        for (const it of items) {
+          order += 1;
+          await prisma.worshipLikertItem.create({
+            data: { id: uid('wli'), sessionId: session.id, topicCode: it.topicCode, text: it.text, gospelNote: it.gospelNote, sortOrder: order },
+          });
+        }
+        let corder = 0;
+        for (const c of chips) {
+          corder += 1;
+          await prisma.worshipChip.create({
+            data: { id: uid('wc'), sessionId: session.id, code: c.code, label: c.label, topicCode: c.topicCode, sortOrder: corder, isActive: true },
+          });
+        }
+        return res.json({ ok: true, items: items.length, chips: chips.length });
+      }
+      // Pola lain: simpan draft form ke config (modul sesi menyusul).
+      const cfg = normalizeConfig({ ...(session.config || {}), draft: cleanDraft(b.storedDraft) });
+      if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
+      await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
+      res.json({ ok: true, saved: true });
     }),
   );
 

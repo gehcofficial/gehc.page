@@ -129,6 +129,14 @@ export async function assignRoleToUser(prisma, {
       },
     });
     if (existing) throw new Error('User sudah punya role aktif di grup ini.');
+    // Tanpa peran ganda: lepas assignment Beyonder aktif di grup LAIN + hapus UserRole-nya.
+    const others = await prisma.roleAssignment.findMany({
+      where: { userId, isActive: true, groupId: { not: null, not: groupId }, role: { in: ['MENTOR', 'CO_MENTOR', 'MENTEE'] } },
+    });
+    for (const ra of others) {
+      await prisma.roleAssignment.update({ where: { id: ra.id }, data: { isActive: false } });
+      await prisma.userRole.deleteMany({ where: { userId, role: ra.role, groupId: ra.groupId } });
+    }
   }
 
   const resolvedFamilyRole = familyRole || (groupId ? mapFamilyRole(role) : role === 'MENTEE' ? 'MENTEE' : null);

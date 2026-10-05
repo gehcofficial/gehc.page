@@ -149,6 +149,7 @@ import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerLogoVoteRoutes } from './routes/logo-vote.mjs';
+import { registerPelsusRoutes } from './routes/pelsus.mjs';
 import { registerInternalWartaRoutes } from './routes/internal-warta.mjs';
 import { registerPortalAssistRoutes } from './routes/portal-assist.mjs';
 import { registerAnnouncementRoutes } from './routes/announcements.mjs';
@@ -1706,8 +1707,19 @@ app.get('/api/events/:eventId/divisions/:div/analytics', wrap(async (req, res) =
 }));
 
 // ---------- Health & Config ----------
-app.get('/api/health', wrap(async (req, res) => {
-  let dbConnected = false;
+// Diagnostik kemampuan decode gambar server (mis. HEIC di Vercel) — sekali jawab per environment.
+app.get('/api/diagnostics/sharp', requireRole('SUPERADMIN', 'KOMISI'), wrap(async (_req, res) => {
+  const sharp = (await import('sharp')).default;
+  res.json({
+    libvips: typeof sharp.libvipsVersion === 'function' ? sharp.libvipsVersion() : null,
+    heifInput: Boolean(sharp.format?.heif?.input),
+    heifOutput: Boolean(sharp.format?.heif?.output),
+    jpegInput: Boolean(sharp.format?.jpeg?.input),
+    webpInput: Boolean(sharp.format?.webp?.input),
+  });
+}));
+
+app.get('/api/health', wrap(async (req, res) => {  let dbConnected = false;
   if (isDbConfigured()) {
     try { dbConnected = await testDb(); } catch { dbConnected = false; }
   }
@@ -3231,6 +3243,7 @@ registerServiceSwapRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
 registerDidaskaliaStudioRoutes(app, { wrap });
 registerLogoVoteRoutes(app, { wrap });
+registerPelsusRoutes(app, { wrap });
 registerInternalWartaRoutes(app, { wrap });
 registerChurchCalendarRoutes(app, { wrap });
 registerChurchP1Routes(app, { wrap });
@@ -6694,6 +6707,16 @@ app.patch('/api/role-assignments/:id', requireRole(...KOMISION_CORE), wrap(async
     },
   });
 
+  // Jaga UserRole tetap selaras: grup pindah atau dinonaktifkan → hapus baris lama
+  // agar tidak menumpuk (portal login membaca user_roles).
+  const groupChanged = groupId !== undefined && groupId !== assignment.groupId;
+  const deactivated = isActive === false && assignment.isActive !== false;
+  if (groupChanged || deactivated) {
+    await prisma.userRole.deleteMany({
+      where: { userId: assignment.userId, role: assignment.role, groupId: assignment.groupId },
+    }).catch(() => {});
+  }
+
   res.json({ ok: true, assignment: updated });
 }));
 
@@ -6725,6 +6748,68 @@ app.get('/api/users/:id/roles', requireRole(...KOMISION_CORE), wrap(async (req, 
 }));
 
 /** POST /api/role-assignments/cleanup-duplicates � Clean duplicate RoleAssignments */
+/** GET /api/role-assignments/audit-duplicates — read-only: user dengan baris role Beyonder ganda/konflik */
+app.get('/api/role-assignments/audit-duplicates', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+  const multiRole = await prisma.$queryRawUnsafe(`
+    SELECT ur.\`user_id\` AS userId, u.email, u.name, COUNT(*) AS n,
+      GROUP_CONCAT(CONCAT(ur.role, '@', COALESCE(g.name, ur.\`group_id\`, '-')) SEPARATOR ' | ') AS roles
+    FROM \`user_roles\` ur
+    LEFT JOIN users u ON u.id = ur.\`user_id\`
+    LEFT JOIN \`groups\` g ON g.id = ur.\`group_id\`
+    WHERE ur.role IN ('MENTOR','CO_MENTOR','MENTEE')
+    GROUP BY ur.\`user_id\`
+    HAVING COUNT(*) > 1
+    ORDER BY n DESC LIMIT 100
+  `);
+  const menteePlusLead = await prisma.$queryRawUnsafe(`
+    SELECT m.\`user_id\` AS userId, u.email,
+      m.role AS menteeRole, gm.name AS menteeGroup,
+      c.role AS leadRole, gc.name AS leadGroup
+    FROM \`user_roles\` m
+    JOIN \`user_roles\` c ON c.\`user_id\` = m.\`user_id\`
+      AND c.role IN ('CO_MENTOR','MENTOR')
+      AND (c.\`group_id\` <> m.\`group_id\` OR m.\`group_id\` IS NULL)
+    JOIN users u ON u.id = m.\`user_id\`
+    LEFT JOIN \`groups\` gm ON gm.id = m.\`group_id\`
+    LEFT JOIN \`groups\` gc ON gc.id = c.\`group_id\`
+    WHERE m.role = 'MENTEE'
+    ORDER BY u.email LIMIT 100
+  `);
+  const raWithoutUserRole = await prisma.$queryRawUnsafe(`
+    SELECT ra.\`user_id\` AS userId, u.email, ra.role, g.name AS groupName
+    FROM \`role_assignments\` ra
+    LEFT JOIN \`user_roles\` ur
+      ON ur.\`user_id\` = ra.\`user_id\` AND ur.role = ra.role AND (ur.\`group_id\` <=> ra.\`group_id\`)
+    JOIN users u ON u.id = ra.\`user_id\`
+    LEFT JOIN \`groups\` g ON g.id = ra.\`group_id\`
+    WHERE ra.\`is_active\` = 1 AND ra.\`group_id\` IS NOT NULL AND ur.\`user_id\` IS NULL
+    LIMIT 100
+  `);
+  const userRoleWithoutRa = await prisma.$queryRawUnsafe(`
+    SELECT ur.\`user_id\` AS userId, u.email, ur.role, g.name AS groupName
+    FROM \`user_roles\` ur
+    LEFT JOIN \`role_assignments\` ra
+      ON ra.\`user_id\` = ur.\`user_id\` AND ra.role = ur.role
+      AND (ra.\`group_id\` <=> ur.\`group_id\`) AND ra.\`is_active\` = 1
+    JOIN users u ON u.id = ur.\`user_id\`
+    LEFT JOIN \`groups\` g ON g.id = ur.\`group_id\`
+    WHERE ur.\`group_id\` IS NOT NULL AND ur.role IN ('MENTOR','CO_MENTOR','MENTEE')
+      AND ra.id IS NULL
+    LIMIT 100
+  `);
+
+  const ser = (rows) => JSON.parse(JSON.stringify(rows, (_, v) => typeof v === 'bigint' ? Number(v) : v));
+  res.json({
+    multiRole: ser(multiRole),
+    menteePlusLead: ser(menteePlusLead),
+    raWithoutUserRole: ser(raWithoutUserRole),
+    userRoleWithoutRa: ser(userRoleWithoutRa),
+  });
+}));
+
 app.post('/api/role-assignments/cleanup-duplicates', requireRole(...KOMISION_CORE), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -9348,19 +9433,23 @@ app.post('/api/gallery/jemaat', requireRole(), wrap(async (req, res) => {
 
   const { eventId, filename, mimetype, data } = req.body || {};
   if (!eventId) return res.status(400).json({ error: 'eventId wajib.' });
-  if (!filename || !data) return res.status(400).json({ error: 'filename dan data wajib.' });
-  if (typeof data === 'string' && data.length > 11_000_000) {
-    return res.status(400).json({ error: 'File terlalu besar (maks ~8MB).' });
+  const rawData = String(data || '').replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+  if (!filename || !rawData) return res.status(400).json({ error: 'filename dan data wajib.' });
+  if (typeof rawData === 'string' && rawData.length > 20_000_000) {
+    return res.status(400).json({ error: 'File terlalu besar (maks ~15MB sebelum dikompres). Pilih foto lain atau kecilkan dulu.' });
   }
-  if (!String(mimetype || '').startsWith('image/')) {
-    return res.status(400).json({ error: 'Hanya file gambar.' });
+  // HEIC dari iPhone sering mimetype kosong — terima berdasar ekstensi juga.
+  const nameLower = String(filename || '').toLowerCase();
+  const looksImageByExt = /\.(jpe?g|png|webp|heic|heif)$/.test(nameLower);
+  if (!String(mimetype || '').startsWith('image/') && !looksImageByExt) {
+    return res.status(400).json({ error: 'Hanya file gambar (JPG, PNG, WebP, HEIC).' });
   }
 
   const event = await prisma.eventProgram.findUnique({ where: { id: String(eventId) } });
   if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
   // Jendela upload H-1..H+7 (bila event bertanggal).
-  const { isWithinUploadWindow, remainingQuota, JEMAAT_PHOTO_MAX_BYTES } = await import('./lib/gallery-jemaat.mjs');
+  const { isWithinUploadWindow, remainingQuota, JEMAAT_PHOTO_RAW_MAX_BYTES } = await import('./lib/gallery-jemaat.mjs');
   if (!isWithinUploadWindow(event.eventDate)) {
     return res.status(400).json({ error: 'Pengunggahan hanya H-1 sampai H+7 event.' });
   }
@@ -9405,12 +9494,28 @@ app.post('/api/gallery/jemaat', requireRole(), wrap(async (req, res) => {
   if (!targetFolderId) return res.status(400).json({ error: 'Folder foto event belum siap.' });
 
   try {
-    const buffer = Buffer.from(String(data), 'base64');
-    if (buffer.length > JEMAAT_PHOTO_MAX_BYTES) return res.status(413).json({ error: 'File >8MB tidak didukung.' });
+    // Kompres otomatis: HEIC/WebP/PNG/JPG → JPEG ≤1600px (~900KB), sama seperti album grup.
+    let jpeg;
+    try {
+      const { decodeImageUpload, toJpegBuffer } = await import('./lib/drive-jpeg.mjs');
+      const decoded = decodeImageUpload(
+        { mimetype, data: rawData, filename },
+        { maxBytes: JEMAAT_PHOTO_RAW_MAX_BYTES },
+      );
+      jpeg = await toJpegBuffer(decoded.buffer, { maxWidth: 1600 });
+    } catch (e) {
+      const msg = String(e?.message || '');
+      if (/Format foto|Ukuran foto|Data foto/i.test(msg)) {
+        return res.status(400).json({ error: msg });
+      }
+      console.error('[gallery-jemaat] kompres gagal:', e);
+      return res.status(422).json({ error: 'Foto tidak terbaca (termasuk HEIC lama). Simpan ulang sebagai JPG lalu coba lagi.' });
+    }
+    const safeBase = String(filename).replace(/\.(heic|heif)$/i, '').slice(0, 100) || 'foto';
     const file = await gdriveUploadFile(targetFolderId, {
-      originalname: String(filename).slice(0, 120),
-      mimetype: mimetype || 'image/jpeg',
-      buffer,
+      originalname: `${safeBase}.jpg`,
+      mimetype: 'image/jpeg',
+      buffer: jpeg,
     });
     const id = 'gal-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const title = `Foto jemaat — ${req.authUser?.name || 'peserta'}`;

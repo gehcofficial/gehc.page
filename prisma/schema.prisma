@@ -1061,6 +1061,134 @@ model GroupLogoBallot {
 }
 
 // ============================================================
+// PELSUS — pemilihan Pelayan Khusus GMIM (11 Okt 2026)
+// Perorangan, langsung, rahasia, tertulis (digital = surat suara
+// panitia), tak dapat diwakilkan. 1 pemilih = 1 submisi per
+// election; multi-kursi via multi-candidate dalam 1 submisi.
+// Layar live hanya partisipasi; perolehan dibuka setelah CLOSED.
+// ============================================================
+
+model PelsusElection {
+  id          String    @id @db.VarChar(64)
+  scope       String    @default("BIPRA") @db.VarChar(16) // BIPRA | KOLOM | BPMJ
+  bipra       String?   @db.VarChar(16) // BAPAK | IBU | PEMUDA | REMAJA | ANAK
+  kolomId     String?   @map("kolom_id") @db.VarChar(64)
+  roleTarget  String?   @map("role_target") @db.VarChar(32) // PENATUA | DIAKEN | WAKIL_KETUA | SEKRETARIS | BENDAHARA | ANGGOTA
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  status      String    @default("DRAFT") @db.VarChar(16) // DRAFT | OPEN | CLOSED
+  maxChoices  Int       @default(1) @map("max_choices")
+  quorumNum   Int       @default(2) @map("quorum_num")
+  quorumDen   Int       @default(3) @map("quorum_den")
+  accessCode  String?   @map("access_code") @db.VarChar(12)
+  closesAt    DateTime? @map("closes_at") @db.DateTime(3)
+  createdById String?   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  candidates PelsusCandidate[]
+  voters     PelsusVoter[]
+  ballots    PelsusBallot[]
+  tokens     PelsusKioskToken[]
+  auditLogs  PelsusAuditLog[]
+
+  @@index([scope, status])
+  @@index([kolomId])
+  @@map("pelsus_elections")
+}
+
+model PelsusCandidate {
+  id         String  @id @db.VarChar(64)
+  electionId String  @map("election_id") @db.VarChar(64)
+  userId     String? @map("user_id") @db.VarChar(64)
+  name       String  @db.VarChar(150)
+  nomor      Int     @default(0)
+  roleTarget String? @map("role_target") @db.VarChar(32)
+  photoUrl   String? @map("photo_url") @db.Text
+  visi       String? @db.Text
+  voteCount  Int     @default(0) @map("vote_count")
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  election PelsusElection @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  ballots  PelsusBallot[]
+
+  @@unique([electionId, nomor])
+  @@index([electionId])
+  @@map("pelsus_candidates")
+}
+
+model PelsusVoter {
+  id        String    @id @db.VarChar(64)
+  electionId String   @map("election_id") @db.VarChar(64)
+  userId    String?   @map("user_id") @db.VarChar(64)
+  name      String    @db.VarChar(150)
+  bipra     String?   @db.VarChar(16)
+  kolomId   String?   @map("kolom_id") @db.VarChar(64)
+  hasVoted  Boolean   @default(false) @map("has_voted")
+  votedAt   DateTime? @map("voted_at") @db.DateTime(3)
+  votedVia  String?   @map("voted_via") @db.VarChar(16) // LOGIN | KIOSK | MANUAL
+  createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  election PelsusElection   @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  ballots  PelsusBallot[]
+  tokens   PelsusKioskToken[]
+
+  @@unique([electionId, userId])
+  @@index([electionId, hasVoted])
+  @@index([electionId])
+  @@map("pelsus_voters")
+}
+
+model PelsusBallot {
+  id          String   @id @db.VarChar(64)
+  electionId  String   @map("election_id") @db.VarChar(64)
+  voterId     String   @map("voter_id") @db.VarChar(64)
+  candidateId String   @map("candidate_id") @db.VarChar(64)
+  channel     String   @default("LOGIN") @db.VarChar(16)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  election  PelsusElection  @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  voter     PelsusVoter     @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  candidate PelsusCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, voterId, candidateId])
+  @@index([electionId, candidateId])
+  @@index([electionId, voterId])
+  @@map("pelsus_ballots")
+}
+
+model PelsusKioskToken {
+  token       String    @id @db.VarChar(16)
+  electionId  String    @map("election_id") @db.VarChar(64)
+  voterId     String    @map("voter_id") @db.VarChar(64)
+  expiresAt   DateTime  @map("expires_at") @db.DateTime(3)
+  usedAt      DateTime? @map("used_at") @db.DateTime(3)
+  createdById String?   @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  election PelsusElection @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  voter    PelsusVoter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+
+  @@index([electionId])
+  @@index([voterId])
+  @@map("pelsus_kiosk_tokens")
+}
+
+model PelsusAuditLog {
+  id         String   @id @db.VarChar(64)
+  electionId String?  @map("election_id") @db.VarChar(64)
+  actorId    String?  @map("actor_id") @db.VarChar(64)
+  action     String   @db.VarChar(40)
+  detail     Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  election PelsusElection? @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@index([electionId])
+  @@map("pelsus_audit_logs")
+}
+
+// ============================================================
 // INFO & PELUANG (Warta Internal — login-only)
 // ============================================================
 

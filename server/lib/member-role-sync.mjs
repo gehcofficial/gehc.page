@@ -167,11 +167,13 @@ export async function syncRosterRole(prisma, { userId, groupId, familyRole, assi
   });
   for (const ra of others) {
     await prisma.roleAssignment.update({ where: { id: ra.id }, data: { isActive: false } });
+    await prisma.userRole.deleteMany({ where: { userId, role: ra.role, groupId: ra.groupId } });
   }
   const active = await prisma.roleAssignment.findFirst({ where: { userId, groupId, isActive: true, role: { in: BEYONDER_ROLES } } });
   let assignment = active;
   if (assignment && assignment.role !== role) {
     await prisma.roleAssignment.update({ where: { id: assignment.id }, data: { isActive: false } });
+    await prisma.userRole.deleteMany({ where: { userId, role: assignment.role, groupId } });
     assignment = null;
   }
   if (!assignment) {

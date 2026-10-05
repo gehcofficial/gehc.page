@@ -389,7 +389,8 @@ export function patternBlock(pattern) {
   if (Array.isArray(p?.phases) && p.phases.length) {
     lines.push('- Fase baku pola (durasi & penanggung jawab — JANGAN diubah totalnya, sesuaikan isi dengan tema):');
     for (const f of p.phases.slice(0, 8)) {
-      lines.push(`  ${f.no || ''}. ${f.title || ''}${f.minutes ? ` (${f.minutes}')` : ''}${f.owner ? ` — ${f.owner}` : ''}`);
+      const note = f.notes ? ` — ${f.notes}` : '';
+      lines.push(`  ${f.no || ''}. ${f.title || ''}${f.minutes ? ` (${f.minutes}')` : ''}${f.owner ? ` — ${f.owner}` : ''}${note}`);
     }
   }
   if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);
@@ -397,10 +398,14 @@ export function patternBlock(pattern) {
     lines.push('- Bentuk: monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).');
   } else if (code === 'POST_TO_POST') {
     lines.push('- Bentuk: monolog SINGKAT + briefing pos; discussionFlow = RUTE KUNJUNGAN berurutan rank 1→3 (BUKAN FGD duduk); deliveryPlan tekankan briefing aturan main & manajemen 3 pos.');
+  } else if (code === 'DUAL_MONOLOG') {
+    lines.push('- Bentuk: drama 2 speaker (Outer Exile + Inner Exile) + pembacaan berbalasan + bedah lagu; discussionFlow = panduan deep sharing (mentor buka dulu, Satu Kata, 2 pertanyaan wajib); deliveryPlan tekankan blocking, cue musik/lampu, dan transisi ke konvergensi firman.');
   } else if (code === 'DEBAT') {
     lines.push('- Bentuk: ronde debat + konklusi teologis; discussionFlow = alur ronde, peran, penjurian; deliveryPlan tekankan moderasi netral & timer mutlak.');
   } else if (code === 'BEDAH_FILM') {
     lines.push('- Bentuk: screening + pleno analisa; discussionFlow = panduan pleno + deep sharing identitas; deliveryPlan tekankan setup pemutaran & fasilitasi pleno.');
+  } else if (code === 'THREE_SEQUENCES') {
+    lines.push('- Bentuk: gamifikasi 3 sequence tanpa jeda (Melayani → Bersekutu → Bersaksi) + commissioning; discussionFlow = brief tiap sequence + aturan presentasi 4 menit; deliveryPlan tekankan komando countdown, pembagian 5 tim Mission Room, dan deklarasi Coram Deo.');
   } else {
     lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
   }
@@ -685,6 +690,91 @@ export async function generateSermon(input) {
 
   const { data } = await generateJson({ prompt, maxOutputTokens: 6000, timeoutMs: 35000 });
   return clampSermon(data);
+}
+
+/**
+ * Isi draft sesi hari-H dari konteks pekan (tema + firman + RHB + khotbah).
+ * POST_TO_POST → terstruktur penuh (topik, 9 Likert, 12 chip, afirmasi).
+ * Pola lain → nilai per kunci template kosongan (generic, tetap direview per baris).
+ * Keluaran = USULAN; penerapan ke sesi dijaga guard status di route.
+ */
+const SessionPostToPostSchema = z.object({
+  topics: z.array(z.object({ code: z.string(), label: z.string(), pic: z.string() })).max(3),
+  items: z.array(z.object({ topicCode: z.string(), label: z.string().optional(), text: z.string(), gospelNote: z.string() })).max(12),
+  chips: z.array(z.object({ code: z.string(), label: z.string(), topicCode: z.string().nullable().optional() })).max(16),
+  affirmations: z.record(z.string(), z.array(z.string()).max(4)),
+  timerSeconds: z.number().optional(),
+});
+const SessionValuesSchema = z.object({
+  values: z.array(z.object({ key: z.string(), value: z.string() })).max(40),
+});
+
+export async function generateSessionDraft(input) {
+  const code = String(input?.pattern?.code || input?.patternCode || 'MONOLOG').toUpperCase() || 'MONOLOG';
+  const head = [
+    'Susun ISI SESI HARI-H untuk pola ibadah berikut (Bahasa Indonesia).',
+    '',
+    'KONTEKS PEKAN (pembekalan + RHB + khotbah sudah disusun dari bahan ini):',
+    buildContext(input),
+    ...teamContextBlock(input),
+    ...patternBlock(input.pattern),
+    input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
+    input.sermonSummary ? `Ringkasan khotbah:\n${asStr(input.sermonSummary).slice(0, 1500)}` : '',
+    '',
+  ].filter(Boolean);
+
+  if (code === 'POST_TO_POST') {
+    const prompt = [...head,
+      'ATURAN (WAJIB):',
+      '- topics: TEPAT 3 dengan code HUBUNGAN, PEKERJAAN, KELUARGA (urutan itu); label & pic (PIC pos) boleh disesuaikan tema.',
+      '- items: TEPAT 9 (3 per topik, urut per topik); text = pernyataan Likert skala 1-5 dari pergumulan nyata mahasiswa/pekerja seputar tema (pola "Saya merasa/cenderung/sulit ..."); gospelNote = solusi 1 kalimat dari firman pekan.',
+      '- chips: 10-12 chip kata pelajaran format #Kata (maks 3 dipilih per peserta), sebar ke 3 topik + 1 umum.',
+      '- affirmations: TEPAT 3 kalimat peneguh per code topik, dari firman pekan.',
+      '- timerSeconds: 1200 bila tidak ada alasan mengubah.',
+      '',
+      'Balas HANYA JSON valid sesuai skema.',
+    ].join('\n');
+    const { object } = await jethroGenerateObject({ system: SYSTEM, prompt, schema: SessionPostToPostSchema, maxOutputTokens: 5000, timeoutMs: 40000 });
+    const o = object || {};
+    const topics = (Array.isArray(o.topics) ? o.topics : []).slice(0, 3).map((x) => ({
+      code: asStr(x?.code).toUpperCase().slice(0, 40),
+      label: asStr(x?.label).slice(0, 120),
+      pic: asStr(x?.pic).slice(0, 120),
+    })).filter((x) => x.code && x.label);
+    const items = (Array.isArray(o.items) ? o.items : []).slice(0, 9).map((x) => ({
+      topicCode: asStr(x?.topicCode).toUpperCase().slice(0, 40),
+      text: asStr(x?.text),
+      gospelNote: asStr(x?.gospelNote),
+    })).filter((x) => x.topicCode && x.text);
+    const chips = (Array.isArray(o.chips) ? o.chips : []).slice(0, 12).map((x) => ({
+      code: asStr(x?.code).toUpperCase().replace(/[^A-Z0-9_]/g, '_').slice(0, 40),
+      label: asStr(x?.label).slice(0, 80),
+      topicCode: asStr(x?.topicCode).toUpperCase().slice(0, 40) || null,
+    })).filter((x) => x.code && x.label);
+    const affirmations = {};
+    for (const [k, v] of Object.entries(o.affirmations || {})) {
+      affirmations[String(k).toUpperCase().slice(0, 40)] = asStrArray(v, 3);
+    }
+    return { kind: 'POST_TO_POST', topics, items, chips, affirmations, timerSeconds: Number(o.timerSeconds) > 0 ? Math.round(Number(o.timerSeconds)) : 1200 };
+  }
+
+  const fieldKeys = Array.isArray(input.fieldKeys) ? input.fieldKeys : [];
+  const prompt = [...head,
+    'ATURAN (WAJIB):',
+    '- Isi SETIAP kunci template berikut dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
+    '- Kunci yang tidak relevan boleh dilewatkan (jangan diada-ada).',
+    'KUNCI TEMPLATE:',
+    ...fieldKeys.slice(0, 40).map((f) => `- ${f.key}: ${f.label || ''}`),
+    '',
+    'Balas HANYA JSON valid: {"values":[{"key":"...","value":"..."}]}',
+  ].join('\n');
+  const { object } = await jethroGenerateObject({ system: SYSTEM, prompt, schema: SessionValuesSchema, maxOutputTokens: 4000, timeoutMs: 35000 });
+  const known = new Set(fieldKeys.map((f) => f.key));
+  const values = (Array.isArray(object?.values) ? object.values : [])
+    .filter((v) => known.has(asStr(v?.key)) && asStr(v?.value))
+    .slice(0, 40)
+    .map((v) => ({ key: asStr(v.key), value: asStr(v.value).slice(0, 2000) }));
+  return { kind: 'GENERIC', values };
 }
 
 /**

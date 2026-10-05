@@ -1,5 +1,74 @@
 # GEHC Portal — Handoff
 
+## Current — Tab Draft Sesi: kosongan per pola + Isi dari AI + guard sesi terisi (5 Okt 2026)
+
+**Kebutuhan:** tab khusus berisi draft kosongan per pola yang tersinkron AI pembekalan/RHB/khotbah — setelah pilih pola ibadah, isi draft pola ikut terisi; sesi 4 Okt yang sudah ada isi tidak boleh tersentuh.
+
+**Ubah:** `src/lib/worship-session-draft.ts` (baru: template kosongan 6 pola, `draftToStored`/`storedToSections`, `countFilled`, `sessionDraftGuard`, `templateFieldKeys`) → `server/lib/didaskalia-ai.mjs` (`generateSessionDraft`: Post-to-Post terstruktur penuh via `jethroGenerateObject` + Zod, pola lain nilai per kunci template) → `POST /api/didaskalia/studio/:ym/:week/session-draft` (usulan saja, RBAC Didaskalia) → `server/routes/worship.mjs` (`normalizeConfig` loloskan `config.draft`; `eventId` di list/detail sesi; `POST .../sessions/:id/apply-draft` dengan guard 409: bukan DRAFT / ada jawaban / sudah berisi) → `src/components/portal/SessionDraftTab.tsx` (baru: cari/buat sesi event pekan → form kosongan → Isi dari AI → Simpan draft → Terapkan) → tab `Draft Sesi` di `DidaskaliaStudioPanel` → test `worship-session-draft.test.ts` (+18) → `docs/product/worship-patterns.md` (§9).
+
+**Review:** Portal → div Didaskalia → Studio → tab **Draft Sesi** (tanpa migrasi DB; `config.draft` JSON).
+
+**Verifikasi:** `lint` bersih ✓ **705 test** hijau (+18) ✓ `build` OK ✓
+
+**Next:** commit + push staging & main → seed worship staging (playbook 7 bagian) → `staging:sync`.
+
+## Current — Draft template 6 pola ibadah + tab Katalog di Studio (5 Okt 2026)
+
+**Kebutuhan:** 5 pola selain Post-to-Post didetilkan seperti Post-to-Post (draft template per pola, mengikuti penyesuaian tema + firman); satu tempat review semua draft.
+
+**Ubah:** `server/_seed-worship-patterns.cjs` (6 playbook jadi template baku 7 bagian: identitas–pra-acara–rundown–naskah siap baca–modul web–peran–adaptasi `{{tema}}/{{firman_ref}}/{{firman_text}}/{{kitab_fokus}}`; `phases[].notes` per fase) → `server/lib/didaskalia-ai.mjs` (`patternBlock`: cabang eksplisit DUAL_MONOLOG + THREE_SEQUENCES, phase `notes` ikut ke prompt) → `src/lib/worship-patterns.ts` (baru: `patternTotalMinutes`, `patternTemplateCheck`, `patternDurationDelta`, `moduleLabel`) → `src/components/portal/WorshipPatternCatalog.tsx` (baru: kartu 6 pola + rundown tabel + playbook 7 bagian + Salin naskah + Pakai pekan ini) → `DidaskaliaStudioPanel.tsx` (tab `pola` = katalog + `MentoringControl`; fix tipe tab; tautan `Lihat detail pola →` di dropdown Inti) → test `worship-patterns.test.ts` (+12) → `docs/product/worship-patterns.md` (§8).
+
+**Review:** Portal → div Didaskalia → Studio → tab **Pola Ibadah** (butuh DB ter-seed baru agar playbook 7 bagian tampil: `npm run db:seed:worship` lokal / `:staging`).
+
+**Verifikasi:** `lint` bersih ✓ **687 test** hijau (+12) ✓ `build` OK ✓
+
+**Next:** seed staging (`db:seed:worship:staging`) → cek tab katalog staging → `staging:sync`; prod hanya setelah disetujui (`db:seed:worship:prod` idempoten via upsert per `code`).
+
+## Current — Upload foto event → Warta: kompres HEIC otomatis (4 Okt 2026)
+
+**Masalah:** mentee + akun Marturia gagal upload foto by-event (beberapa foto dipilih tapi nol tersimpan), sementara gallery grup bisa. Penyebab: `POST /api/gallery/jemaat` upload mentah tanpa kompres + tolak HEIC (`type=""`) + batas 8MB; frontend `break` saat file pertama gagal lalu pilihan dibuang; endpoint arsip panitia tolak MENTOR/CO_MENTOR di `requireRole`.
+
+**Ubah:** `server/index.mjs` (jemaat pakai `decodeImageUpload`+`toJpegBuffer` ≤1600px/~900KB, terima HEIC by-ekstensi, batas mentah 15MB, nama `.jpg`, error spesifik) → `drive-jpeg.mjs` (`decodeImageUpload` dukung override `maxBytes`) → `gallery-jemaat.mjs` (konstanta `RAW_MAX 15MB/20MB-base64`) → `drive-ownership.mjs` (arsip + gallery/photos izinkan MENTOR/CO_MENTOR + pesan 403 actionable) → `EventPhotoShare.tsx` (terima `.heic/.heif`, batas 15MB, hasil per-file tanpa buang yang gagal, info kuota/jendela) → `WartaPublikTab.tsx` (blok Dokumentasi di editor + strip foto di kartu list) → test `drive-jpeg.test.ts` (+6: HEIC by-ekstensi, tolak non-gambar, prefix data-url, override 15MB, output JPEG valid).
+
+**Alur foto → warta:** mentee upload (PENDING) → Marturia Setujui → Sematkan preview (≤10) → event DONE → `Draf Warta` (maks 10 URL approved, cover = foto pertama) → lengkapi + `PUBLISHED` → tampil di landing Warta.
+
+**Verifikasi:** `lint` bersih ✓ **675 test** hijau (+6) ✓
+
+**Tambahan (menyusul):** `EventGalleryTab` upload Marturia dirapikan — pesan per-file (tidak lagi tertimpa pesan sukses), warna merah bila gagal, file picker terima `.heic/.heif`. Lint + test unit tetap hijau.
+
+## Current — Role ganda + upload 413 + folder Marturia (4 Okt 2026)
+
+**Laporan:** (1) akun pindah MENTEE Kairos → CO_MENTOR Dunamis tapi portal tetap mentee; (2) upload foto event masih gagal generik; (3) folder `Marturia [MENTOR]` berantakan.
+
+**Ubah:**
+- Role: `syncRosterRole` + `assignRoleToUser` (`role-assign.mjs`) + `PATCH /api/role-assignments/:id` (`index.mjs`) kini selalu hapus baris `UserRole` lama (tanpa peran ganda, seperti `placePerson`); endpoint audit read-only `GET /api/role-assignments/audit-duplicates` (multiRole, menteePlusLead, drift RA↔UserRole); test `member-role-sync.test.ts`.
+- Upload: `express.json` 8MB→20MB + 413 JSON (`createApp.mjs`); `gallery/photos` limit 15MB + pola 400/422 seperti jemaat (`drive-ownership.mjs`, `drive-jpeg.mjs` dukung override `maxBytes`); pesan klien sertakan `(server STATUS)`; diagnostik `GET /api/diagnostics/sharp` (heifInput/libvips per environment).
+- Folder: skrip `_migrate-marturia-to-arsip-event.cjs` (`--dry/--apply/--cleanup`, pindah `[EV:*:MARTURIA]` → `Arsip Event`, trash hanya yatim kosong, ID tetap) + cabang MARTURIA di `createEventFolder` + fallback root + npm `drive:migrate:marturia-arsip-event[:dry|:prod]`.
+
+**Verifikasi:** `lint` bersih ✓ **676 test** hijau (+1) ✓ skrip `node --check` OK ✓
+
+**Next (butuh akses/keputusan):** deploy staging → `GET /api/diagnostics/sharp` di staging+prod (jawab HEIC Vercel) → uji HEIC HP → `GET /api/role-assignments/audit-duplicates` di prod → hapus baris lama akun tsb (DELETE + logout→login) → migrasi folder `--dry` dulu, `--apply` setelah disetujui → `staging:sync`.
+
+## Current — Voting Pelsus 11 Okt 2026 (4 Okt 2026)
+
+**Kebutuhan:** Pemilihan Pelsus level gereja (Penatua BIPRA, Penatua/Diaken Kolom, BPMJ fase-2) di GEHC.page — akun sendiri + 5 laptop bilik (token) + manual tervalidasi, anti-ganda, layar per election (partisipasi live, hasil setelah CLOSED). Alur warta: Juklak → Absensi/Kuorum → Cara → Pilih.
+
+**Ubah:** skema `Pelsus*` (6 model `prisma/schema.prisma`) + migrasi `server/_migrate-pelsus.cjs` (wired `db-migrate-local` + npm `db:migrate:pelsus[:staging|:prod]`) → API `server/routes/pelsus.mjs` (list/detail/ballot 1-submisi immutable/live-cache 2,5 dtk/results+CSV Berita Acara/elections CRUD+DPT sync-import/kandidat/token bilik 10 mnt/checkin manual/promote BPMJ; `requireRole`, admin = SUPERADMIN/BPMJ/KOMISI/COMMITTEE) → frontend `#/pelsus` (`src/lib/pelsus.ts`, `isPelsusHash`, `PelsusApp.tsx`: home + surat suara + bilik kiosk auto-reset + layar kode + panel panitia; polling 15 dtk/5 dtk + backoff anti-thundering-herd) → seed `server/seed-pelsus.mjs` (19 elections DRAFT + DPT dari User) → panduan `docs/product/pelsus-panduan.md` (warta + bilik + WA) + test `pelsus.test.ts` (+1 host-context).
+
+**Anti-kambuh Likert:** agregat GROUP BY + count (tanpa full-scan), ballot 1 transaksi pendek + increment atomik + unique DB final, live cache, retry/backoff klien.
+
+**Data:** migrasi jalan (6 tabel) ✓ seed 19 elections + 193 DPT ✓ (DB `.env`).
+
+**Verifikasi:** `lint` bersih ✓ **669 test** hijau (+11) ✓ `build` OK (chunk PelsusApp 24 kB) ✓ `db:schema:check` sinkron ✓ smoke API vs staging **22/22 PASS** (login, 19 elections, DPT import, ballot, 409 ganda, token-denied, reset; DB bersih kembali) ✓
+
+**Status deploy:** commit `ae1dc0c` → push `cursor/pelsus-voting` ✓ migrasi+seed staging ✓ (19 elections DRAFT + DPT). `vercel login` (gehcofficial) → `deploy:staging` ✓ alias staging menunjuk preview baru ✓ verifikasi live: `/api/version` OK, login 200, `/api/pelsus` = 19 elections + canAdmin ✓ (BPMJ/ANAK total 0 = wajar, DPT via import/promote).
+
+**Next:** (a) buka preview branch `cursor/pelsus-voting` dari dashboard Vercel, atau `vercel login` lalu `deploy:staging`; (b) simulasi UI 7 langkah di preview/staging; (c) OK → merge `main`; (d) H-2: migrasi+seed `:prod`, OPEN hari-H. Lokal bisa simulasi sekarang: `npm run dev:all` → `localhost:3000/#/pelsus` (DB staging siap).
+
+**Simulasi Playwright (commit `193145b`):** `npm run pelsus:sim` → **5/5 PASS** (1,6 mnt, config produksi-instan) → klip `public/media/pelsus/01–05` terverifikasi visual (caption + alur benar) → DB staging bersih (assert 0 orphan). Temuan & fix: regex caption, caption tahan-reload, `markOnly` 400, `createMany([])` 500, `abstain is not defined` 500 (vote tercatat tapi respons gagal!), DELETE tanpa cascade → orphan (fix: cascade eksplisit + 8 FK; 207 baris orphan lama dibersihkan) → + tombol Hapus election. Staging redeploy (preview `gehcpage-h6ga6d3mi`) + verifikasi live: 19 elections, DELETE-route baru aktif. `lint` + **675 test** hijau.
+
+**Bukti rotasi status (staging, commit `b32bf26`):** Tutup→Draft→tambah→Buka = suara utuh (A=1, B=0), tambah saat OPEN tetap 409, anti-ganda 409, DELETE bersih 0 orphan — **17/17 PASS**. Sambil jalan ketemu + fix 1 bug rekap: `turnout.abstain` (dulu `voted-minus` → selalu salah; kini = pemilih tanpa ballot). Staging redeploy + terverifikasi live.
+
 ## Current — Sub Pembekalan dan Pengarahan Didaskalia (4 Okt 2026)
 
 **Missed lalu:** Didaskalia punya sub `Pembekalan dan Pengarahan` (Diferd + Putri). Struktur kini: HoD + `Kurikulum dan Modul` + `Pembekalan dan Pengarahan`.

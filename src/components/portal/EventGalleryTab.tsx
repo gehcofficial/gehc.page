@@ -55,6 +55,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
   const [uploadBusy, setUploadBusy] = useState(false);
   const [pinBusy, setPinBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [noticeIsError, setNoticeIsError] = useState(false);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -84,26 +85,41 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
     if (!eventId || !files || !files.length) return;
     setUploadBusy(true);
     setNotice('');
+    setNoticeIsError(false);
+    const list = Array.from(files);
     let ok = 0;
+    const failed: string[] = [];
     try {
-      for (const file of Array.from(files)) {
-        const data = await new Promise<string>((resolve, reject) => {
-          const fr = new FileReader();
-          fr.onload = () => resolve(String(fr.result || ''));
-          fr.onerror = () => reject(new Error('Gagal membaca file'));
-          fr.readAsDataURL(file);
-        });
-        const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/gallery/photos`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ data, mimetype: file.type || 'image/jpeg', filename: file.name, division: division || 'MARTURIA' }),
-        });
-        if (r.ok) ok += 1;
-        else { const d = await r.json().catch(() => ({})); setNotice(d.error || 'Sebagian foto gagal diunggah.'); }
+      for (const file of list) {
+        try {
+          const data = await new Promise<string>((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(String(fr.result || ''));
+            fr.onerror = () => reject(new Error('Gagal membaca file'));
+            fr.readAsDataURL(file);
+          });
+          const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/gallery/photos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ data, mimetype: file.type || 'image/jpeg', filename: file.name, division: division || 'MARTURIA' }),
+          });
+          if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            throw new Error(`(server ${r.status}) ${d.error || 'Gagal diunggah.'}`);
+          }
+          ok += 1;
+        } catch (e) {
+          failed.push(`${file.name}: ${e instanceof Error ? e.message : 'Gagal diunggah.'}`);
+        }
       }
       await fetchItems();
-      setNotice(`${ok}/${files.length} foto terunggah ke arsip event.`);
+      setNoticeIsError(failed.length > 0);
+      setNotice(
+        failed.length === 0
+          ? `${ok}/${list.length} foto terunggah ke arsip event.`
+          : `${ok}/${list.length} terunggah. Gagal: ${failed.join(' · ')}`,
+      );
     } finally {
       setUploadBusy(false);
     }
@@ -113,6 +129,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
     if (!eventId) return;
     setPinBusy(true);
     setNotice('');
+    setNoticeIsError(false);
     try {
       const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/archive`, {
         method: 'POST',
@@ -121,7 +138,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
         body: JSON.stringify({ previewFileIds: previewIds.slice(0, 10) }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) { setNotice(d.error || 'Gagal menyimpan preview.'); return; }
+      if (!r.ok) { setNoticeIsError(true); setNotice(d.error || 'Gagal menyimpan preview.'); return; }
       const e = (d.event || {}) as Partial<EvInfo>;
       setEv((prev) => ({ ...(prev || { id: eventId, name: '' }), ...e }));
       if (Array.isArray(e.previewFileIds)) setPreviewIds((e.previewFileIds as string[]).map(String));
@@ -203,7 +220,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
               {uploadBusy ? 'Mengunggah…' : 'Upload foto (bisa banyak)'}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 multiple
                 className="hidden"
                 disabled={!eventId || uploadBusy}
@@ -225,7 +242,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
         <p className="text-[11px] text-[#8C8880]">
           Foto otomatis masuk folder arsip event di Drive dan langsung disetujui. Sematkan hingga 10 sebagai preview landing & Warta.
         </p>
-        {notice && <p className="text-[11px] font-semibold text-emerald-700">{notice}</p>}
+        {notice && <p className={`text-[11px] font-semibold ${noticeIsError ? 'text-red-700' : 'text-emerald-700'}`}>{notice}</p>}
         <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#D9D7D0]/40">
           <p className="text-[11px] font-bold text-[#1B1B1B]">Preview landing: {Math.min(previewIds.length, 10)}/10</p>
           <button

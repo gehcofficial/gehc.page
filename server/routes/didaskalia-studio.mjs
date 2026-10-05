@@ -16,6 +16,7 @@ import {
   generateEnrichedDraft,
   generateWeekExtras,
   generateSermon,
+  generateSessionDraft,
   refineField,
   summarizeWeek,
   RITUAL_TYPES,
@@ -765,6 +766,52 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         req.authUser?.id
       );
       res.json({ week: saved, extras });
+    })
+  );
+
+  // ---------- AI: isi draft sesi hari-H dari konteks pekan (usulan, tanpa tulis DB) ----------
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/session-draft',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const st = sanitizeStudio(week.studio);
+      const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}${p.summary ? ` — ${p.summary}` : ''}`).join('\n');
+      const fieldKeys = Array.isArray(req.body?.fieldKeys)
+        ? req.body.fieldKeys.slice(0, 40).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
+        : [];
+
+      const team = await loadTeamContext(prisma);
+      const pattern = await resolveWeekPattern(prisma, week, req.body?.patternCode);
+      let draft;
+      try {
+        draft = await generateSessionDraft({
+          ...team,
+          yearMonth,
+          weekIndex,
+          date: week.date,
+          monthTheme: plan?.theme || '',
+          theme: week.mentoringTheme || week.servingTheme || week.theme || st.chapterNo || '',
+          fundamentalFirman: st.fundamentalFirman,
+          kitabFokus: st.kitabFokus,
+          pattern,
+          pathsOutline,
+          sermonSummary: st.sermon?.summary || '',
+          fieldKeys,
+        });
+      } catch (e) {
+        return res.status(502).json({ error: `AI gagal menyusun draft sesi: ${e.message}` });
+      }
+      res.json({ pattern: { code: pattern.code, name: pattern.name }, draft });
     })
   );
 

@@ -66,10 +66,13 @@ function previewList(ids) {
   }));
 }
 
-async function jpegFromBody(body, { square = false, maxWidth = 1600 } = {}) {
-  const decoded = decodeImageUpload(body || {});
+async function jpegFromBody(body, { square = false, maxWidth = 1600, maxBytes } = {}) {
+  const decoded = decodeImageUpload(body || {}, { maxBytes });
   return toJpegBuffer(decoded.buffer, { square, maxWidth });
 }
+
+/** Batas mentah foto arsip event (samakan dengan upload jemaat) — hasil dikompres ~900KB. */
+const EVENT_PHOTO_RAW_MAX_BYTES = 15 * 1024 * 1024;
 
 /** SELESAI otomatis = sudah berfoto (foto pertama otomatis jadi cover). */
 function hasAlbumPhotos(row) {
@@ -1358,10 +1361,10 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
 
   app.post(
     '/api/events/:id/archive',
-    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
     wrap(async (req, res) => {
       if (!(await canAccessDivision(req.authUser, 'MARTURIA'))) {
-        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia.' });
+        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia event ini (atau Komisi). Minta panitia menambahkanmu ke divisi Marturia.' });
       }
       const prisma = getPrisma();
       const ev = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
@@ -1395,10 +1398,10 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
   // Upload foto langsung ke folder arsip event (pola Album Kelompok) + catat EventGallery.
   app.post(
     '/api/events/:id/gallery/photos',
-    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
+    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'),
     wrap(async (req, res) => {
       if (!(await canAccessDivision(req.authUser, 'MARTURIA'))) {
-        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia.' });
+        return res.status(403).json({ error: 'Akses upload arsip/galeri hanya untuk divisi Marturia event ini (atau Komisi). Minta panitia menambahkanmu ke divisi Marturia.' });
       }
       if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
       const prisma = getPrisma();
@@ -1424,13 +1427,28 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       let file = null;
       let drive = null;
       try {
-        const jpeg = await jpegFromBody(req.body);
+        let jpeg;
+        try {
+          jpeg = await jpegFromBody(req.body, { maxBytes: EVENT_PHOTO_RAW_MAX_BYTES });
+        } catch (e) {
+          const msg = String(e?.message || '');
+          if (/Format foto|Ukuran foto|Data foto/i.test(msg)) {
+            const err = new Error(msg);
+            err.status = 400;
+            throw err;
+          }
+          console.error('[gallery-photos] kompres gagal:', e?.message || e);
+          const err = new Error(`Foto ${req.body?.filename || ''} tidak terbaca (termasuk HEIC lama). Simpan ulang sebagai JPG lalu coba lagi.`.trim());
+          err.status = 422;
+          throw err;
+        }
         drive = await requireUserDrive();
         file = await uploadJpegToFolder(drive, archiveFolderId, jpeg, {
           filename: `${iso}-${Date.now()}-${req.authUser.id.slice(0, 6)}.jpg`,
           publicReader: true,
         });
       } catch (e) {
+        if (e?.status === 400 || e?.status === 422) throw e;
         if (!isDriveAuthError(e)) throw e;
         const err = new Error(driveAuthErrorMessage());
         err.status = 503;

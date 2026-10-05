@@ -74,3 +74,31 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - `DEBAT`: `rounds` (5 ronde × 20', template 11 slide, karantina HP) + timer per ronde.
 - `BEDAH_FILM`: `screening` (pemutaran + pleno).
 - `THREE_SEQUENCES`: `teams` + mission room + live report.
+
+## 8. Katalog template di Studio (5 Okt 2026)
+
+- Tab **Pola Ibadah** di `DidaskaliaStudioPanel` → `WorshipPatternCatalog`: daftar 6 pola (kartu + badge `pekan ini` + chip modul + badge `template lengkap/parcial`),
+  klik kartu → rundown menit-per-menit (dari `phases`, termasuk `notes`) + draft template 7 bagian (dari `playbook`).
+- Template baku tiap playbook: 1. Identitas & Tujuan Teologis — 2. Pra-acara — 3. Rundown — 4. Naskah siap baca
+  — 5. Modul web & konfigurasi sesi — 6. Peran & personil — 7. Adaptasi tema & firman.
+  Slot adaptasi mingguan: `{{tema}}`, `{{firman_ref}}`, `{{firman_text}}`, `{{kitab_fokus}}`.
+- Tombol per pola: **Salin naskah** (copy playbook) + **Pakai pekan ini** (simpan `patternCode`, AI generate berikutnya mengikutinya via `patternBlock`).
+  Dropdown pola di tab Inti punya tautan `Lihat detail pola →` ke tab katalog.
+- Helper: `src/lib/worship-patterns.ts` (`patternTotalMinutes`, `patternTemplateCheck`, `patternDurationDelta`, `moduleLabel`).
+- Seed: `server/_seed-worship-patterns.cjs` (6 pola, `phases[].notes`, playbook 7 bagian). Terapkan: `npm run db:seed:worship[:staging|:prod]`.
+
+## 9. Draft Sesi Hari-H di Studio (5 Okt 2026)
+
+- Tab **Draft Sesi** di `DidaskaliaStudioPanel` → `SessionDraftTab`: cari/buat sesi milik event pekan ini
+  (`eventId` dari tanggal pekan; `POST /api/worship/sessions` bila belum ada), lalu tampilkan **form kosongan
+  per pola** (`src/lib/worship-session-draft.ts`: Post-to-Post = 3 topik × 3 Likert + 12 chip + afirmasi + timer;
+  Monolog = 3 Q FGD; Dual Monolog = 2 wajah + 2 Q; Debat = 5 mosi + Trap Reveal; Bedah Film = film + 3 Q;
+  3 Sequences = yel-yel/sandi + 2 amplop).
+- **Isi dari AI**: `POST /api/didaskalia/studio/:ym/:week/session-draft` (`generateSessionDraft` di
+  `server/lib/didaskalia-ai.mjs`) membaca tema + firman + outline 7 Path + ringkasan khotbah pekan ini;
+  Post-to-Post terstruktur penuh (topik, 9 Likert, chip, afirmasi), pola lain nilai per kunci template.
+  Hasil = usulan → review per field → **Simpan draft** (`config.draft`, tanpa migrasi skema) →
+  **Terapkan ke sesi** (`POST /api/worship/sessions/:id/apply-draft`: tulis Likert/chip/timer untuk
+  Post-to-Post, simpan `config.draft` untuk pola lain).
+- **Guard sesi terisi (server + klien):** apply ditolak (409) bila status ≠ DRAFT, sudah ada jawaban peserta,
+  atau sudah berisi soal/chip — sesi 4 Okt otomatis terkunci, ubah manual via kontrol hari-H.

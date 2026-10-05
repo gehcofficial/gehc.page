@@ -36,7 +36,15 @@ export function createApp() {
     next();
   });
 
-  app.use(express.json({ limit: '8mb' }));
+  app.use(express.json({ limit: '20mb' }));
+  // Body terlalu besar → JSON 413 (bukan halaman HTML Express) agar klien tampilkan pesan jelas.
+  // Batas 20MB menampung ~15MB biner + overhead base64/JSON untuk foto HP sebelum dikompres.
+  app.use((err, _req, res, next) => {
+    if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+      return res.status(413).json({ error: 'File terlalu besar (maks ~15MB sebelum dikompres). Kecilkan foto lalu coba lagi.' });
+    }
+    next(err);
+  });
   app.use(async (_req, _res, next) => {
     try {
       await ensurePersonNameColumnsOnce(applyDatabaseUrl());

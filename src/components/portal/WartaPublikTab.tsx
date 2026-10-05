@@ -293,6 +293,23 @@ export default function WartaPublikTab({ division }: { division: string }) {
                       {wartaPreview(w.contentJson)}
                     </p>
                   )}
+                  {Array.isArray(w.contentJson?.dokumentasi) && w.contentJson.dokumentasi.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {w.contentJson.dokumentasi.slice(0, 4).map((url: string, i: number) => (
+                        <img
+                          key={`${url}-${i}`}
+                          src={url}
+                          alt=""
+                          loading="lazy"
+                          className="w-10 h-10 rounded-lg object-cover border border-[#D9D7D0]/60"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ))}
+                      <span className="text-[10px] font-bold text-[#8C8880]">
+                        {w.contentJson.dokumentasi.length} foto
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {w.pdfUrl && (
@@ -465,6 +482,29 @@ export default function WartaPublikTab({ division }: { division: string }) {
                   />
                 </div>
               ))}
+              {Array.isArray(editingWarta.contentJson?.dokumentasi) && editingWarta.contentJson.dokumentasi.length > 0 && (
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1 block">
+                    Dokumentasi ({editingWarta.contentJson.dokumentasi.length} foto dari galeri event)
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {editingWarta.contentJson.dokumentasi.map((url: string, i: number) => (
+                      <a key={`${url}-${i}`} href={url} target="_blank" rel="noopener noreferrer" title={`Foto ${i + 1}`}>
+                        <img
+                          src={url}
+                          alt={`Dokumentasi ${i + 1}`}
+                          loading="lazy"
+                          className="w-full aspect-square object-cover rounded-xl border border-[#D9D7D0]/60"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </a>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[#8C8880] mt-1">
+                    Foto pertama dipakai sebagai cover (PNG) saat warta diterbitkan.
+                  </p>
+                </div>
+              )}
               <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60">
                 <p className="text-[10px] uppercase tracking-wider text-[#8C8880] mb-1">Pratinjau kartu landing</p>
                 <p className="text-xs text-[#1B1B1B] leading-relaxed whitespace-pre-wrap">
