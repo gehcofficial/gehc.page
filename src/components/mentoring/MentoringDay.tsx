@@ -24,6 +24,7 @@ import {
 import { buildMentoringRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import SessionTimer from './SessionTimer';
 import SegmentStepper from './SegmentStepper';
+import { PatternDay } from './PatternDay';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const TEXTAREA =
@@ -232,6 +233,17 @@ const MentoringDay: React.FC = () => {
     );
   }
   if (state.status === 'auth') return null;
+  // Pola non-post-to-post memakai alur generik (fondasi session-engine).
+  const patternCode = String(data?.session.pattern?.code || '').toUpperCase();
+  if (state.status === 'ok' && data && patternCode && patternCode !== 'POST_TO_POST') {
+    return (
+      <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] pb-24">
+        <div className="max-w-[900px] mx-auto px-4 py-4">
+          <PatternDay slug={slug} code={patternCode} />
+        </div>
+      </div>
+    );
+  }
   if (state.status === 'error' || !data) {
     return (
       <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-6">

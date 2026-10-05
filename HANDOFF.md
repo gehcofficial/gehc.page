@@ -1,5 +1,25 @@
 # GEHC Portal — Handoff
 
+## Current — Ronde Debat + penanda film + papan tim: PatternDay generik (5 Okt 2026)
+
+**Lanjutan fase 2:** `SEGMENT_WIDGETS` di `session-engine.ts` (guide/rounds/screening/teams/testimony/notes/download per segmen) → `server/lib/session-stage.mjs` (validasi murni rounds/screening/teams) → `PUT .../sessions/:id/stage` (tulis live, admin Didaskalia) + `rounds/screening/teams` di payload peserta & layar → `PatternDay.tsx` (baru, generik; `FgdDay.tsx` dihapus) + `MentoringDay` beralih untuk semua non-post-to-post → layar: mosi + fase + skor (Debat), countdown film (Bedah Film), papan tim (3 Sequences); `StagePanels.tsx` (baru: Debat/Screening/Teams) di `MentoringControl` per pola → test `session-engine` (+7: widget + validasi stage).
+
+**Verifikasi:** `lint` bersih ✓ **731 test** hijau (+7) ✓ `build` OK ✓
+
+**Next:** commit + push (staging & main, menunggu perintah) → seed worship staging (modules baru) → uji E2E ringan per pola di staging.
+
+## Current — Engine sesi generik + testimony + FGD tuntas + doc hari-H 180-max (5 Okt 2026)
+
+**Kebutuhan:** cara kerja teknis terstruktur per pola (setara post-to-post: likert, catatan, arahan pos); catatan + komitmen + unduhan di semua pola; undian kesaksian otomatis 4 orang (2 Mentee + 1 Mentor + 1 Co-mentor, spin wheel dari yang hadir); dokumen hari-H satu file (180 max, merger default, trek paralel, terima kasih tuan rumah saja).
+
+**Ubah (fondasi + FGD):** `src/lib/session-engine.ts` (baru: registry segmen 5 pola + gerbang + slot catatan + label modul) → `server/lib/testimony.mjs` (baru: komposisi + tanpa-ulang, murni) → `server/routes/worship.mjs` (`normalizeConfig` loloskan `testimony`; `allowedNoteCodes` = topik + KESIMPULAN/KOMITMEN + kunci draft; `fgdGuide` dari draft; `guide` + `testimony` di payload peserta & live; endpoint `testimony` pool/draw/reset + guard status) → `SessionNotes.tsx` (baru: autosave generik) → `mentoringPdf.ts` (`buildSessionRecapPdf` generik; builder lama utuh) → `FgdDay.tsx` (baru: panduan + catatan + komitmen + PDF) + switch pola di `MentoringDay` → `TestimonyWheel.tsx` (baru: roda di layar) + view FGD di `MentoringScreen` → `TestimonyPanel.tsx` (baru) di `MentoringControl` → seed `modules` (fgd/testimony/rounds/screening) + label → `docs/product/pola-ibadah-hari-H.md` (baru: 180-max, elastis, gabung, paralel, spin, tabel 6 pola) + `worship-patterns.md` §7 + indeks `docs/README.md` → test `session-engine.test.ts` (+12).
+
+**Belum (menyusul per pola):** UI ronde/juri Debat, penanda putar Bedah Film, papan tim 3 Sequences (registry + rundown sudah jalan).
+
+**Verifikasi:** `lint` bersih ✓ **724 test** hijau (+14) ✓ `build` OK ✓
+
+**Next:** commit + push (staging & main) → seed worship staging (modules baru) → uji FGD + undian di staging.
+
 ## Current — Fix global "Belum ada event" per-akun (5 Okt 2026)
 
 **Gejala:** beberapa HP (iPhone & Samsung) tidak melihat info event (QRIS, post-to-post, materi Didaskalia, absensi); HP model sama bisa tampil di user lain; akun yang dipakai sama dengan saat daftar.

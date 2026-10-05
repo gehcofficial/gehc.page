@@ -54,6 +54,8 @@ describe('worship-patterns: helper katalog', () => {
     expect(moduleLabel('rounds')).toBe('Ronde');
     expect(moduleLabel('screening')).toBe('Pemutaran');
     expect(moduleLabel('teams')).toBe('Tim');
+    expect(moduleLabel('fgd')).toBe('Panduan FGD');
+    expect(moduleLabel('testimony')).toBe('Undian kesaksian');
     expect(moduleLabel('custom')).toBe('custom');
   });
 });

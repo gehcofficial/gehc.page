@@ -78,6 +78,8 @@ export const MODULE_LABELS: Record<string, string> = {
   rounds: 'Ronde',
   screening: 'Pemutaran',
   teams: 'Tim',
+  fgd: 'Panduan FGD',
+  testimony: 'Undian kesaksian',
 };
 
 export function moduleLabel(code: string): string {

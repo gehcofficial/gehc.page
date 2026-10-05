@@ -7,6 +7,7 @@ import {
   type MentoringLivePayload,
 } from '../../lib/mentoring';
 import SessionTimer from './SessionTimer';
+import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 
 const MentoringScreen: React.FC = () => {
@@ -118,6 +119,9 @@ const MentoringScreen: React.FC = () => {
   const { session, timer, progress, rooms, wordcloud } = data;
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.submitted / progress.total) * 100)) : 0;
   const showWordCloud = session.status === 'WRAPUP' || wordcloud.length > 0;
+  const patternCode = String(session.pattern?.code || '').toUpperCase();
+  const testimony = data.testimony || [];
+  const guide = data.guide || [];
 
   return (
     <div className="min-h-screen bg-[#111] text-white p-8 sm:p-12 flex flex-col gap-8">
@@ -150,6 +154,21 @@ const MentoringScreen: React.FC = () => {
             </div>
           </section>
 
+          {testimony.length > 0 && <TestimonyWheel picks={testimony} />}
+
+          {patternCode === 'MONOLOG' ? (
+            <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Panduan FGD</p>
+              <ol className="space-y-2">
+                {guide.filter(Boolean).map((g, i) => (
+                  <li key={i} className="text-lg font-bold">
+                    <span className="text-brand mr-2">Q{i + 1}.</span>
+                    {g}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : rooms.length > 0 ? (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Alokasi pos</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -169,6 +188,63 @@ const MentoringScreen: React.FC = () => {
               ))}
             </div>
           </section>
+          ) : null}
+
+          {(() => {
+            const rounds = data.rounds;
+            const cur = rounds?.rounds?.[rounds?.current || 0];
+            if (patternCode === 'DEBAT' && cur) {
+              return (
+                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
+                    Ronde {(rounds?.current || 0) + 1}/{rounds?.rounds?.length} · {rounds?.phase}
+                  </p>
+                  <p className="font-display text-2xl font-black">{cur.mosi}</p>
+                  <p className="text-sm text-white/60 mt-2">
+                    PRO: {cur.pro || '-'} · KONTRA: {cur.kontra || '-'}
+                  </p>
+                  <p className="font-display text-4xl font-black mt-3 tabular-nums">
+                    {cur.proScore} <span className="text-white/40 text-2xl">:</span> {cur.kontraScore}
+                  </p>
+                </section>
+              );
+            }
+            const screening = data.screening;
+            if (patternCode === 'BEDAH_FILM' && screening) {
+              const remain = screening.startedAt
+                ? Math.max(0, new Date(screening.startedAt).getTime() + screening.durationMin * 60000 - Date.now())
+                : null;
+              const mm = remain === null ? '--' : String(Math.floor(remain / 60000)).padStart(2, '0');
+              const ss = remain === null ? '--' : String(Math.floor((remain % 60000) / 1000)).padStart(2, '0');
+              return (
+                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Sedang diputar</p>
+                    <p className="font-display text-2xl font-black mt-1">{screening.title}</p>
+                  </div>
+                  <p className="font-display text-5xl font-black tabular-nums">{mm}:{ss}</p>
+                </section>
+              );
+            }
+            const teams = data.teams?.teams || [];
+            if (patternCode === 'THREE_SEQUENCES' && teams.length > 0) {
+              return (
+                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Papan tim misi</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {teams.map((t, i) => (
+                      <div key={i} className="rounded-2xl bg-white/5 p-5">
+                        <p className="font-display text-xl font-black">{t.name} {t.done && '✓'}</p>
+                        {t.task && <p className="text-xs text-white/50 mt-1">{t.task}</p>}
+                        <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            }
+            return null;
+          })()}
 
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
             <div className="flex items-center justify-between text-xs text-white/50 mb-3">

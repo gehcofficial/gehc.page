@@ -10,6 +10,7 @@
 - [Website visual Drive map](product/website-visuals.md)
 - [Beyonders revision v2](product/revision-v2-beyonders.md)
 - [Roadmap](product/roadmap.md)
+- [Pola ibadah hari-H — aturan operasional 180-max](product/pola-ibadah-hari-H.md)
 
 ## Design
 

@@ -11,7 +11,10 @@
   (skenario markdown).
 - **Sesi hari-H** (`WorshipSession`) = pola yang dipakai pada satu event/tanggal. Sesi mengaktifkan **modul web**
   yang dibutuhkan pola.
-- **Modul** = registry: `likert`, `rooms`, `timer`, `notes`, `chips`, `wordcloud` (+ rencana: `rounds`, `screening`, `teams`).
+- **Modul** = registry: `likert`, `rooms`, `timer`, `notes`, `chips`, `wordcloud`, `rounds`, `screening`, `teams`, `fgd`, `testimony`.
+  Registry segmen + gerbang per pola: `src/lib/session-engine.ts` (post-to-post memakai alur lama,
+  kompatibel mundur). Aturan operasional hari-H (180-max, gabungan segmen, trek paralel,
+  catatan & spin kesaksian): [`pola-ibadah-hari-H.md`](pola-ibadah-hari-H.md).
 - **Routing hari-H** hanya untuk Pemuda/Beyonders: `#/mentoring/<slug>` (peserta, login), `#/mentoring/<slug>/layar`
   (proyektor, **kode sesi**), `#/mentoring/<slug>/kontrol` (control room, Didaskalia).
 
@@ -69,11 +72,18 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - Distribusi dominasi topik: PEKERJAAN 40%, HUBUNGAN 35%, KELUARGA 25% → memastikan 3 lantai terisi.
 - Guard: menolak host produksi kecuali `--force`.
 
-## 7. Modul berikutnya (belum)
+## 7. Status modul per pola (5 Okt 2026)
 
-- `DEBAT`: `rounds` (5 ronde × 20', template 11 slide, karantina HP) + timer per ronde.
-- `BEDAH_FILM`: `screening` (pemutaran + pleno).
-- `THREE_SEQUENCES`: `teams` + mission room + live report.
+- `POST_TO_POST`: `likert/rooms/timer/notes/chips/wordcloud` — penuh.
+- `MONOLOG`: `timer/notes/fgd` — penuh (alur FGD + panduan + PDF di `#/mentoring/<slug>`).
+- `DUAL_MONOLOG`: `timer/notes/testimony` — catatan + undian jalan; Satu Kata live oleh mentor.
+- `DEBAT`: `rounds/timer/teams` — penuh (panel ronde/fase/skor di kontrol, mosi + skor di peserta & layar).
+- `BEDAH_FILM`: `screening/timer/notes/testimony` — penuh (panel mulai/henti, countdown di peserta & layar).
+- `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
+- Status panggung live (`PUT .../sessions/:id/stage`, tersimpan di `config.rounds/screening/teams`); alur peserta
+  generik `PatternDay` (segmen + widget dari `session-engine.ts`) untuk semua pola non-post-to-post.
+- `testimony` (semua pola yang memakai): pool check-in → undi 4 (2 Mentee + 1 Mentor + 1 Co-mentor),
+  roda di `/layar`, kontrol di `/kontrol`, hasil di `config.testimony.picks`.
 
 ## 8. Katalog template di Studio (5 Okt 2026)
 

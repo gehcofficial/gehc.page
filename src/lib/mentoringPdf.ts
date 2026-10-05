@@ -185,6 +185,102 @@ export function buildMentoringRecapPdf(input: MentoringRecapInput): { filename: 
   return { filename: `mentoring-${slugSafe}-${nameSafe}.pdf`, blob: doc.output('blob') };
 }
 
+export type SessionRecapSection = { heading: string; lines: { label?: string; body: string }[] };
+
+export type SessionRecapInput = {
+  kicker: string;
+  title: string;
+  meta: string;
+  participantName: string;
+  sections: SessionRecapSection[];
+  generatedAt?: Date;
+};
+
+/**
+ * Rekap pribadi generik semua pola (FGD, deep sharing, film, misi, ...).
+ * buildMentoringRecapPdf tetap untuk post-to-post (kompatibel mundur).
+ */
+export function buildSessionRecapPdf(input: SessionRecapInput): { filename: string; blob: Blob } {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = 0;
+  const setFill = (rgb: readonly [number, number, number]) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+  const setText = (rgb: readonly [number, number, number]) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const setDraw = (rgb: readonly [number, number, number]) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  const page = () => {
+    setFill(C.bg);
+    doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+  };
+  const ensure = (needed: number) => {
+    if (y + needed < PAGE_H - 16) return;
+    doc.addPage();
+    page();
+    y = M;
+  };
+  const paragraph = (text: string, size = 9.5, color: readonly [number, number, number] = C.ink) => {
+    setText(color);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(size);
+    const lines = doc.splitTextToSize(text, CONTENT_W) as string[];
+    ensure(lines.length * 4.6 + 2);
+    doc.text(lines, M, y);
+    y += lines.length * 4.6;
+  };
+  const heading = (text: string, size = 11) => {
+    ensure(12);
+    y += 3;
+    setText(C.accent);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size);
+    doc.text(text, M, y);
+    y += 6;
+  };
+
+  page();
+  y = M + 4;
+  setText(C.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(input.kicker, M, y);
+  y += 7;
+  setText(C.ink);
+  doc.setFontSize(16);
+  const title = doc.splitTextToSize(input.title, CONTENT_W) as string[];
+  doc.text(title, M, y);
+  y += title.length * 7 + 1;
+  setText(C.muted);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text([input.participantName, input.meta].filter(Boolean).join(' · '), M, y);
+  y += 8;
+  setDraw(C.line);
+  doc.line(M, y, PAGE_W - M, y);
+  y += 2;
+
+  for (const sec of input.sections) {
+    const filled = sec.lines.filter((l) => String(l.body || '').trim());
+    if (!filled.length) continue;
+    heading(sec.heading);
+    for (const line of filled) {
+      if (line.label) paragraph(line.label, 9.5, C.accent);
+      paragraph(String(line.body), 9.5);
+      y += 1;
+    }
+  }
+
+  const stamp = (input.generatedAt || new Date()).toLocaleString('id-ID');
+  doc.setFontSize(8);
+  setText(C.muted);
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p += 1) {
+    doc.setPage(p);
+    doc.text(`Dibuat ${stamp} · GEHC Youth`, M, PAGE_H - 10);
+    doc.text(`${p}/${pages}`, PAGE_W - M, PAGE_H - 10, { align: 'right' });
+  }
+  const slugSafe = input.title.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase().slice(0, 40);
+  const nameSafe = input.participantName.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+  return { filename: `rekap-${slugSafe}-${nameSafe}.pdf`, blob: doc.output('blob') };
+}
+
 export function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

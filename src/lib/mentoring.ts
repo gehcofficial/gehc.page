@@ -53,6 +53,30 @@ export type MentoringMyResult = {
   affirmations: string[];
 };
 
+export type TestimonyPick = {
+  userId: string;
+  name: string;
+  role: string;
+  slot: number;
+  at?: string;
+};
+
+export type SessionRound = {
+  mosi: string;
+  pro: string;
+  kontra: string;
+  proScore: number;
+  kontraScore: number;
+};
+
+export type SessionRounds = { rounds: SessionRound[]; current: number; phase: string } | null;
+
+export type SessionScreening = { title: string; durationMin: number; startedAt: string | null } | null;
+
+export type SessionTeam = { name: string; task: string; members: string[]; done: boolean };
+
+export type SessionTeams = { teams: SessionTeam[] } | null;
+
 export type MentoringSessionPayload = {
   session: {
     id: string;
@@ -74,6 +98,12 @@ export type MentoringSessionPayload = {
   chips: { list: { code: string; label: string; topicCode?: string | null }[]; mine: string[]; open: boolean };
   me: { id: string; name: string };
   notes: Record<string, string>;
+  /** Panduan FGD / pertanyaan pola (dari draft sesi). */
+  guide: string[];
+  testimony: TestimonyPick[];
+  rounds?: SessionRounds;
+  screening?: SessionScreening;
+  teams?: SessionTeams;
   myResult: MentoringMyResult | null;
   rooms: MentoringRoom[];
   progress: { submitted: number; total: number };
@@ -92,6 +122,11 @@ export type MentoringLivePayload = {
   progress: { submitted: number; total: number };
   rooms: MentoringRoom[];
   wordcloud: { code: string; label: string; count: number }[];
+  guide: string[];
+  testimony: TestimonyPick[];
+  rounds?: SessionRounds;
+  screening?: SessionScreening;
+  teams?: SessionTeams;
   wrapUpAt: string | null;
 };
 

@@ -17,6 +17,8 @@ import {
   type MentoringLivePayload,
   type MentoringStatus,
 } from '../../lib/mentoring';
+import { TestimonyPanel } from './TestimonyPanel';
+import { DebatPanel, ScreeningPanel, TeamsPanel } from './StagePanels';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -925,6 +927,17 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               </button>
             </div>
           </div>
+
+          <TestimonyPanel sessionId={detail.session.id} />
+          {String(detail.session.pattern?.code || '').toUpperCase() === 'DEBAT' && (
+            <DebatPanel sessionId={detail.session.id} />
+          )}
+          {String(detail.session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' && (
+            <ScreeningPanel sessionId={detail.session.id} />
+          )}
+          {String(detail.session.pattern?.code || '').toUpperCase() === 'THREE_SEQUENCES' && (
+            <TeamsPanel sessionId={detail.session.id} />
+          )}
 
           {detail.session.pattern?.phases && detail.session.pattern.phases.length > 0 && (
             <div className={CARD}>

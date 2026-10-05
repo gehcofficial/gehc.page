@@ -294,7 +294,7 @@ const PATTERNS = [
     summary:
       'Pola default: khotbah monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).',
     defaultDurationMin: 90,
-    modules: ['timer', 'notes'],
+    modules: ['timer', 'notes', 'fgd'],
     phases: [
       { no: 1, title: 'Praise & Worship', minutes: 15, owner: 'Liturgia', notes: 'Buka dengan 2-3 lagu yang mengarah ke tema pekan.' },
       { no: 2, title: 'Monolog khotbah', minutes: 30, owner: 'Main Speaker (Didaskalia)', notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.' },
@@ -327,7 +327,7 @@ const PATTERNS = [
     name: 'Dual Monolog',
     summary: 'Drama monolog-dialogis 2 speaker (anak bungsu vs anak sulung) + bedah lagu + deep sharing.',
     defaultDurationMin: 120,
-    modules: ['timer', 'notes'],
+    modules: ['timer', 'notes', 'testimony'],
     phases: [
       { no: 1, title: 'Praise & Bedah Lagu', minutes: 25, owner: 'Main Speaker', notes: 'Nyanyi 1 bait, bedah makna teologis, lanjut bait berikutnya.' },
       { no: 2, title: 'Dual Monolog + pembacaan berbalasan', minutes: 25, owner: 'Main Speaker', notes: 'Outer Exile 5 mnt + Inner Exile 5 mnt + konvergensi firman 15 mnt.' },
@@ -357,7 +357,7 @@ const PATTERNS = [
     name: 'Bedah Film',
     summary: 'Pemutaran film + pleno analisa + deep sharing identitas & topeng.',
     defaultDurationMin: 145,
-    modules: ['screening', 'timer', 'notes'],
+    modules: ['screening', 'timer', 'notes', 'testimony'],
     phases: [
       { no: 1, title: 'Opening + praise + pengantar', minutes: 15, owner: 'Main Speaker', notes: 'Sinopsis tanpa spoiler + jembatan ke tema pekan.' },
       { no: 2, title: 'Pemutaran film', minutes: 91, owner: 'Multimedia', notes: 'Lampu redup, HP silent, tanpa komentar selama film.' },

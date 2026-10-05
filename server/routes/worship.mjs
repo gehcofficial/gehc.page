@@ -11,6 +11,8 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
+import { classifyPoolRole, composePicks } from '../lib/testimony.mjs';
+import { cleanRounds, cleanScreening, cleanTeams } from '../lib/session-stage.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const YOUTH_TENANT = 'tenant-youth';
@@ -71,7 +73,48 @@ export function normalizeConfig(raw) {
     expectedCount: intOrNull(c.expectedCount) || null,
     // Draft sesi hari-H per pola (diisi tab Draft Sesi Studio; tanpa migrasi skema).
     draft: c.draft && typeof c.draft === 'object' && !Array.isArray(c.draft) ? c.draft : null,
+    // Hasil undian kesaksian (modul testimony; ditulis endpoint testimony).
+    testimony: c.testimony && typeof c.testimony === 'object' && !Array.isArray(c.testimony) ? c.testimony : null,
+    // Status panggung live (modul rounds / screening / teams; ditulis endpoint stage).
+    rounds: c.rounds && typeof c.rounds === 'object' && !Array.isArray(c.rounds) ? c.rounds : null,
+    screening: c.screening && typeof c.screening === 'object' && !Array.isArray(c.screening) ? c.screening : null,
+    teams: c.teams && typeof c.teams === 'object' && !Array.isArray(c.teams) ? c.teams : null,
   };
+}
+
+/**
+ * Kode slot catatan yang boleh diisi peserta: topik sesi + KESIMPULAN +
+ * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
+ */
+export function allowedNoteCodes(config) {
+  const set = new Set([...(config.topics || []).map((t) => t.code), 'KESIMPULAN', 'KOMITMEN']);
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  for (const fields of Object.values(draft)) {
+    if (!fields || typeof fields !== 'object') continue;
+    for (const k of Object.keys(fields)) {
+      const code = String(k).toUpperCase().replace(/[^A-Z0-9-]/g, '-').slice(0, 40);
+      if (code) set.add(code);
+    }
+  }
+  return set;
+}
+
+/** Pertanyaan panduan FGD dari draft sesi (fallback generik bila kosong). */
+export function fgdGuide(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const fgd = draft.fgd && typeof draft.fgd === 'object' ? draft.fgd : {};
+  const pick = (obj, keys) => {
+    for (const k of keys) {
+      const v = String(obj[k] || '').trim();
+      if (v) return v;
+    }
+    return '';
+  };
+  return [
+    pick(fgd, ['fgd-observe', 'observe', 'q1']) || 'Apa kata teks yang kita baca bersama?',
+    pick(fgd, ['fgd-interpret', 'interpret', 'q2']) || 'Apa artinya bagi tema pekan ini?',
+    pick(fgd, ['fgd-apply', 'apply', 'q3']) || 'Apa satu langkah nyatamu minggu ini?',
+  ];
 }
 
 function floorEntry(config, floor) {
@@ -309,6 +352,11 @@ export function registerWorshipRoutes(app, { wrap }) {
         },
         me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
         notes,
+        guide: fgdGuide(config),
+        testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
+        rounds: config.rounds,
+        screening: config.screening,
+        teams: config.teams,
         myResult,
         rooms: agg.rooms,
         progress: { submitted: agg.submitted, total: config.expectedCount || (await youthUserCount(prisma)) },
@@ -442,7 +490,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
 
       const config = normalizeConfig(live.config);
-      const allowed = new Set([...config.topics.map((t) => t.code), 'KESIMPULAN']);
+      const allowed = allowedNoteCodes(config);
       const raw = Array.isArray(req.body?.notes) ? req.body.notes : [];
       const rows = [];
       for (const entry of raw) {
@@ -507,6 +555,11 @@ export function registerWorshipRoutes(app, { wrap }) {
         progress: { submitted: agg.submitted, total: expected },
         rooms: agg.rooms,
         wordcloud: agg.wordcloud,
+        guide: fgdGuide(agg.config),
+        testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
+        rounds: agg.config.rounds,
+        screening: agg.config.screening,
+        teams: agg.config.teams,
         wrapUpAt: liveState.wrapUpAt ? new Date(liveState.wrapUpAt).toISOString() : null,
       });
     }),
@@ -1096,6 +1149,162 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
       await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
       res.json({ ok: true, saved: true });
+    }),
+  );
+
+  // ---------------- Undian kesaksian (modul testimony) ----------------
+  // Pool = yang hadir (check-in event; fallback pengisi Likert). Hasil
+  // tersimpan di config.testimony.picks — tanpa migrasi skema.
+
+  async function testimonyPool(prisma, session) {
+    let userIds = [];
+    if (session.eventId) {
+      const rows = await prisma.eventCheckIn
+        .findMany({
+          where: { eventId: session.eventId, userId: { not: null }, result: { not: 'VOIDED' } },
+          select: { userId: true },
+        })
+        .catch(() => []);
+      userIds = [...new Set(rows.map((r) => r.userId).filter(Boolean))];
+    }
+    if (!userIds.length) {
+      const resp = await prisma.worshipLikertResponse
+        .findMany({ where: { sessionId: session.id }, select: { userId: true } })
+        .catch(() => []);
+      userIds = [...new Set(resp.map((r) => r.userId).filter(Boolean))];
+    }
+    if (!userIds.length) return [];
+    const users = await prisma.user
+      .findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, roles: { select: { role: true } } },
+      })
+      .catch(() => []);
+    return users.map((u) => ({
+      userId: u.id,
+      name: u.name || 'Peserta',
+      roles: (u.roles || []).map((r) => r.role),
+    }));
+  }
+
+  function readPicks(session) {
+    try {
+      const cfg = normalizeConfig(session.config);
+      return Array.isArray(cfg.testimony?.picks) ? cfg.testimony.picks : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function writePicks(prisma, session, picks) {
+    const cfg = normalizeConfig(session.config);
+    cfg.testimony = { picks, drawnAt: new Date().toISOString() };
+    await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
+    return picks;
+  }
+
+  app.get(
+    '/api/worship/sessions/:id/testimony',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const session = await findSession(prisma, req.params.id);
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const pool = await testimonyPool(prisma, session);
+      const byRole = {};
+      for (const p of pool) {
+        const r = classifyPoolRole(p.roles);
+        byRole[r] = (byRole[r] || 0) + 1;
+      }
+      res.json({ pool: { total: pool.length, byRole }, picks: readPicks(session) });
+    }),
+  );
+
+  app.post(
+    '/api/worship/sessions/:id/testimony/draw',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(String(session.status || '').toUpperCase())) {
+        return res.status(409).json({ error: 'Undian hanya bisa saat sesi berlangsung.' });
+      }
+      const pool = await testimonyPool(prisma, session);
+      if (!pool.length) {
+        return res.status(400).json({ error: 'Belum ada yang hadir (check-in/Likert masih kosong).' });
+      }
+      const picks = readPicks(session);
+      const fresh = composePicks(pool, picks.map((p) => p.userId));
+      if (!fresh.length) return res.status(409).json({ error: 'Semua yang hadir sudah terpilih.' });
+      const at = new Date().toISOString();
+      const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
+      await writePicks(prisma, session, merged);
+      res.json({ ok: true, fresh, picks: merged });
+    }),
+  );
+
+  app.post(
+    '/api/worship/sessions/:id/testimony/reset',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      await writePicks(prisma, session, []);
+      res.json({ ok: true, picks: [] });
+    }),
+  );
+
+  // Status panggung live (modul rounds / screening / teams).
+  // Ditulis kontrol saat sesi berjalan (tanpa guard isi — bukan jawaban peserta).
+  app.put(
+    '/api/worship/sessions/:id/stage',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      const b = req.body || {};
+      const cfg = normalizeConfig(session.config);
+      const out = {};
+      if (b.rounds !== undefined) {
+        const cleaned = cleanRounds(b.rounds);
+        if (!cleaned) return res.status(400).json({ error: 'State ronde tidak valid.' });
+        cfg.rounds = cleaned;
+        out.rounds = cleaned;
+      }
+      if (b.screening !== undefined) {
+        if (b.screening === null) {
+          cfg.screening = null;
+          out.screening = null;
+        } else {
+          const cleaned = cleanScreening(b.screening);
+          if (!cleaned) return res.status(400).json({ error: 'Judul film wajib diisi.' });
+          cfg.screening = cleaned;
+          out.screening = cleaned;
+        }
+      }
+      if (b.teams !== undefined) {
+        const cleaned = cleanTeams(b.teams);
+        if (!cleaned) return res.status(400).json({ error: 'Minimal satu tim bernama.' });
+        cfg.teams = cleaned;
+        out.teams = cleaned;
+      }
+      if (!Object.keys(out).length) return res.status(400).json({ error: 'Tidak ada yang disimpan.' });
+      await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
+      res.json({ ok: true, ...out });
     }),
   );
 
