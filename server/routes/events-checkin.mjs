@@ -82,7 +82,17 @@ async function markAttendee(prisma, eventId, userId, scannedById, at) {
     where: { eventId_userId: { eventId, userId } },
   });
   if (existing) {
-    if (existing.checkedInAt) return existing;
+    if (existing.checkedInAt) {
+      // Scan manual di atas baris auto-petugas → tandai agar revoke tidak menghapusnya.
+      const meta = (existing.metadata && typeof existing.metadata === 'object') ? existing.metadata : {};
+      if (meta.autoPetugas && !meta.manualScan) {
+        return prisma.eventAttendee.update({
+          where: { id: existing.id },
+          data: { metadata: { ...meta, manualScan: true } },
+        });
+      }
+      return existing;
+    }
     return prisma.eventAttendee.update({
       where: { id: existing.id },
       data: { checkedInAt: at, checkedInById: scannedById },
@@ -198,6 +208,21 @@ export function registerEventCheckInRoutes(app, { wrap }) {
         return res.json({ result: 'MISMATCH', message: 'QR tidak cocok dengan data pendaftaran.', name: attendee.user?.name || null });
       }
       if (attendee.checkedInAt) {
+        // Baris auto-petugas yang baru pertama di-scan: anggap konfirmasi fisik.
+        const meta = (attendee.metadata && typeof attendee.metadata === 'object') ? attendee.metadata : {};
+        if (meta.autoPetugas && !meta.manualScan) {
+          await prisma.eventAttendee.update({
+            where: { id: attendee.id },
+            data: { metadata: { ...meta, manualScan: true } },
+          });
+          await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'OK', scannedById });
+          return res.json({
+            result: 'OK',
+            message: 'Tercatat otomatis (petugas) — kehadiran fisik terkonfirmasi.',
+            name: attendee.user?.name || null,
+            checkedInAt: attendee.checkedInAt,
+          });
+        }
         await logScan(prisma, { eventId: resolved.id, code, userId: attendee.userId, result: 'DUPLICATE', scannedById });
         return res.json({
           result: 'DUPLICATE',
@@ -375,10 +400,17 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     const byResult = Object.fromEntries(grouped.map((g) => [g.result, g._count._all]));
 
     const counts = await countRegistration(prisma, resolved);
+    // Petugas confirmed yang hadir otomatis (metadata.autoPetugas).
+    const autoRows = resolved.isBakutau ? [] : await prisma.eventAttendee.findMany({
+      where: { eventId: resolved.id, checkedInAt: { not: null } },
+      select: { metadata: true },
+    }).catch(() => []);
+    const auto = autoRows.filter((a) => a?.metadata && typeof a.metadata === 'object' && a.metadata.autoPetugas).length;
 
     const stats = {
       registered: counts.registered,
       checkedIn: counts.checkedIn,
+      auto,
       ok: byResult.OK || 0,
       duplicate: byResult.DUPLICATE || 0,
       unknown: byResult.UNKNOWN || 0,

@@ -1,0 +1,13 @@
+# Hindari file berat masuk ke Deployment Storage (kuota 10GB mepet).
+# Tidak memengaruhi runtime /api (dist + server/** tetap di-bundle via vercel.json).
+backups/
+test-results/
+playwright-report/
+.playwright-mcp/
+push-err.log
+push.log
+server-err.log
+server.log
+*.log
+.gdrive-user-token.json
+gehc-506210-e12d7263527e.json

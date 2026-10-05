@@ -91,7 +91,7 @@ export function registerUnitLandingRoutes(app, { wrap }) {
         prisma.churchProfile.findUnique({ where: { id: CHURCH_PROFILE_ID } }).catch(() => null),
       ]);
 
-      res.setHeader('Cache-Control', 'public, max-age=30');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
       res.json({
         unit: { id: ctx.unit, tenantId: ctx.tenantId, bipra: ctx.bipra, isHub: Boolean(ctx.isHub) },
         tenant: publicTenant(tenant),
@@ -137,7 +137,7 @@ export function registerUnitLandingRoutes(app, { wrap }) {
         })
         .catch(() => []);
 
-      res.setHeader('Cache-Control', 'public, max-age=30');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
       res.json({ tenantId: tenant.id, slug: tenant.slug, members });
     }),
   );

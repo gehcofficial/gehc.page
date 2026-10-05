@@ -86,7 +86,7 @@ export function registerChurchProfileRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.json({ profile: envDefaults() });
     const row = await prisma.churchProfile.findUnique({ where: { id: CHURCH_PROFILE_ID } });
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     res.json({ profile: mergeProfile(row) });
   }));
 
@@ -135,7 +135,7 @@ export function registerChurchProfileRoutes(app, { wrap }) {
     const tenants = await prisma.tenant.findMany({
       orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
     });
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     res.json({ tenants });
   }));
 
@@ -145,7 +145,7 @@ export function registerChurchProfileRoutes(app, { wrap }) {
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
     const tenant = await prisma.tenant.findUnique({ where: { slug: String(req.params.slug) } });
     if (!tenant) return res.status(404).json({ error: 'Unit tidak ditemukan.' });
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     res.json({ tenant });
   }));
 
@@ -157,7 +157,7 @@ export function registerChurchProfileRoutes(app, { wrap }) {
     if (prisma && ctx?.tenantId) {
       tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } }).catch(() => null);
     }
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     res.json({
       tenantId: ctx?.tenantId || null,
       branding: tenant

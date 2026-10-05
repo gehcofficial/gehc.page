@@ -59,7 +59,7 @@ export function registerOrgRoutes(app, { wrap }) {
       }),
     ]);
 
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     res.json(toPublicOrgMembers(nodes, rows));
   }));
 

@@ -8626,7 +8626,8 @@ app.patch('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res)
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { canActorTransition, auditPatch, isCoordinatorUser, isSuperadminUser, SERVICE_STATUSES } = await import('./lib/penatalayan-status.mjs');
-  const existing = await prisma.serviceSchedule.findUnique({ where: { id: req.params.id }, select: { userId: true, status: true } });
+  const { syncPetugasAttendance } = await import('./lib/petugas-attendance.mjs');
+  const existing = await prisma.serviceSchedule.findUnique({ where: { id: req.params.id }, select: { userId: true, status: true, eventId: true, serviceRole: { select: { name: true } } } });
   if (!existing) return res.status(404).json({ error: 'Jadwal tidak ditemukan.' });
   const isSelf = existing.userId === req.authUser?.id;
   const isCoordinator = isCoordinatorUser(req.authUser);
@@ -8652,6 +8653,17 @@ app.patch('/api/penatalayan/schedules/:id', requireRole(), wrap(async (req, res)
   }
   if (checklistState !== undefined) data.checklistState = checklistState;
   const schedule = await prisma.serviceSchedule.update({ where: { id: req.params.id }, data, include: { serviceRole: true, user: { select: { id: true, name: true, email: true } } } });
+  // Petugas CONFIRMED → otomatis terdaftar + hadir; keluar CONFIRMED → cabut yang auto.
+  if (status !== undefined) {
+    try {
+      const att = await syncPetugasAttendance(prisma, {
+        schedule: { id: schedule.id, eventId: schedule.eventId, userId: schedule.userId, roleName: schedule.serviceRole?.name || null, status: schedule.status },
+        from: existing.status,
+        actorId: req.authUser?.id || null,
+      });
+      if (att.action !== 'none') schedule.attendanceSync = att.action;
+    } catch (e) { console.warn('[petugas-attendance]', e?.message || e); }
+  }
   res.json({ schedule });
 }));
 
@@ -8666,7 +8678,7 @@ app.post('/api/penatalayan/schedules/bulk-status', requireRole('SUPERADMIN', 'KO
   if (!idList.length) return res.status(400).json({ error: 'ids wajib diisi.' });
   if (!SERVICE_STATUSES.includes(want)) return res.status(400).json({ error: 'Status tidak valid.' });
   const isSuperadmin = isSuperadminUser(req.authUser);
-  const rows = await prisma.serviceSchedule.findMany({ where: { id: { in: idList } }, select: { id: true, status: true, userId: true } });
+  const rows = await prisma.serviceSchedule.findMany({ where: { id: { in: idList } }, select: { id: true, status: true, userId: true, eventId: true, serviceRole: { select: { name: true } } } });
   const updated = [];
   const skipped = [];
   const notifyByUser = new Map();
@@ -8677,6 +8689,14 @@ app.post('/api/penatalayan/schedules/bulk-status', requireRole('SUPERADMIN', 'KO
     if (note !== undefined) patch.statusNote = note || null;
     await prisma.serviceSchedule.update({ where: { id: r.id }, data: patch });
     updated.push(r.id);
+    try {
+      const { syncPetugasAttendance } = await import('./lib/petugas-attendance.mjs');
+      await syncPetugasAttendance(prisma, {
+        schedule: { id: r.id, eventId: r.eventId, userId: r.userId, roleName: r.serviceRole?.name || null, status: want },
+        from: r.status,
+        actorId: req.authUser?.id || null,
+      });
+    } catch (e) { console.warn('[petugas-attendance]', e?.message || e); }
     if (r.userId && r.userId !== req.authUser?.id) notifyByUser.set(r.userId, (notifyByUser.get(r.userId) || 0) + 1);
   }
   if (notifyByUser.size) {

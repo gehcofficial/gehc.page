@@ -698,16 +698,44 @@ export async function generateSermon(input) {
  * Pola lain → nilai per kunci template kosongan (generic, tetap direview per baris).
  * Keluaran = USULAN; penerapan ke sesi dijaga guard status di route.
  */
+const SessionExegesisSchema = z.object({
+  points: z.array(z.string()).max(5),
+  implications: z.array(z.string()).max(4),
+});
 const SessionPostToPostSchema = z.object({
+  exegesis: SessionExegesisSchema,
   topics: z.array(z.object({ code: z.string(), label: z.string(), pic: z.string() })).max(3),
-  items: z.array(z.object({ topicCode: z.string(), label: z.string().optional(), text: z.string(), gospelNote: z.string() })).max(12),
-  chips: z.array(z.object({ code: z.string(), label: z.string(), topicCode: z.string().nullable().optional() })).max(16),
-  affirmations: z.record(z.string(), z.array(z.string()).max(4)),
-  timerSeconds: z.number().optional(),
+  items: z.array(z.object({ topicCode: z.string(), text: z.string(), gospelNote: z.string() })).max(12),
+  chips: z.array(z.object({ code: z.string(), label: z.string(), topicCode: z.string().nullable() })).max(16),
+  affirmations: z.array(z.object({ topicCode: z.string(), lines: z.array(z.string()).max(4) })).max(6),
+  timerSeconds: z.number(),
 });
 const SessionValuesSchema = z.object({
+  exegesis: SessionExegesisSchema,
   values: z.array(z.object({ key: z.string(), value: z.string() })).max(40),
 });
+
+/** Clamp eksegesis (poin inti + implikasi) agar selalu berbentuk aman. */
+function clampExegesis(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const lines = (v, n) => (Array.isArray(v) ? v : []).map((x) => asStr(x)).filter(Boolean).slice(0, n);
+  return { points: lines(o.points, 5), implications: lines(o.implications, 4) };
+}
+
+/**
+ * Peran dua perikop studio: Fundamental Firman = jangkar tema (semua slot
+ * solusi wajib merujuk eksplisit); Kitab Fokus = bahan bacaan & pendalaman.
+ */
+function pericopeBlock(input) {
+  const ref = asStr(input?.fundamentalFirman?.ref);
+  const focus = asStr(input?.kitabFokus);
+  if (!ref && !focus) return [];
+  return [
+    'PERAN DUA PERIKOP (WAJIB DIBEDAKAN, JANGAN TERTUKAR):',
+    ref ? `- Fundamental Firman ${ref} = JANGKAR TEMA: setiap slot bernada solusi (gospelNote, afirmasi, Trap Reveal, komitmen, pancingan pleno) WAJIB merujuk eksplisit ke ayat ini (sebutkan ref-nya).` : '',
+    focus ? `- Kitab/bagian fokus ${focus} = BAHAN BACAAN & PENDALAMAN: dipakai untuk bacaan, pertanyaan observasi, sandi Kode Alkitab, studi kasus, dan adegan paralel film.` : '',
+  ].filter(Boolean);
+}
 
 export async function generateSessionDraft(input) {
   const code = String(input?.pattern?.code || input?.patternCode || 'MONOLOG').toUpperCase() || 'MONOLOG';
@@ -716,6 +744,7 @@ export async function generateSessionDraft(input) {
     '',
     'KONTEKS PEKAN (pembekalan + RHB + khotbah sudah disusun dari bahan ini):',
     buildContext(input),
+    ...pericopeBlock(input),
     ...teamContextBlock(input),
     ...patternBlock(input.pattern),
     input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
@@ -723,14 +752,24 @@ export async function generateSessionDraft(input) {
     '',
   ].filter(Boolean);
 
+  const EXEGESIS_RULES = [
+    'LANGKAH 1 — EKSEGESIS (wajib dulu): dari teks Fundamental Firman + Kitab Fokus, rumuskan 3-5 poin inti perikop + 2-3 implikasi konkret bagi Beyonders (mahasiswa/pekerja muda Cikarang).',
+    'LANGKAH 2 — SLOT POLA: kembangkan HANYA dari poin eksegesis langkah 1 (tiap slot lahir dari poin nomor berapa).',
+    'ANTI-CONTOH: contoh di skenario pola (film/judul default, tokoh bungsu-sulung, mosi/amplop bawaan) adalah ILUSTRASI — DILARANG memakai ulang kecuali justifikasi kecocokannya dengan perikop ditulis eksplisit.',
+    'KONTEKSTUAL: Likert/FGD/mosi/kasus WAJIB menyebut situasi konkret Beyonders (KRS, skripsi, magang, shift, lembur, target, kos, keuangan awal, relasi Cikarang) — tolak yang generik.',
+    'KHUSUS FILM: kunci film-alt WAJIB berisi 2 kandidat lain + alasan kecocokan tiap film dengan perikop; film-title = pilihan utama yang paling cocok.',
+  ];
+
   if (code === 'POST_TO_POST') {
     const prompt = [...head,
       'ATURAN (WAJIB):',
-      '- topics: TEPAT 3 dengan code HUBUNGAN, PEKERJAAN, KELUARGA (urutan itu); label & pic (PIC pos) boleh disesuaikan tema.',
-      '- items: TEPAT 9 (3 per topik, urut per topik); text = pernyataan Likert skala 1-5 dari pergumulan nyata mahasiswa/pekerja seputar tema (pola "Saya merasa/cenderung/sulit ..."); gospelNote = solusi 1 kalimat dari firman pekan.',
+      ...EXEGESIS_RULES,
+      '- topics: TEPAT 3 dengan code WAJIB HUBUNGAN, PEKERJAAN, KELUARGA (urutan itu, jangan diubah/diganti); label boleh disesuaikan tema; pic = NAMA orang PIC pos (bukan nama file).',
+      '- items: TEPAT 9 (3 per topik, urut per topik); text = pernyataan Likert skala 1-5 dari pergumulan nyata mahasiswa/pekerja seputar tema (pola "Saya merasa/cenderung/sulit ..."); gospelNote = solusi 1 kalimat yang merujuk EKSPLISIT ke Fundamental Firman (sebutkan ref-nya).',
       '- chips: 10-12 chip kata pelajaran format #Kata (maks 3 dipilih per peserta), sebar ke 3 topik + 1 umum.',
-      '- affirmations: TEPAT 3 kalimat peneguh per code topik, dari firman pekan.',
+      '- affirmations: TEPAT 3 kalimat peneguh per code topik, berakar pada Fundamental Firman (sebutkan ref-nya).',
       '- timerSeconds: 1200 bila tidak ada alasan mengubah.',
+      '- Jangan pernah mengeluarkan teks {{...}} apa pun; selalu tulis ref, tema, dan kitab yang sebenarnya.',
       '',
       'Balas HANYA JSON valid sesuai skema.',
     ].join('\n');
@@ -752,16 +791,20 @@ export async function generateSessionDraft(input) {
       topicCode: asStr(x?.topicCode).toUpperCase().slice(0, 40) || null,
     })).filter((x) => x.code && x.label);
     const affirmations = {};
-    for (const [k, v] of Object.entries(o.affirmations || {})) {
-      affirmations[String(k).toUpperCase().slice(0, 40)] = asStrArray(v, 3);
+    for (const a of (Array.isArray(o.affirmations) ? o.affirmations : [])) {
+      const k = asStr(a?.topicCode).toUpperCase().slice(0, 40);
+      if (k) affirmations[k] = asStrArray(a?.lines, 3);
     }
-    return { kind: 'POST_TO_POST', topics, items, chips, affirmations, timerSeconds: Number(o.timerSeconds) > 0 ? Math.round(Number(o.timerSeconds)) : 1200 };
+    return { kind: 'POST_TO_POST', exegesis: clampExegesis(o.exegesis), topics, items, chips, affirmations, timerSeconds: Number(o.timerSeconds) > 0 ? Math.round(Number(o.timerSeconds)) : 1200 };
   }
 
   const fieldKeys = Array.isArray(input.fieldKeys) ? input.fieldKeys : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
-    '- Isi SETIAP kunci template berikut dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
+    ...EXEGESIS_RULES,
+    '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
+    '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
+    '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',
     '- Kunci yang tidak relevan boleh dilewatkan (jangan diada-ada).',
     'KUNCI TEMPLATE:',
     ...fieldKeys.slice(0, 40).map((f) => `- ${f.key}: ${f.label || ''}`),
@@ -774,7 +817,7 @@ export async function generateSessionDraft(input) {
     .filter((v) => known.has(asStr(v?.key)) && asStr(v?.value))
     .slice(0, 40)
     .map((v) => ({ key: asStr(v.key), value: asStr(v.value).slice(0, 2000) }));
-  return { kind: 'GENERIC', values };
+  return { kind: 'GENERIC', exegesis: clampExegesis(object?.exegesis), values };
 }
 
 /**

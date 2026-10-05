@@ -51,7 +51,10 @@ const MentoringScreen: React.FC = () => {
 
   useEffect(() => {
     void load();
-    const id = window.setInterval(() => void load(), 3000);
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      void load();
+    }, 15000);
     return () => window.clearInterval(id);
   }, [load]);
 

@@ -16,6 +16,7 @@ type ScanRow = {
 type Stats = {
   registered: number;
   checkedIn: number;
+  auto?: number;
   ok: number;
   duplicate: number;
   unknown: number;
@@ -105,8 +106,11 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   }, [load]);
 
   useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => { load().catch(() => null); }, 8000);
+    if (paused || document.hidden) return;
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      load().catch(() => null);
+    }, 15000);
     return () => clearInterval(t);
   }, [load, paused]);
 
@@ -365,6 +369,7 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
             { label: 'Sudah masuk', value: stats.checkedIn },
             { label: 'Scan OK', value: stats.ok },
             { label: 'Walk-in', value: stats.walkIn },
+            ...((stats.auto || 0) > 0 ? [{ label: 'Otomatis (petugas)', value: stats.auto as number }] : []),
           ].map((c) => (
             <div key={c.label} className="rounded-2xl border border-[#D9D7D0] bg-white px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880]">{c.label}</p>

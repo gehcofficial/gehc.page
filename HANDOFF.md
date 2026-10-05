@@ -1,5 +1,49 @@
 # GEHC Portal — Handoff
 
+## Current — Hemat kuota Vercel Free: hapus 110+ deployment + longgarkan polling (5 Okt 2026)
+
+**Gejala:** `Fluid Active CPU 8h17m/4h` + `Functions Storage 9.69GB/10GB` (screenshot). Invocations 174K/1M masih aman — masalah durasi CPU per-request + 159 deployment menumpuk, bukan traffic.
+
+**Ubah:**
+- Vercel CLI: `vercel list/alias/usage/inspect/api` dipelajari → keepers prod `dpl_D7hXF2BY64suGoPGxCcz99Noq6TJ` (youth.gehc.page + 20 alias) & staging `dpl_EsPFiiUCkdtJ8pz8k4bohmXjxhGL` → hapus ~110 deployment yatim via `vercel remove <uid> --safe --yes` (5 batch, `--safe` lindungi ber-alias).
+- Polling: `MentoringScreen 3s→15s`, `MentoringControl/MentoringDay/PatternDay 5s→20s`, `EventCheckInTab 8s→15s` + `document.hidden` guard; `useMediaSlots refetch 60s→5min + no-focus-refetch`.
+- Cache publik: `unit-landing/church-profile/org/public-tree` → `max-age=60, s-maxage=300, stale-while-revalidate=600`.
+- `.vercelignore` baru: kecualikan backups/logs/token dari Deployment Storage.
+
+**Verifikasi:** `lint` bersih ✓ `test` 732/733 (1 flaky timeout lolos saat diulang) ✓ prod+staging READY ✓
+
+**Next:** cek dashboard Usage (Storage harus turun <5GB) → deploy staging baru → pantau CPU 2-3 hari → bila masih jebol: pecah `api/index.mjs` + lazy `sharp/googleapis/ai`.
+
+**Commands:** `vercel list --limit 50`, `vercel alias list`, `vercel remove <uid> --safe --yes`, `npm run lint`, `npm run test`
+
+## Current — Simulasi 6 pola More Than Good News + peran 2 perikop (5 Okt 2026)
+
+**Kebutuhan:** draft hanya 1 perikop, studio Didaskalia ada 2 (Fundamental Firman + Kitab Fokus) — jadikan concern eksplisit; simulasi tiap pola dengan perikop More Than Good News; laporan markdown dikirim ke email gehcofficial.
+
+**Ubah:** `generateSessionDraft` (`didaskalia-ai.mjs`): blok `pericopeBlock` (Fundamental = jangkar, semua slot solusi wajib sebut ref; Kitab Fokus = bacaan/pendalaman) + larangan placeholder `{{...}}` + topik code dikunci HUBUNGAN/PEKERJAAN/KELUARGA + skema Zod dilunakkan ke strict-mode OpenAI (tanpa optional/record) → `scripts/simulate-session-drafts.mjs` (baru; 6× live AI, read-only DB, JSON + `docs/preview/simulasi-more-than-good-news.md` + tabel cakupan perikop; npm `sim:session-drafts`) → test prompt perikop (+2).
+
+**Hasil simulasi:** POST_TO_POST 18/18 slot solusi merujuk 1Kor 15:3-4 ✓; DEBAT trap-reveal ✓ + 5 mosi valid; BEDAH_FILM scenes/pleno/Q2 ✓; MONOLOG observasi ✓; DUAL placeholder `{{firman_ref}}` ketahuan → sudah diperbaiki & diverifikasi ✓; 3 Sequences jarang (jujur tercatat di laporan).
+
+**Verifikasi:** `lint` bersih ✓ **733 test** hijau (+2) ✓
+
+**Next:** mekanisme kirim email (belum ada SMTP/Resend di proyek — butuh kredensial atau alternatif Drive) → kirim laporan → commit + push.
+
+**Tambahan:** skema Zod POST_TO_POST dilunakkan ke strict-mode OpenAI (tanpa optional/record; `affirmations` jadi array) — bug ini juga memengaruhi Draft Sesi tab untuk pola Post-to-Post. Simulasi menemukan AI menyalin placeholder `{{firman_ref}}` → prompt dilarang + diverifikasi bersih.
+
+**Terkirim (ganti email → Drive, sesuai pilihan):** `simulasi-more-than-good-news.md` terunggah ke folder Didaskalia event 4 Okt (staging): https://drive.google.com/file/d/15IxF3EnoHlOczj_mpEyNPwONk7PKJDA7/view — npm `sim:session-drafts:upload:staging` (idempoten, file lama senama dihapus dulu). Perubahan belum di-commit.
+
+## Current — Simulasi v2 (eksegesis-pertama) + auto-hadir petugas (5 Okt 2026)
+
+**Sim v2:** prompt `generateSessionDraft` dua langkah (eksegesis 3–5 poin + 2–3 implikasi dari teks, lalu slot; output `exegesis` ikut dikembalikan) + anti-contoh + kontekstual Beyonders + kunci `film-alt` (2 kandidat + alasan; templatedraft ikut bertambah) → skrip: § eksegesis, deteksi contoh lama (`gavin stone`, bungsu/sulung, sisa `{{...}}`), arsip v1 → `docs/preview/simulasi-more-than-good-news.md` v2 + upload Drive menimpa (file baru, folder sama). Hasil jujur: P2P 18/18, Debat/Film/Monolog baik, Dual masih bungsu/sulung (ter-flag ⚠️ untuk reviewer), 3SEQ jarang.
+
+**Auto-hadir petugas (semua peran, saat CONFIRMED, cabut saat batal):** `server/lib/petugas-attendance.mjs` (baru, murni + teruji: auto/auto-filled/kept-manual/revoked/revoked-hadir/kept-manual-scan) → hook di PATCH tunggal + bulk-status `service-schedule` (efek samping try/catch, respons bawa `attendanceSync`) → scan QR baris auto = OK "kehadiran fisik terkonfirmasi" + stempel `manualScan` → stats check-in tambah kartu `Otomatis (petugas)` → caption kartu tugas → skrip `backfill-petugas-attendance.mjs` (dry-run default; npm `backfill:petugas-attendance[:staging]`). Dry-run lokal & staging: 20 penugasan CONFIRMED akan terisi (`would-auto:20`).
+
+**Verifikasi:** `lint` bersih ✓ **743 test** hijau (+10: 2 prompt + 8 petugas) ✓ `build` OK ✓
+
+**Next:** commit di branch (push staging & main menunggu perintah) → backfill `--apply` staging → uji 1 confirm + 1 scan di staging.
+
+**Status push (5 Okt):** `fb85f71` → merge main → push main + `staging` ref ✓ → `deploy:staging` ✓ (tunggu verifikasi versi).
+
 ## Current — Ronde Debat + penanda film + papan tim: PatternDay generik (5 Okt 2026)
 
 **Lanjutan fase 2:** `SEGMENT_WIDGETS` di `session-engine.ts` (guide/rounds/screening/teams/testimony/notes/download per segmen) → `server/lib/session-stage.mjs` (validasi murni rounds/screening/teams) → `PUT .../sessions/:id/stage` (tulis live, admin Didaskalia) + `rounds/screening/teams` di payload peserta & layar → `PatternDay.tsx` (baru, generik; `FgdDay.tsx` dihapus) + `MentoringDay` beralih untuk semua non-post-to-post → layar: mosi + fase + skor (Debat), countdown film (Bedah Film), papan tim (3 Sequences); `StagePanels.tsx` (baru: Debat/Screening/Teams) di `MentoringControl` per pola → test `session-engine` (+7: widget + validasi stage).

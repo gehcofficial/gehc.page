@@ -1,0 +1,58 @@
+{
+  "context": {
+    "yearMonth": "2026-10",
+    "weekIndex": 1,
+    "date": "2026-10-04",
+    "monthTheme": "Injil yang Mengubahkan",
+    "theme": "More Than Good News",
+    "fundamentalFirman": {
+      "ref": "1 Korintus 15:3-4",
+      "text": "Sebab yang sangat penting telah kusampaikan kepadamu, yaitu apa yang telah kuterima sendiri, ialah bahwa Kristus telah mati karena dosa-dosa kita, sesuai dengan Kitab Suci, bahwa Ia telah dikuburkan, dan bahwa Ia telah dibangkitkan, pada hari yang ketiga, sesuai dengan Kitab Suci."
+    },
+    "kitabFokus": "1 Korintus 15",
+    "sermonSummary": "Injil bukan sekadar tiket ke surga — kematian dan kebangkitan Kristus adalah solusi praktis bagi pergumulan Hubungan, Pekerjaan, dan Keluarga kita hari ini.",
+    "pathsOutline": "Path 1: The Gospel Core — ringkasan Injil dari 1 Kor 15:3-4\nPath 2-7: pendalaman progresif 1 Korintus 15 per bagian harian"
+  },
+  "draft": {
+    "kind": "GENERIC",
+    "exegesis": {
+      "points": [
+        "Injil sebagai pusat iman Kristen: Yesus mati dan bangkit sesuai Kitab Suci (1 Kor. 15:3-4).",
+        "Kematian dan kebangkitan Kristus menunjukkan kuasa Allah dalam menyelamatkan manusia dari dosa.",
+        "Injil relevan bagi setiap aspek kehidupan kita, termasuk hubungan, pekerjaan, dan keluarga di zaman sekarang.",
+        "Respon kita terhadap Injil harus melibatkan pengabdian dalam melayani, bersekutu, dan bersaksi."
+      ],
+      "implications": [
+        "Sebagai mahasiswa atau pekerja, kita harus melihat tugas sehari-hari sebagai perwujudan iman kita, bukan sekadar rutinitas.",
+        "Keberanian untuk bersaksi tentang Injil, baik di lingkungan kuliah maupun tempat kerja, bisa membawa dampak signifikan.",
+        "Menghadapi tantangan dalam pekerjaan atau studi, ingatlah bahwa Kristus telah mengatasi semuanya melalui kebangkitan-Nya."
+      ]
+    },
+    "values": [
+      {
+        "key": "yel",
+        "value": "Injil yang mengubahkan, kita adalah saksi-Nya!"
+      },
+      {
+        "key": "cipher",
+        "value": "Ketinggian kasih Yesus, kejaiban kebangkitan, selamatkan kami!"
+      },
+      {
+        "key": "case-1-title",
+        "value": "Amplop 1"
+      },
+      {
+        "key": "case-1-body",
+        "value": "Tanya: Bagaimana Injil mengubah cara kita berinteraksi dengan rekan kerja atau teman kuliah?"
+      },
+      {
+        "key": "case-2-title",
+        "value": "Amplop 2"
+      },
+      {
+        "key": "case-2-body",
+        "value": "Diskusikan contoh konkret di mana Anda mengalami kuasa Injil dalam mengambil keputusan sulit."
+      }
+    ]
+  }
+}

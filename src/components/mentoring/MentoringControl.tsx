@@ -151,7 +151,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
   }, [loadDetail]);
   useEffect(() => {
     void loadLive();
-    const id = window.setInterval(() => void loadLive(), 5000);
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      void loadLive();
+    }, 20000);
     return () => window.clearInterval(id);
   }, [loadLive]);
 

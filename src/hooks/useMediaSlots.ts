@@ -91,7 +91,9 @@ export function useMediaSlots(): MediaSlots {
     queryFn: fetchSlots,
     staleTime: STALE_MS,
     gcTime: 5 * STALE_MS,
-    refetchInterval: STALE_MS,
+    refetchInterval: 300_000,
+    refetchOnWindowFocus: false,
+    refetchIntervalInBackground: false,
     placeholderData: DEFAULT_SLOTS,
   });
   return data ?? DEFAULT_SLOTS;

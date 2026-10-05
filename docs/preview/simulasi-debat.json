@@ -1,0 +1,57 @@
+{
+  "context": {
+    "yearMonth": "2026-10",
+    "weekIndex": 1,
+    "date": "2026-10-04",
+    "monthTheme": "Injil yang Mengubahkan",
+    "theme": "More Than Good News",
+    "fundamentalFirman": {
+      "ref": "1 Korintus 15:3-4",
+      "text": "Sebab yang sangat penting telah kusampaikan kepadamu, yaitu apa yang telah kuterima sendiri, ialah bahwa Kristus telah mati karena dosa-dosa kita, sesuai dengan Kitab Suci, bahwa Ia telah dikuburkan, dan bahwa Ia telah dibangkitkan, pada hari yang ketiga, sesuai dengan Kitab Suci."
+    },
+    "kitabFokus": "1 Korintus 15",
+    "sermonSummary": "Injil bukan sekadar tiket ke surga — kematian dan kebangkitan Kristus adalah solusi praktis bagi pergumulan Hubungan, Pekerjaan, dan Keluarga kita hari ini.",
+    "pathsOutline": "Path 1: The Gospel Core — ringkasan Injil dari 1 Kor 15:3-4\nPath 2-7: pendalaman progresif 1 Korintus 15 per bagian harian"
+  },
+  "draft": {
+    "kind": "GENERIC",
+    "exegesis": {
+      "points": [
+        "Kristus mati untuk dosa kita sebagai anugerah yang tak terhingga (1 Kor. 15:3)",
+        "Kebangkitan Kristus sebagai jaminan bagi kita akan kehidupan baru (1 Kor. 15:4)",
+        "Injil adalah inti dari iman kita yang membawa pengharapan dan transformasi (1 Kor. 15:3-4)"
+      ],
+      "implications": [
+        "Kematian dan kebangkitan Kristus membebaskan kita dari beban dosa dan memberi kita kekuatan untuk menghadapi tantangan hidup (seperti tugas kuliah dan pekerjaan)",
+        "Pengharapan dalam Injil mendorong kita untuk tetap tegar dalam relasi walau terpisah jauh dari keluarga",
+        "Kesadaran akan anugerah Allah mendorong kita untuk berbagi Injil dengan sesama, termasuk dalam permulaan karir dan keuangan kita."
+      ]
+    },
+    "values": [
+      {
+        "key": "mosi-1",
+        "value": "Ibadah pribadi vs Ibadah komunitas"
+      },
+      {
+        "key": "mosi-2",
+        "value": "Kehadiran fisik di kampus vs Ibadah online"
+      },
+      {
+        "key": "mosi-3",
+        "value": "Cuti untuk pemulihan vs Cuti untuk pelayanan"
+      },
+      {
+        "key": "mosi-4",
+        "value": "Mengutamakan stabilitas keuangan vs Meningkatkan iman melalui pelayanan"
+      },
+      {
+        "key": "mosi-5",
+        "value": "Kebebasan berkarir vs Tanggung jawab pada keluarga"
+      },
+      {
+        "key": "trap-reveal",
+        "value": "Semua mosi yang diujikan adalah dikotomi palsu — Firman mengajarkan bahwa dalam Injil, baik ibadah pribadi maupun komunitas, kehadiran fisik maupun online, pemulihan maupun pelayanan, semua memiliki peran penting dalam membangun iman kita."
+      }
+    ]
+  }
+}

@@ -89,16 +89,20 @@ describe('session-draft: config draft lolos normalisasi', () => {
   });
 });
 
+const capturedPrompts = vi.hoisted(() => ({ list: [] as string[] }));
+
 vi.mock('../../server/ai-provider.mjs', () => ({
   jethroGenerateText: vi.fn(async () => ({ text: '{}', finishReason: 'stop', modelId: 'mock' })),
-  jethroGenerateObject: vi.fn(async ({ schema }: { schema?: { safeParse?: (v: unknown) => { success: boolean } } }) => {
+  jethroGenerateObject: vi.fn(async ({ prompt, schema }: { prompt: string; schema?: { safeParse?: (v: unknown) => { success: boolean } } }) => {
+    capturedPrompts.list.push(String(prompt || ''));
     void schema;
     return {
       object: {
+        exegesis: { points: ['Kristus mati karena dosa kita'], implications: ['Identitas bukan performa'] },
         topics: [{ code: 'HUBUNGAN', label: 'Hubungan', pic: 'PIC A' }],
         items: [{ topicCode: 'HUBUNGAN', text: 'Saya merasa ...', gospelNote: 'Kristus ...' }],
         chips: [{ code: 'KASIH', label: '#Kasih', topicCode: 'HUBUNGAN' }],
-        affirmations: { HUBUNGAN: ['Kamu dikasihi.'] },
+        affirmations: [{ topicCode: 'HUBUNGAN', lines: ['Kamu dikasihi.'] }],
         timerSeconds: 1200,
         values: [{ key: 'mosi-1', value: 'X vs Y' }, { key: 'asing', value: 'buang' }],
       },
@@ -136,5 +140,65 @@ describe('session-draft: AI proposal', () => {
     });
     expect(out.kind).toBe('GENERIC');
     expect(out.values).toEqual([{ key: 'mosi-1', value: 'X vs Y' }]);
+  });
+
+  it('prompt membedakan peran dua perikop', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'More Than Good News',
+      fundamentalFirman: { ref: '1 Korintus 15:3-4', text: 'Kristus telah mati...' },
+      kitabFokus: '1 Korintus 15',
+      pattern: { code: 'POST_TO_POST', name: 'Post-to-Post', phases: [], playbook: 'x' },
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('PERAN DUA PERIKOP');
+    expect(prompt).toContain('JANGKAR TEMA');
+    expect(prompt).toContain('BAHAN BACAAN & PENDALAMAN');
+    expect(prompt).toContain('1 Korintus 15:3-4');
+  });
+
+  it('prompt eksegesis-pertama + anti-contoh + kontekstual', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'More Than Good News',
+      fundamentalFirman: { ref: '1 Korintus 15:3-4', text: 'Kristus telah mati...' },
+      kitabFokus: '1 Korintus 15',
+      pattern: { code: 'DEBAT', name: 'Debat', phases: [], playbook: 'x' },
+      fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('LANGKAH 1');
+    expect(prompt).toContain('EKSEGESIS');
+    expect(prompt).toContain('ANTI-CONTOH');
+    expect(prompt).toContain('KONTEKSTUAL');
+  });
+
+  it('eksegesis lolos ke output', async () => {
+    const out = await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'More Than Good News',
+      fundamentalFirman: { ref: '1 Korintus 15:3-4', text: 'x' },
+      kitabFokus: '1 Korintus 15',
+      pattern: { code: 'POST_TO_POST', name: 'Post-to-Post', phases: [], playbook: 'x' },
+    });
+    expect(out.exegesis.points).toEqual(['Kristus mati karena dosa kita']);
+    expect(out.exegesis.implications).toEqual(['Identitas bukan performa']);
+  });
+
+  it('tanpa perikop → blok peran absen', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'T',
+      pattern: { code: 'MONOLOG', name: 'Monolog', phases: [], playbook: 'x' },
+      fieldKeys: [],
+    });
+    expect(capturedPrompts.list.join('\n')).not.toContain('PERAN DUA PERIKOP');
   });
 });

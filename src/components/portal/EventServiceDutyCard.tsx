@@ -69,6 +69,7 @@ export const EventServiceDutyCard: React.FC<{ eventDate?: string | null }> = ({ 
         <Users className="w-3.5 h-3.5" /> Pelayanan Hari Ini
       </p>
       <ServiceDutySections duties={officers} responsible={serving.responsible} host={serving.host} projected={serving.projected} />
+      <p className="text-[10px] text-[#8C8880]">Petugas yang sudah konfirmasi otomatis terdaftar & tercatat hadir — tanpa daftar/check-in manual.</p>
     </div>
   );
 };

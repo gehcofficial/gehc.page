@@ -142,6 +142,7 @@ const BEDAH_FILM_TEMPLATE: DraftSection[] = [
     hint: 'Film 60–95 menit yang isu sentralnya = tema pekan.',
     fields: [
       t('film-title', 'Judul film', 'text', 'Judul (durasi menit)'),
+      t('film-alt', 'Kandidat lain + alasan pilih', 'textarea', '2 kandidat + alasan kecocokan tiap film'),
       t('film-scenes', '3 adegan paralel firman', 'textarea', 'Adegan 1/2/3 + kaitan ayat'),
       t('pleno-prompt', 'Pancingan pleno', 'textarea', 'Karakter siapa yang paling ...?'),
     ],

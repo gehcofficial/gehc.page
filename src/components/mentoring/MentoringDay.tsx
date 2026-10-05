@@ -92,7 +92,10 @@ const MentoringDay: React.FC = () => {
 
   useEffect(() => {
     void load();
-    const id = window.setInterval(() => void load(), 5000);
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      void load();
+    }, 20000);
     return () => window.clearInterval(id);
   }, [load]);
 
