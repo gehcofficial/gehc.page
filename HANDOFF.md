@@ -8,7 +8,9 @@
 
 **Verifikasi:** `lint` bersih ✓ **773 test** hijau (+8) ✓ `build` OK ✓ parse file prod asli Y111026: Service ok (4/4 + info) & RHB ok (7/7) ✓
 
-**Next:** uji staging 2026-10 pekan 2 (11 Okt Rescue Plan): tempel 2 MD → generate → enrich 1x → cover AI → 3 caption → approval HOD → publish. Lolos → ulangi di prod. Belum commit.
+**Next:** uji staging 2026-10 pekan 2 (11 Okt Rescue Plan): tempel 2 MD → generate → enrich 1x → cover AI → 3 caption → approval HOD → publish. Lolos → ulangi di prod.
+
+**Status deploy (5 Okt):** commit `104a660` → push main ✓ (prod auto-deploy) → `staging:sync` ✓ (branch staging = main, deploy `gehcpage-1r216yn4s`, semua alias staging menunjuk build baru, `/api/version` sama `104a660`).
 
 ## Current — Enrich per-path + auto-select minggu berjalan (6 Okt 2026)
 
