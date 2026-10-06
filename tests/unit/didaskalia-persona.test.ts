@@ -65,10 +65,40 @@ describe('persona AI Didaskalia — kerangka Reformed', () => {
     const p = captured.prompts.join('\n');
     expect(p).toContain('POLA IBADAH MINGGU INI');
     expect(p).toContain('DILARANG mengosongkan');
-    expect(p).toContain('1=Minggu');
+    expect(p).toContain('Path 1 = Minggu');
     expect(p).not.toContain('"dayLabel":"Senin"');
     expect(d._meta.kind).toBe('enrich');
     expect(JSON.stringify(d)).not.toContain('_meta');
+  });
+
+  it('enrich per-path: 1 gagal tak menggugurkan lain + meta jujur', async () => {
+    const provider = await import('../../server/ai-provider.mjs');
+    const gen = vi.mocked(provider.jethroGenerateObject);
+    gen.mockRejectedValueOnce(new Error('boom'));
+    const curPaths = Array.from({ length: 7 }, (_, i) => ({ pathIndex: i + 1, title: `Lama ${i + 1}`, rhbSections: [] }));
+    const d = await generateEnrichedDraft({
+      yearMonth: '2026-09',
+      weekIndex: 4,
+      pattern: { code: 'MONOLOG', name: 'Monolog', phases: [], playbook: 'x' },
+      notes: 'x'.repeat(9000),
+      current: { paths: curPaths, sermon: { summary: 'Khotbah lama' } },
+    });
+    expect(d._meta.kind).toBe('enrich');
+    expect(d._meta.failedPaths).toEqual([1]);
+    expect(d.paths[0].title).toBe('Lama 1');
+    expect(d.paths[1].title).toBe('T');
+    expect(d.sermon.summary).toBe('s');
+    expect(d._meta.notesDropped).toBe(1000);
+    expect(JSON.stringify(d)).not.toContain('_meta');
+  });
+
+  it('enrich total gagal → error jelas (bukan diam-diam kosong)', async () => {
+    const provider = await import('../../server/ai-provider.mjs');
+    vi.mocked(provider.jethroGenerateObject).mockRejectedValue(new Error('down'));
+    await expect(
+      generateEnrichedDraft({ yearMonth: '2026-09', weekIndex: 4, current: { paths: [], sermon: {} } }),
+    ).rejects.toThrow('semua 7 Path + khotbah gagal');
+    vi.mocked(provider.jethroGenerateObject).mockImplementation(async () => ({ object: PATH_OBJECT, finishReason: 'stop', modelId: 'mock' }));
   });
 
   it('persona Reformed dipakai juga oleh generator lain', async () => {

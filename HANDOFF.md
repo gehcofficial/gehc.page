@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Enrich per-path + auto-select minggu berjalan (6 Okt 2026)
+
+**Latar:** enrich 1 panggilan raksasa (±9189 token) ditolak Groq (limit 8000 TPM) setelah OpenAI gagal lebih dulu; event picker default ke event terbaru (25 Okt) bukan minggu berjalan (11 Okt).
+
+**Ubah:** `generateEnrichedDraft` dipecah 7 panggilan per Path + 1 khotbah (cap catatan 8000 char transparan via meta, gagal 1 hari tak menggugurkan lain, total gagal → error jelas) → meta enrich di respons + toast warning (path gagal/kepotong/catatan dipotong) → log ukuran prompt per model di provider → auto-select event `nearestUpcoming` (terdekat ≥ hari ini, toleransi 12 jam) + test.
+
+**Verifikasi:** `lint` bersih ✓ **765 test** hijau (+7) ✓ `build` OK ✓
+
 ## Current — Guard kaya + preset Kembangkan + Bagian B ikut pola (5 Okt 2026)
 
 **Ubah:** `richnessCheck` + tolak approve bila section kosong (400 + daftar Path) + peringatan susut/di-bawah-300 di ringkasan HOD → tombol preset **Kembangkan** di tab diskusi (template instruksi satu klik) → `PdfOptions.patternCode/patternName`, judul Bagian B PDF mengikuti pola (fallback pola generik bila kosong), `contentFromStudio` + meta presentasi bawa `patternCode`, deck web pakai kode (bukan nama lama basi) → teks "Senin–Sabtu" jadi "Minggu–Sabtu".

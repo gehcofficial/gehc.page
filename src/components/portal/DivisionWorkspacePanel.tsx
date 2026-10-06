@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { displayFolderName } from '../../lib/driveDisplay';
+import { nearestUpcoming } from '../../lib/event-select';
 import { PANTATUGAS, pillarByName } from '../../lib/pantatugas';
 import { EventDivisionPhaseTabs } from './EventDivisionPhaseTabs';
 import { useApp } from '../../context/AppContext';
@@ -118,6 +119,8 @@ interface EventItem {
   description?: string;
   status: string;
   divisions: DivisionRecord[];
+  eventDate?: string | null;
+  startDate?: string | null;
 }
 
 type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ajak' | 'ibadah' | 'studio';
@@ -253,10 +256,11 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
       setEvents(list);
       // Selalu ambil ulang objek terpilih dari daftar baru; kalau tidak, divisi
       // yang baru diaktifkan tidak akan pernah terlihat karena objeknya basi.
+      // Default = event minggu berjalan (terdekat ≥ hari ini), bukan yang terbaru.
       setSelectedEvent((prev) => {
-        const firstActive = list.find((e) => String(e.status || '').toUpperCase() !== 'ARCHIVED') || list[0] || null;
-        if (!prev) return firstActive;
-        return list.find((e) => e.id === prev.id) || firstActive;
+        const auto = nearestUpcoming(list);
+        if (!prev) return auto;
+        return list.find((e) => e.id === prev.id) || auto;
       });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Gagal memuat event', description: e.message });

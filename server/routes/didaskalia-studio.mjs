@@ -774,7 +774,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       );
       const pending = saved?.studio?.pendingRegen || null;
       await notifyRegen(prisma, { yearMonth, weekIndex, summary: pending?.summary || '', byName: req.authUser?.name, kind: 'enrich' });
-      res.json({ week: saved, pending: true, summary: pending?.summary || '', diff: pending?.diff || [] });
+      res.json({ week: saved, pending: true, summary: pending?.summary || '', diff: pending?.diff || [], meta: pending?.meta || null });
     })
   );
 

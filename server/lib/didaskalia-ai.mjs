@@ -609,63 +609,133 @@ export async function generateWeekDraft(input) {
  * Tahap 2 — perkaya draf yang sudah ada dengan diskusi internal tim.
  * Tidak membuang struktur; hanya menajamkan/ memperdalam isi.
  */
+/** Batas catatan diskusi per panggilan enrich (agar muat limit model kecil). */
+export const ENRICH_NOTES_CAP = 8000;
+
+const ENRICH_PATH_RULES = [
+  'ATURAN (WAJIB):',
+  '- JANGAN mengubah struktur: tetap 5 rhbSections dengan key yang sama.',
+  '- dayLabel WAJIB hari kalender path ini (Path 1 = Minggu … Path 7 = Sabtu). Jangan menerjemahkan ke bahasa lain.',
+  '- DILARANG mengosongkan field yang sudah terisi: setiap body RHB dan field Path WAJIB terisi penuh; bila ragu, tulis ulang sama kaya atau lebih kaya — JANGAN string kosong.',
+  '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), dan SEMUA body rhbSections (masing-masing 300–600 karakter; MAKNA_IMPLIKASI = naskah siap-baca direct speech).',
+  '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
+  '- Integrasikan masukan dari "Catatan tim/diskusi" (jangan diabaikan).',
+  '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
+];
+
+const ENRICH_SERMON_RULES = [
+  'ATURAN RINGKASAN KHOTBAH (WAJIB):',
+  '- Perdalam summary (3-5 paragraf), rationale, dan slideOutline (6-8 slide) dari versi saat ini.',
+  '- methods: 2-3 metode; deliveryPlan satu baris per metode selaras POLA IBADAH; prepChecklist 4-6; discussionFlow 4-6 mengikuti POLA.',
+  '- DILARANG mengosongkan field yang sudah terisi.',
+];
+
 export async function generateEnrichedDraft(input) {
   const current = input.current && typeof input.current === 'object' ? input.current : {};
-  const prompt = [
-    'PERKAYA (revisi kedua) draf pembelajaran satu minggu untuk komunitas pemuda (Beyonders).',
+  // Cap catatan (transparan via meta) agar tiap panggilan muat limit model kecil.
+  const fullNotes = asStr(input.notes);
+  const notesDropped = Math.max(0, fullNotes.length - ENRICH_NOTES_CAP);
+  const cappedNotes = notesDropped > 0 ? fullNotes.slice(0, ENRICH_NOTES_CAP) : fullNotes;
+  const ctxInput = { ...input, notes: cappedNotes };
+
+  const HEAD = [
+    'PERKAYA (revisi kedua) SATU HARI pembelajaran untuk komunitas pemuda (Beyonders).',
     '',
-    'KONTEKS:',
-    buildContext(input),
-    ...teamContextBlock(input),
-    ...patternBlock(input.pattern),
+    'KONTEKS PEKAN:',
+    buildContext(ctxInput),
+    ...teamContextBlock(ctxInput),
+    ...patternBlock(ctxInput.pattern),
     '',
     'ALUR PEMIKIRAN (WAJIB):',
-    '- Fundamental Firman = jangkar tema; Ringkasan Khotbah diturunkan darinya lalu diarahkan ke Kitab/Bagian Fokus.',
+    '- Fundamental Firman = jangkar tema; Kitab/Bagian Fokus dibagi 7 hari sebagai Bacaan Alkitab; tiap hari punya Nats Pembimbing.',
     '- Setiap metode (sesuai persentase) harus menajamkan & memperdalam Fundamental Firman.',
-    '- Kitab/Bagian Fokus dibagi 7 hari sebagai Bacaan Alkitab; tiap hari punya Nats Pembimbing.',
-    '',
-    'DRAF SAAT INI (JSON):',
-    JSON.stringify({
-      chapterNo: current.chapterNo,
-      fundamentalFirman: current.fundamentalFirman,
-      kitabFokus: current.kitabFokus,
-      methodMix: current.methodMix,
-      paths: (current.paths || []).map((p) => ({
-        pathIndex: p.pathIndex,
-        dayLabel: p.dayLabel,
-        title: p.title,
-        bacaanRef: p.bacaanRef,
-        scriptureRef: p.scriptureRef,
-        rhbSections: (p.rhbSections || []).map((s) => ({ key: s.key, body: s.body })),
-      })),
-      sermon: current.sermon,
-    }),
-    '',
-    'TUGAS:',
-    '- JANGAN mengubah struktur: tetap 7 Path dan 5 rhbSections per Path dengan key yang sama.',
-    '- dayLabel Path ke-N WAJIB hari kalender ke-N: 1=Minggu, 2=Senin, 3=Selasa, 4=Rabu, 5=Kamis, 6=Jumat, 7=Sabtu. Jangan menerjemahkan ke bahasa lain.',
-    '- DILARANG mengosongkan field yang sudah terisi: setiap body RHB dan field Path WAJIB terisi penuh; bila ragu, tulis ulang sama kaya atau lebih kaya — JANGAN string kosong.',
-    '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), isi rhbSections, dan ringkasan khotbah.',
-    '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
     '- Jaga KESINAMBUNGAN: Path 1 menyambung dari MINGGU LALU, Path 7 menjembatani MINGGU DEPAN (lihat konteks).',
-    '- Integrasikan masukan dari "Catatan tim/diskusi" (jangan diabaikan).',
-    '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
     '',
-    'Balas HANYA JSON valid (bentuk sama seperti draf di atas, lengkap):',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
-  ].filter(Boolean).join('\n');
+  ];
 
-  const { data, meta } = await generateJson({ prompt, maxOutputTokens: 12000, timeoutMs: 50000 });
-  const out = clampDraft(data);
+  const curPaths = Array.isArray(current.paths) ? current.paths : [];
+  const results = new Array(7).fill(null);
+  const pathMetas = [];
+  let promptChars = 0;
+  const genOne = async (i) => {
+    const cur = curPaths[i - 1] && typeof curPaths[i - 1] === 'object' ? curPaths[i - 1] : {};
+    const prompt = [...HEAD,
+      `TUGAS: perkaya Path ke-${i} dari 7 (hari ${DAY_LABELS[i - 1]} — dayLabel WAJIB tepat itu, jangan terjemahkan).`,
+      `DRAF PATH SAAT INI (JSON lengkap — pertahankan semua field, perdalam isinya):\n${JSON.stringify(cur)}`,
+      ...ENRICH_PATH_RULES,
+    ].filter(Boolean).join('\n');
+    promptChars += prompt.length;
+    try {
+      const { object, modelId, finishReason } = await jethroGenerateObject({ system: SYSTEM, prompt, schema: PathObjectSchema, maxOutputTokens: 3000, timeoutMs: 30000 });
+      pathMetas.push({ pathIndex: i, modelId: modelId || null, finishReason: finishReason || null });
+      if (object && Array.isArray(object.rhbSections) && object.rhbSections.length >= 3) {
+        // dayLabel SELALU dari kalender (Path 1 = Minggu) — jangan percaya model.
+        results[i - 1] = { ...object, pathIndex: i, dayLabel: DAY_LABELS[i - 1] };
+      } else {
+        pathMetas.push({ pathIndex: i, modelId: modelId || null, finishReason: 'empty', error: 'Keluaran path kosong/tak lengkap — dipakai draf lama.' });
+        results[i - 1] = cur;
+      }
+    } catch (err) {
+      console.error('[didaskalia-ai] enrich path', i, 'gagal:', err?.message || err);
+      pathMetas.push({ pathIndex: i, modelId: null, finishReason: 'error', error: String(err?.message || err).slice(0, 200) });
+      results[i - 1] = cur;
+    }
+  };
+
+  // Gelombang 1: Path 1-4 paralel; Gelombang 2: Path 5-7.
+  await Promise.all([1, 2, 3, 4].map((i) => genOne(i)));
+  await Promise.all([5, 6, 7].map((i) => genOne(i)));
+
+  // Ringkasan khotbah: satu panggilan terpisah (jauh lebih kecil dari sebelumnya).
+  let sermon = (current.sermon && typeof current.sermon === 'object') ? current.sermon : {};
+  let sermonMeta = { modelId: null, finishReason: null };
+  try {
+    const enrichedTitles = results.map((p, i) => `Path ${i + 1}: ${asStr(p?.title)}`).join('\n');
+    const sermonPrompt = [...HEAD,
+      `RINGKASAN KHOTBAH SAAT INI (JSON — perdalam, jangan kosongkan):\n${JSON.stringify(sermon)}`,
+      `KERANGKA 7 PATH (hasil perkaya):\n${enrichedTitles}`,
+      ...ENRICH_SERMON_RULES,
+    ].filter(Boolean).join('\n');
+    promptChars += sermonPrompt.length;
+    const { object, modelId, finishReason } = await jethroGenerateObject({
+      system: SYSTEM, prompt: sermonPrompt, schema: SermonObjectSchema, maxOutputTokens: 4000, timeoutMs: 35000,
+    });
+    sermonMeta = { modelId: modelId || null, finishReason: finishReason || null };
+    if (object && (asStr(object.summary) || (Array.isArray(object.slideOutline) && object.slideOutline.length))) {
+      sermon = object;
+    } else {
+      sermonMeta = { ...sermonMeta, finishReason: 'empty', error: 'Keluaran khotbah kosong — dipakai draf lama.' };
+    }
+  } catch (e) {
+    console.error('[didaskalia-ai] enrich khotbah gagal:', e?.message || e);
+    sermonMeta = { modelId: null, finishReason: 'error', error: String(e?.message || e).slice(0, 200) };
+  }
+
+  const failedPaths = pathMetas.filter((m) => m.finishReason === 'error').map((m) => m.pathIndex);
+  const truncatedPaths = pathMetas.filter((m) => m.finishReason === 'length').map((m) => m.pathIndex);
+  if (failedPaths.length >= 7 && sermonMeta.finishReason === 'error') {
+    throw new Error(`AI gagal memperkaya draf: semua 7 Path + khotbah gagal (${pathMetas[0]?.error || sermonMeta.error || 'unknown'}). Coba lagi atau kecilkan catatan.`);
+  }
+  const out = clampDraft({
+    chapterNo: input.chapterNo ?? current.chapterNo ?? '',
+    fundamentalFirman: input.fundamentalFirman ?? current.fundamentalFirman ?? { ref: '', text: '' },
+    kitabFokus: input.kitabFokus ?? current.kitabFokus ?? '',
+    homileticMethods: current.homileticMethods || [],
+    methodMix: current.methodMix || [],
+    paths: results,
+    sermon,
+  });
   // Meta diagnosis (non-enumerable: tidak ikut tersimpan ke DB).
   Object.defineProperty(out, '_meta', {
     value: {
       kind: 'enrich',
-      models: [meta?.modelId].filter(Boolean),
-      truncated: meta?.finishReason === 'length' || Boolean(meta?.retried),
-      retried: Boolean(meta?.retried),
-      finishReason: meta?.finishReason || null,
-      promptChars: prompt.length,
+      models: [...new Set([...pathMetas.map((m) => m.modelId), sermonMeta.modelId].filter(Boolean))],
+      truncated: truncatedPaths.length > 0,
+      truncatedPaths,
+      failedPaths,
+      sermon: sermonMeta,
+      notesDropped,
+      promptChars,
     },
     enumerable: false,
   });

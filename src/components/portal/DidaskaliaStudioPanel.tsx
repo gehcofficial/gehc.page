@@ -340,11 +340,25 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           }
         }
       }
+      const meta = d.meta && typeof d.meta === 'object' ? d.meta : null;
+      const warns: string[] = [];
+      if (meta) {
+        if (Array.isArray(meta.failedPaths) && meta.failedPaths.length) {
+          warns.push(`Path ${meta.failedPaths.join(', ')} gagal — dipakai versi lama. Ulangi enrich untuk hari itu bila perlu.`);
+        }
+        if (Array.isArray(meta.truncatedPaths) && meta.truncatedPaths.length) {
+          warns.push(`Path ${meta.truncatedPaths.join(', ')} kepotong limit — periksa kelengkapan sebelum approve.`);
+        }
+        if (Number(meta.notesDropped) > 0) {
+          warns.push(`${Number(meta.notesDropped).toLocaleString('id-ID')} karakter catatan terlama dipotong agar muat limit.`);
+        }
+      }
       addToast({
-        type: 'success',
+        type: warns.length ? 'warning' : 'success',
         title: kind === 'draft' ? 'Pengajuan draf dibuat — menunggu persetujuan HOD'
           : kind === 'enrich' ? 'Pengajuan perkaya dibuat — menunggu persetujuan HOD'
             : 'Ringkasan khotbah dibuat',
+        description: warns.length ? warns.join(' ') : undefined,
       });
     } catch (e: unknown) {
       setError(friendlyAiError(e));

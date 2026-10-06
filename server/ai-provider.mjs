@@ -77,7 +77,7 @@ export async function jethroGenerateText({ system, prompt, maxOutputTokens = 204
       }
       return { text: String(text || '').trim(), finishReason, usage, modelId };
     } catch (err) {
-      console.error('[ai-provider] Model failed:', model?.modelId || model, err.message);
+      console.error('[ai-provider] Model failed:', model?.modelId || model, err.message, `| prompt=${String(prompt || '').length}char maxOut=${maxOutputTokens}`);
       if (!isRetryableError(err)) throw err;
       lastError = err;
     }
@@ -152,7 +152,7 @@ export async function jethroGenerateObject({ system, prompt, schema, maxOutputTo
         if (timer) clearTimeout(timer);
       }
     } catch (err) {
-      console.error('[ai-provider] Object gagal:', model?.modelId || model, err.message);
+      console.error('[ai-provider] Object gagal:', model?.modelId || model, err.message, `| prompt=${String(prompt || '').length}char maxOut=${maxOutputTokens}`);
       if (!isRetryableError(err)) throw err;
       lastError = err;
     }
