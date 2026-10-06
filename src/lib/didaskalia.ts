@@ -328,7 +328,8 @@ export function ensurePaths(studio: DidaskaliaStudio): DidaskaliaPath[] {
   const list = Array.isArray(studio.paths) ? studio.paths : [];
   return Array.from({ length: 7 }, (_, i) => {
     const merged = { ...defaultPath(i), ...(list[i] || {}) };
-    return { ...merged, rhbSections: ensureRhbSections(merged.rhbSections) };
+    // Hari kalender baku: Path 1 = Minggu — jangan percaya nilai tersimpan.
+    return { ...merged, pathIndex: i + 1, dayLabel: DAY_LABELS[i] || `Hari ${i + 1}`, rhbSections: ensureRhbSections(merged.rhbSections) };
   });
 }
 

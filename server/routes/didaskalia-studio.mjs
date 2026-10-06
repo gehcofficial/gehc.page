@@ -72,11 +72,15 @@ function sanitizeRhbSections(raw) {
   });
 }
 
+const CALENDAR_DAY_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
 function sanitizePaths(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 7).map((p, i) => ({
     ...(p && typeof p === 'object' ? p : {}),
-    pathIndex: Number(p?.pathIndex) || i + 1,
+    pathIndex: i + 1,
+    // Hari kalender baku: Path 1 = Minggu — jangan percaya nilai tersimpan.
+    dayLabel: CALENDAR_DAY_LABELS[i] || `Hari ${i + 1}`,
     rhbSections: sanitizeRhbSections(p?.rhbSections),
   }));
 }
@@ -681,6 +685,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
             diff,
             proposal,
             status: 'PENDING',
+            meta: (draft && draft._meta) || null,
           };
           if (s.status === 'PUBLISHED') s.status = 'DRAFT';
           if (!s.authorId) s.authorId = req.authUser?.id || null;
@@ -715,6 +720,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
       let draft;
       const team = await loadTeamContext(prisma);
+      const pattern = await resolveWeekPattern(prisma, week, req.body?.patternCode);
       try {
         draft = await generateEnrichedDraft({
           ...team,
@@ -726,6 +732,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           chapterNo: req.body?.chapterNo ?? st.chapterNo,
           fundamentalFirman: req.body?.fundamentalFirman ?? st.fundamentalFirman,
           kitabFokus: req.body?.kitabFokus ?? st.kitabFokus,
+          pattern,
           prevTheme: prev.mentoringTheme || prev.servingTheme || prev.theme || '',
           nextTheme: next.mentoringTheme || next.servingTheme || next.theme || '',
           prevWeek: summarizeWeek(prev, sanitizeStudio(prev.studio)),
@@ -753,6 +760,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
             requestedByName: req.authUser?.name || null,
             requestedAt: new Date().toISOString(),
             targetGeneration: (Number(s.generation) || 0) + 1,
+            meta: (draft && draft._meta) || null,
             summary,
             diff,
             proposal,
@@ -1335,7 +1343,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       s.sermon = sanitizeSermonShape(prop.sermon || s.sermon);
       s.generation = (Number(s.generation) || 0) + 1;
       s.regenHistory = [
-        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: true, summary: p.summary || '', snapshot },
+        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: true, summary: p.summary || '', snapshot, meta: p.meta || null },
         ...(Array.isArray(s.regenHistory) ? s.regenHistory : []),
       ].slice(0, 20);
       s.pendingRegen = { ...p, status: 'APPROVED', decidedByName: req.authUser?.name || null, decidedAt: new Date().toISOString() };
@@ -1366,7 +1374,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const p = s.pendingRegen;
       if (!p) return w;
       s.regenHistory = [
-        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: false, summary: `${p.summary || ''}${reason ? ` � ditolak: ${reason}` : ' � ditolak'}`, snapshot: p.proposal || regenSnapshotOf(s) },
+        { id: p.id, at: new Date().toISOString(), byName: req.authUser?.name || null, kind: p.kind, applied: false, summary: `${p.summary || ''}${reason ? ` � ditolak: ${reason}` : ' � ditolak'}`, snapshot: p.proposal || regenSnapshotOf(s), meta: p.meta || null },
         ...(Array.isArray(s.regenHistory) ? s.regenHistory : []),
       ].slice(0, 20);
       s.pendingRegen = { ...p, status: 'REJECTED', reason: reason || null, decidedByName: req.authUser?.name || null, decidedAt: new Date().toISOString() };

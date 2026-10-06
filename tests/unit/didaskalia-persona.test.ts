@@ -26,7 +26,7 @@ vi.mock('../../server/ai-provider.mjs', () => ({
   generateImageBase64: vi.fn(async () => ({ base64: '', mediaType: 'image/jpeg', model: 'mock' })),
 }));
 
-import { generateWeekDraft, generateSermon, refineField } from '../../server/lib/didaskalia-ai.mjs';
+import { generateEnrichedDraft, generateWeekDraft, generateSermon, refineField } from '../../server/lib/didaskalia-ai.mjs';
 
 describe('persona AI Didaskalia — kerangka Reformed', () => {
   it('system prompt memuat identitas GMIM, audiens, dan kerangka Reformed', async () => {
@@ -43,6 +43,32 @@ describe('persona AI Didaskalia — kerangka Reformed', () => {
     expect(s).toContain('Soli Deo Gloria');
     expect(s).toContain('kedaulatan Allah');
     expect(s).toContain('teologi perjanjian');
+  });
+
+  it('draf membawa _meta diagnosis non-enumerable', async () => {
+    const d = await generateWeekDraft({ yearMonth: '2026-09', weekIndex: 4, date: '2026-09-27' });
+    expect(d._meta.kind).toBe('draft');
+    expect(d._meta.models).toEqual(['mock']);
+    expect(d._meta.failedPaths).toEqual([]);
+    expect(JSON.stringify(d)).not.toContain('_meta');
+    expect(d.paths[0].dayLabel).toBe('Minggu');
+  });
+
+  it('enrich memakai blok pola + anti-kosong + dayLabel baku', async () => {
+    captured.prompts = [];
+    const d = await generateEnrichedDraft({
+      yearMonth: '2026-09',
+      weekIndex: 4,
+      pattern: { code: 'MONOLOG', name: 'Monolog', phases: [], playbook: 'x' },
+      current: { paths: [], sermon: {} },
+    });
+    const p = captured.prompts.join('\n');
+    expect(p).toContain('POLA IBADAH MINGGU INI');
+    expect(p).toContain('DILARANG mengosongkan');
+    expect(p).toContain('1=Minggu');
+    expect(p).not.toContain('"dayLabel":"Senin"');
+    expect(d._meta.kind).toBe('enrich');
+    expect(JSON.stringify(d)).not.toContain('_meta');
   });
 
   it('persona Reformed dipakai juga oleh generator lain', async () => {

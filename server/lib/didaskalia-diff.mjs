@@ -75,8 +75,25 @@ export function computeRegenDiff(current, proposal) {
   if (diff.some((d) => d.section === 'INTI')) parts.push('Inti/brief diperbarui');
   const rhbFilled = propPaths.filter((p) => (p.rhbSections || []).some((s) => (s.body || '').trim())).length;
   if (rhbFilled) parts.push(`RHB terisi ${rhbFilled}/7 hari`);
+  // Guard susut: peringatkan bila isi RHB menyusut >50% dibanding saat ini.
+  const rhbChars = (paths) => (paths || []).reduce((n, p) => n + ((p.rhbSections || []).reduce((m, s) => m + String(s.body || '').length, 0)), 0);
+  const beforeChars = rhbChars(curPaths);
+  const afterChars = rhbChars(propPaths);
+  if (beforeChars > 0 && afterChars < beforeChars / 2) {
+    parts.push(`PERINGATAN: isi RHB menyusut ${beforeChars} → ${afterChars} karakter — periksa sebelum menyetujui`);
+  }
 
   return { diff, summary: parts.length ? parts.join(' · ') : 'Tidak ada perubahan terdeteksi' };
+}
+
+/** Hari kalender baku Path 1-7 (Path 1 = Minggu). */
+const DAY_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** Usulan kosong (string kosong/whitespace, array kosong) = pertahankan lama. */
+function keepOld(nextVal, oldVal) {
+  if (Array.isArray(nextVal)) return nextVal.length ? nextVal : (oldVal ?? nextVal);
+  const s = nextVal === undefined || nextVal === null ? '' : String(nextVal);
+  return s.trim() ? nextVal : oldVal;
 }
 
 /** Proposal dari draft AI (hanya field yang boleh diusulkan; struktur tetap). */
@@ -90,24 +107,36 @@ export function proposalFromDraft(draft, current) {
     const baseRhb = Array.isArray(base.rhbSections) ? base.rhbSections : [];
     const nextRhb = Array.isArray(next.rhbSections) ? next.rhbSections : [];
     // Bila struktur lama belum ada (mis. setelah reset), pakai RHB dari AI.
+    // Kosong dari AI = pertahankan lama (anti-hilang).
     const rhbSections = baseRhb.length
-      ? baseRhb.map((s, si) => ({ ...s, body: nextRhb[si]?.body ?? s.body }))
+      ? baseRhb.map((s, si) => ({ ...s, body: keepOld(nextRhb[si]?.body, s.body) }))
       : nextRhb;
+    const merged = { ...base };
+    for (const [k, v] of Object.entries(next)) {
+      if (k === 'pathIndex' || k === 'rhbSections') continue;
+      merged[k] = keepOld(v, base[k]);
+    }
     return {
-      ...base,
-      ...next,
+      ...merged,
       pathIndex: i + 1,
-      dayLabel: base.dayLabel || next.dayLabel || '',
+      dayLabel: DAY_LABELS[i],
       rhbSections,
     };
   });
+  const draftSermon = draft?.sermon && typeof draft.sermon === 'object' ? draft.sermon : null;
+  const sermonHasContent = draftSermon && (String(draftSermon.summary || '').trim() || (Array.isArray(draftSermon.slideOutline) && draftSermon.slideOutline.length));
+  const curFF = cur.fundamentalFirman && typeof cur.fundamentalFirman === 'object' ? cur.fundamentalFirman : {};
+  const nextFF = draft?.fundamentalFirman && typeof draft.fundamentalFirman === 'object' ? draft.fundamentalFirman : {};
   return {
-    chapterNo: draft?.chapterNo ?? cur.chapterNo ?? '',
-    fundamentalFirman: draft?.fundamentalFirman ?? cur.fundamentalFirman ?? { ref: '', text: '' },
-    kitabFokus: draft?.kitabFokus ?? cur.kitabFokus ?? '',
+    chapterNo: keepOld(draft?.chapterNo, cur.chapterNo) ?? '',
+    fundamentalFirman: {
+      ref: keepOld(nextFF.ref, curFF.ref) ?? '',
+      text: keepOld(nextFF.text, curFF.text) ?? '',
+    },
+    kitabFokus: keepOld(draft?.kitabFokus, cur.kitabFokus) ?? '',
     homileticMethods: Array.isArray(draft?.homileticMethods) && draft.homileticMethods.length ? draft.homileticMethods : (cur.homileticMethods || []),
     methodMix: Array.isArray(draft?.methodMix) && draft.methodMix.length ? draft.methodMix : (cur.methodMix || []),
     paths: mergedPaths,
-    sermon: draft?.sermon ?? cur.sermon ?? {},
+    sermon: sermonHasContent ? draftSermon : (cur.sermon ?? {}),
   };
 }

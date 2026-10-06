@@ -24,6 +24,19 @@ describe('didaskalia helpers', () => {
     expect(paths[1].title).toBe('Path 2');
   });
 
+  it('ensurePaths memaksa hari kalender (Path 1 = Minggu)', () => {
+    const studio = {
+      ...defaultStudio(),
+      paths: Array.from({ length: 7 }, (_, i) => ({
+        ...defaultStudio().paths[i],
+        dayLabel: ['Senin', '2026-10-05', 'Tuesday', '', 'Kamis', 'Jumat', 'Saturday'][i],
+      })),
+    };
+    const paths = ensurePaths(studio);
+    expect(paths.map((p) => p.dayLabel)).toEqual(['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
+    expect(paths.map((p) => p.pathIndex)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
   it('hashContent deterministik dan berubah bila konten berubah', () => {
     const a = { paths: [{ title: 'A' }] };
     const b = { paths: [{ title: 'B' }] };

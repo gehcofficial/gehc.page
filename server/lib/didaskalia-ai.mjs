@@ -226,6 +226,8 @@ function clampPaths(raw) {
   for (let i = 0; i < 7; i++) {
     const p = list[i] || {};
     out.push({
+      // Hari kalender baku: Path 1 = Minggu — jangan percaya keluaran model.
+      dayLabel: DAY_LABELS[i],
       pathIndex: i + 1,
       dayLabel: asStr(p.dayLabel, DAY_LABELS[i] || `Hari ${i + 1}`),
       title: asStr(p.title, `Path ${i + 1}`),
@@ -491,6 +493,7 @@ export async function generateWeekDraft(input) {
     '- Fundamental Firman adalah JANGKAR TEMA; bagian hari ini diambil progresif dari Kitab/Bagian Fokus.',
     '- Judul Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
     '- Field: pathIndex, dayLabel, title, summary (maks 100 karakter), bacaanRef, scriptureRef (Nats Pembimbing), scriptureText (maks 180 karakter), homileticLens (2-3), hookQuestion, illustration (1-2 ilustrasi kontekstual dunia anak muda — kuliah/kerja/kos/relasi — maks 280 karakter), reflection (maks 3 kalimat), observeQ, interpretQ, applyQ, fgdQuestions (2-3), bridge (1 kalimat), imageStem "".',
+    '- dayLabel Path ke-N WAJIB hari kalender ke-N: Path 1 = Minggu, 2 = Senin, 3 = Selasa, 4 = Rabu, 5 = Kamis, 6 = Jumat, 7 = Sabtu. Jangan menerjemahkan ke bahasa lain.',
     '- rhbSections: TEPAT 5 dengan key PENGANTAR, PEMBAHASAN_TEMATIS, MAKNA_IMPLIKASI, REFLEKSI_PRIBADI, DISKUSI_KELOMPOK.',
     '- PENGANTAR: konteks "renungan tentang apa" (boleh panjang) + 1-2 ilustrasi konkret yang memperjelas inti.',
     '- REFLEKSI_PRIBADI: TEPAT 3 pertanyaan, masing-masing 1 kalimat dan berlabel konteks — "🎒 Pelajar — …?", "🎓 Mahasiswa — …?", "💼 Pekerja — …?". Menohok, tidak menghakimi.',
@@ -526,15 +529,19 @@ export async function generateWeekDraft(input) {
   ].filter(Boolean).join('\n');
 
   const results = new Array(7).fill(null);
+  const pathMetas = [];
   const genOne = async (i, used) => {
     try {
       const dup = used.length ? `Judul yang SUDAH DIPAKAI (jangan diulang): ${used.join(' | ')}.` : '';
-      const { object } = await jethroGenerateObject({ system: SYSTEM, prompt: onePathPrompt(i, dup), schema: PathObjectSchema, maxOutputTokens: 4500, timeoutMs: 30000 });
+      const { object, modelId, finishReason } = await jethroGenerateObject({ system: SYSTEM, prompt: onePathPrompt(i, dup), schema: PathObjectSchema, maxOutputTokens: 4500, timeoutMs: 30000 });
+      pathMetas.push({ pathIndex: i, modelId: modelId || null, finishReason: finishReason || null });
       if (object && Array.isArray(object.rhbSections) && object.rhbSections.length >= 3) {
-        results[i - 1] = { ...object, pathIndex: i, dayLabel: object.dayLabel || DAY_LABELS[i - 1] };
+        // dayLabel SELALU dari kalender (Path 1 = Minggu) — jangan percaya model.
+        results[i - 1] = { ...object, pathIndex: i, dayLabel: DAY_LABELS[i - 1] };
       }
     } catch (err) {
       console.error('[didaskalia-ai] path', i, 'gagal:', err?.message || err);
+      pathMetas.push({ pathIndex: i, modelId: null, finishReason: 'error', error: String(err?.message || err).slice(0, 200) });
     }
   };
 
@@ -552,8 +559,9 @@ export async function generateWeekDraft(input) {
   const paths = results.map((p, i) => p || { pathIndex: i + 1, dayLabel: DAY_LABELS[i] });
   const outline = paths.map((p, i) => `Path ${i + 1}: ${asStr(p.title)}`).join('\n');
   let sermon = {};
+  let sermonMeta = { modelId: null, finishReason: null };
   try {
-    const { object } = await jethroGenerateObject({
+    const { object, modelId, finishReason } = await jethroGenerateObject({
       system: SYSTEM,
       prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES.slice(0, -2)].join('\n'),
       schema: SermonObjectSchema,
@@ -561,8 +569,10 @@ export async function generateWeekDraft(input) {
       timeoutMs: 40000,
     });
     sermon = object || {};
+    sermonMeta = { modelId: modelId || null, finishReason: finishReason || null };
   } catch (e) {
     console.error('[didaskalia-ai] ringkasan khotbah gagal:', e?.message || e);
+    sermonMeta = { modelId: null, finishReason: 'error', error: String(e?.message || e).slice(0, 200) };
   }
 
   const DEFAULT_METHODS = ['Teologi Praktika / Pastoral', 'Pengajaran Tematika', 'Teologi Biblika'];
@@ -571,7 +581,7 @@ export async function generateWeekDraft(input) {
   const methods = picked.length ? picked : DEFAULT_METHODS;
   const methodMix = methods.map((m) => ({ method: m, percent: Math.round(100 / methods.length), note: '' }));
 
-  return clampDraft({
+  const out = clampDraft({
     chapterNo: input.chapterNo || "",
     fundamentalFirman: input.fundamentalFirman || { ref: "", text: "" },
     kitabFokus: input.kitabFokus || "",
@@ -580,6 +590,20 @@ export async function generateWeekDraft(input) {
     paths,
     sermon,
   });
+  // Meta diagnosis (non-enumerable: tidak ikut tersimpan ke DB).
+  const failedPaths = pathMetas.filter((m) => m.finishReason === 'error').map((m) => m.pathIndex);
+  Object.defineProperty(out, '_meta', {
+    value: {
+      kind: 'draft',
+      models: [...new Set([...pathMetas.map((m) => m.modelId), sermonMeta.modelId].filter(Boolean))],
+      truncated: [...pathMetas.map((m) => m.finishReason), sermonMeta.finishReason].includes('length'),
+      failedPaths,
+      sermon: sermonMeta,
+      promptChars: HEAD.join('\n').length,
+    },
+    enumerable: false,
+  });
+  return out;
 }
 /**
  * Tahap 2 — perkaya draf yang sudah ada dengan diskusi internal tim.
@@ -593,6 +617,7 @@ export async function generateEnrichedDraft(input) {
     'KONTEKS:',
     buildContext(input),
     ...teamContextBlock(input),
+    ...patternBlock(input.pattern),
     '',
     'ALUR PEMIKIRAN (WAJIB):',
     '- Fundamental Firman = jangkar tema; Ringkasan Khotbah diturunkan darinya lalu diarahkan ke Kitab/Bagian Fokus.',
@@ -618,6 +643,8 @@ export async function generateEnrichedDraft(input) {
     '',
     'TUGAS:',
     '- JANGAN mengubah struktur: tetap 7 Path dan 5 rhbSections per Path dengan key yang sama.',
+    '- dayLabel Path ke-N WAJIB hari kalender ke-N: 1=Minggu, 2=Senin, 3=Selasa, 4=Rabu, 5=Kamis, 6=Jumat, 7=Sabtu. Jangan menerjemahkan ke bahasa lain.',
+    '- DILARANG mengosongkan field yang sudah terisi: setiap body RHB dan field Path WAJIB terisi penuh; bila ragu, tulis ulang sama kaya atau lebih kaya — JANGAN string kosong.',
     '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), isi rhbSections, dan ringkasan khotbah.',
     '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
     '- Jaga KESINAMBUNGAN: Path 1 menyambung dari MINGGU LALU, Path 7 menjembatani MINGGU DEPAN (lihat konteks).',
@@ -625,11 +652,24 @@ export async function generateEnrichedDraft(input) {
     '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
     '',
     'Balas HANYA JSON valid (bentuk sama seperti draf di atas, lengkap):',
-    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Senin","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
+    '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}],"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}',
   ].filter(Boolean).join('\n');
 
-  const { data } = await generateJson({ prompt, maxOutputTokens: 12000, timeoutMs: 50000 });
-  return clampDraft(data);
+  const { data, meta } = await generateJson({ prompt, maxOutputTokens: 12000, timeoutMs: 50000 });
+  const out = clampDraft(data);
+  // Meta diagnosis (non-enumerable: tidak ikut tersimpan ke DB).
+  Object.defineProperty(out, '_meta', {
+    value: {
+      kind: 'enrich',
+      models: [meta?.modelId].filter(Boolean),
+      truncated: meta?.finishReason === 'length' || Boolean(meta?.retried),
+      retried: Boolean(meta?.retried),
+      finishReason: meta?.finishReason || null,
+      promptChars: prompt.length,
+    },
+    enumerable: false,
+  });
+  return out;
 }
 
 /**

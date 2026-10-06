@@ -54,10 +54,39 @@ describe('proposalFromDraft (struktur dikunci)', () => {
     };
     const prop = proposalFromDraft(draft, cur);
     expect(prop.paths).toHaveLength(7);
-    expect(prop.paths[0].dayLabel).toBe('Hari 1'); // dari data saat ini, bukan draft
+    expect(prop.paths[0].dayLabel).toBe('Minggu'); // kalender baku, bukan draft maupun simpanan lama
+    expect(prop.paths[6].dayLabel).toBe('Sabtu');
     expect(prop.paths[0].rhbSections.map((s) => s.key)).toEqual(['PENGANTAR', 'PEMBAHASAN_TEMATIS', 'MAKNA_IMPLIKASI', 'REFLEKSI_PRIBADI', 'DISKUSI_KELOMPOK']);
     expect(prop.paths[0].rhbSections[0].body).toBe('AI body 0-0');
     expect(prop.chapterNo).toBe('1');
+  });
+
+  it('usulan kosong = pertahankan lama (anti-hilang)', () => {
+    const cur = studioBase();
+    cur.paths[0].title = 'Judul Lama Kaya';
+    cur.paths[0].rhbSections[0].body = 'Isi lama yang kaya dan panjang.';
+    const draft = {
+      paths: Array.from({ length: 7 }, (_, i) => ({
+        title: i === 0 ? '   ' : `AI ${i + 1}`,
+        rhbSections: ensureRhbSections([]).map((s) => ({ key: s.key, title: s.title, body: i === 0 ? '' : `Baru ${i}` })),
+      })),
+      sermon: {},
+    };
+    const prop = proposalFromDraft(draft, cur);
+    expect(prop.paths[0].title).toBe('Judul Lama Kaya');
+    expect(prop.paths[0].rhbSections[0].body).toBe('Isi lama yang kaya dan panjang.');
+    expect(prop.paths[1].rhbSections[0].body).toBe('Baru 1');
+    expect(prop.sermon.summary).toBe('Ringkasan lama');
+  });
+
+  it('peringatkan bila RHB menyusut >50%', () => {
+    const cur = studioBase();
+    cur.paths = cur.paths.map((p) => ({ ...p, rhbSections: (p.rhbSections || []).map((s) => ({ ...s, body: 'x'.repeat(500) })) }));
+    const thin = { ...cur, paths: cur.paths.map((p) => ({ ...p, rhbSections: (p.rhbSections || []).map((s) => ({ ...s, body: 'tipis' })) })) };
+    const { summary } = computeRegenDiff(cur, thin);
+    expect(summary).toContain('PERINGATAN');
+    const same = computeRegenDiff(cur, cur);
+    expect(same.summary).not.toContain('PERINGATAN');
   });
 
   it('setelah reset (paths kosong) RHB dari AI tetap dipakai', () => {

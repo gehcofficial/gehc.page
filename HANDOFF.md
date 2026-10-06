@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — RHB kaya-vs-tipis: anti-hilang + hari fix + reset prod (5 Okt 2026)
+
+**Diagnosis prod (data, bukan tebakan):** Okt W1 kaya (16544 char, 35/35, gen 2, diskusi 115 char) vs W2 tipis (1894 char, 20/35, gen 1, diskusi 1515 char) — korelasi volume catatan terkonfirmasi. Bonus: dayLabel bölgesel rusak (W1 Path 2 = "2026-10-05", Path 7 = "Saturday"; W2 = Senin..Minggu; Sep W4 Inggris semua) — penyebab: contoh skema enrich `"dayLabel":"Senin"` + nol normalisasi.
+
+**Ubah:** contoh skema → Minggu + aturan hari eksplisit → `genOne`/`clampPaths`/`proposalFromDraft`/`sanitizePaths`/`ensurePaths` paksa kalender → enrich dapat `patternBlock` + larangan kosong → merge keep-old (kosong = pertahankan) + sermon guard → meta diagnosis (`models/truncated/promptChars`) di pengajuan + riwayat → guard susut >50% di ringkasan HOD → budget knowledge terlihat di tab Pengetahuan → SOP `docs/product/didaskalia-studio.md` → rename Post-to-Post & 3 Sequences.
+
+**Data:** skrip `fix-didaskalia-week.mjs` (dry-run default; npm `:staging[:apply]`/`:prod[:apply]`) — dayLabel + slot regenerate saja (paths/khotbah utuh). Staging ✓ + prod ✓ (4 pekan, 0 sesi DUAL perlu migrasi). Seed worship staging + prod ✓ (nama baru, DUAL arsip, sesi 4 Okt utuh).
+
+**Verifikasi:** `lint` bersih ✓ **756 test** hijau ✓ `build` menyusul saat commit.
+
+**Next:** commit di branch, push menunggu perintah.
+
 ## Current — Reset pola 11 Okt + tombol Reset ke Monolog (5 Okt 2026)
 
 **Temuan:** default pekan memang sudah MONOLOG di semua lapis; 11 Okt diganti manual ke BEDAH_FILM + dibuatkan sesi (`sesi-2026-10-11`, DRAFT, kosong 0/0/0) di staging & prod.

@@ -15,10 +15,10 @@ const mysql = require('mysql2/promise');
 
 const uid = (p) => `${p}-${crypto.randomUUID()}`;
 
-const POST_TO_POST_PLAYBOOK = `# Post-to-Post (Mentoring Day)
+const POST_TO_POST_PLAYBOOK = `# Post-to-Post
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Post-to-Post (Mentoring Day). **Durasi baku:** 60 menit (varian padat 45 menit: potong monolog jadi 10 menit).
+**Nama:** Post-to-Post. **Durasi baku:** 60 menit (varian padat 45 menit: potong monolog jadi 10 menit).
 **Tujuan:** Injil mengubahkan realita keseharian — jemaat datang dengan pergumulan nyata (Hubungan, Pekerjaan/Kuliah, Keluarga), pulang dengan solusi teologis + langkah praktis.
 **Ayat jangkar default:** 1 Korintus 15:3-4. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
 
@@ -153,10 +153,10 @@ Modul: screening, timer, notes. Config sesi: {filmJudul, durasiDetik, subtitleBa
 3. Siapkan pancingan pleno cadangan bila jemaat diam 30 detik: "Adegan [X] mengingatkanku pada {{firman_ref}} bagian [...] — ada yang merasakan hal sama?"
 4. Cek durasi total: film + 54 menit bingkai. Potong 1 lagu bila film melebihi 95 menit.`;
 
-const THREE_SEQUENCES_PLAYBOOK = `# The 3 Sequences — Grand Finale (Coram Deo Challenge)
+const THREE_SEQUENCES_PLAYBOOK = `# The 3 Sequences (Coram Deo Challenge)
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** The 3 Sequences (Grand Finale). **Durasi baku:** 120 menit (tanpa jeda antar sequence — energi terus naik).
+**Nama:** The 3 Sequences. **Durasi baku:** 120 menit (tanpa jeda antar sequence — energi terus naik).
 **Tujuan:** Mengubah 9-to-5 menjadi altar — Melayani (mencair), Bersekutu (firman sebagai kompas), Bersaksi (keluar sebagai utusan). Ditutup commissioning: dari peserta menjadi utusan {{tema}}.
 **Ayat jangkar default:** Matius 28:19-20. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
 
@@ -272,7 +272,7 @@ const PATTERNS = [
   },
   {
     code: 'POST_TO_POST',
-    name: 'Post-to-Post (Mentoring Day)',
+    name: 'Post-to-Post',
     summary:
       'Monolog singkat + jemaat berpindah pos sesuai kebutuhan. Didukung modul web: Likert, alokasi ruang, timer, catatan, chip words, word cloud.',
     defaultDurationMin: 60,
@@ -320,7 +320,7 @@ const PATTERNS = [
   },
   {
     code: 'THREE_SEQUENCES',
-    name: 'The 3 Sequences (Grand Finale)',
+    name: 'The 3 Sequences',
     summary: 'Gamifikasi misi tanpa jeda: Melayani → Bersekutu → Bersaksi, ditutup Commissioning.',
     defaultDurationMin: 120,
     modules: ['teams', 'timer', 'notes'],

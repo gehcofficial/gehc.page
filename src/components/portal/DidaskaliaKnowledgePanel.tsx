@@ -164,6 +164,24 @@ export const DidaskaliaKnowledgePanel: React.FC<Props> = ({ canWrite }) => {
           <FileText className="w-4 h-4 text-[#0EA5E9]" />
           <h4 className="text-sm font-black text-[#1B1B1B]">Pengetahuan Tim</h4>
           <span className="text-[10px] text-[#8C8880]">{docs.filter((d) => d.isActive).length} aktif / {docs.length}</span>
+          {(() => {
+            const ordered = [...docs].filter((d) => d.isActive).sort((a, b) => (a.sortOrder - b.sortOrder) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+            let used = 0;
+            const included: string[] = [];
+            const cut: string[] = [];
+            for (const d of ordered) {
+              const cost = `--- ${d.title} ---`.length + d.content.length + 2;
+              if (used + cost <= maxChars) { used += cost; included.push(d.id); }
+              else cut.push(d.id);
+            }
+            const total = ordered.reduce((n, d) => n + d.content.length, 0);
+            return (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cut.length ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`} title={cut.length ? `Terpotong dari prompt AI: ${cut.map((id) => ordered.find((d) => d.id === id)?.title).filter(Boolean).join(', ')}` : 'Semua dokumen aktif masuk prompt AI'}>
+                budget {used.toLocaleString('id-ID')}/{maxChars.toLocaleString('id-ID')} char{cut.length ? ` · ${cut.length} terpotong` : ''}
+                {total > 0 && ` (total ${total.toLocaleString('id-ID')})`}
+              </span>
+            );
+          })()}
           {canWrite && (
             <>
               <button type="button" onClick={() => fileRef.current?.click()} disabled={busy === 'upload'} className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
