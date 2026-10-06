@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Alihkan pola sesi di tempat (7 Okt 2026)
+
+**Kebutuhan:** slug `sesi-2026-10-11` sudah dipakai sesi Bedah Film (prod) → buat sesi Monolog baru bentrok "Slug sudah dipakai"; overwrite slug tidak mungkin karena unik.
+
+**Ubah:** `POST /api/worship/sessions/:id/convert-pattern` (`convertSessionPattern` teruji: DRAFT-only, tolak bila ada data peserta, hapus isi organizer pola lama transaksional, slug & link tetap, timer/floors dipertahankan) → `SessionDraftTab` CTA primer `Alihkan sesi ini ke {pekan}` saat mismatch + saran slug unik otomatis saat 409 → test `worship.test.ts` +4 convert.
+
+**Verifikasi:** `tsc` bersih ✓ 84 test hijau (5 file worship/nav-config) ✓
+
+**Next:** prod 11 Okt: sub-tab Draft → `Alihkan sesi ini ke MONOLOG` (konfirmasi) → isi AI → Terapkan. Link lama tetap berlaku.
+
 ## Current — Pustaka Lagu Liturgia + chord/transpose + ekspor FreeShow (7 Okt 2026)
 
 **Kebutuhan:** rundown pola (Didaskalia) tanpa daftar lagu; Liturgia butuh setlist per ibadah + referensi himne (SABDA) & kontemporer + chord pemusik dengan transpose & pilih bagian + siap integrasi free.show; media simpan harus reusable lintas-unit.

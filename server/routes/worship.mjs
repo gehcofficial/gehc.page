@@ -394,6 +394,93 @@ async function findSession(prisma, key) {
   return prisma.worshipSession.findUnique({ where: { slug: k } }).catch(() => null);
 }
 
+/**
+ * Alihkan pola sesi di tempat (slug + link tetap). Guard: hanya DRAFT tanpa
+ * data peserta. Isi organizer pola lama ikut dibuang. Melempar { status, message }.
+ */
+export async function convertSessionPattern(prisma, sessionId, targetCode) {
+  const session = await findSession(prisma, sessionId);
+  if (!session) {
+    const e = new Error('Sesi tidak ditemukan.');
+    e.status = 404;
+    throw e;
+  }
+  if (String(session.status || '').toUpperCase() !== 'DRAFT') {
+    const e = new Error(`Sesi berstatus ${session.status} — hanya sesi DRAFT yang bisa dialihkan polanya.`);
+    e.status = 409;
+    throw e;
+  }
+  const code = String(targetCode || '').toUpperCase();
+  const full = await prisma.worshipSession.findUnique({
+    where: { id: session.id },
+    include: { pattern: { select: { code: true } } },
+  });
+  const fromCode = String(full?.pattern?.code || '').toUpperCase();
+  if (!code) {
+    const e = new Error('patternCode wajib.');
+    e.status = 400;
+    throw e;
+  }
+  if (fromCode === code) {
+    const e = new Error(`Sesi sudah berpola ${fromCode}.`);
+    e.status = 400;
+    throw e;
+  }
+  const target = await prisma.worshipPattern.findUnique({ where: { code } });
+  if (!target) {
+    const e = new Error('Pola tujuan tidak ditemukan.');
+    e.status = 400;
+    throw e;
+  }
+  const [respCount, voteCount, noteCount] = await Promise.all([
+    prisma.worshipLikertResponse.count({ where: { sessionId: session.id } }),
+    prisma.worshipChipVote.count({ where: { sessionId: session.id } }),
+    prisma.worshipNote.count({ where: { sessionId: session.id } }).catch(() => 0),
+  ]);
+  if (respCount > 0 || voteCount > 0 || noteCount > 0) {
+    const e = new Error('Sudah ada data peserta — sesi tidak bisa dialihkan polanya.');
+    e.status = 409;
+    throw e;
+  }
+  const prev = normalizeConfig(session.config, fromCode);
+  const cfg = normalizeConfig(
+    {
+      timerSeconds: prev.timerSeconds,
+      floors: prev.floors,
+      rankFloors: prev.rankFloors,
+      expectedCount: prev.expectedCount,
+      chipLimit: prev.chipLimit,
+      draft: null,
+    },
+    code,
+  );
+  const legacyItems = await prisma.worshipLikertItem.findMany({
+    where: { sessionId: session.id },
+    select: { id: true },
+  });
+  const legacyIds = legacyItems.map((r) => r.id);
+  const legacyChips = await prisma.worshipChip.findMany({
+    where: { sessionId: session.id },
+    select: { code: true },
+  });
+  const legacyCodes = legacyChips.map((c) => c.code);
+  await prisma.$transaction([
+    ...(legacyIds.length
+      ? [prisma.worshipLikertResponse.deleteMany({ where: { itemId: { in: legacyIds } } })]
+      : []),
+    prisma.worshipLikertItem.deleteMany({ where: { sessionId: session.id } }),
+    ...(legacyCodes.length
+      ? [prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id, chipCode: { in: legacyCodes } } })]
+      : []),
+    prisma.worshipChip.deleteMany({ where: { sessionId: session.id } }),
+    prisma.worshipSession.update({
+      where: { id: session.id },
+      data: { patternId: target.id, config: cfg },
+    }),
+  ]);
+  return { from: fromCode, to: code, slug: session.slug };
+}
+
 export function registerWorshipRoutes(app, { wrap }) {
   // ---------------- Peserta ----------------
 
@@ -1218,6 +1305,26 @@ export function registerWorshipRoutes(app, { wrap }) {
       await prisma.worshipChipVote.deleteMany({ where: { sessionId: chip.sessionId, chipCode: code } });
       await prisma.worshipChip.delete({ where: { id: chip.id } });
       res.json({ ok: true });
+    }),
+  );
+
+  // Alihkan pola sesi di tempat (slug + link tetap): mis. BEDAH_FILM → MONOLOG
+  // saat pekan berganti tapi slug sudah terpakai. Guard: hanya sesi DRAFT tanpa
+  // data peserta (jawaban/vote/catatan). Isi organizer pola lama (soal/chip/draft/
+  // stage) ikut dibuang karena template tiap pola beda key. Perlu konfirmasi klien.
+  app.post(
+    '/api/worship/sessions/:id/convert-pattern',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      try {
+        const out = await convertSessionPattern(prisma, req.params.id, req.body?.patternCode);
+        res.json({ ok: true, ...out });
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || 'Gagal mengalihkan pola sesi.' });
+      }
     }),
   );
 

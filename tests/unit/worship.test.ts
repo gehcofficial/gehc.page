@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ensureAutoClosed, normalizeConfig, rankTopics } from '../../server/routes/worship.mjs';
+import { convertSessionPattern, ensureAutoClosed, normalizeConfig, rankTopics } from '../../server/routes/worship.mjs';
 import {
   canOpenSegment,
   fmtClock,
@@ -221,5 +221,57 @@ describe('worship: auto-closed', () => {
       sessionDate: today,
     });
     expect(captured).toHaveLength(0);
+  });
+});
+
+describe('worship: convert-pattern', () => {
+  const baseSession = {
+    id: 'ws-1',
+    slug: 'sesi-2026-10-11',
+    status: 'DRAFT',
+    config: { timerSeconds: 1500, draft: { film: { 'film-title': 'X' } } },
+  };
+  const stubPrisma = (over: { full?: boolean; resp?: number } = {}) => ({
+    worshipSession: {
+      findUnique: async ({ where }) => {
+        if (where.id === 'ws-1' || where.slug === 'sesi-2026-10-11') {
+          if (over.full) return { ...baseSession, pattern: { code: 'BEDAH_FILM' } };
+          return { ...baseSession };
+        }
+        return null;
+      },
+      update: async ({ data }) => ({ ...baseSession, ...data }),
+    },
+    worshipPattern: {
+      findUnique: async ({ where }) =>
+        where.code === 'MONOLOG' ? { id: 'wp-mono', code: 'MONOLOG' } : null,
+    },
+    worshipLikertResponse: { count: async () => over.resp ?? 0, deleteMany: async () => ({}) },
+    worshipChipVote: { count: async () => 0, deleteMany: async () => ({}) },
+    worshipNote: { count: async () => 0 },
+    worshipLikertItem: { findMany: async () => [], deleteMany: async () => ({}) },
+    worshipChip: { findMany: async () => [], deleteMany: async () => ({}) },
+    $transaction: async (ops) => ops,
+  });
+
+  it('mengalihkan BEDAH_FILM → MONOLOG, slug tetap, draft dibuang', async () => {
+    const out = await convertSessionPattern(stubPrisma({ full: true }), 'sesi-2026-10-11', 'MONOLOG');
+    expect(out).toMatchObject({ from: 'BEDAH_FILM', to: 'MONOLOG', slug: 'sesi-2026-10-11' });
+  });
+
+  it('menolak sesi non-DRAFT dan pola sama', async () => {
+    await expect(convertSessionPattern(stubPrisma({ full: true }), 'nope', 'MONOLOG')).rejects.toMatchObject({ status: 404 });
+    const running = stubPrisma({ full: true });
+    running.worshipSession.findUnique = async () => ({ ...baseSession, status: 'RUNNING', pattern: { code: 'BEDAH_FILM' } });
+    await expect(convertSessionPattern(running, 'ws-1', 'MONOLOG')).rejects.toMatchObject({ status: 409 });
+    await expect(convertSessionPattern(stubPrisma({ full: true }), 'ws-1', 'BEDAH_FILM')).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('menolak bila sudah ada data peserta', async () => {
+    await expect(convertSessionPattern(stubPrisma({ full: true, resp: 3 }), 'ws-1', 'MONOLOG')).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('menolak pola tujuan tak dikenal', async () => {
+    await expect(convertSessionPattern(stubPrisma({ full: true }), 'ws-1', 'NOPE')).rejects.toMatchObject({ status: 400 });
   });
 });

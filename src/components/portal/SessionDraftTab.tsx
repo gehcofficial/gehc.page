@@ -231,12 +231,51 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d?.error || 'Gagal membuat sesi.');
+      if (!r.ok) {
+        // Slug bentrok (mis. sesi pola lama masih pakai slug tanggal) — sarankan varian unik.
+        if (r.status === 409 && String(d?.error || '').toLowerCase().includes('slug')) {
+          const alt = slugify(`${slugDraft.trim()}-${code.toLowerCase()}`);
+          setSlugDraft(alt);
+          throw new Error(`Slug sudah dipakai. Coba "${alt}" — atau alihkan pola sesi lama di atas agar slug tetap.`);
+        }
+        throw new Error(d?.error || 'Gagal membuat sesi.');
+      }
       setMsg({ kind: 'ok', text: `Sesi "${d.session?.slug}" dibuat — silakan isi draft.` });
       await loadSessions();
       if (d.session?.id) setSelectedId(d.session.id);
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal membuat sesi.' });
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
+  // Alihkan pola sesi lama di tempat (slug + link tetap). Aman bila DRAFT kosong:
+  // server menolak bila sudah ada data peserta. Perlu konfirmasi karena isi pola lama dibuang.
+  const convertSession = async () => {
+    if (!canWrite || !detail || !mismatched) return;
+    if (
+      !window.confirm(
+        `Alihkan sesi "${detail.session.slug}" dari ${detailCode} ke ${code}? Isi draft pola lama dibuang (link peserta/layar/kontrol tetap sama).`,
+      )
+    )
+      return;
+    setCreateBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${detail.session.id}/convert-pattern`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ patternCode: code }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengalihkan pola sesi.');
+      setMsg({ kind: 'ok', text: `Sesi dialihkan ${d.from} → ${d.to}. Slug & link tetap — silakan isi draft ${code}.` });
+      await loadSessions();
+      await loadDetail();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal mengalihkan pola.' });
     } finally {
       setCreateBusy(false);
     }
@@ -529,14 +568,20 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
             <p className="text-[11px] text-amber-900">
               Sesi terpilih berpola <b>{detailCode}</b>, sedangkan pekan ini <b>{code}</b>. Form di bawah milik sesi lama
-              (arsip) — buat sesi baru agar mengikuti pola pekan.
+              (arsip). Pilihan tercepat: alihkan sesi ini ke {code} — slug & link tetap sama.
             </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={!canWrite || createBusy} onClick={() => void convertSession()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+                {createBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Alihkan sesi ini ke {code}
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-800">Atau buat sesi baru (slug harus unik — bila bentrok, saran otomatis terisi):</p>
             <div className="grid sm:grid-cols-2 gap-2">
               <input value={slugDraft} onChange={(e) => setSlugDraft(e.target.value)} placeholder="slug-sesi" className={INPUT} />
               <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Judul sesi" className={INPUT} />
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={!canWrite || createBusy} onClick={() => void createSession()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+              <button type="button" disabled={!canWrite || createBusy} onClick={() => void createSession()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-xs font-bold text-[#1B1B1B] disabled:opacity-50">
                 {createBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Buat sesi {code} baru
               </button>
             </div>
