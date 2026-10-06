@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Sub-tab Pola & Sesi + mismatch eksplisit (7 Okt 2026)
+
+**Kebutuhan:** tab Pola & Sesi scroll terlalu panjang; revert Bedah Film → Monolog tanggal 11 tapi draft masih tampil film (dual source of truth pekan vs sesi + auto-reselect sesi kept).
+
+**Ubah:** `PolaSesiPanel` sub-tab Katalog/Draft/Kontrol (default Draft, hidden bukan unmount, `initialSub` deep-link dari Studio, `sessionEpoch` refresh list sesi tiap savePattern) → `SessionDraftTab` banner mismatch + CTA `Buat sesi {pekan} baru` + sembunyikan Isi AI/Simpan/Terapkan + form read-only saat mismatch + tahan seleksi kosong setelah reset tanpa hapus + reset form ke kosongan Monolog + `key={selectedId-detailCode}` remount bersih → `DivisionWorkspacePanel` `polaInitialSub` (Lihat detail pola → katalog).
+
+**Verifikasi:** `tsc` bersih ✓ 80 test hijau (worship, nav-config, draft, patterns, delete) ✓
+
+**Next:** staging 11 Okt: sub-tab Draft → banner mismatch → Buat sesi MONOLOG baru → Terapkan; sesi film lama Tutup (arsip CLOSED). Sesi film 11 Okt yang nyangkut: arsipkan, jangan hapus.
+
 ## Current — Deck 7 slide + Absensi Grup + preselect + tooltip AI (6 Okt 2026)
 
 **Deck pembekalan 16→7:** cover+inti, garis besar, A gabungan (deliver+ringkasan), checklist (pindah), kerangka gabungan, B gabungan (teknis pola + alur + absensi + monitoring), penutup (7 hari + doa). Renderer dukung semua field. Test deck ditulis ulang.

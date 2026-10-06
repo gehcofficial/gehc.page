@@ -111,6 +111,9 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   const [titleDraft, setTitleDraft] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const proposalChips = useRef<{ topicCode?: string | null }[] | undefined>(undefined);
+  // Setelah reset pola yang tidak menghapus apa pun (sesi lama kept/terisi),
+  // tahan seleksi kosong agar form film lama tidak langsung kepilih lagi.
+  const suppressAutoSelect = useRef(false);
 
   const linked = useMemo(() => {
     if (!event) return [];
@@ -138,6 +141,10 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       setSessions(list);
       setSelectedId((prev) => {
         if (prev && list.some((s) => s.id === prev)) return prev;
+        if (suppressAutoSelect.current) {
+          suppressAutoSelect.current = false;
+          return '';
+        }
         const forEvent = event ? list.filter((s) => s.eventId === event.id) : [];
         return forEvent[0]?.id || '';
       });
@@ -170,6 +177,12 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  // Tanpa sesi terpilih, kembalikan form ke kosongan pola pekan agar sisa
+  // template pola lama (mis. Bedah Film) tidak tertinggal setelah ganti pola.
+  useEffect(() => {
+    if (!selectedId) setSections(emptySessionDraft(code));
+  }, [selectedId, code]);
 
   useEffect(() => {
     const date = String(weekDate || '').slice(0, 10) || ym;
@@ -364,7 +377,13 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       if ((d.deleted || []).length) parts.push(`Sesi dihapus: ${(d.deleted as string[]).join(', ')}.`);
       for (const k of (d.kept || []) as { slug: string; reason: string }[]) parts.push(`Tetap: ${k.slug} (${k.reason}).`);
       setMsg({ kind: 'ok', text: parts.join(' ') });
+      // Bila tidak ada yang terhapus tapi ada sesi kept (terisi/non-DRAFT),
+      // jangan auto-pilih sesi pola lama lagi — tampilkan empty-state buat sesi baru.
+      if (!(d.deleted || []).length && (d.kept || []).length) suppressAutoSelect.current = true;
       setSelectedId('');
+      // Kosongkan form pola lama agar tidak tampil sisa Bedah Film setelah revert ke Monolog
+      // (reset-pattern selalu kembali ke MONOLOG).
+      setSections(emptySessionDraft('MONOLOG'));
       await loadSessions();
       onPatternReset?.();
     } catch (e) {
@@ -375,6 +394,9 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  // Sesi terpilih berpola beda dari pekan (mis. pekan sudah MONOLOG tapi sesi masih BEDAH_FILM):
+  // form milik sesi lama — jangan timpa; arahkan buat sesi baru pola pekan.
+  const mismatched = Boolean(detail) && detailCode !== code;
   const sessionLinks = (slug: string) => ({
     peserta: `${origin}/#/mentoring/${slug}`,
     layar: `${origin}/#/mentoring/${slug}/layar`,
@@ -503,7 +525,25 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           </div>
         )}
 
-        {detail && (
+        {mismatched && event && (
+          <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
+            <p className="text-[11px] text-amber-900">
+              Sesi terpilih berpola <b>{detailCode}</b>, sedangkan pekan ini <b>{code}</b>. Form di bawah milik sesi lama
+              (arsip) — buat sesi baru agar mengikuti pola pekan.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <input value={slugDraft} onChange={(e) => setSlugDraft(e.target.value)} placeholder="slug-sesi" className={INPUT} />
+              <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Judul sesi" className={INPUT} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={!canWrite || createBusy} onClick={() => void createSession()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+                {createBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Buat sesi {code} baru
+              </button>
+            </div>
+          </div>
+        )}
+
+        {detail && !mismatched && (
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" disabled={!canWrite || aiBusy} onClick={() => void fillFromAi()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
               {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Isi dari AI pekan ini
@@ -524,6 +564,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         )}
       </div>
 
+      <div key={`${selectedId || 'none'}-${detailCode}`} className="space-y-3">
       {detail && sections.map((s) => (
         <div key={s.key} className={CARD}>
           <h5 className="text-xs font-black text-[#1B1B1B]">{s.title}</h5>
@@ -533,15 +574,16 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
               <div key={f.key} className={f.kind === 'textarea' ? 'sm:col-span-2' : ''}>
                 <label className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1 block">{f.label}</label>
                 {f.kind === 'textarea' ? (
-                  <textarea value={f.value} onChange={(e) => setField(s.key, f.key, e.target.value)} placeholder={f.placeholder} rows={2} disabled={!canWrite || guard.locked} className={`${INPUT} resize-y disabled:opacity-60`} />
+                  <textarea value={f.value} onChange={(e) => setField(s.key, f.key, e.target.value)} placeholder={f.placeholder} rows={2} disabled={!canWrite || guard.locked || mismatched} className={`${INPUT} resize-y disabled:opacity-60`} />
                 ) : (
-                  <input value={f.value} onChange={(e) => setField(s.key, f.key, e.target.value)} placeholder={f.placeholder} type={f.kind === 'number' ? 'number' : 'text'} disabled={!canWrite || guard.locked} className={`${INPUT} disabled:opacity-60`} />
+                  <input value={f.value} onChange={(e) => setField(s.key, f.key, e.target.value)} placeholder={f.placeholder} type={f.kind === 'number' ? 'number' : 'text'} disabled={!canWrite || guard.locked || mismatched} className={`${INPUT} disabled:opacity-60`} />
                 )}
               </div>
             ))}
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 };

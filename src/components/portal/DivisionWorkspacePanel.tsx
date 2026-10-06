@@ -145,6 +145,8 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     .sort((a, b) => orderOf(a.status) - orderOf(b.status));
   const [selectedDiv, setSelectedDiv] = useState<string>(division || ALL_DIVISIONS[0]);
   const [detailTab, setDetailTab] = useState<DetailTab>(String(division || '').toUpperCase() === 'DIDASKALIA' ? 'studio' : 'overview');
+  // Sub-tab awal Pola & Sesi saat dibuka dari Studio ("Lihat detail pola →" = katalog).
+  const [polaInitialSub, setPolaInitialSub] = useState<'katalog' | 'draft' | 'kontrol'>('draft');
   const [waLinks, setWaLinks] = useState<Array<{ kind: string; refId: string; url: string; label?: string | null }>>([]);
 
   // Division members
@@ -1616,7 +1618,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   yearMonth={studioYearMonth || undefined}
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}
-                  onOpenPola={() => setDetailTab('pola')}
+                  onOpenPola={() => { setPolaInitialSub('katalog'); setDetailTab('pola'); }}
                 />
               </div>
             )}
@@ -1628,6 +1630,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   yearMonth={studioYearMonth || undefined}
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}
+                  initialSub={polaInitialSub}
                 />
               </div>
             )}

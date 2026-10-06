@@ -19,6 +19,7 @@ type Props = {
   yearMonth?: string;
   weekIndex?: number;
   eventName?: string;
+  initialSub?: 'katalog' | 'draft' | 'kontrol';
 };
 
 async function readJson(r: Response) {
@@ -40,9 +41,16 @@ function fmtDate(iso: string) {
  * Mengikuti tanggal kegiatan dari DivisionWorkspacePanel (ym/weekIndex dari selectedEvent),
  * jadi ganti event di atas otomatis reload pola + draft + kontrol di bawah.
  */
-export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
+export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndexProp, eventName, initialSub }) => {
   const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
+
+  // Sub-tab dalam Pola & Sesi: katalog (pilih pola pekan) / draft (isi sesi event) / kontrol (hari-H).
+  // Default draft — aksi tersering; pindah sub-tab tidak unmount isi (pakai hidden).
+  const [subTab, setSubTab] = useState<'katalog' | 'draft' | 'kontrol'>(initialSub || 'draft');
+  useEffect(() => {
+    if (initialSub) setSubTab(initialSub);
+  }, [initialSub]);
 
   const [ym] = useState(yearMonth || '');
   const [weekIndex] = useState(weekIndexProp || 1);
@@ -56,6 +64,8 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Naikkan tiap savePattern berhasil agar SessionDraftTab + MentoringControl reload list sesi.
+  const [sessionEpoch, setSessionEpoch] = useState(0);
 
   const load = useCallback(async () => {
     if (!activeYm || !activeWeek) return;
@@ -107,6 +117,9 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
         });
         if (!r.ok) throw new Error('Gagal menyimpan pola.');
         addToast({ type: 'success', title: `Pola pekan: ${next}` });
+        // Sinkronkan list sesi di bawah (SessionDraftTab linked + MentoringControl)
+        // agar tidak menunjuk sesi pola lama setelah pekan berganti.
+        setSessionEpoch((e) => e + 1);
       } catch (e: unknown) {
         addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan pola.' });
       } finally {
@@ -124,6 +137,12 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
     );
   }
 
+  const subTabs: Array<{ id: 'katalog' | 'draft' | 'kontrol'; label: string }> = [
+    { id: 'katalog', label: 'Katalog' },
+    { id: 'draft', label: 'Draft' },
+    { id: 'kontrol', label: 'Kontrol' },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-2">
@@ -139,6 +158,18 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
             {weekMeta?.date ? ` · ${fmtDate(String(weekMeta.date))}` : ''}
           </span>
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          {subTabs.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSubTab(s.id)}
+              className={`text-[11px] px-3 py-1.5 rounded-full font-bold border ${subTab === s.id ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
         <p className="text-[11px] text-[#8C8880]">
           Pola pekan ini menentukan POV kontrol hari-H: tiap pola menyembunyikan modul yang tidak relevan. Draft, kontrol, dan 3 link
           (peserta/layar/kontrol) mengikuti event di atas.
@@ -152,24 +183,38 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
         </p>
       ) : (
         <>
-          <WorshipPatternCatalog
-            patterns={patterns}
-            activeCode={weekMeta?.patternCode || 'MONOLOG'}
-            canWrite={canWrite}
-            busy={!!busy}
-            onUse={(code) => void savePattern(code)}
-            onCopyPlaybook={() => addToast({ type: 'success', title: 'Naskah pola disalin' })}
-          />
-          <SessionDraftTab
-            ym={activeYm}
-            weekIndex={activeWeek}
-            patternCode={weekMeta?.patternCode || 'MONOLOG'}
-            event={event}
-            weekDate={weekMeta?.date}
-            canWrite={canWrite}
-            onPatternReset={() => void load()}
-          />
-          <MentoringControl eventId={event?.id || null} />
+          <div className={subTab === 'katalog' ? '' : 'hidden'}>
+            <WorshipPatternCatalog
+              patterns={patterns}
+              activeCode={weekMeta?.patternCode || 'MONOLOG'}
+              canWrite={canWrite}
+              busy={!!busy}
+              onUse={(code) => void savePattern(code)}
+              onCopyPlaybook={() => addToast({ type: 'success', title: 'Naskah pola disalin' })}
+            />
+            <button
+              type="button"
+              onClick={() => setSubTab('draft')}
+              className="mt-3 text-[11px] font-bold text-sky-700 hover:underline"
+            >
+              Lanjut ke Draft →
+            </button>
+          </div>
+          <div className={subTab === 'draft' ? '' : 'hidden'}>
+            <SessionDraftTab
+              key={`draft-${sessionEpoch}`}
+              ym={activeYm}
+              weekIndex={activeWeek}
+              patternCode={weekMeta?.patternCode || 'MONOLOG'}
+              event={event}
+              weekDate={weekMeta?.date}
+              canWrite={canWrite}
+              onPatternReset={() => void load()}
+            />
+          </div>
+          <div className={subTab === 'kontrol' ? '' : 'hidden'}>
+            <MentoringControl key={`kontrol-${sessionEpoch}`} eventId={event?.id || null} />
+          </div>
         </>
       )}
     </div>
