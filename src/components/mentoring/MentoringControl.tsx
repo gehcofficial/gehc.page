@@ -30,6 +30,7 @@ type SessionRow = {
   status: MentoringStatus;
   sessionDate?: string | null;
   accessCode?: string | null;
+  eventId?: string | null;
   pattern?: { code: string; name: string } | null;
 };
 
@@ -82,9 +83,10 @@ const ACTIONS: { action: string; label: string; tone: string }[] = [
   { action: 'reset', label: 'Reset ke Draft', tone: 'bg-white !text-[#8C8880] border border-[#D9D7D0]' },
 ];
 
-export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSlug }) => {
+export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string | null }> = ({ initialSlug, eventId }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
+  const [onlyEvent, setOnlyEvent] = useState(true);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [live, setLive] = useState<MentoringLivePayload | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,12 +111,17 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
       setSelectedId((prev) => {
         if (prev && list.some((s) => s.id === prev)) return prev;
         const bySlug = initialSlug ? list.find((s) => s.slug === initialSlug)?.id : '';
-        return bySlug || list[0]?.id || '';
+        if (bySlug) return bySlug;
+        if (eventId) {
+          const forEvent = list.filter((s) => (s as unknown as { eventId?: string | null }).eventId === eventId);
+          if (forEvent.length) return forEvent[0].id;
+        }
+        return list[0]?.id || '';
       });
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat sesi.' });
     }
-  }, []);
+  }, [initialSlug, eventId]);
 
   const loadDetail = useCallback(async () => {
     if (!selectedId) return;
@@ -161,8 +168,9 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
   const doAction = async (action: string, extra?: Record<string, unknown>) => {
     if (!detail) return;
     if (action === 'start') {
+      const code = String(detail.session.pattern?.code || '').toUpperCase();
       const p = live?.progress || detail.progress;
-      if (p && p.submitted < p.total) {
+      if (p && p.submitted < p.total && code === 'POST_TO_POST') {
         const ok = window.confirm(
           `Baru ${p.submitted}/${p.total} peserta mengisi Likert. Tetap mulai sesi 20 menit?`,
         );
@@ -463,6 +471,31 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
     };
   }, [detail?.session.slug, origin]);
 
+  const patternCode = String(detail?.session?.pattern?.code || '').toUpperCase();
+  const isPostToPost = patternCode === 'POST_TO_POST';
+  const [showArchive, setShowArchive] = useState(false);
+  const visibleSessions = useMemo(() => {
+    let rows = sessions;
+    if (onlyEvent && eventId) {
+      const forEvent = sessions.filter((s) => s.eventId === eventId);
+      if (forEvent.length) rows = forEvent;
+    }
+    if (showArchive) return rows;
+    const cutoff = Date.now() - 28 * 24 * 3600 * 1000;
+    const filtered = rows.filter((s) => {
+      if (String(s.status || '').toUpperCase() !== 'CLOSED') return true;
+      const t = s.sessionDate ? new Date(String(s.sessionDate)).getTime() : NaN;
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
+    });
+    return filtered.length ? filtered : rows;
+  }, [sessions, onlyEvent, eventId, showArchive]);
+  const archivedCount = sessions.length - visibleSessions.length;
+  const visibleActions = useMemo(
+    () => (isPostToPost ? ACTIONS : ACTIONS.filter((a) => a.action !== 'open-likert')),
+    [isPostToPost],
+  );
+
   return (
     <div className="space-y-4">
       <div className={CARD}>
@@ -479,10 +512,30 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
         </div>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="space-y-1">
-            <span className="text-[11px] text-[#8C8880]">Sesi</span>
+            <span className="text-[11px] text-[#8C8880]">
+              Sesi{eventId ? ' event ini' : ''}
+              {eventId && (
+                <button
+                  type="button"
+                  onClick={() => setOnlyEvent((v) => !v)}
+                  className="ml-2 font-bold text-brand hover:underline"
+                >
+                  {onlyEvent ? 'Semua 50' : 'Hanya event ini'}
+                </button>
+              )}
+              {archivedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchive((v) => !v)}
+                  className="ml-2 font-bold text-[#8C8880] hover:text-[#1B1B1B]"
+                >
+                  {showArchive ? 'Sembunyikan arsip' : `Arsip (${archivedCount})`}
+                </button>
+              )}
+            </span>
             <select className={INPUT} value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-              {sessions.length === 0 && <option value="">(belum ada sesi)</option>}
-              {sessions.map((s) => (
+              {visibleSessions.length === 0 && <option value="">(belum ada sesi)</option>}
+              {visibleSessions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.title} — {STATUS_LABELS[s.status]}
                 </option>
@@ -491,8 +544,13 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
           </label>
           {detail?.session?.pattern && (
             <div className="space-y-1">
-              <span className="text-[11px] text-[#8C8880]">Pola</span>
-              <p className="text-sm font-bold">{detail.session.pattern.name}</p>
+              <span className="text-[11px] text-[#8C8880]">Pola sesi</span>
+              <p className="text-sm font-bold">
+                {detail.session.pattern.name}{' '}
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
+                  {patternCode} · {detail.session.slug}
+                </span>
+              </p>
             </div>
           )}
         </div>
@@ -505,7 +563,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
         <>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
-              {ACTIONS.map((a) => (
+              {visibleActions.map((a) => (
                 <button
                   key={a.action}
                   type="button"
@@ -555,6 +613,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               </div>
             </div>
 
+            {isPostToPost && (
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-brand" />
@@ -593,7 +652,9 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                 <Save className="w-3.5 h-3.5" /> Simpan tempat
               </button>
             </div>
+            )}
 
+            {isPostToPost && (
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-brand" />
@@ -731,6 +792,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                 </div>
               </div>
             </div>
+            )}
 
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
               <div className="flex items-center gap-2">
@@ -785,6 +847,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                 sudah mengisi
               </span>
             </div>
+            {isPostToPost && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(live?.rooms || detail.rooms).map((room) => (
                 <div key={room.code} className="rounded-xl border border-[#EFEDE8] p-3">
@@ -797,7 +860,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
                 </div>
               ))}
             </div>
-            {(live?.wordcloud || detail.wordcloud).length > 0 && (
+            )}
+            {isPostToPost && (live?.wordcloud || detail.wordcloud).length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {(live?.wordcloud || detail.wordcloud).map((w) => (
                   <span key={w.code} className="px-3 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-bold">
@@ -831,6 +895,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
             )}
           </div>
 
+          {isPostToPost && (
           <div className={CARD}>
             <p className="text-sm font-black">Pertanyaan Likert ({detail.likertItems.length})</p>
             <div className="mt-3 space-y-2">
@@ -881,7 +946,9 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               </button>
             </div>
           </div>
+          )}
 
+          {isPostToPost && (
           <div className={CARD}>
             <p className="text-sm font-black">Chip words ({detail.chips.length})</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -930,18 +997,19 @@ export const MentoringControl: React.FC<{ initialSlug?: string }> = ({ initialSl
               </button>
             </div>
           </div>
+          )}
 
           <TestimonyPanel sessionId={detail.session.id} />
-          {String(detail.session.pattern?.code || '').toUpperCase() === 'MONOLOG' && (
+          {patternCode === 'MONOLOG' && (
             <FgdTriggerPanel sessionId={detail.session.id} />
           )}
-          {String(detail.session.pattern?.code || '').toUpperCase() === 'DEBAT' && (
+          {patternCode === 'DEBAT' && (
             <DebatPanel sessionId={detail.session.id} />
           )}
-          {String(detail.session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' && (
+          {patternCode === 'BEDAH_FILM' && (
             <ScreeningPanel sessionId={detail.session.id} />
           )}
-          {String(detail.session.pattern?.code || '').toUpperCase() === 'THREE_SEQUENCES' && (
+          {patternCode === 'THREE_SEQUENCES' && (
             <TeamsPanel sessionId={detail.session.id} />
           )}
 

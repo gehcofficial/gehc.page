@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeConfig, rankTopics } from '../../server/routes/worship.mjs';
+import { ensureAutoClosed, normalizeConfig, rankTopics } from '../../server/routes/worship.mjs';
 import {
   canOpenSegment,
   fmtClock,
@@ -48,6 +48,32 @@ describe('worship: config & ranking', () => {
     const d = normalizeConfig({ floors: [{ floor: 1, label: 'Lantai 1' }] });
     expect(d.floors[0].venueId).toBeNull();
     expect(d.floors[0].capacity).toBe(0);
+  });
+
+  it('normalizeConfig non-Post-to-Post mengosongkan topics/affirmations (POV per pola)', () => {
+    const d = normalizeConfig(
+      {
+        topics: [{ code: 'HUBUNGAN', label: 'Hubungan' }],
+        affirmations: { HUBUNGAN: ['a'] },
+        floors: [
+          { floor: 1, label: 'Lt 1' },
+          { floor: 2, label: 'Lt 2' },
+          { floor: 3, label: 'Lt 3' },
+        ],
+      },
+      'BEDAH_FILM',
+    );
+    expect(d.topics).toEqual([]);
+    expect(d.affirmations).toEqual({});
+    expect(rankTopics({ HUBUNGAN: 9 }, d)).toEqual([]);
+  });
+
+  it('normalizeConfig Post-to-Post mempertahankan topics', () => {
+    const d = normalizeConfig(
+      { topics: [{ code: 'HUBUNGAN', label: 'Hubungan' }] },
+      'POST_TO_POST',
+    );
+    expect(d.topics.map((t) => t.code)).toEqual(['HUBUNGAN']);
   });
 
   it('rankTopics: kerentanan tertinggi lebih dulu', () => {
@@ -156,6 +182,44 @@ describe('worship: auto-wrapup', () => {
   it('tidak menyentuh sesi yang belum berjalan', async () => {
     const captured = [];
     await ensureAutoState(stubPrisma(captured), { id: 'x', status: 'LIKERT_OPEN', config: {} });
+    expect(captured).toHaveLength(0);
+  });
+});
+
+describe('worship: auto-closed', () => {
+  const stubPrisma = (captured) => ({
+    worshipSession: {
+      update: async ({ data }) => {
+        captured.push(data);
+        return { id: 'ws-1', ...data };
+      },
+    },
+  });
+
+  it('CLOSED otomatis untuk sesi lewat tanggal yang masih berjalan', async () => {
+    const captured = [];
+    const out = await ensureAutoClosed(stubPrisma(captured), {
+      id: 'ws-1',
+      status: 'WRAPUP',
+      sessionDate: '2026-09-01T00:00:00.000Z',
+    });
+    expect(captured[0].status).toBe('CLOSED');
+    expect(out.status).toBe('CLOSED');
+  });
+
+  it('tidak menyentuh DRAFT dan sesi hari ini', async () => {
+    const captured = [];
+    await ensureAutoClosed(stubPrisma(captured), {
+      id: 'ws-1',
+      status: 'DRAFT',
+      sessionDate: '2026-09-01T00:00:00.000Z',
+    });
+    const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString();
+    await ensureAutoClosed(stubPrisma(captured), {
+      id: 'ws-2',
+      status: 'RUNNING',
+      sessionDate: today,
+    });
     expect(captured).toHaveLength(0);
   });
 });

@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Kondisi GESER: pindah ibadah beda tanggal (6 Okt 2026)
+
+**Kebutuhan:** W3 18 Okt berpotensi maju ke Sab 17 Okt (kegiatan gereja). Belum ada skenario pindah tanggal — link event/DB/Drive harus ikut.
+
+**Keputusan:** kondisi ke-4 `GESER` (18 Okt → newEventDate 17 Okt). Jadwal efektif ikut geser; pekan materi tetap W3 (RHB/ringkasan tak tersentuh); grup idx tetap; Drive/links ikut eventId (tanpa rename).
+
+**Ubah:** migrasi `new_event_date` (`_migrate-service-overrides.cjs`) → `service-overrides.mjs` (`OVERRIDE_CONDITIONS` + `effectiveDate` + upsert validasi) → `service-overrides.mjs` routes (PUT terima `newEventDate`; `POST /geser` dry-run default + apply pindah assignment+event, cek tabrakan) → `serving-assignments.mjs` (slot Minggu tampil baris pindahan, tetap consume idx) → `didaskalia-studio.mjs` (`resolveEventId` ikut tanggal efektif) → `ServicePlanPanel` (opsi Geser + date picker + pratinjau + chip `→`) → test `service-geser.test.ts` (+5).
+
+**Verifikasi:** `lint` (sisa error hanya file WIP lain) + `vitest` + `build` + uji staging dry-run.
+
+**Next:** staging dry-run `from 2026-10-18 to 2026-10-17` → apply bila bersih → HOD verifikasi jadwal/event/materi W3.
+
+## Current — Tab paralel Pola & Sesi + POV per pola (6 Okt 2026)
+
+**Kebutuhan:** opsi bawah kontrol masih Post-to-Post walau Bedah Film dipilih (sesi 11 Okt The Rescue Plan); tiap event perlu 3 link (peserta/layar/kontrol); Studio 9 tab sesak; sesi CLOSED lama membebani list.
+
+**Ubah:** `portal-nav-config.ts` DIDASKALIA `['studio','pola','penatalayan','members']` → `DivisionWorkspacePanel` TAB_META `pola` + render `PolaSesiPanel` (ikuti `selectedEvent` via `yearMonthWib/weekIndexForDateWib`) → `DidaskaliaStudioPanel` 7 tab (hapus `pola/sesi`, tombol `Lihat detail pola →` deep-link ke tab baru) → `MentoringControl` filter event + arsip CLOSED>28hr + sembunyi Likert/Chip/Rank/Rooms bila non-POST + `open-likert` hanya POST → `SessionDraftTab` hidrasi pakai pola sesi + 3 link per sesi event + arsip + AI pakai pola sesi → `worship.mjs` `normalizeConfig(raw, patternCode)` strip topics bila non-POST + `apply-draft` non-POST hapus warisan Likert/Chip transaksional + `ensureAutoClosed` (LIKERT_OPEN/RUNNING/WRAPUP lewat tanggal → CLOSED) di semua jalur baca → test `worship.test.ts` (+4) + `portal-nav-config.test.ts` update.
+
+**Verifikasi:** `tsc` tanpa error baru (error lama ServicePlanPanel/didaskalia-presentation/service-geser tidak tersentuh) ✓ `worship+nav-config+draf` 80 test hijau ✓
+
+**Next:** staging: pilih event 11 Okt → tab Pola & Sesi → buat sesi baru `sesi-2026-10-11-rescue-plan` (BEDAH_FILM) → isi AI → Terapkan (assert likert 0/chips 0/rooms 0) → cek 3 link (layar `?code=`, kontrol login DIDASKALIA). Sesi lama CLOSED jadi arsip.
+
 ## Current — Ringkasan khotbah pola For Service ±600-900 kata (6 Okt 2026)
 
 **Latar:** ringkasan AI (100–150 kata) jauh lebih tipis dari pola .md tim (pengantar + bedah per frasa + jembatan + kesimpulan panggung).

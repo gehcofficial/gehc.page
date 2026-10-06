@@ -37,8 +37,8 @@ import {
   QrCode,
   Plus,
   MessageSquareQuote,
+  Clapperboard,
 } from 'lucide-react';
-
 import { EventCheckInTab } from './EventCheckInTab';
 import { EventInviteCard } from './EventInviteCard';
 import PenatalayanCalendar from './PenatalayanCalendar';
@@ -46,6 +46,7 @@ import { PenatalayanBoard } from './PenatalayanBoard';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
+import { PolaSesiPanel } from './PolaSesiPanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
@@ -123,7 +124,7 @@ interface EventItem {
   startDate?: string | null;
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ajak' | 'ibadah' | 'studio';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ajak' | 'ibadah' | 'studio' | 'pola';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -353,6 +354,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     checkin: { label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
     ajak: { label: d.tabAjak, icon: <Send className="w-3.5 h-3.5" /> },
     studio: { label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
+    pola: { label: 'Pola & Sesi', icon: <Clapperboard className="w-3.5 h-3.5" /> },
   };
   const divTabs: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> =
     divisionDetailTabIds(selectedDiv).map((id) => ({ id: id as DetailTab, ...TAB_META[id] }));
@@ -1611,6 +1613,18 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
             {activeTab === 'studio' && selectedDiv === 'DIDASKALIA' && (
               <div>
                 <DidaskaliaStudioPanel
+                  yearMonth={studioYearMonth || undefined}
+                  weekIndex={studioWeekIndex}
+                  eventName={selectedEvent?.name}
+                  onOpenPola={() => setDetailTab('pola')}
+                />
+              </div>
+            )}
+
+            {/* Pola & Sesi Didaskalia (Didaskalia only) — eksekusi hari-H per event */}
+            {activeTab === 'pola' && selectedDiv === 'DIDASKALIA' && (
+              <div>
+                <PolaSesiPanel
                   yearMonth={studioYearMonth || undefined}
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}

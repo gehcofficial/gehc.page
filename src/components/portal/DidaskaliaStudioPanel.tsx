@@ -53,9 +53,6 @@ import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from 
 import { materialHashPath, delivererLabel, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
-import { MentoringControl } from '../mentoring/MentoringControl';
-import { WorshipPatternCatalog } from './WorshipPatternCatalog';
-import { SessionDraftTab } from './SessionDraftTab';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -167,11 +164,11 @@ function friendlyAiError(e: unknown): string {
   return msg;
 }
 
-export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string }> = ({ yearMonth, weekIndex: weekIndexProp, eventName }) => {
+export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: number; eventName?: string; onOpenPola?: () => void }> = ({ yearMonth, weekIndex: weekIndexProp, eventName, onOpenPola }) => {
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
-  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal' | 'pola' | 'sesi'>('inti');
+  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'>('inti');
   const [ym, setYm] = useState(yearMonth || currentYearMonth());
   const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
@@ -986,7 +983,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 
-  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal' | 'pola' | 'sesi'; label: string }> = [
+  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'; label: string }> = [
     { id: 'inti', label: 'Inti' },
     { id: 'paths', label: '7 Path' },
     { id: 'khotbah', label: 'Khotbah' },
@@ -994,8 +991,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     { id: 'terbitkan', label: 'Terbitkan' },
     { id: 'pengetahuan', label: 'Pengetahuan' },
     { id: 'jadwal', label: 'Jadwal & Meet' },
-    { id: 'pola', label: 'Pola Ibadah' },
-    { id: 'sesi', label: 'Draft Sesi' },
   ];
 
   return (
@@ -1289,7 +1284,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   )}
                 </select>
               </label>
-              <button type="button" onClick={() => setTab('pola')} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola →</button>
+              <button type="button" onClick={() => onOpenPola?.()} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola →</button>
               <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
               </button>
@@ -1720,30 +1715,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           </>)}
           {tab === 'pengetahuan' && (<>
           <DidaskaliaKnowledgePanel canWrite={canWrite} />
-          </>)}
-
-          {tab === 'pola' && (<>
-          <WorshipPatternCatalog
-            patterns={patterns}
-            activeCode={weekMeta?.patternCode || 'MONOLOG'}
-            canWrite={canWrite}
-            busy={!!busy}
-            onUse={(code) => void savePattern(code)}
-            onCopyPlaybook={() => addToast({ type: 'success', title: 'Naskah pola disalin' })}
-          />
-          <MentoringControl />
-          </>)}
-
-          {tab === 'sesi' && (<>
-          <SessionDraftTab
-            ym={ym}
-            weekIndex={weekIndex}
-            patternCode={weekMeta?.patternCode || 'MONOLOG'}
-            event={event}
-            weekDate={weekMeta?.date}
-            canWrite={canWrite}
-            onPatternReset={() => void load()}
-          />
           </>)}
 
           {tab === 'jadwal' && (<>

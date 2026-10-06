@@ -182,9 +182,9 @@ describe('canSeeDivisionTab — Admin, Komisi, BOD, divisi sendiri', () => {
 });
 
 describe('divisionDetailTabIds — sub-tab per divisi', () => {
-  it('Didaskalia tanpa tab Kurikulum & Materi (Studio satu-satunya)', () => {
-    expect(divisionDetailTabIds('DIDASKALIA')).toEqual(['studio', 'penatalayan', 'members']);
-    expect(divisionDetailTabIds('didaskalia')).toEqual(['studio', 'penatalayan', 'members']);
+  it('Didaskalia: Studio + Pola & Sesi + Penatalayan + Anggota', () => {
+    expect(divisionDetailTabIds('DIDASKALIA')).toEqual(['studio', 'pola', 'penatalayan', 'members']);
+    expect(divisionDetailTabIds('didaskalia')).toEqual(['studio', 'pola', 'penatalayan', 'members']);
   });
 
   it('divisi lain tidak berubah', () => {

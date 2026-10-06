@@ -27,11 +27,12 @@ type SessionRow = {
   status: string;
   sessionDate?: string | null;
   eventId?: string | null;
+  accessCode?: string | null;
   pattern?: { code: string; name: string } | null;
 };
 
 type SessionDetail = {
-  session: SessionRow & { config: Record<string, unknown> };
+  session: SessionRow & { config: Record<string, unknown>; pattern?: { code: string; name: string } | null };
   likertItems: { id: string; topicCode: string; text: string }[];
   chips: { id: string; code: string; label: string }[];
   progress: { submitted: number; total: number };
@@ -94,6 +95,11 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState<SessionDetail | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
+  // Pola sesi terpilih (sumber kebenaran) — bukan pola pekan. Mencegah form
+  // Bedah Film terhidrasi template Monolog/Post-to-Post.
+  const detailCode = String(detail?.session?.pattern?.code || code).toUpperCase();
+  const isPostDetail = detailCode === 'POST_TO_POST';
   const [sections, setSections] = useState<DraftSection[]>(() => emptySessionDraft(code));
   const [aiBusy, setAiBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -108,8 +114,21 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
 
   const linked = useMemo(() => {
     if (!event) return [];
-    return sessions.filter((s) => s.eventId === event.id);
-  }, [sessions, event]);
+    const rows = sessions.filter((s) => s.eventId === event.id);
+    if (showArchive) return rows;
+    const cutoff = Date.now() - 28 * 24 * 3600 * 1000;
+    return rows.filter((s) => {
+      if (String(s.status || '').toUpperCase() !== 'CLOSED') return true;
+      const t = s.sessionDate ? new Date(String(s.sessionDate)).getTime() : NaN;
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
+    });
+  }, [sessions, event, showArchive]);
+
+  const archivedCount = useMemo(() => {
+    if (!event) return 0;
+    return sessions.filter((s) => s.eventId === event.id).length - linked.length;
+  }, [sessions, event, linked.length]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -138,7 +157,8 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat detail sesi.');
       setDetail(d);
       const cfg = (d.session?.config || {}) as Record<string, unknown>;
-      setSections(storedToSections(code, (cfg.draft as Record<string, Record<string, string>>) || null));
+      const sessionCode = String(d.session?.pattern?.code || code).toUpperCase();
+      setSections(storedToSections(sessionCode, (cfg.draft as Record<string, Record<string, string>>) || null));
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat detail.' });
     }
@@ -159,12 +179,16 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
 
   const guard = useMemo(() => {
     if (!detail) return { locked: false, reason: '' };
+    // Non-Post-to-Post tidak memakai Likert/Chip — warisan chip tidak boleh mengunci draft.
+    const hasLegacy = isPostDetail
+      ? (detail.likertItems || []).length > 0 || (detail.chips || []).length > 0
+      : false;
     return sessionDraftGuard({
       status: detail.session.status,
       submittedCount: detail.progress?.submitted || 0,
-      hasItems: (detail.likertItems || []).length > 0 || (detail.chips || []).length > 0,
+      hasItems: hasLegacy,
     });
-  }, [detail]);
+  }, [detail, isPostDetail]);
 
   const progress = useMemo(() => countFilled(sections), [sections]);
 
@@ -210,12 +234,14 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
     setAiBusy(true);
     setAiNote(null);
     setMsg(null);
+    // Gunakan pola sesi bila sudah ada (editing), pola pekan bila buat baru.
+    const aiCode = detail ? detailCode : code;
     try {
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/session-draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ patternCode: code, fieldKeys: templateFieldKeys(code) }),
+        body: JSON.stringify({ patternCode: aiCode, fieldKeys: templateFieldKeys(aiCode) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'AI gagal menyusun draft sesi.');
@@ -259,7 +285,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         setSections((prev) =>
           prev.map((s) => ({ ...s, fields: s.fields.map((f) => (map.has(f.key) ? { ...f, value: map.get(f.key) || '' } : f)) })),
         );
-        setAiNote(`Usulan AI: ${vals.length} field terisi. Periksa tiap section lalu Simpan${code === 'POST_TO_POST' ? '/Terapkan' : ''}.`);
+        setAiNote(`Usulan AI: ${vals.length} field terisi. Periksa tiap section lalu Simpan${aiCode === 'POST_TO_POST' ? '/Terapkan' : ''}.`);
       }
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'AI gagal.' });
@@ -297,9 +323,9 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
     setMsg(null);
     try {
       const body =
-        code === 'POST_TO_POST'
-          ? { kind: code, draft: sectionsToPostToPost(sections, proposalChips.current), storedDraft: draftToStored(sections) }
-          : { kind: code, storedDraft: draftToStored(sections) };
+        detailCode === 'POST_TO_POST'
+          ? { kind: detailCode, draft: sectionsToPostToPost(sections, proposalChips.current), storedDraft: draftToStored(sections) }
+          : { kind: detailCode, storedDraft: draftToStored(sections) };
       const r = await fetch(`/api/worship/sessions/${detail.session.id}/apply-draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -310,7 +336,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       if (!r.ok) throw new Error(d?.error || 'Gagal menerapkan draft.');
       setMsg({
         kind: 'ok',
-        text: code === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : 'Draft tersimpan ke sesi.',
+        text: detailCode === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : 'Draft tersimpan ke sesi.',
       });
       await loadDetail();
     } catch (e) {
@@ -348,6 +374,17 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
     }
   };
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const sessionLinks = (slug: string) => ({
+    peserta: `${origin}/#/mentoring/${slug}`,
+    layar: `${origin}/#/mentoring/${slug}/layar`,
+    kontrol: `${origin}/#/mentoring/${slug}/kontrol`,
+  });
+  const copyLink = (text: string) => {
+    void navigator.clipboard?.writeText(text);
+    setMsg({ kind: 'ok', text: 'Tautan disalin.' });
+  };
+
   return (
     <div className="space-y-3">
       <div className={CARD}>
@@ -355,6 +392,11 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           <ClipboardList className="w-4 h-4 text-[#0EA5E9]" />
           <h4 className="text-sm font-black text-[#1B1B1B]">Draft Sesi Hari-H</h4>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">{code}</span>
+          {detail && detailCode !== code && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-700 font-bold">
+              Pola sesi: {detailCode} (pekan: {code})
+            </span>
+          )}
           {code !== 'MONOLOG' && (
             <button
               type="button"
@@ -378,6 +420,15 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
               ))}
             </select>
           )}
+          {archivedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchive((v) => !v)}
+              className="text-[10px] font-bold text-[#8C8880] hover:text-[#1B1B1B]"
+            >
+              {showArchive ? 'Sembunyikan arsip' : `Tampilkan arsip (${archivedCount})`}
+            </button>
+          )}
         </div>
         <p className="mt-1.5 text-[11px] text-[#8C8880]">
           {event ? (
@@ -388,6 +439,54 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         </p>
         {msg && (
           <p className={`mt-2 text-[11px] rounded-xl px-3 py-2 border ${msg.kind === 'ok' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'}`}>{msg.text}</p>
+        )}
+
+        {linked.length > 0 && (
+          <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+            <p className="text-[11px] font-bold">Tautan per sesi event ini ({linked.length})</p>
+            {linked.map((s) => {
+              const urls = sessionLinks(s.slug);
+              const active = s.id === selectedId;
+              return (
+                <div key={s.id} className={`rounded-xl border p-2.5 space-y-1.5 ${active ? 'border-sky-300 bg-sky-50/50' : 'border-[#EFEDE8]'}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(s.id)}
+                      className={`text-xs font-black ${active ? 'text-sky-800' : 'text-[#1B1B1B] hover:text-sky-700'}`}
+                    >
+                      {s.slug}
+                    </button>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
+                      {s.pattern?.code || ''} · {s.status}
+                    </span>
+                    {s.accessCode && (
+                      <span className="text-[10px] font-mono font-black tracking-[0.2em] text-[#1B1B1B]">
+                        {s.accessCode}
+                      </span>
+                    )}
+                  </div>
+                  {(['peserta', 'layar', 'kontrol'] as const).map((k) => (
+                    <div key={k} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-16 shrink-0 text-[#8C8880] capitalize">{k}</span>
+                      <code className="flex-1 truncate text-[#1B1B1B]">{urls[k]}</code>
+                      <button
+                        type="button"
+                        onClick={() => copyLink(k === 'layar' && s.accessCode ? `${urls[k]}?code=${s.accessCode}` : urls[k])}
+                        className="font-bold text-sky-700 hover:underline"
+                      >
+                        Salin
+                      </button>
+                      <a href={urls[k]} target="_blank" rel="noreferrer" className="font-bold text-[#8C8880] hover:text-[#1B1B1B]">
+                        Buka
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            <p className="text-[10px] text-[#8C8880]">Layar proyektor memakai kode sesi (disalin beserta <code>?code=</code>). Sesi CLOSED otomatis read-only.</p>
+          </div>
         )}
 
         {!detail && event && (

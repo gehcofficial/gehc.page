@@ -45,8 +45,10 @@ const DEFAULT_FLOORS = [
 ];
 const DEFAULT_RANK_FLOORS = [2, 1, 3];
 
-export function normalizeConfig(raw) {
+export function normalizeConfig(raw, patternCode) {
   const c = raw && typeof raw === 'object' ? raw : {};
+  const code = String(patternCode || c.patternCode || '').toUpperCase();
+  const isPost = !code || code === 'POST_TO_POST';
   const floors = Array.isArray(c.floors) && c.floors.length ? c.floors : DEFAULT_FLOORS;
   const rankFloors =
     Array.isArray(c.rankFloors) && c.rankFloors.length === floors.length ? c.rankFloors : DEFAULT_RANK_FLOORS;
@@ -59,16 +61,18 @@ export function normalizeConfig(raw) {
       capacity: Math.max(0, intOrNull(f.capacity) || 0),
     })),
     rankFloors: rankFloors.map((n) => intOrNull(n) || 1),
-    topics: Array.isArray(c.topics)
-      ? c.topics
-          .map((t) => ({
-            code: String(t?.code || '').toUpperCase().slice(0, 40),
-            label: str(t?.label, 120) || String(t?.code || ''),
-            pic: str(t?.pic, 120),
-          }))
-          .filter((t) => t.code)
-      : [],
-    affirmations: c.affirmations && typeof c.affirmations === 'object' ? c.affirmations : {},
+    topics: !isPost
+      ? []
+      : Array.isArray(c.topics)
+        ? c.topics
+            .map((t) => ({
+              code: String(t?.code || '').toUpperCase().slice(0, 40),
+              label: str(t?.label, 120) || String(t?.code || ''),
+              pic: str(t?.pic, 120),
+            }))
+            .filter((t) => t.code)
+        : [],
+    affirmations: !isPost ? {} : c.affirmations && typeof c.affirmations === 'object' ? c.affirmations : {},
     chipLimit: intOrNull(c.chipLimit) || 3,
     expectedCount: intOrNull(c.expectedCount) || null,
     // Draft sesi hari-H per pola (diisi tab Draft Sesi Studio; tanpa migrasi skema).
@@ -230,7 +234,7 @@ function buildRooms(ranked, totals, priorityCount, config) {
  */
 export async function ensureAutoState(prisma, session) {
   if (!session || session.status !== 'RUNNING' || !session.startedAt) return session;
-  const config = normalizeConfig(session.config);
+  const config = normalizeConfig(session.config, session.pattern?.code);
   const endsAtMs = new Date(session.startedAt).getTime() + config.timerSeconds * 1000;
   if (Date.now() < endsAtMs) return session;
   try {
@@ -243,8 +247,30 @@ export async function ensureAutoState(prisma, session) {
   }
 }
 
+/**
+ * Auto-closed sesi lewat tanggal (lazy, idempoten): LIKERT_OPEN/RUNNING/WRAPUP
+ * yang sessionDate-nya sudah lewat hari ini WIB → CLOSED. DRAFT tidak disentuh
+ * agar draf pekan berjalan tidak terkunci. Dipanggil pada pembacaan detail/list.
+ */
+export async function ensureAutoClosed(prisma, session) {
+  if (!session || !session.sessionDate) return session;
+  const st = String(session.status || '').toUpperCase();
+  if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(st)) return session;
+  const day = String(session.sessionDate).slice(0, 10);
+  const todayWib = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  if (day >= todayWib) return session;
+  try {
+    return await prisma.worshipSession.update({
+      where: { id: session.id },
+      data: { status: 'CLOSED', closedAt: new Date() },
+    });
+  } catch {
+    return session;
+  }
+}
+
 async function loadAggregates(prisma, session) {
-  const config = normalizeConfig(session.config);
+  const config = normalizeConfig(session.config, session.pattern?.code);
   const [responses, votes, chips] = await Promise.all([
     prisma.worshipLikertResponse.findMany({
       where: { sessionId: session.id },
@@ -385,9 +411,10 @@ export function registerWorshipRoutes(app, { wrap }) {
         include: { pattern: true },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const live = await ensureAutoState(prisma, session);
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
 
-      const config = normalizeConfig(live.config);
+      const config = normalizeConfig(live.config, live.pattern?.code);
       const [items, myResponses, myVotes, myNotes] = await Promise.all([
         prisma.worshipLikertItem.findMany({ where: { sessionId: live.id }, orderBy: { sortOrder: 'asc' } }),
         prisma.worshipLikertResponse.findMany({ where: { sessionId: live.id, userId: req.authUser.id } }),
@@ -591,7 +618,8 @@ export function registerWorshipRoutes(app, { wrap }) {
 
       const session = await prisma.worshipSession.findUnique({ where: { slug: String(req.body?.slug || '') } });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const live = await ensureAutoState(prisma, session);
+      const timedNote = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timedNote);
       if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(live.status)) {
         return res.status(409).json({ error: 'Catatan hanya bisa diisi saat sesi berlangsung.' });
       }
@@ -644,7 +672,8 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!req.authUser && !codeOk) {
         return res.status(401).json({ error: 'Butuh login atau kode sesi proyektor.' });
       }
-      const liveState = await ensureAutoState(prisma, session);
+      const liveStateTimed = await ensureAutoState(prisma, session);
+      const liveState = await ensureAutoClosed(prisma, liveStateTimed);
 
       const agg = await loadAggregates(prisma, liveState);
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
@@ -897,7 +926,8 @@ export function registerWorshipRoutes(app, { wrap }) {
         },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const liveSession = await ensureAutoState(prisma, session);
+      const timedSession = await ensureAutoState(prisma, session);
+      const liveSession = await ensureAutoClosed(prisma, timedSession);
       const agg = await loadAggregates(prisma, liveSession);
       const noteRows = await prisma.worshipNote
         .findMany({ where: { sessionId: liveSession.id }, orderBy: { updatedAt: 'desc' } })
@@ -974,7 +1004,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           sessionDate: dateRaw ? new Date(`${dateRaw.slice(0, 10)}T00:00:00Z`) : null,
           status: 'DRAFT',
           accessCode: crypto.randomBytes(3).toString('hex').toUpperCase(),
-          config: normalizeConfig(req.body?.config),
+          config: normalizeConfig(req.body?.config, patternCode),
           createdById: req.authUser?.id || null,
         },
       });
@@ -998,7 +1028,13 @@ export function registerWorshipRoutes(app, { wrap }) {
         const raw = str(b.sessionDate, 40);
         data.sessionDate = raw ? new Date(`${raw.slice(0, 10)}T00:00:00Z`) : null;
       }
-      if (b.config !== undefined) data.config = normalizeConfig(b.config);
+      if (b.config !== undefined) {
+        const full = await prisma.worshipSession.findUnique({
+          where: { id: session.id },
+          include: { pattern: { select: { code: true } } },
+        });
+        data.config = normalizeConfig(b.config, full?.pattern?.code);
+      }
       if (b.rotateCode) data.accessCode = crypto.randomBytes(3).toString('hex').toUpperCase();
       const updated = await prisma.worshipSession.update({ where: { id: session.id }, data });
       res.json({ session: updated });
@@ -1254,7 +1290,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           chipLimit: 3,
           timerSeconds,
           draft: cleanDraft(b.storedDraft),
-        });
+        }, 'POST_TO_POST');
         await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
         let order = 0;
         for (const it of items) {
@@ -1272,11 +1308,33 @@ export function registerWorshipRoutes(app, { wrap }) {
         }
         return res.json({ ok: true, items: items.length, chips: chips.length });
       }
-      // Pola lain: simpan draft form ke config (modul sesi menyusul).
-      const cfg = normalizeConfig({ ...(session.config || {}), draft: cleanDraft(b.storedDraft) });
+      // Pola lain: bersihkan warisan Post-to-Post lalu simpan draft form ke config.
+      // Tiap pola punya POV berbeda — Likert/Chip/Rank pos disembunyikan total.
+      const full = await prisma.worshipSession.findUnique({
+        where: { id: session.id },
+        include: { pattern: { select: { code: true } } },
+      });
+      const sessionPattern = String(full?.pattern?.code || kind || '').toUpperCase();
+      const cfg = normalizeConfig(
+        { ...(session.config || {}), topics: [], affirmations: {}, draft: cleanDraft(b.storedDraft) },
+        sessionPattern,
+      );
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
-      await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
-      res.json({ ok: true, saved: true });
+      const legacyItems = await prisma.worshipLikertItem.findMany({
+        where: { sessionId: session.id },
+        select: { id: true },
+      });
+      const legacyIds = legacyItems.map((r) => r.id);
+      await prisma.$transaction([
+        ...(legacyIds.length
+          ? [prisma.worshipLikertResponse.deleteMany({ where: { itemId: { in: legacyIds } } })]
+          : []),
+        prisma.worshipLikertItem.deleteMany({ where: { sessionId: session.id } }),
+        prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } }),
+        prisma.worshipChip.deleteMany({ where: { sessionId: session.id } }),
+        prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } }),
+      ]);
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length });
     }),
   );
 
