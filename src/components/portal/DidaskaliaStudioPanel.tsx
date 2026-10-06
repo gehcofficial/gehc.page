@@ -51,7 +51,7 @@ import {
 } from '../../lib/didaskalia';
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
 import { materialHashPath, delivererLabel } from '../../lib/didaskalia-presentation';
-import { buildDayCaption, buildWeekCaption, copyText } from '../../lib/rhb-caption';
+import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 import { MentoringControl } from '../mentoring/MentoringControl';
 import { WorshipPatternCatalog } from './WorshipPatternCatalog';
@@ -201,6 +201,14 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [comment, setComment] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [useDiscussionContext, setUseDiscussionContext] = useState(true);
+  /** MD acuan mingguan (input awal): teks mentah per kind + status parse terakhir. */
+  const [mdServiceText, setMdServiceText] = useState('');
+  const [mdRhbText, setMdRhbText] = useState('');
+  const [mdMsg, setMdMsg] = useState<string | null>(null);
+  /** Pola gambar cover: AI generate (default) | UPLOAD manual | MOTIF seri. */
+  const [coverStyle, setCoverStyle] = useState<'AI' | 'UPLOAD' | 'MOTIF'>('AI');
+  /** Gaya visual AI: sinematik | komunitas | minimal. */
+  const [coverArtStyle, setCoverArtStyle] = useState('cinematic');
   const paths = useMemo(() => ensurePaths(studio), [studio]);
 
   const [schedule, setSchedule] = useState<{ weeks: Array<WeekMeta & { rituals: RitualRow[] }>; theme: string } | null>(null);
@@ -293,6 +301,78 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       setSaving(false);
     }
   }, [addToast, canWrite, studio, weekIndex, ym]);
+
+  /** Parse MD mingguan via server → simpan sebagai acuan pekan (sourceMd). */
+  const parseWeeklyMd = async (kind: 'service' | 'rhb') => {
+    if (!canWrite) return;
+    const content = kind === 'service' ? mdServiceText : mdRhbText;
+    if (!content.trim()) { setMdMsg(`Tempel dulu MD ${kind === 'service' ? 'Service' : 'RHB'} atau unggah berkas.`); return; }
+    setBusy('md-parse');
+    setMdMsg(null);
+    try {
+      const r = await fetch('/api/didaskalia/parse-md', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, content }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal parse (server ${r.status}).`);
+      if (d.missing?.length) {
+        setMdMsg(`MD ${kind} terbaca tapi kurang: ${d.missing.join('; ')}. Simpan dulu sebagai acuan, lengkapi manual.`);
+      } else {
+        setMdMsg(`MD ${kind} valid ✓ — tersimpan sebagai acuan pekan ini.`);
+      }
+      const prev = studio.sourceMd || { service: null, rhb: null };
+      const entry = kind === 'service'
+        ? { info: d.info || null, outline: d.outline || null, savedAt: new Date().toISOString() }
+        : { paths: d.paths || [], savedAt: new Date().toISOString() };
+      await save({ sourceMd: { ...prev, [kind]: entry } });
+    } catch (e: unknown) {
+      setMdMsg(e instanceof Error ? e.message : 'Gagal parse MD.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Terapkan MD RHB ke 7 Path editor (judul/ref/ringkasan/jembatan), lalu simpan. */
+  const applyRhbToPaths = async () => {
+    if (!canWrite || !studio.sourceMd?.rhb?.paths?.length) return;
+    const parsed = studio.sourceMd.rhb.paths as Array<{ pathIndex: number; title: string; scriptureRef: string; summary: string; bridge: string }>;
+    const next = ensurePaths(studio).map((p, i) => {
+      const src = parsed[i];
+      if (!src) return p;
+      return {
+        ...p,
+        title: src.title || p.title,
+        scriptureRef: src.scriptureRef || p.scriptureRef,
+        summary: src.summary || p.summary,
+        bridge: src.bridge || p.bridge,
+      };
+    });
+    await save({ paths: next });
+    addToast({ type: 'success', title: 'MD RHB diterapkan ke 7 Path' });
+  };
+
+  /** Terapkan MD Service ke draf Ringkasan (teks utama + 4 outline), lalu simpan. */
+  const applyServiceToSermon = async () => {
+    if (!canWrite || !studio.sourceMd?.service) return;
+    const src = studio.sourceMd.service as { info?: { teksUtama?: string }; outline?: { pengantar?: string; bedahTeologis?: string; jembatan?: string; kesimpulan?: string } };
+    const sm = studio.sermon || defaultSermon();
+    await save({
+      sermon: {
+        ...sm,
+        teksUtama: { ...sm.teksUtama, ref: src.info?.teksUtama || sm.teksUtama?.ref || '' },
+        outline: {
+          pengantar: src.outline?.pengantar || sm.outline?.pengantar || '',
+          bedahTeologis: src.outline?.bedahTeologis || sm.outline?.bedahTeologis || '',
+          jembatan: src.outline?.jembatan || sm.outline?.jembatan || '',
+          kesimpulan: src.outline?.kesimpulan || sm.outline?.kesimpulan || '',
+        },
+      },
+    });
+    addToast({ type: 'success', title: 'MD Service diterapkan ke Ringkasan' });
+  };
 
   const runAi = useCallback(async (kind: 'draft' | 'sermon' | 'enrich') => {
     if (!canWrite) return;
@@ -589,7 +669,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt }),
+        body: JSON.stringify({ prompt: aiPrompt, style: coverArtStyle, coverStyle: 'AI' }),
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
@@ -614,7 +694,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       sermon: studio.sermon || defaultSermon(),
       images: studio.presentation || {},
     };
-    const text = dayIndex
+    let text: string;
+    if (doc === 'pembekalan') text = buildPembekalanCaption({ doc, yearMonth: ym, weekIndex, content });
+    else if (doc === 'khutbah') text = buildKhutbahCaption({ doc, yearMonth: ym, weekIndex, content });
+    else text = dayIndex
       ? buildDayCaption({ doc, yearMonth: ym, weekIndex, dayIndex, content })
       : buildWeekCaption({ doc: 'rhb', yearMonth: ym, weekIndex, content });
     const ok = await copyText(text);
@@ -1122,6 +1205,48 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 </div>
               </div>
             </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-3 space-y-3">
+              <p className="text-[11px] font-black text-[#1B1B1B]">MD Acuan Mingguan <span className="font-normal text-[#8C8880]">· input awal skenario baru (per pekan, bukan knowledge global)</span></p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>MD Service → Ringkasan Khotbah</label>
+                  <textarea
+                    value={mdServiceText}
+                    onChange={(e) => setMdServiceText(e.target.value)}
+                    rows={4}
+                    disabled={!canWrite}
+                    placeholder="Tempel isi For Service_*.md (MD bersih)…"
+                    className={inputCls}
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    <button type="button" disabled={!canWrite || busy === 'md-parse'} onClick={() => void parseWeeklyMd('service')} className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-sky-600 text-white disabled:opacity-50">Parse & simpan acuan</button>
+                    {studio.sourceMd?.service && (
+                      <button type="button" disabled={!canWrite} onClick={() => void applyServiceToSermon()} className="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white disabled:opacity-50">Terapkan ke Ringkasan</button>
+                    )}
+                  </div>
+                  {studio.sourceMd?.service && <p className="text-[10px] text-emerald-700">✓ Acuan Service tersimpan pekan ini{studio.sourceMd.service?.info?.teksUtama ? ` · ${studio.sourceMd.service.info.teksUtama}` : ''}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>MD RHB → 7 Path</label>
+                  <textarea
+                    value={mdRhbText}
+                    onChange={(e) => setMdRhbText(e.target.value)}
+                    rows={4}
+                    disabled={!canWrite}
+                    placeholder="Tempel isi For RHB_*.md…"
+                    className={inputCls}
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    <button type="button" disabled={!canWrite || busy === 'md-parse'} onClick={() => void parseWeeklyMd('rhb')} className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-sky-600 text-white disabled:opacity-50">Parse & simpan acuan</button>
+                    {studio.sourceMd?.rhb && (
+                      <button type="button" disabled={!canWrite} onClick={() => void applyRhbToPaths()} className="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white disabled:opacity-50">Terapkan ke 7 Path</button>
+                    )}
+                  </div>
+                  {studio.sourceMd?.rhb && <p className="text-[10px] text-emerald-700">✓ Acuan RHB tersimpan pekan ini{Array.isArray(studio.sourceMd.rhb?.paths) ? ` · ${studio.sourceMd.rhb.paths.length} Path` : ''}</p>}
+                </div>
+              </div>
+              {mdMsg && <p className="text-[11px] text-[#5C5850]">{mdMsg}</p>}
+            </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <label className="inline-flex items-center gap-2 text-[11px] font-bold text-[#8C8880]">
                 Pola ibadah
@@ -1271,6 +1396,14 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <h4 className="text-sm font-black text-[#1B1B1B]">Ringkasan Khotbah & Kerangka Slide</h4>
             </div>
             <div><label className={labelCls}>Metode</label><input value={(studio.sermon?.methods || []).join(', ')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, methods: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } }))} className={inputCls} /></div>
+            <div><label className={labelCls}>Inti Pesan (Big Idea) — 1 kalimat</label><input value={studio.sermon?.bigIdea || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, bigIdea: e.target.value } }))} placeholder="Satu kalimat inti pesan pekan ini" className={inputCls} /></div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><label className={labelCls}>Teks Utama Sermon (ref)</label><input value={studio.sermon?.teksUtama?.ref || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), ref: e.target.value } } }))} placeholder="mis. 2 Korintus 5:21" className={inputCls} /></div>
+              <div><label className={labelCls}>Kutipan singkat Teks Utama</label><input value={studio.sermon?.teksUtama?.text || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), text: e.target.value } } }))} placeholder="Kutipan maks 180 karakter" className={inputCls} /></div>
+            </div>
+            {(Object.entries({ pengantar: 'Outline · 1 Pengantar', bedahTeologis: 'Outline · 2 Bedah Teologis', jembatan: 'Outline · 3 Jembatan', kesimpulan: 'Outline · 4 Kesimpulan (siap-baca)' }) as Array<[keyof NonNullable<DidaskaliaStudio['sermon']['outline']>, string]>).map(([key, label]) => (
+              <div key={key}><label className={labelCls}>{label}</label><textarea value={studio.sermon?.outline?.[key] || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, outline: { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '', ...(s.sermon?.outline || {}), [key]: e.target.value } } }))} rows={key === 'kesimpulan' ? 3 : 4} className={inputCls} /></div>
+            ))}
             <div><label className={labelCls}>Alasan Pemilihan Metode</label><textarea value={studio.sermon?.rationale || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, rationale: e.target.value } }))} rows={2} className={inputCls} /></div>
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -1478,6 +1611,20 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   onClear={() => setCoverImage('')}
                 />
                 <div className="space-y-1.5">
+                  <label className={labelCls}>Pola gambar cover</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['AI', 'UPLOAD', 'MOTIF'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setCoverStyle(s)}
+                        title={s === 'AI' ? 'Generate AI per pekan (default)' : s === 'UPLOAD' ? 'Unggah manual via slot kiri' : 'Pakai ulang motif seri (upload sekali, pilih file yang sama)'}
+                        className={`text-[11px] px-3 py-1.5 rounded-full border font-bold ${coverStyle === s ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
+                      >
+                        {s === 'AI' ? 'AI generate' : s === 'UPLOAD' ? 'Upload manual' : 'Motif seri'}
+                      </button>
+                    ))}
+                  </div>
                   <label className={labelCls}>Prompt gambar AI (opsional)</label>
                   <textarea
                     value={aiPrompt}
@@ -1494,6 +1641,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   >
                     {busy === 'ai-image' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Generate gambar cover (AI)
                   </button>
+                  <label className={labelCls}>Gaya visual AI</label>
+                  <select value={coverArtStyle} onChange={(e) => setCoverArtStyle(e.target.value)} className={inputCls}>
+                    <option value="cinematic">Sinematik hangat (default)</option>
+                    <option value="community">Komunitas hangat Indonesia</option>
+                    <option value="minimal">Minimal simbolik</option>
+                  </select>
                   <p className="text-[10px] text-[#8C8880]">
                     Kuota AI: <b>{aiImages.length}/3</b> pekan ini · model gpt-image-1-mini (~$0.015/gambar). Teks ditulis otomatis di atas gambar.
                     <br />Jika muncul "model belum aktif", aktifkan akses model gambar di project OpenAI — atau pakai unggah manual.
@@ -1516,6 +1669,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </button>
               <button type="button" onClick={() => void copyCaption('pembekalan')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold">
                 <MessageCircle className="w-3.5 h-3.5" /> Caption Pembekalan
+              </button>
+              <button type="button" onClick={() => void copyCaption('khutbah')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold">
+                <MessageCircle className="w-3.5 h-3.5" /> Caption Khotbah
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">

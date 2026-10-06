@@ -59,6 +59,12 @@ export function computeRegenDiff(current, proposal) {
   // Ringkasan khotbah
   const cs = cur.sermon || {};
   const ps = prop.sermon || {};
+  push('SERMON', 'Inti Pesan (Big Idea)', cs.bigIdea, ps.bigIdea);
+  push('SERMON', 'Teks Utama Sermon', cs.teksUtama?.ref, ps.teksUtama?.ref);
+  push('SERMON', 'Outline · Pengantar', cs.outline?.pengantar, ps.outline?.pengantar);
+  push('SERMON', 'Outline · Bedah Teologis', cs.outline?.bedahTeologis, ps.outline?.bedahTeologis);
+  push('SERMON', 'Outline · Jembatan', cs.outline?.jembatan, ps.outline?.jembatan);
+  push('SERMON', 'Outline · Kesimpulan', cs.outline?.kesimpulan, ps.outline?.kesimpulan);
   push('SERMON', 'Ringkasan Khotbah', cs.summary, ps.summary);
   push('SERMON', 'Pendekatan & Metode', cs.rationale, ps.rationale);
   push('SERMON', 'Kerangka Slide', joinList(cs.slideOutline, 'title'), joinList(ps.slideOutline, 'title'));

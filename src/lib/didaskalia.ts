@@ -102,6 +102,8 @@ export type DidaskaliaPath = {
 /** Gambar presentasi per dokumen: cover + per-path + per-section RHB. */
 export type DidaskaliaPresentationImages = {
   cover?: string;
+  /** Pola gambar cover: AI (generate) | UPLOAD (manual) | MOTIF (pakai ulang motif seri). */
+  coverStyle?: 'AI' | 'UPLOAD' | 'MOTIF';
   paths?: Record<string, string>;
   rhb?: Record<string, Record<string, string>>;
   /** Ilustrasi AI per slide ringkasan khotbah: { [slideIndex]: fileId }. */
@@ -118,7 +120,20 @@ export type DidaskaliaMethodMix = { method: string; percent: number; note?: stri
 /** Panduan praktis menyampaikan khotbah per metode. */
 export type DidaskaliaDeliveryStep = { method: string; how: string };
 
+export type DidaskaliaSermonOutline = {
+  pengantar: string;
+  bedahTeologis: string;
+  jembatan: string;
+  kesimpulan: string;
+};
+
 export type DidaskaliaSermon = {
+  /** Inti Pesan 1 kalimat yang memaku khotbah. */
+  bigIdea: string;
+  /** Teks Utama sermon (Serving Day) — bedakan dari Fundamental Firman (jangkar mingguan). */
+  teksUtama: { ref: string; text: string };
+  /** 4 outline pola For Service. */
+  outline: DidaskaliaSermonOutline;
   methods: string[];
   rationale: string;
   summary: string;
@@ -129,6 +144,12 @@ export type DidaskaliaSermon = {
   prepChecklist: string[];
   /** Bagian B — alur FGD hari Minggu, kontekstual tema. */
   discussionFlow: string[];
+};
+
+/** MD acuan mingguan (input awal skenario baru) — disimpan per pekan, bukan knowledge global. */
+export type DidaskaliaSourceMd = {
+  service: { info?: { tema?: string; teksUtama?: string; teksJangkar?: string }; outline?: Partial<DidaskaliaSermonOutline>; rawLength?: number } | null;
+  rhb: { paths?: Array<{ pathIndex: number; title: string; scriptureRef: string; summary: string; bridge: string }> } | null;
 };
 
 /** Ruang lingkup catatan diskusi agar umpan balik terfokus per bagian. */
@@ -234,6 +255,8 @@ export type DidaskaliaStudio = {
   methodMix: DidaskaliaMethodMix[];
   paths: DidaskaliaPath[];
   sermon: DidaskaliaSermon;
+  /** MD acuan mingguan (input awal) — tidak ikut knowledge global. */
+  sourceMd?: DidaskaliaSourceMd | null;
   discussion: DidaskaliaComment[];
   rituals: DidaskaliaRitual[];
   presentation?: DidaskaliaPresentationImages;
@@ -260,7 +283,12 @@ export function defaultRhbSections(): DidaskaliaRhbSection[] {
 }
 
 export function defaultSermon(): DidaskaliaSermon {
-  return { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] };
+  return {
+    bigIdea: '',
+    teksUtama: { ref: '', text: '' },
+    outline: { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' },
+    methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [],
+  };
 }
 
 export function defaultPath(i: number): DidaskaliaPath {
@@ -313,6 +341,7 @@ export function defaultStudio(): DidaskaliaStudio {
     methodMix: [],
     paths: Array.from({ length: 7 }, (_, i) => defaultPath(i)),
     sermon: defaultSermon(),
+    sourceMd: { service: null, rhb: null },
     discussion: [],
     rituals: [],
     presentation: {},

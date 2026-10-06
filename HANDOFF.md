@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Skenario MD mingguan Didaskalia: sermon 4 outline + metode bebas + 3 caption (5 Okt 2026)
+
+**Kebutuhan:** MD Service (`For Service_*`: Pengantar, Bedah Teologis, Jembatan, Kesimpulan) jadi input awal Ringkasan Khotbah; MD RHB (`For RHB_*`) jadi input 7 Path; bigIdea + metode + analisa AI; pembekalan = garis besar + arahan pola + ringkasan untuk preacher + RHB; caption pembekalan (mentor) + caption khotbah (preacher); cover AI teks-di-atas-gambar.
+
+**Ubah:** `server/lib/didaskalia-md.mjs` (baru: `parseServiceMd`/`parseRhbMd`/`unwrapPythonMd`) → `server/lib/didaskalia-ai.mjs` (`SermonObjectSchema` + `clampSermon`: bigIdea/teksUtama/outline 4 bagian; `generateSermon` MD-aware; metode bebas — kosong = AI pilih; `generateWeekDraft` pakai pilihan AI) → `server/routes/didaskalia-studio.mjs` (`sourceMd` per pekan + sanitize + PATCH whitelist; `POST /api/didaskalia/parse-md`; draft/sermon terima `serviceMd`; cover prompt + bigIdea + preset gaya + `coverStyle`) → `server/lib/didaskalia-diff.mjs` (6 baris diff SERMON baru) → `src/lib/didaskalia.ts` (tipe + default) → `DidaskaliaStudioPanel` (slot MD + Terapkan ke Ringkasan/7 Path; editor bigIdea/teksUtama/4 outline; pola gambar AI/UPLOAD/MOTIF + gaya visual; tombol Caption Khotbah) → `didaskalia-presentation.ts` (slide Garis Besar + Arahan Teknis per pola via `patternTechnicalBullets`; khutbah 4 section outline) → `rhb-caption.ts` (`buildPembekalanCaption`, `buildKhutbahCaption`) → `EventDidaskaliaMaterials` (3 tombol caption) → test `didaskalia-md.test.ts` (+8) → SOP `didaskalia-studio.md` §2a.
+
+**Verifikasi:** `lint` bersih ✓ **773 test** hijau (+8) ✓ `build` OK ✓ parse file prod asli Y111026: Service ok (4/4 + info) & RHB ok (7/7) ✓
+
+**Next:** uji staging 2026-10 pekan 2 (11 Okt Rescue Plan): tempel 2 MD → generate → enrich 1x → cover AI → 3 caption → approval HOD → publish. Lolos → ulangi di prod. Belum commit.
+
 ## Current — Enrich per-path + auto-select minggu berjalan (6 Okt 2026)
 
 **Latar:** enrich 1 panggilan raksasa (±9189 token) ditolak Groq (limit 8000 TPM) setelah OpenAI gagal lebih dulu; event picker default ke event terbaru (25 Okt) bukan minggu berjalan (11 Okt).

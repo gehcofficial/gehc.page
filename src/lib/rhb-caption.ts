@@ -44,9 +44,9 @@ export function buildDayCaption(input: CaptionInput): string {
     ...(input.doc === 'rhb' ? { dayIndex } : {}),
   };
   const url = materialAbsoluteUrl(route, input.origin);
-  const title = input.doc === 'rhb'
-    ? `RHB Pekan ${input.weekIndex} — ${path?.dayLabel || DAY_LABELS[dayIndex - 1]}`
-    : `${MATERIAL_DOC_LABEL[input.doc]} — Pekan ${input.weekIndex}`;
+  if (input.doc === 'pembekalan') return buildPembekalanCaption(input);
+  if (input.doc === 'khutbah') return buildKhutbahCaption(input);
+  const title = `RHB Pekan ${input.weekIndex} — ${path?.dayLabel || DAY_LABELS[dayIndex - 1]}`;
   const theme = path?.title || content.theme || content.kitabFokus || '';
   const ref = [content.chapterNo, path?.scriptureRef].filter(Boolean).join(' · ');
 
@@ -56,13 +56,53 @@ export function buildDayCaption(input: CaptionInput): string {
     content.date ? `🗓️ ${fmtDate(content.date)}` : '',
     ref ? `📌 ${ref}` : '',
     '',
-    input.doc === 'rhb'
-      ? 'RHB hari ini sudah siap dibaca. Yuk mulai dari Pengantar, lalu Refleksi Pribadi & Diskusi Kelompok 👇'
-      : `${MATERIAL_DOC_LABEL[input.doc]} sudah siap 👇`,
+    'RHB hari ini sudah siap dibaca. Yuk mulai dari Pengantar, lalu Refleksi Pribadi & Diskusi Kelompok 👇',
     url,
     '',
     HASHTAG,
   ].filter((l) => l !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Caption Pembekalan — audiens mentor & co-mentor (arahan teknis pekan). */
+export function buildPembekalanCaption(input: CaptionInput): string {
+  const { content } = input;
+  const url = materialAbsoluteUrl({ doc: 'pembekalan', yearMonth: input.yearMonth, weekIndex: input.weekIndex }, input.origin);
+  const bigIdea = content.sermon?.bigIdea || '';
+  const methods = (content.sermon?.methods || []).slice(0, 3).join(' + ');
+  const ref = [content.fundamentalFirman?.ref, content.kitabFokus].filter(Boolean).join(' · ');
+  return [
+    `🛡️ *Pembekalan Mentor & Co-Mentor — Pekan ${input.weekIndex}*`,
+    content.theme ? `*${content.theme}*` : '',
+    content.date ? `🗓️ ${fmtDate(content.date)}` : '',
+    ref ? `📌 ${ref}` : '',
+    bigIdea ? `💡 Inti pesan: ${bigIdea}` : '',
+    methods ? `🎙️ Metode: ${methods}` : '',
+    '',
+    'Mentor & Co-Mentor, bekali diri sebelum hari Minggu: baca garis besar bahasan + arahan teknis pola ibadah pekan ini 👇',
+    url,
+    '',
+    HASHTAG,
+  ].filter((l) => l !== null && l !== '').join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Caption Ringkasan Khotbah — audiens pembawa firman. */
+export function buildKhutbahCaption(input: CaptionInput): string {
+  const { content } = input;
+  const url = materialAbsoluteUrl({ doc: 'khutbah', yearMonth: input.yearMonth, weekIndex: input.weekIndex }, input.origin);
+  const teks = content.sermon?.teksUtama?.ref || content.fundamentalFirman?.ref || '';
+  const bigIdea = content.sermon?.bigIdea || '';
+  return [
+    `🎙️ *Ringkasan Khotbah — Pekan ${input.weekIndex}*`,
+    content.theme ? `*${content.theme}*` : '',
+    content.date ? `🗓️ ${fmtDate(content.date)}` : '',
+    teks ? `📌 ${teks}` : '',
+    bigIdea ? `💡 Inti pesan: ${bigIdea}` : '',
+    '',
+    'Acuan khotbah pekan ini (4 outline + kerangka slide) sudah siap. Tuhan memberkati pelayanan firman 👇',
+    url,
+    '',
+    HASHTAG,
+  ].filter((l) => l !== null && l !== '').join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /** Caption rekap sepekan RHB (7 link harian). */

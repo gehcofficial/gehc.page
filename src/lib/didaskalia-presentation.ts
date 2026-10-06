@@ -133,6 +133,7 @@ function weekCoverSubtitle(content: PresentationContent): string {
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   const { paths, images, sermon } = content;
   const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
+  const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
   const slides: DeckSlide[] = [
     {
       id: 'cover',
@@ -148,14 +149,30 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       kind: 'section',
       kicker: 'Inti Pesan & Fundamental Firman',
       title: 'Big Idea & Arah Tema',
+      paragraphs: sermon.bigIdea ? [sermon.bigIdea] : undefined,
       callout: content.fundamentalFirman?.text
         ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
         : undefined,
       fields: [
+        sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,
         content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
-    // Bagian A — untuk pengkhotbah / deliverer
+    // Garis besar bahasan pekan ini (untuk semua pembaca modul).
+    {
+      id: 'garis-besar',
+      kind: 'section',
+      kicker: 'Garis Besar Bahasan Pekan Ini',
+      title: content.theme || 'Alur Pekan',
+      paragraphs: [
+        outline.pengantar,
+        outline.jembatan,
+      ].filter(Boolean).flatMap(toParagraphs),
+      callout: outline.kesimpulan
+        ? { label: 'Pesan Kunci', value: outline.kesimpulan }
+        : undefined,
+    },
+    // Bagian A — untuk pengkhotbah / deliverer (ringkasan khotbah sebagai acuan).
     {
       id: 'a-deliver',
       kind: 'section',
@@ -186,6 +203,13 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       bullets: sermon.prepChecklist || [],
     },
     // Bagian B — untuk mentor & co-mentor (mengikuti pola ibadah pekan ini)
+    {
+      id: 'b-teknis',
+      kind: 'section',
+      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+      title: `Arahan Teknis: ${content.patternName || 'Pola Ibadah'} Pekan Ini`,
+      bullets: patternTechnicalBullets(content.patternCode, content.patternName),
+    },
     {
       id: 'b-fgd',
       kind: 'section',
@@ -234,6 +258,56 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   );
 }
 
+/** Arahan teknis mentor/co-mentor mengikuti pola ibadah pekan ini. */
+export function patternTechnicalBullets(patternCode?: string, patternName?: string): string[] {
+  const code = String(patternCode || 'MONOLOG').toUpperCase();
+  const name = patternName || code;
+  const close = 'Tutup dengan komitmen & doa syafaat.';
+  switch (code) {
+    case 'POST_TO_POST':
+      return [
+        `Briefing pos sebelum bergerak — jelaskan aturan main & rute kunjungan rank 1→3 (${name}).`,
+        'Pimpin rombongan zgodnie rute; jaga timer tiap pos agar semua kebagian.',
+        'PIC pos memastikan Likert & chip terisi sebelum rombongan pindah.',
+        close,
+      ];
+    case 'DUAL_MONOLOG':
+      return [
+        'Siapkan blocking 2 speaker + cue musik/lampu sesuai rundown.',
+        'Pimpin pembacaan berbalasan; mentor buka deep sharing lebih dulu.',
+        'Akhiri dengan Satu Kata + 2 pertanyaan wajib, lalu konvergensi firman.',
+        close,
+      ];
+    case 'DEBAT':
+      return [
+        'Bagi peran PRO/KONTRA + juri; pegang timer ronde secara mutlak.',
+        'Moderasi netral — jangan bocorkan posisi teologis sebelum konklusi.',
+        'Tutup dengan konklusi teologis dari tim (bukan skor debat).',
+        close,
+      ];
+    case 'BEDAH_FILM':
+      return [
+        'Uji setup pemutaran (gambar + suara) sebelum ibadah mulai.',
+        'Fasilitasi pleno analisa dengan pancingan yang sudah disiapkan.',
+        'Arahkan deep sharing identitas, bukan review film.',
+        close,
+      ];
+    case 'THREE_SEQUENCES':
+      return [
+        'Bagi 5 tim Mission Room sebelum sequence 1 mulai.',
+        'Komando countdown tiap sequence tanpa jeda (Melayani → Bersekutu → Bersaksi).',
+        'Atur presentasi 4 menit per tim + deklarasi penutup.',
+        close,
+      ];
+    default:
+      return [
+        `Ikuti alur ${name}: buka dengan pemanasan dekat tema, gali teks bersama, terapkan nyata, tutup komitmen.`,
+        'Pancing satu per satu — jangan biarkan 1-2 orang mendominasi.',
+        close,
+      ];
+  }
+}
+
 export function buildRhbDayDeck(content: PresentationContent, dayIndex: number): DeckSlide[] {
   const paths = content.paths;
   const path = paths[dayIndex - 1];
@@ -280,6 +354,7 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
 
 export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
   const { sermon, images } = content;
+  const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
   const slides: DeckSlide[] = [
     {
       id: 'cover',
@@ -295,8 +370,43 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
       kind: 'section',
       kicker: 'Ringkasan',
       title: 'Inti Khotbah',
-      paragraphs: toParagraphs(sermon.summary),
-      callout: sermon.rationale ? { label: 'Pendekatan & Metode', value: sermon.rationale } : undefined,
+      paragraphs: [
+        ...(sermon.bigIdea ? [`Inti pesan: ${sermon.bigIdea}`] : []),
+        ...toParagraphs(sermon.summary),
+      ],
+      callout: sermon.teksUtama?.ref
+        ? { label: `Teks Utama · ${sermon.teksUtama.ref}`, value: sermon.teksUtama.text || sermon.teksUtama.ref }
+        : sermon.rationale
+          ? { label: 'Pendekatan & Metode', value: sermon.rationale }
+          : undefined,
+    },
+    {
+      id: 'outline-pengantar',
+      kind: 'section',
+      kicker: 'Outline · 1 Pengantar',
+      title: 'Pengantar',
+      paragraphs: toParagraphs(outline.pengantar),
+    },
+    {
+      id: 'outline-bedah',
+      kind: 'section',
+      kicker: 'Outline · 2 Bedah Teologis',
+      title: 'Bedah Teologis',
+      paragraphs: toParagraphs(outline.bedahTeologis),
+    },
+    {
+      id: 'outline-jembatan',
+      kind: 'section',
+      kicker: 'Outline · 3 Jembatan',
+      title: 'Jembatan ke Tema Mingguan',
+      paragraphs: toParagraphs(outline.jembatan),
+    },
+    {
+      id: 'outline-kesimpulan',
+      kind: 'section',
+      kicker: 'Outline · 4 Kesimpulan',
+      title: 'Kesimpulan (Siap-Baca)',
+      paragraphs: toParagraphs(outline.kesimpulan),
     },
   ];
   (sermon.slideOutline || []).forEach((s, i) => {

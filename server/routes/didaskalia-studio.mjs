@@ -27,6 +27,7 @@ import {
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
+import { parseServiceMd, parseRhbMd } from '../lib/didaskalia-md.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
 
 const ymRe = /^\d{4}-\d{2}$/;
@@ -117,7 +118,9 @@ function defaultStudio() {
     homileticMethods: [],
     methodMix: [],
     paths: [],
-    sermon: { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
+    sermon: { bigIdea: '', teksUtama: { ref: '', text: '' }, outline: { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' }, methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
+    /** MD acuan mingguan (input awal skenario baru): { service, rhb } hasil parse didaskalia-md. */
+    sourceMd: { service: null, rhb: null },
     discussion: [],
     rituals: [],
     presentation: {},
@@ -127,7 +130,17 @@ function defaultStudio() {
 
 function sanitizeSermonShape(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
+  const tu = s.teksUtama && typeof s.teksUtama === 'object' ? s.teksUtama : {};
+  const ol = s.outline && typeof s.outline === 'object' ? s.outline : {};
   return {
+    bigIdea: str(s.bigIdea, 500),
+    teksUtama: { ref: str(tu.ref, 160), text: str(tu.text, 600) },
+    outline: {
+      pengantar: str(ol.pengantar, 6000),
+      bedahTeologis: str(ol.bedahTeologis, 8000),
+      jembatan: str(ol.jembatan, 6000),
+      kesimpulan: str(ol.kesimpulan, 4000),
+    },
     methods: Array.isArray(s.methods) ? s.methods : [],
     rationale: str(s.rationale, 8000),
     summary: str(s.summary, 20000),
@@ -138,20 +151,18 @@ function sanitizeSermonShape(raw) {
   };
 }
 
+function sanitizeSourceMd(raw) {
+  const s = raw && typeof raw === 'object' ? raw : {};
+  const pick = (v) => (v && typeof v === 'object' ? v : null);
+  return { service: pick(s.service), rhb: pick(s.rhb) };
+}
+
 function sanitizeStudio(raw) {
   const s = raw && typeof raw === 'object' ? { ...defaultStudio(), ...raw } : defaultStudio();
   s.paths = sanitizePaths(s.paths);
   s.presentation = sanitizeImages(s.presentation);
-  const sermon = s.sermon && typeof s.sermon === 'object' ? s.sermon : {};
-  s.sermon = {
-    methods: Array.isArray(sermon.methods) ? sermon.methods : [],
-    rationale: str(sermon.rationale, 8000),
-    summary: str(sermon.summary, 20000),
-    slideOutline: Array.isArray(sermon.slideOutline) ? sermon.slideOutline : [],
-    deliveryPlan: Array.isArray(sermon.deliveryPlan) ? sermon.deliveryPlan : [],
-    prepChecklist: Array.isArray(sermon.prepChecklist) ? sermon.prepChecklist : [],
-    discussionFlow: Array.isArray(sermon.discussionFlow) ? sermon.discussionFlow : [],
-  };
+  s.sermon = sanitizeSermonShape(s.sermon);
+  s.sourceMd = sanitizeSourceMd(s.sourceMd);
   return s;
 }
 
@@ -475,6 +486,19 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     res.json({ ok: true });
   }));
 
+  // ---------- Parse MD mingguan (input awal skenario baru, tanpa AI) ----------
+  // POST /api/didaskalia/parse-md { kind: 'service'|'rhb', content }
+  // → { ok, missing[], info/paths } untuk prefill editor pekan.
+  app.post('/api/didaskalia/parse-md', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const kind = String(req.body?.kind || '').toLowerCase();
+    const content = String(req.body?.content || '');
+    if (!content.trim()) return res.status(400).json({ error: 'content MD wajib.' });
+    if (content.length > 300000) return res.status(413).json({ error: 'Dokumen terlalu besar (maks ~300 KB teks).' });
+    if (kind === 'service') return res.json({ kind, ...parseServiceMd(content) });
+    if (kind === 'rhb') return res.json({ kind, ...parseRhbMd(content) });
+    return res.status(400).json({ error: 'kind harus service atau rhb.' });
+  }));
+
   app.get('/api/didaskalia/ai-config', requireRole(), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.json({ config: { instruction: '', maxKnowledgeChars: 12000 } });
@@ -540,7 +564,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (week) => {
           const st = { ...week.studio };
-          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'discussion', 'rituals', 'presentation', 'generation']) {
+          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'sourceMd', 'discussion', 'rituals', 'presentation', 'generation']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
           const next = { ...week, studio: st };
@@ -661,6 +685,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           nextWeek: summarizeWeek(next, sanitizeStudio(next.studio)),
           methods: req.body?.methods ?? st.homileticMethods,
           notes: req.body?.notes,
+          serviceMd: req.body?.serviceMd ?? st.sourceMd?.service ?? null,
         });
       } catch (e) {
         return res.status(502).json({ error: `AI gagal menyusun draf: ${e.message}` });
@@ -920,6 +945,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           notes: req.body?.notes,
           pathsOutline,
           pattern: await resolveWeekPattern(prisma, week, req.body?.patternCode),
+          serviceMd: req.body?.serviceMd ?? st.sourceMd?.service ?? null,
         });
       } catch (e) {
         return res.status(502).json({ error: `AI gagal menyusun ringkasan: ${e.message}` });
@@ -1132,16 +1158,27 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
       const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
       const extra = String(req.body?.prompt || '').trim().slice(0, 600);
+      const stylePreset = {
+        cinematic: 'Gaya sinematik hangat, cahaya lembut keemasan.',
+        community: 'Suasana komunitas hangat Indonesia: kebersamaan anak muda, alami, tidak posed.',
+        minimal: 'Gaya minimal: satu objek simbolik kuat dengan latar tenang, ruang kosong luas.',
+      }[String(req.body?.style || '')] || '';
+      const sermon = studio.sermon || {};
       const prompt = [
         'Ilustrasi sampul untuk renungan/khotbah pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
         theme ? `Tema minggu: ${theme}.` : '',
         studio.fundamentalFirman?.ref ? `Ayat: ${studio.fundamentalFirman.ref}.` : '',
         studio.kitabFokus ? `Bagian Alkitab: ${studio.kitabFokus}.` : '',
+        sermon.bigIdea ? `Inti pesan: ${String(sermon.bigIdea).slice(0, 300)}.` : '',
+        sermon?.teksUtama?.ref ? `Teks utama khotbah: ${sermon.teksUtama.ref}.` : '',
+        stylePreset,
         extra ? `Arahan tambahan: ${extra}` : '',
         'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar (teks ditambahkan terpisah).',
         'Sisakan ruang kosong (negative space) di bagian atas untuk overlay judul.',
         'Warna & suasana selaras tema; relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
       ].filter(Boolean).join(' ');
+      const coverStyle = ['AI', 'UPLOAD', 'MOTIF'].includes(String(req.body?.coverStyle || '').toUpperCase())
+        ? String(req.body.coverStyle).toUpperCase() : 'AI';
 
       let img;
       try {
@@ -1181,6 +1218,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
             const pres = { ...(s.presentation || {}) };
             pres.aiImages = [...(Array.isArray(pres.aiImages) ? pres.aiImages : []), file.id];
             pres.cover = file.id;
+            pres.coverStyle = coverStyle;
             savedUsed = pres.aiImages.length;
             s.presentation = pres;
             return { ...w, studio: s };

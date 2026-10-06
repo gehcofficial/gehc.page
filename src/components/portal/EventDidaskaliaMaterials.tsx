@@ -4,7 +4,7 @@ import { useActiveAccess } from '../../hooks/useActiveAccess';
 import { useApp } from '../../context/AppContext';
 import { weekIndexForDateWib, yearMonthWib } from '../../lib/church-week';
 import { materialHashPath } from '../../lib/didaskalia-presentation';
-import { buildWeekCaption, copyText } from '../../lib/rhb-caption';
+import { buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { defaultStudio, ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
@@ -38,10 +38,21 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
   const copyRhbCaption = async () => {
     if (!ym) { addToast({ type: 'error', title: 'Tanggal event belum tersedia.' }); return; }
     try {
+      const content = await loadCaptionContent();
+      if (!content) return;
+      const ok = await copyText(buildWeekCaption({ doc: 'rhb', yearMonth: ym, weekIndex, content }));
+      addToast({ type: ok ? 'success' : 'error', title: ok ? 'Caption RHB disalin' : 'Gagal menyalin caption' });
+    } catch {
+      addToast({ type: 'error', title: 'Gagal menyiapkan caption.' });
+    }
+  };
+
+  const loadCaptionContent = async () => {
+    try {
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, { credentials: 'include' });
       const d = r.ok ? await r.json() : {};
       const studio = { ...defaultStudio(), ...(d.week?.studio || {}) } as DidaskaliaStudio;
-      const content = {
+      return {
         weekIndex,
         date: String(d.week?.date || eventDate || '').slice(0, 10),
         theme: d.week?.mentoringTheme || d.week?.servingTheme || d.week?.theme || '',
@@ -52,8 +63,22 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
         sermon: studio.sermon,
         images: studio.presentation || {},
       };
-      const ok = await copyText(buildWeekCaption({ doc: 'rhb', yearMonth: ym, weekIndex, content }));
-      addToast({ type: ok ? 'success' : 'error', title: ok ? 'Caption RHB disalin' : 'Gagal menyalin caption' });
+    } catch {
+      return null;
+    }
+  };
+
+  /** Caption Pembekalan (mentor/co-mentor) & Ringkasan Khotbah (pembawa firman). */
+  const copyDocCaption = async (doc: 'pembekalan' | 'khutbah') => {
+    if (!ym) { addToast({ type: 'error', title: 'Tanggal event belum tersedia.' }); return; }
+    try {
+      const content = await loadCaptionContent();
+      if (!content) { addToast({ type: 'error', title: 'Gagal memuat konten pekan.' }); return; }
+      const text = doc === 'pembekalan'
+        ? buildPembekalanCaption({ doc, yearMonth: ym, weekIndex, content })
+        : buildKhutbahCaption({ doc, yearMonth: ym, weekIndex, content });
+      const ok = await copyText(text);
+      addToast({ type: ok ? 'success' : 'error', title: ok ? `Caption ${doc === 'pembekalan' ? 'Pembekalan' : 'Khotbah'} disalin` : 'Gagal menyalin caption' });
     } catch {
       addToast({ type: 'error', title: 'Gagal menyiapkan caption.' });
     }
@@ -122,6 +147,14 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
                 <Copy className="w-3 h-3" /> Caption RHB
               </button>
             )}
+            {canView01 && (
+              <button type="button" onClick={() => void copyDocCaption('pembekalan')} className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white">
+                <Copy className="w-3 h-3" /> Caption Pembekalan
+              </button>
+            )}
+            <button type="button" onClick={() => void copyDocCaption('khutbah')} className="inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white">
+              <Copy className="w-3 h-3" /> Caption Khotbah
+            </button>
           </div>
         </div>
       )}

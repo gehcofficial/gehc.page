@@ -21,6 +21,14 @@
 | AI + PDF Pembekalan | Jalan pintas: draf lalu langsung unduh PDF (tanpa terbit) |
 | Isi dari AI (tab Draft Sesi) | Sesudah tema/firman fix: isi form sesi hari-H |
 
+## 2a. Skenario MD mingguan (input awal, bukan knowledge)
+
+1. **Tempel MD Service** di Input Inti → `Parse & simpan acuan` (harus valid 4 outline + Teks Utama) → `Terapkan ke Ringkasan`.
+2. **Tempel MD RHB** → `Parse & simpan acuan` (harus 7/7 Path) → `Terapkan ke 7 Path`.
+3. Isi Fundamental Firman (ayat) + Kitab/Bagian Fokus seperti biasa; **metode boleh dikosongkan** — AI memilih sendiri 2–3 yang paling cocok.
+4. Klik `Ringkasan Khotbah` (atau Susun draf) → periksa bigIdea + 4 outline + metode → enrich sekali bila perlu → generate cover (default AI) → 3 caption (RHB / Pembekalan / Khotbah) → approval HOD.
+5. MD mingguan tersimpan di pekan itu saja (`sourceMd`) — tidak mencemari knowledge global. Knowledge aktif cukup FORMAT global.
+
 ## 3. Sebelum HOD menyetujui (wajib baca ringkasan pengajuan)
 
 - **"RHB terisi X/7 hari"** harus 7/7. Tolak bila ada section kosong.

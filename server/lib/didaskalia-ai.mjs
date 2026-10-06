@@ -264,7 +264,18 @@ function clampSlides(raw) {
 export function clampSermon(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
   const plan = Array.isArray(s.deliveryPlan) ? s.deliveryPlan : [];
+  const tu = s.teksUtama && typeof s.teksUtama === 'object' ? s.teksUtama : {};
+  const ol = s.outline && typeof s.outline === 'object' ? s.outline : {};
+  const cut = (v, n) => asStr(v).slice(0, n);
   return {
+    bigIdea: cut(s.bigIdea, 500),
+    teksUtama: { ref: cut(tu.ref, 160), text: cut(tu.text, 600) },
+    outline: {
+      pengantar: cut(ol.pengantar, 6000),
+      bedahTeologis: cut(ol.bedahTeologis, 8000),
+      jembatan: cut(ol.jembatan, 6000),
+      kesimpulan: cut(ol.kesimpulan, 4000),
+    },
     methods: asStrArray(s.methods, 4),
     rationale: asStr(s.rationale),
     summary: asStr(s.summary),
@@ -440,7 +451,7 @@ async function generateJson({ prompt, maxOutputTokens = 6000, timeoutMs = 45000 
 
 /** Perintah jangkar skema JSON untuk draf mingguan (dipakai validasi prompt). */
 const DRAFT_PATHS_SCHEMA = '{"chapterNo":"...","fundamentalFirman":{"ref":"...","text":"..."},"kitabFokus":"...","homileticMethods":["..."],"methodMix":[{"method":"...","percent":50,"note":"..."}],"paths":[{"pathIndex":1,"dayLabel":"Minggu","title":"English Catchy Title","bacaanRef":"...","summary":"...","scriptureRef":"...","scriptureText":"...","homileticLens":["..."],"hookQuestion":"...","illustration":"...","reflection":"...","observeQ":"...","interpretQ":"...","applyQ":"...","fgdQuestions":["..."],"bridge":"...","imageStem":"","rhbSections":[{"key":"PENGANTAR","title":"Pengantar","body":"..."},{"key":"PEMBAHASAN_TEMATIS","title":"Pembahasan Tematis","body":"..."},{"key":"MAKNA_IMPLIKASI","title":"Makna & Implikasi bagi Beyonders","body":"..."},{"key":"REFLEKSI_PRIBADI","title":"Pertanyaan untuk Refleksi Pribadi","body":"..."},{"key":"DISKUSI_KELOMPOK","title":"Pertanyaan untuk Diskusi Kelompok","body":"..."}]}]}';
-const DRAFT_SERMON_SCHEMA = '{"sermon":{"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}';
+const DRAFT_SERMON_SCHEMA = '{"sermon":{"bigIdea":"...","teksUtama":{"ref":"...","text":"..."},"outline":{"pengantar":"...","bedahTeologis":"...","jembatan":"...","kesimpulan":"..."},"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}],"deliveryPlan":[{"method":"...","how":"..."}],"prepChecklist":["..."],"discussionFlow":["..."]}}';
 const DRAFT_FULL_SCHEMA = DRAFT_PATHS_SCHEMA.slice(0, -1) + ',"sermon":' + DRAFT_SERMON_SCHEMA.slice('{"sermon":'.length);
 
 /** Skema terstruktur (dipaksa provider) untuk 1 Path. */
@@ -470,6 +481,14 @@ const PathObjectSchema = z.object({
   rhbSections: z.array(RhbSectionSchema),
 });
 const SermonObjectSchema = z.object({
+  bigIdea: z.string(),
+  teksUtama: z.object({ ref: z.string(), text: z.string() }),
+  outline: z.object({
+    pengantar: z.string(),
+    bedahTeologis: z.string(),
+    jembatan: z.string(),
+    kesimpulan: z.string(),
+  }),
   methods: z.array(z.string()),
   rationale: z.string(),
   summary: z.string(),
@@ -479,6 +498,18 @@ const SermonObjectSchema = z.object({
   discussionFlow: z.array(z.string()),
 });
 export async function generateWeekDraft(input) {
+  const sm = input?.serviceMd && typeof input.serviceMd === 'object' ? input.serviceMd : null;
+  const mdBlock = sm && (sm?.outline || sm?.info)
+    ? [
+      'MATERI ACUAN TIM (MD Service — ringkasan khotbah WAJIB setia padanya):',
+      sm?.info?.tema ? `Tema: ${asStr(sm.info.tema, 200)}` : '',
+      sm?.info?.teksUtama ? `Teks Utama: ${asStr(sm.info.teksUtama, 200)}` : '',
+      sm?.outline?.pengantar ? `Pengantar acuan: ${asStr(sm.outline.pengantar, 1500)}` : '',
+      sm?.outline?.bedahTeologis ? `Bedah acuan: ${asStr(sm.outline.bedahTeologis, 2000)}` : '',
+      sm?.outline?.jembatan ? `Jembatan acuan: ${asStr(sm.outline.jembatan, 1500)}` : '',
+      sm?.outline?.kesimpulan ? `Kesimpulan acuan: ${asStr(sm.outline.kesimpulan, 1000)}` : '',
+      '',
+    ].filter((l) => l !== '') : [];
   const HEAD = [
     'Susun draf pembelajaran satu minggu untuk komunitas pemuda (Beyonders).',
     '',
@@ -486,6 +517,7 @@ export async function generateWeekDraft(input) {
     buildContext(input),
     ...teamContextBlock(input),
     ...patternBlock(input.pattern),
+    ...mdBlock,
     '',
   ];
   const PATH_RULES = [
@@ -509,7 +541,10 @@ export async function generateWeekDraft(input) {
   const SERMON_RULES = [
     'ATURAN RINGKASAN KHOTBAH (WAJIB):',
     '- Turunkan dari Fundamental Firman, diarahkan ke Kitab/Bagian Fokus.',
-    '- methods: 2-3 metode; rationale: bagaimana metode menajamkan Fundamental Firman.',
+    '- bigIdea: Inti Pesan 1 kalimat yang memaku seluruh khotbah.',
+    '- teksUtama: Teks Utama sermon (Serving Day) — ref + kutipan singkat; bedakan dari Fundamental Firman (jangkar mingguan).',
+    '- outline 4 bagian (pola For Service): pengantar (reframing masalah nyata vs solusi sementara), bedahTeologis (bedah ayat per frasa, doktrin eksplisit), jembatan (kaitkan Teks Utama ke tema mingguan/Jangkar, 2-3 poin), kesimpulan (NASKAH SIAP-BACA direct speech, hangat, 1 paragraf).',
+    '- methods: PILIH SENDIRI 2-3 metode paling cocok dari: ' + HOMILETIC_METHODS.join('; ') + '. rationale: kenapa tiap metode dipilih, merujuk bagian outline yang ditajamkannya.',
     '- summary: 3-5 paragraf (100–150 kata), naratif dan kontekstual untuk pemuda/anak rantau — enak dibaca keras sebagai renungan.',
     '- slideOutline: 6-8 slide (title, bullets 2-4). JANGAN sertakan visualNote/arahan visual (diisi terpisah).',
     '- deliveryPlan: satu baris per metode.',
@@ -577,8 +612,12 @@ export async function generateWeekDraft(input) {
 
   const DEFAULT_METHODS = ['Teologi Praktika / Pastoral', 'Pengajaran Tematika', 'Teologi Biblika'];
   const picked = Array.isArray(input.methods) ? input.methods.filter(Boolean).slice(0, 3) : [];
-  // Default terkunci (keputusan pemilik): Praktika + Tematika + Biblika bila tak dipilih.
-  const methods = picked.length ? picked : DEFAULT_METHODS;
+  // Bila tim tidak mengunci metode, pakai pilihan AI dari ringkasan (bebas pilih);
+  // bila AI pun kosong, baru fallback default.
+  const aiPicked = Array.isArray(sermon.methods)
+    ? sermon.methods.map((m) => asStr(m)).filter((m) => HOMILETIC_METHODS.includes(m)).slice(0, 3)
+    : [];
+  const methods = picked.length ? picked : (aiPicked.length ? aiPicked : DEFAULT_METHODS);
   const methodMix = methods.map((m) => ({ method: m, percent: Math.round(100 / methods.length), note: '' }));
 
   const out = clampDraft({
@@ -778,8 +817,25 @@ export async function generateWeekExtras(input) {
 
 /**
  * Susun/segarkan Ringkasan Khotbah saja (untuk mode serving group).
+ * Bila `input.serviceMd` (hasil parseServiceMd) tersedia, MD menjadi acuan
+ * utama 4 outline; bila tidak, AI menyusun dari konteks + pola lama.
+ * Bila `input.methods` kosong, AI memilih sendiri 2-3 metode.
  */
 export async function generateSermon(input) {
+  const sm = input?.serviceMd && typeof input.serviceMd === 'object' ? input.serviceMd : null;
+  const mdBlock = sm && (sm?.outline || sm?.info)
+    ? [
+      'MATERI ACUAN TIM (MD Service — ikuti setia, jangan karang ulang faktanya):',
+      sm?.info?.tema ? `Tema: ${asStr(sm.info.tema, 200)}` : '',
+      sm?.info?.teksUtama ? `Teks Utama: ${asStr(sm.info.teksUtama, 200)}` : '',
+      sm?.info?.teksJangkar ? `Teks Jangkar: ${asStr(sm.info.teksJangkar, 200)}` : '',
+      sm?.outline?.pengantar ? `Pengantar acuan:\n${asStr(sm.outline.pengantar, 3000)}` : '',
+      sm?.outline?.bedahTeologis ? `Bedah teologis acuan:\n${asStr(sm.outline.bedahTeologis, 4000)}` : '',
+      sm?.outline?.jembatan ? `Jembatan acuan:\n${asStr(sm.outline.jembatan, 3000)}` : '',
+      sm?.outline?.kesimpulan ? `Kesimpulan acuan:\n${asStr(sm.outline.kesimpulan, 2000)}` : '',
+      '',
+    ].filter((l) => l !== '') : [];
+  const locked = Array.isArray(input.methods) ? input.methods.filter(Boolean).slice(0, 3) : [];
   const prompt = [
     'Susun RINGKASAN KHOTBAH dan kerangka presentasi (slide) untuk satu minggu pemuda.',
     '',
@@ -787,19 +843,33 @@ export async function generateSermon(input) {
     buildContext(input),
     ...teamContextBlock(input),
     ...patternBlock(input.pattern),
+    ...mdBlock,
     input.pathsOutline ? `Kerangka 7 Path yang sudah ada:\n${asStr(input.pathsOutline)}` : '',
     '',
     'ATURAN:',
-    '- Gunakan kombinasi 2-3 metode berkhotbah dan jelaskan alasannya.',
+    '- bigIdea: Inti Pesan 1 kalimat.',
+    '- teksUtama: Teks Utama sermon (ref + kutipan singkat); bedakan dari Fundamental Firman.',
+    '- outline 4 bagian (pengantar, bedahTeologis, jembatan, kesimpulan direct speech). Bila MD acuan ada, setia padanya; bila tidak, susun dari konteks + pola lama dalam koridor Reformed kontekstual persona.',
+    locked.length
+      ? `- Gunakan metode yang dikunci tim: ${locked.join(', ')}.`
+      : `- PILIH SENDIRI 2-3 metode paling cocok dari: ${HOMILETIC_METHODS.join('; ')}.`,
+    '- rationale: kenapa tiap metode dipilih + bagian outline mana yang ditajamkannya.',
     '- summary: rangkuman khotbah 3-5 paragraf, kontekstual untuk pemuda/anak rantau.',
     '- slideOutline: 6-10 slide (title, bullets 2-5, visualNote untuk arahan gambar).',
+    '- deliveryPlan satu baris per metode; prepChecklist 4-6; discussionFlow 4-6 mengikuti POLA.',
     '- Bahasa Indonesia yang hangat dan jelas.',
     '',
-    'Balas HANYA JSON valid: {"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}',
+    'Balas HANYA JSON valid: {"bigIdea":"...","teksUtama":{"ref":"...","text":"..."},"outline":{"pengantar":"...","bedahTeologis":"...","jembatan":"...","kesimpulan":"..."},"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}',
   ].filter(Boolean).join('\n');
 
   const { data } = await generateJson({ prompt, maxOutputTokens: 6000, timeoutMs: 35000 });
-  return clampSermon(data);
+  const out = clampSermon(data);
+  if (!locked.length && out.methods.length) {
+    // AI memilih sendiri — pakai pilihannya.
+  } else if (locked.length) {
+    out.methods = locked;
+  }
+  return out;
 }
 
 /**
