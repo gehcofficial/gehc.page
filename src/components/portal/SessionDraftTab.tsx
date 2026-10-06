@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarPlus, ClipboardList, Loader2, Lock, Save, Send, Sparkles } from 'lucide-react';
+import { CalendarPlus, ClipboardList, Loader2, Lock, RotateCcw, Save, Send, Sparkles } from 'lucide-react';
 import {
   countFilled,
   draftToStored,
@@ -17,6 +17,7 @@ type Props = {
   event?: { id: string; name: string; serviceType?: string | null } | null;
   weekDate?: string | null;
   canWrite?: boolean;
+  onPatternReset?: () => void;
 };
 
 type SessionRow = {
@@ -88,7 +89,7 @@ function sectionsToPostToPost(sections: DraftSection[], proposalChips?: { topicC
   };
 }
 
-export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, event, weekDate, canWrite }) => {
+export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, event, weekDate, canWrite, onPatternReset }) => {
   const code = String(patternCode || 'MONOLOG').toUpperCase();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -102,6 +103,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [slugDraft, setSlugDraft] = useState('');
   const [titleDraft, setTitleDraft] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
   const proposalChips = useRef<{ topicCode?: string | null }[] | undefined>(undefined);
 
   const linked = useMemo(() => {
@@ -318,6 +320,34 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
     }
   };
 
+  const resetPattern = async () => {
+    if (!canWrite) return;
+    if (!window.confirm(`Kembalikan pola pekan ini (${code}) ke Monolog? Sesi DRAFT kosong yang tertaut ikut dihapus; sesi yang sudah berjalan/terisi tidak disentuh.`)) return;
+    setResetBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/reset-pattern`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ deleteEmptySessions: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mereset pola.');
+      const parts = [`Pola ${d.from} → ${d.to}.`];
+      if ((d.deleted || []).length) parts.push(`Sesi dihapus: ${(d.deleted as string[]).join(', ')}.`);
+      for (const k of (d.kept || []) as { slug: string; reason: string }[]) parts.push(`Tetap: ${k.slug} (${k.reason}).`);
+      setMsg({ kind: 'ok', text: parts.join(' ') });
+      setSelectedId('');
+      await loadSessions();
+      onPatternReset?.();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal mereset pola.' });
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className={CARD}>
@@ -325,6 +355,17 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           <ClipboardList className="w-4 h-4 text-[#0EA5E9]" />
           <h4 className="text-sm font-black text-[#1B1B1B]">Draft Sesi Hari-H</h4>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">{code}</span>
+          {code !== 'MONOLOG' && (
+            <button
+              type="button"
+              disabled={!canWrite || resetBusy}
+              onClick={() => void resetPattern()}
+              title="Kembalikan pola pekan ke Monolog (default). Sesi DRAFT kosong tertaut ikut dihapus; sesi terisi tidak disentuh."
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-amber-300 text-amber-700 text-[10px] font-bold disabled:opacity-50"
+            >
+              {resetBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Reset ke Monolog
+            </button>
+          )}
           {detail && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
               {detail.session.slug} · {detail.session.status} · terisi {progress.filled}/{progress.total}

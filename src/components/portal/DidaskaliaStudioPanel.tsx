@@ -1532,6 +1532,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             event={event}
             weekDate={weekMeta?.date}
             canWrite={canWrite}
+            onPatternReset={() => void load()}
           />
           </>)}
 

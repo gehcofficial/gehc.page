@@ -321,6 +321,44 @@ function publicPattern(pattern) {
 }
 
 
+/**
+ * Hapus sesi DRAFT kosong (guard + cascade). Dipakai endpoint DELETE dan
+ * reset-pattern Studio. Melempar { status, message } bila ditolak.
+ */
+export async function deleteEmptySession(prisma, session) {
+  if (!session) {
+    const e = new Error('Sesi tidak ditemukan.');
+    e.status = 404;
+    throw e;
+  }
+  if (String(session.status || '').toUpperCase() !== 'DRAFT') {
+    const e = new Error(`Sesi berstatus ${session.status} — hanya sesi DRAFT yang bisa dihapus.`);
+    e.status = 409;
+    throw e;
+  }
+  const [respCount, voteCount, noteCount] = await Promise.all([
+    prisma.worshipLikertResponse.count({ where: { sessionId: session.id } }),
+    prisma.worshipChipVote.count({ where: { sessionId: session.id } }),
+    prisma.worshipNote.count({ where: { sessionId: session.id } }).catch(() => 0),
+  ]);
+  if (respCount > 0 || voteCount > 0 || noteCount > 0) {
+    const e = new Error('Sesi sudah berisi jawaban/vote/catatan peserta — tidak bisa dihapus.');
+    e.status = 409;
+    throw e;
+  }
+  const itemRows = await prisma.worshipLikertItem.findMany({ where: { sessionId: session.id }, select: { id: true } });
+  const itemIds = itemRows.map((r) => r.id);
+  await prisma.$transaction([
+    ...(itemIds.length ? [prisma.worshipLikertResponse.deleteMany({ where: { itemId: { in: itemIds } } })] : []),
+    prisma.worshipLikertItem.deleteMany({ where: { sessionId: session.id } }),
+    prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } }),
+    prisma.worshipChip.deleteMany({ where: { sessionId: session.id } }),
+    prisma.worshipNote.deleteMany({ where: { sessionId: session.id } }),
+    prisma.worshipSession.delete({ where: { id: session.id } }),
+  ]);
+  return { slug: session.slug };
+}
+
 /** Cari sesi berdasarkan id ATAU slug (endpoint admin menerima keduanya). */
 async function findSession(prisma, key) {
   const k = String(key || "");
@@ -964,6 +1002,23 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (b.rotateCode) data.accessCode = crypto.randomBytes(3).toString('hex').toUpperCase();
       const updated = await prisma.worshipSession.update({ where: { id: session.id }, data });
       res.json({ session: updated });
+    }),
+  );
+
+  app.delete(
+    '/api/worship/sessions/:id',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const session = await findSession(prisma, req.params.id);
+      try {
+        const out = await deleteEmptySession(prisma, session);
+        res.json({ ok: true, slug: out.slug });
+      } catch (e) {
+        res.status(e.status || 500).json({ error: e.message || 'Gagal menghapus sesi.' });
+      }
     }),
   );
 

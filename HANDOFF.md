@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — Reset pola 11 Okt + tombol Reset ke Monolog (5 Okt 2026)
+
+**Temuan:** default pekan memang sudah MONOLOG di semua lapis; 11 Okt diganti manual ke BEDAH_FILM + dibuatkan sesi (`sesi-2026-10-11`, DRAFT, kosong 0/0/0) di staging & prod.
+
+**Reset konkret:** pekan W2 Okt di kedua DB ternyata sudah MONOLOG — yang dibersihkan hanya sesi yatim: hapus cascade via skrip satu-kali (guard DRAFT + 0 respons/vote/catatan, transaksi) di **staging ✓ dan prod ✓** (items=0, chips=0). Sesi 4 Okt tak tersentuh.
+
+**Fitur permanen:** `DELETE /api/worship/sessions/:id` (guard 404/409 + cascade transaksi; helper `deleteEmptySession` dipakai ulang) → `POST .../studio/:ym/:week/reset-pattern` (pekan → MONOLOG + hapus sesi DRAFT kosong tertaut, laporkan `deleted`/`kept`) → tombol **Reset ke Monolog** di tab Draft Sesi (dialog konfirmasi + refresh) → test `worship-session-delete` (+4) → docs `worship-patterns.md` §10.
+
+**Verifikasi:** `lint` bersih ✓ test baru hijau ✓ (full suite menyusul saat commit).
+
+**Next:** commit di branch, push menunggu perintah.
+
 ## Current — Sinkron penuh TiDB Prod → Staging (5 Okt 2026)
 
 **Perintah:** salin terkini prod ke staging (semua tabel), lokal tidak disentuh.

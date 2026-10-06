@@ -11,6 +11,7 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { sundaysInMonth, toISODate, addDays } from '../lib/church-year.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
+import { deleteEmptySession } from './worship.mjs';
 import {
   generateWeekDraft,
   generateEnrichedDraft,
@@ -548,6 +549,68 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         req.authUser?.id
       );
       res.json({ week: saved });
+    })
+  );
+
+  // ---------- Reset pola pekan ke MONOLOG (+ hapus sesi DRAFT kosong tertaut) ----------
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/reset-pattern',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const from = String(week.patternCode || 'MONOLOG').toUpperCase();
+      const event = await resolveEventId(prisma, week.date);
+
+      const linked = [];
+      const deleted = [];
+      const kept = [];
+      if (event?.id) {
+        const rows = await prisma.worshipSession.findMany({
+          where: { eventId: event.id },
+          select: { id: true, slug: true, title: true, status: true },
+        });
+        for (const r of rows) linked.push({ slug: r.slug, title: r.title, status: r.status });
+        if (req.body?.deleteEmptySessions !== false) {
+          for (const r of rows) {
+            const full = await prisma.worshipSession.findUnique({ where: { id: r.id } });
+            try {
+              const out = await deleteEmptySession(prisma, full);
+              deleted.push(out.slug);
+            } catch (e) {
+              kept.push({ slug: r.slug, reason: e.message || 'Ditolak.' });
+            }
+          }
+        } else {
+          for (const r of rows) kept.push({ slug: r.slug, reason: 'Dilewati (opsi hapus mati).' });
+        }
+      }
+
+      const saved = await saveStudioWeek(
+        prisma,
+        yearMonth,
+        weekIndex,
+        (w) => ({ ...w, patternCode: 'MONOLOG' }),
+        req.authUser?.id
+      );
+      res.json({
+        ok: true,
+        from,
+        to: 'MONOLOG',
+        event,
+        linked,
+        deleted,
+        kept,
+        week: { index: saved.index, date: saved.date, patternCode: saved.patternCode || 'MONOLOG' },
+      });
     })
   );
 

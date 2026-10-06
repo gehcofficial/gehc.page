@@ -111,3 +111,12 @@ node scripts/worship-sim.mjs --participants 100 --mode final
   Post-to-Post, simpan `config.draft` untuk pola lain).
 - **Guard sesi terisi (server + klien):** apply ditolak (409) bila status ≠ DRAFT, sudah ada jawaban peserta,
   atau sudah berisi soal/chip — sesi 4 Okt otomatis terkunci, ubah manual via kontrol hari-H.
+
+## 10. Reset pola ke Monolog (5 Okt 2026)
+
+- Default pekan **selalu MONOLOG** (seed, fallback, dropdown); bila pekan terlanjur diganti pola,
+  tab **Draft Sesi** punya tombol **Reset ke Monolog** → `POST /api/didaskalia/studio/:ym/:week/reset-pattern`
+  (set `patternCode=MONOLOG` + hapus sesi DRAFT kosong yang tertaut ke event pekan itu; sesi
+  berjalan/terisi dilaporkan sebagai `kept` dan tidak disentuh).
+- `DELETE /api/worship/sessions/:id` (Didaskalia + tulis): hanya DRAFT dengan 0 respons/vote/catatan;
+  hapus cascade (items → responses, chips → votes, notes) dalam satu transaksi, else 404/409.
