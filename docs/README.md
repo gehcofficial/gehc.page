@@ -12,6 +12,7 @@
 - [Roadmap](product/roadmap.md)
 - [Pola ibadah hari-H — aturan operasional 180-max](product/pola-ibadah-hari-H.md)
 - [Studio Didaskalia — SOP mingguan tim & HOD](product/didaskalia-studio.md)
+- [Pustaka Lagu Liturgia — setlist, chord & FreeShow](product/liturgia-lagu.md)
 
 ## Design
 

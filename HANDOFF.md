@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Pustaka Lagu Liturgia + chord/transpose + ekspor FreeShow (7 Okt 2026)
+
+**Kebutuhan:** rundown pola (Didaskalia) tanpa daftar lagu; Liturgia butuh setlist per ibadah + referensi himne (SABDA) & kontemporer + chord pemusik dengan transpose & pilih bagian + siap integrasi free.show; media simpan harus reusable lintas-unit.
+
+**Ubah:** Prisma `Song` (pustaka GLOBAL: metadata KJ/NKB + link SABDA, copyright/CCLI, ChordPro kanonis) + `ServiceSong` (setlist per event: urutan/bagian/transpose/capo/momen) → `_migrate-liturgy-songs.cjs` (+ `db-migrate-local` + `db:schema:check` + npm scripts) → `server/lib/liturgy-songs.mjs` (validasi + mesin ChordPro + builder Quick Lyrics/ChordPro/`.show`) ↔ `src/lib/song-chords.ts` (mesin klien identik) → `server/routes/liturgia-songs.mjs` (pustaka CRUD + setlist + reorder + export; tulis = Liturgia + KOMISI/COMMITTEE/SUPERADMIN) → `LiturgiaSongsPanel.tsx` (setlist, cari pustaka, lagu baru, transpose/capo, checkbox bagian, preview chord/lirik, unduh .show/ChordPro, salin Quick Lyrics) dipasang di tab ibadah Liturgia → `_seed-liturgia-songs.cjs` (metadata KJ 1–10 terverifikasi SABDA + 1 contoh lokal ber-chord) → test `liturgia-songs.test.ts` (+17) → `docs/product/liturgia-lagu.md`.
+
+**Verifikasi:** `tsc` bersih ✓ **810 test** hijau (117 file) ✓ `build` OK ✓ migrasi lokal (2 tabel) + seed lokal (11 lagu) ✓
+
+**Next:** migrasi+seed staging (`:staging`) → QA Liturgia: buat setlist 1 event → impor 1 `.show` ke FreeShow → tambah KJ 11+ / NKB bertahap (metadata dulu); kontemporer via form manual + CCLI.
+
 ## Current — Sub-tab Pola & Sesi + mismatch eksplisit (7 Okt 2026)
 
 **Kebutuhan:** tab Pola & Sesi scroll terlalu panjang; revert Bedah Film → Monolog tanggal 11 tapi draft masih tampil film (dual source of truth pekan vs sesi + auto-reselect sesi kept).

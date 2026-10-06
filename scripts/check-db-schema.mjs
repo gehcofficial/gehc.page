@@ -64,6 +64,8 @@ const REQUIRED_TABLES = [
   'service_week_overrides',
   'service_swap_requests',
   'church_profile',
+  'songs',
+  'service_songs',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [

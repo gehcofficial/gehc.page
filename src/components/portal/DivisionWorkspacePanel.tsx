@@ -47,6 +47,7 @@ import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
 import { PolaSesiPanel } from './PolaSesiPanel';
+import { LiturgiaSongsPanel } from './LiturgiaSongsPanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
@@ -1358,6 +1359,9 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                         <a href={`#/portal/superadmin/events`} onClick={() => { /* keep in division panel */ }} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat horizon 4 bulan di tab Serving →</a>
                       )}
                     </div>
+                    {selectedDiv === 'LITURGIA' && (
+                      <LiturgiaSongsPanel eventId={selectedEvent.id} />
+                    )}
                     <EventDivisionPhaseTabs
                       division={selectedDiv}
                       eventId={selectedEvent.id}

@@ -381,6 +381,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-liturgy-songs.cjs',
+    label: 'Liturgia: pustaka lagu + setlist ibadah (songs, service_songs)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-pelsus.cjs',
     label: 'Pelsus 11 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
     required: true,

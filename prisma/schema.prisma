@@ -2819,3 +2819,65 @@ model WorshipNote {
   @@index([sessionId, topicCode])
   @@map("worship_notes")
 }
+
+// ---------- Liturgia: Pustaka Lagu + Setlist Ibadah (lintas unit) ----------
+
+/// Pustaka lagu pusat (GLOBAL lintas unit). Full lirik/ChordPro hanya untuk
+/// lagu tim sendiri / public domain / berizin. Himne KJ/NKB tersimpan sebagai
+/// metadata + tautan SABDA; kontemporer mencatat copyright/CCLI.
+model Song {
+  id           String   @id @db.VarChar(64)
+  title        String   @db.VarChar(200)
+  /// HIMNE_KJ | HIMNE_NKB | KONTEMPORER | LOKAL
+  source       String   @default("LOKAL") @db.VarChar(24)
+  /// "KJ 478" / "NKB 123" / "CCLI 1234567" (unik bila terisi).
+  sourceRef    String?  @map("source_ref") @db.VarChar(64)
+  sourceUrl    String?  @map("source_url") @db.VarChar(500)
+  authors      String?  @db.VarChar(300)
+  copyright    String?  @db.VarChar(500)
+  ccli         String?  @db.VarChar(32)
+  defaultKey   String?  @map("default_key") @db.VarChar(8)
+  tempo        Int?
+  /// Kanonis ChordPro: header [Verse]/[Chorus]/[Bridge] + chord inline [C].
+  lyricsChordPro String? @map("lyrics_chord_pro") @db.MediumText
+  /// GLOBAL = dipakai semua unit; selain itu tenantId pemilik.
+  tenantScope  String   @default("GLOBAL") @map("tenant_scope") @db.VarChar(64)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdById  String?  @map("created_by_id") @db.VarChar(64)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  usages ServiceSong[]
+
+  @@index([source, title])
+  @@index([tenantScope, isActive])
+  @@map("songs")
+}
+
+/// Satu lagu dalam ibadah/event tertentu: urutan + bagian terpilih +
+/// transpose/capo (master Song tidak diubah).
+model ServiceSong {
+  id        String   @id @db.VarChar(64)
+  eventId   String?  @map("event_id") @db.VarChar(64)
+  sessionId String?  @map("session_id") @db.VarChar(64)
+  songId    String   @map("song_id") @db.VarChar(64)
+  sortOrder Int      @default(0) @map("sort_order")
+  /// ["Verse 1","Chorus"] — kosong/null = semua bagian.
+  sections  Json?
+  baseKey   String?  @map("base_key") @db.VarChar(8)
+  transpose Int      @default(0)
+  capo      Int?
+  /// pembuka | firman | persembahan | penutup | bedah-lagu | bebas.
+  moment    String?  @db.VarChar(32)
+  note      String?  @db.VarChar(500)
+  createdById String? @map("created_by_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  song Song @relation(fields: [songId], references: [id])
+
+  @@index([eventId, sortOrder])
+  @@index([sessionId, sortOrder])
+  @@index([songId])
+  @@map("service_songs")
+}
