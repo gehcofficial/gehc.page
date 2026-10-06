@@ -61,48 +61,6 @@ Modul: likert, rooms, timer, notes, chips, wordcloud. Contoh config sesi:
 3. Sesuaikan 12 chip words + 3 afirmasi per topik dengan kosakata {{tema}}.
 4. Cek ulang alokasi ruang: rank 1 selalu ruang terbesar minggu itu.`;
 
-const DUAL_MONOLOG_PLAYBOOK = `# Dual Monolog — The Awakening of Depravity
-
-## 1. Identitas & Tujuan Teologis
-**Nama:** Dual Monolog. **Durasi baku:** 120 menit (varian padat 90 menit: bedah lagu 15 menit + deep sharing 25 menit).
-**Tujuan:** Menyadarkan dua wajah keterpurukan — tersesat di luar (pemberontakan terbuka) dan tersesat di dalam rumah Bapa (pelayanan tanpa cinta mula-mula) — lalu memanggil pulang kepada kasih Bapa yang tidak berbasis performa.
-**Ayat jangkar default:** Lukas 15:11-32. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
-
-## 2. Pra-acara (H-7 s/d H-1)
-1. Tunjuk 2 speaker (A rapi + B kusut) + 1 pemusik keys/synth + 1 operator lighting. Gladi blocking minimal 1 kali.
-2. Siapkan properti: Speaker B (tas ransel, pakaian kerja kusut), Speaker A (Alkitab/notebook, pakaian rapi). Playlist: low synth pad monoton (Bagian 1), musik kaku/dingin (Bagian 2), piano warm block chords (Bagian 3).
-3. Cetak panduan pembacaan berbalasan {{firman_ref}} (ayat dibagi per kelompok, ayat terakhir Speaker B) + lirik lagu bedah + 2 pertanyaan deep sharing.
-4. Bagi kelompok deep sharing (maks 8 orang, 1 mentor per kelompok). Mentor siapkan kesaksian pembuka 2 menit.
-
-## 3. Rundown
-| No | Segmen | Menit | Owner | Naskah kunci |
-|---|---|---|---|---|
-| 1 | Praise & Bedah Lagu | 25 | Main Speaker + Liturgia | Nyanyi 1 bait → bedah makna teologis → lanjut bait ({{tema}}) |
-| 2 | Dual Monolog + pembacaan berbalasan | 25 | Speaker A & B | Outer Exile 5 menit + Inner Exile 5 menit + konvergensi {{firman_ref}} 15 menit |
-| 3 | Deep Sharing kelompok | 40 | Mentor | Mentor buka dulu; game Satu Kata; 2 pertanyaan wajib; zero judgment |
-| 4 | Persembahan & doa berkat | 10 | Main Speaker | Panggilan pulang + doa (cadangan dari durasi 120 menit) |
-
-## 4. Naskah siap baca
-**Bagian 1 — The Outer Exile / Speaker B (menit 00:00-05:00, low synth pad):** "Jam 6 pagi kereta, jam 9 KPI, jam 11 lembur. Aku hafal semua target — tapi kapan terakhir aku sadar Tuhan hadir? Aku tersesat di luar sana. Rutinitasku jalan, hatiku hilang. {{tema}} menamparku: aku jauh, dan aku tahu aku jauh."
-**Bagian 2 — The Inner Exile / Speaker A (menit 05:00-10:00, musik kaku):** "Aku tidak pernah absen pelayanan. Alkitabku penuh stabilo. Tapi tadi malam aku sadar: aku melayani tanpa cinta mula-mula. Aku tersesat di dalam rumah Bapa sendiri. {{firman_text}} — itu tentang aku."
-**Bagian 3 — Konvergensi (menit 10:00-25:00, piano warm, keduanya sejajar):** "Solusinya satu kata: Pulang. Bukan karena kita sudah cukup baik — karena Bapa sudah lebih dulu berlari. {{firman_ref}} dibaca berbalasan: ayat ganjil kelompok kiri oleh Speaker A, ayat genap kelompok kanan, ayat terakhir kita baca bersama dipimpin Speaker B. Kasih Bapa tidak tergantung performansmu minggu ini."
-**Bedah lagu (10 menit dalam segmen 1):** "Kita nyanyikan bait 1 — berhenti — apa arti baris ini dalam terang {{firman_ref}}? Baru lanjut bait 2. Menyanyi dengan kesadaran, bukan otomatisasi."
-**Deep sharing (mentor membuka):** "Minggu ini satu kataku: Lelah. Aku pun pernah jadi anak bungsu/sulung dalam {{tema}}. Sekarang giliranmu — satu kata untuk minggumu, lalu 2 pertanyaan wajib kita."
-
-## 5. Modul web & konfigurasi sesi
-Modul: timer, notes. Timer layar dipakai untuk 3 blok (25/25/40). Notes: 2 pertanyaan pendalaman wajib + kolom komitmen pulang (diisi mentor di kontrol, diekspor CSV). Tidak perlu Likert/rooms.
-
-## 6. Peran & personil
-- Speaker A & B (2, Didaskalia): hafal naskah + blocking; jangan improv melebihi 1 menit.
-- Pemusik + lighting (2): eksekusi 3 cue musik/lampu tepat waktu.
-- Mentor kelompok (1 per 8 jemaat): buka diri dulu maksimal 2 menit, jaga zero judgment, jangan potong tangisan.
-- MC: jaga transisi Bagian 2 → 3 tanpa tepuk tangan di tengah (hening 10 detik).
-
-## 7. Adaptasi tema & firman pekan ini
-1. Ganti {{tema}} dan {{firman_ref}}; petakan dua wajah tema ke A (inner exile) dan B (outer exile).
-2. Tulis ulang 2 pertanyaan deep sharing: Q1 observasi teks ("Di mana kamu melihat dirimu dalam {{firman_ref}}?"), Q2 aplikasi ("Langkah pulang apa minggu ini dalam {{tema}}?").
-3. Pilih 1 lagu yang liriknya memuat kosakata {{tema}} untuk dibedah.
-4. Sesuaikan properti/kostum dengan dunia Beyonders pekan itu (kampus: tas + laptop; kerja: seragam shift).`;
 
 const DEBAT_PLAYBOOK = `# Debat — The Battle of Minds
 
@@ -243,64 +201,71 @@ Modul: teams, timer, notes. Config sesi: {kelompokBesar:[{nama,anggota,lantai}],
 3. Sesuaikan yel-yel: wajib memuat 1 kata dari {{tema}} + 1 frasa dari {{firman_ref}}.
 4. Atur ulang komposisi tim bila kehadiran di bawah 12 orang: gabung Narasi+Presentasi, Lapangan minimal 3 orang.`;
 
-const MONOLOG_PLAYBOOK = `# Monolog & FGD (Standar)
+const MONOLOG_PLAYBOOK = `# Monolog, Bedah Lagu & Deep Sharing
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Monolog & FGD (Standar). **Durasi baku:** 90 menit (varian lengkap 110 menit: FGD 50 menit; varian padat 70 menit: monolog 20 + FGD 25).
-**Tujuan:** Menyampaikan eksposisi utuh {{tema}} dari {{firman_ref}} dalam satu suara yang jelas, lalu mengendapkannya lewat diskusi kelompok kecil (observasi → interpretasi → aplikasi).
+**Nama:** Monolog, Bedah Lagu & Deep Sharing. **Durasi baku:** 120 menit (varian padat 90 menit: bedah lagu 10 menit + sharing 25 menit).
+**Tujuan:** Menyampaikan eksposisi utuh {{tema}} dari {{firman_ref}} dalam satu suara yang jelas (opsional dua suara), mengendapkannya lewat nyanyian yang disadari, diskusi terpandu yang dipicu mentor, deep sharing yang jujur, dan satu kata penutup dari setiap hati.
 **Ayat jangkar:** {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
-Pola default bila pekan tidak memilih pola khusus. Cocok untuk tema doktrinal yang perlu penyampaian utuh sebelum diskusi.
+Pola default bila pekan tidak memilih pola khusus. Menyerap Dual Monolog: bedah lagu, Satu Kata, deep sharing, dan undian kesaksian.
 
 ## 2. Pra-acara (H-7 s/d H-1)
-1. Main Speaker siapkan naskah monolog 25-35 menit dari {{firman_ref}} (struktur: teks → konteks → 2-3 poin → aplikasi {{tema}} → panggilan).
-2. Didaskalia siapkan panduan FGD (1 lembar per kelompok): 1 pertanyaan observasi + 1 interpretasi + 1 aplikasi dari {{tema}} + kolom komitmen.
-3. Bagi kelompok 5-8 orang (1 mentor per kelompok) + siapkan ruang yang memungkinkan 35 menit diskusi tanpa gangguan.
-4. Uji sound/proyektor untuk 3-5 slide poin khotbah (tanpa teks panjang di slide).
+1. Main Speaker siapkan naskah monolog 25-30 menit dari {{firman_ref}} (struktur: teks → konteks → 2-3 poin → aplikasi {{tema}} → panggilan). Boleh dua suara (A rapi + B kusut) untuk tema pertobatan/keterpurukan.
+2. Didaskalia tetapkan lagu bedah pekan ini (judul + makna tiap bait + penyanyi) + siapkan 5 pertanyaan web: 3 FGD (observasi → interpretasi → aplikasi) + 2 deep sharing (observasi teks → langkah pulang).
+3. Tunjuk pemicu pertanyaan: Mentor/Co-mentor tiap kelompok; bila absen, tunjuk 1 perwakilan jemaat sebagai pemicu (umumkan di briefing).
+4. Bagi kelompok 5-8 orang + siapkan ruang diskusi. Uji sound/proyektor untuk slide poin khotbah + lirik lagu (tanpa teks panjang).
+5. Siapkan undian kesaksian (modul testimony) untuk momen Satu Kata.
 
 ## 3. Rundown
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
-| 1 | Praise & Worship | 15 | Liturgia | 2-3 lagu mengarah ke {{tema}} + doa pembuka |
-| 2 | Monolog khotbah | 30 | Main Speaker (Didaskalia) | Eksposisi {{firman_ref}} → aplikasi {{tema}} → panggilan |
-| 3 | Briefing FGD | 3 | Main Speaker | Bagi kelompok, bagikan panduan, jelaskan 3 langkah |
-| 4 | FGD kelompok | 35 | Mentor | Observasi → interpretasi → aplikasi; tutup komitmen & doa |
-| 5 | Persembahan & doa berkat | 10 | Main Speaker | Ayat penutup {{firman_ref}} + berkat |
+| 1 | Praise & Worship + Bedah Lagu | 20 | Liturgia + Main Speaker | 2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi) dalam terang {{tema}} |
+| 2 | Monolog khotbah (opsional dua suara) | 30 | Main Speaker (Didaskalia) | Eksposisi {{firman_ref}} → aplikasi {{tema}} → panggilan |
+| 3 | Briefing + trigger pertanyaan | 5 | Main Speaker + Mentor | Bagi kelompok; umumkan pemicu tiap kelompok; Q dibuka satu per satu dari kontrol |
+| 4 | FGD + Deep Sharing terpandu | 40 | Mentor/Pemicu | 3 FGD + 2 deep sharing; tiap Q dipicu berurutan; jawab di web; tutup komitmen & doa |
+| 5 | Satu Kata + kesaksian | 10 | MC + Mentor | Tiap peserta tulis 1 kata di web; 3-4 undian bersaksi live |
+| 6 | Komitmen + persembahan & doa berkat | 15 | Main Speaker | Komitmen di web + unduh PDF; ayat penutup {{firman_ref}} + berkat |
 
 ## 4. Naskah siap baca
-**Pembuka ibadah:** "Selamat pagi, Beyonders. Hari ini kita merenungkan {{tema}} dari {{firman_ref}}. Mari siapkan hati — Tuhan akan berbicara dahulu, baru kita menanggapi."
-**Transisi khotbah → FGD (3 menit, jangan dilewatkan):** "Firman sudah diberitakan: {{firman_text}}. Sekarang Firman itu harus mengendap lewat mulutmu sendiri. Bagi ke kelompok 5-8 orang. Tiga langkah: pertama amati — apa kata teks? Kedua pahami — apa artinya dalam {{tema}}? Ketiga terapkan — apa langkahmu minggu ini? Tulis satu komitmen sebelum berdoa tutup."
-**Panduan mentor FGD:** "Mulai dengan doa 1 menit. Observasi 10 menit (baca {{firman_ref}} bersama, tandai kata kerja). Interpretasi 10 menit (kaitkan dengan {{tema}} + kitab {{kitab_fokus}}). Aplikasi 10 menit (tiap orang sebut 1 langkah + 1 pergumulan). Tutup 5 menit: komitmen + doa saling mendoakan."
-**Penutup:** "Kita sudah mendengar dan saling menguatkan. Bawa komitmenmu keluar pintu ini. {{firman_ref}} menjadi bekal {{tema}}-mu minggu ini."
+**Pembuka ibadah:** "Selamat pagi, Beyonders. Hari ini kita merenungkan {{tema}} dari {{firman_ref}}. Kita mulai dengan menyanyi — bukan otomatisasi, tapi dengan kesadaran."
+**Bedah lagu (10 menit dalam segmen 1):** "Kita nyanyikan bait 1 — berhenti — apa arti baris ini dalam terang {{firman_ref}}? Lagu ini tentang [makna], dinyanyikan oleh [penyanyi]. Baru lanjut bait 2."
+**Transisi khotbah → diskusi (3 menit, jangan dilewatkan):** "Firman sudah diberitakan: {{firman_text}}. Sekarang Firman itu harus mengendap lewat mulutmu sendiri. Bagi ke kelompok 5-8 orang. Pemicumu akan membuka pertanyaan satu per satu di HP kalian — jawab jujur, tulis di web."
+**Panduan mentor/pemicu:** "Mulai dengan doa 1 menit. Buka Q1 (observasi): baca {{firman_ref}} bersama, tandai kata kerja. Q2 (interpretasi): kaitkan dengan {{tema}} + kitab {{kitab_fokus}}. Q3 (aplikasi): tiap orang sebut 1 langkah + 1 pergumulan. Q4 (deep sharing 1): di mana kamu melihat dirimu dalam teks? Q5 (deep sharing 2): langkah pulang apa minggu ini? Tutup 5 menit: komitmen + doa saling mendoakan. Zero judgment — jangan potong tangisan."
+**Satu Kata (mentor membuka):** "Minggu ini satu kataku: Lelah. Sekarang giliranmu — tulis satu kata untuk minggumu di web."
+**Penutup:** "Kita sudah mendengar, menyanyi dengan sadar, dan saling menguatkan. Unduh rekapmu — bawa komitmenmu keluar pintu ini. {{firman_ref}} menjadi bekal {{tema}}-mu minggu ini."
 
 ## 5. Modul web & konfigurasi sesi
-Modul: timer, notes. Timer layar untuk monolog (30) + FGD (35) dengan peringatan 5 menit terakhir. Notes: panduan FGD digital + kolom komitmen per anggota (ekspor CSV untuk follow-up mentor).
+Modul: timer, notes, fgd, testimony. Timer layar untuk monolog (30) + diskusi (40) + Satu Kata (10). Notes: 3 FGD + 2 deep sharing + Satu Kata + komitmen per anggota (autosave, unduh PDF, ekspor CSV untuk follow-up mentor). Trigger Q: kontrol membuka Q1–Q5 berurutan (config.fgd); peserta hanya bisa menjawab Q yang terbuka. Lagu: config.song (judul + makna + penyanyi) tampil di web + layar + PDF.
 
 ## 6. Peran & personil
-- Main Speaker (1, Didaskalia): kuasai naskah + 3-5 slide poin, jaga waktu 30 menit.
-- Mentor (1 per 5-8 jemaat): fasilitasi 3 langkah, pastikan semua bersuara, jaga waktu.
-- Liturgia + Multimedia (2-3): 2-3 lagu + slide + timer.
-- Usher (1-2): bagi kelompok cepat (< 3 menit) sesuai denah yang sudah disiapkan.
+- Main Speaker (1, Didaskalia): kuasai naskah + slide poin + lirik bedah, jaga waktu 30 menit. Boleh dua suara untuk tema pertobatan.
+- Mentor/Co-mentor (1 per 5-8 jemaat): fasilitasi 5 Q, pastikan semua bersuara, buka diri dulu maksimal 2 menit, jaga zero judgment.
+- Pemicu perwakilan (bila mentor absen): 1 jemaat per kelompok, diumumkan di briefing, hanya membuka Q + menjaga giliran.
+- Liturgia + Multimedia (2-3): lagu + lirik + timer + countdown Satu Kata.
+- MC: jaga transisi, undian kesaksian, hening sebelum doa tutup.
 
 ## 7. Adaptasi tema & firman pekan ini
-1. Ganti {{tema}}/{{firman_ref}}/{{kitab_fokus}}; turunkan 3 pertanyaan FGD dari teks (jangan generik): observasi harus menunjuk kata/frasa spesifik {{firman_ref}}.
-2. Pilih 2-3 ilustrasi dunia Beyonders (KRS/tugas/skripsi/magang; shift/lembur/target; kos/keuangan/relasi) yang memuat {{tema}}.
-3. Tulis panggilan 2 kalimat di akhir monolog yang menyebut respons spesifik terhadap {{tema}} minggu ini.
-4. Sesuaikan durasi: tema doktrinal berat → monolog 35 + FGD 40; tema aplikatif → monolog 25 + FGD 35 + kesaksian 5 menit.`;
+1. Ganti {{tema}}/{{firman_ref}}/{{kitab_fokus}}; turunkan 3 FGD + 2 deep sharing dari teks (jangan generik): observasi harus menunjuk kata/frasa spesifik {{firman_ref}}.
+2. Pilih 1 lagu yang liriknya memuat kosakata {{tema}}; tulis makna tiap bait + nama penyanyi di config.song.
+3. Pilih 2-3 ilustrasi dunia Beyonders (KRS/tugas/skripsi/magang; shift/lembur/target; kos/keuangan/relasi) yang memuat {{tema}}.
+4. Tulis panggilan 2 kalimat di akhir monolog yang menyebut respons spesifik terhadap {{tema}} minggu ini.
+5. Sesuaikan durasi: tema doktrinal berat → monolog 35 + diskusi 45; tema aplikatif → monolog 25 + diskusi 40 + kesaksian 10 menit.`;
 
 const PATTERNS = [
   {
     code: 'MONOLOG',
-    name: 'Monolog & FGD (Standar)',
+    name: 'Monolog, Bedah Lagu & Deep Sharing',
     summary:
-      'Pola default: khotbah monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).',
-    defaultDurationMin: 90,
-    modules: ['timer', 'notes', 'fgd'],
+      'Pola default: monolog (+bedah lagu) → pertanyaan dipicu mentor → FGD + deep sharing → Satu Kata → komitmen. Menyerap Dual Monolog.',
+    defaultDurationMin: 120,
+    modules: ['timer', 'notes', 'fgd', 'testimony'],
     phases: [
-      { no: 1, title: 'Praise & Worship', minutes: 15, owner: 'Liturgia', notes: 'Buka dengan 2-3 lagu yang mengarah ke tema pekan.' },
-      { no: 2, title: 'Monolog khotbah', minutes: 30, owner: 'Main Speaker (Didaskalia)', notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.' },
-      { no: 3, title: 'Briefing FGD', minutes: 3, owner: 'Main Speaker', notes: 'Bagi kelompok + bagikan panduan 3 langkah.' },
-      { no: 4, title: 'FGD kelompok', minutes: 35, owner: 'Mentor', notes: 'Observasi 10 mnt, interpretasi 10 mnt, aplikasi 10 mnt, komitmen + doa 5 mnt.' },
-      { no: 5, title: 'Persembahan & doa berkat', minutes: 10, owner: 'Main Speaker', notes: 'Ayat penutup + berkat.' },
+      { no: 1, title: 'Praise & Worship + Bedah Lagu', minutes: 20, owner: 'Liturgia + Main Speaker', notes: '2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi).' },
+      { no: 2, title: 'Monolog khotbah (opsional dua suara)', minutes: 30, owner: 'Main Speaker (Didaskalia)', notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.' },
+      { no: 3, title: 'Briefing + trigger pertanyaan', minutes: 5, owner: 'Main Speaker + Mentor', notes: 'Bagi kelompok; umumkan pemicu; Q dibuka satu per satu dari kontrol.' },
+      { no: 4, title: 'FGD + Deep Sharing terpandu', minutes: 40, owner: 'Mentor/Pemicu', notes: '3 FGD + 2 deep sharing; jawab di web; tutup komitmen & doa.' },
+      { no: 5, title: 'Satu Kata + kesaksian', minutes: 10, owner: 'MC + Mentor', notes: '1 kata/orang di web; 3-4 undian bersaksi live.' },
+      { no: 6, title: 'Komitmen + persembahan & doa berkat', minutes: 15, owner: 'Main Speaker', notes: 'Komitmen di web + unduh PDF; ayat penutup + berkat.' },
     ],
     playbook: MONOLOG_PLAYBOOK,
     sortOrder: 5,
@@ -321,21 +286,6 @@ const PATTERNS = [
     ],
     playbook: POST_TO_POST_PLAYBOOK,
     sortOrder: 10,
-  },
-  {
-    code: 'DUAL_MONOLOG',
-    name: 'Dual Monolog',
-    summary: 'Drama monolog-dialogis 2 speaker (anak bungsu vs anak sulung) + bedah lagu + deep sharing.',
-    defaultDurationMin: 120,
-    modules: ['timer', 'notes', 'testimony'],
-    phases: [
-      { no: 1, title: 'Praise & Bedah Lagu', minutes: 25, owner: 'Main Speaker', notes: 'Nyanyi 1 bait, bedah makna teologis, lanjut bait berikutnya.' },
-      { no: 2, title: 'Dual Monolog + pembacaan berbalasan', minutes: 25, owner: 'Main Speaker', notes: 'Outer Exile 5 mnt + Inner Exile 5 mnt + konvergensi firman 15 mnt.' },
-      { no: 3, title: 'Deep Sharing kelompok', minutes: 40, owner: 'Mentor', notes: 'Mentor buka dulu 2 mnt; Satu Kata; 2 pertanyaan wajib; zero judgment.' },
-      { no: 4, title: 'Persembahan & doa berkat', minutes: 10, owner: 'Main Speaker', notes: 'Panggilan pulang + doa (bagian dari 120 menit).' },
-    ],
-    playbook: DUAL_MONOLOG_PLAYBOOK,
-    sortOrder: 20,
   },
   {
     code: 'DEBAT',
@@ -528,6 +478,20 @@ async function upsertPattern(conn, p) {
   for (const p of PATTERNS) {
     ids[p.code] = await upsertPattern(conn, p);
     console.log(`✓ pola ${p.code}`);
+  }
+
+  // Arsip Dual Monolog (diserap MONOLOG) + migrasi sesi lama ke MONOLOG.
+  {
+    const [dualRows] = await conn.query('SELECT id FROM worship_patterns WHERE code = ? LIMIT 1', ['DUAL_MONOLOG']);
+    if (dualRows.length) {
+      await conn.query("UPDATE worship_patterns SET status='ARCHIVED' WHERE code='DUAL_MONOLOG'");
+      const dualId = dualRows[0].id;
+      const monoId = ids.MONOLOG;
+      const [moved] = await conn.query('UPDATE worship_sessions SET pattern_id=? WHERE pattern_id=?', [monoId, dualId]);
+      console.log(`✓ DUAL_MONOLOG diarsipkan; ${moved.affectedRows || 0} sesi dimigrasi ke MONOLOG`);
+    } else {
+      console.log('(DUAL_MONOLOG tidak ada — lewati arsip/migrasi)');
+    }
   }
 
   const SLUG = 'mentoring-2026-10-04';

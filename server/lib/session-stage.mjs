@@ -1,6 +1,6 @@
 /**
- * Status panggung sesi (modul rounds / screening / teams) — validasi murni.
- * Disimpan di config sesi (rounds / screening / teams) — tanpa migrasi skema.
+ * Status panggung sesi (modul rounds / screening / teams / fgd / song) — validasi murni.
+ * Disimpan di config sesi — tanpa migrasi skema.
  * Ditulis endpoint stage (admin Didaskalia, boleh saat live).
  */
 
@@ -44,6 +44,25 @@ export function cleanScreening(raw) {
   const durationMin = Math.min(180, Math.max(10, Number(raw.durationMin) || 90));
   const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
   return { title, durationMin, startedAt };
+}
+
+/** Normalisasi trigger pertanyaan mentor (MONOLOG gabungan): Q 0-5 + siapa pemicu. */
+export function cleanFgd(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const currentQ = Math.min(5, Math.max(0, Number(raw.currentQ) || 0));
+  const triggerBy = ['MENTOR', 'CO_MENTOR', 'PERWAKILAN'].includes(String(raw.triggerBy || '').toUpperCase())
+    ? String(raw.triggerBy).toUpperCase()
+    : null;
+  const triggerName = str(raw.triggerName, 80) || null;
+  return { currentQ, triggerBy, triggerName };
+}
+
+/** Normalisasi lagu bedah (MONOLOG gabungan). */
+export function cleanSong(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const title = str(raw.title, 200);
+  if (!title) return null;
+  return { title, about: str(raw.about, 2000), singer: str(raw.singer, 120) };
 }
 
 /** Normalisasi papan tim misi (maks 8 tim, 20 anggota per tim). */

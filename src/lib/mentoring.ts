@@ -77,6 +77,12 @@ export type SessionTeam = { name: string; task: string; members: string[]; done:
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
 
+export type SessionSong = { title: string; about: string; singer: string } | null;
+
+export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
+
+export type OneWordCount = { text: string; count: number };
+
 export type MentoringSessionPayload = {
   session: {
     id: string;
@@ -100,6 +106,12 @@ export type MentoringSessionPayload = {
   notes: Record<string, string>;
   /** Panduan FGD / pertanyaan pola (dari draft sesi). */
   guide: string[];
+  /** 2 pertanyaan deep sharing (MONOLOG gabungan). */
+  deepGuide?: string[];
+  /** Lagu bedah pekan ini (MONOLOG gabungan). */
+  song?: SessionSong;
+  /** Status trigger Q mentor (MONOLOG gabungan). */
+  fgd?: SessionFgdState;
   testimony: TestimonyPick[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
@@ -123,7 +135,11 @@ export type MentoringLivePayload = {
   rooms: MentoringRoom[];
   wordcloud: { code: string; label: string; count: number }[];
   guide: string[];
+  deepGuide?: string[];
+  song?: SessionSong;
+  fgd?: SessionFgdState;
   testimony: TestimonyPick[];
+  oneWord?: OneWordCount[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
   teams?: SessionTeams;

@@ -12,7 +12,7 @@ import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { classifyPoolRole, composePicks } from '../lib/testimony.mjs';
-import { cleanRounds, cleanScreening, cleanTeams } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams } from '../lib/session-stage.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const YOUTH_TENANT = 'tenant-youth';
@@ -79,7 +79,73 @@ export function normalizeConfig(raw) {
     rounds: c.rounds && typeof c.rounds === 'object' && !Array.isArray(c.rounds) ? c.rounds : null,
     screening: c.screening && typeof c.screening === 'object' && !Array.isArray(c.screening) ? c.screening : null,
     teams: c.teams && typeof c.teams === 'object' && !Array.isArray(c.teams) ? c.teams : null,
+    // Lagu bedah pekan ini (MONOLOG gabungan; diisi tab Draft Sesi).
+    song: c.song && typeof c.song === 'object' && !Array.isArray(c.song) ? c.song : null,
+    // Trigger pertanyaan mentor (MONOLOG gabungan; ditulis endpoint stage).
+    fgd: c.fgd && typeof c.fgd === 'object' && !Array.isArray(c.fgd) ? c.fgd : null,
   };
+}
+
+/** Lagu bedah dari draft/config sesi (fallback kosong). */
+export function sessionSong(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const fromDraft = draft.song && typeof draft.song === 'object' ? draft.song : {};
+  const live = config.song && typeof config.song === 'object' ? config.song : {};
+  const pick = (obj, keys) => {
+    for (const k of keys) {
+      const v = String(obj[k] || '').trim();
+      if (v) return v;
+    }
+    return '';
+  };
+  return {
+    title: pick(live, ['title']) || pick(fromDraft, ['song-title', 'title']) || '',
+    about: pick(live, ['about']) || pick(fromDraft, ['song-about', 'about']) || '',
+    singer: pick(live, ['singer']) || pick(fromDraft, ['song-singer', 'singer']) || '',
+  };
+}
+
+/** 2 pertanyaan deep sharing dari draft sesi (fallback generik bila kosong). */
+export function deepGuide(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const deep = draft.deep && typeof draft.deep === 'object' ? draft.deep : {};
+  const pick = (obj, keys) => {
+    for (const k of keys) {
+      const v = String(obj[k] || '').trim();
+      if (v) return v;
+    }
+    return '';
+  };
+  return [
+    pick(deep, ['deep-q1', 'q1']) || 'Di mana kamu melihat dirimu dalam teks pekan ini?',
+    pick(deep, ['deep-q2', 'q2']) || 'Langkah pulang apa minggu ini?',
+  ];
+}
+
+/** Status trigger Q mentor (0 = belum dibuka; 1-5 = Q ke-n terbuka). */
+export function fgdState(config) {
+  const f = config.fgd && typeof config.fgd === 'object' ? config.fgd : {};
+  const n = Math.min(5, Math.max(0, Number(f.currentQ) || 0));
+  return {
+    currentQ: n,
+    triggerBy: String(f.triggerBy || '').slice(0, 20) || null,
+    triggerName: String(f.triggerName || '').slice(0, 80) || null,
+  };
+}
+
+/** Agregasi Satu Kata: hitung jawaban SATU-KATA per sesi (top 20, case-insensitive). */
+export async function oneWordAggregate(prisma, sessionId, limit = 20) {
+  const rows = await prisma.worshipNote
+    .findMany({ where: { sessionId, topicCode: 'SATU-KATA' }, select: { content: true } })
+    .catch(() => []);
+  const counts = new Map();
+  for (const r of rows) {
+    const w = String(r.content || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!w) continue;
+    const key = w.toLowerCase();
+    counts.set(key, { text: w, count: (counts.get(key)?.count || 0) + 1 });
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, limit);
 }
 
 /**
@@ -87,7 +153,7 @@ export function normalizeConfig(raw) {
  * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
  */
 export function allowedNoteCodes(config) {
-  const set = new Set([...(config.topics || []).map((t) => t.code), 'KESIMPULAN', 'KOMITMEN']);
+  const set = new Set([...(config.topics || []).map((t) => t.code), 'KESIMPULAN', 'KOMITMEN', 'SATU-KATA']);
   const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
   for (const fields of Object.values(draft)) {
     if (!fields || typeof fields !== 'object') continue;
@@ -353,6 +419,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
         notes,
         guide: fgdGuide(config),
+        deepGuide: deepGuide(config),
+        song: sessionSong(config),
+        fgd: fgdState(config),
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
         screening: config.screening,
@@ -556,7 +625,11 @@ export function registerWorshipRoutes(app, { wrap }) {
         rooms: agg.rooms,
         wordcloud: agg.wordcloud,
         guide: fgdGuide(agg.config),
+        deepGuide: deepGuide(agg.config),
+        song: sessionSong(agg.config),
+        fgd: fgdState(agg.config),
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
+        oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
         screening: agg.config.screening,
         teams: agg.config.teams,
@@ -1301,6 +1374,23 @@ export function registerWorshipRoutes(app, { wrap }) {
         if (!cleaned) return res.status(400).json({ error: 'Minimal satu tim bernama.' });
         cfg.teams = cleaned;
         out.teams = cleaned;
+      }
+      if (b.fgd !== undefined) {
+        const cleaned = cleanFgd(b.fgd);
+        if (!cleaned) return res.status(400).json({ error: 'State trigger Q tidak valid.' });
+        cfg.fgd = cleaned;
+        out.fgd = cleaned;
+      }
+      if (b.song !== undefined) {
+        if (b.song === null) {
+          cfg.song = null;
+          out.song = null;
+        } else {
+          const cleaned = cleanSong(b.song);
+          if (!cleaned) return res.status(400).json({ error: 'Judul lagu wajib diisi.' });
+          cfg.song = cleaned;
+          out.song = cleaned;
+        }
       }
       if (!Object.keys(out).length) return res.status(400).json({ error: 'Tidak ada yang disimpan.' });
       await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });

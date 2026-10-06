@@ -17,119 +17,86 @@
     "kind": "POST_TO_POST",
     "exegesis": {
       "points": [
-        "Injil adalah berita utama tentang kematian dan kebangkitan Kristus, menjadi pokok iman Kristen (1 Korintus 15:3-4).",
-        "Kematian Kristus tidak hanya menanggung dosa, tetapi juga memberikan solusi bagi masalah hidup sehari-hari kita.",
-        "Kebangkitan Kristus menandakan bahwa ada harapan dan kuasa baru bagi setiap orang percaya dalam menghadapi tantangan hidup."
+        "Kristus mati untuk dosa-dosa kita agar kita dapat diampuni dan hidup baru (1 Kor 15:3)",
+        "Penguburan dan kebangkitan Kristus menunjukkan bahwa kematian bukanlah akhir, melainkan awal kehidupan baru (1 Kor 15:4)",
+        "Injil adalah kekuatan Allah yang menyelamatkan siapa saja yang percaya (Roma 1:16)",
+        "Keselamatan kita adalah anugerah yang harus dipahami dan diterima dengan iman (Sola Fide)",
+        "Kematian dan kebangkitan Kristus memberi kita harapan dan solusi bagi setiap aspek hidup kita: hubungan, pekerjaan, dan keluarga."
       ],
       "implications": [
-        "Ketika kita menghadapi masalah dalam hubungan, kita dapat mencari fondasi penyelesaian dalam Injil yang mengajarkan kasih dan pengampunan.",
-        "Dalam situasi pekerjaan atau studi yang sulit, kita diingatkan bahwa Kristus memberikan arah dan kekuatan dalam menghadapi tantangan itu.",
-        "Dalam konteks keluarga, kebangkitan Kristus mengingatkan kita akan harapan untuk perubahan dan pembaruan, meskipun muncul konflik."
+        "Setiap pemuda harus memahami bahwa Injil bukan sekadar ritual, tetapi sangat relevan dalam kehidupan sehari-hari mereka",
+        "Menghadapi tantangan dalam hubungan, pekerjaan, atau keluarga dengan keyakinan bahwa Kristus sudah mengalahkan segala sesuatu melalui kebangkitan-Nya",
+        "Menghargai pengorbanan Kristus sebagai fondasi dalam menjalin hubungan baik dengan sesama dan bertanggung jawab dalam pekerjaan."
       ]
     },
     "topics": [
       {
         "code": "HUBUNGAN",
-        "label": "Injil dan Hubungan",
-        "pic": "PIC_Hubungan"
+        "label": "Hubungan dalam Kristus",
+        "pic": "PIC Hubungan"
       },
       {
         "code": "PEKERJAAN",
-        "label": "Injil dan Pekerjaan",
-        "pic": "PIC_Pekerjaan"
+        "label": "Pekerjaan yang Berarti",
+        "pic": "PIC Pekerjaan"
       },
       {
         "code": "KELUARGA",
-        "label": "Injil dan Keluarga",
-        "pic": "PIC_Keluarga"
+        "label": "Keluarga yang Diberkati",
+        "pic": "PIC Keluarga"
       }
     ],
     "items": [
       {
         "topicCode": "HUBUNGAN",
-        "text": "Saya merasa sulit mengampuni orang lain yang pernah menyakiti saya.",
-        "gospelNote": "Injil mengajarkan bahwa Kristus telah mati bagi dosa kita, memberdayakan kita untuk mengampuni (1 Korintus 15:3-4)."
+        "text": "Saya merasa kesulitan dalam membangun relasi yang sehat di sekitar saya.",
+        "gospelNote": "Kristus memberi solusi pada hubungan kita, memampukan kita untuk mengasihi satu sama lain (1 Kor 15:3-4)."
       },
       {
         "topicCode": "HUBUNGAN",
-        "text": "Saya cenderung merasa terasing dalam pertemanan di lingkungan baru.",
-        "gospelNote": "Kebangkitan Kristus menjalin hubungan kita satu sama lain dalam kasihNya (1 Korintus 15:3-4)."
+        "text": "Saya cenderung mengalami konflik dalam hubungan dengan teman dekat.",
+        "gospelNote": "Injil mengajarkan kita untuk memaafkan, karena kita juga telah diampuni (1 Kor 15:3-4)."
       },
       {
         "topicCode": "HUBUNGAN",
-        "text": "Saya merasa sulit untuk berkomunikasi dengan keluarga saya yang jauh.",
-        "gospelNote": "Injil mendorong kita untuk membangun kembali hubungan yang rusak, sebab ada harapan dalam Kristus (1 Korintus 15:3-4)."
+        "text": "Saya merasa kesulitan untuk mengungkapkan perasaan kepada orang tua atau keluarga.",
+        "gospelNote": "Kebangkitan Kristus memberi kita harapan untuk memperbaiki hubungan yang retak (1 Kor 15:3-4)."
       },
       {
         "topicCode": "PEKERJAAN",
-        "text": "Saya sulit menemukan makna di tempat kerja saya yang monoton.",
-        "gospelNote": "Injil mengingatkan kita bahwa setiap pekerjaan kita berarti ketika kita melakukannya untuk kemuliaan Allah (1 Korintus 15:3-4)."
+        "text": "Saya merasa terbebani dengan target kerja yang tinggi dan tidak bisa beristirahat.",
+        "gospelNote": "Injil mengingatkan kita bahwa Kristus adalah penyokong kita dalam setiap tugas yang kita hadapi (1 Kor 15:3-4)."
       },
       {
         "topicCode": "PEKERJAAN",
-        "text": "Saya merasa terbebani dengan target kerja dan waktu lembur.",
-        "gospelNote": "Kebangkitan Kristus memberi kita kekuatan untuk menghadapi setiap tantangan di tempat kerja (1 Korintus 15:3-4)."
+        "text": "Saya cenderung stres saat menghadapi ujian atau deadline di kampus.",
+        "gospelNote": "Dengan percaya pada Kebangkitan Kristus, kita bisa menghadapi setiap ujian dengan tenang (1 Kor 15:3-4)."
       },
       {
         "topicCode": "PEKERJAAN",
-        "text": "Saya cenderung dibanding-bandingkan dengan rekan kerja lain.",
-        "gospelNote": "Injil mengingatkan kita bahwa identitas kita di dalam Kristus adalah hal yang terpenting, bukan prestasi (1 Korintus 15:3-4)."
+        "text": "Saya merasa kurang memiliki arah yang jelas dalam karier saya.",
+        "gospelNote": "Tuhan telah merancangkan masa depan yang cerah bagi kita, sesuai dengan rencana-Nya (1 Kor 15:3-4)."
       },
       {
         "topicCode": "KELUARGA",
-        "text": "Saya merasa kurang dekat dengan anggota keluarga karena kesibukan.",
-        "gospelNote": "Injil mengajak kita untuk mengutamakan relasi keluarga, sebagai bagian dari penebusan Kristus (1 Korintus 15:3-4)."
+        "text": "Saya merasa terasing dari keluarga karena jarak yang jauh.",
+        "gospelNote": "Kebangkitan Kristus mengikat kita dalam kasih, meski terpisah secara fisik (1 Kor 15:3-4)."
       },
       {
         "topicCode": "KELUARGA",
-        "text": "Saya sulit mendapatkan dukungan dari keluarga dalam perjalanan iman saya.",
-        "gospelNote": "Kebangkitan Kristus memberi harapan untuk memulihkan relasi yang rusak (1 Korintus 15:3-4)."
+        "text": "Saya kesulitan untuk menjaga hubungan baik dengan saudara-saudara saya.",
+        "gospelNote": "Kristus mendorong kita untuk menjadi saluran kasih dalam keluarga kita (1 Kor 15:3-4)."
       },
       {
         "topicCode": "KELUARGA",
-        "text": "Saya merasa tidak cukup baik untuk menjadi teladan bagi keluarga.",
-        "gospelNote": "Injil mengingatkan bahwa semua kita dapat menjadi alat Allah untuk mengubah situasi keluarga (1 Korintus 15:3-4)."
+        "text": "Saya merasa tidak didukung oleh keluarga dalam pilihan hidup saya.",
+        "gospelNote": "Kami bisa mengandalkan Kristus untuk memberi dukungan di saat sulit (1 Kor 15:3-4)."
       }
     ],
     "chips": [
       {
-        "code": "_INJIL",
-        "label": "Injil",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_HARAPAN",
-        "label": "Harapan",
-        "topicCode": "NULL"
-      },
-      {
         "code": "_KASIH",
         "label": "Kasih",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_PEMULIHAN",
-        "label": "Pemulihan",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_KOMITMEN",
-        "label": "Komitmen",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_PERUBAHAN",
-        "label": "Perubahan",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_KUASA",
-        "label": "Kuasa",
-        "topicCode": "NULL"
-      },
-      {
-        "code": "_PENGAMPUNAN",
-        "label": "Pengampunan",
         "topicCode": "HUBUNGAN"
       },
       {
@@ -138,31 +105,66 @@
         "topicCode": "KELUARGA"
       },
       {
-        "code": "_SEMANGAT",
-        "label": "Semangat",
+        "code": "_HARAPAN",
+        "label": "Harapan",
         "topicCode": "PEKERJAAN"
       },
       {
+        "code": "_KEDAMAIAN",
+        "label": "Kedamaian",
+        "topicCode": "GENERIC"
+      },
+      {
+        "code": "_PENGAMPUNAN",
+        "label": "Pengampunan",
+        "topicCode": "HUBUNGAN"
+      },
+      {
         "code": "_IDENTITAS",
-        "label": "Identitas",
+        "label": "Identitas dalam Kristus",
         "topicCode": "PEKERJAAN"
+      },
+      {
+        "code": "_RENCANA",
+        "label": "Rencana Tuhan",
+        "topicCode": "KELUARGA"
+      },
+      {
+        "code": "_KEBANGKITAN",
+        "label": "Kebangkitan",
+        "topicCode": "GENERIC"
+      },
+      {
+        "code": "_KOMITMEN",
+        "label": "Komitmen",
+        "topicCode": "HUBUNGAN"
+      },
+      {
+        "code": "_PRESTASI",
+        "label": "Prestasi",
+        "topicCode": "PEKERJAAN"
+      },
+      {
+        "code": "_PEMULIHAN",
+        "label": "Pemulihan",
+        "topicCode": "KELUARGA"
       }
     ],
     "affirmations": {
       "HUBUNGAN": [
-        "Kita bisa mengampuni karena kita telah diampuni (1 Korintus 15:3-4).",
-        "Kebangkitan Kristus memberi kita jaminan untuk menghadapi setiap permasalahan hubungan (1 Korintus 15:3-4).",
-        "Hubungan kita sejatinya adalah cerminan kasih Kristus dalam hidup kita (1 Korintus 15:3-4)."
+        "Kristus telah mati dan bangkit untuk hubungan kita (1 Kor 15:3-4)",
+        "Setiap hubungan yang dibangun di atas kasih Kristus akan bertahan lama.",
+        "Kita diundang untuk menjadi pemulihan dalam relasi kita."
       ],
       "PEKERJAAN": [
-        "Pekerjaan kita adalah kesempatan untuk mencerminkan Kristus di tempat kerja (1 Korintus 15:3-4).",
-        "Ketika kita merasa terbebani, kuasa Kristus memampukan kita untuk bangkit (1 Korintus 15:3-4).",
-        "Prioritaskan pekerjaanmu untuk kemuliaan Allah (1 Korintus 15:3-4)."
+        "Setiap pekerjaan yang kita lakukan adalah untuk kemuliaan Tuhan (1 Kor 15:3-4)",
+        "Kristus memberi kita kemampuan untuk menghadapi tantangan di tempat kerja.",
+        "Kita dipanggil untuk setia dalam pekerjaan yang dipercayakan Tuhan."
       ],
       "KELUARGA": [
-        "Di dalam Kristus, kita memiliki harapan untuk pemulihan hubungan keluarga (1 Korintus 15:3-4).",
-        "Keluarga adalah berkat yang harus kita rawat dan hormati (1 Korintus 15:3-4).",
-        "Setiap tantangan dalam keluarga kita, ada solusi dalam Injil (1 Korintus 15:3-4)."
+        "Keluarga adalah berkat yang perlu dijaga dan dipelihara (1 Kor 15:3-4)",
+        "Kristus mengikat kita dalam kasih meskipun terpisah jarak.",
+        "Kita adalah saksi kasih Kristus dalam keluarga kita."
       ]
     },
     "timerSeconds": 1200

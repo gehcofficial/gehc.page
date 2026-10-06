@@ -1,27 +1,32 @@
-# Simulasi Draft Sesi — More Than Good News (6 pola)
+# Simulasi Draft Sesi — More Than Good News (5 pola; Dual dilebur ke Monolog)
 
 > Konteks fix: tema **More Than Good News** · Fundamental Firman **1 Korintus 15:3-4** (jangkar) · Kitab Fokus **1 Korintus 15** (bacaan).
-> Dibuat: 5/10/2026, 22.41.32 · AI live (OpenAI primary, Groq fallback).
+> Dibuat: 6/10/2026, 09.48.05 · AI live (OpenAI primary, Groq fallback).
 > Status: **DRAFT SIMULASI** — belum masuk DB sesi, belum dikirim ke mana pun.
 
-## MONOLOG — Monolog & FGD (Standar)
+## MONOLOG — Monolog, Bedah Lagu & Deep Sharing
 
-> Pola default: khotbah monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).
+> Pola default: monolog (+bedah lagu) → pertanyaan dipicu mentor → FGD + deep sharing → Satu Kata → komitmen. Menyerap Dual Monolog.
 
 ### Eksegesis (dari teks, langkah 1)
 Poin inti perikop:
-- Kematian Kristus sebagai penebusan dosa-dosa kita (1 Kor 15:3)
-- Penguburan sebagai penguatan realitas kematian Kristus dan bukti autentik penebusan (1 Kor 15:4)
-- Kebangkitan Kristus sebagai kemenangan atas kematian dan pengharapan bagi orang percaya (1 Kor 15:4)
+- Kematian Kristus adalah penebusan bagi dosa-dosa kita, memberikan harapan bagi mereka yang merasa putus asa. (1 Korintus 15:3)
+- Kebangkitan Kristus adalah jaminan akan hidup baru bagi kita dan sebuah pemulihan hubungan kita dengan Allah. (1 Korintus 15:4)
+- Injil yang mengubahkan tidak hanya menjawab masalah rohani, tetapi juga memberikan kekuatan bagi kita menghadapi tantangan sehari-hari, baik di lingkungan kampus dan dunia kerja.
 Implikasi bagi Beyonders:
-- Memahami bahwa Injil adalah solusi bagi masalah dan tantangan hidup kita, termasuk di dunia pendidikan, pekerjaan, dan relasi sehari-hari
-- Mengajak Beyonders untuk hidup dalam keyakinan bahwa setiap aspek kehidupan mereka dapat diubah oleh kuasa Injil
-- Menumbuhkan komitmen untuk berbagi Injil dengan orang-orang di sekitar kita, termasuk di lingkungan kampus maupun tempat kerja
+- Sebagai mahasiswa dan pekerja muda, kita harus memahami bahwa Injil memampukan kita untuk menghadapi kesulitan dalam kuliah, seperti tugas dan ujian, dengan keyakinan akan keberadaan Kristus dalam hidup kita.
+- Ketika kita merasa tertekan dengan pekerjaan, tahu bahwa kebangkitan Kristus bisa menjadi dorongan untuk tetap berjuang dan mencapai target yang telah ditetapkan.
+- Injil mengajak kita untuk membangun relasi yang sehat meskipun jauh dari keluarga. Kita dipanggil untuk menjadi saluran berkat bagi orang-orang di sekitar kita.
 
-### Nilai template (3)
-- **fgd-observe**: Observe 1 Korintus 15:3-4 dan cari frasa yang menjelaskan pentingnya kematian dan kebangkitan Kristus dalam konteks kehidupan sehari-hari. Contohnya, kata 'mati' dan 'dibangkitkan' menunjukkan kepentingan peristiwa ini dalam menjawab semua masalah umat manusia.
-- **fgd-interpret**: Interpretasikan bagaimana kematian dan kebangkitan Kristus berelasi dengan tantangan yang dihadapi Beyonders, seperti tekanan akademis, persaingan di tempat kerja, atau pengelolaan hubungan jarak jauh. Apa artinya bagi kita sebagai mahasiswa atau pekerja muda?
-- **fgd-apply**: Aplikasi: Dalam lampiran komitmen, setiap peserta diminta menuliskan satu langkah nyata untuk menerapkan kuasa Injil dalam hidup mereka minggu ini. Misalnya, berdoa untuk bijak mengambil keputusan dalam tugas kuliah atau memperbaiki hubungan dengan rekan kerja.
+### Nilai template (8)
+- **fgd-observe**: Apa yang kamu perhatikan dari 1 Korintus 15:3-4 tentang kematian dan kebangkitan Kristus?
+- **fgd-interpret**: Bagaimana kematian dan kebangkitan Kristus berhubungan dengan tema 'Injil yang Mengubahkan' dan bagaimana hal ini dapat kita aplikasikan dalam kehidupan sehari-hari?
+- **fgd-apply**: Langkah konkret apa yang bisa kamu ambil untuk menerapkan pesan dari 1 Korintus 15:3-4 dalam menghadapi tekanan di kuliah atau pekerjaan?
+- **song-title**: A Winner Is One Who Chooses to Fight
+- **song-about**: Lagu ini menggambarkan semangat perjuangan dan keberanian untuk menghadapi tantangan, yang sejalan dengan kekuatan yang kita dapatkan melalui Injil.
+- **song-singer**: Krisdayanti
+- **deep-q1**: Seberapa kuat pengaruh Injil dalam hidupmu saat menghadapi kesulitan di kampus atau pekerjaan?
+- **deep-q2**: Apa harapanmu ketika menghadapi situasi sulit dan bagaimana Injil memberimu ketenangan?
 
 ### Cakupan dua perikop
 
@@ -29,45 +34,14 @@ Implikasi bagi Beyonders:
 |---|---|---|
 | fgd-observe | ✅ | ⚠️ |
 | fgd-interpret | — | ⚠️ |
-| fgd-apply | — | ⚠️ |
-
-**Ringkasan MONOLOG:** 0/0 slot solusi merujuk eksplisit ke Fundamental Firman.
-
-## DUAL_MONOLOG — Dual Monolog
-
-> Drama monolog-dialogis 2 speaker (anak bungsu vs anak sulung) + bedah lagu + deep sharing.
-
-### Eksegesis (dari teks, langkah 1)
-Poin inti perikop:
-- Injil adalah pusat dari keselamatan kita melalui kematian dan kebangkitan Kristus (1 Korintus 15:3-4).
-- Keduanya menunjukkan bahwa kasih Bapa tidak bergantung pada performa kita, melainkan pada anugerah yang diberikan-Nya.
-- Kematian dan kebangkitan Kristus mengubah cara kita memandang hubungan, pekerjaan, dan keluarga.
-- Tuhan tidak hanya memanggil kita kembali dari titik eksternal, tetapi juga dari keterpurukan internal di dalam rumah-Nya.
-Implikasi bagi Beyonders:
-- Sadarilah bahwa dalam urusan tugas kuliah atau pekerjaan, kita sering kehilangan kehadiran Tuhan. Jangan biarkan rutinitas membabi buta menjauhkan kita dari-Nya.
-- Sadari bahwa kita tidak hanya harus melayani dalam gereja, tetapi juga belajar untuk melayani dengan kasih di tempat kerja atau dalam kuliah.
-- Terkadang kita mungkin berprestasi di luar sembari kehilangan hubungan yang mendalam k dengan Bapa, ingatlah untuk kembali kepada-Nya setiap hari.
-
-> ⚠️ Contoh lama terdeteksi: "anak bungsu", "anak sulung" — perlu justifikasi atau diganti.
-
-### Nilai template (5)
-- **outer-exile**: Outer Exile
-- **inner-exile**: Inner Exile
-- **song**: Lagu bedah
-- **deep-q1**: Di mana kamu melihat dirimu dalam cerita ini, sebagai anak bungsu atau anak sulung?
-- **deep-q2**: Apa langkah yang bisa kamu ambil minggu ini untuk kembali ke pelukan kasih Bapa?
-
-### Cakupan dua perikop
-
-| Slot | Merujuk Fundamental (1Kor 15:3-4) | Merujuk Kitab Fokus (1Kor 15) |
-|---|---|---|
-| outer-exile | — | ⚠️ |
-| inner-exile | — | ⚠️ |
-| song | — | ⚠️ |
+| fgd-apply | ✅ | ⚠️ |
+| song-title | — | ⚠️ |
+| song-about | — | ⚠️ |
+| song-singer | — | ⚠️ |
 | deep-q1 | — | ⚠️ |
 | deep-q2 | — | ⚠️ |
 
-**Ringkasan DUAL_MONOLOG:** 0/0 slot solusi merujuk eksplisit ke Fundamental Firman.
+**Ringkasan MONOLOG:** 0/0 slot solusi merujuk eksplisit ke Fundamental Firman.
 
 ## DEBAT — Debat — The Battle of Minds
 
@@ -75,21 +49,21 @@ Implikasi bagi Beyonders:
 
 ### Eksegesis (dari teks, langkah 1)
 Poin inti perikop:
-- Kristus mati untuk dosa kita sebagai anugerah yang tak terhingga (1 Kor. 15:3)
-- Kebangkitan Kristus sebagai jaminan bagi kita akan kehidupan baru (1 Kor. 15:4)
-- Injil adalah inti dari iman kita yang membawa pengharapan dan transformasi (1 Kor. 15:3-4)
+- Kematian dan kebangkitan Kristus adalah inti dari Injil, yang memberikan dasar bagi pengharapan umat percaya (1 Korintus 15:3-4).
+- Injil bukan hanya berita baik, tetapi juga pembawa perubahan yang konkret dalam hidup, baik dalam relasi, pekerjaan, maupun keluarga.
+- Dengan memahami Injil, kita dibimbing untuk hidup dalam penerimaan anugerah Tuhan dan mewujudkan kasih-Nya di tengah situasi nyata, seperti kesibukan kuliah dan pekerjaan.
 Implikasi bagi Beyonders:
-- Kematian dan kebangkitan Kristus membebaskan kita dari beban dosa dan memberi kita kekuatan untuk menghadapi tantangan hidup (seperti tugas kuliah dan pekerjaan)
-- Pengharapan dalam Injil mendorong kita untuk tetap tegar dalam relasi walau terpisah jauh dari keluarga
-- Kesadaran akan anugerah Allah mendorong kita untuk berbagi Injil dengan sesama, termasuk dalam permulaan karir dan keuangan kita.
+- Mahasiswa dan pekerja muda harus mengandalkan anugerah Tuhan dalam setiap keputusan akademis maupun profesional, memahami bahwa pencapaian mereka adalah hasil dari anugerah, bukan sekadar usaha semata.
+- Setiap kesulitan yang dihadapi, baik dalam persaingan di dunia kerja atau tantangan dalam studi, perlu dilihat dalam perspektif Injil, bahwa Kristus telah menyediakan jalan keluar melalui kebangkitan-Nya.
+- Membangun relasi yang saling mendukung di antara rekan kerja atau sesama mahasiswa harus dipusatkan pada prinsip Injil, yaitu saling mengasihi dan saling mendukung satu sama lain.
 
 ### Nilai template (6)
-- **mosi-1**: Ibadah pribadi vs Ibadah komunitas
-- **mosi-2**: Kehadiran fisik di kampus vs Ibadah online
-- **mosi-3**: Cuti untuk pemulihan vs Cuti untuk pelayanan
-- **mosi-4**: Mengutamakan stabilitas keuangan vs Meningkatkan iman melalui pelayanan
-- **mosi-5**: Kebebasan berkarir vs Tanggung jawab pada keluarga
-- **trap-reveal**: Semua mosi yang diujikan adalah dikotomi palsu — Firman mengajarkan bahwa dalam Injil, baik ibadah pribadi maupun komunitas, kehadiran fisik maupun online, pemulihan maupun pelayanan, semua memiliki peran penting dalam membangun iman kita.
+- **mosi-1**: Kehadiran fisik di kebaktian vs. Ibadah online
+- **mosi-2**: Mengutamakan akademis vs. Mengutamakan relasi sosial
+- **mosi-3**: Kemandirian vs. Ketergantungan
+- **mosi-4**: Bertahan pada pekerjaan vs. Menciptakan peluang baru
+- **mosi-5**: Kesehatan mental vs. Ketaatan kepada tugas
+- **trap-reveal**: Setiap mosi tadi adalah dikotomi palsu. Firman berkata: "Kristus telah mati karena dosa-dosa kita, ... bahwa Ia telah dikuburkan, dan bahwa Ia telah dibangkitkan, pada hari yang ketiga" (1 Korintus 15:3-4). Dalam tema 'Injil yang Mengubahkan', jawabannya bukan pilih satu sisi — melainkan saling menasihati dan menghancurkan dikotomi itu.
 
 ### Cakupan dua perikop
 
@@ -100,9 +74,9 @@ Implikasi bagi Beyonders:
 | mosi-3 | — | ⚠️ |
 | mosi-4 | — | ⚠️ |
 | mosi-5 | — | ⚠️ |
-| trap-reveal | ⚠️ | — |
+| trap-reveal | ✅ | — |
 
-**Ringkasan DEBAT:** 0/1 slot solusi merujuk eksplisit ke Fundamental Firman.
+**Ringkasan DEBAT:** 1/1 slot solusi merujuk eksplisit ke Fundamental Firman.
 
 ## BEDAH_FILM — Bedah Film
 
@@ -110,24 +84,23 @@ Implikasi bagi Beyonders:
 
 ### Eksegesis (dari teks, langkah 1)
 Poin inti perikop:
-- Kristus mati karena dosa-dosa kita, menunjukkan betapa seriusnya kondisi manusia yang terpisah dari Allah (1 Korintus 15:3).
-- Kebangkitan Kristus adalah inti dari iman kita; tanpa kebangkitan, semua yang kita percayai akan sia-sia (1 Korintus 15:17).
-- Injil bukan hanya informasi, tetapi transformasi yang mengubah hidup jika diterima dengan iman. Keselamatan datang dari anugerah dan iman, bukan dari usaha manusia.
+- Kematian Kristus adalah pusat Injil yang menyelamatkan (1 Kor. 15:3)
+- Kebangkitan Kristus sebagai jaminan hidup baru (1 Kor. 15:4)
+- Injil mengubah hidup seutuhnya, bukan sekadar pengetahuan (1 Kor. 15:3-4)
 Implikasi bagi Beyonders:
-- Sebagai mahasiswa/pekerja muda, kita dihadapkan pada tantangan untuk hidup konsisten dengan iman kita di kampus/kantor. Apakah kita membawa 'kesalehan' yang otentik dalam setiap interaksi?
-- Kebangkitan Kristus memberi kita harapan yang bukan hanya untuk masa depan, tetapi untuk menghadapi permasalahan sehari-hari seperti tekanan akademis atau target kerja.
-- Dengan memahami Injil yang mengubahkan, kita dapat belajar membawa damai sejahtera Kristus dalam relasi dengan keluarga dan teman di Cikarang.
+- Sebagai mahasiswa/pekerja, kita diingatkan untuk hidup dalam kenyataan Injil, yang membawa transformasi dalam hubungan dan pekerjaan kita.
+- Kita diajak untuk membongkar topeng/topeng yang sering kita kenakan dalam kehidupan sehari-hari, dan melihat bagaimana Injil menjadi solusi di dalamnya.
 
 > ⚠️ Contoh lama terdeteksi: "gavin stone" — perlu justifikasi atau diganti.
 
 ### Nilai template (7)
 - **film-title**: The Resurrection of Gavin Stone
-- **film-alt**: I Can Only Imagine - Menyentuh tema pengampunan dan penyembuhan hubungan yang paralel dengan kebangkitan Kristus. / Soul Surfer - Menceritakan tentang keteguhan iman dalam menghadapi ujian hidup.
-- **film-scenes**: Adegan ketika Gavin menyadari makna sejati dari pengorbanan dan kebangkitan di akhir film yang mengaitkan kembali pada 1 Korintus 15:3-4.
-- **pleno-prompt**: Bagaimana kebangkitan Kristus mempengaruhi cara kita menghadapi tantangan di kampus atau tempat kerja? Apa itu topeng yang kita pakai dan bagaimana Injil memampukan kita untuk melepaskannya?
-- **film-q1**: Dalam situasi apa kamu merasa harus berpura-pura baik untuk diterima di kampus atau kantor?
-- **film-q2**: Bagaimana pengalamanmu dengan topeng yang dipakai dalam menghadapi tantangan akademis atau kerja? Apa yang bisa kita pelajari dari 1 Korintus 15:3-4?
-- **film-q3**: Apa arti kebangkitan Kristus bagimu secara pribadi? Bagaimana kamu bisa menghidupkannya dalam keseharian?
+- **film-alt**: I Can Only Imagine — film ini mengisahkan transformasi sejati dari kehidupan yang hancur ke tujuan ilahi; cocok dengan tema Injil yang mengubahkan.
+- **film-scenes**: Adegan di mana Gavin menyadari dia tidak dapat terus menyembunyikan siapa dia sebenarnya dan pengalamannya berhadapan dengan komunitas Kristen.
+- **pleno-prompt**: Apa yang bisa kita pelajari dari perjalanan karakter dalam film tentang menjadi otentik dalam iman kita, relevansinya dengan ayat 1 Kor. 15:3-4?
+- **film-q1**: Dalam hal apa kamu merasa tertekan untuk berpura-pura di dalam lingkunganmu, baik di kampus atau tempat kerja?
+- **film-q2**: Apa yang bisa kamu lakukan untuk lebih menunjukkan keaslian imanmu di tengah-tengah tuntutan pekerjaan/kuliah?
+- **film-q3**: Bagaimana kebangkitan Kristus dalam 1 Korintus 15:3-4 dapat mempengaruhi cara kamu menjalani hari-harimu sebagai mahasiswa/pekerja?
 
 ### Cakupan dua perikop
 
@@ -135,11 +108,11 @@ Implikasi bagi Beyonders:
 |---|---|---|
 | film-title | — | ⚠️ |
 | film-alt | — | ⚠️ |
-| film-scenes | ✅ | ⚠️ |
-| pleno-prompt | — | ⚠️ |
+| film-scenes | — | ⚠️ |
+| pleno-prompt | ✅ | ⚠️ |
 | film-q1 | — | ⚠️ |
-| film-q2 | ✅ | ⚠️ |
-| film-q3 | — | ⚠️ |
+| film-q2 | — | ⚠️ |
+| film-q3 | ✅ | ⚠️ |
 
 **Ringkasan BEDAH_FILM:** 0/0 slot solusi merujuk eksplisit ke Fundamental Firman.
 
@@ -149,22 +122,18 @@ Implikasi bagi Beyonders:
 
 ### Eksegesis (dari teks, langkah 1)
 Poin inti perikop:
-- Injil sebagai pusat iman Kristen: Yesus mati dan bangkit sesuai Kitab Suci (1 Kor. 15:3-4).
-- Kematian dan kebangkitan Kristus menunjukkan kuasa Allah dalam menyelamatkan manusia dari dosa.
-- Injil relevan bagi setiap aspek kehidupan kita, termasuk hubungan, pekerjaan, dan keluarga di zaman sekarang.
-- Respon kita terhadap Injil harus melibatkan pengabdian dalam melayani, bersekutu, dan bersaksi.
+- Kematian dan kebangkitan Kristus merupakan inti dari Injil yang mengubah hidup seseorang (1 Korintus 15:3-4).
+- Setiap orang membutuhkan pengharapan yang nyata dalam hidupnya, dan Injil memberikan pengharapan tersebut melalui solidaritas dengan Kristus.
+- Injil mendorong kita untuk tidak hanya hidup untuk diri sendiri, melainkan untuk melayani orang lain dan bersaksi tentang kebaikan Tuhan.
 Implikasi bagi Beyonders:
-- Sebagai mahasiswa atau pekerja, kita harus melihat tugas sehari-hari sebagai perwujudan iman kita, bukan sekadar rutinitas.
-- Keberanian untuk bersaksi tentang Injil, baik di lingkungan kuliah maupun tempat kerja, bisa membawa dampak signifikan.
-- Menghadapi tantangan dalam pekerjaan atau studi, ingatlah bahwa Kristus telah mengatasi semuanya melalui kebangkitan-Nya.
+- Sebagai mahasiswa dan pekerja muda, kita perlu memahami bahwa setiap tugas yang kita lakukan, baik di kampus maupun tempat kerja, adalah bagian dari panggilan kita untuk memuliakan Tuhan.
+- Kita harus membangun relasi di sekitar kita, baik yang dekat maupun yang jauh, dan menjadi saksi Kristus dalam keluarga dan komunitas.
+- Dalam menghadapi tantangan, seperti tugas kuliah atau tekanan kerja, kita dapat memohon kekuatan dari Kristus yang telah bangkit.
 
-### Nilai template (6)
-- **yel**: Injil yang mengubahkan, kita adalah saksi-Nya!
-- **cipher**: Ketinggian kasih Yesus, kejaiban kebangkitan, selamatkan kami!
+### Nilai template (3)
+- **yel**: Bersiaplah untuk membagikan kasih Kristus! Kita adalah pembawa Injil yang mengubah! Yel-yel kelompok: 'Injil mengubahkan! Kita bersatu dalam misi!'
+- **cipher**: Sandi: Kata kunci untuk hari ini adalah 'BANGKIT'. Gunakan kata ini untuk membisikkan semangat sesama peserta tentang kuasa kebangkitan Kristus.
 - **case-1-title**: Amplop 1
-- **case-1-body**: Tanya: Bagaimana Injil mengubah cara kita berinteraksi dengan rekan kerja atau teman kuliah?
-- **case-2-title**: Amplop 2
-- **case-2-body**: Diskusikan contoh konkret di mana Anda mengalami kuasa Injil dalam mengambil keputusan sulit.
 
 ### Cakupan dua perikop
 
@@ -173,9 +142,6 @@ Implikasi bagi Beyonders:
 | yel | ⚠️ | — |
 | cipher | — | ⚠️ |
 | case-1-title | — | ⚠️ |
-| case-1-body | — | ⚠️ |
-| case-2-title | — | ⚠️ |
-| case-2-body | — | ⚠️ |
 
 **Ringkasan THREE_SEQUENCES:** 0/1 slot solusi merujuk eksplisit ke Fundamental Firman.
 
@@ -185,55 +151,57 @@ Implikasi bagi Beyonders:
 
 ### Eksegesis (dari teks, langkah 1)
 Poin inti perikop:
-- Injil adalah berita utama tentang kematian dan kebangkitan Kristus, menjadi pokok iman Kristen (1 Korintus 15:3-4).
-- Kematian Kristus tidak hanya menanggung dosa, tetapi juga memberikan solusi bagi masalah hidup sehari-hari kita.
-- Kebangkitan Kristus menandakan bahwa ada harapan dan kuasa baru bagi setiap orang percaya dalam menghadapi tantangan hidup.
+- Kristus mati untuk dosa-dosa kita agar kita dapat diampuni dan hidup baru (1 Kor 15:3)
+- Penguburan dan kebangkitan Kristus menunjukkan bahwa kematian bukanlah akhir, melainkan awal kehidupan baru (1 Kor 15:4)
+- Injil adalah kekuatan Allah yang menyelamatkan siapa saja yang percaya (Roma 1:16)
+- Keselamatan kita adalah anugerah yang harus dipahami dan diterima dengan iman (Sola Fide)
+- Kematian dan kebangkitan Kristus memberi kita harapan dan solusi bagi setiap aspek hidup kita: hubungan, pekerjaan, dan keluarga.
 Implikasi bagi Beyonders:
-- Ketika kita menghadapi masalah dalam hubungan, kita dapat mencari fondasi penyelesaian dalam Injil yang mengajarkan kasih dan pengampunan.
-- Dalam situasi pekerjaan atau studi yang sulit, kita diingatkan bahwa Kristus memberikan arah dan kekuatan dalam menghadapi tantangan itu.
-- Dalam konteks keluarga, kebangkitan Kristus mengingatkan kita akan harapan untuk perubahan dan pembaruan, meskipun muncul konflik.
+- Setiap pemuda harus memahami bahwa Injil bukan sekadar ritual, tetapi sangat relevan dalam kehidupan sehari-hari mereka
+- Menghadapi tantangan dalam hubungan, pekerjaan, atau keluarga dengan keyakinan bahwa Kristus sudah mengalahkan segala sesuatu melalui kebangkitan-Nya
+- Menghargai pengorbanan Kristus sebagai fondasi dalam menjalin hubungan baik dengan sesama dan bertanggung jawab dalam pekerjaan.
 
 ### Topik (3)
-- **HUBUNGAN** — Injil dan Hubungan (PIC: PIC_Hubungan)
-- **PEKERJAAN** — Injil dan Pekerjaan (PIC: PIC_Pekerjaan)
-- **KELUARGA** — Injil dan Keluarga (PIC: PIC_Keluarga)
+- **HUBUNGAN** — Hubungan dalam Kristus (PIC: PIC Hubungan)
+- **PEKERJAAN** — Pekerjaan yang Berarti (PIC: PIC Pekerjaan)
+- **KELUARGA** — Keluarga yang Diberkati (PIC: PIC Keluarga)
 
 ### Likert (9 soal)
-- [HUBUNGAN] Saya merasa sulit mengampuni orang lain yang pernah menyakiti saya.
-  - *Gospel note:* Injil mengajarkan bahwa Kristus telah mati bagi dosa kita, memberdayakan kita untuk mengampuni (1 Korintus 15:3-4).
-- [HUBUNGAN] Saya cenderung merasa terasing dalam pertemanan di lingkungan baru.
-  - *Gospel note:* Kebangkitan Kristus menjalin hubungan kita satu sama lain dalam kasihNya (1 Korintus 15:3-4).
-- [HUBUNGAN] Saya merasa sulit untuk berkomunikasi dengan keluarga saya yang jauh.
-  - *Gospel note:* Injil mendorong kita untuk membangun kembali hubungan yang rusak, sebab ada harapan dalam Kristus (1 Korintus 15:3-4).
-- [PEKERJAAN] Saya sulit menemukan makna di tempat kerja saya yang monoton.
-  - *Gospel note:* Injil mengingatkan kita bahwa setiap pekerjaan kita berarti ketika kita melakukannya untuk kemuliaan Allah (1 Korintus 15:3-4).
-- [PEKERJAAN] Saya merasa terbebani dengan target kerja dan waktu lembur.
-  - *Gospel note:* Kebangkitan Kristus memberi kita kekuatan untuk menghadapi setiap tantangan di tempat kerja (1 Korintus 15:3-4).
-- [PEKERJAAN] Saya cenderung dibanding-bandingkan dengan rekan kerja lain.
-  - *Gospel note:* Injil mengingatkan kita bahwa identitas kita di dalam Kristus adalah hal yang terpenting, bukan prestasi (1 Korintus 15:3-4).
-- [KELUARGA] Saya merasa kurang dekat dengan anggota keluarga karena kesibukan.
-  - *Gospel note:* Injil mengajak kita untuk mengutamakan relasi keluarga, sebagai bagian dari penebusan Kristus (1 Korintus 15:3-4).
-- [KELUARGA] Saya sulit mendapatkan dukungan dari keluarga dalam perjalanan iman saya.
-  - *Gospel note:* Kebangkitan Kristus memberi harapan untuk memulihkan relasi yang rusak (1 Korintus 15:3-4).
-- [KELUARGA] Saya merasa tidak cukup baik untuk menjadi teladan bagi keluarga.
-  - *Gospel note:* Injil mengingatkan bahwa semua kita dapat menjadi alat Allah untuk mengubah situasi keluarga (1 Korintus 15:3-4).
+- [HUBUNGAN] Saya merasa kesulitan dalam membangun relasi yang sehat di sekitar saya.
+  - *Gospel note:* Kristus memberi solusi pada hubungan kita, memampukan kita untuk mengasihi satu sama lain (1 Kor 15:3-4).
+- [HUBUNGAN] Saya cenderung mengalami konflik dalam hubungan dengan teman dekat.
+  - *Gospel note:* Injil mengajarkan kita untuk memaafkan, karena kita juga telah diampuni (1 Kor 15:3-4).
+- [HUBUNGAN] Saya merasa kesulitan untuk mengungkapkan perasaan kepada orang tua atau keluarga.
+  - *Gospel note:* Kebangkitan Kristus memberi kita harapan untuk memperbaiki hubungan yang retak (1 Kor 15:3-4).
+- [PEKERJAAN] Saya merasa terbebani dengan target kerja yang tinggi dan tidak bisa beristirahat.
+  - *Gospel note:* Injil mengingatkan kita bahwa Kristus adalah penyokong kita dalam setiap tugas yang kita hadapi (1 Kor 15:3-4).
+- [PEKERJAAN] Saya cenderung stres saat menghadapi ujian atau deadline di kampus.
+  - *Gospel note:* Dengan percaya pada Kebangkitan Kristus, kita bisa menghadapi setiap ujian dengan tenang (1 Kor 15:3-4).
+- [PEKERJAAN] Saya merasa kurang memiliki arah yang jelas dalam karier saya.
+  - *Gospel note:* Tuhan telah merancangkan masa depan yang cerah bagi kita, sesuai dengan rencana-Nya (1 Kor 15:3-4).
+- [KELUARGA] Saya merasa terasing dari keluarga karena jarak yang jauh.
+  - *Gospel note:* Kebangkitan Kristus mengikat kita dalam kasih, meski terpisah secara fisik (1 Kor 15:3-4).
+- [KELUARGA] Saya kesulitan untuk menjaga hubungan baik dengan saudara-saudara saya.
+  - *Gospel note:* Kristus mendorong kita untuk menjadi saluran kasih dalam keluarga kita (1 Kor 15:3-4).
+- [KELUARGA] Saya merasa tidak didukung oleh keluarga dalam pilihan hidup saya.
+  - *Gospel note:* Kami bisa mengandalkan Kristus untuk memberi dukungan di saat sulit (1 Kor 15:3-4).
 
 ### Chip (11)
-Injil  ·  Harapan  ·  Kasih  ·  Pemulihan  ·  Komitmen  ·  Perubahan  ·  Kuasa  ·  Pengampunan  ·  Dukungan  ·  Semangat  ·  Identitas
+Kasih  ·  Dukungan  ·  Harapan  ·  Kedamaian  ·  Pengampunan  ·  Identitas dalam Kristus  ·  Rencana Tuhan  ·  Kebangkitan  ·  Komitmen  ·  Prestasi  ·  Pemulihan
 
 ### Afirmasi
 - **HUBUNGAN**:
-  - Kita bisa mengampuni karena kita telah diampuni (1 Korintus 15:3-4).
-  - Kebangkitan Kristus memberi kita jaminan untuk menghadapi setiap permasalahan hubungan (1 Korintus 15:3-4).
-  - Hubungan kita sejatinya adalah cerminan kasih Kristus dalam hidup kita (1 Korintus 15:3-4).
+  - Kristus telah mati dan bangkit untuk hubungan kita (1 Kor 15:3-4)
+  - Setiap hubungan yang dibangun di atas kasih Kristus akan bertahan lama.
+  - Kita diundang untuk menjadi pemulihan dalam relasi kita.
 - **PEKERJAAN**:
-  - Pekerjaan kita adalah kesempatan untuk mencerminkan Kristus di tempat kerja (1 Korintus 15:3-4).
-  - Ketika kita merasa terbebani, kuasa Kristus memampukan kita untuk bangkit (1 Korintus 15:3-4).
-  - Prioritaskan pekerjaanmu untuk kemuliaan Allah (1 Korintus 15:3-4).
+  - Setiap pekerjaan yang kita lakukan adalah untuk kemuliaan Tuhan (1 Kor 15:3-4)
+  - Kristus memberi kita kemampuan untuk menghadapi tantangan di tempat kerja.
+  - Kita dipanggil untuk setia dalam pekerjaan yang dipercayakan Tuhan.
 - **KELUARGA**:
-  - Di dalam Kristus, kita memiliki harapan untuk pemulihan hubungan keluarga (1 Korintus 15:3-4).
-  - Keluarga adalah berkat yang harus kita rawat dan hormati (1 Korintus 15:3-4).
-  - Setiap tantangan dalam keluarga kita, ada solusi dalam Injil (1 Korintus 15:3-4).
+  - Keluarga adalah berkat yang perlu dijaga dan dipelihara (1 Kor 15:3-4)
+  - Kristus mengikat kita dalam kasih meskipun terpisah jarak.
+  - Kita adalah saksi kasih Kristus dalam keluarga kita.
 
 Timer: 1200s
 
@@ -251,13 +219,13 @@ Timer: 1200s
 | Likert KELUARGA | ✅ | — |
 | Likert KELUARGA | ✅ | — |
 | Afirmasi HUBUNGAN | ✅ | — |
-| Afirmasi HUBUNGAN | ✅ | — |
-| Afirmasi HUBUNGAN | ✅ | — |
+| Afirmasi HUBUNGAN | ⚠️ | — |
+| Afirmasi HUBUNGAN | ⚠️ | — |
 | Afirmasi PEKERJAAN | ✅ | — |
-| Afirmasi PEKERJAAN | ✅ | — |
-| Afirmasi PEKERJAAN | ✅ | — |
+| Afirmasi PEKERJAAN | ⚠️ | — |
+| Afirmasi PEKERJAAN | ⚠️ | — |
 | Afirmasi KELUARGA | ✅ | — |
-| Afirmasi KELUARGA | ✅ | — |
-| Afirmasi KELUARGA | ✅ | — |
+| Afirmasi KELUARGA | ⚠️ | — |
+| Afirmasi KELUARGA | ⚠️ | — |
 
-**Ringkasan POST_TO_POST:** 18/18 slot solusi merujuk eksplisit ke Fundamental Firman.
+**Ringkasan POST_TO_POST:** 12/18 slot solusi merujuk eksplisit ke Fundamental Firman.

@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clapperboard, Download, Flag, Loader2, Swords, Users } from 'lucide-react';
 import {
   COMMITMENT_KEY,
+  MONOLOG_QUESTION_KEYS,
   PATTERN_SEGMENTS,
   canOpenSegmentPattern,
+  isQuestionOpen,
   noteSlotsFor,
   segmentForPattern,
   widgetsFor,
@@ -97,19 +99,24 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const notes = data?.notes || {};
   const slots = useMemo(() => {
     const base = noteSlotsFor(c);
-    if (c === 'MONOLOG' && (data?.guide || []).filter(Boolean).length >= 3) {
-      const keys = ['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY'];
-      return [
-        ...keys.map((key, i) => ({
+    if (c === 'MONOLOG') {
+      const guide = (data?.guide || []).filter(Boolean);
+      const deep = (data?.deepGuide || []).filter(Boolean);
+      const byKey = new Map(base.map((s) => [s.key, s]));
+      const qs = MONOLOG_QUESTION_KEYS.map((key, i) => {
+        const text = i < 3 ? guide[i] : deep[i - 3];
+        const fallback = byKey.get(key);
+        return {
           key,
-          label: `Q${i + 1} — ${data?.guide?.[i]}`,
-          placeholder: base[i]?.placeholder || '',
-        })),
-        base[base.length - 1],
-      ];
+          label: text ? `Q${i + 1} — ${text}` : (fallback?.label || `Q${i + 1}`),
+          placeholder: fallback?.placeholder || '',
+        };
+      });
+      const rest = base.filter((s) => !MONOLOG_QUESTION_KEYS.includes(s.key));
+      return [...qs, ...rest];
     }
     return base;
-  }, [c, data?.guide]);
+  }, [c, data?.guide, data?.deepGuide]);
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
   const filled = noteKeys.some((k) => String(notes[k] || '').trim());
   const segment = segmentForPattern(c, status, filled);
@@ -146,6 +153,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const currentRound = rounds?.rounds?.[rounds?.current || 0] || null;
   const teams = data?.teams?.teams || [];
   const testimony = data?.testimony || [];
+  const song = data?.song || null;
+  const fgdQ = Number(data?.fgd?.currentQ || 0);
+  // MONOLOG: hanya Q yang sudah dibuka pemicu yang bisa dijawab.
+  const lockedKeys = useMemo(() => {
+    if (c !== 'MONOLOG') return [] as string[];
+    return MONOLOG_QUESTION_KEYS.filter((_, i) => !isQuestionOpen(i + 1, fgdQ));
+  }, [c, fgdQ]);
+  const triggerLine = data?.fgd?.triggerName
+    ? `Pemicu: ${data.fgd.triggerName}${data.fgd.triggerBy ? ` (${data.fgd.triggerBy})` : ''}`
+    : null;
 
   const download = useCallback(() => {
     if (!data) return;
@@ -163,8 +180,17 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       sections: [
         {
           heading: 'Panduan',
-          lines: (data.guide || []).filter(Boolean).map((g, i) => ({ label: `Q${i + 1}`, body: g })),
+          lines: [...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => ({ label: `Q${i + 1}`, body: g })),
         },
+        ...(song?.title
+          ? [{
+              heading: 'Lagu Bedah',
+              lines: [
+                { label: 'Judul', body: `${song.title}${song.singer ? ` — ${song.singer}` : ''}` },
+                ...(song.about ? [{ label: 'Makna', body: song.about }] : []),
+              ],
+            }]
+          : []),
         ...(currentRound
           ? [{
               heading: 'Ronde debat',
@@ -244,11 +270,11 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         )}
       </div>
 
-      {has('guide') && (data.guide || []).filter(Boolean).length > 0 && (
+      {has('guide') && ((data.guide || []).filter(Boolean).length > 0 || (data.deepGuide || []).filter(Boolean).length > 0) && (
         <div className={CARD}>
           <h4 className="text-sm font-black text-[#1B1B1B] mb-2">Panduan</h4>
           <ol className="space-y-1.5">
-            {(data.guide || []).filter(Boolean).map((g, i) => (
+            {[...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => (
               <li key={i} className="text-xs leading-relaxed bg-[#FAF9F5] rounded-xl px-3 py-2">
                 <b className="mr-1.5">Q{i + 1}.</b>
                 {g}
@@ -333,8 +359,25 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
+      {has('song') && song?.title && (
+        <div className={CARD}>
+          <h4 className="text-sm font-black text-[#1B1B1B] mb-1">🎵 Lagu Bedah: {song.title}</h4>
+          {song.singer && <p className="text-[11px] text-[#8C8880]">Penyanyi: {song.singer}</p>}
+          {song.about && <p className="text-xs leading-relaxed mt-1.5 whitespace-pre-wrap">{song.about}</p>}
+        </div>
+      )}
+
       {has('notes') && (
-        <SessionNotes slots={slots} values={notes} onSave={saveNote} disabled={!editable} />
+        <>
+          {c === 'MONOLOG' && (
+            <p className="text-[11px] text-[#8C8880]">
+              {fgdQ > 0
+                ? `Q1–Q${Math.min(fgdQ, 5)} sudah dibuka${triggerLine ? ` · ${triggerLine}` : ''}.`
+                : 'Menunggu pemicu membuka pertanyaan…'}
+            </p>
+          )}
+          <SessionNotes slots={slots} values={notes} onSave={saveNote} disabled={!editable} lockedKeys={lockedKeys} />
+        </>
       )}
       {saveError && <p className="text-[11px] text-red-600">{saveError}</p>}
 

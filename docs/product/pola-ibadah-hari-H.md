@@ -18,8 +18,8 @@
 ## 2. Aturan elastis (inti sebagai jangkar)
 
 - **Inti panjang** (Debat ±140, Bedah Film ±150): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
-- **Inti kurang** (Post-to-Post 60, Monolog 90): **tambah di Didaskalia** — menu baku: tambah waktu segmen inti, monolog conclusi oleh speaker, kesaksian, 1 pertanyaan pendalaman, bedah 1 bait lagu.
-- Monolog 90 / Dual 120 / 3 Sequences 120: hampir pas, tambahan kecil atau jalan apa adanya.
+- **Inti kurang** (Post-to-Post 60): **tambah di Didaskalia** — menu baku: tambah waktu segmen inti, monolog conclusi oleh speaker, kesaksian, 1 pertanyaan pendalaman, bedah 1 bait lagu.
+- Monolog gabungan 120 / 3 Sequences 120: hampir pas, tambahan kecil atau jalan apa adanya. Dual Monolog dilebur ke Monolog (arsip).
 
 ## 3. Item auto-wajib (semua ibadah)
 
@@ -64,13 +64,12 @@ dan bisa diaudit. Yang terpilih bersaksi live; yang lain tetap menulis catatan +
 | Pola | Momen catat | Kesaksian |
 |---|---|---|
 | Post-to-Post | per pos + kesimpulan (ada) | opsional via undian |
-| Monolog | FGD digital 3 Q + komitmen | — |
-| Dual Monolog | Satu Kata + 2 Q + komitmen pulang | undian 4 |
+| Monolog gabungan | bedah lagu + 3 FGD + 2 deep sharing + Satu Kata + komitmen (Q dibuka pemicu) | undian 4 |
 | Debat | argumen terbaik + yang meyakinkan | — |
 | Bedah Film | 3 Q + komitmen otentik | undian 4 (momen kesaksian) |
 | 3 Sequences | laporan tim + deklarasi | — |
 
-## 7. Pemetaan 6 pola → 180 menit
+## 7. Pemetaan 5 pola → 180 menit
 
 Status segmen: `tetap | gabung→[segmen] | hemat | tambah | paralel`.
 
@@ -86,27 +85,19 @@ Status segmen: `tetap | gabung→[segmen] | hemat | tambah | paralel`.
 | Penutup wajib (persembahan, syafaat, pengumuman + terima kasih tuan rumah, berkat) | 20 | tetap |
 | Foto + pasca | 10 | tetap |
 
-### Monolog & FGD (±150')
+### Monolog, Bedah Lagu & Deep Sharing (±170')
 
 | Segmen | Menit | Status |
 |---|---|---|
-| Pra + pembuka | 20 | tetap |
-| Monolog khotbah | 35 | tambah (+5) |
-| Briefing + FGD (digital, catatan di HP) | 40 | tambah (+5) |
-| Kesaksian singkat / pendalaman 1 Q | 10 | tambah (opsional) |
-| Penutup wajib | 20 | tetap |
+| Pra + pembuka + bedah lagu (judul/makna/penyanyi di web) | 20 | tetap (serapan Dual) |
+| Monolog khotbah (opsional dua suara) | 30 | tetap |
+| Briefing + umumkan pemicu (mentor/co-mentor/perwakilan) | 5 | tetap |
+| FGD 3 Q + deep sharing 2 Q, dibuka berurutan, jawab di HP | 40 | tetap |
+| Satu Kata di web + undian kesaksian 4 orang | 10 | tetap (serapan Dual) |
+| Komitmen + penutup wajib | 20 | tetap |
 | Foto + pasca | 10 | tetap |
 
-### Dual Monolog (±160')
-
-| Segmen | Menit | Status |
-|---|---|---|
-| Pra + pembuka + bedah lagu | 25 | tetap |
-| Dual Monolog + pembacaan berbalasan | 25 | tetap |
-| Deep Sharing + Satu Kata (catatan di HP) | 40 | tetap |
-| Undian + kesaksian 4 orang | 15 | tambah |
-| Penutup wajib (lesson = komitmen pulang) | 20 | gabung sebagian |
-| Foto + pasca | 10 | tetap |
+Dual Monolog diarsipkan dan diserap seluruhnya (bedah lagu, Satu Kata, deep sharing, dua suara opsional, undian). Sesi lama otomatis migrasi ke pola gabungan.
 
 ### Debat (±175', mode hemat)
 
@@ -154,6 +145,8 @@ Tamu, Absensi, Dekorasi. Diakonia: Kebersihan, Konsumsi.
 
 - `phases` tiap pola di DB = implementasi tabel §7 (diselaraskan via seed).
 - Modul web per pola (`modules[]`): post-to-post `likert/rooms/timer/notes/chips/wordcloud`;
-  monolog `timer/notes/fgd`; dual `timer/notes/testimony`; debat `rounds/timer/teams`;
-  film `screening/timer/notes/testimony`; 3-seq `teams/timer/notes`.
+  monolog `timer/notes/fgd/testimony`; debat `rounds/timer/teams`;
+  film `screening/timer/notes/testimony`; 3-seq `teams/timer/notes`. Dual diarsipkan.
+- Teknis trigger mentor: `config.fgd {currentQ 0–5, triggerBy, triggerName}` via endpoint stage;
+  lagu: `config.song {title, about, singer}`; agregat Satu Kata di endpoint live.
 - Rincian teknis: [`worship-patterns.md`](worship-patterns.md).

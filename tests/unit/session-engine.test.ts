@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   canOpenSegmentPattern,
+  isQuestionOpen,
+  MERGED_PATTERN_ALIAS,
+  MONOLOG_QUESTION_KEYS,
   noteSlotsFor,
   PATTERN_SEGMENTS,
+  resolvePatternCode,
   segmentForPattern,
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
 import { classifyPoolRole, composePicks, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
-import { cleanRounds, cleanScreening, cleanTeams, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
+import { cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
   it('5 pola non-post-to-post punya 3-4 segmen + komitmen terakhir', () => {
@@ -21,7 +25,7 @@ describe('session-engine: registry segmen', () => {
 
   it('MONOLOG maju mengikuti status', () => {
     expect(segmentForPattern('MONOLOG', 'DRAFT', false)).toBe('panduan');
-    expect(segmentForPattern('MONOLOG', 'RUNNING', false)).toBe('catatan');
+    expect(segmentForPattern('MONOLOG', 'RUNNING', false)).toBe('lagu');
     expect(segmentForPattern('MONOLOG', 'RUNNING', true)).toBe('komitmen');
     expect(segmentForPattern('MONOLOG', 'WRAPUP', false)).toBe('komitmen');
     expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('komitmen');
@@ -45,11 +49,46 @@ describe('session-engine: registry segmen', () => {
   });
 
   it('slot catatan selalu diakhiri KOMITMEN', () => {
-    for (const code of ['MONOLOG', 'DUAL_MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES']) {
+    for (const code of ['MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES']) {
       const slots = noteSlotsFor(code);
       expect(slots.length).toBeGreaterThan(1);
       expect(slots[slots.length - 1].key).toBe('KOMITMEN');
     }
+  });
+
+  it('DUAL_MONOLOG dilebur ke MONOLOG (alias + slot gabungan)', () => {
+    expect(MERGED_PATTERN_ALIAS.DUAL_MONOLOG).toBe('MONOLOG');
+    expect(resolvePatternCode('DUAL_MONOLOG')).toBe('MONOLOG');
+    expect(resolvePatternCode('MONOLOG')).toBe('MONOLOG');
+    const slots = noteSlotsFor('DUAL_MONOLOG').map((s) => s.key);
+    expect(slots).toEqual(noteSlotsFor('MONOLOG').map((s) => s.key));
+    expect(slots).toContain('SATU-KATA');
+    expect(slots).toContain('DEEP-Q1');
+    expect(segmentForPattern('DUAL_MONOLOG', 'RUNNING', false)).toBe(segmentForPattern('MONOLOG', 'RUNNING', false));
+  });
+
+  it('MONOLOG gabungan punya 5 segmen + widget lagu', () => {
+    expect(PATTERN_SEGMENTS.MONOLOG.map((s) => s.id)).toEqual(['panduan', 'lagu', 'catatan', 'satu-kata', 'komitmen']);
+    expect(widgetsFor('MONOLOG', 'lagu')).toContain('song');
+    expect(widgetsFor('MONOLOG', 'satu-kata')).toContain('notes');
+    expect(MONOLOG_QUESTION_KEYS).toEqual(['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2']);
+  });
+
+  it('trigger Q: hanya Q <= currentQ yang terbuka', () => {
+    expect(isQuestionOpen(1, 0)).toBe(false);
+    expect(isQuestionOpen(1, 1)).toBe(true);
+    expect(isQuestionOpen(3, 2)).toBe(false);
+    expect(isQuestionOpen(5, 5)).toBe(true);
+  });
+
+  it('cleanFgd + cleanSong validasi stage', () => {
+    expect(cleanFgd({ currentQ: 3, triggerBy: 'mentor', triggerName: 'Kak A' })).toEqual({ currentQ: 3, triggerBy: 'MENTOR', triggerName: 'Kak A' });
+    expect(cleanFgd({ currentQ: 9 })).toEqual({ currentQ: 5, triggerBy: null, triggerName: null });
+    expect(cleanFgd(null)).toBeNull();
+    expect(cleanFgd({ currentQ: 1, triggerBy: 'PANITIA' })?.triggerBy).toBeNull();
+    expect(cleanSong({ title: 'Lagu', about: 'Makna', singer: 'Band' })).toEqual({ title: 'Lagu', about: 'Makna', singer: 'Band' });
+    expect(cleanSong({})).toBeNull();
+    expect(cleanSong(null)).toBeNull();
   });
 
   it('label modul baru dikenal', () => {

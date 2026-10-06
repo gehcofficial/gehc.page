@@ -1116,7 +1116,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   className="rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-xs font-bold text-[#1B1B1B] focus:outline-none focus:border-black disabled:opacity-50"
                   title="AI generate berikutnya mengikuti pola ini"
                 >
-                  {[{ code: 'MONOLOG', name: 'Monolog & FGD (Standar)' }, ...patterns.filter((p) => p.code !== 'MONOLOG' && (p as { status?: string }).status !== 'ARCHIVED')].map((p) => (
+                  {[{ code: 'MONOLOG', name: 'Monolog, Bedah Lagu & Deep Sharing' }, ...patterns.filter((p) => p.code !== 'MONOLOG' && (p as { status?: string }).status !== 'ARCHIVED')].map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>
                   ))}
                   {weekMeta?.patternCode && weekMeta.patternCode !== 'MONOLOG' && !patterns.some((p) => p.code === weekMeta.patternCode) && (

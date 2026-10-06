@@ -9,9 +9,9 @@ import {
 } from '../../src/lib/worship-session-draft';
 import { normalizeConfig } from '../../server/routes/worship.mjs';
 
-const CODES = ['MONOLOG', 'POST_TO_POST', 'DUAL_MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
+const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
 
-describe('session-draft: template kosongan 6 pola', () => {
+describe('session-draft: template kosongan 5 pola', () => {
   it.each(CODES)('%s punya section + kunci field unik', (code) => {
     const sections = emptySessionDraft(code);
     expect(sections.length).toBeGreaterThan(0);
@@ -41,7 +41,15 @@ describe('session-draft: template kosongan 6 pola', () => {
     const stored = draftToStored(sections);
     const back = storedToSections('MONOLOG', stored);
     expect(back[0].fields[0].value).toBe('Apa kata teks?');
-    expect(countFilled(back)).toEqual({ filled: 1, total: 3 });
+    expect(countFilled(back)).toEqual({ filled: 1, total: 8 });
+  });
+
+  it('MONOLOG gabungan: FGD 3 + lagu 3 + deep 2; DUAL memetakan ke MONOLOG', () => {
+    const keys = templateFieldKeys('MONOLOG').map((f) => f.key);
+    for (const k of ['fgd-observe', 'fgd-interpret', 'fgd-apply', 'song-title', 'song-about', 'song-singer', 'deep-q1', 'deep-q2']) {
+      expect(keys).toContain(k);
+    }
+    expect(templateFieldKeys('DUAL_MONOLOG').map((f) => f.key)).toEqual(keys);
   });
 
   it('kosongan penuh → filled 0', () => {

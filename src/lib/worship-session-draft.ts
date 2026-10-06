@@ -96,23 +96,20 @@ const MONOLOG_TEMPLATE: DraftSection[] = [
       t('fgd-apply', 'Aplikasi', 'textarea', 'Langkah nyata minggu ini ...?'),
     ],
   },
-];
-
-const DUAL_MONOLOG_TEMPLATE: DraftSection[] = [
   {
-    key: 'exile',
-    title: 'Dua wajah keterpurukan',
-    hint: 'Petakan tema ke Outer Exile (B) dan Inner Exile (A).',
+    key: 'song',
+    title: 'Lagu bedah pekan ini',
+    hint: 'Judul + makna tiap bait + penyanyi. Tampil di web, layar, dan PDF.',
     fields: [
-      t('outer-exile', 'Outer Exile — gambaran', 'textarea', 'Tersesat di luar: ...'),
-      t('inner-exile', 'Inner Exile — gambaran', 'textarea', 'Tersesat di rumah Bapa: ...'),
-      t('song', 'Lagu untuk dibedah', 'text', 'Judul lagu + alasan'),
+      t('song-title', 'Judul lagu', 'text', 'Judul lagu ...'),
+      t('song-about', 'Tentang apa (makna tiap bait)', 'textarea', 'Bait 1 berarti ...; bait 2 ...'),
+      t('song-singer', 'Penyanyi', 'text', 'Nama penyanyi ...'),
     ],
   },
   {
     key: 'deep',
     title: 'Deep sharing (2 pertanyaan wajib)',
-    hint: 'Q1 observasi teks, Q2 langkah pulang.',
+    hint: 'Q1 observasi teks, Q2 langkah pulang. Dibuka berurutan oleh pemicu.',
     fields: [
       t('deep-q1', 'Pertanyaan 1', 'textarea', 'Di mana kamu melihat dirimu ...?'),
       t('deep-q2', 'Pertanyaan 2', 'textarea', 'Langkah pulang minggu ini ...?'),
@@ -180,7 +177,7 @@ const THREE_SEQUENCES_TEMPLATE: DraftSection[] = [
   },
 ];
 
-export const SESSION_DRAFT_CODES = ['MONOLOG', 'POST_TO_POST', 'DUAL_MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'] as const;
+export const SESSION_DRAFT_CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'] as const;
 
 /** Template kosongan per pola (tanpa nilai). */
 export function emptySessionDraft(patternCode?: string | null): DraftSection[] {
@@ -188,7 +185,8 @@ export function emptySessionDraft(patternCode?: string | null): DraftSection[] {
     case 'POST_TO_POST':
       return postToPostTemplate();
     case 'DUAL_MONOLOG':
-      return structuredClone(DUAL_MONOLOG_TEMPLATE);
+      // Pola lama yang diarsip — petakan ke template gabungan MONOLOG.
+      return structuredClone(MONOLOG_TEMPLATE);
     case 'DEBAT':
       return structuredClone(DEBAT_TEMPLATE);
     case 'BEDAH_FILM':

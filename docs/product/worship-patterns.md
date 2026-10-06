@@ -75,8 +75,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 ## 7. Status modul per pola (5 Okt 2026)
 
 - `POST_TO_POST`: `likert/rooms/timer/notes/chips/wordcloud` — penuh.
-- `MONOLOG`: `timer/notes/fgd` — penuh (alur FGD + panduan + PDF di `#/mentoring/<slug>`).
-- `DUAL_MONOLOG`: `timer/notes/testimony` — catatan + undian jalan; Satu Kata live oleh mentor.
+- `MONOLOG`: `timer/notes/fgd/testimony` — penuh (bedah lagu + 5 Q dipicu mentor + Satu Kata + PDF di `#/mentoring/<slug>`). Menyerap Dual Monolog (diarsipkan; sesi lama migrasi otomatis).
 - `DEBAT`: `rounds/timer/teams` — penuh (panel ronde/fase/skor di kontrol, mosi + skor di peserta & layar).
 - `BEDAH_FILM`: `screening/timer/notes/testimony` — penuh (panel mulai/henti, countdown di peserta & layar).
 - `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
@@ -87,7 +86,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 
 ## 8. Katalog template di Studio (5 Okt 2026)
 
-- Tab **Pola Ibadah** di `DidaskaliaStudioPanel` → `WorshipPatternCatalog`: daftar 6 pola (kartu + badge `pekan ini` + chip modul + badge `template lengkap/parcial`),
+- Tab **Pola Ibadah** di `DidaskaliaStudioPanel` → `WorshipPatternCatalog`: daftar 5 pola aktif + arsip (kartu + badge `pekan ini` + chip modul + badge `template lengkap/parcial`),
   klik kartu → rundown menit-per-menit (dari `phases`, termasuk `notes`) + draft template 7 bagian (dari `playbook`).
 - Template baku tiap playbook: 1. Identitas & Tujuan Teologis — 2. Pra-acara — 3. Rundown — 4. Naskah siap baca
   — 5. Modul web & konfigurasi sesi — 6. Peran & personil — 7. Adaptasi tema & firman.
@@ -102,7 +101,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - Tab **Draft Sesi** di `DidaskaliaStudioPanel` → `SessionDraftTab`: cari/buat sesi milik event pekan ini
   (`eventId` dari tanggal pekan; `POST /api/worship/sessions` bila belum ada), lalu tampilkan **form kosongan
   per pola** (`src/lib/worship-session-draft.ts`: Post-to-Post = 3 topik × 3 Likert + 12 chip + afirmasi + timer;
-  Monolog = 3 Q FGD; Dual Monolog = 2 wajah + 2 Q; Debat = 5 mosi + Trap Reveal; Bedah Film = film + 3 Q;
+  Monolog = 3 Q FGD + lagu (judul/makna/penyanyi) + 2 Q deep sharing; Debat = 5 mosi + Trap Reveal; Bedah Film = film + 3 Q;
   3 Sequences = yel-yel/sandi + 2 amplop).
 - **Isi dari AI**: `POST /api/didaskalia/studio/:ym/:week/session-draft` (`generateSessionDraft` di
   `server/lib/didaskalia-ai.mjs`) membaca tema + firman + outline 7 Path + ringkasan khotbah pekan ini;

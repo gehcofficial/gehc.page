@@ -17,14 +17,13 @@
     "kind": "GENERIC",
     "exegesis": {
       "points": [
-        "Kristus mati karena dosa-dosa kita, menunjukkan betapa seriusnya kondisi manusia yang terpisah dari Allah (1 Korintus 15:3).",
-        "Kebangkitan Kristus adalah inti dari iman kita; tanpa kebangkitan, semua yang kita percayai akan sia-sia (1 Korintus 15:17).",
-        "Injil bukan hanya informasi, tetapi transformasi yang mengubah hidup jika diterima dengan iman. Keselamatan datang dari anugerah dan iman, bukan dari usaha manusia."
+        "Kematian Kristus adalah pusat Injil yang menyelamatkan (1 Kor. 15:3)",
+        "Kebangkitan Kristus sebagai jaminan hidup baru (1 Kor. 15:4)",
+        "Injil mengubah hidup seutuhnya, bukan sekadar pengetahuan (1 Kor. 15:3-4)"
       ],
       "implications": [
-        "Sebagai mahasiswa/pekerja muda, kita dihadapkan pada tantangan untuk hidup konsisten dengan iman kita di kampus/kantor. Apakah kita membawa 'kesalehan' yang otentik dalam setiap interaksi?",
-        "Kebangkitan Kristus memberi kita harapan yang bukan hanya untuk masa depan, tetapi untuk menghadapi permasalahan sehari-hari seperti tekanan akademis atau target kerja.",
-        "Dengan memahami Injil yang mengubahkan, kita dapat belajar membawa damai sejahtera Kristus dalam relasi dengan keluarga dan teman di Cikarang."
+        "Sebagai mahasiswa/pekerja, kita diingatkan untuk hidup dalam kenyataan Injil, yang membawa transformasi dalam hubungan dan pekerjaan kita.",
+        "Kita diajak untuk membongkar topeng/topeng yang sering kita kenakan dalam kehidupan sehari-hari, dan melihat bagaimana Injil menjadi solusi di dalamnya."
       ]
     },
     "values": [
@@ -34,27 +33,27 @@
       },
       {
         "key": "film-alt",
-        "value": "I Can Only Imagine - Menyentuh tema pengampunan dan penyembuhan hubungan yang paralel dengan kebangkitan Kristus. / Soul Surfer - Menceritakan tentang keteguhan iman dalam menghadapi ujian hidup."
+        "value": "I Can Only Imagine — film ini mengisahkan transformasi sejati dari kehidupan yang hancur ke tujuan ilahi; cocok dengan tema Injil yang mengubahkan."
       },
       {
         "key": "film-scenes",
-        "value": "Adegan ketika Gavin menyadari makna sejati dari pengorbanan dan kebangkitan di akhir film yang mengaitkan kembali pada 1 Korintus 15:3-4."
+        "value": "Adegan di mana Gavin menyadari dia tidak dapat terus menyembunyikan siapa dia sebenarnya dan pengalamannya berhadapan dengan komunitas Kristen."
       },
       {
         "key": "pleno-prompt",
-        "value": "Bagaimana kebangkitan Kristus mempengaruhi cara kita menghadapi tantangan di kampus atau tempat kerja? Apa itu topeng yang kita pakai dan bagaimana Injil memampukan kita untuk melepaskannya?"
+        "value": "Apa yang bisa kita pelajari dari perjalanan karakter dalam film tentang menjadi otentik dalam iman kita, relevansinya dengan ayat 1 Kor. 15:3-4?"
       },
       {
         "key": "film-q1",
-        "value": "Dalam situasi apa kamu merasa harus berpura-pura baik untuk diterima di kampus atau kantor?"
+        "value": "Dalam hal apa kamu merasa tertekan untuk berpura-pura di dalam lingkunganmu, baik di kampus atau tempat kerja?"
       },
       {
         "key": "film-q2",
-        "value": "Bagaimana pengalamanmu dengan topeng yang dipakai dalam menghadapi tantangan akademis atau kerja? Apa yang bisa kita pelajari dari 1 Korintus 15:3-4?"
+        "value": "Apa yang bisa kamu lakukan untuk lebih menunjukkan keaslian imanmu di tengah-tengah tuntutan pekerjaan/kuliah?"
       },
       {
         "key": "film-q3",
-        "value": "Apa arti kebangkitan Kristus bagimu secara pribadi? Bagaimana kamu bisa menghidupkannya dalam keseharian?"
+        "value": "Bagaimana kebangkitan Kristus dalam 1 Korintus 15:3-4 dapat mempengaruhi cara kamu menjalani hari-harimu sebagai mahasiswa/pekerja?"
       }
     ]
   }

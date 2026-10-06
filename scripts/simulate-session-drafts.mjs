@@ -64,10 +64,8 @@ const CONTEXT = {
 const FIELD_KEYS = {
   MONOLOG: [
     ['fgd-observe', 'Observasi'], ['fgd-interpret', 'Interpretasi'], ['fgd-apply', 'Aplikasi'],
-  ],
-  DUAL_MONOLOG: [
-    ['outer-exile', 'Outer Exile'], ['inner-exile', 'Inner Exile'], ['song', 'Lagu bedah'],
-    ['deep-q1', 'Pertanyaan 1'], ['deep-q2', 'Pertanyaan 2'],
+    ['song-title', 'Judul lagu'], ['song-about', 'Makna lagu'], ['song-singer', 'Penyanyi'],
+    ['deep-q1', 'Pertanyaan deep 1'], ['deep-q2', 'Pertanyaan deep 2'],
   ],
   DEBAT: [
     ['mosi-1', 'Mosi 1'], ['mosi-2', 'Mosi 2'], ['mosi-3', 'Mosi 3'], ['mosi-4', 'Mosi 4'], ['mosi-5', 'Mosi 5'],
@@ -264,7 +262,7 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const report = [];
-  report.push(`# Simulasi Draft Sesi — More Than Good News (6 pola)`);
+  report.push(`# Simulasi Draft Sesi — More Than Good News (5 pola; Dual dilebur ke Monolog)`);
   report.push('');
   report.push(`> Konteks fix: tema **${CONTEXT.theme}** · Fundamental Firman **${CONTEXT.fundamentalFirman.ref}** (jangkar) · Kitab Fokus **${CONTEXT.kitabFokus}** (bacaan).`);
   report.push(`> Dibuat: ${new Date().toLocaleString('id-ID')} · AI live (OpenAI primary, Groq fallback).`);

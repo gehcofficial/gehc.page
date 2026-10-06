@@ -395,7 +395,7 @@ export function patternBlock(pattern) {
   }
   if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);
   if (code === 'MONOLOG') {
-    lines.push('- Bentuk: monolog sentral + FGD kelompok (observasi → interpretasi → aplikasi).');
+    lines.push('- Bentuk: monolog (+bedah lagu per bait, opsional dua suara) + pertanyaan dipicu mentor satu per satu + FGD 3 (observasi → interpretasi → aplikasi) + deep sharing 2 + Satu Kata + komitmen; discussionFlow = urutan 5 pertanyaan + Satu Kata; deliveryPlan tekankan bedah lagu dan fasilitasi pemicu.');
   } else if (code === 'POST_TO_POST') {
     lines.push('- Bentuk: monolog SINGKAT + briefing pos; discussionFlow = RUTE KUNJUNGAN berurutan rank 1→3 (BUKAN FGD duduk); deliveryPlan tekankan briefing aturan main & manajemen 3 pos.');
   } else if (code === 'DUAL_MONOLOG') {

@@ -49,7 +49,8 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
   const [query, setQuery] = useState('');
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const sorted = [...(patterns || [])].sort((a, b) => (a.code === 'MONOLOG' ? -1 : b.code === 'MONOLOG' ? 1 : (a.code || '').localeCompare(b.code || '')));
+    const visible = (patterns || []).filter((p) => (p as { status?: string }).status !== 'ARCHIVED' || p.code === activeCode);
+    const sorted = [...visible].sort((a, b) => (a.code === 'MONOLOG' ? -1 : b.code === 'MONOLOG' ? 1 : (a.code || '').localeCompare(b.code || '')));
     if (!q) return sorted;
     return sorted.filter((p) => `${p.code} ${p.name} ${p.summary || ''}`.toLowerCase().includes(q));
   }, [patterns, query]);

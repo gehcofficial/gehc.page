@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Monolog + Dual digabung (5 Okt 2026)
+
+**Keputusan:** perluas MONOLOG → "Monolog, Bedah Lagu & Deep Sharing" (±120'); DUAL_MONOLOG ARCHIVED; sesi lama migrasi otomatis.
+
+**Ubah:** seed (playbook + phases + modules gabungan; arsip + migrasi sesi di skrip seed) → template Draft Sesi (fgd + song judul/makna/penyanyi + deep 2Q; DUAL memetakan ke MONOLOG) → server (`config.song/fgd`, `sessionSong/deepGuide/fgdState/oneWordAggregate`, `allowedNoteCodes` +SATU-KATA, stage `fgd/song`, payload peserta + live `song/deepGuide/fgd/oneWord`, patternBlock MONOLOG) → client (engine 5 segmen + widget song + alias DUAL; PatternDay kartu lagu + Q terkunci-menunggu-pemicu + PDF seksi lagu; kontrol `FgdTriggerPanel` Q1–Q5 + pemicu mentor/co-mentor/perwakilan; layar lagu + Q terbuka + agregat Satu Kata; katalog sembunyikan arsip) → sim MTGN pola gabungan (lagu + deep Q kontekstual) → docs hari-H + worship-patterns.
+
+**Verifikasi:** `lint` bersih ✓ **747 test** hijau ✓ `build` OK ✓ seed staging ✓ (MONOLOG gabungan; DUAL arsip; 0 sesi dimigrasi).
+
+**Catatan:** upload Drive laporan staging gagal (`invalid_grant` kredensial SA staging) — laporan v3 ada di `docs/preview/`. Perubahan belum di-commit/push.
+
 ## Current — Hemat kuota Vercel Free: hapus 110+ deployment + longgarkan polling (5 Okt 2026)
 
 **Gejala:** `Fluid Active CPU 8h17m/4h` + `Functions Storage 9.69GB/10GB` (screenshot). Invocations 174K/1M masih aman — masalah durasi CPU per-request + 159 deployment menumpuk, bukan traffic.

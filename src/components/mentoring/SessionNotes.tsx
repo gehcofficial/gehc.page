@@ -6,6 +6,8 @@ type Props = {
   slots: NoteSlot[];
   values: Record<string, string>;
   disabled?: boolean;
+  /** Kunci slot yang belum dibuka pemicu — tampil terkunci. */
+  lockedKeys?: string[];
   onSave: (key: string, value: string) => Promise<void>;
 };
 
@@ -17,7 +19,8 @@ const TEXTAREA =
  * Catatan peserta generik: textarea per slot + auto-save (debounce) +
  * indikator tersimpan. Dipakai semua pola (FGD, deep sharing, film, misi).
  */
-export const SessionNotes: React.FC<Props> = ({ slots, values, disabled, onSave }) => {
+export const SessionNotes: React.FC<Props> = ({ slots, values, disabled, lockedKeys, onSave }) => {
+  const locked = new Set(lockedKeys || []);
   const [drafts, setDrafts] = useState<Record<string, string>>(values);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -73,19 +76,25 @@ export const SessionNotes: React.FC<Props> = ({ slots, values, disabled, onSave 
         </span>
       </div>
       <div className="space-y-3">
-        {slots.map((s) => (
-          <div key={s.key}>
-            <label className="text-[11px] font-black text-[#1B1B1B] mb-1 block">{s.label}</label>
-            <textarea
-              value={drafts[s.key] || ''}
-              onChange={(e) => change(s.key, e.target.value)}
-              placeholder={s.placeholder}
-              rows={s.key === 'KOMITMEN' ? 2 : 3}
-              disabled={disabled}
-              className={`${TEXTAREA} disabled:opacity-60`}
-            />
-          </div>
-        ))}
+        {slots.map((s) => {
+          const isLocked = locked.has(s.key);
+          return (
+            <div key={s.key}>
+              <label className="text-[11px] font-black text-[#1B1B1B] mb-1 block">
+                {s.label}
+                {isLocked && <span className="ml-1.5 font-normal text-[#8C8880]">🔒 menunggu dibuka pemicu</span>}
+              </label>
+              <textarea
+                value={drafts[s.key] || ''}
+                onChange={(e) => change(s.key, e.target.value)}
+                placeholder={isLocked ? 'Menunggu pemicu membuka pertanyaan ini…' : s.placeholder}
+                rows={s.key === 'KOMITMEN' ? 2 : 3}
+                disabled={disabled || isLocked}
+                className={`${TEXTAREA} disabled:opacity-60`}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

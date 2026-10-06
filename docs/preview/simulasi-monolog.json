@@ -17,28 +17,48 @@
     "kind": "GENERIC",
     "exegesis": {
       "points": [
-        "Kematian Kristus sebagai penebusan dosa-dosa kita (1 Kor 15:3)",
-        "Penguburan sebagai penguatan realitas kematian Kristus dan bukti autentik penebusan (1 Kor 15:4)",
-        "Kebangkitan Kristus sebagai kemenangan atas kematian dan pengharapan bagi orang percaya (1 Kor 15:4)"
+        "Kematian Kristus adalah penebusan bagi dosa-dosa kita, memberikan harapan bagi mereka yang merasa putus asa. (1 Korintus 15:3)",
+        "Kebangkitan Kristus adalah jaminan akan hidup baru bagi kita dan sebuah pemulihan hubungan kita dengan Allah. (1 Korintus 15:4)",
+        "Injil yang mengubahkan tidak hanya menjawab masalah rohani, tetapi juga memberikan kekuatan bagi kita menghadapi tantangan sehari-hari, baik di lingkungan kampus dan dunia kerja."
       ],
       "implications": [
-        "Memahami bahwa Injil adalah solusi bagi masalah dan tantangan hidup kita, termasuk di dunia pendidikan, pekerjaan, dan relasi sehari-hari",
-        "Mengajak Beyonders untuk hidup dalam keyakinan bahwa setiap aspek kehidupan mereka dapat diubah oleh kuasa Injil",
-        "Menumbuhkan komitmen untuk berbagi Injil dengan orang-orang di sekitar kita, termasuk di lingkungan kampus maupun tempat kerja"
+        "Sebagai mahasiswa dan pekerja muda, kita harus memahami bahwa Injil memampukan kita untuk menghadapi kesulitan dalam kuliah, seperti tugas dan ujian, dengan keyakinan akan keberadaan Kristus dalam hidup kita.",
+        "Ketika kita merasa tertekan dengan pekerjaan, tahu bahwa kebangkitan Kristus bisa menjadi dorongan untuk tetap berjuang dan mencapai target yang telah ditetapkan.",
+        "Injil mengajak kita untuk membangun relasi yang sehat meskipun jauh dari keluarga. Kita dipanggil untuk menjadi saluran berkat bagi orang-orang di sekitar kita."
       ]
     },
     "values": [
       {
         "key": "fgd-observe",
-        "value": "Observe 1 Korintus 15:3-4 dan cari frasa yang menjelaskan pentingnya kematian dan kebangkitan Kristus dalam konteks kehidupan sehari-hari. Contohnya, kata 'mati' dan 'dibangkitkan' menunjukkan kepentingan peristiwa ini dalam menjawab semua masalah umat manusia."
+        "value": "Apa yang kamu perhatikan dari 1 Korintus 15:3-4 tentang kematian dan kebangkitan Kristus?"
       },
       {
         "key": "fgd-interpret",
-        "value": "Interpretasikan bagaimana kematian dan kebangkitan Kristus berelasi dengan tantangan yang dihadapi Beyonders, seperti tekanan akademis, persaingan di tempat kerja, atau pengelolaan hubungan jarak jauh. Apa artinya bagi kita sebagai mahasiswa atau pekerja muda?"
+        "value": "Bagaimana kematian dan kebangkitan Kristus berhubungan dengan tema 'Injil yang Mengubahkan' dan bagaimana hal ini dapat kita aplikasikan dalam kehidupan sehari-hari?"
       },
       {
         "key": "fgd-apply",
-        "value": "Aplikasi: Dalam lampiran komitmen, setiap peserta diminta menuliskan satu langkah nyata untuk menerapkan kuasa Injil dalam hidup mereka minggu ini. Misalnya, berdoa untuk bijak mengambil keputusan dalam tugas kuliah atau memperbaiki hubungan dengan rekan kerja."
+        "value": "Langkah konkret apa yang bisa kamu ambil untuk menerapkan pesan dari 1 Korintus 15:3-4 dalam menghadapi tekanan di kuliah atau pekerjaan?"
+      },
+      {
+        "key": "song-title",
+        "value": "A Winner Is One Who Chooses to Fight"
+      },
+      {
+        "key": "song-about",
+        "value": "Lagu ini menggambarkan semangat perjuangan dan keberanian untuk menghadapi tantangan, yang sejalan dengan kekuatan yang kita dapatkan melalui Injil."
+      },
+      {
+        "key": "song-singer",
+        "value": "Krisdayanti"
+      },
+      {
+        "key": "deep-q1",
+        "value": "Seberapa kuat pengaruh Injil dalam hidupmu saat menghadapi kesulitan di kampus atau pekerjaan?"
+      },
+      {
+        "key": "deep-q2",
+        "value": "Apa harapanmu ketika menghadapi situasi sulit dan bagaimana Injil memberimu ketenangan?"
       }
     ]
   }

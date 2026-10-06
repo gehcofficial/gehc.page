@@ -229,6 +229,52 @@ const MentoringScreen: React.FC = () => {
                 </section>
               );
             }
+            if (patternCode === 'MONOLOG') {
+              const song = data.song;
+              const qs = [...(data.guide || []).filter(Boolean), ...((data.deepGuide || []).filter(Boolean))];
+              const cur = Number(data.fgd?.currentQ || 0);
+              const words = (data.oneWord || []).slice(0, 12);
+              return (
+                <>
+                  {song?.title && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">🎵 Lagu Bedah</p>
+                      <p className="font-display text-2xl font-black">{song.title}</p>
+                      {song.singer && <p className="text-sm text-white/60 mt-1">Penyanyi: {song.singer}</p>}
+                      {song.about && <p className="text-sm text-white/70 mt-2">{song.about}</p>}
+                    </section>
+                  )}
+                  {qs.length > 0 && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">
+                        Pertanyaan {cur > 0 ? `(Q1–Q${Math.min(cur, qs.length)} terbuka)` : '(menunggu pemicu)'}
+                        {data.fgd?.triggerName ? ` · Pemicu: ${data.fgd.triggerName}` : ''}
+                      </p>
+                      <ol className="space-y-2">
+                        {qs.map((q, i) => (
+                          <li key={i} className={`text-lg font-bold ${cur > 0 && i < cur ? '' : 'opacity-40'}`}>
+                            <span className="text-brand mr-2">Q{i + 1}.</span>
+                            {q}
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+                  )}
+                  {words.length > 0 && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Satu Kata jemaat</p>
+                      <div className="flex flex-wrap gap-2">
+                        {words.map((w, i) => (
+                          <span key={i} className="rounded-full bg-white/10 border border-white/15 px-4 py-1.5 text-sm font-bold">
+                            {w.text} <span className="text-brand tabular-nums">×{w.count}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              );
+            }
             const teams = data.teams?.teams || [];
             if (patternCode === 'THREE_SEQUENCES' && teams.length > 0) {
               return (
