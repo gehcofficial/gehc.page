@@ -1,5 +1,21 @@
 # GEHC Portal — Handoff
 
+## Current — Sinkron penuh TiDB Prod → Staging (5 Okt 2026)
+
+**Perintah:** salin terkini prod ke staging (semua tabel), lokal tidak disentuh.
+
+**Jalan:** dry-run `db:copy:prod-to-staging` → 108/114 tabel, 8151 baris, tanpa error baca, password di-scrub, tabel rahasia dikecualikan → apply `--truncate --apply` → **8151 baris ditulis, 0 gagal (44,4 dtk)** → verifikasi staging: users 154, EventProgram 9, worship_sessions 2, likert_responses 378, check_ins 104, service_schedules 46 ✓.
+
+**Koreksi penting:** copy menimpa `worship_patterns` staging dengan versi lama prod (MONOLOG 90 mnt + DUAL aktif) → seed ulang `db:seed:worship:staging` ✓ (MONOLOG gabungan 120 mnt, DUAL arsip, sesi 4 Okt + Likert + chip utuh).
+
+**Belum:** seed worship **prod** masih versi lama (butuh perintah eksplisit bila mau disamakan); simulasi lokal kini bisa jalan melawan DB staging yang segar.
+
+## Current — Standarisasi seed worship prod (5 Okt 2026)
+
+**Perintah:** samakan prod dengan standar (MONOLOG gabungan, DUAL arsip).
+
+**Jalan:** `db:seed:worship:prod` ✓ — verifikasi prod: MONOLOG ACTIVE 120 mnt, DUAL_MONOLOG ARCHIVED, POST_TO_POST/DEBAT/BEDAH_FILM/3SEQ tak berubah, 0 sesi dimigrasi, sesi 4 Okt + Likert + chip utuh. Staging + prod kini standar sama.
+
 ## Current — Monolog + Dual digabung (5 Okt 2026)
 
 **Keputusan:** perluas MONOLOG → "Monolog, Bedah Lagu & Deep Sharing" (±120'); DUAL_MONOLOG ARCHIVED; sesi lama migrasi otomatis.
