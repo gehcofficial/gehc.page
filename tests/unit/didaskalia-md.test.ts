@@ -143,14 +143,15 @@ describe('FGD 3Q + kembali kontekstual', () => {
     expect(widgetsFor('MONOLOG', 'panduan')).toEqual(['guide', 'notes', 'download']);
   });
 
-  it('pembekalan MONOLOG memuat slide Q1-Q3 + aturan rotasi + arahan teknis', async () => {
+  it('pembekalan MONOLOG memuat Q1-Q3 + aturan rotasi + arahan teknis', async () => {
     const { buildPembekalanDeck, contentFromStudio, patternTechnicalBullets } = await import('../../src/lib/didaskalia-presentation');
     const { defaultStudio } = await import('../../src/lib/didaskalia');
     const studio = defaultStudio();
     const deck = buildPembekalanDeck(contentFromStudio(studio, 2, '2026-10-11', 'The Rescue Plan', null, null, 'MONOLOG'));
-    const fgd = deck.find((s) => s.id === 'b-fgd');
-    expect(fgd?.title).toBe('Pertanyaan FGD Hari Minggu (tepat 3)');
-    expect(deck.find((s) => s.id === 'b-teknis')).toBeTruthy();
+    // Slide Bagian B gabungan (b-pola): Q1-Q3 eksplisit + aturan rotasi + arahan teknis.
+    const b = deck.find((s) => s.id === 'b-pola');
+    expect(b?.title).toContain('FGD');
+    expect(b?.paragraphs?.join('\n')).toContain('perwakilan bergiliran');
     expect(patternTechnicalBullets('POST_TO_POST')).toHaveLength(4);
     expect(patternTechnicalBullets('MONOLOG')[0]).toContain('Ikuti alur');
   });

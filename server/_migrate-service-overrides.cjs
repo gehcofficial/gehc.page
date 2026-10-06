@@ -1,6 +1,7 @@
 /**
- * Idempotent: kondisi khusus minggu layanan (GABUNGAN/LIBUR/ALIH).
+ * Idempotent: kondisi khusus minggu layanan (GABUNGAN/LIBUR/ALIH/GESER).
  * NORMAL (default, tanpa baris) = Mentoring W1 / Serving bergilir W2+.
+ * GESER memakai kolom new_event_date (tanggal efektif ibadah).
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
@@ -33,6 +34,19 @@ const mysql = require('mysql2/promise');
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
   console.log('service_week_overrides OK');
+
+  // GESER: tanggal efektif ibadah (mis. 2026-10-18 → 2026-10-17).
+  await conn.query(`
+    ALTER TABLE service_week_overrides
+    ADD COLUMN IF NOT EXISTS new_event_date DATE NULL AFTER linked_event_id
+  `).catch(async () => {
+    // TiDB/MySQL lama tanpa IF NOT EXISTS — cek kolom dulu.
+    const [cols] = await conn.query('SHOW COLUMNS FROM service_week_overrides LIKE ?', ['new_event_date']);
+    if (!cols.length) {
+      await conn.query('ALTER TABLE service_week_overrides ADD COLUMN new_event_date DATE NULL AFTER linked_event_id');
+    }
+  });
+  console.log('service_week_overrides.new_event_date OK');
 
   await conn.end();
 })().catch((e) => {

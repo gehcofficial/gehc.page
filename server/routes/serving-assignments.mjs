@@ -152,6 +152,47 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
         if (ov) {
           const real = byDate.get(iso);
           if (real) real._override = ov; // chip info; idx tidak dibandingkan di minggu override
+          // GESER: ibadah pindah tanggal tapi tetap consume idx — tampilkan baris
+          // yang sudah pindah (bukan special kosong tanpa idx).
+          if (ov.condition === 'GESER' && ov.newEventDate) {
+            const moved = byDate.get(ov.newEventDate);
+            if (moved) {
+              moved._override = ov;
+              moved._geserFrom = iso;
+              specials.push({
+                ...moved,
+                id: `geser-${iso}`,
+                eventDate: moved.eventDate,
+                geserFrom: iso,
+                condition: 'GESER',
+                note: ov.note,
+                isVirtual: false,
+                isSpecial: true,
+              });
+              continue;
+            }
+            // Override tercatat tapi baris belum dipindah — tampilkan peringatan.
+            specials.push({
+              id: `special-${iso}`,
+              eventDate: new Date(`${iso}T00:00:00Z`),
+              serviceType: 'SERVING_DAY',
+              condition: 'GESER',
+              note: ov.note,
+              partnerLabel: null,
+              linkedEventId: ov.linkedEventId,
+              newEventDate: ov.newEventDate,
+              cycleIndex: null,
+              responsibleGroupId: null,
+              hostGroupId: null,
+              responsibleGroup: null,
+              hostGroup: null,
+              event: real?.event || null,
+              isVirtual: true,
+              isSpecial: true,
+              needsMove: true,
+            });
+            continue; // tidak consume idx
+          }
           specials.push({
             id: `special-${iso}`,
             eventDate: new Date(`${iso}T00:00:00Z`),
@@ -203,9 +244,17 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
         expectedCycleIndex: r._expectedCycleIndex ?? null,
         needsSync: Boolean(r._needsSync),
         override: r._override || null,
+        geserFrom: r._geserFrom || null,
       });
+      // Baris yang sudah digeser tampil via specials (slot Minggu asal) agar tidak ganda.
+      const geserTargets = new Set(
+        [...overrides.entries()]
+          .filter(([, o]) => o.condition === 'GESER' && o.newEventDate && byDate.has(o.newEventDate))
+          .map(([, o]) => o.newEventDate),
+      );
+      const rowIso = (r) => { try { return new Date(r.eventDate).toISOString().slice(0, 10); } catch { return ''; } };
       res.json({
-        assignments: rows.map(serializeRow),
+        assignments: rows.filter((r) => !geserTargets.has(rowIso(r))).map(serializeRow),
         virtual,
         specials,
         overrides: [...overrides.entries()].map(([eventDate, o]) => ({ eventDate, ...o })),

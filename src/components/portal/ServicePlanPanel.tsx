@@ -29,9 +29,12 @@ type AssignRow = {
   note?: string | null;
   partnerLabel?: string | null;
   linkedEventId?: string | null;
+  newEventDate?: string | null;
+  geserFrom?: string | null;
+  needsMove?: boolean;
   expectedCycleIndex?: number | null;
   needsSync?: boolean;
-  override?: { condition: string; note?: string | null; partnerLabel?: string | null; linkedEventId?: string | null } | null;
+  override?: { condition: string; note?: string | null; partnerLabel?: string | null; linkedEventId?: string | null; newEventDate?: string | null } | null;
 };
 
 type PlanWeek = {
@@ -42,7 +45,7 @@ type PlanWeek = {
   servingTheme?: string;
 };
 
-type Override = { eventDate: string; condition: string; note?: string | null; partnerLabel?: string | null; linkedEventId?: string | null };
+type Override = { eventDate: string; condition: string; note?: string | null; partnerLabel?: string | null; linkedEventId?: string | null; newEventDate?: string | null };
 
 function currentYearMonth() {
   const d = new Date();
@@ -73,7 +76,7 @@ function fmtDate(iso: string) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-const COND_LABEL: Record<string, string> = { GABUNGAN: 'Gabungan', LIBUR: 'Libur', ALIH: 'Alih' };
+const COND_LABEL: Record<string, string> = { GABUNGAN: 'Gabungan', LIBUR: 'Libur', ALIH: 'Alih', GESER: 'Geser' };
 
 export const ServicePlanPanel: React.FC = () => {
   const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
@@ -153,6 +156,15 @@ export const ServicePlanPanel: React.FC = () => {
   const [condPartner, setCondPartner] = useState('');
   const [condLinked, setCondLinked] = useState('');
   const [condBusy, setCondBusy] = useState(false);
+  /** GESER: tanggal efektif + preview/apply pindah jadwal. */
+  const [condTo, setCondTo] = useState('');
+  const [geserPreview, setGeserPreview] = useState<null | {
+    assignments: Array<{ id: string; cycleIndex: number | null; responsible: string | null; host: string | null }>;
+    events: Array<{ id: string; name: string }>;
+    worshipSessionsFollow: number;
+    collisions: Array<{ kind: string; id: string }>;
+  }>(null);
+  const [geserBusy, setGeserBusy] = useState(false);
   const [rebaseBusy, setRebaseBusy] = useState(false);
   /** Backfill jadwal serving (baris nyata dari siklus). */
   const [backfillPreview, setBackfillPreview] = useState<Array<{ date: string; responsibleName: string; hostName: string }> | null>(null);
@@ -555,6 +567,8 @@ export const ServicePlanPanel: React.FC = () => {
     setCondNote(ov?.note || '');
     setCondPartner(ov?.partnerLabel || '');
     setCondLinked(ov?.linkedEventId || '');
+    setCondTo(ov?.newEventDate || '');
+    setGeserPreview(null);
   };
 
   const saveCond = async () => {
@@ -565,7 +579,13 @@ export const ServicePlanPanel: React.FC = () => {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ condition: condValue, note: condNote.trim() || null, partnerLabel: condPartner.trim() || null, linkedEventId: condLinked || null }),
+        body: JSON.stringify({
+          condition: condValue,
+          note: condNote.trim() || null,
+          partnerLabel: condPartner.trim() || null,
+          linkedEventId: condLinked || null,
+          ...(condValue === 'GESER' ? { newEventDate: condTo || null } : {}),
+        }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal simpan kondisi');
@@ -576,6 +596,51 @@ export const ServicePlanPanel: React.FC = () => {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal simpan' });
     } finally {
       setCondBusy(false);
+    }
+  };
+
+  /** GESER: preview dry-run lalu apply pindah (override + assignment + event). */
+  const previewGeser = async () => {
+    if (!condDate || !condTo) return;
+    setGeserBusy(true);
+    try {
+      const r = await fetch('/api/service-overrides/geser', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: condDate, to: condTo, dryRun: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal pratinjau geser');
+      setGeserPreview(d.preview);
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal pratinjau' });
+    } finally {
+      setGeserBusy(false);
+    }
+  };
+
+  const applyGeser = async () => {
+    if (!condDate || !condTo) return;
+    if (!window.confirm(`Pindahkan ibadah ${condDate} → ${condTo}? Jadwal, event, sesi & check-in ikut pindah. Drive tidak di-rename.`)) return;
+    setGeserBusy(true);
+    try {
+      const r = await fetch('/api/service-overrides/geser', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: condDate, to: condTo, note: condNote.trim() || null, dryRun: false }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menggeser');
+      addToast({ type: 'success', title: `Geser OK: ${d.moved?.assignments || 0} jadwal + ${d.moved?.events || 0} event → ${condTo}` });
+      setCondDate(null);
+      setGeserPreview(null);
+      await fetchSchedule();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menggeser' });
+    } finally {
+      setGeserBusy(false);
     }
   };
 
@@ -774,7 +839,7 @@ export const ServicePlanPanel: React.FC = () => {
                             <span className="text-xs font-black text-[#1B1B1B]">W{weekIndex} · {fmtDate(iso)}</span>
                             {special ? (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-200 font-bold">
-                                {COND_LABEL[special.condition || ov?.condition || ''] || special.condition}{special.partnerLabel ? ` — ${special.partnerLabel}` : ''}
+                                {COND_LABEL[special.condition || ov?.condition || ''] || special.condition}{special.partnerLabel ? ` — ${special.partnerLabel}` : ''}{special.condition === 'GESER' && (special.newEventDate || ov?.newEventDate) ? ` → ${fmtDate(special.newEventDate || ov.newEventDate)}` : ''}
                               </span>
                             ) : (
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${isMentoring ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
@@ -822,6 +887,15 @@ export const ServicePlanPanel: React.FC = () => {
                           {special?.condition === 'ALIH' && special.linkedEventId && (
                             <p className="text-[11px] text-[#8C8880]">Dialihkan ke event <span className="font-mono">{special.linkedEventId}</span></p>
                           )}
+                          {special?.condition === 'GESER' && (special.responsibleGroup || special.hostGroup) && (
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                              <span className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-800 font-bold">{special.responsibleGroup?.name || special.responsibleGroupId}</span>
+                              <span className="text-[#8C8880]">→</span>
+                              <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-bold">{special.hostGroup?.name || special.hostGroupId}</span>
+                              {special.cycleIndex != null && <span className="font-mono text-[#5C5850]">idx {special.cycleIndex}/10</span>}
+                              {special.event?.name && <span className="text-[#8C8880] truncate max-w-[220px]" title={special.event.name}>{special.event.name}</span>}
+                            </div>
+                          )}
 
                           {swapForm?.date === iso && (
                             <div className="grid sm:grid-cols-3 gap-2 p-2 rounded-xl bg-amber-50 border border-amber-200">
@@ -845,6 +919,7 @@ export const ServicePlanPanel: React.FC = () => {
                                 <option value="GABUNGAN">Gabungan (lintas-BIPRA / luar jemaat)</option>
                                 <option value="LIBUR">Libur (force majeure)</option>
                                 <option value="ALIH">Alihkan ke kegiatan lain</option>
+                                <option value="GESER">Geser tanggal (mis. Minggu → Sabtu)</option>
                               </select>
                               <input value={condPartner} onChange={(e) => setCondPartner(e.target.value)} placeholder="Label pasangan (mis. Gabungan Remaja) — opsional" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs" />
                               {condValue === 'ALIH' && (
@@ -852,6 +927,26 @@ export const ServicePlanPanel: React.FC = () => {
                                   <option value="">Event alihan…</option>
                                   {events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
                                 </select>
+                              )}
+                              {condValue === 'GESER' && (
+                                <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50/60 p-2 space-y-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold">{iso} →</span>
+                                    <input type="date" value={condTo} onChange={(e) => { setCondTo(e.target.value); setGeserPreview(null); }} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white" />
+                                    <button type="button" onClick={() => void previewGeser()} disabled={geserBusy || !condTo} className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-40">
+                                      {geserBusy ? 'Memeriksa…' : 'Pratinjau'}
+                                    </button>
+                                  </div>
+                                  {geserPreview && (
+                                    <div className="text-[11px] text-[#1B1B1B] space-y-1">
+                                      <p>📦 {geserPreview.assignments.length} jadwal{geserPreview.assignments.map((a) => ` (idx ${a.cycleIndex}/10 ${a.responsible || ''}→${a.host || ''}`).join('')} + {geserPreview.events.length} event + {geserPreview.worshipSessionsFollow} sesi ikut pindah.</p>
+                                      <p className="text-[#8C8880]">Drive tidak di-rename · QR/WA/check-in ikut eventId · materi tetap pekan ini.</p>
+                                      <button type="button" onClick={() => void applyGeser()} disabled={geserBusy} className="px-4 py-1.5 rounded-xl bg-violet-600 text-white text-xs font-bold disabled:opacity-40">
+                                        {geserBusy ? 'Memindahkan…' : `Terapkan geser → ${condTo}`}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                               <input value={condNote} onChange={(e) => setCondNote(e.target.value)} placeholder="Catatan (opsional)" className="px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs sm:col-span-2" />
                               <div className="sm:col-span-2 flex justify-end gap-2">

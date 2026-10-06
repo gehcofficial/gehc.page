@@ -29,6 +29,7 @@ import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
 import { parseServiceMd, parseRhbMd } from '../lib/didaskalia-md.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
+import { listOverrides, effectiveDate } from '../lib/service-overrides.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
 
 /** Respons 503 yang ramah bila token Drive pemilik kedaluwarsa/dicabut. */
@@ -265,11 +266,18 @@ async function saveStudioWeek(prisma, yearMonth, weekIndex, mutator, userId) {
   return weekOrDefault(readWeeks(updated), yearMonth, weekIndex);
 }
 
-/** Cari EventProgram yang jatuh pada tanggal Minggu tertentu (WIB). */
+/** Cari EventProgram yang jatuh pada tanggal Minggu tertentu (WIB).
+ *  Bila ada override GESER, pakai tanggal efektif (mis. W3 18 Okt → event 17 Okt).
+ *  Pekan materi tetap dari grid Minggu — hanya resolusi event yang mengikuti geser. */
 async function resolveEventId(prisma, dateISO) {
   if (!dateISO) return null;
+  let lookup = dateISO;
   try {
-    const day = new Date(`${dateISO}T00:00:00.000Z`);
+    const ov = await listOverrides(prisma, dateISO, dateISO);
+    lookup = effectiveDate(dateISO, ov) || dateISO;
+  } catch { /* tanpa override — perilaku lama */ }
+  try {
+    const day = new Date(`${lookup}T00:00:00.000Z`);
     const from = new Date(day.getTime() - 24 * 3600 * 1000);
     const to = new Date(day.getTime() + 2 * 24 * 3600 * 1000);
     const rows = await prisma.eventProgram.findMany({
@@ -277,7 +285,7 @@ async function resolveEventId(prisma, dateISO) {
       select: { id: true, name: true, serviceType: true, eventDate: true },
       orderBy: { eventDate: 'asc' },
     });
-    const onDate = rows.filter((r) => wibDateOnly(r.eventDate) === dateISO);
+    const onDate = rows.filter((r) => wibDateOnly(r.eventDate) === lookup);
     // Utamakan ibadah (Mentoring/Serving) agar materi Didaskalia menempel ke event yang benar.
     const match = onDate.find((r) => r.serviceType === 'MENTORING_DAY' || r.serviceType === 'SERVING_DAY') || onDate[0];
     return match ? { id: match.id, name: match.name, serviceType: match.serviceType } : null;
