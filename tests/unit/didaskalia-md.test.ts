@@ -123,8 +123,7 @@ function captionContent() {
   };
 }
 
-describe('caption pembekalan & khotbah', () => {
-  it('pembekalan menyasar mentor + memuat bigIdea dan link', () => {
+describe('caption pembekalan & khotbah', () => {  it('pembekalan menyasar mentor + memuat bigIdea dan link', () => {
     const t = buildPembekalanCaption({ doc: 'pembekalan', yearMonth: '2026-10', weekIndex: 2, content: captionContent() });
     expect(t).toContain('Mentor');
     expect(t).toContain('Rescue Plan menuntaskan');
@@ -135,5 +134,46 @@ describe('caption pembekalan & khotbah', () => {
     const t = buildKhutbahCaption({ doc: 'khutbah', yearMonth: '2026-10', weekIndex: 2, content: captionContent() });
     expect(t).toContain('2 Korintus 5:21');
     expect(t).toContain('#/materi/khutbah/2026-10/2');
+  });
+});
+
+describe('FGD 3Q + kembali kontekstual', () => {
+  it('MONOLOG panduan memuat notes + download (isi & unduh dari FGD)', async () => {
+    const { widgetsFor } = await import('../../src/lib/session-engine');
+    expect(widgetsFor('MONOLOG', 'panduan')).toEqual(['guide', 'notes', 'download']);
+  });
+
+  it('pembekalan MONOLOG memuat slide Q1-Q3 + aturan rotasi + arahan teknis', async () => {
+    const { buildPembekalanDeck, contentFromStudio, patternTechnicalBullets } = await import('../../src/lib/didaskalia-presentation');
+    const { defaultStudio } = await import('../../src/lib/didaskalia');
+    const studio = defaultStudio();
+    const deck = buildPembekalanDeck(contentFromStudio(studio, 2, '2026-10-11', 'The Rescue Plan', null, null, 'MONOLOG'));
+    const fgd = deck.find((s) => s.id === 'b-fgd');
+    expect(fgd?.title).toBe('Pertanyaan FGD Hari Minggu (tepat 3)');
+    expect(deck.find((s) => s.id === 'b-teknis')).toBeTruthy();
+    expect(patternTechnicalBullets('POST_TO_POST')).toHaveLength(4);
+    expect(patternTechnicalBullets('MONOLOG')[0]).toContain('Ikuti alur');
+  });
+
+  it('remember/last portal place: fallback aman + round-trip bila storage ada', async () => {    const { rememberPortalPlace, lastPortalPlace } = await import('../../src/lib/didaskalia-presentation');
+    // Tanpa window (node): fallback.
+    expect(lastPortalPlace()).toBe('#/portal');
+    // Dengan storage stub: round-trip, materi tidak menimpa portal.
+    const store: Record<string, string> = {};
+    (globalThis as Record<string, unknown>).window = {
+      location: { hash: '#/portal/komisi/event-info' },
+      localStorage: {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => { store[k] = v; },
+      },
+    };
+    try {
+      rememberPortalPlace();
+      expect(lastPortalPlace()).toBe('#/portal/komisi/event-info');
+      rememberPortalPlace('#/materi/rhb/2026-10/2/3');
+      expect(lastPortalPlace()).toBe('#/portal/komisi/event-info');
+    } finally {
+      delete (globalThis as Record<string, unknown>).window;
+    }
   });
 });

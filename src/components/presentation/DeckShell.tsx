@@ -22,7 +22,20 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
 
   const next = useCallback(() => setI((p) => Math.min(p + 1, Math.max(total - 1, 0))), [total]);
   const prev = useCallback(() => setI((p) => Math.max(p - 1, 0)), []);
-  const exit = useCallback(() => { window.location.hash = exitHash; }, [exitHash]);
+  // Kembali ke posisi portal terakhir (info event / tab terakhir dibuka), fallback exitHash.
+  const exit = useCallback(() => {
+    try {
+      const at = Number(window.localStorage.getItem('gehc_last_portal_at') || 0);
+      const last = window.localStorage.getItem('gehc_last_portal');
+      if (last && /^#\//.test(last) && !last.startsWith('#/materi') && Date.now() - at < 24 * 3600 * 1000) {
+        window.location.hash = last;
+        return;
+      }
+    } catch {
+      /* abaikan */
+    }
+    window.location.hash = exitHash;
+  }, [exitHash]);
 
   const toggleFullscreen = useCallback(() => {
     const doc = document;
@@ -89,8 +102,8 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
         <div className="h-full bg-sky-400 transition-all" style={{ width: `${progress}%` }} />
       </div>
 
-      <main className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-6">
-        <div className="w-full max-w-6xl">{total ? renderSlide(i) : null}</div>
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6">
+        <div className="w-full max-w-6xl min-w-0 m-auto break-words">{total ? renderSlide(i) : null}</div>
       </main>
 
       <footer className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/10 print:hidden">

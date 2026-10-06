@@ -3,7 +3,7 @@ import { BookOpen, Copy, ExternalLink, FileText, Loader2, Presentation } from 'l
 import { useActiveAccess } from '../../hooks/useActiveAccess';
 import { useApp } from '../../context/AppContext';
 import { weekIndexForDateWib, yearMonthWib } from '../../lib/church-week';
-import { materialHashPath } from '../../lib/didaskalia-presentation';
+import { materialHashPath, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { defaultStudio, ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
 
@@ -130,15 +130,15 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
           </p>
           <div className="flex flex-wrap gap-1.5">
             {canView01 && (
-              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
                 <ExternalLink className="w-3 h-3" /> Pembekalan
               </a>
             )}
-            <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+            <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
               <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
             </a>
             {canView03 && (
-              <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
+              <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
                 <ExternalLink className="w-3 h-3" /> RHB 7 Hari
               </a>
             )}

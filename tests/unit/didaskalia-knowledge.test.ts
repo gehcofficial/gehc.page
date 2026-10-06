@@ -127,6 +127,15 @@ describe('pola ibadah minggu ini', () => {
     ]);
   });
 
+  it('ringkasan khotbah mengikuti pola For Service 4 bagian', async () => {
+    captured.prompts = []; captured.systems = [];
+    await generateSermon({ ...base });
+    expect(allPrompts()).toContain('600–900 kata');
+    expect(allPrompts()).toContain('Bedah Teologis');
+    expect(allPrompts()).toContain('key-takeaway');
+    expect(allPrompts()).toContain('Kesimpulan panggung');
+  });
+
   it('metode pilihan manual dipertahankan', async () => {
     const draft = await generateWeekDraft({ ...base, methods: ['Apologetika'] });
     expect(draft.homileticMethods).toEqual(['Apologetika']);

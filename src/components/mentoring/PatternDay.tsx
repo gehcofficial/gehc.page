@@ -273,6 +273,11 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       {has('guide') && ((data.guide || []).filter(Boolean).length > 0 || (data.deepGuide || []).filter(Boolean).length > 0) && (
         <div className={CARD}>
           <h4 className="text-sm font-black text-[#1B1B1B] mb-2">Panduan</h4>
+          {c === 'MONOLOG' && (
+            <p className="text-[11px] leading-relaxed rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 mb-2">
+              Tiap pertanyaan dijawab <b>1–2 perwakilan bergiliran</b> — tidak perlu semua menjawab. Yang lain menulis catatannya di bawah.
+            </p>
+          )}
           <ol className="space-y-1.5">
             {[...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => (
               <li key={i} className="text-xs leading-relaxed bg-[#FAF9F5] rounded-xl px-3 py-2">

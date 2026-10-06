@@ -50,7 +50,7 @@ import {
   type RitualType,
 } from '../../lib/didaskalia';
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
-import { materialHashPath, delivererLabel } from '../../lib/didaskalia-presentation';
+import { materialHashPath, delivererLabel, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 import { MentoringControl } from '../mentoring/MentoringControl';
@@ -207,6 +207,21 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [mdMsg, setMdMsg] = useState<string | null>(null);
   /** Pola gambar cover: AI generate (default) | UPLOAD manual | MOTIF seri. */
   const [coverStyle, setCoverStyle] = useState<'AI' | 'UPLOAD' | 'MOTIF'>('AI');
+  /** Status token Drive pemilik (untuk pra-cek sebelum generate gambar). */
+  const [driveAuth, setDriveAuth] = useState<{ checked: boolean; ok: boolean; ownerEmail?: string | null }>({ checked: false, ok: true });
+
+  const checkDriveAuth = useCallback(async () => {
+    try {
+      const r = await fetch('/api/drive/token-status', { credentials: 'include' });
+      const d = r.ok ? await r.json() : null;
+      if (!d) return;
+      setDriveAuth({ checked: true, ok: !d.authFailed && (d.hasToken === false || d.userOk !== false), ownerEmail: d.ownerEmail || null });
+    } catch {
+      /* abaikan — generate akan memberi pesan server */
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'terbitkan') void checkDriveAuth(); }, [tab, checkDriveAuth]);
   /** Gaya visual AI: sinematik | komunitas | minimal. */
   const [coverArtStyle, setCoverArtStyle] = useState('cinematic');
   const paths = useMemo(() => ensurePaths(studio), [studio]);
@@ -663,6 +678,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const generateAiCover = async () => {
     if (!canWrite) return;
+    if (driveAuth.checked && !driveAuth.ok) {
+      addToast({ type: 'error', title: 'Drive terputus — re-auth dulu (lihat peringatan di atas).' });
+      return;
+    }
     setBusy('ai-image');
     try {
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/generate-image`, {
@@ -677,7 +696,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       setAiPrompt('');
       addToast({ type: 'success', title: `Gambar cover dibuat AI (${d.used}/${d.max})` });
     } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
+      const msg = e instanceof Error ? e.message : 'Gagal generate gambar.';
+      if (/Drive terputus|DRIVE_AUTH_EXPIRED/i.test(msg)) {
+        setDriveAuth((s) => ({ ...s, checked: true, ok: false }));
+        await checkDriveAuth();
+      }
+      addToast({ type: 'error', title: msg });
     } finally {
       setBusy(null);
     }
@@ -1603,6 +1627,11 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </p>
             <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
               <p className="text-[11px] font-black text-[#1B1B1B]">Gambar Cover — background + overlay teks</p>
+              {driveAuth.checked && !driveAuth.ok && (
+                <p className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  Koneksi Drive terputus (token kedaluwarsa/dicabut). Generate & unggah gambar akan gagal — jalankan `npm run drive:auth` lalu `npm run env:sync-gdrive-token`, kemudian deploy ulang.
+                </p>
+              )}
               <div className="grid sm:grid-cols-2 gap-2">
                 <ImageSlot
                   label="Cover pekan (unggah manual)"
@@ -1655,13 +1684,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
+              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
                 <ExternalLink className="w-3.5 h-3.5" /> Pembekalan
               </a>
-              <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
+              <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
                 <ExternalLink className="w-3.5 h-3.5" /> Khutbah
               </a>
-              <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+              <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
                 <ExternalLink className="w-3.5 h-3.5" /> RHB (indeks 7 hari)
               </a>
               <button type="button" onClick={() => void copyCaption('rhb')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">

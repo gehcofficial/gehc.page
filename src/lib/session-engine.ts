@@ -123,7 +123,7 @@ export function isQuestionOpen(questionIndex1Based: number, currentQ: number): b
 
 export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = {
   MONOLOG: {
-    panduan: ['guide'],
+    panduan: ['guide', 'notes', 'download'],
     lagu: ['song'],
     catatan: ['notes'],
     'satu-kata': ['notes'],

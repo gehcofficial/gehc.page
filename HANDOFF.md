@@ -1,5 +1,23 @@
 # GEHC Portal — Handoff
 
+## Current — Ringkasan khotbah pola For Service ±600-900 kata (6 Okt 2026)
+
+**Latar:** ringkasan AI (100–150 kata) jauh lebih tipis dari pola .md tim (pengantar + bedah per frasa + jembatan + kesimpulan panggung).
+
+**Ubah:** aturan summary di 3 generator (draf/enrich/sermon) → struktur 4 bagian + key-takeaway per poin + kesimpulan direct-speech; token sermon 6–9 ribu + timeout 60 dtk; dokumen knowledge FORMAT baru `dk-format-khotbah-service` (seed staging + prod); tanpa field/skema baru (kompatibel mundur).
+
+**Verifikasi:** `lint` bersih ✓ **777 test** hijau (+3) ✓ `build` OK ✓
+
+## Current — FGD 3Q + Drive ramah + materi responsif & kembali kontekstual (6 Okt 2026)
+
+**Kebutuhan:** error gambar AI `invalid grant`; Q mentee di session link hari H (lesson learned tetap) tapi Q wajib ada di slide pembekalan; layout materi HP (scroll bawah, tanpa geser kanan, tombol kembali ke info event/posisi terakhir).
+
+**Ubah:** `didaskalia-studio.mjs` (3 route gambar → `DRIVE_AUTH_EXPIRED` + pesan ramah, bedakan "AI jadi tapi simpan gagal"; kuota tak bertambah) → Studio banner pra-generate + guard (`/api/drive/token-status`) → FGD: template `Panduan FGD (tepat 3)` + `FGD_RULES` di `generateSessionDraft` (Q1 observasi+analogi, Q2 Bedah Teologis, Q3 konkret; rotasi perwakilan) + banner rotasi di `PatternDay` + widget `panduan: [guide,notes,download]` → pembekalan `b-fgd` = Q1-Q3 eksplisit + aturan rotasi → `DeckShell` scroll vertikal + `break-words` + `rememberPortalPlace/lastPortalPlace` (localStorage 24 jam; Keluar/Portal/Kembali pakai posisi terakhir) → test `didaskalia-md.test.ts` (+3: widget, deck Q, portal-place).
+
+**Verifikasi:** `lint` bersih ✓ **777 test** hijau (+4) ✓ `build` OK ✓
+
+**Next:** uji staging 2026-10 pekan 2 (FGD hari H: buka Q → jawab perwakilan → catat → unduh; materi HP 360px; tombol Kembali) → commit + push (staging & main, menunggu perintah).
+
 ## Current — Skenario MD mingguan Didaskalia: sermon 4 outline + metode bebas + 3 caption (5 Okt 2026)
 
 **Kebutuhan:** MD Service (`For Service_*`: Pengantar, Bedah Teologis, Jembatan, Kesimpulan) jadi input awal Ringkasan Khotbah; MD RHB (`For RHB_*`) jadi input 7 Path; bigIdea + metode + analisa AI; pembekalan = garis besar + arahan pola + ringkasan untuk preacher + RHB; caption pembekalan (mentor) + caption khotbah (preacher); cover AI teks-di-atas-gambar.

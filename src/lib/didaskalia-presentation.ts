@@ -215,22 +215,23 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       kind: 'section',
       kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
       title: !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG'
-        ? 'Alur FGD Hari Minggu'
+        ? 'Pertanyaan FGD Hari Minggu (tepat 3)'
         : `Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
-      bullets: (sermon.discussionFlow || []).length
-        ? sermon.discussionFlow
-        : (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG'
-          ? [
-              'Buka dengan pertanyaan pemanasan yang dekat dengan tema.',
-              'Gali teks bersama (amati → pahami).',
-              'Terapkan secara nyata dalam hidup pemuda/anak rantau.',
-              'Tutup dengan komitmen & doa.',
-            ]
+      paragraphs: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
+        ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
+        : undefined,
+      fields: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
+        ? (sermon.discussionFlow || []).slice(0, 3).map((q, i) => ({ label: `Q${i + 1}`, value: q }))
+        : undefined,
+      bullets: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
+        ? []
+        : (sermon.discussionFlow || []).length
+          ? sermon.discussionFlow
           : [
-              `Ikuti skenario pola ${content.patternName}.`,
-              'Sesuaikan dengan tema dan audiens minggu ini.',
-              'Tutup dengan komitmen & doa.',
-            ]),
+            `Ikuti skenario pola ${content.patternName}.`,
+            'Sesuaikan dengan tema dan audiens minggu ini.',
+            'Tutup dengan komitmen & doa.',
+          ],
     },
     {
       id: 'b-7hari',
@@ -467,3 +468,33 @@ export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, d
 }
 
 export { RHB_SECTIONS };
+
+const LAST_PORTAL_KEY = 'gehc_last_portal';
+const LAST_PORTAL_AT_KEY = 'gehc_last_portal_at';
+const LAST_PORTAL_TTL_MS = 24 * 3600 * 1000;
+
+/** Simpan posisi portal terakhir sebelum membuka materi (untuk tombol Kembali). */
+export function rememberPortalPlace(hash?: string): void {
+  try {
+    const h = hash ?? (typeof window !== 'undefined' ? window.location.hash : '');
+    if (/^#\/(portal|event|beyonders)/.test(h)) {
+      // localStorage (bukan sessionStorage) agar terbaca tab baru (target _blank).
+      window.localStorage.setItem(LAST_PORTAL_KEY, h);
+      window.localStorage.setItem(LAST_PORTAL_AT_KEY, String(Date.now()));
+    }
+  } catch {
+    /* storage diblokir */
+  }
+}
+
+/** Hash kembali: posisi portal terakhir (<24 jam), fallback #/portal. */
+export function lastPortalPlace(fallback = '#/portal'): string {
+  try {
+    const at = Number(window.localStorage.getItem(LAST_PORTAL_AT_KEY) || 0);
+    const h = window.localStorage.getItem(LAST_PORTAL_KEY);
+    if (h && /^#\//.test(h) && !h.startsWith('#/materi') && Date.now() - at < LAST_PORTAL_TTL_MS) return h;
+  } catch {
+    /* abaikan */
+  }
+  return fallback;
+}

@@ -88,12 +88,12 @@ function postToPostTemplate(): DraftSection[] {
 const MONOLOG_TEMPLATE: DraftSection[] = [
   {
     key: 'fgd',
-    title: 'Panduan FGD',
-    hint: '3 pertanyaan: observasi → interpretasi → aplikasi, dari firman pekan.',
+    title: 'Panduan FGD (tepat 3)',
+    hint: 'Q1 observasi + analogi konkret Beyonders → Q2 interpretasi dari Bedah Teologis → Q3 aplikasi nyata. Tiap Q 1-2 kalimat + 1 ilustrasi (kuliah/kerja/kos/relasi).',
     fields: [
-      t('fgd-observe', 'Observasi', 'textarea', 'Apa kata teks ...?'),
-      t('fgd-interpret', 'Interpretasi', 'textarea', 'Apa artinya dalam tema ...?'),
-      t('fgd-apply', 'Aplikasi', 'textarea', 'Langkah nyata minggu ini ...?'),
+      t('fgd-observe', 'Q1 Observasi + analogi', 'textarea', 'Apa kata teks ...? + analogi: seperti ...'),
+      t('fgd-interpret', 'Q2 Interpretasi', 'textarea', 'Apa artinya dalam tema ...? Kaitkan Bedah Teologis.'),
+      t('fgd-apply', 'Q3 Aplikasi', 'textarea', 'Langkah nyata minggu ini ...? Konkret dan terukur.'),
     ],
   },
   {

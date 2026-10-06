@@ -28,7 +28,16 @@ import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } fr
 import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
 import { parseServiceMd, parseRhbMd } from '../lib/didaskalia-md.mjs';
+import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
+
+/** Respons 503 yang ramah bila token Drive pemilik kedaluwarsa/dicabut. */
+function driveAuthExpired(res) {
+  return res.status(503).json({
+    error: driveAuthErrorMessage(),
+    code: 'DRIVE_AUTH_EXPIRED',
+  });
+}
 
 const ymRe = /^\d{4}-\d{2}$/;
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
@@ -1125,6 +1134,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         const file = await uploadFile(parentId, { originalname: filename, mimetype: mime, buffer });
         res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, name: file.name });
       } catch (e) {
+        if (isDriveAuthError(e)) return driveAuthExpired(res);
         res.status(500).json({ error: `Gagal mengunggah gambar: ${String(e.message || e).slice(0, 200)}` });
       }
     })
@@ -1235,7 +1245,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           week: saved,
         });
       } catch (e) {
-        res.status(500).json({ error: `Gagal menyimpan gambar: ${String(e.message || e).slice(0, 200)}` });
+        // Gambar AI sudah jadi (biaya model keluar) tapi gagal tersimpan ke Drive.
+        // Bedakan jelas agar tidak dikira AI rusak; kuota pekan TIDAK bertambah.
+        if (isDriveAuthError(e)) return driveAuthExpired(res);
+        res.status(500).json({ error: `Gambar AI jadi, tapi gagal menyimpan: ${String(e.message || e).slice(0, 200)}` });
       }
     })
   );
@@ -1321,7 +1334,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         const total = Object.keys(saved?.studio?.presentation?.khutbah || {}).length;
         res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, slide: idx, used: total, max: MAX_SLIDE_IMAGES, model: img.model, week: saved });
       } catch (e) {
-        res.status(500).json({ error: `Gagal menyimpan gambar: ${String(e.message || e).slice(0, 200)}` });
+        if (isDriveAuthError(e)) return driveAuthExpired(res);
+        res.status(500).json({ error: `Gambar AI jadi, tapi gagal menyimpan: ${String(e.message || e).slice(0, 200)}` });
       }
     })
   );

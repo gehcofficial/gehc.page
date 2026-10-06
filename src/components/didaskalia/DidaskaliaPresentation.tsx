@@ -10,9 +10,11 @@ import {
   buildDeck,
   contentFromStudio,
   docAccess,
+  lastPortalPlace,
   materialAbsoluteUrl,
   materialHashPath,
   parseMaterialHash,
+  rememberPortalPlace,
   rhbDayList,
   type DeckSlide,
   type MaterialDoc,
@@ -82,7 +84,7 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
 
   if (isBg) {
     return (
-      <article className="relative overflow-hidden rounded-[26px] border border-white/10 min-h-[58vh] flex items-end print:border-black/20 [-webkit-print-color-adjust:exact] [print-color-adjust:exact]">
+      <article className="relative overflow-hidden rounded-[26px] border border-white/10 min-h-[58vh] flex items-end print:border-black/20 [-webkit-print-color-adjust:exact] [print-color-adjust:exact] min-w-0 break-words">
         <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
         <div className="relative z-10 w-full p-6 sm:p-10 space-y-4">{body}</div>
@@ -91,7 +93,7 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
   }
 
   return (
-    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white">
+    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white min-w-0 break-words">
       {body}
     </article>
   );
@@ -283,8 +285,8 @@ const RhbIndex: React.FC<{ route: ParsedMaterialHash; content: PresentationConte
         </div>
         <div className="flex flex-wrap gap-2">
           <CaptionPanel route={route} content={content} doc="rhb" canNotify={canNotify} notify={notify} />
-          <a href="#/portal" className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition">
-            <BookOpen className="w-3.5 h-3.5" /> Portal
+          <a href={lastPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition">
+            <BookOpen className="w-3.5 h-3.5" /> Kembali
           </a>
         </div>
         <ul className="space-y-2">
@@ -292,7 +294,8 @@ const RhbIndex: React.FC<{ route: ParsedMaterialHash; content: PresentationConte
             <li key={d.dayIndex}>
               <a
                 href={materialHashPath({ ...route, dayIndex: d.dayIndex })}
-                className="flex items-center gap-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-4 py-3 transition"
+                onClick={() => rememberPortalPlace()}
+                className="flex items-center gap-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-4 py-3 transition min-w-0"
               >
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-sky-500/20 text-xs font-black text-sky-300">{d.dayIndex}</span>
                 <span className="min-w-0 flex-1">
@@ -372,7 +375,7 @@ export default function DidaskaliaPresentation() {
       <div className="min-h-[100dvh] bg-[#0B1220] text-white grid place-items-center p-6">
         <div className="text-center space-y-2">
           <p className="text-sm font-bold">Rute materi tidak dikenal.</p>
-          <a href="#/portal" className="text-xs font-bold text-sky-300 hover:underline">Kembali ke Portal</a>
+          <a href={lastPortalPlace()} className="text-xs font-bold text-sky-300 hover:underline">Kembali</a>
         </div>
       </div>
     );
@@ -397,7 +400,7 @@ export default function DidaskaliaPresentation() {
               ? `Materi ini hanya untuk ${docAccess(route.doc) === 'beyonder' ? 'Beyonders (mentor/mentee)' : 'Mentor/Co-mentor & staf'}.`
               : 'Coba muat ulang halaman.'}
           </p>
-          <a href="#/portal" className="inline-block rounded-full bg-sky-500 hover:bg-sky-400 px-4 py-2 text-xs font-black text-white transition">Kembali ke Portal</a>
+          <a href={lastPortalPlace()} className="inline-block rounded-full bg-sky-500 hover:bg-sky-400 px-4 py-2 text-xs font-black text-white transition">Kembali</a>
         </div>
       </div>
     );

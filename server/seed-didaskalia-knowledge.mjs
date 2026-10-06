@@ -44,6 +44,41 @@ Hangat, bahasa anak muda, hormat. Tidak baku-kaku, tidak kasual-berlebihan.
 Reformed: Sola Scriptura/Gratia/Fide, Solus Christus, Soli Deo Gloria. Pemuridan = respons syukur, bukan syarat keselamatan. Jangan menyiratkan "Allah + usahamu".`,
   },
   {
+    id: 'dk-format-khotbah-service',
+    title: 'Pola Ringkasan Khotbah Panjang (For Service)',
+    category: 'FORMAT',
+    source: 'MANUAL',
+    sortOrder: 9,
+    content: `# POLA RINGKASAN KHOTBAH PANJANG (FOR SERVICE) — TIM DIDASKALIA
+
+Pola baku ringkasan khotbah AI (±600–900 kata). Setiap ringkasan WAJIB mengikuti 4 bagian ini,
+bukan sekadar 3–5 paragraf pendek. Contoh teknik (bukan isi): pengantar yang membongkar asumsi,
+bedah per frasa dengan pelurusan salah paham, jembatan 2–3 poin ke ayat jangkar, kesimpulan
+direct-speech yang siap dibaca di panggung.
+
+## 1. Pengantar — reframing masalah nyata
+Buka dengan realita pemuda (finansial, patah hati, masa depan), lalu bongkar asumsinya:
+masalah terbesar bukan keadaan hidup, melainkan dosa yang memisahkan dari Allah yang kudus.
+Tegaskan manusia tak bisa menyelamatkan diri (contoh pola: "kain kotor", Yesaya 64:6).
+
+## 2. Bedah Teologis — 2–4 poin dari teks utama
+Tiap poin: kutip frasa ayat + makna teologisnya (doktrin eksplisit, mis. imputasi/pembenaran) +
+luruskan SATU salah paham umum + tutup dengan 1 kalimat key-takeaway untuk anak muda
+("Poin Utama bagi Anak Muda: ...").
+
+## 3. Jembatan — kaitkan ke ayat jangkar mingguan
+Tunjukkan teks utama bukan akhir cerita: sambungkan 2–3 poin ke Fundamental Firman/tema
+mingguan (mis. pelepasan → kewarganegaraan baru → pengampunan mutlak).
+
+## 4. Kesimpulan panggung — NASKAH SIAP-BACA
+Satu blok direct speech yang hangat: pertukaran besar, status baru, dan panggilan merespons
+hari ini ("Anda tidak butuh sekadar perbaikan nasib sementara..."). Siap diucapkan apa adanya.
+
+## Rambu
+- Reformed dan kontekstual Beyonders (kuliah/kerja/kos/relasi Cikarang), seperti standar lain.
+- Kutip ayat akurat; jangan mengarang referensi. Panjang total ±600–900 kata.`,
+  },
+  {
     id: 'dk-format-khotbah',
     title: 'Panduan Format Khotbah — Tim Didaskalia',
     category: 'FORMAT',

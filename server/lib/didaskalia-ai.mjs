@@ -545,7 +545,7 @@ export async function generateWeekDraft(input) {
     '- teksUtama: Teks Utama sermon (Serving Day) — ref + kutipan singkat; bedakan dari Fundamental Firman (jangkar mingguan).',
     '- outline 4 bagian (pola For Service): pengantar (reframing masalah nyata vs solusi sementara), bedahTeologis (bedah ayat per frasa, doktrin eksplisit), jembatan (kaitkan Teks Utama ke tema mingguan/Jangkar, 2-3 poin), kesimpulan (NASKAH SIAP-BACA direct speech, hangat, 1 paragraf).',
     '- methods: PILIH SENDIRI 2-3 metode paling cocok dari: ' + HOMILETIC_METHODS.join('; ') + '. rationale: kenapa tiap metode dipilih, merujuk bagian outline yang ditajamkannya.',
-    '- summary: 3-5 paragraf (100–150 kata), naratif dan kontekstual untuk pemuda/anak rantau — enak dibaca keras sebagai renungan.',
+    '- summary: RINGKASAN PANJANG mengikuti pola For Service (±600–900 kata): (1) Pengantar — realita + asumsi yang dibongkar; (2) Bedah Teologis — 2-4 poin, tiap poin: kutip ayat + makna + luruskan salah paham + 1 kalimat key-takeaway untuk anak muda; (3) Jembatan — kaitkan Teks Utama ke Fundamental Firman/tema mingguan (2-3 poin); (4) Kesimpulan panggung — NASKAH SIAP-BACA direct speech yang hangat. Naratif, kontekstual untuk pemuda/anak rantau, enak dibaca keras.',
     '- slideOutline: 6-8 slide (title, bullets 2-4). JANGAN sertakan visualNote/arahan visual (diisi terpisah).',
     '- deliveryPlan: satu baris per metode.',
     '- prepChecklist (4-6 item) dan discussionFlow (4-6 langkah).',
@@ -600,8 +600,8 @@ export async function generateWeekDraft(input) {
       system: SYSTEM,
       prompt: [...HEAD, `KERANGKA 7 PATH:\n${outline}`, ...SERMON_RULES.slice(0, -2)].join('\n'),
       schema: SermonObjectSchema,
-      maxOutputTokens: 6000,
-      timeoutMs: 40000,
+      maxOutputTokens: 9000,
+      timeoutMs: 60000,
     });
     sermon = object || {};
     sermonMeta = { modelId: modelId || null, finishReason: finishReason || null };
@@ -664,7 +664,7 @@ const ENRICH_PATH_RULES = [
 
 const ENRICH_SERMON_RULES = [
   'ATURAN RINGKASAN KHOTBAH (WAJIB):',
-  '- Perdalam summary (3-5 paragraf), rationale, dan slideOutline (6-8 slide) dari versi saat ini.',
+  '- Perdalam summary mengikuti pola For Service (±600–900 kata): pengantar (realita + asumsi dibongkar), bedah teologis 2-4 poin (kutip + makna + luruskan salah paham + key-takeaway), jembatan ke Fundamental Firman/tema, kesimpulan panggung direct-speech. Perdalam pula outline 4 bagian, rationale, dan slideOutline (6-8 slide) dari versi saat ini.',
   '- methods: 2-3 metode; deliveryPlan satu baris per metode selaras POLA IBADAH; prepChecklist 4-6; discussionFlow 4-6 mengikuti POLA.',
   '- DILARANG mengosongkan field yang sudah terisi.',
 ];
@@ -737,7 +737,7 @@ export async function generateEnrichedDraft(input) {
     ].filter(Boolean).join('\n');
     promptChars += sermonPrompt.length;
     const { object, modelId, finishReason } = await jethroGenerateObject({
-      system: SYSTEM, prompt: sermonPrompt, schema: SermonObjectSchema, maxOutputTokens: 4000, timeoutMs: 35000,
+      system: SYSTEM, prompt: sermonPrompt, schema: SermonObjectSchema, maxOutputTokens: 8000, timeoutMs: 60000,
     });
     sermonMeta = { modelId: modelId || null, finishReason: finishReason || null };
     if (object && (asStr(object.summary) || (Array.isArray(object.slideOutline) && object.slideOutline.length))) {
@@ -850,11 +850,13 @@ export async function generateSermon(input) {
     '- bigIdea: Inti Pesan 1 kalimat.',
     '- teksUtama: Teks Utama sermon (ref + kutipan singkat); bedakan dari Fundamental Firman.',
     '- outline 4 bagian (pengantar, bedahTeologis, jembatan, kesimpulan direct speech). Bila MD acuan ada, setia padanya; bila tidak, susun dari konteks + pola lama dalam koridor Reformed kontekstual persona.',
+    '- Bedah Teologis: 2-4 poin, tiap poin kutip frasa + makna + luruskan satu salah paham + 1 kalimat key-takeaway untuk anak muda.',
+    '- Kesimpulan panggung: NASKAH SIAP-BACA direct speech yang hangat, siap diucapkan apa adanya.',
     locked.length
       ? `- Gunakan metode yang dikunci tim: ${locked.join(', ')}.`
       : `- PILIH SENDIRI 2-3 metode paling cocok dari: ${HOMILETIC_METHODS.join('; ')}.`,
     '- rationale: kenapa tiap metode dipilih + bagian outline mana yang ditajamkannya.',
-    '- summary: rangkuman khotbah 3-5 paragraf, kontekstual untuk pemuda/anak rantau.',
+    '- summary: RINGKASAN PANJANG mengikuti pola For Service (±600–900 kata): pengantar, bedah teologis 2-4 poin + key-takeaway, jembatan ke Fundamental Firman/tema, kesimpulan panggung direct-speech. Kontekstual untuk pemuda/anak rantau.',
     '- slideOutline: 6-10 slide (title, bullets 2-5, visualNote untuk arahan gambar).',
     '- deliveryPlan satu baris per metode; prepChecklist 4-6; discussionFlow 4-6 mengikuti POLA.',
     '- Bahasa Indonesia yang hangat dan jelas.',
@@ -862,7 +864,7 @@ export async function generateSermon(input) {
     'Balas HANYA JSON valid: {"bigIdea":"...","teksUtama":{"ref":"...","text":"..."},"outline":{"pengantar":"...","bedahTeologis":"...","jembatan":"...","kesimpulan":"..."},"methods":["..."],"rationale":"...","summary":"...","slideOutline":[{"title":"...","bullets":["..."],"visualNote":"..."}]}',
   ].filter(Boolean).join('\n');
 
-  const { data } = await generateJson({ prompt, maxOutputTokens: 6000, timeoutMs: 35000 });
+  const { data } = await generateJson({ prompt, maxOutputTokens: 9000, timeoutMs: 60000 });
   const out = clampSermon(data);
   if (!locked.length && out.methods.length) {
     // AI memilih sendiri — pakai pilihannya.
@@ -979,9 +981,18 @@ export async function generateSessionDraft(input) {
   }
 
   const fieldKeys = Array.isArray(input.fieldKeys) ? input.fieldKeys : [];
+  const hasFgd = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('fgd-'));
+  const FGD_RULES = hasFgd ? [
+    'ATURAN FGD (TEPAT 3 PERTANYAAN, WAJIB):',
+    '- fgd-observe (Q1): observasi dari Teks Utama + 1 analogi/ilustrasi konkret dunia Beyonders (KRS, skripsi, shift, lembur, kos, keuangan awal).',
+    '- fgd-interpret (Q2): interpretasi yang mengaitkan Bedah Teologis pekan ini.',
+    '- fgd-apply (Q3): SATU langkah nyata, konkret dan terukur minggu ini.',
+    '- Tiap Q 1-2 kalimat. Yang menjawab lisan cukup 1-2 perwakilan bergiliran per Q; semua mentee WAJIB menulis catatannya sendiri.',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
+    ...FGD_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',
