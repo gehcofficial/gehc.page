@@ -152,6 +152,7 @@ export const portalId: typeof portalEn = {
     catalog: 'Katalog Minat, Kampus & Gelar',
     'org-hierarchy': 'Kelola Hirarki',
     'groups-monitoring': 'Monitoring 10 Kelompok',
+    'absensi-grup': 'Absensi Grup',
     groupsMonitoringBinaan: 'Monitoring Kelompok Binaan',
     groupsMonitoringMine: 'Monitoring Kelompok Saya',
     'beyonders-leaders': 'Pemimpin 10 Rumah',
@@ -640,6 +641,13 @@ export const portalId: typeof portalEn = {
       steps: ['Pilih domain.', 'Tambah cabang, slot posisi, atau referensi grup.', 'Orang di-assign ke slot dari Jemaat / Onboarding — bukan dari editor pohon ini.'],
       when: 'Pohonnya salah atau perlu slot RBAC baru.',
       notFor: 'Nama dan foto halaman Pengurus publik ada di Struktur Organisasi. Dua lapisan ini sengaja terpisah, bukan duplikat.',
+    },
+    'absensi-grup': {
+      title: 'Absensi grup',
+      purpose: 'Mentor dan co-mentor menandai kehadiran anggota kelompok binaannya per event — tercatat sebagai check-in resmi.',
+      steps: ['Pilih event minggu berjalan.', 'Ketuk Tandai hadir di samping anggota yang hadir.', 'Anggota di luar grup sendiri tidak bisa ditandai (403).'],
+      when: 'Saat/seusai ibadah, berdampingan dengan check-in Koinonia.',
+      notFor: 'Bukan pengganti scan QR Koinonia; pembatalan tetap otoritas Koinonia/Komisi.',
     },
     'groups-monitoring': {
       title: 'Monitoring kelompok',

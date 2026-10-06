@@ -66,30 +66,41 @@ describe('parseMaterialHash', () => {
 });
 
 describe('deck builders', () => {
-  it('pembekalan: cover + panduan + alur + 7 path + penutup', () => {
+  it('pembekalan: 7 slide gabungan (cover+inti, garis, A, checklist, kerangka, B, penutup)', () => {
     const studio = studioWithRhb();
+    studio.sermon = { ...studio.sermon, slideOutline: [{ title: 'S1', bullets: ['b1', 'b2'], visualNote: '' }, { title: 'S2', bullets: [], visualNote: '' }], outline: { pengantar: 'P1', bedahTeologis: '', jembatan: 'J1', kesimpulan: 'K1' } };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema Pekan'));
     expect(deck[0].kind).toBe('cover');
     expect(deck[0].title).toBe('Tema Pekan');
     expect(deck[deck.length - 1].kind).toBe('closing');
     // Tidak ada lagi slide breakdown per-Path (diganti 1 slide summary 7 hari).
     expect(deck.filter((s) => s.kind === 'path')).toHaveLength(0);
-    const sevenDay = deck.find((s) => s.id === 'b-7hari');
-    expect(sevenDay?.bullets).toHaveLength(7);
-    expect(sevenDay?.bullets?.[0]).toContain('Minggu');
-    expect(deck.find((s) => s.id === 'a-deliver')).toBeTruthy();
+    // Slide lama terhapus, diganti gabungan.
+    for (const gone of ['a-deliver', 'a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari']) {
+      expect(deck.find((s) => s.id === gone)).toBeFalsy();
+    }
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-khotbah', 'a-checklist', 'a-kerangka', 'b-pola', 'penutup']);
+    const penutup = deck.find((s) => s.id === 'penutup');
+    expect(penutup?.bullets).toHaveLength(7);
+    expect(penutup?.bullets?.[0]).toContain('Minggu');
     expect(deck[0].background).toBe(true);
+    const kerangka = deck.find((s) => s.id === 'a-kerangka');
+    expect(kerangka?.bullets).toEqual(['1. S1', '• b1', '• b2', '2. S2']);
   });
 
-  it('bagian B mengikuti pola ibadah pekan ini', () => {
+  it('bagian B mengikuti pola ibadah pekan ini + tugas absensi/monitoring', () => {
     const studio = studioWithRhb();
     const fgd = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
-    expect(fgd.find((s) => s.id === 'b-fgd')?.title).toBe('Pertanyaan FGD Hari Minggu (tepat 3)');
-    expect(fgd.find((s) => s.id === 'b-teknis')).toBeTruthy();
+    const bMonolog = fgd.find((s) => s.id === 'b-pola');
+    expect(bMonolog?.title).toContain('FGD');
+    expect(bMonolog?.fields).toHaveLength(3);
     const debat = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, 'Debat', 'DEBAT'));
-    expect(debat.find((s) => s.id === 'b-fgd')?.title).toBe('Alur Debat Hari Minggu');
+    const bDebat = debat.find((s) => s.id === 'b-pola');
+    expect(bDebat?.title).toBe('Arahan Teknis & Alur Debat Hari Minggu');
+    expect(bDebat?.bullets?.join('\n')).toContain('Absensi:');
+    expect(bDebat?.bullets?.join('\n')).toContain('Update monitoring:');
     const unknown = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
-    expect(unknown.find((s) => s.id === 'b-fgd')?.title).toBe('Pertanyaan FGD Hari Minggu (tepat 3)');
+    expect(unknown.find((s) => s.id === 'b-pola')?.title).toContain('FGD');
   });
 
   it('summarizeWeek merangkum minggu untuk konteks kesinambungan', async () => {

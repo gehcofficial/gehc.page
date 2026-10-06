@@ -502,6 +502,9 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
             <li key={s.id} className="px-4 py-2 flex items-center justify-between gap-2 text-xs">
               <div className="min-w-0">
                 <span className={`inline-block px-1.5 py-0.5 rounded font-bold ${RESULT_STYLE[s.result] || ''}`}>{s.result}</span>
+                {s.code.startsWith('MENTOR:') && (
+                  <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded font-bold bg-sky-50 border border-sky-200 text-sky-800">mentor</span>
+                )}
                 <span className="ml-2 text-[#1B1B1B] font-semibold">{s.userName || '—'}</span>
                 <p className="font-mono text-[10px] text-[#8C8880] mt-0.5 break-all">{s.code}</p>
               </div>

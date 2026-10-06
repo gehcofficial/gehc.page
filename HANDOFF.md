@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Deck 7 slide + Absensi Grup + preselect + tooltip AI (6 Okt 2026)
+
+**Deck pembekalan 16→7:** cover+inti, garis besar, A gabungan (deliver+ringkasan), checklist (pindah), kerangka gabungan, B gabungan (teknis pola + alur + absensi + monitoring), penutup (7 hari + doa). Renderer dukung semua field. Test deck ditulis ulang.
+
+**Absensi Grup:** mentor/co-mentor menandai hadir anggota grup binaannya = check-in resmi (OK + audit `MENTOR:userId`, badge di riwayat Koinonia). Guard server 403 di luar grup; undo tetap Koinonia/komisi. Tab baru + nav + i18n + guide. Test izin 7.
+
+**Lainnya:** auto-select event minggu berjalan (`nearestUpcoming` + test 5; lengkapi helper yang hilang); tooltip 4 tombol AI + §2b tabel peringatan di SOP Studio.
+
+**Verifikasi:** `lint` bersih ✓ **793 test** hijau ✓ `build` OK ✓ (1 test guide diperbaiki dengan entri baru, bukan dilonggarkan).
+
 ## Current — Kondisi GESER: pindah ibadah beda tanggal (6 Okt 2026)
 
 **Kebutuhan:** W3 18 Okt berpotensi maju ke Sab 17 Okt (kegiatan gereja). Belum ada skenario pindah tanggal — link event/DB/Drive harus ikut.

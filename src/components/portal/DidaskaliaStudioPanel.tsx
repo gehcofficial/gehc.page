@@ -1285,10 +1285,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 </select>
               </label>
               <button type="button" onClick={() => onOpenPola?.()} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola →</button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} title="Tahap 1: susun 7 Path + khotbah dari perikop & pola pekan. Hasil = pengajuan, menunggu persetujuan HOD." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
               </button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Tahap 2: perkaya draf dengan diskusi internal tim">
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Tahap 2: perkaya per hari dari diskusi (butuh diskusi terisi + centang konteks). Berjalan 8x panggilan kecil; gagal 1 hari tak menggugurkan lain.">
                 {busy === 'enrich' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Perkaya dengan diskusi
               </button>
               {(studio.generation || 0) > 0 && (
@@ -1296,10 +1296,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   Generasi ke-{studio.generation}{(studio.generation || 0) > 3 ? ' — disarankan maks 2-3×' : ''}
                 </span>
               )}
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} title="Segarkan ringkasan khotbah saja tanpa mengubah 7 Path." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Ringkasan Khotbah
               </button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void generatePembekalanWithAi()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void generatePembekalanWithAi()} title="Jalan pintas: susun draf lalu langsung unduh PDF Pembekalan (tanpa terbit ke Drive)." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
                 {busy === 'ai-pembekalan' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} AI + PDF Pembekalan
               </button>
               <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] ml-1">

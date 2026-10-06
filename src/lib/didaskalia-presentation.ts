@@ -130,11 +130,31 @@ function weekCoverSubtitle(content: PresentationContent): string {
   return [content.date, content.kitabFokus].filter(Boolean).join(' · ');
 }
 
+/** Tugas operasional mentor/co-mentor yang berlaku di semua pola. */
+export function mentorOpsBullets(): string[] {
+  return [
+    'Absensi: arahkan tiap anggota scan QR kehadiran saat tiba; catat tamu/walk-in tanpa QR ke Koinonia sebelum segmen inti dimulai.',
+    'Pastikan kehadiran tercatat sebelum segmen inti dimulai — yang belum tercatat difollow-up mentor kelompoknya.',
+    'Update monitoring: isi kehadiran + catatan tindak lanjut tiap kelompok di panel monitoring seusai ibadah.',
+  ];
+}
+
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   const { paths, images, sermon } = content;
   const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
   const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  const isMonolog = !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG';
+  const flowBullets = isMonolog
+    ? []
+    : (sermon.discussionFlow || []).length
+      ? sermon.discussionFlow
+      : [
+        `Ikuti skenario pola ${content.patternName}.`,
+        'Sesuaikan dengan tema dan audiens minggu ini.',
+        'Tutup dengan komitmen & doa.',
+      ];
   const slides: DeckSlide[] = [
+    // 1. Cover + Big Idea (gabungan slide 1 & 2).
     {
       id: 'cover',
       kind: 'cover',
@@ -143,12 +163,6 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
       background: true,
-    },
-    {
-      id: 'inti',
-      kind: 'section',
-      kicker: 'Inti Pesan & Fundamental Firman',
-      title: 'Big Idea & Arah Tema',
       paragraphs: sermon.bigIdea ? [sermon.bigIdea] : undefined,
       callout: content.fundamentalFirman?.text
         ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
@@ -158,7 +172,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
-    // Garis besar bahasan pekan ini (untuk semua pembaca modul).
+    // 2. Garis besar bahasan pekan ini (untuk semua pembaca modul).
     {
       id: 'garis-besar',
       kind: 'section',
@@ -172,29 +186,17 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         ? { label: 'Pesan Kunci', value: outline.kesimpulan }
         : undefined,
     },
-    // Bagian A — untuk pengkhotbah / deliverer (ringkasan khotbah sebagai acuan).
+    // 3. Bagian A — persiapan + ringkasan khotbah (gabungan slide 4 & 5).
     {
-      id: 'a-deliver',
+      id: 'a-khotbah',
       kind: 'section',
       kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Persiapan & Penyampaian Khotbah',
+      title: 'Persiapan, Penyampaian & Ringkasan Khotbah',
       bullets: (sermon.deliveryPlan || []).map((d) => `${d.method}: ${d.how}`),
-    },
-    {
-      id: 'a-ringkasan',
-      kind: 'section',
-      kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Ringkasan Khotbah',
       paragraphs: toParagraphs(sermon.summary),
       callout: sermon.rationale ? { label: 'Pendekatan & Metode', value: sermon.rationale } : undefined,
     },
-    ...(sermon.slideOutline || []).map((s, i) => ({
-      id: `a-slide-${i}`,
-      kind: 'section' as const,
-      kicker: `Kerangka Slide ${i + 1}`,
-      title: s.title,
-      bullets: s.bullets,
-    })),
+    // 4. Checklist persiapan (pindah ke setelah gabungan 4 & 5).
     {
       id: 'a-checklist',
       kind: 'section',
@@ -202,49 +204,44 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       title: 'Checklist Persiapan Khotbah',
       bullets: sermon.prepChecklist || [],
     },
-    // Bagian B — untuk mentor & co-mentor (mengikuti pola ibadah pekan ini)
+    // 5. Kerangka slide khotbah (gabungan slide 6–11).
     {
-      id: 'b-teknis',
+      id: 'a-kerangka',
       kind: 'section',
-      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: `Arahan Teknis: ${content.patternName || 'Pola Ibadah'} Pekan Ini`,
-      bullets: patternTechnicalBullets(content.patternCode, content.patternName),
+      kicker: `Bagian A · Untuk ${deliverer}`,
+      title: 'Kerangka Slide Khotbah',
+      bullets: (sermon.slideOutline || []).flatMap((s, i) => [
+        `${i + 1}. ${s.title}`,
+        ...(s.bullets || []).map((b) => `• ${b}`),
+      ]),
     },
+    // 6. Bagian B — arahan teknis pola + alur + absensi/monitoring (gabungan slide 13 & 14).
     {
-      id: 'b-fgd',
+      id: 'b-pola',
       kind: 'section',
       kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG'
-        ? 'Pertanyaan FGD Hari Minggu (tepat 3)'
-        : `Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
-      paragraphs: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
+      title: isMonolog
+        ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu'
+        : `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
+      paragraphs: isMonolog
         ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
         : undefined,
-      fields: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
+      fields: isMonolog
         ? (sermon.discussionFlow || []).slice(0, 3).map((q, i) => ({ label: `Q${i + 1}`, value: q }))
         : undefined,
-      bullets: (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG')
-        ? []
-        : (sermon.discussionFlow || []).length
-          ? sermon.discussionFlow
-          : [
-            `Ikuti skenario pola ${content.patternName}.`,
-            'Sesuaikan dengan tema dan audiens minggu ini.',
-            'Tutup dengan komitmen & doa.',
-          ],
+      bullets: [
+        ...patternTechnicalBullets(content.patternCode, content.patternName),
+        ...flowBullets,
+        ...mentorOpsBullets(),
+      ],
     },
+    // 7. Penutup — gambaran 7 hari + doa syafaat (gabungan slide 15 & 16).
     {
-      id: 'b-7hari',
-      kind: 'section',
-      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: 'Gambaran 7 Hari (Minggu–Sabtu)',
-      bullets: paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`),
-    },
-    {
-      id: 'closing',
+      id: 'penutup',
       kind: 'closing',
       kicker: 'Penutup',
       title: 'Tutup dengan doa syafaat',
+      bullets: paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`),
       paragraphs: [
         'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
       ],

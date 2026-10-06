@@ -36,6 +36,7 @@ import { ProfileChecklistBanner } from './ProfileChecklistBanner';
 import { MustChangePasswordGate } from './MustChangePasswordGate';
 import { PortalWelcomeModal } from './PortalWelcomeModal';
 import { EventInfoPanel } from './EventInfoPanel';
+import { GroupAttendanceTab } from './GroupAttendanceTab';
 import { RolePickerScreen } from './RolePickerScreen';
 import { AccountHub } from './AccountHub';
 import {
@@ -97,6 +98,7 @@ import {
   Wallet,
   ShieldAlert,
   LayoutGrid,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { portalNavGroup, portalNavLabel } from '../../lib/portal-i18n';
@@ -263,6 +265,7 @@ export const PortalLayout: React.FC = () => {
     catalog: GraduationCap,
     'org-hierarchy': Network,
     'groups-monitoring': Users,
+    'absensi-grup': ClipboardCheck,
     'beyonders-leaders': Crown,
     'pastoral-care': HeartHandshake,
     jethro: Sparkles,
@@ -1116,6 +1119,12 @@ export const PortalLayout: React.FC = () => {
             </div>
           )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
+          {activeTab === 'absensi-grup' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="absensi-grup" />
+              <GroupAttendanceTab />
+            </div>
+          )}
           {activeTab === 'beyonders-leaders' && (
             <div className="space-y-4">
               <PanelGuide guideId="beyonders-leaders" />

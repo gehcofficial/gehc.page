@@ -15,11 +15,20 @@
 
 | Tombol | Dipakai saat |
 |---|---|
-| Susun draf 7 Path + khotbah | Awal pekan / susun ulang total (ikut pola pekan) |
-| Perkaya dengan diskusi | Draf ada + diskusi terisi; **satu kali per pekan** (generasi >3 = sinyal input kurang) |
+| Susun draf 7 Path + khotbah | Awal pekan / susun ulang total (ikut pola pekan). Draf dibuat per hari (4+3) + khotbah terpisah — gagal 1 hari tak menggugurkan lain |
+| Perkaya dengan diskusi | Draf ada + diskusi terisi; **satu kali per pekan** (generasi >3 = sinyal input kurang). Dijalankan per hari + khotbah; catatan >8000 char dipotong dari yang terlama (ada peringatan) |
 | Ringkasan Khotbah | Refresh ringkasan/slide saja |
 | AI + PDF Pembekalan | Jalan pintas: draf lalu langsung unduh PDF (tanpa terbit) |
 | Isi dari AI (tab Draft Sesi) | Sesudah tema/firman fix: isi form sesi hari-H |
+
+### 2b. Memahami peringatan AI (toast kuning + meta pengajuan)
+
+| Peringatan | Artinya | Aksi |
+|---|---|---|
+| `Path 2, 5 gagal` | Hari itu gagal di semua model — dipakai versi lama | Ulangi enrich (sering berhasil di percobaan ke-2) atau isi manual hari itu |
+| `Path 3 kepotong limit` | Output terpotong — periksa kelengkapan sebelum approve | Bandingkan diff Path 3; tolak bila kosong |
+| `N karakter catatan dipotong` | Catatan terlama di luar cap 8000 char tidak dibaca AI | Pindahkan poin penting ke atas / ringkas catatan lama |
+| `AI gagal memperkaya draf: ...` + nama model | Semua model gagal (bukan salah input) | Tunggu ±1 menit (limit Groq per menit), lalu Coba lagi; bila OpenAI yang gagal, cek `/api/ai/health` |
 
 ## 2a. Skenario MD mingguan (input awal, bukan knowledge)
 

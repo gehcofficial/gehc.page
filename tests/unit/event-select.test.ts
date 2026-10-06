@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { nearestUpcoming } from '../../src/lib/event-select';
 
-// 6 Okt 2026 12:00 WIB = 05:00 UTC
+// Selasa 6 Okt 2026 12:00 WIB = 05:00 UTC.
 const NOW = Date.UTC(2026, 9, 6, 5, 0, 0);
 
 const ev = (id: string, eventDate: string | null, status = 'PLANNING') => ({ id, eventDate, status });

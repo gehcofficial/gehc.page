@@ -158,6 +158,7 @@ export const portalEn = {
     catalog: 'Interests, campuses & titles',
     'org-hierarchy': 'Manage Hierarchy',
     'groups-monitoring': 'Monitor 10 Groups',
+    'absensi-grup': 'Group Attendance',
     groupsMonitoringBinaan: 'Monitor My Group',
     groupsMonitoringMine: 'My Group Monitoring',
     'beyonders-leaders': '10 House Leaders',
@@ -646,6 +647,13 @@ export const portalEn = {
       steps: ['Pick a domain.', 'Add branch, position slot, or group reference.', 'People are assigned to slots from Congregation / Onboarding — not from this tree editor.'],
       when: 'The tree itself is wrong or a new RBAC slot is needed.',
       notFor: 'Names and photos on the public Leaders page are Org Chart (Struktur). These are two intentional layers, not duplicates.',
+    },
+    'absensi-grup': {
+      title: 'Group attendance',
+      purpose: 'Mentors and co-mentors mark attendance of their own group members per event — recorded as official check-in.',
+      steps: ['Pick the current-week event.', 'Tap Tandai hadir next to each present member.', 'Members outside your group cannot be marked (403).'],
+      when: 'During/after the service, alongside Koinonia check-in.',
+      notFor: 'Not a replacement for Koinonia QR check-in; undo stays with Koinonia/Komisi.',
     },
     'groups-monitoring': {
       title: 'Group monitoring',

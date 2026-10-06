@@ -107,6 +107,28 @@ export async function mentoredGroupIds(authUser) {
   }
 }
 
+/**
+ * Apakah pemberi (mentor/co-mentor) berhak menandai kehadiran target?
+ * Syarat: target anggota ACTIVE di salah satu grup yang dibina pemberi.
+ */
+export async function isGroupMentorOf(authUser, targetUserId) {
+  if (!authUser?.id || !targetUserId) return false;
+  if (String(authUser.id) === String(targetUserId)) return true;
+  const prisma = getPrisma();
+  if (!prisma) return false;
+  try {
+    const groupIds = await mentoredGroupIds(authUser);
+    if (!groupIds.length) return false;
+    const member = await prisma.groupMember.findFirst({
+      where: { userId: targetUserId, groupId: { in: groupIds }, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    return !!member;
+  } catch {
+    return false;
+  }
+}
+
 export function isPortalStaff(authUser) {
   const roles = globalRoles(authUser);
   return roles.some((r) =>

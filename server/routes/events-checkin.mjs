@@ -4,7 +4,7 @@ import { requireRole } from '../auth.mjs';
 import { BAKU_TAU_EVENT_ID, BAKU_TAU_SOURCE_EVENT, normalizePhone } from '../lib/baku-tau.mjs';
 import { parseCheckInCode, timestampsMatch } from '../lib/check-in-code.mjs';
 import { resolveEventBySlug, SLUG_TO_EVENT_ID } from './events-public.mjs';
-import { isKoinoniaOperator } from '../lib/checkin-access.mjs';
+import { isKoinoniaOperator, mentoredGroupIds, isGroupMentorOf } from '../lib/checkin-access.mjs';
 
 const scanId = () => `cin-${crypto.randomUUID()}`;
 
@@ -171,6 +171,89 @@ async function requireCheckInOp(req, res) {
 }
 
 export function registerEventCheckInRoutes(app, { wrap }) {
+  // ---------------- Absensi grup oleh mentor/co-mentor ----------------
+  // Roster + status hadir per grup binaan; penandaan = check-in resmi (OK).
+  app.get('/api/mentor/groups/attendance', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const groupIds = await mentoredGroupIds(req.authUser);
+    if (!groupIds.length) return res.json({ groups: [] });
+    const eventId = String(req.query?.eventId || '').trim();
+    if (!eventId) return res.status(400).json({ error: 'eventId wajib.' });
+
+    const groups = await prisma.group.findMany({
+      where: { id: { in: groupIds } },
+      select: { id: true, name: true },
+    });
+    const members = await prisma.groupMember.findMany({
+      where: { groupId: { in: groupIds }, status: 'ACTIVE' },
+      select: { id: true, groupId: true, userId: true, name: true, familyRole: true },
+      orderBy: { name: 'asc' },
+    });
+    const memberUserIds = [...new Set(members.map((m) => m.userId).filter(Boolean))];
+    const [attendees, scans] = await Promise.all([
+      prisma.eventAttendee.findMany({
+        where: { eventId, userId: { in: memberUserIds } },
+        select: { userId: true, checkedInAt: true, metadata: true },
+      }),
+      prisma.eventCheckIn.findMany({
+        where: { eventId, userId: { in: memberUserIds }, result: { in: ['OK', 'WALK_IN'] } },
+        select: { userId: true, result: true, scannedById: true },
+      }),
+    ]);
+    const attByUser = new Map(attendees.map((a) => [a.userId, a]));
+    const scannedByUser = new Map();
+    for (const s of scans) {
+      if (!scannedByUser.has(s.userId)) scannedByUser.set(s.userId, s);
+    }
+    const out = groups.map((g) => {
+      const roster = members
+        .filter((m) => m.groupId === g.id)
+        .map((m) => {
+          const att = m.userId ? attByUser.get(m.userId) : null;
+          const scan = m.userId ? scannedByUser.get(m.userId) : null;
+          const present = Boolean(att?.checkedInAt);
+          const source = scan ? 'scan' : (att?.metadata && typeof att.metadata === 'object' && att.metadata.autoPetugas ? 'otomatis' : (present ? 'manual' : null));
+          return {
+            memberId: m.id,
+            userId: m.userId,
+            name: m.name,
+            familyRole: m.familyRole,
+            present,
+            source,
+            canMark: Boolean(m.userId),
+          };
+        });
+      const presentCount = roster.filter((r) => r.present).length;
+      return { id: g.id, name: g.name, present: presentCount, total: roster.length, members: roster };
+    });
+    res.json({ groups: out });
+  }));
+
+  app.post('/api/mentor/groups/attendance/mark', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const eventId = String(req.body?.eventId || '').trim();
+    const targetUserId = String(req.body?.userId || '').trim();
+    if (!eventId || !targetUserId) return res.status(400).json({ error: 'eventId dan userId wajib.' });
+    if (!(await isGroupMentorOf(req.authUser, targetUserId))) {
+      return res.status(403).json({ error: 'Hanya anggota grup yang kamu bina.' });
+    }
+    const event = await prisma.eventProgram.findUnique({ where: { id: eventId } }).catch(() => null);
+    if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+    const at = new Date();
+    const existing = await prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId, userId: targetUserId } },
+    }).catch(() => null);
+    if (existing?.checkedInAt) {
+      await logScan(prisma, { eventId, code: `MENTOR:${targetUserId}`, userId: targetUserId, result: 'DUPLICATE', scannedById: req.authUser.id });
+      return res.json({ result: 'DUPLICATE', message: 'Sudah tercatat hadir.' });
+    }
+    await markAttendee(prisma, eventId, targetUserId, req.authUser.id, at);
+    await logScan(prisma, { eventId, code: `MENTOR:${targetUserId}`, userId: targetUserId, result: 'OK', scannedById: req.authUser.id });
+    return res.json({ result: 'OK', message: 'Kehadiran tercatat (oleh mentor).' });
+  }));
+
   app.post('/api/events/:slug/check-in', requireRole('KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
     if (!(await requireCheckInOp(req, res))) return;
     const prisma = getPrisma();

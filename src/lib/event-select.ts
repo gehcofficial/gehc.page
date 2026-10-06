@@ -7,6 +7,13 @@ export type SelectableEvent = {
   startDate?: string | null;
 };
 
+function eventTime(e: SelectableEvent): number | null {
+  const raw = String(e.eventDate || e.startDate || '').trim();
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
 /**
  * Event minggu berjalan: non-arsip terdekat ≥ hari ini (toleransi −12 jam,
  * agar H-day sore masih kepilih); bila semua lewat, yang terbaru lewat;
@@ -17,8 +24,8 @@ export function nearestUpcoming<T extends SelectableEvent>(list: T[], nowMs = Da
   if (!open.length) return list[0] || null;
   const now = nowMs - 12 * 3600 * 1000;
   const withTime = open
-    .map((e) => ({ e, t: new Date(String(e.eventDate || e.startDate || '')).getTime() }))
-    .filter((x) => Number.isFinite(x.t));
+    .map((e) => ({ e, t: eventTime(e) }))
+    .filter((x): x is { e: T; t: number } => x.t !== null);
   const upcoming = withTime.filter((x) => x.t >= now).sort((a, b) => a.t - b.t);
   if (upcoming.length) return upcoming[0].e;
   if (withTime.length) return [...withTime].sort((a, b) => b.t - a.t)[0].e;
