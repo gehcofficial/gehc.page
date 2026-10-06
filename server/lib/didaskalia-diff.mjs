@@ -82,12 +82,39 @@ export function computeRegenDiff(current, proposal) {
   if (beforeChars > 0 && afterChars < beforeChars / 2) {
     parts.push(`PERINGATAN: isi RHB menyusut ${beforeChars} → ${afterChars} karakter — periksa sebelum menyetujui`);
   }
+  const thin = richnessCheck(prop);
+  if (thin.underStandard > 0) {
+    parts.push(`${thin.underStandard} section RHB di bawah standar 300 karakter`);
+  }
 
   return { diff, summary: parts.length ? parts.join(' · ') : 'Tidak ada perubahan terdeteksi' };
 }
 
 /** Hari kalender baku Path 1-7 (Path 1 = Minggu). */
 const DAY_LABELS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** Standar panjang minimum body RHB per section. */
+export const RHB_MIN_BODY_CHARS = 300;
+
+/**
+ * Cek kekayaan proposal: section kosong (penolak) + di bawah standar.
+ * @returns {{ empty: Array<{path:number,key:string}>, underStandard: number, totalChars: number }}
+ */
+export function richnessCheck(proposal) {
+  const paths = Array.isArray(proposal?.paths) ? proposal.paths : [];
+  const empty = [];
+  let underStandard = 0;
+  let totalChars = 0;
+  paths.forEach((p, i) => {
+    for (const s of p?.rhbSections || []) {
+      const len = String(s?.body || '').length;
+      totalChars += len;
+      if (!String(s?.body || '').trim()) empty.push({ path: i + 1, key: s?.key || '' });
+      else if (len < RHB_MIN_BODY_CHARS) underStandard += 1;
+    }
+  });
+  return { empty, underStandard, totalChars };
+}
 
 /** Usulan kosong (string kosong/whitespace, array kosong) = pertahankan lama. */
 function keepOld(nextVal, oldVal) {

@@ -738,7 +738,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
     if (!weekMeta) return;
-    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, ...(await buildPdfImages()) };
+    const patternCode = weekMeta.patternCode || 'MONOLOG';
+    const patternName = patterns.find((p) => String(p.code || '').toUpperCase() === patternCode)?.name || null;
+    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, patternCode, patternName, ...(await buildPdfImages()) };
     const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio };
     setBusy(`pdf-${doc}`);
     try {
@@ -1401,6 +1403,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 {paths.map((p) => <option key={p.pathIndex} value={`PATH:${p.pathIndex}`}>Bagian: Path {p.pathIndex} · {p.dayLabel}</option>)}
               </select>
               <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Tulis catatan/usulan untuk tim…" className={inputCls} />
+              <button
+                type="button"
+                onClick={() => setComment('Kembangkan tiap section RHB dari pengetahuan tim + ilustrasi kuliah/kerja/kos yang konkret: tiap body minimal 400 karakter; MAKNA & Implikasi wajib naskah siap-baca direct-speech yang hangat; jangan mengosongkan field apa pun.')}
+                disabled={!canWrite}
+                title="Isi kotak dengan template instruksi pengayaan"
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold disabled:opacity-50"
+              >
+                <Wand2 className="w-3.5 h-3.5" /> Kembangkan
+              </button>
               <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
               <button
                 type="button"
@@ -1425,7 +1436,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               {pdfButton('khutbah', 'Ringkasan Khotbah (02)', <Upload className="w-3.5 h-3.5" />)}
               {pdfButton('rhb', 'RHB 7 Hari (03)', <Upload className="w-3.5 h-3.5" />)}
             </div>
-            <p className="text-[11px] text-[#8C8880]">Tombol biru mengunggah ke Drive event minggu ini. Ikon unduh menyimpan PDF saja. RHB menghasilkan 7 file terpisah (Senin–Sabtu, plus hari ke-7).</p>
+            <p className="text-[11px] text-[#8C8880]">Tombol biru mengunggah ke Drive event minggu ini. Ikon unduh menyimpan PDF saja. RHB menghasilkan 7 file terpisah (Minggu–Sabtu).</p>
             {(Object.entries(studio.render || {}) as Array<[string, import('../../lib/didaskalia').DidaskaliaRenderMeta | undefined]>).map(([doc, meta]) => meta && (
               <p key={doc} className="text-[11px] text-[#8C8880]">
                 <span className="font-bold text-[#1B1B1B] uppercase">{doc}</span> v{meta.version} · {meta.files?.length || 0} file · {meta.renderedAt ? new Date(meta.renderedAt).toLocaleDateString('id-ID') : ''}

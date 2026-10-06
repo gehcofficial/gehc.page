@@ -81,6 +81,16 @@ describe('deck builders', () => {
     expect(deck[0].background).toBe(true);
   });
 
+  it('bagian B mengikuti pola ibadah pekan ini', () => {
+    const studio = studioWithRhb();
+    const fgd = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
+    expect(fgd.find((s) => s.id === 'b-fgd')?.title).toBe('Alur FGD Hari Minggu');
+    const debat = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, 'Debat', 'DEBAT'));
+    expect(debat.find((s) => s.id === 'b-fgd')?.title).toBe('Alur Debat Hari Minggu');
+    const unknown = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
+    expect(unknown.find((s) => s.id === 'b-fgd')?.title).toBe('Alur FGD Hari Minggu');
+  });
+
   it('summarizeWeek merangkum minggu untuk konteks kesinambungan', async () => {
     const { summarizeWeek } = await import('../../server/lib/didaskalia-ai.mjs');
     const studio = studioWithRhb();

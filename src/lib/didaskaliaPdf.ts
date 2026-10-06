@@ -240,6 +240,9 @@ export type PdfOptions = {
   khutbahSlideImages?: Record<number, string>;
   /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
   serviceType?: string | null;
+  /** Pola ibadah pekan ini — untuk judul Bagian B. */
+  patternCode?: string | null;
+  patternName?: string | null;
 };
 
 function weekMeta(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions) {
@@ -400,12 +403,17 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
   w.newPage();
   w.y = 22;
   w.label('Bagian B · Untuk Mentor & Co-Mentor', C.accent);
-  w.title('Alur FGD Hari Minggu', 20);
+  const isFgd = !opts.patternCode || String(opts.patternCode).toUpperCase() === 'MONOLOG';
+  w.title(isFgd ? 'Alur FGD Hari Minggu' : `Alur ${opts.patternName || 'Ibadah'} Hari Minggu`, 20);
   const flow = sermon.discussionFlow || [];
   if (flow.length) w.bullets(flow);
-  else {
+  else if (isFgd) {
     w.paragraph(
       'Buka dengan pertanyaan pemanasan yang dekat dengan tema, gali teks bersama, lalu tutup dengan penerapan nyata dan doa.'
+    );
+  } else {
+    w.paragraph(
+      `Ikuti skenario pola ${opts.patternName || 'ibadah pekan ini'} di atas, sesuaikan dengan tema dan audiens minggu ini, lalu tutup dengan komitmen dan doa.`
     );
   }
   const pathLines = studio.paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);

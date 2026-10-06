@@ -61,6 +61,8 @@ export type PresentationContent = {
   deliverer?: string;
   /** Nama pola ibadah pekan ini (untuk judul Bagian B). */
   patternName?: string;
+  /** Kode pola ibadah pekan ini (MONOLOG = alur FGD). */
+  patternCode?: string;
 };
 
 export type ParsedMaterialHash = {
@@ -188,12 +190,12 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       id: 'b-fgd',
       kind: 'section',
       kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: !content.patternName || content.patternName === 'Monolog & FGD (Standar)'
+      title: !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG'
         ? 'Alur FGD Hari Minggu'
-        : `Alur ${content.patternName} Hari Minggu`,
+        : `Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
       bullets: (sermon.discussionFlow || []).length
         ? sermon.discussionFlow
-        : (!content.patternName || content.patternName === 'Monolog & FGD (Standar)'
+        : (!content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG'
           ? [
               'Buka dengan pertanyaan pemanasan yang dekat dengan tema.',
               'Gali teks bersama (amati → pahami).',
@@ -337,7 +339,7 @@ export function delivererLabel(serviceType?: string | null): string {
 }
 
 /** Konten presentasi dari studio (live). */
-export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null, patternName?: string | null): PresentationContent {
+export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null, patternName?: string | null, patternCode?: string | null): PresentationContent {
   return {
     weekIndex,
     date,
@@ -350,6 +352,7 @@ export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, d
     images: studio.presentation || {},
     deliverer: delivererLabel(serviceType),
     patternName: patternName || undefined,
+    patternCode: patternCode || undefined,
   };
 }
 

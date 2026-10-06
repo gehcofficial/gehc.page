@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Guard kaya + preset Kembangkan + Bagian B ikut pola (5 Okt 2026)
+
+**Ubah:** `richnessCheck` + tolak approve bila section kosong (400 + daftar Path) + peringatan susut/di-bawah-300 di ringkasan HOD → tombol preset **Kembangkan** di tab diskusi (template instruksi satu klik) → `PdfOptions.patternCode/patternName`, judul Bagian B PDF mengikuti pola (fallback pola generik bila kosong), `contentFromStudio` + meta presentasi bawa `patternCode`, deck web pakai kode (bukan nama lama basi) → teks "Senin–Sabtu" jadi "Minggu–Sabtu".
+
+**Verifikasi:** `lint` bersih ✓ **758 test** hijau (+2) ✓ `build` OK ✓
+
+**Next:** commit + push staging & main.
+
 ## Current — RHB kaya-vs-tipis: anti-hilang + hari fix + reset prod (5 Okt 2026)
 
 **Diagnosis prod (data, bukan tebakan):** Okt W1 kaya (16544 char, 35/35, gen 2, diskusi 115 char) vs W2 tipis (1894 char, 20/35, gen 1, diskusi 1515 char) — korelasi volume catatan terkonfirmasi. Bonus: dayLabel bölgesel rusak (W1 Path 2 = "2026-10-05", Path 7 = "Saturday"; W2 = Senin..Minggu; Sep W4 Inggris semua) — penyebab: contoh skema enrich `"dayLabel":"Senin"` + nol normalisasi.

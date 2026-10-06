@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeRegenDiff, proposalFromDraft } from '../../server/lib/didaskalia-diff.mjs';
+import { computeRegenDiff, proposalFromDraft, richnessCheck, RHB_MIN_BODY_CHARS } from '../../server/lib/didaskalia-diff.mjs';
 import { defaultStudio, ensurePaths, ensureRhbSections, filterCommentsByScope, scopeLabel } from '../../src/lib/didaskalia';
 
 function studioBase() {
@@ -77,6 +77,25 @@ describe('proposalFromDraft (struktur dikunci)', () => {
     expect(prop.paths[0].rhbSections[0].body).toBe('Isi lama yang kaya dan panjang.');
     expect(prop.paths[1].rhbSections[0].body).toBe('Baru 1');
     expect(prop.sermon.summary).toBe('Ringkasan lama');
+  });
+
+  it('richnessCheck: kosong ditolak, di bawah standar dihitung', () => {
+    expect(RHB_MIN_BODY_CHARS).toBe(300);
+    const full = {
+      paths: Array.from({ length: 7 }, () => ({
+        rhbSections: Array.from({ length: 5 }, (_, si) => ({ key: `K${si}`, body: 'x'.repeat(400) })),
+      })),
+    };
+    const ok = richnessCheck(full);
+    expect(ok.empty).toHaveLength(0);
+    expect(ok.underStandard).toBe(0);
+    expect(ok.totalChars).toBe(7 * 5 * 400);
+    const thin = {
+      paths: [{ rhbSections: [{ key: 'A', body: '' }, { key: 'B', body: 'pendek' }] }],
+    };
+    const bad = richnessCheck(thin);
+    expect(bad.empty).toEqual([{ path: 1, key: 'A' }]);
+    expect(bad.underStandard).toBe(1);
   });
 
   it('peringatkan bila RHB menyusut >50%', () => {

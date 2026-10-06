@@ -26,7 +26,7 @@ import {
 } from '../lib/didaskalia-ai.mjs';
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 import { generateImageBase64 } from '../ai-provider.mjs';
-import { computeRegenDiff, proposalFromDraft } from '../lib/didaskalia-diff.mjs';
+import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
 
 const ymRe = /^\d{4}-\d{2}$/;
@@ -1035,6 +1035,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           theme: week.mentoringTheme || week.servingTheme || week.theme || '',
           serviceType: event?.serviceType || null,
           patternName: (await resolveWeekPattern(prisma, week)).name,
+          patternCode: String(week.patternCode || 'MONOLOG').toUpperCase(),
         },
         studio,
         published: studio.status === 'PUBLISHED' && Boolean(render),
@@ -1327,6 +1328,12 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     const before = sanitizeStudio(weekOrDefault(plan ? readWeeks(plan) : [], yearMonth, weekIndex).studio);
     const pending = before.pendingRegen;
     if (!pending || pending.status !== 'PENDING') return res.status(400).json({ error: 'Tidak ada pengajuan yang menunggu persetujuan.' });
+
+    const preRich = richnessCheck(pending.proposal || {});
+    if (preRich.empty.length) {
+      const where = preRich.empty.slice(0, 8).map((e) => `Path ${e.path} ${e.key}`).join(', ');
+      return res.status(400).json({ error: `Usulan ditolak otomatis: ${preRich.empty.length} section RHB kosong (${where}${preRich.empty.length > 8 ? ', …' : ''}). Minta AI melengkapi dulu atau isi manual.` });
+    }
 
     const saved = await saveStudioWeek(prisma, yearMonth, weekIndex, (w) => {
       const s = { ...w.studio };
