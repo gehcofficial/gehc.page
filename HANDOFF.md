@@ -36,7 +36,15 @@
 
 **Verifikasi akhir:** `lint` bersih ✓ **842 test** hijau (121 file) ✓
 
-**Next (butuh perintah):** merge `cursor/sprint-a-marturia-diakonia` → `main` (= deploy PROD, Vercel Production). Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
+**Next (butuh perintah):** Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
+
+## Current — Merge Sprint A ke main + deploy PROD (7 Okt 2026)
+
+**Jalan:** FF-merge `cursor/sprint-a-marturia-diakonia` (8 commit) → `main` (`b671b71..98a7250`) → push ✓ → migrasi prod 10 tabel duluan (non-destruktif, `db:migrate:marturia-diakonia-a:prod` 10/10 + `db:schema:check:prod` sinkron ✓) → Vercel Production auto-deploy.
+
+**Verifikasi prod:** `/api/version` = `98a7250` ✓ endpoint baru terdaftar & terkunci (shotlist + kost → 401 tanpa login, tanpa data uji ditulis) ✓
+
+**Catatan:** `staging:sync` (ref `staging` git) tidak dijalankan — staging Vercel sudah di depan via `deploy:staging`; jalankan bila perlu paritas ref.
 
 ## Current — Alihkan pola sesi di tempat (7 Okt 2026)
 
