@@ -10,6 +10,8 @@
 migrasi lokal + staging (3 tabel) ✓ QA E2E `scripts/qa-liturgy-live.mjs` vs API lokal
 **23/23 LULUS** (order CRUD + reorder, live kode 200/401, resolve lirik bersih,
 mysetting 2 akun +2/-1, ekspor asMe `[A]`, negatif 400, cleanup bersih) ✓
+migrasi **prod** 3 tabel (`db:migrate:liturgy-live:prod`) + `db:schema:check:prod` sinkron ✓
+(insiden toast "Tabel setting belum ada" di prod = migrasi tertunda; teratasi, tanpa ubah data lagu)
 
 **Next:** QA staging (5 momen, 2 lagu, 2 akun beda transpose, 1 layar + 1 HP) → migrasi prod → pakai perdana 1 ibadah nyata. Prasyarat: pemusik isi ChordPro lagu yang dipakai.
 

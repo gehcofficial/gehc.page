@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Copy, Loader2, RefreshCw } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
 import {
   KIND_LABEL,
   LivePayload,
@@ -9,10 +8,11 @@ import {
 
 /**
  * Kontrol tata ibadah — operator Liturgia (wajib login + peran tulis).
- * Rute `#/ibadah/<eventKey>/kontrol`.
+ * Rute `#/ibadah/<eventKey>/kontrol`. Standalone di luar portal shell
+ * (tanpa AppProvider — toast memakai state lokal, pola MentoringControl).
  */
 export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => {
-  const { addToast } = useApp();
+  const [notice, setNotice] = useState('');
   const [data, setData] = useState<LivePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,9 +57,9 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       if (d.state?.accessCode) setCode(d.state.accessCode);
       await load();
-      addToast({ type: 'success', title: ok });
+      setNotice(ok);
     } catch (e) {
-      addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
+      setNotice(`Gagal: ${e instanceof Error ? e.message : ''}`);
     } finally {
       setSaving(false);
     }
@@ -96,6 +96,9 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
         </div>
 
         {err && <p className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{err} (operator wajib login Liturgia/Komisi.)</p>}
+        {notice && (
+          <p className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700">{notice}</p>
+        )}
 
         <div className="p-3 rounded-2xl bg-white border border-[#D9D7D0] flex flex-wrap items-center gap-2">
           <button type="button" disabled={saving || !items.length} onClick={() => goItem(0)} className="px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
@@ -128,7 +131,7 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
             <code className="flex-1 truncate bg-[#FAF9F5] px-2 py-1 rounded-lg">{screenUrl}</code>
             <button
               type="button"
-              onClick={() => { void navigator.clipboard?.writeText(screenUrl); addToast({ type: 'success', title: 'Link layar disalin' }); }}
+              onClick={() => { void navigator.clipboard?.writeText(screenUrl); setNotice('Link layar disalin'); }}
               className="p-1.5 rounded-lg border border-[#D9D7D0]"
             >
               <Copy className="w-3.5 h-3.5" />
@@ -169,3 +172,5 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
     </div>
   );
 };
+
+export default LiturgyControl;

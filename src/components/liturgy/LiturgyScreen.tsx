@@ -189,3 +189,5 @@ const CurrentMoment: React.FC<{ item: NonNullable<LivePayload['items'][number]>;
     </div>
   );
 };
+
+export default LiturgyScreen;
