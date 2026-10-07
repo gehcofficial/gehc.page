@@ -80,13 +80,17 @@ async function main() {
   const eid = target.id;
   console.log(`  event: ${target.name} (${eid})`);
 
-  // 3. Shotlist: seed → list → toggle.
+  // 3. Shotlist: seed → list → toggle (hanya id BARU yang dilacak untuk cleanup).
+  const preList = await req('GET', `/api/events/${eid}/marturia/shotlist`, { session: sesMarturia });
+  const preIds = new Set((preList.data?.items || []).map((s) => s.id));
   const seed = await req('POST', `/api/events/${eid}/marturia/shotlist/seed`, { session: sesMarturia });
   check('seed shotlist → 200', seed.status === 200, `dapat ${seed.status}`);
   const list1 = await req('GET', `/api/events/${eid}/marturia/shotlist`, { session: sesMarturia });
   const shots = list1.data?.items || [];
   check('shotlist ≥6 item', shots.length >= 6, `dapat ${shots.length}`);
-  for (const s of shots) created.shots.push(s.id);
+  for (const s of shots) {
+    if (!preIds.has(s.id)) created.shots.push(s.id);
+  }
   const first = shots[0];
   const tog = await req('PATCH', `/api/marturia/shotlist/${first.id}`, { session: sesMarturia, body: { done: true } });
   check('toggle done → true', tog.status === 200 && tog.data?.item?.done === true, `dapat ${tog.status}`);
@@ -94,10 +98,10 @@ async function main() {
 
   // 4. Guard peran: MENTEE (tanpa COMMITTEE/divisi) tidak boleh tulis.
   // (BOD Tim Kerja tanpa divisi memang melihat semua panel — division-access.mjs.)
-  const sesMentee = await login(email('adriel.kadisihe'));
+  const sesMentee = await login(email('krisetia.mamoto')); // MENTEE-only + punya password lokal
   const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesMentee, body: { area: 'LOGISTIK', status: 'SIAP' } });
   check('MENTEE tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
-  const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesMentee, body: { item: 'x' } });
+  const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesMentee, body: { item: 'UJI-OTOMATIS-x' } });
   check('MENTEE tulis Marturia → 403', cross2.status === 403, `dapat ${cross2.status}`);
   const cross3 = await req('GET', '/api/diakonia/cases', { session: sesMentee });
   check('MENTEE baca kasus mercy → 200 termasking', cross3.status === 200 && cross3.data?.canSeeSubject === false, `dapat ${cross3.status}`);
@@ -158,6 +162,14 @@ async function main() {
 
   // 10. Bersih-bersih (atau --keep).
   if (!KEEP) {
+    // Sweep residu uji (item 'x' run lama + marker UJI-OTOMATIS) — jangan sentuh milik orang.
+    const sweep = await req('GET', `/api/events/${eid}/marturia/shotlist`, { session: sesMarturia });
+    for (const s of sweep.data?.items || []) {
+      if (s.item === 'x' || String(s.item).includes('UJI-OTOMATIS')) {
+        // eslint-disable-next-line no-await-in-loop
+        await req('DELETE', `/api/marturia/shotlist/${s.id}`, { session: sesMarturia });
+      }
+    }
     for (const id of created.shots) await req('DELETE', `/api/marturia/shotlist/${id}`, { session: sesMarturia });
     for (const id of created.assets) await req('DELETE', `/api/marturia/assets/${id}`, { session: sesMarturia });
     for (const id of created.souls) await req('DELETE', `/api/marturia/souls/${id}`, { session: sesMarturia });
