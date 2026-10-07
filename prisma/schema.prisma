@@ -2844,6 +2844,9 @@ model Song {
   story        String?  @db.MediumText
   /// Makna singkat lagu (1-2 kalimat, terkurasi tim).
   meaning      String?  @db.Text
+  /// Susunan default master (ordered, boleh berulang): [{section, key?, transpose?}].
+  /// Kosong = full master berurutan. Pemakaian per event (ServiceSong.sections) menang bila diisi.
+  arrangement  Json?
   /// GLOBAL = dipakai semua unit; selain itu tenantId pemilik.
   tenantScope  String   @default("GLOBAL") @map("tenant_scope") @db.VarChar(64)
   isActive     Boolean  @default(true) @map("is_active")

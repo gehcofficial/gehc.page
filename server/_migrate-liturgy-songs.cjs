@@ -79,8 +79,8 @@ const DDL = [
     console.log(`✓ tabel ${name} dibuat`);
   }
 
-  // Kolom kurasi bedah lagu (kisah + makna) — idempotent.
-  for (const [col, def] of [['story', 'MEDIUMTEXT NULL'], ['meaning', 'TEXT NULL']]) {
+  // Kolom kurasi bedah lagu (kisah + makna) + susunan default master — idempotent.
+  for (const [col, def] of [['story', 'MEDIUMTEXT NULL'], ['meaning', 'TEXT NULL'], ['arrangement', 'JSON NULL']]) {
     const [c] = await conn.query(
       `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'songs' AND COLUMN_NAME = ?`,
       [col],

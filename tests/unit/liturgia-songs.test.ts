@@ -19,6 +19,7 @@ import {
   buildChordProExport,
   buildFreeShowPayload,
   buildQuickLyrics as serverQuickLyrics,
+  effectiveArrangement as serverEffectiveArrangement,
   normalizeArrangement as serverNormalizeArrangement,
   normalizeServiceSongInput,
   normalizeSongInput,
@@ -294,5 +295,58 @@ describe('liturgia-songs: tab chord (chord di atas lirik)', () => {
 
   it('stripChords membuang baris direktif', () => {
     expect(stripChords('[Chorus]\n{comment: Modulasi ke D}\n[G]Amin')).toBe('[Chorus]\n\nAmin');
+  });
+});
+
+describe('liturgia-songs: susunan default master', () => {
+  const SONG = {
+    title: 'T',
+    defaultKey: 'G',
+    lyricsChordPro: SAMPLE,
+    arrangement: [{ section: 'Chorus' }, { section: 'Verse 1' }],
+  };
+
+  it('PUT lagu menerima + memvalidasi arrangement', () => {
+    const d = normalizeSongInput({
+      title: 'T',
+      lyricsChordPro: SAMPLE,
+      arrangement: [{ section: 'Chorus' }, 'Verse 1'],
+    });
+    expect(d.arrangement).toEqual([
+      { section: 'Chorus', key: null, transpose: null },
+      { section: 'Verse 1', key: null, transpose: null },
+    ]);
+    expect(() => normalizeSongInput({ title: 'T', lyricsChordPro: SAMPLE, arrangement: ['Bridge'] }))
+      .toThrow('Bagian tak dikenal');
+    // Tanpa lirik (master kosong) + susunan → ditolak juga
+    expect(() => normalizeSongInput({ title: 'T', arrangement: ['Chorus'] })).toThrow();
+  });
+
+  it('arrangement null/bermasalah = dibersihkan (bukan error)', () => {
+    expect(normalizeSongInput({ title: 'T', arrangement: null }).arrangement).toBeNull();
+    expect(normalizeSongInput({ title: 'T', arrangement: 'acak' }).arrangement).toBeNull();
+  });
+
+  it('serializeSong membawa arrangement ternormalisasi', () => {
+    expect(serializeSong({ title: 'T', arrangement: [{ section: 'Chorus' }] }).arrangement).toEqual([
+      { section: 'Chorus', key: null, transpose: null },
+    ]);
+    expect(serializeSong({ title: 'T', arrangement: '[{"section":"Verse 1"}]' }).arrangement).toEqual([
+      { section: 'Verse 1', key: null, transpose: null },
+    ]);
+    expect(serializeSong({ title: 'T' }).arrangement).toBeNull();
+  });
+
+  it('efektif: pemakaian > master > null (paritas server)', () => {
+    expect(serverEffectiveArrangement(SONG, [{ section: 'Verse 1' }])?.map((e) => e.section)).toEqual(['Verse 1']);
+    expect(serverEffectiveArrangement(SONG, null)?.map((e) => e.section)).toEqual(['Chorus', 'Verse 1']);
+    expect(serverEffectiveArrangement({ title: 'X' }, null)).toBeNull();
+  });
+
+  it('ekspor mengikuti susunan master bila pemakaian kosong', () => {
+    const q = serverQuickLyrics(SONG, { sections: null, transpose: 0, baseKey: 'G' });
+    expect(q.indexOf('Besar setia-Mu')).toBeLessThan(q.indexOf('Kasih setia-Mu'));
+    const c = buildChordProExport(SONG, { sections: null, transpose: 0, baseKey: 'G' });
+    expect(c.indexOf('[Chorus]')).toBeLessThan(c.indexOf('[Verse 1]'));
   });
 });

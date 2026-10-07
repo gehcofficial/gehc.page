@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Editor master batch + susunan default master (7 Okt 2026)
+
+**Kebutuhan:** perubahan lagu jangan langsung tersimpan (adjust dulu, baru Simpan/Terapkan); susunan main di level master (V1-C-V2-C…); tab Chord = lirik + baris kosong di atasnya siap ketik chord; transpose berlaku untuk semua chord + rewrite nada dasar.
+
+**Ubah:** migrasi `songs.arrangement` JSON NULL (idempoten, lokal+staging+prod) + Prisma → `normalizeSongInput` terima + validasi susunan vs master (400 bila basi) + `serializeSong` bawa arrangement → `effectiveArrangement` (pemakaian > master > null, paritas server↔klien) dipakai builder ChordPro/Quick Lyrics/`.show`, preview panel, ringkasan (`master:`), `resolveLyrics` layar → `SongMasterEditor` baru (4 tab Lirik/Susunan/Chord/Nada, draft lokal + badge belum-tersimpan + Batal + validasi blokir; tab Chord = input per baris via `chordLyricPairs`/`applyChordLine`; tab Nada rewrite ke kunci tampil saat Simpan) gantikan form inline panel (story/meaning dipertahankan) → lib `chordLyricPairs/applyChordLine/findSuspectChords` → test editor (+~12) + server arrangement (+5).
+
+**Verifikasi:** `lint` bersih ✓ **917 test** hijau ✓ `build` OK ✓ QA `qa-song-master.mjs` **9/9** (buat+susunan, tolak basi 400, ekspor ikut master, override pemakaian menang, bersih) ✓
+
+**Next:** QA visual editor di staging (1 lagu himne full) → commit + push + sync → migrasi prod → pemusik isi lagu susunan perdana.
+
 ## Current — Susunan main + tab Chord + modulasi (7 Okt 2026)
 
 **Kebutuhan:** lirik full sebagai reference (Ku Berbahagia: semua verse+chorus); susunan ala ProPresenter (V1+C saja atau full, urutan bebas); tab chord terpisah (chord di atas lirik); transpose × capo digabung; modulasi + titik pindah kunci.

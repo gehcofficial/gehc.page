@@ -121,14 +121,35 @@ npm run db:seed:liturgia-songs:prod
 - **Nada dasar / key picker:** `defaultKey` = kunci partitur tersimpan;
   dropdown **Main di…** menghitung `transposeSteps(nadaDasar, target)`
   otomatis (0–11 ke atas; nama chord identik mod 12, mis. G→D = +7).
-  Satu-satunya kontrol geser nada = stepper **Nada ±** (−11…+11);
-  **capo hanya anotasi** (tampil + bisa dihapus, tak menggeser chord).
-  Personal per pemusik via **Chord saya** (nada saja + anotasi capo).
+  Tampilan kunci efektif: `transposeKey(nadaDasar, transpose)`.
+  Personal per pemusik via **Chord saya** (tak berubah).
 - **FreeShow:** jalur utama = impor file ChordPro di FreeShow
-  (File → Import → hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
+  (File → Import — hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
   dari GEHC = jalan pintas (slide per bagian, layout default); bait sangat
-  panjang bisa terpotong berbeda vs importer asli → pecah jadi 2 bagian
+  panjang bisa terpotong berbeda vs importer asli — pecah jadi 2 bagian
   bila perlu.
+
+## 9. Editor master batch + susunan default master
+
+- **Batch, bukan live:** `SongMasterEditor` (4 tab: Lirik, Susunan, Chord,
+  Nada) mengedit DRAFT lokal; satu tombol **Simpan** = satu PUT/POST.
+  Indikator "belum tersimpan", tombol Batal, validasi blokir Simpan
+  (judul wajib, susunan tak dikenal, lirik di sekuler). Kontrol setlist
+  (transpose −/+, susunan per event, reorder) tetap live.
+- **Susunan default master** (`songs.arrangement`, JSON NULL, migrasi
+  idempoten): urutan main baku per lagu (boleh berulang + modulasi per
+  baris, mis. V1-C-V2-C). Kosong = full master berurutan.
+- **Precedence tampil/ekspor/layar:** `ServiceSong.sections` (per event,
+  bila diisi) → `Song.arrangement` → full master (`effectiveArrangement`,
+  paritas server↔klien). Ringkasan baris setlist berawalan `master:` bila
+  dari default master.
+- **Tab Chord editor:** tiap baris lirik punya input chord di atasnya
+  (`chordLyricPairs` + `applyChordLine` posisional); tersimpan ke draft
+  per ketikan, ke server hanya via Simpan.
+- **Tab Nada + rewrite:** pilih kunci tampil ≠ nada dasar → pratinjau
+  transpose seluruh lagu; saat Simpan, chord ditulis ulang
+  (`transposeChordPro`) dan `defaultKey` = kunci tampil. Modulasi absolut
+  per baris dan offset relatif tetap valid.
 
 ## 9. Bedah lagu kontekstual + berkisah (MONOLOG)
 

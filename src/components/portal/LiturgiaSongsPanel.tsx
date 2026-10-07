@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, Download, Loader2, Music, Pencil, Plus, Search, Trash2, Wand2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, Copy, Download, Loader2, Music, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { SongMasterEditor, type MasterSavePayload } from './SongMasterEditor';
 import {
   PICKER_KEYS,
-  SECTION_TEMPLATES,
   buildQuickLyrics,
-  compileChordOverLyrics,
+  effectiveArrangement,
   normalizeArrangement,
   parseSections,
   renderChordOverLyrics,
@@ -34,6 +34,7 @@ type Song = {
   ccli?: string | null;
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
+  arrangement?: Array<string | { section: string; key?: string | null; transpose?: number | null }> | null;
   story?: string | null;
   meaning?: string | null;
   sections: string[];
@@ -52,20 +53,21 @@ type SetItem = {
   song?: Song | null;
 };
 
-/** Susunan efektif: arrangement tersimpan, atau full master bila kosong. */
+/** Susunan efektif: pemakaian per event → default master → full master. */
 function effectiveEntries(item: SetItem): ArrangementEntry[] {
-  const norm = normalizeArrangement(item.sections);
-  if (norm && norm.length) return norm;
+  const eff = effectiveArrangement(item.song, item.sections);
+  if (eff && eff.length) return eff;
   return (item.song?.sections || []).map((name) => ({ section: name, key: null, transpose: null }));
 }
 
 /** Ringkasan susunan untuk baris info (V1·C·V2·C, panah = modulasi). */
 function arrangementSummary(item: SetItem): string | null {
-  if (!item.sections?.length) return null;
-  const norm = normalizeArrangement(item.sections);
-  if (!norm) return null;
+  const eff = effectiveArrangement(item.song, item.sections);
+  if (!eff) return null;
+  const fromMaster = !normalizeArrangement(item.sections)?.length;
   const short = (s: string) => s.replace(/^verse\s*/i, 'V').replace(/^chorus/i, 'C').replace(/^pre-chorus/i, 'Pre').replace(/^bridge/i, 'B').replace(/^intro/i, 'I').replace(/^outro/i, 'O').replace(/^interlude/i, 'Inter').replace(/^ending/i, 'End').replace(/^tag/i, 'Tag').replace(/^coda/i, 'Coda');
-  return norm.map((e) => (e.key ? `${short(e.section)}→${e.key}` : short(e.section))).join('·');
+  const body = eff.map((e) => (e.key ? `${short(e.section)}→${e.key}` : short(e.section))).join('·');
+  return fromMaster ? `master: ${body}` : body;
 }
 
 const ARR_PRESETS: Array<{ label: string; pick: RegExp[] }> = [
@@ -249,23 +251,9 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'chord' | 'lirik'>('chord');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const chordRef = useRef<HTMLTextAreaElement | null>(null);
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [mySetting, setMySetting] = useState<{ transpose: number; capo: number | null } | null>(null);
   const [useMine, setUseMine] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    source: 'LOKAL',
-    sourceRef: '',
-    sourceUrl: '',
-    authors: '',
-    copyright: '',
-    ccli: '',
-    defaultKey: '',
-    lyricsChordPro: '[Verse 1]\n[C]Tulis lirik di sini [G]...\n\n[Chorus]\n[F]... [C]...',
-    story: '',
-    meaning: '',
-  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -340,7 +328,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     const key = openItem.baseKey || openItem.song.defaultKey || 'C';
     const body = renderSelectedSections(
       openItem.song.lyricsChordPro || '',
-      openItem.sections ?? null,
+      effectiveArrangement(openItem.song, openItem.sections ?? null),
       effTranspose,
       key,
       view === 'chord',
@@ -400,22 +388,22 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     );
   };
 
-  const createSong = async () => {
-    if (!form.title.trim()) {
+  /** Simpan batch dari SongMasterEditor: satu POST (baru) / PUT (edit). */
+  const saveMaster = async (payload: MasterSavePayload) => {
+    if (!payload.title.trim()) {
       addToast({ type: 'error', title: 'Judul lagu wajib' });
       return;
     }
     setSaving(true);
     try {
-      const payload = { ...form, sourceRef: form.sourceRef || null, defaultKey: form.defaultKey || null };
-      if (editingId) {
-        const d = await api<{ song: Song }>(`/api/songs/${editingId}`, {
+      if (editingSong) {
+        const d = await api<{ song: Song }>(`/api/songs/${editingSong.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         addToast({ type: 'success', title: `Lirik "${d.song?.title || ''}" diperbarui` });
-        setEditingId(null);
+        setEditingSong(null);
         setShowCreate(false);
         await searchLib();
         await load();
@@ -426,7 +414,6 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
           body: JSON.stringify(payload),
         });
         setShowCreate(false);
-        setForm({ ...form, title: '', sourceRef: '', lyricsChordPro: '' });
         await searchLib();
         if (d.song?.id) await addSong(d.song.id);
       }
@@ -437,42 +424,11 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     }
   };
 
-  /** Muat lagu pustaka/setlist ke editor untuk diisi lirik + chord. */
+  /** Muat lagu pustaka/setlist ke editor batch. */
   const loadIntoForm = (s: Song) => {
-    setForm({
-      title: s.title || '',
-      source: s.source || 'LOKAL',
-      sourceRef: s.sourceRef || '',
-      sourceUrl: s.sourceUrl || '',
-      authors: s.authors || '',
-      copyright: s.copyright || '',
-      ccli: s.ccli || '',
-      defaultKey: s.defaultKey || '',
-      lyricsChordPro: s.lyricsChordPro || '',
-      story: s.story || '',
-      meaning: s.meaning || '',
-    });
-    setEditingId(s.id);
+    setEditingSong(s);
     setShowCreate(true);
     setShowLib(false);
-  };
-
-  /** Sisipkan template bagian pada posisi kursor textarea chord. */
-  const insertTemplate = (name: string) => {
-    const ta = chordRef.current;
-    const snippet = `\n[${name}]\n`;
-    if (!ta) {
-      setForm({ ...form, lyricsChordPro: `${form.lyricsChordPro || ''}${snippet}` });
-      return;
-    }
-    const start = ta.selectionStart ?? (form.lyricsChordPro || '').length;
-    const end = ta.selectionEnd ?? start;
-    const cur = form.lyricsChordPro || '';
-    setForm({ ...form, lyricsChordPro: `${cur.slice(0, start)}${snippet}${cur.slice(end)}` });
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = ta.selectionEnd = start + snippet.length;
-    });
   };
 
   return (
@@ -486,7 +442,14 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
         <button type="button" onClick={() => setShowLib((v) => !v)} className={btnGhost}>
           <Search className="w-3 h-3" /> {showLib ? 'Tutup pustaka' : 'Cari pustaka'}
         </button>
-        <button type="button" onClick={() => setShowCreate((v) => !v)} className={btnGhost}>
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSong(null);
+            setShowCreate(true);
+          }}
+          className={btnGhost}
+        >
           <Plus className="w-3 h-3" /> Lagu baru
         </button>
         <a href={`/api/events/${eventId}/songs/export`} target="_blank" rel="noreferrer" className={btnGhost} title="Payload FreeShow API-ready (JSON)">
@@ -495,80 +458,31 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
       </div>
 
       {showCreate && (
-        <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] grid gap-2 md:grid-cols-2">
-          <div className="md:col-span-2 flex items-center gap-2">
-            <span className="text-xs font-black text-[#1B1B1B]">
-              {editingId ? 'Isi lirik + chord (perbarui pustaka)' : 'Lagu baru'}
-            </span>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ ...form, title: '', sourceRef: '', lyricsChordPro: '' });
-                }}
-                className={btnGhost}
-              >
-                Batal edit
-              </button>
-            )}
-          </div>
-          <input className={inputCls} placeholder="Judul lagu *" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <div className="flex gap-2">
-            <select className={inputCls} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-              <option value="HIMNE_KJ">Himne KJ</option>
-              <option value="HIMNE_NKB">Himne NKB</option>
-              <option value="HIMNE_NNBT">Himne NNBT (GMIM)</option>
-              <option value="HIMNE_PKJ">Himne PKJ</option>
-              <option value="KLIK">KLIK (GMIM)</option>
-              <option value="KONTEMPORER">Kontemporer</option>
-              <option value="LOKAL">Lokal / tim sendiri</option>
-              <option value="SEKULER">Sekuler (momen bebas saja)</option>
-            </select>
-            <input className={inputCls} placeholder="Ref: KJ 478 / CCLI" value={form.sourceRef} onChange={(e) => setForm({ ...form, sourceRef: e.target.value })} />
-          </div>
-          <input className={inputCls} placeholder="Link SABDA / SongSelect" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} />
-          <input className={inputCls} placeholder="Pencipta *" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} />
-          <input className={inputCls} placeholder="Copyright / CCLI" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
-          <div className="flex gap-2">
-            <input className={inputCls} placeholder="CCLI no." value={form.ccli} onChange={(e) => setForm({ ...form, ccli: e.target.value })} />
-            <select className={inputCls} title="Nada dasar partitur" value={form.defaultKey} onChange={(e) => setForm({ ...form, defaultKey: e.target.value })}>
-              <option value="">Nada dasar…</option>
-              {PICKER_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </div>
-          <textarea className={`${inputCls} md:col-span-2`} rows={3} placeholder="Kisah di balik lagu (terkurasi — tampil di bedah lagu bila lagu ini dipilih)" value={form.story} onChange={(e) => setForm({ ...form, story: e.target.value })} />
-          <textarea className={`${inputCls} md:col-span-2`} rows={2} placeholder="Makna singkat lagu (1-2 kalimat, terkurasi)" value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} />
-          <div className="md:col-span-2 flex flex-wrap gap-1.5 items-center">
-            <span className="text-[10px] font-bold text-[#8C8880]">Bagian:</span>
-            {SECTION_TEMPLATES.slice(0, 8).map((t) => (
-              <button key={t} type="button" onClick={() => insertTemplate(t)} className={btnGhost} title={`Sisipkan [${t}]`}>
-                [{t}]
-              </button>
-            ))}
-            <span className="flex-1" />
-            <button
-              type="button"
-              title="Gabungkan baris chord di atas lirik menjadi inline [C]"
-              onClick={() => setForm({ ...form, lyricsChordPro: compileChordOverLyrics(form.lyricsChordPro || '') })}
-              className={btnGhost}
-            >
-              <Wand2 className="w-3 h-3" /> Gabungkan chord di atas
-            </button>
-          </div>
-          <textarea ref={chordRef} className={`${inputCls} md:col-span-2 font-mono`} rows={8} placeholder={'[Verse 1]\n[C]Tulis lirik di sini [G]...\n\natau tulis chord di baris atas, lirik di bawahnya — lalu klik "Gabungkan chord di atas"'} value={form.lyricsChordPro} onChange={(e) => setForm({ ...form, lyricsChordPro: e.target.value })} />
-          <div className="md:col-span-2 flex gap-2">
-            <button type="button" onClick={() => void createSong()} disabled={saving} className={btnDark}>
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : editingId ? <Pencil className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-              {editingId ? 'Perbarui lagu' : 'Simpan & masukkan ke setlist'}
-            </button>
-            <p className="text-[11px] text-[#8C8880] self-center">
-              {form.source === 'SEKULER'
-                ? 'Sekuler: wajib pencipta + link/tautan hak cipta, tanpa lirik (momen bebas/bedah-lagu saja).'
-                : 'Tulis lirik per bait + chord inline [C]. Chord boleh ditulis di baris atas lirik lalu digabungkan.'}
-            </p>
-          </div>
-        </div>
+        <SongMasterEditor
+          key={editingSong?.id || 'baru'}
+          initial={editingSong}
+          saving={saving}
+          submitLabel={editingSong ? 'Simpan perubahan' : 'Simpan & masukkan ke setlist'}
+          onCancel={() => {
+            setEditingSong(null);
+            setShowCreate(false);
+          }}
+          onSave={(payload) => void saveMaster(payload)}
+        />
+      )}
+      {null}
+      {showCreate && (
+        <SongMasterEditor
+          key={editingSong?.id || 'baru'}
+          initial={editingSong}
+          saving={saving}
+          submitLabel={editingSong ? 'Simpan perubahan' : 'Simpan & masukkan ke setlist'}
+          onCancel={() => {
+            setEditingSong(null);
+            setShowCreate(false);
+          }}
+          onSave={(payload) => void saveMaster(payload)}
+        />
       )}
 
       {showLib && (

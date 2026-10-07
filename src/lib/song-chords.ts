@@ -18,6 +18,8 @@ export type SongLite = {
   ccli?: string | null;
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
+  /** Susunan default master; string JSON ikut diterima (baris DB mentah). */
+  arrangement?: ArrangementEntryInput[] | string | null;
 };
 
 export type ServiceSongLite = {
@@ -156,6 +158,34 @@ export function normalizeArrangement(input: unknown): ArrangementEntry[] | null 
     if (n) out.push(n);
   }
   return out.length ? out : null;
+}
+
+function asArrangementArray(v: unknown): ArrangementEntryInput[] | null {
+  if (Array.isArray(v)) return v as ArrangementEntryInput[];
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(v);
+      return Array.isArray(parsed) ? (parsed as ArrangementEntryInput[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Susunan efektif tampil/ekspor: pemakaian per event menang,
+ * lalu susunan default master, lalu full master (null).
+ */
+export function effectiveArrangement(
+  song?: SongLite | null,
+  usageSections?: ArrangementEntryInput[] | null,
+): ArrangementEntry[] | null {
+  const u = normalizeArrangement(usageSections ?? null);
+  if (u && u.length) return u;
+  const m = normalizeArrangement(asArrangementArray(song?.arrangement ?? null));
+  if (m && m.length) return m;
+  return null;
 }
 
 function transposeLines(lines: string[], steps: number): string[] {
@@ -313,7 +343,7 @@ export function buildQuickLyrics(song: SongLite, usage?: ServiceSongLite | null)
   lines.push('');
   const body = renderSelectedSections(
     String(song.lyricsChordPro || ''),
-    usage?.sections ?? null,
+    effectiveArrangement(song, usage?.sections ?? null),
     usage?.transpose || 0,
     key || 'C',
   );
@@ -345,7 +375,7 @@ export function buildFreeShow(song: SongLite, usage?: ServiceSongLite | null) {
   const key = usage?.baseKey || song.defaultKey || '';
   const entries = resolveArrangement(
     String(song.lyricsChordPro || ''),
-    usage?.sections ?? null,
+    effectiveArrangement(song, usage?.sections ?? null),
     usage?.transpose || 0,
     key || 'C',
   );
@@ -399,6 +429,97 @@ export function buildFreeShow(song: SongLite, usage?: ServiceSongLite | null) {
 /** Prompt yang bisa ditempel ke FreeShow via `CTRL+ALT+I` tidak tersedia di API. */
 export function freeshowPushHint(): string {
   return 'Impor file: FreeShow → File → Import → ChordPro / Quick Lyrics (CTRL+ALT+I). API lokal http://localhost:5506 siap menerima payload buildFreeShow().';
+}
+
+export type ChordLyricRow = {
+  key: string;
+  kind: 'header' | 'pair' | 'blank';
+  /** Indeks baris sumber dalam teks (untuk tulis-balik edit chord). */
+  li: number;
+  section: string | null;
+  chord: string;
+  lyric: string;
+};
+
+/**
+ * Uraikan ChordPro menjadi baris edit tab Chord: tiap baris lirik
+ * dipasangkan dengan baris chord sejajar (siap ketik; kosong bila belum ada).
+ */
+export function chordLyricPairs(text: string): ChordLyricRow[] {
+  const rows: ChordLyricRow[] = [];
+  let section: string | null = null;
+  let n = 0;
+  const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+  for (let li = 0; li < lines.length; li += 1) {
+    const rawLine = lines[li];
+    const m = SECTION_LINE_RE.exec(rawLine);
+    if (m && !isChordToken(m[1])) {
+      section = m[1].trim();
+      rows.push({ key: `h-${n++}`, kind: 'header', li, section, chord: '', lyric: '' });
+      continue;
+    }
+    if (!rawLine.trim()) {
+      rows.push({ key: `b-${n++}`, kind: 'blank', li, section, chord: '', lyric: '' });
+      continue;
+    }
+    const cleanChars: string[] = [];
+    const marks: Array<{ pos: number; token: string }> = [];
+    const re = /\[([^\]\n]+)\]/g;
+    let last = 0;
+    let mm: RegExpExecArray | null;
+    while ((mm = re.exec(rawLine)) !== null) {
+      for (const ch of rawLine.slice(last, mm.index)) cleanChars.push(ch);
+      if (isChordToken(mm[1])) {
+        marks.push({ pos: cleanChars.length, token: mm[1] });
+      } else {
+        for (const ch of mm[0]) cleanChars.push(ch);
+      }
+      last = mm.index + mm[0].length;
+    }
+    for (const ch of rawLine.slice(last)) cleanChars.push(ch);
+    const chordChars: string[] = [];
+    for (const { pos, token } of marks) {
+      while (chordChars.length < pos) chordChars.push(' ');
+      for (const ch of token) chordChars.push(ch);
+    }
+    rows.push({ key: `l-${n++}`, kind: 'pair', li, section, chord: chordChars.join('').trimEnd(), lyric: cleanChars.join('') });
+  }
+  return rows;
+}
+
+/**
+ * Terapkan baris chord ketikan ke satu baris lirik inline:
+ * chord lama dibuang, chord baru disisipkan posisional. Token bukan
+ * chord diabaikan (dibusukkan diam-diam — validasi terpisah).
+ */
+export function applyChordLine(lyricInline: string, chordText: string): string {
+  const clean = String(lyricInline || '').replace(
+    /\[([^\]\n]+)\]/g,
+    (full, token: string) => (isChordToken(String(token)) ? '' : full),
+  );
+  const toks = chordTokensWithIndex(chordText).filter((t) => isChordToken(t.token));
+  if (!toks.length) return clean;
+  const sorted = [...toks].sort((a, b) => b.index - a.index);
+  let out = clean;
+  for (const { token, index } of sorted) {
+    const at = Math.max(0, Math.min(index, out.length));
+    out = `${out.slice(0, at)}[${token}]${out.slice(at)}`;
+  }
+  return out;
+}
+
+/** Token chord tak dikenal dalam teks (untuk validasi editor, bukan blokir). */
+export function findSuspectChords(text: string): string[] {
+  const bad = new Set<string>();
+  for (const rawLine of String(text || '').split('\n')) {
+    if (SECTION_LINE_RE.test(rawLine)) continue;
+    const re = /\[([^\]\n]+)\]/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(rawLine)) !== null) {
+      if (!isChordToken(m[1])) bad.add(m[1]);
+    }
+  }
+  return [...bad].slice(0, 10);
 }
 
 // ---------------- Editor ChordPro v2: template bagian + nada dasar ----------------

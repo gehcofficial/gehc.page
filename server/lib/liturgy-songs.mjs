@@ -307,6 +307,16 @@ export function normalizeSongInput(body, existing = null) {
     const v = b.lyricsChordPro === null ? null : String(b.lyricsChordPro).slice(0, 60000);
     data.lyricsChordPro = v && v.trim() ? v : null;
   }
+  if (b.arrangement !== undefined) {
+    const norm = Array.isArray(b.arrangement) ? normalizeArrangement(b.arrangement) : null;
+    if (norm && norm.length) {
+      const masterLyrics = data.lyricsChordPro !== undefined
+        ? data.lyricsChordPro
+        : existing?.lyricsChordPro ?? existing?.lyrics_chord_pro ?? null;
+      validateArrangementSections(norm, parseSections(masterLyrics || '').map((s) => s.name));
+    }
+    data.arrangement = norm && norm.length ? norm : null;
+  }
   if (b.tenantScope !== undefined) data.tenantScope = str(b.tenantScope, 64) || 'GLOBAL';
   else if (!existing) data.tenantScope = 'GLOBAL';
   if (b.story !== undefined) {
@@ -363,6 +373,12 @@ export function normalizeServiceSongInput(body) {
 
 export function serializeSong(row) {
   if (!row) return null;
+  let arrangement = null;
+  try {
+    const raw = row.arrangement;
+    const arr = Array.isArray(raw) ? raw : (typeof raw === 'string' && raw.trim() ? JSON.parse(raw) : null);
+    arrangement = normalizeArrangement(arr);
+  } catch { arrangement = null; }
   return {
     id: row.id,
     title: row.title,
@@ -375,6 +391,7 @@ export function serializeSong(row) {
     defaultKey: row.defaultKey ?? null,
     tempo: row.tempo ?? null,
     lyricsChordPro: row.lyricsChordPro ?? null,
+    arrangement,
     story: row.story ?? null,
     meaning: row.meaning ?? null,
     sections: parseSections(row.lyricsChordPro || '').map((s) => s.name),
@@ -412,13 +429,29 @@ export function serializeServiceSong(row, songRow = null) {
   };
 }
 
+/**
+ * Susunan efektif tampil/ekspor: pemakaian per event menang,
+ * lalu susunan default master, lalu full master (null).
+ */
+export function effectiveArrangement(song, usageSections) {
+  const u = normalizeArrangement(Array.isArray(usageSections) ? usageSections : null);
+  if (u && u.length) return u;
+  let raw = song?.arrangement ?? null;
+  if (typeof raw === 'string' && raw.trim()) {
+    try { raw = JSON.parse(raw); } catch { raw = null; }
+  }
+  const m = normalizeArrangement(Array.isArray(raw) ? raw : null);
+  if (m && m.length) return m;
+  return null;
+}
+
 /** Payload siap dorong ke FreeShow lokal (POST http://localhost:5506). */
 export function buildFreeShowPayload(song, usage) {
   const u = usage || {};
   const key = u.baseKey || song.defaultKey || '';
   const entries = resolveArrangement(
     String(song.lyricsChordPro || ''),
-    u.sections,
+    effectiveArrangement(song, u.sections),
     u.transpose || 0,
     key || 'C',
   );
@@ -481,7 +514,7 @@ export function buildQuickLyrics(song, usage) {
   lines.push('');
   const body = renderSelectedSections(
     String(song.lyricsChordPro || ''),
-    u.sections,
+    effectiveArrangement(song, u.sections),
     u.transpose || 0,
     key || 'C',
   );
@@ -502,7 +535,7 @@ export function buildChordProExport(song, usage) {
   ].filter(Boolean);
   const body = renderSelectedSections(
     String(song.lyricsChordPro || ''),
-    u.sections,
+    effectiveArrangement(song, u.sections),
     u.transpose || 0,
     u.baseKey || song.defaultKey || 'C',
     true,

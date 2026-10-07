@@ -7,6 +7,7 @@
 import crypto from 'node:crypto';
 import {
   MOMENTS,
+  effectiveArrangement,
   parseSections,
   renderSelectedSections,
   resolveArrangement,
@@ -164,7 +165,7 @@ export function resolveLyrics(orderItem, songRow = null, serviceSongRow = null) 
   const usage = { sections: serviceSongRow?.sections ?? null };
   let sections = [];
   try {
-    sections = resolveArrangement(String(song.lyricsChordPro || ''), usage.sections)
+    sections = resolveArrangement(String(song.lyricsChordPro || ''), effectiveArrangement(song, usage.sections))
       .map((s) => ({
         name: s.label,
         lines: s.lines.map((l) => stripChords(l).trim()).filter((l) => l.length > 0),
