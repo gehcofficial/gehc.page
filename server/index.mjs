@@ -4794,6 +4794,11 @@ app.post('/api/register/google', wrap(async (req, res) => {
       });
     }
 
+    // Funnel Marturia: pendaftar via link referral tercatat sebagai jiwa BARU.
+    void import('./lib/marturia-funnel.mjs').then((m) =>
+      m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name }),
+    ).catch(() => null);
+
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
       status,
@@ -4920,6 +4925,11 @@ app.post('/api/register/local', wrap(async (req, res) => {
         url: '#/portal/komisi/onboarding',
       });
     }
+
+    // Funnel Marturia: pendaftar via link referral tercatat sebagai jiwa BARU.
+    void import('./lib/marturia-funnel.mjs').then((m) =>
+      m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name }),
+    ).catch(() => null);
 
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({

@@ -24,13 +24,20 @@ export const MarturiaDesainTab: React.FC<{ eventId: string }> = ({ eventId }) =>
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
   const [versionUrl, setVersionUrl] = useState<Record<string, string>>({});
+  const [requesterFilter, setRequesterFilter] = useState('');
+  const [templates, setTemplates] = useState<Array<{ id: string; title: string; kind: string; url: string }>>([]);
+  const [tplTitle, setTplTitle] = useState('');
+  const [tplUrl, setTplUrl] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/marturia/assets`, { credentials: 'include' });
-      const d = await r.json().catch(() => ({}));
-      setItems(d.items || []);
+      const [a, t] = await Promise.all([
+        fetch(`/api/events/${encodeURIComponent(eventId)}/marturia/assets`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { items: [] })),
+        fetch('/api/marturia/templates', { credentials: 'include' }).then((r) => (r.ok ? r.json() : { items: [] })).catch(() => ({ items: [] })),
+      ]);
+      setItems(a.items || []);
+      setTemplates(t.items || []);
     } finally {
       setLoading(false);
     }
@@ -92,17 +99,58 @@ export const MarturiaDesainTab: React.FC<{ eventId: string }> = ({ eventId }) =>
         </div>
       </div>
 
+      <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
+        <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Brand kit (pakai ulang)</p>
+        <div className="mt-2 space-y-1.5">
+          {templates.map((t) => (
+            <a key={t.id} href={t.url} target="_blank" rel="noopener noreferrer" className="block text-[11px] font-bold text-sky-700 hover:underline">
+              [{t.kind}] {t.title} ↗
+            </a>
+          ))}
+          {templates.length === 0 && <p className="text-[11px] text-[#8C8880]">Belum ada template. Tambahkan kanvas/Figma master di bawah.</p>}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input value={tplTitle} onChange={(e) => setTplTitle(e.target.value)} placeholder="Nama template" className="flex-1 min-w-[140px] px-3 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] focus:outline-none focus:border-black" />
+          <input value={tplUrl} onChange={(e) => setTplUrl(e.target.value)} placeholder="Link kanvas" className="flex-1 min-w-[140px] px-3 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0] text-[11px] focus:outline-none focus:border-black" />
+          <button
+            type="button"
+            disabled={!tplTitle.trim() || !tplUrl.trim()}
+            onClick={() => void (async () => {
+              const r = await fetch('/api/marturia/templates', {
+                method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: tplTitle.trim(), url: tplUrl.trim() }),
+              });
+              if (r.ok) { setTplTitle(''); setTplUrl(''); await load(); }
+            })()}
+            className="px-3 py-1.5 rounded-lg bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-40"
+          >
+            + Template
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Antrean event ini</p>
+        <select value={requesterFilter} onChange={(e) => setRequesterFilter(e.target.value)} className="ml-auto px-2.5 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850]">
+          <option value="">Semua peminta</option>
+          {Array.from(new Set(items.map((i) => i.requesterDiv).filter(Boolean))).map((d) => (
+            <option key={d as string} value={d as string}>{d}</option>
+          ))}
+        </select>
+      </div>
+
       {items.length === 0 ? (
         <p className="text-xs text-[#8C8880] text-center py-6">Belum ada request asset untuk event ini.</p>
       ) : (
         <div className="space-y-2">
-          {items.map((a) => {
+          {items.filter((a) => !requesterFilter || a.requesterDiv === requesterFilter).map((a) => {
             const next = nextAssetStatus(a.status);
             return (
               <div key={a.id} className="rounded-xl border border-[#D9D7D0]/60 bg-white p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs font-black text-[#1B1B1B]">{a.title}</p>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]">{a.status}</span>
+                  {a.requesterDiv && <span className="text-[10px] font-bold text-sky-700">peminta: {a.requesterDiv}</span>}
                   {a.handoffTo && <span className="text-[10px] font-bold text-emerald-700">→ {a.handoffTo}</span>}
                   {next && (
                     <button type="button" onClick={() => void advance(a)} className="ml-auto text-[11px] font-bold text-white bg-[#1B1B1B] rounded-lg px-2.5 py-1">

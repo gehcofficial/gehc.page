@@ -60,3 +60,16 @@ export function referralLink(code: string, origin?: string): string {
   const base = (origin || '').replace(/\/$/, '') || 'https://youth.gehc.page';
   return `${base}/#/join?ref=${encodeURIComponent(code)}`;
 }
+
+/** Kode referral valid dari query hash (#/...?ref=GB-XXXXXX), atau null. */
+export function referralCodeFromHash(hash?: string): string | null {
+  try {
+    const h = typeof hash === 'string' ? hash : (typeof window !== 'undefined' ? window.location.hash : '');
+    const q = h.includes('?') ? h.slice(h.indexOf('?') + 1) : '';
+    const code = new URLSearchParams(q).get('ref') || '';
+    const norm = code.trim().toUpperCase();
+    return /^GB-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/.test(norm) ? norm : null;
+  } catch {
+    return null;
+  }
+}

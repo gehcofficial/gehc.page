@@ -100,11 +100,17 @@ async function main() {
   // (BOD Tim Kerja tanpa divisi memang melihat semua panel — division-access.mjs —
   //  jadi akun COMMITTEE seperti gievara/prichel BUKAN bukti guard.)
   const narrowEmail = `uji-otomatis-${Date.now().toString(36)}@gehc.demo`;
-  const reg = await req('POST', '/api/register/local', { body: { name: 'Uji Otomatis', email: narrowEmail, password: 'UjiOtomatis123' } });
+  // Funnel: referral dibuat dulu agar registrasi akun segar tercatat +1.
+  const refEarly = await req('POST', '/api/marturia/referrals', { session: sesMarturia });
+  const refCode = refEarly.data?.item?.code;
+  const reg = await req('POST', '/api/register/local', { body: { name: 'Uji Otomatis', email: narrowEmail, password: 'UjiOtomatis123', ref: refCode } });
   if (reg.status !== 200 && reg.status !== 201) {
     console.log(`  ! registrasi uji dilewati (status ${reg.status}) — guard sempit tidak teruji`);
   } else {
     const sesNarrow = await login(narrowEmail, 'UjiOtomatis123');
+    const mineAfter = await req('GET', '/api/marturia/referrals/mine', { session: sesMarturia });
+    const mineRef = (mineAfter.data?.items || []).find((r) => r.code === refCode);
+    check('funnel: registrasi via ref tercatat +1', (mineRef?.registrations || 0) >= 1, `dapat ${mineRef?.registrations}`);
     const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesNarrow, body: { area: 'LOGISTIK', status: 'SIAP' } });
     check('akun segar tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
     const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesNarrow, body: { item: 'UJI-OTOMATIS-x' } });
@@ -171,6 +177,14 @@ async function main() {
   const code = rf.data?.item?.code;
   const pub = await req('GET', `/api/r/${code}`);
   check('link publik /r/:code → 200 + klik', pub.status === 200 && typeof pub.data?.registerUrl === 'string', `dapat ${pub.status}`);
+  // Funnel hadir: jiwa ber-ref → HADIR menaikkan attendances.
+  const soRef = await req('POST', `/api/events/${eid}/marturia/souls`, { session: sesMarturia, body: { nickname: 'UJI-OTOMATIS-REF', referralCode: code } });
+  const srid = soRef.data?.item?.id;
+  if (srid) created.souls.push(srid);
+  await req('PATCH', `/api/marturia/souls/${srid}`, { session: sesMarturia, body: { status: 'HADIR' } });
+  const mineRef2 = await req('GET', '/api/marturia/referrals/mine', { session: sesMarturia });
+  const att = (mineRef2.data?.items || []).find((r) => r.code === code)?.attendances || 0;
+  check('funnel: HADIR menaikkan attendances', att >= 1, `dapat ${att}`);
 
   // 9. Kost: usul → tampil.
   const ko = await req('POST', '/api/diakonia/kost', { session: sesDiakonia, body: { area: 'UJI-OTOMATIS Blok Z', priceRange: '500rb' } });
@@ -179,6 +193,60 @@ async function main() {
   if (kid) created.kost.push(kid);
   const koUp = await req('PATCH', `/api/diakonia/kost/${kid}`, { session: sesDiakonia, body: { status: 'TAMPIL' } });
   check('moderasi TAMPIL → 200', koUp.status === 200, `dapat ${koUp.status}`);
+
+  // 11. Sprint B: template, inventaris, konsumsi, safety, insiden, leads, hapus-draf.
+  const tpl = await req('POST', '/api/marturia/templates', { session: sesMarturia, body: { title: 'UJI-OTOMATIS kit', kind: 'POSTER', url: 'https://drive.google.com/uji-kit' } });
+  check('template kit → 200', tpl.status === 200, `dapat ${tpl.status}`);
+  const tplId = tpl.data?.item?.id;
+  const tplList = await req('GET', '/api/marturia/templates?kind=POSTER');
+  check('template tampil di kit', (tplList.data?.items || []).some((t) => t.id === tplId), `dapat ${(tplList.data?.items || []).length}`);
+
+  const inv = await req('POST', '/api/diakonia/inventory', { session: sesDiakonia, body: { name: 'UJI-OTOMATIS kabel roll', qtyTotal: 4, location: 'Gudang' } });
+  check('tambah inventaris → 200', inv.status === 200, `dapat ${inv.status}`);
+  const invId = inv.data?.item?.id;
+  const co = await req('POST', `/api/events/${eid}/diakonia/checkout`, { session: sesDiakonia, body: { inventoryId: invId, qty: 2 } });
+  check('pinjam barang → 200', co.status === 200, `dapat ${co.status}`);
+  const coId = co.data?.item?.id;
+  const delBlocked = await req('DELETE', `/api/diakonia/inventory/${invId}`, { session: sesDiakonia });
+  check('hapus master saat dipinjam → 409', delBlocked.status === 409, `dapat ${delBlocked.status}`);
+  const back = await req('PATCH', `/api/diakonia/checkout/${coId}`, { session: sesDiakonia, body: { status: 'KEMBALI' } });
+  check('kembalikan barang → 200', back.status === 200, `dapat ${back.status}`);
+
+  const con = await req('POST', `/api/events/${eid}/diakonia/consumption`, { session: sesDiakonia, body: { menu: 'UJI nasi + ayam', portions: 50, vendor: 'UJI catering' } });
+  check('simpan konsumsi → 200', con.status === 200, `dapat ${con.status}`);
+  const conGet = await req('GET', `/api/events/${eid}/diakonia/consumption`, { session: sesDiakonia });
+  check('baca konsumsi cocok', conGet.data?.item?.menu === 'UJI nasi + ayam', JSON.stringify(conGet.data?.item?.menu));
+
+  const saf = await req('POST', `/api/events/${eid}/diakonia/safety`, { session: sesDiakonia, body: { standbyName: 'UJI tim medis', kitLocation: 'UJI pintu masuk' } });
+  check('simpan standby → 200', saf.status === 200, `dapat ${saf.status}`);
+  const inc = await req('POST', `/api/events/${eid}/diakonia/incidents`, { session: sesDiakonia, body: { description: 'UJIOTOMATIS keseleo ringan', severity: 'BERAT' } });
+  check('catat insiden → 200', inc.status === 200, `dapat ${inc.status}`);
+  const incId = inc.data?.item?.id;
+
+  const lead = await req('POST', '/api/marturia/testimony-leads', { session: sesMarturia, body: { sessionId: 'UJI-SES', name: 'UJI Terpilih', role: 'MENTEE' } });
+  check('testimony lead → 201', lead.status === 201, `dapat ${lead.status}`);
+  const leadId = lead.data?.item?.id;
+  const leadDup = await req('POST', '/api/marturia/testimony-leads', { session: sesMarturia, body: { sessionId: 'UJI-SES', name: 'UJI Terpilih', role: 'MENTEE' } });
+  check('lead ganda → duplicate', leadDup.status === 200 && leadDup.data?.duplicate === true, `dapat ${leadDup.status}`);
+
+  // Hapus draf sendiri: buat kesaksian via akun segar kedua, tarik, tarik lagi → 404.
+  const narrow2 = `uji-otomatis-2-${Date.now().toString(36)}@gehc.demo`;
+  await req('POST', '/api/register/local', { body: { name: 'Uji Tarik', email: narrow2, password: 'UjiOtomatis123' } });
+  const sesN2 = await login(narrow2, 'UjiOtomatis123');
+  const tst = await req('POST', '/api/me/testimonial', { session: sesN2, body: { quote: 'UJI-OTOMATIS draf tarik' } });
+  const tstId = tst.data?.item?.id;
+  check('buat draf kesaksian → 201', tst.status === 201, `dapat ${tst.status}`);
+  const wd = await req('DELETE', `/api/me/testimonials/${tstId}`, { session: sesN2 });
+  check('tarik draf sendiri → 200', wd.status === 200, `dapat ${wd.status}`);
+  const wd2 = await req('DELETE', `/api/me/testimonials/${tstId}`, { session: sesN2 });
+  check('tarik ulang → 404', wd2.status === 404, `dapat ${wd2.status}`);
+  // Bersih akun kedua via Komisi.
+  try {
+    const sesKomisi = await login(email('stevania.hadinda'));
+    const me2 = await req('GET', '/api/auth/me', { session: sesN2 });
+    const uid2 = me2.data?.user?.id;
+    if (uid2) await req('DELETE', `/api/people/${uid2}`, { session: sesKomisi, body: { confirm: narrow2, confirmPhrase: 'HAPUS' } });
+  } catch { /* abaikan */ }
 
   // 10. Bersih-bersih (atau --keep).
   if (!KEEP) {
@@ -196,6 +264,10 @@ async function main() {
     for (const id of created.cases) await req('DELETE', `/api/diakonia/cases/${id}`, { session: sesDiakonia });
     for (const id of created.transport) await req('DELETE', `/api/diakonia/transport/${id}`, { session: sesDiakonia });
     for (const id of created.kost) await req('DELETE', `/api/diakonia/kost/${id}`, { session: sesDiakonia });
+    if (tplId) await req('DELETE', `/api/marturia/templates/${tplId}`, { session: sesMarturia });
+    if (invId) await req('DELETE', `/api/diakonia/inventory/${invId}`, { session: sesDiakonia });
+    if (leadId) await req('DELETE', `/api/testimonials/${leadId}`, { session: sesMarturia });
+    if (incId) await req('DELETE', `/api/diakonia/incidents/${incId}`, { session: sesDiakonia });
     await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesDiakonia, body: { area: 'LOGISTIK', status: 'BELUM', note: '' } });
     const soulsAfter = await req('GET', `/api/events/${eid}/marturia/souls`, { session: sesMarturia });
     const leftSouls = (soulsAfter.data?.items || []).filter((s) => s.nickname === 'UJI-OTOMATIS');
@@ -203,6 +275,15 @@ async function main() {
     const kostAfter = await req('GET', '/api/diakonia/kost', { session: sesDiakonia });
     const leftKost = (kostAfter.data?.items || []).filter((k) => String(k.area).includes('UJI-OTOMATIS'));
     check('bersih: 0 kos uji tersisa', leftKost.length === 0, `sisa ${leftKost.length}`);
+    const invAfter = await req('GET', '/api/diakonia/inventory', { session: sesDiakonia });
+    const leftInv = (invAfter.data?.items || []).filter((i) => String(i.name).includes('UJI-OTOMATIS'));
+    check('bersih: 0 inventaris uji tersisa', leftInv.length === 0, `sisa ${leftInv.length}`);
+    const incAfter = await req('GET', `/api/events/${eid}/diakonia/incidents`, { session: sesDiakonia });
+    const leftInc = (incAfter.data?.items || []).filter((i) => String(i.description).includes('UJIOTOMATIS'));
+    check('bersih: 0 insiden uji tersisa', leftInc.length === 0, `sisa ${leftInc.length}`);
+    const tplAfter = await req('GET', '/api/marturia/templates', { session: sesMarturia });
+    const leftTpl = (tplAfter.data?.items || []).filter((t) => String(t.title).includes('UJI-OTOMATIS'));
+    check('bersih: 0 template uji tersisa', leftTpl.length === 0, `sisa ${leftTpl.length}`);
   }
 
   console.log(`\nAPI smoke: ${pass} lolos, ${fail} gagal.`);

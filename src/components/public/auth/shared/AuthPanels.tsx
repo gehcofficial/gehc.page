@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import GoogleLoginButton from '../../../auth/GoogleLoginButton';
 import { Field } from '../../ui/joinParts';
 import { loadGoogleClientId } from '../../../../lib/google-auth-flow';
+import { referralCodeFromHash } from '../../../../lib/marturia';
 import type { EmailRegisterPayload } from '../../../../lib/email-auth-flow';
 import { finishAuthRedirect } from '../../../../lib/auth-redirect';
 import { PersonNameFields } from '../../../portal/PersonNameFields';
@@ -66,7 +67,7 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential }),
+        body: JSON.stringify({ credential, ref: referralCodeFromHash() || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -156,6 +157,7 @@ export const EmailRegisterPanel: React.FC<PanelProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...payload,
+          ref: referralCodeFromHash() || undefined,
           givenName: nameParts.givenName,
           middleName: nameParts.middleName,
           familyName: nameParts.familyName,
