@@ -51,6 +51,77 @@ function fieldOf(sections: DraftSection[], section: string, key: string): string
   return sections.find((s) => s.key === section)?.fields.find((f) => f.key === key)?.value || '';
 }
 
+type LibrarySong = { id: string; title: string; source: string; sourceRef?: string | null; authors?: string | null };
+
+/** Pemilih lagu himne dari pustaka (KJ/NKB/NNBT) — mengunci judul + nomor buku. */
+function SongPicker({ disabled, onPick }: { disabled?: boolean; onPick: (s: LibrarySong) => void }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<LibrarySong[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const search = async () => {
+    const query = q.trim();
+    if (query.length < 2) return;
+    setBusy(true);
+    try {
+      const r = await fetch(
+        `/api/songs?q=${encodeURIComponent(query)}&source=&limit=10`,
+        { credentials: 'include' },
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+      setHits(((d?.songs || []) as LibrarySong[]).filter((s) => ['HIMNE_KJ', 'HIMNE_NKB', 'HIMNE_NNBT'].includes(String(s.source || '').toUpperCase())));
+      setOpen(true);
+    } catch {
+      setHits([]);
+      setOpen(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="sm:col-span-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 px-3 py-2">
+      <div className="flex gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void search(); } }}
+          placeholder="Cari di pustaka himne — mis. KJ 10 / NKB 5 / NNBT 17 / judul…"
+          disabled={disabled}
+          className={`${INPUT} disabled:opacity-60`}
+        />
+        <button
+          type="button"
+          onClick={() => void search()}
+          disabled={disabled || busy || q.trim().length < 2}
+          className="shrink-0 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Cari'}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-2 space-y-1">
+          {hits.length === 0 && <p className="text-[11px] text-[#8C8880]">Tidak ketemu di KJ/NKB/NNBT — periksa ejaan/nomor, atau isi manual.</p>}
+          {hits.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-[#1B1B1B] truncate">{s.title}</span>
+              <span className="shrink-0 text-[10px] font-bold text-white bg-[#1B1B1B] rounded-full px-2 py-0.5">{s.sourceRef || s.source}</span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => { onPick(s); setOpen(false); }}
+                className="shrink-0 ml-auto px-2.5 py-1 rounded-lg border border-[#D9D7D0] text-[11px] font-bold text-[#1B1B1B] disabled:opacity-50"
+              >
+                Pakai
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Kembalikan section form menjadi payload POST_TO_POST (urutan chip ↔ topik dari usulan AI). */
 function sectionsToPostToPost(sections: DraftSection[], proposalChips?: { topicCode?: string | null }[]) {
   const topics = TOPIC_CODES.map((code) => ({
@@ -614,7 +685,23 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         <div key={s.key} className={CARD}>
           <h5 className="text-xs font-black text-[#1B1B1B]">{s.title}</h5>
           <p className="text-[11px] text-[#8C8880] mb-2">{s.hint}</p>
+          {s.key === 'song' && fieldOf(sections, 'song', 'song-title').trim() && !fieldOf(sections, 'song', 'song-id').trim() && (
+            <p className="mb-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
+              ⚠️ Lagu ini di luar pustaka KJ/NKB/NNBT — pastikan judul &amp; nomor benar, atau pilih dari pustaka di bawah.
+            </p>
+          )}
           <div className="grid sm:grid-cols-2 gap-2">
+            {s.key === 'song' && (
+              <SongPicker
+                disabled={!canWrite || guard.locked || mismatched}
+                onPick={(song) => {
+                  setField('song', 'song-title', song.title);
+                  setField('song', 'song-book-ref', song.sourceRef || '');
+                  setField('song', 'song-writer', song.authors || '');
+                  setField('song', 'song-id', song.id);
+                }}
+              />
+            )}
             {s.fields.map((f) => (
               <div key={f.key} className={f.kind === 'textarea' ? 'sm:col-span-2' : ''}>
                 <label className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1 block">{f.label}</label>

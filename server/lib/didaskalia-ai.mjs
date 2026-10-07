@@ -989,10 +989,21 @@ export async function generateSessionDraft(input) {
     '- fgd-apply (Q3): SATU langkah nyata, konkret dan terukur minggu ini.',
     '- Tiap Q 1-2 kalimat. Yang menjawab lisan cukup 1-2 perwakilan bergiliran per Q; semua mentee WAJIB menulis catatannya sendiri.',
   ] : [];
+  const hasSong = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('song-'));
+  const SONG_RULES = hasSong ? [
+    'ATURAN BEDAH LAGU (ANTI-NGARANG, WAJIB):',
+    '- Pilih TEPAT 1 lagu dari buku himne KJ, NKB, atau NNBT saja. Tulis song-book-ref dengan format "KJ 10" / "NKB 5" / "NNBT 17" (nama buku + nomor).',
+    '- DILARANG mengarang judul, nomor, atau pencipta. song-writer = nama pencipta bila yakin, else KOSONGKAN (jangan isi nama penyanyi/musik).',
+    '- Contoh jebakan: "Mengikut Yesus Keputusanku" BUKAN KJ/NKB (ia KK 399 / KPPK 214) — jangan pernah diklaim sebagai KJ/NKB/NNBT.',
+    '- song-story: 2-4 kalimat kisah/sejarah di balik lagu + 1-2 kalimat kaitan eksplisit ke Fundamental Firman pekan (sebutkan ref-nya); akhiri dengan "(perlu verifikasi tim)".',
+    '- song-about: makna tiap bait, 1 kalimat per bait.',
+    '- Bila tak yakin ada lagu yang cocok: KOSONGKAN semua kunci song-* (jangan diada-ada).',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
     ...FGD_RULES,
+    ...SONG_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',

@@ -77,7 +77,15 @@ export type SessionTeam = { name: string; task: string; members: string[]; done:
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
 
-export type SessionSong = { title: string; about: string; singer: string } | null;
+export type SessionSong = {
+  title: string;
+  about: string;
+  singer: string;
+  bookRef?: string;
+  writer?: string;
+  story?: string;
+  songId?: string;
+} | null;
 
 export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
 

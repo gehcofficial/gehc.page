@@ -154,6 +154,12 @@ export function normalizeSongInput(body, existing = null) {
   }
   if (b.tenantScope !== undefined) data.tenantScope = str(b.tenantScope, 64) || 'GLOBAL';
   else if (!existing) data.tenantScope = 'GLOBAL';
+  if (b.story !== undefined) {
+    data.story = b.story === null ? null : String(b.story).slice(0, 20000).trim() || null;
+  }
+  if (b.meaning !== undefined) {
+    data.meaning = b.meaning === null ? null : String(b.meaning).slice(0, 4000).trim() || null;
+  }
   if (b.isActive !== undefined) data.isActive = Boolean(b.isActive);
   const finalSource = data.source || existing?.source || 'LOKAL';
   if (finalSource === 'SEKULER') {
@@ -215,6 +221,8 @@ export function serializeSong(row) {
     defaultKey: row.defaultKey ?? null,
     tempo: row.tempo ?? null,
     lyricsChordPro: row.lyricsChordPro ?? null,
+    story: row.story ?? null,
+    meaning: row.meaning ?? null,
     sections: parseSections(row.lyricsChordPro || '').map((s) => s.name),
     tenantScope: row.tenantScope ?? 'GLOBAL',
     isActive: row.isActive !== false,

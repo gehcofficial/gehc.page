@@ -79,6 +79,20 @@ const DDL = [
     console.log(`✓ tabel ${name} dibuat`);
   }
 
+  // Kolom kurasi bedah lagu (kisah + makna) — idempotent.
+  for (const [col, def] of [['story', 'MEDIUMTEXT NULL'], ['meaning', 'TEXT NULL']]) {
+    const [c] = await conn.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'songs' AND COLUMN_NAME = ?`,
+      [col],
+    );
+    if (c.length) {
+      console.log(`kolom songs.${col} sudah ada`);
+      continue;
+    }
+    await conn.query(`ALTER TABLE \`songs\` ADD COLUMN \`${col}\` ${def}`);
+    console.log(`✓ kolom songs.${col} ditambahkan`);
+  }
+
   await conn.end();
   console.log('✓ Selesai (Liturgia: pustaka lagu + setlist).');
 })().catch((e) => {

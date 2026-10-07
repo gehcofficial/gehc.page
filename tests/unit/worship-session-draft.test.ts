@@ -41,14 +41,15 @@ describe('session-draft: template kosongan 5 pola', () => {
     const stored = draftToStored(sections);
     const back = storedToSections('MONOLOG', stored);
     expect(back[0].fields[0].value).toBe('Apa kata teks?');
-    expect(countFilled(back)).toEqual({ filled: 1, total: 8 });
+    expect(countFilled(back)).toEqual({ filled: 1, total: 11 });
   });
 
-  it('MONOLOG gabungan: FGD 3 + lagu 3 + deep 2; DUAL memetakan ke MONOLOG', () => {
+  it('MONOLOG gabungan: FGD 3 + lagu 6 + deep 2; DUAL memetakan ke MONOLOG', () => {
     const keys = templateFieldKeys('MONOLOG').map((f) => f.key);
-    for (const k of ['fgd-observe', 'fgd-interpret', 'fgd-apply', 'song-title', 'song-about', 'song-singer', 'deep-q1', 'deep-q2']) {
+    for (const k of ['fgd-observe', 'fgd-interpret', 'fgd-apply', 'song-title', 'song-book-ref', 'song-writer', 'song-story', 'song-about', 'song-id', 'deep-q1', 'deep-q2']) {
       expect(keys).toContain(k);
     }
+    expect(keys).not.toContain('song-singer');
     expect(templateFieldKeys('DUAL_MONOLOG').map((f) => f.key)).toEqual(keys);
   });
 
@@ -208,5 +209,36 @@ describe('session-draft: AI proposal', () => {
       fieldKeys: [],
     });
     expect(capturedPrompts.list.join('\n')).not.toContain('PERAN DUA PERIKOP');
+  });
+
+  it('prompt bedah lagu: KJ/NKB/NNBT + anti-ngarang + kisah', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'Setia sampai akhir',
+      fundamentalFirman: { ref: 'Why 2:10', text: 'Hendaklah engkau setia sampai mati...' },
+      pattern: { code: 'MONOLOG', name: 'Monolog', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('MONOLOG'),
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('BEDAH LAGU');
+    expect(prompt).toContain('song-book-ref');
+    expect(prompt).toContain('NNBT');
+    expect(prompt).toContain('song-story');
+    expect(prompt).toContain('perlu verifikasi tim');
+    expect(prompt).toContain('Mengikut Yesus Keputusanku');
+  });
+
+  it('tanpa kunci song-* → aturan bedah lagu absen', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'T',
+      pattern: { code: 'DEBAT', name: 'Debat', phases: [], playbook: 'x' },
+      fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
+    });
+    expect(capturedPrompts.list.join('\n')).not.toContain('BEDAH LAGU');
   });
 });

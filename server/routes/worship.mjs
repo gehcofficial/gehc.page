@@ -105,7 +105,11 @@ export function sessionSong(config) {
   return {
     title: pick(live, ['title']) || pick(fromDraft, ['song-title', 'title']) || '',
     about: pick(live, ['about']) || pick(fromDraft, ['song-about', 'about']) || '',
-    singer: pick(live, ['singer']) || pick(fromDraft, ['song-singer', 'singer']) || '',
+    singer: pick(live, ['singer']) || pick(fromDraft, ['song-writer', 'song-singer', 'singer']) || '',
+    bookRef: pick(live, ['bookRef']) || pick(fromDraft, ['song-book-ref', 'bookRef']) || '',
+    writer: pick(live, ['writer']) || pick(fromDraft, ['song-writer', 'writer']) || '',
+    story: pick(live, ['story']) || pick(fromDraft, ['song-story', 'story']) || '',
+    songId: pick(live, ['songId']) || pick(fromDraft, ['song-id', 'songId']) || '',
   };
 }
 

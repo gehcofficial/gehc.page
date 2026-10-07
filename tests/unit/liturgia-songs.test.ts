@@ -20,6 +20,7 @@ import {
   normalizeSongInput,
   parseSections as serverParse,
   renderSelectedSections as serverRender,
+  serializeSong,
   transposeChord as serverTranspose,
   transposeChordPro as serverTransposePro,
 } from '../../server/lib/liturgy-songs.mjs';
@@ -170,5 +171,18 @@ describe('liturgia-songs: validasi server', () => {
     ).toThrow('tidak disimpan');
     const ok = normalizeSongInput({ title: 'X', source: 'SEKULER', authors: 'A', sourceUrl: 'https://x' });
     expect(ok.source).toBe('SEKULER');
+  });
+
+  it('kisah + makna: dinormalisasi & diserialisasi (kurasi bedah lagu)', () => {
+    const n = normalizeSongInput({ title: 'KJ 10', story: '  Kisah Nokseng.  ', meaning: '' });
+    expect(n.story).toBe('Kisah Nokseng.');
+    expect(n.meaning).toBeNull();
+    const cleared = normalizeSongInput({ title: 'KJ 10', story: null }, { story: 'lama' });
+    expect(cleared.story).toBeNull();
+    expect('story' in normalizeSongInput({ title: 'KJ 10' })).toBe(false);
+    const s = serializeSong({ id: 'x', title: 'T', source: 'HIMNE_KJ', story: 'Kisah.', meaning: null, lyricsChordPro: null });
+    expect(s.story).toBe('Kisah.');
+    expect(s.meaning).toBeNull();
+    expect(serializeSong({ id: 'y', title: 'T2', source: 'HIMNE_NKB' }).story).toBeNull();
   });
 });

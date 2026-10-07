@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { convertSessionPattern, ensureAutoClosed, normalizeConfig, rankTopics } from '../../server/routes/worship.mjs';
+import { convertSessionPattern, ensureAutoClosed, normalizeConfig, rankTopics, sessionSong } from '../../server/routes/worship.mjs';
 import {
   canOpenSegment,
   fmtClock,
@@ -90,6 +90,34 @@ describe('worship: config & ranking', () => {
       'PEKERJAAN',
       'KELUARGA',
     ]);
+  });
+
+  it('sessionSong: kunci baru + fallback lawas', () => {
+    const s = sessionSong({
+      draft: {
+        song: {
+          'song-title': 'Pujilah Tuhan, Sang Raja',
+          'song-book-ref': 'KJ 10',
+          'song-writer': 'Joachim Neander',
+          'song-story': 'Kisah. (perlu verifikasi tim)',
+          'song-about': 'Bait 1 syukur.',
+          'song-id': 'sng-1',
+        },
+      },
+    });
+    expect(s).toMatchObject({
+      title: 'Pujilah Tuhan, Sang Raja',
+      bookRef: 'KJ 10',
+      writer: 'Joachim Neander',
+      singer: 'Joachim Neander',
+      story: 'Kisah. (perlu verifikasi tim)',
+      about: 'Bait 1 syukur.',
+      songId: 'sng-1',
+    });
+    const legacy = sessionSong({ draft: { song: { 'song-title': 'T', 'song-singer': 'Band' } } });
+    expect(legacy.singer).toBe('Band');
+    expect(legacy.bookRef).toBe('');
+    expect(sessionSong({})).toMatchObject({ title: '', story: '', songId: '' });
   });
 });
 

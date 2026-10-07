@@ -238,9 +238,10 @@ const MentoringScreen: React.FC = () => {
                 <>
                   {song?.title && (
                     <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">🎵 Lagu Bedah</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">🎵 Lagu Bedah{song.bookRef ? ` · ${song.bookRef}` : ''}</p>
                       <p className="font-display text-2xl font-black">{song.title}</p>
-                      {song.singer && <p className="text-sm text-white/60 mt-1">Penyanyi: {song.singer}</p>}
+                      {(song.writer || song.singer) && <p className="text-sm text-white/60 mt-1">Pencipta: {song.writer || song.singer}</p>}
+                      {song.story && <p className="text-sm text-white/70 mt-2 italic">{song.story}</p>}
                       {song.about && <p className="text-sm text-white/70 mt-2">{song.about}</p>}
                     </section>
                   )}

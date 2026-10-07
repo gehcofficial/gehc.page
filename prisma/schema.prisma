@@ -2840,6 +2840,10 @@ model Song {
   tempo        Int?
   /// Kanonis ChordPro: header [Verse]/[Chorus]/[Bridge] + chord inline [C].
   lyricsChordPro String? @map("lyrics_chord_pro") @db.MediumText
+  /// Kisah/sejarah di balik lagu (terkurasi tim; usulan AI wajib diverifikasi).
+  story        String?  @db.MediumText
+  /// Makna singkat lagu (1-2 kalimat, terkurasi tim).
+  meaning      String?  @db.Text
   /// GLOBAL = dipakai semua unit; selain itu tenantId pemilik.
   tenantScope  String   @default("GLOBAL") @map("tenant_scope") @db.VarChar(64)
   isActive     Boolean  @default(true) @map("is_active")

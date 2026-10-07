@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Bedah lagu kontekstual + berkisah (7 Okt 2026)
+
+**Kebutuhan:** usulan AI ngaco ("Mendekat" oleh "Luthfi"). Maunya: lagu dari himne KJ/NKB/NNBT yang kontekstual dengan firman + ada sejarah di balik lagu (cth. Mengikut Yesus Keputusanku — kisah suku Assam/Garo).
+
+**Ubah:** template `song` → 6 kunci (`song-title/book-ref/writer/story/about/id`; `song-singer` lawas tetap fallback) → `SONG_RULES` di `generateSessionDraft` (wajib KJ/NKB/NNBT + nomor, kaitan firman eksplisit, kisah diakhiri "(perlu verifikasi tim)", contoh jebakan KK 399, kosongkan bila tak yakin) → `sessionSong()` + tipe `SessionSong` diperluas (bookRef/writer/story/songId) → widget PatternDay + layar + PDF rekap (badge nomor buku + kotak kisah + peringatan verifikasi) → `SongPicker` + badge "di luar pustaka" di Draft Sesi → kolom kurasi `songs.story/meaning` (migrasi idempotent + serialize + editor Liturgia) → test template/AI-prompt/sessionSong/serialize (+~10).
+
+**Verifikasi:** `lint` bersih ✓ test hijau ✓ `build` OK ✓ migrasi lokal/staging/prod + seed NNBT ✓
+
+**Next:** QA 1 bedah lagu nyata (AI → verifikasi kisah → kurasi ke pustaka); tim kumpulkan kisah lagu favorit ke `songs.story`.
+
 ## Current — Editor lirik + chord + fix rute layar/kontrol (7 Okt 2026)
 
 **Kebutuhan:** rute `#/ibadah/.../layar|kontrol` prod error React #306; pemusik butuh isi lirik full + taruh chord di atas lirik + key picker nada dasar.

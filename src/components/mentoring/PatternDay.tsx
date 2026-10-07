@@ -186,7 +186,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           ? [{
               heading: 'Lagu Bedah',
               lines: [
-                { label: 'Judul', body: `${song.title}${song.singer ? ` — ${song.singer}` : ''}` },
+                { label: 'Judul', body: `${song.title}${song.bookRef ? ` (${song.bookRef})` : ''}${song.writer || song.singer ? ` — ${song.writer || song.singer}` : ''}` },
+                ...(song.story ? [{ label: 'Kisah', body: song.story }] : []),
                 ...(song.about ? [{ label: 'Makna', body: song.about }] : []),
               ],
             }]
@@ -366,9 +367,18 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
       {has('song') && song?.title && (
         <div className={CARD}>
-          <h4 className="text-sm font-black text-[#1B1B1B] mb-1">🎵 Lagu Bedah: {song.title}</h4>
-          {song.singer && <p className="text-[11px] text-[#8C8880]">Penyanyi: {song.singer}</p>}
+          <h4 className="text-sm font-black text-[#1B1B1B] mb-1">🎵 Lagu Bedah: {song.title}{song.bookRef ? <span className="ml-1.5 text-[10px] font-bold text-white bg-[#1B1B1B] rounded-full px-2 py-0.5 align-middle">{song.bookRef}</span> : null}</h4>
+          {(song.writer || song.singer) && <p className="text-[11px] text-[#8C8880]">Pencipta: {song.writer || song.singer}</p>}
+          {song.story && (
+            <div className="mt-1.5 rounded-xl bg-amber-50 border border-amber-200 px-2.5 py-2">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 mb-0.5">Kisah di balik lagu</p>
+              <p className="text-xs leading-relaxed whitespace-pre-wrap">{song.story}</p>
+            </div>
+          )}
           {song.about && <p className="text-xs leading-relaxed mt-1.5 whitespace-pre-wrap">{song.about}</p>}
+          {song.story && /perlu verifikasi tim/i.test(song.story) && (
+            <p className="mt-1 text-[10px] font-bold text-amber-700">⚠️ Kisah ini usulan AI — mohon verifikasi tim sebelum dibawakan.</p>
+          )}
         </div>
       )}
 

@@ -123,7 +123,24 @@ npm run db:seed:liturgia-songs:prod
   Tampilan kunci efektif: `transposeKey(nadaDasar, transpose)`.
   Personal per pemusik via **Chord saya** (tak berubah).
 - **FreeShow:** jalur utama = impor file ChordPro di FreeShow
-  (File → Import — hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
+  (File → Import → hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
   dari GEHC = jalan pintas (slide per bagian, layout default); bait sangat
-  panjang bisa terpotong berbeda vs importer asli — pecah jadi 2 bagian
+  panjang bisa terpotong berbeda vs importer asli → pecah jadi 2 bagian
   bila perlu.
+
+## 9. Bedah lagu kontekstual + berkisah (MONOLOG)
+
+- **Masalah:** AI bebas mengarang (cth. "Mendekat" oleh "Luthfi"). Kini lagu
+  **wajib** dari KJ/NKB/NNBT dengan format `BUKU NOMOR` (cth. `KJ 10`).
+- **Kunci draft** (`section song`): `song-title`, `song-book-ref`, `song-writer`
+  (pencipta, bukan penyanyi), `song-story` (kisah + kaitan firman, diakhiri
+  "(perlu verifikasi tim)"), `song-about` (makna per bait), `song-id`
+  (tautan pustaka; kunci lama `song-singer` tetap dibaca sebagai fallback).
+- **Aturan AI (`SONG_RULES`):** dilarang mengarang judul/nomor/pencipta;
+  bila tak yakin → kosongkan. Contoh jebakan eksplisit: "Mengikut Yesus
+  Keputusanku" BUKAN KJ/NKB (ia KK 399 / KPPK 214; kisah Nokseng, suku Garo).
+- **Pemilih pustaka** di form Draft Sesi mengunci judul + nomor + pencipta
+  dari `songs`; badge kuning bila lagu di luar pustaka.
+- **Kurasi:** kolom `songs.story`/`meaning` (migrasi `db:migrate:liturgy-songs`
+  idempotent) diisi tim via editor lagu Liturgia; tampil di web + layar +
+  PDF rekap (badge "perlu verifikasi" selama kisah usulan AI).

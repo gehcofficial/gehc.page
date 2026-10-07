@@ -99,11 +99,14 @@ const MONOLOG_TEMPLATE: DraftSection[] = [
   {
     key: 'song',
     title: 'Lagu bedah pekan ini',
-    hint: 'Judul + makna tiap bait + penyanyi. Tampil di web, layar, dan PDF.',
+    hint: 'Pilih dari himne KJ/NKB/NNBT + kisah di balik lagu + makna tiap bait. Tampil di web, layar, dan PDF.',
     fields: [
       t('song-title', 'Judul lagu', 'text', 'Judul lagu ...'),
+      t('song-book-ref', 'Nomor buku (KJ/NKB/NNBT)', 'text', 'mis. KJ 10 / NKB 5 / NNBT 17'),
+      t('song-writer', 'Pencipta', 'text', 'Nama pencipta (kosongkan bila tak tahu)'),
+      t('song-story', 'Kisah di balik lagu', 'textarea', 'Sejarah lagu + kaitan ke firman pekan ...'),
       t('song-about', 'Tentang apa (makna tiap bait)', 'textarea', 'Bait 1 berarti ...; bait 2 ...'),
-      t('song-singer', 'Penyanyi', 'text', 'Nama penyanyi ...'),
+      t('song-id', 'ID pustaka (opsional)', 'text', 'Otomatis terisi bila dipilih dari pustaka'),
     ],
   },
   {

@@ -25,7 +25,7 @@ export function resolvePatternCode(code: string | null | undefined): string {
 export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   MONOLOG: [
     { id: 'panduan', label: 'Panduan', hint: 'Baca 5 pertanyaan dari firman pekan.' },
-    { id: 'lagu', label: 'Bedah Lagu', hint: 'Makna tiap bait + penyanyi.' },
+    { id: 'lagu', label: 'Bedah Lagu', hint: 'Nomor buku + kisah + makna tiap bait.' },
     { id: 'catatan', label: 'Diskusi', hint: 'Jawab Q yang dibuka pemicu.' },
     { id: 'satu-kata', label: 'Satu Kata', hint: 'Satu kata untuk minggumu.' },
     { id: 'komitmen', label: 'Komitmen', hint: 'Satu langkah nyata + unduh rekap.' },
