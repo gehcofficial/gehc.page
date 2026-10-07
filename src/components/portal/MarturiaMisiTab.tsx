@@ -59,6 +59,11 @@ export const MarturiaMisiTab: React.FC<{ eventId: string }> = ({ eventId }) => {
     addToast({ type: ok ? 'success' : 'error', title: ok ? `Link ${code} tersalin` : 'Gagal menyalin' });
   };
 
+  const copyForJethro = async (s: Soul) => {
+    const ok = await copyText(`Newcomer dari Marturia: ${s.nickname}${s.referralCode ? ` (ref ${s.referralCode})` : ''}${s.handoverNote ? ` — ${s.handoverNote}` : ''}`);
+    addToast({ type: ok ? 'success' : 'error', title: ok ? 'Tersalin untuk Jethro' : 'Gagal menyalin', description: ok ? 'Tempel di input newcomer panel Koinonia.' : undefined });
+  };
+
   const addSoul = async () => {
     if (!nickname.trim()) return;
     const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/marturia/souls`, {
@@ -125,6 +130,16 @@ export const MarturiaMisiTab: React.FC<{ eventId: string }> = ({ eventId }) => {
               <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] px-3 py-2">
                 <span className="text-xs font-black text-[#1B1B1B]">{s.nickname}</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#D9D7D0] text-[#8C8880]">{s.status}</span>
+                {s.status === 'DISERAHKAN' && (
+                  <button
+                    type="button"
+                    onClick={() => void copyForJethro(s)}
+                    className="text-[11px] font-bold text-sky-700"
+                    title="Salin data untuk input newcomer Jethro di panel Koinonia"
+                  >
+                    Salin untuk Jethro
+                  </button>
+                )}
                 {next && (
                   <button
                     type="button"

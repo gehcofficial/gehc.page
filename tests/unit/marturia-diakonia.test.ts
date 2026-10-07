@@ -5,6 +5,7 @@ import {
   isSoulStatus,
   makeReferralCode,
   nextAssetStatus,
+  referralCodeFromHash,
   referralLink,
 } from '../../src/lib/marturia';
 import {
@@ -46,6 +47,16 @@ describe('marturia lib', () => {
 
   it('referral link menempel origin + code', () => {
     expect(referralLink('GB-ABC123', 'https://x.test/')).toBe('https://x.test/#/join?ref=GB-ABC123');
+  });
+
+  it('referralCodeFromHash: hanya GB-XXXXXX valid yang lolos', () => {
+    expect(referralCodeFromHash('#/register?ref=GB-ABC234')).toBe('GB-ABC234');
+    expect(referralCodeFromHash('#/join?ref=gb-abc234')).toBe('GB-ABC234');
+    expect(referralCodeFromHash('#/register')).toBeNull();
+    expect(referralCodeFromHash('#/register?ref=NGACO')).toBeNull();
+    expect(referralCodeFromHash('#/register?ref=GB-ABC12')).toBeNull();
+    expect(referralCodeFromHash('#/register?ref=GB-ABC123')).toBeNull(); // 1 ambigu → ditolak
+    expect(referralCodeFromHash('')).toBeNull();
   });
 });
 

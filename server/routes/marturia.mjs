@@ -250,6 +250,8 @@ export function registerMarturiaRoutes(app, { wrap }) {
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!needTable(prisma, 'marturiaSoul')) return res.status(503).json({ error: 'Database belum siap.' });
+      const found = await prisma.marturiaSoul.findUnique({ where: { id: req.params.id } });
+      if (!found) return res.status(404).json({ error: 'Jiwa tidak ditemukan.' });
       const data = {};
       const status = String(req.body?.status || '').toUpperCase();
       if (status) {
@@ -258,7 +260,14 @@ export function registerMarturiaRoutes(app, { wrap }) {
       }
       if (req.body?.handoverNote !== undefined) data.handoverNote = String(req.body.handoverNote || '').slice(0, 5000) || null;
       if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
-      const updated = await prisma.marturiaSoul.update({ where: { id: req.params.id }, data });
+      const updated = await prisma.marturiaSoul.update({ where: { id: found.id }, data });
+      // Funnel: pertama kali HADIR → attendances referral +1 (ditunggu agar deterministik).
+      if (status === 'HADIR' && found.status !== 'HADIR') {
+        try {
+          const m = await import('../lib/marturia-funnel.mjs');
+          await m.recordSoulAttendance(prisma, updated);
+        } catch { /* abaikan */ }
+      }
       res.json({ item: updated });
     }),
   );
@@ -271,6 +280,88 @@ export function registerMarturiaRoutes(app, { wrap }) {
       if (!needTable(prisma, 'marturiaSoul')) return res.status(503).json({ error: 'Database belum siap.' });
       await prisma.marturiaSoul.delete({ where: { id: req.params.id } });
       res.json({ ok: true });
+    }),
+  );
+
+  // ---- Template brand kit (bisa dipakai ulang lintas event) ----
+  app.get('/api/marturia/templates', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'marturiaTemplate')) return res.json({ items: [] });
+    const kind = String(req.query.kind || '').toUpperCase();
+    const items = await prisma.marturiaTemplate.findMany({
+      where: kind ? { kind } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json({ items });
+  }));
+
+  app.post(
+    '/api/marturia/templates',
+    requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'marturiaTemplate')) return res.status(503).json({ error: 'Database belum siap.' });
+      const title = String(req.body?.title || '').trim().slice(0, 200);
+      const url = String(req.body?.url || '').trim();
+      if (!title || !url) return res.status(400).json({ error: 'Judul + link template wajib.' });
+      const kind = String(req.body?.kind || 'POSTER').toUpperCase();
+      const created = await prisma.marturiaTemplate.create({
+        data: {
+          id: newEntityId('mtpl'),
+          title,
+          kind: ['POSTER', 'STORY', 'THUMBNAIL', 'SLIDE'].includes(kind) ? kind : 'POSTER',
+          url: url.slice(0, 2000),
+          note: String(req.body?.note || '').slice(0, 5000) || null,
+          createdById: req.authUser?.id || null,
+        },
+      });
+      res.json({ item: created });
+    }),
+  );
+
+  app.delete(
+    '/api/marturia/templates/:id',
+    requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'marturiaTemplate')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.marturiaTemplate.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
+
+  // ---- Jejak kesaksian sesi: yang terpilih di roda → antrean kurasi ----
+  // Dibuat sebagai draf testimoni (kutipan placeholder) agar masuk alur
+  // kurasi baku: Marturia review → Komisi publish → landing.
+  app.post(
+    '/api/marturia/testimony-leads',
+    requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma?.testimonial) return res.status(503).json({ error: 'Database belum siap.' });
+      const name = String(req.body?.name || '').trim().slice(0, 120);
+      const role = String(req.body?.role || '').trim().slice(0, 24);
+      const sessionId = String(req.body?.sessionId || '').trim().slice(0, 64);
+      if (!name || !sessionId) return res.status(400).json({ error: 'Nama + sesi wajib.' });
+      const dupe = await prisma.testimonial.findFirst({
+        where: { authorName: name, groupName: `sesi:${sessionId}` },
+      }).catch(() => null);
+      if (dupe) return res.json({ item: dupe, duplicate: true });
+      const item = await prisma.testimonial.create({
+        data: {
+          id: newEntityId('tst'),
+          tenantId: 'tenant-youth',
+          authorName: name,
+          groupName: `sesi:${sessionId}`,
+          quote: `(Terpilih di roda kesaksian sesi ${sessionId} sebagai ${role || 'jemaat'} — menunggu tulisan.)`,
+          photoUrl: null,
+          userId: null,
+          isPublished: false,
+          status: 'DRAFT',
+        },
+      });
+      res.status(201).json({ item, duplicate: false });
     }),
   );
 

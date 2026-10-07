@@ -77,6 +77,12 @@ const REQUIRED_TABLES = [
   'diakonia_cases',
   'diakonia_visits',
   'diakonia_kost',
+  'marturia_templates',
+  'diakonia_inventory',
+  'diakonia_checkout',
+  'diakonia_consumption',
+  'diakonia_safety',
+  'diakonia_incidents',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [

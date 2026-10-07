@@ -18,7 +18,9 @@ export const JoinPage: React.FC = () => {
       return;
     }
     if (tab === 'join') {
-      window.location.replace('#/register');
+      // Pertahankan query (ref referral, dsb.) saat redirect ke register.
+      const qIndex = window.location.hash.indexOf('?');
+      window.location.replace(`#/register${qIndex >= 0 ? window.location.hash.slice(qIndex) : ''}`);
     }
   }, []);
 

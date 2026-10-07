@@ -1,8 +1,11 @@
 import React from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HeartHandshake } from 'lucide-react';
 import { GehcLogo } from '../../brand/GehcLogo';
 import { BrandCaption } from '../../brand/BrandCaption';
 import { EmailRegisterPanel, GoogleRegisterPanel } from './shared/AuthPanels';
+import { referralCodeFromHash } from '../../../lib/marturia';
+
+const inviteRef = typeof window !== 'undefined' ? referralCodeFromHash() : null;
 
 export const RegisterPage: React.FC = () => (
   <div className="min-h-screen bg-[#111111] text-white flex items-center justify-center px-4 py-10">
@@ -15,6 +18,12 @@ export const RegisterPage: React.FC = () => (
           Buat akun pemuda — setelah masuk, lengkapi profil dan tes karunia.
         </p>
       </div>
+
+      {inviteRef && (
+        <p className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-400/20 rounded-full px-3 py-1.5">
+          <HeartHandshake className="w-3.5 h-3.5" /> Kamu diajak teman ({inviteRef}) — kehadiranmu tercatat untuknya. 🙌
+        </p>
+      )}
 
       <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
         <GoogleRegisterPanel

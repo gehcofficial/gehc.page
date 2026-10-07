@@ -16,6 +16,7 @@ export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
   const [picks, setPicks] = useState<TestimonyPick[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [sent, setSent] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -50,6 +51,26 @@ export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
       setMsg(`Terundi ${(d.fresh || []).length} orang — tampil di layar.`);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal mengundi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendToMarturia = async (p: TestimonyPick) => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/marturia/testimony-leads', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, name: p.name, role: p.role }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengirim.');
+      setSent((prev) => new Set(prev).add(p.userId));
+      setMsg(d?.duplicate ? `${p.name} sudah ada di antrean kurasi.` : `${p.name} masuk antrean kurasi Marturia.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal mengirim.');
     } finally {
       setBusy(false);
     }
@@ -95,6 +116,15 @@ export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
               </span>
               <span className="text-xs font-bold flex-1 truncate">{p.name}</span>
               <span className="text-[10px] text-[#8C8880]">{p.role}</span>
+              <button
+                type="button"
+                disabled={busy || sent.has(p.userId)}
+                onClick={() => void sendToMarturia(p)}
+                title="Kirim ke antrean kurasi Marturia"
+                className="text-[10px] font-bold text-[#DC2626] disabled:opacity-40 disabled:text-[#8C8880]"
+              >
+                {sent.has(p.userId) ? 'Terkirim ✓' : '→ Marturia'}
+              </button>
             </li>
           ))}
         </ol>

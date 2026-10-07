@@ -35,6 +35,18 @@ export const MenteeKesaksianPanel: React.FC = () => {
     setItems(d.items || []);
   };
 
+  const withdraw = async (id: string) => {
+    if (!window.confirm('Tarik draf ini? Tidak bisa dibatalkan.')) return;
+    const r = await fetch(`/api/me/testimonials/${id}`, { method: 'DELETE', credentials: 'include' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      addToast({ type: 'error', title: d.error || 'Gagal menarik draf' });
+      return;
+    }
+    addToast({ type: 'success', title: 'Draf ditarik' });
+    await load();
+  };
+
   useEffect(() => {
     load().catch(() => setItems([]));
   }, []);
@@ -138,13 +150,22 @@ export const MenteeKesaksianPanel: React.FC = () => {
                 {statusLabel(item)}
               </span>
               {item.status === 'DRAFT' && !item.isPublished && (
-                <button
-                  type="button"
-                  className="text-[11px] font-bold text-[#8C8880]"
-                  onClick={() => { setEditingId(item.id); setQuote(item.quote); }}
-                >
-                  Ubah
-                </button>
+                <span className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-[11px] font-bold text-[#8C8880]"
+                    onClick={() => { setEditingId(item.id); setQuote(item.quote); }}
+                  >
+                    Ubah
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] font-bold text-red-500"
+                    onClick={() => void withdraw(item.id)}
+                  >
+                    Tarik
+                  </button>
+                </span>
               )}
             </div>
             <p className="text-sm text-[#1B1B1B] mt-2 whitespace-pre-wrap">{item.quote}</p>

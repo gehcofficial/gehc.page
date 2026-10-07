@@ -1233,6 +1233,24 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
     }),
   );
 
+  app.delete(
+    '/api/me/testimonials/:id',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const existing = await prisma.testimonial.findUnique({ where: { id: req.params.id } });
+      if (!existing || existing.userId !== req.authUser.id) {
+        return res.status(404).json({ error: 'Tidak ditemukan.' });
+      }
+      if (existing.isPublished || existing.status !== 'DRAFT') {
+        return res.status(409).json({ error: 'Sudah masuk kurasi — hubungi Marturia untuk menarik.' });
+      }
+      await prisma.testimonial.delete({ where: { id: existing.id } });
+      res.json({ ok: true });
+    }),
+  );
+
   app.patch(
     '/api/testimonials/:id/review',
     requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),

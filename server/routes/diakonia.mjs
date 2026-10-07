@@ -233,6 +233,259 @@ export function registerDiakoniaRoutes(app, { wrap }) {
     }),
   );
 
+  // ---- Inventaris (master + pinjam-kembali per event) ----
+  app.get('/api/diakonia/inventory', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'diakoniaInventory')) return res.json({ items: [] });
+    const items = await prisma.diakoniaInventory.findMany({ orderBy: { name: 'asc' } });
+    res.json({ items });
+  }));
+
+  app.post(
+    '/api/diakonia/inventory',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaInventory')) return res.status(503).json({ error: 'Database belum siap.' });
+      const name = String(req.body?.name || '').trim().slice(0, 200);
+      if (!name) return res.status(400).json({ error: 'Nama barang wajib diisi.' });
+      const created = await prisma.diakoniaInventory.create({
+        data: {
+          id: newEntityId('dinv'),
+          name,
+          unit: String(req.body?.unit || 'PCS').toUpperCase().slice(0, 24),
+          qtyTotal: Math.max(0, Number(req.body?.qtyTotal) || 0),
+          condition: ['BAIK', 'RUSAK_RINGAN', 'RUSAK_BERAT'].includes(String(req.body?.condition)) ? req.body.condition : 'BAIK',
+          location: String(req.body?.location || '').slice(0, 200) || null,
+          createdById: req.authUser?.id || null,
+        },
+      });
+      res.json({ item: created });
+    }),
+  );
+
+  app.patch(
+    '/api/diakonia/inventory/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaInventory')) return res.status(503).json({ error: 'Database belum siap.' });
+      const data = {};
+      if (req.body?.name !== undefined) {
+        const name = String(req.body.name).trim().slice(0, 200);
+        if (!name) return res.status(400).json({ error: 'Nama tidak boleh kosong.' });
+        data.name = name;
+      }
+      if (req.body?.qtyTotal !== undefined) data.qtyTotal = Math.max(0, Number(req.body.qtyTotal) || 0);
+      if (req.body?.condition !== undefined) {
+        if (!['BAIK', 'RUSAK_RINGAN', 'RUSAK_BERAT'].includes(req.body.condition)) return res.status(400).json({ error: 'Kondisi tidak dikenal.' });
+        data.condition = req.body.condition;
+      }
+      if (req.body?.location !== undefined) data.location = String(req.body.location).slice(0, 200) || null;
+      if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
+      const updated = await prisma.diakoniaInventory.update({ where: { id: req.params.id }, data });
+      res.json({ item: updated });
+    }),
+  );
+
+  app.delete(
+    '/api/diakonia/inventory/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaInventory')) return res.status(503).json({ error: 'Database belum siap.' });
+      const open = await prisma.diakoniaCheckout.count({ where: { inventoryId: req.params.id, status: 'KELUAR' } });
+      if (open > 0) return res.status(409).json({ error: `Masih ${open} peminjaman keluar — kembalikan dulu.` });
+      await prisma.diakoniaInventory.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
+
+  app.get('/api/events/:id/diakonia/checkout', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'diakoniaCheckout')) return res.json({ items: [] });
+    const items = await prisma.diakoniaCheckout.findMany({
+      where: { eventId: req.params.id },
+      include: { inventory: { select: { id: true, name: true, unit: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ items });
+  }));
+
+  app.post(
+    '/api/events/:id/diakonia/checkout',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaCheckout')) return res.status(503).json({ error: 'Database belum siap.' });
+      const inventoryId = String(req.body?.inventoryId || '');
+      const qty = Math.max(1, Number(req.body?.qty) || 1);
+      const inv = await prisma.diakoniaInventory.findUnique({ where: { id: inventoryId } });
+      if (!inv) return res.status(404).json({ error: 'Barang tidak ada di inventaris.' });
+      const created = await prisma.diakoniaCheckout.create({
+        data: {
+          id: newEntityId('dco'),
+          inventoryId,
+          eventId: req.params.id,
+          qty,
+          note: String(req.body?.note || '').slice(0, 500) || null,
+          checkedOutBy: req.authUser?.id || null,
+        },
+      });
+      res.json({ item: created });
+    }),
+  );
+
+  app.patch(
+    '/api/diakonia/checkout/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaCheckout')) return res.status(503).json({ error: 'Database belum siap.' });
+      const status = String(req.body?.status || '').toUpperCase();
+      if (!['KEMBALI', 'RUSAK', 'HILANG'].includes(status)) {
+        return res.status(400).json({ error: 'Status: KEMBALI / RUSAK / HILANG.' });
+      }
+      const updated = await prisma.diakoniaCheckout.update({ where: { id: req.params.id }, data: { status } });
+      res.json({ item: updated });
+    }),
+  );
+
+  // ---- Konsumsi terstruktur (satu baris per event) ----
+  app.get('/api/events/:id/diakonia/consumption', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'diakoniaConsumption')) return res.json({ item: null });
+    const item = await prisma.diakoniaConsumption.findUnique({ where: { eventId: req.params.id } });
+    res.json({ item });
+  }));
+
+  app.post(
+    '/api/events/:id/diakonia/consumption',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaConsumption')) return res.status(503).json({ error: 'Database belum siap.' });
+      const portions = req.body?.portions === null || req.body?.portions === '' || req.body?.portions === undefined
+        ? null
+        : Math.max(0, Number(req.body.portions) || 0);
+      const item = await prisma.diakoniaConsumption.upsert({
+        where: { eventId: req.params.id },
+        create: {
+          id: newEntityId('dcon'),
+          eventId: req.params.id,
+          menu: String(req.body?.menu || '').slice(0, 5000) || null,
+          portions,
+          vendor: String(req.body?.vendor || '').slice(0, 200) || null,
+          distributionNote: String(req.body?.distributionNote || '').slice(0, 5000) || null,
+          leftoverNote: String(req.body?.leftoverNote || '').slice(0, 5000) || null,
+          updatedBy: req.authUser?.id || null,
+        },
+        update: {
+          menu: String(req.body?.menu || '').slice(0, 5000) || null,
+          portions,
+          vendor: String(req.body?.vendor || '').slice(0, 200) || null,
+          distributionNote: String(req.body?.distributionNote || '').slice(0, 5000) || null,
+          leftoverNote: String(req.body?.leftoverNote || '').slice(0, 5000) || null,
+          updatedBy: req.authUser?.id || null,
+        },
+      });
+      res.json({ item });
+    }),
+  );
+
+  // ---- Safety standby (satu baris per event) ----
+  app.get('/api/events/:id/diakonia/safety', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'diakoniaSafety')) return res.json({ item: null });
+    const item = await prisma.diakoniaSafety.findUnique({ where: { eventId: req.params.id } });
+    res.json({ item });
+  }));
+
+  app.post(
+    '/api/events/:id/diakonia/safety',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaSafety')) return res.status(503).json({ error: 'Database belum siap.' });
+      const item = await prisma.diakoniaSafety.upsert({
+        where: { eventId: req.params.id },
+        create: {
+          id: newEntityId('dsaf'),
+          eventId: req.params.id,
+          standbyName: String(req.body?.standbyName || '').slice(0, 200) || null,
+          kitLocation: String(req.body?.kitLocation || '').slice(0, 200) || null,
+          protocolNote: String(req.body?.protocolNote || '').slice(0, 5000) || null,
+          updatedBy: req.authUser?.id || null,
+        },
+        update: {
+          standbyName: String(req.body?.standbyName || '').slice(0, 200) || null,
+          kitLocation: String(req.body?.kitLocation || '').slice(0, 200) || null,
+          protocolNote: String(req.body?.protocolNote || '').slice(0, 5000) || null,
+          updatedBy: req.authUser?.id || null,
+        },
+      });
+      res.json({ item });
+    }),
+  );
+
+  // ---- Insiden ----
+  app.get('/api/events/:id/diakonia/incidents', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!needTable(prisma, 'diakoniaIncident')) return res.json({ items: [] });
+    const items = await prisma.diakoniaIncident.findMany({
+      where: { eventId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ items });
+  }));
+
+  app.post(
+    '/api/events/:id/diakonia/incidents',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaIncident')) return res.status(503).json({ error: 'Database belum siap.' });
+      const description = String(req.body?.description || '').trim().slice(0, 5000);
+      if (!description) return res.status(400).json({ error: 'Deskripsi insiden wajib diisi.' });
+      const severity = String(req.body?.severity || 'RINGAN').toUpperCase();
+      const created = await prisma.diakoniaIncident.create({
+        data: {
+          id: newEntityId('dinc'),
+          eventId: req.params.id,
+          description,
+          severity: severity === 'BERAT' ? 'BERAT' : 'RINGAN',
+          createdById: req.authUser?.id || null,
+        },
+      });
+      res.json({ item: created });
+    }),
+  );
+
+  app.delete(
+    '/api/diakonia/incidents/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaIncident')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.diakoniaIncident.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
+
+  app.patch(
+    '/api/diakonia/incidents/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaIncident')) return res.status(503).json({ error: 'Database belum siap.' });
+      const updated = await prisma.diakoniaIncident.update({
+        where: { id: req.params.id },
+        data: { followupCaseId: String(req.body?.followupCaseId || '').slice(0, 64) || null },
+      });
+      res.json({ item: updated });
+    }),
+  );
+
   // ---- Kost perantau ----
   app.get('/api/diakonia/kost', requireRole(), wrap(async (req, res) => {
     const prisma = getPrisma();

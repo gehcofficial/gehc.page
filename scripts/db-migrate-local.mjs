@@ -400,6 +400,11 @@ const STEPS = [
     label: 'Sprint A Marturia & Diakonia: shotlist, assets, souls, referrals, checks, transport, cases, visits, kost',
     required: true,
   },
+  {
+    script: 'server/_migrate-marturia-diakonia-b.cjs',
+    label: 'Sprint B Marturia & Diakonia: templates, inventory, checkout, consumption, safety, incidents',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');
