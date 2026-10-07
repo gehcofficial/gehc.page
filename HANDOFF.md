@@ -48,6 +48,24 @@
 
 **Next (butuh perintah):** Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
 
+## Current — Sprint B Marturia & Diakonia: funnel + saksi + inventaris (7 Okt 2026, staging hijau)
+
+**Branch:** `cursor/sprint-b-marturia-diakonia` (di atas `bec1e9b`; commit liturgia `443e455` nyasar di branch ini tapi isinya identik dengan `ec3bdce` di main → merge nanti bersih).
+
+**Ubah:**
+- DB: 6 tabel (`marturia_templates`, `diakonia_inventory/checkout/consumption/safety/incidents`) — Prisma + `_migrate-…-b.cjs` + check-schema; lokal & staging applied ✓
+- Funnel: `server/lib/marturia-funnel.mjs` (signup +1 & jiwa BARU otomatis; HADIR +1, awaited deterministik) → hook di register google+local → `#/join?ref=` dipertahankan ke `#/register?ref=` (`JoinPage`) → banner + `ref` di `AuthPanels` → `referralCodeFromHash()` teruji → tombol Salin untuk Jethro di Misi.
+- Saksi: `POST /api/marturia/testimony-leads` (DRAFT placeholder → antrean kurasi, idempoten per sesi+nama) → tombol → Marturia per pick di `TestimonyPanel` → `DELETE /api/me/testimonials/:id` (draf sendiri) + tombol Tarik di panel mentee.
+- Inventaris: master + pinjam-kembali (guard 409 hapus saat keluar) + konsumsi terstruktur + safety standby + insiden (BERAT → buat kasus peduli 1 klik) — semua di tab Logistik/Konsumsi/Kesehatan existing.
+- Desain: brand kit (CRUD template) + filter peminta + badge peminta.
+- Smoke `scripts/smoke-marturia-diakonia.mjs` → **50/50 PASS staging, 0 residu** (termasuk guard akun segar, masking, 409 alur, funnel klik→daftar→hadir).
+
+**Temuan jujur:** (1) race void-import → fix await; (2) flake baca deployment lama → retry 30 dtk di smoke; (3) GET tanpa sesi = 401 terbaca "0" → bug smoke, sudah fix; (4) sesi paralel menaruh commit liturgia di branch ini + stash otomatis — dipulihkan via `reset --hard origin` + `stash pop`, tak ada kerja hilang.
+
+**Verifikasi:** `lint` bersih ✓ **846 test** hijau ✓ `build` OK ✓ staging deploy + smoke 50/50 ✓
+
+**Next (butuh perintah):** merge → `main` (= deploy PROD + migrasi prod `:prod`).
+
 ## Current — Merge Sprint A ke main + deploy PROD (7 Okt 2026)
 
 **Jalan:** FF-merge `cursor/sprint-a-marturia-diakonia` (8 commit) → `main` (`b671b71..98a7250`) → push ✓ → migrasi prod 10 tabel duluan (non-destruktif, `db:migrate:marturia-diakonia-a:prod` 10/10 + `db:schema:check:prod` sinkron ✓) → Vercel Production auto-deploy.
