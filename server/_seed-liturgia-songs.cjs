@@ -1,8 +1,8 @@
 /**
  * Seed pustaka lagu Liturgia (idempotent):
- * - Metadata KJ 1–10 (judul + pencipta terverifikasi dari
- *   alkitab.sabda.org/resource.php?res=kidung_jemaat; TANPA full lirik —
- *   hormati hak cipta YLSA, tim membuka tautan SABDA dari UI).
+ * - Metadata FULL KJ 1–478 + NKB 1–230 dari server/seed-data/songs-hymns.json
+ *   (judul terverifikasi dari alkitab.sabda.org; TANPA full lirik —
+ *   hormati hak cipta YLSA/penerbit, tim membuka tautan SABDA dari UI).
  * - 1 lagu contoh LOKAL milik tim (dengan ChordPro) sebagai pola input pemusik.
  *
  * Jalankan: npm run db:seed:liturgia-songs[:staging|:prod]
@@ -10,21 +10,17 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const crypto = require('node:crypto');
+const path = require('node:path');
+const fs = require('node:fs');
 
 const SABDA_KJ = (n) => `https://alkitab.sabda.org/resource.php?res=kidung_jemaat&topic=${n}`;
+const SABDA_NKB = (n) => `https://alkitab.sabda.org/resource.php?res=nkb&topic=${n}`;
 
-const KJ = [
-  { n: 1, title: 'Haleluya, Pujilah', authors: null },
-  { n: 2, title: 'Suci, Suci, Suci', authors: 'Reginald Heber; John Bacchus Dykes' },
-  { n: 3, title: 'Kami Puji dengan Riang', authors: 'Henry van Dyke; Ludwig van Beethoven' },
-  { n: 4, title: 'Hai Mari Sembah', authors: 'O Worship The King; Johann Michael Haydn' },
-  { n: 5, title: 'Tuhan Allah, NamaMu', authors: 'Ignaz Franz' },
-  { n: 6, title: 'Hai Masyhurkanlah', authors: 'Charles Wesley' },
-  { n: 7, title: 'Ya Tuhan, Kami Puji NamaMu Besar', authors: 'Ahaverus van den Berg' },
-  { n: 8, title: 'BagiMu Tuhan, Nyanyianku', authors: 'Bartholomaus Crasselius' },
-  { n: 9, title: 'Puji, Hai Jiwaku, Puji Tuhan', authors: 'Johann Daniel Herrnschmidt' },
-  { n: 10, title: 'Pujilah Tuhan, Sang Raja', authors: 'Joachim Neander' },
-];
+const HYMNS = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-hymns.json'), 'utf8'),
+);
+const KJ = HYMNS.kj;
+const NKB = HYMNS.nkb;
 
 const LOKAL_SAMPLE = {
   title: 'Kasih Setia-Mu (Contoh Tim)',
@@ -94,8 +90,18 @@ const LOKAL_SAMPLE = {
       source: 'HIMNE_KJ',
       sourceRef: `KJ ${k.n}`,
       sourceUrl: SABDA_KJ(k.n),
-      authors: k.authors,
+      authors: k.authors || null,
       copyright: '© Yayasan Lembaga SABDA (YLSA) — lihat tautan sumber',
+    });
+  }
+  for (const k of NKB) {
+    await upsert({
+      title: k.title,
+      source: 'HIMNE_NKB',
+      sourceRef: `NKB ${k.n}`,
+      sourceUrl: SABDA_NKB(k.n),
+      authors: null,
+      copyright: '© Tim Nyanyian GKI / penerbit — lihat tautan sumber',
     });
   }
   await upsert(LOKAL_SAMPLE);

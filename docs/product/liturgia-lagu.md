@@ -58,11 +58,14 @@
 
 ```powershell
 npm run db:migrate:liturgy-songs        # tabel songs + service_songs
-npm run db:seed:liturgia-songs          # metadata KJ 1-10 + 1 contoh lokal
+npm run db:seed:liturgia-songs          # full KJ 1-478 + NKB 1-230 + 1 contoh lokal
 npm run db:migrate:liturgy-songs:staging
 npm run db:seed:liturgia-songs:staging
+npm run db:migrate:liturgy-songs:prod
+npm run db:seed:liturgia-songs:prod
 ```
 
-- Seed KJ memakai judul terverifikasi dari
-  `alkitab.sabda.org/resource.php?res=kidung_jemaat`; tambah KJ 11+ / NKB
-  bertahap dengan pola yang sama (metadata dulu, ChordPro menyusul oleh pemusik).
+- Seed memakai judul terverifikasi dari SABDA (`res=kidung_jemaat`,
+  `res=nkb`; data di `server/seed-data/songs-hymns.json`); metadata dulu,
+  ChordPro menyusul oleh pemusik via UI. Status 7 Okt 2026: staging 709,
+  prod 709 (478 KJ + 230 NKB + 1 lokal).
