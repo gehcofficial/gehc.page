@@ -5,9 +5,22 @@
  * src/lib/song-chords.ts agar ekspor .show konsisten tanpa dependensi).
  */
 
-export const SONG_SOURCES = ['HIMNE_KJ', 'HIMNE_NKB', 'KONTEMPORER', 'LOKAL'];
+export const SONG_SOURCES = ['HIMNE_KJ', 'HIMNE_NKB', 'HIMNE_NNBT', 'HIMNE_PKJ', 'KLIK', 'KONTEMPORER', 'LOKAL', 'SEKULER'];
 export const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 export const MOMENTS = ['pembuka', 'firman', 'persembahan', 'penutup', 'bedah-lagu', 'bebas'];
+/** Lagu sekuler hanya boleh dipakai pada momen non-liturgis (kurasi Liturgia). */
+export const SECULAR_ALLOWED_MOMENTS = ['bedah-lagu', 'bebas'];
+
+export function assertSecularMoment(source, moment) {
+  if (String(source || '').toUpperCase() !== 'SEKULER') return;
+  if (moment === undefined || moment === null) return;
+  if (!SECULAR_ALLOWED_MOMENTS.includes(String(moment).toLowerCase())) {
+    throw Object.assign(
+      new Error('Lagu sekuler hanya untuk momen bebas/bedah-lagu (kurasi Liturgia).'),
+      { status: 400 },
+    );
+  }
+}
 
 const SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -142,6 +155,24 @@ export function normalizeSongInput(body, existing = null) {
   if (b.tenantScope !== undefined) data.tenantScope = str(b.tenantScope, 64) || 'GLOBAL';
   else if (!existing) data.tenantScope = 'GLOBAL';
   if (b.isActive !== undefined) data.isActive = Boolean(b.isActive);
+  const finalSource = data.source || existing?.source || 'LOKAL';
+  if (finalSource === 'SEKULER') {
+    const authors = data.authors !== undefined ? data.authors : existing?.authors || null;
+    const url = data.sourceUrl !== undefined ? data.sourceUrl : existing?.sourceUrl || null;
+    const copyright = data.copyright !== undefined ? data.copyright : existing?.copyright || null;
+    if (!authors || !(url || copyright)) {
+      throw Object.assign(
+        new Error('Lagu sekuler wajib mencantumkan pencipta + tautan/catatan hak cipta (Spotify/YouTube/label).'),
+        { status: 400 },
+      );
+    }
+    if (data.lyricsChordPro) {
+      throw Object.assign(
+        new Error('Lirik lagu sekuler tidak disimpan (hak cipta label) — cukup metadata + tautan.'),
+        { status: 400 },
+      );
+    }
+  }
   return data;
 }
 

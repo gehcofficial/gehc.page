@@ -1,7 +1,9 @@
 /**
  * Liturgia — Pustaka Lagu + Setlist Ibadah per event (lintas unit).
  *
- * Pustaka (`songs`) = referensi GLOBAL: metadata himne KJ/NKB + tautan SABDA,
+ * Pustaka (`songs`) = referensi GLOBAL: metadata himne KJ/NKB/NNBT/PKJ/KLIK
+ * + tautan sumber (alkitab.app/SABDA), lagu kontemporer (copyright/CCLI),
+ * lagu sekuler (metadata + tautan saja, momen bebas/bedah-lagu),
  * lagu kontemporer (copyright/CCLI), dan ChordPro milik tim.
  * Setlist (`service_songs`) = pemakaian per event/sesi: urutan + bagian
  * terpilih + transpose/capo + momen. Ekspor siap FreeShow (.show/ChordPro).
@@ -12,6 +14,7 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import {
   WRITE_ROLES,
+  assertSecularMoment,
   buildChordProExport,
   buildFreeShowPayload,
   buildQuickLyrics,
@@ -22,7 +25,7 @@ import {
 } from '../lib/liturgy-songs.mjs';
 
 const uid = (p) => `${p}-${crypto.randomUUID()}`;
-const SOURCES = ['HIMNE_KJ', 'HIMNE_NKB', 'KONTEMPORER', 'LOKAL'];
+const SOURCES = ['HIMNE_KJ', 'HIMNE_NKB', 'HIMNE_NNBT', 'HIMNE_PKJ', 'KLIK', 'KONTEMPORER', 'LOKAL', 'SEKULER'];
 
 function missingTable(e) {
   const msg = String(e?.message || e || '');
@@ -191,6 +194,7 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
         const song = await prisma.song.findUnique({ where: { id: songId } });
         if (!song) return res.status(404).json({ error: 'Lagu tidak ditemukan di pustaka.' });
         const norm = normalizeServiceSongInput(req.body || {});
+        assertSecularMoment(song.source, norm.moment);
         const count = await prisma.serviceSong.count({ where: { eventId: ev.id } });
         const created = await prisma.serviceSong.create({
           data: {
@@ -230,6 +234,10 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
           return res.status(404).json({ error: 'Lagu setlist tidak ditemukan.' });
         }
         const norm = normalizeServiceSongInput(req.body || {});
+        if (req.body?.moment !== undefined) {
+          const song = await prisma.song.findUnique({ where: { id: found.songId } });
+          assertSecularMoment(song?.source, norm.moment);
+        }
         const data = {};
         if (req.body?.sections !== undefined) data.sections = norm.sections || [];
         if (req.body?.baseKey !== undefined) data.baseKey = norm.baseKey;

@@ -47,9 +47,24 @@ const SOURCES = [
   { id: '', label: 'Semua sumber' },
   { id: 'HIMNE_KJ', label: 'KJ' },
   { id: 'HIMNE_NKB', label: 'NKB' },
+  { id: 'HIMNE_NNBT', label: 'NNBT' },
+  { id: 'HIMNE_PKJ', label: 'PKJ' },
+  { id: 'KLIK', label: 'KLIK' },
   { id: 'KONTEMPORER', label: 'Kontemporer' },
   { id: 'LOKAL', label: 'Lokal' },
+  { id: 'SEKULER', label: 'Sekuler' },
 ];
+
+const SOURCE_LABEL: Record<string, string> = {
+  HIMNE_KJ: 'KJ',
+  HIMNE_NKB: 'NKB',
+  HIMNE_NNBT: 'NNBT',
+  HIMNE_PKJ: 'PKJ',
+  KLIK: 'KLIK',
+  KONTEMPORER: 'Kontemporer',
+  LOKAL: 'Lokal',
+  SEKULER: 'Sekuler',
+};
 
 const MOMENTS = ['pembuka', 'firman', 'persembahan', 'penutup', 'bedah-lagu', 'bebas'];
 
@@ -244,13 +259,17 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
             <select className={inputCls} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
               <option value="HIMNE_KJ">Himne KJ</option>
               <option value="HIMNE_NKB">Himne NKB</option>
+              <option value="HIMNE_NNBT">Himne NNBT (GMIM)</option>
+              <option value="HIMNE_PKJ">Himne PKJ</option>
+              <option value="KLIK">KLIK (GMIM)</option>
               <option value="KONTEMPORER">Kontemporer</option>
               <option value="LOKAL">Lokal / tim sendiri</option>
+              <option value="SEKULER">Sekuler (momen bebas saja)</option>
             </select>
             <input className={inputCls} placeholder="Ref: KJ 478 / CCLI" value={form.sourceRef} onChange={(e) => setForm({ ...form, sourceRef: e.target.value })} />
           </div>
           <input className={inputCls} placeholder="Link SABDA / SongSelect" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} />
-          <input className={inputCls} placeholder="Pencipta" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} />
+          <input className={inputCls} placeholder="Pencipta *" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} />
           <input className={inputCls} placeholder="Copyright / CCLI" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
           <div className="flex gap-2">
             <input className={inputCls} placeholder="CCLI no." value={form.ccli} onChange={(e) => setForm({ ...form, ccli: e.target.value })} />
@@ -261,7 +280,11 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
             <button type="button" onClick={() => void createSong()} disabled={saving} className={btnDark}>
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Simpan & masukkan ke setlist
             </button>
-            <p className="text-[11px] text-[#8C8880] self-center">Full lirik hanya untuk lagu tim/public domain/berizin. Himne cukup metadata + link SABDA.</p>
+            <p className="text-[11px] text-[#8C8880] self-center">
+              {form.source === 'SEKULER'
+                ? 'Sekuler: wajib pencipta + link/tautan hak cipta, tanpa lirik (momen bebas/bedah-lagu saja).'
+                : 'Full lirik hanya untuk lagu tim/public domain/berizin. Himne (KJ/NKB/NNBT/PKJ/KLIK) cukup metadata + link sumber.'}
+            </p>
           </div>
         </div>
       )}
@@ -269,7 +292,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
       {showLib && (
         <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] space-y-2">
           <div className="flex gap-2">
-            <input className={inputCls} placeholder="Cari judul / KJ 478 / pencipta / CCLI..." value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void searchLib(); }} />
+            <input className={inputCls} placeholder="Cari judul / KJ 478 / NNBT 42 / PKJ 15 / KLIK 125 / pencipta..." value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void searchLib(); }} />
             <select className={inputCls} style={{ maxWidth: 150 }} value={source} onChange={(e) => setSource(e.target.value)}>
               {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
@@ -281,9 +304,14 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
             {lib.map((s) => (
               <div key={s.id} className="py-2 flex items-center gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#1B1B1B] truncate">{s.title}</p>
+                  <p className="text-xs font-bold text-[#1B1B1B] truncate">
+                    {s.title}
+                    {s.source === 'SEKULER' && (
+                      <span className="ml-1.5 px-1.5 py-px rounded-full bg-amber-100 text-amber-800 text-[9px] font-black align-middle">SEKULER · bebas saja</span>
+                    )}
+                  </p>
                   <p className="text-[10px] text-[#8C8880] truncate">
-                    {s.sourceRef || s.source}{s.authors ? ` · ${s.authors}` : ''}{s.defaultKey ? ` · ${s.defaultKey}` : ''}{s.lyricsChordPro ? ' · ada chord' : ' · metadata saja'}
+                    {s.sourceRef || SOURCE_LABEL[s.source] || s.source}{s.authors ? ` · ${s.authors}` : ''}{s.defaultKey ? ` · ${s.defaultKey}` : ''}{s.lyricsChordPro ? ' · ada chord' : ' · metadata saja'}
                   </p>
                 </div>
                 {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className={btnGhost}>Sumber</a>}
@@ -308,7 +336,12 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
               <div className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-[#1B1B1B] text-white text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#1B1B1B] truncate">{it.song?.title || it.songId}</p>
+                  <p className="text-xs font-bold text-[#1B1B1B] truncate">
+                    {it.song?.title || it.songId}
+                    {it.song?.source === 'SEKULER' && (
+                      <span className="ml-1.5 px-1.5 py-px rounded-full bg-amber-100 text-amber-800 text-[9px] font-black align-middle">SEKULER</span>
+                    )}
+                  </p>
                   <p className="text-[10px] text-[#8C8880] truncate">
                     {[it.song?.sourceRef || it.song?.source, it.baseKey || it.song?.defaultKey, it.transpose ? `${it.transpose > 0 ? '+' : ''}${it.transpose}` : null, it.capo ? `capo ${it.capo}` : null, it.moment].filter(Boolean).join(' · ')}
                   </p>
@@ -410,7 +443,10 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     </button>
                   </div>
                   {!!parseSections(it.song?.lyricsChordPro || '').length && !it.song?.lyricsChordPro && (
-                    <p className="text-[10px] text-amber-700">Lagu ini baru metadata (KJ/NKB) — minta pemusik mengisi ChordPro agar bisa transpose & ekspor.</p>
+                    <p className="text-[10px] text-amber-700">Lagu ini baru metadata (himne) — minta pemusik mengisi ChordPro agar bisa transpose & ekspor.</p>
+                  )}
+                  {it.song?.source === 'SEKULER' && it.moment && !['bebas', 'bedah-lagu'].includes(it.moment) && (
+                    <p className="text-[10px] text-amber-700 font-bold">Lagu sekuler sebaiknya hanya untuk momen bebas/bedah-lagu — pindahkan momennya (server menolak momen inti).</p>
                   )}
                 </div>
               )}

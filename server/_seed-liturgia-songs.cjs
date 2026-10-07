@@ -1,9 +1,14 @@
 /**
  * Seed pustaka lagu Liturgia (idempotent):
- * - Metadata FULL KJ 1–478 + NKB 1–230 dari server/seed-data/songs-hymns.json
- *   (judul terverifikasi dari alkitab.sabda.org; TANPA full lirik —
- *   hormati hak cipta YLSA/penerbit, tim membuka tautan SABDA dari UI).
+ * - Metadata KJ 1–478 + NKB 1–230 dari server/seed-data/songs-hymns.json
+ * - Metadata NNBT 1–50 (GMIM) dari server/seed-data/songs-nnbt.json
+ * - Metadata PKJ 1–308 (YAMUGER) dari server/seed-data/songs-pkj.json
+ * - Metadata KLIK (GMIM, ±480 incl. varian 203A/451b/464b) dari songs-klik.json
+ *   (judul terverifikasi dari alkitab.app; TANPA full lirik —
+ *   hormati hak cipta YLSA/YAMUGER/BPMS GMIM/penerbit,
+ *   tim membuka tautan sumber dari UI).
  * - 1 lagu contoh LOKAL milik tim (dengan ChordPro) sebagai pola input pemusik.
+ * - Lagu SEKULER tidak di-seed massal (hak cipta label) — input manual via UI.
  *
  * Jalankan: npm run db:seed:liturgia-songs[:staging|:prod]
  */
@@ -15,12 +20,22 @@ const fs = require('node:fs');
 
 const SABDA_KJ = (n) => `https://alkitab.sabda.org/resource.php?res=kidung_jemaat&topic=${n}`;
 const SABDA_NKB = (n) => `https://alkitab.sabda.org/resource.php?res=nkb&topic=${n}`;
+const ALKITAB_APP = (book, n) => `https://alkitab.app/${book}/${n}`;
 
 const HYMNS = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-hymns.json'), 'utf8'),
 );
 const KJ = HYMNS.kj;
 const NKB = HYMNS.nkb;
+const NNBT = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-nnbt.json'), 'utf8'),
+).nnbt;
+const PKJ = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-pkj.json'), 'utf8'),
+).pkj;
+const KLIK = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-klik.json'), 'utf8'),
+).klik;
 
 const LOKAL_SAMPLE = {
   title: 'Kasih Setia-Mu (Contoh Tim)',
@@ -102,6 +117,36 @@ const LOKAL_SAMPLE = {
       sourceUrl: SABDA_NKB(k.n),
       authors: null,
       copyright: '© Tim Nyanyian GKI / penerbit — lihat tautan sumber',
+    });
+  }
+  for (const k of NNBT) {
+    await upsert({
+      title: k.title,
+      source: 'HIMNE_NNBT',
+      sourceRef: `NNBT ${k.n}`,
+      sourceUrl: ALKITAB_APP('NNBT', k.n),
+      authors: null,
+      copyright: '© BPMS GMIM — lihat tautan sumber',
+    });
+  }
+  for (const k of PKJ) {
+    await upsert({
+      title: k.title,
+      source: 'HIMNE_PKJ',
+      sourceRef: `PKJ ${k.n}`,
+      sourceUrl: ALKITAB_APP('PKJ', k.n),
+      authors: null,
+      copyright: '© YAMUGER — lihat tautan sumber',
+    });
+  }
+  for (const k of KLIK) {
+    await upsert({
+      title: k.title,
+      source: 'KLIK',
+      sourceRef: `KLIK ${k.n}`,
+      sourceUrl: ALKITAB_APP('KLIK', k.n),
+      authors: null,
+      copyright: '© GMIM / pencipta — lihat tautan sumber',
     });
   }
   await upsert(LOKAL_SAMPLE);

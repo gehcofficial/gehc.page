@@ -9,14 +9,17 @@
   + `service_songs` (pemakaian per event/sesi: urutan + bagian + transpose).
 - **Drive = artefak saja**: PDF chord-sheet / rekaman rehearsal tetap di
   `Musik & Vokal → Berkas/chord` (lihat `EventDivisionPhaseTabs`).
-- **Hak cipta**: himne KJ/NKB tersimpan sebagai **metadata + tautan SABDA**
-  (tanpa full lirik). Full ChordPro hanya untuk lagu tim sendiri / public
-  domain / berizin. Kontemporer wajib isi kolom copyright/CCLI.
+- **Hak cipta**: himne KJ/NKB/NNBT/PKJ/KLIK tersimpan sebagai **metadata +
+  tautan sumber** (tanpa full lirik). Full ChordPro hanya untuk lagu tim
+  sendiri / public domain / berizin. Kontemporer wajib isi kolom
+  copyright/CCLI. **Sekuler: metadata + tautan saja (tanpa lirik), wajib
+  pencipta + link/catatan hak cipta, dan hanya untuk momen
+  `bebas`/`bedah-lagu`** (server menolak momen inti dengan 400).
 
 ## 2. Alur Liturgia (tab Ibadah → kartu Lagu Ibadah)
 
 1. Pilih event → kartu **Lagu Ibadah**: setlist berurutan (naik/turun/hapus).
-2. **Cari pustaka** (judul / `KJ 478` / pencipta / CCLI) → `Pakai`.
+2. **Cari pustaka** (judul / `KJ 478` / `NNBT 42` / `PKJ 15` / `KLIK 125` / pencipta / CCLI) → `Pakai`.
 3. **Lagu baru** (manual ChordPro + metadata + link SABDA/SongSelect) →
    otomatis masuk setlist.
 4. Per lagu: momen (pembuka/firman/persembahan/penutup/bedah-lagu/bebas),
@@ -58,14 +61,18 @@
 
 ```powershell
 npm run db:migrate:liturgy-songs        # tabel songs + service_songs
-npm run db:seed:liturgia-songs          # full KJ 1-478 + NKB 1-230 + 1 contoh lokal
+npm run db:seed:liturgia-songs          # KJ 478 + NKB 230 + NNBT 50 + PKJ 308 + KLIK ±480 + 1 contoh lokal
 npm run db:migrate:liturgy-songs:staging
 npm run db:seed:liturgia-songs:staging
 npm run db:migrate:liturgy-songs:prod
 npm run db:seed:liturgia-songs:prod
 ```
 
-- Seed memakai judul terverifikasi dari SABDA (`res=kidung_jemaat`,
-  `res=nkb`; data di `server/seed-data/songs-hymns.json`); metadata dulu,
-  ChordPro menyusul oleh pemusik via UI. Status 7 Okt 2026: staging 709,
-  prod 709 (478 KJ + 230 NKB + 1 lokal).
+- Seed memakai judul terverifikasi (`res=kidung_jemaat`, `res=nkb` via
+  SABDA; NNBT/PKJ/KLIK via `alkitab.app`; data di
+  `server/seed-data/songs-hymns.json`, `songs-nnbt.json`, `songs-pkj.json`,
+  `songs-klik.json`); metadata dulu, ChordPro menyusul oleh pemusik via UI.
+  KLIK memakai `sourceRef` string apa adanya (`KLIK 203A`, `KLIK 451b` —
+  nomor tak kontinu). Status 7 Okt 2026: staging 1546, prod 1546
+  (478 KJ + 230 NKB + 50 NNBT + 308 PKJ + 479 KLIK + 1 lokal). Lagu SEKULER tidak di-seed
+  massal — input manual via UI (wajib pencipta + tautan).

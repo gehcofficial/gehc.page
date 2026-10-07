@@ -10,6 +10,9 @@ import {
   transposeChordPro,
 } from '../../src/lib/song-chords';
 import {
+  SECULAR_ALLOWED_MOMENTS,
+  SONG_SOURCES,
+  assertSecularMoment,
   buildChordProExport,
   buildFreeShowPayload,
   buildQuickLyrics as serverQuickLyrics,
@@ -141,5 +144,31 @@ describe('liturgia-songs: validasi server', () => {
     expect(n.sections).toEqual(['Chorus']);
     expect(n.moment).toBe('pembuka');
     expect(() => normalizeServiceSongInput({ moment: 'solo' })).toThrow();
+  });
+
+  it('sumber himne GMIM + sekuler terdaftar', () => {
+    for (const s of ['HIMNE_KJ', 'HIMNE_NKB', 'HIMNE_NNBT', 'HIMNE_PKJ', 'KLIK', 'KONTEMPORER', 'LOKAL', 'SEKULER']) {
+      expect(SONG_SOURCES).toContain(s);
+    }
+    expect(SECULAR_ALLOWED_MOMENTS).toEqual(['bedah-lagu', 'bebas']);
+  });
+
+  it('sekuler: hanya momen bebas/bedah-lagu', () => {
+    expect(() => assertSecularMoment('SEKULER', 'bebas')).not.toThrow();
+    expect(() => assertSecularMoment('SEKULER', 'bedah-lagu')).not.toThrow();
+    expect(() => assertSecularMoment('SEKULER', null)).not.toThrow();
+    expect(() => assertSecularMoment('HIMNE_KJ', 'firman')).not.toThrow();
+    expect(() => assertSecularMoment('SEKULER', 'firman')).toThrow('momen bebas');
+    expect(() => assertSecularMoment('SEKULER', 'pembuka')).toThrow();
+  });
+
+  it('sekuler: wajib pencipta + tautan, tanpa lirik', () => {
+    expect(() => normalizeSongInput({ title: 'X', source: 'SEKULER' })).toThrow('pencipta');
+    expect(() => normalizeSongInput({ title: 'X', source: 'SEKULER', authors: 'A' })).toThrow('tautan');
+    expect(() =>
+      normalizeSongInput({ title: 'X', source: 'SEKULER', authors: 'A', sourceUrl: 'https://x', lyricsChordPro: '[C]la' }),
+    ).toThrow('tidak disimpan');
+    const ok = normalizeSongInput({ title: 'X', source: 'SEKULER', authors: 'A', sourceUrl: 'https://x' });
+    expect(ok.source).toBe('SEKULER');
   });
 });
