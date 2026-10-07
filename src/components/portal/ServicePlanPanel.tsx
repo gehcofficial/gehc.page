@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, ArrowLeftRight, ChevronDown, ChevronRight, AlertTriangle, RefreshCw, Sparkles, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { ServingWeekChannelCard } from './ServingWeekChannelCard';
 
 /**
  * Tab gabungan "Ibadah Mingguan" — menggantikan Rencana bulan + Serving.
@@ -883,6 +884,9 @@ export const ServicePlanPanel: React.FC = () => {
                               {assign.cycleIndex != null && <span className="font-mono text-[#5C5850]">idx {assign.cycleIndex}/10</span>}
                               {assign.event?.name && <span className="text-[#8C8880] truncate max-w-[220px]" title={assign.event.name}>{assign.event.name}</span>}
                             </div>
+                          )}
+                          {!isMentoring && !special && (
+                            <ServingWeekChannelCard date={iso} canManage={canSwap || isBodTimkerja} />
                           )}
                           {special?.condition === 'ALIH' && special.linkedEventId && (
                             <p className="text-[11px] text-[#8C8880]">Dialihkan ke event <span className="font-mono">{special.linkedEventId}</span></p>

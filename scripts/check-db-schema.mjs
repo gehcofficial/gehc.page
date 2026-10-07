@@ -66,6 +66,7 @@ const REQUIRED_TABLES = [
   'church_profile',
   'songs',
   'service_songs',
+  'serving_week_channels',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [

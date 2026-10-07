@@ -1,5 +1,6 @@
 import { getPrisma } from '../db.mjs';
 import { sendPushNotification } from '../push.mjs';
+import { resolveServingRepUserIds } from './serving-week.mjs';
 
 /** Kategori notifikasi (juga kolom boolean di notification_preferences). */
 export const NOTIFY_CATEGORIES = ['announcement', 'warta', 'kegiatan', 'penatalayan', 'tugas', 'pengingat', 'birthday', 'materi'];
@@ -16,11 +17,11 @@ const CATEGORY_TO_TYPE = {
 };
 
 const CAP_PUBLIC = {
-  audiences: ['PUBLIC', 'ROLE', 'DIVISION', 'GROUP', 'USER'],
+  audiences: ['PUBLIC', 'ROLE', 'DIVISION', 'GROUP', 'USER', 'SERVING_REPS'],
   categories: [...NOTIFY_CATEGORIES],
 };
 const CAP_BOD = {
-  audiences: ['ROLE', 'DIVISION', 'GROUP', 'USER'],
+  audiences: ['ROLE', 'DIVISION', 'GROUP', 'USER', 'SERVING_REPS'],
   categories: ['announcement', 'kegiatan', 'penatalayan', 'tugas', 'pengingat', 'materi'],
 };
 const CAP_PIC = {
@@ -106,6 +107,10 @@ export async function resolveAudience(prisma, audience = {}) {
       for (const u of users) userIds.add(u.id);
     }
     return [...userIds];
+  }
+  // Perwakilan + petugas + mentor pekan serving (butuh audience.eventDate YYYY-MM-DD).
+  if (type === 'SERVING_REPS') {
+    return resolveServingRepUserIds(prisma, audience.eventDate);
   }
   return [];
 }

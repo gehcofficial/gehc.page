@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Penatalayan mingguan: mentor assign + WA temporer + Representative Day (Okt 2026)
+
+**Kebutuhan:** assign tersentral HOD; koordinasi mingguan tanpa wadah; HOD butuh 1 hari presentasi tanggung jawab (firman→pembaca, latihan, slide, logistik, tuan rumah+absensi); undangan via caption/video cara alat.
+
+**Ubah:** `mentor-assign.mjs` (scope kelompok binaan, all-or-nothing 403) → `POST /schedules` + `/bulk` dibuka untuk MENTOR/CO_MENTOR (komponen UNIT saja) + `GET /people` auto-scope + banner kalender → `serving_week_channels` (+ migrasi/seed-check) + `serving-week.mjs` (siklus DRAFT→OPEN→CLOSED, daftar undangan petugas+mentor+HOD) + routes (GET/PUT/open/close; tulis = BOD/Komisi) + `ServingWeekChannelCard` di baris serving + caption undangan/penutup/cara-kerja/roster (`serving-week-caption.ts`, katalog `TOOL_VIDEOS`) → `representative-day.mjs` (6 agenda baku) + `GET /template` + tombol isi-template di Rapat event → audiens `SERVING_REPS` (notify + announcements snapshot + cron dispatch) + `runServingWeekReminders` (Jumat H-2 / Sabtu H-1 / Senin tutup) → test mentor-assign(5)+serving-week(6)+representative-day(2)+notify(+1) → `docs/product/penatalayan-mingguan.md`.
+
+**Verifikasi:** `tsc` bersih ✓ **842 test** hijau (121 file, +14 baru) ✓ `build` OK ✓ migrasi lokal `serving_week_channels` ✓
+
+**Next:** migrasi `:staging` → QA 1 minggu serving ujung-ke-ujung → rekam 5 video panduan → isi link Drive ke `TOOL_VIDEOS`.
+
 ## Current — Alihkan pola sesi di tempat (7 Okt 2026)
 
 **Kebutuhan:** slug `sesi-2026-10-11` sudah dipakai sesi Bedah Film (prod) → buat sesi Monolog baru bentrok "Slug sudah dipakai"; overwrite slug tidak mungkin karena unik.

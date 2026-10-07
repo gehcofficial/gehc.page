@@ -35,4 +35,11 @@ describe('senderCapabilities', () => {
     expect(caps.audiences).toHaveLength(0);
     expect(caps.categories).toHaveLength(0);
   });
+
+  it('SERVING_REPS hanya BOD/Komisi, bukan mentor/PIC', () => {
+    expect(senderCapabilities(user('KOMISI')).audiences).toContain('SERVING_REPS');
+    expect(senderCapabilities(user('COMMITTEE'), 'TIMKERJA').audiences).toContain('SERVING_REPS');
+    expect(senderCapabilities(user('MENTOR')).audiences).not.toContain('SERVING_REPS');
+    expect(senderCapabilities(user('COMMITTEE'), 'LITURGIA').audiences).not.toContain('SERVING_REPS');
+  });
 });

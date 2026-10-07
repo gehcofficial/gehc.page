@@ -28,6 +28,8 @@ export async function runAnnouncementDispatch(prisma) {
       groupIds: ann.audienceGroupIds,
       userIds: ann.audienceUserIds,
     };
+    // SERVING_REPS tersimpan sebagai snapshot userIds (stabil).
+    if (audience.type === 'SERVING_REPS') audience.type = 'USER';
     const result = await sendNotification({
       type: 'ANNOUNCEMENT',
       category: ann.category,
@@ -241,6 +243,91 @@ export async function runPenatalayanReminder(prisma, now = new Date()) {
 }
 
 /**
+ * Pengingat Serving Week (Jumat/Sabtu/Senin WIB) ke perwakilan + petugas:
+ * H-2 konfirmasi tugas + link WA, H-1 cara kerja + doa, H+1 BOD menutup grup.
+ */
+export async function runServingWeekReminders(prisma, now = new Date()) {
+  const { resolveServingRepUserIds } = await import('../lib/serving-week.mjs');
+  const wibNow = new Date(now.getTime() + WIB_OFFSET_MS);
+  const dow = wibNow.getUTCDay();
+  const today = wibNow.toISOString().slice(0, 10);
+  const t = Date.parse(`${today}T00:00:00Z`);
+  const sunday = new Date(t + (dow === 0 ? 0 : 7 - dow) * 86400000).toISOString().slice(0, 10);
+
+  const notifyIds = async (userIds, { title, message }) => {
+    const uniq = [...new Set((userIds || []).filter(Boolean))];
+    if (!uniq.length) return { recipients: 0, pushed: 0 };
+    let pushed = 0;
+    for (let i = 0; i < uniq.length; i += 100) {
+      const chunk = uniq.slice(i, i + 100);
+      await prisma.notification.createMany({
+        data: chunk.map((userId) => ({
+          id: `ntf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+          type: 'IDLE_FLAG',
+          memberId: userId,
+          title,
+          message,
+          payload: { href: '#/portal', category: 'penatalayan', priority: 'TASK' },
+          category: 'penatalayan',
+          status: 'OPEN',
+        })),
+      }).catch(() => {});
+      pushed += await pushToUsers(prisma, chunk, { title, message, href: '#/portal', category: 'penatalayan', priority: 'TASK' }).catch(() => 0);
+    }
+    return { recipients: uniq.length, pushed };
+  };
+
+  // Senin (H+1): ingatkan BOD menutup kanal OPEN yang ibadahnya kemarin.
+  if (dow === 1) {
+    const yesterday = new Date(t - 86400000).toISOString().slice(0, 10);
+    let stale = [];
+    try {
+      stale = await prisma.servingWeekChannel.findMany({
+        where: { status: 'OPEN', eventDate: new Date(`${yesterday}T00:00:00.000Z`) },
+        select: { eventDate: true },
+      });
+    } catch {
+      return { skipped: true, reason: 'tabel serving_week_channels belum ada' };
+    }
+    if (!stale.length) return { skipped: true, reason: 'tidak ada grup OPEN kemarin' };
+    const staff = await prisma.userRole.findMany({
+      where: { role: { in: ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'] } },
+      select: { userId: true },
+    }).catch(() => []);
+    const r = await notifyIds(staff.map((s) => s.userId), {
+      title: 'Tutup grup WA mingguan',
+      message: `Ibadah ${yesterday} selesai — arsipkan grup temporer (kirim caption penutup, lalu Tutup & arsip).`,
+    });
+    return { phase: 'close', ...r };
+  }
+
+  // Jumat (H-2) & Sabtu (H-1): sapa perwakilan + petugas Minggu ini.
+  if (dow !== 5 && dow !== 6) return { skipped: true, reason: 'bukan Jumat/Sabtu WIB' };
+  let channel = null;
+  try {
+    channel = await prisma.servingWeekChannel.findUnique({
+      where: { eventDate: new Date(`${sunday}T00:00:00.000Z`) },
+    }).catch(() => null);
+  } catch {
+    return { skipped: true, reason: 'tabel serving_week_channels belum ada' };
+  }
+  const userIds = await resolveServingRepUserIds(prisma, sunday).catch(() => []);
+  if (!userIds.length) return { skipped: true, reason: 'belum ada petugas/perwakilan', sunday };
+  if (dow === 5) {
+    const r = await notifyIds(userIds, {
+      title: `Konfirmasi tugas Minggu ${sunday}`,
+      message: `Buka portal → Penatalayan → tugas saya → Konfirmasi.${channel?.waUrl ? ' Link grup koordinasi ada di kartu grup WA temporer.' : ' Grup WA temporer menyusul dari BOD.'} Hadiri Representative Day sesuai jadwal.`,
+    });
+    return { phase: 'h-2', sunday, ...r };
+  }
+  const r = await notifyIds(userIds, {
+    title: `Siap melayani besok (${sunday})`,
+    message: 'Cek kembali tugas + checklist di portal. Cara scan QR & konfirmasi ada di caption panduan grup WA. Tim doa siaga — sampaikan pokok doa ke Liturgia.',
+  });
+  return { phase: 'h-1', sunday, ...r };
+}
+
+/**
  * Cron notifikasi (rencana Hobby: maksimum 2 cron/hari):
  * - /api/cron/notif-daily — dispatch pengumuman terjadwal + pengingat H-1 + pengingat Doa Minggu (Sabtu).
  * - /api/cron/notif-dispatch, /api/cron/reminders — pemanggilan manual per bagian.
@@ -271,12 +358,14 @@ export function registerNotifCronRoutes(app, { wrap }) {
     const reminderResult = await runEventReminders(prisma);
     const prayerResult = await runPrayerReminder(prisma).catch(() => ({ skipped: true }));
     const penatalayanResult = await runPenatalayanReminder(prisma).catch(() => ({ skipped: true }));
+    const servingWeekResult = await runServingWeekReminders(prisma).catch(() => ({ skipped: true }));
     res.json({
       ok: true,
       dispatch: dispatchResult,
       reminders: reminderResult,
       prayer: prayerResult,
       penatalayan: penatalayanResult,
+      servingWeek: servingWeekResult,
     });
   });
 

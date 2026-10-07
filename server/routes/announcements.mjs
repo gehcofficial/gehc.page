@@ -3,7 +3,7 @@ import { requireRole } from '../auth.mjs';
 import { senderCapabilities, resolveAudience, sendNotification, NOTIFY_CATEGORIES } from '../lib/notify.mjs';
 
 const SENDERS = ['SUPERADMIN', 'KOMISI', 'BPMJ', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'];
-const AUDIENCE_TYPES = ['PUBLIC', 'ROLE', 'DIVISION', 'GROUP', 'USER'];
+const AUDIENCE_TYPES = ['PUBLIC', 'ROLE', 'DIVISION', 'GROUP', 'USER', 'SERVING_REPS'];
 const ROLES = ['MENTOR', 'CO_MENTOR', 'MENTEE', 'COMMITTEE', 'KOMISI', 'BPMJ', 'ALUMNI'];
 
 function genId(prefix) {
@@ -34,6 +34,7 @@ function buildAudience(body) {
   if (type === 'DIVISION') return { type, divisions: body.audienceDivisions };
   if (type === 'GROUP') return { type, groupIds: body.audienceGroupIds };
   if (type === 'USER') return { type, userIds: body.audienceUserIds };
+  if (type === 'SERVING_REPS') return { type, eventDate: String(body.audienceEventDate || '').slice(0, 10) };
   return { type };
 }
 
@@ -106,10 +107,19 @@ export function registerAnnouncementRoutes(app, { wrap }) {
         if (userIds.some((id) => !pool.has(id))) return res.status(403).json({ error: 'Ada penerima di luar jangkauan Anda.' });
       }
     }
+    // SERVING_REPS: hanya BOD/Komisi (lewat caps.audiences); snapshot penerima
+    // disimpan ke audienceUserIds agar kirim terjadwal tetap stabil.
+    if (audience.type === 'SERVING_REPS') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(audience.eventDate || ''))) {
+        return res.status(400).json({ error: 'audienceEventDate (YYYY-MM-DD) wajib.' });
+      }
+    }
 
     if (audience.type !== 'PUBLIC') {
       const resolved = await resolveAudience(prisma, audience);
       if (!resolved.length) return res.status(400).json({ error: 'Tidak ada penerima yang cocok dengan audiens.' });
+      // Snapshot agar kirim terjadwal/ulang stabil walau susunan pekan berubah.
+      if (audience.type === 'SERVING_REPS') audience.userIds = resolved;
     }
 
     const publishAt = body.publishAt ? new Date(body.publishAt) : new Date();
@@ -170,6 +180,10 @@ export function registerAnnouncementRoutes(app, { wrap }) {
       groupIds: ann.audienceGroupIds,
       userIds: ann.audienceUserIds,
     };
+    // SERVING_REPS tersimpan sebagai snapshot userIds (stabil).
+    if (audience.type === 'SERVING_REPS') {
+      audience.type = 'USER';
+    }
     const result = await sendNotification({
       type: 'ANNOUNCEMENT',
       category: ann.category,

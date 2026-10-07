@@ -390,7 +390,8 @@ function AssignModal({ date, roles, eventId, onClose, onChanged }: {
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const { addToast } = useApp();
+  const { addToast, isMentor, isCoMentor, isKomisi, isCommittee, currentRole } = useApp();
+  const mentorOnly = (isMentor || isCoMentor) && !isKomisi && !isCommittee && currentRole !== 'SUPERADMIN';
   const sortedRoles = [...roles].sort((a, b) => a.name.localeCompare(b.name, 'id'));
   const grouped = useMemo(() => {
     const map = new Map<string, ServiceRole[]>();
@@ -414,10 +415,10 @@ function AssignModal({ date, roles, eventId, onClose, onChanged }: {
   const canSave = roleIds.length > 0 && people.length > 0 && dates.length > 0 && !saving;
 
   const searchPeople = useCallback(async (query: string): Promise<SearchableOption[]> => {
-    const r = await fetch(`/api/penatalayan/people?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+    const r = await fetch(`/api/penatalayan/people?q=${encodeURIComponent(query)}&myGroup=${mentorOnly ? 1 : 0}`, { credentials: 'include' });
     const d = await r.json().catch(() => ({}));
     return (d.people || []).map((p: { id: string; name: string }) => ({ value: p.id, label: p.name }));
-  }, []);
+  }, [mentorOnly]);
 
   const toggleRole = (id: string) =>
     setRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -462,6 +463,9 @@ function AssignModal({ date, roles, eventId, onClose, onChanged }: {
         <h3 className="text-lg font-black mb-1">Tugaskan Penatalayan</h3>
         <p className="text-xs text-[#8C8880] mb-4">
           Bisa sekaligus: beberapa komponen × beberapa orang × beberapa tanggal. Tanggal awal: {fmtLong(date)}.
+          {mentorOnly && (
+            <span className="block mt-1 font-bold text-emerald-700">Mode mentor: hanya anggota kelompok binaan Anda yang bisa dipilih.</span>
+          )}
         </p>
 
         <div className="space-y-4">

@@ -128,6 +128,7 @@ import { registerChurchProfileRoutes } from './routes/church-profile.mjs';
 import { registerUnitLandingRoutes } from './routes/unit-landing.mjs';
 import { registerWorshipRoutes } from './routes/worship.mjs';
 import { registerLiturgiaSongsRoutes } from './routes/liturgia-songs.mjs';
+import { registerServingWeekRoutes } from './routes/serving-week.mjs';
 import { registerHubGalleryRoutes } from './routes/hub-gallery.mjs';
 import { registerEventLifecycleRoutes } from './routes/event-lifecycle.mjs';
 import { registerDigestRoutes } from './routes/digest.mjs';
@@ -6953,6 +6954,7 @@ registerVisualsPublishRoutes(app, { wrap });
   registerUnitLandingRoutes(app, { wrap });
   registerWorshipRoutes(app, { wrap });
   registerLiturgiaSongsRoutes(app, { wrap });
+  registerServingWeekRoutes(app, { wrap });
   registerHubGalleryRoutes(app, { wrap });
   registerEventLifecycleRoutes(app, { wrap });
   registerDigestRoutes(app, { wrap });
@@ -8579,7 +8581,7 @@ app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
 }));
 
 // POST /api/penatalayan/schedules � assign person(s) to role for a date/event
-app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { serviceRoleId, userId, userIds, eventId, date, timeStart, timeEnd, notes } = req.body || {};
   const ids = Array.isArray(userIds) && userIds.length ? userIds : (userId ? [userId] : []);
@@ -8587,6 +8589,18 @@ app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMM
   const roleScope = await prisma.serviceRole.findUnique({ where: { id: serviceRoleId }, select: { scope: true } }).catch(() => null);
   if (roleScope?.scope === 'CHURCH' && !(await canManageChurchDuty(req))) {
     return res.status(403).json({ error: 'Hanya THL/Panji/BPMJ yang menjadwalkan petugas jemaat.' });
+  }
+  // Jalur mentor: hanya komponen UNIT + anggota kelompok binaan sendiri.
+  const { isScopedMentor, assertMentorAssignScope } = await import('./lib/mentor-assign.mjs');
+  if (isScopedMentor(req.authUser)) {
+    if (roleScope?.scope && roleScope.scope !== 'UNIT') {
+      return res.status(403).json({ error: 'Mentor hanya menugaskan komponen unit pemuda.' });
+    }
+    try {
+      await assertMentorAssignScope(prisma, req.authUser, ids);
+    } catch (e) {
+      return res.status(e.status || 403).json({ error: e.message });
+    }
   }
   const created = [];
   for (const uid of ids) {
@@ -8845,9 +8859,15 @@ app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
   const q = String(req.query.q || '').trim();
   const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 12));
   if (q.length < 2) return res.json({ people: [] });
+  // Mentor non-koordinator: selalu dibatasi ke anggota kelompok binaan
+  // (?myGroup=0 eksplisit tidak membuka — scope adalah keamanan, bukan filter UI).
+  const { isScopedMentor, mentorScopedMemberIds } = await import('./lib/mentor-assign.mjs');
+  let scopedIds = null;
+  if (isScopedMentor(req.authUser)) scopedIds = await mentorScopedMemberIds(prisma, req.authUser);
   const people = await prisma.user.findMany({
     where: {
       accountStatus: 'ACTIVE',
+      ...(scopedIds ? { id: { in: [...scopedIds] } } : {}),
       OR: [
         { name: { contains: q } },
         { givenName: { contains: q } },
@@ -8864,7 +8884,7 @@ app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
 
 // POST /api/penatalayan/schedules/bulk - penugasan massal:
 // komponen[] � orang[] � tanggal[] (idempoten; notifikasi ringkas per orang).
-app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { serviceRoleId, serviceRoleIds, userIds, dates, timeStart, timeEnd, eventId } = req.body || {};
@@ -8881,9 +8901,20 @@ app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 
   }
 
   const [roles, users] = await Promise.all([
-    prisma.serviceRole.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.serviceRoleId))] } }, select: { id: true, name: true, division: true } }).catch(() => []),
+    prisma.serviceRole.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.serviceRoleId))] } }, select: { id: true, name: true, division: true, scope: true } }).catch(() => []),
     prisma.user.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.userId))] } }, select: { id: true } }).catch(() => []),
   ]);
+  // Jalur mentor: hanya komponen UNIT + anggota kelompok binaan (all-or-nothing).
+  const { isScopedMentor, assertMentorAssignScope } = await import('./lib/mentor-assign.mjs');
+  if (isScopedMentor(req.authUser)) {
+    const nonUnit = roles.find((r) => String(r.scope || 'UNIT').toUpperCase() !== 'UNIT');
+    if (nonUnit) return res.status(403).json({ error: 'Mentor hanya menugaskan komponen unit pemuda.' });
+    try {
+      await assertMentorAssignScope(prisma, req.authUser, rows.map((r) => r.userId));
+    } catch (e) {
+      return res.status(e.status || 403).json({ error: e.message });
+    }
+  }
   const roleName = new Map(roles.map((r) => [r.id, r.name]));
   const roleDivision = new Map(roles.map((r) => [r.id, String(r.division || '').toUpperCase()]));
   const validUsers = new Set(users.map((u) => u.id));

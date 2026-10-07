@@ -365,6 +365,29 @@ export const EventWorkspacePanel: React.FC = () => {
     }
   };
 
+  const fillRepDay = async () => {
+    if (!selected) return;
+    setPosting(true);
+    try {
+      const date = String(selected.eventDate || '').slice(0, 10);
+      const r = await fetch(`/api/representative-day/template?eventId=${selected.id}&date=${encodeURIComponent(date)}`, { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setMeetingForm((f) => ({
+        ...f,
+        title: d.title || f.title,
+        agendaText: d.agendaText || f.agendaText,
+        attendeesText: d.attendeesHint || f.attendeesText,
+        isJoint: true,
+      }));
+      addToast({ type: 'success', title: 'Template Representative Day terisi' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Gagal ambil template', description: e instanceof Error ? e.message : '' });
+    } finally {
+      setPosting(false);
+    }
+  };
+
   const downloadICS = async (mid: string) => {
     try {
       const r = await fetch(`/api/events/meetings/${mid}/ics`, { credentials: 'include' });
@@ -886,6 +909,11 @@ export const EventWorkspacePanel: React.FC = () => {
           </div>
           {showMeetingForm && (
             <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+              <div className="flex justify-end">
+                <button type="button" onClick={() => void fillRepDay()} disabled={posting} className="text-[11px] px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold hover:bg-indigo-100 disabled:opacity-50">
+                  📋 Isi template Representative Day
+                </button>
+              </div>
               <input type="text" placeholder="Judul rapat" value={meetingForm.title} onChange={(e) => setMeetingForm((f) => ({ ...f, title: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />
               <input type="datetime-local" value={meetingForm.scheduledAt} onChange={(e) => setMeetingForm((f) => ({ ...f, scheduledAt: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />
               <input type="text" placeholder="Link Google Meet (opsional)" value={meetingForm.gmeetLink} onChange={(e) => setMeetingForm((f) => ({ ...f, gmeetLink: e.target.value }))} className="w-full text-sm px-4 py-2.5 rounded-xl border border-[#D9D7D0] focus:outline-none focus:ring-1 focus:ring-brand" />

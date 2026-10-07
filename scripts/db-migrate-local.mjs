@@ -386,6 +386,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-serving-week.cjs',
+    label: 'Serving Week: grup WA temporer + perwakilan (serving_week_channels)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-pelsus.cjs',
     label: 'Pelsus 11 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
     required: true,
