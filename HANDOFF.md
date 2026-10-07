@@ -64,7 +64,13 @@
 
 **Verifikasi:** `lint` bersih ✓ **846 test** hijau ✓ `build` OK ✓ staging deploy + smoke 50/50 ✓
 
-**Next (butuh perintah):** merge → `main` (= deploy PROD + migrasi prod `:prod`).
+**Next:** Sprint C pandas (perantau burnout check-in, dsb.) bila diminta.
+
+## Current — Merge Sprint B ke main + deploy PROD (7 Okt 2026)
+
+**Jalan:** `main` tidak bergerak (tetap `ec3bdce`) → `--no-ff` merge `cursor/sprint-b-marturia-diakonia` (`45109da`, 22 file, tanpa konflik — liturgia duplikat resolve otomatis identik) → `lint` bersih + **846 test** hijau pasca-merge → push `main` ✓ → migrasi prod B 6 tabel + `db:schema:check:prod` sinkron ✓ → Vercel Production auto-deploy.
+
+**Verifikasi prod:** `/api/version` = `45109da` ✓ endpoint baru terdaftar & terkunci (templates + inventory → 401 tanpa login, tanpa data uji ditulis) ✓
 
 ## Current — Merge Sprint A ke main + deploy PROD (7 Okt 2026)
 
