@@ -201,6 +201,17 @@ export function registerDiakoniaRoutes(app, { wrap }) {
     }),
   );
 
+  app.delete(
+    '/api/diakonia/cases/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaCase')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.diakoniaCase.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
+
   app.post(
     '/api/diakonia/cases/:id/visits',
     requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
@@ -253,6 +264,17 @@ export function registerDiakoniaRoutes(app, { wrap }) {
     });
     res.json({ item: created });
   }));
+
+  app.delete(
+    '/api/diakonia/kost/:id',
+    requireRole(...WRITE_ROLES), requireDivision('DIAKONIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'diakoniaKost')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.diakoniaKost.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
 
   app.patch(
     '/api/diakonia/kost/:id',

@@ -153,6 +153,7 @@
     "db:migrate:marturia-diakonia-a": "node server/_migrate-marturia-diakonia-a.cjs",
     "db:migrate:marturia-diakonia-a:staging": "dotenv -e .env.staging -- node server/_migrate-marturia-diakonia-a.cjs",
     "db:migrate:marturia-diakonia-a:prod": "dotenv -e .env.production -- node server/_migrate-marturia-diakonia-a.cjs",
+    "smoke:marturia-diakonia": "node scripts/smoke-marturia-diakonia.mjs",
     "db:seed:pelsus": "node server/seed-pelsus.mjs",
     "db:seed:pelsus:staging": "dotenv -e .env.staging -- node server/seed-pelsus.mjs",
     "db:seed:pelsus:prod": "dotenv -e .env.production -- node server/seed-pelsus.mjs",

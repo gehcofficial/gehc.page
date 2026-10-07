@@ -178,6 +178,17 @@ export function registerMarturiaRoutes(app, { wrap }) {
     }),
   );
 
+  app.delete(
+    '/api/marturia/assets/:id',
+    requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'marturiaAsset')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.marturiaAsset.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
+    }),
+  );
+
   app.post(
     '/api/marturia/assets/:id/versions',
     requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
@@ -249,6 +260,17 @@ export function registerMarturiaRoutes(app, { wrap }) {
       if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
       const updated = await prisma.marturiaSoul.update({ where: { id: req.params.id }, data });
       res.json({ item: updated });
+    }),
+  );
+
+  app.delete(
+    '/api/marturia/souls/:id',
+    requireRole(...WRITE_ROLES), requireDivision('MARTURIA'),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!needTable(prisma, 'marturiaSoul')) return res.status(503).json({ error: 'Database belum siap.' });
+      await prisma.marturiaSoul.delete({ where: { id: req.params.id } });
+      res.json({ ok: true });
     }),
   );
 
