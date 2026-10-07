@@ -49,8 +49,8 @@ async function req(method, path, { session = null, body = undefined } = {}) {
   return { status: res.status, data, setCookie };
 }
 
-async function login(email) {
-  const r = await req('POST', '/api/auth/local', { body: { email, password: DEMO_PASSWORD } });
+async function login(email, password = DEMO_PASSWORD) {
+  const r = await req('POST', '/api/auth/local', { body: { email, password } });
   if (r.status !== 200) throw new Error(`login ${email} → ${r.status}`);
   const m = /gehc_session=[^;]+/.exec(r.setCookie);
   if (!m) throw new Error(`login ${email}: cookie sesi tidak ada`);
@@ -104,7 +104,7 @@ async function main() {
   if (reg.status !== 200 && reg.status !== 201) {
     console.log(`  ! registrasi uji dilewati (status ${reg.status}) — guard sempit tidak teruji`);
   } else {
-    const sesNarrow = await login(narrowEmail);
+    const sesNarrow = await login(narrowEmail, 'UjiOtomatis123');
     const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesNarrow, body: { area: 'LOGISTIK', status: 'SIAP' } });
     check('akun segar tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
     const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesNarrow, body: { item: 'UJI-OTOMATIS-x' } });
