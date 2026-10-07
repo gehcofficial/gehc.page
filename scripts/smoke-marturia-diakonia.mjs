@@ -96,15 +96,35 @@ async function main() {
   check('toggle done → true', tog.status === 200 && tog.data?.item?.done === true, `dapat ${tog.status}`);
   await req('PATCH', `/api/marturia/shotlist/${first.id}`, { session: sesMarturia, body: { done: false } });
 
-  // 4. Guard peran: MENTEE (tanpa COMMITTEE/divisi) tidak boleh tulis.
-  // (BOD Tim Kerja tanpa divisi memang melihat semua panel — division-access.mjs.)
-  const sesMentee = await login(email('krisetia.mamoto')); // MENTEE-only + punya password lokal
-  const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesMentee, body: { area: 'LOGISTIK', status: 'SIAP' } });
-  check('MENTEE tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
-  const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesMentee, body: { item: 'UJI-OTOMATIS-x' } });
-  check('MENTEE tulis Marturia → 403', cross2.status === 403, `dapat ${cross2.status}`);
-  const cross3 = await req('GET', '/api/diakonia/cases', { session: sesMentee });
-  check('MENTEE baca kasus mercy → 200 termasking', cross3.status === 200 && cross3.data?.canSeeSubject === false, `dapat ${cross3.status}`);
+  // 4. Guard peran: akun segar tanpa peran/divisi tidak boleh tulis apa pun.
+  // (BOD Tim Kerja tanpa divisi memang melihat semua panel — division-access.mjs —
+  //  jadi akun COMMITTEE seperti gievara/prichel BUKAN bukti guard.)
+  const narrowEmail = `uji-otomatis-${Date.now().toString(36)}@gehc.demo`;
+  const reg = await req('POST', '/api/register/local', { body: { name: 'Uji Otomatis', email: narrowEmail, password: 'UjiOtomatis123' } });
+  if (reg.status !== 200 && reg.status !== 201) {
+    console.log(`  ! registrasi uji dilewati (status ${reg.status}) — guard sempit tidak teruji`);
+  } else {
+    const sesNarrow = await login(narrowEmail);
+    const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesNarrow, body: { area: 'LOGISTIK', status: 'SIAP' } });
+    check('akun segar tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
+    const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesNarrow, body: { item: 'UJI-OTOMATIS-x' } });
+    check('akun segar tulis Marturia → 403', cross2.status === 403, `dapat ${cross2.status}`);
+    const cross3 = await req('GET', '/api/diakonia/cases', { session: sesNarrow });
+    check('akun segar baca kasus → 200 termasking', cross3.status === 200 && cross3.data?.canSeeSubject === false, `dapat ${cross3.status}`);
+    // Hapus akun uji via Komisi (purge relasi + row).
+    try {
+      const sesKomisi = await login(email('stevania.hadinda'));
+      const me = await req('GET', '/api/auth/me', { session: sesNarrow });
+      const uid = me.data?.user?.id;
+      if (uid) {
+        const del = await req('DELETE', `/api/people/${uid}`, { session: sesKomisi, body: { confirm: narrowEmail, confirmPhrase: 'HAPUS' } });
+        check('bersih: akun uji terhapus', del.status === 200, `dapat ${del.status}`);
+      }
+    } catch (e) {
+      console.log(`  ! bersih akun uji gagal: ${e?.message || e}`);
+      fail += 1;
+    }
+  }
 
   // 5. Readiness + transport (Diakonia).
   const chk = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesDiakonia, body: { area: 'LOGISTIK', status: 'SIAP', note: 'uji otomatis' } });
