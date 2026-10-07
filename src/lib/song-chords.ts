@@ -236,3 +236,105 @@ export function buildFreeShow(song: SongLite, usage?: ServiceSongLite | null) {
 export function freeshowPushHint(): string {
   return 'Impor file: FreeShow → File → Import → ChordPro / Quick Lyrics (CTRL+ALT+I). API lokal http://localhost:5506 siap menerima payload buildFreeShow().';
 }
+
+// ---------------- Editor ChordPro v2: template bagian + nada dasar ----------------
+
+/** Kosakata bagian baku (saran editor; parser tetap generik). */
+export const SECTION_TEMPLATES = [
+  'Intro',
+  'Verse 1',
+  'Verse 2',
+  'Verse 3',
+  'Verse 4',
+  'Pre-Chorus',
+  'Chorus',
+  'Bridge',
+  'Interlude',
+  'Ending',
+  'Tag',
+  'Coda',
+];
+
+const KEY_LIST = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_ALIAS: Record<string, string> = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
+
+/** 12 kunci kromatis untuk picker nada dasar / kunci tampil. */
+export const PICKER_KEYS = [...KEY_LIST];
+
+/** Indeks kromatis 0–11, -1 bila tidak dikenal. */
+export function keyIndex(key?: string | null): number {
+  const k = String(key || '').trim();
+  if (!k) return -1;
+  return KEY_LIST.indexOf(FLAT_ALIAS[k] || k);
+}
+
+/** Geser kunci tampil: transposeChord(key, steps). */
+export function transposeKey(baseKey: string, semitones: number): string {
+  const i = keyIndex(baseKey);
+  if (i < 0) return baseKey;
+  return KEY_LIST[(((i + Math.trunc(Number(semitones) || 0)) % 12) + 12) % 12];
+}
+
+/**
+ * Langkah transpose (0–11 ke atas) dari nada dasar ke kunci tampil.
+ * Mod 12 identik untuk nama chord (mis. G→D = +7).
+ */
+export function transposeSteps(fromKey?: string | null, toKey?: string | null): number {
+  const a = keyIndex(fromKey);
+  const b = keyIndex(toKey);
+  if (a < 0 || b < 0) return 0;
+  return (((b - a) % 12) + 12) % 12;
+}
+
+/** Baris yang hanya berisi chord (candidates untuk digabung ke lirik di bawahnya). */
+export function isChordLine(line: string): boolean {
+  const exp = String(line || '').replace(/\t/g, '    ');
+  if (!exp.trim()) return false;
+  if (SECTION_LINE_RE.test(line)) return false;
+  const toks = exp.trim().split(/\s+/);
+  if (!toks.length || toks.some((t) => !isChordToken(t))) return false;
+  if (toks.length > 1) return true;
+  // 1 token: chord bila "kuat" (berkualitas/alterasi/bass) atau ditulis menjorok.
+  const t = toks[0];
+  const strong = /[#b/]/.test(t) || /[mM0-9susdimag+°ø().-]/.test(t.slice(1));
+  return strong || /^\s/.test(exp);
+}
+
+function chordTokensWithIndex(line: string): Array<{ token: string; index: number }> {
+  const exp = String(line || '').replace(/\t/g, '    ');
+  const out: Array<{ token: string; index: number }> = [];
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(exp)) !== null) out.push({ token: m[0], index: m.index });
+  return out;
+}
+
+/**
+ * Kompilasi gaya "chord di atas lirik" (2 baris) menjadi ChordPro inline.
+ * Baris chord + baris lirik berikutnya → `[C]` disisipkan pada posisi kata.
+ * Header `[Bagian]`, baris kosong, dan baris lirik biasa tidak disentuh.
+ */
+export function compileChordOverLyrics(text: string): string {
+  const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const next = i + 1 < lines.length ? lines[i + 1] : null;
+    if (
+      isChordLine(line) && next !== null && next.trim() &&
+      !SECTION_LINE_RE.test(next) && !isChordLine(next)
+    ) {
+      const toks = chordTokensWithIndex(line).sort((a, b) => b.index - a.index);
+      let lyric = next;
+      for (const { token, index } of toks) {
+        const at = Math.max(0, Math.min(index, lyric.length));
+        lyric = `${lyric.slice(0, at)}[${token}]${lyric.slice(at)}`;
+      }
+      out.push(lyric);
+      i += 1;
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}

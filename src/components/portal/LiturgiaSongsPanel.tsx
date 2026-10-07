@@ -1,12 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, Download, Loader2, Music, Plus, Search, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Copy, Download, Loader2, Music, Pencil, Plus, Search, Trash2, Wand2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import {
+  PICKER_KEYS,
+  SECTION_TEMPLATES,
   buildQuickLyrics,
+  compileChordOverLyrics,
   parseSections,
   renderSelectedSections,
   stripChords,
   transposeChordPro,
+  transposeKey,
+  transposeSteps,
 } from '../../lib/song-chords';
 
 /**
@@ -27,6 +32,8 @@ type Song = {
   ccli?: string | null;
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
+  story?: string | null;
+  meaning?: string | null;
   sections: string[];
 };
 
@@ -103,6 +110,8 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'chord' | 'lirik'>('chord');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const chordRef = useRef<HTMLTextAreaElement | null>(null);
   const [mySetting, setMySetting] = useState<{ transpose: number; capo: number | null } | null>(null);
   const [useMine, setUseMine] = useState(false);
   const [form, setForm] = useState({
@@ -115,6 +124,8 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     ccli: '',
     defaultKey: '',
     lyricsChordPro: '[Verse 1]\n[C]Tulis lirik di sini [G]...\n\n[Chorus]\n[F]... [C]...',
+    story: '',
+    meaning: '',
   });
 
   const load = useCallback(async () => {
@@ -251,20 +262,72 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     }
     setSaving(true);
     try {
-      const d = await api<{ song: Song }>('/api/songs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, sourceRef: form.sourceRef || null, defaultKey: form.defaultKey || null }),
-      });
-      setShowCreate(false);
-      setForm({ ...form, title: '', sourceRef: '', lyricsChordPro: '' });
-      await searchLib();
-      if (d.song?.id) await addSong(d.song.id);
+      const payload = { ...form, sourceRef: form.sourceRef || null, defaultKey: form.defaultKey || null };
+      if (editingId) {
+        const d = await api<{ song: Song }>(`/api/songs/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        addToast({ type: 'success', title: `Lirik "${d.song?.title || ''}" diperbarui` });
+        setEditingId(null);
+        setShowCreate(false);
+        await searchLib();
+        await load();
+      } else {
+        const d = await api<{ song: Song }>('/api/songs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        setShowCreate(false);
+        setForm({ ...form, title: '', sourceRef: '', lyricsChordPro: '' });
+        await searchLib();
+        if (d.song?.id) await addSong(d.song.id);
+      }
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal simpan lagu', description: e instanceof Error ? e.message : '' });
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Muat lagu pustaka/setlist ke editor untuk diisi lirik + chord. */
+  const loadIntoForm = (s: Song) => {
+    setForm({
+      title: s.title || '',
+      source: s.source || 'LOKAL',
+      sourceRef: s.sourceRef || '',
+      sourceUrl: s.sourceUrl || '',
+      authors: s.authors || '',
+      copyright: s.copyright || '',
+      ccli: s.ccli || '',
+      defaultKey: s.defaultKey || '',
+      lyricsChordPro: s.lyricsChordPro || '',
+      story: s.story || '',
+      meaning: s.meaning || '',
+    });
+    setEditingId(s.id);
+    setShowCreate(true);
+    setShowLib(false);
+  };
+
+  /** Sisipkan template bagian pada posisi kursor textarea chord. */
+  const insertTemplate = (name: string) => {
+    const ta = chordRef.current;
+    const snippet = `\n[${name}]\n`;
+    if (!ta) {
+      setForm({ ...form, lyricsChordPro: `${form.lyricsChordPro || ''}${snippet}` });
+      return;
+    }
+    const start = ta.selectionStart ?? (form.lyricsChordPro || '').length;
+    const end = ta.selectionEnd ?? start;
+    const cur = form.lyricsChordPro || '';
+    setForm({ ...form, lyricsChordPro: `${cur.slice(0, start)}${snippet}${cur.slice(end)}` });
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + snippet.length;
+    });
   };
 
   return (
@@ -288,6 +351,23 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
 
       {showCreate && (
         <div className="p-3 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] grid gap-2 md:grid-cols-2">
+          <div className="md:col-span-2 flex items-center gap-2">
+            <span className="text-xs font-black text-[#1B1B1B]">
+              {editingId ? 'Isi lirik + chord (perbarui pustaka)' : 'Lagu baru'}
+            </span>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ ...form, title: '', sourceRef: '', lyricsChordPro: '' });
+                }}
+                className={btnGhost}
+              >
+                Batal edit
+              </button>
+            )}
+          </div>
           <input className={inputCls} placeholder="Judul lagu *" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <div className="flex gap-2">
             <select className={inputCls} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
@@ -307,17 +387,40 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
           <input className={inputCls} placeholder="Copyright / CCLI" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
           <div className="flex gap-2">
             <input className={inputCls} placeholder="CCLI no." value={form.ccli} onChange={(e) => setForm({ ...form, ccli: e.target.value })} />
-            <input className={inputCls} placeholder="Kunci (G)" value={form.defaultKey} onChange={(e) => setForm({ ...form, defaultKey: e.target.value })} />
+            <select className={inputCls} title="Nada dasar partitur" value={form.defaultKey} onChange={(e) => setForm({ ...form, defaultKey: e.target.value })}>
+              <option value="">Nada dasar…</option>
+              {PICKER_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
           </div>
-          <textarea className={`${inputCls} md:col-span-2 font-mono`} rows={6} placeholder="ChordPro: [Verse 1] + chord [C]..." value={form.lyricsChordPro} onChange={(e) => setForm({ ...form, lyricsChordPro: e.target.value })} />
+          <textarea className={`${inputCls} md:col-span-2`} rows={3} placeholder="Kisah di balik lagu (terkurasi — tampil di bedah lagu bila lagu ini dipilih)" value={form.story} onChange={(e) => setForm({ ...form, story: e.target.value })} />
+          <textarea className={`${inputCls} md:col-span-2`} rows={2} placeholder="Makna singkat lagu (1-2 kalimat, terkurasi)" value={form.meaning} onChange={(e) => setForm({ ...form, meaning: e.target.value })} />
+          <div className="md:col-span-2 flex flex-wrap gap-1.5 items-center">
+            <span className="text-[10px] font-bold text-[#8C8880]">Bagian:</span>
+            {SECTION_TEMPLATES.slice(0, 8).map((t) => (
+              <button key={t} type="button" onClick={() => insertTemplate(t)} className={btnGhost} title={`Sisipkan [${t}]`}>
+                [{t}]
+              </button>
+            ))}
+            <span className="flex-1" />
+            <button
+              type="button"
+              title="Gabungkan baris chord di atas lirik menjadi inline [C]"
+              onClick={() => setForm({ ...form, lyricsChordPro: compileChordOverLyrics(form.lyricsChordPro || '') })}
+              className={btnGhost}
+            >
+              <Wand2 className="w-3 h-3" /> Gabungkan chord di atas
+            </button>
+          </div>
+          <textarea ref={chordRef} className={`${inputCls} md:col-span-2 font-mono`} rows={8} placeholder={'[Verse 1]\n[C]Tulis lirik di sini [G]...\n\natau tulis chord di baris atas, lirik di bawahnya — lalu klik "Gabungkan chord di atas"'} value={form.lyricsChordPro} onChange={(e) => setForm({ ...form, lyricsChordPro: e.target.value })} />
           <div className="md:col-span-2 flex gap-2">
             <button type="button" onClick={() => void createSong()} disabled={saving} className={btnDark}>
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Simpan & masukkan ke setlist
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : editingId ? <Pencil className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {editingId ? 'Perbarui lagu' : 'Simpan & masukkan ke setlist'}
             </button>
             <p className="text-[11px] text-[#8C8880] self-center">
               {form.source === 'SEKULER'
                 ? 'Sekuler: wajib pencipta + link/tautan hak cipta, tanpa lirik (momen bebas/bedah-lagu saja).'
-                : 'Full lirik hanya untuk lagu tim/public domain/berizin. Himne (KJ/NKB/NNBT/PKJ/KLIK) cukup metadata + link sumber.'}
+                : 'Tulis lirik per bait + chord inline [C]. Chord boleh ditulis di baris atas lirik lalu digabungkan.'}
             </p>
           </div>
         </div>
@@ -349,6 +452,11 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                   </p>
                 </div>
                 {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noreferrer" className={btnGhost}>Sumber</a>}
+                {s.source !== 'SEKULER' && (
+                  <button type="button" title={s.lyricsChordPro ? 'Edit lirik + chord' : 'Isi lirik + chord'} onClick={() => loadIntoForm(s)} className={btnGhost}>
+                    <Pencil className="w-3 h-3" /> {s.lyricsChordPro ? 'Edit' : 'Isi lirik'}
+                  </button>
+                )}
                 <button type="button" onClick={() => void addSong(s.id)} disabled={saving} className={btnGhost}>
                   <Plus className="w-3 h-3" /> Pakai
                 </button>
@@ -411,6 +519,21 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                       <span className="px-1">{(it.transpose || 0) > 0 ? `+${it.transpose}` : it.transpose || '0'}</span>
                       <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { transpose: (it.transpose || 0) + 1 })}>+1</button>
                     </span>
+                    <select
+                      className={inputCls}
+                      style={{ maxWidth: 110 }}
+                      title="Main di kunci — transpose dihitung otomatis dari nada dasar"
+                      value=""
+                      onChange={(e) => {
+                        const target = e.target.value;
+                        if (!target) return;
+                        const base = it.baseKey || it.song?.defaultKey || 'C';
+                        void patchItem(it.id, { transpose: transposeSteps(base, target) }, `Transpose ${base}→${target}`);
+                      }}
+                    >
+                      <option value="">Main di… ({transposeKey(it.baseKey || it.song?.defaultKey || 'C', it.transpose || 0)})</option>
+                      {PICKER_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+                    </select>
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold">
                       Capo
                       <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { capo: Math.max(0, (it.capo || 0) - 1) })}>−</button>
@@ -501,8 +624,14 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                       <Copy className="w-3 h-3" /> Salin Quick Lyrics
                     </button>
                   </div>
-                  {!!parseSections(it.song?.lyricsChordPro || '').length && !it.song?.lyricsChordPro && (
-                    <p className="text-[10px] text-amber-700">Lagu ini baru metadata (himne) — minta pemusik mengisi ChordPro agar bisa transpose & ekspor.</p>
+                  {!!parseSections(it.song?.lyricsChordPro || '').length && !it.song?.lyricsChordPro && it.song && (
+                    <p className="text-[10px] text-amber-700">
+                      Lagu ini baru metadata.{' '}
+                      <button type="button" onClick={() => loadIntoForm(it.song as Song)} className="font-black underline">
+                        Isi lirik + chord
+                      </button>{' '}
+                      agar bisa transpose, tampil di layar & ekspor.
+                    </p>
                   )}
                   {it.song?.source === 'SEKULER' && it.moment && !['bebas', 'bedah-lagu'].includes(it.moment) && (
                     <p className="text-[10px] text-amber-700 font-bold">Lagu sekuler sebaiknya hanya untuk momen bebas/bedah-lagu — pindahkan momennya (server menolak momen inti).</p>

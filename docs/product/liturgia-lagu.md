@@ -9,12 +9,14 @@
   + `service_songs` (pemakaian per event/sesi: urutan + bagian + transpose).
 - **Drive = artefak saja**: PDF chord-sheet / rekaman rehearsal tetap di
   `Musik & Vokal → Berkas/chord` (lihat `EventDivisionPhaseTabs`).
-- **Hak cipta**: himne KJ/NKB/NNBT/PKJ/KLIK tersimpan sebagai **metadata +
-  tautan sumber** (tanpa full lirik). Full ChordPro hanya untuk lagu tim
-  sendiri / public domain / berizin. Kontemporer wajib isi kolom
-  copyright/CCLI. **Sekuler: metadata + tautan saja (tanpa lirik), wajib
-  pencipta + link/catatan hak cipta, dan hanya untuk momen
-  `bebas`/`bedah-lagu`** (server menolak momen inti dengan 400).
+- **Hak cipta**: pustaka menyimpan **full lirik + ChordPro** untuk semua
+  sumber (keputusan 7 Okt 2026 — risiko ditanggung gereja; akses baca =
+  login, ekspor file = peran tulis). Pengisian *just-in-time*: pemusik
+  mengisi lagu yang masuk susunan/order dulu, bukan 1546 sekaligus.
+  Layar yang liriknya belum ada menampilkan placeholder + tombol link
+  sumber (SABDA/alkitab.app). Kontemporer tetap wajib isi kolom
+  copyright/CCLI. **Sekuler tetap tanpa lirik** (metadata +
+  tautan saja, momen bebas/bedah-lagu).
 
 ## 2. Alur Liturgia (tab Ibadah → kartu Lagu Ibadah)
 
@@ -102,3 +104,26 @@ npm run db:seed:liturgia-songs:prod
   `PUT /api/events/:id/liturgy-live` (+`rotateCode`),
   `GET/PUT /api/events/:id/songs/:itemId/mysetting` (akun sendiri).
 - **Migrasi:** `npm run db:migrate:liturgy-live[:staging|:prod]`.
+
+## 8. Editor lirik + chord (ChordPro v2)
+
+- **Isi lirik:** tombol **Isi lirik** di hasil pustaka / setlist memuat lagu ke
+  editor (POST baru / PUT perbarui). SEKULER dikecualikan server (tanpa lirik).
+- **Template bagian:** Intro, Verse 1–4, Pre-Chorus, Chorus, Bridge,
+  Interlude, Ending, Tag, Coda — tombol sisip di posisi kursor
+  (`SECTION_TEMPLATES`; parser tetap generik).
+- **Chord di atas lirik:** tulis baris chord di atas baris lirik, klik
+  **Gabungkan chord di atas** → dikompilasi ke inline `[C]`
+  (`compileChordOverLyrics`). Aturan: baris multi-chord selalu chord;
+  1 token ambigu (mis. `C`, `Amin`) dianggap lirik kecuali menjorok /
+  berkualitas (`Am`, `F#m7`, `C/G`) — cek hasil gabungan sebelum simpan.
+- **Nada dasar / key picker:** `defaultKey` = kunci partitur tersimpan;
+  dropdown **Main di…** menghitung `transposeSteps(nadaDasar, target)`
+  otomatis (0–11 ke atas; nama chord identik mod 12, mis. G→D = +7).
+  Tampilan kunci efektif: `transposeKey(nadaDasar, transpose)`.
+  Personal per pemusik via **Chord saya** (tak berubah).
+- **FreeShow:** jalur utama = impor file ChordPro di FreeShow
+  (File → Import — hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
+  dari GEHC = jalan pintas (slide per bagian, layout default); bait sangat
+  panjang bisa terpotong berbeda vs importer asli — pecah jadi 2 bagian
+  bila perlu.

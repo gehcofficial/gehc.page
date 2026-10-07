@@ -1,5 +1,19 @@
 # GEHC Portal — Handoff
 
+## Current — Editor lirik + chord + fix rute layar/kontrol (7 Okt 2026)
+
+**Kebutuhan:** rute `#/ibadah/.../layar|kontrol` prod error React #306; pemusik butuh isi lirik full + taruh chord di atas lirik + key picker nada dasar.
+
+**Diagnosis #306:** `LiturgyScreen/Control` tanpa `export default` padahal di-`React.lazy` (lazy resolve `undefined`; tsc/vite/test tak menangkap) + `LiturgyControl` pakai `useApp()` di luar provider.
+
+**Ubah (F1):** `export default` 2 file → `LiturgyControl` toast state-lokal → test `lazy-routes.test.ts` (13 modul lazy + bentuk hash prod) → commit `6280267` → push main → `staging:sync` ✓ → QA visual Playwright 6/6 (form kode + panel kontrol, tanpa boundary).
+
+**Ubah (F2):** policy lirik full semua sumber (login-only, ekspor peran tulis; sekuler tetap tanpa lirik) → `song-chords.ts` (`SECTION_TEMPLATES`, `isChordLine`, `compileChordOverLyrics`, `keyIndex/transposeKey/transposeSteps`, `PICKER_KEYS`) → `LiturgiaSongsPanel` (mode edit lagu + tombol template + gabungkan chord + `defaultKey` select + dropdown **Main di…** + tombol **Isi lirik**) → test `song-chord-editor.test.ts` (+12) → docs §8.
+
+**Verifikasi:** `lint` bersih ✓ **887 test** hijau (124 file) ✓ `build` OK ✓ (tanpa DDL baru — QA API 23/23 tetap berlaku)
+
+**Next:** QA visual editor di staging (isi 1 lagu himne full + gabungkan chord + main di D) → commit + push + sync → pemusik isi lagu susunan perdana.
+
 ## Current — Tata ibadah live + transpose per pemusik (7 Okt 2026)
 
 **Kebutuhan:** rundown fix → Liturgia susun lagu → 1 link presentasi tata ibadah (proyektor + HP jemaat, seperti link khotbah) + chord versi pemusik dengan transpose personal (gitar +2, keyboard +1 di lagu yang sama).
