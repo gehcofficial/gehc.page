@@ -84,7 +84,7 @@ async function main() {
   const preList = await req('GET', `/api/events/${eid}/marturia/shotlist`, { session: sesMarturia });
   const preIds = new Set((preList.data?.items || []).map((s) => s.id));
   const seed = await req('POST', `/api/events/${eid}/marturia/shotlist/seed`, { session: sesMarturia });
-  check('seed shotlist → 200', seed.status === 200, `dapat ${seed.status}`);
+  check('seed shotlist → 200', seed.status === 200, `dapat ${seed.status} seeded=${seed.data?.seeded} kept=${seed.data?.kept}`);
   const list1 = await req('GET', `/api/events/${eid}/marturia/shotlist`, { session: sesMarturia });
   const shots = list1.data?.items || [];
   check('shotlist ≥6 item', shots.length >= 6, `dapat ${shots.length}`);
