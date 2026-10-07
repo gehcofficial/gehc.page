@@ -8,6 +8,7 @@ import {
   divisionDetailTabIds,
   filterDivisionTabs,
   isHiddenInPortal,
+  resolveDetailTabId,
 } from '../../src/lib/portal-nav-config';
 import type { UserRole } from '../../src/types';
 
@@ -187,12 +188,27 @@ describe('divisionDetailTabIds — sub-tab per divisi', () => {
     expect(divisionDetailTabIds('didaskalia')).toEqual(['studio', 'pola', 'penatalayan', 'members']);
   });
 
+  it('Marturia: liputan + galeri + desain + kesaksian + misi', () => {
+    expect(divisionDetailTabIds('MARTURIA')).toEqual(['liputan', 'galeri', 'desain', 'kesaksian', 'misi', 'penatalayan', 'ibadah', 'members']);
+    expect(divisionDetailTabIds('marturia')).toEqual(['liputan', 'galeri', 'desain', 'kesaksian', 'misi', 'penatalayan', 'ibadah', 'members']);
+  });
+
+  it('Diakonia: tugas + 3 operasional + peduli + perantau', () => {
+    expect(divisionDetailTabIds('DIAKONIA')).toEqual(['tugas', 'logistik', 'konsumsi', 'kesehatan', 'peduli', 'perantau', 'penatalayan', 'ibadah', 'members']);
+  });
+
   it('divisi lain tidak berubah', () => {
     expect(divisionDetailTabIds('LITURGIA')).toEqual(['penatalayan', 'ibadah', 'members']);
-    expect(divisionDetailTabIds('MARTURIA')).toEqual(['gallery', 'kesaksian', 'penatalayan', 'ibadah', 'members']);
     expect(divisionDetailTabIds('KOINONIA')).toEqual(['checkin', 'ajak', 'penatalayan', 'ibadah', 'members']);
-    expect(divisionDetailTabIds('DIAKONIA')).toEqual(['penatalayan', 'ibadah', 'members']);
     expect(divisionDetailTabIds('BENZARPR')).toEqual(['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning']);
+  });
+
+  it('resolveDetailTabId: alias gallery → galeri + fallback tab pertama', () => {
+    expect(resolveDetailTabId('MARTURIA', 'gallery')).toBe('galeri');
+    expect(resolveDetailTabId('MARTURIA', 'GALERI')).toBe('galeri');
+    expect(resolveDetailTabId('MARTURIA', 'misi')).toBe('misi');
+    expect(resolveDetailTabId('MARTURIA', 'studio')).toBe('liputan');
+    expect(resolveDetailTabId('DIAKONIA', null)).toBe('tugas');
   });
 });
 

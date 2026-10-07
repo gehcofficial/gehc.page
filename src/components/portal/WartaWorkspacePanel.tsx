@@ -34,7 +34,7 @@ export const WartaWorkspacePanel: React.FC = () => {
         {tabBtn('archive', w.tabArchive)}
       </div>
       <p className="text-[11px] text-[#8C8880]">{tab === 'publish' ? w.hintPublish : w.hintArchive}</p>
-      {tab === 'publish' ? <WartaPublikTab division="DIDASKALIA" /> : <ManageWeeklyInfo />}
+      {tab === 'publish' ? <WartaPublikTab division="MULTI" /> : <ManageWeeklyInfo />}
     </div>
   );
 };

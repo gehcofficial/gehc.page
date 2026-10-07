@@ -38,6 +38,15 @@ import {
   Plus,
   MessageSquareQuote,
   Clapperboard,
+  Camera,
+  Palette,
+  Megaphone,
+  ClipboardCheck,
+  Truck,
+  UtensilsCrossed,
+  HeartPulse,
+  HandHeart,
+  Briefcase,
 } from 'lucide-react';
 import { EventCheckInTab } from './EventCheckInTab';
 import { EventInviteCard } from './EventInviteCard';
@@ -50,6 +59,13 @@ import { PolaSesiPanel } from './PolaSesiPanel';
 import { LiturgiaSongsPanel } from './LiturgiaSongsPanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
+import { MarturiaLiputanTab } from './MarturiaLiputanTab';
+import { MarturiaDesainTab } from './MarturiaDesainTab';
+import { MarturiaMisiTab } from './MarturiaMisiTab';
+import { DiakoniaTugasTab } from './DiakoniaTugasTab';
+import { DiakoniaOperasionalTab } from './DiakoniaOperasionalTab';
+import { DiakoniaPeduliTab } from './DiakoniaPeduliTab';
+import { DiakoniaPerantauTab } from './DiakoniaPerantauTab';
 import { MentionInput, renderMentionText } from '../ui/MentionInput';
 import { ScrollTabBar } from './ScrollTabBar';
 import { useLang } from '../../context/LangContext';
@@ -125,7 +141,7 @@ interface EventItem {
   startDate?: string | null;
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'kesaksian' | 'checkin' | 'ajak' | 'ibadah' | 'studio' | 'pola';
+type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'galeri' | 'liputan' | 'desain' | 'kesaksian' | 'misi' | 'tugas' | 'logistik' | 'konsumsi' | 'kesehatan' | 'peduli' | 'perantau' | 'checkin' | 'ajak' | 'ibadah' | 'studio' | 'pola';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -353,7 +369,17 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     penatalayan: { label: d.tabPenatalayan, icon: <Calendar className="w-3.5 h-3.5" /> },
     planning: { label: d.tabPlanning, icon: <ClipboardList className="w-3.5 h-3.5" /> },
     gallery: { label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+    galeri: { label: d.tabGallery, icon: <Image className="w-3.5 h-3.5" /> },
+    liputan: { label: 'Liputan', icon: <Camera className="w-3.5 h-3.5" /> },
+    desain: { label: 'Desain', icon: <Palette className="w-3.5 h-3.5" /> },
     kesaksian: { label: d.tabKesaksian, icon: <MessageSquareQuote className="w-3.5 h-3.5" /> },
+    misi: { label: 'Misi', icon: <Megaphone className="w-3.5 h-3.5" /> },
+    tugas: { label: 'Tugas', icon: <ClipboardCheck className="w-3.5 h-3.5" /> },
+    logistik: { label: 'Logistik', icon: <Truck className="w-3.5 h-3.5" /> },
+    konsumsi: { label: 'Konsumsi', icon: <UtensilsCrossed className="w-3.5 h-3.5" /> },
+    kesehatan: { label: 'Kesehatan', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+    peduli: { label: 'Peduli', icon: <HandHeart className="w-3.5 h-3.5" /> },
+    perantau: { label: 'Perantau', icon: <Briefcase className="w-3.5 h-3.5" /> },
     checkin: { label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
     ajak: { label: d.tabAjak, icon: <Send className="w-3.5 h-3.5" /> },
     studio: { label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
@@ -1639,15 +1665,60 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
               </div>
             )}
 
-            {/* Event Gallery Tab (Marturia only) */}
-            {activeTab === 'gallery' && selectedDiv === 'MARTURIA' && (
+            {/* Liputan Marturia — shotlist + assign + counter */}
+            {activeTab === 'liputan' && selectedDiv === 'MARTURIA' && selectedEvent && (
+              <MarturiaLiputanTab eventId={selectedEvent.id} eventName={selectedEvent.name} />
+            )}
+
+            {/* Event Gallery Tab (Marturia only, kurasi milik Marturia) */}
+            {(activeTab === 'galeri' || activeTab === 'gallery') && selectedDiv === 'MARTURIA' && (
               <div>
                 <EventGalleryTab division={selectedDiv} eventId={selectedEvent?.id ?? ''} />
               </div>
             )}
 
+            {/* Desain Marturia — antrean asset + handoff */}
+            {activeTab === 'desain' && selectedDiv === 'MARTURIA' && selectedEvent && (
+              <MarturiaDesainTab eventId={selectedEvent.id} />
+            )}
+
             {activeTab === 'kesaksian' && selectedDiv === 'MARTURIA' && (
               <ManageTestimonials variant="curate" />
+            )}
+
+            {/* Misi Marturia — referral + jiwa baru */}
+            {activeTab === 'misi' && selectedDiv === 'MARTURIA' && selectedEvent && (
+              <MarturiaMisiTab eventId={selectedEvent.id} />
+            )}
+
+            {/* Tugas Diakonia — readiness agregator */}
+            {activeTab === 'tugas' && selectedDiv === 'DIAKONIA' && selectedEvent && (
+              <DiakoniaTugasTab
+                eventId={selectedEvent.id}
+                eventName={selectedEvent.name}
+                onGotoArea={(a) => setDetailTab(a)}
+              />
+            )}
+
+            {/* Operasional Diakonia per area */}
+            {activeTab === 'logistik' && selectedDiv === 'DIAKONIA' && selectedEvent && (
+              <DiakoniaOperasionalTab eventId={selectedEvent.id} area="LOGISTIK" />
+            )}
+            {activeTab === 'konsumsi' && selectedDiv === 'DIAKONIA' && selectedEvent && (
+              <DiakoniaOperasionalTab eventId={selectedEvent.id} area="KONSUMSI" />
+            )}
+            {activeTab === 'kesehatan' && selectedDiv === 'DIAKONIA' && selectedEvent && (
+              <DiakoniaOperasionalTab eventId={selectedEvent.id} area="KESEHATAN" />
+            )}
+
+            {/* Peduli Diakonia — kasus mercy + Portal Doa */}
+            {activeTab === 'peduli' && selectedDiv === 'DIAKONIA' && (
+              <DiakoniaPeduliTab />
+            )}
+
+            {/* Perantau Diakonia — peluang kerja + kos */}
+            {activeTab === 'perantau' && selectedDiv === 'DIAKONIA' && (
+              <DiakoniaPerantauTab />
             )}
 
                       </div>

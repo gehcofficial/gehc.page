@@ -10,6 +10,23 @@
 
 **Next:** migrasi `:staging` → QA 1 minggu serving ujung-ke-ujung → rekam 5 video panduan → isi link Drive ke `TOOL_VIDEOS`.
 
+**Update 7 Okt (data lagu full + deploy):** seed `songs-hymns.json` (KJ 1–478 + NKB 1–230, judul terverifikasi SABDA, metadata saja) → staging: migrasi songs/serving_week ✓ + seed 709 ✓ + `staging:sync` deploy ✓ version = main ✓ → prod: migrasi 3 tabel ✓ + seed 709 ✓ (478 KJ + 230 NKB + 1 lokal). ChordPro diisi pemusik via UI; video panduan oleh Marturia/BOD.
+
+## Current — Sprint A Marturia & Diakonia: tab + API + kurasi pindah milik (7 Okt 2026)
+
+**Keputusan (dikunci):** paralel MVP tipis keduanya; setuju pindahkan kepemilikan (Info Peluang→Perantau, Portal Doa→Kasih Peduli, Warta multi-divisi); Diakonia by-event + rutin. Tab pendek + nama resmi jadi subtitle; approver interim Diakonia = KOMISI + BOD Tim Kerja (Plt via Kelola Struktur, tak blocking); uji staging = Mentoring Day terdekat.
+
+**Ubah:**
+- IA: `portal-nav-config.ts` MARTURIA→`liputan,galeri,desain,kesaksian,misi,…` + DIAKONIA→`tugas,logistik,konsumsi,kesehatan,peduli,perantau,…` + `DETAIL_TAB_ALIASES` (`gallery→galeri`) + `resolveDetailTabId()` → test nav-config update (+6).
+- DB: 10 tabel (`marturia_shotlist/assets/versions/souls/referrals`, `diakonia_event_checks/transport/cases/visits/kost`) — Prisma models + `_migrate-marturia-diakonia-a.cjs` (idempoten, wired `db-migrate-local` + npm `:staging|:prod`) + `check-db-schema` REQUIRED_TABLES. Lokal applied ✓ 10/10, rerun idempoten ✓.
+- Server: `routes/marturia.mjs` (15 endpoint: shotlist+seed, assets+versions+handoff 1-langkah, souls+handover, referral+`/api/r/:code` publik klik) + `routes/diakonia.mjs` (12 endpoint: readiness agregator, checks upsert, transport, cases+masking non-peduli, visits, kost+moderasi) — semua tulis `requireRole` + `requireDivision`, baca scoped. Registrasi di `index.mjs`.
+- UI: 7 tab baru (`MarturiaLiputan/Desain/Misi`, `DiakoniaTugas/Operasional/Peduli/Perantau`) + `TAB_META` + render branches di `DivisionWorkspacePanel`; galeri M1 (filter kontributor, approve massal, salin URL Warta ≤10, badge Kurasi Marturia); Warta strip kontribusi divisi (`WARTA_SECTION_OWNERS`, `division="MULTI"`); `InternalWartaPanel` props owner+lock kategori; `PastoralCareBoard` embed + tombol Untuk Liturgia (salin + ingatkan samarkan nama); caption Ajak baca carpool Diakonia (D3) + test caption (+2).
+- Lib murni teruji: `src/lib/marturia.ts` + `src/lib/diakonia.ts` → `marturia-diakonia.test.ts` (+9).
+
+**Verifikasi:** `lint` bersih ✓ **828 test** hijau (118 file, +16 baru) ✓ `build` OK ✓ migrasi lokal 10 tabel ✓ 27 endpoint ter-registrasi ✓
+
+**Next:** migrasi+seed staging (`db:migrate:marturia-diakonia-a:staging`) → uji 1 Mentoring Day (H-3 shotlist+assign → H+0 centang+upload → H+1 10 foto approved→Warta → 1 kasus mercy lapor→tutup, uji 403) → commit + push (menunggu perintah). Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
+
 ## Current — Alihkan pola sesi di tempat (7 Okt 2026)
 
 **Kebutuhan:** slug `sesi-2026-10-11` sudah dipakai sesi Bedah Film (prod) → buat sesi Monolog baru bentrok "Slug sudah dipakai"; overwrite slug tidak mungkin karena unik.

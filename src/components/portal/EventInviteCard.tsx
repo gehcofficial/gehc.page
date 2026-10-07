@@ -35,9 +35,20 @@ export const EventInviteCard: React.FC = () => {
   }, [events]);
   const [selectedId, setSelectedId] = useState('');
   const selected = upcoming.find((e) => e.id === selectedId) || upcoming[0] || null;
+  // D3: titik jemput carpool dibaca dari Diakonia Logistik (fallback: tanpa baris carpool).
+  const [transport, setTransport] = useState<string[]>([]);
+  useEffect(() => {
+    if (!selected?.id) { setTransport([]); return; }
+    let cancelled = false;
+    fetch(`/api/events/${encodeURIComponent(selected.id)}/diakonia/transport`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d) => { if (!cancelled) setTransport(((d.items || []) as Array<{ pickupPoint: string }>).map((t) => t.pickupPoint)); })
+      .catch(() => { if (!cancelled) setTransport([]); });
+    return () => { cancelled = true; };
+  }, [selected?.id]);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const auto = selected
-    ? buildInviteCaption({ eventName: selected.name, eventDate: selected.eventDate, venueName: selected.venueName, slug: selected.slug || selected.id, origin })
+    ? buildInviteCaption({ eventName: selected.name, eventDate: selected.eventDate, venueName: selected.venueName, slug: selected.slug || selected.id, origin, transport })
     : '';
   const [draft, setDraft] = useState<string | null>(null);
   const text = draft ?? auto;

@@ -10,6 +10,8 @@ export type InviteCaptionInput = {
   venueName?: string | null;
   slug?: string | null;
   origin?: string;
+  /** Titik jemput carpool dari Diakonia Logistik (D3) — opsional. */
+  transport?: string[];
 };
 
 function dateLabelID(iso?: string | null): string {
@@ -36,6 +38,7 @@ export function inviteLink(input: Pick<InviteCaptionInput, 'slug' | 'origin'>): 
 
 export function buildInviteCaption(input: InviteCaptionInput): string {
   const date = dateLabelID(input.eventDate);
+  const points = (input.transport || []).map((t) => String(t).trim()).filter(Boolean);
   const lines = [
     `Shalom! 🙌 Yuk hadir ${input.eventName || 'ibadah pemuda'}${date ? ` — ${date}` : ''}${input.venueName ? ` di ${input.venueName}` : ''}.`,
     '',
@@ -49,6 +52,7 @@ export function buildInviteCaption(input: InviteCaptionInput): string {
     '',
     'Hari-H: tunjukkan QR ke Tuan Rumah untuk absensi (cukup dipindai — ini BUKAN QRIS pembayaran, jadi tidak ada yang dibayar).',
     '',
+    ...(points.length ? ['Butuh barengan? Titik jemput carpool (Diakonia):', ...points.map((p) => `• ${p}`), ''] : []),
     'Kenapa daftar + absensi?',
     '• QR daftar ulang — masuk cepat tanpa antre tulis nama.',
     '• Grup WhatsApp peserta — info terbaru, carpool, dan pengumuman.',

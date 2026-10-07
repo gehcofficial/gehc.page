@@ -2907,3 +2907,174 @@ model ServingWeekChannel {
   @@index([status, eventDate])
   @@map("serving_week_channels")
 }
+
+// ---------- Sprint A: Marturia (Dokumentasi, Desain, Misi) ----------
+
+/// Shotlist liputan per event (Dokumentasi Visual): item checklist + petugas.
+model MarturiaShotlist {
+  id         String   @id @db.VarChar(64)
+  eventId    String   @map("event_id") @db.VarChar(64)
+  item       String   @db.VarChar(300)
+  sortOrder  Int      @default(0) @map("sort_order")
+  done       Boolean  @default(false)
+  doneById   String?  @map("done_by_id") @db.VarChar(64)
+  assigneeId String?  @map("assignee_id") @db.VarChar(64)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([eventId, sortOrder])
+  @@map("marturia_shotlist")
+}
+
+/// Antrean request asset desain (Desain & Publikasi): brief → versi → handoff.
+model MarturiaAsset {
+  id               String   @id @db.VarChar(64)
+  eventId          String?  @map("event_id") @db.VarChar(64)
+  title            String   @db.VarChar(200)
+  brief            String?  @db.Text
+  requesterDiv     String   @default("KOINONIA") @map("requester_division") @db.VarChar(24)
+  /// DIMINTA | DIGARAP | REVIEW | FINAL | HANDOFF
+  status           String   @default("DIMINTA") @db.VarChar(16)
+  handoffTo        String?  @map("handoff_to") @db.VarChar(24)
+  createdById      String?  @map("created_by_id") @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  versions MarturiaAssetVersion[]
+
+  @@index([eventId, status])
+  @@map("marturia_assets")
+}
+
+model MarturiaAssetVersion {
+  id          String   @id @db.VarChar(64)
+  assetId     String   @map("asset_id") @db.VarChar(64)
+  url         String   @db.Text
+  note        String?  @db.VarChar(500)
+  createdById String?  @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  asset MarturiaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("marturia_asset_versions")
+}
+
+/// Jiwa baru per event (Penginjilan & Misi): log + handover ke Koinonia/Jethro.
+model MarturiaSoul {
+  id            String   @id @db.VarChar(64)
+  eventId       String?  @map("event_id") @db.VarChar(64)
+  nickname      String   @db.VarChar(120)
+  inviterId     String?  @map("inviter_id") @db.VarChar(64)
+  referralCode  String?  @map("referral_code") @db.VarChar(32)
+  /// BARU | DIHUBUNGI | HADIR | DISERAHKAN
+  status        String   @default("BARU") @db.VarChar(16)
+  handoverNote  String?  @map("handover_note") @db.Text
+  createdById   String?  @map("created_by_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([eventId, status])
+  @@map("marturia_souls")
+}
+
+/// Referral link personal invite-a-friend (tanpa login untuk pengklik).
+model MarturiaReferral {
+  id            String   @id @db.VarChar(64)
+  code          String   @unique @db.VarChar(32)
+  inviterId     String   @map("inviter_id") @db.VarChar(64)
+  clicks        Int      @default(0)
+  registrations Int      @default(0)
+  attendances   Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([inviterId])
+  @@map("marturia_referrals")
+}
+
+// ---------- Sprint A: Diakonia (Operasional, Mercy, Perantau) ----------
+
+/// Status kesiapan operasional per event per area (tugas agregator).
+/// area: LOGISTIK | KONSUMSI | KESEHATAN. status: BELUM | SIAP | KENDALA.
+model DiakoniaEventCheck {
+  id        String   @id @db.VarChar(64)
+  eventId   String   @map("event_id") @db.VarChar(64)
+  area      String   @db.VarChar(16)
+  status    String   @default("BELUM") @db.VarChar(16)
+  note      String?  @db.Text
+  updatedBy String?  @map("updated_by_id") @db.VarChar(64)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@unique([eventId, area])
+  @@map("diakonia_event_checks")
+}
+
+/// Titik jemput carpool/transport per event (sumber caption Ajak Koinonia).
+model DiakoniaTransport {
+  id          String   @id @db.VarChar(64)
+  eventId     String   @map("event_id") @db.VarChar(64)
+  pickupPoint String   @map("pickup_point") @db.VarChar(200)
+  driver      String?  @db.VarChar(120)
+  seats       Int?
+  contact     String?  @db.VarChar(80)
+  createdById String?  @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([eventId])
+  @@map("diakonia_transport")
+}
+
+/// Kasus mercy (Kasih Peduli): lapor → assess → bantuan → follow-up → tutup.
+/// Nominal dana TIDAK disimpan di sini — hanya link ke pengajuan BZP/Bendahara.
+model DiakoniaCase {
+  id                String   @id @db.VarChar(64)
+  title             String   @db.VarChar(200)
+  kind              String   @default("LAINNYA") @db.VarChar(24)
+  /// LAPOR | ASSESS | BANTUAN | FOLLOWUP | TUTUP
+  status            String   @default("LAPOR") @db.VarChar(16)
+  subjectRef        String?  @map("subject_ref") @db.VarChar(200)
+  pastoralNoteId    String?  @map("pastoral_note_id") @db.VarChar(64)
+  needSummary       String?  @map("need_summary") @db.Text
+  fundingLink       String?  @map("funding_link") @db.VarChar(300)
+  createdById       String?  @map("created_by_id") @db.VarChar(64)
+  createdAt         DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  visits DiakoniaVisit[]
+
+  @@index([status, updatedAt])
+  @@map("diakonia_cases")
+}
+
+model DiakoniaVisit {
+  id          String   @id @db.VarChar(64)
+  caseId      String   @map("case_id") @db.VarChar(64)
+  visitedOn   DateTime @map("visited_on") @db.Date
+  visitors    String?  @db.VarChar(300)
+  result      String?  @db.Text
+  createdById String?  @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  kasus DiakoniaCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("diakonia_visits")
+}
+
+/// Info kos perantau Cikarang (moderasi Diakonia sebelum tampil).
+model DiakoniaKost {
+  id          String   @id @db.VarChar(64)
+  area        String   @db.VarChar(150)
+  priceRange  String?  @map("price_range") @db.VarChar(100)
+  contact     String?  @db.VarChar(120)
+  note        String?  @db.Text
+  /// USULAN | TAMPIL | ARSIP
+  status      String   @default("USULAN") @db.VarChar(16)
+  createdById String?  @map("created_by_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status])
+  @@map("diakonia_kost")
+}

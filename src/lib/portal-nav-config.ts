@@ -61,11 +61,28 @@ export function divisionDetailTabIds(division: string): string[] {
   switch (String(division || '').toUpperCase()) {
     case 'DIDASKALIA': return ['studio', 'pola', 'penatalayan', 'members'];
     case 'LITURGIA': return ['penatalayan', 'ibadah', 'members'];
-    case 'MARTURIA': return ['gallery', 'kesaksian', 'penatalayan', 'ibadah', 'members'];
+    case 'MARTURIA': return ['liputan', 'galeri', 'desain', 'kesaksian', 'misi', 'penatalayan', 'ibadah', 'members'];
     case 'KOINONIA': return ['checkin', 'ajak', 'penatalayan', 'ibadah', 'members'];
-    case 'DIAKONIA': return ['penatalayan', 'ibadah', 'members'];
+    case 'DIAKONIA': return ['tugas', 'logistik', 'konsumsi', 'kesehatan', 'peduli', 'perantau', 'penatalayan', 'ibadah', 'members'];
     default: return ['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning'];
   }
+}
+
+/**
+ * Alias tab lama → baru (deep-link lama tidak 404).
+ * `gallery` (Marturia lama) → `galeri`.
+ */
+export const DETAIL_TAB_ALIASES: Record<string, string> = {
+  gallery: 'galeri',
+};
+
+/** Resolve id tab workspace dengan alias + fallback ke tab pertama divisi. */
+export function resolveDetailTabId(division: string, tabId: string | null | undefined): string {
+  const raw = String(tabId || '').toLowerCase();
+  const aliased = DETAIL_TAB_ALIASES[raw] || raw;
+  const tabs = divisionDetailTabIds(division);
+  if (tabs.includes(aliased)) return aliased;
+  return tabs[0] || 'overview';
 }
 
 export function isDivisionTab(tabId: string): boolean {

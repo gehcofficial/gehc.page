@@ -395,6 +395,11 @@ const STEPS = [
     label: 'Pelsus 11 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
     required: true,
   },
+  {
+    script: 'server/_migrate-marturia-diakonia-a.cjs',
+    label: 'Sprint A Marturia & Diakonia: shotlist, assets, souls, referrals, checks, transport, cases, visits, kost',
+    required: true,
+  },
 ];
 
 const strict = process.argv.includes('--strict');

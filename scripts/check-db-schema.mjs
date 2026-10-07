@@ -67,6 +67,16 @@ const REQUIRED_TABLES = [
   'songs',
   'service_songs',
   'serving_week_channels',
+  'marturia_shotlist',
+  'marturia_assets',
+  'marturia_asset_versions',
+  'marturia_souls',
+  'marturia_referrals',
+  'diakonia_event_checks',
+  'diakonia_transport',
+  'diakonia_cases',
+  'diakonia_visits',
+  'diakonia_kost',
 ];
 
 const REQUIRED_WAITING_POOL_COLUMNS = [

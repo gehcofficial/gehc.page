@@ -56,6 +56,10 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
   const [pinBusy, setPinBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [noticeIsError, setNoticeIsError] = useState(false);
+  // M1: kurasi milik Marturia — divisi lain tercatat sebagai kontributor.
+  const [contribFilter, setContribFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -190,11 +194,51 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
     fetchItems();
   };
 
+  const handleBulkApprove = async (approve: boolean) => {
+    if (!selectedIds.length) return;
+    setBulkBusy(true);
+    try {
+      for (const id of selectedIds) {
+        // eslint-disable-next-line no-await-in-loop
+        await fetch(`/api/gallery/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: approve ? 'APPROVED' : 'REJECTED', rejectReason: approve ? undefined : 'Tidak sesuai standar' }),
+        });
+      }
+      setSelectedIds([]);
+      await fetchItems();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const copyWartaUrls = async () => {
+    const urls = items.filter((i) => i.status === 'APPROVED').slice(0, 10).map((i) => i.mediaUrl).filter(Boolean);
+    if (!urls.length) {
+      setNoticeIsError(true);
+      setNotice('Belum ada foto yang disetujui untuk disematkan ke Warta.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(urls.join('\n'));
+      setNoticeIsError(false);
+      setNotice(`${urls.length} URL tersalin — tempel ke Draf Warta (blok Dokumentasi, maks 10).`);
+    } catch {
+      setNoticeIsError(true);
+      setNotice('Gagal menyalin ke clipboard.');
+    }
+  };
+
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#F6AE4A]" /></div>;
 
-  const pendingItems = items.filter(i => i.status === 'PENDING');
-  const approvedItems = items.filter(i => i.status === 'APPROVED');
-  const rejectedItems = items.filter(i => i.status === 'REJECTED');
+  const contributors = Array.from(new Set(items.map((i) => i.division).filter(Boolean))) as string[];
+  const visibleItems = contribFilter ? items.filter((i) => i.division === contribFilter) : items;
+  const pendingItems = visibleItems.filter(i => i.status === 'PENDING');
+  const approvedItems = visibleItems.filter(i => i.status === 'APPROVED');
+  const rejectedItems = visibleItems.filter(i => i.status === 'REJECTED');
+  const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
     <div className="space-y-4">
@@ -202,7 +246,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/50 p-4 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-wider text-brand">Galeri Event</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-brand">Galeri Event · Kurasi Marturia</p>
             <p className="text-sm font-bold text-[#1B1B1B] truncate">{ev?.name || (eventId ? 'Memuat event…' : 'Pilih event dulu')}</p>
             {ev && (
               <p className="text-[11px] text-[#8C8880]">
@@ -283,18 +327,40 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-black text-[#1B1B1B]">Event Gallery</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {contributors.length > 0 && (
+            <select value={contribFilter} onChange={(e) => setContribFilter(e.target.value)} className="px-2.5 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-bold text-[#5C5850]" title="Filter divisi kontributor">
+              <option value="">Semua kontributor</option>
+              {contributors.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
           <label className="flex items-center gap-1.5 text-sm cursor-pointer">
             <input type="checkbox" checked={showApprovedOnly} onChange={e => setShowApprovedOnly(e.target.checked)} className="w-4 h-4 rounded border-[#D9D7D0] text-[#F6AE4A] focus:ring-[#F6AE4A]" />
             Hanya yang disetujui
           </label>
+          <button onClick={() => void copyWartaUrls()} className="flex items-center gap-1.5 border border-[#D9D7D0] text-[#5C5850] px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#FAF9F5]" title="Salin maks 10 URL foto approved untuk Draf Warta">
+            <Eye className="w-3.5 h-3.5" /> Salin URL Warta
+          </button>
           <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-1.5 border border-[#D9D7D0] text-[#5C5850] px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#FAF9F5]">
             <Upload className="w-3.5 h-3.5" /> Lanjutan (URL)
           </button>
         </div>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-brand/30 bg-amber-50/60 px-4 py-2.5">
+          <span className="text-xs font-bold text-[#1B1B1B]">{selectedIds.length} dipilih</span>
+          <button type="button" onClick={() => void handleBulkApprove(true)} disabled={bulkBusy} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-40">
+            {bulkBusy ? 'Memproses…' : 'Setujui semua'}
+          </button>
+          <button type="button" onClick={() => void handleBulkApprove(false)} disabled={bulkBusy} className="px-3 py-1.5 rounded-xl bg-white border border-[#D9D7D0] text-xs font-bold text-red-600 disabled:opacity-40">
+            Tolak semua
+          </button>
+          <button type="button" onClick={() => setSelectedIds([])} className="text-xs font-bold text-[#8C8880]">Batal</button>
+        </div>
+      )}
 
       {/* Pending Section */}
       {pendingItems.length > 0 && (
@@ -306,7 +372,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
             {pendingItems.map(item => (
-              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} />
+              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} selected={selectedIds.includes(item.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         </div>
@@ -322,7 +388,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
             {approvedItems.map(item => (
-              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} />
+              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} selected={selectedIds.includes(item.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         </div>
@@ -336,7 +402,7 @@ export default function EventGalleryTab({ division, eventId }: { division: strin
           </summary>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
             {rejectedItems.map(item => (
-              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} />
+              <GalleryCard key={item.id} item={item} onApprove={handleApprove} onDelete={handleDelete} onPreview={setPreviewItem} selected={selectedIds.includes(item.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         </details>
@@ -445,11 +511,23 @@ type GalleryCardProps = {
   onApprove: (id: string, approve: boolean) => void;
   onDelete: (id: string) => void;
   onPreview: (item: GalleryItem) => void;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 };
 
-const GalleryCard: React.FC<GalleryCardProps> = ({ item, onApprove, onDelete, onPreview }) => {
+const GalleryCard: React.FC<GalleryCardProps> = ({ item, onApprove, onDelete, onPreview, selected, onToggleSelect }) => {
   return (
-    <div className="relative group bg-white border border-[#D9D7D0]/50 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onPreview(item)}>
+    <div className={`relative group bg-white border rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-shadow ${selected ? 'border-brand shadow-md' : 'border-[#D9D7D0]/50'}`} onClick={() => onPreview(item)}>
+      {onToggleSelect && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(item.id); }}
+          className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-md border-2 flex items-center justify-center ${selected ? 'bg-brand border-brand text-white' : 'bg-white/90 border-[#D9D7D0]'}`}
+          title="Pilih untuk aksi massal"
+        >
+          {selected && <CheckCircle2 className="w-3.5 h-3.5" />}
+        </button>
+      )}
       <div className="aspect-square relative bg-gray-100 overflow-hidden">
         {item.thumbUrl ? (
           <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
@@ -479,8 +557,8 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ item, onApprove, onDelete, on
           <button onClick={e => { e.stopPropagation(); onApprove(item.id, false); }} className="flex-1 py-1.5 text-[10px] font-bold bg-red-100 text-red-700 rounded-lg hover:bg-red-200">Tolak</button>
         </div>
       )}
-      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={e => { e.stopPropagation(); onDelete(item.id); }} className="p-1.5 rounded-full bg-white/90 text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={e => { e.stopPropagation(); onDelete(item.id); }} className="p-1.5 rounded-full bg-white/90 text-red-500 hover:bg-red-50" title="Hapus"><Trash2 className="w-3.5 h-3.5" /></button>
       </div>
     </div>
   );

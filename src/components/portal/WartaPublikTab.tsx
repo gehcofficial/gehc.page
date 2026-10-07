@@ -72,7 +72,16 @@ const STATUS_COLORS = {
   PUBLISHED: 'bg-emerald-100 text-emerald-700',
 };
 
+/** Tahap warta → divisi pemilik kontribusi (M2: Warta multi-divisi). */
+export const WARTA_SECTION_OWNERS: Array<{ stage: string; division: string; label: string }> = [
+  { stage: 'CONTENT_READY', division: 'DIDASKALIA', label: 'Materi & khotbah' },
+  { stage: 'COPY_EDIT', division: 'KOINONIA', label: 'Edit copy & posting' },
+  { stage: 'DESIGN', division: 'MARTURIA', label: 'Foto & desain' },
+  { stage: 'REVIEW', division: 'KOMISI', label: 'Review akhir' },
+];
+
 export default function WartaPublikTab({ division }: { division: string }) {
+  const sectionOwners = WARTA_SECTION_OWNERS;
   const [wartaList, setWartaList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -243,6 +252,18 @@ export default function WartaPublikTab({ division }: { division: string }) {
           <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 bg-[#F6AE4A] text-[#1B1B1B] px-3 py-1.5 rounded-xl text-xs font-bold">
             <Plus className="w-3.5 h-3.5" /> Buat Warta
           </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#D9D7D0]/50 bg-white px-4 py-3">
+        <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-2">Kontribusi divisi</p>
+        <div className="flex flex-wrap gap-1.5">
+          {sectionOwners.map((s) => (
+            <span key={s.stage} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1B1B1B] bg-[#FAF9F5] border border-[#D9D7D0] rounded-full px-2.5 py-1">
+              <span className="text-[#8C8880]">{s.label}</span>
+              <span className="text-brand">· {s.division === 'KOMISI' ? 'Komisi' : s.division.charAt(0) + s.division.slice(1).toLowerCase()}</span>
+            </span>
+          ))}
         </div>
       </div>
 

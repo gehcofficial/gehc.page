@@ -46,4 +46,16 @@ describe('buildInviteCaption', () => {
     expect(text).toContain('Ibadah');
     expect(text).toContain('#/register');
   });
+
+  it('tanpa transport: tidak ada baris carpool (D3 fallback)', () => {
+    const text = buildInviteCaption(INPUT);
+    expect(text).not.toContain('Titik jemput carpool');
+  });
+
+  it('dengan transport Diakonia: titik jemput tampil sebagai sumber', () => {
+    const text = buildInviteCaption({ ...INPUT, transport: ['Gerbang Citywalk — 07.00', 'Jababeka Pintu 6'] });
+    expect(text).toContain('Titik jemput carpool (Diakonia)');
+    expect(text).toContain('• Gerbang Citywalk — 07.00');
+    expect(text).toContain('• Jababeka Pintu 6');
+  });
 });

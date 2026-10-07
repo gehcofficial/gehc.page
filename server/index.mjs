@@ -141,6 +141,8 @@ import { ensureEventDivisions, isWeeklyWorshipEvent } from './lib/event-division
 import { registerDriveOwnershipRoutes, registerEventArchivePublicRoute } from './routes/drive-ownership.mjs';
 import { isMentorOfGroup } from './lib/drive-ownership.mjs';
 import { registerPastoralCareRoutes } from './routes/pastoral-care.mjs';
+import { registerMarturiaRoutes } from './routes/marturia.mjs';
+import { registerDiakoniaRoutes } from './routes/diakonia.mjs';
 import { registerBeyondersLeadersRoutes } from './routes/beyonders-leaders.mjs';
 import { BAKU_TAU_SOURCE_EVENT, BAKU_TAU_EVENT_ID, BAKU_TAU_MAP_URL, BAKU_TAU_MAP_EMBED_QUERY, GEHC_MAP_URL } from './lib/baku-tau.mjs';
 import { applyPersonNameFields, parseDisplayName, resolveDisplayName } from './lib/person-name.mjs';
@@ -6945,6 +6947,8 @@ registerTitleCatalogRoutes(app, { wrap });
 registerContentPublicRoutes(app, { wrap });
 registerDriveOwnershipRoutes(app, { wrap });
 registerPastoralCareRoutes(app, { wrap });
+registerMarturiaRoutes(app, { wrap });
+registerDiakoniaRoutes(app, { wrap });
 registerBeyondersLeadersRoutes(app, { wrap });
 registerOperatorRoutes(app, { wrap });
 registerAdminRoutes(app, { wrap });

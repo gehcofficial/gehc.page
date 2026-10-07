@@ -68,7 +68,7 @@ type Note = {
 
 type View = 'laporan' | 'daftar' | 'minggu';
 
-export const PastoralCareBoard: React.FC = () => {
+export const PastoralCareBoard: React.FC<{ embed?: boolean; ownerLabel?: string }> = ({ embed, ownerLabel }) => {
   const { addToast, groups } = useApp();
   const [view, setView] = useState<View>('laporan');
   const [hideDetail, setHideDetail] = useState(false);
@@ -333,8 +333,23 @@ export const PastoralCareBoard: React.FC = () => {
     </p>
   );
 
+  const forwardToLiturgy = async (n: Note) => {
+    const text = `[Pokok Doa — ${prayerKindLabel(n.kind)}] ${n.note}`;
+    const ok = await copyText(text);
+    addToast({
+      type: ok ? 'success' : 'error',
+      title: ok ? 'Tersalin untuk Liturgia' : 'Gagal menyalin',
+      description: ok ? 'Pastikan nama subjek sudah disamarkan sebelum diteruskan.' : undefined,
+    });
+  };
+
   return (
     <div className="space-y-4">
+      {embed && ownerLabel && (
+        <p className="text-[11px] font-bold text-[#EA580C] bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
+          Dikelola {ownerLabel} · laporan privat, hanya peran peduli yang melihat nama.
+        </p>
+      )}
       {/* Tab */}
       <div className="flex flex-wrap items-center gap-1.5">
         {([
@@ -543,6 +558,14 @@ export const PastoralCareBoard: React.FC = () => {
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8C8880]"
                   >
                     <History className="w-3 h-3" /> Riwayat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void forwardToLiturgy(n)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700"
+                    title="Salin sebagai pokok doa Liturgia (periksa nama dulu)"
+                  >
+                    <Copy className="w-3 h-3" /> Untuk Liturgia
                   </button>
                 </div>
                 {historyFor === n.id && (

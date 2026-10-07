@@ -33,13 +33,13 @@ const labelCls = 'block text-[10px] font-bold uppercase tracking-wider text-[#8C
 const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] bg-white text-sm focus:outline-none focus:ring-1 focus:ring-brand';
 
 /** Info & Peluang — warta internal (login-only). Feed + admin editor. */
-export const InternalWartaPanel: React.FC = () => {
+export const InternalWartaPanel: React.FC<{ ownerLabel?: string; lockCategory?: string }> = ({ ownerLabel, lockCategory }) => {
   const { addToast, authUser } = useApp();
   const [rows, setRows] = useState<Warta[]>([]);
   const [canAdmin, setCanAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('');
+  const [cat, setCat] = useState(lockCategory || '');
   const [showArchived, setShowArchived] = useState(false);
   const [detail, setDetail] = useState<Warta | null>(null);
   const [editor, setEditor] = useState<Warta | 'new' | null>(null);
@@ -114,6 +114,9 @@ export const InternalWartaPanel: React.FC = () => {
           <BookMarked className="w-4 h-4 text-[#0EA5E9]" />
           <h3 className="text-sm font-black text-[#1B1B1B]">Info & Peluang</h3>
           <span className="text-[10px] text-[#8C8880]">kabar, beasiswa & lowongan — khusus akun GEHC</span>
+          {ownerLabel && (
+            <span className="text-[10px] font-bold text-[#EA580C] bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Dikelola {ownerLabel}</span>
+          )}
           {canAdmin && (
             <button type="button" onClick={() => setEditor('new')} className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold">
               <Plus className="w-3.5 h-3.5" /> Buat Warta
@@ -125,9 +128,9 @@ export const InternalWartaPanel: React.FC = () => {
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C8880]" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul/isi…" className={`${inputCls} pl-9`} />
           </div>
-          <select value={cat} onChange={(e) => setCat(e.target.value)} className={`${inputCls} w-auto`}>
-            <option value="">Semua kategori</option>
-            {CATS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+          <select value={cat} onChange={(e) => setCat(e.target.value)} disabled={Boolean(lockCategory)} className={`${inputCls} w-auto disabled:opacity-60`}>
+            {!lockCategory && <option value="">Semua kategori</option>}
+            {(lockCategory ? [lockCategory] : CATS).map((c) => <option key={c} value={c}>{CAT_LABEL[c] || c}</option>)}
           </select>
           <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880]">
             <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="w-3.5 h-3.5 rounded border-[#D9D7D0]" /> Tampilkan arsip
