@@ -213,7 +213,11 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
             />
           </div>
           <div className={subTab === 'kontrol' ? '' : 'hidden'}>
-            <MentoringControl key={`kontrol-${sessionEpoch}`} eventId={event?.id || null} />
+            <MentoringControl
+              key={`kontrol-${sessionEpoch}-${weekMeta?.patternCode || ''}`}
+              eventId={event?.id || null}
+              preferPattern={weekMeta?.patternCode || null}
+            />
           </div>
         </>
       )}

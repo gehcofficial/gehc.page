@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Susunan main + tab Chord + modulasi (7 Okt 2026)
+
+**Kebutuhan:** lirik full sebagai reference (Ku Berbahagia: semua verse+chorus); susunan ala ProPresenter (V1+C saja atau full, urutan bebas); tab chord terpisah (chord di atas lirik); transpose × capo digabung; modulasi + titik pindah kunci.
+
+**Ubah:** `sections` = ordered list boleh berulang (tanpa migrasi skema) → `resolveArrangement` + `normalizeArrangement` + `validateArrangementSections` (klien ↔ server paritas) → `renderChordOverLyrics` (tampil-saja) + `stripChords` buang direktif → builder Quick Lyrics/`.show`/ChordPro + `resolveLyrics` layar ikut susunan → UI: editor susunan (tambah/hapus/geser/duplikat/preset/modulasi per baris) + tab Chord + stepper **Nada** tunggal + capo anotasi + ringkasan susunan → test arrangement/modulasi/chord-view (+~15).
+
+**Verifikasi:** (menyusul: lint + full suite + build)
+
+**Next:** QA 1 lagu penuh (V1+C, modulasi chorus akhir, ekspor `.show`) → commit + push + sync.
+
+## Current — Cleansing sesi film 11 Okt + label pola dropdown (7 Okt 2026)
+
+**Gejala (prod):** dropdown kontrol menampilkan "BEDAH_FILM — ..." padahal panel "Pola sesi" = Monolog · sesi-2026-10-11.
+
+**Diagnosis (audit prod read-only):** bukan sesi film nyangkut — polanya SUDAH MONOLOG (terkonversi sebelumnya, slug+link utuh); yang basi hanya JUDUL. 1 sesi event ini (DRAFT, 0 jawaban/vote/catatan/soal/chip) → tak perlu hapus/arsip; guard Terapkan lolos.
+
+**Ubah:** rename title prod → "Ibadah — Ibadah Pemuda Raya: The Rescue Plan - 11 Okt 2026" (1 baris, guard status=DRAFT; tanpa demo admin prod jadi via SQL setara PUT — efek identik) → hardening: `src/lib/worship-session-select.ts` baru (`preferSession` + `sessionOptionLabel`) → `MentoringControl` (prop `preferPattern`, label `[POLA] judul — status`) + `SessionDraftTab` (preferensi + label) + `PolaSesiPanel` (teruskan pola pekan, remount ikut pola) → test `worship-session-select.test.ts` (+7).
+
+**Verifikasi:** `lint` bersih ✓ **906 test** hijau (125 file, +7; 1 flaky lolos rerun) ✓ `build` OK ✓ rename prod terverifikasi via SELECT ✓
+
+**Next:** user tempel draft AI di Draft tab → Simpan → Terapkan → START SESI hari-H. "Arsip (1)" milik event lain, tak disentuh.
+
 ## Current — Bedah lagu kontekstual + berkisah (7 Okt 2026)
 
 **Kebutuhan:** usulan AI ngaco ("Mendekat" oleh "Luthfi"). Maunya: lagu dari himne KJ/NKB/NNBT yang kontekstual dengan firman + ada sejarah di balik lagu (cth. Mengikut Yesus Keputusanku — kisah suku Assam/Garo).

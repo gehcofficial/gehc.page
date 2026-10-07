@@ -17,6 +17,7 @@ import {
   type MentoringLivePayload,
   type MentoringStatus,
 } from '../../lib/mentoring';
+import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { TestimonyPanel } from './TestimonyPanel';
 import { DebatPanel, FgdTriggerPanel, ScreeningPanel, TeamsPanel } from './StagePanels';
 
@@ -83,7 +84,7 @@ const ACTIONS: { action: string; label: string; tone: string }[] = [
   { action: 'reset', label: 'Reset ke Draft', tone: 'bg-white !text-[#8C8880] border border-[#D9D7D0]' },
 ];
 
-export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string | null }> = ({ initialSlug, eventId }) => {
+export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string | null; preferPattern?: string | null }> = ({ initialSlug, eventId, preferPattern }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [onlyEvent, setOnlyEvent] = useState(true);
@@ -108,20 +109,11 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat sesi.');
       const list: SessionRow[] = d.sessions || [];
       setSessions(list);
-      setSelectedId((prev) => {
-        if (prev && list.some((s) => s.id === prev)) return prev;
-        const bySlug = initialSlug ? list.find((s) => s.slug === initialSlug)?.id : '';
-        if (bySlug) return bySlug;
-        if (eventId) {
-          const forEvent = list.filter((s) => (s as unknown as { eventId?: string | null }).eventId === eventId);
-          if (forEvent.length) return forEvent[0].id;
-        }
-        return list[0]?.id || '';
-      });
+      setSelectedId((prev) => preferSession(list, { prevId: prev, slug: initialSlug, eventId, preferPattern }));
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat sesi.' });
     }
-  }, [initialSlug, eventId]);
+  }, [initialSlug, eventId, preferPattern]);
 
   const loadDetail = useCallback(async () => {
     if (!selectedId) return;
@@ -537,7 +529,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
               {visibleSessions.length === 0 && <option value="">(belum ada sesi)</option>}
               {visibleSessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title} — {STATUS_LABELS[s.status]}
+                  {sessionOptionLabel(s, STATUS_LABELS[s.status])}
                 </option>
               ))}
             </select>

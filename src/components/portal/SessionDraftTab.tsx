@@ -9,6 +9,7 @@ import {
   templateFieldKeys,
   type DraftSection,
 } from '../../lib/worship-session-draft';
+import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 
 type Props = {
   ym: string;
@@ -211,18 +212,16 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       const list: SessionRow[] = d.sessions || [];
       setSessions(list);
       setSelectedId((prev) => {
-        if (prev && list.some((s) => s.id === prev)) return prev;
         if (suppressAutoSelect.current) {
           suppressAutoSelect.current = false;
           return '';
         }
-        const forEvent = event ? list.filter((s) => s.eventId === event.id) : [];
-        return forEvent[0]?.id || '';
+        return preferSession(list, { prevId: prev, eventId: event?.id, preferPattern: code });
       });
     } catch {
       setMsg({ kind: 'err', text: 'Gagal memuat daftar sesi.' });
     }
-  }, [event]);
+  }, [event, code]);
 
   const loadDetail = useCallback(async () => {
     if (!selectedId) {
@@ -548,7 +547,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           {linked.length > 1 && (
             <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="ml-auto rounded-xl border border-[#D9D7D0] px-2 py-1.5 text-xs">
               {linked.map((s) => (
-                <option key={s.id} value={s.id}>{s.slug} · {s.status}</option>
+                <option key={s.id} value={s.id}>{sessionOptionLabel(s, s.status)}</option>
               ))}
             </select>
           )}
