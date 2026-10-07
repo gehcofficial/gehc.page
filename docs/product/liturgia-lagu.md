@@ -76,3 +76,29 @@ npm run db:seed:liturgia-songs:prod
   nomor tak kontinu). Status 7 Okt 2026: staging 1546, prod 1546
   (478 KJ + 230 NKB + 50 NNBT + 308 PKJ + 479 KLIK + 1 lokal). Lagu SEKULER tidak di-seed
   massal — input manual via UI (wajib pencipta + tautan).
+
+## 7. Tata ibadah live + transpose pemusik
+
+- **Susunan** (`service_order_items`): momen `lagu` menunjuk setlist
+  (`serviceSongId`, satu event); momen non-lagu (`bacaan/doa/firman/
+  persembahan/pengumuman/mc`) membawa `title/body/owner/minutes` sendiri.
+  Disusun Liturgia di tab Ibadah → kartu **Tata Ibadah**.
+- **Live** (`service_live_state` per event): `status DRAFT/LIVE/DONE` +
+  `currentItemId` + `sectionIndex` (bait aktif — proyektor & HP sinkron
+  sampai level bait) + `accessCode` 6-hex (kode proyektor).
+- **Rute:** `#/ibadah/<eventKey>/layar` (proyektor + HP jemaat, read-only;
+  login ATAU kode proyektor) dan `#/ibadah/<eventKey>/kontrol`
+  (operator Liturgia, login + peran tulis).
+- **Layar lagu** = lirik bersih (`stripChords`, tanpa transpose); bila
+  `lyricsChordPro` kosong → placeholder + tombol link sumber
+  (SABDA/alkitab.app). Pemusik wajib mengisi ChordPro lagu yang dipakai.
+- **Transpose personal** (`service_song_settings`, unik per
+  lagu-setlist + akun): tiap pemusik atur transpose/capo-nya sekali
+  (tombol **Chord saya** di setlist) → preview + unduh
+  `ChordPro saya` (`export?download=chordpro&itemId=&asMe=1`).
+  Tanpa setting = pakai default tim. FreeShow tetap didukung via ekspor.
+- **API:** `GET/POST/PUT/DELETE /api/events/:id/order` (+`/reorder`),
+  `GET /api/events/:id/liturgy-live` (login/kode),
+  `PUT /api/events/:id/liturgy-live` (+`rotateCode`),
+  `GET/PUT /api/events/:id/songs/:itemId/mysetting` (akun sendiri).
+- **Migrasi:** `npm run db:migrate:liturgy-live[:staging|:prod]`.

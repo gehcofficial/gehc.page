@@ -103,6 +103,8 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'chord' | 'lirik'>('chord');
+  const [mySetting, setMySetting] = useState<{ transpose: number; capo: number | null } | null>(null);
+  const [useMine, setUseMine] = useState(false);
   const [form, setForm] = useState({
     title: '',
     source: 'LOKAL',
@@ -151,12 +153,44 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
 
   const openItem = useMemo(() => items.find((i) => i.id === openId) || null, [items, openId]);
 
+  // Transpose/capo personal pemusik untuk lagu yang dibuka (per akun, fallback default item).
+  useEffect(() => {
+    setMySetting(null);
+    setUseMine(false);
+    if (!openId) return;
+    void api<{ setting: { transpose: number; capo: number | null } | null }>(
+      `/api/events/${eventId}/songs/${openId}/mysetting`,
+    )
+      .then((d) => { if (d.setting) { setMySetting(d.setting); setUseMine(true); } })
+      .catch(() => undefined);
+  }, [openId, eventId]);
+
+  const effTranspose = useMine && mySetting ? mySetting.transpose : openItem?.transpose || 0;
+
+  const saveMine = async (transpose: number, capo: number | null) => {
+    if (!openId) return;
+    setSaving(true);
+    try {
+      const d = await api<{ setting: { transpose: number; capo: number | null } }>(
+        `/api/events/${eventId}/songs/${openId}/mysetting`,
+        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transpose, capo }) },
+      );
+      setMySetting(d.setting);
+      setUseMine(true);
+      addToast({ type: 'success', title: 'Transpose saya tersimpan' });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Gagal simpan', description: e instanceof Error ? e.message : '' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const preview = useMemo(() => {
     if (!openItem?.song) return '';
     const body = renderSelectedSections(openItem.song.lyricsChordPro || '', openItem.sections ?? null);
-    const t = transposeChordPro(body, openItem.transpose || 0);
+    const t = transposeChordPro(body, effTranspose);
     return view === 'lirik' ? stripChords(t) : t;
-  }, [openItem, view]);
+  }, [openItem, view, effTranspose]);
 
   const mutate = async (fn: () => Promise<unknown>, ok: string) => {
     setSaving(true);
@@ -383,6 +417,28 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                       <span className="px-1">{it.capo || 0}</span>
                       <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { capo: Math.min(11, (it.capo || 0) + 1) })}>+</button>
                     </span>
+                    <button
+                      type="button"
+                      title={mySetting ? `Transpose saya ${mySetting.transpose > 0 ? `+${mySetting.transpose}` : mySetting.transpose}, capo ${mySetting.capo ?? 0} — klik untuk ${useMine ? 'lihat default tim' : 'lihat chord saya'}` : 'Atur transpose/capo personal (tersimpan per akun)'}
+                      onClick={() => {
+                        if (!mySetting) {
+                          void saveMine(it.transpose || 0, it.capo ?? null);
+                        } else {
+                          setUseMine(!useMine);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded-full text-[10px] font-bold border ${useMine && mySetting ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+                    >
+                      {mySetting ? `Saya ${mySetting.transpose > 0 ? `+${mySetting.transpose}` : mySetting.transpose}${mySetting.capo ? ` · capo ${mySetting.capo}` : ''}` : 'Chord saya'}
+                    </button>
+                    {useMine && mySetting && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold">
+                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose - 1, mySetting.capo)}>-1</button>
+                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose + 1, mySetting.capo)}>+1</button>
+                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose, Math.max(0, (mySetting.capo || 0) - 1))}>capo−</button>
+                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose, Math.min(11, (mySetting.capo || 0) + 1))}>capo+</button>
+                      </span>
+                    )}
                     <span className="flex-1" />
                     <button type="button" className={btnGhost} onClick={() => setView(view === 'chord' ? 'lirik' : 'chord')}>
                       Lihat: {view === 'chord' ? 'Chord' : 'Lirik'}
@@ -429,6 +485,9 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     </button>
                     <button type="button" className={btnGhost} onClick={() => download(`/api/events/${eventId}/songs/export?download=chordpro&itemId=${it.id}`)}>
                       <Download className="w-3 h-3" /> ChordPro
+                    </button>
+                    <button type="button" title="ChordPro dengan transpose/capo personal saya" className={btnGhost} onClick={() => download(`/api/events/${eventId}/songs/export?download=chordpro&itemId=${it.id}&asMe=1`)}>
+                      <Download className="w-3 h-3" /> ChordPro saya
                     </button>
                     <button
                       type="button"

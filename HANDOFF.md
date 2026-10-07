@@ -1,5 +1,18 @@
 # GEHC Portal — Handoff
 
+## Current — Tata ibadah live + transpose per pemusik (7 Okt 2026)
+
+**Kebutuhan:** rundown fix → Liturgia susun lagu → 1 link presentasi tata ibadah (proyektor + HP jemaat, seperti link khotbah) + chord versi pemusik dengan transpose personal (gitar +2, keyboard +1 di lagu yang sama).
+
+**Ubah:** Prisma `ServiceOrderItem`/`ServiceSongSetting`/`ServiceLiveState` → `_migrate-liturgy-live.cjs` (+`db-migrate-local`, `check-db-schema`, npm `:staging/:prod`) → `server/lib/liturgy-live.mjs` (validasi order/live/setting, `effectiveTranspose`, `resolveLyrics`, kode proyektor) → `server/routes/liturgia-live.mjs` (order CRUD + reorder, live baca login/kode, tulis Liturgia, mysetting per akun) + ekspor `asMe=1` di `liturgia-songs.mjs` → klien `lib/liturgy-live.ts` + `LiturgyScreen` (layar, polling 15 dtk, bait sinkron, placeholder-link bila lirik kosong) + `LiturgyControl` (next/prev momen+bait, start/selesai, rotasi kode, salin link) + `LiturgyOrderPanel` (susun momen, cantolkan setlist) di tab Ibadah Liturgia + `Chord saya` di `LiturgiaSongsPanel` (transpose/capo personal, preview, unduh ChordPro saya) + rute `#/ibadah/<key>/layar|kontrol` di `main.tsx` → test `liturgia-live.test.ts` (+12) → `docs/product/liturgia-lagu.md` §7.
+
+**Verifikasi:** `lint` bersih ✓ **858 test** hijau (122 file, +12 baru) ✓ `build` OK ✓
+migrasi lokal + staging (3 tabel) ✓ QA E2E `scripts/qa-liturgy-live.mjs` vs API lokal
+**23/23 LULUS** (order CRUD + reorder, live kode 200/401, resolve lirik bersih,
+mysetting 2 akun +2/-1, ekspor asMe `[A]`, negatif 400, cleanup bersih) ✓
+
+**Next:** QA staging (5 momen, 2 lagu, 2 akun beda transpose, 1 layar + 1 HP) → migrasi prod → pakai perdana 1 ibadah nyata. Prasyarat: pemusik isi ChordPro lagu yang dipakai.
+
 ## Current — Pustaka lagu NNBT + PKJ + KLIK + guard sekuler (7 Okt 2026)
 
 **Kebutuhan:** Liturgia butuh lagu NNBT GMIM + PKJ + KLIK di pustaka; lagu Indonesia sekuler boleh dipakai momen bebas ibadah.

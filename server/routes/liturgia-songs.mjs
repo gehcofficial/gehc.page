@@ -318,8 +318,29 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
         const picked = onlyId ? items.filter((i) => i.id === onlyId) : items;
         if (onlyId && !picked.length) return res.status(404).json({ error: 'Lagu setlist tidak ditemukan.' });
 
+        // asMe=1: terapkan transpose/capo personal pemusik (fallback default item).
+        let forMe = new Map();
+        const me = req.authUser?.id || null;
+        if (String(req.query.asMe || '') === '1' && me && picked.length) {
+          try {
+            const rows = await prisma.serviceSongSetting.findMany({
+              where: { userId: me, serviceSongId: { in: picked.map((i) => i.id) } },
+            });
+            forMe = new Map(rows.map((r) => [r.serviceSongId, r]));
+          } catch { forMe = new Map(); }
+        }
+        const usageOf = (item) => {
+          const s = forMe.get(item.id);
+          if (!s) return item;
+          return {
+            ...item,
+            transpose: s.transpose ?? item.transpose ?? 0,
+            capo: s.capo !== undefined && s.capo !== null ? s.capo : (item.capo ?? null),
+          };
+        };
+
         const download = String(req.query.download || '');
-        const first = picked[0];
+        const first = picked[0] ? usageOf(picked[0]) : null;
         if (download === 'quicklyrics' && first?.song) {
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
           res.setHeader('Content-Disposition', `attachment; filename="${first.song.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 50) || 'lagu'}.txt"`);
@@ -341,12 +362,17 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
           eventId: ev.id,
           count: picked.length,
           apiHint: 'POST tiap shows[].show ke http://localhost:5506 (FreeShow → Connections → aktifkan API), atau File → Import → ChordPro.',
-          items: picked.map((item) => ({
-            ...item,
-            quickLyrics: item.song ? buildQuickLyrics(item.song, item) : null,
-            chordPro: item.song ? buildChordProExport(item.song, item) : null,
-            freeshow: item.song ? buildFreeShowPayload(item.song, item) : null,
-          })),
+          items: picked.map((item) => {
+            const u = usageOf(item);
+            return {
+              ...item,
+              myTranspose: u.transpose !== item.transpose ? u.transpose : undefined,
+              myCapo: u.capo !== item.capo ? u.capo : undefined,
+              quickLyrics: item.song ? buildQuickLyrics(item.song, u) : null,
+              chordPro: item.song ? buildChordProExport(item.song, u) : null,
+              freeshow: item.song ? buildFreeShowPayload(item.song, u) : null,
+            };
+          }),
         });
       } catch (e) {
         if (missingTable(e)) return res.json({ eventId: String(req.params.eventId), count: 0, items: [] });

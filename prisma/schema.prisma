@@ -2882,6 +2882,63 @@ model ServiceSong {
   @@map("service_songs")
 }
 
+/// Susunan tata ibadah per event (milik Liturgia): baris lagu menunjuk
+/// setlist ServiceSong; baris non-lagu (bacaan/doa/firman/pengumuman)
+/// membawa teks sendiri. Diproyeksikan di layar + HP jemaat.
+model ServiceOrderItem {
+  id        String  @id @db.VarChar(64)
+  eventId   String? @map("event_id") @db.VarChar(64)
+  sortOrder Int     @default(0) @map("sort_order")
+  /// lagu | bacaan | doa | firman | persembahan | pengumuman | mc
+  kind      String  @default("lagu") @db.VarChar(24)
+  serviceSongId String? @map("service_song_id") @db.VarChar(64)
+  title     String? @db.VarChar(200)
+  body      String? @db.MediumText
+  owner     String? @db.VarChar(100)
+  minutes   Int?
+  note      String? @db.VarChar(500)
+  createdById String? @map("created_by_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([eventId, sortOrder])
+  @@map("service_order_items")
+}
+
+/// Transpose/capo personal per pemusik per lagu-setlist.
+/// Tanpa baris = pakai nilai default ServiceSong.
+model ServiceSongSetting {
+  id            String @id @db.VarChar(64)
+  serviceSongId String @map("service_song_id") @db.VarChar(64)
+  userId        String @map("user_id") @db.VarChar(64)
+  transpose     Int    @default(0)
+  capo          Int?
+  createdById   String? @map("created_by_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@unique([serviceSongId, userId])
+  @@index([userId])
+  @@map("service_song_settings")
+}
+
+/// Pointer live tata ibadah per event: momen + bait aktif.
+/// Dibaca layar proyektor (via accessCode, tanpa login) & HP jemaat (login).
+model ServiceLiveState {
+  id            String @id @db.VarChar(64)
+  eventId       String @unique @map("event_id") @db.VarChar(64)
+  accessCode    String @map("access_code") @db.VarChar(16)
+  /// DRAFT | LIVE | DONE
+  status        String @default("DRAFT") @db.VarChar(16)
+  currentItemId String? @map("current_item_id") @db.VarChar(64)
+  sectionIndex  Int    @default(0) @map("section_index")
+  updatedById   String? @map("updated_by_id") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("service_live_state")
+}
+
 // ---------- Serving Week: grup WA temporer + perwakilan (BOD Tim Kerja) ----------
 
 /// Satu grup koordinasi temporer per Minggu serving: link WA + status

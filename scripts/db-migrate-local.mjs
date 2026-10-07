@@ -386,6 +386,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-liturgy-live.cjs',
+    label: 'Liturgia: tata ibadah live + transpose pemusik (service_order_items, service_song_settings, service_live_state)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-serving-week.cjs',
     label: 'Serving Week: grup WA temporer + perwakilan (serving_week_channels)',
     required: true,
