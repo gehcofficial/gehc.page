@@ -218,7 +218,7 @@ async function main() {
   check('template kit → 200', tpl.status === 200, `dapat ${tpl.status}`);
   const tplId = tpl.data?.item?.id;
   await retryRead('template tampil di kit', async () => {
-    const l = await req('GET', '/api/marturia/templates?kind=POSTER');
+    const l = await req('GET', '/api/marturia/templates?kind=POSTER', { session: sesMarturia });
     const n = (l.data?.items || []).length;
     return (l.data?.items || []).some((t) => t.id === tplId) ? true : `dapat ${n}`;
   });
@@ -303,7 +303,7 @@ async function main() {
     const incAfter = await req('GET', `/api/events/${eid}/diakonia/incidents`, { session: sesDiakonia });
     const leftInc = (incAfter.data?.items || []).filter((i) => String(i.description).includes('UJIOTOMATIS'));
     check('bersih: 0 insiden uji tersisa', leftInc.length === 0, `sisa ${leftInc.length}`);
-    const tplAfter = await req('GET', '/api/marturia/templates', { session: sesMarturia });
+    const tplAfter = await req('GET', '/api/marturia/templates?kind=POSTER', { session: sesMarturia });
     const leftTpl = (tplAfter.data?.items || []).filter((t) => String(t.title).includes('UJI-OTOMATIS'));
     check('bersih: 0 template uji tersisa', leftTpl.length === 0, `sisa ${leftTpl.length}`);
   }
