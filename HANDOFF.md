@@ -25,7 +25,18 @@
 
 **Verifikasi:** `lint` bersih ✓ **828 test** hijau (118 file, +16 baru) ✓ `build` OK ✓ migrasi lokal 10 tabel ✓ 27 endpoint ter-registrasi ✓
 
-**Next:** migrasi+seed staging (`db:migrate:marturia-diakonia-a:staging`) → uji 1 Mentoring Day (H-3 shotlist+assign → H+0 centang+upload → H+1 10 foto approved→Warta → 1 kasus mercy lapor→tutup, uji 403) → commit + push (menunggu perintah). Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
+**Lanjut (staging E2E, branch `cursor/sprint-a-marturia-diakonia`):**
+- Commit `d2f81b1` (Sprint A) + `eee52cd` (endpoint hapus + smoke) + `aa2b5e8` (fix moderasi kost + guard) + `de7d0eb`/`4c65d69`/`fb4c7e1`/`5901743` (smoke) → push origin ✓
+- Migrasi staging ✓ (tabel sudah ada — lokal & staging satu cluster `gehc`; `db:schema:check:staging` sinkron ✓)
+- Reseed demo staging ✓ (`db:seed-users:staging` — staging habis sync prod 5 Okt, 0 akun demo; kini 280 users)
+- Deploy staging 3× ✓ (final `gehcpage-d72xv5dkf`) — `/api/version` = Sprint A ✓ (Basic Auth via `STAGING_BASIC_AUTH` di `.env`)
+- **Smoke E2E `npm run smoke:marturia-diakonia` → 30/30 PASS, 0 residu** (shotlist seed 6 + toggle, guard akun segar 403×2 + masking + hapus via people-delete, readiness, transport, kasus lapor→assess + 409 lompat + visit, asset + 409 lompat + versi, souls, referral + klik publik, kost + moderasi; cleanup assert 0 sisa)
+- Temuan jujur: (1) gievara/prichel = COMMITTEE+BOD tanpa divisi → cross-tulis 200 adalah perilaku benar (bukan bug); (2) moderasi kost awal terlalu ketat vs middleware → fix ikut `requireDivision`; (3) flake propagasi alias 1× (seed list=1, lolos saat rerun + repro manual 6/6); (4) mentee seed tanpa password lokal → smoke pakai registrasi akun segar + hapus.
+- Sisa di staging: 1 referral gievara + klik counter (data personal sah, bukan polusi); check LOGISTIK event 25 Okt dikembalikan BELUM.
+
+**Verifikasi akhir:** `lint` bersih ✓ **842 test** hijau (121 file) ✓
+
+**Next (butuh perintah):** merge `cursor/sprint-a-marturia-diakonia` → `main` (= deploy PROD, Vercel Production). Sprint B: desain handoff penuh, kesaksian live, referral funnel, inventaris detail.
 
 ## Current — Alihkan pola sesi di tempat (7 Okt 2026)
 
