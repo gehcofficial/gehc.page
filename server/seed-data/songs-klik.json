@@ -1,0 +1,1920 @@
+{
+ "klik": [
+  {
+   "n": "1",
+   "title": "Mulia Sembah Raja Mulia"
+  },
+  {
+   "n": "2",
+   "title": "Bapa, Ku Persembahkan Tubuhku"
+  },
+  {
+   "n": "3",
+   "title": "Tak Pernah Kecewa"
+  },
+  {
+   "n": "4",
+   "title": "Besar Dan Ajaiblah Karyamu"
+  },
+  {
+   "n": "5",
+   "title": "Seperti Rusa Rindu Sungaimu"
+  },
+  {
+   "n": "6",
+   "title": "Kaulah Tuhanku"
+  },
+  {
+   "n": "7",
+   "title": "Oh Sungai Dari Allah"
+  },
+  {
+   "n": "8",
+   "title": "S'Gala Puji Syukur"
+  },
+  {
+   "n": "9",
+   "title": "Ajarku Tuhan"
+  },
+  {
+   "n": "10",
+   "title": "Hilanglah Beban Dosaku"
+  },
+  {
+   "n": "11",
+   "title": "Tahukah Kau Bahwa Kau Rumah Allah"
+  },
+  {
+   "n": "12",
+   "title": "Maukah Kau Jadi Roti"
+  },
+  {
+   "n": "13",
+   "title": "Betapa Heranlah"
+  },
+  {
+   "n": "14",
+   "title": "Hari Bahagia"
+  },
+  {
+   "n": "15",
+   "title": "Betapa Hatiku"
+  },
+  {
+   "n": "16",
+   "title": "Biarpun Gunung-Gunung Beranjak"
+  },
+  {
+   "n": "17",
+   "title": "Hati Senang"
+  },
+  {
+   "n": "18",
+   "title": "Aku Membangun Bangsa Perkasa"
+  },
+  {
+   "n": "19",
+   "title": "Biar Bumi Akan Berlalu"
+  },
+  {
+   "n": "20",
+   "title": "Ku Kasihi Kau Dengan Kasih Tuhan"
+  },
+  {
+   "n": "21",
+   "title": "Besar Dan Perkasa"
+  },
+  {
+   "n": "22",
+   "title": "Dialah Segalanya"
+  },
+  {
+   "n": "23",
+   "title": "Hatiku Penuh Nyanyian"
+  },
+  {
+   "n": "24",
+   "title": "Hati Yang Gembira"
+  },
+  {
+   "n": "25",
+   "title": "Oh Tuhan Pimpinlah Langkahku"
+  },
+  {
+   "n": "26",
+   "title": "Kristus Yang Hidup Di Dalam Aku"
+  },
+  {
+   "n": "27",
+   "title": "Melayani, Melayani Lebih Sungguh"
+  },
+  {
+   "n": "28",
+   "title": "Kasihnya Seperti Sungai"
+  },
+  {
+   "n": "29",
+   "title": "Ku Mendaki Ke Bukit Sion"
+  },
+  {
+   "n": "30",
+   "title": "Allah Kita Heran Dan Besar"
+  },
+  {
+   "n": "31",
+   "title": "Allah Kuasa"
+  },
+  {
+   "n": "32",
+   "title": "Sampai Masa Tuamu"
+  },
+  {
+   "n": "33",
+   "title": "S'Bab Dia Hidup"
+  },
+  {
+   "n": "34",
+   "title": "Setinggi-Tinggi Langit"
+  },
+  {
+   "n": "35",
+   "title": "Ku Cinta Keluarga Tuhan"
+  },
+  {
+   "n": "36",
+   "title": "T'Rima Kasih Tuhan"
+  },
+  {
+   "n": "37",
+   "title": "Hanya Yesus"
+  },
+  {
+   "n": "38",
+   "title": "Tuhan Menetapkan Langkah-Langkah Orang"
+  },
+  {
+   "n": "39",
+   "title": "Tiap Orang Harus Tau"
+  },
+  {
+   "n": "40",
+   "title": "Ku Tau Roh Allah Ada Di Sini"
+  },
+  {
+   "n": "41",
+   "title": "Indonesia Bangunlah"
+  },
+  {
+   "n": "42",
+   "title": "Mari Kita Puji Hu Haleluya"
+  },
+  {
+   "n": "43",
+   "title": "Di Saat Ini Aku Bernyanyi"
+  },
+  {
+   "n": "44",
+   "title": "Tuhan Adalah Gembalaku"
+  },
+  {
+   "n": "45",
+   "title": "Selidiklah Akan Daku"
+  },
+  {
+   "n": "46",
+   "title": "Kami Naikan Syukur Padamu"
+  },
+  {
+   "n": "47",
+   "title": "Ajarku Sembahyang"
+  },
+  {
+   "n": "48",
+   "title": "Ajaib Tuhan Kau Sungguh Heran"
+  },
+  {
+   "n": "49",
+   "title": "Tak Lain Saja Tuhan"
+  },
+  {
+   "n": "50",
+   "title": "Ku Tahu Tuhan Pasti Buka Jalan"
+  },
+  {
+   "n": "51",
+   "title": "Ku Dengar Yesus Memanggil"
+  },
+  {
+   "n": "52",
+   "title": "Ajaiblah Namanya"
+  },
+  {
+   "n": "53",
+   "title": "Lihat Domba Allah"
+  },
+  {
+   "n": "54",
+   "title": "Terpujilah Tuhan"
+  },
+  {
+   "n": "55",
+   "title": "Isilah Tuhan Bejana Hidupku"
+  },
+  {
+   "n": "56",
+   "title": "Jiwaku Terbuka"
+  },
+  {
+   "n": "57",
+   "title": "Kemurahanmu Lebih Dari Hidup"
+  },
+  {
+   "n": "58",
+   "title": "Oh Betapa Indahnya"
+  },
+  {
+   "n": "59",
+   "title": "Shalom Teman"
+  },
+  {
+   "n": "60",
+   "title": "Ku Sungguh Puas"
+  },
+  {
+   "n": "61",
+   "title": "Oh Tuhanku"
+  },
+  {
+   "n": "62",
+   "title": "Kau Sungguh Indah"
+  },
+  {
+   "n": "63",
+   "title": "Bagai Sekuntum Bunga Di Taman"
+  },
+  {
+   "n": "64",
+   "title": "Tuhan Yesus Turun Dari Sorga"
+  },
+  {
+   "n": "65",
+   "title": "Ku Masuki Gerbangnya"
+  },
+  {
+   "n": "66",
+   "title": "Kepadamu Ku Angkat Pujianku"
+  },
+  {
+   "n": "67",
+   "title": "Mari Masuk"
+  },
+  {
+   "n": "68",
+   "title": "Ku Lemah Yesus Kuasa"
+  },
+  {
+   "n": "69",
+   "title": "Yesus Yang Tahu Hidupku"
+  },
+  {
+   "n": "70",
+   "title": "Ku Jatuh Cinta Padanya"
+  },
+  {
+   "n": "71",
+   "title": "Oh Sungguh Senang"
+  },
+  {
+   "n": "72",
+   "title": "Jiwa Lara Dan Penat"
+  },
+  {
+   "n": "73",
+   "title": "Ada Salib Bagi Setiap Orang"
+  },
+  {
+   "n": "74",
+   "title": "B'Ratkah Beban Hidupmu"
+  },
+  {
+   "n": "75",
+   "title": "Oh Tuhan Bila Aku Renungkan"
+  },
+  {
+   "n": "76",
+   "title": "Dengan Hati Bersyukur"
+  },
+  {
+   "n": "77",
+   "title": "Kalau Bukan Kasih"
+  },
+  {
+   "n": "78",
+   "title": "Seindah Bunga Mawar"
+  },
+  {
+   "n": "79",
+   "title": "Tiap Langkahku"
+  },
+  {
+   "n": "80",
+   "title": "Karena Demikian"
+  },
+  {
+   "n": "81",
+   "title": "Haleluyah"
+  },
+  {
+   "n": "82",
+   "title": "Dalam Rumah Bapaku"
+  },
+  {
+   "n": "83",
+   "title": "Hari Ini Ku Rasa Bahagia"
+  },
+  {
+   "n": "84",
+   "title": "G'Lombang Zaman"
+  },
+  {
+   "n": "85",
+   "title": "Sekarang Ini Tempat Belum Penuh"
+  },
+  {
+   "n": "86",
+   "title": "Sesudah Ini"
+  },
+  {
+   "n": "87",
+   "title": "Ku Lihat Pintu Terbuka"
+  },
+  {
+   "n": "88",
+   "title": "Allah Mana S'Perti Allahku"
+  },
+  {
+   "n": "89",
+   "title": "Datang Ke Hadirat Tuhan"
+  },
+  {
+   "n": "90",
+   "title": "Bapa Sorgawi"
+  },
+  {
+   "n": "91",
+   "title": "Satu Hal Telah Kuminta"
+  },
+  {
+   "n": "92",
+   "title": "Jangan Kamu Kuatir"
+  },
+  {
+   "n": "93",
+   "title": "Kasih Pasti Lemah Lembut"
+  },
+  {
+   "n": "94",
+   "title": "Bersama Malaikat Di Surga"
+  },
+  {
+   "n": "95",
+   "title": "Betapa Baiknya Engkau Tuhan"
+  },
+  {
+   "n": "96",
+   "title": "Tuhan Adalah Kekuatanku"
+  },
+  {
+   "n": "97",
+   "title": "El Shadai (Tak Usah Ku Takut)"
+  },
+  {
+   "n": "98",
+   "title": "Bukan Kar'Na Kebaikanmu"
+  },
+  {
+   "n": "99",
+   "title": "Aku Mengasihi Engkau Yesus"
+  },
+  {
+   "n": "100",
+   "title": "Ku Siapkan Hatiku Tuhan"
+  },
+  {
+   "n": "101",
+   "title": "Kasih Allahku Sungguh Terbukti"
+  },
+  {
+   "n": "102",
+   "title": "Kitalah Umat Pemenang"
+  },
+  {
+   "n": "103",
+   "title": "Sungguh Ku Bangga Bapa"
+  },
+  {
+   "n": "104",
+   "title": "Ketika Aku Berbeban Berat"
+  },
+  {
+   "n": "105",
+   "title": "Allah Ditinggikan Dengan Sorak-Sorai"
+  },
+  {
+   "n": "106",
+   "title": "Peganglah Tanganku Roh Kudus"
+  },
+  {
+   "n": "107",
+   "title": "Kini Saatnya"
+  },
+  {
+   "n": "108",
+   "title": "Berhembuslah Roh Kudus"
+  },
+  {
+   "n": "109",
+   "title": "Tuhan Ku Mau Menyenangkanmu"
+  },
+  {
+   "n": "110",
+   "title": "Satukanlah Hati Kami"
+  },
+  {
+   "n": "111",
+   "title": "Kepadamu Ku Berdoa"
+  },
+  {
+   "n": "112",
+   "title": "Masuk Hadiratnya"
+  },
+  {
+   "n": "113",
+   "title": "Syukur Padamu Tuhan"
+  },
+  {
+   "n": "114",
+   "title": "Hidup Yang Putus Asa"
+  },
+  {
+   "n": "115",
+   "title": "Kami Berkumpul Tuhan"
+  },
+  {
+   "n": "116",
+   "title": "Kasih Setiamu"
+  },
+  {
+   "n": "117",
+   "title": "Bersama Yesus"
+  },
+  {
+   "n": "118",
+   "title": "Oh Tuhan Ulurkan Langkahmu"
+  },
+  {
+   "n": "119",
+   "title": "Jalan Hidup Orang Benar"
+  },
+  {
+   "n": "120",
+   "title": "Adakah Tempat Buat Yesus"
+  },
+  {
+   "n": "121",
+   "title": "Di Doa Ibuku Namaku Disebut"
+  },
+  {
+   "n": "122",
+   "title": "Kasih Dari Sorga"
+  },
+  {
+   "n": "123",
+   "title": "Di Tengah Ombak Dan Arus Pencobaan"
+  },
+  {
+   "n": "124",
+   "title": "Tuhan Yesus Setia"
+  },
+  {
+   "n": "125",
+   "title": "Ku Rasakan Kasihmu Tuhan"
+  },
+  {
+   "n": "126",
+   "title": "Mataku Tertuju Padamu"
+  },
+  {
+   "n": "127",
+   "title": "Jika Jiwaku Berdoa"
+  },
+  {
+   "n": "128",
+   "title": "Bila Ku Berjalan"
+  },
+  {
+   "n": "129",
+   "title": "Di Saat Engkau Susah"
+  },
+  {
+   "n": "130",
+   "title": "Mari Kita Bersukaria"
+  },
+  {
+   "n": "131",
+   "title": "Maukah Senang"
+  },
+  {
+   "n": "132",
+   "title": "Ke Gunung Tinggi"
+  },
+  {
+   "n": "133",
+   "title": "Temali Kasih Sayang"
+  },
+  {
+   "n": "134",
+   "title": "Ku Tak Dapat Jalan Sendiri"
+  },
+  {
+   "n": "135",
+   "title": "Bila Muka Dengan Muka"
+  },
+  {
+   "n": "136",
+   "title": "Di Hidupku, Ku Ada Sobat Yang Setia"
+  },
+  {
+   "n": "137",
+   "title": "Tabur Pagi Hari"
+  },
+  {
+   "n": "138",
+   "title": "Jalan Hidup Tak Selalu"
+  },
+  {
+   "n": "139",
+   "title": "Mengikut Yesus Keputusanku"
+  },
+  {
+   "n": "140",
+   "title": "Tabah Dan Setiawan"
+  },
+  {
+   "n": "141",
+   "title": "Ku Masuk Taman Yang Teduh"
+  },
+  {
+   "n": "142",
+   "title": "Bila Ku Pandang Bintang"
+  },
+  {
+   "n": "143",
+   "title": "Kasih Tuhanku Lembut"
+  },
+  {
+   "n": "144",
+   "title": "Ku Menang Ku Menang"
+  },
+  {
+   "n": "145",
+   "title": "Bapa T'Rima Kasih"
+  },
+  {
+   "n": "146",
+   "title": "Roh Kudus Kau Hadir Di Sini"
+  },
+  {
+   "n": "147",
+   "title": "Dia Lahir Untuk Kami"
+  },
+  {
+   "n": "148",
+   "title": "Ada Satu Sobatku"
+  },
+  {
+   "n": "149",
+   "title": "Bagaikan Bejana"
+  },
+  {
+   "n": "150",
+   "title": "Cerahnya Hari Ini"
+  },
+  {
+   "n": "151",
+   "title": "Dari Terbit Matahari"
+  },
+  {
+   "n": "152",
+   "title": "Di Seb'Rang Sana Airmata K'Lak Lenyap"
+  },
+  {
+   "n": "153",
+   "title": "Dalam Tuhan Kita Bersaudara"
+  },
+  {
+   "n": "154",
+   "title": "Datang Pada Hu"
+  },
+  {
+   "n": "155",
+   "title": "Dalam Nama Yesus"
+  },
+  {
+   "n": "156",
+   "title": "Dia Harus Makin Bertambah"
+  },
+  {
+   "n": "157",
+   "title": "Fajar Merekah"
+  },
+  {
+   "n": "158",
+   "title": "Hidupku Bukannya Aku Lagi"
+  },
+  {
+   "n": "159",
+   "title": "Hari Lepas Hari"
+  },
+  {
+   "n": "160",
+   "title": "Hati-Hati"
+  },
+  {
+   "n": "161",
+   "title": "Jalan Serta Yesus"
+  },
+  {
+   "n": "162",
+   "title": "Kasih Yesus Sungguh Indah"
+  },
+  {
+   "n": "163",
+   "title": "Kirimlah Perjanjianmu"
+  },
+  {
+   "n": "164",
+   "title": "Ku Mau Cinta Yesus Selamanya"
+  },
+  {
+   "n": "165",
+   "title": "Nyanyi Glory"
+  },
+  {
+   "n": "166",
+   "title": "Oh Tuhan Penebusku"
+  },
+  {
+   "n": "167",
+   "title": "Oh Yerusalem"
+  },
+  {
+   "n": "168",
+   "title": "Pandang Trus Padanya"
+  },
+  {
+   "n": "169",
+   "title": "Pengharapanku"
+  },
+  {
+   "n": "170",
+   "title": "Pujilah Tuhanku"
+  },
+  {
+   "n": "171",
+   "title": "Rayakan Yesus Rayakan"
+  },
+  {
+   "n": "172",
+   "title": "Saat Ini Ku Datang"
+  },
+  {
+   "n": "173",
+   "title": "Sejauh Timur Dari Barat"
+  },
+  {
+   "n": "174",
+   "title": "Sejak Dia Di Hatiku"
+  },
+  {
+   "n": "175",
+   "title": "Selamat Pagi"
+  },
+  {
+   "n": "176",
+   "title": "Semua Bunga Ikut Bernyanyi"
+  },
+  {
+   "n": "177",
+   "title": "S'Rahkanlah Hidupmu"
+  },
+  {
+   "n": "178",
+   "title": "S'Rahkan Pada Yesus"
+  },
+  {
+   "n": "179",
+   "title": "Sobat Dari Galilea"
+  },
+  {
+   "n": "180",
+   "title": "Seb'Rang Langit Biru"
+  },
+  {
+   "n": "181",
+   "title": "Tak Tersembunyi Kuasa Allah"
+  },
+  {
+   "n": "182",
+   "title": "Tambah Hari Tambah Cinta Yesus"
+  },
+  {
+   "n": "183",
+   "title": "Yesus Itulah"
+  },
+  {
+   "n": "184",
+   "title": "Yesus Oh Yesus"
+  },
+  {
+   "n": "185",
+   "title": "Yesus Pokok Dan Kitalah Carangnya"
+  },
+  {
+   "n": "186",
+   "title": "Yesus Yang Termanis"
+  },
+  {
+   "n": "187",
+   "title": "Yesusku Luar Biasa"
+  },
+  {
+   "n": "188",
+   "title": "Dia Hanya Sejauh Doa"
+  },
+  {
+   "n": "189",
+   "title": "Dia Lebih Besar"
+  },
+  {
+   "n": "190",
+   "title": "Hidup Rukun Dan Damai"
+  },
+  {
+   "n": "191",
+   "title": "Kristus Jawaban"
+  },
+  {
+   "n": "192",
+   "title": "Ya Tuhan Kami Datang"
+  },
+  {
+   "n": "193",
+   "title": "Terpujilah Allah"
+  },
+  {
+   "n": "194",
+   "title": "Dari Kungkungan Malam Gelap"
+  },
+  {
+   "n": "195",
+   "title": "Jadilah Tuhan Kehendakmu"
+  },
+  {
+   "n": "196",
+   "title": "Agunglah Kasih Allahku"
+  },
+  {
+   "n": "197",
+   "title": "Pintu Gerbang Terbukalah"
+  },
+  {
+   "n": "198",
+   "title": "Dalam Lautan Kelam"
+  },
+  {
+   "n": "199",
+   "title": "Setiamu, Tuhanku, Tiada Bertara"
+  },
+  {
+   "n": "200",
+   "title": "Seluruh Alam Tak Henti"
+  },
+  {
+   "n": "201",
+   "title": "T'Lah Lewat Malam Yang Gelap"
+  },
+  {
+   "n": "202",
+   "title": "Manusia Di Dalam Dunia"
+  },
+  {
+   "n": "203A",
+   "title": "Saat Kusendiri"
+  },
+  {
+   "n": "203B",
+   "title": "Kaulah Segalanya"
+  },
+  {
+   "n": "204",
+   "title": "Hanya Dialah Yang Tahu"
+  },
+  {
+   "n": "205",
+   "title": "Tuhan Yang Pegang"
+  },
+  {
+   "n": "206",
+   "title": "Di Malam G'Lap Sunyi Senyap"
+  },
+  {
+   "n": "207",
+   "title": "Gembala Yang Ada Di Padang"
+  },
+  {
+   "n": "208",
+   "title": "Dalam Palungan"
+  },
+  {
+   "n": "209",
+   "title": "Sebuah Nama Yang Permai"
+  },
+  {
+   "n": "210",
+   "title": "Nama Yesus Berkumandang"
+  },
+  {
+   "n": "211",
+   "title": "Kasih Allah Melingkupi Saya"
+  },
+  {
+   "n": "212",
+   "title": "Hosana"
+  },
+  {
+   "n": "213",
+   "title": "Nun Di Bukit Yang Jauh"
+  },
+  {
+   "n": "214",
+   "title": "Ku B'Rikan Bagimu Tubuhku, Darahku"
+  },
+  {
+   "n": "215",
+   "title": "Junjungan Yang Ku Pilih"
+  },
+  {
+   "n": "216",
+   "title": "Segala Puji Baginya"
+  },
+  {
+   "n": "217",
+   "title": "Rindukah Engkau Mendapat Berkat Tuhan"
+  },
+  {
+   "n": "218",
+   "title": "Sebarkan Wartanya"
+  },
+  {
+   "n": "219",
+   "title": "Terpujilah Allah Bapa"
+  },
+  {
+   "n": "220",
+   "title": "Dalo Sumawu Ruata"
+  },
+  {
+   "n": "221",
+   "title": "Apa Kita' Kan Berhimpun"
+  },
+  {
+   "n": "222",
+   "title": "Siapa Yang Berpegang"
+  },
+  {
+   "n": "223",
+   "title": "Nyanyikan Lagi Bagiku"
+  },
+  {
+   "n": "224",
+   "title": "Ku Ingin Berperangai"
+  },
+  {
+   "n": "225",
+   "title": "Yesus Memanggilmu Pulang Seg'Ra"
+  },
+  {
+   "n": "226",
+   "title": "Ku Dengar Panggilan Tuhan"
+  },
+  {
+   "n": "227",
+   "title": "Ya Tuhan Kaulah Penebus"
+  },
+  {
+   "n": "228",
+   "title": "Ku Berserah Kepada Allahku"
+  },
+  {
+   "n": "229",
+   "title": "Indah Mulia Bahagia Penuh"
+  },
+  {
+   "n": "230",
+   "title": "Tuhanku, Pimpinlah"
+  },
+  {
+   "n": "231",
+   "title": "Syukur Padamu, Ya Allah"
+  },
+  {
+   "n": "232",
+   "title": "Kasihku Padamu Tambahkanlah"
+  },
+  {
+   "n": "233",
+   "title": "Janji Yang Manis"
+  },
+  {
+   "n": "234",
+   "title": "Aku Rindu Pulang Ke Rumah Kekal"
+  },
+  {
+   "n": "235",
+   "title": "Di Seb'Rang Sana"
+  },
+  {
+   "n": "236",
+   "title": "Maukah Kau Jaya Atas Seteru"
+  },
+  {
+   "n": "237",
+   "title": "Hai Jiwa Yang Penuh Sesal"
+  },
+  {
+   "n": "238",
+   "title": "Tuhan Yesus Sahabatku"
+  },
+  {
+   "n": "239",
+   "title": "Ketika Hilang Sudah Asaku"
+  },
+  {
+   "n": "240",
+   "title": "Walau Ku Daki Gunung Yang Tinggi"
+  },
+  {
+   "n": "241",
+   "title": "Engkau Milikku Abadi"
+  },
+  {
+   "n": "242",
+   "title": "Kendati Hidupku Tentram"
+  },
+  {
+   "n": "244",
+   "title": "Tabur Waktu Pagi"
+  },
+  {
+   "n": "245",
+   "title": "Sungguh Inginkah Engkau Lakukan"
+  },
+  {
+   "n": "246",
+   "title": "Kekasih Jiwa Dekatlah"
+  },
+  {
+   "n": "247",
+   "title": "Hai Mari Berhimpun"
+  },
+  {
+   "n": "248",
+   "title": "Malam Kudus, Sunyi Senyap"
+  },
+  {
+   "n": "249",
+   "title": "Bagus Amat Manis Sangat"
+  },
+  {
+   "n": "250",
+   "title": "Aku Ke Joljuta"
+  },
+  {
+   "n": "251",
+   "title": "Ku Carilah Tanah Yang Khas"
+  },
+  {
+   "n": "252",
+   "title": "S'Karang Malam T'Lah Lenyap"
+  },
+  {
+   "n": "253",
+   "title": "Ke Rumah Tempat Yang Senang"
+  },
+  {
+   "n": "254",
+   "title": "Hendaklah Kau Iring Yesus"
+  },
+  {
+   "n": "255",
+   "title": "Ya Yesus T'Rang Dan Kuatku"
+  },
+  {
+   "n": "256",
+   "title": "Tak Seorang Tahu Jam"
+  },
+  {
+   "n": "257",
+   "title": "Tuhan Datang Padamu"
+  },
+  {
+   "n": "258",
+   "title": "Nimat Maha Tuhan"
+  },
+  {
+   "n": "259",
+   "title": "Iringlah Tuhan Dalam T'Rang"
+  },
+  {
+   "n": "260",
+   "title": "Pakailah Waktu Anugerah Tuhanmu"
+  },
+  {
+   "n": "261",
+   "title": "Ku Serahkan Pada Tuhan"
+  },
+  {
+   "n": "262",
+   "title": "Engkau Cari Intankah"
+  },
+  {
+   "n": "263",
+   "title": "Betapa Baik Dan Senang"
+  },
+  {
+   "n": "264",
+   "title": "Jangan Kamu Takut"
+  },
+  {
+   "n": "265",
+   "title": "Selaku Orang Pengetam"
+  },
+  {
+   "n": "266",
+   "title": "Yang Menabur Dengan Tangis"
+  },
+  {
+   "n": "267",
+   "title": "Angin Ribut Lagi Ombak"
+  },
+  {
+   "n": "268",
+   "title": "Yesus Ada Sobat Kita"
+  },
+  {
+   "n": "269",
+   "title": "Tuhan Serta Kita"
+  },
+  {
+   "n": "270",
+   "title": "Di Joljuta, Di Joljuta"
+  },
+  {
+   "n": "271",
+   "title": "Ya Allahku Aku Mau"
+  },
+  {
+   "n": "272",
+   "title": "Yesus Hu Yang Ajaib"
+  },
+  {
+   "n": "273",
+   "title": "Jiwa Yang Bersalah"
+  },
+  {
+   "n": "274",
+   "title": "Dari Belenggu K'Ras Dan Teguh"
+  },
+  {
+   "n": "275",
+   "title": "Pue Madago (Allah Itu Baik)"
+  },
+  {
+   "n": "276",
+   "title": "Ajarku Mengenalmu"
+  },
+  {
+   "n": "277",
+   "title": "Seperti Pelangi"
+  },
+  {
+   "n": "278",
+   "title": "Dunia Dalam Rawa Paya"
+  },
+  {
+   "n": "279",
+   "title": "Siapa Yang Setia"
+  },
+  {
+   "n": "280",
+   "title": "Beberapa Pengawal Kupesan"
+  },
+  {
+   "n": "281",
+   "title": "Pohon Yang Indah"
+  },
+  {
+   "n": "282",
+   "title": "Harap Saja Pada Allah"
+  },
+  {
+   "n": "283",
+   "title": "Orang Pilihan"
+  },
+  {
+   "n": "284",
+   "title": "Sambut Panggilan"
+  },
+  {
+   "n": "285",
+   "title": "Sehati Sekerja"
+  },
+  {
+   "n": "286",
+   "title": "Sudah Sedia"
+  },
+  {
+   "n": "287",
+   "title": "Tuhan Pelihara"
+  },
+  {
+   "n": "288",
+   "title": "Ibu Ibu Tuhan"
+  },
+  {
+   "n": "289",
+   "title": "Kerajaan Allah Datanglah"
+  },
+  {
+   "n": "290",
+   "title": "Miringkanlah Telingamu Ya Allah"
+  },
+  {
+   "n": "291",
+   "title": "Bunga Raya"
+  },
+  {
+   "n": "292",
+   "title": "Hari Ini Harinya Tuhan"
+  },
+  {
+   "n": "293",
+   "title": "Bila Ku Renungkan"
+  },
+  {
+   "n": "294",
+   "title": "Di Dalam Kehidupanku"
+  },
+  {
+   "n": "295",
+   "title": "Di Dalam Hidupku"
+  },
+  {
+   "n": "296",
+   "title": "Seperti Yesus"
+  },
+  {
+   "n": "297",
+   "title": "Darahmu Tuhan"
+  },
+  {
+   "n": "298",
+   "title": "Pimpin Aku"
+  },
+  {
+   "n": "299",
+   "title": "Ku Tak Mampu Memahami"
+  },
+  {
+   "n": "300",
+   "title": "Sudahkah Darahmu Yesus"
+  },
+  {
+   "n": "301",
+   "title": "Betapa Indah Kasihmu Yesus"
+  },
+  {
+   "n": "302",
+   "title": "Buka Pintu Hatimu"
+  },
+  {
+   "n": "303",
+   "title": "Doa Bapa Kami"
+  },
+  {
+   "n": "304",
+   "title": "Ku Dengar Panggilan Tuhan"
+  },
+  {
+   "n": "305",
+   "title": "Di S'Luruh Dunia"
+  },
+  {
+   "n": "306",
+   "title": "Diberkatilah"
+  },
+  {
+   "n": "307",
+   "title": "Tuhan Gembalaku"
+  },
+  {
+   "n": "308",
+   "title": "Tak Pernah Tuhan Janji"
+  },
+  {
+   "n": "309",
+   "title": "Bapa Engkau Sungguh Baik"
+  },
+  {
+   "n": "310",
+   "title": "Allah Peduli"
+  },
+  {
+   "n": "311",
+   "title": "Hanya Satu Jalan"
+  },
+  {
+   "n": "312",
+   "title": "Hanya Dalam Kasihmu Tuhan"
+  },
+  {
+   "n": "313",
+   "title": "Bebaskanlah (Lagu Lisoi)"
+  },
+  {
+   "n": "314",
+   "title": "Ya Tuhan Dengarkanlah"
+  },
+  {
+   "n": "315",
+   "title": "Hosana (Oh Ina Ki Keke)"
+  },
+  {
+   "n": "316",
+   "title": "Apa Yang Dicari Orang"
+  },
+  {
+   "n": "317",
+   "title": "Pergilah Dengan Sejaht'Ra"
+  },
+  {
+   "n": "318",
+   "title": "Tuhan Memberi Tuhan Mengambil"
+  },
+  {
+   "n": "319",
+   "title": "KJ 363 Bagi Yesus Kuserahkan"
+  },
+  {
+   "n": "320",
+   "title": "KJ 396 Yesus Segala-Galanya"
+  },
+  {
+   "n": "321",
+   "title": "KJ 408 Di Jalanku Ku Diiring"
+  },
+  {
+   "n": "322",
+   "title": "KJ 410 Tenanglah Kini Hatiku"
+  },
+  {
+   "n": "323",
+   "title": "KJ 415 Gembala Baik Bersuling Nan Merdu"
+  },
+  {
+   "n": "324",
+   "title": "KJ 418 Baht'Ra Di Pandu Yesus"
+  },
+  {
+   "n": "325",
+   "title": "KJ 450 Hidup Kita Yang Benar"
+  },
+  {
+   "n": "326",
+   "title": "KJ 183 Menjulang Nyata"
+  },
+  {
+   "n": "327",
+   "title": "KJ 194 Dikau Yang Bangkit"
+  },
+  {
+   "n": "328",
+   "title": "KJ 367 Padamu Tuhan Dan Allahku"
+  },
+  {
+   "n": "329",
+   "title": "KJ 387 Ku Heran Allah Mau Memberi"
+  },
+  {
+   "n": "330",
+   "title": "KJ 425 Berkumandang Suara Dari Seberang"
+  },
+  {
+   "n": "331",
+   "title": "KJ 457 Ya Tuhan Tiap Jam"
+  },
+  {
+   "n": "332",
+   "title": "Aku Hendak Bersyukur"
+  },
+  {
+   "n": "333",
+   "title": "Tuhan Aku Rindu"
+  },
+  {
+   "n": "334",
+   "title": "Allah Itu Baik"
+  },
+  {
+   "n": "335",
+   "title": "Kala Ku Cari"
+  },
+  {
+   "n": "336",
+   "title": "Indah Rencanamu Tuhan"
+  },
+  {
+   "n": "337",
+   "title": "Inilah Yang Kurenungkan"
+  },
+  {
+   "n": "338",
+   "title": "Bahasa Kasih"
+  },
+  {
+   "n": "339",
+   "title": "Bertemu Dalam Kasihnya"
+  },
+  {
+   "n": "340",
+   "title": "Lebih Tinggi Dari Gunung"
+  },
+  {
+   "n": "341",
+   "title": "Sekalipun Pohon Ara"
+  },
+  {
+   "n": "342",
+   "title": "Kasih Yang Abadi"
+  },
+  {
+   "n": "343",
+   "title": "Tongkat Dan Menara"
+  },
+  {
+   "n": "344",
+   "title": "Opo Wanna Natas"
+  },
+  {
+   "n": "345",
+   "title": "Rumah Doa"
+  },
+  {
+   "n": "346",
+   "title": "Kau Yang Terindah"
+  },
+  {
+   "n": "347",
+   "title": "Hanya Dekat Kasihmu Bapa"
+  },
+  {
+   "n": "348",
+   "title": "Bertobatlah"
+  },
+  {
+   "n": "349",
+   "title": "Masa Muda Sungguh Senang"
+  },
+  {
+   "n": "350",
+   "title": "Kanaan"
+  },
+  {
+   "n": "351",
+   "title": "Sungai Sukacita"
+  },
+  {
+   "n": "352",
+   "title": "Yesus Tuhan Dan Allah Kami"
+  },
+  {
+   "n": "353",
+   "title": "Kebajikan Kemurahan"
+  },
+  {
+   "n": "354",
+   "title": "Lain Dulu Lain Sekarang"
+  },
+  {
+   "n": "355",
+   "title": "Persembahan Yang Atero"
+  },
+  {
+   "n": "356",
+   "title": "Ku Sembahyang Ya Bapa"
+  },
+  {
+   "n": "357",
+   "title": "Kau Sangat Ku Cinta"
+  },
+  {
+   "n": "358",
+   "title": "Satu Hal Yang Ku Rindu"
+  },
+  {
+   "n": "359",
+   "title": "Kecaplah Dan Lihatlah"
+  },
+  {
+   "n": "360",
+   "title": "Dia Sanggup"
+  },
+  {
+   "n": "361",
+   "title": "Tunjukkan Kuasamu"
+  },
+  {
+   "n": "362",
+   "title": "Ku Sadari"
+  },
+  {
+   "n": "363",
+   "title": "Aku Berjanji"
+  },
+  {
+   "n": "364",
+   "title": "Bapa Yang Kekal"
+  },
+  {
+   "n": "365",
+   "title": "Tiada Sobat Yang Seperti Yesus"
+  },
+  {
+   "n": "366",
+   "title": "Padamu Tuhan"
+  },
+  {
+   "n": "367",
+   "title": "Yesus Itulah Jurus'Lamatku"
+  },
+  {
+   "n": "368",
+   "title": "Janjimu S'Perti Fajar"
+  },
+  {
+   "n": "369",
+   "title": "Selidiki Aku"
+  },
+  {
+   "n": "370",
+   "title": "Kasihmu Tiada Duanya"
+  },
+  {
+   "n": "371",
+   "title": "Firmanmu P'Lita Bagi Kakiku"
+  },
+  {
+   "n": "372",
+   "title": "Bangkit S'Rukan Nama Yesus"
+  },
+  {
+   "n": "373",
+   "title": "Yesus Kekasih Jiwaku"
+  },
+  {
+   "n": "374",
+   "title": "Tangan Tuhan Merenda"
+  },
+  {
+   "n": "375",
+   "title": "Ku Masuk Ruang Maha Kudus"
+  },
+  {
+   "n": "376",
+   "title": "Jalanmu Tak Terselami"
+  },
+  {
+   "n": "377",
+   "title": "Saat Ku Renungkan"
+  },
+  {
+   "n": "378",
+   "title": "Engkaulah Kekuatanku"
+  },
+  {
+   "n": "379",
+   "title": "Ku B'Rikan Hatiku"
+  },
+  {
+   "n": "380",
+   "title": "Kau Telah Memilihku"
+  },
+  {
+   "n": "381",
+   "title": "Sujud Di Altarnya"
+  },
+  {
+   "n": "382",
+   "title": "Hidupmu Berharga Bagi Allah"
+  },
+  {
+   "n": "383",
+   "title": "S'Perti Rusa Yang Haus"
+  },
+  {
+   "n": "384",
+   "title": "Bagi Tuhan Tak Ada Yang Mustahil"
+  },
+  {
+   "n": "385",
+   "title": "Hatiku Percaya"
+  },
+  {
+   "n": "386",
+   "title": "Bukan Dengan Barang Fana"
+  },
+  {
+   "n": "387",
+   "title": "S'Mua Baik"
+  },
+  {
+   "n": "388",
+   "title": "Besar Anug'Rahmu"
+  },
+  {
+   "n": "389",
+   "title": "Kau Bapa Yang Baik"
+  },
+  {
+   "n": "390",
+   "title": "Lebih Dalam Lagi"
+  },
+  {
+   "n": "391",
+   "title": "Jangan Lelah"
+  },
+  {
+   "n": "392",
+   "title": "Kemuliaannya T'Lah Turun"
+  },
+  {
+   "n": "393",
+   "title": "Ingat Kasihnya"
+  },
+  {
+   "n": "394",
+   "title": "Ku Bawa Kepadamu"
+  },
+  {
+   "n": "395",
+   "title": "Nyanyi Dan Bersoraklah"
+  },
+  {
+   "n": "396",
+   "title": "Tiada S'Perti Kau"
+  },
+  {
+   "n": "397",
+   "title": "Ku Bersyukur"
+  },
+  {
+   "n": "398",
+   "title": "Api Kemuliaanya"
+  },
+  {
+   "n": "399",
+   "title": "Allah Bangkit Bersoraklah"
+  },
+  {
+   "n": "400",
+   "title": "Allahku Dahsyat"
+  },
+  {
+   "n": "401",
+   "title": "Satukan Kami"
+  },
+  {
+   "n": "402",
+   "title": "Ku Kan Bangkit"
+  },
+  {
+   "n": "403",
+   "title": "Bersyukurlah Kepada Tuhan"
+  },
+  {
+   "n": "404",
+   "title": "Yang Terutama"
+  },
+  {
+   "n": "405",
+   "title": "Hari-Hari Ku Lalui"
+  },
+  {
+   "n": "406",
+   "title": "Hanya Dekat Allahku"
+  },
+  {
+   "n": "407",
+   "title": "Kita So Janji Pa Tuhan"
+  },
+  {
+   "n": "408",
+   "title": "Jao Jao Tuhan So Pilih"
+  },
+  {
+   "n": "409",
+   "title": "Indonesia Bagi Kemuliaan"
+  },
+  {
+   "n": "410",
+   "title": "Engkaulah Kekuatanku"
+  },
+  {
+   "n": "411",
+   "title": "Lingkupiku"
+  },
+  {
+   "n": "412",
+   "title": "B'Ri Ku Hati"
+  },
+  {
+   "n": "413",
+   "title": "Di Bawah Kepak Sayapmu"
+  },
+  {
+   "n": "414",
+   "title": "Bagaikan Tanah Kering"
+  },
+  {
+   "n": "415",
+   "title": "Orang Yang Berharap Tuhan"
+  },
+  {
+   "n": "416",
+   "title": "NKB 1 Hai Kristen, Nyanyilah"
+  },
+  {
+   "n": "417",
+   "title": "NKB 2 Hai Mari Sembah"
+  },
+  {
+   "n": "418",
+   "title": "NKB 13 Oh Allahku Jenguklah Diriku"
+  },
+  {
+   "n": "419",
+   "title": "NKB 20 Batu Karang Yang Teguh"
+  },
+  {
+   "n": "420",
+   "title": "NKB 89 Ku Tahu Mukhalisku Hidup"
+  },
+  {
+   "n": "421",
+   "title": "NKB 140 Bila Ku Berdoa"
+  },
+  {
+   "n": "422",
+   "title": "NKB 189 Ku Ingin Selalu (Pegang Tanganku)"
+  },
+  {
+   "n": "423",
+   "title": "NKB 196 Ku Beroleh Berkat"
+  },
+  {
+   "n": "424",
+   "title": "NKB 197 Besarlah Untungku"
+  },
+  {
+   "n": "425",
+   "title": "NKB 199 Sudahkah Yang Terbaik Ku Berikan"
+  },
+  {
+   "n": "426",
+   "title": "NKB 203 Adakah Tempat Baginya"
+  },
+  {
+   "n": "427",
+   "title": "NKB 204 Di Dunia Yang Penuh Cemar"
+  },
+  {
+   "n": "428",
+   "title": "Di Tengah Ombak Dan Gelombang"
+  },
+  {
+   "n": "429",
+   "title": "Badai Mengamuk"
+  },
+  {
+   "n": "430",
+   "title": "S'Lamat Jalan"
+  },
+  {
+   "n": "431",
+   "title": "O Mawu Ruata"
+  },
+  {
+   "n": "432",
+   "title": "O Mawu Malondo"
+  },
+  {
+   "n": "433",
+   "title": "O Mawu Rendingane"
+  },
+  {
+   "n": "434",
+   "title": "Bila Ku Ingat Cinta Tuhanku"
+  },
+  {
+   "n": "435",
+   "title": "Hanya Tuhan Yang Tahu"
+  },
+  {
+   "n": "436",
+   "title": "Bila Kau Pergi"
+  },
+  {
+   "n": "437",
+   "title": "Ujilah Aku Tuhan"
+  },
+  {
+   "n": "438",
+   "title": "Oh Tuhan Yang Maha Kuasa (Pengakuan Dosa)"
+  },
+  {
+   "n": "439",
+   "title": "Bimbinglah Daku Ya Yesus"
+  },
+  {
+   "n": "440",
+   "title": "Katakan Yesus Terbesar"
+  },
+  {
+   "n": "441",
+   "title": "Naper Ii Ceritakan Saja"
+  },
+  {
+   "n": "442",
+   "title": "Mana-Mana Tuhan Panggil"
+  },
+  {
+   "n": "443",
+   "title": "Indah Sebagai Di Eden"
+  },
+  {
+   "n": "444",
+   "title": "Tuhan Yesus Tidak Berubah"
+  },
+  {
+   "n": "445",
+   "title": "Obor Pembangunan"
+  },
+  {
+   "n": "446",
+   "title": "Abinar Gonar Ganer"
+  },
+  {
+   "n": "447",
+   "title": "Alangkah Indahnya"
+  },
+  {
+   "n": "448",
+   "title": "Zaman Sekarang"
+  },
+  {
+   "n": "449",
+   "title": "Sentuh Hatiku"
+  },
+  {
+   "n": "450",
+   "title": "Tertindih Dengan Beban Berat"
+  },
+  {
+   "n": "451A",
+   "title": "Tiada Nama Lain"
+  },
+  {
+   "n": "451B",
+   "title": "Amang Kasuruan"
+  },
+  {
+   "n": "452",
+   "title": "Dia Seperti Air"
+  },
+  {
+   "n": "453",
+   "title": "Kau Yang Pertama"
+  },
+  {
+   "n": "454",
+   "title": "Opo Wana Natas"
+  },
+  {
+   "n": "455",
+   "title": "Besarkan Nama Tuhan"
+  },
+  {
+   "n": "456",
+   "title": "Hati S'Bagai Hamba"
+  },
+  {
+   "n": "457",
+   "title": "Ku Kagum Akan Engkau"
+  },
+  {
+   "n": "458",
+   "title": "Ada Sukacita"
+  },
+  {
+   "n": "459",
+   "title": "Kasih Yang Terindah"
+  },
+  {
+   "n": "460",
+   "title": "Mujizat Itu Nyata"
+  },
+  {
+   "n": "461",
+   "title": "Aku Mau Mengikut Yesus"
+  },
+  {
+   "n": "462",
+   "title": "Dalam Dan Lebar"
+  },
+  {
+   "n": "463",
+   "title": "Alangkah Indah Hidup Rukun"
+  },
+  {
+   "n": "464A",
+   "title": "Allah Itu Kasih"
+  },
+  {
+   "n": "464B",
+   "title": "Hanya Dekat Allah Saja"
+  },
+  {
+   "n": "465",
+   "title": "Dia Mengerti"
+  },
+  {
+   "n": "466",
+   "title": "Meski Ombak Dan Gelombang"
+  },
+  {
+   "n": "467",
+   "title": "Aku Mau Melayani Tuhan"
+  },
+  {
+   "n": "468",
+   "title": "Kenangan Natal"
+  },
+  {
+   "n": "469",
+   "title": "Selamat Hari Natal"
+  },
+  {
+   "n": "470",
+   "title": "Kini Tiba Saatnya"
+  },
+  {
+   "n": "471",
+   "title": "Hati Hamba"
+  },
+  {
+   "n": "472",
+   "title": "Melayani Yesus"
+  },
+  {
+   "n": "473",
+   "title": "Terima Kasih Ku Ucapkan"
+  },
+  {
+   "n": "474",
+   "title": "Ku Pandang Hari Esok"
+  },
+  {
+   "n": "475",
+   "title": "Da'I Tanu Ungkasenangta"
+  },
+  {
+   "n": "476",
+   "title": "Sakaeng"
+  },
+  {
+   "n": "477",
+   "title": "Mabu Maninage Si Kau"
+  }
+ ]
+}

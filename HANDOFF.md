@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Pustaka lagu NNBT + PKJ + KLIK + guard sekuler (7 Okt 2026)
+
+**Kebutuhan:** Liturgia butuh lagu NNBT GMIM + PKJ + KLIK di pustaka; lagu Indonesia sekuler boleh dipakai momen bebas ibadah.
+
+**Ubah:** `SONG_SOURCES` + `SOURCES` (+`HIMNE_NNBT/HIMNE_PKJ/KLIK/SEKULER`) di `server/lib/liturgy-songs.mjs` + `server/routes/liturgia-songs.mjs` → `assertSecularMoment` (sekuler hanya `bebas`/`bedah-lagu`, 400 bila momen inti; cek di POST + PUT setlist) → `normalizeSongInput` (SEKULER wajib pencipta + tautan/catatan hak cipta, tolak simpan lirik) → seed `songs-nnbt.json` (50) + `songs-pkj.json` (308) + `songs-klik.json` (479, varian 203A/451b/464b; 1 baris sampah `KLIK 026` dibuang) → `_seed-liturgia-songs.cjs` loop 3 buku (`alkitab.app/<BUKU>/<n>`) → `LiturgiaSongsPanel.tsx` (filter 8 sumber, badge SEKULER, hint sekuler, placeholder cari baru) → test `liturgia-songs.test.ts` (+3: sumber, guard momen, validasi sekuler) → `docs/product/liturgia-lagu.md`.
+
+**Verifikasi:** `lint` bersih ✓ **846 test** hijau (121 file, +4 baru) ✓ `build` OK ✓ seed idempoten (rerun +0) ✓ staging 1546 ✓ prod 1546 (478 KJ + 230 NKB + 50 NNBT + 308 PKJ + 479 KLIK + 1 lokal) ✓
+
+**Next:** QA Liturgia: cari `NNBT 42 / PKJ 15 / KLIK 125` di tab Ibadah → masukkan ke setlist 1 event → ekspor `.show` → uji tolak sekuler di momen `firman` (400). Commit + push menunggu perintah.
+
 ## Current — Penatalayan mingguan: mentor assign + WA temporer + Representative Day (Okt 2026)
 
 **Kebutuhan:** assign tersentral HOD; koordinasi mingguan tanpa wadah; HOD butuh 1 hari presentasi tanggung jawab (firman→pembaca, latihan, slide, logistik, tuan rumah+absensi); undangan via caption/video cara alat.
