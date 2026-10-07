@@ -22,6 +22,23 @@ let pass = 0;
 let fail = 0;
 const created = { shots: [], assets: [], souls: [], cases: [], transport: [], kost: [], refs: [] };
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Ulangi baca hingga lolos (tahan terhadap propagasi deployment), maks ~30 dtk. */
+async function retryRead(name, fn, tries = 6) {
+  let last = '';
+  for (let i = 0; i < tries; i += 1) {
+    const ok = await fn();
+    if (ok === true) {
+      check(name, true);
+      return;
+    }
+    last = typeof ok === 'string' ? ok : JSON.stringify(ok);
+    await sleep(5000);
+  }
+  check(name, false, `tetap gagal: ${last}`);
+}
+
 function check(name, cond, extra = '') {
   if (cond) {
     pass += 1;
@@ -182,9 +199,11 @@ async function main() {
   const srid = soRef.data?.item?.id;
   if (srid) created.souls.push(srid);
   await req('PATCH', `/api/marturia/souls/${srid}`, { session: sesMarturia, body: { status: 'HADIR' } });
-  const mineRef2 = await req('GET', '/api/marturia/referrals/mine', { session: sesMarturia });
-  const att = (mineRef2.data?.items || []).find((r) => r.code === code)?.attendances || 0;
-  check('funnel: HADIR menaikkan attendances', att >= 1, `dapat ${att}`);
+  await retryRead('funnel: HADIR menaikkan attendances', async () => {
+    const m = await req('GET', '/api/marturia/referrals/mine', { session: sesMarturia });
+    const att = (m.data?.items || []).find((r) => r.code === code)?.attendances || 0;
+    return att >= 1 ? true : `dapat ${att}`;
+  });
 
   // 9. Kost: usul → tampil.
   const ko = await req('POST', '/api/diakonia/kost', { session: sesDiakonia, body: { area: 'UJI-OTOMATIS Blok Z', priceRange: '500rb' } });
@@ -198,8 +217,11 @@ async function main() {
   const tpl = await req('POST', '/api/marturia/templates', { session: sesMarturia, body: { title: 'UJI-OTOMATIS kit', kind: 'POSTER', url: 'https://drive.google.com/uji-kit' } });
   check('template kit → 200', tpl.status === 200, `dapat ${tpl.status}`);
   const tplId = tpl.data?.item?.id;
-  const tplList = await req('GET', '/api/marturia/templates?kind=POSTER');
-  check('template tampil di kit', (tplList.data?.items || []).some((t) => t.id === tplId), `dapat ${(tplList.data?.items || []).length}`);
+  await retryRead('template tampil di kit', async () => {
+    const l = await req('GET', '/api/marturia/templates?kind=POSTER');
+    const n = (l.data?.items || []).length;
+    return (l.data?.items || []).some((t) => t.id === tplId) ? true : `dapat ${n}`;
+  });
 
   const inv = await req('POST', '/api/diakonia/inventory', { session: sesDiakonia, body: { name: 'UJI-OTOMATIS kabel roll', qtyTotal: 4, location: 'Gudang' } });
   check('tambah inventaris → 200', inv.status === 200, `dapat ${inv.status}`);

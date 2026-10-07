@@ -4795,9 +4795,11 @@ app.post('/api/register/google', wrap(async (req, res) => {
     }
 
     // Funnel Marturia: pendaftar via link referral tercatat sebagai jiwa BARU.
-    void import('./lib/marturia-funnel.mjs').then((m) =>
-      m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name }),
-    ).catch(() => null);
+    // Ditunggu (await) agar counter deterministik; gagal funnel tak menggagalkan daftar.
+    try {
+      const m = await import('./lib/marturia-funnel.mjs');
+      await m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name });
+    } catch { /* abaikan */ }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({
@@ -4927,9 +4929,11 @@ app.post('/api/register/local', wrap(async (req, res) => {
     }
 
     // Funnel Marturia: pendaftar via link referral tercatat sebagai jiwa BARU.
-    void import('./lib/marturia-funnel.mjs').then((m) =>
-      m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name }),
-    ).catch(() => null);
+    // Ditunggu (await) agar counter deterministik; gagal funnel tak menggagalkan daftar.
+    try {
+      const m = await import('./lib/marturia-funnel.mjs');
+      await m.recordReferralSignup(prisma, { refCode: req.body?.ref, name: user.name });
+    } catch { /* abaikan */ }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
     res.json({

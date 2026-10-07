@@ -261,11 +261,12 @@ export function registerMarturiaRoutes(app, { wrap }) {
       if (req.body?.handoverNote !== undefined) data.handoverNote = String(req.body.handoverNote || '').slice(0, 5000) || null;
       if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
       const updated = await prisma.marturiaSoul.update({ where: { id: found.id }, data });
-      // Funnel: pertama kali HADIR → attendances referral +1 (non-blocking).
+      // Funnel: pertama kali HADIR → attendances referral +1 (ditunggu agar deterministik).
       if (status === 'HADIR' && found.status !== 'HADIR') {
-        void import('../lib/marturia-funnel.mjs').then((m) =>
-          m.recordSoulAttendance(prisma, updated),
-        ).catch(() => null);
+        try {
+          const m = await import('../lib/marturia-funnel.mjs');
+          await m.recordSoulAttendance(prisma, updated);
+        } catch { /* abaikan */ }
       }
       res.json({ item: updated });
     }),
