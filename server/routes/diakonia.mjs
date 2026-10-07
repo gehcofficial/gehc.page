@@ -10,7 +10,6 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { requireDivision, divisionCodesFor } from '../lib/division-access.mjs';
 import { newEntityId } from '../lib/drive-ownership.mjs';
-import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const AREAS = new Set(['LOGISTIK', 'KONSUMSI', 'KESEHATAN']);
@@ -284,11 +283,8 @@ export function registerDiakoniaRoutes(app, { wrap }) {
       if (!needTable(prisma, 'diakoniaKost')) return res.status(503).json({ error: 'Database belum siap.' });
       const status = String(req.body?.status || '').toUpperCase();
       if (!KOST_STATUS.has(status)) return res.status(400).json({ error: 'Status: USULAN / TAMPIL / ARSIP.' });
-      // Moderasi tampil hanya Komisi/Superadmin atau Diakonia (sudah lolos requireDivision).
-      if (status === 'TAMPIL' && !isKomisiOrSuperadmin(req.authUser)) {
-        const reader = await isDiakoniaReader(req.authUser);
-        if (!reader) return res.status(403).json({ error: 'Hanya tim Diakonia yang boleh menampilkan.' });
-      }
+      // Moderasi tampil: tim Diakonia + Komisi + BOD Tim Kerja (HoD vacant → BOD eksekusi).
+      // Ditegakkan requireDivision('DIAKONIA') di middleware — sama aturan dengan checks/cases.
       const updated = await prisma.diakoniaKost.update({ where: { id: req.params.id }, data: { status } });
       res.json({ item: updated });
     }),

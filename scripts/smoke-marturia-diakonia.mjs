@@ -92,11 +92,15 @@ async function main() {
   check('toggle done → true', tog.status === 200 && tog.data?.item?.done === true, `dapat ${tog.status}`);
   await req('PATCH', `/api/marturia/shotlist/${first.id}`, { session: sesMarturia, body: { done: false } });
 
-  // 4. Guard lintas divisi: Marturia tidak boleh tulis Diakonia.
-  const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesMarturia, body: { area: 'LOGISTIK', status: 'SIAP' } });
-  check('Marturia tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
-  const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesDiakonia, body: { item: 'x' } });
-  check('Diakonia tulis Marturia → 403', cross2.status === 403, `dapat ${cross2.status}`);
+  // 4. Guard peran: MENTEE (tanpa COMMITTEE/divisi) tidak boleh tulis.
+  // (BOD Tim Kerja tanpa divisi memang melihat semua panel — division-access.mjs.)
+  const sesMentee = await login(email('adriel.kadisihe'));
+  const cross = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesMentee, body: { area: 'LOGISTIK', status: 'SIAP' } });
+  check('MENTEE tulis Diakonia → 403', cross.status === 403, `dapat ${cross.status}`);
+  const cross2 = await req('POST', `/api/events/${eid}/marturia/shotlist`, { session: sesMentee, body: { item: 'x' } });
+  check('MENTEE tulis Marturia → 403', cross2.status === 403, `dapat ${cross2.status}`);
+  const cross3 = await req('GET', '/api/diakonia/cases', { session: sesMentee });
+  check('MENTEE baca kasus mercy → 200 termasking', cross3.status === 200 && cross3.data?.canSeeSubject === false, `dapat ${cross3.status}`);
 
   // 5. Readiness + transport (Diakonia).
   const chk = await req('POST', `/api/events/${eid}/diakonia/checks`, { session: sesDiakonia, body: { area: 'LOGISTIK', status: 'SIAP', note: 'uji otomatis' } });
