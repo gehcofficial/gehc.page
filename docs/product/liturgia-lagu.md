@@ -25,8 +25,9 @@
 3. **Lagu baru** (manual ChordPro + metadata + link SABDA/SongSelect) →
    otomatis masuk setlist.
 4. Per lagu: momen (pembuka/firman/persembahan/penutup/bedah-lagu/bebas),
-   kunci, transpose ±, capo, checkbox bagian (`[Verse 1]`, `[Chorus]`…),
-   catatan pemusik, preview Chord/Lirik.
+   kunci, **Nada ±** (satu kontrol geser nada), **susunan main**
+   (ProPresenter: urutan + pengulangan + modulasi), catatan pemusik,
+   tab **Chord** (chord di atas lirik) / Lirik.
 5. Ekspor per lagu: **`.show`** · **ChordPro** · **salin Quick Lyrics**;
    ekspor JSON gabungan API-ready per event.
 
@@ -120,8 +121,9 @@ npm run db:seed:liturgia-songs:prod
 - **Nada dasar / key picker:** `defaultKey` = kunci partitur tersimpan;
   dropdown **Main di…** menghitung `transposeSteps(nadaDasar, target)`
   otomatis (0–11 ke atas; nama chord identik mod 12, mis. G→D = +7).
-  Tampilan kunci efektif: `transposeKey(nadaDasar, transpose)`.
-  Personal per pemusik via **Chord saya** (tak berubah).
+  Satu-satunya kontrol geser nada = stepper **Nada ±** (−11…+11);
+  **capo hanya anotasi** (tampil + bisa dihapus, tak menggeser chord).
+  Personal per pemusik via **Chord saya** (nada saja + anotasi capo).
 - **FreeShow:** jalur utama = impor file ChordPro di FreeShow
   (File → Import → hasil paling setia). Ekspor `.show` JSON / Quick Lyrics
   dari GEHC = jalan pintas (slide per bagian, layout default); bait sangat
@@ -144,3 +146,22 @@ npm run db:seed:liturgia-songs:prod
 - **Kurasi:** kolom `songs.story`/`meaning` (migrasi `db:migrate:liturgy-songs`
   idempotent) diisi tim via editor lagu Liturgia; tampil di web + layar +
   PDF rekap (badge "perlu verifikasi" selama kisah usulan AI).
+
+## 10. Susunan main + tab Chord + modulasi (per setlist)
+
+- **Lirik = reference point**: `lyricsChordPro` master satu-satunya; semua
+  render (lirik/chord/ekspor/layar) turunan fungsi murni.
+- **Susunan ala ProPresenter** tersimpan per setlist item (`sections` =
+  ordered list boleh berulang, tanpa migrasi skema — kolom JSON sudah array):
+  tambah/hapus/naik/turun/duplikat baris + preset (Full, V1+C, V1 C V2 C,
+  V1 C V2 C B C). Kosong = full master sesuai urutan lagu. Nama tak dikenal
+  ditolak server (400); render melewatinya diam-diam (tahan lirik diedit).
+  Pengulangan dilabeli otomatis (Chorus, Chorus 2…) di pratinjau/ekspor/layar.
+- **Tab Chord**: `renderChordOverLyrics` — baris chord sejajar di atas tiap
+  baris lirik (monospace), turunan master + susunan + transpose/modulasi.
+  Tampil-saja; edit tetap di ChordPro master (hindari divergensi).
+- **Modulasi per baris**: "Mod → D" mulai baris itu, berlaku ke bawah;
+  offset = `transposeSteps(kunciDasar, target)` (absolut, ikut nada personal).
+  Label `· D` + penanda `{comment: Modulasi ke D}` di ChordPro/tab chord.
+- **Validasi**: `validateArrangementSections` (400 bila nama asing);
+  `normalizeArrangement` (maks 30 entri, kunci tak valid diabaikan).

@@ -9,6 +9,7 @@ import {
   MOMENTS,
   parseSections,
   renderSelectedSections,
+  resolveArrangement,
   stripChords,
 } from './liturgy-songs.mjs';
 
@@ -163,10 +164,11 @@ export function resolveLyrics(orderItem, songRow = null, serviceSongRow = null) 
   const usage = { sections: serviceSongRow?.sections ?? null };
   let sections = [];
   try {
-    const picked = renderSelectedSections(String(song.lyricsChordPro || ''), usage.sections);
-    const clean = stripChords(picked);
-    sections = parseSections(clean)
-      .map((s) => ({ name: s.name, lines: s.lines.map((l) => String(l).trim()).filter((l) => l.length > 0) }))
+    sections = resolveArrangement(String(song.lyricsChordPro || ''), usage.sections)
+      .map((s) => ({
+        name: s.label,
+        lines: s.lines.map((l) => stripChords(l).trim()).filter((l) => l.length > 0),
+      }))
       .filter((s) => s.lines.length > 0);
   } catch { sections = []; }
   return {

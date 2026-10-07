@@ -6,7 +6,7 @@
 
 **Ubah:** `sections` = ordered list boleh berulang (tanpa migrasi skema) → `resolveArrangement` + `normalizeArrangement` + `validateArrangementSections` (klien ↔ server paritas) → `renderChordOverLyrics` (tampil-saja) + `stripChords` buang direktif → builder Quick Lyrics/`.show`/ChordPro + `resolveLyrics` layar ikut susunan → UI: editor susunan (tambah/hapus/geser/duplikat/preset/modulasi per baris) + tab Chord + stepper **Nada** tunggal + capo anotasi + ringkasan susunan → test arrangement/modulasi/chord-view (+~15).
 
-**Verifikasi:** (menyusul: lint + full suite + build)
+**Verifikasi:** `lint` bersih ✓ **906 test** hijau (125 file) ✓ `build` OK ✓ (tanpa migrasi skema; QA API + staging menyusul)
 
 **Next:** QA 1 lagu penuh (V1+C, modulasi chorus akhir, ekspor `.show`) → commit + push + sync.
 

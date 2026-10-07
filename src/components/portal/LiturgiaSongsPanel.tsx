@@ -6,12 +6,14 @@ import {
   SECTION_TEMPLATES,
   buildQuickLyrics,
   compileChordOverLyrics,
+  normalizeArrangement,
   parseSections,
+  renderChordOverLyrics,
   renderSelectedSections,
   stripChords,
-  transposeChordPro,
   transposeKey,
   transposeSteps,
+  type ArrangementEntry,
 } from '../../lib/song-chords';
 
 /**
@@ -41,7 +43,7 @@ type SetItem = {
   id: string;
   songId: string;
   sortOrder: number;
-  sections?: string[] | null;
+  sections?: Array<string | { section: string; key?: string | null; transpose?: number | null }> | null;
   baseKey?: string | null;
   transpose: number;
   capo?: number | null;
@@ -49,6 +51,143 @@ type SetItem = {
   note?: string | null;
   song?: Song | null;
 };
+
+/** Susunan efektif: arrangement tersimpan, atau full master bila kosong. */
+function effectiveEntries(item: SetItem): ArrangementEntry[] {
+  const norm = normalizeArrangement(item.sections);
+  if (norm && norm.length) return norm;
+  return (item.song?.sections || []).map((name) => ({ section: name, key: null, transpose: null }));
+}
+
+/** Ringkasan susunan untuk baris info (V1·C·V2·C, panah = modulasi). */
+function arrangementSummary(item: SetItem): string | null {
+  if (!item.sections?.length) return null;
+  const norm = normalizeArrangement(item.sections);
+  if (!norm) return null;
+  const short = (s: string) => s.replace(/^verse\s*/i, 'V').replace(/^chorus/i, 'C').replace(/^pre-chorus/i, 'Pre').replace(/^bridge/i, 'B').replace(/^intro/i, 'I').replace(/^outro/i, 'O').replace(/^interlude/i, 'Inter').replace(/^ending/i, 'End').replace(/^tag/i, 'Tag').replace(/^coda/i, 'Coda');
+  return norm.map((e) => (e.key ? `${short(e.section)}→${e.key}` : short(e.section))).join('·');
+}
+
+const ARR_PRESETS: Array<{ label: string; pick: RegExp[] }> = [
+  { label: 'V1 + Chorus', pick: [/^verse\s*1$/i, /^chorus$/i] },
+  { label: 'V1 C V2 C', pick: [/^verse\s*1$/i, /^chorus$/i, /^verse\s*2$/i, /^chorus$/i] },
+  { label: 'V1 C V2 C B C', pick: [/^verse\s*1$/i, /^chorus$/i, /^verse\s*2$/i, /^chorus$/i, /^bridge$/i, /^chorus$/i] },
+];
+
+function matchMaster(master: string[], re: RegExp): string | null {
+  return master.find((m) => re.test(m)) || null;
+}
+
+/**
+ * Editor susunan ala ProPresenter: urutan + pengulangan + modulasi per baris.
+ * Disimpan per setlist item (per event); kosong = full master.
+ */
+function ArrangementEditor({ master, item, onSave, disabled }: {
+  master: string[];
+  item: SetItem;
+  onSave: (sections: Array<{ section: string; key?: string | null }> | null) => void;
+  disabled?: boolean;
+}) {
+  const [addName, setAddName] = useState(master[0] || '');
+  const entries = effectiveEntries(item);
+  const isDefault = !item.sections?.length;
+  const save = (list: ArrangementEntry[]) => {
+    if (!list.length) {
+      onSave(null);
+      return;
+    }
+    const allMaster = master.map((m) => m.toLowerCase());
+    const sameOrderNoMod = list.length === master.length
+      && list.every((e, i) => e.section.toLowerCase() === allMaster[i] && !e.key);
+    onSave(sameOrderNoMod ? null : list.map((e) => (e.key ? { section: e.section, key: e.key } : { section: e.section })));
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    const next = [...entries];
+    const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    save(next);
+  };
+  return (
+    <div className="rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 p-2 space-y-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Susunan main</span>
+        <span className="flex-1" />
+        <button type="button" disabled={disabled} title="Kembali ke full master" onClick={() => save([])} className={btnGhost}>Full</button>
+        {ARR_PRESETS.map((p) => {
+          const names = p.pick.map((re) => matchMaster(master, re));
+          if (names.some((n) => !n)) return null;
+          return (
+            <button
+              key={p.label}
+              type="button"
+              disabled={disabled}
+              title={`Preset: ${names.join(' → ')}`}
+              onClick={() => save(names.map((n) => ({ section: n as string, key: null, transpose: null })))}
+              className={btnGhost}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      {entries.map((e, i) => (
+        <div key={`${e.section}-${i}`} className="flex flex-wrap items-center gap-1.5 rounded-lg bg-white border border-[#D9D7D0]/60 px-2 py-1">
+          <span className="text-[10px] font-black text-[#8C8880] w-5">{i + 1}</span>
+          <span className="text-[11px] font-bold text-[#1B1B1B]">[{e.section}]{e.key ? <span className="ml-1 text-[10px] font-black text-white bg-[#1B1B1B] rounded-full px-1.5 py-px">→ {e.key}</span> : null}</span>
+          <span className="flex-1" />
+          <select
+            className="text-[10px] border border-[#D9D7D0] rounded-lg px-1 py-0.5 bg-white"
+            title="Modulasi mulai baris ini (berlaku ke bawah)"
+            value={e.key || ''}
+            disabled={disabled}
+            onChange={(ev) => {
+              const next = entries.map((x, xi) => (xi === i ? { ...x, key: ev.target.value || null } : x));
+              save(next);
+            }}
+          >
+            <option value="">Ikut nada</option>
+            {PICKER_KEYS.map((k) => <option key={k} value={k}>Mod → {k}</option>)}
+          </select>
+          <button type="button" disabled={disabled} title="Naik" onClick={() => move(i, -1)} className={btnGhost}>↑</button>
+          <button type="button" disabled={disabled} title="Turun" onClick={() => move(i, 1)} className={btnGhost}>↓</button>
+          <button
+            type="button"
+            disabled={disabled}
+            title="Duplikat baris (mis. Chorus 2x)"
+            onClick={() => save([...entries.slice(0, i + 1), { ...entries[i] }, ...entries.slice(i + 1)])}
+            className={btnGhost}
+          >
+            ⧉
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            title="Hapus baris"
+            onClick={() => save(entries.filter((_, xi) => xi !== i))}
+            className={btnGhost}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <select value={addName} disabled={disabled} onChange={(e) => setAddName(e.target.value)} className="text-[11px] border border-[#D9D7D0] rounded-lg px-2 py-1 bg-white">
+          {master.map((m) => <option key={m} value={m}>[{m}]</option>)}
+        </select>
+        <button
+          type="button"
+          disabled={disabled || !addName}
+          onClick={() => { if (addName) save([...entries, { section: addName, key: null, transpose: null }]); }}
+          className={btnGhost}
+        >
+          + Tambah
+        </button>
+        {isDefault && <span className="text-[10px] text-[#8C8880]">— full master sesuai urutan lagu</span>}
+      </div>
+    </div>
+  );
+}
 
 const SOURCES = [
   { id: '', label: 'Semua sumber' },
@@ -198,9 +337,15 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
 
   const preview = useMemo(() => {
     if (!openItem?.song) return '';
-    const body = renderSelectedSections(openItem.song.lyricsChordPro || '', openItem.sections ?? null);
-    const t = transposeChordPro(body, effTranspose);
-    return view === 'lirik' ? stripChords(t) : t;
+    const key = openItem.baseKey || openItem.song.defaultKey || 'C';
+    const body = renderSelectedSections(
+      openItem.song.lyricsChordPro || '',
+      openItem.sections ?? null,
+      effTranspose,
+      key,
+      view === 'chord',
+    );
+    return view === 'lirik' ? stripChords(body).trim() : renderChordOverLyrics(body);
   }, [openItem, view, effTranspose]);
 
   const mutate = async (fn: () => Promise<unknown>, ok: string) => {
@@ -485,7 +630,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     )}
                   </p>
                   <p className="text-[10px] text-[#8C8880] truncate">
-                    {[it.song?.sourceRef || it.song?.source, it.baseKey || it.song?.defaultKey, it.transpose ? `${it.transpose > 0 ? '+' : ''}${it.transpose}` : null, it.capo ? `capo ${it.capo}` : null, it.moment].filter(Boolean).join(' · ')}
+                    {[it.song?.sourceRef || it.song?.source, it.baseKey || it.song?.defaultKey, it.transpose ? `${it.transpose > 0 ? '+' : ''}${it.transpose}` : null, it.capo ? `capo ${it.capo}` : null, arrangementSummary(it), it.moment].filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <button type="button" title="Naik" onClick={() => void move(it.id, -1)} className={btnGhost}><ArrowUp className="w-3 h-3" /></button>
@@ -514,7 +659,8 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                       {MOMENTS.map((m) => <option key={m} value={m}>{m}</option>)}
                     </select>
                     <input className={inputCls} style={{ maxWidth: 80 }} placeholder="Kunci" value={it.baseKey || ''} onChange={(e) => void patchItem(it.id, { baseKey: e.target.value || null })} />
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold" title="Geser nada (semitone) — satu-satunya kontrol transpose">
+                      Nada
                       <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { transpose: (it.transpose || 0) - 1 })}>−1</button>
                       <span className="px-1">{(it.transpose || 0) > 0 ? `+${it.transpose}` : it.transpose || '0'}</span>
                       <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { transpose: (it.transpose || 0) + 1 })}>+1</button>
@@ -534,15 +680,17 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                       <option value="">Main di… ({transposeKey(it.baseKey || it.song?.defaultKey || 'C', it.transpose || 0)})</option>
                       {PICKER_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
                     </select>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold">
-                      Capo
-                      <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { capo: Math.max(0, (it.capo || 0) - 1) })}>−</button>
-                      <span className="px-1">{it.capo || 0}</span>
-                      <button type="button" className={btnGhost} onClick={() => void patchItem(it.id, { capo: Math.min(11, (it.capo || 0) + 1) })}>+</button>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold" title="Capo hanya anotasi untuk gitaris — tidak menggeser chord">
+                      {it.capo ? (
+                        <>
+                          Capo {it.capo}
+                          <button type="button" className={btnGhost} title="Hapus anotasi capo" onClick={() => void patchItem(it.id, { capo: null }, 'Capo dihapus')}>✕</button>
+                        </>
+                      ) : null}
                     </span>
                     <button
                       type="button"
-                      title={mySetting ? `Transpose saya ${mySetting.transpose > 0 ? `+${mySetting.transpose}` : mySetting.transpose}, capo ${mySetting.capo ?? 0} — klik untuk ${useMine ? 'lihat default tim' : 'lihat chord saya'}` : 'Atur transpose/capo personal (tersimpan per akun)'}
+                      title={mySetting ? `Nada saya ${mySetting.transpose > 0 ? `+${mySetting.transpose}` : mySetting.transpose}${mySetting.capo ? ` · capo ${mySetting.capo} (anotasi)` : ''} — klik untuk ${useMine ? 'lihat default tim' : 'lihat chord saya'}` : 'Atur nada personal (tersimpan per akun)'}
                       onClick={() => {
                         if (!mySetting) {
                           void saveMine(it.transpose || 0, it.capo ?? null);
@@ -554,14 +702,15 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     >
                       {mySetting ? `Saya ${mySetting.transpose > 0 ? `+${mySetting.transpose}` : mySetting.transpose}${mySetting.capo ? ` · capo ${mySetting.capo}` : ''}` : 'Chord saya'}
                     </button>
-                    {useMine && mySetting && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold">
-                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose - 1, mySetting.capo)}>-1</button>
-                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose + 1, mySetting.capo)}>+1</button>
-                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose, Math.max(0, (mySetting.capo || 0) - 1))}>capo−</button>
-                        <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose, Math.min(11, (mySetting.capo || 0) + 1))}>capo+</button>
-                      </span>
-                    )}
+                      {useMine && mySetting && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold">
+                          <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose - 1, mySetting.capo)}>-1</button>
+                          <button type="button" className={btnGhost} onClick={() => void saveMine(mySetting.transpose + 1, mySetting.capo)}>+1</button>
+                          {mySetting.capo ? (
+                            <button type="button" className={btnGhost} title="Hapus anotasi capo saya" onClick={() => void saveMine(mySetting.transpose, null)}>capo {mySetting.capo} ✕</button>
+                          ) : null}
+                        </span>
+                      )}
                     <span className="flex-1" />
                     <button type="button" className={btnGhost} onClick={() => setView(view === 'chord' ? 'lirik' : 'chord')}>
                       Lihat: {view === 'chord' ? 'Chord' : 'Lirik'}
@@ -569,28 +718,11 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                   </div>
 
                   {!!it.song?.sections?.length && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {it.song.sections.map((name) => {
-                        const on = !it.sections?.length || it.sections.includes(name);
-                        return (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => {
-                              const all = it.song?.sections || [];
-                              const cur = it.sections?.length ? it.sections : all;
-                              const next = on ? cur.filter((s) => s !== name) : [...cur, name];
-                              void patchItem(it.id, { sections: next.length === all.length ? [] : next }, 'Bagian diperbarui');
-                            }}
-                            className={`px-2 py-1 rounded-full text-[10px] font-bold border ${on ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
-                            title={on ? 'Sembunyikan bagian' : 'Pakai bagian'}
-                          >
-                            [{name}]
-                          </button>
-                        );
-                      })}
-                      <span className="text-[10px] text-[#8C8880] self-center">— gelap = dipakai (semua gelap = semua bagian)</span>
-                    </div>
+                    <ArrangementEditor
+                      master={it.song.sections}
+                      item={it}
+                      onSave={(sections) => void patchItem(it.id, { sections: sections ?? [] }, 'Susunan diperbarui')}
+                    />
                   )}
 
                   <pre className="p-2.5 rounded-xl bg-[#1B1B1B] text-[#F5F3EE] text-[11px] font-mono whitespace-pre-wrap max-h-64 overflow-auto">
@@ -609,7 +741,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     <button type="button" className={btnGhost} onClick={() => download(`/api/events/${eventId}/songs/export?download=chordpro&itemId=${it.id}`)}>
                       <Download className="w-3 h-3" /> ChordPro
                     </button>
-                    <button type="button" title="ChordPro dengan transpose/capo personal saya" className={btnGhost} onClick={() => download(`/api/events/${eventId}/songs/export?download=chordpro&itemId=${it.id}&asMe=1`)}>
+                    <button type="button" title="ChordPro dengan nada personal saya" className={btnGhost} onClick={() => download(`/api/events/${eventId}/songs/export?download=chordpro&itemId=${it.id}&asMe=1`)}>
                       <Download className="w-3 h-3" /> ChordPro saya
                     </button>
                     <button

@@ -20,8 +20,10 @@ import {
   buildQuickLyrics,
   normalizeServiceSongInput,
   normalizeSongInput,
+  parseSections,
   serializeServiceSong,
   serializeSong,
+  validateArrangementSections,
 } from '../lib/liturgy-songs.mjs';
 
 const uid = (p) => `${p}-${crypto.randomUUID()}`;
@@ -195,6 +197,9 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
         if (!song) return res.status(404).json({ error: 'Lagu tidak ditemukan di pustaka.' });
         const norm = normalizeServiceSongInput(req.body || {});
         assertSecularMoment(song.source, norm.moment);
+        if (norm.sections) {
+          validateArrangementSections(norm.sections, parseSections(song.lyricsChordPro || '').map((s) => s.name));
+        }
         const count = await prisma.serviceSong.count({ where: { eventId: ev.id } });
         const created = await prisma.serviceSong.create({
           data: {
@@ -234,9 +239,18 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
           return res.status(404).json({ error: 'Lagu setlist tidak ditemukan.' });
         }
         const norm = normalizeServiceSongInput(req.body || {});
+        const needSong = req.body?.moment !== undefined || req.body?.sections !== undefined;
+        const songForCheck = needSong
+          ? await prisma.song.findUnique({ where: { id: found.songId } })
+          : null;
         if (req.body?.moment !== undefined) {
-          const song = await prisma.song.findUnique({ where: { id: found.songId } });
-          assertSecularMoment(song?.source, norm.moment);
+          assertSecularMoment(songForCheck?.source, norm.moment);
+        }
+        if (req.body?.sections !== undefined && norm.sections) {
+          validateArrangementSections(
+            norm.sections,
+            parseSections(songForCheck?.lyricsChordPro || '').map((s) => s.name),
+          );
         }
         const data = {};
         if (req.body?.sections !== undefined) data.sections = norm.sections || [];

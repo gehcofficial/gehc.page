@@ -100,12 +100,13 @@ export function parseSections(chordPro) {
   return sections.filter((s, i) => (i < sections.length - 1 ? true : s.lines.join('').trim().length > 0 || sections.length === 1));
 }
 
-export function renderSelectedSections(chordPro, selected) {
-  if (!Array.isArray(selected) || !selected.length) return String(chordPro || '');
-  const want = new Set(selected.map((s) => String(s).toLowerCase()));
+export function renderSelectedSections(chordPro, selected, songTranspose = 0, baseKey = 'C', markers = false) {
+  const entries = resolveArrangement(chordPro, selected, songTranspose, baseKey);
   const out = [];
-  for (const s of parseSections(chordPro)) {
-    if (want.has(s.name.toLowerCase())) out.push(`[${s.name}]`, ...s.lines);
+  for (const e of entries) {
+    out.push(`[${e.label}${e.key ? ' · ' + e.key : ''}]`);
+    if (markers && e.key) out.push(`{comment: Modulasi ke ${e.key}}`);
+    out.push(...e.lines);
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -114,12 +115,166 @@ export function stripChords(text) {
   return String(text || '')
     .split('\n')
     .map((line) => {
+      if (/^\s*\{[^}\n]*\}\s*$/.test(line)) return '';
       if (SECTION_LINE_RE.test(line)) return line;
       return line.replace(/\[([^\]\n]+)\]/g, (full, token) => (isChordToken(token) ? '' : full));
     })
     .join('\n')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n');
+}
+
+const KEY_LIST = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_ALIAS = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
+const DIRECTIVE_LINE_RE = /^\s*\{[^}\n]*\}\s*$/;
+
+/**
+ * Tab chord: lirik reference dirender ulang dengan baris chord sejajar
+ * di atas tiap baris lirik (mirror klien; tampil-saja).
+ */
+export function renderChordOverLyrics(text) {
+  const out = [];
+  for (const rawLine of String(text || '').replace(/\r\n/g, '\n').split('\n')) {
+    if (!rawLine.trim() || SECTION_LINE_RE.test(rawLine) || DIRECTIVE_LINE_RE.test(rawLine)) {
+      out.push(rawLine);
+      continue;
+    }
+    const lyricChars = [];
+    const marks = [];
+    const re = /\[([^\]\n]+)\]/g;
+    let last = 0;
+    let m;
+    let hasChord = false;
+    while ((m = re.exec(rawLine)) !== null) {
+      const seg = rawLine.slice(last, m.index);
+      for (const ch of seg) lyricChars.push(ch);
+      if (isChordToken(m[1])) {
+        marks.push({ pos: lyricChars.length, token: m[1] });
+        hasChord = true;
+      } else {
+        for (const ch of m[0]) lyricChars.push(ch);
+      }
+      last = m.index + m[0].length;
+    }
+    for (const ch of rawLine.slice(last)) lyricChars.push(ch);
+    if (!hasChord) {
+      out.push(rawLine);
+      continue;
+    }
+    const chordChars = [];
+    for (const { pos, token } of marks) {
+      while (chordChars.length < pos) chordChars.push(' ');
+      for (const ch of token) chordChars.push(ch);
+    }
+    out.push(chordChars.join('').trimEnd(), lyricChars.join(''));
+  }
+  return out.join('\n');
+}
+
+/** Indeks kromatis 0–11, -1 bila tidak dikenal (mirror klien). */
+export function keyIndex(key) {
+  const k = String(key || '').trim();
+  if (!k) return -1;
+  return KEY_LIST.indexOf(FLAT_ALIAS[k] || k);
+}
+
+/** Langkah transpose (0–11 ke atas) dari nada dasar ke kunci tampil. */
+export function transposeSteps(fromKey, toKey) {
+  const a = keyIndex(fromKey);
+  const b = keyIndex(toKey);
+  if (a < 0 || b < 0) return 0;
+  return (((b - a) % 12) + 12) % 12;
+}
+
+function clampArrTranspose(n) {
+  if (n === undefined || n === null || n === '') return null;
+  const v = Math.trunc(Number(n));
+  if (!Number.isFinite(v)) return null;
+  return Math.max(-11, Math.min(11, v));
+}
+
+/** Normalisasi 1 entri susunan ala ProPresenter (string polos = ikut nada lagu). */
+export function normalizeArrangementEntry(e) {
+  if (typeof e === 'string') {
+    const section = e.trim();
+    return section ? { section, key: null, transpose: null } : null;
+  }
+  if (e && typeof e === 'object') {
+    const section = String(e.section ?? '').trim();
+    if (!section) return null;
+    const keyRaw = String(e.key ?? '').trim();
+    const key = keyRaw && keyIndex(keyRaw) >= 0 ? keyRaw : null;
+    return { section, key, transpose: clampArrTranspose(e.transpose) };
+  }
+  return null;
+}
+
+/** Normalisasi susunan (maks 30 entri; kosong = null = full master). */
+export function normalizeArrangement(input) {
+  if (!Array.isArray(input)) return null;
+  const out = [];
+  for (const e of input.slice(0, 30)) {
+    const n = normalizeArrangementEntry(e);
+    if (n) out.push(n);
+  }
+  return out.length ? out : null;
+}
+
+function transposeLines(lines, steps) {
+  if (!steps) return lines;
+  return transposeChordPro(lines.join('\n'), steps).split('\n');
+}
+
+/**
+ * Uraikan susunan menjadi entri berurutan (boleh berulang; pengulangan
+ * dilabeli "Chorus 2"; nama tak dikenal dilewati). Modulasi per entri
+ * (key) dihitung dari baseKey dan berlaku ke bawah.
+ */
+export function resolveArrangement(chordPro, arrangement, songTranspose = 0, baseKey = 'C') {
+  const all = parseSections(chordPro || '');
+  const byName = new Map(all.map((s) => [s.name.toLowerCase(), s]));
+  const base = String(baseKey || 'C');
+  const norm = normalizeArrangement(arrangement);
+  const list = norm && norm.length
+    ? norm
+    : all.map((s) => ({ section: s.name, key: null, transpose: null }));
+  const counts = {};
+  let cur = Math.trunc(Number(songTranspose) || 0);
+  const out = [];
+  for (const e of list) {
+    const s = byName.get(e.section.toLowerCase());
+    if (!s) continue;
+    let t = cur;
+    let key = null;
+    if (e.key) {
+      key = e.key;
+      t = transposeSteps(base, e.key);
+    } else if (e.transpose !== null) {
+      t = e.transpose;
+    }
+    cur = t;
+    counts[s.name] = (counts[s.name] || 0) + 1;
+    const label = counts[s.name] > 1 ? `${s.name} ${counts[s.name]}` : s.name;
+    out.push({ name: s.name, label, lines: transposeLines(s.lines, t), transpose: t, key });
+  }
+  return out;
+}
+
+/**
+ * Validasi nama bagian susunan terhadap master lagu.
+ * Melempar 400 bila ada nama tak dikenal (stale setelah lirik diubah).
+ */
+export function validateArrangementSections(arrangement, masterNames) {
+  const norm = normalizeArrangement(arrangement);
+  if (!norm) return;
+  const known = new Set((masterNames || []).map((s) => String(s).toLowerCase()));
+  const bad = [...new Set(norm.map((e) => e.section))].filter((s) => !known.has(s.toLowerCase()));
+  if (bad.length) {
+    throw Object.assign(
+      new Error(`Bagian tak dikenal di lagu ini: ${bad.join(', ')}.`),
+      { status: 400 },
+    );
+  }
 }
 
 const KEY_RE = /^[A-G][#b]?$/;
@@ -188,9 +343,8 @@ export function normalizeServiceSongInput(body) {
   const capo = b.capo === null || b.capo === undefined || b.capo === '' ? null : Math.max(0, Math.min(11, intOrNull(b.capo) || 0));
   let sections = null;
   if (b.sections !== undefined && b.sections !== null) {
-    if (!Array.isArray(b.sections)) throw Object.assign(new Error('sections harus array nama bagian.'), { status: 400 });
-    sections = [...new Set(b.sections.map((s) => String(s).trim()).filter(Boolean))].slice(0, 30);
-    if (!sections.length) sections = null;
+    if (!Array.isArray(b.sections)) throw Object.assign(new Error('sections harus array susunan (nama/objek).'), { status: 400 });
+    sections = normalizeArrangement(b.sections);
   }
   let moment = str(b.moment, 32)?.toLowerCase() || null;
   if (moment && !MOMENTS.includes(moment)) throw Object.assign(new Error('Momen tidak valid.'), { status: 400 });
@@ -236,7 +390,11 @@ export function serializeServiceSong(row, songRow = null) {
   try {
     const raw = row.sections;
     const arr = Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : null;
-    if (Array.isArray(arr) && arr.length) sections = arr.map((s) => String(s));
+    if (Array.isArray(arr) && arr.length) {
+      sections = normalizeArrangement(arr)?.map((e) => (
+        e.key || e.transpose !== null ? { section: e.section, ...(e.key ? { key: e.key } : {}), ...(e.transpose !== null ? { transpose: e.transpose } : {}) } : e.section
+      )) || null;
+    }
   } catch { sections = null; }
   return {
     id: row.id,
@@ -257,17 +415,22 @@ export function serializeServiceSong(row, songRow = null) {
 /** Payload siap dorong ke FreeShow lokal (POST http://localhost:5506). */
 export function buildFreeShowPayload(song, usage) {
   const u = usage || {};
-  const body = renderSelectedSections(String(song.lyricsChordPro || ''), u.sections);
-  const transposed = transposeChordPro(body, u.transpose || 0);
-  const sections = parseSections(transposed);
+  const key = u.baseKey || song.defaultKey || '';
+  const entries = resolveArrangement(
+    String(song.lyricsChordPro || ''),
+    u.sections,
+    u.transpose || 0,
+    key || 'C',
+  );
   const slides = {};
   const layoutSlides = [];
-  sections.forEach((s, i) => {
+  entries.forEach((s, i) => {
     const id = `slide-${i + 1}`;
+    const group = s.key ? `${s.label} · ${s.key}` : s.label;
     const lyricLines = s.lines.map((l) => stripChords(l).trim());
     const kept = lyricLines.filter((l, idx, arr) => l.length > 0 || (arr[idx - 1] !== '' && idx < arr.length - 1));
     slides[id] = {
-      group: s.name,
+      group,
       items: [
         {
           type: 'text',
@@ -316,8 +479,13 @@ export function buildQuickLyrics(song, usage) {
   const key = u.baseKey || song.defaultKey;
   if (key) lines.push(`Key=${key}`);
   lines.push('');
-  const body = renderSelectedSections(String(song.lyricsChordPro || ''), u.sections);
-  lines.push(stripChords(transposeChordPro(body, u.transpose || 0)).trim() || '(belum ada lirik — isi ChordPro dulu)');
+  const body = renderSelectedSections(
+    String(song.lyricsChordPro || ''),
+    u.sections,
+    u.transpose || 0,
+    key || 'C',
+  );
+  lines.push(stripChords(body).trim() || '(belum ada lirik — isi ChordPro dulu)');
   return lines.join('\n');
 }
 
@@ -332,6 +500,12 @@ export function buildChordProExport(song, usage) {
     u.baseKey || song.defaultKey ? `{key: ${u.baseKey || song.defaultKey}}` : null,
     u.capo !== null && u.capo !== undefined ? `{capo: ${u.capo}}` : null,
   ].filter(Boolean);
-  const body = renderSelectedSections(String(song.lyricsChordPro || ''), u.sections);
-  return [...head, '', transposeChordPro(body, u.transpose || 0).trim()].join('\n');
+  const body = renderSelectedSections(
+    String(song.lyricsChordPro || ''),
+    u.sections,
+    u.transpose || 0,
+    u.baseKey || song.defaultKey || 'C',
+    true,
+  );
+  return [...head, '', body.trim()].join('\n');
 }
