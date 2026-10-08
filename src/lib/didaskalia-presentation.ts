@@ -46,6 +46,8 @@ export type DeckSlide = {
   bullets?: string[];
   fields?: { label: string; value: string }[];
   callout?: { label: string; value: string };
+  /** Tautan aksi (mis. garis besar → doc Ringkasan Khotbah 02). */
+  cta?: { label: string; href: string; text: string };
 };
 
 export type PresentationContent = {
@@ -140,15 +142,82 @@ export function mentorOpsBullets(): string[] {
   ];
 }
 
+/** Panjang acuan kalimat kunci garis besar (±char, dipotong di batas kata + elipsis). */
+export const GARIS_BESAR_MAX_CHARS = 200;
+
+function stripListMarker(line: string): string {
+  return String(line || '')
+    .replace(/^\s*(#{2,4}\s+|> ?)/, '')
+    .replace(/^\s*(\d+[.)]|[*\-])\s+/, '')
+    .replace(/^\s*[A-E][.)]\s+/, '')
+    .trim();
+}
+
+const GARIS_BESAR_TAKEAWAY_RE = /(poin utama|ingatlah|kuncinya|camkan|jadi,? hari ini)/i;
+
+/**
+ * Ambil 1 kalimat kunci VERBATIM dari satu bagian outline (untuk garis besar pembekalan).
+ * Prioritas: baris takeaway ("Poin Utama bagi Anak Muda: ...") → baris pertama.
+ * Kata-kata tidak diubah; hanya kupas penanda list dan potong di batas kata bila
+ * melebihi budget (±200 char, prefix verbatim + elipsis).
+ */
+export function extractKeySentence(text?: string): string {
+  const lines = String(text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return '';
+  const raw = lines.find((l) => GARIS_BESAR_TAKEAWAY_RE.test(stripMd(l))) || lines[0];
+  const clean = stripListMarker(raw).replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  const m = clean.match(/^[^.!?]+[.!?]/);
+  let s = (m ? m[0] : clean).trim();
+  // Abaikan chunk sampah (pemisah `---`/kosong) — tak ada huruf/angka.
+  if (!stripMd(s).replace(/[^A-Za-zÀ-ÿ0-9]/g, '')) return '';
+  if (s.length > GARIS_BESAR_MAX_CHARS) {
+    const cut = s.slice(0, GARIS_BESAR_MAX_CHARS);
+    const ws = cut.lastIndexOf(' ');
+    s = `${(ws > 80 ? cut.slice(0, ws) : cut).trim()} …`;
+  }
+  return s;
+}
+
+export type GarisBesarItem = { key: KhutbahOutlineKey; no: string; title: string; sentence: string };
+
+/**
+ * Garis besar 4 komponen outline (urutan tetap, hanya yang terisi).
+ * Dipakai modul Pembekalan 01 agar tak menduplikasi seluruh isi literal doc 02.
+ */
+export function extractGarisBesar(outline?: DidaskaliaSermon['outline']): GarisBesarItem[] {
+  const o = outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  return (Object.keys(KHUTBAH_OUTLINE_SECTIONS) as KhutbahOutlineKey[])
+    .map((key) => ({
+      key,
+      no: KHUTBAH_OUTLINE_SECTIONS[key].no,
+      title: KHUTBAH_OUTLINE_SECTIONS[key].title,
+      sentence: extractKeySentence(o[key]),
+    }))
+    .filter((g) => g.sentence);
+}
+
+/** Hash doc 02 (Ringkasan Khotbah) sepekan — tujuan CTA dari garis besar pembekalan. */
+export function khutbahHashFor(content: PresentationContent): string {
+  const ym = String(content.date || '').slice(0, 7);
+  if (!YM_RE.test(ym)) return '#/materi/khutbah';
+  return `#/materi/khutbah/${ym}/${content.weekIndex}`;
+}
+
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   const { paths, images, sermon } = content;
   const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
-  const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  const garis = extractGarisBesar(sermon.outline);
+  const khutbahHref = khutbahHashFor(content);
   const isMonolog = !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG';
+  const flow = sermon.discussionFlow || [];
   const flowBullets = isMonolog
     ? []
-    : (sermon.discussionFlow || []).length
-      ? sermon.discussionFlow
+    : flow.length
+      ? flow
       : [
         `Ikuti skenario pola ${content.patternName}.`,
         'Sesuaikan dengan tema dan audiens minggu ini.',
@@ -172,31 +241,29 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
-    // 2. Garis besar bahasan pekan ini (untuk semua pembaca modul).
+    // 2. Garis besar 4 komponen (ekstrak verbatim) + CTA ke doc 02.
+    //    Sengaja BUKAN salinan literal penuh — detail ada di Ringkasan Khotbah.
+    //    Paragraf memakai penanda `####` agar MdBlocks memberi highlight
+    //    ala khotbah (label bagian + takeaway emas bila kalimat kunci cocok).
     {
       id: 'garis-besar',
       kind: 'section',
-      kicker: 'Garis Besar Bahasan Pekan Ini',
+      kicker: 'Garis Besar · 4 Komponen',
       title: content.theme || 'Alur Pekan',
-      paragraphs: [
-        outline.pengantar,
-        outline.jembatan,
-      ].filter(Boolean).flatMap(toParagraphs),
-      callout: outline.kesimpulan
-        ? { label: 'Pesan Kunci', value: outline.kesimpulan }
-        : undefined,
+      paragraphs: garis.map((g) => `#### ${g.no}. ${g.title}\n\n${g.sentence}`),
+      callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02).' },
+      cta: { label: 'Buka Ringkasan Khotbah', href: khutbahHref, text: 'Detail 4 bagian verbatim' },
     },
-    // 3. Bagian A — ringkasan khotbah LITERAL (outline MD verbatim, di-chunk rapi).
-    ...literalKhutbahSlides(content, `Bagian A · Untuk ${deliverer}`, 'a-khotbah', (sermon.deliveryPlan || []).map((d) => `${d.method}: ${d.how}`)),
-    // 4. Checklist persiapan (pindah ke setelah gabungan 4 & 5).
+    // 3. Bagian A — panduan deliver per metode + checklist (tanpa full literal).
     {
-      id: 'a-checklist',
+      id: 'a-deliver',
       kind: 'section',
       kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Checklist Persiapan Khotbah',
+      title: 'Panduan Deliver & Checklist Persiapan',
+      fields: (sermon.deliveryPlan || []).map((d) => ({ label: d.method || 'Metode', value: d.how })),
       bullets: sermon.prepChecklist || [],
     },
-    // 5. Bagian B — arahan teknis pola + alur + absensi/monitoring (gabungan slide 13 & 14).
+    // 4. Bagian B — arahan teknis pola + alur + absensi/monitoring.
     {
       id: 'b-pola',
       kind: 'section',
@@ -208,7 +275,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
         : undefined,
       fields: isMonolog
-        ? (sermon.discussionFlow || []).slice(0, 3).map((q, i) => ({ label: `Q${i + 1}`, value: q }))
+        ? flow.slice(0, 6).map((q, i) => ({ label: `Q${i + 1}`, value: q }))
         : undefined,
       bullets: [
         ...patternTechnicalBullets(content.patternCode, content.patternName),
@@ -216,7 +283,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         ...mentorOpsBullets(),
       ],
     },
-    // 6. Penutup — gambaran 7 hari + doa syafaat (gabungan slide 15 & 16).
+    // 5. Penutup — gambaran 7 hari + doa syafaat.
     {
       id: 'penutup',
       kind: 'closing',
@@ -233,7 +300,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   return slides.filter((s, i) =>
     i === 0 ||
     s.kind === 'closing' ||
-    Boolean(s.paragraphs?.length || s.bullets?.length || s.fields?.length || s.callout)
+    Boolean(s.paragraphs?.length || s.bullets?.length || s.fields?.length || s.callout || s.cta)
   );
 }
 
@@ -406,8 +473,10 @@ export function chunkSermonSection(text?: string, maxLines = KHUTBAH_CHUNK_MAX_L
 }
 
 /**
- * Slide literal khotbah bersama (dipakai deck khutbah 02 & pembekalan 01):
+ * Slide literal khotbah (deck khutbah 02):
  * 4 bagian outline MD verbatim, di-chunk rapi, 1 gambar background per bagian.
+ * Modul Pembekalan 01 SENGAJA tidak memakai ini — ia hanya memuat garis besar
+ * 4 komponen + CTA ke doc 02 (lihat extractGarisBesar).
  */
 export function literalKhutbahSlides(
   content: PresentationContent,

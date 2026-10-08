@@ -67,19 +67,22 @@ export function buildDayCaption(input: CaptionInput): string {
 export function buildPembekalanCaption(input: CaptionInput): string {
   const { content } = input;
   const url = materialAbsoluteUrl({ doc: 'pembekalan', yearMonth: input.yearMonth, weekIndex: input.weekIndex }, input.origin);
-  const bigIdea = content.sermon?.bigIdea || '';
+  const khutbahUrl = materialAbsoluteUrl({ doc: 'khutbah', yearMonth: input.yearMonth, weekIndex: input.weekIndex }, input.origin);
   const methods = (content.sermon?.methods || []).slice(0, 3).join(' + ');
   const ref = [content.fundamentalFirman?.ref, content.kitabFokus].filter(Boolean).join(' · ');
+  const teksUtama = content.sermon?.teksUtama?.ref || '';
   return [
     `🛡️ *Pembekalan Mentor & Co-Mentor — Pekan ${input.weekIndex}*`,
     content.theme ? `*${content.theme}*` : '',
     content.date ? `🗓️ ${fmtDate(content.date)}` : '',
     ref ? `📌 ${ref}` : '',
-    bigIdea ? `💡 Inti pesan: ${bigIdea}` : '',
+    teksUtama ? `📖 Teks utama: ${teksUtama}` : '',
     methods ? `🎙️ Metode: ${methods}` : '',
     '',
-    'Mentor & Co-Mentor, bekali diri sebelum hari Minggu: baca garis besar bahasan + arahan teknis pola ibadah pekan ini 👇',
+    'Mentor & Co-Mentor, bekali diri sebelum hari Minggu: baca garis besar 4 komponen + arahan teknis pola ibadah pekan ini 👇',
     url,
+    '',
+    `Detail khotbah penuh ada di Ringkasan Khotbah 👇\n${khutbahUrl}`,
     '',
     HASHTAG,
   ].filter((l) => l !== null && l !== '').join('\n').replace(/\n{3,}/g, '\n\n').trim();

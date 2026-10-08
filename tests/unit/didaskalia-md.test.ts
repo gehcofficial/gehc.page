@@ -123,11 +123,13 @@ function captionContent() {
   };
 }
 
-describe('caption pembekalan & khotbah', () => {  it('pembekalan menyasar mentor + memuat bigIdea dan link', () => {
+describe('caption pembekalan & khotbah', () => {  it('pembekalan menyasar mentor + memuat teks utama dan tautan doc 02 (tanpa bigIdea AI)', () => {
     const t = buildPembekalanCaption({ doc: 'pembekalan', yearMonth: '2026-10', weekIndex: 2, content: captionContent() });
     expect(t).toContain('Mentor');
-    expect(t).toContain('Rescue Plan menuntaskan');
+    expect(t).not.toContain('Rescue Plan menuntaskan');
+    expect(t).toContain('2 Korintus 5:21');
     expect(t).toContain('#/materi/pembekalan/2026-10/2');
+    expect(t).toContain('#/materi/khutbah/2026-10/2');
   });
 
   it('khotbah menyasar pembawa firman + teks utama', () => {
@@ -143,14 +145,16 @@ describe('FGD 3Q + kembali kontekstual', () => {
     expect(widgetsFor('MONOLOG', 'panduan')).toEqual(['guide', 'notes', 'download']);
   });
 
-  it('pembekalan MONOLOG memuat Q1-Q3 + aturan rotasi + arahan teknis', async () => {
+  it('pembekalan MONOLOG memuat Q eksplisit + aturan rotasi + arahan teknis', async () => {
     const { buildPembekalanDeck, contentFromStudio, patternTechnicalBullets } = await import('../../src/lib/didaskalia-presentation');
     const { defaultStudio } = await import('../../src/lib/didaskalia');
     const studio = defaultStudio();
+    studio.sermon = { ...studio.sermon, discussionFlow: ['Pemanasan tema', 'Gali teks bersama', 'Terapkan nyata'] };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 2, '2026-10-11', 'The Rescue Plan', null, null, 'MONOLOG'));
-    // Slide Bagian B gabungan (b-pola): Q1-Q3 eksplisit + aturan rotasi + arahan teknis.
+    // Slide Bagian B gabungan (b-pola): Q eksplisit + aturan rotasi + arahan teknis.
     const b = deck.find((s) => s.id === 'b-pola');
     expect(b?.title).toContain('FGD');
+    expect(b?.fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3']);
     expect(b?.paragraphs?.join('\n')).toContain('perwakilan bergiliran');
     expect(patternTechnicalBullets('POST_TO_POST')).toHaveLength(4);
     expect(patternTechnicalBullets('MONOLOG')[0]).toContain('Ikuti alur');

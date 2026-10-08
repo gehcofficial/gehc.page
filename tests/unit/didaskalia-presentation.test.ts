@@ -66,7 +66,7 @@ describe('parseMaterialHash', () => {
 });
 
 describe('deck builders', () => {
-  it('pembekalan: cover + garis + A literal + checklist + B + penutup (tanpa slide AI)', () => {
+  it('pembekalan: cover + garis 4 komponen + A deliver + B pola + penutup (tanpa slide AI / literal penuh)', () => {
     const studio = studioWithRhb();
     studio.sermon = { ...studio.sermon, slideOutline: [{ title: 'S1', bullets: ['b1', 'b2'], visualNote: '' }, { title: 'S2', bullets: [], visualNote: '' }], outline: { pengantar: 'P1', bedahTeologis: '', jembatan: 'J1', kesimpulan: 'K1' } };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema Pekan'));
@@ -75,14 +75,21 @@ describe('deck builders', () => {
     expect(deck[deck.length - 1].kind).toBe('closing');
     // Tidak ada lagi slide breakdown per-Path (diganti 1 slide summary 7 hari).
     expect(deck.filter((s) => s.kind === 'path')).toHaveLength(0);
-    // Slide AI lama terhapus (summary/kerangka/slideOutline), diganti literal.
-    for (const gone of ['a-deliver', 'a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari', 'a-khotbah', 'a-kerangka', 'inti']) {
+    // Slide AI lama terhapus (summary/kerangka/slideOutline), diganti garis besar.
+    for (const gone of ['a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari', 'a-khotbah', 'a-kerangka', 'a-checklist', 'inti']) {
       expect(deck.find((s) => s.id === gone)).toBeFalsy();
     }
-    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-khotbah-pengantar', 'a-khotbah-jembatan', 'a-khotbah-kesimpulan', 'a-checklist', 'b-pola', 'penutup']);
-    const khotbah = deck.find((s) => s.id === 'a-khotbah-pengantar');
-    expect(khotbah?.paragraphs).toEqual(['P1']);
-    expect(khotbah?.bullets).toEqual(['Teologi Historis: Buka latar sejarah pelayanan.']);
+    // Tak ada duplikasi literal penuh doc 02 di modul 01.
+    expect(deck.some((s) => s.id.startsWith('a-khotbah-'))).toBe(false);
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-deliver', 'b-pola', 'penutup']);
+    const garis = deck.find((s) => s.id === 'garis-besar');
+    expect(garis?.paragraphs).toHaveLength(3);
+    expect(garis?.paragraphs?.[0]).toContain('P1');
+    expect(garis?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
+    expect(garis?.callout?.label).toBe('Detail Penuh');
+    const deliver = deck.find((s) => s.id === 'a-deliver');
+    expect(deliver?.fields).toEqual([{ label: 'Teologi Historis', value: 'Buka latar sejarah pelayanan.' }]);
+    expect(deliver?.bullets).toEqual(['Riset teks', 'Latihan']);
     const penutup = deck.find((s) => s.id === 'penutup');
     expect(penutup?.bullets).toHaveLength(7);
     expect(penutup?.bullets?.[0]).toContain('Minggu');

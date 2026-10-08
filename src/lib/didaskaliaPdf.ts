@@ -9,7 +9,7 @@
  */
 import { jsPDF } from 'jspdf';
 import { DAY_LABELS, defaultSermon, type DidaskaliaStudio, type DidaskaliaWeek } from './didaskalia';
-import { effectiveRhbSections } from './didaskalia-presentation';
+import { effectiveRhbSections, extractGarisBesar, mentorOpsBullets, patternTechnicalBullets } from './didaskalia-presentation';
 import { parseMdLite, stripMd } from './md-lite';
 
 const PAGE_W = 210;
@@ -419,8 +419,9 @@ function buildCommon(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOp
 
 /**
  * Modul Pembekalan (01) — 2 fokus:
- *   A. Untuk deliverer ibadah: persiapan & penyampaian khotbah.
- *   B. Untuk mentor & co-mentor: alur FGD + gambaran 7 hari (ringkas).
+ *   A. Untuk deliverer ibadah: garis besar 4 komponen (ekstrak verbatim) +
+ *      panduan deliver & checklist. Detail penuh ada di Ringkasan Khotbah (02).
+ *   B. Untuk mentor & co-mentor: alur pola-aware + gambaran 7 hari (ringkas).
  */
 export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions = {}): { filename: string; blob: Blob } {
   const w = buildCommon(week, studio, opts, 'Modul Pembekalan');
@@ -437,50 +438,55 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
     studio.fundamentalFirman?.text || ''
   );
   if (studio.kitabFokus) w.field('Kitab / Bagian Fokus', studio.kitabFokus);
+  if (sermon.teksUtama?.ref) w.field('Teks Utama Khotbah', sermon.teksUtama.text ? `${sermon.teksUtama.ref}\n${sermon.teksUtama.text}` : sermon.teksUtama.ref);
   if (studio.methodMix?.length) {
     w.field('Analisa Metode (%)', studio.methodMix.map((m) => `${m.method} — ${m.percent}%${m.note ? ` (${m.note})` : ''}`).join('\n'));
   }
 
-  // BAGIAN A — untuk pengkhotbah / deliverer (STANDAR LITERAL: outline MD verbatim)
+  // BAGIAN A — garis besar 4 komponen (BUKAN salinan literal penuh) + panduan deliver.
   w.newPage();
   w.y = 22;
   w.label(`Bagian A · Untuk ${delivererLabel(opts.serviceType)}`, C.accent);
-  w.title('Ringkasan Khotbah (Literal MD)', 20);
+  w.title('Garis Besar Khotbah (4 Komponen)', 20);
+  const garis = extractGarisBesar(sermon.outline);
+  garis.forEach((g, i) => {
+    w.numbered(i + 1, g.title);
+    w.richParagraph(g.sentence);
+  });
+  const ym = String(week.date || '').slice(0, 7);
+  w.callout(
+    'Detail Penuh — Ringkasan Khotbah (02)',
+    /^\d{4}-\d{2}$/.test(ym)
+      ? `Uraian tiap komponen ada di dokumen Ringkasan Khotbah pekan ini:\n#/materi/khutbah/${ym}/${week.index}`
+      : 'Uraian tiap komponen ada di dokumen Ringkasan Khotbah (doc 02) pekan ini.'
+  );
   const plan = sermon.deliveryPlan || [];
   if (plan.length) w.field('Panduan Deliver per Metode', plan.map((d) => `${d.method}: ${d.how}`).join('\n'));
-  const khSections = [
-    { key: 'pengantar', no: '1', heading: 'Pengantar' },
-    { key: 'bedahTeologis', no: '2', heading: 'Bedah Teologis' },
-    { key: 'jembatan', no: '3', heading: 'Jembatan ke Tema Mingguan' },
-    { key: 'kesimpulan', no: '4', heading: 'Kesimpulan (Siap-Baca)' },
-  ] as const;
-  const khOutline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
-  for (const s of khSections) {
-    const body = String(khOutline[s.key] || '').trim();
-    if (!body) continue;
-    w.label(`${s.no}. ${s.heading}`, C.accent);
-    w.mdBlocks(body, { speech: s.key === 'kesimpulan' });
-  }
-  if (sermon.teksUtama?.ref) w.field('Teks Utama Khotbah', sermon.teksUtama.text ? `${sermon.teksUtama.ref}\n${sermon.teksUtama.text}` : sermon.teksUtama.ref);
   const checklist = sermon.prepChecklist || [];
   if (checklist.length) w.field('Checklist Persiapan Khotbah', checklist.map((x, i) => `${i + 1}) ${x}`).join('\n'));
 
-  // BAGIAN B — untuk mentor & co-mentor
+  // BAGIAN B — untuk mentor & co-mentor (pola-aware + tugas operasional).
   w.newPage();
   w.y = 22;
   w.label('Bagian B · Untuk Mentor & Co-Mentor', C.accent);
   const isFgd = !opts.patternCode || String(opts.patternCode).toUpperCase() === 'MONOLOG';
   w.title(isFgd ? 'Alur FGD Hari Minggu' : `Alur ${opts.patternName || 'Ibadah'} Hari Minggu`, 20);
   const flow = sermon.discussionFlow || [];
-  if (flow.length) w.bullets(flow);
-  else if (isFgd) {
-    w.paragraph(
-      'Buka dengan pertanyaan pemanasan yang dekat dengan tema, gali teks bersama, lalu tutup dengan penerapan nyata dan doa.'
-    );
+  const tech = patternTechnicalBullets(opts.patternCode, opts.patternName);
+  const ops = mentorOpsBullets();
+  if (isFgd) {
+    if (flow.length) w.field('Pertanyaan FGD (jawab 1–2 perwakilan bergiliran)', flow.map((q, i) => `Q${i + 1}. ${q}`).join('\n'));
+    else {
+      w.paragraph(
+        'Buka dengan pertanyaan pemanasan yang dekat dengan tema, gali teks bersama, lalu tutup dengan penerapan nyata dan doa.'
+      );
+    }
+    w.bullets([...tech, ...ops]);
   } else {
-    w.paragraph(
-      `Ikuti skenario pola ${opts.patternName || 'ibadah pekan ini'} di atas, sesuaikan dengan tema dan audiens minggu ini, lalu tutup dengan komitmen dan doa.`
-    );
+    const steps = flow.length
+      ? flow
+      : [`Ikuti skenario pola ${opts.patternName || 'ibadah pekan ini'} di atas, sesuaikan dengan tema dan audiens minggu ini, lalu tutup dengan komitmen dan doa.`];
+    w.bullets([...tech, ...steps, ...ops]);
   }
   const pathLines = studio.paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);
   if (pathLines.length) w.field('Gambaran 7 Hari (Minggu–Sabtu)', pathLines.join('\n'));

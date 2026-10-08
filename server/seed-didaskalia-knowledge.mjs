@@ -93,6 +93,45 @@ Penulis MD cukup memakai penanda ini; website/PDF mengubahnya jadi highlight
 - Isi Kesimpulan selalu tampil sebagai suara pengkhotbah (lebih besar, hangat).`,
   },
   {
+    id: 'dk-format-pembekalan',
+    title: 'Standar Modul Pembekalan Mentor & Co-Mentor (01)',
+    category: 'FORMAT',
+    source: 'MANUAL',
+    sortOrder: 8,
+    content: `# STANDAR MODUL PEMBEKALAN MENTOR & CO-MENTOR (01) — TIM DIDASKALIA
+
+Modul 01 memakai gaya yang sama dengan Ringkasan Khotbah (02): render
+markdown-lite + highlight semantik (Firman, Poin Utama, Luruskan, Suara),
+tipografi naik, dan budget layar (±6 baris / 4 bullet per slide).
+
+## 1. Struktur modul (urutan tetap)
+
+1. **Cover** — tema, tanggal, kitab fokus, Fundamental Firman, Teks Utama.
+2. **Garis Besar 4 Komponen** — 1 kalimat kunci VERBATIM per bagian
+   (Pengantar, Bedah Teologis, Jembatan, Kesimpulan), diambil otomatis dari
+   outline (prioritas: baris "Poin Utama bagi Anak Muda: ..." → kalimat
+   pertama). BUKAN salinan literal penuh dan BUKAN parafrase AI.
+3. **Bagian A (Deliverer)** — panduan deliver per metode + checklist persiapan.
+4. **Bagian B (Mentor & Co-Mentor)** — arahan teknis mengikuti POLA IBADAH
+   + alur/pertanyaan + tugas absensi & monitoring.
+5. **Penutup** — gambaran 7 hari + doa syafaat.
+
+## 2. Aturan garis besar + tautan doc 02
+
+- Detail penuh tiap komponen HANYA ada di Ringkasan Khotbah (doc 02).
+- Slide garis besar WAJIB memuat arahan + tautan ke doc 02 pekan yang sama.
+- AI DILARANG membuat ringkasan tandingan untuk modul 01.
+
+## 3. Standar pertanyaan/alur Bagian B (pola-aware)
+
+- MONOLOG: aturan jawab bergiliran (1–2 perwakilan per pertanyaan) +
+  pertanyaan FGD observasi → interpretasi → aplikasi.
+- POST_TO_POST: rute kunjungan berurutan rank 1→3 (bukan FGD duduk).
+- DUAL_MONOLOG / DEBAT / BEDAH_FILM / THREE_SEQUENCES: ikut alur polanya
+  masing-masing (lihat panduan pola ibadah).
+- Selalu tutup dengan tugas operasional: absensi QR + update monitoring.`,
+  },
+  {
     id: 'dk-format-khotbah',
     title: 'Panduan Format Khotbah — Tim Didaskalia',
     category: 'FORMAT',

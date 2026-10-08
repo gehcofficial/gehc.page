@@ -23,7 +23,7 @@ import {
 } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText, whatsappShareUrl } from '../../lib/rhb-caption';
 import { ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
-import { MdBlocks, parseMdLite } from '../../lib/md-lite';
+import { MdBlocks, inlineSpans, parseMdLite } from '../../lib/md-lite';
 
 type LoadState =
   | { status: 'loading' }
@@ -68,7 +68,7 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
           {slide.fields.map((f) => (
             <div key={f.label}>
               <dt className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-white/60' : 'text-white/50 print:text-black/50'}`}>{f.label}</dt>
-              <dd className={`text-sm sm:text-base leading-relaxed whitespace-pre-line ${isBg ? 'text-white' : 'text-white/90 print:text-black/90'}`}>{f.value}</dd>
+              <dd className={`text-sm sm:text-base leading-relaxed whitespace-pre-line ${isBg ? 'text-white' : 'text-white/90 print:text-black/90'}`}>{inlineSpans(f.value, 'font-bold text-sky-200 print:text-sky-700', 'italic')}</dd>
             </div>
           ))}
         </dl>
@@ -78,10 +78,22 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
           {slide.bullets.map((b, i) => (
             <li key={i} className={`flex gap-2 text-sm sm:text-base leading-relaxed ${isBg ? 'text-white/95' : 'text-white/90 print:text-black/90'}`}>
               <span className={`mt-[7px] h-1.5 w-1.5 rounded-full shrink-0 ${isBg ? 'bg-white' : 'bg-sky-400'}`} />
-              <span>{b}</span>
+              <span>{inlineSpans(b, 'font-bold text-sky-200 print:text-sky-700', 'italic')}</span>
             </li>
           ))}
         </ul>
+      )}
+      {slide.cta && (
+        <div className="pt-1 print:hidden">
+          <a
+            href={slide.cta.href}
+            onClick={() => rememberPortalPlace()}
+            className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 hover:bg-sky-400 px-4 py-2 text-xs font-black text-white transition"
+          >
+            {slide.cta.label} →
+          </a>
+          <p className="mt-1.5 text-[11px] text-white/50 print:text-black/50">{slide.cta.text}</p>
+        </div>
       )}
     </>
   );

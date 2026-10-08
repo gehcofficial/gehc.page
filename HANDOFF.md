@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Pembekalan 01 gaya khotbah: garis besar 4 komponen + CTA doc 02 (8 Okt 2026)
+
+**Kebutuhan:** samakan modul Pembekalan (01) ke standar khotbah literal + md-lite; ringkasan di 01 cukup garis besar 4 komponen (detail di doc 02); pertanyaan mentor/co-mentor ikut standar pola-aware terbaru.
+
+**Ubah (kode, belum commit):** `didaskalia-presentation.ts` — `extractKeySentence`/`extractGarisBesar` (1 kalimat kunci verbatim per bagian, prioritas takeaway → kalimat pertama, potong batas kata + `…` bila >200 char, buang noise `---`), `DeckSlide.cta`, `khutbahHashFor` (CTA → `#/materi/khutbah/<ym>/<pekan>`); `buildPembekalanDeck` = cover + garis-besar (paragraf `####` agar MdBlocks highlight ala khotbah + callout/CTA Detail Penuh) + `a-deliver` (deliveryPlan + checklist, sembunyi bila kosong) + `b-pola` (Q1–Q6 penuh utk MONOLOG, tech + ops) + penutup — duplikasi literal `a-khotbah-*` & slide `a-checklist` dihapus • `DidaskaliaPresentation.tsx` SlideView: bullets/fields → `inlineSpans` (bold ikut highlight) + tombol CTA • `didaskaliaPdf.ts` `buildPembekalanPdf`: Bagian A = garis besar numbered + box CTA + deliver + checklist; Bagian B = tech + Q/flow + ops (paritas web); Teks Utama pindah ke hal. Inti Pesan • `rhb-caption.ts`: caption tanpa bigIdea AI (teks utama + link doc 02) • `didaskalia-ai.mjs` SERMON_RULES + generateWeekExtras: garis besar otomatis-verbatim, discussionFlow pola-aware • knowledge baru `dk-format-pembekalan` (sortOrder 8) • test baru `didaskalia-pembekalan-garis-besar.test.ts` (+13) + selaraskan 2 test lama.
+
+**Verifikasi:** `lint` bersih ✓ full suite **978 hijau + 1 flaky lama** (`lazy-routes/ChurchHub` timeout, lolos standalone) ✓ `build` OK ✓ smoke PDF MONOLOG (20KB) + DEBAT (21KB) ✓
+
+**Next:** QA visual deck 01 vs 02 (HP/proyektor) • seed knowledge ke staging + prod (`db:seed:didaskalia-knowledge`) • generate gambar bagian via Studio + publish ulang doc 02 W2 (sisa lama) • commit + push + `staging:sync`.
+
 ## Current — Verifikasi gabungan pasca-merge (8 Okt 2026)
 
 **Jalan:** sesi paralel merge (`md-lite-render`, khutbah literal) + commit P2 liturgia sempat mendarat di branch salah → cherry-pick ke main + merge gabungan → perbaiki 1 brace ekstra `didaskaliaPdf.ts` (build staging gagal) → sync ulang.
@@ -44,7 +54,9 @@
 
 **Ubah (belum commit):** `chunkSermonSection` → budget POV presentasi (≤6 baris estimasi / ≤4 bullet, pecah di batas bullet, tanpa potong kalimat) + chunk sampah (`---`/kosong) dibuang via `isNoiseUnit`. PDF tak berubah (sudah alir-penuh per bagian — "cetak muncul semua" terpenuhi).
 
-**Deploy budget slide (8 Okt 2026, ~23:10):** merge `cursor/khutbah-slide-budget` → main (`62b2935`) + push + `staging:sync` ✓. Prod = `62b2935` ✓. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
+**Deploy budget slide (8 Okt 2026, ~23:10):** merge `cursor/khutbah-slide-budget` → main (`62b2935`) + push + `staging:sync` ✓. Prod = `62b2935` ✓.
+
+**Reset kuota ilustrasi (9 Okt 2026):** prod W2 penuh 8/8 (6 legacy slide-index AI + 2 literal). Peta legacy `khutbah` dikosongkan (tak dirender deck literal; file Drive utuh, ID lama di snapshot settlement) → kuota 2/8. Sisa: generate `jembatan` + `kesimpulan` via Studio. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
