@@ -4,7 +4,7 @@
 
 **Jalan:** kolom `songs.lang` (ID/EN, migrasi idempoten) + filter API + toggle UI + badge EN → verifikasi 50 link (36 ID 200 OK; 14 EN via site-search — 4 draf awal tak ada [Good Good Father, O Come to the Altar, This Is Amazing Grace + Holy Spirit salah sasaran] diganti terverifikasi: Revelation Song, In Christ Alone, Cornerstone, Holy Spirit 509) → `songs-contemporary.json` (metadata + artis + URL + copyright, tanpa lirik) → seed dedup vs himne/KLIK (2 lewati: KLIK 57/93, duplikat asli) → test JSON + lang (+4).
 
-**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ QA API live EN=14/ID=34/filter benar ✓ (menyusul: staging seed + prod)
+**Verifikasi:** `lint` bersih ✓ **930 test** hijau (1 flaky lolos rerun) ✓ `build` OK ✓ QA API live EN=14/ID=34/filter benar ✓ staging + prod seed 48 (2 dedup asli) ✓ `schema:check` sinkron ✓
 
 **Next:** QA visual filter bahasa → commit + push + sync → migrasi + seed prod.
 
