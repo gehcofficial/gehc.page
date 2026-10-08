@@ -23,6 +23,7 @@ import {
 } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText, whatsappShareUrl } from '../../lib/rhb-caption';
 import { ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
+import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 
 type LoadState =
   | { status: 'loading' }
@@ -50,9 +51,12 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
       {!isBg && img && (
         <img src={img} alt="" loading="lazy" className="w-full max-h-[42vh] object-cover rounded-2xl border border-white/10" />
       )}
-      {slide.paragraphs?.map((p, i) => (
-        <p key={i} className={`text-sm sm:text-lg leading-relaxed whitespace-pre-line ${isBg ? 'text-white/90' : 'text-white/85 print:text-black/85'}`}>{p}</p>
-      ))}
+      {Boolean(slide.paragraphs?.length) && (
+        <MdBlocks
+          blocks={parseMdLite((slide.paragraphs || []).join('\n\n'), { speech: slide.id.includes('kesimpulan') })}
+          tone={isBg ? 'overlay' : 'plain'}
+        />
+      )}
       {slide.callout && (
         <div className={`rounded-2xl p-4 border ${isBg ? 'bg-white/10 border-white/25 backdrop-blur-sm' : 'bg-sky-500/15 border-sky-400/30 print:bg-sky-50'}`}>
           <p className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{slide.callout.label}</p>

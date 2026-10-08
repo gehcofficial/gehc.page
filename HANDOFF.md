@@ -22,6 +22,16 @@
 
 **Deploy (8 Okt 2026, ~22:35):** merge `cursor/literal-md-khutbah` → main (`83cb71e`) + push + `staging:sync` ✓ (staging == main). Prod `youth.gehc.page/api/version` = `83cb71e` ✓. Sisa manual: 4 gambar per bagian via Studio + publish ulang doc 02 W2.
 
+## Current — Render markdown-lite + highlight semantik (8 Okt 2026, uncommitted di main)
+
+**Kebutuhan:** teks literal tampil mentah (`**`, `>`, `####`, `---`) — minta dirapikan bullet/indent/spacing + highlight (warna/font) yang readable & appealing, berbasis standar WCAG AA + pedoman venue (kontras terang-gelap ≥4.5:1, sans ≥18pt, maks 5–7 baris/slide, warna tak sendirian → selalu +ikon/label/bentuk).
+
+**Ubah (belum commit):** `src/lib/md-lite.tsx` (baru) — parser blok (heading/quote/divider/list+sarang) + inline tebal/miring + peran: `scripture` (quote+chip ref, deteksi via `bible-books.ts`), `takeaway` (kotak emas + ikon), `correction` (kotak pelurusan + ikon), `speech` (Kesimpulan: besar-hangat); DB tetap verbatim • `SlideView` pakai renderer + basis naik (`text-base/sm:text-xl`, firman `lg/2xl`) • `didaskaliaPdf.ts`: `richParagraph` (bold run), `callout` tone amber, `bullets` indent+ordered, `mdBlocks()` dipakai PDF khutbah + Bagian A pembekalan • konvensi penulis di knowledge (seeded staging+prod) • test `md-lite.test.ts` (+10).
+
+**Verifikasi:** `lint` bersih • full suite **131 file / 964 test hijau** • parse data W2 asli: bedah = quote+3 heading+list(2,2,4 sarang), jembatan = quote+ol-3, kesimpulan = quote • PDF khutbah generate OK (34KB).
+
+**Next:** commit + push + sync (seperti episode lalu) • cek visual HP/proyektor 1 slide bedah + kesimpulan • generate gambar manual via Studio tetap berlaku.
+
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
 **Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
