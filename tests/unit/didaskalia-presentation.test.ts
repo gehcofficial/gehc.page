@@ -131,7 +131,12 @@ describe('deck builders', () => {
 
   it('RHB harian: cover + 5 section + penutup', () => {
     const studio = studioWithRhb();
-    const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '2026-09-06', ''), 3);
+    const content = contentFromStudio(studio, 1, '2026-09-06', '');
+    content.paths[2] = {
+      ...content.paths[2],
+      rhbSections: ensureRhbSections(content.paths[2].rhbSections).map((s) => ({ ...s, body: `Isi ${s.key}` })),
+    };
+    const deck = buildRhbDayDeck(content, 3);
     expect(deck[0].kind).toBe('cover');
     expect(deck[0].kicker).toContain('Selasa');
     const sections = deck.filter((s) => s.kind === 'section');
@@ -139,6 +144,13 @@ describe('deck builders', () => {
     expect(sections[0].title).toBe('Pengantar');
     expect(sections[4].title).toBe('Pertanyaan untuk Diskusi Kelompok');
     expect(deck[deck.length - 1].kind).toBe('closing');
+  });
+
+  it('RHB harian: section kosong dilewati (anti slide-kosong)', () => {
+    const studio = studioWithRhb();
+    const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '2026-09-06', ''), 3);
+    // Hanya PENGANTAR terisi → cover + 1 section + penutup.
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'sec-PENGANTAR', 'closing']);
   });
 
   it('RHB harian menampilkan Bacaan Alkitab & Nats Pembimbing', () => {
@@ -151,13 +163,17 @@ describe('deck builders', () => {
     expect(labels).toContain('Nats Pembimbing');
   });
 
-  it('RHB harian memakai gambar per section bila ada', () => {
+  it('RHB harian memakai gambar harian di semua slide (fallback section bila kosong)', () => {
     const studio = studioWithRhb();
     const content = contentFromStudio(studio, 1, '', '');
     content.images = { rhb: { '2': { PENGANTAR: 'file-abc', cover: 'file-cover' } } };
     const deck = buildRhbDayDeck(content, 2);
     expect(deck[0].imageFileId).toBe('file-cover');
-    expect(deck[1].imageFileId).toBe('file-abc');
+    // Gambar harian menang atas gambar section lama + mode background.
+    const sec = deck.find((s) => s.id === 'sec-PENGANTAR');
+    expect(sec?.imageFileId).toBe('file-cover');
+    expect(sec?.background).toBe(true);
+    expect(deck[deck.length - 1].imageFileId).toBe('file-cover');
   });
 
   it('rhbDayList mengembalikan 7 hari', () => {

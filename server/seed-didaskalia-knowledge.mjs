@@ -41,7 +41,16 @@ Hangat, bahasa anak muda, hormat. Tidak baku-kaku, tidak kasual-berlebihan.
 
 ## 3. Rambu teologi (tetap)
 
-Reformed: Sola Scriptura/Gratia/Fide, Solus Christus, Soli Deo Gloria. Pemuridan = respons syukur, bukan syarat keselamatan. Jangan menyiratkan "Allah + usahamu".`,
+Reformed: Sola Scriptura/Gratia/Fide, Solus Christus, Soli Deo Gloria. Pemuridan = respons syukur, bukan syarat keselamatan. Jangan menyiratkan "Allah + usahamu".
+
+## 4. Gambar & slide harian (standar khutbah)
+
+- 1 gambar AI per hari sesuai tema harian (prompt = judul + ringkasan + nats hari itu,
+  gaya simbolis-damai, tanpa teks di gambar, negative space di atas).
+- 1 gambar berlaku untuk SEMUA slide hari itu (background + overlay teks).
+- Section panjang dipecah ≤6 baris / ≤4 bullet per slide (tanpa potong kalimat);
+  section kosong dilewati (kecuali membawa FGD/nats/gambar).
+- Kuota AI gabung/pekan: cover 3 + khutbah 4 + RHB harian 7 = 12.`,
   },
   {
     id: 'dk-format-khotbah-service',

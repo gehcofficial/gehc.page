@@ -443,14 +443,20 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
   if (!path) return [];
   const sections = effectiveRhbSections(path);
   const perDay = content.images.rhb?.[String(dayIndex)] || {};
+  const rhbAi = content.images.rhbAi && typeof content.images.rhbAi === 'object' ? content.images.rhbAi : {};
+  // 1 gambar harian berlaku untuk SEMUA halaman hari itu (prinsip khutbah:
+  // tulisan di atas gambar). Rantai fallback bila harian kosong.
+  const daily = rhbAi[String(dayIndex)] || perDay.cover || path.coverImageFileId || undefined;
+  const dayLabel = path.dayLabel || DAY_LABELS[dayIndex - 1];
+  const useBg = Boolean(daily);
   const slides: DeckSlide[] = [
     {
       id: 'cover',
       kind: 'cover',
-      kicker: `RHB · Pekan ${content.weekIndex} · ${path.dayLabel || DAY_LABELS[dayIndex - 1]}`,
+      kicker: `RHB · Pekan ${content.weekIndex} · ${dayLabel}`,
       title: path.title,
       subtitle: [content.chapterNo, path.bacaanRef].filter(Boolean).join(' · '),
-      imageFileId: perDay.cover || path.coverImageFileId || undefined,
+      imageFileId: daily || content.images.cover,
       background: true,
       fields: [
         path.bacaanRef ? { label: 'Bacaan Alkitab', value: path.bacaanRef } : null,
@@ -459,16 +465,46 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
     },
   ];
   sections.forEach((s, i) => {
-    const paragraphs = toParagraphs(s.body);
-    slides.push({
-      id: `sec-${s.key}`,
-      kind: 'section',
-      kicker: `Hari ${dayIndex} · ${path.dayLabel || DAY_LABELS[dayIndex - 1]}`,
-      title: s.title,
-      imageFileId: perDay[s.key] || s.imageFileId || undefined,
-      paragraphs,
-      bullets: s.key === 'DISKUSI_KELOMPOK' && !paragraphs.length ? path.fgdQuestions || [] : undefined,
-      callout: i === 0 && path.scriptureText ? { label: path.scriptureRef || 'Nats', value: path.scriptureText } : undefined,
+    // Gambar section lama hanya fallback bila harian kosong (mode plain lama).
+    const legacy = perDay[s.key] || s.imageFileId || undefined;
+    const imgId = daily || legacy;
+    const bg = Boolean(daily);
+    const chunks = chunkSermonSection(s.body);
+    if (!chunks.length) {
+      // Standar anti slide-kosong: section kosong dilewati kecuali membawa
+      // pertanyaan FGD / callout Firman / gambar.
+      const bullets = s.key === 'DISKUSI_KELOMPOK' ? path.fgdQuestions || [] : undefined;
+      const callout = i === 0 && path.scriptureText
+        ? { label: path.scriptureRef || 'Nats', value: path.scriptureText }
+        : undefined;
+      if (!bullets?.length && !callout && !imgId) return;
+      slides.push({
+        id: `sec-${s.key}`,
+        kind: 'section',
+        kicker: `Hari ${dayIndex} · ${dayLabel}`,
+        title: s.title,
+        imageFileId: imgId,
+        background: bg,
+        paragraphs: [],
+        bullets,
+        callout,
+      });
+      return;
+    }
+    // Section panjang di-chunk ≤6 baris/≤4 bullet per slide (budget khutbah).
+    chunks.forEach((paragraphs, ci) => {
+      slides.push({
+        id: `sec-${s.key}${chunks.length > 1 ? `-${ci + 1}` : ''}`,
+        kind: 'section',
+        kicker: `Hari ${dayIndex} · ${dayLabel}${chunks.length > 1 ? ` · ${ci + 1}/${chunks.length}` : ''}`,
+        title: chunks.length > 1 ? `${s.title} (${ci + 1}/${chunks.length})` : s.title,
+        imageFileId: imgId,
+        background: bg,
+        paragraphs,
+        callout: ci === 0 && i === 0 && path.scriptureText
+          ? { label: path.scriptureRef || 'Nats', value: path.scriptureText }
+          : undefined,
+      });
     });
   });
   slides.push({
@@ -476,6 +512,8 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
     kind: 'closing',
     kicker: 'Besok',
     title: 'Jembatan ke hari berikutnya',
+    imageFileId: daily,
+    background: useBg,
     paragraphs: [path.bridge || 'Teruskan perjalanan RHB besok dengan hati yang terbuka.'],
   });
   return slides;

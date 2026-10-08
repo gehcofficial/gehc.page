@@ -111,7 +111,9 @@ function sanitizeImages(raw) {
   const aiImages = Array.isArray(r.aiImages) ? r.aiImages.filter((x) => typeof x === 'string' && x).slice(0, 20) : [];
   /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: fileId }. */
   const khutbahLiteral = mapOfStr(r.khutbahLiteral);
-  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages, khutbahLiteral };
+  /** Ilustrasi AI per hari RHB: { '1'..'7': fileId } — 1 gambar berlaku semua slide hari itu. */
+  const rhbAi = mapOfStr(r.rhbAi);
+  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages, khutbahLiteral, rhbAi };
 }
 
 export function hashContent(obj) {
@@ -1001,9 +1003,22 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
   // ---------- Presentasi materi (deck web per pekan/hari) ----------
   const PRESENTATION_IMAGE_SUBFOLDER = '04 Presentasi';
+  /** Kuota AI gabung per pekan: 1 cover + 4 khutbah + 7 RHB harian = 12. */
+  const MAX_AI_TOTAL = 12;
+  /** Sub-cap: cover AI (riwayat aiImages). */
   const MAX_AI_IMAGES = 3;
-  /** Kuota terpisah: ilustrasi AI per slide ringkasan khotbah. */
-  const MAX_SLIDE_IMAGES = 8;
+  /** Sub-cap: ilustrasi AI per bagian khotbah literal. */
+  const MAX_KHUTBAH_IMAGES = 4;
+  /** Sub-cap: ilustrasi AI per hari RHB. */
+  const MAX_RHB_IMAGES = 7;
+
+  /** Total gambar AI pekan ini (cover + khutbah + RHB harian). */
+  function aiTotalCount(pres) {
+    const p = pres && typeof pres === 'object' ? pres : {};
+    return (Array.isArray(p.aiImages) ? p.aiImages.length : 0)
+      + Object.keys(p.khutbahLiteral && typeof p.khutbahLiteral === 'object' ? p.khutbahLiteral : {}).length
+      + Object.keys(p.rhbAi && typeof p.rhbAi === 'object' ? p.rhbAi : {}).length;
+  }
 
   /** Folder Drive `04 Presentasi` untuk event (auto-provision bila perlu). */
   async function resolvePresentationFolder(prisma, event) {
@@ -1169,8 +1184,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const week = weekOrDefault(weeks, yearMonth, weekIndex);
       const studio = sanitizeStudio(week.studio);
       const used = Array.isArray(studio.presentation?.aiImages) ? studio.presentation.aiImages.length : 0;
-      if (used >= MAX_AI_IMAGES) {
-        return res.status(429).json({ error: `Kuota gambar AI pekan ini sudah penuh (${MAX_AI_IMAGES}). Gunakan unggah manual.`, used, max: MAX_AI_IMAGES });
+      if (used >= MAX_AI_IMAGES || aiTotalCount(studio.presentation) >= MAX_AI_TOTAL) {
+        return res.status(429).json({ error: `Kuota gambar AI pekan ini sudah penuh (cover ${MAX_AI_IMAGES}, total ${MAX_AI_TOTAL}). Gunakan unggah manual.`, used, max: MAX_AI_IMAGES });
       }
 
       const event = await resolveEventId(prisma, week.date);
@@ -1265,7 +1280,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
   // POST /api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image
   // AI mengilustrasikan SATU bagian khotbah literal (prompt = isi bagian itu).
-  // Kuota terpisah dari cover (MAX_SLIDE_IMAGES/minggu).
+  // Kuota: sub-cap khutbah + total gabung (di luar itu: cover, RHB harian).
   // Body: { section: 'pengantar'|'bedahTeologis'|'jembatan'|'kesimpulan' }.
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image',
@@ -1292,8 +1307,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         ? studio.presentation.khutbahLiteral
         : {};
       const used = Object.keys(haveLiteral).length;
-      if (used >= MAX_SLIDE_IMAGES && !haveLiteral[section]) {
-        return res.status(429).json({ error: `Kuota ilustrasi bagian khotbah pekan ini penuh (${MAX_SLIDE_IMAGES}).`, used, max: MAX_SLIDE_IMAGES });
+      if ((used >= MAX_KHUTBAH_IMAGES || aiTotalCount(studio.presentation) >= MAX_AI_TOTAL) && !haveLiteral[section]) {
+        return res.status(429).json({ error: `Kuota ilustrasi bagian khotbah pekan ini penuh (khotbah ${MAX_KHUTBAH_IMAGES}, total ${MAX_AI_TOTAL}).`, used, max: MAX_KHUTBAH_IMAGES });
       }
 
       const event = await resolveEventId(prisma, week.date);
@@ -1361,7 +1376,110 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         );
         const savedPres = saved?.studio?.presentation || {};
         const total = Object.keys(savedPres.khutbahLiteral || {}).length;
-        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, section, used: total, max: MAX_SLIDE_IMAGES, model: img.model, week: saved });
+        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, section, used: total, max: MAX_KHUTBAH_IMAGES, model: img.model, week: saved });
+      } catch (e) {
+        if (isDriveAuthError(e)) return driveAuthExpired(res);
+        res.status(500).json({ error: `Gambar AI jadi, tapi gagal menyimpan: ${String(e.message || e).slice(0, 200)}` });
+      }
+    })
+  );
+
+  // POST /api/didaskalia/studio/:yearMonth/:weekIndex/rhb-image
+  // AI mengilustrasikan SATU hari RHB sesuai tema harian (prompt = judul +
+  // ringkasan + nats hari itu). 1 gambar berlaku untuk SEMUA slide hari itu
+  // (background + overlay teks, prinsip sama seperti khotbah).
+  // Kuota: sub-cap RHB + total gabung. Body: { day: 1..7 }.
+  app.post(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/rhb-image',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+      const day = Number(req.body?.day);
+      if (!Number.isInteger(day) || day < 1 || day > 7) {
+        return res.status(400).json({ error: 'Parameter day tidak valid (1–7).' });
+      }
+
+      const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+      const weeks = plan ? readWeeks(plan) : [];
+      const week = weekOrDefault(weeks, yearMonth, weekIndex);
+      const studio = sanitizeStudio(week.studio);
+      const haveRhb = studio.presentation?.rhbAi && typeof studio.presentation.rhbAi === 'object'
+        ? studio.presentation.rhbAi
+        : {};
+      const used = Object.keys(haveRhb).length;
+      if ((used >= MAX_RHB_IMAGES || aiTotalCount(studio.presentation) >= MAX_AI_TOTAL) && !haveRhb[String(day)]) {
+        return res.status(429).json({ error: `Kuota ilustrasi RHB pekan ini penuh (harian ${MAX_RHB_IMAGES}, total ${MAX_AI_TOTAL}).`, used, max: MAX_RHB_IMAGES });
+      }
+
+      const event = await resolveEventId(prisma, week.date);
+      if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini.' });
+      const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
+      const path = (studio.paths || []).find((p) => Number(p.pathIndex) === day) || {};
+      // Konteks aman untuk prompt gambar: kupas markup MD + ringkas (teks mentah
+      // seperti "darah/murka" sering memicu penolakan moderasi model gambar).
+      const safeContext = (text) => String(text || '')
+        .replace(/[*_>#`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 400);
+      const safeStyle = 'Gaya simbolis yang damai dan penuh harapan; hindari kekerasan, darah, dan figur manusia realistis.';
+      const dayContext = safeContext(
+        [path.title, path.summary, path.scriptureRef, path.bacaanRef].filter(Boolean).join('. ')
+      );
+      const fileStem = `ai-rhb-${yearMonth}-w${weekIndex}-d${day}`;
+      const prompt = [
+        'Ilustrasi sampul renungan harian pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
+        theme ? `Tema minggu: ${theme}.` : '',
+        `Hari: ${path.dayLabel || `Hari ${day}`}${path.title ? ` — ${safeContext(path.title)}` : ''}.`,
+        dayContext ? `Konteks isi: ${dayContext}.` : '',
+        safeStyle,
+        'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar (teks ditambahkan terpisah sebagai overlay).',
+        'Sisakan ruang kosong (negative space) di bagian atas untuk overlay judul.',
+        'Warna & suasana selaras tema; relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
+      ].filter(Boolean).join(' ');
+
+      let img;
+      try {
+        img = await generateImageBase64({ prompt, size: '1536x1024', quality: 'medium' });
+      } catch (e) {
+        const msg = String(e.message || e);
+        if (/does not have access to model|model_not_found|permission|not have access/i.test(msg)) {
+          return res.status(503).json({ error: 'Model gambar AI belum aktif untuk kunci API ini.', code: 'IMAGE_MODEL_UNAVAILABLE' });
+        }
+        return res.status(502).json({ error: `AI gambar gagal: ${msg.slice(0, 200)}` });
+      }
+
+      try {
+        const parentId = await resolvePresentationFolder(prisma, event);
+        if (!parentId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
+        const buffer = Buffer.from(img.base64, 'base64');
+        const file = await uploadFile(parentId, {
+          originalname: `${fileStem}-${Date.now()}.jpg`,
+          mimetype: img.mediaType,
+          buffer,
+        });
+        const saved = await saveStudioWeek(
+          prisma,
+          yearMonth,
+          weekIndex,
+          (w) => {
+            const s = { ...w.studio };
+            const pres = { ...(s.presentation || {}) };
+            pres.rhbAi = { ...((pres.rhbAi && typeof pres.rhbAi === 'object') ? pres.rhbAi : {}), [String(day)]: file.id };
+            s.presentation = pres;
+            return { ...w, studio: s };
+          },
+          req.authUser?.id
+        );
+        const savedPres = saved?.studio?.presentation || {};
+        const total = Object.keys(savedPres.rhbAi || {}).length;
+        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, day, used: total, max: MAX_RHB_IMAGES, model: img.model, week: saved });
       } catch (e) {
         if (isDriveAuthError(e)) return driveAuthExpired(res);
         res.status(500).json({ error: `Gambar AI jadi, tapi gagal menyimpan: ${String(e.message || e).slice(0, 200)}` });

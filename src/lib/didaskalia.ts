@@ -108,6 +108,8 @@ export type DidaskaliaPresentationImages = {
   rhb?: Record<string, Record<string, string>>;
   /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: fileId }. */
   khutbahLiteral?: Record<string, string>;
+  /** Ilustrasi AI per hari RHB: { '1'..'7': fileId } — 1 gambar berlaku semua slide hari itu. */
+  rhbAi?: Record<string, string>;
   /** Riwayat gambar hasil AI (untuk kuota maks 3/pekan). */
   aiImages?: string[];
 };

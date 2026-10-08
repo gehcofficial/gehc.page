@@ -43,6 +43,10 @@ class Writer {
   doc: jsPDF;
   y: number;
   footerLabel: string;
+  /** Mode gelap (teks terang di atas gambar full-bleed) — ala slide khotbah. */
+  dark = false;
+  /** Gambar full-bleed yang dilukis ulang tiap ganti halaman (1 gambar per hari RHB). */
+  bgEachPage?: string;
 
   constructor(footerLabel: string) {
     this.doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -56,10 +60,42 @@ class Writer {
     this.doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
   }
 
+  /** Lukis gambar full-bleed + scrim gelap; teks berikutnya memakai warna terang. */
+  darkPage(dataUrl?: string) {
+    if (!dataUrl) {
+      this.dark = false;
+      return;
+    }
+    try {
+      this.doc.addImage(dataUrl, 'JPEG', 0, 0, PAGE_W, PAGE_H, undefined, 'FAST');
+      this.doc.setGState(new (this.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 0.6 }));
+      setFill(this.doc, [0, 0, 0]);
+      this.doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+      this.doc.setGState(new (this.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 1 }));
+      this.dark = true;
+    } catch {
+      this.dark = false;
+    }
+  }
+
   newPage() {
     this.doc.addPage();
-    this.paintBg();
     this.y = M;
+    if (this.bgEachPage) this.darkPage(this.bgEachPage);
+    else {
+      this.paintBg();
+      this.dark = false;
+    }
+  }
+
+  /** Tinta teks isi: putih di mode gelap, ink di mode terang. */
+  private ink(): readonly [number, number, number] {
+    return this.dark ? [255, 255, 255] : C.ink;
+  }
+
+  /** Tinta redup: abu terang di mode gelap, muted di mode terang. */
+  private muted(): readonly [number, number, number] {
+    return this.dark ? [203, 203, 203] : C.muted;
   }
 
   ensure(h: number) {
@@ -85,7 +121,7 @@ class Writer {
   title(text: string, size = 24) {
     this.doc.setFont('times', 'bold');
     this.doc.setFontSize(size);
-    setText(this.doc, C.ink);
+    setText(this.doc, this.ink());
     const lines = this.doc.splitTextToSize(String(text || ''), CONTENT_W);
     this.ensure(lines.length * (size * 0.42) + 4);
     this.doc.text(lines, M, this.y + size * 0.32);
@@ -95,7 +131,7 @@ class Writer {
   subtitle(text: string) {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(11);
-    setText(this.doc, C.muted);
+    setText(this.doc, this.muted());
     const lines = this.doc.splitTextToSize(String(text || ''), CONTENT_W);
     this.ensure(lines.length * 5 + 3);
     this.doc.text(lines, M, this.y + 3.3);
@@ -114,7 +150,7 @@ class Writer {
     if (!text) return;
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(size);
-    setText(this.doc, C.ink);
+    setText(this.doc, this.ink());
     for (const para of String(text).split(/\n+/)) {
       const lines = this.doc.splitTextToSize(para.trim(), CONTENT_W);
       this.ensure(lines.length * lineH + 2);
@@ -142,7 +178,7 @@ class Writer {
     }
     if (!words.length) return;
     this.doc.setFontSize(size);
-    setText(this.doc, C.ink);
+    setText(this.doc, this.ink());
     const spaceW = this.doc.getTextWidth(' ');
     let x = M;
     let lineWords = 0;
@@ -210,7 +246,7 @@ class Writer {
   bullets(items: (string | { text: string; level: number })[], bullet: string | 'ordered' = '•') {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(10);
-    setText(this.doc, C.ink);
+    setText(this.doc, this.ink());
     items.forEach((raw, idx) => {
       const it = typeof raw === 'string' ? raw : raw.text;
       const level = typeof raw === 'string' ? 0 : Math.min(2, raw.level || 0);
@@ -266,7 +302,7 @@ class Writer {
     this.doc.text(String(n), M + 4, this.y + 0.2, { align: 'center' });
     this.doc.setFont('times', 'bold');
     this.doc.setFontSize(16);
-    setText(this.doc, C.ink);
+    setText(this.doc, this.ink());
     const lines = this.doc.splitTextToSize(String(title || ''), CONTENT_W - 12);
     this.doc.text(lines, M + 11, this.y + 3);
     this.y += lines.length * 6.5 + 3;
@@ -281,7 +317,7 @@ class Writer {
       this.doc.line(M, PAGE_H - 14, PAGE_W - M, PAGE_H - 14);
       this.doc.setFont('helvetica', 'normal');
       this.doc.setFontSize(7.5);
-      setText(this.doc, C.muted);
+      setText(this.doc, this.muted());
       this.doc.text(this.footerLabel, M, PAGE_H - 9);
       this.doc.text(`${p} / ${total}`, PAGE_W - M, PAGE_H - 9, { align: 'right' });
     }
@@ -305,6 +341,8 @@ export type PdfOptions = {
   khutbahSlideImages?: Record<number, string>;
   /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: dataUrl } */
   khutbahSectionImages?: Record<string, string>;
+  /** Ilustrasi harian RHB (AI per hari → upload hero → cover pekan): { [pathIndex]: dataUrl } */
+  rhbDayImages?: Record<number, string>;
   /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
   serviceType?: string | null;
   /** Pola ibadah pekan ini — untuk judul Bagian B. */
@@ -541,54 +579,25 @@ export function buildRhbPdfs(week: DidaskaliaWeek, studio: DidaskaliaStudio, opt
   const v = opts.version || 1;
   for (const p of studio.paths.slice(0, 7)) {
     const w = buildCommon(week, studio, opts, `RHB Path ${p.pathIndex}`);
-    const bg = opts.rhbCoverImages?.[p.pathIndex];
+    // Standar khutbah: 1 gambar harian full-bleed di SEMUA halaman + teks terang.
+    // Tanpa gambar → fallback terang (hemat tinta).
+    const bg = opts.rhbDayImages?.[p.pathIndex];
     if (bg) {
-      // Band background (gambar + scrim) + header putih, isi section di bawahnya.
-      const BAND = 96;
-      try {
-        w.doc.addImage(bg, 'JPEG', 0, 0, PAGE_W, BAND, undefined, 'FAST');
-        w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 0.6 }));
-        setFill(w.doc, [0, 0, 0]);
-        w.doc.rect(0, 0, PAGE_W, BAND, 'F');
-        w.doc.setGState(new (w.doc as unknown as { GState: new (o: { opacity: number }) => unknown }).GState({ opacity: 1 }));
-      } catch {
-        /* gambar gagal — lanjut */
-      }
-      const WHITE: readonly [number, number, number] = [255, 255, 255];
-      w.y = 26;
-      w.doc.setFont('helvetica', 'bold');
-      w.doc.setFontSize(9);
-      setText(w.doc, WHITE);
-      w.doc.text(`RHB · WEEK ${week.index} · ${String(p.dayLabel || '').toUpperCase()}`, M, w.y, { charSpace: 0.6 });
-      w.y += 9;
-      w.doc.setFont('times', 'bold');
-      w.doc.setFontSize(24);
-      setText(w.doc, WHITE);
-      const tl = w.doc.splitTextToSize(p.title || '', CONTENT_W);
-      w.doc.text(tl, M, w.y + 24 * 0.32);
-      w.y += tl.length * (24 * 0.42) + 3;
-      w.doc.setFont('helvetica', 'normal');
-      w.doc.setFontSize(10);
-      setText(w.doc, WHITE);
-      w.doc.text([studio.chapterNo, p.bacaanRef, p.scriptureRef].filter(Boolean).join(' · '), M, w.y + 3.3);
-      w.y = BAND + 8;
+      w.bgEachPage = bg;
+      w.darkPage(bg);
     } else {
       w.gradientBar(0, 10);
-      w.y = 26;
-      w.label(`RHB · Week ${week.index} · ${p.dayLabel}`, C.accent);
-      w.title(p.title, 24);
-      w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
-      w.divider(7);
-      if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
-      if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
     }
-    w.image(opts.pathImages?.[p.pathIndex], 52);
+    w.y = 26;
+    w.label(`RHB · Week ${week.index} · ${p.dayLabel}`, C.accent);
+    w.title(p.title, 24);
+    w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
+    w.divider(7);
+    if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
+    if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
     if (p.scriptureText) w.callout(p.scriptureRef || 'Nats Pembimbing', p.scriptureText);
 
-    const sectionImages = opts.rhbSectionImages?.[p.pathIndex] || {};
     for (const s of effectiveRhbSections(p)) {
-      const img = sectionImages[s.key] || s.imageFileId;
-      if (img) w.image(img, 40);
       if (s.body) w.field(s.title, s.body);
     }
 

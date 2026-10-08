@@ -679,6 +679,48 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
+  /** Generate 1 gambar AI untuk 1 hari RHB (berlaku semua slide hari itu). */
+  const illustrateDay = async (day: number): Promise<boolean> => {
+    if (!canWrite) return false;
+    setBusy(`imgrhb-${day}`);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/rhb-image`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ day }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
+      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      addToast({ type: 'success', title: `Ilustrasi hari ${day} dibuat (${d.used}/${d.max})` });
+      return true;
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const illustrateMissingDays = async () => {
+    if (!canWrite) return;
+    setBusy('imgrhb-all');
+    try {
+      let done = 0;
+      for (let day = 1; day <= 7; day += 1) {
+        if (studio.presentation?.rhbAi?.[String(day)]) continue;
+        // eslint-disable-next-line no-await-in-loop
+        const ok = await illustrateDay(day);
+        if (!ok) break;
+        done += 1;
+      }
+      if (done === 0) addToast({ type: 'success', title: 'Semua hari sudah bergambar.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const generateAiCover = async () => {
     if (!canWrite) return;
     if (driveAuth.checked && !driveAuth.ok) {
@@ -837,12 +879,17 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     const pathImages: Record<number, string> = {};
     const rhbSectionImages: Record<number, Record<string, string>> = {};
     const rhbCoverImages: Record<number, string> = {};
+    const rhbDayImages: Record<number, string> = {};
+    const rhbAi = pres.rhbAi && typeof pres.rhbAi === 'object' ? pres.rhbAi : {};
     for (const p of ensurePaths(studio)) {
       const hero = await assetDataUrl(pres.paths?.[String(p.pathIndex)] || p.coverImageFileId);
       if (hero) pathImages[p.pathIndex] = hero;
       const day = pres.rhb?.[String(p.pathIndex)] || {};
       const dayCover = await assetDataUrl(day.cover || p.coverImageFileId);
       if (dayCover) rhbCoverImages[p.pathIndex] = dayCover;
+      // 1 gambar harian (AI → upload → cover pekan) untuk semua halaman PDF hari itu.
+      const dayImg = await assetDataUrl(rhbAi[String(p.pathIndex)] || day.cover || p.coverImageFileId);
+      if (dayImg) rhbDayImages[p.pathIndex] = dayImg;
       for (const s of ensureRhbSections(p.rhbSections)) {
         const d = await assetDataUrl(day[s.key] || s.imageFileId);
         if (d) {
@@ -857,7 +904,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await assetDataUrl(khLit[key]);
       if (d) khutbahSectionImages[key] = d;
     }
-    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, khutbahSectionImages };
+    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, rhbDayImages, khutbahSectionImages };
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
@@ -1324,6 +1371,18 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           {tab === 'paths' && (<>
           {/* Editor 7 Path */}
           <div className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <p className="text-[11px] text-[#8C8880]">1 gambar harian berlaku semua slide hari itu (background + overlay, seperti khotbah).</p>
+              <button
+                type="button"
+                disabled={!canWrite || !!busy}
+                onClick={() => void illustrateMissingDays()}
+                title="Generate gambar AI untuk tiap hari yang belum ada (kuota harian 7/pekan)"
+                className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
+              >
+                {busy === 'imgrhb-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan 7 hari
+              </button>
+            </div>
             {paths.map((p, i) => {
               const open = expandedPath === p.pathIndex;
               return (
@@ -1386,6 +1445,22 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                           onUpload={async (f) => setSectionImage(p.pathIndex, 'cover', await uploadImage(f))}
                           onClear={() => setSectionImage(p.pathIndex, 'cover', '')}
                         />
+                        <div className="flex items-center gap-2 rounded-lg bg-white border border-[#EFEDE8] p-2">
+                          {studio.presentation?.rhbAi?.[String(p.pathIndex)] ? (
+                            <img src={`/api/didaskalia/asset/${encodeURIComponent(String(studio.presentation.rhbAi[String(p.pathIndex)]))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
+                          ) : (
+                            <span className="text-[10px] italic text-[#8C8880]">belum ada gambar AI harian</span>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!canWrite || !!busy}
+                            onClick={() => void illustrateDay(p.pathIndex)}
+                            title="Generate gambar AI hari ini dari tema + nats harian"
+                            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[10px] font-bold disabled:opacity-50"
+                          >
+                            {busy === `imgrhb-${p.pathIndex}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />} Ilustrasikan hari ini
+                          </button>
+                        </div>
                         {ensureRhbSections(p.rhbSections).map((sec) => (
                           <div key={sec.key} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
                             <p className="text-[11px] font-bold text-[#1B1B1B]">{sec.title}</p>

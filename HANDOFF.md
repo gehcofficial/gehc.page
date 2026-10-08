@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — RHB standar khutbah: gambar harian AI + background semua slide (9 Okt 2026)
+
+**Kebutuhan:** terapkan standar khotbah ke RHB — generate gambar sesuai tema harian (slot jadi 1 cover + 4 khutbah + 7 RHB), 1 gambar berlaku semua halaman hari itu (tulisan di atas gambar).
+
+**Ubah (kode, belum commit):** endpoint `POST .../rhb-image` `{day:1-7}` (prompt = judul + ringkasan + nats + bacaan hari, gaya simbolis-damai, simpan `presentation.rhbAi[day]`, regen tak makan kuota) • kuota gabung 12/pekan + sub-cap cover 3 / khutbah 4 / RHB 7 (khutbah turun 8→4) • `buildRhbDayDeck`: semua slide background gambar harian (rantai: AI → upload hero → cover pekan; section lama hanya fallback plain), section panjang di-chunk ≤6 baris/≤4 bullet + nomor, section kosong dilewati • StudioPanel: "Ilustrasikan hari ini" per hari + "Ilustrasikan 7 hari" (stop saat kuota habis) • `buildRhbPdfs` full-bleed + scrim + teks terang tiap halaman (fallback terang), inline section dihapus • knowledge `dk-format-rhb` §4 • test baru `didaskalia-rhb-daily-image` (+3) + selaraskan 2 test lama.
+
+**Verifikasi:** `lint` bersih ✓ full suite hijau (1 flaky lolos) ✓ `build` OK ✓ smoke PDF BG + terang OK ✓
+
+**Next:** commit + push + `staging:sync` • QA visual 1 hari penuh + 1 PDF • seed knowledge staging + prod.
+
 ## Current — Penutup 01 + CTA indeks RHB (9 Okt 2026)
 
 **Kebutuhan:** penutup pembekalan perlu arahan/link ke indeks RHB seperti CTA ringkasan khotbah.
