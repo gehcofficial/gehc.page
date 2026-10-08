@@ -20,6 +20,8 @@
 
 **Next:** generate 4 gambar per bagian via Studio (prod) • publish ulang doc 02 W2 • merge branch → deploy prod → cek `#/materi/khutbah/2026-10/2` • follow-up: samakan modul Pembekalan 01 (masih pakai summary AI) bila tim mau.
 
+**Deploy (8 Okt 2026, ~22:35):** merge `cursor/literal-md-khutbah` → main (`83cb71e`) + push + `staging:sync` ✓ (staging == main). Prod `youth.gehc.page/api/version` = `83cb71e` ✓. Sisa manual: 4 gambar per bagian via Studio + publish ulang doc 02 W2.
+
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
 **Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
