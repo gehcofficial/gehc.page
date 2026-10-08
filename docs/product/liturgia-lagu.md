@@ -129,20 +129,30 @@ npm run db:seed:liturgia-songs:prod
   panjang bisa terpotong berbeda vs importer asli — pecah jadi 2 bagian
   bila perlu.
 
-## 9. Editor master batch + susunan default master
+## 9. Editor master batch + susunan bernama + pool master
 
 - **Batch, bukan live:** `SongMasterEditor` (4 tab: Lirik, Susunan, Chord,
   Nada) mengedit DRAFT lokal; satu tombol **Simpan** = satu PUT/POST.
   Indikator "belum tersimpan", tombol Batal, validasi blokir Simpan
-  (judul wajib, susunan tak dikenal, lirik di sekuler). Kontrol setlist
-  (transpose −/+, susunan per event, reorder) tetap live.
-- **Susunan default master** (`songs.arrangement`, JSON NULL, migrasi
-  idempoten): urutan main baku per lagu (boleh berulang + modulasi per
-  baris, mis. V1-C-V2-C). Kosong = full master berurutan.
-- **Precedence tampil/ekspor/layar:** `ServiceSong.sections` (per event,
-  bila diisi) → `Song.arrangement` → full master (`effectiveArrangement`,
-  paritas server↔klien). Ringkasan baris setlist berawalan `master:` bila
-  dari default master.
+  (judul wajib, pool/varian tak dikenal, nama ganda/kosong, lirik di sekuler).
+  Kontrol setlist cepat (transpose −/+, capo, reorder momen) tetap live.
+- **Dua tingkat:** lirik = semua bagian sesuai teks; **setlist master
+  (pool)** = bagian resmi (subset + urutan sendiri, mis. Intro→…→Ending);
+  **variants** = susunan main bernama (`full`: V1-C-V2-C…, `v1only`: V1-C).
+  Entri varian wajib dari pool; pool wajib dari lirik. Kolom
+  `songs.arrangement` menyimpan `{master, variants}` (array tunggal lawas
+  dibaca sebagai satu varian "Susunan").
+- **Edit posisi = staged:** editor susunan per-event maupun per-varian hanya
+  mengubah draft (naik/turun/preset/modulasi/duplikat/tambah/hapus);
+  tombol **Simpan susunan** mengirim satu PATCH; **Batal** kembalikan.
+  Kelola varian (baru/duplikat/rename/hapus) juga dalam draft master.
+- **Setlist pakai salinan beku:** "Pakai susunan [nama]" menyalin entri
+  varian ke pemakaian (satu aksi eksplisit, langsung tersimpan); edit master
+  belakangan tak mengubah setlist lama. Label `dari: <nama>` bila cocok
+  persis, `kustom` bila diedit, `master [<nama>]` bila ikut default.
+- **Precedence tampil/ekspor/layar:** `ServiceSong.sections` (bila diisi) →
+  varian default master (pertama) → full master (`effectiveArrangement`,
+  paritas server↔klien).
 - **Tab Chord editor:** tiap baris lirik punya input chord di atasnya
   (`chordLyricPairs` + `applyChordLine` posisional); tersimpan ke draft
   per ketikan, ke server hanya via Simpan.

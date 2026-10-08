@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   SECTION_TEMPLATES,
   applyChordLine,
+  arrangementSourceLabel,
   chordLyricPairs,
   compileChordOverLyrics,
   effectiveArrangement,
   findSuspectChords,
   isChordLine,
+  isSameArrangement,
   keyIndex,
+  normalizeNamedArrangements,
   transposeKey,
   transposeSteps,
+  validateNamedArrangements,
+  variantNames,
 } from '../../src/lib/song-chords';
 
 describe('editor chord: isChordLine', () => {
@@ -122,19 +127,68 @@ describe('editor chord: susunan efektif master', () => {
   const SONG = {
     title: 'X',
     lyricsChordPro: '[Verse 1]\na\n\n[Chorus]\nb',
-    arrangement: [{ section: 'Chorus' }, { section: 'Verse 1' }],
+    arrangements: {
+      master: ['Verse 1', 'Chorus'],
+      variants: [{ name: 'full', entries: [{ section: 'Chorus' }, { section: 'Verse 1' }] }],
+    },
   };
 
-  it('pemakaian menang, lalu master, lalu null', () => {
+  it('pemakaian menang, lalu varian default, lalu null', () => {
     expect(effectiveArrangement(SONG, [{ section: 'Verse 1' }])?.map((e) => e.section)).toEqual(['Verse 1']);
     expect(effectiveArrangement(SONG, null)?.map((e) => e.section)).toEqual(['Chorus', 'Verse 1']);
     expect(effectiveArrangement({ title: 'Y', lyricsChordPro: '[Verse 1]\na' }, null)).toBeNull();
     expect(effectiveArrangement(null, null)).toBeNull();
   });
 
-  it('arrangement string JSON ikut terbaca', () => {
+  it('legacy array dibaca sebagai satu varian', () => {
     expect(
-      effectiveArrangement({ title: 'Z', arrangement: '[{"section":"Chorus"}]' }, null)?.map((e) => e.section),
+      effectiveArrangement({ title: 'Z', arrangement: [{ section: 'Chorus' }] }, null)?.map((e) => e.section),
     ).toEqual(['Chorus']);
+  });
+});
+
+describe('editor chord: pool master + varian bernama', () => {
+  const LYRICS = ['Verse 1', 'Chorus', 'Verse 2'];
+  const NAMED = {
+    master: ['Verse 1', 'Verse 2', 'Chorus'],
+    variants: [
+      { name: 'full', entries: [{ section: 'Verse 1' }, { section: 'Chorus' }, { section: 'Verse 2' }] },
+      { name: 'v1only', entries: ['Verse 1', 'Chorus'] },
+    ],
+  };
+
+  it('normalize: nama wajib unik + tak kosong, entri dinormalisasi', () => {
+    const n = normalizeNamedArrangements(NAMED);
+    expect(n?.variants.map((v) => v.name)).toEqual(['full', 'v1only']);
+    expect(n?.variants[1].entries).toEqual([
+      { section: 'Verse 1', key: null, transpose: null },
+      { section: 'Chorus', key: null, transpose: null },
+    ]);
+    expect(() => normalizeNamedArrangements({ variants: [{ name: '', entries: [] }] })).toThrow('bernama');
+    expect(() => normalizeNamedArrangements({ variants: [{ name: 'a', entries: [] }, { name: 'A', entries: [] }] }))
+      .toThrow('ganda');
+    expect(normalizeNamedArrangements(null)).toBeNull();
+    expect(normalizeNamedArrangements(['Chorus'])?.variants?.[0]?.name).toBe('Susunan');
+  });
+
+  it('validate: pool vs lirik, varian vs pool', () => {
+    expect(() => validateNamedArrangements(normalizeNamedArrangements(NAMED), LYRICS)).not.toThrow();
+    expect(() => validateNamedArrangements(
+      normalizeNamedArrangements({ master: ['Bridge'], variants: [] }), LYRICS,
+    )).toThrow('Setlist master');
+    expect(() => validateNamedArrangements(
+      normalizeNamedArrangements({ variants: [{ name: 'x', entries: ['Bridge'] }] }), LYRICS,
+    )).toThrow('Varian "x"');
+  });
+
+  it('isSameArrangement untuk dirty-check + label dari:', () => {
+    expect(isSameArrangement(['Chorus'], [{ section: 'Chorus', key: null, transpose: null }])).toBe(true);
+    expect(isSameArrangement(['Chorus'], ['Verse 1'])).toBe(false);
+    expect(isSameArrangement(null, [])).toBe(true);
+    const song = { title: 'X', arrangements: NAMED };
+    expect(variantNames(song)).toEqual(['full', 'v1only']);
+    expect(arrangementSourceLabel(song, ['Verse 1', 'Chorus'])).toBe('v1only');
+    expect(arrangementSourceLabel(song, ['Chorus'])).toBeNull();
+    expect(arrangementSourceLabel(song, null)).toBeNull();
   });
 });

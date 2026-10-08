@@ -7,6 +7,7 @@ import {
   chordLyricPairs,
   compileChordOverLyrics,
   findSuspectChords,
+  namedArrangementsOf,
   normalizeArrangement,
   parseSections,
   transposeChordPro,
@@ -25,6 +26,7 @@ export type MasterSong = {
   ccli?: string | null;
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
+  arrangements?: { master?: string[] | null; variants?: Array<{ name: string; entries?: unknown }> } | null;
   arrangement?: Array<string | { section: string; key?: string | null; transpose?: number | null }> | null;
   story?: string | null;
   meaning?: string | null;
@@ -40,10 +42,12 @@ export type MasterSavePayload = {
   ccli: string;
   defaultKey: string | null;
   lyricsChordPro: string;
-  arrangement: ArrangementEntry[] | null;
+  arrangements: { master: string[] | null; variants: Array<{ name: string; entries: ArrangementEntry[] }> } | null;
   story: string;
   meaning: string;
 };
+
+type VariantDraft = { name: string; entries: ArrangementEntry[] };
 
 type Tab = 'lirik' | 'susunan' | 'chord' | 'nada';
 
@@ -88,20 +92,40 @@ export const SongMasterEditor: React.FC<{
     }
     : blankMeta()));
   const [lyrics, setLyrics] = useState(() => initial?.lyricsChordPro || '');
-  const [arrangement, setArrangement] = useState<ArrangementEntry[]>(() =>
-    normalizeArrangement(initial?.arrangement ?? null) || []);
+  const [pool, setPool] = useState<string[] | null>(() => {
+    const named = namedArrangementsOf(initial ?? null);
+    return named?.master && named.master.length ? [...named.master] : null;
+  });
+  const [variants, setVariants] = useState<VariantDraft[]>(() => {
+    const named = namedArrangementsOf(initial ?? null);
+    if (named && named.variants.length) {
+      return named.variants.map((v) => ({ name: v.name, entries: [...v.entries] }));
+    }
+    const legacy = normalizeArrangement(initial?.arrangement ?? null);
+    return legacy && legacy.length ? [{ name: 'Susunan', entries: legacy }] : [];
+  });
+  const [activeVariant, setActiveVariant] = useState(0);
+  const [newVariantName, setNewVariantName] = useState('');
   const [targetKey, setTargetKey] = useState('');
-  const [snapshot] = useState(() => JSON.stringify({
-    meta: initial ? {
-      title: initial.title || '', source: initial.source || 'LOKAL', sourceRef: initial.sourceRef || '',
-      sourceUrl: initial.sourceUrl || '', authors: initial.authors || '', copyright: initial.copyright || '',
-      ccli: initial.ccli || '', defaultKey: initial.defaultKey || '',
-      story: initial.story || '', meaning: initial.meaning || '',
-    } : blankMeta(),
-    lyrics: initial?.lyricsChordPro || '',
-    arrangement: normalizeArrangement(initial?.arrangement ?? null) || [],
-    baseKey: initial?.defaultKey || '',
-  }));
+  const [snapshot] = useState(() => {
+    const named = namedArrangementsOf(initial ?? null);
+    return JSON.stringify({
+      meta: initial ? {
+        title: initial.title || '', source: initial.source || 'LOKAL', sourceRef: initial.sourceRef || '',
+        sourceUrl: initial.sourceUrl || '', authors: initial.authors || '', copyright: initial.copyright || '',
+        ccli: initial.ccli || '', defaultKey: initial.defaultKey || '',
+        story: initial.story || '', meaning: initial.meaning || '',
+      } : blankMeta(),
+      lyrics: initial?.lyricsChordPro || '',
+      pool: named?.master && named.master.length ? [...named.master] : null,
+      variants: named && named.variants.length
+        ? named.variants.map((v) => ({ name: v.name, entries: [...v.entries] }))
+        : (normalizeArrangement(initial?.arrangement ?? null) || []).length
+          ? [{ name: 'Susunan', entries: normalizeArrangement(initial?.arrangement ?? null) || [] }]
+          : [],
+      baseKey: initial?.defaultKey || '',
+    });
+  });
 
   const masterNames = useMemo(() => parseSections(lyrics).map((s) => s.name), [lyrics]);
   const baseKey = (meta.defaultKey || '').trim();
@@ -109,25 +133,52 @@ export const SongMasterEditor: React.FC<{
   const rewritten = steps ? transposeChordPro(lyrics, steps) : lyrics;
 
   const snap = useMemo(() => JSON.parse(snapshot) as {
-    meta: typeof meta; lyrics: string; arrangement: ArrangementEntry[]; baseKey: string;
+    meta: typeof meta; lyrics: string;
+    pool: string[] | null; variants: VariantDraft[]; baseKey: string;
   }, [snapshot]);
   const keyChange = targetKey !== '' && targetKey !== baseKey;
-  const dirty = JSON.stringify({ meta, lyrics, arrangement }) !== JSON.stringify({
-    meta: snap.meta, lyrics: snap.lyrics, arrangement: snap.arrangement,
+  const dirty = JSON.stringify({ meta, lyrics, pool, variants }) !== JSON.stringify({
+    meta: snap.meta, lyrics: snap.lyrics, pool: snap.pool, variants: snap.variants,
   }) || keyChange;
 
-  const unknownSections = useMemo(() => {
+  // Pool resmi susunan: null = ikut teks lirik apa adanya.
+  const poolNames = useMemo(
+    () => (pool && pool.length ? pool : masterNames),
+    [pool, masterNames],
+  );
+
+  const unknownPool = useMemo(() => {
+    if (!pool) return [];
     const known = new Set<string>(masterNames.map((s) => s.toLowerCase()));
-    const names: string[] = arrangement.map((e) => e.section);
-    return [...new Set<string>(names)].filter((s: string) => !known.has(s.toLowerCase()));
-  }, [arrangement, masterNames]);
+    return [...new Set<string>(pool)].filter((s: string) => !known.has(s.toLowerCase()));
+  }, [pool, masterNames]);
+
+  const unknownSections = useMemo(() => {
+    const allowed = new Set<string>(poolNames.map((s) => s.toLowerCase()));
+    const names: string[] = variants.flatMap((v) => v.entries.map((e) => e.section));
+    return [...new Set<string>(names)].filter((s: string) => !allowed.has(s.toLowerCase()));
+  }, [variants, poolNames]);
+
+  const dupNames = useMemo(() => {
+    const seen = new Set<string>();
+    const dups = new Set<string>();
+    for (const v of variants) {
+      const k = v.name.toLowerCase();
+      if (seen.has(k)) dups.add(v.name);
+      seen.add(k);
+    }
+    return [...dups];
+  }, [variants]);
 
   const suspects = useMemo(() => findSuspectChords(lyrics), [lyrics]);
   const isSecular = meta.source === 'SEKULER';
   const errors: string[] = [];
   if (!meta.title.trim()) errors.push('Judul lagu wajib.');
   if (isSecular && lyrics.trim()) errors.push('Lirik lagu sekuler tidak disimpan — kosongkan lirik.');
-  if (unknownSections.length) errors.push(`Susunan memuat bagian tak dikenal: ${unknownSections.join(', ')}.`);
+  if (unknownPool.length) errors.push(`Setlist master memuat bagian tak dikenal di lirik: ${unknownPool.join(', ')}.`);
+  if (unknownSections.length) errors.push(`Susunan memuat bagian di luar setlist master: ${unknownSections.join(', ')}.`);
+  if (dupNames.length) errors.push(`Nama varian ganda: ${dupNames.join(', ')}.`);
+  if (variants.some((v) => !v.name.trim())) errors.push('Tiap varian wajib bernama.');
 
   const commitChordRow = (li: number, chordText: string) => {
     const lines = lyrics.split('\n');
@@ -136,23 +187,45 @@ export const SongMasterEditor: React.FC<{
     setLyrics(lines.join('\n'));
   };
 
+  const setActiveEntries = (entries: ArrangementEntry[]) => {
+    setVariants(variants.map((v, vi) => (vi === activeVariant ? { ...v, entries } : v)));
+  };
+
   const moveEntry = (i: number, dir: -1 | 1) => {
-    const next = [...arrangement];
+    const list = variants[activeVariant]?.entries || [];
+    const next = [...list];
     const j = i + dir;
     if (j < 0 || j >= next.length) return;
     [next[i], next[j]] = [next[j], next[i]];
-    setArrangement(next);
+    setActiveEntries(next);
   };
 
   const applyPreset = (pick: RegExp[]) => {
-    const names = pick.map((re) => masterNames.find((m) => re.test(m)));
+    const names = pick.map((re) => poolNames.find((m) => re.test(m)));
     if (names.some((n) => !n)) return;
-    setArrangement((names as string[]).map((section) => ({ section, key: null, transpose: null })));
+    const built = (names as string[]).map((section) => ({ section, key: null, transpose: null }));
+    if (!variants.length) {
+      setVariants([{ name: 'Susunan', entries: built }]);
+      setActiveVariant(0);
+      return;
+    }
+    setActiveEntries(built);
+  };
+
+  const addVariant = () => {
+    const name = newVariantName.trim().slice(0, 40);
+    if (!name) return;
+    setVariants([...variants, { name, entries: [] }]);
+    setNewVariantName('');
+    setActiveVariant(variants.length);
   };
 
   const doSave = () => {
     if (errors.length || saving) return;
     const finalLyrics = steps && targetKey ? transposeChordPro(lyrics, steps) : lyrics;
+    const cleanVariants = variants
+      .map((v) => ({ name: v.name.trim(), entries: v.entries }))
+      .filter((v) => v.name);
     onSave({
       title: meta.title.trim(),
       source: meta.source,
@@ -163,7 +236,7 @@ export const SongMasterEditor: React.FC<{
       ccli: meta.ccli.trim(),
       defaultKey: (steps && targetKey ? targetKey : baseKey) || null,
       lyricsChordPro: finalLyrics,
-      arrangement: arrangement.length ? arrangement : null,
+      arrangements: pool || cleanVariants.length ? { master: pool, variants: cleanVariants } : null,
       story: meta.story.trim(),
       meaning: meta.meaning.trim(),
     });
@@ -273,18 +346,138 @@ export const SongMasterEditor: React.FC<{
         </div>
       </div>
 
-      <div className={tab === 'susunan' ? 'space-y-1.5' : 'hidden'}>
+      <div className={tab === 'susunan' ? 'space-y-2' : 'hidden'}>
+        <div className="rounded-xl bg-white border border-[#D9D7D0]/60 p-2 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Setlist master</span>
+            <span className="flex-1" />
+            <button type="button" onClick={() => setPool(null)} className={btnGhost} title="Kosong = ikut teks lirik apa adanya">Ikut teks</button>
+            <button type="button" onClick={() => setPool([...masterNames])} className={btnGhost} title="Ambil semua bagian dari teks">Ambil semua</button>
+          </div>
+          {!pool && (
+            <p className="text-[11px] text-[#8C8880] italic">Mengikuti teks ({masterNames.join(' → ') || '—'}). Kunci pool untuk susunan resmi.</p>
+          )}
+          {(pool || []).map((name, i) => (
+            <div key={`${name}-${i}`} className="flex items-center gap-1.5 rounded-lg bg-[#FAF9F5] border border-[#D9D7D0]/60 px-2 py-1">
+              <span className="text-[10px] font-black text-[#8C8880] w-5">{i + 1}</span>
+              <span className="text-[11px] font-bold text-[#1B1B1B]">[{name}]</span>
+              <span className="flex-1" />
+              <button
+                type="button"
+                className={btnGhost}
+                onClick={() => {
+                  const next = [...(pool || [])];
+                  const j = i - 1;
+                  if (j < 0) return;
+                  [next[i], next[j]] = [next[j], next[i]];
+                  setPool(next);
+                }}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className={btnGhost}
+                onClick={() => {
+                  const next = [...(pool || [])];
+                  const j = i + 1;
+                  if (j >= next.length) return;
+                  [next[i], next[j]] = [next[j], next[i]];
+                  setPool(next);
+                }}
+              >
+                ↓
+              </button>
+              <button type="button" className={btnGhost} onClick={() => setPool((pool || []).filter((_, xi) => xi !== i))}>✕</button>
+            </div>
+          ))}
+          <PoolAdder
+            masterNames={masterNames}
+            pool={pool || []}
+            onAdd={(section) => setPool([...(pool || []), section])}
+          />
+        </div>
+
+        <div className="rounded-xl bg-white border border-[#D9D7D0]/60 p-2 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Varian susunan</span>
+            <span className="flex-1" />
+            <input
+              className="text-[11px] border border-[#D9D7D0] rounded-lg px-2 py-1 bg-white"
+              style={{ maxWidth: 130 }}
+              placeholder="Nama varian…"
+              value={newVariantName}
+              onChange={(e) => setNewVariantName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addVariant(); }}
+            />
+            <button type="button" onClick={addVariant} disabled={!newVariantName.trim()} className={btnGhost}>+ Varian</button>
+          </div>
+          {!variants.length && (
+            <p className="text-[11px] text-[#8C8880] italic">Belum ada varian — tambah mis. <em>full</em> (V1-C-V2-C…) dan <em>v1only</em> (V1-C).</p>
+          )}
+          {variants.map((v, vi) => (
+            <div key={`${v.name}-${vi}`} className={`flex flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1 ${vi === activeVariant ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-[#FAF9F5] border-[#D9D7D0]/60'}`}>
+              <button
+                type="button"
+                onClick={() => setActiveVariant(vi)}
+                className={`text-[11px] font-black flex-1 text-left ${vi === activeVariant ? '' : 'text-[#1B1B1B]'}`}
+                title="Edit varian ini"
+              >
+                {v.name} <span className={`font-bold ${vi === activeVariant ? 'text-white/60' : 'text-[#8C8880]'}`}>({v.entries.length} baris)</span>
+              </button>
+              {vi === activeVariant && (
+                <input
+                  className="text-[11px] border border-white/30 rounded-lg px-2 py-0.5 bg-white/10 text-white"
+                  style={{ maxWidth: 110 }}
+                  title="Ganti nama varian"
+                  value={v.name}
+                  onChange={(e) => setVariants(variants.map((x, xi) => (xi === vi ? { ...x, name: e.target.value.slice(0, 40) } : x)))}
+                />
+              )}
+              <button
+                type="button"
+                className={vi === activeVariant ? 'text-[10px] font-bold text-white/70 hover:text-white' : btnGhost}
+                title="Duplikat varian"
+                onClick={() => {
+                  const base = `${v.name} (2)`.slice(0, 40);
+                  let name = base;
+                  let n = 2;
+                  const taken = new Set(variants.map((x) => x.name.toLowerCase()));
+                  while (taken.has(name.toLowerCase())) { n += 1; name = `${v.name} (${n})`.slice(0, 40); }
+                  const next = [...variants.slice(0, vi + 1), { name, entries: v.entries.map((e) => ({ ...e })) }, ...variants.slice(vi + 1)];
+                  setVariants(next);
+                  setActiveVariant(vi + 1);
+                }}
+              >
+                ⧉
+              </button>
+              <button
+                type="button"
+                className={vi === activeVariant ? 'text-[10px] font-bold text-white/70 hover:text-white' : btnGhost}
+                title="Hapus varian"
+                onClick={() => {
+                  if (!window.confirm(`Hapus varian "${v.name}"?`)) return;
+                  setVariants(variants.filter((_, xi) => xi !== vi));
+                  setActiveVariant(Math.max(0, vi - 1));
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
         <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] font-bold text-[#8C8880]">Preset:</span>
-          <button type="button" onClick={() => setArrangement([])} className={btnGhost} title="Kosong = full master berurutan">Full master</button>
+          <span className="text-[10px] font-bold text-[#8C8880]">
+            Baris varian: {variants[activeVariant]?.name || '—'}
+          </span>
+          <span className="flex-1" />
+          <button type="button" onClick={() => setActiveEntries([])} className={btnGhost} title="Kosongkan = full (ikut pool/teks)">Full</button>
           {ARR_PRESETS.map((p) => (
             <button key={p.label} type="button" onClick={() => applyPreset(p.pick)} className={btnGhost}>{p.label}</button>
           ))}
         </div>
-        {!arrangement.length && (
-          <p className="text-[11px] text-[#8C8880] italic">Mengikuti full master ({masterNames.join(' → ') || '—'}). Tambah baris untuk urutan main sendiri.</p>
-        )}
-        {arrangement.map((e, i) => (
+        {(variants[activeVariant]?.entries || []).map((e, i) => (
           <div key={`${e.section}-${i}`} className="flex flex-wrap items-center gap-1.5 rounded-lg bg-white border border-[#D9D7D0]/60 px-2 py-1">
             <span className="text-[10px] font-black text-[#8C8880] w-5">{i + 1}</span>
             <span className="text-[11px] font-bold text-[#1B1B1B]">[{e.section}]</span>
@@ -292,7 +485,7 @@ export const SongMasterEditor: React.FC<{
               className="text-[10px] border border-[#D9D7D0] rounded-lg px-1 py-0.5 bg-white"
               title="Modulasi mulai baris ini"
               value={e.key || ''}
-              onChange={(ev) => setArrangement(arrangement.map((x, xi) => (xi === i ? { ...x, key: ev.target.value || null } : x)))}
+              onChange={(ev) => setActiveEntries((variants[activeVariant]?.entries || []).map((x, xi) => (xi === i ? { ...x, key: ev.target.value || null } : x)))}
             >
             <option value="">Ikut nada</option>
             {PICKER_KEYS.map((k) => <option key={k} value={k}>Mod → {k}</option>)}
@@ -302,17 +495,41 @@ export const SongMasterEditor: React.FC<{
             <button type="button" onClick={() => moveEntry(i, 1)} className={btnGhost}>↓</button>
             <button
               type="button"
-              onClick={() => setArrangement([...arrangement.slice(0, i + 1), { ...arrangement[i] }, ...arrangement.slice(i + 1)])}
+              onClick={() => {
+                const list = variants[activeVariant]?.entries || [];
+                setActiveEntries([...list.slice(0, i + 1), { ...list[i] }, ...list.slice(i + 1)]);
+              }}
               className={btnGhost}
               title="Duplikat baris (pengulangan)"
             >
               ⧉
             </button>
-            <button type="button" onClick={() => setArrangement(arrangement.filter((_, xi) => xi !== i))} className={btnGhost}>✕</button>
+            <button
+              type="button"
+              onClick={() => setActiveEntries((variants[activeVariant]?.entries || []).filter((_, xi) => xi !== i))}
+              className={btnGhost}
+            >
+              ✕
+            </button>
           </div>
         ))}
+        {!(variants[activeVariant]?.entries || []).length && (
+          <p className="text-[11px] text-[#8C8880] italic">
+            {variants[activeVariant] ? 'Varian kosong = full (mengikuti pool/teks). Tambah baris untuk urutan main sendiri.' : 'Pilih atau buat varian di atas.'}
+          </p>
+        )}
         <div className="flex gap-1.5 items-center">
-          <ArrangementAdder masterNames={masterNames} onAdd={(section) => setArrangement([...arrangement, { section, key: null, transpose: null }])} />
+          <ArrangementAdder
+            poolNames={poolNames}
+            onAdd={(section) => {
+              if (!variants.length) {
+                setVariants([{ name: 'Susunan', entries: [{ section, key: null, transpose: null }] }]);
+                setActiveVariant(0);
+                return;
+              }
+              setActiveEntries([...(variants[activeVariant]?.entries || []), { section, key: null, transpose: null }]);
+            }}
+          />
         </div>
       </div>
 
@@ -377,13 +594,28 @@ export const SongMasterEditor: React.FC<{
   );
 };
 
-const ArrangementAdder: React.FC<{ masterNames: string[]; onAdd: (section: string) => void }> = ({ masterNames, onAdd }) => {
-  const [name, setName] = useState(masterNames[0] || '');
-  const current = masterNames.includes(name) ? name : masterNames[0] || '';
+const PoolAdder: React.FC<{ masterNames: string[]; pool: string[]; onAdd: (section: string) => void }> = ({ masterNames, pool, onAdd }) => {
+  const rest = masterNames.filter((m) => !pool.some((p) => p.toLowerCase() === m.toLowerCase()));
+  const [name, setName] = useState(rest[0] || '');
+  const current = rest.includes(name) ? name : rest[0] || '';
+  if (!rest.length) return <span className="text-[10px] text-[#8C8880]">Semua bagian teks sudah di pool.</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
       <select className="text-[11px] border border-[#D9D7D0] rounded-lg px-2 py-1 bg-white" value={current} onChange={(e) => setName(e.target.value)}>
-        {masterNames.map((m) => <option key={m} value={m}>{m}</option>)}
+        {rest.map((m) => <option key={m} value={m}>{m}</option>)}
+      </select>
+      <button type="button" onClick={() => current && onAdd(current)} className={btnGhost}>+ Tambah ke pool</button>
+    </span>
+  );
+};
+
+const ArrangementAdder: React.FC<{ poolNames: string[]; onAdd: (section: string) => void }> = ({ poolNames, onAdd }) => {
+  const [name, setName] = useState(poolNames[0] || '');
+  const current = poolNames.includes(name) ? name : poolNames[0] || '';
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <select className="text-[11px] border border-[#D9D7D0] rounded-lg px-2 py-1 bg-white" value={current} onChange={(e) => setName(e.target.value)}>
+        {poolNames.map((m) => <option key={m} value={m}>{m}</option>)}
       </select>
       <button type="button" onClick={() => current && onAdd(current)} className={btnGhost}>+ Tambah baris</button>
     </span>

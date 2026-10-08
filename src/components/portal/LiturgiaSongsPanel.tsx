@@ -4,8 +4,10 @@ import { useApp } from '../../context/AppContext';
 import { SongMasterEditor, type MasterSavePayload } from './SongMasterEditor';
 import {
   PICKER_KEYS,
+  arrangementSourceLabel,
   buildQuickLyrics,
   effectiveArrangement,
+  namedArrangementsOf,
   normalizeArrangement,
   parseSections,
   renderChordOverLyrics,
@@ -13,6 +15,8 @@ import {
   stripChords,
   transposeKey,
   transposeSteps,
+  variantEntries,
+  variantNames,
   type ArrangementEntry,
 } from '../../lib/song-chords';
 
@@ -35,6 +39,7 @@ type Song = {
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
   arrangement?: Array<string | { section: string; key?: string | null; transpose?: number | null }> | null;
+  arrangements?: { master?: string[] | null; variants?: Array<{ name: string; entries?: unknown }> } | null;
   story?: string | null;
   meaning?: string | null;
   sections: string[];
@@ -64,10 +69,15 @@ function effectiveEntries(item: SetItem): ArrangementEntry[] {
 function arrangementSummary(item: SetItem): string | null {
   const eff = effectiveArrangement(item.song, item.sections);
   if (!eff) return null;
-  const fromMaster = !normalizeArrangement(item.sections)?.length;
   const short = (s: string) => s.replace(/^verse\s*/i, 'V').replace(/^chorus/i, 'C').replace(/^pre-chorus/i, 'Pre').replace(/^bridge/i, 'B').replace(/^intro/i, 'I').replace(/^outro/i, 'O').replace(/^interlude/i, 'Inter').replace(/^ending/i, 'End').replace(/^tag/i, 'Tag').replace(/^coda/i, 'Coda');
   const body = eff.map((e) => (e.key ? `${short(e.section)}→${e.key}` : short(e.section))).join('·');
-  return fromMaster ? `master: ${body}` : body;
+  const src = arrangementSourceLabel(item.song, item.sections);
+  if (src) return `${body} (dari: ${src})`;
+  if (!normalizeArrangement(item.sections)?.length) {
+    const first = variantNames(item.song)?.[0];
+    return first ? `master [${first}]: ${body}` : `master: ${body}`;
+  }
+  return body;
 }
 
 const ARR_PRESETS: Array<{ label: string; pick: RegExp[] }> = [
@@ -82,17 +92,26 @@ function matchMaster(master: string[], re: RegExp): string | null {
 
 /**
  * Editor susunan ala ProPresenter: urutan + pengulangan + modulasi per baris.
- * Disimpan per setlist item (per event); kosong = full master.
+ * STAGED: semua aksi hanya mengubah draft lokal; satu tombol Simpan
+ * mengirim satu PATCH. Disimpan per setlist item (per event); kosong = default.
  */
-function ArrangementEditor({ master, item, onSave, disabled }: {
+function ArrangementEditor({ master, item, song, onSave, disabled }: {
   master: string[];
   item: SetItem;
+  song?: Song | null;
   onSave: (sections: Array<{ section: string; key?: string | null }> | null) => void;
   disabled?: boolean;
 }) {
   const [addName, setAddName] = useState(master[0] || '');
-  const entries = effectiveEntries(item);
-  const isDefault = !item.sections?.length;
+  const [draft, setDraft] = useState<ArrangementEntry[]>(() => effectiveEntries(item));
+  const [savedJson, setSavedJson] = useState(() => JSON.stringify(effectiveEntries(item)));
+  useEffect(() => {
+    const cur = effectiveEntries(item);
+    setDraft(cur);
+    setSavedJson(JSON.stringify(cur));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, JSON.stringify(item.sections), JSON.stringify(song?.arrangements ?? song?.arrangement ?? null)]);
+  const dirty = JSON.stringify(draft) !== savedJson;
   const save = (list: ArrangementEntry[]) => {
     if (!list.length) {
       onSave(null);
@@ -103,37 +122,81 @@ function ArrangementEditor({ master, item, onSave, disabled }: {
       && list.every((e, i) => e.section.toLowerCase() === allMaster[i] && !e.key);
     onSave(sameOrderNoMod ? null : list.map((e) => (e.key ? { section: e.section, key: e.key } : { section: e.section })));
   };
+  const names = variantNames(song);
+  const src = arrangementSourceLabel(song, item.sections);
   const move = (i: number, dir: -1 | 1) => {
-    const next = [...entries];
+    const next = [...draft];
     const j = i + dir;
     if (j < 0 || j >= next.length) return;
     [next[i], next[j]] = [next[j], next[i]];
-    save(next);
+    setDraft(next);
   };
   return (
     <div className="rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 p-2 space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Susunan main</span>
+        {src ? (
+          <span className="text-[10px] font-black text-sky-700">dari: {src}</span>
+        ) : !item.sections?.length ? (
+          <span className="text-[10px] text-[#8C8880]">default master</span>
+        ) : (
+          <span className="text-[10px] font-black text-amber-700">kustom</span>
+        )}
         <span className="flex-1" />
-        <button type="button" disabled={disabled} title="Kembali ke full master" onClick={() => save([])} className={btnGhost}>Full</button>
+        {names.length > 0 && (
+          <select
+            className="text-[10px] border border-[#D9D7D0] rounded-lg px-1 py-0.5 bg-white"
+            title="Pakai susunan bernama dari master (salinan beku)"
+            value=""
+            disabled={disabled}
+            onChange={(e) => {
+              const entries = variantEntries(song, e.target.value);
+              if (entries) save(entries);
+              e.target.value = '';
+            }}
+          >
+            <option value="">Pakai susunan…</option>
+            {names.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        )}
+        <button type="button" disabled={disabled} title="Kembali ke default" onClick={() => setDraft(effectiveEntries({ ...item, sections: null }))} className={btnGhost}>Full</button>
         {ARR_PRESETS.map((p) => {
-          const names = p.pick.map((re) => matchMaster(master, re));
-          if (names.some((n) => !n)) return null;
+          const names2 = p.pick.map((re) => matchMaster(master, re));
+          if (names2.some((n) => !n)) return null;
           return (
             <button
               key={p.label}
               type="button"
               disabled={disabled}
-              title={`Preset: ${names.join(' → ')}`}
-              onClick={() => save(names.map((n) => ({ section: n as string, key: null, transpose: null })))}
+              title={`Preset: ${names2.join(' → ')}`}
+              onClick={() => setDraft(names2.map((n) => ({ section: n as string, key: null, transpose: null })))}
               className={btnGhost}
             >
               {p.label}
             </button>
           );
         })}
+        {dirty && <span className="text-[10px] font-black text-amber-700">belum tersimpan</span>}
+        <button
+          type="button"
+          disabled={disabled || !dirty}
+          title="Simpan susunan (satu kali tersimpan)"
+          onClick={() => save(draft)}
+          className="px-2 py-1 rounded-lg bg-[#1B1B1B] text-white text-[10px] font-black disabled:opacity-50"
+        >
+          Simpan susunan
+        </button>
+        <button
+          type="button"
+          disabled={disabled || !dirty}
+          title="Batalkan perubahan"
+          onClick={() => setDraft(JSON.parse(savedJson) as ArrangementEntry[])}
+          className={btnGhost}
+        >
+          Batal
+        </button>
       </div>
-      {entries.map((e, i) => (
+      {draft.map((e, i) => (
         <div key={`${e.section}-${i}`} className="flex flex-wrap items-center gap-1.5 rounded-lg bg-white border border-[#D9D7D0]/60 px-2 py-1">
           <span className="text-[10px] font-black text-[#8C8880] w-5">{i + 1}</span>
           <span className="text-[11px] font-bold text-[#1B1B1B]">[{e.section}]{e.key ? <span className="ml-1 text-[10px] font-black text-white bg-[#1B1B1B] rounded-full px-1.5 py-px">→ {e.key}</span> : null}</span>
@@ -144,8 +207,8 @@ function ArrangementEditor({ master, item, onSave, disabled }: {
             value={e.key || ''}
             disabled={disabled}
             onChange={(ev) => {
-              const next = entries.map((x, xi) => (xi === i ? { ...x, key: ev.target.value || null } : x));
-              save(next);
+              const next = draft.map((x, xi) => (xi === i ? { ...x, key: ev.target.value || null } : x));
+              setDraft(next);
             }}
           >
             <option value="">Ikut nada</option>
@@ -157,7 +220,7 @@ function ArrangementEditor({ master, item, onSave, disabled }: {
             type="button"
             disabled={disabled}
             title="Duplikat baris (mis. Chorus 2x)"
-            onClick={() => save([...entries.slice(0, i + 1), { ...entries[i] }, ...entries.slice(i + 1)])}
+            onClick={() => setDraft([...draft.slice(0, i + 1), { ...draft[i] }, ...draft.slice(i + 1)])}
             className={btnGhost}
           >
             ⧉
@@ -166,7 +229,7 @@ function ArrangementEditor({ master, item, onSave, disabled }: {
             type="button"
             disabled={disabled}
             title="Hapus baris"
-            onClick={() => save(entries.filter((_, xi) => xi !== i))}
+            onClick={() => setDraft(draft.filter((_, xi) => xi !== i))}
             className={btnGhost}
           >
             ✕
@@ -180,12 +243,12 @@ function ArrangementEditor({ master, item, onSave, disabled }: {
         <button
           type="button"
           disabled={disabled || !addName}
-          onClick={() => { if (addName) save([...entries, { section: addName, key: null, transpose: null }]); }}
+          onClick={() => { if (addName) setDraft([...draft, { section: addName, key: null, transpose: null }]); }}
           className={btnGhost}
         >
           + Tambah
         </button>
-        {isDefault && <span className="text-[10px] text-[#8C8880]">— full master sesuai urutan lagu</span>}
+        {!item.sections?.length && <span className="text-[10px] text-[#8C8880]">— default master sesuai urutan lagu</span>}
       </div>
     </div>
   );
@@ -633,8 +696,9 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
 
                   {!!it.song?.sections?.length && (
                     <ArrangementEditor
-                      master={it.song.sections}
+                      master={namedArrangementsOf(it.song)?.master?.length ? namedArrangementsOf(it.song)?.master as string[] : it.song.sections}
                       item={it}
+                      song={it.song}
                       onSave={(sections) => void patchItem(it.id, { sections: sections ?? [] }, 'Susunan diperbarui')}
                     />
                   )}

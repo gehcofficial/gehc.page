@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Pool master + varian bernama + staged susunan (8 Okt 2026)
+
+**Ralat model:** susunan bukan satu list — lirik (semua bagian) → **pool setlist master** (Intro, V1–V3, Chorus, Coda, Ending…) → **variants** (`full`, `v1only`…); edit posisi batch + Save per susunan.
+
+**Ubah:** `songs.arrangement` = `{master, variants}` (validasi pool-vs-lirik, varian-vs-pool, nama unik; legacy array → varian "Susunan"; 0 baris existing) + serialize dua field (kompat) → `effectiveArrangement` = pemakaian > varian pertama > full + `variantEntries/variantNames/isSameArrangement/arrangementSourceLabel` (paritas server↔klien) → `SongMasterEditor` (manajer pool + manajer varian + entri aktif, semua draft, satu Simpan) → `ArrangementEditor` per-event staged (draft + Simpan susunan/Batal + "Pakai susunan [nama]" salinan beku + label dari/kustom) → ringkasan `master [nama]` → test named/pool/staged (+~15).
+
+**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ QA `qa-song-master.mjs` **14/14** (pool+varian PUT, tolak luar-pool/ganda 400, default full, salinan beku) ✓ tanpa DDL baru ✓
+
+**Next:** QA visual (buat `full`+`v1only`, geser, Simpan sekali) → commit + push + sync → pemusik isi lagu.
+
 ## Current — Editor master batch + susunan default master (7 Okt 2026)
 
 **Kebutuhan:** perubahan lagu jangan langsung tersimpan (adjust dulu, baru Simpan/Terapkan); susunan main di level master (V1-C-V2-C…); tab Chord = lirik + baris kosong di atasnya siap ketik chord; transpose berlaku untuk semua chord + rewrite nada dasar.

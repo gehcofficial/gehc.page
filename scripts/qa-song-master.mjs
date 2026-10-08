@@ -138,6 +138,44 @@ const CHORD = ['[Verse 1]', '[G]Kasih setia-Mu', '', '[Chorus]', '[C]Besar setia
   ok('override pemakaian menang',
     !!mine2 && !mine2.quickLyrics.includes('Besar setia-Mu') && mine2.quickLyrics.includes('Kasih setia-Mu'));
 
+  // 5. Varian bernama: pool + full/v1only; default (full) dipakai saat pemakaian dikosongkan.
+  const CHORD2 = ['[Verse 1]', '[G]Satu', '', '[Verse 2]', '[G]Dua', '', '[Chorus]', '[C]Reff'].join('\n');
+  const putV = await admin.put(`/api/songs/${songId}`, {
+    lyricsChordPro: CHORD2,
+    arrangements: {
+      master: ['Verse 1', 'Verse 2', 'Chorus'],
+      variants: [
+        { name: 'full', entries: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus'] },
+        { name: 'v1only', entries: ['Verse 1', 'Chorus'] },
+      ],
+    },
+  });
+  ok(`PUT pool + varian (${putV.status})`, putV.status === 200
+    && JSON.stringify(putV.data.song.arrangements.variants.map((v) => v.name)) === '["full","v1only"]'
+    && JSON.stringify(putV.data.song.arrangements.master) === '["Verse 1","Verse 2","Chorus"]');
+  const badPool = await admin.put(`/api/songs/${songId}`, {
+    arrangements: { master: ['Verse 1'], variants: [{ name: 'x', entries: ['Bridge'] }] },
+  });
+  ok(`tolak entri di luar pool (400, dapat ${badPool.status})`, badPool.status === 400);
+  const badDup = await admin.put(`/api/songs/${songId}`, {
+    arrangements: { variants: [{ name: 'a', entries: [] }, { name: 'A', entries: [] }] },
+  });
+  ok(`tolak nama varian ganda (400, dapat ${badDup.status})`, badDup.status === 400);
+  // Kosongkan pemakaian → ikut varian default (full): Dua muncul sebelum Reff kedua? urutan V1,C,V2,C.
+  await admin.put(`/api/events/${eventId}/songs/${ss.data.item.id}`, { sections: [] });
+  const exp3 = await admin.get(`/api/events/${eventId}/songs/export`);
+  const mine3 = (exp3.data.items || []).find((i) => i.songId === songId);
+  const q3 = mine3?.quickLyrics || '';
+  ok('default varian full dipakai',
+    q3.indexOf('Satu') < q3.indexOf('Reff') && q3.indexOf('Dua') < q3.lastIndexOf('Reff')
+    && q3.indexOf('Dua') > q3.indexOf('Reff'));
+  // Salinan beku: pilih v1only (copy entries) → Dua hilang.
+  await admin.put(`/api/events/${eventId}/songs/${ss.data.item.id}`, { sections: ['Verse 1', 'Chorus'] });
+  const exp4 = await admin.get(`/api/events/${eventId}/songs/export`);
+  const mine4 = (exp4.data.items || []).find((i) => i.songId === songId);
+  ok('salinan v1only (tanpa Dua)',
+    !!mine4 && mine4.quickLyrics.includes('Satu') && !mine4.quickLyrics.includes('Dua'));
+
   // 5. Bersih-bersih.
   await admin.delete(`/api/events/${eventId}/songs/${ss.data.item.id}`);
   const del = await admin.delete(`/api/songs/${songId}`);

@@ -18,8 +18,10 @@ export type SongLite = {
   ccli?: string | null;
   defaultKey?: string | null;
   lyricsChordPro?: string | null;
-  /** Susunan default master; string JSON ikut diterima (baris DB mentah). */
-  arrangement?: ArrangementEntryInput[] | string | null;
+  /** Susunan bernama {master, variants}; string JSON / legacy array ikut diterima. */
+  arrangements?: { master?: unknown; variants?: unknown } | ArrangementEntryInput[] | string | null;
+  /** Kompat: entri varian pertama (tulis via `arrangements`). */
+  arrangement?: ArrangementEntryInput[] | null;
 };
 
 export type ServiceSongLite = {
@@ -160,12 +162,94 @@ export function normalizeArrangement(input: unknown): ArrangementEntry[] | null 
   return out.length ? out : null;
 }
 
-function asArrangementArray(v: unknown): ArrangementEntryInput[] | null {
-  if (Array.isArray(v)) return v as ArrangementEntryInput[];
+export type ArrangementVariant = {
+  name: string;
+  entries: ArrangementEntry[];
+};
+
+export type NamedArrangements = {
+  master: string[] | null;
+  variants: ArrangementVariant[];
+};
+
+function normalizeVariantName(n: unknown): string | null {
+  const s = String(n ?? '').trim().slice(0, 40);
+  return s || null;
+}
+
+/**
+ * Susunan bernama: { master, variants }. Legacy array tunggal →
+ * satu varian "Susunan". Melempar Error untuk nama ganda/kosong
+ * dan master bukan array (server memetakan ke 400).
+ */
+export function normalizeNamedArrangements(input: unknown): NamedArrangements | null {
+  if (input === undefined || input === null) return null;
+  if (Array.isArray(input)) {
+    const entries = normalizeArrangement(input);
+    return entries && entries.length ? { master: null, variants: [{ name: 'Susunan', entries }] } : null;
+  }
+  if (typeof input !== 'object') return null;
+  const v = input as { master?: unknown; variants?: unknown };
+  let master: string[] | null = null;
+  if (v.master !== undefined && v.master !== null) {
+    if (!Array.isArray(v.master)) throw new Error('Setlist master harus array nama bagian.');
+    master = [...new Set(v.master.map((s) => String(s ?? '').trim()).filter(Boolean))].slice(0, 30);
+    if (!master.length) master = null;
+  }
+  const rawVars = Array.isArray(v.variants) ? v.variants : [];
+  const variants: ArrangementVariant[] = [];
+  const seen = new Set<string>();
+  for (const item of rawVars.slice(0, 20)) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as { name?: unknown; entries?: unknown };
+    const name = normalizeVariantName(rec.name);
+    if (!name) throw new Error('Tiap varian susunan wajib bernama.');
+    if (seen.has(name.toLowerCase())) throw new Error(`Nama varian ganda: ${name}.`);
+    seen.add(name.toLowerCase());
+    const entries = normalizeArrangement(rec.entries);
+    variants.push({ name, entries: entries && entries.length ? entries : [] });
+  }
+  if (!master && !variants.length) return null;
+  return { master, variants };
+}
+
+/** Validasi pool vs lirik + tiap varian vs pool (atau vs lirik bila pool kosong). */
+export function validateNamedArrangements(named: NamedArrangements | null, masterNames?: string[] | null): void {
+  if (!named) return;
+  const known = new Set((masterNames || []).map((s) => String(s).toLowerCase()));
+  if (named.master) {
+    const badM = named.master.filter((s) => !known.has(String(s).toLowerCase()));
+    if (badM.length) throw new Error(`Setlist master memuat bagian tak dikenal: ${badM.join(', ')}.`);
+  }
+  const pool = named.master && named.master.length
+    ? new Set(named.master.map((s) => String(s).toLowerCase()))
+    : known;
+  for (const v of named.variants || []) {
+    const badE = [...new Set((v.entries || []).map((e) => e.section))]
+      .filter((s) => !pool.has(String(s).toLowerCase()));
+    if (badE.length) throw new Error(`Varian "${v.name}" memuat bagian tak dikenal: ${badE.join(', ')}.`);
+  }
+}
+
+function parseNamedRaw(v: unknown): NamedArrangements | null {
+  if (v === undefined || v === null) return null;
+  if (Array.isArray(v)) {
+    const entries = normalizeArrangement(v);
+    return entries && entries.length ? { master: null, variants: [{ name: 'Susunan', entries }] } : null;
+  }
   if (typeof v === 'string' && v.trim()) {
     try {
-      const parsed: unknown = JSON.parse(v);
-      return Array.isArray(parsed) ? (parsed as ArrangementEntryInput[]) : null;
+      const p: unknown = JSON.parse(v);
+      if (Array.isArray(p)) return parseNamedRaw(p);
+      if (p && typeof p === 'object') return normalizeNamedArrangements(p);
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof v === 'object') {
+    try {
+      return normalizeNamedArrangements(v);
     } catch {
       return null;
     }
@@ -173,9 +257,55 @@ function asArrangementArray(v: unknown): ArrangementEntryInput[] | null {
   return null;
 }
 
+/** Bentuk kanonis {master, variants} dari lagu (toleran legacy). */
+export function namedArrangementsOf(song?: { arrangements?: unknown; arrangement?: unknown } | null): NamedArrangements | null {
+  if (!song) return null;
+  return parseNamedRaw((song as { arrangements?: unknown }).arrangements ?? song.arrangement ?? null);
+}
+
+/** Entri varian bernama (default = varian pertama). */
+export function variantEntries(song?: { arrangements?: unknown; arrangement?: unknown } | null, name?: string | null): ArrangementEntry[] | null {
+  const vars = namedArrangementsOf(song)?.variants || [];
+  if (!vars.length) return null;
+  if (name) {
+    const hit = vars.find((v) => v.name.toLowerCase() === String(name).toLowerCase());
+    if (hit && hit.entries && hit.entries.length) return hit.entries;
+    return null;
+  }
+  const first = vars[0];
+  return first.entries && first.entries.length ? first.entries : null;
+}
+
+/** Nama-nama varian untuk dropdown "pakai susunan". */
+export function variantNames(song?: { arrangements?: unknown; arrangement?: unknown } | null): string[] {
+  return (namedArrangementsOf(song)?.variants || []).map((v) => v.name);
+}
+
+/** Samakan dua susunan (numberline normalisasi; untuk label "dari:" dan dirty-check). */
+export function isSameArrangement(a: unknown, b: unknown): boolean {
+  const na = normalizeArrangement(Array.isArray(a) ? a : null);
+  const nb = normalizeArrangement(Array.isArray(b) ? b : null);
+  if (!na && !nb) return true;
+  if (!na || !nb) return false;
+  return JSON.stringify(na) === JSON.stringify(nb);
+}
+
+/** Label asal susunan pemakaian: nama varian bila cocok persis, else null (=kustom). */
+export function arrangementSourceLabel(
+  song?: { arrangements?: unknown; arrangement?: unknown } | null,
+  usageSections?: ArrangementEntryInput[] | null,
+): string | null {
+  const u = normalizeArrangement(Array.isArray(usageSections) ? usageSections : null);
+  if (!u || !u.length) return null;
+  for (const v of namedArrangementsOf(song)?.variants || []) {
+    if (isSameArrangement(v.entries, u)) return v.name;
+  }
+  return null;
+}
+
 /**
  * Susunan efektif tampil/ekspor: pemakaian per event menang,
- * lalu susunan default master, lalu full master (null).
+ * lalu varian default master (pertama), lalu full master (null).
  */
 export function effectiveArrangement(
   song?: SongLite | null,
@@ -183,8 +313,8 @@ export function effectiveArrangement(
 ): ArrangementEntry[] | null {
   const u = normalizeArrangement(usageSections ?? null);
   if (u && u.length) return u;
-  const m = normalizeArrangement(asArrangementArray(song?.arrangement ?? null));
-  if (m && m.length) return m;
+  const first = namedArrangementsOf(song)?.variants?.[0];
+  if (first && first.entries && first.entries.length) return first.entries;
   return null;
 }
 
