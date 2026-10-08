@@ -140,6 +140,16 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     }
   });
 
+  it('penutup 1 slide ringkas: baris standar hari + judul', () => {
+    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
+    const deck = buildPembekalanDeck(content);
+    const tutup = deck.filter((s) => s.id.startsWith('penutup'));
+    expect(tutup).toHaveLength(1);
+    expect(tutup[0].fields).toHaveLength(7);
+    expect(tutup[0].fields?.[0].label).toBe('Minggu');
+    expect(tutup[0].bullets).toBeUndefined();
+  });
+
   it('checklist panjang dipecah ≤4 per slide', () => {
     const studio = fullStudio();
     studio.sermon.prepChecklist = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];

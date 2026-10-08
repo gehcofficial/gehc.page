@@ -9,7 +9,7 @@
  */
 import { jsPDF } from 'jspdf';
 import { DAY_LABELS, defaultSermon, type DidaskaliaStudio, type DidaskaliaWeek } from './didaskalia';
-import { effectiveRhbSections, extractGarisBesar, mentorOpsBullets, patternTechnicalBullets } from './didaskalia-presentation';
+import { effectiveRhbSections, extractGarisBesar, mentorOpsBullets, patternTechnicalBullets, penutupDayFields } from './didaskalia-presentation';
 import { parseMdLite, stripMd } from './md-lite';
 
 const PAGE_W = 210;
@@ -488,7 +488,7 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
       : [`Ikuti skenario pola ${opts.patternName || 'ibadah pekan ini'} di atas, sesuaikan dengan tema dan audiens minggu ini, lalu tutup dengan komitmen dan doa.`];
     w.bullets([...tech, ...steps, ...ops]);
   }
-  const pathLines = studio.paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);
+  const pathLines = penutupDayFields(studio.paths).map((d) => `${d.label} — ${d.value}`);
   if (pathLines.length) w.field('Gambaran 7 Hari (Minggu–Sabtu)', pathLines.join('\n'));
 
   w.finishFooters();

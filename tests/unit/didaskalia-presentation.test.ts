@@ -81,8 +81,8 @@ describe('deck builders', () => {
     }
     // Tak ada duplikasi literal penuh doc 02 di modul 01.
     expect(deck.some((s) => s.id.startsWith('a-khotbah-'))).toBe(false);
-    // Pagination baca: garis 3 komponen → 2 slide; teknis 6 bullet → 2 slide; penutup 7 hari → 2 slide.
-    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar-1', 'garis-besar-2', 'a-deliver', 'a-checklist', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup-1', 'penutup-2']);
+    // Pagination baca: garis 3 komponen → 2 slide; teknis 6 bullet → 2 slide; penutup 1 slide ringkas.
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar-1', 'garis-besar-2', 'a-deliver', 'a-checklist', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup']);
     const garis1 = deck.find((s) => s.id === 'garis-besar-1');
     expect(garis1?.paragraphs).toHaveLength(2);
     expect(garis1?.paragraphs?.[0]).toContain('P1');
@@ -95,9 +95,11 @@ describe('deck builders', () => {
     expect(deliver?.bullets).toBeUndefined();
     const checklist = deck.find((s) => s.id === 'a-checklist');
     expect(checklist?.bullets).toEqual(['Riset teks', 'Latihan']);
-    const penutup = deck.find((s) => s.id === 'penutup-2');
-    expect(penutup?.bullets).toHaveLength(3);
-    expect(deck.find((s) => s.id === 'penutup-1')?.bullets?.[0]).toContain('Minggu');
+    const penutup = deck.find((s) => s.id === 'penutup');
+    expect(penutup?.kind).toBe('closing');
+    expect(penutup?.fields).toHaveLength(7);
+    expect(penutup?.fields?.[0]).toEqual({ label: 'Minggu', value: 'Path 1 judul' });
+    expect(penutup?.bullets).toBeUndefined();
     expect(deck[0].background).toBe(true);
   });
 

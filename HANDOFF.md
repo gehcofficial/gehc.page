@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Penutup 01 satu slide ringkas (9 Okt 2026)
+
+**Kebutuhan:** slide penutup masih panjang. Minta ringkas simpel seperti dulu + style judul harian yang menarik dan standar.
+
+**Ubah (kode, belum commit):** helper `penutupDayFields()` (`didaskalia-presentation.ts`) — label = nama hari, value = judul (tanpa summary); deck penutup jadi 1 slide `fields` + doa; PDF gambaran 7 hari ikut standar ringkas yang sama • test selaraskan (+1).
+
+**Verifikasi:** `lint` bersih ✓ full suite **983 hijau + 1 flaky lama** (lolos standalone) ✓
+
+**Next:** commit + push + `staging:sync` • QA visual HP.
+
 ## Current — Pembekalan 01 pagination baca tanpa scroll (8 Okt 2026)
 
 **Kebutuhan:** deck 01 slide-nya sedikit tapi tiap slide panjang (scroll ke bawah). Minta gaya baca enak ala pola khutbah; bila perlu jadi beberapa halaman.

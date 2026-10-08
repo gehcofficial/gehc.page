@@ -201,6 +201,14 @@ export function extractGarisBesar(outline?: DidaskaliaSermon['outline']): GarisB
     .filter((g) => g.sentence);
 }
 
+/** Baris standar gambaran 7 hari: label = nama hari, value = judul (tanpa summary). */
+export function penutupDayFields(paths: DidaskaliaPath[]): { label: string; value: string }[] {
+  return paths.map((p, i) => ({
+    label: p.dayLabel || DAY_LABELS[i],
+    value: p.title || '—',
+  }));
+}
+
 /** Hash doc 02 (Ringkasan Khotbah) sepekan — tujuan CTA dari garis besar pembekalan. */
 export function khutbahHashFor(content: PresentationContent): string {
   const ym = String(content.date || '').slice(0, 7);
@@ -341,26 +349,25 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     });
   }
 
-  // 5. Penutup — gambaran 7 hari ≤4 per slide, doa di slide terakhir.
-  const dayBullets = paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);
-  const dayChunks = chunkForSlides(dayBullets, 4);
-  const penutupSlides: DeckSlide[] = (dayChunks.length ? dayChunks : [[]]).map((items, ci, arr) => ({
-    id: `penutup${arr.length > 1 ? `-${ci + 1}` : ''}`,
-    kind: 'closing' as const,
+  // 5. Penutup — 1 slide ringkas: 7 hari sebagai baris standar
+  //    (label hari + judul, tanpa summary) + doa syafaat.
+  const penutupSlide: DeckSlide = {
+    id: 'penutup',
+    kind: 'closing',
     kicker: 'Penutup',
-    title: ci === arr.length - 1 ? 'Tutup dengan doa syafaat' : 'Gambaran 7 hari',
-    bullets: items,
-    paragraphs: ci === arr.length - 1
-      ? ['Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.']
-      : undefined,
-  }));
+    title: 'Tutup dengan doa syafaat',
+    fields: penutupDayFields(paths),
+    paragraphs: [
+      'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
+    ],
+  };
 
   const slides: DeckSlide[] = [
     cover,
     ...paginateSlides(garisSlides),
     ...paginateSlides(bagianA),
     ...paginateSlides(bagianB),
-    ...paginateSlides(penutupSlides),
+    penutupSlide,
   ];
 
   // Buang slide opsional yang kosong (mis. belum ada deliveryPlan/checklist).
