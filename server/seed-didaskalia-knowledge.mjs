@@ -51,10 +51,14 @@ Reformed: Sola Scriptura/Gratia/Fide, Solus Christus, Soli Deo Gloria. Pemuridan
     sortOrder: 9,
     content: `# POLA RINGKASAN KHOTBAH PANJANG (FOR SERVICE) — TIM DIDASKALIA
 
-Pola baku ringkasan khotbah AI (±600–900 kata). Setiap ringkasan WAJIB mengikuti 4 bagian ini,
-bukan sekadar 3–5 paragraf pendek. Contoh teknik (bukan isi): pengantar yang membongkar asumsi,
-bedah per frasa dengan pelurusan salah paham, jembatan 2–3 poin ke ayat jangkar, kesimpulan
-direct-speech yang siap dibaca di panggung.
+STANDAR LITERAL-MD: isi ringkasan khotbah = 4 bagian MD Service VERBATIM
+(Pengantar, Bedah Teologis, Jembatan, Kesimpulan — salin kata-per-kata, tanpa
+parafrase). Bagian yang panjang dipecah otomatis menjadi beberapa slide yang
+rapi (maks ±700 karakter / 2 paragraf per slide, tidak memotong kalimat).
+Setiap bagian memakai 1 gambar AI kontekstual sebagai background dengan teks
+overlay (tulisan di atas gambar, kontras terjaga).
+
+Pola baku tiap bagian (untuk penulis MD Service):
 
 ## 1. Pengantar — reframing masalah nyata
 Buka dengan realita pemuda (finansial, patah hati, masa depan), lalu bongkar asumsinya:
@@ -76,7 +80,8 @@ hari ini ("Anda tidak butuh sekadar perbaikan nasib sementara..."). Siap diucapk
 
 ## Rambu
 - Reformed dan kontekstual Beyonders (kuliah/kerja/kos/relasi Cikarang), seperti standar lain.
-- Kutip ayat akurat; jangan mengarang referensi. Panjang total ±600–900 kata.`,
+- Kutip ayat akurat; jangan mengarang referensi.
+- AI DILARANG memparafrase outline bila MD acuan tersedia (lihat aturan prompt SERMON_RULES).`,
   },
   {
     id: 'dk-format-khotbah',

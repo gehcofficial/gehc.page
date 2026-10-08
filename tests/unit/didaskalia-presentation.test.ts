@@ -66,7 +66,7 @@ describe('parseMaterialHash', () => {
 });
 
 describe('deck builders', () => {
-  it('pembekalan: 7 slide gabungan (cover+inti, garis, A, checklist, kerangka, B, penutup)', () => {
+  it('pembekalan: cover + garis + A literal + checklist + B + penutup (tanpa slide AI)', () => {
     const studio = studioWithRhb();
     studio.sermon = { ...studio.sermon, slideOutline: [{ title: 'S1', bullets: ['b1', 'b2'], visualNote: '' }, { title: 'S2', bullets: [], visualNote: '' }], outline: { pengantar: 'P1', bedahTeologis: '', jembatan: 'J1', kesimpulan: 'K1' } };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema Pekan'));
@@ -75,17 +75,18 @@ describe('deck builders', () => {
     expect(deck[deck.length - 1].kind).toBe('closing');
     // Tidak ada lagi slide breakdown per-Path (diganti 1 slide summary 7 hari).
     expect(deck.filter((s) => s.kind === 'path')).toHaveLength(0);
-    // Slide lama terhapus, diganti gabungan.
-    for (const gone of ['a-deliver', 'a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari']) {
+    // Slide AI lama terhapus (summary/kerangka/slideOutline), diganti literal.
+    for (const gone of ['a-deliver', 'a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari', 'a-khotbah', 'a-kerangka', 'inti']) {
       expect(deck.find((s) => s.id === gone)).toBeFalsy();
     }
-    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-khotbah', 'a-checklist', 'a-kerangka', 'b-pola', 'penutup']);
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-khotbah-pengantar', 'a-khotbah-jembatan', 'a-khotbah-kesimpulan', 'a-checklist', 'b-pola', 'penutup']);
+    const khotbah = deck.find((s) => s.id === 'a-khotbah-pengantar');
+    expect(khotbah?.paragraphs).toEqual(['P1']);
+    expect(khotbah?.bullets).toEqual(['Teologi Historis: Buka latar sejarah pelayanan.']);
     const penutup = deck.find((s) => s.id === 'penutup');
     expect(penutup?.bullets).toHaveLength(7);
     expect(penutup?.bullets?.[0]).toContain('Minggu');
     expect(deck[0].background).toBe(true);
-    const kerangka = deck.find((s) => s.id === 'a-kerangka');
-    expect(kerangka?.bullets).toEqual(['1. S1', '• b1', '• b2', '2. S2']);
   });
 
   it('bagian B mengikuti pola ibadah pekan ini + tugas absensi/monitoring', () => {

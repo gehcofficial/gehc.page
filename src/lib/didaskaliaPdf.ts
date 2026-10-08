@@ -236,8 +236,10 @@ export type PdfOptions = {
   rhbSectionImages?: Record<number, Record<string, string>>;
   /** Gambar band cover per hari RHB: { [pathIndex]: dataUrl } */
   rhbCoverImages?: Record<number, string>;
-  /** Ilustrasi AI per slide ringkasan khotbah: { [slideIndex]: dataUrl } */
+  /** Ilustrasi AI per slide ringkasan khotbah (legacy): { [slideIndex]: dataUrl } */
   khutbahSlideImages?: Record<number, string>;
+  /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: dataUrl } */
+  khutbahSectionImages?: Record<string, string>;
   /** Jenis ibadah (MENTORING_DAY/SERVING_DAY) — untuk label deliverer. */
   serviceType?: string | null;
   /** Pola ibadah pekan ini — untuk judul Bagian B. */
@@ -374,30 +376,28 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
     w.field('Analisa Metode (%)', studio.methodMix.map((m) => `${m.method} — ${m.percent}%${m.note ? ` (${m.note})` : ''}`).join('\n'));
   }
 
-  // BAGIAN A — untuk pengkhotbah / deliverer
+  // BAGIAN A — untuk pengkhotbah / deliverer (STANDAR LITERAL: outline MD verbatim)
   w.newPage();
   w.y = 22;
   w.label(`Bagian A · Untuk ${delivererLabel(opts.serviceType)}`, C.accent);
-  w.title('Persiapan & Penyampaian Khotbah', 20);
+  w.title('Ringkasan Khotbah (Literal MD)', 20);
   const plan = sermon.deliveryPlan || [];
   if (plan.length) w.field('Panduan Deliver per Metode', plan.map((d) => `${d.method}: ${d.how}`).join('\n'));
-  if (sermon.summary) w.field('Ringkasan Khotbah', sermon.summary);
-  if (sermon.rationale) w.callout('Pendekatan & Metode', sermon.rationale);
+  const khSections = [
+    { key: 'pengantar', no: '1', heading: 'Pengantar' },
+    { key: 'bedahTeologis', no: '2', heading: 'Bedah Teologis' },
+    { key: 'jembatan', no: '3', heading: 'Jembatan ke Tema Mingguan' },
+    { key: 'kesimpulan', no: '4', heading: 'Kesimpulan (Siap-Baca)' },
+  ] as const;
+  const khOutline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  for (const s of khSections) {
+    const body = String(khOutline[s.key] || '').trim();
+    if (!body) continue;
+    w.field(`${s.no}. ${s.heading}`, body);
+  }
+  if (sermon.teksUtama?.ref) w.field('Teks Utama Khotbah', sermon.teksUtama.text ? `${sermon.teksUtama.ref}\n${sermon.teksUtama.text}` : sermon.teksUtama.ref);
   const checklist = sermon.prepChecklist || [];
   if (checklist.length) w.field('Checklist Persiapan Khotbah', checklist.map((x, i) => `${i + 1}) ${x}`).join('\n'));
-
-  // Kerangka Slide (1 halaman ringkas)
-  const outline = sermon.slideOutline || [];
-  if (outline.length) {
-    w.newPage();
-    w.y = 22;
-    w.label('Kerangka Slide', C.accent);
-    w.title('Slide Khotbah', 20);
-    for (const s of outline) {
-      const body = (s.bullets || []).map((b) => `• ${b}`).join('\n');
-      w.field(s.title, body);
-    }
-  }
 
   // BAGIAN B — untuk mentor & co-mentor
   w.newPage();
@@ -425,23 +425,34 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
 }
 
 export function buildKhutbahPdf(week: DidaskaliaWeek, studio: DidaskaliaStudio, opts: PdfOptions = {}): { filename: string; blob: Blob } {
+  // Standar literal-MD: 4 bagian outline MD Service verbatim (bukan summary AI).
   const w = buildCommon(week, studio, opts, 'Ringkasan Khotbah');
   cover(w, week, studio, opts, 'Ringkasan Khotbah');
-  w.newPage();
-  w.y = 22;
-  w.label('Ringkasan', C.accent);
-  w.title('Inti Khotbah', 20);
-  w.paragraph(studio.sermon?.summary || '');
-  if (studio.sermon?.rationale) w.callout('Pendekatan & Metode', studio.sermon.rationale);
-  const slides = studio.sermon?.slideOutline || [];
-  for (const [si, s] of slides.entries()) {
+  const outline = studio.sermon?.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  const sections = [
+    { key: 'pengantar', no: '1', title: 'Pengantar', heading: 'Pengantar' },
+    { key: 'bedahTeologis', no: '2', title: 'Bedah Teologis', heading: 'Bedah Teologis' },
+    { key: 'jembatan', no: '3', title: 'Jembatan', heading: 'Jembatan ke Tema Mingguan' },
+    { key: 'kesimpulan', no: '4', title: 'Kesimpulan', heading: 'Kesimpulan (Siap-Baca)' },
+  ] as const;
+  if (studio.sermon?.teksUtama?.ref) {
     w.newPage();
-    w.gradientBar(0, 1.5);
-    w.y = 24;
-    w.label('Slide', C.pink);
-    w.title(s.title, 22);
-    w.image(opts.khutbahSlideImages?.[si] || opts.pathImages?.[1], 40);
-    if (s.bullets?.length) w.bullets(s.bullets);
+    w.y = 22;
+    w.label('Teks Utama Khotbah', C.accent);
+    w.title(studio.sermon.teksUtama.ref, 20);
+    if (studio.sermon.teksUtama.text) w.paragraph(studio.sermon.teksUtama.text);
+  }
+  for (const s of sections) {
+    const body = String(outline[s.key] || '').trim();
+    if (!body) continue;
+    w.newPage();
+    w.y = 22;
+    w.label(`Outline · ${s.no} ${s.title}`, C.accent);
+    w.title(s.heading, 20);
+    w.image(opts.khutbahSectionImages?.[s.key], 40);
+    for (const para of body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)) {
+      w.paragraph(para);
+    }
   }
   w.finishFooters();
   const v = opts.version || 1;

@@ -673,6 +673,55 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
+  const KHUTBAH_LITERAL_SECTIONS = [
+    { key: 'pengantar', label: '1 · Pengantar' },
+    { key: 'bedahTeologis', label: '2 · Bedah Teologis' },
+    { key: 'jembatan', label: '3 · Jembatan' },
+    { key: 'kesimpulan', label: '4 · Kesimpulan' },
+  ];
+
+  /** Generate 1 gambar AI kontekstual untuk 1 bagian khotbah literal (background slide). */
+  const illustrateSection = async (section: string): Promise<boolean> => {
+    if (!canWrite) return false;
+    setBusy(`imgsec-${section}`);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/sermon-image`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
+      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      addToast({ type: 'success', title: `Ilustrasi bagian ${section} dibuat (${d.used}/${d.max})` });
+      return true;
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const illustrateMissingSections = async () => {
+    if (!canWrite) return;
+    setBusy('imgsec-all');
+    try {
+      let done = 0;
+      for (const s of KHUTBAH_LITERAL_SECTIONS) {
+        if (studio.presentation?.khutbahLiteral?.[s.key]) continue;
+        // eslint-disable-next-line no-await-in-loop
+        const ok = await illustrateSection(s.key);
+        if (!ok) break;
+        done += 1;
+      }
+      if (done === 0) addToast({ type: 'success', title: 'Semua bagian sudah bergambar.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const generateAiCover = async () => {
     if (!canWrite) return;
     if (driveAuth.checked && !driveAuth.ok) {
@@ -851,7 +900,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await assetDataUrl(khMap[String(si)]);
       if (d) khutbahSlideImages[si] = d;
     }
-    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, khutbahSlideImages };
+    const khutbahSectionImages: Record<string, string> = {};
+    const khLit = pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object' ? pres.khutbahLiteral : {};
+    for (const key of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
+      const d = await assetDataUrl(khLit[key]);
+      if (d) khutbahSectionImages[key] = d;
+    }
+    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, khutbahSlideImages, khutbahSectionImages };
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
@@ -1494,6 +1549,44 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 >
                   {busy === 'img-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan semua
                 </button>
+              </div>
+              <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-black text-sky-800">
+                    Background per bagian (standar literal): {KHUTBAH_LITERAL_SECTIONS.filter((s) => studio.presentation?.khutbahLiteral?.[s.key]).length}/4 bagian
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!canWrite || !!busy}
+                    onClick={() => void illustrateMissingSections()}
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
+                    title="Generate gambar AI kontekstual untuk tiap bagian khotbah yang belum ada"
+                  >
+                    {busy === 'imgsec-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan per bagian
+                  </button>
+                </div>
+                {KHUTBAH_LITERAL_SECTIONS.map((s) => {
+                  const fid = studio.presentation?.khutbahLiteral?.[s.key];
+                  return (
+                    <div key={s.key} className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-[#8C8880] w-32 shrink-0">{s.label}</span>
+                      {fid ? (
+                        <img src={`/api/didaskalia/asset/${encodeURIComponent(String(fid))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
+                      ) : (
+                        <span className="text-[10px] italic text-[#8C8880]">belum ada gambar</span>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!canWrite || !!busy}
+                        onClick={() => void illustrateSection(s.key)}
+                        className="ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-[10px] font-bold disabled:opacity-50"
+                        title={`Generate ilustrasi AI bagian ${s.label}`}
+                      >
+                        {busy === `imgsec-${s.key}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />} {fid ? 'Regenerate' : 'AI'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               {(studio.sermon?.slideOutline || []).map((sl, si) => (
                 <div key={si} className="rounded-xl border border-[#EFEDE8] p-3 space-y-1.5">
