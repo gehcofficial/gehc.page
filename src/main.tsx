@@ -8,7 +8,7 @@ import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
 import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
-import { parseLiturgyHash } from './lib/liturgy-live.ts';
+import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import './index.css';
@@ -27,6 +27,7 @@ const MentoringScreen = React.lazy(() => import('./components/mentoring/Mentorin
 const MentoringControl = React.lazy(() => import('./components/mentoring/MentoringControl.tsx'));
 const LiturgyScreen = React.lazy(() => import('./components/liturgy/LiturgyScreen.tsx'));
 const LiturgyControl = React.lazy(() => import('./components/liturgy/LiturgyControl.tsx'));
+const DayScreen = React.lazy(() => import('./components/liturgy/DayScreen.tsx'));
 
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
 const hubHost = isHubHost(host);
@@ -130,6 +131,7 @@ const AppRoot: React.FC = () => {
   }
 
   // Tata ibadah live (Liturgia): layar proyektor + HP jemaat, control room.
+  // Layar gabungan hari (Koinonia): susunan blok + live per ibadah.
   const liturgy = parseLiturgyHash(hash);
   if (liturgy) {
     return (
@@ -139,6 +141,13 @@ const AppRoot: React.FC = () => {
         ) : (
           <LiturgyControl eventKey={liturgy.eventKey} />
         )}
+      </Suspense>
+    );
+  }
+  if (isDayScreenHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <DayScreen />
       </Suspense>
     );
   }

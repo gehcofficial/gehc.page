@@ -20,6 +20,7 @@ const LAZY_ROUTE_MODULES = [
   '../../src/components/mentoring/MentoringControl.tsx',
   '../../src/components/liturgy/LiturgyScreen.tsx',
   '../../src/components/liturgy/LiturgyControl.tsx',
+  '../../src/components/liturgy/DayScreen.tsx',
 ];
 
 describe('lazy-routes: default export untuk React.lazy', () => {
