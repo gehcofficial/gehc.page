@@ -8,7 +8,9 @@
 
 **Verifikasi:** `lint` bersih ✓ full suite **981 hijau** (flaky `lazy-routes` lolos run ini) ✓ `build` OK ✓
 
-**Next:** QA visual HP (cek tak ada scroll per slide) • commit + push + `staging:sync`.
+**Deploy:** commit `c703824` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `c703824`, alias staging.*gehc.page aktif).
+
+**Next:** QA visual HP (cek tak ada scroll per slide).
 
 ## Current — Pembekalan 01 gaya khotbah: garis besar 4 komponen + CTA doc 02 (8 Okt 2026)
 
@@ -65,6 +67,14 @@
 **Ubah (belum commit):** `chunkSermonSection` → budget POV presentasi (≤6 baris estimasi / ≤4 bullet, pecah di batas bullet, tanpa potong kalimat) + chunk sampah (`---`/kosong) dibuang via `isNoiseUnit`. PDF tak berubah (sudah alir-penuh per bagian — "cetak muncul semua" terpenuhi).
 
 **Deploy budget slide (8 Okt 2026, ~23:10):** merge `cursor/khutbah-slide-budget` → main (`62b2935`) + push + `staging:sync` ✓. Prod = `62b2935` ✓.
+
+## Current — Fix cetak: teks tetap terang di atas foto (9 Okt 2026)
+
+**Kebutuhan:** PDF 02 (tombol Cetak) — tulisan slide kutipan (jembatan 1/2, kesimpulan) jadi hitam tak terbaca. Akar: teks quote/takeaway/speech punya `print:text-black` sementara artikel memaksa cetak background foto gelap → hitam di atas gelap.
+
+**Ubah:** tone overlay `MdBlocks` tanpa kelas `print:` (screen = print: teks terang di atas foto, sesuai pilihan pertahankan foto); tone plain tak berubah. Test render statis: overlay bebas `print:`, plain tetap punya.
+
+**Verifikasi:** `lint` bersih • full suite **983 hijau**.
 
 ## Current — Judul chunk dihapus + merger slide (9 Okt 2026, uncommitted di main)
 
