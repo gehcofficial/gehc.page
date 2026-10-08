@@ -16,6 +16,7 @@ import {
   type DidaskaliaSermon,
   type DidaskaliaStudio,
 } from './didaskalia';
+import { stripMd } from './md-lite';
 
 export type MaterialDoc = 'pembekalan' | 'khutbah' | 'rhb';
 
@@ -340,30 +341,67 @@ export const KHUTBAH_OUTLINE_SECTIONS = {
 
 export type KhutbahOutlineKey = keyof typeof KHUTBAH_OUTLINE_SECTIONS;
 
-/** Batas kerapian satu slide khotbah literal (verbatim, tanpa potong kalimat). */
-export const KHUTBAH_CHUNK_MAX_CHARS = 700;
-export const KHUTBAH_CHUNK_MAX_PARAS = 2;
+/** Budget layar POV presentasi: muat tanpa scroll (standar venue 5–7 baris/slide). */
+export const KHUTBAH_CHUNK_MAX_LINES = 6;
+export const KHUTBAH_CHUNK_MAX_BULLETS = 4;
+/** Lebar acuan estimasi baris (±karakter per baris pada text-base/xl mobile). */
+const KHUTBAH_LINE_WIDTH = 48;
+
+const UNIT_LINE_RE = /^\s*(#{2,4}\s+|> ?|[*\-]\s+|\d+[.)]\s+|---+\s*$)/;
+
+/** Unit adalah "sampah" (pemisah/divider) bila tak ada huruf tersisa setelah kupas markup. */
+function isNoiseUnit(u: string): boolean {
+  const t = stripMd(u).replace(/[─—–\-#>*\d.)\s]/g, '');
+  return t.length === 0;
+}
+
+function estimateUnitLines(u: string): number {
+  const t = stripMd(u).trim();
+  if (!t) return 0;
+  if (/^#{2,4}\s/.test(u)) return 2;
+  return Math.max(1, Math.ceil(t.length / KHUTBAH_LINE_WIDTH));
+}
+
+function isBulletUnit(u: string): boolean {
+  return /^\s*([*\-]|\d+[.)])\s+/.test(u);
+}
 
 /**
- * Pecah satu bagian outline (verbatim MD) menjadi N kelompok paragraf yang rapi.
- * Tidak memotong kalimat — batas hanya di antar-paragraf (baris kosong ganda).
+ * Pecah satu bagian outline (verbatim MD) menjadi N chunk muat-layar.
+ * - Tidak memotong kalimat — batas hanya antar-unit (paragraf / baris bullet).
+ * - Budget: ≤6 baris estimasi & ≤4 bullet per chunk.
+ * - Chunk sampah (hanya `---`/kosong) dibuang — tak jadi slide kosong.
  */
-export function chunkSermonSection(text?: string, maxChars = KHUTBAH_CHUNK_MAX_CHARS, maxParas = KHUTBAH_CHUNK_MAX_PARAS): string[][] {
-  const paras = toParagraphs(text);
-  if (!paras.length) return [];
+export function chunkSermonSection(text?: string, maxLines = KHUTBAH_CHUNK_MAX_LINES, maxBullets = KHUTBAH_CHUNK_MAX_BULLETS): string[][] {
+  const units: string[] = [];
+  for (const para of toParagraphs(text)) {
+    const lines = para.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length > 1 && lines.every((l) => UNIT_LINE_RE.test(l))) {
+      units.push(...lines);
+    } else {
+      units.push(para);
+    }
+  }
   const chunks: string[][] = [];
   let cur: string[] = [];
-  let len = 0;
-  for (const p of paras) {
-    if (cur.length > 0 && (cur.length >= maxParas || len + p.length > maxChars)) {
-      chunks.push(cur);
-      cur = [];
-      len = 0;
-    }
-    cur.push(p);
-    len += p.length;
+  let lines = 0;
+  let bullets = 0;
+  const push = () => {
+    const kept = cur.filter((u) => !isNoiseUnit(u));
+    if (kept.length) chunks.push(kept);
+    cur = [];
+    lines = 0;
+    bullets = 0;
+  };
+  for (const u of units) {
+    const ul = estimateUnitLines(u);
+    const ub = isBulletUnit(u) ? 1 : 0;
+    if (cur.length > 0 && (lines + ul > maxLines || bullets + ub > maxBullets)) push();
+    cur.push(u);
+    lines += ul;
+    bullets += ub;
   }
-  if (cur.length) chunks.push(cur);
+  if (cur.length) push();
   return chunks;
 }
 

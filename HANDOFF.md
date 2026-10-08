@@ -38,6 +38,14 @@
 
 **Deploy (8 Okt 2026, ~22:50):** merge `cursor/md-lite-render` → main (`cdfe1be`) + push + `staging:sync` ✓ (staging == main). Prod `youth.gehc.page/api/version` = `cdfe1be` ✓.
 
+## Current — Budget slide + anti slide-kosong (8 Okt 2026, uncommitted di main)
+
+**Kebutuhan:** ada slide berjudul tapi kosong (bedah 5/5, jembatan 3/3 — ternyata chunk berisi garis `---` saja) + slide lain kepanjangan (700 char ≈ 12–15 baris). Keputusan: budget ketat + PDF per bagian tetap ganti halaman.
+
+**Ubah (belum commit):** `chunkSermonSection` → budget POV presentasi (≤6 baris estimasi / ≤4 bullet, pecah di batas bullet, tanpa potong kalimat) + chunk sampah (`---`/kosong) dibuang via `isNoiseUnit`. PDF tak berubah (sudah alir-penuh per bagian — "cetak muncul semua" terpenuhi).
+
+**Verifikasi:** `lint` bersih • full suite hijau (966 test) • deck W2: 12 → **18 slide** (cover + 17 isi), semua frasa MD ada, tak ada slide kosong. Catatan: 1–2 bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit — tak bisa dipecah tanpa memotong kalimat (aturan verbatim).
+
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
 **Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
