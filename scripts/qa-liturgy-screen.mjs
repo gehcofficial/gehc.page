@@ -49,6 +49,14 @@ const ok = (label, cond) => {
   ok('kontrol: panel kontrol tampil', kontrolText.includes('Kontrol Tata Ibadah'));
   ok('kontrol: tombol Portal Liturgia ada', kontrolText.includes('Portal Liturgia'));
 
+  // 3. Layar gabungan hari tanpa login → pesan login (bukan boundary).
+  await page.goto(`${BASE}/#/hari/2026-10-11/layar`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  const dayText = await page.content();
+  ok('layar hari: tanpa React #306', !dayText.includes('Minified React error'));
+  ok('layar hari: tanpa "Portal gagal dimuat"', !dayText.includes('Portal gagal dimuat'));
+  ok('layar hari: judul hari tampil', dayText.includes('2026-10-11'));
+
   await browser.close();
   console.log(`\n✓ QA LAYAR LULUS (${pass} cek).`);
 })().catch((e) => {

@@ -134,8 +134,13 @@ Modul: `teams, timer, notes`. Kontrol: `TeamsPanel` + countdown misi.
 
 - **P1**: timeline hari + batas lunak + RACI/docs + slot pola (Didaskalia
   review angka) → lint/suite/build → migrasi lokal+staging → QA 1 hari →
-  commit + push + sync → migrasi prod.
-- **P2**: agregator kontrol + panel Marturia + layar gabungan hari.
+  commit + push + sync → migrasi prod. ✅ selesai
+- **P2**: agregator kontrol + panel Marturia + layar gabungan hari. ✅ selesai:
+  `ControlRoomPanel` (komposisi klien 3 endpoint, tanpa endpoint/API baru;
+  aksi tulis tetap di ruang masing-masing) di tab Ibadah semua divisi +
+  `DayScreen` (`#/hari/<tgl>/layar`, login) + operasi display Marturia
+  (buat show via `create_show`, remote `next_slide` ke FreeShow lokal —
+  sesuai API resmi FreeShow, bukan path tebakan).
 - Verifikasi tiap fase: unit + QA API + QA visual staging +
   `schema:check` prod. Additive semua — tanpa sentuh data existing.
 

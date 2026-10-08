@@ -82,6 +82,17 @@ export function parseLiturgyHash(hash: string): { eventKey: string; view: 'layar
 
 export const isLiturgyHash = (hash: string) => parseLiturgyHash(hash) !== null;
 
+/** Rute layar gabungan hari: `#/hari/<YYYY-MM-DD>/layar`. */
+export function parseDayHash(hash: string): { day: string } | null {
+  const h = String(hash || '').replace(/^#/, '');
+  const m = /^\/?hari\/([^/]+)\/layar\/?$/.exec(h);
+  if (!m) return null;
+  const day = decodeURIComponent(m[1]);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? { day } : null;
+}
+
+export const isDayScreenHash = (hash: string) => parseDayHash(hash) !== null;
+
 export const liturgyCodeKey = (eventKey: string) => `gehc_liturgy_code_${eventKey}`;
 
 export function loadLiturgyCode(eventKey: string): string {
