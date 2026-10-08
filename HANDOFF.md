@@ -30,7 +30,9 @@
 
 **Verifikasi:** `lint` bersih • full suite **131 file / 964 test hijau** • parse data W2 asli: bedah = quote+3 heading+list(2,2,4 sarang), jembatan = quote+ol-3, kesimpulan = quote • PDF khutbah generate OK (34KB).
 
-**Next:** commit + push + sync (seperti episode lalu) • cek visual HP/proyektor 1 slide bedah + kesimpulan • generate gambar manual via Studio tetap berlaku.
+**Next:** cek visual HP/proyektor 1 slide bedah + kesimpulan • generate gambar manual via Studio tetap berlaku (lalu publish ulang doc 02 W2).
+
+**Deploy (8 Okt 2026, ~22:50):** merge `cursor/md-lite-render` → main (`cdfe1be`) + push + `staging:sync` ✓ (staging == main). Prod `youth.gehc.page/api/version` = `cdfe1be` ✓.
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
