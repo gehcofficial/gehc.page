@@ -76,23 +76,28 @@ describe('deck builders', () => {
     // Tidak ada lagi slide breakdown per-Path (diganti 1 slide summary 7 hari).
     expect(deck.filter((s) => s.kind === 'path')).toHaveLength(0);
     // Slide AI lama terhapus (summary/kerangka/slideOutline), diganti garis besar.
-    for (const gone of ['a-ringkasan', 'b-teknis', 'b-fgd', 'b-7hari', 'a-khotbah', 'a-kerangka', 'a-checklist', 'inti']) {
+    for (const gone of ['a-ringkasan', 'b-fgd', 'b-7hari', 'a-khotbah', 'a-kerangka', 'inti']) {
       expect(deck.find((s) => s.id === gone)).toBeFalsy();
     }
     // Tak ada duplikasi literal penuh doc 02 di modul 01.
     expect(deck.some((s) => s.id.startsWith('a-khotbah-'))).toBe(false);
-    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-deliver', 'b-pola', 'penutup']);
-    const garis = deck.find((s) => s.id === 'garis-besar');
-    expect(garis?.paragraphs).toHaveLength(3);
-    expect(garis?.paragraphs?.[0]).toContain('P1');
-    expect(garis?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
-    expect(garis?.callout?.label).toBe('Detail Penuh');
+    // Pagination baca: garis 3 komponen → 2 slide; teknis 6 bullet → 2 slide; penutup 7 hari → 2 slide.
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar-1', 'garis-besar-2', 'a-deliver', 'a-checklist', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup-1', 'penutup-2']);
+    const garis1 = deck.find((s) => s.id === 'garis-besar-1');
+    expect(garis1?.paragraphs).toHaveLength(2);
+    expect(garis1?.paragraphs?.[0]).toContain('P1');
+    expect(garis1?.title).toContain('(1/2)');
+    const garis2 = deck.find((s) => s.id === 'garis-besar-2');
+    expect(garis2?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
+    expect(garis2?.callout?.label).toBe('Detail Penuh');
     const deliver = deck.find((s) => s.id === 'a-deliver');
     expect(deliver?.fields).toEqual([{ label: 'Teologi Historis', value: 'Buka latar sejarah pelayanan.' }]);
-    expect(deliver?.bullets).toEqual(['Riset teks', 'Latihan']);
-    const penutup = deck.find((s) => s.id === 'penutup');
-    expect(penutup?.bullets).toHaveLength(7);
-    expect(penutup?.bullets?.[0]).toContain('Minggu');
+    expect(deliver?.bullets).toBeUndefined();
+    const checklist = deck.find((s) => s.id === 'a-checklist');
+    expect(checklist?.bullets).toEqual(['Riset teks', 'Latihan']);
+    const penutup = deck.find((s) => s.id === 'penutup-2');
+    expect(penutup?.bullets).toHaveLength(3);
+    expect(deck.find((s) => s.id === 'penutup-1')?.bullets?.[0]).toContain('Minggu');
     expect(deck[0].background).toBe(true);
   });
 
@@ -103,10 +108,10 @@ describe('deck builders', () => {
     expect(bMonolog?.title).toContain('FGD');
     expect(bMonolog?.fields).toHaveLength(3);
     const debat = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, 'Debat', 'DEBAT'));
-    const bDebat = debat.find((s) => s.id === 'b-pola');
-    expect(bDebat?.title).toBe('Arahan Teknis & Alur Debat Hari Minggu');
-    expect(bDebat?.bullets?.join('\n')).toContain('Absensi:');
-    expect(bDebat?.bullets?.join('\n')).toContain('Update monitoring:');
+    const bDebat = debat.find((s) => s.id.startsWith('b-pola'));
+    expect(bDebat?.title).toContain('Arahan Teknis & Alur Debat Hari Minggu');
+    expect(debat.filter((s) => s.id.startsWith('b-pola')).flatMap((s) => s.bullets || []).join('\n')).toContain('Absensi:');
+    expect(debat.filter((s) => s.id.startsWith('b-pola')).flatMap((s) => s.bullets || []).join('\n')).toContain('Update monitoring:');
     const unknown = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
     expect(unknown.find((s) => s.id === 'b-pola')?.title).toContain('FGD');
   });

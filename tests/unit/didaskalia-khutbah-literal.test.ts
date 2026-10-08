@@ -41,6 +41,24 @@ describe('chunkSermonSection (budget layar)', () => {
     expect(chunkSermonSection('---')).toEqual([]);
   });
 
+  it('prosa campur list dipecah di transisi, heading menempel ke isi', () => {
+    const md = 'Intro prosa.\n1. Pertama\n2. Kedua\n\n#### Sub\n* A\n* B';
+    const chunks = chunkSermonSection(md, 9, 5);
+    const flat = chunks.flat();
+    expect(flat[0]).toBe('Intro prosa.');
+    expect(flat[1]).toBe('1. Pertama');
+    const subIdx = flat.findIndex((u) => u.startsWith('####'));
+    expect(subIdx).toBeGreaterThanOrEqual(0);
+    // heading tidak menggantung di akhir chunk
+    for (let i = 0; i < chunks.length - 1; i++) {
+      const last = chunks[i][chunks[i].length - 1];
+      if (/^\s*#{2,4}\s+/.test(last)) {
+        expect(chunks[i].length).toBe(1);
+      }
+    }
+    expect(flat[subIdx + 1]).toBe('* A');
+  });
+
   it('tiap chunk dalam budget: ≤6 baris estimasi & ≤4 bullet', () => {
     const long = Array.from({ length: 10 }, (_, i) => `* Poin ${i + 1} dengan uraian secukupnya agar rapi dibaca.`);
     const chunks = chunkSermonSection(long.join('\n'));

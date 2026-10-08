@@ -98,13 +98,16 @@ describe('khutbahHashFor', () => {
 });
 
 describe('buildPembekalanDeck (garis besar + CTA)', () => {
-  it('garis besar memakai penanda heading ala khotbah + CTA doc 02', () => {
+  it('garis besar dipecah maks 2 komponen per slide + CTA doc 02 di terakhir', () => {
     const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
     const deck = buildPembekalanDeck(content);
-    const garis = deck.find((s) => s.id === 'garis-besar');
-    expect(garis?.paragraphs).toHaveLength(4);
-    expect(garis?.paragraphs?.[1]).toContain('#### 2. Bedah Teologis');
-    expect(garis?.cta).toEqual({
+    const garis = deck.filter((s) => s.id.startsWith('garis-besar'));
+    expect(garis).toHaveLength(2);
+    expect(garis[0].paragraphs).toHaveLength(2);
+    expect(garis[0].paragraphs?.[1]).toContain('#### 2. Bedah Teologis');
+    expect(garis[0].title).toContain('(1/2)');
+    expect(garis[0].cta).toBeUndefined();
+    expect(garis[1].cta).toEqual({
       label: 'Buka Ringkasan Khotbah',
       href: '#/materi/khutbah/2026-10/2',
       text: 'Detail 4 bagian verbatim',
@@ -115,19 +118,36 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     const studio = defaultStudio();
     studio.sermon = { ...studio.sermon, outline: { ...OUTLINE } };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
-    expect(deck.find((s) => s.id === 'a-deliver')).toBeFalsy();
+    expect(deck.find((s) => s.id.startsWith('a-deliver'))).toBeFalsy();
+    expect(deck.find((s) => s.id.startsWith('a-checklist'))).toBeFalsy();
     // Garis besar + CTA tetap ada (callout/cta menjaga slide).
-    expect(deck.find((s) => s.id === 'garis-besar')).toBeTruthy();
+    expect(deck.some((s) => s.id.startsWith('garis-besar'))).toBe(true);
   });
 
-  it('MONOLOG menampilkan seluruh Q (maks 6) + tugas operasional', () => {
+  it('MONOLOG: Q ≤3 per slide + tugas operasional di slide teknis', () => {
     const studio = fullStudio();
     studio.sermon.discussionFlow = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
-    const b = deck.find((s) => s.id === 'b-pola');
-    expect(b?.fields).toHaveLength(6);
-    expect(b?.bullets?.join('\n')).toContain('Absensi:');
-    expect(b?.bullets?.join('\n')).toContain('Update monitoring:');
+    const qSlides = deck.filter((s) => s.id.startsWith('b-pola'));
+    expect(qSlides).toHaveLength(3);
+    expect(qSlides[0].fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3']);
+    expect(qSlides[2].fields?.map((f) => f.label)).toEqual(['Q7']);
+    const teknis = deck.filter((s) => s.id.startsWith('b-teknis')).flatMap((s) => s.bullets || []);
+    expect(teknis.join('\n')).toContain('Absensi:');
+    expect(teknis.join('\n')).toContain('Update monitoring:');
+    for (const t of deck.filter((s) => s.id.startsWith('b-teknis'))) {
+      expect((t.bullets || []).length).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('checklist panjang dipecah ≤4 per slide', () => {
+    const studio = fullStudio();
+    studio.sermon.prepChecklist = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+    const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
+    const checks = deck.filter((s) => s.id.startsWith('a-checklist'));
+    expect(checks).toHaveLength(2);
+    expect(checks[0].bullets).toEqual(['c1', 'c2', 'c3', 'c4']);
+    expect(checks[1].bullets).toEqual(['c5', 'c6']);
   });
 });
 

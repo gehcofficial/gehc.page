@@ -46,7 +46,9 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
           {slide.kicker}
         </p>
       )}
-      <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl text-white drop-shadow' : 'text-2xl sm:text-4xl'}`}>{slide.title}</h1>
+      {slide.title && (
+        <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl text-white drop-shadow' : 'text-2xl sm:text-4xl'}`}>{slide.title}</h1>
+      )}
       {slide.subtitle && <p className={`text-sm sm:text-base ${isBg ? 'text-white/85' : 'text-white/70 print:text-black/70'}`}>{slide.subtitle}</p>}
       {!isBg && img && (
         <img src={img} alt="" loading="lazy" className="w-full max-h-[42vh] object-cover rounded-2xl border border-white/10" />

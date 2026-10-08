@@ -37,7 +37,8 @@ export type DeckSlide = {
   id: string;
   kind: 'cover' | 'section' | 'path' | 'closing';
   kicker?: string;
-  title: string;
+  /** Judul besar opsional — slide potongan khutbah 02 tidak memakainya (cukup kicker). */
+  title?: string;
   subtitle?: string;
   imageFileId?: string;
   /** Cover: gambar dipakai full-bleed sebagai background + teks overlay. */
@@ -207,6 +208,23 @@ export function khutbahHashFor(content: PresentationContent): string {
   return `#/materi/khutbah/${ym}/${content.weekIndex}`;
 }
 
+/** Pecah array menjadi halaman ≤n item (pagination slide baca, ala chunk khutbah). */
+export function chunkForSlides<T>(items: T[], max = 4): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += max) out.push(items.slice(i, i + max));
+  return out;
+}
+
+/** Nomor halaman ala khotbah (`Judul (1/2)`, kicker `· 1/2`) bila >1 slide. */
+function paginateSlides(slides: DeckSlide[]): DeckSlide[] {
+  if (slides.length <= 1) return slides;
+  return slides.map((s, i) => ({
+    ...s,
+    kicker: `${s.kicker || ''} · ${i + 1}/${slides.length}`.replace(/^ · /, ''),
+    title: `${s.title} (${i + 1}/${slides.length})`,
+  }));
+}
+
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   const { paths, images, sermon } = content;
   const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
@@ -223,77 +241,126 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         'Sesuaikan dengan tema dan audiens minggu ini.',
         'Tutup dengan komitmen & doa.',
       ];
-  const slides: DeckSlide[] = [
-    // 1. Cover (tanpa bigIdea AI — standar literal).
-    {
-      id: 'cover',
-      kind: 'cover',
-      kicker: `Modul Pembekalan · Pekan ${content.weekIndex}`,
-      title: content.theme || content.kitabFokus || `Pekan ${content.weekIndex}`,
-      subtitle: weekCoverSubtitle(content),
-      imageFileId: images.cover,
-      background: true,
-      callout: content.fundamentalFirman?.text
-        ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
-        : undefined,
-      fields: [
-        sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,
-        content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
-      ].filter(Boolean) as { label: string; value: string }[],
-    },
-    // 2. Garis besar 4 komponen (ekstrak verbatim) + CTA ke doc 02.
-    //    Sengaja BUKAN salinan literal penuh — detail ada di Ringkasan Khotbah.
-    //    Paragraf memakai penanda `####` agar MdBlocks memberi highlight
-    //    ala khotbah (label bagian + takeaway emas bila kalimat kunci cocok).
-    {
-      id: 'garis-besar',
-      kind: 'section',
-      kicker: 'Garis Besar · 4 Komponen',
-      title: content.theme || 'Alur Pekan',
-      paragraphs: garis.map((g) => `#### ${g.no}. ${g.title}\n\n${g.sentence}`),
-      callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02).' },
-      cta: { label: 'Buka Ringkasan Khotbah', href: khutbahHref, text: 'Detail 4 bagian verbatim' },
-    },
-    // 3. Bagian A — panduan deliver per metode + checklist (tanpa full literal).
-    {
+
+  // 1. Cover (tanpa bigIdea AI — standar literal).
+  const cover: DeckSlide = {
+    id: 'cover',
+    kind: 'cover',
+    kicker: `Modul Pembekalan · Pekan ${content.weekIndex}`,
+    title: content.theme || content.kitabFokus || `Pekan ${content.weekIndex}`,
+    subtitle: weekCoverSubtitle(content),
+    imageFileId: images.cover,
+    background: true,
+    callout: content.fundamentalFirman?.text
+      ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
+      : undefined,
+    fields: [
+      sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,
+      content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
+    ].filter(Boolean) as { label: string; value: string }[],
+  };
+
+  // 2. Garis besar 4 komponen (ekstrak verbatim) — maks 2 komponen per slide
+  //    agar terbaca tanpa scroll; CTA ke doc 02 di slide terakhir.
+  //    Paragraf memakai penanda `####` agar MdBlocks memberi highlight
+  //    ala khotbah (label bagian + takeaway emas bila kalimat kunci cocok).
+  const garisChunks = chunkForSlides(garis, 2);
+  const garisSlides: DeckSlide[] = (garisChunks.length ? garisChunks : [[]]).map((chunk, ci, arr) => ({
+    id: `garis-besar${arr.length > 1 ? `-${ci + 1}` : ''}`,
+    kind: 'section' as const,
+    kicker: 'Garis Besar · 4 Komponen',
+    title: content.theme || 'Alur Pekan',
+    paragraphs: chunk.map((g) => `#### ${g.no}. ${g.title}\n\n${g.sentence}`),
+    ...(ci === arr.length - 1
+      ? {
+        callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02).' } as { label: string; value: string },
+        cta: { label: 'Buka Ringkasan Khotbah', href: khutbahHref, text: 'Detail 4 bagian verbatim' },
+      }
+      : {}),
+  }));
+
+  // 3. Bagian A — 1 slide per jenis (deliver, lalu checklist ≤4 per slide).
+  const bagianA: DeckSlide[] = [];
+  const planFields = (sermon.deliveryPlan || []).map((d) => ({ label: d.method || 'Metode', value: d.how }));
+  if (planFields.length) {
+    bagianA.push({
       id: 'a-deliver',
       kind: 'section',
       kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Panduan Deliver & Checklist Persiapan',
-      fields: (sermon.deliveryPlan || []).map((d) => ({ label: d.method || 'Metode', value: d.how })),
-      bullets: sermon.prepChecklist || [],
-    },
-    // 4. Bagian B — arahan teknis pola + alur + absensi/monitoring.
-    {
-      id: 'b-pola',
+      title: 'Panduan Deliver per Metode',
+      fields: planFields,
+    });
+  }
+  chunkForSlides(sermon.prepChecklist || [], 4).forEach((items, ci, arr) => {
+    bagianA.push({
+      id: `a-checklist${arr.length > 1 ? `-${ci + 1}` : ''}`,
       kind: 'section',
-      kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-      title: isMonolog
-        ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu'
-        : `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
-      paragraphs: isMonolog
-        ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
-        : undefined,
-      fields: isMonolog
-        ? flow.slice(0, 6).map((q, i) => ({ label: `Q${i + 1}`, value: q }))
-        : undefined,
-      bullets: [
-        ...patternTechnicalBullets(content.patternCode, content.patternName),
-        ...flowBullets,
-        ...mentorOpsBullets(),
-      ],
-    },
-    // 5. Penutup — gambaran 7 hari + doa syafaat.
-    {
-      id: 'penutup',
-      kind: 'closing',
-      kicker: 'Penutup',
-      title: 'Tutup dengan doa syafaat',
-      bullets: paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`),
-      paragraphs: [
-        'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
-      ],
-    },
+      kicker: `Bagian A · Untuk ${deliverer}`,
+      title: 'Checklist Persiapan Khotbah',
+      bullets: items,
+    });
+  });
+
+  // 4. Bagian B — arahan teknis pola + alur + absensi/monitoring.
+  //    Q ≤3 per slide, bullet teknis ≤4 per slide (baca tanpa scroll).
+  const tech = patternTechnicalBullets(content.patternCode, content.patternName);
+  const ops = mentorOpsBullets();
+  const bagianB: DeckSlide[] = [];
+  if (isMonolog) {
+    const qChunks = chunkForSlides(flow, 3);
+    (qChunks.length ? qChunks : [[]]).forEach((qs, qi, arr) => {
+      bagianB.push({
+        id: `b-pola${qi > 0 || arr.length > 1 ? `-${qi + 1}` : ''}`,
+        kind: 'section',
+        kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+        title: qi === 0 ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu' : 'Pertanyaan FGD (lanjutan)',
+        paragraphs: qi === 0
+          ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
+          : undefined,
+        fields: qs.map((q, i) => ({ label: `Q${qi * 3 + i + 1}`, value: q })),
+      });
+    });
+    chunkForSlides([...tech, ...ops], 4).forEach((items, ci, arr) => {
+      bagianB.push({
+        id: `b-teknis${arr.length > 1 ? `-${ci + 1}` : ''}`,
+        kind: 'section',
+        kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+        title: 'Arahan Teknis & Tugas Operasional',
+        bullets: items,
+      });
+    });
+  } else {
+    chunkForSlides([...tech, ...flowBullets, ...ops], 4).forEach((items, ci, arr) => {
+      bagianB.push({
+        id: `b-pola${arr.length > 1 ? `-${ci + 1}` : ''}`,
+        kind: 'section',
+        kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+        title: `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
+        bullets: items,
+      });
+    });
+  }
+
+  // 5. Penutup — gambaran 7 hari ≤4 per slide, doa di slide terakhir.
+  const dayBullets = paths.map((p, i) => `${p.dayLabel || DAY_LABELS[i]} — ${p.title}${p.summary ? `: ${p.summary}` : ''}`);
+  const dayChunks = chunkForSlides(dayBullets, 4);
+  const penutupSlides: DeckSlide[] = (dayChunks.length ? dayChunks : [[]]).map((items, ci, arr) => ({
+    id: `penutup${arr.length > 1 ? `-${ci + 1}` : ''}`,
+    kind: 'closing' as const,
+    kicker: 'Penutup',
+    title: ci === arr.length - 1 ? 'Tutup dengan doa syafaat' : 'Gambaran 7 hari',
+    bullets: items,
+    paragraphs: ci === arr.length - 1
+      ? ['Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.']
+      : undefined,
+  }));
+
+  const slides: DeckSlide[] = [
+    cover,
+    ...paginateSlides(garisSlides),
+    ...paginateSlides(bagianA),
+    ...paginateSlides(bagianB),
+    ...paginateSlides(penutupSlides),
   ];
 
   // Buang slide opsional yang kosong (mis. belum ada deliveryPlan/checklist).
@@ -414,7 +481,9 @@ export const KHUTBAH_CHUNK_MAX_BULLETS = 4;
 /** Lebar acuan estimasi baris (±karakter per baris pada text-base/xl mobile). */
 const KHUTBAH_LINE_WIDTH = 48;
 
-const UNIT_LINE_RE = /^\s*(#{2,4}\s+|> ?|[*\-]\s+|\d+[.)]\s+|---+\s*$)/;
+const HEADING_RE = /^\s*#{2,4}\s+/;
+const LIST_ITEM_RE = /^\s*([*\-]|\d+[.)])\s+/;
+const QUOTE_RE = /^\s*>\s?/;
 
 /** Unit adalah "sampah" (pemisah/divider) bila tak ada huruf tersisa setelah kupas markup. */
 function isNoiseUnit(u: string): boolean {
@@ -433,6 +502,25 @@ function isBulletUnit(u: string): boolean {
   return /^\s*([*\-]|\d+[.)])\s+/.test(u);
 }
 
+/** Pecah unit raksasa (quote/prosa panjang) jadi potongan muat-layar — list & heading utuh. */
+function splitOversizeUnit(u: string, maxLines: number): string[] {
+  if (estimateUnitLines(u) <= maxLines) return [u];
+  if (HEADING_RE.test(u) || isBulletUnit(u)) return [u];
+  const pieces: string[] = [];
+  const lines = u.split('\n').map((l) => l.trim()).filter(Boolean);
+  const quote = lines.length > 0 && lines.every((l) => QUOTE_RE.test(l));
+  for (const line of lines) {
+    if (estimateUnitLines(line) <= maxLines) { pieces.push(line); continue; }
+    const sents = line.split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+    if (sents.length > 1 && sents.every((s) => estimateUnitLines((quote ? '> ' : '') + s) <= maxLines)) {
+      for (const s of sents) pieces.push(quote && !QUOTE_RE.test(s) ? `> ${s}` : s);
+    } else {
+      pieces.push(line);
+    }
+  }
+  return pieces.length ? pieces : [u];
+}
+
 /**
  * Pecah satu bagian outline (verbatim MD) menjadi N chunk muat-layar.
  * - Tidak memotong kalimat — batas hanya antar-unit (paragraf / baris bullet).
@@ -440,14 +528,24 @@ function isBulletUnit(u: string): boolean {
  * - Chunk sampah (hanya `---`/kosong) dibuang — tak jadi slide kosong.
  */
 export function chunkSermonSection(text?: string, maxLines = KHUTBAH_CHUNK_MAX_LINES, maxBullets = KHUTBAH_CHUNK_MAX_BULLETS): string[][] {
+  // Segmentasi per baris: heading selalu unit sendiri; tiap item list unit sendiri
+  // (boleh menempel ke heading); run quote/prosa berkelompok. Transisi = batas.
   const units: string[] = [];
   for (const para of toParagraphs(text)) {
     const lines = para.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (lines.length > 1 && lines.every((l) => UNIT_LINE_RE.test(l))) {
-      units.push(...lines);
-    } else {
-      units.push(para);
+    if (lines.length <= 1) { units.push(para); continue; }
+    let buf: string[] = [];
+    let mode: 'list' | 'quote' | 'other' | null = null;
+    const flush = () => { if (buf.length) units.push(buf.join('\n')); buf = []; mode = null; };
+    for (const l of lines) {
+      if (HEADING_RE.test(l)) { flush(); units.push(l); continue; }
+      const m = LIST_ITEM_RE.test(l) ? 'list' : QUOTE_RE.test(l) ? 'quote' : 'other';
+      if (m === 'list') { flush(); units.push(l); continue; }
+      if (mode !== null && m !== mode) flush();
+      mode = m;
+      buf.push(l);
     }
+    flush();
   }
   const chunks: string[][] = [];
   let cur: string[] = [];
@@ -460,7 +558,9 @@ export function chunkSermonSection(text?: string, maxLines = KHUTBAH_CHUNK_MAX_L
     lines = 0;
     bullets = 0;
   };
-  for (const u of units) {
+  const sized: string[] = [];
+  for (const u of units) sized.push(...splitOversizeUnit(u, maxLines));
+  for (const u of sized) {
     const ul = estimateUnitLines(u);
     const ub = isBulletUnit(u) ? 1 : 0;
     if (cur.length > 0 && (lines + ul > maxLines || bullets + ub > maxBullets)) push();
@@ -469,7 +569,25 @@ export function chunkSermonSection(text?: string, maxLines = KHUTBAH_CHUNK_MAX_L
     bullets += ub;
   }
   if (cur.length) push();
-  return chunks;
+  // Heading tak boleh menggantung di akhir chunk — pindahkan ke chunk berikut.
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const c = chunks[i];
+    const trailing: string[] = [];
+    while (c.length > 1 && HEADING_RE.test(c[c.length - 1])) trailing.unshift(c.pop() as string);
+    if (trailing.length) chunks[i + 1].unshift(...trailing);
+  }
+  // Chunk berisi heading saja (tanpa isi) digabung ke chunk berikut/terdahulu.
+  let hi = 0;
+  while (hi < chunks.length) {
+    const c = chunks[hi];
+    if (c.length > 0 && c.every((u) => HEADING_RE.test(u))) {
+      const moved = c.splice(0, c.length);
+      if (hi + 1 < chunks.length) chunks[hi + 1].unshift(...moved);
+      else if (hi > 0) chunks[hi - 1].push(...moved);
+    }
+    hi++;
+  }
+  return chunks.filter((c) => c.some((u) => !isNoiseUnit(u)));
 }
 
 /**
@@ -483,6 +601,7 @@ export function literalKhutbahSlides(
   kickerPrefix: string,
   idPrefix: string,
   firstSlideBullets?: string[],
+  opts?: { bareTitle?: boolean; maxLines?: number; maxBullets?: number },
 ): DeckSlide[] {
   const { sermon, images } = content;
   const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
@@ -491,14 +610,15 @@ export function literalKhutbahSlides(
   let first = true;
   (Object.keys(KHUTBAH_OUTLINE_SECTIONS) as KhutbahOutlineKey[]).forEach((key) => {
     const meta = KHUTBAH_OUTLINE_SECTIONS[key];
-    const chunks = chunkSermonSection(outline[key]);
+    const chunks = chunkSermonSection(outline[key], opts?.maxLines ?? KHUTBAH_CHUNK_MAX_LINES, opts?.maxBullets ?? KHUTBAH_CHUNK_MAX_BULLETS);
     const imgId = literal[key] || images.cover;
     chunks.forEach((paragraphs, ci) => {
+      const numbered = chunks.length > 1;
       slides.push({
-        id: `${idPrefix}-${key}${chunks.length > 1 ? `-${ci + 1}` : ''}`,
+        id: `${idPrefix}-${key}${numbered ? `-${ci + 1}` : ''}`,
         kind: 'section',
-        kicker: `${kickerPrefix} · ${meta.no} ${meta.title}${chunks.length > 1 ? ` · ${ci + 1}/${chunks.length}` : ''}`,
-        title: chunks.length > 1 ? `${meta.heading} (${ci + 1}/${chunks.length})` : meta.heading,
+        kicker: `${kickerPrefix} · ${meta.no} ${meta.title}${numbered ? ` · ${ci + 1}/${chunks.length}` : ''}`,
+        title: opts?.bareTitle ? undefined : (numbered ? `${meta.heading} (${ci + 1}/${chunks.length})` : meta.heading),
         imageFileId: imgId,
         background: Boolean(imgId),
         bullets: first && firstSlideBullets?.length ? firstSlideBullets : undefined,
@@ -527,7 +647,7 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
         content.fundamentalFirman?.ref ? { label: 'Teks Jangkar Mingguan', value: content.fundamentalFirman.ref } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
-    ...literalKhutbahSlides(content, 'Outline', 'outline'),
+    ...literalKhutbahSlides(content, 'Outline', 'outline', undefined, { bareTitle: true, maxLines: 9, maxBullets: 5 }),
   ];
   return slides;
 }

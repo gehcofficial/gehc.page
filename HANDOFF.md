@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Pembekalan 01 pagination baca tanpa scroll (8 Okt 2026)
+
+**Kebutuhan:** deck 01 slide-nya sedikit tapi tiap slide panjang (scroll ke bawah). Minta gaya baca enak ala pola khutbah; bila perlu jadi beberapa halaman.
+
+**Ubah (kode, belum commit):** `didaskalia-presentation.ts` — helper `chunkForSlides` + `paginateSlides` (nomor `(1/2)` + kicker `· 1/2` ala khutbah); `buildPembekalanDeck` dipecah: garis-besar ≤2 komponen/slide (CTA doc 02 di terakhir), Bagian A = slide deliver + checklist ≤4/slide, Bagian B MONOLOG = Q ≤3/slide + teknis ≤4/slide (non-MONOLOG: bullet ≤4/slide), penutup ≤4 hari/slide (doa di terakhir) • test selaraskan (presentation + garis-besar +1).
+
+**Verifikasi:** `lint` bersih ✓ full suite **981 hijau** (flaky `lazy-routes` lolos run ini) ✓ `build` OK ✓
+
+**Next:** QA visual HP (cek tak ada scroll per slide) • commit + push + `staging:sync`.
+
 ## Current — Pembekalan 01 gaya khotbah: garis besar 4 komponen + CTA doc 02 (8 Okt 2026)
 
 **Kebutuhan:** samakan modul Pembekalan (01) ke standar khotbah literal + md-lite; ringkasan di 01 cukup garis besar 4 komponen (detail di doc 02); pertanyaan mentor/co-mentor ikut standar pola-aware terbaru.
@@ -55,6 +65,14 @@
 **Ubah (belum commit):** `chunkSermonSection` → budget POV presentasi (≤6 baris estimasi / ≤4 bullet, pecah di batas bullet, tanpa potong kalimat) + chunk sampah (`---`/kosong) dibuang via `isNoiseUnit`. PDF tak berubah (sudah alir-penuh per bagian — "cetak muncul semua" terpenuhi).
 
 **Deploy budget slide (8 Okt 2026, ~23:10):** merge `cursor/khutbah-slide-budget` → main (`62b2935`) + push + `staging:sync` ✓. Prod = `62b2935` ✓.
+
+## Current — Judul chunk dihapus + merger slide (9 Okt 2026, uncommitted di main)
+
+**Kebutuhan:** judul besar + counter redundan dengan kicker (makan space); page 8+9 bisa gabung.
+
+**Ubah (belum commit):** `DeckSlide.title` opsional + `SlideView` lewati `<h1>` kosong; `literalKhutbahSlides` opts `{bareTitle, maxLines, maxBullets}` — deck 02: tanpa judul + budget 9 baris/5 bullet (pembekalan tak ikut). Splitter v2: segmentasi per baris (heading unit sendiri, tiap item list unit sendiri, quote/prosa run), `splitOversizeUnit` untuk quote/prosa raksasa (list & heading utuh), heading dilarang menggantung/menyendiri. Catatan: sesi konkuren merombak pembekalan 01 (garis besar 4 komponen + CTA, commit `c8aa2dd`) — tak bentrok, deck 02 tetap literal penuh.
+
+**Verifikasi:** `lint` bersih • full suite **981 hijau** • prod W2: 18 slide tanpa judul ganda, ke-4 gambar bagian sudah terisi (kamu generate via Studio ✓ — semua slide bg=true), frasa MD lengkap, tanpa teks AI.
 
 **Reset kuota ilustrasi (9 Okt 2026):** prod W2 penuh 8/8 (6 legacy slide-index AI + 2 literal). Peta legacy `khutbah` dikosongkan (tak dirender deck literal; file Drive utuh, ID lama di snapshot settlement) → kuota 2/8. Sisa: generate `jembatan` + `kesimpulan` via Studio. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
