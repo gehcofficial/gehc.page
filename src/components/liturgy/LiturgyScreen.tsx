@@ -89,6 +89,9 @@ export const LiturgyScreen: React.FC = () => {
           <button type="button" onClick={submitCode} className="w-full px-4 py-3 rounded-xl bg-white text-black font-black">
             Buka Layar
           </button>
+          <div className="pt-1 flex justify-center">
+            <PortalBackButton dark />
+          </div>
         </div>
       </div>
     );

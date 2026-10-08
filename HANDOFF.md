@@ -6,7 +6,7 @@
 
 **Ubah:** `src/lib/portal-place.ts` baru (ekstrak dari didaskalia-presentation + re-export, anti duplikasi) + `portalLiturgiaHref` (posisi div-liturgia → tab Liturgia ns aktif → fallback) → `PortalBackButton` di header Layar (dark) + Kontrol → `LiturgyOrderPanel` catat posisi sebelum ke kontrol → `LiturgyControl`: konfirmasi Selesai + pertahankan posisi (tak di-null) + tombol **Aktifkan ulang** saat DONE (lanjut posisi / momen pertama) → test `portal-place.test.ts` (+6).
 
-**Verifikasi:** `lint` bersih ✓ full suite (1 flaky lolos rerun) ✓ `build` OK ✓ (menyusul: push + sync + reset live prod + cek visual)
+**Verifikasi:** `lint` bersih ✓ **926 test** hijau (1 flaky lolos rerun) ✓ `build` OK ✓ QA visual Playwright **8/8** (layar+kontrol render, tombol Portal Liturgia di header + form kode) ✓ live event 11 Okt prod → DRAFT ✓
 
 **Next:** operator susun order event 11 Okt (cantolkan 'Ku Berbahagia) → Terapkan draft AI → latihan LIVE → hari-H.
 

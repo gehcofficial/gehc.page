@@ -38,6 +38,7 @@ const ok = (label, cond) => {
   ok('layar: tanpa React #306', !layarText.includes('Minified React error'));
   ok('layar: tanpa "Portal gagal dimuat"', !layarText.includes('Portal gagal dimuat'));
   ok('layar: form kode proyektor tampil', layarText.includes('Layar Tata Ibadah'));
+  ok('layar: tombol Portal Liturgia ada', layarText.includes('Portal Liturgia'));
 
   // 2. Kontrol tanpa login → panel kontrol + pesan login (bukan boundary).
   await page.goto(`${BASE}/#/ibadah/${KEY}/kontrol`, { waitUntil: 'networkidle' });
@@ -46,6 +47,7 @@ const ok = (label, cond) => {
   ok('kontrol: tanpa React #306', !kontrolText.includes('Minified React error'));
   ok('kontrol: tanpa "Portal gagal dimuat"', !kontrolText.includes('Portal gagal dimuat'));
   ok('kontrol: panel kontrol tampil', kontrolText.includes('Kontrol Tata Ibadah'));
+  ok('kontrol: tombol Portal Liturgia ada', kontrolText.includes('Portal Liturgia'));
 
   await browser.close();
   console.log(`\n✓ QA LAYAR LULUS (${pass} cek).`);
