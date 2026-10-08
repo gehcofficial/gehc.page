@@ -14,7 +14,7 @@ const MD_BEDAH = [
   'Poin Utama bagi Anak Muda: status kita diubahkan secara permanen.',
 ].join('\n\n');
 
-describe('chunkSermonSection (literal-MD)', () => {
+describe('chunkSermonSection (budget layar)', () => {
   it('bagian kosong menghasilkan nol chunk', () => {
     expect(chunkSermonSection('')).toEqual([]);
     expect(chunkSermonSection(undefined)).toEqual([]);
@@ -29,10 +29,26 @@ describe('chunkSermonSection (literal-MD)', () => {
     ]);
   });
 
-  it('bagian panjang dipecah antar-paragraf tanpa mengubah kata', () => {
-    const chunks = chunkSermonSection(MD_BEDAH, 150, 2);
+  it('budget diketatkan memecah di batas bullet tanpa mengubah kata', () => {
+    const chunks = chunkSermonSection(MD_BEDAH, 3, 2);
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.flat()).toEqual(MD_BEDAH.split('\n\n'));
+  });
+
+  it('chunk sampah (pemisah ---) dibuang, tak jadi slide kosong', () => {
+    const chunks = chunkSermonSection('Isi bagian.\n\n---');
+    expect(chunks).toEqual([['Isi bagian.']]);
+    expect(chunkSermonSection('---')).toEqual([]);
+  });
+
+  it('tiap chunk dalam budget: ≤6 baris estimasi & ≤4 bullet', () => {
+    const long = Array.from({ length: 10 }, (_, i) => `* Poin ${i + 1} dengan uraian secukupnya agar rapi dibaca.`);
+    const chunks = chunkSermonSection(long.join('\n'));
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(c.length).toBeLessThanOrEqual(4);
+      expect(c.every((u) => u.trim().length > 0)).toBe(true);
+    }
   });
 });
 
