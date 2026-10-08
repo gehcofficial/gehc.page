@@ -1,5 +1,11 @@
 # GEHC Portal — Handoff
 
+## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
+
+**Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
+
+**Verifikasi:** `lint` bersih ✓ **957+ test** hijau ✓ `build` OK ✓ QA visual Playwright **11/11** (layar/kontrol/hari, tanpa boundary) ✓ tanpa migrasi ✓
+
 ## Current — Khutbah literal-MD + settlement W2 2026-10 (8 Okt 2026, branch `cursor/literal-md-khutbah`)
 
 **Kebutuhan:** ringkasan khotbah website (doc 02) hasil AI beda dari MD Service member Didaskalia. Admin putuskan: full literal — 4 bagian MD verbatim, chunk rapi, nav atas + swipe, gambar AI per bagian sebagai background.
