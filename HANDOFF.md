@@ -44,7 +44,7 @@
 
 **Ubah (belum commit):** `chunkSermonSection` → budget POV presentasi (≤6 baris estimasi / ≤4 bullet, pecah di batas bullet, tanpa potong kalimat) + chunk sampah (`---`/kosong) dibuang via `isNoiseUnit`. PDF tak berubah (sudah alir-penuh per bagian — "cetak muncul semua" terpenuhi).
 
-**Verifikasi:** `lint` bersih • full suite hijau (966 test) • deck W2: 12 → **18 slide** (cover + 17 isi), semua frasa MD ada, tak ada slide kosong. Catatan: 1–2 bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit — tak bisa dipecah tanpa memotong kalimat (aturan verbatim).
+**Deploy budget slide (8 Okt 2026, ~23:10):** merge `cursor/khutbah-slide-budget` → main (`62b2935`) + push + `staging:sync` ✓. Prod = `62b2935` ✓. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
