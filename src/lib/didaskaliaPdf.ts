@@ -332,13 +332,6 @@ export type PdfOptions = {
   monthLabel?: string;
   version?: number;
   coverImage?: string;
-  pathImages?: Record<number, string>;
-  /** Gambar per section RHB: { [pathIndex]: { [sectionKey]: dataUrl } } */
-  rhbSectionImages?: Record<number, Record<string, string>>;
-  /** Gambar band cover per hari RHB: { [pathIndex]: dataUrl } */
-  rhbCoverImages?: Record<number, string>;
-  /** Ilustrasi AI per slide ringkasan khotbah (legacy): { [slideIndex]: dataUrl } */
-  khutbahSlideImages?: Record<number, string>;
   /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: dataUrl } */
   khutbahSectionImages?: Record<string, string>;
   /** Ilustrasi harian RHB (AI per hari → upload hero → cover pekan): { [pathIndex]: dataUrl } */

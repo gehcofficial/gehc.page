@@ -31,16 +31,16 @@ describe('buildRhbDayDeck (gambar harian ala khutbah)', () => {
     }
   });
 
-  it('tanpa AI: upload hero hari dipakai; tanpa harian: fallback section plain', () => {
+  it('tanpa AI: fallback cover pekan; gambar section lama diabaikan', () => {
     const studio = studioWithFullDay();
     const content = contentFromStudio(studio, 1, '', '');
-    content.images = { rhb: { '3': { PENGANTAR: 'file-abc' } } };
+    content.images = { cover: 'pekan-cover', rhb: { '3': { PENGANTAR: 'file-abc', cover: 'upload-cover' } } };
     const deck = buildRhbDayDeck(content, 3);
-    // Cover tanpa gambar (tak ada harian maupun cover pekan).
-    expect(deck[0].imageFileId).toBeUndefined();
+    // Cover memakai fallback cover pekan (bukan hero/section lama).
+    expect(deck[0].imageFileId).toBe('pekan-cover');
     const sec = deck.find((s) => s.id === 'sec-PENGANTAR');
-    expect(sec?.imageFileId).toBe('file-abc');
-    expect(sec?.background).toBe(false);
+    expect(sec?.imageFileId).toBe('pekan-cover');
+    expect(sec?.background).toBe(true);
   });
 
   it('section panjang di-chunk bernomor ala khutbah', () => {

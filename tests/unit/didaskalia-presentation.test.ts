@@ -163,17 +163,30 @@ describe('deck builders', () => {
     expect(labels).toContain('Nats Pembimbing');
   });
 
-  it('RHB harian memakai gambar harian di semua slide (fallback section bila kosong)', () => {
+  it('RHB harian memakai gambar AI harian di semua slide (section lama diabaikan)', () => {
     const studio = studioWithRhb();
     const content = contentFromStudio(studio, 1, '', '');
-    content.images = { rhb: { '2': { PENGANTAR: 'file-abc', cover: 'file-cover' } } };
+    content.images = { rhbAi: { '2': 'ai-day-2' }, cover: 'pekan-cover', rhb: { '2': { PENGANTAR: 'file-abc', cover: 'file-cover' } } };
     const deck = buildRhbDayDeck(content, 2);
-    expect(deck[0].imageFileId).toBe('file-cover');
-    // Gambar harian menang atas gambar section lama + mode background.
+    expect(deck[0].imageFileId).toBe('ai-day-2');
+    // Gambar section/hero lama kalah oleh AI harian + mode background.
     const sec = deck.find((s) => s.id === 'sec-PENGANTAR');
-    expect(sec?.imageFileId).toBe('file-cover');
+    expect(sec?.imageFileId).toBe('ai-day-2');
     expect(sec?.background).toBe(true);
-    expect(deck[deck.length - 1].imageFileId).toBe('file-cover');
+    expect(deck[deck.length - 1].imageFileId).toBe('ai-day-2');
+  });
+
+  it('RHB tanpa AI harian: fallback cover pekan; tanpa itu: plain tanpa gambar', () => {
+    const studio = studioWithRhb();
+    const content = contentFromStudio(studio, 1, '', '');
+    content.images = { cover: 'pekan-cover', rhb: { '2': { PENGANTAR: 'file-abc' } } };
+    const deck = buildRhbDayDeck(content, 2);
+    expect(deck[0].imageFileId).toBe('pekan-cover');
+    const sec = deck.find((s) => s.id === 'sec-PENGANTAR');
+    expect(sec?.imageFileId).toBe('pekan-cover');
+    expect(sec?.background).toBe(true);
+    const bare = buildRhbDayDeck(contentFromStudio(studio, 1, '', ''), 2);
+    expect(bare[0].imageFileId).toBeUndefined();
   });
 
   it('rhbDayList mengembalikan 7 hari', () => {

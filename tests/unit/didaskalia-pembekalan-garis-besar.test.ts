@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildKhutbahDeck,
   buildPembekalanDeck,
+  buildRhbDayDeck,
   contentFromStudio,
   extractGarisBesar,
   extractKeySentence,
   khutbahHashFor,
 } from '../../src/lib/didaskalia-presentation';
 import { buildPembekalanCaption } from '../../src/lib/rhb-caption';
-import { defaultStudio } from '../../src/lib/didaskalia';
+import { defaultStudio, ensureRhbSections } from '../../src/lib/didaskalia';
 
 const OUTLINE = {
   pengantar: 'Manusia mengira masalah terbesar adalah finansial dan masa depan. Padahal masalah terbesar adalah dosa yang memisahkan dari Allah yang Mahasuci.',
@@ -140,8 +142,7 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     }
   });
 
-  it('penutup 1 slide ringkas: baris standar hari + judul + CTA RHB', () => {
-    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
+  it('penutup 1 slide ringkas: baris standar hari + judul + CTA RHB', () => {    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
     const deck = buildPembekalanDeck(content);
     const tutup = deck.filter((s) => s.id.startsWith('penutup'));
     expect(tutup).toHaveLength(1);
@@ -177,5 +178,37 @@ describe('caption pembekalan (tanpa bigIdea AI)', () => {
     expect(text).toContain('2 Korintus 5:21');
     expect(text).toContain('https://youth.gehc.page/#/materi/pembekalan/2026-10/2');
     expect(text).toContain('https://youth.gehc.page/#/materi/khutbah/2026-10/2');
+  });
+});
+
+describe('hideTitle (cakupan: pembekalan + RHB, khutbah utuh)', () => {
+  it('semua slide isi pembekalan tanpa h1; cover + penutup tetap bertitel', () => {
+    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
+    const deck = buildPembekalanDeck(content);
+    for (const s of deck) {
+      if (s.id === 'cover' || s.id === 'penutup') expect(s.hideTitle).toBeFalsy();
+      else expect(s.hideTitle).toBe(true);
+    }
+  });
+
+  it('slide section RHB tanpa h1; cover + closing tetap bertitel', () => {
+    const studio = fullStudio();
+    studio.paths[0] = {
+      ...studio.paths[0],
+      rhbSections: ensureRhbSections(studio.paths[0].rhbSections).map((s) => (s.key === 'PENGANTAR' ? { ...s, body: 'Isi pengantar.' } : s)),
+    };
+    const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'), 1);
+    expect(deck.some((s) => s.kind === 'section')).toBe(true);
+    for (const s of deck) {
+      if (s.kind === 'section') expect(s.hideTitle).toBe(true);
+      else expect(s.hideTitle).toBeFalsy();
+    }
+  });
+
+  it('deck khutbah tidak tersentuh (tetap pakai h1)', () => {
+    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
+    const deck = buildKhutbahDeck(content);
+    expect(deck.length).toBeGreaterThan(1);
+    for (const s of deck) expect(s.hideTitle).toBeFalsy();
   });
 });

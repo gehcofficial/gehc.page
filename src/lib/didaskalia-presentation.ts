@@ -49,6 +49,11 @@ export type DeckSlide = {
   callout?: { label: string; value: string };
   /** Tautan aksi (mis. garis besar → doc Ringkasan Khotbah 02). */
   cta?: { label: string; href: string; text: string };
+  /**
+   * Sembunyikan judul besar (h1) — identitas cukup dari kicker.
+   * Dipakai slide isi pembekalan & RHB (khotbah tidak tersentuh).
+   */
+  hideTitle?: boolean;
 };
 
 export type PresentationContent = {
@@ -285,6 +290,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     kind: 'section' as const,
     kicker: 'Garis Besar · 4 Komponen',
     title: content.theme || 'Alur Pekan',
+    hideTitle: true,
     paragraphs: chunk.map((g) => `#### ${g.no}. ${g.title}\n\n${g.sentence}`),
     ...(ci === arr.length - 1
       ? {
@@ -303,6 +309,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       kind: 'section',
       kicker: `Bagian A · Untuk ${deliverer}`,
       title: 'Panduan Deliver per Metode',
+      hideTitle: true,
       fields: planFields,
     });
   }
@@ -312,6 +319,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       kind: 'section',
       kicker: `Bagian A · Untuk ${deliverer}`,
       title: 'Checklist Persiapan Khotbah',
+      hideTitle: true,
       bullets: items,
     });
   });
@@ -329,6 +337,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         kind: 'section',
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: qi === 0 ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu' : 'Pertanyaan FGD (lanjutan)',
+        hideTitle: true,
         paragraphs: qi === 0
           ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
           : undefined,
@@ -341,6 +350,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         kind: 'section',
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: 'Arahan Teknis & Tugas Operasional',
+        hideTitle: true,
         bullets: items,
       });
     });
@@ -351,6 +361,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         kind: 'section',
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
+        hideTitle: true,
         bullets: items,
       });
     });
@@ -442,11 +453,10 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
   const path = paths[dayIndex - 1];
   if (!path) return [];
   const sections = effectiveRhbSections(path);
-  const perDay = content.images.rhb?.[String(dayIndex)] || {};
   const rhbAi = content.images.rhbAi && typeof content.images.rhbAi === 'object' ? content.images.rhbAi : {};
-  // 1 gambar harian berlaku untuk SEMUA halaman hari itu (prinsip khutbah:
-  // tulisan di atas gambar). Rantai fallback bila harian kosong.
-  const daily = rhbAi[String(dayIndex)] || perDay.cover || path.coverImageFileId || undefined;
+  // Standar visual RHB: 1 gambar AI harian untuk SEMUA halaman hari itu (prinsip
+  // khutbah: tulisan di atas gambar). Fallback terakhir = cover pekan.
+  const daily = rhbAi[String(dayIndex)] || content.images.cover || undefined;
   const dayLabel = path.dayLabel || DAY_LABELS[dayIndex - 1];
   const useBg = Boolean(daily);
   const slides: DeckSlide[] = [
@@ -465,14 +475,12 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
     },
   ];
   sections.forEach((s, i) => {
-    // Gambar section lama hanya fallback bila harian kosong (mode plain lama).
-    const legacy = perDay[s.key] || s.imageFileId || undefined;
-    const imgId = daily || legacy;
+    const imgId = daily;
     const bg = Boolean(daily);
     const chunks = chunkSermonSection(s.body);
     if (!chunks.length) {
       // Standar anti slide-kosong: section kosong dilewati kecuali membawa
-      // pertanyaan FGD / callout Firman / gambar.
+      // pertanyaan FGD / callout Firman.
       const bullets = s.key === 'DISKUSI_KELOMPOK' ? path.fgdQuestions || [] : undefined;
       const callout = i === 0 && path.scriptureText
         ? { label: path.scriptureRef || 'Nats', value: path.scriptureText }
@@ -483,6 +491,7 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
         kind: 'section',
         kicker: `Hari ${dayIndex} · ${dayLabel}`,
         title: s.title,
+        hideTitle: true,
         imageFileId: imgId,
         background: bg,
         paragraphs: [],
@@ -498,6 +507,7 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
         kind: 'section',
         kicker: `Hari ${dayIndex} · ${dayLabel}${chunks.length > 1 ? ` · ${ci + 1}/${chunks.length}` : ''}`,
         title: chunks.length > 1 ? `${s.title} (${ci + 1}/${chunks.length})` : s.title,
+        hideTitle: true,
         imageFileId: imgId,
         background: bg,
         paragraphs,

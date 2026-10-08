@@ -603,16 +603,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       return { ...s, presentation: { ...pres, paths: map } };
     });
 
-  const setSectionImage = (pathIndex: number, sectionKey: string, fileId: string) =>
-    setStudio((s) => {
-      const pres = s.presentation || {};
-      const rhb = { ...(pres.rhb || {}) };
-      const day = { ...(rhb[String(pathIndex)] || {}) };
-      if (fileId) day[sectionKey] = fileId; else delete day[sectionKey];
-      rhb[String(pathIndex)] = day;
-      return { ...s, presentation: { ...pres, rhb } };
-    });
-
   const setRhbSection = (i: number, key: string, patch: Partial<DidaskaliaRhbSection>) =>
     setStudio((s) => {
       const next = ensurePaths(s).map((p, idx) =>
@@ -876,27 +866,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   /** Ambil gambar presentasi → data URL agar PDF identik dengan deck web. */
   const buildPdfImages = async () => {
     const pres = studio.presentation || {};
-    const pathImages: Record<number, string> = {};
-    const rhbSectionImages: Record<number, Record<string, string>> = {};
-    const rhbCoverImages: Record<number, string> = {};
     const rhbDayImages: Record<number, string> = {};
     const rhbAi = pres.rhbAi && typeof pres.rhbAi === 'object' ? pres.rhbAi : {};
     for (const p of ensurePaths(studio)) {
-      const hero = await assetDataUrl(pres.paths?.[String(p.pathIndex)] || p.coverImageFileId);
-      if (hero) pathImages[p.pathIndex] = hero;
-      const day = pres.rhb?.[String(p.pathIndex)] || {};
-      const dayCover = await assetDataUrl(day.cover || p.coverImageFileId);
-      if (dayCover) rhbCoverImages[p.pathIndex] = dayCover;
-      // 1 gambar harian (AI → upload → cover pekan) untuk semua halaman PDF hari itu.
-      const dayImg = await assetDataUrl(rhbAi[String(p.pathIndex)] || day.cover || p.coverImageFileId);
+      // Standar visual RHB: 1 gambar AI harian untuk semua halaman hari itu.
+      const dayImg = await assetDataUrl(rhbAi[String(p.pathIndex)]);
       if (dayImg) rhbDayImages[p.pathIndex] = dayImg;
-      for (const s of ensureRhbSections(p.rhbSections)) {
-        const d = await assetDataUrl(day[s.key] || s.imageFileId);
-        if (d) {
-          rhbSectionImages[p.pathIndex] = rhbSectionImages[p.pathIndex] || {};
-          rhbSectionImages[p.pathIndex][s.key] = d;
-        }
-      }
     }
     const khutbahSectionImages: Record<string, string> = {};
     const khLit = pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object' ? pres.khutbahLiteral : {};
@@ -904,7 +879,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await assetDataUrl(khLit[key]);
       if (d) khutbahSectionImages[key] = d;
     }
-    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, rhbDayImages, khutbahSectionImages };
+    return { coverImage: await assetDataUrl(pres.cover), rhbDayImages, khutbahSectionImages };
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
@@ -1437,14 +1412,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                         <div className="flex items-center gap-2">
                           <BookOpen className="w-3.5 h-3.5 text-sky-700" />
                           <p className="text-[11px] font-black text-sky-800">RHB Harian — 5 Section</p>
-                          <span className="ml-auto text-[10px] text-[#8C8880]">gambar opsional per section</span>
+                          <span className="ml-auto text-[10px] text-[#8C8880]">visual: 1 gambar AI harian</span>
                         </div>
-                        <ImageSlot
-                          label="Gambar hero hari (opsional)"
-                          fileId={studio.presentation?.rhb?.[String(p.pathIndex)]?.cover}
-                          onUpload={async (f) => setSectionImage(p.pathIndex, 'cover', await uploadImage(f))}
-                          onClear={() => setSectionImage(p.pathIndex, 'cover', '')}
-                        />
                         <div className="flex items-center gap-2 rounded-lg bg-white border border-[#EFEDE8] p-2">
                           {studio.presentation?.rhbAi?.[String(p.pathIndex)] ? (
                             <img src={`/api/didaskalia/asset/${encodeURIComponent(String(studio.presentation.rhbAi[String(p.pathIndex)]))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
@@ -1470,12 +1439,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                               rows={3}
                               placeholder="Isi section… (pisahkan baris kosong untuk paragraf baru)"
                               className={inputCls}
-                            />
-                            <ImageSlot
-                              label="Gambar section (opsional)"
-                              fileId={studio.presentation?.rhb?.[String(p.pathIndex)]?.[sec.key]}
-                              onUpload={async (f) => setSectionImage(p.pathIndex, sec.key, await uploadImage(f))}
-                              onClear={() => setSectionImage(p.pathIndex, sec.key, '')}
                             />
                           </div>
                         ))}

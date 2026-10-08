@@ -1,5 +1,17 @@
 # GEHC Portal — Handoff
 
+## Current — hideTitle slide isi pembekalan + RHB (9 Okt 2026)
+
+**Kebutuhan:** judul besar ganda (kicker + H1 + label isi) makan ruang; identitas cukup dari kicker. Cakupan: pembekalan + RHB saja, khutbah utuh.
+
+**Ubah (kode, belum commit):** flag `DeckSlide.hideTitle`; SlideView lewati h1 bila flag aktif; dipasang di semua slide isi `buildPembekalanDeck` + section `buildRhbDayDeck` (cover/closing tetap bertitel; khutbah tanpa flag) • test +3 (termasuk guard khutbah).
+
+**Catatan sesi paralel (ikut ter-commit):** slot upload legacy RHB (hero + per-section) dihapus total dari panel + PDF + deck — visual RHB kini murni 1 gambar AI harian (fallback terakhir cover pekan); `PdfOptions` lama (`pathImages`/`rhbSectionImages`/`rhbCoverImages`/`khutbahSlideImages`) dibersihkan.
+
+**Verifikasi:** `lint` bersih ✓ full suite **133 file hijau** (3 gagal semu saat build paralel, hijau di run bersih) ✓ `build` OK ✓
+
+**Next:** commit + push + `staging:sync` • QA visual.
+
 ## Current — RHB standar khutbah: gambar harian AI + background semua slide (9 Okt 2026)
 
 **Kebutuhan:** terapkan standar khotbah ke RHB — generate gambar sesuai tema harian (slot jadi 1 cover + 4 khutbah + 7 RHB), 1 gambar berlaku semua halaman hari itu (tulisan di atas gambar).
@@ -8,7 +20,9 @@
 
 **Verifikasi:** `lint` bersih ✓ full suite hijau (1 flaky lolos) ✓ `build` OK ✓ smoke PDF BG + terang OK ✓
 
-**Next:** commit + push + `staging:sync` • QA visual 1 hari penuh + 1 PDF • seed knowledge staging + prod.
+**Deploy:** commit `9e39542` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `9e39542`).
+
+**Next:** QA visual 1 hari penuh + 1 PDF • seed knowledge staging + prod.
 
 ## Current — Penutup 01 + CTA indeks RHB (9 Okt 2026)
 
@@ -134,7 +148,15 @@
 
 **Verifikasi:** `lint` bersih • full suite **985 hijau** (1 flaky run awal, hijau di rerun — pola timing lama).
 
-**Deploy cleanup (9 Okt 2026):** merge `cursor/studio-cleanup-legacy` → main (`3f37ca4`) + push. Prod = `3f37ca4` ✓ (terverifikasi live). Staging sync menyusul bila diminta. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
+**Deploy cleanup (9 Okt 2026):** merge `cursor/studio-cleanup-legacy` → main (`3f37ca4`) + push. Prod = `3f37ca4` ✓ (terverifikasi live). Staging sync menyusul bila diminta.
+
+## Current — Cleanup gambar section RHB (9 Okt 2026, uncommitted, BELUM commit/push)
+
+**Audit:** gambar section RHB (35 slot upload + fallback deck + fetch PDF) sudah mati di web (bila AI harian ada) & PDF (selalu) — upload-nya diam-diam tak tampil. Keputusan: hapus total + hero manual ikut dihapus → visual RHB = AI harian saja (fallback cover pekan).
+
+**Ubah:** StudioPanel (hapus 2 ImageSlot RHB + `setSectionImage`; helper upload tetap untuk cover pekan) • deck `daily = rhbAi || cover-pekan`, fallback section dihapus • `buildPdfImages` berhenti fetch ±35 request mati (`rhbSectionImages/rhbCoverImages/pathImages`; tipe dibersihkan) • test RHB ditulis ulang ke perilaku harian-AI. Skema DB tak diubah (data lama harmless).
+
+**Verifikasi:** `lint` bersih • full suite **993 hijau**. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
