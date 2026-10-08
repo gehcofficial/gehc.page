@@ -6,7 +6,7 @@
 
 **Ubah:** spec `segments` di seed 5 pola (MONOLOG f1 praise×3/worship×2/bedah-lagu×1 f2 firman f6 persembahan×2; dst — draf, perlu review Didaskalia) → migrasi `segment_key/phase_no` + Prisma → `patternSegments/skeletonFromPattern/readWeekPericope` (server, paritas klien utk skeleton) → order terima slot kosong + bulk `/order/bulk` → live resolve firman (auto Studio vs manual, badge) → composer: kartu referensi rundown + Bangun kerangka + isi slot + badge auto/manual + peringatan slot kosong → test segmen/skeleton/perikop (+~12).
 
-**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ `build` OK ✓ seed staging (segmen MONOLOG/P2P tampil) ✓ QA `qa-liturgy-segments.mjs` **16/16** ✓
+**Verifikasi:** `lint` bersih ✓ **937 test** hijau ✓ `build` OK ✓ seed staging (segmen MONOLOG/P2P tampil) ✓ QA `qa-liturgy-segments.mjs` **16/16** ✓ migrasi + seed pola prod ✓ (MONOLOG f1 praise/worship/bedah-lagu, f2 firman, f6 persembahan)
 
 **Next:** QA visual composer staging → commit + push + sync → migrasi + seed pola prod → Didaskalia review angka slot.
 
