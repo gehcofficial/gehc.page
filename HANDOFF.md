@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Segarkan Bagian A/B + banner pola basi (9 Okt 2026)
+
+**Kebutuhan:** ganti pola ibadah tidak auto-update FGD (hanya pola berikutnya); deck campur teknis baru + Q lama.
+
+**Ubah (kode, belum commit):** `src/lib/flow-stale.ts` (baru: baseline pola-per-pekan di localStorage, tanpa migrasi DB) + test (+3) • StudioPanel: tombol "Segarkan Bagian A/B" (confirm → POST /extras → timpa + baseline) + banner amber bila pola berubah & alur lama • baseline dicatat saat draf/perkaya/sunting manual/muat awal.
+
+**Verifikasi:** `lint` bersih ✓ full suite hijau (1 flaky lama lolos standalone) ✓ `build` OK ✓
+
+**Next:** commit + push + `staging:sync` • QA: ganti pola → banner muncul → segarkan → banner hilang.
+
 ## Current — Density tipografi + budget 12 + penutup sebaris (9 Okt 2026)
 
 **Kebutuhan:** slide pendek terasa kosong; minta variasi fontsize ala khutbah, gabungan agresif (RHB 3-4, 5-9→3; pembekalan 4+5, 6+7), penutup 1 baris/hari yang compact tanpa scroll.
@@ -8,7 +18,11 @@
 
 **Verifikasi:** `lint` bersih ✓ 75 test terkait hijau ✓ full suite **133/133** ✓ `build` OK ✓
 
-**Next:** commit + push + `staging:sync` • QA visual HP.
+**Deploy:** commit `dbff2e1` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `dbff2e1`).
+
+**Seed knowledge:** staging ✓ (1 dibuat + 3 selaras) + prod ✓ (1 dibuat + 3 selaras) — standar baku aktif penuh.
+
+**Next:** QA visual HP.
 
 ## Current — Budget-pack pembekalan + header RHB sebaris + kotak refleksi (9 Okt 2026)
 

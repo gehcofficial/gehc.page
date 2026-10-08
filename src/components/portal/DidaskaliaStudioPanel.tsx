@@ -52,6 +52,7 @@ import {
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
 import { materialHashPath, delivererLabel, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
+import { isFlowStale, readFlowBaseline, writeFlowBaseline } from '../../lib/flow-stale';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
@@ -239,6 +240,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       if (!r.ok) throw new Error(d.error || `Gagal memuat studio (server ${r.status}).`);
       setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
       setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme, patternCode: d.week?.patternCode || 'MONOLOG' });
+      // Tanpa baseline tercatat, anggap alur sejalan pola aktif (hindari banner palsu).
+      if (!readFlowBaseline(ym, weekIndex)) writeFlowBaseline(ym, weekIndex, d.week?.patternCode || 'MONOLOG');
       setEvent(d.event || null);
       setLinks(d.links || []);
       fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/approval`, { credentials: 'include' })
@@ -452,13 +455,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             : 'Ringkasan khotbah dibuat',
         description: warns.length ? warns.join(' ') : undefined,
       });
+      // Draf/perkaya menyusun alur mengikuti pola aktif — catat baseline-nya.
+      if (kind !== 'sermon') writeFlowBaseline(ym, weekIndex, weekMeta?.patternCode || 'MONOLOG');
     } catch (e: unknown) {
       setError(friendlyAiError(e));
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
     } finally {
       setBusy(null);
     }
-  }, [addToast, canWrite, comment, save, studio.homileticMethods, studio.discussion, useDiscussionContext, weekIndex, ym]);
+  }, [addToast, canWrite, comment, save, studio.homileticMethods, studio.discussion, useDiscussionContext, weekIndex, weekMeta, ym]);
 
   const aiRefine = useCallback(async (fieldLabel: string, current: string, apply: (text: string) => void) => {
     if (!canWrite || !current.trim()) return;
@@ -706,6 +711,32 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         done += 1;
       }
       if (done === 0) addToast({ type: 'success', title: 'Semua hari sudah bergambar.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Segarkan Bagian A/B mengikuti pola ibadah aktif (menimpa isi sekarang). */
+  const refreshFlow = async () => {
+    if (!canWrite) return;
+    const pattern = weekMeta?.patternCode || 'MONOLOG';
+    if (!window.confirm(`Segarkan Bagian A/B mengikuti pola ${pattern}? Isi panduan deliver, checklist, dan alur sekarang akan DITIMPA AI.`)) return;
+    setBusy('extras-refresh');
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/extras`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternCode: pattern }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal menyegarkan (server ${r.status}).`);
+      if (d.week?.studio) setStudio({ ...defaultStudio(), ...d.week.studio });
+      writeFlowBaseline(ym, weekIndex, pattern);
+      const n = (d.extras?.discussionFlow || []).length;
+      addToast({ type: 'success', title: `Bagian A/B disegarkan mengikuti ${pattern}${n ? ` (${n} langkah alur)` : ''}` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyegarkan.' });
     } finally {
       setBusy(null);
     }
@@ -1516,10 +1547,27 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
             {/* Bagian B — untuk mentor & co-mentor */}
             <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
-              <p className="text-[11px] font-black text-sky-800">Bagian B · Untuk Mentor &amp; Co-Mentor</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-black text-sky-800">Bagian B · Untuk Mentor &amp; Co-Mentor</p>
+                <button
+                  type="button"
+                  disabled={!canWrite || !!busy}
+                  onClick={() => void refreshFlow()}
+                  title="Susun ulang panduan deliver, checklist & alur mengikuti pola ibadah aktif (menimpa isi sekarang)"
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
+                >
+                  {busy === 'extras-refresh' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Segarkan Bagian A/B
+                </button>
+              </div>
+              {isFlowStale(readFlowBaseline(ym, weekIndex), weekMeta?.patternCode, (studio.sermon?.discussionFlow || []).length) && (
+                <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">
+                  Pola ibadah pekan ini <b>{weekMeta?.patternCode || 'MONOLOG'}</b>, tetapi alur di bawah masih versi pola lama.
+                  Klik <b>Segarkan Bagian A/B</b> untuk menyusun ulang — atau sunting manual.
+                </p>
+              )}
               <div>
                 <label className={labelCls}>Alur FGD Hari Minggu (kontekstual tema; pisahkan dengan enter)</label>
-                <textarea value={(studio.sermon?.discussionFlow || []).join('\n')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, discussionFlow: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } }))} rows={4} className={inputCls} />
+                <textarea value={(studio.sermon?.discussionFlow || []).join('\n')} onChange={(e) => { setStudio((s) => ({ ...s, sermon: { ...s.sermon, discussionFlow: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } })); writeFlowBaseline(ym, weekIndex, weekMeta?.patternCode || 'MONOLOG'); }} rows={4} className={inputCls} />
               </div>
               <p className="text-[10px] text-[#8C8880]">Gambaran 7 hari diambil dari ringkasan tiap Path di atas.</p>
             </div>
