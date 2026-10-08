@@ -81,20 +81,19 @@ describe('deck builders', () => {
     }
     // Tak ada duplikasi literal penuh doc 02 di modul 01.
     expect(deck.some((s) => s.id.startsWith('a-khotbah-'))).toBe(false);
-    // Pagination baca: garis 3 komponen → 2 slide; teknis 6 bullet → 2 slide; penutup 1 slide ringkas.
-    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar-1', 'garis-besar-2', 'a-deliver', 'a-checklist', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup']);
-    const garis1 = deck.find((s) => s.id === 'garis-besar-1');
-    expect(garis1?.paragraphs).toHaveLength(2);
-    expect(garis1?.paragraphs?.[0]).toContain('P1');
-    expect(garis1?.title).toContain('(1/2)');
-    const garis2 = deck.find((s) => s.id === 'garis-besar-2');
-    expect(garis2?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
-    expect(garis2?.callout?.label).toBe('Detail Penuh');
+    // Budget-pack: komponen/Q/checklist pendek menyatu; teknis panjang (2 bullet
+    // panjang ≈ 5 baris) tetap pecah — ekor mungil (≤3 baris) yang digabung.
+    expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-deliver', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup']);
+    const garis = deck.find((s) => s.id === 'garis-besar');
+    expect(garis?.paragraphs).toHaveLength(3);
+    expect(garis?.paragraphs?.[0]).toContain('P1');
+    expect(garis?.title).not.toContain('(');
+    expect(garis?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
+    expect(garis?.callout?.label).toBe('Detail Penuh');
     const deliver = deck.find((s) => s.id === 'a-deliver');
     expect(deliver?.fields).toEqual([{ label: 'Teologi Historis', value: 'Buka latar sejarah pelayanan.' }]);
-    expect(deliver?.bullets).toBeUndefined();
-    const checklist = deck.find((s) => s.id === 'a-checklist');
-    expect(checklist?.bullets).toEqual(['Riset teks', 'Latihan']);
+    expect(deliver?.bullets).toEqual(['Riset teks', 'Latihan']);
+    expect(deck.find((s) => s.id.startsWith('a-checklist'))).toBeFalsy();
     const penutup = deck.find((s) => s.id === 'penutup');
     expect(penutup?.kind).toBe('closing');
     expect(penutup?.fields).toHaveLength(7);
@@ -138,9 +137,16 @@ describe('deck builders', () => {
     };
     const deck = buildRhbDayDeck(content, 3);
     expect(deck[0].kind).toBe('cover');
-    expect(deck[0].kicker).toContain('Selasa');
+    // Cover: header sebaris hari + judul (identitas hari hanya di sini).
+    expect(deck[0].inlineTitle).toEqual({ lead: 'Selasa', title: 'Path 3 judul' });
     const sections = deck.filter((s) => s.kind === 'section');
     expect(sections).toHaveLength(5);
+    // Slide isi: nama segmen kecil saja, tanpa kicker hari/nomor.
+    for (const s of sections) {
+      expect(s.smallTitle).toBe(true);
+      expect(s.kicker).toBeUndefined();
+      expect(s.title).not.toContain('(');
+    }
     expect(sections[0].title).toBe('Pengantar');
     expect(sections[4].title).toBe('Pertanyaan untuk Diskusi Kelompok');
     expect(deck[deck.length - 1].kind).toBe('closing');

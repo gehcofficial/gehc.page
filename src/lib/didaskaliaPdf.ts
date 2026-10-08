@@ -272,7 +272,7 @@ class Writer {
         continue;
       }
       if (b.kind === 'list') { this.bullets(b.items, b.ordered ? 'ordered' : '•'); continue; }
-      if (b.role === 'takeaway') { this.callout('Poin Utama', stripMd(b.text), 'amber'); continue; }
+      if (b.role === 'takeaway' || b.role === 'reflection') { this.callout(b.role === 'reflection' ? 'Refleksi' : 'Poin Utama', stripMd(b.text), 'amber'); continue; }
       if (b.role === 'correction') { this.callout('Luruskan', stripMd(b.text), 'amber'); continue; }
       if (b.role === 'speech') { this.richParagraph(b.text, size + 1, 6); continue; }
       this.richParagraph(b.text, size, 5.4);

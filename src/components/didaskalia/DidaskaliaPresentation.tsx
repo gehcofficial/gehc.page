@@ -46,8 +46,17 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
           {slide.kicker}
         </p>
       )}
-      {slide.title && !slide.hideTitle && (
+      {slide.title && !slide.hideTitle && !slide.smallTitle && (
         <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl text-white drop-shadow' : 'text-2xl sm:text-4xl'}`}>{slide.title}</h1>
+      )}
+      {slide.title && slide.smallTitle && (
+        <p className={`text-xs sm:text-sm font-black uppercase tracking-[0.14em] ${isBg ? 'text-sky-200' : 'text-sky-700 print:text-sky-700'}`}>{slide.title}</p>
+      )}
+      {slide.inlineTitle && (
+        <p className="leading-snug">
+          <span className={`text-[11px] font-black uppercase tracking-[0.18em] ${isBg ? 'text-sky-200' : 'text-sky-600 print:text-sky-700'}`}>{slide.inlineTitle.lead} — </span>
+          <span className={`text-xl sm:text-2xl font-extrabold ${isBg ? 'text-white drop-shadow' : 'text-white print:text-black'}`}>{slide.inlineTitle.title}</span>
+        </p>
       )}
       {slide.subtitle && <p className={`text-sm sm:text-base ${isBg ? 'text-white/85' : 'text-white/70 print:text-black/70'}`}>{slide.subtitle}</p>}
       {!isBg && img && (

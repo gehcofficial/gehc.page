@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Budget-pack pembekalan + header RHB sebaris + kotak refleksi (9 Okt 2026)
+
+**Kebutuhan:** slide pendek pasca-hideTitle terlihat kosong (minta gabung, cth slide 6-7); cover RHB judul + hari satu baris beda warna; hal penting RHB readable ala khutbah. RHB section: judul kecil tetap ada, tanpa "1/1", identitas hari hanya di cover.
+
+**Ubah (kode, belum commit):** `packBlocks()` budget ±10 baris (blok utuh, ekor ≤3 baris digabung bila ≤budget+2) gantikan potong tetap di garis/bagianA/bagianB — pendek menyatu (garis 4→1, deliver+checklist→1, Q6→1), panjang tetap pecah • cover RHB: `inlineTitle` sebaris (hari sky + judul putih bold) + `hideTitle` • section RHB: `smallTitle` kecil tanpa kicker hari/nomor • md-lite peran baru `reflection` (🎒🎓💼 → kotak emas) + PDF callout • test selaraskan (+packBlocks, +refleksi).
+
+**Verifikasi:** `lint` bersih ✓ 71 test terkait hijau ✓ full suite hijau (1 flaky lama lolos standalone) ✓ `build` OK ✓
+
+**Next:** commit + push + `staging:sync` • QA visual.
+
 ## Current — Audit usage Vercel + skrip vercel:gc (9 Okt 2026)
 
 **Temuan (read-only):** 30 deployment, semua READY, tertua 31 Agu — SEHAT, jauh dari tumpukan 110+ (5 Okt). Angka % CPU/storage tak bisa via CLI (Observability Plus paywall) — wajib cek dasbor. Laju ±25 deployment/hari (tiap push + sync = 1 deployment) = risiko nyata berulang ±4 hari.

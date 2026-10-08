@@ -54,6 +54,16 @@ export type DeckSlide = {
    * Dipakai slide isi pembekalan & RHB (khotbah tidak tersentuh).
    */
   hideTitle?: boolean;
+  /**
+   * Judul kecil (bukan H1) — identitas segmen tetap tampil ringkas.
+   * Dipakai slide section RHB (nama segmen saja, tanpa kicker hari/nomor).
+   */
+  smallTitle?: boolean;
+  /**
+   * Header sebaris pengganti H1: `{ lead, title }` dirender satu baris
+   * (lead kecil kapital + judul beda warna). Dipakai cover RHB harian.
+   */
+  inlineTitle?: { lead: string; title: string };
 };
 
 export type PresentationContent = {
@@ -228,11 +238,65 @@ export function khutbahHashFor(content: PresentationContent): string {
   return `#/materi/khutbah/${ym}/${content.weekIndex}`;
 }
 
-/** Pecah array menjadi halaman ≤n item (pagination slide baca, ala chunk khutbah). */
-export function chunkForSlides<T>(items: T[], max = 4): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += max) out.push(items.slice(i, i + max));
-  return out;
+/** Budget baris per slide isi (H1 sudah hilang → ruang baca lega, tanpa scroll). */
+export const PACK_BUDGET = 10;
+
+export type PackBlock =
+  | { t: 'para'; text: string; cost?: number }
+  | { t: 'field'; label: string; value: string }
+  | { t: 'bullet'; text: string };
+
+function packBlockLines(b: PackBlock): number {
+  if (b.t === 'para') return b.cost ?? Math.max(1, estimateUnitLines(b.text));
+  if (b.t === 'field') return 1 + Math.max(1, estimateUnitLines(b.value));
+  return Math.max(1, estimateUnitLines(b.text));
+}
+
+/**
+ * Packing budget ala koper: blok diisi berurutan sampai ±budget baris.
+ * - 1 blok tak pernah dipotong (kalimat utuh).
+ * - Ekor mungil (≤3 baris) digabung ke halaman sebelumnya bila muat dalam
+ *   budget+2 (standar anti slide-almost-empty).
+ * Hasil: slide pendek menyatu sendiri, slide panjang tetap pecah.
+ */
+export function packBlocks(blocks: PackBlock[], budget = PACK_BUDGET): PackBlock[][] {
+  const pages: PackBlock[][] = [];
+  let cur: PackBlock[] = [];
+  let lines = 0;
+  for (const b of blocks) {
+    const bl = packBlockLines(b);
+    if (cur.length && lines + bl > budget) {
+      pages.push(cur);
+      cur = [];
+      lines = 0;
+    }
+    cur.push(b);
+    lines += bl;
+  }
+  if (cur.length) pages.push(cur);
+  if (pages.length > 1) {
+    const tail = pages[pages.length - 1];
+    const tailLines = tail.reduce((n, x) => n + packBlockLines(x), 0);
+    const prev = pages[pages.length - 2];
+    const prevLines = prev.reduce((n, x) => n + packBlockLines(x), 0);
+    if (tailLines <= 3 && prevLines + tailLines <= budget + 2) {
+      prev.push(...pages.pop()!);
+    }
+  }
+  return pages;
+}
+
+/** Pecah blok PackBlock per jenis untuk slot paragraphs/fields/bullets slide. */
+function splitPacked(page: PackBlock[]): { paras: string[]; fields: { label: string; value: string }[]; bullets: string[] } {
+  const paras: string[] = [];
+  const fields: { label: string; value: string }[] = [];
+  const bullets: string[] = [];
+  for (const b of page) {
+    if (b.t === 'para') paras.push(b.text);
+    else if (b.t === 'field') fields.push({ label: b.label, value: b.value });
+    else bullets.push(b.text);
+  }
+  return { paras, fields, bullets };
 }
 
 /** Nomor halaman ala khotbah (`Judul (1/2)`, kicker `· 1/2`) bila >1 slide. */
@@ -280,18 +344,24 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     ].filter(Boolean) as { label: string; value: string }[],
   };
 
-  // 2. Garis besar 4 komponen (ekstrak verbatim) — maks 2 komponen per slide
-  //    agar terbaca tanpa scroll; CTA ke doc 02 di slide terakhir.
-  //    Paragraf memakai penanda `####` agar MdBlocks memberi highlight
-  //    ala khotbah (label bagian + takeaway emas bila kalimat kunci cocok).
-  const garisChunks = chunkForSlides(garis, 2);
-  const garisSlides: DeckSlide[] = (garisChunks.length ? garisChunks : [[]]).map((chunk, ci, arr) => ({
+  // 2. Garis besar 4 komponen (ekstrak verbatim) — packing budget ±10 baris:
+  //    komponen pendek menyatu sendiri, panjang tetap pecah. CTA ke doc 02
+  //    di slide terakhir. Paragraf memakai penanda `####` agar MdBlocks
+  //    memberi highlight ala khotbah.
+  const garisPages = packBlocks(
+    garis.map((g) => ({
+      t: 'para' as const,
+      text: `#### ${g.no}. ${g.title}\n\n${g.sentence}`,
+      cost: 1 + Math.max(1, estimateUnitLines(g.sentence)),
+    }))
+  );
+  const garisSlides: DeckSlide[] = (garisPages.length ? garisPages : [[]]).map((page, ci, arr) => ({
     id: `garis-besar${arr.length > 1 ? `-${ci + 1}` : ''}`,
     kind: 'section' as const,
     kicker: 'Garis Besar · 4 Komponen',
     title: content.theme || 'Alur Pekan',
     hideTitle: true,
-    paragraphs: chunk.map((g) => `#### ${g.no}. ${g.title}\n\n${g.sentence}`),
+    paragraphs: splitPacked(page).paras,
     ...(ci === arr.length - 1
       ? {
         callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02).' } as { label: string; value: string },
@@ -300,69 +370,111 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       : {}),
   }));
 
-  // 3. Bagian A — 1 slide per jenis (deliver, lalu checklist ≤4 per slide).
+  // 3. Bagian A — packing budget: deliver + checklist pendek jadi 1 slide
+  //    gabungan; panjang tetap pecah per jenis.
+  const aFieldBlocks: PackBlock[] = (sermon.deliveryPlan || []).map((d) => ({ t: 'field' as const, label: d.method || 'Metode', value: d.how }));
+  const aBulletBlocks: PackBlock[] = (sermon.prepChecklist || []).map((c) => ({ t: 'bullet' as const, text: c }));
   const bagianA: DeckSlide[] = [];
-  const planFields = (sermon.deliveryPlan || []).map((d) => ({ label: d.method || 'Metode', value: d.how }));
-  if (planFields.length) {
-    bagianA.push({
-      id: 'a-deliver',
-      kind: 'section',
-      kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Panduan Deliver per Metode',
-      hideTitle: true,
-      fields: planFields,
-    });
+  if (aFieldBlocks.length || aBulletBlocks.length) {
+    const aAll = packBlocks([...aFieldBlocks, ...aBulletBlocks]);
+    if (aAll.length <= 1) {
+      const { fields, bullets } = splitPacked(aAll[0] || []);
+      bagianA.push({
+        id: aFieldBlocks.length ? 'a-deliver' : 'a-checklist',
+        kind: 'section',
+        kicker: `Bagian A · Untuk ${deliverer}`,
+        title: aFieldBlocks.length && aBulletBlocks.length
+          ? 'Panduan Deliver & Checklist Persiapan'
+          : aFieldBlocks.length ? 'Panduan Deliver per Metode' : 'Checklist Persiapan Khotbah',
+        hideTitle: true,
+        fields,
+        bullets,
+      });
+    } else {
+      packBlocks(aFieldBlocks).forEach((pg, i, arr) => {
+        if (!pg.length) return;
+        bagianA.push({
+          id: `a-deliver${arr.length > 1 ? `-${i + 1}` : ''}`,
+          kind: 'section',
+          kicker: `Bagian A · Untuk ${deliverer}`,
+          title: 'Panduan Deliver per Metode',
+          hideTitle: true,
+          fields: splitPacked(pg).fields,
+        });
+      });
+      packBlocks(aBulletBlocks).forEach((pg, i, arr) => {
+        if (!pg.length) return;
+        bagianA.push({
+          id: `a-checklist${arr.length > 1 ? `-${i + 1}` : ''}`,
+          kind: 'section',
+          kicker: `Bagian A · Untuk ${deliverer}`,
+          title: 'Checklist Persiapan Khotbah',
+          hideTitle: true,
+          bullets: splitPacked(pg).bullets,
+        });
+      });
+    }
   }
-  chunkForSlides(sermon.prepChecklist || [], 4).forEach((items, ci, arr) => {
-    bagianA.push({
-      id: `a-checklist${arr.length > 1 ? `-${ci + 1}` : ''}`,
-      kind: 'section',
-      kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Checklist Persiapan Khotbah',
-      hideTitle: true,
-      bullets: items,
-    });
-  });
 
-  // 4. Bagian B — arahan teknis pola + alur + absensi/monitoring.
-  //    Q ≤3 per slide, bullet teknis ≤4 per slide (baca tanpa scroll).
+  // 4. Bagian B — packing budget: Q + teknis pendek jadi 1 slide;
+  //    panjang tetap pecah (Q dulu, lalu teknis). Aturan jawab selalu di slide Q pertama.
   const tech = patternTechnicalBullets(content.patternCode, content.patternName);
   const ops = mentorOpsBullets();
   const bagianB: DeckSlide[] = [];
   if (isMonolog) {
-    const qChunks = chunkForSlides(flow, 3);
-    (qChunks.length ? qChunks : [[]]).forEach((qs, qi, arr) => {
+    const aturan: PackBlock = { t: 'para', text: 'Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.' };
+    const qBlocks: PackBlock[] = flow.map((q, i) => ({ t: 'field' as const, label: `Q${i + 1}`, value: q }));
+    const tBlocks: PackBlock[] = [...tech, ...ops].map((b) => ({ t: 'bullet' as const, text: b }));
+    const allB = packBlocks([aturan, ...qBlocks, ...tBlocks]);
+    if (allB.length <= 1 && (qBlocks.length || tBlocks.length)) {
+      const { paras, fields, bullets } = splitPacked(allB[0]);
       bagianB.push({
-        id: `b-pola${qi > 0 || arr.length > 1 ? `-${qi + 1}` : ''}`,
+        id: 'b-pola',
         kind: 'section',
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-        title: qi === 0 ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu' : 'Pertanyaan FGD (lanjutan)',
+        title: 'Arahan Teknis & Pertanyaan FGD Hari Minggu',
         hideTitle: true,
-        paragraphs: qi === 0
-          ? ['Aturan jawab: tiap pertanyaan dijawab 1–2 perwakilan bergiliran — yang lain menulis catatannya.']
-          : undefined,
-        fields: qs.map((q, i) => ({ label: `Q${qi * 3 + i + 1}`, value: q })),
+        paragraphs: paras,
+        fields,
+        bullets,
       });
-    });
-    chunkForSlides([...tech, ...ops], 4).forEach((items, ci, arr) => {
-      bagianB.push({
-        id: `b-teknis${arr.length > 1 ? `-${ci + 1}` : ''}`,
-        kind: 'section',
-        kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
-        title: 'Arahan Teknis & Tugas Operasional',
-        hideTitle: true,
-        bullets: items,
+    } else {
+      packBlocks([aturan, ...qBlocks]).forEach((pg, qi, arr) => {
+        if (!pg.length) return;
+        const { paras, fields } = splitPacked(pg);
+        if (!paras.length && !fields.length) return;
+        bagianB.push({
+          id: `b-pola${arr.length > 1 ? `-${qi + 1}` : ''}`,
+          kind: 'section',
+          kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+          title: qi === 0 ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu' : 'Pertanyaan FGD (lanjutan)',
+          hideTitle: true,
+          paragraphs: paras,
+          fields,
+        });
       });
-    });
+      packBlocks(tBlocks).forEach((pg, ci, arr) => {
+        if (!pg.length) return;
+        bagianB.push({
+          id: `b-teknis${arr.length > 1 ? `-${ci + 1}` : ''}`,
+          kind: 'section',
+          kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
+          title: 'Arahan Teknis & Tugas Operasional',
+          hideTitle: true,
+          bullets: splitPacked(pg).bullets,
+        });
+      });
+    }
   } else {
-    chunkForSlides([...tech, ...flowBullets, ...ops], 4).forEach((items, ci, arr) => {
+    packBlocks([...tech, ...flowBullets, ...ops].map((b) => ({ t: 'bullet' as const, text: b }))).forEach((pg, ci, arr) => {
+      if (!pg.length) return;
       bagianB.push({
         id: `b-pola${arr.length > 1 ? `-${ci + 1}` : ''}`,
         kind: 'section',
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
         hideTitle: true,
-        bullets: items,
+        bullets: splitPacked(pg).bullets,
       });
     });
   }
@@ -463,8 +575,10 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
     {
       id: 'cover',
       kind: 'cover',
-      kicker: `RHB · Pekan ${content.weekIndex} · ${dayLabel}`,
+      kicker: `RHB · Pekan ${content.weekIndex}`,
       title: path.title,
+      hideTitle: true,
+      inlineTitle: { lead: dayLabel, title: path.title },
       subtitle: [content.chapterNo, path.bacaanRef].filter(Boolean).join(' · '),
       imageFileId: daily || content.images.cover,
       background: true,
@@ -489,9 +603,9 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       slides.push({
         id: `sec-${s.key}`,
         kind: 'section',
-        kicker: `Hari ${dayIndex} · ${dayLabel}`,
+        // Identitas hari hanya di cover — slide isi cukup nama segmen kecil.
         title: s.title,
-        hideTitle: true,
+        smallTitle: true,
         imageFileId: imgId,
         background: bg,
         paragraphs: [],
@@ -501,13 +615,13 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       return;
     }
     // Section panjang di-chunk ≤6 baris/≤4 bullet per slide (budget khutbah).
+    // Identitas hari hanya di cover — tiap lanjutan cukup nama segmen kecil.
     chunks.forEach((paragraphs, ci) => {
       slides.push({
         id: `sec-${s.key}${chunks.length > 1 ? `-${ci + 1}` : ''}`,
         kind: 'section',
-        kicker: `Hari ${dayIndex} · ${dayLabel}${chunks.length > 1 ? ` · ${ci + 1}/${chunks.length}` : ''}`,
-        title: chunks.length > 1 ? `${s.title} (${ci + 1}/${chunks.length})` : s.title,
-        hideTitle: true,
+        title: s.title,
+        smallTitle: true,
         imageFileId: imgId,
         background: bg,
         paragraphs,

@@ -10,7 +10,7 @@ import React from 'react';
 import { AlertTriangle, Quote, Star } from 'lucide-react';
 import { BIBLE_BOOKS } from '../data/bible-books';
 
-export type MdRole = 'body' | 'scripture' | 'takeaway' | 'correction' | 'speech';
+export type MdRole = 'body' | 'scripture' | 'takeaway' | 'correction' | 'speech' | 'reflection';
 
 export type MdBlock =
   | { kind: 'para'; text: string; role: MdRole }
@@ -43,9 +43,12 @@ export function extractVerseRef(text?: string): string | undefined {
 
 const TAKEAWAY_RE = /(poin utama|ingatlah|kuncinya|camkan|jadi,? hari ini)/i;
 const CORRECTION_RE = /^(bukan berarti|sering disalahpahami|jangan salah|kesalahpahaman|bukan(kan)? berarti)/i;
+/** Baris refleksi RHB (konteks Pelajar/Mahasiswa/Pekerja) → highlight emas. */
+const REFLECTION_RE = /^[🎒🎓💼]/u;
 
 function roleOf(text: string, speech: boolean): MdRole {
   const t = stripMd(text);
+  if (REFLECTION_RE.test(t)) return 'reflection';
   if (TAKEAWAY_RE.test(t)) return 'takeaway';
   if (CORRECTION_RE.test(t)) return 'correction';
   if (speech) return 'speech';
@@ -128,6 +131,7 @@ const ROLE_LABEL: Record<Exclude<MdRole, 'body' | 'scripture'>, string> = {
   takeaway: 'Poin Utama',
   correction: 'Luruskan',
   speech: 'Suara Pengkhotbah',
+  reflection: 'Refleksi',
 };
 
 /** Render blok markdown-lite dengan highlight per peran. */
@@ -188,7 +192,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
         }
         // para
         const role: MdRole = speech && b.role === 'body' ? 'speech' : b.role;
-        if (role === 'takeaway') {
+        if (role === 'takeaway' || role === 'reflection') {
           const panelCls = tone === 'overlay'
             ? 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40'
             : 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40 print:bg-amber-50 print:border-amber-300';
@@ -202,7 +206,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
           return (
             <div key={i} className={panelCls}>
               <p className={labelCls}>
-                <Star className="w-3.5 h-3.5" /> {ROLE_LABEL.takeaway}
+                <Star className="w-3.5 h-3.5" /> {ROLE_LABEL[role]}
               </p>
               <p className={textCls}>
                 {inlineSpans(b.text, takeBold, 'italic')}

@@ -7,6 +7,8 @@ import {
   extractGarisBesar,
   extractKeySentence,
   khutbahHashFor,
+  packBlocks,
+  type PackBlock,
 } from '../../src/lib/didaskalia-presentation';
 import { buildPembekalanCaption } from '../../src/lib/rhb-caption';
 import { defaultStudio, ensureRhbSections } from '../../src/lib/didaskalia';
@@ -100,20 +102,32 @@ describe('khutbahHashFor', () => {
 });
 
 describe('buildPembekalanDeck (garis besar + CTA)', () => {
-  it('garis besar dipecah maks 2 komponen per slide + CTA doc 02 di terakhir', () => {
+  it('garis besar pendek jadi 1 slide + CTA doc 02', () => {
     const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
     const deck = buildPembekalanDeck(content);
     const garis = deck.filter((s) => s.id.startsWith('garis-besar'));
-    expect(garis).toHaveLength(2);
-    expect(garis[0].paragraphs).toHaveLength(2);
+    expect(garis).toHaveLength(1);
+    expect(garis[0].id).toBe('garis-besar');
+    expect(garis[0].paragraphs).toHaveLength(4);
     expect(garis[0].paragraphs?.[1]).toContain('#### 2. Bedah Teologis');
-    expect(garis[0].title).toContain('(1/2)');
-    expect(garis[0].cta).toBeUndefined();
-    expect(garis[1].cta).toEqual({
+    expect(garis[0].title).not.toContain('(');
+    expect(garis[0].cta).toEqual({
       label: 'Buka Ringkasan Khotbah',
       href: '#/materi/khutbah/2026-10/2',
       text: 'Detail 4 bagian verbatim',
     });
+  });
+
+  it('garis besar panjang tetap pecah bernomor (tanpa potong kalimat)', () => {
+    const studio = fullStudio();
+    const long = 'kata '.repeat(40).trim();
+    studio.sermon = { ...studio.sermon, outline: { pengantar: long, bedahTeologis: long, jembatan: long, kesimpulan: long } };
+    const deck = buildPembekalanDeck(contentFromStudio(studio, 2, '2026-10-11', 'Tema'));
+    const garis = deck.filter((s) => s.id.startsWith('garis-besar'));
+    expect(garis.length).toBeGreaterThan(1);
+    expect(garis[0].title).toContain('(1/');
+    expect(garis[garis.length - 1].cta?.href).toBe('#/materi/khutbah/2026-10/2');
+    expect(deck.flatMap((s) => s.paragraphs || []).join('\n')).toContain('kata kata kata');
   });
 
   it('Bagian A kosong disembunyikan (standar: buang slide kosong)', () => {
@@ -126,20 +140,18 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     expect(deck.some((s) => s.id.startsWith('garis-besar'))).toBe(true);
   });
 
-  it('MONOLOG: Q ≤3 per slide + tugas operasional di slide teknis', () => {
+  it('MONOLOG: Q pendek menyatu; Q banyak tetap pecah + teknis terpisah', () => {
     const studio = fullStudio();
     studio.sermon.discussionFlow = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
     const qSlides = deck.filter((s) => s.id.startsWith('b-pola'));
-    expect(qSlides).toHaveLength(3);
-    expect(qSlides[0].fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3']);
-    expect(qSlides[2].fields?.map((f) => f.label)).toEqual(['Q7']);
+    expect(qSlides).toHaveLength(2);
+    expect(qSlides[0].fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
+    expect(qSlides[1].fields?.map((f) => f.label)).toEqual(['Q5', 'Q6', 'Q7']);
+    // Nomor urut Q sambung antar slide (label global, bukan per slide).
     const teknis = deck.filter((s) => s.id.startsWith('b-teknis')).flatMap((s) => s.bullets || []);
     expect(teknis.join('\n')).toContain('Absensi:');
     expect(teknis.join('\n')).toContain('Update monitoring:');
-    for (const t of deck.filter((s) => s.id.startsWith('b-teknis'))) {
-      expect((t.bullets || []).length).toBeLessThanOrEqual(4);
-    }
   });
 
   it('penutup 1 slide ringkas: baris standar hari + judul + CTA RHB', () => {    const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
@@ -157,14 +169,23 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     });
   });
 
-  it('checklist panjang dipecah ≤4 per slide', () => {
+  it('checklist pendek menyatu ke slide Bagian A; panjang tetap pecah', () => {
     const studio = fullStudio();
     studio.sermon.prepChecklist = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'));
-    const checks = deck.filter((s) => s.id.startsWith('a-checklist'));
-    expect(checks).toHaveLength(2);
-    expect(checks[0].bullets).toEqual(['c1', 'c2', 'c3', 'c4']);
-    expect(checks[1].bullets).toEqual(['c5', 'c6']);
+    // 1 deliver + 6 item pendek muat 1 slide → tanpa slide a-checklist.
+    expect(deck.filter((s) => s.id.startsWith('a-checklist'))).toHaveLength(0);
+    const deliver = deck.find((s) => s.id === 'a-deliver');
+    expect(deliver?.bullets).toEqual(['c1', 'c2', 'c3', 'c4', 'c5', 'c6']);
+    expect(deliver?.fields).toHaveLength(1);
+
+    const studio2 = fullStudio();
+    const item = 'Langkah persiapan yang sengaja ditulis panjang agar tiap item memakan beberapa baris layar. '.repeat(2);
+    studio2.sermon.prepChecklist = [item, item, item, item, item];
+    const deck2 = buildPembekalanDeck(contentFromStudio(studio2, 1, '2026-09-06', 'Tema'));
+    const checks = deck2.filter((s) => s.id.startsWith('a-checklist'));
+    expect(checks.length).toBeGreaterThanOrEqual(1);
+    expect(checks.flatMap((s) => s.bullets || [])).toHaveLength(5);
   });
 });
 
@@ -181,7 +202,23 @@ describe('caption pembekalan (tanpa bigIdea AI)', () => {
   });
 });
 
-describe('hideTitle (cakupan: pembekalan + RHB, khutbah utuh)', () => {
+describe('packBlocks (budget ±10 baris)', () => {
+  const b = (text: string): PackBlock => ({ t: 'bullet', text });
+  it('blok pendek menyatu; blok panjang pecah tanpa potong unit', () => {
+    expect(packBlocks([b('a'), b('b'), b('c')])).toHaveLength(1);
+    const long = [b('x '.repeat(100)), b('y '.repeat(100)), b('z '.repeat(100))];
+    const pages = packBlocks(long);
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.flat()).toHaveLength(3);
+  });
+  it('ekor 1-blok digabung ke halaman sebelumnya (anti slide-almost-empty)', () => {
+    const pages = packBlocks([b('a'), b('b'), b('c'), b('d'), b('e'), b('f'), b('g'), b('h'), b('i'), b('j'), b('k')]);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toHaveLength(11);
+  });
+});
+
+describe('hideTitle/smallTitle (cakupan: pembekalan + RHB, khutbah utuh)', () => {
   it('semua slide isi pembekalan tanpa h1; cover + penutup tetap bertitel', () => {
     const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
     const deck = buildPembekalanDeck(content);
@@ -191,7 +228,7 @@ describe('hideTitle (cakupan: pembekalan + RHB, khutbah utuh)', () => {
     }
   });
 
-  it('slide section RHB tanpa h1; cover + closing tetap bertitel', () => {
+  it('slide section RHB: judul kecil tanpa kicker hari; cover + closing tetap bertitel', () => {
     const studio = fullStudio();
     studio.paths[0] = {
       ...studio.paths[0],
@@ -200,8 +237,12 @@ describe('hideTitle (cakupan: pembekalan + RHB, khutbah utuh)', () => {
     const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema'), 1);
     expect(deck.some((s) => s.kind === 'section')).toBe(true);
     for (const s of deck) {
-      if (s.kind === 'section') expect(s.hideTitle).toBe(true);
-      else expect(s.hideTitle).toBeFalsy();
+      if (s.kind === 'section') {
+        expect(s.smallTitle).toBe(true);
+        expect(s.kicker).toBeUndefined();
+      } else {
+        expect(s.smallTitle).toBeFalsy();
+      }
     }
   });
 

@@ -43,7 +43,7 @@ describe('buildRhbDayDeck (gambar harian ala khutbah)', () => {
     expect(sec?.background).toBe(true);
   });
 
-  it('section panjang di-chunk bernomor ala khutbah', () => {
+  it('section panjang di-chunk; tiap lanjutan nama segmen kecil tanpa nomor', () => {
     const studio = studioWithFullDay();
     const long = Array.from({ length: 8 }, (_, i) => `Paragraf panjang ${i + 1} dengan uraian secukupnya agar rapi dibaca dan melampaui budget layar.`).join('\n\n');
     studio.paths[2] = {
@@ -53,8 +53,11 @@ describe('buildRhbDayDeck (gambar harian ala khutbah)', () => {
     const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '', ''), 3);
     const peng = deck.filter((s) => s.id.startsWith('sec-PENGANTAR'));
     expect(peng.length).toBeGreaterThan(1);
-    expect(peng[0].kicker).toContain('1/');
-    expect(peng[0].title).toContain('(1/');
+    for (const s of peng) {
+      expect(s.kicker).toBeUndefined();
+      expect(s.title).toBe('Pengantar');
+      expect(s.smallTitle).toBe(true);
+    }
     // Semua kata sumber tetap ada (verbatim, tanpa potong kalimat).
     expect(deck.flatMap((s) => s.paragraphs || []).join('\n')).toContain('Paragraf panjang 8');
   });
