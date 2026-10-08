@@ -10,6 +10,7 @@
 import { jsPDF } from 'jspdf';
 import { DAY_LABELS, defaultSermon, type DidaskaliaStudio, type DidaskaliaWeek } from './didaskalia';
 import { effectiveRhbSections } from './didaskalia-presentation';
+import { parseMdLite, stripMd } from './md-lite';
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -122,6 +123,43 @@ class Writer {
     }
   }
 
+  /** Paragraf dengan segmen **tebal** (diukur per kata agar wrap tepat). */
+  richParagraph(text: string, size = 10.5, lineH = 5.4) {
+    const clean = String(text || '').replace(/`([^`]+)`/g, '$1');
+    if (!clean.trim()) return;
+    if (!/\*\*/.test(clean)) { this.paragraph(stripMd(clean), size, lineH); return; }
+    type Run = { t: string; bold: boolean };
+    const runs: Run[] = [];
+    for (const part of clean.split(/(\*\*[^*\n]+\*\*)/g)) {
+      if (!part) continue;
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) runs.push({ t: part.slice(2, -2), bold: true });
+      else runs.push({ t: part, bold: false });
+    }
+    const words: Run[] = [];
+    for (const r of runs) {
+      const plain = r.bold ? r.t : stripMd(r.t);
+      for (const w of plain.split(/\s+/).filter(Boolean)) words.push({ t: w, bold: r.bold });
+    }
+    if (!words.length) return;
+    this.doc.setFontSize(size);
+    setText(this.doc, C.ink);
+    const spaceW = this.doc.getTextWidth(' ');
+    let x = M;
+    let lineWords = 0;
+    const newLine = () => { this.y += lineH; x = M; lineWords = 0; };
+    this.ensure(lineH + 2);
+    const baseline = () => this.y + size * 0.3;
+    for (const w of words) {
+      this.doc.setFont('helvetica', w.bold ? 'bold' : 'normal');
+      const ww = this.doc.getTextWidth(w.t);
+      if (lineWords > 0 && x + ww > M + CONTENT_W) { newLine(); this.ensure(lineH + 2); }
+      this.doc.text(w.t, x, baseline());
+      x += ww + spaceW;
+      lineWords += 1;
+    }
+    this.y += lineH + 1.5;
+  }
+
   field(label: string, value: string, size = 10.5) {
     if (!value) return;
     this.doc.setFont('helvetica', 'bold');
@@ -134,8 +172,11 @@ class Writer {
     this.y += 1.5;
   }
 
-  callout(title: string, body: string) {
+  callout(title: string, body: string, tone: 'accent' | 'amber' = 'accent') {
     if (!title && !body) return;
+    const bg = tone === 'amber' ? ([255, 251, 235] as const) : C.accentSoft;
+    const line = tone === 'amber' ? ([217, 119, 6] as const) : C.accent;
+    const titleInk = tone === 'amber' ? ([146, 64, 14] as const) : C.accent;
     this.doc.setFont('helvetica', 'bold');
     this.doc.setFontSize(9);
     const titleLines = title ? this.doc.splitTextToSize(title, CONTENT_W - 10) : [];
@@ -144,15 +185,15 @@ class Writer {
     const bodyLines = body ? this.doc.splitTextToSize(body, CONTENT_W - 10) : [];
     const h = 8 + titleLines.length * 4.6 + bodyLines.length * 5 + 4;
     this.ensure(h + 4);
-    setFill(this.doc, C.accentSoft);
-    setDraw(this.doc, C.accent);
+    setFill(this.doc, bg);
+    setDraw(this.doc, line);
     this.doc.setLineWidth(0.4);
     this.doc.roundedRect(M, this.y, CONTENT_W, h, 2.5, 2.5, 'FD');
     let ty = this.y + 6;
     if (title) {
       this.doc.setFont('helvetica', 'bold');
       this.doc.setFontSize(9);
-      setText(this.doc, C.accent);
+      setText(this.doc, titleInk);
       this.doc.text(titleLines, M + 5, ty);
       ty += titleLines.length * 4.6;
     }
@@ -165,16 +206,40 @@ class Writer {
     this.y += h + 4;
   }
 
-  bullets(items: string[], bullet = '•') {
+  /** Bullet list; `bullet='ordered'` menomori item, level>0 menjorok + tanda strip. */
+  bullets(items: (string | { text: string; level: number })[], bullet: string | 'ordered' = '•') {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(10);
     setText(this.doc, C.ink);
-    for (const it of items) {
-      const lines = this.doc.splitTextToSize(String(it || ''), CONTENT_W - 6);
+    items.forEach((raw, idx) => {
+      const it = typeof raw === 'string' ? raw : raw.text;
+      const level = typeof raw === 'string' ? 0 : Math.min(2, raw.level || 0);
+      const mark = bullet === 'ordered' ? `${idx + 1}.` : level > 0 ? '–' : bullet;
+      const indent = level * 6;
+      const lines = this.doc.splitTextToSize(stripMd(String(it || '')), CONTENT_W - 6 - indent);
       this.ensure(lines.length * 5 + 2);
-      this.doc.text(bullet, M, this.y + 3);
-      this.doc.text(lines, M + 4, this.y + 3);
+      this.doc.text(mark, M + indent, this.y + 3);
+      this.doc.text(lines, M + 4 + indent, this.y + 3);
       this.y += lines.length * 5 + 1.2;
+    });
+  }
+
+  /** Render teks MD verbatim menjadi blok baca (paritas web): peran → label/callout/bold. */
+  mdBlocks(text: string, opts?: { speech?: boolean; size?: number }) {
+    const size = opts?.size || 10.5;
+    for (const b of parseMdLite(text, { speech: opts?.speech })) {
+      if (b.kind === 'divider') { this.divider(4); continue; }
+      if (b.kind === 'heading') { this.label(stripMd(b.text)); continue; }
+      if (b.kind === 'quote') {
+        const ref = b.ref ? stripMd(b.ref) : undefined;
+        this.callout(ref ? `Firman — ${ref}` : 'Firman', stripMd(b.text).replace(/^["“”'\s]+|["“”'\s]+$/g, ''));
+        continue;
+      }
+      if (b.kind === 'list') { this.bullets(b.items, b.ordered ? 'ordered' : '•'); continue; }
+      if (b.role === 'takeaway') { this.callout('Poin Utama', stripMd(b.text), 'amber'); continue; }
+      if (b.role === 'correction') { this.callout('Luruskan', stripMd(b.text), 'amber'); continue; }
+      if (b.role === 'speech') { this.richParagraph(b.text, size + 1, 6); continue; }
+      this.richParagraph(b.text, size, 5.4);
     }
   }
 
@@ -393,7 +458,8 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
   for (const s of khSections) {
     const body = String(khOutline[s.key] || '').trim();
     if (!body) continue;
-    w.field(`${s.no}. ${s.heading}`, body);
+    w.label(`${s.no}. ${s.heading}`, C.accent);
+    w.mdBlocks(body, { speech: s.key === 'kesimpulan' });
   }
   if (sermon.teksUtama?.ref) w.field('Teks Utama Khotbah', sermon.teksUtama.text ? `${sermon.teksUtama.ref}\n${sermon.teksUtama.text}` : sermon.teksUtama.ref);
   const checklist = sermon.prepChecklist || [];
@@ -450,9 +516,7 @@ export function buildKhutbahPdf(week: DidaskaliaWeek, studio: DidaskaliaStudio, 
     w.label(`Outline · ${s.no} ${s.title}`, C.accent);
     w.title(s.heading, 20);
     w.image(opts.khutbahSectionImages?.[s.key], 40);
-    for (const para of body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)) {
-      w.paragraph(para);
-    }
+    w.mdBlocks(body, { speech: s.key === 'kesimpulan' });
   }
   w.finishFooters();
   const v = opts.version || 1;

@@ -81,7 +81,16 @@ hari ini ("Anda tidak butuh sekadar perbaikan nasib sementara..."). Siap diucapk
 ## Rambu
 - Reformed dan kontekstual Beyonders (kuliah/kerja/kos/relasi Cikarang), seperti standar lain.
 - Kutip ayat akurat; jangan mengarang referensi.
-- AI DILARANG memparafrase outline bila MD acuan tersedia (lihat aturan prompt SERMON_RULES).`,
+- AI DILARANG memparafrase outline bila MD acuan tersedia (lihat aturan prompt SERMON_RULES).
+
+## Konvensi penanda → highlight otomatis (website + PDF)
+Penulis MD cukup memakai penanda ini; website/PDF mengubahnya jadi highlight
+(kata-kata TIDAK diubah):
+- \`> "kutipan" (Ref Ayat)\` → blok Firman besar + chip referensi.
+- \`Poin Utama bagi Anak Muda: ...\` / \`Ingatlah: ...\` → kotak emas takeaway.
+- \`Bukan berarti ...\` / \`Sering disalahpahami ...\` → kotak pelurusan.
+- \`**teks**\` → tebal aksen; \`#### A./B./C.\` → label bagian; \`---\` → pembatas.
+- Isi Kesimpulan selalu tampil sebagai suara pengkhotbah (lebih besar, hangat).`,
   },
   {
     id: 'dk-format-khotbah',
