@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Audit usage Vercel + skrip vercel:gc (9 Okt 2026)
+
+**Temuan (read-only):** 30 deployment, semua READY, tertua 31 Agu — SEHAT, jauh dari tumpukan 110+ (5 Okt). Angka % CPU/storage tak bisa via CLI (Observability Plus paywall) — wajib cek dasbor. Laju ±25 deployment/hari (tiap push + sync = 1 deployment) = risiko nyata berulang ±4 hari.
+
+**Ubah:** `scripts/vercel-gc.mjs` + `npm run vercel:gc` (dry-run default; ambang >14 hari; lindungi URL ber-alias + `--safe` + `--keep`; tangani paginasi `alias ls` + stderr) — dry-run: **0 kandidat** (2 tertua ternyata ber-alias ke branch hidup; bug paginasi sempat salah tandai — sudah diperbaiki + terverifikasi).
+
+**Next:** cek dasbor Usage (% CPU/storage); gabung commit sebelum push; sync staging secukupnya (bukan per commit docs-only).
+
 ## Current — hideTitle slide isi pembekalan + RHB (9 Okt 2026)
 
 **Kebutuhan:** judul besar ganda (kicker + H1 + label isi) makan ruang; identitas cukup dari kicker. Cakupan: pembekalan + RHB saja, khutbah utuh.
@@ -10,7 +18,9 @@
 
 **Verifikasi:** `lint` bersih ✓ full suite **133 file hijau** (3 gagal semu saat build paralel, hijau di run bersih) ✓ `build` OK ✓
 
-**Next:** commit + push + `staging:sync` • QA visual.
+**Deploy:** commit `605d0a3` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `605d0a3`).
+
+**Next:** QA visual.
 
 ## Current — RHB standar khutbah: gambar harian AI + background semua slide (9 Okt 2026)
 
