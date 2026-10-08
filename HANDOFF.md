@@ -76,6 +76,8 @@
 
 **Verifikasi:** `lint` bersih • full suite **983 hijau**.
 
+**Deploy (9 Okt 2026, ~00:05):** merge `cursor/print-terang-foto` → main (`88b7896`) + push + `staging:sync` ✓. Prod = `88b7896` ✓. Cara cek: buka slide jembatan 1/2 → Cetak → preview: foto + teks terang (dulu hitam).
+
 ## Current — Judul chunk dihapus + merger slide (9 Okt 2026, uncommitted di main)
 
 **Kebutuhan:** judul besar + counter redundan dengan kicker (makan space); page 8+9 bisa gabung.
