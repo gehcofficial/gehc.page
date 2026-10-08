@@ -56,6 +56,19 @@ refactor(scope): ...
 test: ...
 ```
 
+## Push batching (hemat deployment Vercel)
+
+Tiap `git push` (main/branch) = 1 deployment; tiap `staging:sync` = 1
+deployment staging. Laju ±25/hari menumpuk storage (insiden 5 Okt 2026:
+9.69/10GB → hapus 110+ deployment).
+
+- Commit sering (lokal), **push + sync per batch** (episode selesai +
+  lolos `lint` + `test`) — bukan per commit. Pengecualian: hotfix prod
+  atau butuh QA staging segera.
+- `git add <file spesifik>` — JANGAN `git add -A` (workspace dipakai
+  sesi paralel). Cek `git status` + `git log origin/main..HEAD` sebelum push.
+- Cek rutin: `npm run vercel:gc` (dry-run; `--apply` bila perlu).
+
 ## Handoff
 
 After each episode, update [`HANDOFF.md`](HANDOFF.md) with Done / Next / Commands.
