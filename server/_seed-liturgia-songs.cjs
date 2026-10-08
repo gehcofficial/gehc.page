@@ -8,6 +8,10 @@
  *   hormati hak cipta YLSA/YAMUGER/BPMS GMIM/penerbit,
  *   tim membuka tautan sumber dari UI).
  * - 1 lagu contoh LOKAL milik tim (dengan ChordPro) sebagai pola input pemusik.
+ * - Kontemporer ID/EN (±50, terkurasi) dari server/seed-data/songs-contemporary.json
+ *   (metadata + artis + tautan unlimitedworship/suaranafiri terverifikasi;
+ *   TANPA lirik — hormati label/artis; lewati judul yang sudah ada di
+ *   himne/KLIK).
  * - Lagu SEKULER tidak di-seed massal (hak cipta label) — input manual via UI.
  *
  * Jalankan: npm run db:seed:liturgia-songs[:staging|:prod]
@@ -36,6 +40,9 @@ const PKJ = JSON.parse(
 const KLIK = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-klik.json'), 'utf8'),
 ).klik;
+const CONTEMPORARY = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'seed-data', 'songs-contemporary.json'), 'utf8'),
+).contemporary;
 
 const LOKAL_SAMPLE = {
   title: 'Kasih Setia-Mu (Contoh Tim)',
@@ -69,6 +76,7 @@ const LOKAL_SAMPLE = {
 
   let added = 0;
   let kept = 0;
+  let skipped = 0;
   const upsert = async (row) => {
     const [ex] = await conn.query(
       `SELECT id FROM songs WHERE source = ? AND source_ref = ? LIMIT 1`,
@@ -79,8 +87,8 @@ const LOKAL_SAMPLE = {
       return;
     }
     await conn.query(
-      `INSERT INTO songs (id, title, source, source_ref, source_url, authors, copyright, ccli, default_key, tempo, lyrics_chord_pro, tenant_scope, is_active, created_by_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GLOBAL', true, NULL, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))`,
+      `INSERT INTO songs (id, title, source, source_ref, source_url, authors, copyright, ccli, default_key, tempo, lyrics_chord_pro, lang, tenant_scope, is_active, created_by_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GLOBAL', true, NULL, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))`,
       [
         `sng-${crypto.randomUUID()}`,
         row.title,
@@ -93,6 +101,7 @@ const LOKAL_SAMPLE = {
         row.defaultKey || null,
         row.tempo || null,
         row.lyricsChordPro || null,
+        row.lang || 'ID',
       ],
     );
     added += 1;
@@ -149,10 +158,31 @@ const LOKAL_SAMPLE = {
       copyright: '© GMIM / pencipta — lihat tautan sumber',
     });
   }
+  // Kontemporer: lewati judul yang sudah ada di himne/KLIK (duplikat lintas-buku).
+  const [hymnRows] = await conn.query(
+    `SELECT LOWER(title) AS t FROM songs WHERE source IN ('HIMNE_KJ','HIMNE_NKB','HIMNE_NNBT','HIMNE_PKJ','KLIK')`,
+  );
+  const hymnTitles = new Set(hymnRows.map((r) => r.t));
+  for (const k of CONTEMPORARY) {
+    if (hymnTitles.has(String(k.title).toLowerCase())) {
+      skipped += 1;
+      console.log(`= lewati (duplikat himne/KLIK): ${k.title}`);
+      continue;
+    }
+    await upsert({
+      title: k.title,
+      source: 'KONTEMPORER',
+      sourceRef: k.n,
+      sourceUrl: k.url,
+      authors: k.artists || null,
+      copyright: k.copyright || null,
+      lang: k.lang || 'ID',
+    });
+  }
   await upsert(LOKAL_SAMPLE);
 
   await conn.end();
-  console.log(`✓ Selesai (tambah ${added}, sudah ada ${kept}).`);
+  console.log(`✓ Selesai (tambah ${added}, sudah ada ${kept}, lewati duplikat ${skipped}).`);
 })().catch((e) => {
   console.error('Gagal seed liturgia-songs:', e?.message || e);
   process.exit(1);

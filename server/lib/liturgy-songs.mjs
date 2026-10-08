@@ -435,6 +435,11 @@ export function normalizeSongInput(body, existing = null) {
     data.defaultKey = k;
   }
   if (b.tempo !== undefined) data.tempo = intOrNull(b.tempo);
+  if (b.lang !== undefined) {
+    const l = String(b.lang || '').toUpperCase();
+    if (l && !['ID', 'EN'].includes(l)) throw Object.assign(new Error('Bahasa tidak valid (ID/EN).'), { status: 400 });
+    if (l) data.lang = l;
+  } else if (!existing) data.lang = 'ID';
   if (b.lyricsChordPro !== undefined) {
     const v = b.lyricsChordPro === null ? null : String(b.lyricsChordPro).slice(0, 60000);
     data.lyricsChordPro = v && v.trim() ? v : null;
@@ -527,6 +532,7 @@ export function serializeSong(row) {
     ccli: row.ccli ?? null,
     defaultKey: row.defaultKey ?? null,
     tempo: row.tempo ?? null,
+    lang: row.lang ?? 'ID',
     lyricsChordPro: row.lyricsChordPro ?? null,
     arrangements,
     arrangement: compat,

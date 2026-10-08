@@ -12,7 +12,12 @@
 - **Hak cipta**: pustaka menyimpan **full lirik + ChordPro** untuk semua
   sumber (keputusan 7 Okt 2026 — risiko ditanggung gereja; akses baca =
   login, ekspor file = peran tulis). Pengisian *just-in-time*: pemusik
-  mengisi lagu yang masuk susunan/order dulu, bukan 1546 sekaligus.
+  mengisi lagu yang masuk susunan/order dulu.
+- **Kontemporer ID/EN** (`songs-contemporary.json`, ±50 terkurasi):
+  metadata + artis + tautan unlimitedworship/suaranafiri terverifikasi
+  (tanpa lirik — milik label/artis); seed lewati judul yang sudah ada di
+  himne/KLIK (mis. KLIK 57/93). Kolom `lang` (ID/EN, default ID) +
+  filter `GET /api/songs?lang=` + toggle bahasa di pencarian.
   Layar yang liriknya belum ada menampilkan placeholder + tombol link
   sumber (SABDA/alkitab.app). Kontemporer tetap wajib isi kolom
   copyright/CCLI. **Sekuler tetap tanpa lirik** (metadata +

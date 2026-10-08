@@ -1,5 +1,19 @@
 # GEHC Portal — Handoff
 
+## Current — Kontemporer ID/EN + kolom lang (8 Okt 2026)
+
+**Jalan:** kolom `songs.lang` (ID/EN, migrasi idempoten) + filter API + toggle UI + badge EN → verifikasi 50 link (36 ID 200 OK; 14 EN via site-search — 4 draf awal tak ada [Good Good Father, O Come to the Altar, This Is Amazing Grace + Holy Spirit salah sasaran] diganti terverifikasi: Revelation Song, In Christ Alone, Cornerstone, Holy Spirit 509) → `songs-contemporary.json` (metadata + artis + URL + copyright, tanpa lirik) → seed dedup vs himne/KLIK (2 lewati: KLIK 57/93, duplikat asli) → test JSON + lang (+4).
+
+**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ QA API live EN=14/ID=34/filter benar ✓ (menyusul: staging seed + prod)
+
+**Next:** QA visual filter bahasa → commit + push + sync → migrasi + seed prod.
+
+## Current — Isi master 'Ku Berbahagia KJ 392 (8 Okt 2026)
+
+**Jalan:** validasi via `normalizeSongInput` + `resolveArrangement` (repeat Chorus 2/3 ✓, lirik bersih tanpa bocor chord ✓) → tulis master prod (1 baris): lirik full + chord inline, `defaultKey` G, pool 4 bagian + varian `full` V1-C-V2-C-V3-C → verifikasi baca-balik (key=G, 571 char, default full ✓, setlist V1-C-V2-C tak tersentuh ✓, layar bersih ✓). Tetap editable via Isi lirik/Edit. Rollback = teks pra-isi (lirik tanpa chord, kunci null, susunan null).
+
+**Next:** pemusik cek penempatan chord/nada dasar; opsional alihkan pemakaian setlist ke `full` bila V3 ikut tampil.
+
 ## Current — Tombol Portal Liturgia + Aktifkan ulang live (8 Okt 2026)
 
 **Kebutuhan:** operator salah pencet Selesai (tak bisa kembali LIVE); butuh tombol kembali ke portal Liturgia minggu terkait dari rute standalone.

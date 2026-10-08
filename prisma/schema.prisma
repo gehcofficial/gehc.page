@@ -2847,6 +2847,8 @@ model Song {
   /// Susunan default master (ordered, boleh berulang): [{section, key?, transpose?}].
   /// Kosong = full master berurutan. Pemakaian per event (ServiceSong.sections) menang bila diisi.
   arrangement  Json?
+  /// Bahasa lagu: ID | EN (filter pustaka; default ID).
+  lang         String   @default("ID") @db.VarChar(8)
   /// GLOBAL = dipakai semua unit; selain itu tenantId pemilik.
   tenantScope  String   @default("GLOBAL") @map("tenant_scope") @db.VarChar(64)
   isActive     Boolean  @default(true) @map("is_active")

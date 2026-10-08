@@ -68,11 +68,13 @@ export function registerLiturgiaSongsRoutes(app, { wrap }) {
       try {
         const q = String(req.query.q || '').trim();
         const source = String(req.query.source || '').toUpperCase();
+        const lang = String(req.query.lang || '').toUpperCase();
         const onlyActive = String(req.query.active || '') !== '0';
         const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 50));
         const where = {};
         if (onlyActive) where.isActive = true;
         if (SOURCES.includes(source)) where.source = source;
+        if (['ID', 'EN'].includes(lang)) where.lang = lang;
         if (q) {
           where.OR = [
             { title: { contains: q } },

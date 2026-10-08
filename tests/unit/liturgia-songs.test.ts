@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   buildFreeShow,
   buildQuickLyrics,
@@ -372,5 +375,44 @@ describe('liturgia-songs: susunan bernama master', () => {
     expect(q.indexOf('Kasih setia-Mu')).toBeLessThan(q.indexOf('Besar setia-Mu'));
     const c = buildChordProExport(SONG, { sections: null, transpose: 0, baseKey: 'G' });
     expect((c.match(/\[Verse 1[^\]]*\]/g) || []).length).toBe(2);
+  });
+});
+
+describe('liturgia-songs: kolom bahasa ID/EN', () => {
+  it('default ID, validasi EN, tolak lain', () => {
+    expect(normalizeSongInput({ title: 'T' }).lang).toBe('ID');
+    expect(normalizeSongInput({ title: 'T', lang: 'en' }).lang).toBe('EN');
+    expect(() => normalizeSongInput({ title: 'T', lang: 'JP' })).toThrow('Bahasa');
+  });
+
+  it('update tanpa lang mempertahankan existing', () => {
+    expect(normalizeSongInput({ title: 'T' }, { lang: 'EN' }).lang).toBeUndefined();
+    expect(serializeSong({ title: 'T', lang: 'EN' }).lang).toBe('EN');
+    expect(serializeSong({ title: 'T' }).lang).toBe('ID');
+  });
+});
+
+describe('liturgia-songs: seed kontemporer ID/EN', () => {
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'server', 'seed-data');
+  const list = JSON.parse(fs.readFileSync(path.join(dir, 'songs-contemporary.json'), 'utf8')).contemporary;
+
+  it('50 entri valid (judul + ref unik + bahasa + tautan https)', () => {
+    expect(list.length).toBe(50);
+    const refs = new Set();
+    for (const e of list) {
+      expect(e.title?.trim().length).toBeGreaterThan(1);
+      expect(e.n).toMatch(/^(UW|SN) \S+/);
+      expect(refs.has(e.n)).toBe(false);
+      refs.add(e.n);
+      expect(['ID', 'EN']).toContain(e.lang);
+      expect(e.url).toMatch(/^https:\/\/(unlimitedworship\.org\/songs\/detail\/\d+\/|suaranafiri\.giii-japan\.org\/song\/index\/\d+).*$/);
+    }
+  });
+
+  it('komposisi bahasa 36 ID + 14 EN', () => {
+    const id = list.filter((e) => e.lang === 'ID');
+    const en = list.filter((e) => e.lang === 'EN');
+    expect(id.length).toBe(36);
+    expect(en.length).toBe(14);
   });
 });

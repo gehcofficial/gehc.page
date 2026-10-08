@@ -37,6 +37,7 @@ type Song = {
   copyright?: string | null;
   ccli?: string | null;
   defaultKey?: string | null;
+  lang?: string | null;
   lyricsChordPro?: string | null;
   arrangement?: Array<string | { section: string; key?: string | null; transpose?: number | null }> | null;
   arrangements?: { master?: string[] | null; variants?: Array<{ name: string; entries?: unknown }> } | null;
@@ -307,6 +308,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [source, setSource] = useState('');
+  const [lang, setLang] = useState('');
   const [lib, setLib] = useState<Song[]>([]);
   const [libLoading, setLibLoading] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -338,7 +340,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     setLibLoading(true);
     try {
       const d = await api<{ songs: Song[] }>(
-        `/api/songs?q=${encodeURIComponent(q)}&source=${encodeURIComponent(source)}&limit=50`,
+        `/api/songs?q=${encodeURIComponent(q)}&source=${encodeURIComponent(source)}&lang=${encodeURIComponent(lang)}&limit=50`,
       );
       setLib(d.songs || []);
     } catch (e) {
@@ -346,7 +348,7 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
     } finally {
       setLibLoading(false);
     }
-  }, [q, source, addToast]);
+  }, [q, source, lang, addToast]);
 
   useEffect(() => {
     if (showLib) void searchLib();
@@ -555,6 +557,11 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
             <select className={inputCls} style={{ maxWidth: 150 }} value={source} onChange={(e) => setSource(e.target.value)}>
               {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
+            <select className={inputCls} style={{ maxWidth: 110 }} value={lang} onChange={(e) => setLang(e.target.value)} title="Bahasa lagu">
+              <option value="">ID+EN</option>
+              <option value="ID">Indonesia</option>
+              <option value="EN">English</option>
+            </select>
             <button type="button" onClick={() => void searchLib()} disabled={libLoading} className={btnDark}>
               {libLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Cari
             </button>
@@ -567,6 +574,9 @@ export const LiturgiaSongsPanel: React.FC<{ eventId: string }> = ({ eventId }) =
                     {s.title}
                     {s.source === 'SEKULER' && (
                       <span className="ml-1.5 px-1.5 py-px rounded-full bg-amber-100 text-amber-800 text-[9px] font-black align-middle">SEKULER · bebas saja</span>
+                    )}
+                    {s.lang === 'EN' && (
+                      <span className="ml-1.5 px-1.5 py-px rounded-full bg-sky-100 text-sky-800 text-[9px] font-black align-middle">EN</span>
                     )}
                   </p>
                   <p className="text-[10px] text-[#8C8880] truncate">
