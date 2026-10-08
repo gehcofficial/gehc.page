@@ -110,7 +110,9 @@ function sanitizeImages(raw) {
   }
   const aiImages = Array.isArray(r.aiImages) ? r.aiImages.filter((x) => typeof x === 'string' && x).slice(0, 20) : [];
   const khutbah = mapOfStr(r.khutbah);
-  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages, khutbah };
+  /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: fileId }. */
+  const khutbahLiteral = mapOfStr(r.khutbahLiteral);
+  return { cover: str(r.cover, 190).trim(), paths: mapOfStr(r.paths), rhb, aiImages, khutbah, khutbahLiteral };
 }
 
 export function hashContent(obj) {
@@ -1262,8 +1264,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   );
 
   // POST /api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image
-  // AI mengilustrasikan SATU slide ringkasan khotbah (prompt = visualNote slide).
-  // Kuota terpisah dari cover (MAX_SLIDE_IMAGES/minggu). Body: { slide: <index> }.
+  // AI mengilustrasikan SATU bagian khotbah literal (prompt = isi bagian itu)
+  // atau SATU slide ringkasan khotbah legacy (prompt = visualNote slide).
+  // Kuota terpisah dari cover (MAX_SLIDE_IMAGES/minggu).
+  // Body: { section: 'pengantar'|'bedahTeologis'|'jembatan'|'kesimpulan' } ATAU { slide: <index> }.
   app.post(
     '/api/didaskalia/studio/:yearMonth/:weekIndex/sermon-image',
     requireDivision('DIDASKALIA'),
@@ -1280,31 +1284,66 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const weeks = plan ? readWeeks(plan) : [];
       const week = weekOrDefault(weeks, yearMonth, weekIndex);
       const studio = sanitizeStudio(week.studio);
+      const SECTION_LABEL = { pengantar: 'Pengantar', bedahTeologis: 'Bedah Teologis', jembatan: 'Jembatan ke Tema Mingguan', kesimpulan: 'Kesimpulan' };
+      const section = String(req.body?.section || '');
+      const isSection = Boolean(SECTION_LABEL[section]);
       const slides = Array.isArray(studio.sermon?.slideOutline) ? studio.sermon.slideOutline : [];
       const idx = Number(req.body?.slide);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= slides.length) {
-        return res.status(400).json({ error: 'Parameter slide tidak valid.' });
+      if (!isSection && (!Number.isInteger(idx) || idx < 0 || idx >= slides.length)) {
+        return res.status(400).json({ error: 'Parameter section (pengantar/bedahTeologis/jembatan/kesimpulan) atau slide tidak valid.' });
       }
       const have = studio.presentation?.khutbah && typeof studio.presentation.khutbah === 'object'
         ? studio.presentation.khutbah
         : {};
-      const used = Object.keys(have).length;
-      if (used >= MAX_SLIDE_IMAGES && !have[String(idx)]) {
+      const haveLiteral = studio.presentation?.khutbahLiteral && typeof studio.presentation.khutbahLiteral === 'object'
+        ? studio.presentation.khutbahLiteral
+        : {};
+      const used = Object.keys(have).length + Object.keys(haveLiteral).length;
+      const alreadyHave = isSection ? Boolean(haveLiteral[section]) : Boolean(have[String(idx)]);
+      if (used >= MAX_SLIDE_IMAGES && !alreadyHave) {
         return res.status(429).json({ error: `Kuota ilustrasi slide pekan ini penuh (${MAX_SLIDE_IMAGES}).`, used, max: MAX_SLIDE_IMAGES });
       }
 
       const event = await resolveEventId(prisma, week.date);
       if (!event?.id) return res.status(400).json({ error: 'Belum ada event ibadah untuk pekan ini.' });
-      const slide = slides[idx] || {};
       const theme = week.mentoringTheme || week.servingTheme || week.theme || '';
-      const prompt = [
+      // Konteks aman untuk prompt gambar: kupas markup MD + ringkas (teks mentah
+      // seperti "darah/murka" sering memicu penolakan moderasi model gambar).
+      const safeContext = (text) => String(text || '')
+        .replace(/[*_>#`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 400);
+      const safeStyle = 'Gaya simbolis yang damai dan penuh harapan; hindari kekerasan, darah, dan figur manusia realistis.';
+      const basePrompt = [
         'Ilustrasi untuk satu slide khotbah pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
-        theme ? `Tema: ${theme}. Slide: ${slide.title || ''}.` : `Slide: ${slide.title || ''}.`,
-        slide.visualNote ? `Arahan visual: ${slide.visualNote}.` : '',
-        Array.isArray(slide.bullets) && slide.bullets.length ? `Isi: ${slide.bullets.slice(0, 3).join(' / ')}.` : '',
-        'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar. Sisakan ruang kosong di tepi untuk teks slide.',
-        'Warna & suasana relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
-      ].filter(Boolean).join(' ');
+        'PENTING: JANGAN menulis teks/huruf/angka/watermark apa pun di dalam gambar (teks ditambahkan terpisah sebagai overlay).',
+        'Sisakan ruang kosong (negative space) di bagian atas untuk overlay judul.',
+        'Warna & suasana selaras tema; relevan untuk pemuda mahasiswa dan pekerja pabrik/kantor di Indonesia.',
+      ];
+      let prompt;
+      let fileStem;
+      if (isSection) {
+        const sectionText = safeContext(studio.sermon?.outline?.[section]);
+        prompt = [
+          'Ilustrasi sampul bagian khotbah pemuda Kristen. Komposisi sinematik, kualitas tinggi, artistik.',
+          theme ? `Tema minggu: ${theme}. Bagian: ${SECTION_LABEL[section]}.` : `Bagian: ${SECTION_LABEL[section]}.`,
+          sectionText ? `Konteks isi: ${sectionText}.` : '',
+          safeStyle,
+          ...basePrompt.slice(1),
+        ].filter(Boolean).join(' ');
+        fileStem = `ai-khutbah-${yearMonth}-w${weekIndex}-${section}`;
+      } else {
+        const slide = slides[idx] || {};
+        prompt = [
+          basePrompt[0],
+          theme ? `Tema: ${theme}. Slide: ${slide.title || ''}.` : `Slide: ${slide.title || ''}.`,
+          slide.visualNote ? `Arahan visual: ${slide.visualNote}.` : '',
+          Array.isArray(slide.bullets) && slide.bullets.length ? `Isi: ${slide.bullets.slice(0, 3).join(' / ')}.` : '',
+          ...basePrompt.slice(1),
+        ].filter(Boolean).join(' ');
+        fileStem = `ai-sermon-${yearMonth}-w${weekIndex}-s${idx}`;
+      }
 
       let img;
       try {
@@ -1322,7 +1361,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         if (!parentId) return res.status(400).json({ error: 'Folder Drive Didaskalia belum siap.' });
         const buffer = Buffer.from(img.base64, 'base64');
         const file = await uploadFile(parentId, {
-          originalname: `ai-sermon-${yearMonth}-w${weekIndex}-s${idx}-${Date.now()}.jpg`,
+          originalname: `${fileStem}-${Date.now()}.jpg`,
           mimetype: img.mediaType,
           buffer,
         });
@@ -1333,14 +1372,19 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           (w) => {
             const s = { ...w.studio };
             const pres = { ...(s.presentation || {}) };
-            pres.khutbah = { ...((pres.khutbah && typeof pres.khutbah === 'object') ? pres.khutbah : {}), [String(idx)]: file.id };
+            if (isSection) {
+              pres.khutbahLiteral = { ...((pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object') ? pres.khutbahLiteral : {}), [section]: file.id };
+            } else {
+              pres.khutbah = { ...((pres.khutbah && typeof pres.khutbah === 'object') ? pres.khutbah : {}), [String(idx)]: file.id };
+            }
             s.presentation = pres;
             return { ...w, studio: s };
           },
           req.authUser?.id
         );
-        const total = Object.keys(saved?.studio?.presentation?.khutbah || {}).length;
-        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, slide: idx, used: total, max: MAX_SLIDE_IMAGES, model: img.model, week: saved });
+        const savedPres = saved?.studio?.presentation || {};
+        const total = Object.keys(savedPres.khutbah || {}).length + Object.keys(savedPres.khutbahLiteral || {}).length;
+        res.status(201).json({ fileId: file.id, url: `/api/didaskalia/asset/${file.id}`, slide: isSection ? undefined : idx, section: isSection ? section : undefined, used: total, max: MAX_SLIDE_IMAGES, model: img.model, week: saved });
       } catch (e) {
         if (isDriveAuthError(e)) return driveAuthExpired(res);
         res.status(500).json({ error: `Gambar AI jadi, tapi gagal menyimpan: ${String(e.message || e).slice(0, 200)}` });

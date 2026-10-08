@@ -154,7 +154,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         'Tutup dengan komitmen & doa.',
       ];
   const slides: DeckSlide[] = [
-    // 1. Cover + Big Idea (gabungan slide 1 & 2).
+    // 1. Cover (tanpa bigIdea AI — standar literal).
     {
       id: 'cover',
       kind: 'cover',
@@ -163,7 +163,6 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
       background: true,
-      paragraphs: sermon.bigIdea ? [sermon.bigIdea] : undefined,
       callout: content.fundamentalFirman?.text
         ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
         : undefined,
@@ -186,16 +185,8 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         ? { label: 'Pesan Kunci', value: outline.kesimpulan }
         : undefined,
     },
-    // 3. Bagian A — persiapan + ringkasan khotbah (gabungan slide 4 & 5).
-    {
-      id: 'a-khotbah',
-      kind: 'section',
-      kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Persiapan, Penyampaian & Ringkasan Khotbah',
-      bullets: (sermon.deliveryPlan || []).map((d) => `${d.method}: ${d.how}`),
-      paragraphs: toParagraphs(sermon.summary),
-      callout: sermon.rationale ? { label: 'Pendekatan & Metode', value: sermon.rationale } : undefined,
-    },
+    // 3. Bagian A — ringkasan khotbah LITERAL (outline MD verbatim, di-chunk rapi).
+    ...literalKhutbahSlides(content, `Bagian A · Untuk ${deliverer}`, 'a-khotbah', (sermon.deliveryPlan || []).map((d) => `${d.method}: ${d.how}`)),
     // 4. Checklist persiapan (pindah ke setelah gabungan 4 & 5).
     {
       id: 'a-checklist',
@@ -204,18 +195,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       title: 'Checklist Persiapan Khotbah',
       bullets: sermon.prepChecklist || [],
     },
-    // 5. Kerangka slide khotbah (gabungan slide 6–11).
-    {
-      id: 'a-kerangka',
-      kind: 'section',
-      kicker: `Bagian A · Untuk ${deliverer}`,
-      title: 'Kerangka Slide Khotbah',
-      bullets: (sermon.slideOutline || []).flatMap((s, i) => [
-        `${i + 1}. ${s.title}`,
-        ...(s.bullets || []).map((b) => `• ${b}`),
-      ]),
-    },
-    // 6. Bagian B — arahan teknis pola + alur + absensi/monitoring (gabungan slide 13 & 14).
+    // 5. Bagian B — arahan teknis pola + alur + absensi/monitoring (gabungan slide 13 & 14).
     {
       id: 'b-pola',
       kind: 'section',
@@ -235,7 +215,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         ...mentorOpsBullets(),
       ],
     },
-    // 7. Penutup — gambaran 7 hari + doa syafaat (gabungan slide 15 & 16).
+    // 6. Penutup — gambaran 7 hari + doa syafaat (gabungan slide 15 & 16).
     {
       id: 'penutup',
       kind: 'closing',
@@ -350,9 +330,82 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
   return slides;
 }
 
-export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
+/** 4 bagian baku outline MD Service (urutan tetap) untuk deck khotbah literal. */
+export const KHUTBAH_OUTLINE_SECTIONS = {
+  pengantar: { no: '1', title: 'Pengantar', heading: 'Pengantar' },
+  bedahTeologis: { no: '2', title: 'Bedah Teologis', heading: 'Bedah Teologis' },
+  jembatan: { no: '3', title: 'Jembatan', heading: 'Jembatan ke Tema Mingguan' },
+  kesimpulan: { no: '4', title: 'Kesimpulan', heading: 'Kesimpulan (Siap-Baca)' },
+} as const;
+
+export type KhutbahOutlineKey = keyof typeof KHUTBAH_OUTLINE_SECTIONS;
+
+/** Batas kerapian satu slide khotbah literal (verbatim, tanpa potong kalimat). */
+export const KHUTBAH_CHUNK_MAX_CHARS = 700;
+export const KHUTBAH_CHUNK_MAX_PARAS = 2;
+
+/**
+ * Pecah satu bagian outline (verbatim MD) menjadi N kelompok paragraf yang rapi.
+ * Tidak memotong kalimat — batas hanya di antar-paragraf (baris kosong ganda).
+ */
+export function chunkSermonSection(text?: string, maxChars = KHUTBAH_CHUNK_MAX_CHARS, maxParas = KHUTBAH_CHUNK_MAX_PARAS): string[][] {
+  const paras = toParagraphs(text);
+  if (!paras.length) return [];
+  const chunks: string[][] = [];
+  let cur: string[] = [];
+  let len = 0;
+  for (const p of paras) {
+    if (cur.length > 0 && (cur.length >= maxParas || len + p.length > maxChars)) {
+      chunks.push(cur);
+      cur = [];
+      len = 0;
+    }
+    cur.push(p);
+    len += p.length;
+  }
+  if (cur.length) chunks.push(cur);
+  return chunks;
+}
+
+/**
+ * Slide literal khotbah bersama (dipakai deck khutbah 02 & pembekalan 01):
+ * 4 bagian outline MD verbatim, di-chunk rapi, 1 gambar background per bagian.
+ */
+export function literalKhutbahSlides(
+  content: PresentationContent,
+  kickerPrefix: string,
+  idPrefix: string,
+  firstSlideBullets?: string[],
+): DeckSlide[] {
   const { sermon, images } = content;
   const outline = sermon.outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  const literal = images.khutbahLiteral && typeof images.khutbahLiteral === 'object' ? images.khutbahLiteral : {};
+  const slides: DeckSlide[] = [];
+  let first = true;
+  (Object.keys(KHUTBAH_OUTLINE_SECTIONS) as KhutbahOutlineKey[]).forEach((key) => {
+    const meta = KHUTBAH_OUTLINE_SECTIONS[key];
+    const chunks = chunkSermonSection(outline[key]);
+    const imgId = literal[key] || images.cover;
+    chunks.forEach((paragraphs, ci) => {
+      slides.push({
+        id: `${idPrefix}-${key}${chunks.length > 1 ? `-${ci + 1}` : ''}`,
+        kind: 'section',
+        kicker: `${kickerPrefix} · ${meta.no} ${meta.title}${chunks.length > 1 ? ` · ${ci + 1}/${chunks.length}` : ''}`,
+        title: chunks.length > 1 ? `${meta.heading} (${ci + 1}/${chunks.length})` : meta.heading,
+        imageFileId: imgId,
+        background: Boolean(imgId),
+        bullets: first && firstSlideBullets?.length ? firstSlideBullets : undefined,
+        paragraphs,
+      });
+      first = false;
+    });
+  });
+  return slides;
+}
+
+export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
+  // Standar literal-MD: 4 bagian outline MD Service verbatim, di-chunk rapi.
+  const { sermon, images } = content;
   const slides: DeckSlide[] = [
     {
       id: 'cover',
@@ -362,63 +415,13 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
       background: true,
+      fields: [
+        sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,
+        content.fundamentalFirman?.ref ? { label: 'Teks Jangkar Mingguan', value: content.fundamentalFirman.ref } : null,
+      ].filter(Boolean) as { label: string; value: string }[],
     },
-    {
-      id: 'inti',
-      kind: 'section',
-      kicker: 'Ringkasan',
-      title: 'Inti Khotbah',
-      paragraphs: [
-        ...(sermon.bigIdea ? [`Inti pesan: ${sermon.bigIdea}`] : []),
-        ...toParagraphs(sermon.summary),
-      ],
-      callout: sermon.teksUtama?.ref
-        ? { label: `Teks Utama · ${sermon.teksUtama.ref}`, value: sermon.teksUtama.text || sermon.teksUtama.ref }
-        : sermon.rationale
-          ? { label: 'Pendekatan & Metode', value: sermon.rationale }
-          : undefined,
-    },
-    {
-      id: 'outline-pengantar',
-      kind: 'section',
-      kicker: 'Outline · 1 Pengantar',
-      title: 'Pengantar',
-      paragraphs: toParagraphs(outline.pengantar),
-    },
-    {
-      id: 'outline-bedah',
-      kind: 'section',
-      kicker: 'Outline · 2 Bedah Teologis',
-      title: 'Bedah Teologis',
-      paragraphs: toParagraphs(outline.bedahTeologis),
-    },
-    {
-      id: 'outline-jembatan',
-      kind: 'section',
-      kicker: 'Outline · 3 Jembatan',
-      title: 'Jembatan ke Tema Mingguan',
-      paragraphs: toParagraphs(outline.jembatan),
-    },
-    {
-      id: 'outline-kesimpulan',
-      kind: 'section',
-      kicker: 'Outline · 4 Kesimpulan',
-      title: 'Kesimpulan (Siap-Baca)',
-      paragraphs: toParagraphs(outline.kesimpulan),
-    },
+    ...literalKhutbahSlides(content, 'Outline', 'outline'),
   ];
-  (sermon.slideOutline || []).forEach((s, i) => {
-    const imgId = images.khutbah?.[String(i)];
-    slides.push({
-      id: `slide-${i}`,
-      kind: 'section',
-      kicker: `Slide ${i + 1}`,
-      title: s.title,
-      imageFileId: imgId,
-      bullets: s.bullets,
-      callout: !imgId && s.visualNote ? { label: 'Arahan Visual', value: s.visualNote } : undefined,
-    });
-  });
   return slides;
 }
 

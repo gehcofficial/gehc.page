@@ -1,6 +1,28 @@
 # GEHC Portal — Handoff
 
+## Current — Khutbah literal-MD + settlement W2 2026-10 (8 Okt 2026, branch `cursor/literal-md-khutbah`)
+
+**Kebutuhan:** ringkasan khotbah website (doc 02) hasil AI beda dari MD Service member Didaskalia. Admin putuskan: full literal — 4 bagian MD verbatim, chunk rapi, nav atas + swipe, gambar AI per bagian sebagai background.
+
+**Ubah (kode, belum commit):** `chunkSermonSection` + `buildKhutbahDeck` literal (cover + 4 bagian verbatim, tanpa summary/slideOutline AI) + `khutbahLiteral` images + fallback cover (`didaskalia-presentation.ts`, `didaskalia.ts`) • `DeckShell` nav pindah total ke header sticky + swipe horizontal mobile (ambang 60px, dominan horizontal) • `sermon-image` terima `section` (prompt dari isi bagian, kuota gabungan) + panel Studio "Ilustrasikan per bagian" (`DidaskaliaStudioPanel.tsx`) • `buildKhutbahPdf` literal 4 bagian + `khutbahSectionImages` • prompt AI `SERMON_RULES` verbatim bila ada MD acuan + seed knowledge `dk-format-khotbah-service` literal (seeded staging + prod) • test baru `didaskalia-khutbah-literal.test.ts` (+7).
+
+**Data (applied, history dipertahankan):** settlement `scripts/settle-khutbah-literal-111026.mjs` staging + prod — outline W2 = verbatim `For Service_111026.md` (885/2544/1073/817 char), teksUtama diluruskan `Kolose 1:13-14` → `2 Korintus 5:21` (+ koreksi kutipan via `scripts/fix-w2-tekstutama.mjs`), fundamentalFirman = `Kolose 1:13–14`, generation 3 → 0, history 3 → 4 (+entri settlement, snapshot lama bisa undo). Verifikasi deck prod: 12 slide, semua frasa MD ada, tanpa teks AI.
+
+**Tambahan (sesi lanjut):** pembekalan 01 ikut literal — `literalKhutbahSlides` dipakai bersama deck 02 (`a-khotbah-{bagian}` + deliveryPlan di chunk pertama), slide AI `a-kerangka`/bigIdea/rationale dihapus; PDF pembekalan render 4 bagian verbatim. Gambar AI per bagian: skrip `scripts/generate-khutbah-section-images.mjs` siap, TAPI generate CLI dibatalkan (lambat; 1 gambar ±2 mnt + moderasi OpenAI menolak prompt bedah mentah) → **generate manual via Studio (Ilustrasikan per bagian)** dengan prompt aman baru (konteks 400 char + gaya simbolis damai). Deck fallback ke cover bila gambar bagian kosong.
+
+**Verifikasi:** `lint` bersih • unit baru 7/7 + presentasi 15/15 • full suite 956/957 (1 flaky `lazy-routes/ChurchHub` timeout 5s, lolos standalone — pola flaky lama, bukan regresi).
+
+**Next:** generate 4 gambar per bagian via Studio (prod) • publish ulang doc 02 W2 • merge branch → deploy prod → cek `#/materi/khutbah/2026-10/2` • follow-up: samakan modul Pembekalan 01 (masih pakai summary AI) bila tim mau.
+
+## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
+
+**Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
+
+**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ (menyusul: build + QA visual + push + sync; tanpa migrasi)
+
 ## Current — Timeline hari Koinonia P1 (8 Okt 2026)
+
+**Jalan:** `docs/product/integrasi-divisi.md` (5 pola + RACI + aturan) → model `day_timeline_items` (per tanggal; blok ibadah→event + pengumuman/selebrasi/makan/games; migrasi idempoten + Prisma + `check-db-schema`) → API CRUD + reorder (`requireDivision KOINONIA`, ringkasan ibadah: momen + live) → `DayTimelinePanel` di tab Ibadah Koinonia → batas lunak doa-buka/tutup (`orderBoundaryWarnings` paritas server↔klien + banner + field `warnings[]`) → test day-timeline (+9).
 
 **Jalan:** `docs/product/integrasi-divisi.md` (5 pola + RACI + aturan) → model `day_timeline_items` (per tanggal; blok ibadah→event + pengumuman/selebrasi/makan/games; migrasi idempoten + Prisma + `check-db-schema`) → API CRUD + reorder (`requireDivision KOINONIA`, ringkasan ibadah: momen + live) → `DayTimelinePanel` di tab Ibadah Koinonia → batas lunak doa-buka/tutup (`orderBoundaryWarnings` paritas server↔klien + banner + field `warnings[]`) → test day-timeline (+9).
 

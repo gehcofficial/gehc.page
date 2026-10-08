@@ -2,7 +2,7 @@
  * DeckShell — kerangka presentasi (navigasi slide, fullscreen, keyboard).
  * Dipakai halaman materi Didaskalia; konten slide diserahkan via renderSlide.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 
 export type DeckShellProps = {
@@ -71,73 +71,100 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
 
   const progress = useMemo(() => (total <= 1 ? 100 : Math.round(((i + 1) / total) * 100)), [i, total]);
 
+  // Swipe horizontal (mobile): geser kiri = lanjut, geser kanan = kembali.
+  // Ambang 60px & dominan horizontal agar scroll vertikal tidak ketrigger.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (t) touchStart.current = { x: t.clientX, y: t.clientY };
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    const s = touchStart.current;
+    const t = e.changedTouches[0];
+    touchStart.current = null;
+    if (!s || !t) return;
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      setStarted(true);
+      if (dx < 0) setI((p) => Math.min(p + 1, Math.max(total - 1, 0)));
+      else setI((p) => Math.max(p - 1, 0));
+    }
+  }, [total]);
+
   return (
     <div className="min-h-[100dvh] bg-[#0B1220] text-white flex flex-col print:bg-white print:text-black">
-      <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 print:hidden">
-        <button
-          type="button"
-          onClick={exit}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition"
-          title="Keluar (Esc)"
-        >
-          <X className="w-3.5 h-3.5" /> Keluar
-        </button>
-        <div className="min-w-0 flex-1">
-          {eyebrow && <p className="text-[10px] font-black uppercase tracking-wider text-sky-300 truncate">{eyebrow}</p>}
-          <p className="text-sm font-bold truncate">{docTitle}</p>
-        </div>
-        {headerRight}
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition"
-          title="Layar penuh (F)"
-        >
-          {isFull ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{isFull ? 'Keluar layar' : 'Layar penuh'}</span>
-        </button>
-      </header>
-
-      <div className="h-1 bg-white/10 print:hidden">
-        <div className="h-full bg-sky-400 transition-all" style={{ width: `${progress}%` }} />
-      </div>
-
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6">
-        <div className="w-full max-w-6xl min-w-0 m-auto break-words">{total ? renderSlide(i) : null}</div>
-      </main>
-
-      <footer className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/10 print:hidden">
-        <button
-          type="button"
-          onClick={prev}
-          disabled={i === 0}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 px-4 py-2 text-xs font-bold transition"
-        >
-          <ChevronLeft className="w-4 h-4" /> Sebelumnya
-        </button>
-        <div className="flex items-center gap-1.5">
-          {slides.map((s, idx) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setI(idx)}
-              aria-label={`Slide ${idx + 1}`}
-              className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-6 bg-sky-400' : 'w-1.5 bg-white/25 hover:bg-white/50'}`}
-            />
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-white/60 tabular-nums">{i + 1} / {total}</span>
+      <header className="sticky top-0 z-40 bg-[#0B1220]/95 backdrop-blur border-b border-white/10 print:hidden">
+        <div className="flex items-center gap-3 px-4 py-3">
           <button
             type="button"
-            onClick={next}
-            disabled={i >= total - 1}
-            className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 hover:bg-sky-400 disabled:opacity-30 px-4 py-2 text-xs font-black text-white transition"
+            onClick={exit}
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition"
+            title="Keluar (Esc)"
           >
-            {started ? 'Lanjut' : 'Mulai'} <ChevronRight className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" /> Keluar
+          </button>
+          <div className="min-w-0 flex-1">
+            {eyebrow && <p className="text-[10px] font-black uppercase tracking-wider text-sky-300 truncate">{eyebrow}</p>}
+            <p className="text-sm font-bold truncate">{docTitle}</p>
+          </div>
+          {headerRight}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold transition"
+            title="Layar penuh (F)"
+          >
+            {isFull ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{isFull ? 'Keluar layar' : 'Layar penuh'}</span>
           </button>
         </div>
-      </footer>
+
+        <nav aria-label="Navigasi slide" className="flex items-center justify-between gap-2 px-4 pb-3">
+          <button
+            type="button"
+            onClick={prev}
+            disabled={i === 0}
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 px-4 py-2 text-xs font-bold transition"
+          >
+            <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Sebelumnya</span><span className="sm:hidden">Balik</span>
+          </button>
+          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+            {slides.map((s, idx) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => { setStarted(true); setI(idx); }}
+                aria-label={`Slide ${idx + 1}`}
+                className={`h-1.5 rounded-full transition-all shrink-0 ${idx === i ? 'w-6 bg-sky-400' : 'w-1.5 bg-white/25 hover:bg-white/50'}`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-bold text-white/60 tabular-nums">{i + 1} / {total}</span>
+            <button
+              type="button"
+              onClick={next}
+              disabled={i >= total - 1}
+              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 hover:bg-sky-400 disabled:opacity-30 px-4 py-2 text-xs font-black text-white transition"
+            >
+              {started ? 'Lanjut' : 'Mulai'} <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </nav>
+
+        <div className="h-1 bg-white/10 print:hidden">
+          <div className="h-full bg-sky-400 transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      </header>
+
+      <main
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="w-full max-w-6xl min-w-0 m-auto break-words">{total ? renderSlide(i) : null}</div>
+      </main>
     </div>
   );
 };
