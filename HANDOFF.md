@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Kerangka segmen pola + firman auto-sync (8 Okt 2026)
+
+**Kebutuhan:** pola Didaskalia = kerangka segmen (praise×3/worship×2/…), Liturgia isi lagu per slot; firman auto-sync perikop pekan.
+
+**Ubah:** spec `segments` di seed 5 pola (MONOLOG f1 praise×3/worship×2/bedah-lagu×1 f2 firman f6 persembahan×2; dst — draf, perlu review Didaskalia) → migrasi `segment_key/phase_no` + Prisma → `patternSegments/skeletonFromPattern/readWeekPericope` (server, paritas klien utk skeleton) → order terima slot kosong + bulk `/order/bulk` → live resolve firman (auto Studio vs manual, badge) → composer: kartu referensi rundown + Bangun kerangka + isi slot + badge auto/manual + peringatan slot kosong → test segmen/skeleton/perikop (+~12).
+
+**Verifikasi:** `lint` bersih ✓ full suite (menyusul) ✓ `build` OK ✓ seed staging (segmen MONOLOG/P2P tampil) ✓ QA `qa-liturgy-segments.mjs` **16/16** ✓
+
+**Next:** QA visual composer staging → commit + push + sync → migrasi + seed pola prod → Didaskalia review angka slot.
+
 ## Current — Kontemporer ID/EN + kolom lang (8 Okt 2026)
 
 **Jalan:** kolom `songs.lang` (ID/EN, migrasi idempoten) + filter API + toggle UI + badge EN → verifikasi 50 link (36 ID 200 OK; 14 EN via site-search — 4 draf awal tak ada [Good Good Father, O Come to the Altar, This Is Amazing Grace + Holy Spirit salah sasaran] diganti terverifikasi: Revelation Song, In Christ Alone, Cornerstone, Holy Spirit 509) → `songs-contemporary.json` (metadata + artis + URL + copyright, tanpa lirik) → seed dedup vs himne/KLIK (2 lewati: KLIK 57/93, duplikat asli) → test JSON + lang (+4).

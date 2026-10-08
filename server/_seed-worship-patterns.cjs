@@ -260,12 +260,28 @@ const PATTERNS = [
     defaultDurationMin: 120,
     modules: ['timer', 'notes', 'fgd', 'testimony'],
     phases: [
-      { no: 1, title: 'Praise & Worship + Bedah Lagu', minutes: 20, owner: 'Liturgia + Main Speaker', notes: '2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi).' },
-      { no: 2, title: 'Monolog khotbah (opsional dua suara)', minutes: 30, owner: 'Main Speaker (Didaskalia)', notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.' },
+      {
+        no: 1, title: 'Praise & Worship + Bedah Lagu', minutes: 20, owner: 'Liturgia + Main Speaker',
+        notes: '2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi).',
+        segments: [
+          { key: 'praise', label: 'Praise', kind: 'song', songs: 3 },
+          { key: 'worship', label: 'Worship', kind: 'song', songs: 2 },
+          { key: 'bedah-lagu', label: 'Bedah Lagu', kind: 'song', songs: 1 },
+        ],
+      },
+      {
+        no: 2, title: 'Monolog khotbah (opsional dua suara)', minutes: 30, owner: 'Main Speaker (Didaskalia)',
+        notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.',
+        segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
+      },
       { no: 3, title: 'Briefing + trigger pertanyaan', minutes: 5, owner: 'Main Speaker + Mentor', notes: 'Bagi kelompok; umumkan pemicu; Q dibuka satu per satu dari kontrol.' },
       { no: 4, title: 'FGD + Deep Sharing terpandu', minutes: 40, owner: 'Mentor/Pemicu', notes: '3 FGD + 2 deep sharing; jawab di web; tutup komitmen & doa.' },
       { no: 5, title: 'Satu Kata + kesaksian', minutes: 10, owner: 'MC + Mentor', notes: '1 kata/orang di web; 3-4 undian bersaksi live.' },
-      { no: 6, title: 'Komitmen + persembahan & doa berkat', minutes: 15, owner: 'Main Speaker', notes: 'Komitmen di web + unduh PDF; ayat penutup + berkat.' },
+      {
+        no: 6, title: 'Komitmen + persembahan & doa berkat', minutes: 15, owner: 'Main Speaker',
+        notes: 'Komitmen di web + unduh PDF; ayat penutup + berkat.',
+        segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 2 }],
+      },
     ],
     playbook: MONOLOG_PLAYBOOK,
     sortOrder: 5,
@@ -278,8 +294,16 @@ const PATTERNS = [
     defaultDurationMin: 60,
     modules: ['likert', 'rooms', 'timer', 'notes', 'chips', 'wordcloud'],
     phases: [
-      { no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgia', notes: 'Buka dengan 2 lagu syukur yang mengarah ke tema.' },
-      { no: 2, title: 'Monolog', minutes: 15, owner: 'Main Speaker (Didaskalia)', notes: 'Injil sebagai solusi praktis pergumulan Hubungan/Pekerjaan/Keluarga.' },
+      {
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgia',
+        notes: 'Buka dengan 2 lagu syukur yang mengarah ke tema.',
+        segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
+      },
+      {
+        no: 2, title: 'Monolog', minutes: 15, owner: 'Main Speaker (Didaskalia)',
+        notes: 'Injil sebagai solusi praktis pergumulan Hubungan/Pekerjaan/Keluarga.',
+        segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
+      },
       { no: 3, title: 'Briefing aturan main', minutes: 2, owner: 'Main Speaker', notes: 'Total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit.' },
       { no: 4, title: 'Post-to-Post (3 pos serentak)', minutes: 20, owner: 'PIC pos', notes: 'Solusi teologis + praktis per Likert; tanya jawab; catatan individu.' },
       { no: 5, title: 'Wrap-up & Lesson Learned', minutes: 10, owner: 'MC', notes: 'Kembali ke ruang utama; pilih chip words maks 3; doa penutup.' },
@@ -294,9 +318,20 @@ const PATTERNS = [
     defaultDurationMin: 140,
     modules: ['rounds', 'timer', 'teams'],
     phases: [
-      { no: 1, title: 'Opening & nyanyian singkat', minutes: 10, owner: 'Main Speaker', notes: 'Doa + baca firman pekan + bacakan aturan emas.' },
+      {
+        no: 1, title: 'Opening & nyanyian singkat', minutes: 10, owner: 'Main Speaker',
+        notes: 'Doa + baca firman pekan + bacakan aturan emas.',
+        segments: [
+          { key: 'pembuka', label: 'Pembuka', kind: 'song', songs: 1 },
+          { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
+        ],
+      },
       { no: 2, title: '5 ronde debat', minutes: 100, owner: 'Moderator', notes: 'Per ronde 20 mnt, 11 slide; sanggahan kedua utamakan Mentee.' },
-      { no: 3, title: 'Persembahan & transisi musik', minutes: 10, owner: 'Main Speaker', notes: 'Hening + persembahan sambil juri rekap skor.' },
+      {
+        no: 3, title: 'Persembahan & transisi musik', minutes: 10, owner: 'Main Speaker',
+        notes: 'Hening + persembahan sambil juri rekap skor.',
+        segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
+      },
       { no: 4, title: 'Konklusi teologis', minutes: 20, owner: 'Main Speaker', notes: 'Validasi, Trap Reveal dikotomi palsu, panggilan dari firman pekan.' },
     ],
     playbook: DEBAT_PLAYBOOK,
@@ -309,11 +344,19 @@ const PATTERNS = [
     defaultDurationMin: 145,
     modules: ['screening', 'timer', 'notes', 'testimony'],
     phases: [
-      { no: 1, title: 'Opening + praise + pengantar', minutes: 15, owner: 'Main Speaker', notes: 'Sinopsis tanpa spoiler + jembatan ke tema pekan.' },
+      {
+        no: 1, title: 'Opening + praise + pengantar', minutes: 15, owner: 'Main Speaker',
+        notes: 'Sinopsis tanpa spoiler + jembatan ke tema pekan.',
+        segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
+      },
       { no: 2, title: 'Pemutaran film', minutes: 91, owner: 'Multimedia', notes: 'Lampu redup, HP silent, tanpa komentar selama film.' },
       { no: 3, title: 'Pleno analisa film', minutes: 15, owner: 'MC', notes: '2-3 suara campuran Mentor/Mentee + pancingan tema.' },
       { no: 4, title: 'Team discussion / deep sharing', minutes: 25, owner: 'Mentor', notes: '3 pertanyaan wajib: akting suci, topeng terberat, langkah otentik.' },
-      { no: 5, title: 'Persembahan + konklusi + doa berkat', minutes: 15, owner: 'Main Speaker', notes: 'Api & Roh vs jubah luar + panggilan otentik.' },
+      {
+        no: 5, title: 'Persembahan + konklusi + doa berkat', minutes: 15, owner: 'Main Speaker',
+        notes: 'Api & Roh vs jubah luar + panggilan otentik.',
+        segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
+      },
     ],
     playbook: BEDAH_FILM_PLAYBOOK,
     sortOrder: 40,
@@ -325,12 +368,26 @@ const PATTERNS = [
     defaultDurationMin: 120,
     modules: ['teams', 'timer', 'notes'],
     phases: [
-      { no: 1, title: 'Opening & praise', minutes: 10, owner: 'Main Speaker', notes: 'Doa + firman pekan + aturan tanpa jeda.' },
+      {
+        no: 1, title: 'Opening & praise', minutes: 10, owner: 'Main Speaker',
+        notes: 'Doa + firman pekan + aturan tanpa jeda.',
+        segments: [
+          { key: 'pembuka', label: 'Pembuka', kind: 'song', songs: 1 },
+          { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
+        ],
+      },
       { no: 2, title: 'Sequence 1 — Snack & Merge', minutes: 10, owner: 'Main Speaker', notes: 'Tukar snack 3 mnt + yel-yel misi 7 mnt serentak.' },
       { no: 3, title: 'Sequence 2 — Kode Alkitab', minutes: 15, owner: 'Mentor', notes: 'Sandi, pass message, Runner, puzzle, Validator.' },
       { no: 4, title: 'Sequence 3 — Mission Room (paralel)', minutes: 30, owner: 'Tim', notes: 'Countdown layar; 5 tim kerja serentak.' },
       { no: 5, title: 'Presentasi hasil', minutes: 20, owner: 'MC', notes: 'Maks 4 menit per tim + 1 apresiasi.' },
-      { no: 6, title: 'Khotbah penutup & persembahan', minutes: 15, owner: 'Main Speaker', notes: 'Tema + firman pekan + persembahan.' },
+      {
+        no: 6, title: 'Khotbah penutup & persembahan', minutes: 15, owner: 'Main Speaker',
+        notes: 'Tema + firman pekan + persembahan.',
+        segments: [
+          { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
+          { key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 },
+        ],
+      },
       { no: 7, title: 'Commissioning & Declaration', minutes: 15, owner: 'Mentor', notes: 'Penumpangan tangan + doa personal + deklarasi Coram Deo.' },
     ],
     playbook: THREE_SEQUENCES_PLAYBOOK,

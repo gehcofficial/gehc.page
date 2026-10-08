@@ -29,6 +29,8 @@ export interface OrderItem {
   sortOrder: number;
   kind: OrderKind | string;
   serviceSongId?: string | null;
+  segmentKey?: string | null;
+  phaseNo?: number | null;
   title?: string | null;
   body?: string | null;
   owner?: string | null;
@@ -102,4 +104,82 @@ export function activeSection(display: DisplayPayload | null | undefined, sectio
   if (!secs.length) return null;
   const i = Math.max(0, Math.min(secs.length - 1, sectionIndex || 0));
   return secs[i];
+}
+
+export interface PatternSegment {
+  phaseNo: number;
+  phaseTitle: string;
+  key: string;
+  label: string;
+  kind: 'song' | 'firman';
+  songs: number;
+}
+
+export interface PatternLite {
+  code?: string | null;
+  name?: string | null;
+  defaultDurationMin?: number | null;
+  phases?: Array<{
+    no?: number | null;
+    title?: string | null;
+    minutes?: number | null;
+    owner?: string | null;
+    notes?: string | null;
+    segments?: Array<{ key?: unknown; label?: unknown; kind?: unknown; songs?: unknown }> | null;
+  }> | null;
+}
+
+/** Segmen pola yang menjadi kerangka tata ibadah (fase diskusi/dll dilewati). */
+export function patternSegments(pattern?: PatternLite | null): PatternSegment[] {
+  const phases = Array.isArray(pattern?.phases) ? pattern!.phases! : [];
+  const out: PatternSegment[] = [];
+  for (const ph of phases) {
+    const segs = Array.isArray(ph?.segments) ? ph!.segments! : [];
+    for (const s of segs) {
+      if (!s || typeof s !== 'object') continue;
+      const kind = String((s as { kind?: unknown }).kind || '').toLowerCase();
+      if (kind !== 'song' && kind !== 'firman') continue;
+      const key = String((s as { key?: unknown }).key || '').trim().slice(0, 40);
+      if (!key) continue;
+      out.push({
+        phaseNo: Number((ph as { no?: unknown }).no) || 0,
+        phaseTitle: String((ph as { title?: unknown }).title || ''),
+        key,
+        label: String((s as { label?: unknown }).label || key).slice(0, 80),
+        kind: kind as 'song' | 'firman',
+        songs: kind === 'song' ? Math.max(1, Math.min(12, Math.trunc(Number((s as { songs?: unknown }).songs) || 1))) : 0,
+      });
+    }
+  }
+  return out;
+}
+
+export interface SkeletonDraft {
+  kind: string;
+  title: string;
+  body: null;
+  segmentKey: string;
+  phaseNo: number;
+  serviceSongId: null;
+}
+
+/** Draf kerangka order dari segmen pola (slot lagu kosong, firman auto). */
+export function skeletonFromPattern(pattern?: PatternLite | null): SkeletonDraft[] {
+  const items: SkeletonDraft[] = [];
+  for (const seg of patternSegments(pattern)) {
+    if (seg.kind === 'firman') {
+      items.push({
+        kind: 'firman', title: seg.label, body: null,
+        segmentKey: `${seg.phaseNo}:${seg.key}`, phaseNo: seg.phaseNo, serviceSongId: null,
+      });
+      continue;
+    }
+    for (let i = 0; i < seg.songs; i += 1) {
+      items.push({
+        kind: 'lagu', title: `${seg.label} ${i + 1}`, body: null,
+        segmentKey: `${seg.phaseNo}:${seg.key}`, phaseNo: seg.phaseNo, serviceSongId: null,
+      });
+    }
+  }
+  return items;
 }

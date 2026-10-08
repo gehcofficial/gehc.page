@@ -18,6 +18,7 @@ import {
   normalizeOrderItemInput,
   normalizeSongSettingInput,
   randomAccessCode,
+  readWeekPericope,
   resolveLyrics,
   serializeLiveState,
   serializeOrderItem,
@@ -32,17 +33,18 @@ function missingTable(e) {
 }
 
 async function ensureEvent(prisma, eventId) {
+  const select = { id: true, name: true, slug: true, eventDate: true };
   try {
-    const byId = await prisma.eventProgram.findUnique({ where: { id: String(eventId) }, select: { id: true, name: true, slug: true } });
+    const byId = await prisma.eventProgram.findUnique({ where: { id: String(eventId) }, select });
     if (byId) return byId;
-    const bySlug = await prisma.eventProgram.findFirst({ where: { slug: String(eventId) }, select: { id: true, name: true, slug: true } });
+    const bySlug = await prisma.eventProgram.findFirst({ where: { slug: String(eventId) }, select });
     return bySlug || null;
   } catch {
-    return { id: String(eventId), name: null, slug: null };
+    return { id: String(eventId), name: null, slug: null, eventDate: null };
   }
 }
 
-async function loadOrder(prisma, eventId) {
+async function loadOrder(prisma, eventId, pericope = null) {
   const rows = await prisma.serviceOrderItem.findMany({
     where: { eventId: String(eventId) },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -56,7 +58,21 @@ async function loadOrder(prisma, eventId) {
     const songById = new Map(songs.map((s) => [s.id, s]));
     songByItemId = new Map(ssRows.map((r) => [r.id, serializeServiceSong(r, songById.get(r.songId) || null)]));
   }
-  return rows.map((r) => serializeOrderItem(r, (r.serviceSongId && songByItemId.get(r.serviceSongId)) || null));
+  return rows.map((r) => {
+    const item = serializeOrderItem(r, (r.serviceSongId && songByItemId.get(r.serviceSongId)) || null);
+    item.display = resolveLyrics(item, item.serviceSong?.song || null, item.serviceSong || null, pericope);
+    return item;
+  });
+}
+
+async function loadPericope(prisma, ev) {
+  try {
+    const d = ev?.eventDate ? new Date(ev.eventDate) : null;
+    if (!d || Number.isNaN(d.getTime())) return null;
+    return await readWeekPericope(prisma, d.toISOString());
+  } catch {
+    return null;
+  }
 }
 
 export function registerLiturgiaLiveRoutes(app, { wrap }) {
@@ -71,7 +87,7 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
       try {
         const ev = await ensureEvent(prisma, req.params.eventId);
         if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-        res.json({ eventId: ev.id, items: await loadOrder(prisma, ev.id) });
+        res.json({ eventId: ev.id, items: await loadOrder(prisma, ev.id, await loadPericope(prisma, ev)) });
       } catch (e) {
         if (missingTable(e)) return res.json({ eventId: String(req.params.eventId), items: [] });
         throw e;
@@ -104,6 +120,8 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
             sortOrder: data.sortOrder ?? count + 1,
             kind: data.kind || 'lagu',
             serviceSongId: data.serviceSongId || null,
+            segmentKey: data.segmentKey || null,
+            phaseNo: data.phaseNo ?? null,
             title: data.title || null,
             body: data.body || null,
             owner: data.owner || null,
@@ -141,7 +159,7 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
           }
         }
         const patch = {};
-        for (const k of ['kind', 'serviceSongId', 'title', 'body', 'owner', 'minutes', 'note', 'sortOrder']) {
+        for (const k of ['kind', 'serviceSongId', 'segmentKey', 'phaseNo', 'title', 'body', 'owner', 'minutes', 'note', 'sortOrder']) {
           if (data[k] !== undefined) patch[k] = data[k];
         }
         const updated = await prisma.serviceOrderItem.update({ where: { id: found.id }, data: patch });
@@ -188,8 +206,60 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
         await prisma.$transaction(
           ids.map((id, i) => prisma.serviceOrderItem.updateMany({ where: { id, eventId: String(req.params.eventId) }, data: { sortOrder: i + 1 } })),
         );
-        res.json({ ok: true, items: await loadOrder(prisma, String(req.params.eventId)) });
+        const ev = await ensureEvent(prisma, req.params.eventId);
+        res.json({ ok: true, items: await loadOrder(prisma, String(req.params.eventId), await loadPericope(prisma, ev)) });      } catch (e) {
+        if (missingTable(e)) return res.status(503).json({ error: 'Tabel tata ibadah belum ada — jalankan npm run db:migrate:liturgy-live.' });
+        throw e;
+      }
+    }),
+  );
+
+  // ---------------- Bulk: bangun kerangka dari segmen pola ----------------
+
+  app.post(
+    '/api/events/:eventId/order/bulk',
+    requireDivision('LITURGIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      try {
+        const ev = await ensureEvent(prisma, req.params.eventId);
+        if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+        const list = Array.isArray(req.body?.items) ? req.body.items.slice(0, 100) : [];
+        if (!list.length) return res.status(400).json({ error: 'items wajib (maks 100).' });
+        const norms = list.map((b) => normalizeOrderItemInput(b || {}));
+        for (const n of norms) {
+          if (n.kind === 'lagu' && n.serviceSongId) {
+            const ss = await prisma.serviceSong.findUnique({ where: { id: n.serviceSongId } });
+            if (!ss || String(ss.eventId) !== String(ev.id)) {
+              return res.status(400).json({ error: 'Lagu setlist tidak cocok dengan event ini.' });
+            }
+          }
+        }
+        const base = await prisma.serviceOrderItem.count({ where: { eventId: ev.id } });
+        const created = await prisma.$transaction(
+          norms.map((n, i) => prisma.serviceOrderItem.create({
+            data: {
+              id: uid('sord'),
+              eventId: ev.id,
+              sortOrder: n.sortOrder ?? base + i + 1,
+              kind: n.kind || 'lagu',
+              serviceSongId: n.serviceSongId || null,
+              segmentKey: n.segmentKey || null,
+              phaseNo: n.phaseNo ?? null,
+              title: n.title || null,
+              body: n.body || null,
+              owner: n.owner || null,
+              minutes: n.minutes ?? null,
+              note: n.note || null,
+              createdById: req.authUser?.id || null,
+            },
+          })),
+        );
+        res.status(201).json({ ok: true, count: created.length, items: await loadOrder(prisma, ev.id, await loadPericope(prisma, ev)) });
       } catch (e) {
+        if (e.status) return res.status(e.status).json({ error: e.message });
         if (missingTable(e)) return res.status(503).json({ error: 'Tabel tata ibadah belum ada — jalankan npm run db:migrate:liturgy-live.' });
         throw e;
       }
@@ -217,17 +287,13 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
         if (!req.authUser && !codeOk) {
           return res.status(401).json({ error: 'Butuh login atau kode proyektor.', needCode: true });
         }
-        const items = await loadOrder(prisma, ev.id);
-        const resolved = items.map((it) => ({
-          ...it,
-          display: resolveLyrics(it, it.serviceSong?.song || null, it.serviceSong || null),
-        }));
+        const items = await loadOrder(prisma, ev.id, await loadPericope(prisma, ev));
         res.setHeader('Cache-Control', 'no-store');
         res.json({
           eventId: ev.id,
           eventName: ev.name,
           state: serializeLiveState(state),
-          items: resolved,
+          items,
         });
       } catch (e) {
         if (missingTable(e)) return res.json({ eventId: String(req.params.eventId), state: null, items: [] });

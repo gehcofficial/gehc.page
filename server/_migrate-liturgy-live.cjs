@@ -82,6 +82,20 @@ const DDL = [
     console.log(`✓ tabel ${name} dibuat`);
   }
 
+  // Jejak segmen pola per momen (kerangka Didaskalia → isi Liturgia) — idempotent.
+  for (const [col, def] of [['segment_key', 'VARCHAR(64) NULL'], ['phase_no', 'INT NULL']]) {
+    const [c] = await conn.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'service_order_items' AND COLUMN_NAME = ?`,
+      [col],
+    );
+    if (c.length) {
+      console.log(`kolom service_order_items.${col} sudah ada`);
+      continue;
+    }
+    await conn.query(`ALTER TABLE \`service_order_items\` ADD COLUMN \`${col}\` ${def}`);
+    console.log(`✓ kolom service_order_items.${col} ditambahkan`);
+  }
+
   await conn.end();
   console.log('✓ Selesai (Liturgia: tata ibadah live + transpose pemusik).');
 })().catch((e) => {

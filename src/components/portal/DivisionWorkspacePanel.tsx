@@ -1388,7 +1388,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                     </div>
                                         {selectedDiv === 'LITURGIA' && (
                       <>
-                        <LiturgyOrderPanel eventId={selectedEvent.id} eventSlug={selectedEvent.slug} />
+                        <LiturgyOrderPanel eventId={selectedEvent.id} eventSlug={selectedEvent.slug} yearMonth={studioYearMonth || undefined} weekIndex={studioWeekIndex} />
                         <LiturgiaSongsPanel eventId={selectedEvent.id} />
                       </>
                     )}                    <EventDivisionPhaseTabs

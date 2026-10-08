@@ -2906,6 +2906,9 @@ model ServiceOrderItem {
   owner     String? @db.VarChar(100)
   minutes   Int?
   note      String? @db.VarChar(500)
+  /// Jejak segmen pola Didaskalia (fase:segmen, mis. "1:praise") — null = momen kustom.
+  segmentKey String? @map("segment_key") @db.VarChar(64)
+  phaseNo   Int?    @map("phase_no")
   createdById String? @map("created_by_id") @db.VarChar(64)
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)

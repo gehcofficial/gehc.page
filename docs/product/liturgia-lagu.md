@@ -86,7 +86,6 @@ npm run db:seed:liturgia-songs:prod
   massal — input manual via UI (wajib pencipta + tautan).
 
 ## 7. Tata ibadah live + transpose pemusik
-
 - **Susunan** (`service_order_items`): momen `lagu` menunjuk setlist
   (`serviceSongId`, satu event); momen non-lagu (`bacaan/doa/firman/
   persembahan/pengumuman/mc`) membawa `title/body/owner/minutes` sendiri.
@@ -201,3 +200,26 @@ npm run db:seed:liturgia-songs:prod
   Label `· D` + penanda `{comment: Modulasi ke D}` di ChordPro/tab chord.
 - **Validasi**: `validateArrangementSections` (400 bila nama asing);
   `normalizeArrangement` (maks 30 entri, kunci tak valid diabaikan).
+
+## 11. Kerangka segmen pola + firman auto-sync
+
+- **Satu sumber**: spec slot hidup di fase pola Didaskalia
+  (`phases[].segments`: `{key, label, kind: 'song'|'firman', songs}`).
+  Hanya fase ber-segmen yang menjadi kerangka; fase diskusi/MC/dll dilewati.
+- **Peta awal (draf, perlu review Didaskalia):** MONOLOG f1
+  praise×3/worship×2/bedah-lagu×1, f2 firman, f6 persembahan×2;
+  POST_TO_POST f1 praise×2, f2 firman; DEBAT f1 pembuka×1 + firman,
+  f3 persembahan×1; BEDAH_FILM f1 praise×2, f5 persembahan×1;
+  THREE_SEQUENCES f1 pembuka×1 + firman, f6 firman + persembahan×1.
+- **Composer Liturgia**: kartu referensi rundown (baca-saja) + tombol
+  **Bangun kerangka** (bulk, append; konfirmasi bila susunan sudah ada).
+  Tiap slot lagu kosong = pilih lagu setlist; slot terisi = badge,
+  slot kosong = peringatan (bukan blokir); momen kustom tetap bisa ditambah.
+- **Firman auto-sync**: momen firman tanpa body menampilkan perikop pekan
+  dari Studio (`fundamentalFirman.ref + text`, `kitabFokus`) + badge
+  `auto-sync`; isi body manual = menang + badge `manual`.
+  Resolve di server saat baca (`readWeekPericope` via tanggal event),
+  jadi edit Studio langsung tercermin tanpa sentuh susunan.
+- **Jejak segmen**: `service_order_items.segment_key` (`fase:key`) +
+  `phase_no` (migrasi idempotent) — tampil `§` di composer; layar/kontrol
+  tetap per momen.

@@ -36,16 +36,13 @@ export function normalizeOrderItemInput(body, existing = null) {
     if (!ORDER_KINDS.includes(kind)) throw Object.assign(new Error('Jenis momen tidak valid.'), { status: 400 });
     data.kind = kind;
   }
-  const kind = data.kind || existing?.kind || 'lagu';
   if (b.serviceSongId !== undefined) {
-    const v = str(b.serviceSongId, 64);
-    if (kind === 'lagu' && !v && !existing) {
-      throw Object.assign(new Error('Momen lagu wajib menunjuk lagu setlist.'), { status: 400 });
-    }
-    data.serviceSongId = v;
-  } else if (!existing && kind === 'lagu' && !b.serviceSongId) {
-    throw Object.assign(new Error('Momen lagu wajib menunjuk lagu setlist.'), { status: 400 });
+    // Boleh null = slot lagu kosong (dipilih nanti). Validasi kecocokan
+    // event dilakukan di routes saat serviceSongId terisi.
+    data.serviceSongId = str(b.serviceSongId, 64);
   }
+  if (b.segmentKey !== undefined) data.segmentKey = str(b.segmentKey, 64);
+  if (b.phaseNo !== undefined) data.phaseNo = intOrNull(b.phaseNo);
   if (b.title !== undefined) data.title = str(b.title, 200);
   if (b.body !== undefined) {
     const v = b.body === null ? null : String(b.body).slice(0, 20000);
@@ -70,6 +67,8 @@ export function serializeOrderItem(row, serviceSong = null) {
     sortOrder: row.sortOrder ?? row.sort_order ?? 0,
     kind: row.kind ?? 'lagu',
     serviceSongId: row.serviceSongId ?? row.service_song_id ?? null,
+    segmentKey: row.segmentKey ?? row.segment_key ?? null,
+    phaseNo: row.phaseNo ?? row.phase_no ?? null,
     title: row.title ?? null,
     body: row.body ?? null,
     owner: row.owner ?? null,
@@ -151,14 +150,25 @@ export function effectiveTranspose(serviceSongRow, settingRow = null) {
  * - Lagu → { kind:'song', title, sections:[{name, lines[]}], hasLyrics, sourceUrl }
  *   (lirik bersih tanpa chord; transpose TIDAK diterapkan di layar)
  */
-export function resolveLyrics(orderItem, songRow = null, serviceSongRow = null) {
+export function resolveLyrics(orderItem, songRow = null, serviceSongRow = null, pericope = null) {
   const item = orderItem || {};
   if ((item.kind || 'lagu') !== 'lagu') {
+    if ((item.kind || '') === 'firman' && !String(item.body || '').trim() && (pericope?.ref || pericope?.text)) {
+      return {
+        kind: 'text',
+        title: item.title || (pericope.ref ? `Firman — ${pericope.ref}` : 'Firman'),
+        body: [pericope.ref, pericope.text, pericope.kitabFokus ? `Kitab fokus: ${pericope.kitabFokus}` : '']
+          .filter(Boolean).join('\n\n'),
+        owner: item.owner || null,
+        auto: true,
+      };
+    }
     return {
       kind: 'text',
       title: item.title || item.kind || 'Momen',
       body: item.body || '',
       owner: item.owner || null,
+      auto: false,
     };
   }
   const song = songRow || {};
@@ -181,6 +191,92 @@ export function resolveLyrics(orderItem, songRow = null, serviceSongRow = null) 
     sections,
     hasLyrics: sections.length > 0,
   };
+}
+
+/**
+ * Spec segmen pola Didaskalia: [{key, label, kind:'song'|'firman', songs?}].
+ * Hanya segmen berkind song/firman yang menjadi kerangka tata ibadah;
+ * fase diskusi/MC/dll dilewati.
+ */
+export function patternSegments(pattern) {
+  const phases = Array.isArray(pattern?.phases) ? pattern.phases : [];
+  const out = [];
+  for (const ph of phases) {
+    const segs = Array.isArray(ph?.segments) ? ph.segments : [];
+    for (const s of segs) {
+      if (!s || typeof s !== 'object') continue;
+      const kind = String(s.kind || '').toLowerCase();
+      if (kind !== 'song' && kind !== 'firman') continue;
+      const key = String(s.key || '').trim().slice(0, 40);
+      if (!key) continue;
+      const songs = kind === 'song' ? Math.max(1, Math.min(12, Math.trunc(Number(s.songs)) || 1)) : 0;
+      out.push({
+        phaseNo: Number(ph.no) || 0,
+        phaseTitle: String(ph.title || ''),
+        key,
+        label: String(s.label || key).slice(0, 80),
+        kind,
+        songs,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Bangun draf kerangka order dari segmen pola: tiap slot lagu = momen
+ * kind lagu tanpa serviceSongId (diisi nanti); tiap firman = momen firman
+ * kosong (auto perikop saat tampil, fallback body manual).
+ */
+export function skeletonFromPattern(pattern) {
+  const items = [];
+  for (const seg of patternSegments(pattern)) {
+    if (seg.kind === 'firman') {
+      items.push({
+        kind: 'firman',
+        title: seg.label,
+        body: null,
+        segmentKey: `${seg.phaseNo}:${seg.key}`,
+        phaseNo: seg.phaseNo,
+        serviceSongId: null,
+      });
+      continue;
+    }
+    for (let i = 0; i < seg.songs; i += 1) {
+      items.push({
+        kind: 'lagu',
+        title: `${seg.label} ${i + 1}`,
+        body: null,
+        segmentKey: `${seg.phaseNo}:${seg.key}`,
+        phaseNo: seg.phaseNo,
+        serviceSongId: null,
+      });
+    }
+  }
+  return items;
+}
+
+/**
+ * Baca perikop pekan dari Studio Didaskalia via tanggal event.
+ * Return {ref, text, kitabFokus} atau null (Studio kosong/belum isi).
+ */
+export async function readWeekPericope(prisma, eventDateISO) {
+  try {
+    const day = String(eventDateISO || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth: day.slice(0, 7) } });
+    const weeks = plan && Array.isArray(plan.weeks) ? plan.weeks : [];
+    const week = weeks.find((w) => String(w?.date || '').slice(0, 10) === day);
+    const studio = week?.studio || {};
+    const firman = studio.fundamentalFirman || {};
+    const ref = String(firman.ref || '').trim();
+    const text = String(firman.text || '').trim();
+    const kitabFokus = String(studio.kitabFokus || '').trim();
+    if (!ref && !text) return null;
+    return { ref, text, kitabFokus };
+  } catch {
+    return null;
+  }
 }
 
 export { MOMENTS };

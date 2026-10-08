@@ -6,8 +6,12 @@ import {
   normalizeLiveStateInput,
   normalizeOrderItemInput,
   normalizeSongSettingInput,
+  patternSegments,
   randomAccessCode,
+  readWeekPericope,
   resolveLyrics,
+  serializeOrderItem,
+  skeletonFromPattern,
 } from '../../server/lib/liturgy-live.mjs';
 
 const SAMPLE_SONG = {
@@ -19,8 +23,9 @@ const SAMPLE_SONG = {
 const SAMPLE_USAGE = { sections: null, moment: 'pembuka' };
 
 describe('liturgia-live: validasi order', () => {
-  it('momen lagu wajib menunjuk lagu setlist', () => {
-    expect(() => normalizeOrderItemInput({ kind: 'lagu' })).toThrow('menunjuk lagu setlist');
+  it('momen lagu boleh slot kosong (diisi nanti via kerangka)', () => {
+    const d = normalizeOrderItemInput({ kind: 'lagu', title: 'Praise 1', segmentKey: '1:praise', phaseNo: 1 });
+    expect(d.serviceSongId ?? null).toBeNull();
     const ok = normalizeOrderItemInput({ kind: 'lagu', serviceSongId: 'ssvc-1', title: 'X' });
     expect(ok.serviceSongId).toBe('ssvc-1');
   });
@@ -108,5 +113,83 @@ describe('liturgia-live: resolveLyrics untuk layar', () => {
   it('sections terpilih membatasi bait layar', () => {
     const r = resolveLyrics({ kind: 'lagu' }, SAMPLE_SONG, { sections: ['Chorus'], moment: 'penutup' });
     expect(r.sections?.map((s) => s.name)).toEqual(['Chorus']);
+  });
+});
+
+const MONOLOG_PATTERN = {
+  code: 'MONOLOG',
+  name: 'Monolog',
+  phases: [
+    {
+      no: 1, title: 'Praise & Worship + Bedah Lagu', minutes: 20, owner: 'Liturgia',
+      segments: [
+        { key: 'praise', label: 'Praise', kind: 'song', songs: 3 },
+        { key: 'worship', label: 'Worship', kind: 'song', songs: 2 },
+        { key: 'bedah-lagu', label: 'Bedah Lagu', kind: 'song', songs: 1 },
+      ],
+    },
+    { no: 2, title: 'Monolog', minutes: 30, segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }] },
+    { no: 3, title: 'Briefing', minutes: 5 },
+    { no: 9, title: 'Aneh', segments: [{ key: '', kind: 'song' }, { kind: 'doa' }, null] },
+  ],
+};
+
+describe('liturgia-segments: kerangka dari pola', () => {
+  it('hanya segmen song/firman ber-key yang dipakai', () => {
+    const segs = patternSegments(MONOLOG_PATTERN);
+    expect(segs.map((s) => s.key)).toEqual(['praise', 'worship', 'bedah-lagu', 'firman']);
+    expect(segs[0]).toMatchObject({ phaseNo: 1, kind: 'song', songs: 3 });
+    expect(patternSegments(null)).toEqual([]);
+    expect(patternSegments({ phases: 'rusak' })).toEqual([]);
+  });
+
+  it('skeleton: slot lagu kosong + firman auto + trace segmen', () => {
+    const sk = skeletonFromPattern(MONOLOG_PATTERN);
+    expect(sk.length).toBe(3 + 2 + 1 + 1);
+    expect(sk[0]).toMatchObject({ kind: 'lagu', title: 'Praise 1', segmentKey: '1:praise', phaseNo: 1, serviceSongId: null });
+    expect(sk[3]).toMatchObject({ kind: 'lagu', title: 'Worship 1', segmentKey: '1:worship' });
+    expect(sk[6]).toMatchObject({ kind: 'firman', title: 'Firman', segmentKey: '2:firman' });
+  });
+
+  it('order terima slot kosong + jejak segmen', () => {
+    const d = normalizeOrderItemInput({ kind: 'lagu', title: 'Praise 1', segmentKey: '1:praise', phaseNo: 1 });
+    expect(d.serviceSongId ?? null).toBeNull();
+    expect(d.segmentKey).toBe('1:praise');
+    expect(d.phaseNo).toBe(1);
+    expect(serializeOrderItem({ id: 'x', segmentKey: '1:praise', phaseNo: 1 }).segmentKey).toBe('1:praise');
+  });
+
+  it('firman: auto perikop bila body kosong, manual menang', () => {
+    const peri = { ref: 'Yoh 3:16', text: 'Karena begitu besar kasih Allah...', kitabFokus: 'Yohanes' };
+    const auto = resolveLyrics({ kind: 'firman', title: 'Firman' }, null, null, peri);
+    expect(auto.auto).toBe(true);
+    expect(auto.title).toBe('Firman');
+    expect(auto.body).toContain('Yoh 3:16');
+    expect(auto.body).toContain('Kitab fokus: Yohanes');
+    const manual = resolveLyrics({ kind: 'firman', title: 'Firman', body: 'Teks manual.' }, null, null, peri);
+    expect(manual.auto).toBe(false);
+    expect(manual.body).toBe('Teks manual.');
+    const empty = resolveLyrics({ kind: 'firman', title: 'Firman' }, null, null, null);
+    expect(empty.auto).toBe(false);
+    expect(empty.body).toBe('');
+  });
+
+  it('readWeekPericope: cocok tanggal, toleran kosong', async () => {
+    const prisma = {
+      ministryMonthPlan: {
+        findUnique: async () => ({
+          weeks: [
+            { date: '2026-10-11', studio: { fundamentalFirman: { ref: 'Yoh 3:16', text: 'Teks.' }, kitabFokus: 'Yohanes' } },
+            { date: '2026-10-18', studio: {} },
+          ],
+        }),
+      },
+    };
+    expect(await readWeekPericope(prisma, '2026-10-11T00:00:00.000Z')).toEqual({
+      ref: 'Yoh 3:16', text: 'Teks.', kitabFokus: 'Yohanes',
+    });
+    expect(await readWeekPericope(prisma, '2026-10-18')).toBeNull();
+    expect(await readWeekPericope(prisma, 'acak')).toBeNull();
+    expect(await readWeekPericope(null, '2026-10-11')).toBeNull();
   });
 });
