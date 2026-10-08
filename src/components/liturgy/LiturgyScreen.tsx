@@ -8,6 +8,7 @@ import {
   parseLiturgyHash,
   saveLiturgyCode,
 } from '../../lib/liturgy-live';
+import { PortalBackButton } from './PortalBackButton';
 
 /**
  * Layar tata ibadah — proyektor + HP jemaat (read-only, ikut momen aktif).
@@ -108,6 +109,7 @@ export const LiturgyScreen: React.FC = () => {
           <h1 className="text-lg font-black truncate">{data?.eventName || '…'}</h1>
         </div>
         {loading && <Loader2 className="w-4 h-4 animate-spin opacity-60" />}
+        <PortalBackButton dark />
         <button
           type="button"
           title="Layar penuh"

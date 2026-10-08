@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Tombol Portal Liturgia + Aktifkan ulang live (8 Okt 2026)
+
+**Kebutuhan:** operator salah pencet Selesai (tak bisa kembali LIVE); butuh tombol kembali ke portal Liturgia minggu terkait dari rute standalone.
+
+**Ubah:** `src/lib/portal-place.ts` baru (ekstrak dari didaskalia-presentation + re-export, anti duplikasi) + `portalLiturgiaHref` (posisi div-liturgia → tab Liturgia ns aktif → fallback) → `PortalBackButton` di header Layar (dark) + Kontrol → `LiturgyOrderPanel` catat posisi sebelum ke kontrol → `LiturgyControl`: konfirmasi Selesai + pertahankan posisi (tak di-null) + tombol **Aktifkan ulang** saat DONE (lanjut posisi / momen pertama) → test `portal-place.test.ts` (+6).
+
+**Verifikasi:** `lint` bersih ✓ full suite (1 flaky lolos rerun) ✓ `build` OK ✓ (menyusul: push + sync + reset live prod + cek visual)
+
+**Next:** operator susun order event 11 Okt (cantolkan 'Ku Berbahagia) → Terapkan draft AI → latihan LIVE → hari-H.
+
 ## Current — Pool master + varian bernama + staged susunan (8 Okt 2026)
 
 **Ralat model:** susunan bukan satu list — lirik (semua bagian) → **pool setlist master** (Intro, V1–V3, Chorus, Coda, Ending…) → **variants** (`full`, `v1only`…); edit posisi batch + Save per susunan.

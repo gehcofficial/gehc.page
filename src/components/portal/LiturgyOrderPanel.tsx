@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, ExternalLink, Loader2, MonitorPlay, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { KIND_LABEL, LivePayload, OrderKind } from '../../lib/liturgy-live';
+import { rememberPortalPlace } from '../../lib/portal-place';
 
 type SetSong = { id: string; moment?: string | null; song?: { id: string; title: string; sourceRef?: string | null } | null };
 type OrderRow = {
@@ -131,7 +132,12 @@ export const LiturgyOrderPanel: React.FC<{ eventId: string; eventSlug?: string |
         <button type="button" onClick={() => copy(screenUrl, 'Link layar')} className={btnGhost} title={screenUrl}>
           <Copy className="w-3 h-3" /> Link layar
         </button>
-        <a href={`#/ibadah/${encodeURIComponent(key)}/kontrol`} className={btnGhost} title={controlUrl}>
+        <a
+          href={`#/ibadah/${encodeURIComponent(key)}/kontrol`}
+          onClick={() => rememberPortalPlace()}
+          className={btnGhost}
+          title={controlUrl}
+        >
           <ExternalLink className="w-3 h-3" /> Kontrol live
         </a>
       </div>

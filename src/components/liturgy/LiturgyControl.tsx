@@ -5,6 +5,7 @@ import {
   LivePayload,
   activeSection,
 } from '../../lib/liturgy-live';
+import { PortalBackButton } from './PortalBackButton';
 
 /**
  * Kontrol tata ibadah — operator Liturgia (wajib login + peran tulis).
@@ -93,6 +94,7 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
           </div>
           <span className="px-2 py-1 rounded-full text-[11px] font-black bg-[#1B1B1B] text-white">{data?.state?.status || 'DRAFT'}</span>
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          <PortalBackButton />
         </div>
 
         {err && <p className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{err} (operator wajib login Liturgia/Komisi.)</p>}
@@ -117,7 +119,33 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
             Bait <ChevronRight className="w-3 h-3 inline" />
           </button>
           <span className="flex-1" />
-          <button type="button" disabled={saving} onClick={() => void save({ status: 'DONE', currentItemId: null }, 'Ibadah selesai')} className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-50">
+          {data?.state?.status === 'DONE' && (
+            <button
+              type="button"
+              disabled={saving || !items.length}
+              onClick={() => {
+                const target = currentId || items[0]?.id || null;
+                if (!target) {
+                  setNotice('Belum ada susunan untuk diaktifkan.');
+                  return;
+                }
+                void save({ status: 'LIVE', currentItemId: target, sectionIndex: 0 }, 'Ibadah aktif lagi');
+              }}
+              title="Kembali ke LIVE (lanjut posisi terakhir)"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+            >
+              Aktifkan ulang
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => {
+              if (!window.confirm('Akhiri ibadah? Layar akan menampilkan "Ibadah selesai".')) return;
+              void save({ status: 'DONE' }, 'Ibadah selesai');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-50"
+          >
             Selesai
           </button>
           <button type="button" disabled={saving} onClick={() => void save({ rotateCode: true }, 'Kode proyektor dirotasi')} title="Rotasi kode proyektor" className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-50">
