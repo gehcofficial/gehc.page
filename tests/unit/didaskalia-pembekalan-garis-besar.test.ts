@@ -146,8 +146,8 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
     const qSlides = deck.filter((s) => s.id.startsWith('b-pola'));
     expect(qSlides).toHaveLength(2);
-    expect(qSlides[0].fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
-    expect(qSlides[1].fields?.map((f) => f.label)).toEqual(['Q5', 'Q6', 'Q7']);
+    expect(qSlides[0].fields?.map((f) => f.label)).toEqual(['Q1', 'Q2', 'Q3', 'Q4', 'Q5']);
+    expect(qSlides[1].fields?.map((f) => f.label)).toEqual(['Q6', 'Q7']);
     // Nomor urut Q sambung antar slide (label global, bukan per slide).
     const teknis = deck.filter((s) => s.id.startsWith('b-teknis')).flatMap((s) => s.bullets || []);
     expect(teknis.join('\n')).toContain('Absensi:');
@@ -158,9 +158,11 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     const deck = buildPembekalanDeck(content);
     const tutup = deck.filter((s) => s.id.startsWith('penutup'));
     expect(tutup).toHaveLength(1);
-    expect(tutup[0].fields).toHaveLength(7);
-    expect(tutup[0].fields?.[0].label).toBe('Minggu');
-    expect(tutup[0].bullets).toBeUndefined();
+    expect(tutup[0].density).toBe('compact');
+    // 7 hari satu baris: `**Hari** — judul` (hari bold beda warna).
+    expect(tutup[0].bullets).toHaveLength(7);
+    expect(tutup[0].bullets?.[0]).toContain('**Minggu** —');
+    expect(tutup[0].fields).toBeUndefined();
     expect(tutup[0].callout?.label).toBe('Lanjut RHB');
     expect(tutup[0].cta).toEqual({
       label: 'Buka RHB 7 Hari',
@@ -215,6 +217,17 @@ describe('packBlocks (budget ±10 baris)', () => {
     const pages = packBlocks([b('a'), b('b'), b('c'), b('d'), b('e'), b('f'), b('g'), b('h'), b('i'), b('j'), b('k')]);
     expect(pages).toHaveLength(1);
     expect(pages[0]).toHaveLength(11);
+  });
+});
+
+describe('density otomatis (roomy ringan, compact gabungan)', () => {
+  it('slide ringan → roomy; slide gabungan → compact', () => {
+    const studio = fullStudio();
+    studio.sermon.discussionFlow = ['a'];
+    const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema', null, null, 'MONOLOG'));
+    expect(deck.find((s) => s.id === 'b-pola')?.density).toBe('roomy');
+    const full = buildPembekalanDeck(contentFromStudio(fullStudio(), 2, '2026-10-11', 'Tema'));
+    expect(full.find((s) => s.id === 'garis-besar')?.density).toBe('compact');
   });
 });
 

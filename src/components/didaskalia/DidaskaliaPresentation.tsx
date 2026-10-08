@@ -38,6 +38,10 @@ function assetUrl(fileId?: string): string | undefined {
 const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
   const img = assetUrl(slide.imageFileId);
   const isBg = Boolean(slide.background && img);
+  const dense = slide.density === 'compact';
+  const roomy = slide.density === 'roomy';
+  const ddCls = dense ? 'text-[13px] sm:text-sm' : roomy ? 'text-base sm:text-lg' : 'text-sm sm:text-base';
+  const liCls = dense ? 'text-[13px] sm:text-sm' : roomy ? 'text-base sm:text-lg' : 'text-sm sm:text-base';
 
   const body = (
     <>
@@ -66,6 +70,7 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
         <MdBlocks
           blocks={parseMdLite((slide.paragraphs || []).join('\n\n'), { speech: slide.id.includes('kesimpulan') })}
           tone={isBg ? 'overlay' : 'plain'}
+          density={slide.density}
         />
       )}
       {slide.callout && (
@@ -75,19 +80,19 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
         </div>
       )}
       {!!slide.fields?.length && (
-        <dl className="space-y-3">
+        <dl className={dense ? 'space-y-2' : 'space-y-3'}>
           {slide.fields.map((f) => (
             <div key={f.label}>
               <dt className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-white/60' : 'text-white/50 print:text-black/50'}`}>{f.label}</dt>
-              <dd className={`text-sm sm:text-base leading-relaxed whitespace-pre-line ${isBg ? 'text-white' : 'text-white/90 print:text-black/90'}`}>{inlineSpans(f.value, 'font-bold text-sky-200 print:text-sky-700', 'italic')}</dd>
+              <dd className={`${ddCls} leading-relaxed whitespace-pre-line ${isBg ? 'text-white' : 'text-white/90 print:text-black/90'}`}>{inlineSpans(f.value, 'font-bold text-sky-200 print:text-sky-700', 'italic')}</dd>
             </div>
           ))}
         </dl>
       )}
       {!!slide.bullets?.length && (
-        <ul className="space-y-2">
+        <ul className={dense ? 'space-y-1.5' : 'space-y-2'}>
           {slide.bullets.map((b, i) => (
-            <li key={i} className={`flex gap-2 text-sm sm:text-base leading-relaxed ${isBg ? 'text-white/95' : 'text-white/90 print:text-black/90'}`}>
+            <li key={i} className={`flex gap-2 ${liCls} leading-relaxed ${isBg ? 'text-white/95' : 'text-white/90 print:text-black/90'}`}>
               <span className={`mt-[7px] h-1.5 w-1.5 rounded-full shrink-0 ${isBg ? 'bg-white' : 'bg-sky-400'}`} />
               <span>{inlineSpans(b, 'font-bold text-sky-200 print:text-sky-700', 'italic')}</span>
             </li>

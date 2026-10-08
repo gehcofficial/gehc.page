@@ -134,16 +134,22 @@ const ROLE_LABEL: Record<Exclude<MdRole, 'body' | 'scripture'>, string> = {
   reflection: 'Refleksi',
 };
 
+/** Kepadatan tipografi: roomy (slide ringan → font naik), compact (slide gabungan → font turun + rapat). */
+export type MdDensity = 'roomy' | 'compact';
+
 /** Render blok markdown-lite dengan highlight per peran. */
-export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks: MdBlock[]; tone?: MdTone; speech?: boolean }) {
+export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: { blocks: MdBlock[]; tone?: MdTone; speech?: boolean; density?: MdDensity }) {
   const ink = tone === 'overlay' ? 'text-white/90' : 'text-white/85 print:text-black/85';
   const dim = tone === 'overlay' ? 'text-white/70' : 'text-white/60 print:text-black/60';
   const boldCls = tone === 'overlay' ? 'font-bold text-sky-200' : 'font-bold text-sky-300 print:text-sky-700';
   const accentDot = tone === 'overlay' ? 'bg-white' : 'bg-sky-400';
   const kickerCls = tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700';
+  const para = !density ? 'text-base sm:text-xl' : density === 'roomy' ? 'text-lg sm:text-2xl' : 'text-sm sm:text-base';
+  const big = !density ? 'text-lg sm:text-2xl' : density === 'roomy' ? 'text-xl sm:text-3xl' : 'text-base sm:text-xl';
+  const gap = density === 'compact' ? 'space-y-2.5' : density === 'roomy' ? 'space-y-5' : 'space-y-4';
 
   return (
-    <div className="space-y-4">
+    <div className={gap}>
       {blocks.map((b, i) => {
         if (b.kind === 'divider') {
           return <hr key={i} className={tone === 'overlay' ? 'border-white/15' : 'border-white/10 print:border-black/20'} />;
@@ -159,8 +165,8 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
           // Overlay (di atas foto yang ikut tercetak): teks TETAP terang.
           // Plain (kartu tanpa foto): fallback cetak gelap.
           const quoteCls = tone === 'overlay'
-            ? 'text-lg sm:text-2xl font-medium leading-relaxed text-white'
-            : 'text-lg sm:text-2xl font-medium leading-relaxed text-white print:text-black';
+            ? `${big} font-medium leading-relaxed text-white`
+            : `${big} font-medium leading-relaxed text-white print:text-black`;
           return (
             <figure key={i} className={`rounded-2xl border-l-4 border-sky-400 pl-4 py-1 ${tone === 'overlay' ? '' : 'print:border-sky-600'}`}>
               <blockquote className={quoteCls}>
@@ -178,9 +184,9 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
         }
         if (b.kind === 'list') {
           return (
-            <ul key={i} className="space-y-2.5">
+            <ul key={i} className={density === 'compact' ? 'space-y-1.5' : 'space-y-2.5'}>
               {b.items.map((it, j) => (
-                <li key={j} className={`flex gap-3 text-base sm:text-xl leading-relaxed ${ink} ${it.level > 0 ? 'ml-6 text-[0.92em]' : ''}`}>
+                <li key={j} className={`flex gap-3 ${para} leading-relaxed ${ink} ${it.level > 0 ? 'ml-6 text-[0.92em]' : ''}`}>
                   {b.ordered
                     ? <span className={`shrink-0 font-black ${tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{j + 1}.</span>
                     : <span className={`mt-[9px] rounded-full shrink-0 ${accentDot} ${it.level > 0 ? 'h-1 w-1 opacity-70' : 'h-1.5 w-1.5'}`} />}
@@ -200,8 +206,8 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
             ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
             : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
           const textCls = tone === 'overlay'
-            ? 'mt-1.5 text-base sm:text-xl leading-relaxed font-medium text-white'
-            : 'mt-1.5 text-base sm:text-xl leading-relaxed font-medium text-white print:text-black';
+            ? `mt-1.5 ${para} leading-relaxed font-medium text-white`
+            : `mt-1.5 ${para} leading-relaxed font-medium text-white print:text-black`;
           const takeBold = tone === 'overlay' ? 'font-bold text-amber-200' : 'font-bold text-amber-200 print:text-amber-800';
           return (
             <div key={i} className={panelCls}>
@@ -226,7 +232,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
               <p className={labelCls}>
                 <AlertTriangle className="w-3.5 h-3.5" /> {ROLE_LABEL.correction}
               </p>
-              <p className={`mt-1.5 text-base sm:text-xl leading-relaxed ${ink}`}>
+              <p className={`mt-1.5 ${para} leading-relaxed ${ink}`}>
                 {inlineSpans(b.text, boldCls, 'italic')}
               </p>
             </div>
@@ -234,8 +240,8 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
         }
         if (role === 'speech') {
           const speechCls = tone === 'overlay'
-            ? 'text-lg sm:text-2xl leading-relaxed font-medium text-white flex gap-2.5'
-            : 'text-lg sm:text-2xl leading-relaxed font-medium text-white print:text-black flex gap-2.5';
+            ? `${big} leading-relaxed font-medium text-white flex gap-2.5`
+            : `${big} leading-relaxed font-medium text-white print:text-black flex gap-2.5`;
           const iconCls = tone === 'overlay'
             ? 'w-5 h-5 shrink-0 mt-1 text-amber-300'
             : 'w-5 h-5 shrink-0 mt-1 text-amber-300 print:text-amber-600';
@@ -247,7 +253,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
           );
         }
         return (
-          <p key={i} className={`text-base sm:text-xl leading-relaxed ${ink}`}>
+          <p key={i} className={`${para} leading-relaxed ${ink}`}>
             {inlineSpans(b.text, boldCls, 'italic')}
           </p>
         );

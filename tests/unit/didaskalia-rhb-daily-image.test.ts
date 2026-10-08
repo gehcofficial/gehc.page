@@ -43,6 +43,19 @@ describe('buildRhbDayDeck (gambar harian ala khutbah)', () => {
     expect(sec?.background).toBe(true);
   });
 
+  it('chunk RHB longgar (9 baris): 8 paragraf pendek jadi 1 slide roomy', () => {
+    const studio = studioWithFullDay();
+    const medium = Array.from({ length: 8 }, (_, i) => `Paragraf ${i + 1} pendek.`).join('\n\n');
+    studio.paths[2] = {
+      ...studio.paths[2],
+      rhbSections: ensureRhbSections(studio.paths[2].rhbSections).map((s) => (s.key === 'PENGANTAR' ? { ...s, body: medium } : { ...s, body: '' })),
+    };
+    const deck = buildRhbDayDeck(contentFromStudio(studio, 1, '', ''), 3);
+    const peng = deck.filter((s) => s.id.startsWith('sec-PENGANTAR'));
+    expect(peng).toHaveLength(1);
+    expect(peng[0].density).toBe('roomy');
+  });
+
   it('section panjang di-chunk; tiap lanjutan nama segmen kecil tanpa nomor', () => {
     const studio = studioWithFullDay();
     const long = Array.from({ length: 8 }, (_, i) => `Paragraf panjang ${i + 1} dengan uraian secukupnya agar rapi dibaca dan melampaui budget layar.`).join('\n\n');

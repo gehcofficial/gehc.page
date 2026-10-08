@@ -64,6 +64,11 @@ export type DeckSlide = {
    * (lead kecil kapital + judul beda warna). Dipakai cover RHB harian.
    */
   inlineTitle?: { lead: string; title: string };
+  /**
+   * Kepadatan tipografi isi: roomy (ringan → font naik), compact (gabungan →
+   * font turun + rapat). Diisi otomatis builder berdasar muatan slide.
+   */
+  density?: 'roomy' | 'compact';
 };
 
 export type PresentationContent = {
@@ -239,7 +244,7 @@ export function khutbahHashFor(content: PresentationContent): string {
 }
 
 /** Budget baris per slide isi (H1 sudah hilang → ruang baca lega, tanpa scroll). */
-export const PACK_BUDGET = 10;
+export const PACK_BUDGET = 12;
 
 export type PackBlock =
   | { t: 'para'; text: string; cost?: number }
@@ -284,6 +289,18 @@ export function packBlocks(blocks: PackBlock[], budget = PACK_BUDGET): PackBlock
     }
   }
   return pages;
+}
+
+/** Density otomatis: ringan (≤6 baris) → roomy; gabungan (>10) → compact. */
+function densityFor(lines: number): 'roomy' | 'compact' | undefined {
+  if (lines <= 6) return 'roomy';
+  if (lines > 10) return 'compact';
+  return undefined;
+}
+
+/** Total baris estimasi satu halaman pack. */
+function pageLines(page: PackBlock[]): number {
+  return page.reduce((n, b) => n + packBlockLines(b), 0);
 }
 
 /** Pecah blok PackBlock per jenis untuk slot paragraphs/fields/bullets slide. */
@@ -361,6 +378,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     kicker: 'Garis Besar · 4 Komponen',
     title: content.theme || 'Alur Pekan',
     hideTitle: true,
+    density: densityFor(pageLines(page) + (ci === arr.length - 1 ? 5 : 0)),
     paragraphs: splitPacked(page).paras,
     ...(ci === arr.length - 1
       ? {
@@ -387,6 +405,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
           ? 'Panduan Deliver & Checklist Persiapan'
           : aFieldBlocks.length ? 'Panduan Deliver per Metode' : 'Checklist Persiapan Khotbah',
         hideTitle: true,
+        density: densityFor(pageLines(aAll[0] || [])),
         fields,
         bullets,
       });
@@ -399,6 +418,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
           kicker: `Bagian A · Untuk ${deliverer}`,
           title: 'Panduan Deliver per Metode',
           hideTitle: true,
+          density: densityFor(pageLines(pg)),
           fields: splitPacked(pg).fields,
         });
       });
@@ -410,6 +430,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
           kicker: `Bagian A · Untuk ${deliverer}`,
           title: 'Checklist Persiapan Khotbah',
           hideTitle: true,
+          density: densityFor(pageLines(pg)),
           bullets: splitPacked(pg).bullets,
         });
       });
@@ -434,6 +455,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: 'Arahan Teknis & Pertanyaan FGD Hari Minggu',
         hideTitle: true,
+        density: densityFor(pageLines(allB[0])),
         paragraphs: paras,
         fields,
         bullets,
@@ -449,6 +471,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
           kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
           title: qi === 0 ? 'Arahan Teknis & Pertanyaan FGD Hari Minggu' : 'Pertanyaan FGD (lanjutan)',
           hideTitle: true,
+          density: densityFor(pageLines(pg)),
           paragraphs: paras,
           fields,
         });
@@ -461,6 +484,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
           kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
           title: 'Arahan Teknis & Tugas Operasional',
           hideTitle: true,
+          density: densityFor(pageLines(pg)),
           bullets: splitPacked(pg).bullets,
         });
       });
@@ -474,19 +498,21 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
         kicker: 'Bagian B · Untuk Mentor & Co-Mentor',
         title: `Arahan Teknis & Alur ${content.patternName || 'Ibadah'} Hari Minggu`,
         hideTitle: true,
+        density: densityFor(pageLines(pg)),
         bullets: splitPacked(pg).bullets,
       });
     });
   }
 
-  // 5. Penutup — 1 slide ringkas: 7 hari sebagai baris standar
-  //    (label hari + judul, tanpa summary) + doa syafaat + CTA ke indeks RHB.
+  // 5. Penutup — 1 slide compact: 7 hari sebagai bullets satu baris
+  //    (`**Hari** — judul`: hari bold sky, judul putih) + doa + CTA RHB.
   const penutupSlide: DeckSlide = {
     id: 'penutup',
     kind: 'closing',
     kicker: 'Penutup',
     title: 'Tutup dengan doa syafaat',
-    fields: penutupDayFields(paths),
+    density: 'compact',
+    bullets: penutupDayFields(paths).map((d) => `**${d.label}** — ${d.value}`),
     paragraphs: [
       'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
     ],
@@ -591,7 +617,10 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
   sections.forEach((s, i) => {
     const imgId = daily;
     const bg = Boolean(daily);
-    const chunks = chunkSermonSection(s.body);
+    // Budget RHB: 9 baris / 6 bullet per slide (lebih longgar dari khutbah,
+    // prosa renungan); density otomatis (ringan → roomy, pecah → compact).
+    const chunks = chunkSermonSection(s.body, 9, 6);
+    const density = chunks.length > 1 ? 'compact' as const : estimateUnitLines(s.body) <= 6 ? 'roomy' as const : undefined;
     if (!chunks.length) {
       // Standar anti slide-kosong: section kosong dilewati kecuali membawa
       // pertanyaan FGD / callout Firman.
@@ -606,6 +635,7 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
         // Identitas hari hanya di cover — slide isi cukup nama segmen kecil.
         title: s.title,
         smallTitle: true,
+        density,
         imageFileId: imgId,
         background: bg,
         paragraphs: [],
@@ -614,14 +644,14 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       });
       return;
     }
-    // Section panjang di-chunk ≤6 baris/≤4 bullet per slide (budget khutbah).
-    // Identitas hari hanya di cover — tiap lanjutan cukup nama segmen kecil.
+    // Section panjang di-chunk budget RHB; tiap lanjutan nama segmen kecil.
     chunks.forEach((paragraphs, ci) => {
       slides.push({
         id: `sec-${s.key}${chunks.length > 1 ? `-${ci + 1}` : ''}`,
         kind: 'section',
         title: s.title,
         smallTitle: true,
+        density,
         imageFileId: imgId,
         background: bg,
         paragraphs,

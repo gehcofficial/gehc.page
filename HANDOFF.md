@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Density tipografi + budget 12 + penutup sebaris (9 Okt 2026)
+
+**Kebutuhan:** slide pendek terasa kosong; minta variasi fontsize ala khutbah, gabungan agresif (RHB 3-4, 5-9→3; pembekalan 4+5, 6+7), penutup 1 baris/hari yang compact tanpa scroll.
+
+**Ubah (kode, belum commit):** `density` roomy/compact otomatis di `MdBlocks` + `SlideView` (ringan ≤6 → font naik; gabungan >10 → font turun + rapat) • `PACK_BUDGET` 12 + ekor ≤3 baris digabung • penutup = bullets `**Hari** — judul` sebaris + compact • chunk RHB 9/6, tetap per segmen • md-lite peran `reflection` (kotak emas) + PDF • cover RHB `inlineTitle` sebaris • test +density/pack/refleksi.
+
+**Verifikasi:** `lint` bersih ✓ 75 test terkait hijau ✓ full suite **133/133** ✓ `build` OK ✓
+
+**Next:** commit + push + `staging:sync` • QA visual HP.
+
 ## Current — Budget-pack pembekalan + header RHB sebaris + kotak refleksi (9 Okt 2026)
 
 **Kebutuhan:** slide pendek pasca-hideTitle terlihat kosong (minta gabung, cth slide 6-7); cover RHB judul + hari satu baris beda warna; hal penting RHB readable ala khutbah. RHB section: judul kecil tetap ada, tanpa "1/1", identitas hari hanya di cover.
@@ -8,7 +18,9 @@
 
 **Verifikasi:** `lint` bersih ✓ 71 test terkait hijau ✓ full suite hijau (1 flaky lama lolos standalone) ✓ `build` OK ✓
 
-**Next:** commit + push + `staging:sync` • QA visual.
+**Deploy:** commit `cc27283` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `cc27283`).
+
+**Next:** QA visual.
 
 ## Current — Audit usage Vercel + skrip vercel:gc (9 Okt 2026)
 

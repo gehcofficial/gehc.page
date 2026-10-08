@@ -54,6 +54,26 @@ describe('parseMdLite', () => {
     expect(s).toMatchObject({ kind: 'para', role: 'speech' });
   });
 
+  it('peran refleksi RHB (konteks pelajar/mahasiswa/pekerja) → kotak emas', () => {
+    const [p] = parseMdLite('🎒 Pelajar — kapan terakhir berdoa sebelum ujian?');
+    expect(p).toMatchObject({ kind: 'para', role: 'reflection' });
+    const [m] = parseMdLite('🎓 Mahasiswa — apa yang berubah jika skripsimu untuk Tuhan?');
+    expect(m).toMatchObject({ kind: 'para', role: 'reflection' });
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks: parseMdLite('🎒 Pelajar — kapan terakhir berdoa?') }));
+    expect(html).toContain('Refleksi');
+    expect(html).toContain('amber');
+  });
+
+  it('density mengubah skala font (roomy naik, compact turun)', () => {
+    const blocks = parseMdLite('Kalimat biasa.');
+    const roomy = renderToStaticMarkup(React.createElement(MdBlocks, { blocks, density: 'roomy' }));
+    expect(roomy).toContain('text-lg sm:text-2xl');
+    const compact = renderToStaticMarkup(React.createElement(MdBlocks, { blocks, density: 'compact' }));
+    expect(compact).toContain('text-sm sm:text-base');
+    const normal = renderToStaticMarkup(React.createElement(MdBlocks, { blocks }));
+    expect(normal).toContain('text-base sm:text-xl');
+  });
+
   it('tidak ada marker mentah lolos sebagai teks biasa', () => {
     const md = 'Pengantar.\n\n* **Poin:** isi.\n\n> *Kutipan* (Kolose 1:13-14)\n\n#### Sub';
     const texts = parseMdLite(md).flatMap((b) => {

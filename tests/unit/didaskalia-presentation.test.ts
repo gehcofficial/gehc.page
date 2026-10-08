@@ -96,9 +96,10 @@ describe('deck builders', () => {
     expect(deck.find((s) => s.id.startsWith('a-checklist'))).toBeFalsy();
     const penutup = deck.find((s) => s.id === 'penutup');
     expect(penutup?.kind).toBe('closing');
-    expect(penutup?.fields).toHaveLength(7);
-    expect(penutup?.fields?.[0]).toEqual({ label: 'Minggu', value: 'Path 1 judul' });
-    expect(penutup?.bullets).toBeUndefined();
+    expect(penutup?.density).toBe('compact');
+    expect(penutup?.bullets).toHaveLength(7);
+    expect(penutup?.bullets?.[0]).toBe('**Minggu** — Path 1 judul');
+    expect(penutup?.fields).toBeUndefined();
     expect(penutup?.cta?.href).toBe('#/materi/rhb/2026-09/1');
     expect(deck[0].background).toBe(true);
   });
