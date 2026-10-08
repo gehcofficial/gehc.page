@@ -152,9 +152,14 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
           );
         }
         if (b.kind === 'quote') {
+          // Overlay (di atas foto yang ikut tercetak): teks TETAP terang.
+          // Plain (kartu tanpa foto): fallback cetak gelap.
+          const quoteCls = tone === 'overlay'
+            ? 'text-lg sm:text-2xl font-medium leading-relaxed text-white'
+            : 'text-lg sm:text-2xl font-medium leading-relaxed text-white print:text-black';
           return (
             <figure key={i} className={`rounded-2xl border-l-4 border-sky-400 pl-4 py-1 ${tone === 'overlay' ? '' : 'print:border-sky-600'}`}>
-              <blockquote className="text-lg sm:text-2xl font-medium leading-relaxed text-white print:text-black">
+              <blockquote className={quoteCls}>
                 {inlineSpans(b.text.replace(/^["“”'\s]+|["“”'\s]+$/g, ''), boldCls, 'italic')}
               </blockquote>
               {b.ref && (
@@ -184,21 +189,37 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
         // para
         const role: MdRole = speech && b.role === 'body' ? 'speech' : b.role;
         if (role === 'takeaway') {
+          const panelCls = tone === 'overlay'
+            ? 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40'
+            : 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40 print:bg-amber-50 print:border-amber-300';
+          const labelCls = tone === 'overlay'
+            ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
+            : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
+          const textCls = tone === 'overlay'
+            ? 'mt-1.5 text-base sm:text-xl leading-relaxed font-medium text-white'
+            : 'mt-1.5 text-base sm:text-xl leading-relaxed font-medium text-white print:text-black';
+          const takeBold = tone === 'overlay' ? 'font-bold text-amber-200' : 'font-bold text-amber-200 print:text-amber-800';
           return (
-            <div key={i} className="rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40 print:bg-amber-50 print:border-amber-300">
-              <p className="text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5">
+            <div key={i} className={panelCls}>
+              <p className={labelCls}>
                 <Star className="w-3.5 h-3.5" /> {ROLE_LABEL.takeaway}
               </p>
-              <p className="mt-1.5 text-base sm:text-xl leading-relaxed font-medium text-white print:text-black">
-                {inlineSpans(b.text, 'font-bold text-amber-200 print:text-amber-800', 'italic')}
+              <p className={textCls}>
+                {inlineSpans(b.text, takeBold, 'italic')}
               </p>
             </div>
           );
         }
         if (role === 'correction') {
+          const panelCls = tone === 'overlay'
+            ? 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30'
+            : 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30 print:bg-white print:border-amber-300';
+          const labelCls = tone === 'overlay'
+            ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
+            : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
           return (
-            <div key={i} className="rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30 print:bg-white print:border-amber-300">
-              <p className="text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5">
+            <div key={i} className={panelCls}>
+              <p className={labelCls}>
                 <AlertTriangle className="w-3.5 h-3.5" /> {ROLE_LABEL.correction}
               </p>
               <p className={`mt-1.5 text-base sm:text-xl leading-relaxed ${ink}`}>
@@ -208,9 +229,15 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false }: { blocks:
           );
         }
         if (role === 'speech') {
+          const speechCls = tone === 'overlay'
+            ? 'text-lg sm:text-2xl leading-relaxed font-medium text-white flex gap-2.5'
+            : 'text-lg sm:text-2xl leading-relaxed font-medium text-white print:text-black flex gap-2.5';
+          const iconCls = tone === 'overlay'
+            ? 'w-5 h-5 shrink-0 mt-1 text-amber-300'
+            : 'w-5 h-5 shrink-0 mt-1 text-amber-300 print:text-amber-600';
           return (
-            <p key={i} className="text-lg sm:text-2xl leading-relaxed font-medium text-white print:text-black flex gap-2.5">
-              <Quote className="w-5 h-5 shrink-0 mt-1 text-amber-300 print:text-amber-600" />
+            <p key={i} className={speechCls}>
+              <Quote className={iconCls} />
               <span>{inlineSpans(b.text, boldCls, 'italic')}</span>
             </p>
           );

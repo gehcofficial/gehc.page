@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { extractVerseRef, parseMdLite, stripMd } from '../../src/lib/md-lite';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MdBlocks, extractVerseRef, parseMdLite, stripMd } from '../../src/lib/md-lite';
 
 describe('stripMd', () => {
   it('mengupas bold/italic/code tanpa mengubah kata', () => {
@@ -64,5 +66,20 @@ describe('parseMdLite', () => {
     expect(texts).not.toMatch(/^#{2,4}\s/m);
     expect(texts).not.toMatch(/^>\s/m);
     expect(texts).not.toMatch(/^\*\s/m);
+  });
+});
+
+describe('MdBlocks print', () => {
+  const blocks = parseMdLite('> "Firman" (Kolose 1:13-14)\n\nPoin Utama bagi Anak Muda: ingat.\n\nBukan berarti salah.\n\nKalimat biasa.', { speech: true });
+
+  it('overlay: tanpa kelas print: (teks tetap terang di atas foto yang tercetak)', () => {
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks, tone: 'overlay' }));
+    expect(html).not.toContain('print:');
+    expect(html).toContain('text-white');
+  });
+
+  it('plain: fallback cetak gelap tetap ada', () => {
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks, tone: 'plain' }));
+    expect(html).toContain('print:');
   });
 });
