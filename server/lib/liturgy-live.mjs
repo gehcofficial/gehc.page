@@ -279,4 +279,21 @@ export async function readWeekPericope(prisma, eventDateISO) {
   }
 }
 
+/**
+ * Peringatan lunak batas ibadah (Liturgia: doa/lagu buka → doa tutup).
+ * Bukan 400 — composer menampilkan, tetap bisa simpan.
+ */
+export function orderBoundaryWarnings(items) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return [];
+  const warnings = [];
+  if (!['doa', 'lagu'].includes(String(list[0].kind || '').toLowerCase())) {
+    warnings.push('Momen pertama bukan doa/lagu buka.');
+  }
+  if (String(list[list.length - 1].kind || '').toLowerCase() !== 'doa') {
+    warnings.push('Momen terakhir bukan doa tutup/berkat.');
+  }
+  return warnings;
+}
+
 export { MOMENTS };

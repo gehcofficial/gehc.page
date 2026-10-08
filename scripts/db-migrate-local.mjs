@@ -391,6 +391,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-day-timeline.cjs',
+    label: 'Koinonia: timeline hari (day_timeline_items)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-serving-week.cjs',
     label: 'Serving Week: grup WA temporer + perwakilan (serving_week_channels)',
     required: true,

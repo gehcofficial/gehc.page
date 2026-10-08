@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Copy, ExternalLink, Loader2, MonitorPlay, Plus, Tra
 import { useApp } from '../../context/AppContext';
 import {
   KIND_LABEL, LivePayload, OrderKind, PatternLite,
-  patternSegments, skeletonFromPattern,
+  orderBoundaryWarnings, skeletonFromPattern,
 } from '../../lib/liturgy-live';
 import { rememberPortalPlace } from '../../lib/portal-place';
 
@@ -42,6 +42,7 @@ export const LiturgyOrderPanel: React.FC<{
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [liveStatus, setLiveStatus] = useState('');
+  const [boundaryWarnings, setBoundaryWarnings] = useState<string[]>([]);
   const [pattern, setPattern] = useState<WeekPattern | null>(null);
   const [patternCode, setPatternCode] = useState('');
   const [showPattern, setShowPattern] = useState(false);
@@ -56,11 +57,12 @@ export const LiturgyOrderPanel: React.FC<{
     setLoading(true);
     try {
       const [o, s, l] = await Promise.all([
-        api<{ items: OrderRow[] }>(`/api/events/${eventId}/order`),
+        api<{ items: OrderRow[]; warnings?: string[] }>(`/api/events/${eventId}/order`),
         api<{ items: SetSong[] }>(`/api/events/${eventId}/songs`),
         api<LivePayload>(`/api/events/${eventId}/liturgy-live`).catch(() => null),
       ]);
       setItems(o.items || []);
+      setBoundaryWarnings(o.warnings || orderBoundaryWarnings(o.items || []));
       setSongs(s.items || []);
       setLiveStatus(l?.state?.status || '');
       if (!form.serviceSongId && s.items?.length) setForm((f) => ({ ...f, serviceSongId: s.items[0].id }));
@@ -89,11 +91,12 @@ export const LiturgyOrderPanel: React.FC<{
     void load();
   }, [load]);
 
-  const mutate = async (fn: () => Promise<unknown>, ok: string) => {
+  const mutate = async (fn: () => Promise<{ warnings?: string[] } | unknown>, ok: string) => {
     setSaving(true);
     try {
-      await fn();
+      const d = await fn() as { warnings?: string[] };
       await load();
+      if (Array.isArray(d?.warnings)) setBoundaryWarnings(d.warnings);
       addToast({ type: 'success', title: ok });
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal', description: e instanceof Error ? e.message : '' });
@@ -244,6 +247,13 @@ export const LiturgyOrderPanel: React.FC<{
               {emptySlots} slot lagu belum diisi — pilih lagu per slot di bawah.
             </p>
           )}
+        </div>
+      )}
+      {!!boundaryWarnings.length && (
+        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+          {boundaryWarnings.map((w) => (
+            <p key={w} className="text-[11px] font-bold text-amber-800">• {w} (batas ibadah: doa/lagu buka → doa tutup)</p>
+          ))}
         </div>
       )}
 

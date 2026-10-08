@@ -1,5 +1,13 @@
 # GEHC Portal — Handoff
 
+## Current — Timeline hari Koinonia P1 (8 Okt 2026)
+
+**Jalan:** `docs/product/integrasi-divisi.md` (5 pola + RACI + aturan) → model `day_timeline_items` (per tanggal; blok ibadah→event + pengumuman/selebrasi/makan/games; migrasi idempoten + Prisma + `check-db-schema`) → API CRUD + reorder (`requireDivision KOINONIA`, ringkasan ibadah: momen + live) → `DayTimelinePanel` di tab Ibadah Koinonia → batas lunak doa-buka/tutup (`orderBoundaryWarnings` paritas server↔klien + banner + field `warnings[]`) → test day-timeline (+9).
+
+**Verifikasi:** `lint` bersih ✓ full suite (menyusul, 1 flaky pattern) ✓ `build` OK ✓ QA `qa-day-timeline.mjs` **15/15** ✓ (pelajaran: `node --check` tak tangkap duplikat import ESM — boot smoke wajib)
+
+**Next:** QA visual composer staging → commit + push + sync → migrasi prod → P2 (kontrol terpadu + Marturia).
+
 ## Current — Kerangka segmen pola + firman auto-sync (8 Okt 2026)
 
 **Kebutuhan:** pola Didaskalia = kerangka segmen (praise×3/worship×2/…), Liturgia isi lagu per slot; firman auto-sync perikop pekan.

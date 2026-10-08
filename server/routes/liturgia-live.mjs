@@ -17,6 +17,7 @@ import {
   normalizeLiveStateInput,
   normalizeOrderItemInput,
   normalizeSongSettingInput,
+  orderBoundaryWarnings,
   randomAccessCode,
   readWeekPericope,
   resolveLyrics,
@@ -87,7 +88,8 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
       try {
         const ev = await ensureEvent(prisma, req.params.eventId);
         if (!ev) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-        res.json({ eventId: ev.id, items: await loadOrder(prisma, ev.id, await loadPericope(prisma, ev)) });
+        const items = await loadOrder(prisma, ev.id, await loadPericope(prisma, ev));
+        res.json({ eventId: ev.id, items, warnings: orderBoundaryWarnings(items) });
       } catch (e) {
         if (missingTable(e)) return res.json({ eventId: String(req.params.eventId), items: [] });
         throw e;
@@ -206,8 +208,10 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
         await prisma.$transaction(
           ids.map((id, i) => prisma.serviceOrderItem.updateMany({ where: { id, eventId: String(req.params.eventId) }, data: { sortOrder: i + 1 } })),
         );
-        const ev = await ensureEvent(prisma, req.params.eventId);
-        res.json({ ok: true, items: await loadOrder(prisma, String(req.params.eventId), await loadPericope(prisma, ev)) });      } catch (e) {
+                const ev = await ensureEvent(prisma, req.params.eventId);
+        const items = await loadOrder(prisma, String(req.params.eventId), await loadPericope(prisma, ev));
+        res.json({ ok: true, items, warnings: orderBoundaryWarnings(items) });
+      } catch (e) {
         if (missingTable(e)) return res.status(503).json({ error: 'Tabel tata ibadah belum ada — jalankan npm run db:migrate:liturgy-live.' });
         throw e;
       }
@@ -238,7 +242,7 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
           }
         }
         const base = await prisma.serviceOrderItem.count({ where: { eventId: ev.id } });
-        const created = await prisma.$transaction(
+        await prisma.$transaction(
           norms.map((n, i) => prisma.serviceOrderItem.create({
             data: {
               id: uid('sord'),
@@ -257,7 +261,8 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
             },
           })),
         );
-        res.status(201).json({ ok: true, count: created.length, items: await loadOrder(prisma, ev.id, await loadPericope(prisma, ev)) });
+        const items = await loadOrder(prisma, ev.id, await loadPericope(prisma, ev));
+        res.status(201).json({ ok: true, count: items.length, items, warnings: orderBoundaryWarnings(items) });
       } catch (e) {
         if (e.status) return res.status(e.status).json({ error: e.message });
         if (missingTable(e)) return res.status(503).json({ error: 'Tabel tata ibadah belum ada — jalankan npm run db:migrate:liturgy-live.' });

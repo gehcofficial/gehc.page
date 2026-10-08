@@ -69,6 +69,7 @@ const REQUIRED_TABLES = [
   'service_order_items',
   'service_song_settings',
   'service_live_state',
+  'day_timeline_items',
   'serving_week_channels',
   'marturia_shotlist',
   'marturia_assets',

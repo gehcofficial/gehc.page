@@ -2951,6 +2951,31 @@ model ServiceLiveState {
   @@map("service_live_state")
 }
 
+/// Timeline hari milik Koinonia: susunan blok acara per tanggal —
+/// blok ibadah menunjuk event Liturgia; pengumuman/selebrasi/makan/games
+/// disusun Koinonia. Baca = login; tulis = Koinonia.
+model DayTimelineItem {
+  id        String    @id @db.VarChar(64)
+  tenantId  String?   @map("tenant_id") @db.VarChar(16)
+  day       DateTime  @db.Date
+  sortOrder Int       @default(0) @map("sort_order")
+  /// ibadah-block | pengumuman | selebrasi | makan | games | sambutan | lainnya
+  kind      String    @default("ibadah-block") @db.VarChar(24)
+  eventId   String?   @map("event_id") @db.VarChar(64)
+  title     String?   @db.VarChar(200)
+  body      String?   @db.MediumText
+  owner     String?   @db.VarChar(100)
+  minutes   Int?
+  note      String?   @db.VarChar(500)
+  createdById String? @map("created_by_id") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([day, sortOrder])
+  @@index([eventId])
+  @@map("day_timeline_items")
+}
+
 // ---------- Serving Week: grup WA temporer + perwakilan (BOD Tim Kerja) ----------
 
 /// Satu grup koordinasi temporer per Minggu serving: link WA + status

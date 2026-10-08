@@ -106,6 +106,20 @@ export function activeSection(display: DisplayPayload | null | undefined, sectio
   return secs[i];
 }
 
+/** Peringatan lunak batas ibadah (cermin server; bukan blokir). */
+export function orderBoundaryWarnings(items?: Array<{ kind?: string | null } | null> | null): string[] {
+  const list = (items || []).filter(Boolean) as Array<{ kind?: string | null }>;
+  if (!list.length) return [];
+  const warnings: string[] = [];
+  if (!['doa', 'lagu'].includes(String(list[0].kind || '').toLowerCase())) {
+    warnings.push('Momen pertama bukan doa/lagu buka.');
+  }
+  if (String(list[list.length - 1].kind || '').toLowerCase() !== 'doa') {
+    warnings.push('Momen terakhir bukan doa tutup/berkat.');
+  }
+  return warnings;
+}
+
 export interface PatternSegment {
   phaseNo: number;
   phaseTitle: string;

@@ -58,6 +58,7 @@ import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
 import { PolaSesiPanel } from './PolaSesiPanel';
 import { LiturgiaSongsPanel } from './LiturgiaSongsPanel';
 import { LiturgyOrderPanel } from './LiturgyOrderPanel';
+import { DayTimelinePanel } from './DayTimelinePanel';
 import EventGalleryTab from './EventGalleryTab';
 import { ManageTestimonials } from './ManageTestimonials';
 import { MarturiaLiputanTab } from './MarturiaLiputanTab';
@@ -1391,6 +1392,9 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                         <LiturgyOrderPanel eventId={selectedEvent.id} eventSlug={selectedEvent.slug} yearMonth={studioYearMonth || undefined} weekIndex={studioWeekIndex} />
                         <LiturgiaSongsPanel eventId={selectedEvent.id} />
                       </>
+                    )}
+                    {selectedDiv === 'KOINONIA' && (
+                      <DayTimelinePanel initialDay={selectedEvent.eventDate ? String(selectedEvent.eventDate).slice(0, 10) : undefined} />
                     )}                    <EventDivisionPhaseTabs
                       division={selectedDiv}
                       eventId={selectedEvent.id}
