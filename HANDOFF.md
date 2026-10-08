@@ -122,7 +122,9 @@
 
 **Audit:** editor kerangka slide AI + tombol AI per slide + loop PDF legacy + cabang endpoint `slide:` sudah tak dirender siapa pun → **dihapus total** (data lama aman di DB/history; tipe `khutbah` dihapus dari skema TS + sanitizer). **Bug ditemukan & diperbaiki:** enrich menulis ulang outline via AI (kontradiksi verbatim) → kini outline + teksUtama dikembalikan verbatim bila ada MD acuan (prompt + hard-restore + teruskan serviceMd di route). Dipertahankan: bigIdea (caption + cover), summary (konteks sesi-AI), rationale (review HOD), deliveryPlan/checklist/discussionFlow.
 
-**Verifikasi:** `lint` bersih • full suite **985 hijau** (1 flaky run awal, hijau di rerun — pola timing lama). Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
+**Verifikasi:** `lint` bersih • full suite **985 hijau** (1 flaky run awal, hijau di rerun — pola timing lama).
+
+**Deploy cleanup (9 Okt 2026):** merge `cursor/studio-cleanup-legacy` → main (`3f37ca4`) + push. Prod = `3f37ca4` ✓ (terverifikasi live). Staging sync menyusul bila diminta. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 
