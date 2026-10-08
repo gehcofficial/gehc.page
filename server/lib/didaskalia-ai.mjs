@@ -666,6 +666,7 @@ const ENRICH_PATH_RULES = [
 const ENRICH_SERMON_RULES = [
   'ATURAN RINGKASAN KHOTBAH (WAJIB):',
   '- Perdalam summary mengikuti pola For Service (±600–900 kata): pengantar (realita + asumsi dibongkar), bedah teologis 2-4 poin (kutip + makna + luruskan salah paham + key-takeaway), jembatan ke Fundamental Firman/tema, kesimpulan panggung direct-speech. Perdalam pula outline 4 bagian, rationale, dan slideOutline (6-8 slide) dari versi saat ini.',
+  '- BILA MD ACUAN tersedia (disebut di konteks), outline 4 bagian + teksUtama WAJIB VERBATIM dari acuan — perdalam HANYA methods, rationale, bigIdea, deliveryPlan, prepChecklist, discussionFlow.',
   '- methods: 2-3 metode; deliveryPlan satu baris per metode selaras POLA IBADAH; prepChecklist 4-6; discussionFlow 4-6 mengikuti POLA.',
   '- DILARANG mengosongkan field yang sudah terisi.',
 ];
@@ -749,6 +750,30 @@ export async function generateEnrichedDraft(input) {
   } catch (e) {
     console.error('[didaskalia-ai] enrich khotbah gagal:', e?.message || e);
     sermonMeta = { modelId: null, finishReason: 'error', error: String(e?.message || e).slice(0, 200) };
+  }
+  // Standar literal-MD: outline + teksUtama TIDAK boleh ditulis ulang AI bila ada
+  // MD acuan (input draf atau tersimpan) — kembalikan verbatim, apa pun keluaran AI.
+  const literalSrc = (input.serviceMd && typeof input.serviceMd === 'object' && input.serviceMd.outline)
+    ? input.serviceMd
+    : (current.sourceMd && typeof current.sourceMd === 'object'
+      && current.sourceMd.service && typeof current.sourceMd.service === 'object'
+      && current.sourceMd.service.outline ? current.sourceMd.service : null);
+  if (literalSrc) {
+    const lo = literalSrc.outline || {};
+    const curTu = (sermon.teksUtama && typeof sermon.teksUtama === 'object') ? sermon.teksUtama : {};
+    sermon = {
+      ...sermon,
+      outline: {
+        pengantar: asStr(lo.pengantar, 6000),
+        bedahTeologis: asStr(lo.bedahTeologis, 8000),
+        jembatan: asStr(lo.jembatan, 6000),
+        kesimpulan: asStr(lo.kesimpulan, 4000),
+      },
+      teksUtama: {
+        ref: asStr((literalSrc.info && literalSrc.info.teksUtama) || curTu.ref, 160),
+        text: asStr(curTu.text, 600),
+      },
+    };
   }
 
   const failedPaths = pathMetas.filter((m) => m.finishReason === 'error').map((m) => m.pathIndex);

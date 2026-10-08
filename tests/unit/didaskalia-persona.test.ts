@@ -101,6 +101,40 @@ describe('persona AI Didaskalia — kerangka Reformed', () => {
     vi.mocked(provider.jethroGenerateObject).mockImplementation(async () => ({ object: PATH_OBJECT, finishReason: 'stop', modelId: 'mock' }));
   });
 
+  it('enrich tak menulis ulang outline verbatim bila ada MD acuan', async () => {
+    const provider = await import('../../server/ai-provider.mjs');
+    const gen = vi.mocked(provider.jethroGenerateObject);
+    let n = 0;
+    gen.mockImplementation(async () => {
+      n += 1;
+      if (n <= 7) return { object: PATH_OBJECT, finishReason: 'stop', modelId: 'mock' };
+      return {
+        object: {
+          bigIdea: 'AI',
+          teksUtama: { ref: 'SALAH', text: '' },
+          outline: { pengantar: 'PARAFRASE', bedahTeologis: 'PARAFRASE', jembatan: 'PARAFRASE', kesimpulan: 'PARAFRASE' },
+          methods: [], rationale: 'AI', summary: 'AI summary', slideOutline: [],
+          deliveryPlan: [], prepChecklist: [], discussionFlow: [],
+        },
+        finishReason: 'stop', modelId: 'mock',
+      };
+    });
+    const verbatim = { pengantar: 'P1 verbatim', bedahTeologis: 'P2 verbatim', jembatan: 'P3 verbatim', kesimpulan: 'P4 verbatim' };
+    const d = await generateEnrichedDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      current: {
+        paths: [],
+        sermon: { summary: 'lama', outline: verbatim, teksUtama: { ref: '2 Korintus 5:21', text: '' } },
+        sourceMd: { service: { info: { teksUtama: '2 Korintus 5:21' }, outline: verbatim } },
+      },
+    });
+    expect(d.sermon.outline).toEqual(verbatim);
+    expect(d.sermon.teksUtama.ref).toBe('2 Korintus 5:21');
+    expect(d.sermon.rationale).toBe('AI');
+    gen.mockImplementation(async () => ({ object: PATH_OBJECT, finishReason: 'stop', modelId: 'mock' }));
+  });
+
   it('persona Reformed dipakai juga oleh generator lain', async () => {
     captured.systems = [];
     await generateSermon({ yearMonth: '2026-09', weekIndex: 4 });

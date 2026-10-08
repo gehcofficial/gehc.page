@@ -106,8 +106,6 @@ export type DidaskaliaPresentationImages = {
   coverStyle?: 'AI' | 'UPLOAD' | 'MOTIF';
   paths?: Record<string, string>;
   rhb?: Record<string, Record<string, string>>;
-  /** Ilustrasi AI per slide ringkasan khotbah (legacy): { [slideIndex]: fileId }. */
-  khutbah?: Record<string, string>;
   /** Ilustrasi AI per bagian khotbah literal: { pengantar|bedahTeologis|jembatan|kesimpulan: fileId }. */
   khutbahLiteral?: Record<string, string>;
   /** Riwayat gambar hasil AI (untuk kuota maks 3/pekan). */

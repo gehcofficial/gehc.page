@@ -8,7 +8,9 @@
 
 **Verifikasi:** `lint` bersih ✓ 41 test terkait hijau ✓
 
-**Next:** commit + push + `staging:sync` • QA visual HP.
+**Deploy:** commit `30e0ac7` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `30e0ac7`).
+
+**Next:** QA visual HP.
 
 ## Current — Penutup 01 satu slide ringkas (9 Okt 2026)
 
@@ -114,7 +116,13 @@
 
 **Kebutuhan:** jadikan alur MD → verbatim sebagai standar pekan mendatang + cara tim membuat MD.
 
-**Ubah (docs saja):** `docs/product/didaskalia-studio.md` — prinsip + §2a ditulis ulang (parse → terapkan verbatim → AI pelengkap → gambar per bagian → approve → publish); §2b baru (checklist MD Service/RHB + penanda highlight + batas sistem); §1 & tabel diselaraskan. Terverifikasi silang dengan label UI aktual. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
+**Ubah (docs saja):** `docs/product/didaskalia-studio.md` — prinsip + §2a ditulis ulang (parse → terapkan verbatim → AI pelengkap → gambar per bagian → approve → publish); §2b baru (checklist MD Service/RHB + penanda highlight + batas sistem); §1 & tabel diselaraskan. Terverifikasi silang dengan label UI aktual.
+
+## Current — Cleanup legacy pasca-settlement (9 Okt 2026, uncommitted, BELUM commit/push)
+
+**Audit:** editor kerangka slide AI + tombol AI per slide + loop PDF legacy + cabang endpoint `slide:` sudah tak dirender siapa pun → **dihapus total** (data lama aman di DB/history; tipe `khutbah` dihapus dari skema TS + sanitizer). **Bug ditemukan & diperbaiki:** enrich menulis ulang outline via AI (kontradiksi verbatim) → kini outline + teksUtama dikembalikan verbatim bila ada MD acuan (prompt + hard-restore + teruskan serviceMd di route). Dipertahankan: bigIdea (caption + cover), summary (konteks sesi-AI), rationale (review HOD), deliveryPlan/checklist/discussionFlow.
+
+**Verifikasi:** `lint` bersih • full suite **985 hijau** (1 flaky run awal, hijau di rerun — pola timing lama). Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 

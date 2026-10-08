@@ -39,15 +39,16 @@ const idx = weeks.findIndex((w) => Number(w?.index) === 2);
 const week = weeks[idx];
 const studio = week.studio || {};
 const sermon = studio.sermon || {};
-const have = studio.presentation?.khutbah && typeof studio.presentation.khutbah === 'object' ? studio.presentation.khutbah : {};
 const haveLiteral = studio.presentation?.khutbahLiteral && typeof studio.presentation.khutbahLiteral === 'object' ? { ...studio.presentation.khutbahLiteral } : {};
-console.log('Legacy khutbah keys:', Object.keys(have), '| literal existing:', Object.keys(haveLiteral));
+console.log('Literal existing:', Object.keys(haveLiteral));
 
 const todo = SECTIONS.filter((s) => (!ONLY || ONLY.includes(s)) && (FORCE || !haveLiteral[s]));
 console.log('Akan diproses:', todo.length ? todo.join(', ') : '(semua sudah ada)');
 if (!todo.length) { await prisma.$disconnect(); process.exit(0); }
-if (Object.keys(have).length + Object.keys(haveLiteral).length + todo.length > MAX_SLIDE_IMAGES && !REUSE) {
-  console.log('Catatan: kuota peta akan melebihi 8 — legacy per-slide-index akan dikosongkan (obsolete).');
+if (Object.keys(haveLiteral).length + todo.length > MAX_SLIDE_IMAGES && !REUSE) {
+  console.error(`Kuota pekan terlampaui (maks ${MAX_SLIDE_IMAGES}) — batal.`);
+  await prisma.$disconnect();
+  process.exit(1);
 }
 
 let newIds = {};
@@ -121,11 +122,11 @@ if (APPLY) {
     ...week,
     studio: {
       ...studio,
-      presentation: { ...(studio.presentation || {}), khutbah: {}, khutbahLiteral: { ...haveLiteral, ...newIds } },
+      presentation: { ...(studio.presentation || {}), khutbahLiteral: { ...haveLiteral, ...newIds } },
     },
   };
   await prisma.ministryMonthPlan.update({ where: { id: plan.id }, data: { weeks } });
-  console.log('OK — khutbahLiteral tersimpan, legacy khutbah dikosongkan.');
+  console.log('OK — khutbahLiteral tersimpan.');
 } else {
   console.log('Dry-run selesai. Tambahkan --apply untuk menulis.');
 }
