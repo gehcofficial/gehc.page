@@ -1,5 +1,15 @@
 # GEHC Portal — Handoff
 
+## Current — Penutup 01 + CTA indeks RHB (9 Okt 2026)
+
+**Kebutuhan:** penutup pembekalan perlu arahan/link ke indeks RHB seperti CTA ringkasan khotbah.
+
+**Ubah (kode, belum commit):** helper `rhbIndexHashFor()`; slide penutup + box PDF dapat callout "Lanjut RHB" + CTA ke `#/materi/rhb/<ym>/<pekan>` • test selaraskan.
+
+**Verifikasi:** `lint` bersih ✓ 41 test terkait hijau ✓
+
+**Next:** commit + push + `staging:sync` • QA visual HP.
+
 ## Current — Penutup 01 satu slide ringkas (9 Okt 2026)
 
 **Kebutuhan:** slide penutup masih panjang. Minta ringkas simpel seperti dulu + style judul harian yang menarik dan standar.
@@ -8,7 +18,9 @@
 
 **Verifikasi:** `lint` bersih ✓ full suite **983 hijau + 1 flaky lama** (lolos standalone) ✓
 
-**Next:** commit + push + `staging:sync` • QA visual HP.
+**Next:** QA visual HP.
+
+**Deploy:** commit `851288d` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `851288d`).
 
 ## Current — Pembekalan 01 pagination baca tanpa scroll (8 Okt 2026)
 
@@ -96,7 +108,13 @@
 
 **Verifikasi:** `lint` bersih • full suite **981 hijau** • prod W2: 18 slide tanpa judul ganda, ke-4 gambar bagian sudah terisi (kamu generate via Studio ✓ — semua slide bg=true), frasa MD lengkap, tanpa teks AI.
 
-**Reset kuota ilustrasi (9 Okt 2026):** prod W2 penuh 8/8 (6 legacy slide-index AI + 2 literal). Peta legacy `khutbah` dikosongkan (tak dirender deck literal; file Drive utuh, ID lama di snapshot settlement) → kuota 2/8. Sisa: generate `jembatan` + `kesimpulan` via Studio. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
+**Reset kuota ilustrasi (9 Okt 2026):** prod W2 penuh 8/8 (6 legacy slide-index AI + 2 literal). Peta legacy `khutbah` dikosongkan (tak dirender deck literal; file Drive utuh, ID lama di snapshot settlement) → kuota 2/8. Sisa: generate `jembatan` + `kesimpulan` via Studio.
+
+## Current — SOP standar literal (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** jadikan alur MD → verbatim sebagai standar pekan mendatang + cara tim membuat MD.
+
+**Ubah (docs saja):** `docs/product/didaskalia-studio.md` — prinsip + §2a ditulis ulang (parse → terapkan verbatim → AI pelengkap → gambar per bagian → approve → publish); §2b baru (checklist MD Service/RHB + penanda highlight + batas sistem); §1 & tabel diselaraskan. Terverifikasi silang dengan label UI aktual. Verifikasi: `lint` bersih, full suite 966 hijau, deck W2 18 slide tanpa kosong. Catatan: bullet super-panjang (>6 baris sendirian) tetap butuh scroll dikit (aturan verbatim).
 
 ## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
 

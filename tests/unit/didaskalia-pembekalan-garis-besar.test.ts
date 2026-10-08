@@ -140,7 +140,7 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     }
   });
 
-  it('penutup 1 slide ringkas: baris standar hari + judul', () => {
+  it('penutup 1 slide ringkas: baris standar hari + judul + CTA RHB', () => {
     const content = contentFromStudio(fullStudio(), 2, '2026-10-11', 'The Rescue Plan');
     const deck = buildPembekalanDeck(content);
     const tutup = deck.filter((s) => s.id.startsWith('penutup'));
@@ -148,6 +148,12 @@ describe('buildPembekalanDeck (garis besar + CTA)', () => {
     expect(tutup[0].fields).toHaveLength(7);
     expect(tutup[0].fields?.[0].label).toBe('Minggu');
     expect(tutup[0].bullets).toBeUndefined();
+    expect(tutup[0].callout?.label).toBe('Lanjut RHB');
+    expect(tutup[0].cta).toEqual({
+      label: 'Buka RHB 7 Hari',
+      href: '#/materi/rhb/2026-10/2',
+      text: 'Indeks renungan sepekan',
+    });
   });
 
   it('checklist panjang dipecah ≤4 per slide', () => {

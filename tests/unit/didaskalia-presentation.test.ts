@@ -100,6 +100,7 @@ describe('deck builders', () => {
     expect(penutup?.fields).toHaveLength(7);
     expect(penutup?.fields?.[0]).toEqual({ label: 'Minggu', value: 'Path 1 judul' });
     expect(penutup?.bullets).toBeUndefined();
+    expect(penutup?.cta?.href).toBe('#/materi/rhb/2026-09/1');
     expect(deck[0].background).toBe(true);
   });
 

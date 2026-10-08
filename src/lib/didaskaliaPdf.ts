@@ -490,6 +490,13 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
   }
   const pathLines = penutupDayFields(studio.paths).map((d) => `${d.label} — ${d.value}`);
   if (pathLines.length) w.field('Gambaran 7 Hari (Minggu–Sabtu)', pathLines.join('\n'));
+  const rhbYm = String(week.date || '').slice(0, 7);
+  w.callout(
+    'Lanjut — RHB 7 Hari (03)',
+    /^\d{4}-\d{2}$/.test(rhbYm)
+      ? `Renungan harian Senin–Sabtu ada di dokumen RHB pekan ini:\n#/materi/rhb/${rhbYm}/${week.index}`
+      : 'Renungan harian Senin–Sabtu ada di dokumen RHB 7 Hari (doc 03) pekan ini.'
+  );
 
   w.finishFooters();
   const v = opts.version || 1;

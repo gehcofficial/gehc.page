@@ -209,6 +209,13 @@ export function penutupDayFields(paths: DidaskaliaPath[]): { label: string; valu
   }));
 }
 
+/** Hash indeks RHB 7 hari sepekan — tujuan CTA dari penutup pembekalan. */
+export function rhbIndexHashFor(content: PresentationContent): string {
+  const ym = String(content.date || '').slice(0, 7);
+  if (!YM_RE.test(ym)) return '#/materi/rhb';
+  return `#/materi/rhb/${ym}/${content.weekIndex}`;
+}
+
 /** Hash doc 02 (Ringkasan Khotbah) sepekan — tujuan CTA dari garis besar pembekalan. */
 export function khutbahHashFor(content: PresentationContent): string {
   const ym = String(content.date || '').slice(0, 7);
@@ -350,7 +357,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   }
 
   // 5. Penutup — 1 slide ringkas: 7 hari sebagai baris standar
-  //    (label hari + judul, tanpa summary) + doa syafaat.
+  //    (label hari + judul, tanpa summary) + doa syafaat + CTA ke indeks RHB.
   const penutupSlide: DeckSlide = {
     id: 'penutup',
     kind: 'closing',
@@ -360,6 +367,8 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     paragraphs: [
       'Rangkum perjalanan 7 hari minggu ini, lalu tutup dengan doa syafaat untuk tiap anggota kelompok.',
     ],
+    callout: { label: 'Lanjut RHB', value: 'Renungan harian Senin–Sabtu ada di RHB 7 Hari (doc 03).' },
+    cta: { label: 'Buka RHB 7 Hari', href: rhbIndexHashFor(content), text: 'Indeks renungan sepekan' },
   };
 
   const slides: DeckSlide[] = [
