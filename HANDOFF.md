@@ -1,6 +1,10 @@
 # GEHC Portal — Handoff
 
-## Current — P2 kontrol terpadu + Marturia display (8 Okt 2026)
+## Current — Verifikasi gabungan pasca-merge (8 Okt 2026)
+
+**Jalan:** sesi paralel merge (`md-lite-render`, khutbah literal) + commit P2 liturgia sempat mendarat di branch salah → cherry-pick ke main + merge gabungan → perbaiki 1 brace ekstra `didaskaliaPdf.ts` (build staging gagal) → sync ulang.
+
+**Verifikasi akhir:** `main` = `staging` ✓ · `lint` bersih ✓ **964 test** hijau (1 flaky lolos rerun) ✓ `build` OK ✓ QA visual 11/11 ✓ P2 utuh (DayScreen/ControlRoomPanel/control-room.ts ada + teruji) ✓
 
 **Jalan:** `src/lib/control-room.ts` (agregasi klien day+live+mentoring, `pushToFreeShow` via API resmi `POST / {action:create_show/next_slide}` — bukan path tebakan) → `ControlRoomPanel` di tab Ibadah semua divisi (status + link 3 ruang, operasi display Marturia) → `DayScreen` `#/hari/<tgl>/layar` (blok + live ibadah + status mentoring, login) → test control-room (+8 incl. hash rute).
 
