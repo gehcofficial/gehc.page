@@ -630,49 +630,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   const aiImages = studio.presentation?.aiImages || [];
 
-  const illustrateSlide = async (si: number): Promise<boolean> => {
-    if (!canWrite) return false;
-    setBusy(`img-${si}`);
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/sermon-image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slide: si }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      addToast({ type: 'success', title: `Ilustrasi slide ${si + 1} dibuat (${d.used}/${d.max})` });
-      return true;
-    } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
-      return false;
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const illustrateMissingSlides = async () => {
-    if (!canWrite) return;
-    setBusy('img-all');
-    try {
-      const missing = (studio.sermon?.slideOutline || [])
-        .map((_, si) => si)
-        .filter((si) => !studio.presentation?.khutbah?.[String(si)]);
-      let done = 0;
-      for (const si of missing) {
-        // eslint-disable-next-line no-await-in-loop
-        const ok = await illustrateSlide(si);
-        if (!ok) break;
-        done += 1;
-      }
-      if (!missing.length) addToast({ type: 'success', title: 'Semua slide sudah bergambar.' });
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const KHUTBAH_LITERAL_SECTIONS = [
     { key: 'pengantar', label: '1 · Pengantar' },
     { key: 'bedahTeologis', label: '2 · Bedah Teologis' },
@@ -880,7 +837,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     const pathImages: Record<number, string> = {};
     const rhbSectionImages: Record<number, Record<string, string>> = {};
     const rhbCoverImages: Record<number, string> = {};
-    const khutbahSlideImages: Record<number, string> = {};
     for (const p of ensurePaths(studio)) {
       const hero = await assetDataUrl(pres.paths?.[String(p.pathIndex)] || p.coverImageFileId);
       if (hero) pathImages[p.pathIndex] = hero;
@@ -895,18 +851,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         }
       }
     }
-    const khMap = pres.khutbah && typeof pres.khutbah === 'object' ? pres.khutbah : {};
-    for (const si of (studio.sermon?.slideOutline || []).map((_, i) => i)) {
-      const d = await assetDataUrl(khMap[String(si)]);
-      if (d) khutbahSlideImages[si] = d;
-    }
     const khutbahSectionImages: Record<string, string> = {};
     const khLit = pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object' ? pres.khutbahLiteral : {};
     for (const key of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
       const d = await assetDataUrl(khLit[key]);
       if (d) khutbahSectionImages[key] = d;
     }
-    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, khutbahSlideImages, khutbahSectionImages };
+    return { coverImage: await assetDataUrl(pres.cover), pathImages, rhbSectionImages, rhbCoverImages, khutbahSectionImages };
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
@@ -1536,20 +1487,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="text-[11px] font-bold text-[#8C8880]">
-                  Ilustrasi AI: {Object.keys(studio.presentation?.khutbah || {}).length}/8 slide
-                </p>
-                <button
-                  type="button"
-                  disabled={!canWrite || !!busy}
-                  onClick={() => void illustrateMissingSlides()}
-                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
-                  title="Generate gambar AI untuk semua slide yang belum ada"
-                >
-                  {busy === 'img-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan semua
-                </button>
-              </div>
               <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <p className="text-[11px] font-black text-sky-800">
@@ -1588,33 +1525,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   );
                 })}
               </div>
-              {(studio.sermon?.slideOutline || []).map((sl, si) => (
-                <div key={si} className="rounded-xl border border-[#EFEDE8] p-3 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-[#8C8880]">SLIDE {si + 1}</span>
-                    <input value={sl.title} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, slideOutline: s.sermon.slideOutline.map((x, xi) => xi === si ? { ...x, title: e.target.value } : x) } }))} className={`${inputCls} flex-1`} />
-                    <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, slideOutline: s.sermon.slideOutline.filter((_, xi) => xi !== si) } }))} className="text-[10px] text-red-600 font-bold">Hapus</button>
-                  </div>
-                  <textarea value={(sl.bullets || []).join('\n')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, slideOutline: s.sermon.slideOutline.map((x, xi) => xi === si ? { ...x, bullets: e.target.value.split('\n').map((v) => v.trim()).filter(Boolean) } : x) } }))} rows={2} placeholder="Poin-poin slide" className={inputCls} />
-                  <div className="flex items-center gap-2">
-                    <input value={sl.visualNote} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, slideOutline: s.sermon.slideOutline.map((x, xi) => xi === si ? { ...x, visualNote: e.target.value } : x) } }))} placeholder="Arahan visual (jadi prompt gambar AI)" className={`${inputCls} flex-1`} />
-                    {studio.presentation?.khutbah?.[String(si)] ? (
-                      <img src={`/api/didaskalia/asset/${encodeURIComponent(String(studio.presentation.khutbah[String(si)]))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!canWrite || !!busy}
-                        onClick={() => void illustrateSlide(si)}
-                        className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-[10px] font-bold disabled:opacity-50"
-                        title="Generate ilustrasi AI slide ini"
-                      >
-                        {busy === `img-${si}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />} AI
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, slideOutline: [...(s.sermon?.slideOutline || []), { title: 'Slide baru', bullets: [], visualNote: '' }] } }))} className="text-[11px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah slide</button>
             </div>
           </div>
 
