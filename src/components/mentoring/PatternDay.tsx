@@ -158,6 +158,40 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     [slug],
   );
 
+  // Hook chip Lesson Learned — wajib di atas semua early return (aturan hooks).
+  const chipLimit = data?.session.chipLimit || 3;
+  const toggleChip = useCallback(
+    (code: string) => {
+      setPicked((prev) => {
+        if (prev.includes(code)) return prev.filter((x) => x !== code);
+        if (prev.length >= chipLimit) return prev;
+        return [...prev, code];
+      });
+    },
+    [chipLimit],
+  );
+
+  const submitChips = useCallback(async () => {
+    setChipBusy(true);
+    setChipNote(null);
+    try {
+      const r = await fetch('/api/worship/chips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ slug, codes: picked }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengirim chip.');
+      setChipDone(true);
+      await load();
+    } catch (e) {
+      setChipNote(e instanceof Error ? e.message : 'Gagal mengirim chip.');
+    } finally {
+      setChipBusy(false);
+    }
+  }, [slug, picked, load]);
+
   const screening = data?.screening || null;
   const screeningOn = has('screening') && screening?.startedAt;
   const now = useNowTick(Boolean(screeningOn));
@@ -257,39 +291,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
   const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live);
   const editable = status !== 'DRAFT' && status !== 'CLOSED';
-
-  const chipLimit = data?.session.chipLimit || 3;
-  const toggleChip = useCallback(
-    (code: string) => {
-      setPicked((prev) => {
-        if (prev.includes(code)) return prev.filter((x) => x !== code);
-        if (prev.length >= chipLimit) return prev;
-        return [...prev, code];
-      });
-    },
-    [chipLimit],
-  );
-
-  const submitChips = useCallback(async () => {
-    setChipBusy(true);
-    setChipNote(null);
-    try {
-      const r = await fetch('/api/worship/chips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ slug, codes: picked }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d?.error || 'Gagal mengirim chip.');
-      setChipDone(true);
-      await load();
-    } catch (e) {
-      setChipNote(e instanceof Error ? e.message : 'Gagal mengirim chip.');
-    } finally {
-      setChipBusy(false);
-    }
-  }, [slug, picked, load]);
 
   return (
     <div className="space-y-3 max-w-2xl">
