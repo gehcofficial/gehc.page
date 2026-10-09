@@ -1,5 +1,18 @@
 # GEHC Portal — Handoff
 
+## Current — Deck 17 slide + celengan + Kolom 1 (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** dua bendahara (BPMJ vs Pembangunan), aliran celengan
+150rb/500rb earmarked, Kolom 1 bubar via atestasi.
+
+**Ubah:** §VIa (dua bendahara + celengan + Kolom 1) • aturan-perantau
+(studi Kolom 1) • SOP BZP (tujuan setor BPMJ vs Pembangunan) • deck:
+slide `celengan` + glosarium Celengan + keputusan 8 butir (deck 17).
+
+**Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
+
+**Next:** commit + push + sync + verifikasi live.
+
 ## Current — Deck 16 slide (sumber dana + serah terima + visi portal) (9 Okt 2026, uncommitted)
 
 **Kebutuhan:** slide sumber pendapatan + serah terima saldo pre-18 Okt +
@@ -12,6 +25,12 @@ visi 100% via gehc.page + training pengurus baru.
 **Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
 
 **Next:** commit + push main + `staging:sync` + verifikasi live.
+
+**Deploy (9 Okt, ~17:00):** commit `6c83176` → push main ✓ → prod
+`/api/version` = `6c83176` ✓ (deck 16 slide live) → origin/staging =
+`6c83176` ✓. Staging preview deploy: retry-1 gagal fetch, retry-2
+timeout tanpa output — status alias staging tak pasti (non-bloking;
+presentasi pakai produksi). Jalankan `staging:sync` ulang bila perlu.
 
 ## Current — Deck 13 slide + footnote glosarium (9 Okt 2026, uncommitted)
 

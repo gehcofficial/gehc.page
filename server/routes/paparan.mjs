@@ -40,6 +40,7 @@ export const PAPARAN_GLOSSARY = [
   { term: 'Sidi', full: 'Anggota sidi', meaning: 'Anggota dewasa penuh GMIM — syarat dasar semua jabatan.' },
   { term: 'Earmarked', full: 'Dana terikat tujuan', meaning: 'Hanya untuk tujuan yang diumumkan; alih fungsi butuh keputusan Sidang.' },
   { term: 'DPT', full: 'Daftar Pemilih Tetap', meaning: 'Daftar pemilih Rapat Pemilihan — prasyaratnya anggota terdaftar (atestasi).' },
+  { term: 'Celengan', full: 'Celengan tempat ibadah', meaning: 'Pengumpulan rutin earmarked sewa & rawat ruko: Kolom 150rb/keluarga/bln, Beyonders 500rb/grup/bln.' },
 ];
 
 export function paparanDeck() {
@@ -159,8 +160,20 @@ export function paparanDeck() {
         footnotes: ['ABPJ', 'BIPRA', 'Kolom', 'Asben', 'BZP', 'Earmarked'],
       },
       {
+        id: 'celengan',
+        kicker: 'Slide 10 · Kas',
+        title: 'Celengan: dua bendahara, dua aliran',
+        bullets: [
+          'Bendahara BPMJ = kas Pelayanan; Bendahara Pembangunan = kas tempat ibadah (orangnya beda, pengawasnya sama: BPPJ).',
+          'Kolom: keluarga → Pelsus Kolom → Bendahara Pembangunan (sasaran 150rb/keluarga/bulan).',
+          'Beyonders: anggota → mentor → Bendahara Komisi → Bendahara Pembangunan (sasaran 500rb/grup/bulan).',
+          'Sifat dana earmarked — tak boleh dipakai operasional; Kolom 1 (mahasiswa, Pelsus vakum) diformalkan bubar via atestasi.',
+        ],
+        footnotes: ['Celengan', 'BPMJ', 'BPPJ', 'Kolom', 'Earmarked', 'Atestasi'],
+      },
+      {
         id: 'dap',
-        kicker: 'Slide 10 · DAP',
+        kicker: 'Slide 11 · DAP',
         title: 'DAP: dua mekanisme, dua perlakuan',
         fields: [
           { label: 'DAP-Uang Muka (kasbon)', value: 'Bukan pendapatan. Diputus BPMJ. LPJ + sisa kembali 100%. Cth: DAP operasional event.' },
@@ -171,7 +184,7 @@ export function paparanDeck() {
       },
       {
         id: 'bzp',
-        kicker: 'Slide 11 · Kas Minggu',
+        kicker: 'Slide 12 · Kas Minggu',
         title: 'BZP: Minggu utama, fleksibel + kolaborasi',
         bullets: [
           'Fokus Minggu; Sabtu/weekday dimungkinkan (order + setuju BPMJ) — cth. bazar kampus PresUniv.',
@@ -183,7 +196,7 @@ export function paparanDeck() {
       },
       {
         id: 'suksesi',
-        kicker: 'Slide 12 · Q4 2026',
+        kicker: 'Slide 13 · Q4 2026',
         title: 'Suksesi Komisi Pemuda',
         bullets: [
           'Masa berakhir 2026 → Rapat Pemilihan (didukung, bukan diangkat langsung).',
@@ -195,7 +208,7 @@ export function paparanDeck() {
       },
       {
         id: 'atestasi',
-        kicker: 'Slide 13 · Gerakan',
+        kicker: 'Slide 14 · Gerakan',
         title: 'Gerakan atestasi + sertifikasi',
         bullets: [
           'Tanpa atestasi = tidak eligible jabatan apa pun — portal melacak BELUM / PROSES / SUDAH.',
@@ -206,7 +219,7 @@ export function paparanDeck() {
       },
       {
         id: 'serah-terima',
-        kicker: 'Slide 14 · 18 Okt 2026',
+        kicker: 'Slide 15 · 18 Okt 2026',
         title: 'Serah terima saldo antar periode',
         bullets: [
           'Prinsip: saldo akhir periode berjalan = saldo awal periode berikut — per pos, per kas pembantu.',
@@ -218,7 +231,7 @@ export function paparanDeck() {
       },
       {
         id: 'arah-depan',
-        kicker: 'Slide 15 · Visi',
+        kicker: 'Slide 16 · Visi',
         title: 'Arah ke depan: 100% via gehc.page',
         bullets: [
           'Pelaporan dana: kas komisi/panitia/BZP lapor bulanan + akhir tahun lewat portal (Bendahara konsolidasi, BPPJ verifikasi).',
@@ -230,7 +243,7 @@ export function paparanDeck() {
       },
       {
         id: 'keputusan',
-        kicker: 'Slide 16 · Ketok',
+        kicker: 'Slide 17 · Ketok',
         title: 'Minta diketok hari ini',
         bullets: [
           'SK-kan THL + pengakuan masa + kebijakan stop dana pribadi + inventarisasi.',
@@ -240,9 +253,10 @@ export function paparanDeck() {
           'Klarifikasi masa komisi + mulai gerakan atestasi.',
           'Aturan DAP dua mekanisme + LPJ wajib + serah terima kas tuntas pre-18 Okt.',
           'Adopsi portal 100% + jadwal training pengurus baru.',
+          'Sahkan celengan (target + dua bendahara) + formalkan bubar Kolom 1.',
         ],
         callout: { label: 'Siap', value: 'Naskah SK, SOP, dan berita acara sudah ada drafnya.' },
-        footnotes: ['THL', 'DAP', 'LPJ', 'ABPJ'],
+        footnotes: ['THL', 'DAP', 'LPJ', 'ABPJ', 'Celengan', 'Kolom', 'Atestasi'],
       },
     ],
   };

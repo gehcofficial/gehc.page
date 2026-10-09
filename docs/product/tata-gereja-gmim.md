@@ -144,8 +144,38 @@ ABPJ: **35% ke Kas Sinode + 5% ke Kas Wilayah** (minggu pertama, via VA
 bank yang ditunjuk). ABPJ = pagu terpusat: semua masuk satu pintu, baru
 dialokasikan. Alur: komisi mengusul → BPMJ mengonsolidasi → Sidang
 menetapkan → realisasi dilaporkan bulanan + akhir tahun, diawasi BPPJ.
-Kas jemaat dipegang Ketua + Bendahara BPMJ, para Diaken, Asben komisi/
-BIPRA, dan komisi/panitia bentukan BPMJ.
+
+### Dua bendahara, dua domain (fakta Cikarang)
+
+| | Bendahara BPMJ (gereja) | Bendahara Pembangunan |
+|---|---|---|
+| Domain | Kas **Pelayanan** (pos 1.x) | Kas **Pembangunan/tempat ibadah** (pos 2.x) |
+| Terima | Kolekte, syukur, BIPRA operasional, setoran komisi operasional | Celengan Kolom & Beyonders, DAP-AC/pembangunan |
+| Keluar | Belanja rutin + setoran 35% Sinode + 5% Wilayah | Sewa ruko, servis AC, listrik/air, peralatan |
+| Lapor | Ke Sidang via BPMJ | Ke Sidang via Komisi Pembangunan, konsolidasi BPMJ |
+
+Orangnya beda, pengawasnya sama (BPPJ). Hasil usaha BZP: operasional →
+Bendahara BPMJ; bila diperuntukkan sewa → Bendahara Pembangunan
+(ditandai saat setor, tidak dicampur).
+
+### Celengan tempat ibadah (earmarked, target perencanaan)
+
+* **Kolom:** keluarga → celengan → Pelsus Kolom kumpulkan →
+  **Bendahara Pembangunan**. Sasaran: 150rb/keluarga/bulan (angka
+  perencanaan putusan Sidang/BPMJ, bukan pungutan paksa).
+* **Beyonders:** anggota → mentor grup kumpulkan → **Bendahara Komisi**
+  (kini dipegang bendahara Tim Kerja) → **Bendahara Pembangunan**.
+  Sasaran: 500rb/grup/bulan.
+* Sifat dana: **earmarked tempat ibadah** — tidak boleh dipakai
+  operasional pelayanan.
+
+### Kolom 1 (mahasiswa): dari mati suri ke formal
+
+Fakta: Pelsus (Penatua & Diaken) vakum lama tanpa pengumuman resmi.
+Rencana: Sidang menyatakan Kolom 1 **vakum → bubar**; anggotanya
+dialihkan via atestasi (ke Kolom domisili lain atau tercatat sebagai
+Pemuda); posisi Pelsus-nya dihapus/dinyatakan lowong permanen. Kasus
+utama gerakan atestasi (lihat [aturan-perantau](aturan-perantau.md)).
 
 ### 7 sumber rutin (praktik umum — verifikasi angka ke Bendahara)
 

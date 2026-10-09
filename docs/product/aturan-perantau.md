@@ -51,6 +51,17 @@ SUDAH + asal jemaat + tanggal) + filter "belum atestasi" di pipeline
 Komisi + rekap per Kolom/BIPRA di dasbor BPMJ. Target: tidak ada lagi
 pelayan berstatus atestasi gelap.
 
+### Studi kasus: Kolom 1 (mahasiswa)
+
+Kolom seluruh-mahasiswa yang Pelsus-nya vakum lama tanpa pengumuman =
+mati suri. Penanganannya: (1) Sidang menyatakan vakum → bubar;
+(2) anggota dialihkan via atestasi — ke Kolom domisili lain, atau
+tercatat sebagai Pemuda bila memang kategorinya; (3) posisi Pelsus
+dihapus/dinyatakan lowong permanen; (4) mahasiswa yang "nanti Pemuda
+saja" tetap wajib atestasi tercatat — tanpa ini mereka tak masuk DPT
+maupun penempatan. Pola ini berlaku umum untuk unit yang ditinggal
+pergantian generasi perantau.
+
 ## 5. Program sertifikasi kuarteran
 
 Latihan Kepemimpinan intensif (1–2 hari) tiap kuarter + sertifikat

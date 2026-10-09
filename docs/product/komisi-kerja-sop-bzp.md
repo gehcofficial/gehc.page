@@ -35,9 +35,11 @@ diambil dari 6 orang:
    RpX wajib disetor tiap Senin; sisa = kas kerja yang dilaporkan).
 4. Mutasi dilaporkan **bulanan + akhir tahun** ke BPMJ (konsolidasi).
 5. Hasil usaha BZP = sumber #5 Master Database ([tata-gereja-gmim](tata-gereja-gmim.md)
-   §VIa): pemilik BZP, setoran ikut §3 di atas. BUTIR TANYA ke
-   Bendahara/BPPJ sebelum Sidang: apakah hasil usaha masuk basis ABPJ
-   untuk setoran 35% Sinode + 5% Wilayah.
+   §VIa): pemilik BZP, setoran ikut §3 di atas. Tujuan setor ditandai
+   saat setor: operasional → **Bendahara BPMJ**; bila diperuntukkan
+   sewa/tempat ibadah → **Bendahara Pembangunan** (tidak dicampur).
+   BUTIR TANYA ke Bendahara/BPPJ sebelum Sidang: apakah hasil usaha
+   masuk basis ABPJ untuk setoran 35% Sinode + 5% Wilayah.
 
 ## 4. Aturan main (Minggu utama, fleksibel + kolaborasi)
 
