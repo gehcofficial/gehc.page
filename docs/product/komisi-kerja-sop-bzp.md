@@ -34,21 +34,35 @@ diambil dari 6 orang:
 3. **Pagu saldo maksimal + setoran rutin** ke kas jemaat (saldo di atas
    RpX wajib disetor tiap Senin; sisa = kas kerja yang dilaporkan).
 4. Mutasi dilaporkan **bulanan + akhir tahun** ke BPMJ (konsolidasi).
-5. BUTIR TANYA ke Bendahara/BPPJ sebelum Sidang: klasifikasi hasil usaha
-   vs basis ABPJ (35% Sinode + 5% Wilayah).
+5. Hasil usaha BZP = sumber #5 Master Database ([tata-gereja-gmim](tata-gereja-gmim.md)
+   §VIa): pemilik BZP, setoran ikut §3 di atas. BUTIR TANYA ke
+   Bendahara/BPPJ sebelum Sidang: apakah hasil usaha masuk basis ABPJ
+   untuk setoran 35% Sinode + 5% Wilayah.
 
-## 4. Aturan main hari Minggu
+## 4. Aturan main (Minggu utama, fleksibel + kolaborasi)
 
+* **Jadwal:** fokus utama hari Minggu; **Sabtu/weekday dimungkinkan**
+  atas persetujuan BPMJ (cth. bazar kampus, event komunitas). Tiap
+  pelaksanaan di luar Minggu wajib order tersendiri (tanggal + lokasi +
+  penanggung jawab).
 * **Mekanisme order:** BIPRA/Kolom mengajukan permintaan tertulis (jenis
-  jualan, tanggal Minggu, jumlah tenaga yang mereka siapkan) paling
-  lambat **H–7** → BPMJ menyetujui → komisi mengeksekusi. Tanpa order
-  yang disetujui = mode default.
+  jualan, tanggal, jumlah tenaga yang mereka siapkan) paling lambat
+  **H–7** → BPMJ menyetujui → komisi mengeksekusi. Tanpa order yang
+  disetujui = mode default.
 * **Mode default** (tanpa order): komisi jualan dengan orangnya sendiri
   → hasil 100% ke kas komisi (ikut aturan setoran §3).
-* **Mode kolaborasi** (cth. Pemuda siapkan tenaga penjual): hasil
-  **100% diserahkan ke pemesan** via berita acara hari itu juga
+* **Mode kolaborasi internal** (cth. Pemuda siapkan tenaga penjual):
+  hasil **100% diserahkan ke pemesan** via berita acara hari itu juga
   (Asben komisi + wakil pemesan + diketahui Bendahara).
-* Operasional tiap Minggu: daftar harga yang disahkan, nota/struk
+* **Mode kolaborasi eksternal** (cth. mahasiswa President University):
+  mitra luar menyiapkan tenaga/lapak bersama komisi; pembagian hasil
+  **diputuskan BPMJ per kegiatan** (tertulis sebelum hari-H, bukan
+  negosiasi di tempat); kas tetap satu pintu via Asben komisi +
+  berita acara; mitra tidak memegang kas jemaat.
+* **Bila jualan di event Panitia:** kas dipisah dua kantong (BZP vs
+  Panitia), berita acara ganda, hasil Panitia 100% milik Panitia
+  (+ LPJ panitia). BZP dilarang memungut kolekte/syukur/nazar.
+* Operasional tiap pelaksanaan: daftar harga yang disahkan, nota/struk
   bernomor, kas kecil tercatat, setoran hari yang sama.
 
 ## 5. Keputusan Sidang yang dibutuhkan (usul BPMJ)

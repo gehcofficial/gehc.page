@@ -1,5 +1,50 @@
 # GEHC Portal — Handoff
 
+## Current — Deck 13 slide + footnote glosarium (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** semua materi baru (kas/ABPJ 2 pos, DAP 2 mekanisme, BZP
+fleksibel Sabtu/kampus) masuk deck + tiap istilah ber-footnote.
+
+**Ubah (kode):** `server/routes/paparan.mjs` — deck 11→13 slide (baru:
+`kas`, `dap`; matriks/BZP/suksesi/keputusan dimutakhirkan) +
+`PAPARAN_GLOSSARY` (23 istilah) + `footnotes[]` per slide (isi hanya via
+API) • `BpmjPaparan.tsx` — blok "Catatan istilah" per slide (web + cetak)
+• test: guard 13 slide + glosarium unik + tiap footnote ter-resolve.
+
+**Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
+
+**Next (butuh perintah):** QA visual footnote + push main + `staging:sync`.
+
+## Current — Master Database pos pengeluaran (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** database semua pos pengeluaran (Master vs seleksi GEHC);
+fakta sewa ruko a.n. gereja ±70 jt/thn (bukan bangun); tetap 2 pos.
+
+**Ubah (docs saja):** `tata-gereja-gmim.md` §VIa ditulis ulang — 7 sumber
++ MASTER 1.1–1.10 & 2.1–2.6 berkode stabil (2.5 konstruksi = Tak-relevan
+cadangan masa depan) + seleksi GEHC 2 pos (Diakonia & Beasiswa di dalam
+Pelayanan; Pembangunan = "sewa & rawat, bukan proyek bangun") + sewa
+a.n. gereja ✓ + satu-pemilik + DAP 2 mekanisme • SOP BZP: hasil usaha =
+sumber #5 + butir tanya basis ABPJ dipertajam.
+
+**Verifikasi:** `lint` bersih ✓ tanpa migrasi. Kode master (seed tabel
+pos) menyusul bila diminta.
+
+## Current — Perbendaharaan + SOP BZP fleksibel (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** sumber pendapatan masuk md; BZP 3 domain tanpa redundan;
+DAP 2 mekanisme; fundraising bisa Sabtu/weekday + kolaborasi kampus
+(President University).
+
+**Ubah (docs saja):** `tata-gereja-gmim.md` §VIa baru (7 sumber rutin +
+aturan satu pemilik + DAP kasbon vs pungutan khusus + contoh event/AC) •
+`komisi-kerja-sop-bzp.md` §4 ditulis ulang (jadwal fleksibel + order per
+pelaksanaan + kolaborasi internal 100% + kolaborasi eksternal (bagi hasil
+putusan BPMJ, kas satu pintu) + kas ganda di event Panitia + larangan
+pungut kolekte/syukur).
+
+**Verifikasi:** `lint` bersih ✓ tanpa migrasi.
+
 ## Current — Rute paparan BPMJ khusus pimpinan (9 Okt 2026, uncommitted)
 
 **Kebutuhan:** naskah presentasi BPMJ (11 slide) tampil di routing
@@ -16,6 +61,13 @@ kecualikan `#/paparan` dari last-place (anti loop keluar).
 
 **Verifikasi:** `lint` bersih ✓ 32 test hijau (routing 3 + guard 13 incl.
 matriks 401/403/200 + lazy 16) ✓ `node --check` OK ✓ tanpa migrasi.
+
+**Deploy:** commit `74e17cf` → push main ✓ → prod `/api/version` =
+`74e17cf` ✓ (terverifikasi live). Rute `#/paparan/bpmj-2026-10` aktif di
+produksi. Laporan user (alvandisarang, "tidak terbuka") = kode belum
+ter-deploy saat itu; diminta coba ulang. Cadangan bila 403: cek peran
+Akun Saya (butuh SUPERADMIN/BPMJ/KOMISI) atau coba
+`youth.gehc.page/#/paparan/bpmj-2026-10` (scoping tenant).
 
 **Catatan sesi paralel:** `integrasi-divisi.md`, `worship-patterns.md`,
 `_seed-worship-patterns.cjs` berubah di sesi lain — JANGAN sentuh/commit

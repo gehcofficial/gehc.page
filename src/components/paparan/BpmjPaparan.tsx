@@ -10,14 +10,18 @@ import { DeckShell } from '../presentation/DeckShell';
 import { parsePaparanHash } from '../../lib/paparan-routing';
 import type { ReportSlide } from '../../lib/report-decks';
 
+export type PaparanGlossaryEntry = { term: string; full: string; meaning: string };
+
 type State =
   | { status: 'loading' }
-  | { status: 'ok'; title: string; slides: ReportSlide[] }
+  | { status: 'ok'; title: string; slides: ReportSlide[]; glossary: PaparanGlossaryEntry[] }
   | { status: 'auth' }
   | { status: 'forbidden' }
   | { status: 'error'; message: string };
 
-const SlideView: React.FC<{ slide: ReportSlide }> = ({ slide }) => (
+type FootnotedSlide = ReportSlide & { footnotes?: string[] };
+
+const SlideView: React.FC<{ slide: FootnotedSlide; glossary: Map<string, PaparanGlossaryEntry> }> = ({ slide, glossary }) => (
   <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white print:text-black">
     {slide.kicker && <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300 print:text-amber-700">{slide.kicker}</p>}
     <h1 className="text-2xl sm:text-4xl font-black leading-tight print:text-black">{slide.title}</h1>
@@ -48,6 +52,23 @@ const SlideView: React.FC<{ slide: ReportSlide }> = ({ slide }) => (
         <p className="mt-1 text-sm sm:text-base text-white/95 print:text-black/90">{slide.callout.value}</p>
       </div>
     )}
+    {!!slide.footnotes?.length && (
+      <footer className="rounded-2xl border border-white/10 bg-black/20 p-3 print:border-black/20 print:bg-neutral-100">
+        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40 print:text-black/50">Catatan istilah</p>
+        <dl className="mt-1.5 space-y-1">
+          {slide.footnotes.map((t) => {
+            const g = glossary.get(String(t).toUpperCase());
+            if (!g) return null;
+            return (
+              <div key={t} className="text-[11px] leading-relaxed text-white/70 print:text-black/70">
+                <dt className="inline font-black text-amber-200 print:text-amber-800">{g.term} = {g.full}. </dt>
+                <dd className="inline">{g.meaning}</dd>
+              </div>
+            );
+          })}
+        </dl>
+      </footer>
+    )}
   </article>
 );
 
@@ -74,7 +95,10 @@ export const BpmjPaparan: React.FC = () => {
         if (!r.ok) return { status: 'error' as const, message: (await r.json().catch(() => ({}))).error || `HTTP ${r.status}` };
         const d = await r.json();
         if (!d || !Array.isArray(d.slides)) return { status: 'error' as const, message: 'Isi paparan tak valid.' };
-        return { status: 'ok' as const, title: String(d.title || 'Paparan'), slides: d.slides as ReportSlide[] };
+        const glossary = Array.isArray(d.glossary)
+          ? (d.glossary as PaparanGlossaryEntry[]).filter((g) => g && typeof g.term === 'string')
+          : [];
+        return { status: 'ok' as const, title: String(d.title || 'Paparan'), slides: d.slides as ReportSlide[], glossary };
       })
       .then((res) => {
         if (!cancelled) setState(res as State);
@@ -122,6 +146,7 @@ export const BpmjPaparan: React.FC = () => {
   }
 
   const slides = state.slides;
+  const glossary = new Map(state.glossary.map((g) => [String(g.term).toUpperCase(), g]));
   return (
     <>
       <DeckShell
@@ -139,14 +164,14 @@ export const BpmjPaparan: React.FC = () => {
             <Printer className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Cetak</span>
           </button>
         }
-        renderSlide={(i) => <SlideView slide={slides[i]} />}
+        renderSlide={(i) => <SlideView slide={slides[i]} glossary={glossary} />}
       />
 
       {/* Blok khusus cetak: semua slide, satu per halaman → PDF lengkap. */}
       <div className="hidden print:block print:text-black">
         {slides.map((s) => (
           <div key={`p-${s.id}`} className="break-after-page p-6">
-            <SlideView slide={s} />
+            <SlideView slide={s} glossary={glossary} />
           </div>
         ))}
       </div>

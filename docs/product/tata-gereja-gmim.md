@@ -135,6 +135,90 @@ kantor = administrasi sekretariat, pola pengangkatan sama (Pasal 25).
 
 ---
 
+## VIa. Perbendaharaan: Master Database pos + seleksi GEHC + DAP
+
+Aturan baku (RESMI, dokumen kas Sinode): 100% persembahan ibadah —
+Kolom, BIPRA, Rukun, Instansi, maupun ibadah lainnya atas nama GMIM —
+**wajib disetor tiap minggu ke kas jemaat** via Bendahara/pegawai. Dari
+ABPJ: **35% ke Kas Sinode + 5% ke Kas Wilayah** (minggu pertama, via VA
+bank yang ditunjuk). ABPJ = pagu terpusat: semua masuk satu pintu, baru
+dialokasikan. Alur: komisi mengusul → BPMJ mengonsolidasi → Sidang
+menetapkan → realisasi dilaporkan bulanan + akhir tahun, diawasi BPPJ.
+Kas jemaat dipegang Ketua + Bendahara BPMJ, para Diaken, Asben komisi/
+BIPRA, dan komisi/panitia bentukan BPMJ.
+
+### 7 sumber rutin (praktik umum — verifikasi angka ke Bendahara)
+
+| # | Sumber | Sifat | Pencatat |
+|---|---|---|---|
+| 1 | Persembahan ibadah Minggu & hari raya (kolekte) | Rutin mingguan | Bendahara |
+| 2 | Persembahan Kolom & BIPRA | Rutin, via asisten bendahara komisi | Asben komisi → Bendahara |
+| 3 | Syukur / nazar / persepuluhan | Insidental per anggota | Bendahara langsung |
+| 4 | Persembahan pembangunan | Earmarked — tidak boleh dipakai operasional | Bendahara (pos khusus) |
+| 5 | Hasil usaha dana (Bazar, merchandise — ranah BZP) | Operasional komisi | Asben BZP → Bendahara |
+| 6 | Sewa fasilitas/gedung | Jasa, tarif putusan Sidang | Pembangunan → Bendahara |
+| 7 | Sumbangan, donasi, hibah | Insidental tercatat | Bendahara |
+
+### MASTER DATABASE — semua pos pengeluaran (kode stabil untuk database)
+
+Konvensi: `1.x` = Pelayanan, `2.x` = Pembangunan (tempat ibadah).
+`Status GEHC` = DIPAKAI | Tunda | Tak-relevan. Dana terikat (earmarked/
+DAP) dicatat sebagai **flag** pada transaksi, bukan pos terpisah.
+
+| Kode | Pos | Peruntukan | Status GEHC |
+|---|---|---|---|
+| 1.1 | Ibadah & liturgi | Tata ibadah, musik/sound/multimedia, konsumsi ibadah, transport pelayan, dekorasi | DIPAKAI |
+| 1.2 | BIPRA (5 komisi) | Program Anak/Remaja/Pemuda/WKI/PKB + latihan kepemimpinan | DIPAKAI |
+| 1.3 | Kolom | Penggembalaan teritorial, ibadah & kunjungan Kolom | DIPAKAI |
+| 1.4 | Diakonia & sosial | Kunjungan kasih, duka/sakit, bencana, bantuan darurat | DIPAKAI (di dalam Pelayanan) |
+| 1.5 | Beasiswa & pendidikan | Beasiswa anak asuh, katekisasi, sekolah, pembinaan warga | DIPAKAI (di dalam Pelayanan) |
+| 1.6 | Personalia | Gaji pegawai, Kostor + jaminan hidup, honor asisten/honor pelayan | DIPAKAI |
+| 1.7 | Kesekretariatan & operasional | ATK, arsip/dokumen, komunikasi, biaya bank, kantor (Pasal 42) | DIPAKAI |
+| 1.8 | Kewajiban aras | 35% Sinode + 5% Wilayah (pos belanja, bukan transfer bebas) | DIPAKAI |
+| 1.9 | Cadangan & darurat | Dana darurat operasional + cadangan kas | DIPAKAI |
+| 1.10 | Kas pembantu | Kas kerja komisi/BIPRA, kas panitia (+LPJ), kas operasional BZP — konsolidasi ke Bendahara | DIPAKAI |
+| 2.1 | Sewa tempat ibadah | Sewa ruko ±70 jt/thn (skema ½/1/2 thn, a.n. gereja ✓); perpanjangan = putusan Sidang | DIPAKAI |
+| 2.2 | Pemeliharaan rutin | Servis & cuci AC, listrik, air, alat kebersihan + bahan (operasional Kostor) | DIPAKAI |
+| 2.3 | Perbaikan & pengadaan peralatan | Sound, kabel, kursi, kipas — inventaris berita acara | DIPAKAI |
+| 2.4 | Deposit & darurat pindah | Uang muka kontrak + dana jaga bila kontrak tak diperpanjang (risiko khas penyewa) | DIPAKAI |
+| 2.5 | Konstruksi milik sendiri | Tanah, bangun/renovasi gedung milik — TIDAK ADA (belum punya gedung) | Tak-relevan (cadangan masa depan) |
+| 2.6 | Persembahan pembangunan khusus | Earmarked proyek tertentu (cth. DAP AC) — hanya untuk tujuan yang diumumkan | DIPAKAI bila ada |
+
+### Seleksi GEHC: tetap 2 pos
+
+**POS 1 — PELAYANAN** = 1.1–1.10 (termasuk Diakonia & Beasiswa 1.4–1.5
+di dalam). **POS 2 — PEMBANGUNAN** = 2.1–2.4 + 2.6 bila ada; namanya
+dipertahankan dengan definisi tertulis *"tempat ibadah — sewa &
+pemeliharaan, bukan proyek bangun"* agar tak ditagih gedung di masa
+depan. 2.5 nonaktif sampai jemaat memiliki gedung.
+
+### Aturan satu pemilik (anti-redundan)
+
+| Jenis penerimaan | Pemilik tunggal | Bukan milik |
+|---|---|---|
+| Margin merchandise, hasil fundraising, donasi yang dioperatori BZP | **BZP** | — |
+| Kolekte, syukur, nazar, persepuluhan | Bendahara langsung | BZP dilarang pungut di luar mekanismenya |
+| Sewa gedung/fasilitas | Pembangunan (tarif Sidang) | BZP |
+| Persembahan pembangunan | Earmarked, Bendahara | Operasional siapa pun |
+| Dana event/panitia | Panitia ybs + LPJ | BZP (kecuali mode kolaborasi SOP) |
+
+Bila overlap (BZP jualan di event Panitia) → ikut SOP kolaborasi:
+order + 100% + berita acara. Prinsip: **uang mengikuti pemilik
+acaranya, tenaga mengikuti yang bekerja.**
+
+### DAP — dua mekanisme, dua perlakuan (keduanya ada di Cikarang)
+
+| | DAP-Uang Muka (kasbon) | DAP-Pungutan Khusus |
+|---|---|---|
+| Hakikat | **Bukan pendapatan** — pinjaman operasional dari kas jemaat | **Pendapatan earmarked** — hanya untuk tujuan yang diumumkan |
+| Diputuskan | BPMJ (+ Sidang untuk pagu) | Sidang (tujuan + target + masa) |
+| Dipegang | Ketua Panitia + Asben panitia | Panitia, disetor via Bendahara |
+| Selesai | **LPJ + sisa kembali 100%** ke kas | LPJ + **sisa diputuskan Sidang** (kembali ke kas / cadangan tujuan sama) |
+| Contoh | DAP operasional event | DAP beli AC |
+| Dilarang | Menjadi "dana hilang" tanpa LPJ | Dialihkan ke keperluan lain tanpa keputusan |
+
+---
+
 ## VII. Pertimbangan Komisi Kerja — GMIM Eben Haezer Cikarang
 
 | Peran internal | Klasifikasi | Dasar + catatan penerapan |
