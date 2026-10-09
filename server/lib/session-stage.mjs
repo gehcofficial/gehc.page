@@ -57,6 +57,15 @@ export function cleanFgd(raw) {
   return { currentQ, triggerBy, triggerName };
 }
 
+/** Normalisasi timer diskusi kelompok (MONOLOG gabungan): mulai/henti terpisah dari timer sesi. */
+export function cleanDiscussion(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
+  if (!startedAt) return null;
+  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || 1500));
+  return { startedAt, durationSec };
+}
+
 /** Normalisasi lagu bedah (MONOLOG gabungan). */
 export function cleanSong(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

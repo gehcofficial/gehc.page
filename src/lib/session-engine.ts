@@ -25,9 +25,9 @@ export function resolvePatternCode(code: string | null | undefined): string {
 export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   MONOLOG: [
     { id: 'panduan', label: 'Panduan', hint: 'Baca 5 pertanyaan dari firman pekan.' },
-    { id: 'lagu', label: 'Bedah Lagu', hint: 'Nomor buku + kisah + makna tiap bait.' },
+    { id: 'lagu', label: 'Bedah Lagu', hint: 'Nomor buku + kisah + makna tiap bait; catat Q1-Q3.' },
     { id: 'catatan', label: 'Diskusi', hint: 'Jawab Q yang dibuka pemicu.' },
-    { id: 'satu-kata', label: 'Satu Kata', hint: 'Satu kata untuk minggumu.' },
+    { id: 'satu-kata', label: 'Lesson Learned', hint: 'Pilih maks 3 chip + undian kesaksian.' },
     { id: 'komitmen', label: 'Komitmen', hint: 'Satu langkah nyata + unduh rekap.' },
   ],
   DEBAT: [
@@ -49,14 +49,23 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
 
-/** Segmen aktif generik: maju mengikuti status; `filled` (sudah mencatat) memajukan satu langkah saat RUNNING. */
-export function segmentForPattern(code: string | null | undefined, status: string, filled: boolean): string {
+/** Segmen aktif generik: maju mengikuti status + panggung live (diskusi/trigger Q). */
+export function segmentForPattern(
+  code: string | null | undefined,
+  status: string,
+  filled: boolean,
+  live?: { discussionOpen?: boolean },
+): string {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) return segmentFor(status as never, filled) as string;
   const order = PATTERN_SEGMENTS[c].map((s) => s.id);
   const st = String(status || '').toUpperCase();
-  if (st === 'WRAPUP' || st === 'CLOSED') return order[order.length - 1];
-  if (st === 'RUNNING') return filled ? order[order.length - 1] : order[1] || order[0];
+  if (st === 'CLOSED') return order[order.length - 1];
+  if (st === 'WRAPUP') return c === 'MONOLOG' ? 'satu-kata' : order[order.length - 1];
+  if (st === 'RUNNING') {
+    if (c === 'MONOLOG') return live?.discussionOpen ? 'catatan' : order[1] || order[0];
+    return filled ? order[order.length - 1] : order[1] || order[0];
+  }
   return order[0];
 }
 
@@ -66,13 +75,14 @@ export function canOpenSegmentPattern(
   segment: string,
   status: string,
   filled: boolean,
+  live?: { discussionOpen?: boolean },
 ): boolean {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) {
     return canOpenSegment(segment as SegmentId, status as never, filled);
   }
   const order = PATTERN_SEGMENTS[c].map((s) => s.id);
-  const target = segmentForPattern(c, status, filled);
+  const target = segmentForPattern(c, status, filled, live);
   return order.indexOf(segment) <= order.indexOf(target);
 }
 
@@ -88,7 +98,6 @@ export const NOTE_SLOTS: Record<string, NoteSlot[]> = {
     { key: 'FGD-APPLY', label: 'Q3 Aplikasi — langkah nyata', placeholder: 'Langkah nyatamu minggu ini...' },
     { key: 'DEEP-Q1', label: 'Q4 Di mana kamu melihat dirimu?', placeholder: 'Tulis jawaban pertanyaan 4...' },
     { key: 'DEEP-Q2', label: 'Q5 Langkah pulangmu?', placeholder: 'Tulis jawaban pertanyaan 5...' },
-    { key: 'SATU-KATA', label: 'Satu kata untuk minggumu', placeholder: 'Contoh: Lelah, Pulang, Lega...' },
   ],
   DEBAT: [
     { key: 'ARGUMEN', label: 'Argumen terbaik yang kamu dengar', placeholder: 'Tulis + dari tim mana...' },
@@ -110,8 +119,8 @@ export function noteSlotsFor(code: string | null | undefined): NoteSlot[] {
   return [...slots, { key: COMMITMENT_KEY, label: 'Komitmen pribadiku', placeholder: 'Satu komitmen spesifik minggu ini...' }];
 }
 
-/** Widget per segmen: guide | song | rounds | screening | teams | testimony | notes | download. */
-export type SegmentWidget = 'guide' | 'song' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download';
+/** Widget per segmen: guide | song | chips | rounds | screening | teams | testimony | notes | download. */
+export type SegmentWidget = 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download';
 
 /** Urutan kunci Q terpandu MONOLOG (3 FGD + 2 deep sharing). */
 export const MONOLOG_QUESTION_KEYS = ['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2'];
@@ -124,9 +133,9 @@ export function isQuestionOpen(questionIndex1Based: number, currentQ: number): b
 export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = {
   MONOLOG: {
     panduan: ['guide', 'notes', 'download'],
-    lagu: ['song'],
+    lagu: ['song', 'notes'],
     catatan: ['notes'],
-    'satu-kata': ['notes'],
+    'satu-kata': ['chips', 'testimony', 'download'],
     komitmen: ['testimony', 'notes', 'download'],
   },
   DEBAT: {

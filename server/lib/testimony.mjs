@@ -11,6 +11,9 @@ export const TESTIMONY_NEED = [['MENTEE', 2], ['MENTOR', 1], ['CO_MENTOR', 1]];
 
 export const TESTIMONY_TOTAL = TESTIMONY_NEED.reduce((n, [, c]) => n + c, 0);
 
+/** Komposisi MONOLOG: 3 acak bebas tanpa patokan peran (nama + grup tampil di layar). */
+export const TESTIMONY_NEED_MONOLOG = [['ANY', 3]];
+
 /**
  * Klasifikasi peran pool: MENTOR > CO_MENTOR > MENTEE > OTHER.
  * @param roles string[] peran portal user
@@ -51,7 +54,7 @@ export function composePicks(pool, excludeIds, need = TESTIMONY_NEED, rand = Mat
   const chosen = [];
   for (const [role, count] of need) {
     for (const p of take(byRole.get(role) || [], count)) {
-      chosen.push({ userId: String(p.userId), name: String(p.name || 'Peserta'), role });
+      chosen.push({ userId: String(p.userId), name: String(p.name || 'Peserta'), role, groupName: p.groupName || null });
       const all = rest.indexOf(p);
       if (all >= 0) rest.splice(all, 1);
     }
@@ -59,7 +62,7 @@ export function composePicks(pool, excludeIds, need = TESTIMONY_NEED, rand = Mat
   // Lengkapi kekurangan dari sisa pool (peran apa pun).
   const total = need.reduce((n, [, c]) => n + c, 0);
   for (const p of take(rest, Math.max(0, total - chosen.length))) {
-    chosen.push({ userId: String(p.userId), name: String(p.name || 'Peserta'), role: classifyPoolRole(p.roles) });
+    chosen.push({ userId: String(p.userId), name: String(p.name || 'Peserta'), role: classifyPoolRole(p.roles), groupName: p.groupName || null });
   }
   return chosen.map((c, i) => ({ ...c, slot: i + 1 }));
 }

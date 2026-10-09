@@ -11,8 +11,8 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
-import { classifyPoolRole, composePicks } from '../lib/testimony.mjs';
-import { cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams } from '../lib/session-stage.mjs';
+import { classifyPoolRole, composePicks, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
+import { cleanDiscussion, cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams } from '../lib/session-stage.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const YOUTH_TENANT = 'tenant-youth';
@@ -87,6 +87,8 @@ export function normalizeConfig(raw, patternCode) {
     song: c.song && typeof c.song === 'object' && !Array.isArray(c.song) ? c.song : null,
     // Trigger pertanyaan mentor (MONOLOG gabungan; ditulis endpoint stage).
     fgd: c.fgd && typeof c.fgd === 'object' && !Array.isArray(c.fgd) ? c.fgd : null,
+    // Timer diskusi kelompok (MONOLOG gabungan; terpisah dari timer sesi).
+    discussion: c.discussion && typeof c.discussion === 'object' && !Array.isArray(c.discussion) ? c.discussion : null,
   };
 }
 
@@ -578,6 +580,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         deepGuide: deepGuide(config),
         song: sessionSong(config),
         fgd: fgdState(config),
+        discussion: config.discussion || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
         screening: config.screening,
@@ -786,6 +789,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         deepGuide: deepGuide(agg.config),
         song: sessionSong(agg.config),
         fgd: fgdState(agg.config),
+        discussion: agg.config.discussion || null,
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
@@ -1167,6 +1171,20 @@ export function registerWorshipRoutes(app, { wrap }) {
       } else if (action === 'start') {
         data.status = 'RUNNING';
         data.startedAt = now;
+        // MONOLOG: Q1-Q3 FGD langsung terbuka saat sesi dimulai (bedah lagu + monolog).
+        try {
+          const withPattern = await prisma.worshipSession.findUnique({
+            where: { id: session.id },
+            include: { pattern: { select: { code: true } } },
+          });
+          const cfg = normalizeConfig(session.config, withPattern?.pattern?.code);
+          const curQ = Number(cfg.fgd?.currentQ) || 0;
+          if (String(withPattern?.pattern?.code || '').toUpperCase() === 'MONOLOG' && curQ === 0) {
+            data.config = { ...cfg, fgd: { currentQ: 3, triggerBy: null, triggerName: null } };
+          }
+        } catch {
+          /* abaikan — status tetap jalan */
+        }
       } else if (action === 'wrapup') {
         data.status = 'WRAPUP';
         data.wrapUpAt = now;
@@ -1431,6 +1449,22 @@ export function registerWorshipRoutes(app, { wrap }) {
         sessionPattern,
       );
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
+      // MONOLOG: buat chip Lesson Learned dari section `lesson` draft (maks 10).
+      let lessonChips = [];
+      if (sessionPattern === 'MONOLOG') {
+        const lesson = b.storedDraft?.lesson && typeof b.storedDraft.lesson === 'object' ? b.storedDraft.lesson : {};
+        lessonChips = Array.from({ length: 10 }, (_, i) => String(lesson[`lesson-chip-${i + 1}`] || '').trim())
+          .filter(Boolean)
+          .slice(0, 10)
+          .map((label) => {
+            const clean = label.startsWith('#') ? label : `#${label}`;
+            return {
+              code: clean.toUpperCase().replace(/[^A-Z0-9_]/g, '_').slice(0, 40),
+              label: clean.slice(0, 80),
+            };
+          })
+          .filter((x) => x.code && x.label.replace('#', '').trim());
+      }
       const legacyItems = await prisma.worshipLikertItem.findMany({
         where: { sessionId: session.id },
         select: { id: true },
@@ -1445,7 +1479,16 @@ export function registerWorshipRoutes(app, { wrap }) {
         prisma.worshipChip.deleteMany({ where: { sessionId: session.id } }),
         prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } }),
       ]);
-      res.json({ ok: true, saved: true, cleaned: legacyIds.length });
+      if (lessonChips.length) {
+        let corder = 0;
+        for (const c of lessonChips) {
+          corder += 1;
+          await prisma.worshipChip.create({
+            data: { id: uid('wc'), sessionId: session.id, code: c.code, label: c.label, topicCode: null, sortOrder: corder, isActive: true },
+          });
+        }
+      }
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length });
     }),
   );
 
@@ -1471,16 +1514,39 @@ export function registerWorshipRoutes(app, { wrap }) {
       userIds = [...new Set(resp.map((r) => r.userId).filter(Boolean))];
     }
     if (!userIds.length) return [];
-    const users = await prisma.user
-      .findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, name: true, roles: { select: { role: true } } },
-      })
-      .catch(() => []);
+    const [users, memberships] = await Promise.all([
+      prisma.user
+        .findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, roles: { select: { role: true } } },
+        })
+        .catch(() => []),
+      prisma.groupMember
+        .findMany({
+          where: { userId: { in: userIds }, status: 'ACTIVE' },
+          select: { userId: true, groupId: true },
+        })
+        .catch(() => []),
+    ]);
+    let groupNameById = new Map();
+    const groupIds = [...new Set(memberships.map((m) => m.groupId).filter(Boolean))];
+    if (groupIds.length) {
+      const groups = await prisma.group
+        .findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true } })
+        .catch(() => []);
+      groupNameById = new Map(groups.map((g) => [g.id, g.name]));
+    }
+    const groupByUser = new Map();
+    for (const m of memberships) {
+      if (m.userId && !groupByUser.has(m.userId) && groupNameById.get(m.groupId)) {
+        groupByUser.set(m.userId, groupNameById.get(m.groupId));
+      }
+    }
     return users.map((u) => ({
       userId: u.id,
       name: u.name || 'Peserta',
       roles: (u.roles || []).map((r) => r.role),
+      groupName: groupByUser.get(u.id) || null,
     }));
   }
 
@@ -1528,7 +1594,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const found = await findSession(prisma, req.params.id);
       if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      const session = await prisma.worshipSession.findUnique({
+        where: { id: found.id },
+        include: { pattern: { select: { code: true } } },
+      });
       if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(String(session.status || '').toUpperCase())) {
         return res.status(409).json({ error: 'Undian hanya bisa saat sesi berlangsung.' });
       }
@@ -1537,7 +1606,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         return res.status(400).json({ error: 'Belum ada yang hadir (check-in/Likert masih kosong).' });
       }
       const picks = readPicks(session);
-      const fresh = composePicks(pool, picks.map((p) => p.userId));
+      // MONOLOG: 3 acak bebas (tanpa patokan peran); pola lain komposisi baku 2+1+1.
+      const need = String(session.pattern?.code || '').toUpperCase() === 'MONOLOG' ? TESTIMONY_NEED_MONOLOG : undefined;
+      const fresh = composePicks(pool, picks.map((p) => p.userId), need);
       if (!fresh.length) return res.status(409).json({ error: 'Semua yang hadir sudah terpilih.' });
       const at = new Date().toISOString();
       const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
@@ -1604,6 +1675,17 @@ export function registerWorshipRoutes(app, { wrap }) {
         if (!cleaned) return res.status(400).json({ error: 'State trigger Q tidak valid.' });
         cfg.fgd = cleaned;
         out.fgd = cleaned;
+      }
+      if (b.discussion !== undefined) {
+        if (b.discussion === null) {
+          cfg.discussion = null;
+          out.discussion = null;
+        } else {
+          const cleaned = cleanDiscussion(b.discussion);
+          if (!cleaned) return res.status(400).json({ error: 'Timer diskusi wajib ada waktu mulai.' });
+          cfg.discussion = cleaned;
+          out.discussion = cleaned;
+        }
       }
       if (b.song !== undefined) {
         if (b.song === null) {

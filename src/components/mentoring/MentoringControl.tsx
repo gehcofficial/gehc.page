@@ -19,7 +19,7 @@ import {
 } from '../../lib/mentoring';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { TestimonyPanel } from './TestimonyPanel';
-import { DebatPanel, FgdTriggerPanel, ScreeningPanel, TeamsPanel } from './StagePanels';
+import { DebatPanel, DiscussionPanel, FgdTriggerPanel, ScreeningPanel, TeamsPanel } from './StagePanels';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -465,6 +465,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
   const patternCode = String(detail?.session?.pattern?.code || '').toUpperCase();
   const isPostToPost = patternCode === 'POST_TO_POST';
+  const isMonolog = patternCode === 'MONOLOG';
+  const canManageChips = isPostToPost || isMonolog;
   const [showArchive, setShowArchive] = useState(false);
   const visibleSessions = useMemo(() => {
     let rows = sessions;
@@ -555,7 +557,13 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         <>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
-              {visibleActions.map((a) => (
+              {visibleActions.map((a) => {
+                const label = isMonolog && a.action === 'start'
+                  ? 'Mulai Bedah Lagu & Monolog'
+                  : isMonolog && a.action === 'wrapup'
+                    ? 'Buka Lesson Learned'
+                    : a.label;
+                return (
                 <button
                   key={a.action}
                   type="button"
@@ -563,9 +571,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   onClick={() => void doAction(a.action, a.action === 'extend' ? { seconds: 300 } : undefined)}
                   className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${a.tone}`}
                 >
-                  {a.label}
+                  {label}
                 </button>
-              ))}
+                );
+              })}
               <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
                 Status: {STATUS_LABELS[detail.session.status]}
               </span>
@@ -853,7 +862,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
               ))}
             </div>
             )}
-            {isPostToPost && (live?.wordcloud || detail.wordcloud).length > 0 && (
+            {canManageChips && (live?.wordcloud || detail.wordcloud).length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {(live?.wordcloud || detail.wordcloud).map((w) => (
                   <span key={w.code} className="px-3 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-bold">
@@ -940,7 +949,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           </div>
           )}
 
-          {isPostToPost && (
+          {canManageChips && (
           <div className={CARD}>
             <p className="text-sm font-black">Chip words ({detail.chips.length})</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -991,9 +1000,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           </div>
           )}
 
-          <TestimonyPanel sessionId={detail.session.id} />
+          <TestimonyPanel sessionId={detail.session.id} freeForAll={isMonolog} />
           {patternCode === 'MONOLOG' && (
-            <FgdTriggerPanel sessionId={detail.session.id} />
+            <>
+              <FgdTriggerPanel sessionId={detail.session.id} />
+              <DiscussionPanel sessionId={detail.session.id} />
+            </>
           )}
           {patternCode === 'DEBAT' && (
             <DebatPanel sessionId={detail.session.id} />

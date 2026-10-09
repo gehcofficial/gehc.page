@@ -118,6 +118,12 @@ const MONOLOG_TEMPLATE: DraftSection[] = [
       t('deep-q2', 'Pertanyaan 2', 'textarea', 'Langkah pulang minggu ini ...?'),
     ],
   },
+  {
+    key: 'lesson',
+    title: 'Chip Lesson Learned (maks 10)',
+    hint: 'Kata pelajaran 1-2 kata dari firman pekan (format #Kata, maks 3 dipilih per peserta). Tampil sebagai pilihan + word cloud di layar.',
+    fields: Array.from({ length: 10 }, (_, i) => t(`lesson-chip-${i + 1}`, `Chip ${i + 1}`, 'text', '#KataKunci')),
+  },
 ];
 
 const DEBAT_TEMPLATE: DraftSection[] = [

@@ -57,6 +57,7 @@ export type TestimonyPick = {
   userId: string;
   name: string;
   role: string;
+  groupName?: string | null;
   slot: number;
   at?: string;
 };
@@ -89,6 +90,9 @@ export type SessionSong = {
 
 export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
 
+/** Timer diskusi kelompok (MONOLOG): mulai/henti terpisah dari timer sesi. */
+export type SessionDiscussion = { startedAt: string; durationSec: number } | null;
+
 export type OneWordCount = { text: string; count: number };
 
 export type MentoringSessionPayload = {
@@ -120,6 +124,8 @@ export type MentoringSessionPayload = {
   song?: SessionSong;
   /** Status trigger Q mentor (MONOLOG gabungan). */
   fgd?: SessionFgdState;
+  /** Timer diskusi kelompok (MONOLOG gabungan). */
+  discussion?: SessionDiscussion;
   testimony: TestimonyPick[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
@@ -146,6 +152,7 @@ export type MentoringLivePayload = {
   deepGuide?: string[];
   song?: SessionSong;
   fgd?: SessionFgdState;
+  discussion?: SessionDiscussion;
   testimony: TestimonyPick[];
   oneWord?: OneWordCount[];
   rounds?: SessionRounds;

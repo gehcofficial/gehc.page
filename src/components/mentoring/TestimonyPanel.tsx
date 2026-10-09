@@ -8,10 +8,11 @@ type PoolInfo = { total: number; byRole: Record<string, number> };
 
 /**
  * Panel undian kesaksian (control room): pool kehadiran per peran,
- * tombol Putar (2 Mentee + 1 Mentor + 1 Co-mentor, tanpa ulang),
+ * tombol Putar (default 2 Mentee + 1 Mentor + 1 Co-mentor; `freeForAll`
+ * = 3 acak bebas untuk MONOLOG, tanpa ulang),
  * daftar terpilih + reset. Hasil tampil di layar proyektor.
  */
-export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
+export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean }> = ({ sessionId, freeForAll }) => {
   const [pool, setPool] = useState<PoolInfo | null>(null);
   const [picks, setPicks] = useState<TestimonyPick[]>([]);
   const [busy, setBusy] = useState(false);
@@ -105,7 +106,9 @@ export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
         </span>
       </div>
       <p className="text-[11px] text-[#8C8880] mt-1">
-        Komposisi tiap putaran: 2 Mentee + 1 Mentor + 1 Co-mentor (dilengkapi acak bila peran kurang; tanpa ulang).
+        {freeForAll
+          ? 'Tiap putaran: 3 acak bebas dari yang hadir (nama + grup tampil di layar; tanpa ulang).'
+          : 'Komposisi tiap putaran: 2 Mentee + 1 Mentor + 1 Co-mentor (dilengkapi acak bila peran kurang; tanpa ulang).'}
       </p>
       {picks.length > 0 && (
         <ol className="mt-3 space-y-1.5">
@@ -114,8 +117,8 @@ export const TestimonyPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
               <span className="w-6 h-6 rounded-full bg-brand/10 text-brand text-[11px] font-black grid place-items-center shrink-0">
                 {p.slot}
               </span>
-              <span className="text-xs font-bold flex-1 truncate">{p.name}</span>
-              <span className="text-[10px] text-[#8C8880]">{p.role}</span>
+                <span className="text-xs font-bold flex-1 truncate">{p.name}</span>
+                <span className="text-[10px] text-[#8C8880]">{[p.groupName, p.role].filter(Boolean).join(' · ')}</span>
               <button
                 type="button"
                 disabled={busy || sent.has(p.userId)}

@@ -121,8 +121,12 @@ const MentoringScreen: React.FC = () => {
 
   const { session, timer, progress, rooms, wordcloud } = data;
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.submitted / progress.total) * 100)) : 0;
-  const showWordCloud = session.status === 'WRAPUP' || wordcloud.length > 0;
   const patternCode = String(session.pattern?.code || '').toUpperCase();
+  // MONOLOG: word cloud (Lesson Learned) hanya mengambil alih layar saat WRAPUP/CLOSED —
+  // vote awal saat RUNNING tidak boleh menyembunyikan FGD/diskusi.
+  const showWordCloud = patternCode === 'MONOLOG'
+    ? session.status === 'WRAPUP' || session.status === 'CLOSED'
+    : session.status === 'WRAPUP' || wordcloud.length > 0;
   const testimony = data.testimony || [];
   const guide = data.guide || [];
 
@@ -234,8 +238,23 @@ const MentoringScreen: React.FC = () => {
               const qs = [...(data.guide || []).filter(Boolean), ...((data.deepGuide || []).filter(Boolean))];
               const cur = Number(data.fgd?.currentQ || 0);
               const words = (data.oneWord || []).slice(0, 12);
+              const disc = data.discussion;
+              const discRemain = disc?.startedAt
+                ? Math.max(0, new Date(disc.startedAt).getTime() + disc.durationSec * 1000 - Date.now())
+                : null;
               return (
                 <>
+                  {discRemain !== null && (
+                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Diskusi kelompok</p>
+                        <p className="text-sm text-white/70 mt-1">Bagikan catatanmu — semua mencatat di HP.</p>
+                      </div>
+                      <p className="font-display text-5xl font-black tabular-nums">
+                        {String(Math.floor(discRemain / 60000)).padStart(2, '0')}:{String(Math.floor((discRemain % 60000) / 1000)).padStart(2, '0')}
+                      </p>
+                    </section>
+                  )}
                   {song?.title && (
                     <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">🎵 Lagu Bedah{song.bookRef ? ` · ${song.bookRef}` : ''}</p>
@@ -311,10 +330,22 @@ const MentoringScreen: React.FC = () => {
         </>
       )}
 
-      {showWordCloud && (
+      {showWordCloud && patternCode !== 'MONOLOG' && (
         <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex items-center justify-center">
           <WordCloud items={wordcloud} className="text-center" />
         </section>
+      )}
+
+      {showWordCloud && patternCode === 'MONOLOG' && (
+        <div className="flex flex-col gap-8 flex-1">
+          <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand mb-4">Lesson Learned jemaat</p>
+              <WordCloud items={wordcloud} className="text-center" />
+            </div>
+          </section>
+          {testimony.length > 0 && <TestimonyWheel picks={testimony} />}
+        </div>
       )}
     </div>
   );

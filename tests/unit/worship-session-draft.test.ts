@@ -41,12 +41,12 @@ describe('session-draft: template kosongan 5 pola', () => {
     const stored = draftToStored(sections);
     const back = storedToSections('MONOLOG', stored);
     expect(back[0].fields[0].value).toBe('Apa kata teks?');
-    expect(countFilled(back)).toEqual({ filled: 1, total: 11 });
+    expect(countFilled(back)).toEqual({ filled: 1, total: 21 });
   });
 
-  it('MONOLOG gabungan: FGD 3 + lagu 6 + deep 2; DUAL memetakan ke MONOLOG', () => {
+  it('MONOLOG gabungan: FGD 3 + lagu 6 + deep 2 + lesson 10; DUAL memetakan ke MONOLOG', () => {
     const keys = templateFieldKeys('MONOLOG').map((f) => f.key);
-    for (const k of ['fgd-observe', 'fgd-interpret', 'fgd-apply', 'song-title', 'song-book-ref', 'song-writer', 'song-story', 'song-about', 'song-id', 'deep-q1', 'deep-q2']) {
+    for (const k of ['fgd-observe', 'fgd-interpret', 'fgd-apply', 'song-title', 'song-book-ref', 'song-writer', 'song-story', 'song-about', 'song-id', 'deep-q1', 'deep-q2', 'lesson-chip-1', 'lesson-chip-10']) {
       expect(keys).toContain(k);
     }
     expect(keys).not.toContain('song-singer');
@@ -240,5 +240,27 @@ describe('session-draft: AI proposal', () => {
       fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
     });
     expect(capturedPrompts.list.join('\n')).not.toContain('BEDAH LAGU');
+  });
+
+  it('prompt chip lesson: ada bila kunci lesson-chip-* dikirim', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'T',
+      fundamentalFirman: { ref: 'Why 2:10', text: 'Setia sampai mati...' },
+      pattern: { code: 'MONOLOG', name: 'Monolog', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('MONOLOG'),
+    });
+    expect(capturedPrompts.list.join('\n')).toContain('LESSON LEARNED');
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'T',
+      pattern: { code: 'DEBAT', name: 'Debat', phases: [], playbook: 'x' },
+      fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
+    });
+    expect(capturedPrompts.list.join('\n')).not.toContain('LESSON LEARNED');
   });
 });

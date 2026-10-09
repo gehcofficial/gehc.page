@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clapperboard, Download, Flag, Loader2, Swords, Users } from 'lucide-react';
+import { Clapperboard, Download, Flag, Loader2, Send, Sparkles, Swords, Users } from 'lucide-react';
 import {
   COMMITMENT_KEY,
   MONOLOG_QUESTION_KEYS,
@@ -58,6 +58,10 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     status: 'loading',
   });
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [chipDone, setChipDone] = useState(false);
+  const [chipBusy, setChipBusy] = useState(false);
+  const [chipNote, setChipNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!slug) {
@@ -97,6 +101,12 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
   const status = data?.session.status || 'DRAFT';
   const notes = data?.notes || {};
+  const discussionOpen = Boolean(data?.discussion?.startedAt);
+  const live = useMemo(() => ({ discussionOpen }), [discussionOpen]);
+  const discussionTick = useNowTick(discussionOpen);
+  const discussionRemainMs = discussionOpen && data?.discussion
+    ? new Date(data.discussion.startedAt).getTime() + data.discussion.durationSec * 1000 - discussionTick
+    : null;
   const slots = useMemo(() => {
     const base = noteSlotsFor(c);
     if (c === 'MONOLOG') {
@@ -119,10 +129,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   }, [c, data?.guide, data?.deepGuide]);
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
   const filled = noteKeys.some((k) => String(notes[k] || '').trim());
-  const segment = segmentForPattern(c, status, filled);
+  const segment = segmentForPattern(c, status, filled, live);
   const steps = PATTERN_SEGMENTS[c] || [];
   const widgets = widgetsFor(c, segment);
   const has = (w: SegmentWidget) => widgets.includes(w);
+
+  useEffect(() => {
+    const mine = data?.chips?.mine || [];
+    setPicked((prev) => (prev.length ? prev : mine));
+    if (mine.length) setChipDone(true);
+  }, [data?.chips?.mine]);
 
   const saveNote = useCallback(
     async (key: string, value: string) => {
@@ -167,6 +183,10 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const download = useCallback(() => {
     if (!data) return;
     const slotLabel = (key: string) => slots.find((s) => s.key === key)?.label || key;
+    const mineChips = data.chips?.mine || [];
+    const chipLabels = (data.chips?.list || [])
+      .filter((chip) => picked.includes(chip.code) || mineChips.includes(chip.code))
+      .map((chip) => ({ code: chip.code, label: chip.label }));
     const { blob, filename } = buildSessionRecapPdf({
       kicker: `GEHC YOUTH — ${data.session.pattern?.name || c}`.toUpperCase(),
       title: data.session.title,
@@ -214,9 +234,10 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         },
         { heading: 'Komitmen', lines: [{ body: String(notes[COMMITMENT_KEY] || '') }] },
       ],
+      chips: chipLabels,
     });
     downloadBlob(filename, blob);
-  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c]);
+  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c, picked]);
 
   if (state.status === 'loading') {
     return (
@@ -234,8 +255,41 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     );
   }
 
-  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled);
+  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live);
   const editable = status !== 'DRAFT' && status !== 'CLOSED';
+
+  const chipLimit = data?.session.chipLimit || 3;
+  const toggleChip = useCallback(
+    (code: string) => {
+      setPicked((prev) => {
+        if (prev.includes(code)) return prev.filter((x) => x !== code);
+        if (prev.length >= chipLimit) return prev;
+        return [...prev, code];
+      });
+    },
+    [chipLimit],
+  );
+
+  const submitChips = useCallback(async () => {
+    setChipBusy(true);
+    setChipNote(null);
+    try {
+      const r = await fetch('/api/worship/chips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ slug, codes: picked }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengirim chip.');
+      setChipDone(true);
+      await load();
+    } catch (e) {
+      setChipNote(e instanceof Error ? e.message : 'Gagal mengirim chip.');
+    } finally {
+      setChipBusy(false);
+    }
+  }, [slug, picked, load]);
 
   return (
     <div className="space-y-3 max-w-2xl">
@@ -270,6 +324,15 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           </div>
         )}
       </div>
+
+      {segment === 'komitmen' && (
+        <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
+          <p className="text-sm font-black text-[#1B1B1B]">
+            Terima kasih, {data.me?.name || 'Peserta'} — yang kamu catat hari ini berarti.
+          </p>
+          <p className="text-[11px] text-[#8C8880] mt-1">Unduh rekap pribadimu di bawah dan bawa komitmenmu keluar pintu ini.</p>
+        </div>
+      )}
 
       {has('guide') && ((data.guide || []).filter(Boolean).length > 0 || (data.deepGuide || []).filter(Boolean).length > 0) && (
         <div className={CARD}>
@@ -358,10 +421,63 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                   {p.slot}
                 </span>
                 <span className="text-xs font-bold flex-1 truncate">{p.name}</span>
-                <span className="text-[10px] text-[#8C8880]">{p.role}</span>
+                <span className="text-[10px] text-[#8C8880]">{[p.groupName, p.role].filter(Boolean).join(' · ')}</span>
               </li>
             ))}
           </ol>
+        </div>
+      )}
+
+      {has('chips') && (
+        <div className={CARD}>
+          {chipDone ? (
+            <div className="text-center py-4 space-y-2">
+              <Sparkles className="w-7 h-7 text-brand mx-auto" />
+              <p className="font-display text-xl font-black">Thank you, {data.me?.name || 'Peserta'}!</p>
+              <p className="text-xs text-[#8C8880]">Lesson learned-mu tercatat. Lihat layar utama di depan.</p>
+            </div>
+          ) : (data.chips?.list || []).length === 0 ? (
+            <p className="text-xs text-[#8C8880] italic">Pilihan lesson learned menyusul dari tim — siapkan hatimu.</p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-black text-[#1B1B1B]">Lesson Learned</h4>
+                <p className="text-[11px] text-[#8C8880] mt-0.5">
+                  Pilih maksimal {chipLimit} kata yang paling mewakili aha-moment kamu hari ini.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(data.chips?.list || []).map((chip) => {
+                  const active = picked.includes(chip.code);
+                  return (
+                    <button
+                      key={chip.code}
+                      type="button"
+                      disabled={!data.chips?.open}
+                      onClick={() => toggleChip(chip.code)}
+                      className={`px-4 py-2 rounded-full text-xs font-bold border transition-all disabled:opacity-60 ${
+                        active
+                          ? 'bg-gradient-to-r from-brand to-brand-end text-white border-transparent'
+                          : 'bg-white text-[#8C8880] border-[#D9D7D0]'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={chipBusy || !picked.length || !data.chips?.open}
+                onClick={() => void submitChips()}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#1B1B1B] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-60"
+              >
+                {chipBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Kirim ({picked.length}/{chipLimit})
+              </button>
+              {chipNote && <p className="text-[11px] text-red-600">{chipNote}</p>}
+            </div>
+          )}
         </div>
       )}
 
@@ -389,6 +505,11 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               {fgdQ > 0
                 ? `Q1–Q${Math.min(fgdQ, 5)} sudah dibuka${triggerLine ? ` · ${triggerLine}` : ''}.`
                 : 'Menunggu pemicu membuka pertanyaan…'}
+              {discussionRemainMs !== null && (
+                <span className="ml-2 font-black tabular-nums text-[#1B1B1B]">
+                  Diskusi {fmtRemain(discussionRemainMs)}
+                </span>
+              )}
             </p>
           )}
           <SessionNotes slots={slots} values={notes} onSave={saveNote} disabled={!editable} lockedKeys={lockedKeys} />

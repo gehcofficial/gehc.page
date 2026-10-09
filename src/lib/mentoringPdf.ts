@@ -193,6 +193,7 @@ export type SessionRecapInput = {
   meta: string;
   participantName: string;
   sections: SessionRecapSection[];
+  chips?: { code: string; label: string }[];
   generatedAt?: Date;
 };
 
@@ -252,9 +253,22 @@ export function buildSessionRecapPdf(input: SessionRecapInput): { filename: stri
   doc.setFontSize(9);
   doc.text([input.participantName, input.meta].filter(Boolean).join(' · '), M, y);
   y += 8;
+  setText(C.accent);
+  doc.setFont('helvetica', 'bold italic');
+  doc.setFontSize(10);
+  const thanks = doc.splitTextToSize(`Terima kasih, ${input.participantName} — yang kamu catat hari ini berarti.`, CONTENT_W) as string[];
+  doc.text(thanks, M, y);
+  y += thanks.length * 5 + 2;
   setDraw(C.line);
   doc.line(M, y, PAGE_W - M, y);
   y += 2;
+
+  if ((input.chips || []).length) {
+    heading('Lesson Learned');
+    for (const chip of input.chips || []) {
+      paragraph(chip.label, 10);
+    }
+  }
 
   for (const sec of input.sections) {
     const filled = sec.lines.filter((l) => String(l.body || '').trim());

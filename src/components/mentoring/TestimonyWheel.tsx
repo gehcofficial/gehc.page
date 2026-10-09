@@ -7,12 +7,13 @@ const ROLE_LABEL: Record<string, string> = {
   MENTOR: 'Mentor',
   CO_MENTOR: 'Co-mentor',
   OTHER: 'Jemaat',
+  ANY: 'Jemaat',
 };
 
 /**
  * Roda undian kesaksian (layar proyektor): saat hasil baru masuk, nama
- * berputar ±2,5 detik lalu berhenti di 4 nama terpilih (2 Mentee + Mentor +
- * Co-mentor). Murni tampilan — undian dilakukan server via kontrol.
+ * berputar ±2,5 detik lalu berhenti di nama terpilih (nama + grup).
+ * Murni tampilan — undian dilakukan server via kontrol.
  */
 export const TestimonyWheel: React.FC<{ picks: TestimonyPick[] }> = ({ picks }) => {
   const sig = useMemo(() => picks.map((p) => `${p.slot}:${p.userId}`).join('|'), [picks]);
@@ -54,7 +55,7 @@ export const TestimonyWheel: React.FC<{ picks: TestimonyPick[] }> = ({ picks }) 
         <Sparkles className="w-3.5 h-3.5 text-brand" />
         {spinning ? 'Mengundi kesaksian…' : 'Terpilih untuk bersaksi'}
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className={`grid gap-4 ${shown.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
         {shown.map((p, i) => (
           <div
             key={`${p.slot}-${p.userId}-${i}`}
@@ -66,7 +67,7 @@ export const TestimonyWheel: React.FC<{ picks: TestimonyPick[] }> = ({ picks }) 
             <p className="font-display text-lg font-black mt-1 truncate" title={p.name}>
               {p.name}
             </p>
-            <p className="text-[10px] text-white/50 mt-1">{ROLE_LABEL[p.role] || p.role}</p>
+            <p className="text-[10px] text-white/50 mt-1">{[p.groupName, ROLE_LABEL[p.role] || p.role].filter(Boolean).join(' · ')}</p>
           </div>
         ))}
       </div>

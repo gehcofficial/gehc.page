@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Clapperboard, ListChecks, Loader2, Plus, Save, Swords, Trash2, Users } from 'lucide-react';
+import { Clapperboard, ListChecks, Loader2, Plus, Save, Swords, Timer, Trash2, Users } from 'lucide-react';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -351,6 +351,112 @@ export const FgdTriggerPanel: React.FC<{ sessionId: string }> = ({ sessionId }) 
         >
           Tutup semua
         </button>
+      </div>
+      {msg && <p className="mt-2 text-[11px] text-[#8C8880]">{msg}</p>}
+    </div>
+  );
+};
+
+/** Panel timer diskusi kelompok (MONOLOG): mulai/henti terpisah dari timer sesi. */
+export const DiscussionPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
+  const { msg, setMsg, busy, setBusy } = useStageMsg();
+  const [minutes, setMinutes] = useState(25);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [durationSec, setDurationSec] = useState(0);
+
+  const load = useCallback(async () => {
+    try {
+      const cfg = await fetchStage(sessionId);
+      const d = cfg.discussion || null;
+      setStartedAt(d?.startedAt || null);
+      setDurationSec(Number(d?.durationSec) || 0);
+      if (d?.durationSec) setMinutes(Math.round(Number(d.durationSec) / 60));
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal memuat.');
+    }
+  }, [sessionId, setMsg]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const start = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const out = await saveStage(sessionId, {
+        discussion: { startedAt: new Date().toISOString(), durationSec: Math.max(60, Math.round(Number(minutes) * 60) || 1500) },
+      });
+      setStartedAt(out.discussion?.startedAt || null);
+      setDurationSec(Number(out.discussion?.durationSec) || 0);
+      setMsg(`Diskusi kelompok dimulai (${minutes} menit). HP peserta pindah ke tab Diskusi.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal memulai.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stop = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveStage(sessionId, { discussion: null });
+      setStartedAt(null);
+      setDurationSec(0);
+      setMsg('Timer diskusi dihentikan. Waktunya Buka Lesson Learned (wrapup).');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal menghentikan.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remainMin = startedAt ? Math.max(0, Math.round((new Date(startedAt).getTime() + durationSec * 1000 - Date.now()) / 60000)) : null;
+
+  return (
+    <div className={CARD}>
+      <div className="flex items-center gap-2">
+        <Timer className="w-4 h-4 text-brand" />
+        <p className="text-sm font-black">Timer diskusi kelompok</p>
+        <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
+          {startedAt ? `Berjalan · sisa ±${remainMin} mnt` : 'Belum dimulai'}
+        </span>
+      </div>
+      <p className="text-[11px] text-[#8C8880] mt-1">Monolog selesai → mulai timer ini; peserta mencatat Q1–Q3 lalu dalami Q4–Q5.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[11px] text-[#8C8880]">
+          Durasi
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={minutes}
+            disabled={busy || Boolean(startedAt)}
+            onChange={(e) => setMinutes(Number(e.target.value))}
+            className="w-20 rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand"
+          />
+          mnt
+        </label>
+        {!startedAt ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void start()}
+            className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-bold disabled:opacity-60"
+          >
+            Mulai diskusi
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void stop()}
+            className="px-4 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880] disabled:opacity-60"
+          >
+            Hentikan
+          </button>
+        )}
       </div>
       {msg && <p className="mt-2 text-[11px] text-[#8C8880]">{msg}</p>}
     </div>

@@ -11,8 +11,8 @@ import {
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
-import { classifyPoolRole, composePicks, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
-import { cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
+import { classifyPoolRole, composePicks, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
+import { cleanDiscussion, cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
   it('5 pola non-post-to-post punya 3-4 segmen + komitmen terakhir', () => {
@@ -23,11 +23,13 @@ describe('session-engine: registry segmen', () => {
     }
   });
 
-  it('MONOLOG maju mengikuti status', () => {
+  it('MONOLOG maju mengikuti status + panggung diskusi', () => {
     expect(segmentForPattern('MONOLOG', 'DRAFT', false)).toBe('panduan');
     expect(segmentForPattern('MONOLOG', 'RUNNING', false)).toBe('lagu');
-    expect(segmentForPattern('MONOLOG', 'RUNNING', true)).toBe('komitmen');
-    expect(segmentForPattern('MONOLOG', 'WRAPUP', false)).toBe('komitmen');
+    expect(segmentForPattern('MONOLOG', 'RUNNING', true)).toBe('lagu');
+    expect(segmentForPattern('MONOLOG', 'RUNNING', false, { discussionOpen: true })).toBe('catatan');
+    expect(segmentForPattern('MONOLOG', 'RUNNING', true, { discussionOpen: true })).toBe('catatan');
+    expect(segmentForPattern('MONOLOG', 'WRAPUP', false)).toBe('satu-kata');
     expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('komitmen');
   });
 
@@ -44,7 +46,9 @@ describe('session-engine: registry segmen', () => {
   it('gerbang monoton maju', () => {
     expect(canOpenSegmentPattern('MONOLOG', 'panduan', 'DRAFT', false)).toBe(true);
     expect(canOpenSegmentPattern('MONOLOG', 'komitmen', 'RUNNING', false)).toBe(false);
-    expect(canOpenSegmentPattern('MONOLOG', 'komitmen', 'RUNNING', true)).toBe(true);
+    expect(canOpenSegmentPattern('MONOLOG', 'catatan', 'RUNNING', false)).toBe(false);
+    expect(canOpenSegmentPattern('MONOLOG', 'catatan', 'RUNNING', false, { discussionOpen: true })).toBe(true);
+    expect(canOpenSegmentPattern('MONOLOG', 'satu-kata', 'WRAPUP', false)).toBe(true);
     expect(canOpenSegmentPattern('DEBAT', 'catatan', 'DRAFT', false)).toBe(false);
   });
 
@@ -62,15 +66,19 @@ describe('session-engine: registry segmen', () => {
     expect(resolvePatternCode('MONOLOG')).toBe('MONOLOG');
     const slots = noteSlotsFor('DUAL_MONOLOG').map((s) => s.key);
     expect(slots).toEqual(noteSlotsFor('MONOLOG').map((s) => s.key));
-    expect(slots).toContain('SATU-KATA');
+    expect(slots).not.toContain('SATU-KATA');
     expect(slots).toContain('DEEP-Q1');
     expect(segmentForPattern('DUAL_MONOLOG', 'RUNNING', false)).toBe(segmentForPattern('MONOLOG', 'RUNNING', false));
   });
 
-  it('MONOLOG gabungan punya 5 segmen + widget lagu', () => {
+  it('MONOLOG gabungan punya 5 segmen + widget lagu + lesson chip', () => {
     expect(PATTERN_SEGMENTS.MONOLOG.map((s) => s.id)).toEqual(['panduan', 'lagu', 'catatan', 'satu-kata', 'komitmen']);
+    expect(PATTERN_SEGMENTS.MONOLOG[3].label).toBe('Lesson Learned');
     expect(widgetsFor('MONOLOG', 'lagu')).toContain('song');
-    expect(widgetsFor('MONOLOG', 'satu-kata')).toContain('notes');
+    expect(widgetsFor('MONOLOG', 'lagu')).toContain('notes');
+    expect(widgetsFor('MONOLOG', 'satu-kata')).toContain('chips');
+    expect(widgetsFor('MONOLOG', 'satu-kata')).toContain('testimony');
+    expect(widgetsFor('MONOLOG', 'satu-kata')).not.toContain('notes');
     expect(MONOLOG_QUESTION_KEYS).toEqual(['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2']);
   });
 
@@ -146,6 +154,15 @@ describe('testimony: composePicks', () => {
   it('pool kosong → kosong', () => {
     expect(composePicks([], [])).toEqual([]);
   });
+
+  it('MONOLOG: 3 acak bebas + groupName diteruskan', () => {
+    const poolWithGroups = pool.map((p, i) => ({ ...p, groupName: i % 2 ? 'Agape' : null }));
+    const picks = composePicks(poolWithGroups, [], TESTIMONY_NEED_MONOLOG, () => 0);
+    expect(picks).toHaveLength(3);
+    expect(picks.map((p) => p.slot)).toEqual([1, 2, 3]);
+    expect(picks.filter((p) => p.groupName === 'Agape')).toHaveLength(1);
+    expect(new Set(picks.map((p) => p.userId)).size).toBe(3);
+  });
 });
 
 describe('session-engine: widget segmen', () => {
@@ -196,5 +213,16 @@ describe('session-stage: validasi', () => {
     const out = cleanTeams({ teams: [{ name: 'Soal', members: ['A'] }, { name: '' }, { name: 'Lapangan' }] });
     expect(out.teams.map((t) => t.name)).toEqual(['Soal', 'Lapangan']);
     expect(cleanTeams(null)).toBeNull();
+  });
+
+  it('discussion: mulai wajib, durasi dibatasi', () => {
+    expect(cleanDiscussion(null)).toBeNull();
+    expect(cleanDiscussion({})).toBeNull();
+    expect(cleanDiscussion({ startedAt: '2026-10-11T09:00:00.000Z', durationSec: 1500 })).toEqual({
+      startedAt: '2026-10-11T09:00:00.000Z',
+      durationSec: 1500,
+    });
+    expect(cleanDiscussion({ startedAt: 'x', durationSec: 5 })).toMatchObject({ durationSec: 60 });
+    expect(cleanDiscussion({ startedAt: 'x', durationSec: 99999 })).toMatchObject({ durationSec: 7200 });
   });
 });
