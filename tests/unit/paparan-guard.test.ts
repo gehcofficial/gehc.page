@@ -64,17 +64,17 @@ describe('paparan-guard — endpoint khusus pimpinan', () => {
     expect(res.body?.slides).toBeUndefined();
   });
 
-  it.each(['BPMJ', 'KOMISI', 'SUPERADMIN'])('200 + deck 13 slide untuk peran %s', async (role) => {
+  it.each(['BPMJ', 'KOMISI', 'SUPERADMIN'])('200 + deck 16 slide untuk peran %s', async (role) => {
     const res = await runChain(collectHandlers()[0].handlers, reqWithRoles([role]));
     expect(res.statusCode).toBe(200);
     expect(res.body?.error).toBeUndefined();
     expect(res.body?.slug).toBe('bpmj-2026-10');
-    expect(res.body?.slides).toHaveLength(13);
+    expect(res.body?.slides).toHaveLength(16);
   });
 
   it('deck utuh: tiap slide ber-id + judul', () => {
     const deck = paparanDeck();
-    expect(deck.slides).toHaveLength(13);
+    expect(deck.slides).toHaveLength(16);
     for (const s of deck.slides) {
       expect(typeof s.id).toBe('string');
       expect(s.id.length).toBeGreaterThan(0);

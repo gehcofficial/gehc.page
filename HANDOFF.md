@@ -1,5 +1,18 @@
 # GEHC Portal — Handoff
 
+## Current — Deck 16 slide (sumber dana + serah terima + visi portal) (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** slide sumber pendapatan + serah terima saldo pre-18 Okt +
+visi 100% via gehc.page + training pengurus baru.
+
+**Ubah (kode):** 3 slide baru (`sumber-dana`, `serah-terima`,
+`arah-depan`) + keputusan 7 butir + penomoran kicker; tanpa nominal
+(struktur saja); footnote pakai istilah existing.
+
+**Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
+
+**Next:** commit + push main + `staging:sync` + verifikasi live.
+
 ## Current — Deck 13 slide + footnote glosarium (9 Okt 2026, uncommitted)
 
 **Kebutuhan:** semua materi baru (kas/ABPJ 2 pos, DAP 2 mekanisme, BZP
@@ -14,6 +27,12 @@ API) • `BpmjPaparan.tsx` — blok "Catatan istilah" per slide (web + cetak)
 **Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
 
 **Next (butuh perintah):** QA visual footnote + push main + `staging:sync`.
+
+**Deploy (9 Okt, ~16:00):** commit `cec78f9` → push main ✓ (prod
+auto-deploy berjalan) + `staging:sync`: branch staging = main ✓, build
+staging lolos (chunk BpmjPaparan ada) ✓, alias staging*.gehc.page
+terpasang s/d staging-men (timeout CLI saat alias sisa: women/districts/
+community — cek + pasang manual bila perlu).
 
 ## Current — Master Database pos pengeluaran (9 Okt 2026, uncommitted)
 

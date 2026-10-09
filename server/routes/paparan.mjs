@@ -147,8 +147,20 @@ export function paparanDeck() {
         footnotes: ['ABPJ', 'BPMS', 'BPPJ', 'BIPRA', 'Kolom', 'Earmarked', 'LPJ'],
       },
       {
+        id: 'sumber-dana',
+        kicker: 'Slide 9 · Kas',
+        title: 'Sumber pendapatan: 7 pintu, 1 kas',
+        bullets: [
+          'Kolekte Minggu & hari raya · persembahan Kolom & BIPRA (via Asben) · syukur/nazar/persepuluhan.',
+          'Persembahan pembangunan (earmarked) · hasil usaha dana BZP · sewa fasilitas · sumbangan/hibah.',
+          'Semua masuk satu pintu kas jemaat tiap minggu — lalu ABPJ membagi: Pelayanan, Pembangunan, setoran 35% + 5%.',
+          'Tanpa nominal di deck ini — angka aktual hanya di laporan kas yang terkunci peran.',
+        ],
+        footnotes: ['ABPJ', 'BIPRA', 'Kolom', 'Asben', 'BZP', 'Earmarked'],
+      },
+      {
         id: 'dap',
-        kicker: 'Slide 9 · DAP',
+        kicker: 'Slide 10 · DAP',
         title: 'DAP: dua mekanisme, dua perlakuan',
         fields: [
           { label: 'DAP-Uang Muka (kasbon)', value: 'Bukan pendapatan. Diputus BPMJ. LPJ + sisa kembali 100%. Cth: DAP operasional event.' },
@@ -159,7 +171,7 @@ export function paparanDeck() {
       },
       {
         id: 'bzp',
-        kicker: 'Slide 10 · Kas Minggu',
+        kicker: 'Slide 11 · Kas Minggu',
         title: 'BZP: Minggu utama, fleksibel + kolaborasi',
         bullets: [
           'Fokus Minggu; Sabtu/weekday dimungkinkan (order + setuju BPMJ) — cth. bazar kampus PresUniv.',
@@ -171,7 +183,7 @@ export function paparanDeck() {
       },
       {
         id: 'suksesi',
-        kicker: 'Slide 11 · Q4 2026',
+        kicker: 'Slide 12 · Q4 2026',
         title: 'Suksesi Komisi Pemuda',
         bullets: [
           'Masa berakhir 2026 → Rapat Pemilihan (didukung, bukan diangkat langsung).',
@@ -183,7 +195,7 @@ export function paparanDeck() {
       },
       {
         id: 'atestasi',
-        kicker: 'Slide 12 · Gerakan',
+        kicker: 'Slide 13 · Gerakan',
         title: 'Gerakan atestasi + sertifikasi',
         bullets: [
           'Tanpa atestasi = tidak eligible jabatan apa pun — portal melacak BELUM / PROSES / SUDAH.',
@@ -193,8 +205,32 @@ export function paparanDeck() {
         footnotes: ['Atestasi', 'Kolom', 'BIPRA', 'BPMJ'],
       },
       {
+        id: 'serah-terima',
+        kicker: 'Slide 14 · 18 Okt 2026',
+        title: 'Serah terima saldo antar periode',
+        bullets: [
+          'Prinsip: saldo akhir periode berjalan = saldo awal periode berikut — per pos, per kas pembantu.',
+          'Naskah serah terima ikut ditandatangani BPPJ; inventarisasi aset dilampirkan.',
+          'LPJ panitia/komisi tuntas sebelum pelantikan; DAP menggantung wajib selesai (kembali ke kas atau LPJ).',
+          'Pemilihan Pelsus 18 Okt 2026 = batas akhir beres-beres kas periode ini.',
+        ],
+        footnotes: ['BPPJ', 'LPJ', 'DAP', 'Pelsus'],
+      },
+      {
+        id: 'arah-depan',
+        kicker: 'Slide 15 · Visi',
+        title: 'Arah ke depan: 100% via gehc.page',
+        bullets: [
+          'Pelaporan dana: kas komisi/panitia/BZP lapor bulanan + akhir tahun lewat portal (Bendahara konsolidasi, BPPJ verifikasi).',
+          'Administrasi: SK, Surat Tugas, berita acara, inventaris, roster pool/cadangan — terdokumentasi, bukan di chat.',
+          'Khotbah & warta: materi Didaskalia (Studio → publish) + warta mingguan disusun di portal.',
+          'Training pengurus baru pasca-18 Okt: modul per peran + pendampingan kuarter pertama.',
+        ],
+        footnotes: ['ABPJ', 'BPPJ', 'LPJ', 'Asben'],
+      },
+      {
         id: 'keputusan',
-        kicker: 'Slide 13 · Ketok',
+        kicker: 'Slide 16 · Ketok',
         title: 'Minta diketok hari ini',
         bullets: [
           'SK-kan THL + pengakuan masa + kebijakan stop dana pribadi + inventarisasi.',
@@ -202,7 +238,8 @@ export function paparanDeck() {
           'SK Kostor + Surat Tugas asisten; struktur ABPJ 2 pos + definisi Pembangunan.',
           'Latihan Kepemimpinan intensif + Panitia Pemilihan Q4.',
           'Klarifikasi masa komisi + mulai gerakan atestasi.',
-          'Aturan DAP dua mekanisme + LPJ wajib.',
+          'Aturan DAP dua mekanisme + LPJ wajib + serah terima kas tuntas pre-18 Okt.',
+          'Adopsi portal 100% + jadwal training pengurus baru.',
         ],
         callout: { label: 'Siap', value: 'Naskah SK, SOP, dan berita acara sudah ada drafnya.' },
         footnotes: ['THL', 'DAP', 'LPJ', 'ABPJ'],
