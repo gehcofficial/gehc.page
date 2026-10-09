@@ -101,12 +101,13 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
   const status = data?.session.status || 'DRAFT';
   const notes = data?.notes || {};
-  const discussionOpen = Boolean(data?.discussion?.startedAt);
-  const live = useMemo(() => ({ discussionOpen }), [discussionOpen]);
-  const discussionTick = useNowTick(discussionOpen);
-  const discussionRemainMs = discussionOpen && data?.discussion
-    ? new Date(data.discussion.startedAt).getTime() + data.discussion.durationSec * 1000 - discussionTick
+  const phaseName = String(data?.phase?.name || '').toUpperCase() || null;
+  const live = useMemo(() => ({ phaseName }), [phaseName]);
+  const phaseTick = useNowTick(Boolean(data?.phase?.startedAt));
+  const phaseRemainMs = data?.phase?.startedAt
+    ? new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - phaseTick
     : null;
+  const phaseExpired = phaseRemainMs !== null && phaseRemainMs <= 0;
   const slots = useMemo(() => {
     const base = noteSlotsFor(c);
     if (c === 'MONOLOG') {
@@ -130,6 +131,14 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
   const filled = noteKeys.some((k) => String(notes[k] || '').trim());
   const segment = segmentForPattern(c, status, filled, live);
+  // F1 (Bedah Lagu): HP hanya menampilkan Q1-Q3.
+  const visibleSlots = useMemo(() => {
+    if (c === 'MONOLOG' && segment === 'lagu') {
+      const first3 = new Set(MONOLOG_QUESTION_KEYS.slice(0, 3));
+      return slots.filter((s) => first3.has(s.key));
+    }
+    return slots;
+  }, [c, segment, slots]);
   const steps = PATTERN_SEGMENTS[c] || [];
   const widgets = widgetsFor(c, segment);
   const has = (w: SegmentWidget) => widgets.includes(w);
@@ -210,9 +219,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     if (c !== 'MONOLOG') return [] as string[];
     return MONOLOG_QUESTION_KEYS.filter((_, i) => !isQuestionOpen(i + 1, fgdQ));
   }, [c, fgdQ]);
-  const triggerLine = data?.fgd?.triggerName
-    ? `Pemicu: ${data.fgd.triggerName}${data.fgd.triggerBy ? ` (${data.fgd.triggerBy})` : ''}`
-    : null;
 
   const download = useCallback(() => {
     if (!data) return;
@@ -307,7 +313,21 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           </span>
         </div>
         <div className="mt-3">
-          <SessionTimer timer={data.timer} />
+          {c === 'MONOLOG' ? (
+            phaseRemainMs !== null && (phaseName === 'F2' || phaseName === 'F3' || phaseName === 'CLOSING') ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                  {phaseName === 'F2' ? 'Diskusi kelompok' : phaseName === 'F3' ? 'Kesaksian' : 'Penutup'}
+                  {phaseExpired ? ' · waktu habis' : ''}
+                </p>
+                <p className="font-display text-2xl font-black tabular-nums">
+                  {phaseExpired ? '00:00' : fmtRemain(phaseRemainMs)}
+                </p>
+              </div>
+            ) : null
+          ) : (
+            <SessionTimer timer={data.timer} />
+          )}
         </div>
         {steps.length > 0 && (
           <div className="mt-3 flex gap-1.5">
@@ -504,16 +524,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           {c === 'MONOLOG' && (
             <p className="text-[11px] text-[#8C8880]">
               {fgdQ > 0
-                ? `Q1–Q${Math.min(fgdQ, 5)} sudah dibuka${triggerLine ? ` · ${triggerLine}` : ''}.`
+                ? `Q1–Q${Math.min(fgdQ, 5)} sudah dibuka.`
                 : 'Menunggu pemicu membuka pertanyaan…'}
-              {discussionRemainMs !== null && (
+              {phaseRemainMs !== null && (phaseName === 'F2' || phaseName === 'F3' || phaseName === 'CLOSING') && (
                 <span className="ml-2 font-black tabular-nums text-[#1B1B1B]">
-                  Diskusi {fmtRemain(discussionRemainMs)}
+                  {phaseExpired ? 'Waktu habis' : fmtRemain(phaseRemainMs)}
                 </span>
               )}
             </p>
           )}
-          <SessionNotes slots={slots} values={notes} onSave={saveNote} disabled={!editable} lockedKeys={lockedKeys} />
+          <SessionNotes slots={visibleSlots} values={notes} onSave={saveNote} disabled={!editable} lockedKeys={lockedKeys} />
         </>
       )}
       {saveError && <p className="text-[11px] text-red-600">{saveError}</p>}

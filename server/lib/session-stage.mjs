@@ -57,13 +57,21 @@ export function cleanFgd(raw) {
   return { currentQ, triggerBy, triggerName };
 }
 
-/** Normalisasi timer diskusi kelompok (MONOLOG gabungan): mulai/henti terpisah dari timer sesi. */
-export function cleanDiscussion(raw) {
+/** Nama fase MONOLOG yang sah (20'/25'/10'/5' = 60 menit). */
+export const MONOLOG_PHASES = ['F1', 'F2', 'F3', 'CLOSING'];
+
+/** Durasi baku tiap fase MONOLOG (detik): F1 20' + F2 25' + F3 10' + Closing 5'. */
+export const MONOLOG_PHASE_SECONDS = { F1: 1200, F2: 1500, F3: 600, CLOSING: 300 };
+
+/** Normalisasi timer fase (MONOLOG): satu fase aktif + countdown display-only. Transisi selalu manual. */
+export function cleanPhase(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const name = String(raw.name || '').toUpperCase();
+  if (!MONOLOG_PHASES.includes(name)) return null;
   const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
   if (!startedAt) return null;
-  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || 1500));
-  return { startedAt, durationSec };
+  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || MONOLOG_PHASE_SECONDS[name]));
+  return { name, startedAt, durationSec };
 }
 
 /** Normalisasi lagu bedah (MONOLOG gabungan). */

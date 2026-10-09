@@ -12,7 +12,7 @@ import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { classifyPoolRole, composePicks, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanDiscussion, cleanFgd, cleanRounds, cleanScreening, cleanSong, cleanTeams } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS } from '../lib/session-stage.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const YOUTH_TENANT = 'tenant-youth';
@@ -87,8 +87,8 @@ export function normalizeConfig(raw, patternCode) {
     song: c.song && typeof c.song === 'object' && !Array.isArray(c.song) ? c.song : null,
     // Trigger pertanyaan mentor (MONOLOG gabungan; ditulis endpoint stage).
     fgd: c.fgd && typeof c.fgd === 'object' && !Array.isArray(c.fgd) ? c.fgd : null,
-    // Timer diskusi kelompok (MONOLOG gabungan; terpisah dari timer sesi).
-    discussion: c.discussion && typeof c.discussion === 'object' && !Array.isArray(c.discussion) ? c.discussion : null,
+    // Timer fase aktif (MONOLOG: F1 20' + F2 25' + F3 10' + Closing 5'; display-only).
+    phase: c.phase && typeof c.phase === 'object' && !Array.isArray(c.phase) ? c.phase : null,
   };
 }
 
@@ -580,7 +580,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         deepGuide: deepGuide(config),
         song: sessionSong(config),
         fgd: fgdState(config),
-        discussion: config.discussion || null,
+        phase: config.phase || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
         screening: config.screening,
@@ -789,7 +789,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         deepGuide: deepGuide(agg.config),
         song: sessionSong(agg.config),
         fgd: fgdState(agg.config),
-        discussion: agg.config.discussion || null,
+        phase: agg.config.phase || null,
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
@@ -1171,7 +1171,9 @@ export function registerWorshipRoutes(app, { wrap }) {
       } else if (action === 'start') {
         data.status = 'RUNNING';
         data.startedAt = now;
-        // MONOLOG: Q1-Q3 FGD langsung terbuka saat sesi dimulai (bedah lagu + monolog).
+        // MONOLOG: Q1-Q3 langsung terbuka + fase F1 20' jalan. Timer utama
+        // dibungkam (horizon 3 jam) agar auto-wrapup tak menendang di tengah
+        // 60 menit — semua countdown terlihat berasal dari config.phase.
         try {
           const withPattern = await prisma.worshipSession.findUnique({
             where: { id: session.id },
@@ -1179,8 +1181,13 @@ export function registerWorshipRoutes(app, { wrap }) {
           });
           const cfg = normalizeConfig(session.config, withPattern?.pattern?.code);
           const curQ = Number(cfg.fgd?.currentQ) || 0;
-          if (String(withPattern?.pattern?.code || '').toUpperCase() === 'MONOLOG' && curQ === 0) {
-            data.config = { ...cfg, fgd: { currentQ: 3, triggerBy: null, triggerName: null } };
+          if (String(withPattern?.pattern?.code || '').toUpperCase() === 'MONOLOG') {
+            data.config = {
+              ...cfg,
+              timerSeconds: 10800,
+              fgd: curQ === 0 ? { currentQ: 3, triggerBy: null, triggerName: null } : cfg.fgd,
+              phase: { name: 'F1', startedAt: now.toISOString(), durationSec: MONOLOG_PHASE_SECONDS.F1 },
+            };
           }
         } catch {
           /* abaikan — status tetap jalan */
@@ -1188,6 +1195,22 @@ export function registerWorshipRoutes(app, { wrap }) {
       } else if (action === 'wrapup') {
         data.status = 'WRAPUP';
         data.wrapUpAt = now;
+        // MONOLOG: fase F3 10' (Kesaksian) langsung jalan saat wrapup.
+        try {
+          const withPattern = await prisma.worshipSession.findUnique({
+            where: { id: session.id },
+            include: { pattern: { select: { code: true } } },
+          });
+          if (String(withPattern?.pattern?.code || '').toUpperCase() === 'MONOLOG') {
+            const cfg = normalizeConfig(session.config, 'MONOLOG');
+            data.config = {
+              ...cfg,
+              phase: { name: 'F3', startedAt: now.toISOString(), durationSec: MONOLOG_PHASE_SECONDS.F3 },
+            };
+          }
+        } catch {
+          /* abaikan — status tetap jalan */
+        }
       } else if (action === 'close') {
         data.status = 'CLOSED';
         data.closedAt = now;
@@ -1677,14 +1700,17 @@ export function registerWorshipRoutes(app, { wrap }) {
         out.fgd = cleaned;
       }
       if (b.discussion !== undefined) {
-        if (b.discussion === null) {
-          cfg.discussion = null;
-          out.discussion = null;
+        return res.status(400).json({ error: 'Timer diskusi terpisah tidak dipakai lagi — pakai phase F1/F2/F3/CLOSING.' });
+      }
+      if (b.phase !== undefined) {
+        if (b.phase === null) {
+          cfg.phase = null;
+          out.phase = null;
         } else {
-          const cleaned = cleanDiscussion(b.discussion);
-          if (!cleaned) return res.status(400).json({ error: 'Timer diskusi wajib ada waktu mulai.' });
-          cfg.discussion = cleaned;
-          out.discussion = cleaned;
+          const cleaned = cleanPhase(b.phase);
+          if (!cleaned) return res.status(400).json({ error: 'Fase tidak valid (F1/F2/F3/CLOSING + waktu mulai).' });
+          cfg.phase = cleaned;
+          out.phase = cleaned;
         }
       }
       if (b.song !== undefined) {

@@ -28,6 +28,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'lagu', label: 'Bedah Lagu', hint: 'Nomor buku + kisah + makna tiap bait; catat Q1-Q3.' },
     { id: 'catatan', label: 'Diskusi', hint: 'Jawab Q yang dibuka pemicu.' },
     { id: 'satu-kata', label: 'Lesson Learned', hint: 'Pilih maks 3 chip + undian kesaksian.' },
+    { id: 'penutup', label: 'Penutup', hint: 'Transisi 5 menit + rekap + unduh.' },
     { id: 'komitmen', label: 'Komitmen', hint: 'Satu langkah nyata + unduh rekap.' },
   ],
   DEBAT: [
@@ -49,21 +50,26 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
 
-/** Segmen aktif generik: maju mengikuti status + panggung live (diskusi/trigger Q). */
+/** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
 export function segmentForPattern(
   code: string | null | undefined,
   status: string,
   filled: boolean,
-  live?: { discussionOpen?: boolean },
+  live?: { phaseName?: string | null },
 ): string {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) return segmentFor(status as never, filled) as string;
   const order = PATTERN_SEGMENTS[c].map((s) => s.id);
   const st = String(status || '').toUpperCase();
   if (st === 'CLOSED') return order[order.length - 1];
-  if (st === 'WRAPUP') return c === 'MONOLOG' ? 'satu-kata' : order[order.length - 1];
+  if (c === 'MONOLOG') {
+    const phase = String(live?.phaseName || '').toUpperCase();
+    if (st === 'WRAPUP') return phase === 'CLOSING' ? 'penutup' : 'satu-kata';
+    if (st === 'RUNNING') return phase === 'F2' ? 'catatan' : order[1] || order[0];
+    return order[0];
+  }
+  if (st === 'WRAPUP') return order[order.length - 1];
   if (st === 'RUNNING') {
-    if (c === 'MONOLOG') return live?.discussionOpen ? 'catatan' : order[1] || order[0];
     return filled ? order[order.length - 1] : order[1] || order[0];
   }
   return order[0];
@@ -75,7 +81,7 @@ export function canOpenSegmentPattern(
   segment: string,
   status: string,
   filled: boolean,
-  live?: { discussionOpen?: boolean },
+  live?: { phaseName?: string | null },
 ): boolean {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) {
@@ -136,6 +142,7 @@ export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = 
     lagu: ['song', 'notes'],
     catatan: ['notes'],
     'satu-kata': ['chips', 'testimony', 'download'],
+    penutup: ['testimony', 'notes', 'download'],
     komitmen: ['testimony', 'notes', 'download'],
   },
   DEBAT: {

@@ -19,7 +19,7 @@ import {
 } from '../../lib/mentoring';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { TestimonyPanel } from './TestimonyPanel';
-import { DebatPanel, DiscussionPanel, FgdTriggerPanel, ScreeningPanel, TeamsPanel } from './StagePanels';
+import { DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -189,8 +189,53 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   };
 
-  const rotateCode = async () => {
+  // 4 tombol fase MONOLOG (F1 20' → F2 25' → F3 10' → Closing 5'). T1/T3 via
+  // state (server ikut menulis phase); T2/T4 via stage. Transisi manual.
+  const monologPhase = async (name: 'F2' | 'CLOSING') => {
     if (!detail) return;
+    setBusy(true);
+    try {
+      const patch: Record<string, unknown> =
+        name === 'F2'
+          ? {
+              fgd: { currentQ: 5, triggerBy: null, triggerName: null },
+              phase: { name: 'F2', startedAt: new Date().toISOString(), durationSec: 1500 },
+            }
+          : { phase: { name: 'CLOSING', startedAt: new Date().toISOString(), durationSec: 300 } };
+      await saveStage(detail.session.id, patch);
+      setMsg({ kind: 'ok', text: name === 'F2' ? 'Fase F2 Deep Sharing + Q4-Q5 dibuka (25 menit).' : 'Fase Closing & Transisi dibuka (5 menit).' });
+      await loadDetail();
+      await loadLive();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal membuka fase.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const extendPhase = async () => {
+    if (!detail) return;
+    const cur = live?.phase;
+    if (!cur?.startedAt) {
+      setMsg({ kind: 'err', text: 'Belum ada fase berjalan.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveStage(detail.session.id, {
+        phase: { name: cur.name, startedAt: cur.startedAt, durationSec: Number(cur.durationSec) + 300 },
+      });
+      setMsg({ kind: 'ok', text: `Fase ${cur.name} ditambah 5 menit.` });
+      await loadDetail();
+      await loadLive();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menambah waktu.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rotateCode = async () => {    if (!detail) return;
     setBusy(true);
     try {
       const r = await fetch(`/api/worship/sessions/${detail.session.id}`, {
@@ -557,7 +602,57 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         <>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
-              {visibleActions.map((a) => {
+              {isMonolog ? (
+                <>
+                  {(
+                    [
+                      { key: 'F1', label: 'Mulai Bedah Lagu & Monolog · 20’', run: () => void doAction('start'), on: detail.session.status === 'DRAFT' },
+                      { key: 'F2', label: 'Deep Sharing Q4-Q5 · 25’', run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
+                      { key: 'F3', label: 'Kesaksian · 10’', run: () => void doAction('wrapup'), on: detail.session.status === 'RUNNING' },
+                      { key: 'CLOSING', label: 'Closing & Transisi · 5’', run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
+                    ] as const
+                  ).map((b) => {
+                    const active = live?.phase?.name === b.key;
+                    return (
+                      <button
+                        key={b.key}
+                        type="button"
+                        disabled={busy || !b.on}
+                        onClick={b.run}
+                        title={active ? 'Fase sedang berjalan' : b.key === 'F1' ? 'Mulai sesi + buka Q1-Q3' : b.key === 'F2' ? 'Buka Q4-Q5 + timer 25 menit' : b.key === 'F3' ? 'Wrapup + undian + chip (10 menit)' : 'Timer transisi 5 menit'}
+                        className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${active ? 'ring-2 ring-offset-2 ring-brand bg-[#1B1B1B]' : 'bg-emerald-600'}`}
+                      >
+                        {b.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={busy || !live?.phase?.startedAt}
+                    onClick={() => void extendPhase()}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-sky-500"
+                  >
+                    +5 mnt fase
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('close')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
+                  >
+                    Tutup Sesi
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('reset')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
+                  >
+                    Reset ke Draft
+                  </button>
+                </>
+              ) : (
+              visibleActions.map((a) => {
                 const label = isMonolog && a.action === 'start'
                   ? 'Mulai Bedah Lagu & Monolog'
                   : isMonolog && a.action === 'wrapup'
@@ -574,8 +669,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   {label}
                 </button>
                 );
-              })}
+              })
+              )}
               <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
+                {isMonolog && live?.phase?.startedAt
+                  ? `Fase ${live.phase.name} · sisa ±${Math.max(0, Math.round((new Date(live.phase.startedAt).getTime() + Number(live.phase.durationSec) * 1000 - Date.now()) / 60000))} mnt · `
+                  : ''}
                 Status: {STATUS_LABELS[detail.session.status]}
               </span>
             </div>
@@ -1001,12 +1100,6 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           )}
 
           <TestimonyPanel sessionId={detail.session.id} freeForAll={isMonolog} />
-          {patternCode === 'MONOLOG' && (
-            <>
-              <FgdTriggerPanel sessionId={detail.session.id} />
-              <DiscussionPanel sessionId={detail.session.id} />
-            </>
-          )}
           {patternCode === 'DEBAT' && (
             <DebatPanel sessionId={detail.session.id} />
           )}

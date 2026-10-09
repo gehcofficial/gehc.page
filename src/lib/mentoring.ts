@@ -90,8 +90,8 @@ export type SessionSong = {
 
 export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
 
-/** Timer diskusi kelompok (MONOLOG): mulai/henti terpisah dari timer sesi. */
-export type SessionDiscussion = { startedAt: string; durationSec: number } | null;
+/** Timer fase aktif (MONOLOG): F1 20' + F2 25' + F3 10' + Closing 5'. Display-only; transisi manual. */
+export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING'; startedAt: string; durationSec: number } | null;
 
 export type OneWordCount = { text: string; count: number };
 
@@ -124,8 +124,8 @@ export type MentoringSessionPayload = {
   song?: SessionSong;
   /** Status trigger Q mentor (MONOLOG gabungan). */
   fgd?: SessionFgdState;
-  /** Timer diskusi kelompok (MONOLOG gabungan). */
-  discussion?: SessionDiscussion;
+  /** Fase aktif + countdown (MONOLOG gabungan). */
+  phase?: SessionPhase;
   testimony: TestimonyPick[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
@@ -152,7 +152,7 @@ export type MentoringLivePayload = {
   deepGuide?: string[];
   song?: SessionSong;
   fgd?: SessionFgdState;
-  discussion?: SessionDiscussion;
+  phase?: SessionPhase;
   testimony: TestimonyPick[];
   oneWord?: OneWordCount[];
   rounds?: SessionRounds;

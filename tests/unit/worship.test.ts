@@ -76,17 +76,17 @@ describe('worship: config & ranking', () => {
     expect(d.topics.map((t) => t.code)).toEqual(['HUBUNGAN']);
   });
 
-  it('normalizeConfig meneruskan discussion + fgd (MONOLOG)', () => {
+  it('normalizeConfig meneruskan phase + fgd (MONOLOG)', () => {
     const d = normalizeConfig(
       {
         fgd: { currentQ: 3, triggerBy: 'MENTOR', triggerName: 'Kak A' },
-        discussion: { startedAt: '2026-10-11T09:00:00.000Z', durationSec: 1500 },
+        phase: { name: 'F2', startedAt: '2026-10-11T09:00:00.000Z', durationSec: 1500 },
       },
       'MONOLOG',
     );
     expect(d.fgd).toMatchObject({ currentQ: 3 });
-    expect(d.discussion).toMatchObject({ durationSec: 1500 });
-    expect(normalizeConfig(null).discussion).toBeNull();
+    expect(d.phase).toMatchObject({ name: 'F2', durationSec: 1500 });
+    expect(normalizeConfig(null).phase).toBeNull();
   });
 
   it('rankTopics: kerentanan tertinggi lebih dulu', () => {

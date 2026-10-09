@@ -58,6 +58,24 @@ const MentoringScreen: React.FC = () => {
     return () => window.clearInterval(id);
   }, [load]);
 
+  // Detik berjalan untuk countdown fase + carousel Q (selalu dipanggil — aturan hooks).
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      setTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const [qIndex, setQIndex] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      setQIndex((i) => i + 1);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const saveCode = () => {
     const value = codeInput.trim().toUpperCase();
     if (!value) return;
@@ -128,7 +146,22 @@ const MentoringScreen: React.FC = () => {
     ? session.status === 'WRAPUP' || session.status === 'CLOSED'
     : session.status === 'WRAPUP' || wordcloud.length > 0;
   const testimony = data.testimony || [];
-  const guide = data.guide || [];
+  const phaseName = String(data.phase?.name || '').toUpperCase() || null;
+  const phaseRemainMs = data.phase?.startedAt
+    ? Math.max(0, new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - tick)
+    : null;
+  const phaseExpired = phaseRemainMs !== null && data.phase
+    ? Date.now() >= new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000
+    : false;
+  const PHASE_LABEL: Record<string, string> = {
+    F1: 'Bedah Lagu & Monolog',
+    F2: 'Diskusi kelompok',
+    F3: 'Kesaksian',
+    CLOSING: 'Closing & Transisi',
+  };
+  const fmtPhase = (ms: number) =>
+    `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
+  const isMonologStandby = patternCode === 'MONOLOG' && !showWordCloud && phaseName !== 'F2';
 
   return (
     <div className="min-h-screen bg-[#111] text-white p-8 sm:p-12 flex flex-col gap-8">
@@ -144,6 +177,7 @@ const MentoringScreen: React.FC = () => {
 
       {!showWordCloud && (
         <>
+          {patternCode !== 'MONOLOG' && (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <Timer className="w-8 h-8 text-brand" />
@@ -160,21 +194,19 @@ const MentoringScreen: React.FC = () => {
               </p>
             </div>
           </section>
+          )}
 
           {testimony.length > 0 && <TestimonyWheel picks={testimony} />}
 
           {patternCode === 'MONOLOG' ? (
-            <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Panduan FGD</p>
-              <ol className="space-y-2">
-                {guide.filter(Boolean).map((g, i) => (
-                  <li key={i} className="text-lg font-bold">
-                    <span className="text-brand mr-2">Q{i + 1}.</span>
-                    {g}
-                  </li>
-                ))}
-              </ol>
-            </section>
+            isMonologStandby ? (
+              <section className="rounded-[28px] bg-white/5 border border-white/10 p-12 flex-1 flex flex-col items-center justify-center text-center gap-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">
+                  {phaseName ? PHASE_LABEL[phaseName] : 'Ibadah berlangsung'}
+                </p>
+                <p className="text-white/50 text-sm max-w-md">Ikuti dari tempat dudukmu — panduan tampil di HP.</p>
+              </section>
+            ) : null
           ) : rooms.length > 0 ? (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">Alokasi pos</p>
@@ -234,50 +266,35 @@ const MentoringScreen: React.FC = () => {
               );
             }
             if (patternCode === 'MONOLOG') {
-              const song = data.song;
+              if (phaseName !== 'F2') return null;
               const qs = [...(data.guide || []).filter(Boolean), ...((data.deepGuide || []).filter(Boolean))];
-              const cur = Number(data.fgd?.currentQ || 0);
               const words = (data.oneWord || []).slice(0, 12);
-              const disc = data.discussion;
-              const discRemain = disc?.startedAt
-                ? Math.max(0, new Date(disc.startedAt).getTime() + disc.durationSec * 1000 - Date.now())
-                : null;
+              const qi = qs.length ? qIndex % qs.length : 0;
               return (
                 <>
-                  {discRemain !== null && (
-                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Diskusi kelompok</p>
-                        <p className="text-sm text-white/70 mt-1">Bagikan catatanmu — semua mencatat di HP.</p>
-                      </div>
-                      <p className="font-display text-5xl font-black tabular-nums">
-                        {String(Math.floor(discRemain / 60000)).padStart(2, '0')}:{String(Math.floor((discRemain % 60000) / 1000)).padStart(2, '0')}
-                      </p>
-                    </section>
-                  )}
-                  {song?.title && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">🎵 Lagu Bedah{song.bookRef ? ` · ${song.bookRef}` : ''}</p>
-                      <p className="font-display text-2xl font-black">{song.title}</p>
-                      {(song.writer || song.singer) && <p className="text-sm text-white/60 mt-1">Pencipta: {song.writer || song.singer}</p>}
-                      {song.story && <p className="text-sm text-white/70 mt-2 italic">{song.story}</p>}
-                      {song.about && <p className="text-sm text-white/70 mt-2">{song.about}</p>}
-                    </section>
+                  <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Diskusi kelompok</p>
+                      <p className="text-sm text-white/70 mt-1">Bagikan catatanmu — semua mencatat di HP.</p>
+                    </div>
+                    <p className="font-display text-5xl font-black tabular-nums">
+                      {phaseRemainMs === null ? '––:––' : phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+                    </p>
+                  </section>
+                  {phaseExpired && (
+                    <p className="text-center text-sm font-bold text-amber-300">Waktu habis — menunggu operator membuka fase berikut.</p>
                   )}
                   {qs.length > 0 && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">
-                        Pertanyaan {cur > 0 ? `(Q1–Q${Math.min(cur, qs.length)} terbuka)` : '(menunggu pemicu)'}
-                        {data.fgd?.triggerName ? ` · Pemicu: ${data.fgd.triggerName}` : ''}
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">
+                        Pertanyaan {qi + 1}/{qs.length}
                       </p>
-                      <ol className="space-y-2">
-                        {qs.map((q, i) => (
-                          <li key={i} className={`text-lg font-bold ${cur > 0 && i < cur ? '' : 'opacity-40'}`}>
-                            <span className="text-brand mr-2">Q{i + 1}.</span>
-                            {q}
-                          </li>
+                      <p key={qi} className="font-display text-2xl sm:text-3xl font-black leading-snug">{qs[qi]}</p>
+                      <div className="flex justify-center gap-1.5 mt-5">
+                        {qs.map((_, i) => (
+                          <span key={i} className={`h-1.5 rounded-full ${i === qi ? 'w-6 bg-brand' : 'w-1.5 bg-white/20'}`} />
                         ))}
-                      </ol>
+                      </div>
                     </section>
                   )}
                   {words.length > 0 && (
@@ -338,6 +355,17 @@ const MentoringScreen: React.FC = () => {
 
       {showWordCloud && patternCode === 'MONOLOG' && (
         <div className="flex flex-col gap-8 flex-1">
+          {phaseRemainMs !== null && (phaseName === 'F3' || phaseName === 'CLOSING') && (
+            <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{PHASE_LABEL[phaseName || ''] || 'Kesaksian'}</p>
+                {phaseName === 'CLOSING' && <p className="text-sm text-white/70 mt-1">Terima kasih — sampai jumpa minggu depan.</p>}
+              </div>
+              <p className="font-display text-5xl font-black tabular-nums">
+                {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+              </p>
+            </section>
+          )}
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex items-center justify-center">
             <div className="text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand mb-4">Lesson Learned jemaat</p>
