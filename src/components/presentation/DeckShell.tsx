@@ -27,7 +27,7 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
     try {
       const at = Number(window.localStorage.getItem('gehc_last_portal_at') || 0);
       const last = window.localStorage.getItem('gehc_last_portal');
-      if (last && /^#\//.test(last) && !last.startsWith('#/materi') && Date.now() - at < 24 * 3600 * 1000) {
+      if (last && /^#\//.test(last) && !last.startsWith('#/materi') && !last.startsWith('#/paparan') && Date.now() - at < 24 * 3600 * 1000) {
         window.location.hash = last;
         return;
       }

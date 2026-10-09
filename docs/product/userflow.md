@@ -25,6 +25,13 @@ Google SSO nyata, dan Jethro Engine.
 lihat `src/lib/roles.ts`); pengguna dapat mengganti konteks akses lewat
 **chips peran** di menu akun Navbar (saat sudah login).
 
+> **Catatan kepatuhan SMSI ke-82 GMIM (24–26 Sep 2026).** Istilah `KOMISI`,
+> `BPMJ`, `Kolom`, `SUPERADMIN` di portal ini adalah istilah internal
+> GMIM Eben Haezer Cikarang, bukan definisi Tata Gereja sinodal. Portal
+> tidak memberi akses otomatis/ex-officio: setiap peran diberikan eksplisit
+> via assign + `requireRole()`/`requireDivision()` per-endpoint. Acuan
+> lengkap + glosarium: [tata-gereja-gmim](tata-gereja-gmim.md) §VII.
+
 ---
 
 ## 2. Autentikasi

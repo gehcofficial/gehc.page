@@ -115,6 +115,12 @@ export function isReportHash(hash: string): boolean {
   return h === '#/laporan' || h.startsWith('#/laporan/') || h.startsWith('#/laporan?');
 }
 
+/** Paparan internal pimpinan (#/paparan/<slug>). Tak terdaftar di nav mana pun. */
+export function isPaparanHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/paparan' || h.startsWith('#/paparan/') || h.startsWith('#/paparan?');
+}
+
 /** Halaman Pelsus 11 Okt (pemilih + bilik + layar). */
 export function isPelsusHash(hash: string): boolean {
   const h = String(hash || '');

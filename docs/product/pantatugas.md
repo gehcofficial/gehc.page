@@ -2,6 +2,9 @@
 
 > Keputusan desain struktur organisasi pemuda berbasis lima fungsi gereja klasik.
 > Referensi: `revision-v2-beyonders.md`, diskusi konsultasi 2026.
+> Kepatuhan SMSI-82 (istilah portal vs Tata Gereja + glosarium):
+> [tata-gereja-gmim](tata-gereja-gmim.md) §VII. Divisi Panca Tugas di bawah
+> ini adalah perangkat internal Komisi Pemuda — bukan Komisi Kerja aras jemaat.
 
 ## 1. Prinsip
 

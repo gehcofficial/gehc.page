@@ -25,7 +25,7 @@ export function lastPortalPlace(fallback = '#/portal'): string {
   try {
     const at = Number(window.localStorage.getItem(LAST_PORTAL_AT_KEY) || 0);
     const h = window.localStorage.getItem(LAST_PORTAL_KEY);
-    if (h && /^#\//.test(h) && !h.startsWith('#/materi') && Date.now() - at < LAST_PORTAL_TTL_MS) return h;
+    if (h && /^#\//.test(h) && !h.startsWith('#/materi') && !h.startsWith('#/paparan') && Date.now() - at < LAST_PORTAL_TTL_MS) return h;
   } catch {
     /* abaikan */
   }

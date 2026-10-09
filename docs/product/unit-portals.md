@@ -3,6 +3,8 @@
 > Status: **usulan untuk ditinjau** (26 Sep 2026). Belum ada implementasi.
 > Melanjutkan F1–F3.4 (portal per domain, tenant, peran per unit, data ter-scope).
 > Dokumen desain besar: [`church-portal.md`](church-portal.md).
+> Kepatuhan SMSI-82 (istilah portal vs Tata Gereja):
+> [tata-gereja-gmim](tata-gereja-gmim.md) §VII.
 
 ---
 
@@ -79,7 +81,7 @@ Format: **tujuan → anggota → peran → modul (tab)**.
   4. **Kas W/KI** — iuran & penggunaan.
   5. **Pelayanan Jemaat** — konsumsi/dekorasi event jemaat (kolaborasi).
 
-### 3.5 Kolom / Wilayah (tenant-districts · teritorial, campur BIPRA)
+### 3.5 Kolom — teritorial jemaat, bukan Wilayah (tenant-districts · campur BIPRA)
 - **Tujuan**: penggembalaan teritorial per Kolom.
 - **Anggota**: jemaat per Kolom (semua BIPRA), pengurus Kolom.
 - **Peran**: KOMISI, COMMITTEE (ketua Kolom).

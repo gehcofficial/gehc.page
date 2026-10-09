@@ -14,6 +14,9 @@
 - [Studio Didaskalia — SOP mingguan tim & HOD](product/didaskalia-studio.md)
 - [Pustaka Lagu Liturgia — setlist, chord & FreeShow](product/liturgia-lagu.md)
 - [Penatalayan mingguan — mentor assign, WA temporer & Representative Day](product/penatalayan-mingguan.md)
+- [Tata Gereja GMIM — acuan portal + pertimbangan komisi kerja EH Cikarang](product/tata-gereja-gmim.md)
+- [SOP Komisi Usaha Dana / Benzarpreneurship + draf SK & berita acara](product/komisi-kerja-sop-bzp.md)
+- [Aturan pelaksanaan pelayanan perantau — draf usul ke BPMJ](product/aturan-perantau.md)
 
 ## Design
 

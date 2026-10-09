@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isPaparanHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
@@ -20,6 +20,7 @@ const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 const ReportPresentation = React.lazy(() => import('./components/reports/ReportPresentation.tsx'));
+const BpmjPaparan = React.lazy(() => import('./components/paparan/BpmjPaparan.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
 const PelsusApp = React.lazy(() => import('./components/pelsus/PelsusApp.tsx'));
 const MentoringDay = React.lazy(() => import('./components/mentoring/MentoringDay.tsx'));
@@ -93,6 +94,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <ReportPresentation />
+      </Suspense>
+    );
+  }
+
+  // Paparan internal pimpinan: standalone, wajib login + peran pimpinan.
+  if (isPaparanHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <BpmjPaparan />
       </Suspense>
     );
   }

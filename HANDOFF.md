@@ -1,5 +1,90 @@
 # GEHC Portal — Handoff
 
+## Current — Rute paparan BPMJ khusus pimpinan (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** naskah presentasi BPMJ (11 slide) tampil di routing
+gehc.page, hanya dibuka BPMJ + KOMISI + SUPERADMIN.
+
+**Ubah (kode):** `#/paparan/bpmj-2026-10` — `isPaparanHash`
+(`host-context.ts`) + `paparan-routing.ts` (parse allowlist + test) +
+cabang `main.tsx` + `BpmjPaparan.tsx` (DeckShell, state auth/forbidden,
+TANPA tombol bagikan, Cetak → PDF) + `server/routes/paparan.mjs`
+(`GET /api/paparan/bpmj-2026-10`, `requireRole(SUPERADMIN,BPMJ,KOMISI)`;
+isi deck hanya via API, tak dibakar ke bundle) + registrasi
+`server/index.mjs` + `lazy-routes.test.ts` + `portal-place.ts`/`DeckShell`
+kecualikan `#/paparan` dari last-place (anti loop keluar).
+
+**Verifikasi:** `lint` bersih ✓ 32 test hijau (routing 3 + guard 13 incl.
+matriks 401/403/200 + lazy 16) ✓ `node --check` OK ✓ tanpa migrasi.
+
+**Catatan sesi paralel:** `integrasi-divisi.md`, `worship-patterns.md`,
+`_seed-worship-patterns.cjs` berubah di sesi lain — JANGAN sentuh/commit
+file itu. Commit file paparan + docs tata-gereja saja bila diminta.
+
+**Next (butuh perintah):** QA visual (tanpa login → minta login; Mentee →
+ditolak; Komisi → 11 slide + cetak) → commit + push + `staging:sync` →
+Fase atestasi → knowledge + ask.
+
+## Current — Aturan perantau + suksesi komisi (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** bahan diskusi internal BPMJ — realitas perantau (3–4 thn,
+time-boxed kuarter/semester/1 thn) vs syarat Tata Gereja; pola task force
+PHRG/H2RG, Kostor weekly/monthly, rotasi THL kuarter; suksesi BOD Tim
+Kerja → Komisi Pemuda (masa berakhir 2026, trio minus sertifikat).
+
+**Ubah (docs saja):** `docs/product/aturan-perantau.md` (baru: dua jalur
+struktural/fungsional + format pengecualian sah + pagar tak-bisa-dinego +
+gerakan atestasi + sertifikasi kuarteran + pool/cadangan tanpa Sidang +
+matriks lintas BIPRA/Kolom + timeline pemilihan Q4 2026 + contoh suksesi)
+• `tata-gereja-gmim.md`: mekanisme Rapat Pemilihan + lowong (Pasal 33–37)
++ catatan diskrepansi masa "5 thn vs siklus 4 thn" + pointer aturan •
+indeks `docs/README.md`.
+
+**Keputusan terkunci:** suksesi via Rapat Pemilihan (didukung, bukan
+diangkat); sertifikat = critical path sebelum hari-H; fleksibilitas via
+kontrak tahunan + pintu lowong, bukan SK diperpendek; idle tak perlu
+Pasal 37 (masa berakhir); cek sidi/non-Pelsus + klarifikasi masa SK.
+
+**Verifikasi:** `lint` bersih ✓ (docs-only, tanpa migrasi).
+
+**Next (butuh perintah):** Fase portal atestasi (1 migrasi: status + asal
++ tanggal + certificates JSON) → pool/cadangan via isActive/expiresAt →
+knowledge + ask → label UI KOMISI/BPMJ.
+
+## Current — Tata Gereja GMIM + SOP BZP (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** acuan Tata Gereja mengacu SMSI-82 + kejelasan Tupoksi 4 peran
+internal (Pembangunan, Kostor+asisten, THL 4+4 tanpa SK 2 thn + nombok
+pribadi, BZP 6 orang pola kas-Minggu 100%) + rencana fitur ask.
+
+**Ubah (docs saja):** `docs/product/tata-gereja-gmim.md` (baru: Pelsus,
+Sidang, BIPRA + delta SMSI-82 ex-officio/AMS/BPMW ber-tag RESMI/LIPUTAN,
+Komisi Kerja Pasal 38 + contoh Musik, Kostor/Pegawai, tabel pertimbangan
+4 peran EH Cikarang) • `docs/product/komisi-kerja-sop-bzp.md` (baru: dual-line
+BPMJ/Bendahara, susunan 6 orang + segregasi, 4 pagar rekening operasional,
+aturan order H–7 + default/kolaborasi 100%, draf SK + 2 format berita acara)
+• disclaimer SMSI-82 di `userflow/pantatugas/unit-portals` + heading §3.5
+→ "Kolom — bukan Wilayah" • indeks `docs/README.md`.
+
+**Keputusan terkunci:** Kostor = jabatan perorangan (SK 1 orang + Surat Tugas
+asisten); THL = 1 Komisi Kerja 2 seksi (SK-kan + pengakuan masa + stop dana
+pribadi); BZP = Komisi Usaha Dana Jemaat (beda dari BZP Pemuda); ask =
+semua login + tabel knowledge baru (dipilih user, belum dibangun).
+
+**Verifikasi:** `lint` bersih ✓ (docs-only, tanpa migrasi).
+
+**Next:** paket Sidang (SK 3 komisi + Kostor + pagu + tarif sewa + klaim THL
+— butuh cek sidi/non-Pelsus + jawaban BZP Pemuda terpisah/lebur) →
+Fase knowledge + endpoint ask → label UI KOMISI/BPMJ (perlu cek test label).
+
+## Current — Standar nama pola dwibahasa (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** nama pola English standar. Awalnya dwibahasa, lalu direvisi → **English-only** (9 Okt 2026): Monologue & Dialogue, Post-to-Post, The Battle of Minds, Movie Breakdown, Mission Sequence. Penjelas Indonesia tetap di `summary` tiap pola. Kode stabil; Mission Sequence hindari tabrakan topik #CoramDeo.
+
+**Ubah:** seed `MONOLOG→Monologue & Dialogue — …`, `POST_TO_POST→Post-to-Post — Misi 3 Pos`, `BEDAH_FILM→Movie Breakdown — …`, `THREE_SEQUENCES→Mission Sequence — 3 Rangkaian Misi` (DEBAT tetap) + sapu `worship-patterns.md` & `integrasi-divisi.md`. Re-seed staging + prod ✓ (terverifikasi baca-balik). Test tak perlu diubah (fixture passthrough).
+
+**Verifikasi:** `lint` bersih • 70 test pola hijau.
+
 ## Current — Segarkan Bagian A/B + banner pola basi (9 Okt 2026)
 
 **Kebutuhan:** ganti pola ibadah tidak auto-update FGD (hanya pola berikutnya); deck campur teknis baru + Q lama.
@@ -8,7 +93,9 @@
 
 **Verifikasi:** `lint` bersih ✓ full suite hijau (1 flaky lama lolos standalone) ✓ `build` OK ✓
 
-**Next:** commit + push + `staging:sync` • QA: ganti pola → banner muncul → segarkan → banner hilang.
+**Deploy:** commit `ed2f96e` → push main ✓ + `staging:sync` ✓ (`main` = `staging` = `ed2f96e`).
+
+**Next:** QA: ganti pola → banner muncul → segarkan → banner hilang.
 
 ## Current — Density tipografi + budget 12 + penutup sebaris (9 Okt 2026)
 
@@ -197,7 +284,6 @@
 **Deploy cleanup (9 Okt 2026):** merge `cursor/studio-cleanup-legacy` → main (`3f37ca4`) + push. Prod = `3f37ca4` ✓ (terverifikasi live). Staging sync menyusul bila diminta.
 
 ## Current — Cleanup gambar section RHB (9 Okt 2026, uncommitted, BELUM commit/push)
-
 **Audit:** gambar section RHB (35 slot upload + fallback deck + fetch PDF) sudah mati di web (bila AI harian ada) & PDF (selalu) — upload-nya diam-diam tak tampil. Keputusan: hapus total + hero manual ikut dihapus → visual RHB = AI harian saja (fallback cover pekan).
 
 **Ubah:** StudioPanel (hapus 2 ImageSlot RHB + `setSectionImage`; helper upload tetap untuk cover pekan) • deck `daily = rhbAi || cover-pekan`, fallback section dihapus • `buildPdfImages` berhenti fetch ±35 request mati (`rhbSectionImages/rhbCoverImages/pathImages`; tipe dibersihkan) • test RHB ditulis ulang ke perilaku harian-AI. Skema DB tak diubah (data lama harmless).

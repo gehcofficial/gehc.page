@@ -13,6 +13,7 @@ const LAZY_ROUTE_MODULES = [
   '../../src/components/hub/PitchMentor.tsx',
   '../../src/components/didaskalia/DidaskaliaPresentation.tsx',
   '../../src/components/reports/ReportPresentation.tsx',
+  '../../src/components/paparan/BpmjPaparan.tsx',
   '../../src/components/voting/GroupLogoVote.tsx',
   '../../src/components/pelsus/PelsusApp.tsx',
   '../../src/components/mentoring/MentoringDay.tsx',
