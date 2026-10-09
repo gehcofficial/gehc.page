@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { BookOpen, CheckCircle2, Clock, Copy, Layers, Sparkles } from 'lucide-react';
 import {
+  divisionLabel,
   moduleLabel,
   patternDurationDelta,
   patternTemplateCheck,
   patternTotalMinutes,
+  prettyPlaybook,
   type WorshipPatternLite,
 } from '../../lib/worship-patterns';
+import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 
 type Props = {
   patterns: WorshipPatternLite[];
@@ -17,29 +20,12 @@ type Props = {
   onCopyPlaybook?: (pattern: WorshipPatternLite) => void;
 };
 
-/** Render ringan markdown playbook: heading ## tebal, tabel/list sebagai teks pra-format. */
+/** Naskah playbook siap baca: markdown ter-render + slot adaptasi jadi kata biasa. */
 function PlaybookView({ text }: { text: string }) {
-  const blocks = useMemo(() => String(text || '').split(/\n{2,}/), [text]);
+  const blocks = useMemo(() => parseMdLite(prettyPlaybook(text)), [text]);
   return (
-    <div className="space-y-2">
-      {blocks.map((b, i) => {
-        const t = b.trim();
-        if (!t) return null;
-        if (t.startsWith('## ')) {
-          return <h5 key={i} className="text-xs font-black text-[#1B1B1B] pt-1">{t.replace(/^##\s*/, '')}</h5>;
-        }
-        if (t.startsWith('# ')) {
-          return <h5 key={i} className="text-sm font-black text-[#1B1B1B]">{t.replace(/^#\s*/, '')}</h5>;
-        }
-        if (/^\|.*\|$/.test(t.split('\n')[0] || '')) {
-          return (
-            <pre key={i} className="text-[11px] leading-relaxed bg-[#FAF9F5] border border-[#EFEDE8] rounded-xl p-3 overflow-x-auto whitespace-pre-wrap text-[#1B1B1B]">
-              {t}
-            </pre>
-          );
-        }
-        return <p key={i} className="text-[11px] leading-relaxed text-[#444] whitespace-pre-wrap">{t}</p>;
-      })}
+    <div className="rounded-xl border border-[#EFEDE8] bg-white px-3 py-2">
+      <MdBlocks blocks={blocks} tone="plain" density="compact" />
     </div>
   );
 }
@@ -158,6 +144,7 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                       <th className="text-left px-2.5 py-1.5 w-8">No</th>
                       <th className="text-left px-2.5 py-1.5">Segmen</th>
                       <th className="text-left px-2.5 py-1.5 w-16">Menit</th>
+                      <th className="text-left px-2.5 py-1.5">Cakupan</th>
                       <th className="text-left px-2.5 py-1.5">Owner</th>
                     </tr>
                   </thead>
@@ -170,6 +157,15 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                           {f.notes && <p className="text-[#8C8880]">{f.notes}</p>}
                         </td>
                         <td className="px-2.5 py-1.5">{f.minutes}&prime;</td>
+                        <td className="px-2.5 py-1.5">
+                          {f.division ? (
+                            <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-bold whitespace-nowrap">
+                              {divisionLabel(f.division)}
+                            </span>
+                          ) : (
+                            <span className="text-[#BDBAB2]">—</span>
+                          )}
+                        </td>
                         <td className="px-2.5 py-1.5 text-[#8C8880]">{f.owner}</td>
                       </tr>
                     ))}

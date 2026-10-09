@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { patternBlock } from '../../server/lib/didaskalia-ai.mjs';
 import {
+  divisionLabel,
   moduleLabel,
   patternDurationDelta,
   patternTemplateCheck,
   patternTotalMinutes,
+  prettyPlaybook,
   type WorshipPatternLite,
 } from '../../src/lib/worship-patterns';
 
@@ -58,6 +60,26 @@ describe('worship-patterns: helper katalog', () => {
     expect(moduleLabel('testimony')).toBe('Undian kesaksian');
     expect(moduleLabel('custom')).toBe('custom');
   });
+
+  it('divisionLabel + prettyPlaybook: cakupan dan naskah siap baca', () => {
+    expect(divisionLabel('didaskalia')).toBe('Didaskalia');
+    expect(divisionLabel('MARTURIA')).toBe('Marturia');
+    expect(divisionLabel(null)).toBe('');
+    const pretty = prettyPlaybook('Renungkan {{tema}} dari {{firman_ref}}: {{firman_text}} ({{kitab_fokus}}).');
+    expect(pretty).not.toContain('{{');
+    expect(pretty).toContain('tema pekan');
+    expect(pretty).toContain('Firman pekan');
+    expect(pretty).toContain('nas Firman');
+    expect(pretty).toContain('kitab fokus');
+    expect(prettyPlaybook(null)).toBe('');
+  });
+
+  it('rundown 12 fase pola terbaru genap 120 menit', () => {
+    const minutes = [10, 5, 15, 20, 25, 10, 5, 10, 5, 5, 5, 5];
+    expect(
+      patternTotalMinutes(minutes.map((m, i) => ({ no: i + 1, title: `Fase ${i + 1}`, minutes: m }))),
+    ).toBe(120);
+  });
 });
 
 describe('worship-patterns: patternBlock semua pola', () => {
@@ -90,12 +112,13 @@ describe('worship-patterns: patternBlock semua pola', () => {
     expect(lines).toContain('3 sequence');
   });
 
-  it('phase notes ikut ke prompt AI', () => {
+  it('phase notes + division ikut ke prompt AI', () => {
     const lines = patternBlock({
       code: 'MONOLOG',
       name: 'Monolog',
-      phases: [{ no: 4, title: 'FGD kelompok', minutes: 35, owner: 'Mentor', notes: 'Observasi 10 mnt' }],
+      phases: [{ no: 4, title: 'FGD kelompok', minutes: 35, owner: 'Mentor', division: 'DIDASKALIA', notes: 'Observasi 10 mnt' }],
     }).join('\n');
     expect(lines).toContain('Observasi 10 mnt');
+    expect(lines).toContain('[cakupan DIDASKALIA]');
   });
 });

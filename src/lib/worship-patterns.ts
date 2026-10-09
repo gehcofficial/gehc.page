@@ -4,11 +4,13 @@
  */
 
 export type WorshipPatternPhase = {
-  no?: number;
-  title?: string;
-  minutes?: number;
-  owner?: string;
-  notes?: string;
+  no?: number | null;
+  title?: string | null;
+  minutes?: number | null;
+  owner?: string | null;
+  /** Cakupan divisi: KOINONIA (selain ibadah), LITURGIA (selain firman), DIDASKALIA (elaborasi firman), MARTURIA (dokumentasi). */
+  division?: string | null;
+  notes?: string | null;
 };
 
 export type WorshipPatternLite = {
@@ -84,4 +86,33 @@ export const MODULE_LABELS: Record<string, string> = {
 
 export function moduleLabel(code: string): string {
   return MODULE_LABELS[code] || code;
+}
+
+export const DIVISION_LABELS: Record<string, string> = {
+  KOINONIA: 'Koinonia',
+  LITURGIA: 'Liturgia',
+  DIDASKALIA: 'Didaskalia',
+  MARTURIA: 'Marturia',
+};
+
+export function divisionLabel(code?: string | null): string {
+  const c = String(code || '').toUpperCase();
+  return DIVISION_LABELS[c] || c;
+}
+
+/** Slot adaptasi playbook → kata readable (DB tetap menyimpan mentah {{...}}). */
+const PLAYBOOK_SLOT_WORDS: Record<string, string> = {
+  '{{tema}}': 'tema pekan',
+  '{{firman_ref}}': 'Firman pekan',
+  '{{firman_text}}': 'nas Firman',
+  '{{kitab_fokus}}': 'kitab fokus',
+};
+
+/** Naskah playbook siap tampil: tanpa simbol mentah {{...}} (bold/list ditangani renderer md). */
+export function prettyPlaybook(text?: string | null): string {
+  let out = String(text || '');
+  for (const [slot, words] of Object.entries(PLAYBOOK_SLOT_WORDS)) {
+    out = out.split(slot).join(words);
+  }
+  return out;
 }

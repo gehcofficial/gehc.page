@@ -401,9 +401,10 @@ export function patternBlock(pattern) {
   if (p?.summary) lines.push(`- Gambaran: ${p.summary}`);
   if (Array.isArray(p?.phases) && p.phases.length) {
     lines.push('- Fase baku pola (durasi & penanggung jawab — JANGAN diubah totalnya, sesuaikan isi dengan tema):');
-    for (const f of p.phases.slice(0, 8)) {
+    for (const f of p.phases.slice(0, 12)) {
       const note = f.notes ? ` — ${f.notes}` : '';
-      lines.push(`  ${f.no || ''}. ${f.title || ''}${f.minutes ? ` (${f.minutes}')` : ''}${f.owner ? ` — ${f.owner}` : ''}${note}`);
+      const div = f.division ? ` [cakupan ${f.division}]` : '';
+      lines.push(`  ${f.no || ''}. ${f.title || ''}${f.minutes ? ` (${f.minutes}')` : ''}${f.owner ? ` — ${f.owner}` : ''}${div}${note}`);
     }
   }
   if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);

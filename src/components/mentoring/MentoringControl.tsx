@@ -18,6 +18,7 @@ import {
   type MentoringStatus,
 } from '../../lib/mentoring';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
+import { divisionLabel } from '../../lib/worship-patterns';
 import { TestimonyPanel } from './TestimonyPanel';
 import { DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
 
@@ -55,7 +56,7 @@ type SessionDetail = {
       expectedCount: number | null;
       chipLimit: number;
     };
-    pattern?: { code: string; name: string; phases?: { no?: number; title?: string; minutes?: number; owner?: string }[] } | null;
+    pattern?: { code: string; name: string; phases?: { no?: number; title?: string; minutes?: number; owner?: string; division?: string | null }[] } | null;
   };
   likertItems: ItemRow[];
   chips: ChipRow[];
@@ -1120,7 +1121,14 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                       {p.no ?? i + 1}
                     </span>
                     <div className="flex-1">
-                      <p className="text-xs font-bold">{p.title}</p>
+                      <p className="text-xs font-bold">
+                        {p.title}
+                        {p.division ? (
+                          <span className="ml-1.5 text-[10px] px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-bold whitespace-nowrap">
+                            {divisionLabel(p.division)}
+                          </span>
+                        ) : null}
+                      </p>
                       <p className="text-[11px] text-[#8C8880]">
                         {[p.minutes ? `${p.minutes}'` : null, p.owner].filter(Boolean).join(' · ')}
                       </p>
