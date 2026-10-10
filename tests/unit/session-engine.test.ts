@@ -11,20 +11,20 @@ import {
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
-import { classifyPoolRole, composePicks, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
+import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
 import { cleanFgd, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
-  it('5 pola non-post-to-post punya 3-4 segmen + komitmen terakhir', () => {
+  it('pola non-post-to-post punya 3+ segmen (MONOLOG berakhir di penutup)', () => {
     for (const [code, segs] of Object.entries(PATTERN_SEGMENTS)) {
       expect(code).not.toBe('POST_TO_POST');
       expect(segs.length).toBeGreaterThanOrEqual(3);
-      expect(segs[segs.length - 1].id).toBe('komitmen');
+      expect(segs[segs.length - 1].id).toBe(code === 'MONOLOG' ? 'penutup' : 'komitmen');
     }
   });
 
   it('MONOLOG maju mengikuti status + fase (F1 20/F2 25/F3 10/Closing 5)', () => {
-    expect(segmentForPattern('MONOLOG', 'DRAFT', false)).toBe('panduan');
+    expect(segmentForPattern('MONOLOG', 'DRAFT', false)).toBe('sambutan');
     expect(segmentForPattern('MONOLOG', 'RUNNING', false)).toBe('lagu');
     expect(segmentForPattern('MONOLOG', 'RUNNING', true)).toBe('lagu');
     expect(segmentForPattern('MONOLOG', 'RUNNING', false, { phaseName: 'F1' })).toBe('lagu');
@@ -33,7 +33,7 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('MONOLOG', 'WRAPUP', false)).toBe('satu-kata');
     expect(segmentForPattern('MONOLOG', 'WRAPUP', false, { phaseName: 'F3' })).toBe('satu-kata');
     expect(segmentForPattern('MONOLOG', 'WRAPUP', false, { phaseName: 'CLOSING' })).toBe('penutup');
-    expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('komitmen');
+    expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('penutup');
   });
 
   it('BEDAH_FILM berakhir di komitmen', () => {
@@ -47,8 +47,8 @@ describe('session-engine: registry segmen', () => {
   });
 
   it('gerbang monoton maju', () => {
-    expect(canOpenSegmentPattern('MONOLOG', 'panduan', 'DRAFT', false)).toBe(true);
-    expect(canOpenSegmentPattern('MONOLOG', 'komitmen', 'RUNNING', false)).toBe(false);
+    expect(canOpenSegmentPattern('MONOLOG', 'sambutan', 'DRAFT', false)).toBe(true);
+    expect(canOpenSegmentPattern('MONOLOG', 'penutup', 'RUNNING', false)).toBe(false);
     expect(canOpenSegmentPattern('MONOLOG', 'catatan', 'RUNNING', false)).toBe(false);
     expect(canOpenSegmentPattern('MONOLOG', 'catatan', 'RUNNING', false, { phaseName: 'F2' })).toBe(true);
     expect(canOpenSegmentPattern('MONOLOG', 'satu-kata', 'WRAPUP', false)).toBe(true);
@@ -76,8 +76,10 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('DUAL_MONOLOG', 'RUNNING', false)).toBe(segmentForPattern('MONOLOG', 'RUNNING', false));
   });
 
-  it('MONOLOG gabungan punya 6 segmen + widget lagu + lesson chip + penutup', () => {
-    expect(PATTERN_SEGMENTS.MONOLOG.map((s) => s.id)).toEqual(['panduan', 'lagu', 'catatan', 'satu-kata', 'penutup', 'komitmen']);
+  it('MONOLOG gabungan 5 segmen: sambutan + lagu + diskusi + lesson + penutup', () => {
+    expect(PATTERN_SEGMENTS.MONOLOG.map((s) => s.id)).toEqual(['sambutan', 'lagu', 'catatan', 'satu-kata', 'penutup']);
+    expect(PATTERN_SEGMENTS.MONOLOG[0].label).toBe('Sambutan');
+    expect(widgetsFor('MONOLOG', 'sambutan')).toEqual(['welcome']);
     expect(PATTERN_SEGMENTS.MONOLOG[3].label).toBe('Lesson Learned');
     expect(PATTERN_SEGMENTS.MONOLOG[4].label).toBe('Penutup');
     expect(widgetsFor('MONOLOG', 'penutup')).toEqual(['testimony', 'notes', 'download']);
@@ -169,6 +171,23 @@ describe('testimony: composePicks', () => {
     expect(picks.map((p) => p.slot)).toEqual([1, 2, 3]);
     expect(picks.filter((p) => p.groupName === 'Agape')).toHaveLength(1);
     expect(new Set(picks.map((p) => p.userId)).size).toBe(3);
+  });
+
+  it('manual: tanpa duplikat, slot berlanjut, grup terbawa', () => {
+    const existing = [
+      { userId: 'm1', name: 'Mentor A', role: 'MENTOR', groupName: 'Agape', slot: 1 },
+      { userId: 'e1', name: 'Mentee 1', role: 'MENTEE', groupName: null, slot: 2 },
+    ];
+    const fresh = mergeManualPicks(existing, [
+      { userId: 'e1', name: 'Mentee 1', roles: ['MENTEE'] },
+      { userId: 'c1', name: 'Co A', roles: ['CO_MENTOR'], groupName: 'Shalom' },
+      { userId: 'x1', name: 'Tamu', roles: ['ALUMNI'] },
+    ]);
+    expect(fresh.map((p) => p.userId)).toEqual(['c1', 'x1']);
+    expect(fresh.map((p) => p.slot)).toEqual([3, 4]);
+    expect(fresh[0]).toMatchObject({ name: 'Co A', role: 'CO_MENTOR', groupName: 'Shalom' });
+    expect(fresh[1]).toMatchObject({ role: 'OTHER', groupName: null });
+    expect(mergeManualPicks([], [])).toEqual([]);
   });
 });
 

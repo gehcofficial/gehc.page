@@ -346,7 +346,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         )}
       </div>
 
-      {segment === 'komitmen' && (
+      {segment === 'penutup' && (
         <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
           <p className="text-sm font-black text-[#1B1B1B]">
             Terima kasih, {data.me?.name || 'Peserta'} — yang kamu catat hari ini berarti.
@@ -355,22 +355,19 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
-      {has('guide') && ((data.guide || []).filter(Boolean).length > 0 || (data.deepGuide || []).filter(Boolean).length > 0) && (
-        <div className={CARD}>
-          <h4 className="text-sm font-black text-[#1B1B1B] mb-2">Panduan</h4>
-          {c === 'MONOLOG' && (
-            <p className="text-[11px] leading-relaxed rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 mb-2">
-              Tiap pertanyaan dijawab <b>1–2 perwakilan bergiliran</b> — tidak perlu semua menjawab. Yang lain menulis catatannya di bawah.
-            </p>
-          )}
-          <ol className="space-y-1.5">
-            {[...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => (
-              <li key={i} className="text-xs leading-relaxed bg-[#FAF9F5] rounded-xl px-3 py-2">
-                <b className="mr-1.5">Q{i + 1}.</b>
-                {g}
-              </li>
-            ))}
-          </ol>
+      {has('welcome') && (
+        <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand">Selamat datang</p>
+          <p className="text-lg font-black tracking-tight mt-1">Shalom, {data.me?.name || 'Peserta'}!</p>
+          <p className="text-xs leading-relaxed mt-1.5">
+            Selamat datang di {data.session.title}. Hari ini tentang Rescue Plan — Tuhan punya
+            rencana penyelamatan untukmu, dan kamu tidak berjalan sendirian.
+          </p>
+          <p className="text-[11px] text-[#8C8880] mt-1.5">
+            {editable
+              ? 'Akses sudah dibuka — lanjut ke tab di atas untuk mengikuti alurnya.'
+              : 'Siapkan hatimu; akses diskusi dibuka sesaat lagi oleh tim.'}
+          </p>
         </div>
       )}
 
@@ -548,7 +545,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             <Download className="w-3.5 h-3.5" /> Unduh rekap PDF
           </button>
           <p className="text-[11px] text-[#8C8880] mt-1.5 inline-flex items-center gap-1 ml-2">
-            <Flag className="w-3 h-3" /> Berisi panduan, catatan, dan komitmenmu.
+            <Flag className="w-3 h-3" /> Berisi catatan, lesson, dan komitmenmu.
           </p>
         </div>
       )}

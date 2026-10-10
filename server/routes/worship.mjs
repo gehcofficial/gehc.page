@@ -11,7 +11,7 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
-import { classifyPoolRole, composePicks, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
+import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
 import { cleanFgd, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS } from '../lib/session-stage.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
@@ -1634,6 +1634,61 @@ export function registerWorshipRoutes(app, { wrap }) {
       const fresh = composePicks(pool, picks.map((p) => p.userId), need);
       if (!fresh.length) return res.status(409).json({ error: 'Semua yang hadir sudah terpilih.' });
       const at = new Date().toISOString();
+      const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
+      await writePicks(prisma, session, merged);
+      res.json({ ok: true, fresh, picks: merged });
+    }),
+  );
+
+  app.post(
+    '/api/worship/sessions/:id/testimony/manual',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(String(session.status || '').toUpperCase())) {
+        return res.status(409).json({ error: 'Pilihan manual hanya bisa saat sesi berlangsung.' });
+      }
+      const userIds = [...new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : []).map(String).filter(Boolean))].slice(0, 12);
+      if (!userIds.length) return res.status(400).json({ error: 'Pilih minimal satu orang.' });
+      const [users, memberships] = await Promise.all([
+        prisma.user
+          .findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, roles: { select: { role: true } } } })
+          .catch(() => []),
+        prisma.groupMember
+          .findMany({ where: { userId: { in: userIds }, status: 'ACTIVE' }, select: { userId: true, groupId: true } })
+          .catch(() => []),
+      ]);
+      let groupNameById = new Map();
+      const groupIds = [...new Set(memberships.map((m) => m.groupId).filter(Boolean))];
+      if (groupIds.length) {
+        const groups = await prisma.group
+          .findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true } })
+          .catch(() => []);
+        groupNameById = new Map(groups.map((g) => [g.id, g.name]));
+      }
+      const groupByUser = new Map();
+      for (const m of memberships) {
+        if (m.userId && !groupByUser.has(m.userId) && groupNameById.get(m.groupId)) {
+          groupByUser.set(m.userId, groupNameById.get(m.groupId));
+        }
+      }
+      const picks = readPicks(session);
+      const at = new Date().toISOString();
+      const fresh = mergeManualPicks(
+        picks,
+        users.map((u) => ({
+          userId: u.id,
+          name: u.name || 'Peserta',
+          roles: (u.roles || []).map((r) => r.role),
+          groupName: groupByUser.get(u.id) || null,
+        })),
+      );
+      if (!fresh.length) return res.status(409).json({ error: 'Semua yang dipilih sudah terdaftar.' });
       const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
       await writePicks(prisma, session, merged);
       res.json({ ok: true, fresh, picks: merged });

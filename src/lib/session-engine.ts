@@ -24,12 +24,11 @@ export function resolvePatternCode(code: string | null | undefined): string {
 /** Urutan segmen per pola (id stabil — dipakai gerbang + stepper UI). */
 export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   MONOLOG: [
-    { id: 'panduan', label: 'Panduan', hint: 'Baca 5 pertanyaan dari firman pekan.' },
+    { id: 'sambutan', label: 'Sambutan', hint: 'Salam personal + tema pekan sambil menunggu akses dibuka.' },
     { id: 'lagu', label: 'Bedah Lagu', hint: 'Nomor buku + kisah + makna tiap bait; catat Q1-Q3.' },
     { id: 'catatan', label: 'Diskusi', hint: 'Jawab Q yang dibuka pemicu.' },
     { id: 'satu-kata', label: 'Lesson Learned', hint: 'Pilih maks 3 chip + undian kesaksian.' },
-    { id: 'penutup', label: 'Penutup', hint: 'Transisi 5 menit + rekap + unduh.' },
-    { id: 'komitmen', label: 'Komitmen', hint: 'Satu langkah nyata + unduh rekap.' },
+    { id: 'penutup', label: 'Penutup', hint: 'Komitmen + transisi 5 menit + rekap + unduh.' },
   ],
   DEBAT: [
     { id: 'mosi', label: 'Mosi & Tim', hint: 'Lihat mosi ronde dan tim kamu.' },
@@ -125,8 +124,8 @@ export function noteSlotsFor(code: string | null | undefined): NoteSlot[] {
   return [...slots, { key: COMMITMENT_KEY, label: 'Komitmen pribadiku', placeholder: 'Satu komitmen spesifik minggu ini...' }];
 }
 
-/** Widget per segmen: guide | song | chips | rounds | screening | teams | testimony | notes | download. */
-export type SegmentWidget = 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download';
+/** Widget per segmen: welcome | guide | song | chips | rounds | screening | teams | testimony | notes | download. */
+export type SegmentWidget = 'welcome' | 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download';
 
 /** Urutan kunci Q terpandu MONOLOG (3 FGD + 2 deep sharing). */
 export const MONOLOG_QUESTION_KEYS = ['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2'];
@@ -138,12 +137,11 @@ export function isQuestionOpen(questionIndex1Based: number, currentQ: number): b
 
 export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = {
   MONOLOG: {
-    panduan: ['guide', 'notes', 'download'],
+    sambutan: ['welcome'],
     lagu: ['song', 'notes'],
     catatan: ['notes'],
     'satu-kata': ['chips', 'testimony', 'download'],
     penutup: ['testimony', 'notes', 'download'],
-    komitmen: ['testimony', 'notes', 'download'],
   },
   DEBAT: {
     mosi: ['rounds'],

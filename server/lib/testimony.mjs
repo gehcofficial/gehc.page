@@ -15,6 +15,28 @@ export const TESTIMONY_TOTAL = TESTIMONY_NEED.reduce((n, [, c]) => n + c, 0);
 export const TESTIMONY_NEED_MONOLOG = [['ANY', 3]];
 
 /**
+ * Gabung pilihan manual operator ke picks yang sudah ada (tanpa duplikat,
+ * nomor slot berlanjut). Dipakai bila undian hari-H tidak jadi.
+ * @param existing picks tersimpan [{ userId, slot, ... }]
+ * @param users [{ userId, name, roles[], groupName? }]
+ */
+export function mergeManualPicks(existing, users) {
+  const have = new Set((existing || []).map((p) => String(p?.userId)));
+  const fresh = (users || []).filter((u) => u?.userId && !have.has(String(u.userId)));
+  let slot = (existing || []).reduce((n, p) => Math.max(n, Number(p?.slot) || 0), 0);
+  return fresh.map((u) => {
+    slot += 1;
+    return {
+      userId: String(u.userId),
+      name: String(u.name || 'Peserta'),
+      role: classifyPoolRole(u.roles),
+      groupName: u.groupName || null,
+      slot,
+    };
+  });
+}
+
+/**
  * Klasifikasi peran pool: MENTOR > CO_MENTOR > MENTEE > OTHER.
  * @param roles string[] peran portal user
  */

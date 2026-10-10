@@ -140,9 +140,9 @@ describe('caption pembekalan & khotbah', () => {  it('pembekalan menyasar mentor
 });
 
 describe('FGD 3Q + kembali kontekstual', () => {
-  it('MONOLOG panduan memuat notes + download (isi & unduh dari FGD)', async () => {
+  it('MONOLOG sambutan memuat widget welcome (pengganti panduan)', async () => {
     const { widgetsFor } = await import('../../src/lib/session-engine');
-    expect(widgetsFor('MONOLOG', 'panduan')).toEqual(['guide', 'notes', 'download']);
+    expect(widgetsFor('MONOLOG', 'sambutan')).toEqual(['welcome']);
   });
 
   it('pembekalan MONOLOG memuat Q eksplisit + aturan rotasi + arahan teknis', async () => {

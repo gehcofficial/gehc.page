@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Dices, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { Dices, Loader2, RotateCcw, Search, Sparkles, X } from 'lucide-react';
 import type { TestimonyPick } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
@@ -18,6 +18,10 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<{ userId: string; name: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selected, setSelected] = useState<{ userId: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -95,6 +99,60 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean 
     }
   };
 
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+        const d = await r.json().catch(() => ({}));
+        const users = (Array.isArray(d.users) ? d.users : []).map((u: { id: string; name: string }) => ({
+          userId: String(u.id),
+          name: String(u.name || 'Peserta'),
+        }));
+        setResults(users);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 500);
+    return () => window.clearTimeout(id);
+  }, [query]);
+
+  const toggleSelect = (u: { userId: string; name: string }) => {
+    setSelected((prev) => (prev.some((s) => s.userId === u.userId) ? prev.filter((s) => s.userId !== u.userId) : [...prev, u]));
+  };
+
+  const addManual = async () => {
+    if (!selected.length) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/testimony/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userIds: selected.map((s) => s.userId) }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menambah manual.');
+      setPicks(d.picks || []);
+      setSelected([]);
+      setQuery('');
+      setResults([]);
+      setMsg(`Ditambah manual ${(d.fresh || []).length} orang — tampil di layar.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal menambah.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className={CARD}>
       <div className="flex items-center gap-2">
@@ -151,6 +209,57 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean 
             <RotateCcw className="w-3.5 h-3.5" /> Reset
           </button>
         )}
+      </div>
+      <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+        <p className="text-[11px] font-bold">Pilih manual <span className="font-normal text-[#8C8880]">(bila undian tidak jadi)</span></p>
+        <label className="flex items-center gap-1.5 rounded-xl border border-[#D9D7D0] bg-white px-3 py-2">
+          <Search className="w-3.5 h-3.5 text-[#8C8880] shrink-0" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Ketik min. 2 huruf nama…"
+            className="w-full text-xs focus:outline-none"
+          />
+          {searching && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8C8880]" />}
+        </label>
+        {results.length > 0 && (
+          <ul className="space-y-1 max-h-40 overflow-y-auto">
+            {results.map((u) => {
+              const active = selected.some((s) => s.userId === u.userId);
+              return (
+                <li key={u.userId}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSelect(u)}
+                    className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold border ${active ? 'bg-brand/10 border-brand text-brand' : 'border-[#EFEDE8] hover:border-brand'}`}
+                  >
+                    {active ? '✓ ' : ''}{u.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selected.map((s) => (
+              <span key={s.userId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand/10 text-brand text-[11px] font-bold">
+                {s.name}
+                <button type="button" onClick={() => toggleSelect(s)} title="Hapus" className="hover:text-red-600">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          disabled={busy || !selected.length}
+          onClick={() => void addManual()}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
+        >
+          Tambah manual ({selected.length})
+        </button>
       </div>
       {msg && <p className="mt-2 text-[11px] text-[#8C8880]">{msg}</p>}
     </div>
