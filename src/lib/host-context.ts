@@ -121,10 +121,16 @@ export function isPaparanHash(hash: string): boolean {
   return h === '#/paparan' || h.startsWith('#/paparan/') || h.startsWith('#/paparan?');
 }
 
-/** Halaman Pelsus 11 Okt (pemilih + bilik + layar). */
+/** Halaman Pelsus 18 Okt (pemilih + bilik + layar). */
 export function isPelsusHash(hash: string): boolean {
   const h = String(hash || '');
   return h === '#/pelsus' || h.startsWith('#/pelsus/') || h.startsWith('#/pelsus?');
+}
+
+/** Varian preview by-person 18 Okt (berdampingan dengan #/pelsus). */
+export function isPelsus2Hash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/pelsus2' || h.startsWith('#/pelsus2/') || h.startsWith('#/pelsus2?');
 }
 
 /** Halaman voting logo kelompok (Beyonders). */

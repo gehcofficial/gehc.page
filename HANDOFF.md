@@ -1,5 +1,73 @@
 # GEHC Portal — Handoff
 
+## Current — Preview 2 variasi Pelsus: V1 `#/pelsus/` vs V2 `#/pelsus2/` by-person (10 Okt 2026, uncommitted)
+
+**Kebutuhan:** 1 orang bisa 2–3 surat suara (contoh: Kolom 3 + Pemuda); alur
+basis by-person (akun: pilih berurutan sekaligus; tanpa akun: paket token +
+bilik berantai); preview 2 variasi via routing berbeda, data SIMULASI saja.
+
+**Temuan:** fondasi sudah by-person — `PelsusVoter @@unique([electionId,
+userId])` mengizinkan 1 userId di N election; sync DPT BIPRA/KOLOM otomatis
+menempatkan orang Pemuda+kol-3 di 3 surat suara. Gap hanya UX (per-election)
++ token per-surat + tanpa perkakas cari-orang. Disetujui: DPT = validasi
+(tanpa gate check-in), paket token + bilik berantai, view panitia baru,
+prefix `pv2-` (bukan `sim-` agar tak ikut terhapus `pelsus:sim`).
+
+**Ubah:** `lib/pelsus2.ts` (baru: parse/build `pelsus2`, `?sim` filter
+`pv2-/sim-`, antrean `?tokens=A,B`, `nextUnvoted`, `myBallotProgress`) →
+`lib/host-context.ts` (`isPelsus2Hash`, nol tabrakan dua arah dengan V1) →
+`server/routes/pelsus.mjs` (`groupVotersToPeople` murni +
+`GET people/search` + `POST tokens/batch`, admin-only) →
+`components/pelsus2/Pelsus2App.tsx` (baru: HomeV2 section "Surat suara saya
+X/N" + DetailV2 tombol lanjut + BilikV2 berantai + PanitiaView cari-orang;
+TurnoutBar/QuorumBadge/GuideCard/AdminPanel/LayarView/api reuse via export
+dari V1 — V1 tak berubah perilaku) → `main.tsx` (lazy chunk V2 21,7 kB) →
+`seed-pelsus-preview.mjs` + npm `db:seed:pelsus:preview[:staging]` (3 election
+pv2-* + 2 kandidat + DPT: 1 akun multi + 2 manual; guard dupe findFirst, 2×
+rerun = +0) → `pelsus-panduan.md` §12 (tabel link + 3 skenario uji +
+kriteria keputusan) → test `pelsus2.test.ts` (13: routing non-telan,
+queue, next, progress, grouping) + `lazy-routes` (+1 modul).
+
+**Data (lokal):** `pv2-*` seeded ✓ (3 elections DRAFT + 6 kandidat + 9 DPT);
+`sim-v2-*` percobaan awal DIBERSIHKAN (guard 0 ballot) agar tak bentrok.
+
+**Verifikasi:** `lint` bersih ✓ `test` **1059/1059** (138 files, tanpa flake)
+✓ `build` OK ✓ smoke API lokal port 8788: people/search grup 1 orang × 3
+elections ✓ batch 3 token ✓ bilik ok + ganda ditolak + rantai surat-2 ok ✓
+cleanup reset+DRAFT ✓. Catatan: smoke pertama 404 karena menabrak server
+:8787 milik sesi paralel (kode lama) — selalu pakai PORT≠8787 untuk smoke.
+
+**Next:** (a) `db:seed:pelsus:preview:staging` + buka pv2 via panel; (b) klik
+manual V1 vs V2 di staging-youth ikut §12; (c) putuskan pemenang → promosi ke
+`#/pelsus`, hapus varian kalah. Commit + push per batch (file episode ini +
+episode 18-Okt masih uncommitted).
+
+## Current — Tabel pipa md-lite + rundown MONOLOG 1 tabel + hapus ringkasan atas (10 Okt 2026, uncommitted)
+
+**Kebutuhan:** playbook §3 tampil sebagai tabel beneran (tiap pola punya
+rundown sendiri; MONOLOG jadi acuan); hapus baris ringkasan paling atas;
+screenshot user = data prod basi.
+
+**Ubah (kode, episode ini):** `md-lite.tsx` blok baru `table` (parse header +
+pemisah + baris; fallback paragraf bila tanpa pemisah agar teks tak hilang) +
+render `<table>` per tone (`paper` gelap; `overlay`/`plain` terang) →
+`didaskaliaPdf.mdTable` (paritas baca tanpa grid; wajib agar lint hijau) →
+kartu katalog guard `{p.summary &&}` (ringkasan kosong tak sisakan gap) •
+test `md-lite.test.ts` (+4: parse, fallback, render paper/overlay).
+**Seed (di atas basis paralel, BELUM commit):** MONOLOG §3 list → tabel pipa
+12 baris terbaru (No/Segmen/Menit/Owner/Naskah kunci, redaksi fase penuh) +
+`summary: ''`.
+
+**Data:** staging re-seed ✓ baca-balik: nama baru, summary kosong, 12 fase /
+120', §3 = 14 baris pipa (header+pemisah+12), §1 + judul nama baru.
+
+**Verifikasi:** `lint` bersih ✓ `md-lite` 17/17 ✓ `build` OK ✓. Suite penuh:
+1 gagal milik sesi paralel (`lazy-routes` → `pelsus2/Pelsus2App.tsx` belum
+dibuat mereka; tak disentuh).
+
+**Next:** commit file episode ini (seed tetap milik paralel) → push → reseed
+PROD (disetujui) → cek visual tab Pola Ibadah.
+
 ## Current — Deck 18 slide + BPPJ (9 Okt 2026, uncommitted)
 
 **Kebutuhan:** BPPJ (belum ada di Cikarang) masuk deck + concern cashflow
@@ -14,6 +82,10 @@ Catatan sesi paralel: batch Pelsus 18 Okt berjalan (jangan sentuh file
 pelsus/*, schema.prisma, migrate/seed terkait).
 
 **Next:** commit + push + sync + verifikasi live.
+
+**Deploy (10 Okt):** commit `d2040f2` → push main ✓ (di atas push sesi
+Pelsus `81d6761`, tanpa konflik) → prod `/api/version` = `d2040f2` ✓
+(deck 18 slide live) → `staging:sync` penuh ✓ (versi sama).
 
 ## Current — Pelsus 11 → Minggu 18 Okt 2026 (10 Okt 2026, uncommitted)
 

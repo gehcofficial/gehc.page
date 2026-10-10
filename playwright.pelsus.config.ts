@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Simulasi Pemilihan Pelsus 11 Okt — klip video per adegan + caption Indonesia.
+  * Simulasi Pemilihan Pelsus 18 Okt — klip video per adegan + caption Indonesia.
  * Target lokal (DB staging), election khusus SIMULASI, bersih total di akhir.
  *
  * Jalankan: npm run pelsus:sim

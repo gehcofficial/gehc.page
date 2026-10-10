@@ -60,7 +60,7 @@ describe('host-context (hash permukaan aplikasi)', () => {
     expect(isAppHash('')).toBe(false);
   });
 
-  it('isPelsusHash menandai rute pemilihan 11 Okt', () => {
+  it('isPelsusHash menandai rute pemilihan 18 Okt', () => {
     expect(isPelsusHash('#/pelsus')).toBe(true);
     expect(isPelsusHash('#/pelsus/abc')).toBe(true);
     expect(isPelsusHash('#/pelsus/abc/bilik')).toBe(true);

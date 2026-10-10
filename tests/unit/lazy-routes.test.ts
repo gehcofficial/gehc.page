@@ -16,6 +16,7 @@ const LAZY_ROUTE_MODULES = [
   '../../src/components/paparan/BpmjPaparan.tsx',
   '../../src/components/voting/GroupLogoVote.tsx',
   '../../src/components/pelsus/PelsusApp.tsx',
+  '../../src/components/pelsus2/Pelsus2App.tsx',
   '../../src/components/mentoring/MentoringDay.tsx',
   '../../src/components/mentoring/MentoringScreen.tsx',
   '../../src/components/mentoring/MentoringControl.tsx',

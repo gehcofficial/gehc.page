@@ -1,5 +1,5 @@
 /**
- * Idempotent (Pelsus 11 Okt 2026 — Pemilihan Pelayan Khusus GMIM):
+ * Idempotent (Pelsus 18 Okt 2026 — Pemilihan Pelayan Khusus GMIM):
  *   pelsus_elections, pelsus_candidates, pelsus_voters,
  *   pelsus_ballots, pelsus_kiosk_tokens, pelsus_audit_logs
  *

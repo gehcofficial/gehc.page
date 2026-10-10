@@ -1,5 +1,5 @@
 /**
- * Seed Pelsus 11 Okt 2026 — idempoten.
+ * Seed Pelsus 18 Okt 2026 — idempoten.
  * Membuat elections DRAFT (BIPRA × BIPRA, KOLOM × Penatua/Diaken, BPMJ × jabatan)
  * + sync DPT dari User aktif. Kandidat diinput panitia (DRAFT).
  *
@@ -55,7 +55,7 @@ async function main() {
   for (const b of BIPRAS) {
     const { row } = await ensureElection(prisma, {
       id: `pel-bipra-${b.toLowerCase()}`, scope: 'BIPRA', bipra: b, roleTarget: 'PENATUA',
-      title: `Penatua ${b.charAt(0) + b.slice(1).toLowerCase()} — 11 Okt 2026`,
+      title: `Penatua ${b.charAt(0) + b.slice(1).toLowerCase()} — 18 Okt 2026`,
       description: 'Pemilihan Calon Penatua BIPRA dalam Rapat Sidi Jemaat.',
       maxChoices: 1, quorumNum: 2, quorumDen: 3,
     });
@@ -70,7 +70,7 @@ async function main() {
     for (const role of ['PENATUA', 'DIAKEN']) {
       const { row } = await ensureElection(prisma, {
         id: `pel-${k.id.toLowerCase()}-${role.toLowerCase()}`, scope: 'KOLOM', kolomId: k.id, roleTarget: role,
-        title: `Calon ${role.charAt(0) + role.slice(1).toLowerCase()} ${label} — 11 Okt 2026`,
+        title: `Calon ${role.charAt(0) + role.slice(1).toLowerCase()} ${label} — 18 Okt 2026`,
         description: `Pemungutan suara Rapat Sidi Jemaat di ${label}.`,
         maxChoices: 1, quorumNum: 2, quorumDen: 3,
       });
@@ -82,7 +82,7 @@ async function main() {
   for (const s of BPMJ_SEATS) {
     await ensureElection(prisma, {
       id: `pel-bpmj-${s.role.toLowerCase()}`, scope: 'BPMJ', roleTarget: s.role,
-      title: `${s.title} — 11 Okt 2026`,
+      title: `${s.title} — 18 Okt 2026`,
       description: 'Dipilih dalam Sidang Majelis Jemaat oleh Pelsus terpilih (fase-2 via promote). DPT via promote/import.',
       maxChoices: 1, quorumNum: 2, quorumDen: 3,
     });

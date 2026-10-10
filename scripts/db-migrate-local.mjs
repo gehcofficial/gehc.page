@@ -402,7 +402,7 @@ const STEPS = [
   },
   {
     script: 'server/_migrate-pelsus.cjs',
-    label: 'Pelsus 11 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
+    label: 'Pelsus 18 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
     required: true,
   },
   {

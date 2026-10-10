@@ -5,7 +5,7 @@ import path from 'node:path';
 import { getPrisma } from '../../server/db.mjs';
 
 /**
- * Simulasi Pemilihan Pelsus 11 Okt — 5 klip video + caption Indonesia.
+  * Simulasi Pemilihan Pelsus 18 Okt — 5 klip video + caption Indonesia.
  * Target lokal (DB staging). Election khusus SIMULASI (prefix sim-),
  * 19 election asli tidak disentuh; bersih total di akhir.
  *

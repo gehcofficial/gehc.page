@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isPaparanHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isPaparanHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isPelsus2Hash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
@@ -23,6 +23,7 @@ const ReportPresentation = React.lazy(() => import('./components/reports/ReportP
 const BpmjPaparan = React.lazy(() => import('./components/paparan/BpmjPaparan.tsx'));
 const GroupLogoVote = React.lazy(() => import('./components/voting/GroupLogoVote.tsx'));
 const PelsusApp = React.lazy(() => import('./components/pelsus/PelsusApp.tsx'));
+const Pelsus2App = React.lazy(() => import('./components/pelsus2/Pelsus2App.tsx'));
 const MentoringDay = React.lazy(() => import('./components/mentoring/MentoringDay.tsx'));
 const MentoringScreen = React.lazy(() => import('./components/mentoring/MentoringScreen.tsx'));
 const MentoringControl = React.lazy(() => import('./components/mentoring/MentoringControl.tsx'));
@@ -107,7 +108,16 @@ const AppRoot: React.FC = () => {
     );
   }
 
-  // Pelsus 11 Okt: standalone (pemilih wajib login; bilik pakai token; layar pakai kode).
+  // Pelsus V2 by-person (preview berdampingan; dicek sebelum V1).
+  if (isPelsus2Hash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <Pelsus2App />
+      </Suspense>
+    );
+  }
+
+  // Pelsus 18 Okt: standalone (pemilih wajib login; bilik pakai token; layar pakai kode).
   if (isPelsusHash(hash)) {
     return (
       <Suspense fallback={<HubFallback />}>

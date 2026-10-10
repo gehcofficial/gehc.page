@@ -1,5 +1,5 @@
 /**
- * Pelsus 11 Okt 2026 — helper routing + kuorum (murni, teruji).
+ * Pelsus 18 Okt 2026 — helper routing + kuorum (murni, teruji).
  * Alur warta: Juklak → Absensi/Kuorum → Cara memilih → Pilih.
  */
 

@@ -1061,7 +1061,7 @@ model GroupLogoBallot {
 }
 
 // ============================================================
-// PELSUS — pemilihan Pelayan Khusus GMIM (11 Okt 2026)
+// PELSUS — pemilihan Pelayan Khusus GMIM (18 Okt 2026)
 // Perorangan, langsung, rahasia, tertulis (digital = surat suara
 // panitia), tak dapat diwakilkan. 1 pemilih = 1 submisi per
 // election; multi-kursi via multi-candidate dalam 1 submisi.

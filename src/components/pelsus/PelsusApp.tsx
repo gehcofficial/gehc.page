@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Loader2, RefreshCw, Vote, MonitorUp, KeyRound, ClipboardCheck, Lock, Unlock, RotateCcw } from 'lucide-react';
 import { parsePelsusHash, pelsusPath, quorumNeed, quorumMet, nextPollDelay, SCOPE_LABEL, electionSubtitle } from '../../lib/pelsus';
 
-type Election = {
+export type Election = {
   id: string; scope: string; bipra?: string | null; kolomId?: string | null; roleTarget?: string | null;
   title: string; description?: string | null; status: string; maxChoices: number;
   open?: boolean; closesAt?: string | null;
@@ -10,9 +10,9 @@ type Election = {
   quorum?: { need: number; met: boolean };
   myVoter?: { hasVoted: boolean } | null;
 };
-type Candidate = { id: string; nomor: number; name: string; roleTarget?: string | null; photoUrl?: string | null; visi?: string | null; voteCount?: number | null };
+export type Candidate = { id: string; nomor: number; name: string; roleTarget?: string | null; photoUrl?: string | null; visi?: string | null; voteCount?: number | null };
 
-async function api(path: string, opts?: RequestInit) {
+export async function api(path: string, opts?: RequestInit) {
   const r = await fetch(path, { credentials: 'include', ...(opts || {}) });
   if (r.status === 401 && !path.includes('/live') && !path.includes('/bilik')) {
     const next = encodeURIComponent(window.location.hash);
@@ -24,7 +24,7 @@ async function api(path: string, opts?: RequestInit) {
   return d;
 }
 
-function TurnoutBar({ voted, total }: { voted: number; total: number }) {
+export function TurnoutBar({ voted, total }: { voted: number; total: number }) {
   const pct = total ? Math.round((voted / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
@@ -36,7 +36,7 @@ function TurnoutBar({ voted, total }: { voted: number; total: number }) {
   );
 }
 
-function QuorumBadge({ voted, total, num = 2, den = 3 }: { voted: number; total: number; num?: number; den?: number }) {
+export function QuorumBadge({ voted, total, num = 2, den = 3 }: { voted: number; total: number; num?: number; den?: number }) {
   const need = quorumNeed(total, num, den);
   const met = quorumMet(voted, total, num, den);
   return (
@@ -47,7 +47,7 @@ function QuorumBadge({ voted, total, num = 2, den = 3 }: { voted: number; total:
 }
 
 /** Panduan 4 tahap — tampil di home saat warta (Juklak → Kuorum → Cara → Pilih). */
-function GuideCard() {
+export function GuideCard() {
   return (
     <div className="rounded-3xl border border-[#D9D7D0]/60 bg-white p-5 space-y-3">
       <h2 className="text-sm font-black">Panduan memilih (4 tahap)</h2>
@@ -96,7 +96,7 @@ function HomeView() {
       <header className="flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[#1B1B1B] text-white"><Vote className="w-4 h-4" /></span>
         <div>
-          <h1 className="text-lg font-black">Pemilihan Pelsus — 11 Okt 2026</h1>
+          <h1 className="text-lg font-black">Pemilihan Pelsus — 18 Okt 2026</h1>
           <p className="text-xs text-[#8C8880]">Penatua BIPRA · Penatua & Diaken Kolom · BPMJ</p>
         </div>
         <button type="button" onClick={() => void load()} className="ml-auto p-2 rounded-xl border border-[#D9D7D0] bg-white" title="Muat ulang"><RefreshCw className="w-4 h-4" /></button>
@@ -137,7 +137,7 @@ function HomeView() {
       {data && data.elections.length === 0 && (
         <div className="rounded-2xl border border-[#D9D7D0] bg-white px-6 py-10 text-center">
           <p className="text-sm font-bold">Belum ada pemilihan.</p>
-          <p className="text-xs text-[#8C8880] mt-1">Panitia membuka dari panel admin menjelang 11 Okt.</p>
+          <p className="text-xs text-[#8C8880] mt-1">Panitia membuka dari panel admin menjelang 18 Okt.</p>
         </div>
       )}
     </div>
@@ -231,7 +231,7 @@ function DetailView({ id }: { id: string }) {
   );
 }
 
-function AdminPanel({ id, onChange }: { id: string; onChange: () => void }) {
+export function AdminPanel({ id, onChange }: { id: string; onChange: () => void }) {
   const [busy, setBusy] = useState(false);
   const [voters, setVoters] = useState<any[]>([]);
   const [q, setQ] = useState('');
@@ -383,7 +383,7 @@ function BilikView({ id }: { id: string }) {
   );
 }
 
-function LayarView({ id }: { id: string }) {
+export function LayarView({ id }: { id: string }) {
   const [code, setCode] = useState(() => { try { return localStorage.getItem(`pelsus_code_${id}`) || ''; } catch { return ''; } });
   const [data, setData] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);

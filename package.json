@@ -167,6 +167,8 @@
     "db:seed:pelsus": "node server/seed-pelsus.mjs",
     "db:seed:pelsus:staging": "dotenv -e .env.staging -- node server/seed-pelsus.mjs",
     "db:seed:pelsus:prod": "dotenv -e .env.production -- node server/seed-pelsus.mjs",
+    "db:seed:pelsus:preview": "node server/seed-pelsus-preview.mjs",
+    "db:seed:pelsus:preview:staging": "dotenv -e .env.staging -- node server/seed-pelsus-preview.mjs",
     "worship:sim": "node scripts/worship-sim.mjs",
     "worship:sim:reset": "node scripts/worship-sim.mjs --reset",
     "db:seed:church-cash": "node server/seed-church-cash.mjs",

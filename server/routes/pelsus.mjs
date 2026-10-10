@@ -1,5 +1,5 @@
 /**
- * Pelsus 11 Okt 2026 — Pemilihan Pelayan Khusus GMIM.
+ * Pelsus 18 Okt 2026 — Pemilihan Pelayan Khusus GMIM.
  *
  * Standar Juklak BPMS: perorangan, langsung, rahasia, tertulis (digital =
  * surat suara panitia), tak dapat diwakilkan; kuorum 2/3 configurable;
@@ -50,6 +50,43 @@ export function isOpenElection(e) {
   if (!e || e.status !== 'OPEN') return false;
   if (e.closesAt && new Date(e.closesAt).getTime() < Date.now()) return false;
   return true;
+}
+
+/**
+ * By-person V2: kelompokkan baris DPT lintas election menjadi orang.
+ * Kunci = userId bila tertaut akun, sonst nama+bipra+kolomId (DPT impor).
+ * Murni (tanpa DB) agar teruji unit.
+ */
+export function groupVotersToPeople(rows, electionsById) {
+  const get = (id) => {
+    if (!electionsById) return null;
+    if (typeof electionsById.get === 'function') return electionsById.get(id) || null;
+    return electionsById[id] || null;
+  };
+  const m = new Map();
+  for (const r of rows || []) {
+    const key = r.userId
+      ? `u:${r.userId}`
+      : `n:${String(r.name || '').toLowerCase().trim()}|${r.bipra || ''}|${r.kolomId || ''}`;
+    if (!m.has(key)) {
+      m.set(key, {
+        key, userId: r.userId || null, name: r.name,
+        bipra: r.bipra || null, kolomId: r.kolomId || null, elections: [],
+      });
+    }
+    const e = get(r.electionId);
+    m.get(key).elections.push({
+      electionId: r.electionId,
+      voterId: r.id,
+      title: e?.title || r.electionId,
+      scope: e?.scope || null,
+      status: e?.status || null,
+      open: e ? isOpenElection(e) : false,
+      hasVoted: Boolean(r.hasVoted),
+      votedVia: r.votedVia || null,
+    });
+  }
+  return [...m.values()];
 }
 
 const str = (v, max = 200) => {
@@ -529,6 +566,55 @@ export function registerPelsusRoutes(app, { wrap }) {
     });
     await audit(prisma, e.id, req.authUser.id, 'TOKEN_ISSUE', { voterId: voter.id });
     res.status(201).json({ token, expiresInSec: 600, voter: { id: voter.id, name: voter.name } });
+  }));
+
+  // GET /api/pelsus/people/search?q= — cari ORANG lintas election (basis by-person V2)
+  app.get('/api/pelsus/people/search', requireRole(...PELSUS_ADMIN_ROLES), wrap(async (req, res) => {
+    const prisma = prismaOf(res);
+    if (!prisma) return;
+    const q = String(req.query?.q || '').trim();
+    if (q.length < 2) return res.status(400).json({ error: 'Minimal 2 huruf.' });
+    const rows = await prisma.pelsusVoter.findMany({
+      where: { name: { contains: q } },
+      orderBy: { name: 'asc' }, take: 100,
+      select: { id: true, electionId: true, userId: true, name: true, bipra: true, kolomId: true, hasVoted: true, votedVia: true },
+    }).catch(() => []);
+    const elections = await prisma.pelsusElection.findMany({
+      where: { id: { in: [...new Set(rows.map((r) => r.electionId))] } },
+    }).catch(() => []);
+    res.json({ people: groupVotersToPeople(rows, new Map(elections.map((e) => [e.id, e]))) });
+  }));
+
+  // POST /api/pelsus/tokens/batch { userId?, voterIds?[] } — paket token multi-surat satu orang
+  app.post('/api/pelsus/tokens/batch', requireRole(...PELSUS_ADMIN_ROLES), wrap(async (req, res) => {
+    const prisma = prismaOf(res);
+    if (!prisma) return;
+    const userId = str(req.body?.userId, 64);
+    const voterIds = Array.isArray(req.body?.voterIds) ? req.body.voterIds.map(String).filter(Boolean).slice(0, 20) : [];
+    if (!userId && !voterIds.length) return res.status(400).json({ error: 'userId atau voterIds wajib.' });
+    const voters = await prisma.pelsusVoter.findMany({
+      where: voterIds.length ? { id: { in: voterIds } } : { userId },
+    }).catch(() => []);
+    if (!voters.length) return res.status(404).json({ error: 'Pemilih tidak ditemukan di DPT.' });
+    const elections = await prisma.pelsusElection.findMany({
+      where: { id: { in: [...new Set(voters.map((v) => v.electionId))] } },
+    }).catch(() => []);
+    const emap = new Map(elections.map((e) => [e.id, e]));
+    const tokens = [];
+    const skipped = [];
+    for (const v of voters) {
+      const e = emap.get(v.electionId);
+      if (!e || !isOpenElection(e)) { skipped.push({ voterId: v.id, electionId: v.electionId, reason: 'Belum dibuka / sudah ditutup' }); continue; }
+      if (v.hasVoted) { skipped.push({ voterId: v.id, electionId: v.electionId, reason: `${v.name} sudah memilih` }); continue; }
+      await prisma.pelsusKioskToken.updateMany({ where: { electionId: e.id, voterId: v.id, usedAt: null }, data: { usedAt: new Date() } });
+      const token = newToken();
+      await prisma.pelsusKioskToken.create({
+        data: { token, electionId: e.id, voterId: v.id, expiresAt: new Date(Date.now() + 10 * 60 * 1000), createdById: req.authUser.id },
+      });
+      tokens.push({ token, electionId: e.id, title: e.title, voterId: v.id, voterName: v.name });
+    }
+    await audit(prisma, null, req.authUser.id, 'TOKEN_BATCH', { n: tokens.length, userId });
+    res.status(201).json({ tokens, skipped, expiresInSec: 600 });
   }));
 
   // POST /api/pelsus/bilik { token, candidateIds[] } — tanpa login, token sekali pakai

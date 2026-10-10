@@ -1,4 +1,4 @@
-# Panduan Pemilihan Pelsus — 11 Okt 2026 (GEHC.page)
+# Panduan Pemilihan Pelsus — 18 Okt 2026 (GEHC.page)
 
 Alur baku warta: **Juklak → Absensi/Kuorum → Cara memilih → Pilih**.
 Pemilihan adalah ibadah (Tata Gereja GMIM + Juklak BPMS No.10/2026).
@@ -47,7 +47,7 @@ Error 503 → tunggu 10 dtk, KIRIM sekali lagi.
 
 ## 6. WA broadcast
 
-Panjang (H-3): Shalom — Pemilihan Pelsus Sabtu 11 Okt setelah ibadah
+Panjang (H-3): Shalom — Pemilihan Pelsus Minggu 18 Okt setelah ibadah
 (Penatua BIPRA, Penatua/Diaken Kolom, BPMJ). Buka https://gehc.page/#/pelsus,
 login dulu. Tanpa akun → bilik token / manual. Absensi dulu untuk kuorum 2/3.
 1 orang 1 suara. — Panitia.
@@ -107,3 +107,33 @@ Jalankan ulang kapan pun: `npm run pelsus:sim` (lokal + DB staging, election
 3. "Di bilik, pemilih tanpa akun memakai token sekali pakai — petugas tidak mengintip."
 4. "Layar hanya menampilkan partisipasi dan kuorum — hasil dibuka setelah panitia menutup."
 5. "Berita Acara diunduh sebagai CSV — lalu data simulasi dihapus hingga bersih."
+
+## 12. Preview 2 variasi (V1 vs V2 by-person)
+
+V1 (`#/pelsus/…`) = alur per-surat-suara saat ini, tidak diubah. V2
+(`#/pelsus2/…`) = varian by-person: section "Surat suara saya" + tombol
+lanjut + paket token + bilik berantai + perkakas panitia cari-orang. Backend
+sama; yang dibandingkan murni alur UX. Data preview = election `pv2-*`
+(`npm run db:seed:pelsus:preview[:staging]`); 19 election asli tak tersentuh;
+`?sim` memfilter hanya election preview. Prefix `pv2-` sengaja bukan `sim-`
+agar tak ikut terhapus bersih otomatis `npm run pelsus:sim`.
+
+| Peran | V1 | V2 |
+|---|---|---|
+| Pemilih multi-surat (akun) | `#/pelsus` → buka 1 per 1 | `#/pelsus2?sim` → "Surat suara saya (X dari N)" → pilih → "Lanjut: … →" |
+| Petugas bilik | 1 token = 1 surat, ketik ulang per surat | Link `#/pelsus2/<id>/bilik?tokens=A,B,C` → otomatis "Surat 2 dari 3" |
+| Panitia cari-orang | Per election (panel di tiap surat suara) | `#/pelsus2/panitia` → cari nama → Paket Token / Manual per surat |
+| Layar proyektor | `#/pelsus/<id>/layar` | Sama persis (komponen dipakai ulang) |
+
+Skenario uji (staging, DPT uji `Uji Multi Surat` = 3 surat suara):
+
+1. Login akun multi-surat → V2 home tampil "Sudah 0 dari 3" → pilih Pemuda →
+   Kirim → tombol lanjut ke Kolom 3 → selesai "Sudah 3 dari 3".
+2. Panitia → `#/pelsus2/panitia` → cari "Tamu" → Paket Token → salin link
+   bilik berantai → 3 surat tanpa ketik ulang → auto-reset di akhir.
+3. Coba vote ganda (token sama 2×) → wajib ditolak; cek layar hanya tampil
+   partisipasi selama OPEN.
+
+Kriteria keputusan: waktu bilik multi-surat, angka klik-ganda tertolak,
+pemahaman panitia tanpa pendampingan. Pemenang dipromosi ke `#/pelsus`;
+varian kalah dihapus (revert R1 + hapus folder varian) agar tak jadi beban.
