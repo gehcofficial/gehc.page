@@ -125,7 +125,7 @@ export function inlineSpans(text: string, boldCls: string, italicCls: string): R
   });
 }
 
-export type MdTone = 'overlay' | 'plain';
+export type MdTone = 'overlay' | 'plain' | 'paper';
 
 const ROLE_LABEL: Record<Exclude<MdRole, 'body' | 'scripture'>, string> = {
   takeaway: 'Poin Utama',
@@ -137,13 +137,21 @@ const ROLE_LABEL: Record<Exclude<MdRole, 'body' | 'scripture'>, string> = {
 /** Kepadatan tipografi: roomy (slide ringan → font naik), compact (slide gabungan → font turun + rapat). */
 export type MdDensity = 'roomy' | 'compact';
 
-/** Render blok markdown-lite dengan highlight per peran. */
+/**
+ * Render blok markdown-lite dengan highlight per peran.
+ *
+ * Tone:
+ * - `overlay` — di atas foto/gelap (layar + cetak tetap terang).
+ * - `plain` — permukaan gelap tanpa foto (layar terang, cetak gelap).
+ * - `paper` — permukaan terang/kartu putih (layar + cetak gelap).
+ */
 export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: { blocks: MdBlock[]; tone?: MdTone; speech?: boolean; density?: MdDensity }) {
-  const ink = tone === 'overlay' ? 'text-white/90' : 'text-white/85 print:text-black/85';
-  const dim = tone === 'overlay' ? 'text-white/70' : 'text-white/60 print:text-black/60';
-  const boldCls = tone === 'overlay' ? 'font-bold text-sky-200' : 'font-bold text-sky-300 print:text-sky-700';
-  const accentDot = tone === 'overlay' ? 'bg-white' : 'bg-sky-400';
-  const kickerCls = tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700';
+  const onPaper = tone === 'paper';
+  const ink = onPaper ? 'text-[#1B1B1B]/90' : tone === 'overlay' ? 'text-white/90' : 'text-white/85 print:text-black/85';
+  const dim = onPaper ? 'text-[#8C8880]' : tone === 'overlay' ? 'text-white/70' : 'text-white/60 print:text-black/60';
+  const boldCls = onPaper ? 'font-bold text-sky-700' : tone === 'overlay' ? 'font-bold text-sky-200' : 'font-bold text-sky-300 print:text-sky-700';
+  const accentDot = onPaper ? 'bg-sky-600' : tone === 'overlay' ? 'bg-white' : 'bg-sky-400';
+  const kickerCls = onPaper ? 'text-sky-700' : tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700';
   const para = !density ? 'text-base sm:text-xl' : density === 'roomy' ? 'text-lg sm:text-2xl' : 'text-sm sm:text-base';
   const big = !density ? 'text-lg sm:text-2xl' : density === 'roomy' ? 'text-xl sm:text-3xl' : 'text-base sm:text-xl';
   const gap = density === 'compact' ? 'space-y-2.5' : density === 'roomy' ? 'space-y-5' : 'space-y-4';
@@ -152,7 +160,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
     <div className={gap}>
       {blocks.map((b, i) => {
         if (b.kind === 'divider') {
-          return <hr key={i} className={tone === 'overlay' ? 'border-white/15' : 'border-white/10 print:border-black/20'} />;
+          return <hr key={i} className={tone === 'overlay' ? 'border-white/15' : onPaper ? 'border-black/10' : 'border-white/10 print:border-black/20'} />;
         }
         if (b.kind === 'heading') {
           return (
@@ -163,10 +171,13 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
         }
         if (b.kind === 'quote') {
           // Overlay (di atas foto yang ikut tercetak): teks TETAP terang.
-          // Plain (kartu tanpa foto): fallback cetak gelap.
-          const quoteCls = tone === 'overlay'
-            ? `${big} font-medium leading-relaxed text-white`
-            : `${big} font-medium leading-relaxed text-white print:text-black`;
+          // Plain (permukaan gelap): fallback cetak gelap.
+          // Paper (kartu putih): selalu gelap.
+          const quoteCls = onPaper
+            ? `${big} font-medium leading-relaxed text-[#1B1B1B]`
+            : tone === 'overlay'
+              ? `${big} font-medium leading-relaxed text-white`
+              : `${big} font-medium leading-relaxed text-white print:text-black`;
           return (
             <figure key={i} className={`rounded-2xl border-l-4 border-sky-400 pl-4 py-1 ${tone === 'overlay' ? '' : 'print:border-sky-600'}`}>
               <blockquote className={quoteCls}>
@@ -174,7 +185,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
               </blockquote>
               {b.ref && (
                 <figcaption className="mt-2">
-                  <span className={`inline-block rounded-full px-3 py-1 text-[11px] font-black tracking-wide ${tone === 'overlay' ? 'bg-sky-400/20 text-sky-200' : 'bg-sky-500/15 text-sky-300 print:bg-sky-50 print:text-sky-700'}`}>
+                  <span className={`inline-block rounded-full px-3 py-1 text-[11px] font-black tracking-wide ${onPaper ? 'bg-sky-50 text-sky-700 border border-sky-200' : tone === 'overlay' ? 'bg-sky-400/20 text-sky-200' : 'bg-sky-500/15 text-sky-300 print:bg-sky-50 print:text-sky-700'}`}>
                     {stripMd(b.ref)}
                   </span>
                 </figcaption>
@@ -188,7 +199,7 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
               {b.items.map((it, j) => (
                 <li key={j} className={`flex gap-3 ${para} leading-relaxed ${ink} ${it.level > 0 ? 'ml-6 text-[0.92em]' : ''}`}>
                   {b.ordered
-                    ? <span className={`shrink-0 font-black ${tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{j + 1}.</span>
+                    ? <span className={`shrink-0 font-black ${onPaper ? 'text-sky-700' : tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{j + 1}.</span>
                     : <span className={`mt-[9px] rounded-full shrink-0 ${accentDot} ${it.level > 0 ? 'h-1 w-1 opacity-70' : 'h-1.5 w-1.5'}`} />}
                   <span>{inlineSpans(it.text, boldCls, 'italic')}</span>
                 </li>
@@ -199,16 +210,22 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
         // para
         const role: MdRole = speech && b.role === 'body' ? 'speech' : b.role;
         if (role === 'takeaway' || role === 'reflection') {
-          const panelCls = tone === 'overlay'
-            ? 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40'
-            : 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40 print:bg-amber-50 print:border-amber-300';
-          const labelCls = tone === 'overlay'
-            ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
-            : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
-          const textCls = tone === 'overlay'
-            ? `mt-1.5 ${para} leading-relaxed font-medium text-white`
-            : `mt-1.5 ${para} leading-relaxed font-medium text-white print:text-black`;
-          const takeBold = tone === 'overlay' ? 'font-bold text-amber-200' : 'font-bold text-amber-200 print:text-amber-800';
+          const panelCls = onPaper
+            ? 'rounded-2xl p-4 border bg-amber-50 border-amber-300'
+            : tone === 'overlay'
+              ? 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40'
+              : 'rounded-2xl p-4 border bg-amber-400/15 border-amber-300/40 print:bg-amber-50 print:border-amber-300';
+          const labelCls = onPaper
+            ? 'text-[10px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1.5'
+            : tone === 'overlay'
+              ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
+              : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
+          const textCls = onPaper
+            ? `mt-1.5 ${para} leading-relaxed font-medium text-[#1B1B1B]`
+            : tone === 'overlay'
+              ? `mt-1.5 ${para} leading-relaxed font-medium text-white`
+              : `mt-1.5 ${para} leading-relaxed font-medium text-white print:text-black`;
+          const takeBold = onPaper ? 'font-bold text-amber-800' : tone === 'overlay' ? 'font-bold text-amber-200' : 'font-bold text-amber-200 print:text-amber-800';
           return (
             <div key={i} className={panelCls}>
               <p className={labelCls}>
@@ -221,12 +238,16 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
           );
         }
         if (role === 'correction') {
-          const panelCls = tone === 'overlay'
-            ? 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30'
-            : 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30 print:bg-white print:border-amber-300';
-          const labelCls = tone === 'overlay'
-            ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
-            : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
+          const panelCls = onPaper
+            ? 'rounded-2xl p-4 border bg-[#FFFBEB] border-amber-300'
+            : tone === 'overlay'
+              ? 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30'
+              : 'rounded-2xl p-4 border bg-white/[0.06] border-amber-300/30 print:bg-white print:border-amber-300';
+          const labelCls = onPaper
+            ? 'text-[10px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1.5'
+            : tone === 'overlay'
+              ? 'text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5'
+              : 'text-[10px] font-black uppercase tracking-wider text-amber-300 print:text-amber-700 flex items-center gap-1.5';
           return (
             <div key={i} className={panelCls}>
               <p className={labelCls}>
@@ -239,12 +260,16 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
           );
         }
         if (role === 'speech') {
-          const speechCls = tone === 'overlay'
-            ? `${big} leading-relaxed font-medium text-white flex gap-2.5`
-            : `${big} leading-relaxed font-medium text-white print:text-black flex gap-2.5`;
-          const iconCls = tone === 'overlay'
-            ? 'w-5 h-5 shrink-0 mt-1 text-amber-300'
-            : 'w-5 h-5 shrink-0 mt-1 text-amber-300 print:text-amber-600';
+          const speechCls = onPaper
+            ? `${big} leading-relaxed font-medium text-[#1B1B1B] flex gap-2.5`
+            : tone === 'overlay'
+              ? `${big} leading-relaxed font-medium text-white flex gap-2.5`
+              : `${big} leading-relaxed font-medium text-white print:text-black flex gap-2.5`;
+          const iconCls = onPaper
+            ? 'w-5 h-5 shrink-0 mt-1 text-amber-600'
+            : tone === 'overlay'
+              ? 'w-5 h-5 shrink-0 mt-1 text-amber-300'
+              : 'w-5 h-5 shrink-0 mt-1 text-amber-300 print:text-amber-600';
           return (
             <p key={i} className={speechCls}>
               <Quote className={iconCls} />

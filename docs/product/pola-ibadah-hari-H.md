@@ -85,7 +85,7 @@ Status segmen: `tetap | gabung→[segmen] | hemat | tambah | paralel`.
 | Penutup wajib (persembahan, syafaat, pengumuman + terima kasih tuan rumah, berkat) | 20 | tetap |
 | Foto + pasca | 10 | tetap |
 
-### Monolog, Bedah Lagu & Deep Sharing (±170')
+### Monologue & Dialogue (±170', varian)
 
 | Segmen | Menit | Status |
 |---|---|---|

@@ -20,12 +20,12 @@ type Props = {
   onCopyPlaybook?: (pattern: WorshipPatternLite) => void;
 };
 
-/** Naskah playbook siap baca: markdown ter-render + slot adaptasi jadi kata biasa. */
+/** Naskah playbook siap baca di kartu putih: markdown ter-render + slot adaptasi jadi kata biasa. */
 function PlaybookView({ text }: { text: string }) {
   const blocks = useMemo(() => parseMdLite(prettyPlaybook(text)), [text]);
   return (
     <div className="rounded-xl border border-[#EFEDE8] bg-white px-3 py-2">
-      <MdBlocks blocks={blocks} tone="plain" density="compact" />
+      <MdBlocks blocks={blocks} tone="paper" density="compact" />
     </div>
   );
 }

@@ -250,7 +250,7 @@ async function resolveWeekPattern(prisma, week, override) {
     } catch { /* tabel pola belum ada — fallback literal */ }
     return null;
   };
-  return (await pick(code)) || (await pick('MONOLOG')) || { code: 'MONOLOG', name: 'Monolog & FGD (Standar)', summary: '', phases: [], playbook: '' };
+  return (await pick(code)) || (await pick('MONOLOG')) || { code: 'MONOLOG', name: 'Monologue & Dialogue', summary: '', phases: [], playbook: '' };
 }
 
 async function saveStudioWeek(prisma, yearMonth, weekIndex, mutator, userId) {

@@ -102,4 +102,21 @@ describe('MdBlocks print', () => {
     const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks, tone: 'plain' }));
     expect(html).toContain('print:');
   });
+
+  it('paper: permukaan terang selalu bertinta gelap (regresi playbook putih-di-atas-putih)', () => {
+    const md = '## 1. Identitas & Tujuan Teologis\n\n**Nama:** Monologue & Dialogue. Kalimat isi biasa.\n\n1. Langkah satu\n2. Langkah dua\n\n> "Kutipan" (Kolose 1:13-14)\n\nPoin Utama bagi Anak Muda: ingat.';
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks: parseMdLite(md), tone: 'paper', density: 'compact' }));
+    expect(html).not.toContain('text-white');
+    expect(html).toContain('text-[#1B1B1B]');
+    expect(html).toContain('Nama:');
+    expect(html).toContain('Kalimat isi biasa.');
+    expect(html).toContain('Langkah satu');
+  });
+
+  it('paper: bold + nomor list + chip ref terbaca di kartu putih', () => {
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks: parseMdLite('**Tegas**.\n\n1. Butir\n\n> "Teks" (Roma 8:3)'), tone: 'paper' }));
+    expect(html).toContain('text-sky-700');
+    expect(html).toContain('bg-sky-50');
+    expect(html).not.toContain('text-white');
+  });
 });
