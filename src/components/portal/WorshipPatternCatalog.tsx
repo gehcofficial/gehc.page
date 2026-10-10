@@ -85,7 +85,7 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                 {isActive && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold">pekan ini</span>}
               </div>
               <p className="text-[10px] text-[#8C8880] font-mono">{p.code} · {p.defaultDurationMin || total}&prime; · {total}&prime; rundown</p>
-              <p className="text-[11px] text-[#555] line-clamp-2">{p.summary}</p>
+              {p.summary ? <p className="text-[11px] text-[#555] line-clamp-2">{p.summary}</p> : null}
               <div className="flex flex-wrap gap-1">
                 {(p.modules || []).map((m) => (
                   <span key={m} className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-700 font-bold">{moduleLabel(m)}</span>

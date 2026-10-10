@@ -272,11 +272,21 @@ class Writer {
         continue;
       }
       if (b.kind === 'list') { this.bullets(b.items, b.ordered ? 'ordered' : '•'); continue; }
+      if (b.kind === 'table') { this.mdTable(b.headers, b.rows); continue; }
       if (b.role === 'takeaway' || b.role === 'reflection') { this.callout(b.role === 'reflection' ? 'Refleksi' : 'Poin Utama', stripMd(b.text), 'amber'); continue; }
       if (b.role === 'correction') { this.callout('Luruskan', stripMd(b.text), 'amber'); continue; }
       if (b.role === 'speech') { this.richParagraph(b.text, size + 1, 6); continue; }
       this.richParagraph(b.text, size, 5.4);
     }
+  }
+
+  /** Tabel MD → baris bernomor + sel dipisah · (paritas baca tanpa grid). */
+  mdTable(headers: string[], rows: string[][]) {
+    if (headers.length) this.label(`Tabel — ${headers.map((h) => stripMd(h)).join(' · ')}`);
+    rows.forEach((r, i) => {
+      const line = r.map((c) => stripMd(c)).join(' · ');
+      if (line) this.bullets([`${i + 1}. ${line}`], '•');
+    });
   }
 
   image(dataUrl: string | undefined, h = 45) {

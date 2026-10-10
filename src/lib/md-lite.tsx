@@ -17,7 +17,8 @@ export type MdBlock =
   | { kind: 'heading'; text: string }
   | { kind: 'quote'; text: string; ref?: string }
   | { kind: 'divider' }
-  | { kind: 'list'; ordered: boolean; items: { text: string; level: number }[] };
+  | { kind: 'list'; ordered: boolean; items: { text: string; level: number }[] }
+  | { kind: 'table'; headers: string[]; rows: string[][] };
 
 /** Kupas penanda markdown inline → teks polos (untuk PDF/teks biasa). */
 export function stripMd(text?: string): string {
@@ -55,13 +56,24 @@ function roleOf(text: string, speech: boolean): MdRole {
   return 'body';
 }
 
+const PIPE_LINE_RE = /^\s*\|.*\|\s*$/;
+
+/** Pecah baris tabel pipa menjadi sel. */
+function splitTableRow(line: string): string[] {
+  return line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+}
+
+/** Baris pemisah tabel (`|---|---|` / `|:---|---:|`). */
+function isTableSeparator(cells: string[]): boolean {
+  return cells.length > 0 && cells.every((c) => /^:?-{1,}:?$/.test(c));
+}
+
 /**
  * Urai teks MD menjadi blok. Kata-kata TIDAK diubah — hanya struktur.
  * Opsi `speech`: seluruh paragraf dianggap suara pengkhotbah (bagian Kesimpulan).
  */
 export function parseMdLite(text?: string, opts?: { speech?: boolean }): MdBlock[] {
   const speech = Boolean(opts?.speech);
-  const lines = String(text || '').split('\n');
   const blocks: MdBlock[] = [];
   let para: string[] = [];
   let quote: string[] = [];
@@ -87,19 +99,46 @@ export function parseMdLite(text?: string, opts?: { speech?: boolean }): MdBlock
     list = null;
   };
 
-  for (const line of lines) {
+  const rawLines = String(text || '').split('\n');
+  for (let li = 0; li < rawLines.length; li++) {
+    const line = rawLines[li];
     if (/^\s*---+\s*$/.test(line)) { flushPara(); flushQuote(); flushList(); blocks.push({ kind: 'divider' }); continue; }
+    // Tabel pipa: kumpulkan baris `|...|` berurutan; sah bila baris ke-2 pemisah.
+    if (PIPE_LINE_RE.test(line)) {
+      flushPara(); flushQuote(); flushList();
+      const group: string[][] = [];
+      while (li < rawLines.length && PIPE_LINE_RE.test(rawLines[li])) {
+        group.push(splitTableRow(rawLines[li]));
+        li++;
+      }
+      li--; // kompensasi increment loop
+      if (group.length >= 2 && isTableSeparator(group[1])) {
+        const width = group[0].length;
+        const rows = group.slice(2)
+          .map((cells) => cells.slice(0, width))
+          .filter((cells) => cells.some((c) => c));
+        blocks.push({ kind: 'table', headers: group[0], rows });
+      } else {
+        // Bukan tabel (tanpa pemisah): jangan hilangkan teks — gabung jadi paragraf.
+        for (const cells of group) {
+          const t = cells.join(' | ').trim();
+          if (t) para.push(t);
+        }
+        flushPara();
+      }
+      continue;
+    }
     const h = line.match(/^\s*#{2,4}\s+(.*)$/);
     if (h) { flushPara(); flushQuote(); flushList(); const t = stripMd(h[1]); if (t) blocks.push({ kind: 'heading', text: t }); continue; }
     const q = line.match(/^\s*>\s?(.*)$/);
     if (q) { flushPara(); flushList(); quote.push(q[1]); continue; }
-    const li = line.match(/^(\s*)([*\-]|\d+[.)])\s+(.*)$/);
-    if (li) {
+    const it = line.match(/^(\s*)([*\-]|\d+[.)])\s+(.*)$/);
+    if (it) {
       flushPara(); flushQuote();
-      const ordered = /^\d/.test(li[2]);
-      const level = Math.min(2, Math.floor(li[1].replace(/\t/g, '  ').length / 2));
+      const ordered = /^\d/.test(it[2]);
+      const level = Math.min(2, Math.floor(it[1].replace(/\t/g, '  ').length / 2));
       if (!list || list.ordered !== ordered) { flushList(); list = { ordered, items: [] }; }
-      const t = li[3].trim();
+      const t = it[3].trim();
       if (t) list.items.push({ text: t, level });
       continue;
     }
@@ -205,6 +244,42 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
                 </li>
               ))}
             </ul>
+          );
+        }
+        if (b.kind === 'table') {
+          const wrapCls = onPaper
+            ? 'border-[#EFEDE8]'
+            : tone === 'overlay'
+              ? 'border-white/10'
+              : 'border-white/10 print:border-black/20';
+          const headCls = onPaper
+            ? 'bg-[#FAF9F5] text-[#8C8880]'
+            : tone === 'overlay'
+              ? 'bg-white/[0.06] text-white/60'
+              : 'bg-white/[0.06] text-white/60 print:bg-black/[0.04] print:text-black/60';
+          const rowCls = onPaper ? 'border-[#EFEDE8]' : 'border-white/10 print:border-black/10';
+          const cellCls = onPaper ? 'text-[#1B1B1B]' : 'text-white/90 print:text-black/90';
+          return (
+            <div key={i} className={`overflow-x-auto rounded-xl border ${wrapCls}`}>
+              <table className="w-full text-[11px] sm:text-xs">
+                <thead>
+                  <tr className={headCls}>
+                    {b.headers.map((h, j) => (
+                      <th key={j} className="text-left px-2.5 py-1.5 font-black whitespace-nowrap">{inlineSpans(h, boldCls, 'italic')}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.rows.map((r, j) => (
+                    <tr key={j} className={`border-t ${rowCls}`}>
+                      {r.map((c, k) => (
+                        <td key={k} className={`px-2.5 py-1.5 align-top leading-relaxed ${cellCls}`}>{inlineSpans(c, boldCls, 'italic')}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
         // para

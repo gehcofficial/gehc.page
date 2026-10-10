@@ -120,3 +120,37 @@ describe('MdBlocks print', () => {
     expect(html).not.toContain('text-white');
   });
 });
+
+describe('tabel pipa md-lite', () => {
+  const md = '| No | Segmen | Menit |\n|---|---|---|\n| 1 | Praise | 10 |\n| 2 | **Monolog** | 15 |';
+
+  it('parse: header + baris + sel bold utuh', () => {
+    const [t] = parseMdLite(md);
+    expect(t).toMatchObject({ kind: 'table', headers: ['No', 'Segmen', 'Menit'] });
+    if (t.kind !== 'table') throw new Error('harus tabel');
+    expect(t.rows).toHaveLength(2);
+    expect(t.rows[1][1]).toBe('**Monolog**');
+  });
+
+  it('baris pipa tanpa pemisah tak hilang (fallback paragraf)', () => {
+    const [p] = parseMdLite('| bukan tabel |\n\nLanjut.');
+    expect(p.kind).toBe('para');
+    expect((p as { text: string }).text).toContain('bukan tabel');
+  });
+
+  it('render paper: tabel beneran, tinta gelap', () => {
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks: parseMdLite(md), tone: 'paper', density: 'compact' }));
+    expect(html).toContain('<table');
+    expect(html).toContain('<th');
+    expect(html).toContain('Monolog');
+    expect(html).toContain('text-[#1B1B1B]');
+    expect(html).not.toContain('text-white');
+    expect(html).not.toContain('| No |');
+  });
+
+  it('render overlay: tabel tetap terang di atas gelap', () => {
+    const html = renderToStaticMarkup(React.createElement(MdBlocks, { blocks: parseMdLite(md), tone: 'overlay' }));
+    expect(html).toContain('<table');
+    expect(html).toContain('text-white');
+  });
+});
