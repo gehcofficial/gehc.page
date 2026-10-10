@@ -26,6 +26,41 @@ type Stats = {
   totalScans: number;
 };
 
+type PetugasRow = {
+  scheduleId: string;
+  userId: string;
+  name: string;
+  role?: string | null;
+  division?: string | null;
+  status: string;
+  present: boolean;
+  source?: string | null;
+};
+
+type PetugasSummary = {
+  total: number;
+  confirmed: number;
+  scheduled: number;
+  cancelled: number;
+  done: number;
+  present: number;
+  missing: { scheduleId?: string | null; userId?: string | null; name: string; role?: string | null; division?: string | null }[];
+  byDivision: Record<string, { total: number; confirmed: number; present: number }>;
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  CONFIRMED: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+  SCHEDULED: 'bg-amber-50 border-amber-200 text-amber-800',
+  CANCELLED: 'bg-[#EFEDE8] border-[#D9D7D0] text-[#5C5850]',
+  DONE: 'bg-blue-50 border-blue-200 text-blue-800',
+};
+
+/** 'YYYY-MM-DD' WIB — untuk mode pra-event (H-1). */
+function wibDay(iso?: string | null): string {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  return Number.isFinite(t) ? new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10) : '';
+}
+
 const RESULT_STYLE: Record<ScanResult, string> = {
   OK: 'bg-emerald-50 border-emerald-200 text-emerald-800',
   DUPLICATE: 'bg-amber-50 border-amber-200 text-amber-800',
@@ -76,6 +111,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   const [flash, setFlash] = useState<{ result: ScanResult; message: string; name?: string } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [scans, setScans] = useState<ScanRow[]>([]);
+  const [petugas, setPetugas] = useState<{ summary: PetugasSummary; list: PetugasRow[] } | null>(null);
+  const [eventDate, setEventDate] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -86,6 +123,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     setStats(d.stats);
     setScans(d.scans || []);
+    setPetugas(d.petugas || null);
+    setEventDate(d.event?.date || null);
     setNextCursor(d.nextCursor || null);
   }, [eventId]);
 
@@ -378,6 +417,73 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
           ))}
         </div>
       )}
+
+      {(() => {
+        const day = wibDay(eventDate);
+        const today = wibDay(new Date().toISOString());
+        const isPre = Boolean(day && today && today < day);
+        const sum = petugas?.summary || null;
+        const list = petugas?.list || [];
+        if (!sum || (sum.total === 0 && !isPre)) return null;
+        return (
+          <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#8C8880]">
+              {isPre ? 'Kesiapan penatalayan (H-1)' : `Petugas penatalayan · hadir ${sum.present}/${sum.total}`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Tugas', value: sum.total },
+                { label: 'Terkonfirmasi', value: sum.confirmed },
+                { label: 'Belum konfirmasi', value: sum.scheduled },
+                ...(sum.cancelled > 0 ? [{ label: 'Batal', value: sum.cancelled }] : []),
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl border border-[#EFEDE8] bg-[#FAF9F5] px-3 py-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C8880] mr-2">{c.label}</span>
+                  <span className="text-sm font-black text-[#1B1B1B] tabular-nums">{c.value}</span>
+                </div>
+              ))}
+            </div>
+            {isPre ? (
+              sum.missing.length === 0 ? (
+                <p className="text-xs text-emerald-700">Semua petugas sudah terkonfirmasi. Siap jalan.</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold text-amber-700">Menunggu konfirmasi — kejar sebelum hari H:</p>
+                  <ul className="space-y-1 max-h-48 overflow-y-auto">
+                    {sum.missing.map((m) => (
+                      <li key={m.scheduleId || m.userId} className="text-xs rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5">
+                        <span className="font-bold text-[#1B1B1B]">{m.name}</span>
+                        <span className="text-[#8C8880]"> · {m.role || 'Petugas'}{m.division ? ` · ${m.division}` : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] text-[#8C8880]">Konfirmasi lewat alur penatalayan masing-masing divisi.</p>
+                </div>
+              )
+            ) : (
+              <ul className="space-y-1 max-h-64 overflow-y-auto">
+                {list.map((p) => (
+                  <li key={p.scheduleId} className="flex items-center gap-2 rounded-xl border border-[#EFEDE8] px-3 py-1.5 text-xs">
+                    <span className="font-bold text-[#1B1B1B] flex-1 truncate">{p.name}</span>
+                    <span className="text-[10px] text-[#8C8880] truncate">{p.role || 'Petugas'}{p.division ? ` · ${p.division}` : ''}</span>
+                    {p.present ? (
+                      <span className="shrink-0 inline-block px-1.5 py-0.5 rounded font-bold bg-emerald-50 border border-emerald-200 text-emerald-800">
+                        hadir{p.source ? ` · ${p.source}` : ''}
+                      </span>
+                    ) : p.status === 'CANCELLED' ? (
+                      <span className="shrink-0 inline-block px-1.5 py-0.5 rounded font-bold bg-[#EFEDE8] border border-[#D9D7D0] text-[#5C5850]">batal</span>
+                    ) : p.status === 'CONFIRMED' ? (
+                      <span className="shrink-0 inline-block px-1.5 py-0.5 rounded font-bold bg-amber-50 border border-amber-200 text-amber-800">belum tercatat</span>
+                    ) : (
+                      <span className={`shrink-0 inline-block px-1.5 py-0.5 rounded font-bold border ${STATUS_STYLE[p.status] || ''}`}>{p.status}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
 
       {flash && (
         <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${RESULT_STYLE[flash.result]}`}>

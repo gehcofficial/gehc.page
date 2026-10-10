@@ -5,6 +5,7 @@ import { BAKU_TAU_EVENT_ID, BAKU_TAU_SOURCE_EVENT, normalizePhone } from '../lib
 import { parseCheckInCode, timestampsMatch } from '../lib/check-in-code.mjs';
 import { resolveEventBySlug, SLUG_TO_EVENT_ID } from './events-public.mjs';
 import { isKoinoniaOperator, mentoredGroupIds, isGroupMentorOf } from '../lib/checkin-access.mjs';
+import { scheduleMatchesEvent, summarizePetugas, wibDayKey } from '../lib/petugas-crosscheck.mjs';
 
 const scanId = () => `cin-${crypto.randomUUID()}`;
 
@@ -503,11 +504,75 @@ export function registerEventCheckInRoutes(app, { wrap }) {
       totalScans: grouped.reduce((sum, g) => sum + g._count._all, 0),
     };
 
+    // Crosscheck penatalayan: jadwal cocok eventId ATAU (null + tanggal WIB sama).
+    // TAMPILAN boleh seluas ini; auto-mark tetap ketat butuh eventId.
+    let petugas = { summary: summarizePetugas([]), list: [] };
+    if (!resolved.isBakutau && resolved.event?.eventDate) {
+      const eventDay = wibDayKey(resolved.event.eventDate);
+      const dayMs = eventDay ? new Date(`${eventDay}T00:00:00Z`).getTime() : NaN;
+      const scheds = await prisma.serviceSchedule.findMany({
+        where: {
+          OR: [
+            { eventId: resolved.id },
+            ...(Number.isFinite(dayMs)
+              ? [{ eventId: null, date: { gte: new Date(dayMs - 86400000), lte: new Date(dayMs + 86400000) } }]
+              : []),
+          ],
+        },
+        include: {
+          serviceRole: { select: { name: true, division: true } },
+          user: { select: { id: true, name: true } },
+        },
+      }).catch(() => []);
+      const matched = scheds.filter((s) =>
+        scheduleMatchesEvent({ id: resolved.id, eventDate: resolved.event.eventDate }, s),
+      );
+      const uids = [...new Set(matched.map((s) => s.userId).filter(Boolean))];
+      const [atts, scs] = await Promise.all([
+        uids.length
+          ? prisma.eventAttendee.findMany({
+              where: { eventId: resolved.id, userId: { in: uids } },
+              select: { userId: true, checkedInAt: true, metadata: true },
+            }).catch(() => [])
+          : [],
+        uids.length
+          ? prisma.eventCheckIn.findMany({
+              where: { eventId: resolved.id, userId: { in: uids }, result: { in: ['OK', 'WALK_IN', 'DUPLICATE'] } },
+              select: { userId: true },
+            }).catch(() => [])
+          : [],
+      ]);
+      const attByUser = new Map(atts.map((a) => [a.userId, a]));
+      const scanned = new Set(scs.map((s) => s.userId));
+      const list = matched.map((s) => {
+        const att = attByUser.get(s.userId) || null;
+        const meta = att?.metadata && typeof att.metadata === 'object' ? att.metadata : {};
+        const present = Boolean(att?.checkedInAt);
+        return {
+          scheduleId: s.id,
+          userId: s.userId,
+          name: s.user?.name || 'Petugas',
+          role: s.serviceRole?.name || null,
+          division: s.serviceRole?.division || null,
+          status: s.status,
+          present,
+          source: scanned.has(s.userId) ? 'scan' : present && meta.autoPetugas ? 'otomatis' : present ? 'manual' : null,
+        };
+      });
+      petugas = { summary: summarizePetugas(list), list };
+    }
+
     res.json({
-      event: { id: resolved.id, slug: resolved.slug, name: resolved.name },
+      event: {
+        id: resolved.id,
+        slug: resolved.slug,
+        name: resolved.name,
+        date: resolved.event?.eventDate ? new Date(resolved.event.eventDate).toISOString() : null,
+      },
       stats,
       scans: page.map(serializeScan),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      petugas,
     });
   }));
 
