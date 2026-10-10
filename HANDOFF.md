@@ -1,5 +1,181 @@
 # GEHC Portal — Handoff
 
+## Current — Deck 18 slide + BPPJ (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** BPPJ (belum ada di Cikarang) masuk deck + concern cashflow
++ tanggung jawab statuter.
+
+**Ubah:** slide `bppj` baru (posisi 11) + serah-terima diperkuat
+(verifikasi BPPJ pre-tandatangan) + keputusan 9 butir • docs: §VIb BPPJ
++ matriks penegak aturan-perantau • test 17→18 + footnote ter-resolve.
+
+**Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
+Catatan sesi paralel: batch Pelsus 18 Okt berjalan (jangan sentuh file
+pelsus/*, schema.prisma, migrate/seed terkait).
+
+**Next:** commit + push + sync + verifikasi live.
+
+## Current — Pelsus 11 → Minggu 18 Okt 2026 (10 Okt 2026, uncommitted)
+
+**Kebutuhan:** pemilihan Pelsus mundur ke 18 Okt 2026 (hari Minggu — koreksi
+"Sabtu" di panduan). Disetujui: sapu bersih scope Pelsus + DB reset & seed ulang.
+
+**Ubah (14 file, string tanggal saja):** `PelsusApp.tsx:99,140` (H1 + empty
+state) → `seed-pelsus.mjs` (header + 3 template judul) →
+`pelsus-panduan.md:1,50` (judul + WA `Minggu 18 Okt`) → komentar/label:
+`lib/pelsus.ts`, `lib/host-context.ts`, `main.tsx`, `routes/pelsus.mjs`,
+`_migrate-pelsus.cjs`, `schema.prisma`, `db-migrate-local.mjs`,
+`playwright.pelsus.config.ts`, `pelsus-simulasi.spec.ts`,
+`host-context.test.ts`. TIDAK disentuh: ibadah 11 Okt Rescue Plan
+(didaskalia/worship/liturgy/event-select + script khutbah/QA) + riwayat
+HANDOFF lama.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1043/1044 (1 flake `lazy-routes`
+ChurchHub-timeout, hijau di rerun) ✓ `rg 11 Okt` di 14 file = 0 sisa ✓.
+
+**Next (BELUM jalan — butuh pre-check + persetujuan):** (a) pastikan 0 suara
+di staging+prod (`results.ballotCount`); bila >0 STOP; (b) staging: hapus 19
+elections lama (`DELETE /api/pelsus/:id`, tutup dulu bila OPEN) →
+`npm run db:seed:pelsus:staging` → cek 19 judul `18 Okt`; (c) prod sama via
+`:prod` + input ulang kandidat DRAFT. Opsional: `npm run pelsus:sim` untuk
+refresh 5 klip video (header UI ikut ganti tanggal).
+
+## Current — Playbook readable di kartu putih + nama Monologue & Dialogue + rundown single-source (10 Okt 2026, uncommitted)
+
+**Kebutuhan:** (1) teks Draft Template tak terbaca (putih-di-atas-putih, baru
+muncul saat select); (2) standarkan nama pola `Monologue & Dialogue`;
+(3) dua penulisan rundown — mau konsep tabel (fase) dengan isi naskah kunci
+penuh. Diputuskan: rundown 12 fase seed baru = kanonis.
+
+**Temuan:** `MdBlocks tone="plain"` bertinta putih (untuk permukaan gelap +
+cetak) — cocok untuk slide deck tanpa foto (artikel `bg-[#0B1220]`), tetapi
+`PlaybookView` memakainya di kartu `bg-white` → isi tak terlihat, hanya bold
+`sky-300` yang samar. DB staging/prod masih berisi MONOLOG lama (6 fase, nama
+lama); seed working-tree sudah 12 fase + English-only (milik sesi paralel).
+
+**Ubah (kode, milik episode ini):** `md-lite.tsx` tone baru `paper` (tinta
+layar gelap `#1B1B1B`/`#8C8880`/`sky-700`, panel amber terang; `overlay`+`plain`
+tak disentuh) → `WorshipPatternCatalog` PlaybookView `plain`→`paper` →
+fallback nama `DidaskaliaStudioPanel:1368` + `didaskalia-studio.mjs:253` →
+`Monologue & Dialogue` → `pola-ibadah-hari-H.md` heading → varian (isi varian
+170' dibiarkan) • test `md-lite.test.ts` (+2 guard: paper tanpa `text-white`).
+**Seed (di atas basis paralel, BELUM commit — file milik sesi paralel):**
+`notes` fase 3/4/5/6/8 MONOLOG diperkaya redaksi naskah kunci (terang tema
+pekan, eksposisi→aplikasi→panggilan, Q berurutan, chip Lesson Learned maks 3,
+ayat penutup Firman pekan; tanpa slot mentah karena notes tabel dirender
+mentah; Satu Kata dipetakan ke chip Lesson Learned).
+
+**Data:** `db:seed:worship:staging` ✓ baca-balik: nama `Monologue & Dialogue`,
+12 fase, total 120', semua berdivisi, 5 notes naskah, §3 tanpa tabel pipa,
+7 heading + 4 slot lengkap.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1044 hijau (1 flake `lazy-routes` di
+satu run, hijau di rerun) ✓ `build` OK ✓.
+
+**Next:** commit file episode ini (JANGAN seed — tunggu sesi paralel) → push
+main + cek visual tab Pola Ibadah → `db:seed:worship:prod` HANYA dengan
+persetujuan eksplisit. Follow-up: 4 tabel pipa pola lain
+(POST_TO_POST/DEBAT/BEDAH_FILM/3SEQ §3) masih tembok teks — konversi ke list;
+`simulasi-more-than-good-news.md` (artefak 6 Okt) sengaja tak diubah;
+`liturgy-live` baca jangkar sebagai bacaan (open).
+
+## Current — Fix swap Korintus↔Kolose W2 + verifikasi bolls.life TB/KJV/ESV (10 Okt 2026, uncommitted)
+
+**Kebutuhan:** prod W2 Rescue Plan (11 Okt): pembekalan menampilkan isi Kolose di
+ref Korintus (atau sebaliknya); user mau 100% ikut isi Alkitab. Pakai bolls.life
+(TB + Inggris) sebagai canonical, koreksi manual + warning (tanpa auto-overwrite).
+
+**Temuan audit prod:** ref BENAR (`teksUtama=2 Korintus 5:21`,
+`fundamentalFirman=Kolose 1:13–14`), tetapi **isi tertukar** — `teksUtama.text`
+berisi Kol 1:13-14, `fundamentalFirman.text` berisi 2Kor 5:21. Outline 4 bagian
+benar (Bedah=Korintus, Jembatan=Kolose). Efek tampak: cover pembekalan callout
+berlabel Kolose berisi ayat Korintus + PDF §Inti Pesan sama.
+
+**Ubah (kode):** `server/lib/bolls.mjs` (baru: provider bolls.life tanpa key —
+`TB` kanonis, `KJV`/`ESV` pembanding, `NIV*` ditolak/disabled karena ablated
+Biblica, bookid 1–66 sinkron `bible-books.ts`, strip tag Strong HTML, cache
+30 hari, `verifyVerse`) → `GET /api/bible/verify?ref=&ref2=&versions=`
+di `server/routes/didaskalia-studio.mjs` (read-only, `requireRole()`, tanpa
+tulis DB) → `DidaskaliaStudioPanel` tab khotbah: tombol Verifikasi + badge
+✅/⚠️ + Salin kutipan TB (tempel manual) + detail KJV/ESV → cover pembekalan
+callout dilabel tegas `Teks Jangkar Mingguan · <ref>` (sebelumnya label ref
+telanjang) • test `tests/unit/bolls.test.ts` (+14).
+
+**Data (prod, applied + history):** `scripts/fix-w2-swap-tekskanonik.mjs` —
+`teksUtama.text` = 2Kor 5:21 TB + `fundamentalFirman.text` = Kol 1:13-14 TB
+(verbatim bolls.life live), ref & outline tak diubah, history 6→7 (undoable).
+Teks kanonis: Korintus = "Dia yang tidak mengenal dosa telah dibuat-Nya
+menjadi dosa karena kita, supaya dalam Dia kita dibenarkan oleh Allah.";
+Kolose = "Ia telah melepaskan kita dari kuasa kegelapan dan memindahkan kita
+ke dalam Kerajaan Anak-Nya yang kekasih; di dalam Dia kita memiliki penebusan
+kita, yaitu pengampunan dosa."
+
+**Verifikasi:** `lint` bersih ✓ `test` 1040 hijau + bolls 14 (1 flake
+`lazy-routes`, lolos rerun isolasi) ✓ `build` OK ✓ render deck lokal: callout
+jangkar + field utama benar ✓. Tanpa migrasi DB.
+
+**Next:** commit file episode ini → push main (deck web + tombol verifikasi
+live buat besok) → cek prod `#/materi/pembekalan/2026-10/2` + `#/materi/khutbah/2026-10/2`
+→ publish ulang doc 01/02 dari Studio bila PDF Drive masih versi swap.
+Follow-up (belum): `kitabFokus` W2 masih `Kol 1:13-14` (duplikat jangkar,
+dibiarkan); `liturgy-live` baca `fundamentalFirman` (jangkar) sebagai bacaan —
+konfirmasi apakah harusnya Teks Utama.
+
+**Sengaja tidak disentuh:** `HANDOFF.md` entri atas + `docs/product/*.md` +
+`server/_seed-worship-patterns.cjs` (milik sesi paralel).
+
+## Current — MONOLOG 4-trigger + Lesson chip ganti Satu Kata (9 Okt 2026, uncommitted)
+
+**Kebutuhan:** alur kontrol↔layar koheren (Bedah Lagu→Monolog→Diskusi→Lesson→Komitmen);
+Satu Kata → chip Lesson Learned ala Post-to-Post; undi bebas 3 + grup; sapaan personal.
+
+**Ubah:** template draft `lesson` 10 chip + `CHIP_RULES` AI + `apply-draft` MONOLOG buat
+chip → `start` auto-Q3 + `config.discussion` (stage/payload/`DiscussionPanel` + countdown
+layar/HP) → undi MONOLOG bebas-3 + `groupName` (pool `groupMember`, `composePicks` teruskan,
+`TestimonyPanel/Wheel` tampil grup) → engine `satu-kata=Lesson Learned` (`chips+testimony+download`;
+`lagu=song+notes`; hapus slot `SATU-KATA`; `segmentForPattern` sadar diskusi) → `PatternDay`
+widget chip + `Thank you, {nama}` + PDF seksi Lesson + sapaan cover → layar WRAPUP gabungan
+(word cloud + undi; vote awal tak sembunyikan FGD) → kontrol label per pola + editor chip
+dibuka untuk MONOLOG → test (+8: segmen, `cleanDiscussion`, bebas-3+grup, CHIP_RULES, config).
+
+**Sengaja tidak disentuh:** `server/_seed-worship-patterns.cjs` (modul `chips/wordcloud` MONOLOG +
+playbook §5/§7 — file sedang dipakai sesi paralel) + `docs/product/*.md` (dirty paralel).
+Follow-up: seed ulang modul + selaraskan playbook/summary. Kompatibel mundur: agregat
+SATU-KATA + `allowedNoteCodes` tetap (sesi lama terbaca).
+
+**Verifikasi:** `lint` bersih ✓ `test` 1023 hijau (2 flake `lazy-routes` timeout, lolos
+rerun isolasi) ✓ tanpa migrasi DB (semua `config` JSON).
+
+**Next:** commit + push + `staging:sync` → staging: event 11 Okt → Draft Sesi isi AI
+(FGD+lagu+deep+lesson) → Terapkan (assert chip N) → Start (Q1-Q3 terbuka) → Mulai Diskusi →
+Q4/Q5 → Wrapup (chip + undi 3) → Tutup (PDF personal).
+
+**Fix #310 (9 Okt, menyusul):** `toggleChip`/`submitChips` di `PatternDay.tsx` tertulis di
+bawah early return loading→ok = hook count berubah antar-render ("Rendered more hooks").
+Dipindah ke atas semua guard; audit komponen mentoring lain bersih. Verifikasi: lint ✓,
+unit terkait ✓, `vite build` ✓.
+
+**Fase 60' (9 Okt, menyusul):** `config.phase {F1 20'/F2 25'/F3 10'/CLOSING 5'}` eksplisit ganti
+`discussion`; `start`→F1+horizon 3 jam (bungkam auto-wrapup), `wrapup`→F3; kontrol 4 tombol
+fase + `+5 mnt fase` (panel Q manual dihapus); HP countdown per fase (F1 tanpa timer) +
+slot per fase; layar standby→loop Q→winners+cloud→penutup; segmen ke-6 `penutup`.
+Verifikasi: lint ✓, suite 1025 hijau ✓, `vite build` ✓.
+
+**Rundown 120' 12 fase (9 Okt, menyusul):** seed MONOLOG ditulis ulang (persembahan pindah
+setelah Closing; ramah-tamah paralel→terima kasih; tiap fase bawa `division` + owner =
+daftar peran). Katalog: kolom Cakupan + naskah via md-lite + slot jadi kata biasa
+(konvensi: DB mentah, UI selalu render). Kontrol: badge divisi; prompt AI bawa `[cakupan]`.
+Verifikasi: lint ✓, suite ✓, build ✓, re-seed staging ✓ baca-balik (12 fase, 120 mnt,
+4 divisi, 7/7 heading, 4/4 slot; sesi + soal + chip utuh; 0 migrasi).
+Sisa: commit file seed (tunggu sesi paralel — berisi rename mereka) + `db:seed:worship:prod`
+(menunggu persetujuan eksplisit).
+
+**POV rapih (11 Okt, menyusul):** tab Panduan → Sambutan personal (nama + Rescue Plan +
+pesan positif; akses dibuka/tunggu), tab Komitmen dihapus (komitmen tetap field di
+Penutup) → stepper 5 tab; undian manual multi-select (search user + endpoint
+`testimony/manual`, jalan walau pool kosong). Verifikasi: lint ✓, suite 1042 hijau
+(1 flake lazy-routes lolos isolasi) ✓, `vite build` ✓.
+
 ## Current — Deck 17 slide + celengan + Kolom 1 (9 Okt 2026, uncommitted)
 
 **Kebutuhan:** dua bendahara (BPMJ vs Pembangunan), aliran celengan
@@ -12,6 +188,11 @@ slide `celengan` + glosarium Celengan + keputusan 8 butir (deck 17).
 **Verifikasi:** `lint` bersih ✓ 33 test hijau ✓ tanpa migrasi.
 
 **Next:** commit + push + sync + verifikasi live.
+
+**Deploy (9 Okt, ~17:30):** commit `81260ab` → push main ✓ → prod
+`/api/version` = `81260ab` ✓ (deck 17 slide live) → `staging:sync`
+penuh ✓ (branch + build + semua alias incl. districts/community, versi
+sama). File sesi paralel tak tersentuh.
 
 ## Current — Deck 16 slide (sumber dana + serah terima + visi portal) (9 Okt 2026, uncommitted)
 

@@ -247,6 +247,26 @@ acaranya, tenaga mengikuti yang bekerja.**
 | Contoh | DAP operasional event | DAP beli AC |
 | Dilarang | Menjadi "dana hilang" tanpa LPJ | Dialihkan ke keperluan lain tanpa keputusan |
 
+### VIb. BPPJ — pengawas yang belum ada (fokus ketok)
+
+Fakta Cikarang: **belum ada BPPJ**. Dasar (RESMI): dipilih, ditetapkan,
+dan diberhentikan Sidang atas usul BPMJ (Pasal 9 ayat 10, Pasal 23);
+duduk di Sidang sebagai undangan tanpa hak suara (Pasal 10 ayat 2b);
+diatur penuh di Peraturan tentang Pengawasan Perbendaharaan.
+
+* Syarat: 3–5 orang (jemaat), sidi + **bukan Pelsus** + kompeten
+  perbendaharaan; masa satu periode 4 tahun; dilantik dalam ibadah.
+* Tanggung jawab seyogyanya: membina & memberi petunjuk (bukan
+  menghukum), mencegah penyimpangan, memeriksa keabsahan, ikut tanda
+  tangan naskah serah terima; bila temuan merugikan → minta BPMS bentuk
+  tim investigasi → pihak berwajib; bila macet → eskalasi wilayah →
+  sinode.
+* Kenapa perlu di Cikarang: kas bercabang (2 bendahara, celengan 2
+  stream, kas BZP, DAP, kas pembantu) tanpa satu mata pengawas;
+  Bendahara tak bisa mengawasi dirinya sendiri.
+* Mandat perdana: verifikasi seluruh kas existing + co-sign serah terima
+  pre-18 Okt 2026.
+
 ---
 
 ## VII. Pertimbangan Komisi Kerja — GMIM Eben Haezer Cikarang

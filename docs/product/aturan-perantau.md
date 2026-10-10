@@ -42,6 +42,13 @@ peneguhan Penatua; hak suara untuk non-Pelsus; kas di luar pengawasan
 Bendahara; masa melebihi periode tanpa pemilihan ulang; pengangkatan
 langsung pengurus Kategorial (wajib Rapat Pemilihan, Pasal 33–36).
 
+**Matriks penegak (siapa mengawasi apa):** Sidang (memutuskan +
+memberhentikan) → BPMJ (mengusulkan + mengonsolidasi + mengeksekusi) →
+BPPJ (memverifikasi + menandatangani serah terima + merekomendasikan;
+dibentuk 3–5 orang karena Cikarang belum punya — lihat
+[tata-gereja-gmim](tata-gereja-gmim.md) §VIb) → Bendahara/Bendahara
+Pembangunan + Asben komisi (pelaksana kas harian).
+
 ## 4. Gerakan atestasi (prasyarat semua penempatan)
 
 Perantau wajib terdaftar di satu jemaat domisili + surat pindah
