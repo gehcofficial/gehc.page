@@ -353,7 +353,7 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
     imageFileId: images.cover,
     background: true,
     callout: content.fundamentalFirman?.text
-      ? { label: content.fundamentalFirman.ref || 'Fundamental Firman', value: content.fundamentalFirman.text }
+      ? { label: content.fundamentalFirman.ref ? `Teks Jangkar Mingguan · ${content.fundamentalFirman.ref}` : 'Teks Jangkar Mingguan', value: content.fundamentalFirman.text }
       : undefined,
     fields: [
       sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,

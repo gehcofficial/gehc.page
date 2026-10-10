@@ -207,6 +207,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [coverStyle, setCoverStyle] = useState<'AI' | 'UPLOAD' | 'MOTIF'>('AI');
   /** Status token Drive pemilik (untuk pra-cek sebelum generate gambar). */
   const [driveAuth, setDriveAuth] = useState<{ checked: boolean; ok: boolean; ownerEmail?: string | null }>({ checked: false, ok: true });
+  /** Hasil verifikasi ayat via bolls.life (TB kanonis + KJV/ESV pembanding; tanpa tulis DB). */
+  const [bibleCheck, setBibleCheck] = useState<{ loading: boolean; error?: string; checks?: Array<{ ref: string; parsed?: { book?: string; chapter?: number; verseStart?: number; verseEnd?: number }; results?: Array<{ version?: string; text?: string; ablated?: boolean; attribution?: string; error?: string }> }> } | null>(null);
 
   const checkDriveAuth = useCallback(async () => {
     try {
@@ -220,6 +222,34 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   }, []);
 
   useEffect(() => { if (tab === 'terbitkan') void checkDriveAuth(); }, [tab, checkDriveAuth]);
+
+  /** Perbandingan longgar teks DB vs kanonis (abaikan kapital/spasi/tanda baca). */
+  const looseSame = (a?: string, b?: string) => {
+    const n = (s?: string) => String(s || '').toLowerCase().replace(/[–—]/g, '-').replace(/[,"“”‘’.;:!?()]/g, '').replace(/\s+/g, ' ').trim();
+    return Boolean(n(a) && n(a) === n(b));
+  };
+
+  /** Verifikasi Teks Utama + Jangkar ke bolls.life (TB/KJV/ESV). Koreksi tetap manual. */
+  const verifyBibleVerses = useCallback(async () => {
+    const utama = String(studio.sermon?.teksUtama?.ref || '').trim();
+    const jangkar = String(studio.fundamentalFirman?.ref || '').trim();
+    if (!utama && !jangkar) {
+      setBibleCheck({ loading: false, error: 'Isi dulu Teks Utama / Fundamental Firman (ref).' });
+      return;
+    }
+    setBibleCheck({ loading: true });
+    try {
+      const q = new URLSearchParams({ versions: 'TB,KJV,ESV' });
+      if (utama) q.set('ref', utama);
+      if (jangkar) q.set('ref2', jangkar);
+      const r = await fetch(`/api/bible/verify?${q.toString()}`, { credentials: 'include' });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Server ${r.status}.`);
+      setBibleCheck({ loading: false, checks: d.checks || [] });
+    } catch (e: unknown) {
+      setBibleCheck({ loading: false, error: e instanceof Error ? e.message : 'Gagal verifikasi.' });
+    }
+  }, [studio.sermon?.teksUtama?.ref, studio.fundamentalFirman?.ref]);
   /** Gaya visual AI: sinematik | komunitas | minimal. */
   const [coverArtStyle, setCoverArtStyle] = useState('cinematic');
   const paths = useMemo(() => ensurePaths(studio), [studio]);
@@ -1494,6 +1524,62 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div className="grid sm:grid-cols-2 gap-3">
               <div><label className={labelCls}>Teks Utama Sermon (ref)</label><input value={studio.sermon?.teksUtama?.ref || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), ref: e.target.value } } }))} placeholder="mis. 2 Korintus 5:21" className={inputCls} /></div>
               <div><label className={labelCls}>Kutipan singkat Teks Utama</label><input value={studio.sermon?.teksUtama?.text || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), text: e.target.value } } }))} placeholder="Kutipan maks 180 karakter" className={inputCls} /></div>
+            </div>
+            {/* Verifikasi ayat via bolls.life — TB kanonis, KJV/ESV pembanding; koreksi manual */}
+            <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-sky-700" />
+                <p className="text-[11px] font-black text-sky-800">Verifikasi Alkitab · TB + KJV + ESV</p>
+                <button
+                  type="button"
+                  disabled={!canWrite || bibleCheck?.loading}
+                  onClick={() => void verifyBibleVerses()}
+                  className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[10px] font-bold disabled:opacity-50"
+                >
+                  {bibleCheck?.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />} Verifikasi ayat
+                </button>
+              </div>
+              <p className="text-[10px] text-[#8C8880]">Sumber: bolls.life (tanpa key). NIV tidak tersedia (dibatasi penerbit). Hasil hanya peringatan — tempel manual bila perlu.</p>
+              {bibleCheck?.error && <p className="text-[11px] text-red-600">{bibleCheck.error}</p>}
+              {(bibleCheck?.checks || []).map((c, ci) => {
+                const normRef = (s?: string) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                const want = [
+                  { ref: String(studio.sermon?.teksUtama?.ref || ''), text: studio.sermon?.teksUtama?.text || '' },
+                  { ref: String(studio.fundamentalFirman?.ref || ''), text: studio.fundamentalFirman?.text || '' },
+                ];
+                const dbText = (want.find((w) => w.ref && normRef(w.ref) === normRef(c.ref))?.text) ?? '';
+                const tb = (c.results || []).find((x) => x.version === 'TB' && !x.error);
+                const same = tb && !tb.ablated ? looseSame(tb.text, dbText) : null;
+                return (
+                  <div key={`${c.ref}-${ci}`} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
+                    <p className="text-[11px] font-bold text-[#1B1B1B]">{c.ref || '(ref kosong)'}
+                      {same === true && <span className="ml-2 text-[10px] font-bold text-emerald-700">✅ Sesuai TB</span>}
+                      {same === false && <span className="ml-2 text-[10px] font-bold text-amber-700">⚠️ Beda dari TB — salin &amp; tempel manual</span>}
+                    </p>
+                    {!c.parsed && <p className="text-[10px] text-red-600">Referensi tidak dikenali.</p>}
+                    {tb?.ablated && <p className="text-[10px] text-red-600">Teks ditarik penerbit di bolls.life.</p>}
+                    {tb?.text && !tb.ablated && (
+                      <div className="flex items-start gap-2">
+                        <p className="flex-1 text-[11px] text-[#1B1B1B]">TB: “{tb.text}”</p>
+                        <button
+                          type="button"
+                          onClick={() => { void copyText(tb.text || '').then((ok) => addToast(ok ? { type: 'success', title: 'Kutipan TB disalin — tempel manual ke kolom teks.' } : { type: 'error', title: 'Gagal menyalin.' })); }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold text-sky-700"
+                        >
+                          <Copy className="w-3 h-3" /> Salin
+                        </button>
+                      </div>
+                    )}
+                    {tb?.error && <p className="text-[10px] text-red-600">{tb.error}</p>}
+                    <details className="text-[10px] text-[#8C8880]">
+                      <summary className="cursor-pointer font-bold">Pembanding Inggris (KJV · ESV)</summary>
+                      {(c.results || []).filter((x) => x.version !== 'TB').map((x, xi) => (
+                        <p key={xi} className="mt-1"><b>{x.version}:</b> {x.error ? <span className="text-red-600">{x.error}</span> : `“${x.text}”`}</p>
+                      ))}
+                    </details>
+                  </div>
+                );
+              })}
             </div>
             {(Object.entries({ pengantar: 'Outline · 1 Pengantar', bedahTeologis: 'Outline · 2 Bedah Teologis', jembatan: 'Outline · 3 Jembatan', kesimpulan: 'Outline · 4 Kesimpulan (siap-baca)' }) as Array<[keyof NonNullable<DidaskaliaStudio['sermon']['outline']>, string]>).map(([key, label]) => (
               <div key={key}><label className={labelCls}>{label}</label><textarea value={studio.sermon?.outline?.[key] || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, outline: { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '', ...(s.sermon?.outline || {}), [key]: e.target.value } } }))} rows={key === 'kesimpulan' ? 3 : 4} className={inputCls} /></div>

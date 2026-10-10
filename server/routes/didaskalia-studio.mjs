@@ -519,6 +519,31 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     return res.status(400).json({ error: 'kind harus service atau rhb.' });
   }));
 
+  // ---------- Verifikasi ayat via bolls.life (READ-ONLY, tanpa API key) ----------
+  // GET /api/bible/verify?ref=2%20Korintus%205:21&ref2=Kolose%201:13-14&versions=TB,KJV,ESV
+  // → { checks: [{ ref, parsed, results: [{ version, text, verses, ablated, attribution } | { version, error }] }] }
+  // Canonical TB untuk materi prod; KJV/ESV pembanding studi. NIV ditolak
+  // (ablated penerbit). TIDAK menulis DB — koreksi tetap manual via Studio.
+  app.get('/api/bible/verify', requireRole(), wrap(async (req, res) => {
+    const { verifyVerse, BOLLS_VERSIONS } = await import('../lib/bolls.mjs');
+    const refs = [req.query?.ref, req.query?.ref2, req.query?.ref3]
+      .map((r) => String(r || '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    if (!refs.length) return res.status(400).json({ error: 'Parameter ref wajib (contoh: ?ref=2 Korintus 5:21).' });
+    const versions = String(req.query?.versions || 'TB')
+      .split(',')
+      .map((v) => v.trim().toUpperCase())
+      .filter(Boolean)
+      .slice(0, 4);
+    if (!versions.length) return res.status(400).json({ error: 'Parameter versions kosong.' });
+    const bad = versions.filter((v) => !BOLLS_VERSIONS[v]);
+    if (bad.length) return res.status(400).json({ error: `Versi belum didukung: ${bad.join(', ')} (pakai ${Object.keys(BOLLS_VERSIONS).join('/')}).` });
+    const checks = [];
+    for (const ref of refs) checks.push(await verifyVerse(ref, versions));
+    res.json({ checks, versions });
+  }));
+
   app.get('/api/didaskalia/ai-config', requireRole(), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.json({ config: { instruction: '', maxKnowledgeChars: 12000 } });
