@@ -6,8 +6,31 @@ const MONO = { id: 's-mono', slug: 'sesi-2026-10-11', eventId: 'ev-1', pattern: 
 const OTHER = { id: 's-lain', slug: 'sesi-lain', eventId: 'ev-2', pattern: { code: 'MONOLOG' } };
 
 describe('preferSession: tidak nyangkut di sesi pola lama', () => {
-  it('prev valid dipertahankan', () => {
-    expect(preferSession([FILM, MONO], { prevId: 's-film', eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('s-film');
+  it('prev relevan (sama event + sama pola) dipertahankan', () => {
+    expect(preferSession([FILM, MONO], { prevId: 's-film', eventId: 'ev-1', preferPattern: 'BEDAH_FILM' })).toBe('s-film');
+    expect(preferSession([FILM, MONO], { prevId: 's-mono', eventId: 'ev-1' })).toBe('s-mono');
+  });
+
+  it('prev beda pola dialihkan ke sesi event yang cocok pola bila ada', () => {
+    expect(preferSession([FILM, MONO], { prevId: 's-film', eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('s-mono');
+  });
+
+  it('prev beda pola dipertahankan bila belum ada yang cocok (banner mismatch yang bicara)', () => {
+    expect(preferSession([MONO], { prevId: 's-mono', eventId: 'ev-1', preferPattern: 'BEDAH_FILM' })).toBe('s-mono');
+  });
+
+  it('prev beda event diabaikan (pindah W2 → W3 tidak bawa sesi lama)', () => {
+    const rescueW2 = { id: 's-rescue', slug: 'sesi-2026-10-11-rescue-plan', eventId: 'ev-w2', pattern: { code: 'MONOLOG' } };
+    // Event W3 belum punya sesi → kosong (empty-state buat baru), bukan sesi W2.
+    expect(preferSession([rescueW2], { prevId: 's-rescue', eventId: 'ev-w3', preferPattern: 'BEDAH_FILM' })).toBe('');
+    // Event W3 sudah punya sesi film → pilih yang cocok pola.
+    const filmW3 = { id: 's-film-w3', slug: 'sesi-2026-10-17-bedah-film', eventId: 'ev-w3', pattern: { code: 'BEDAH_FILM' } };
+    expect(preferSession([rescueW2, filmW3], { prevId: 's-rescue', eventId: 'ev-w3', preferPattern: 'BEDAH_FILM' })).toBe('s-film-w3');
+  });
+
+  it('event tanpa sesi tidak comot sesi event lain', () => {
+    expect(preferSession([OTHER], { eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('');
+    expect(preferSession([OTHER], { eventId: 'ev-1' })).toBe('');
   });
 
   it('preferensi pola pekan menang atas urutan list', () => {

@@ -15,7 +15,7 @@ type Props = {
   ym: string;
   weekIndex: number;
   patternCode?: string | null;
-  event?: { id: string; name: string; serviceType?: string | null } | null;
+  event?: { id: string; name: string; serviceType?: string | null; eventDate?: string | null } | null;
   weekDate?: string | null;
   canWrite?: boolean;
   onPatternReset?: () => void;
@@ -186,6 +186,27 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   // Setelah reset pola yang tidak menghapus apa pun (sesi lama kept/terisi),
   // tahan seleksi kosong agar form film lama tidak langsung kepilih lagi.
   const suppressAutoSelect = useRef(false);
+  // Tanggal efektif sesi baru: ikut event (sudah termasuk geser, mis. 18→17),
+  // fallback tanggal pekan. WIB agar tidak meleset sehari.
+  const effDateStr = useMemo(() => {
+    const iso = String(event?.eventDate || '');
+    if (iso) {
+      const t = new Date(iso);
+      if (!Number.isNaN(t.getTime())) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+          }).formatToParts(t);
+          const y = parts.find((p) => p.type === 'year')?.value;
+          const m = parts.find((p) => p.type === 'month')?.value;
+          const d = parts.find((p) => p.type === 'day')?.value;
+          if (y && m && d) return `${y}-${m}-${d}`;
+        } catch { /* fallback ke tanggal pekan */ }
+      }
+    }
+    return String(weekDate || '').slice(0, 10) || ym;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.eventDate, weekDate, ym]);
 
   const linked = useMemo(() => {
     if (!event) return [];
@@ -255,10 +276,12 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   }, [selectedId, code]);
 
   useEffect(() => {
-    const date = String(weekDate || '').slice(0, 10) || ym;
-    setSlugDraft(slugify(`sesi-${date}`));
+    const date = effDateStr;
+    // Suffix pola untuk non-Monolog agar slug unik & jelas (mis. sesi-2026-10-17-bedah-film).
+    const stem = code === 'MONOLOG' ? `sesi-${date}` : `sesi-${date}-${code.toLowerCase().replace(/_/g, '-')}`;
+    setSlugDraft(slugify(stem));
     setTitleDraft(`${code === 'MONOLOG' ? 'Ibadah' : code} — ${event?.name || date}`);
-  }, [ym, weekDate, code, event]);
+  }, [ym, weekDate, code, event, effDateStr]);
 
   const guard = useMemo(() => {
     if (!detail) return { locked: false, reason: '' };
@@ -297,7 +320,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           slug: slugDraft.trim(),
           title: titleDraft.trim(),
           eventId: event?.id || null,
-          sessionDate: String(weekDate || '').slice(0, 10) || null,
+          sessionDate: effDateStr || null,
         }),
       });
       const d = await r.json().catch(() => ({}));
@@ -622,7 +645,10 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
 
         {!detail && event && (
           <div className="mt-3 rounded-xl border border-dashed border-[#D9D7D0] p-3 space-y-2">
-            <p className="text-[11px] text-[#8C8880]">Belum ada sesi untuk event ini. Buat sesi dari pola <b>{code}</b>:</p>
+            <p className="text-[11px] text-[#8C8880]">
+              Belum ada sesi {code !== 'MONOLOG' ? <b>{code}</b> : null} untuk event ini
+              {effDateStr ? <> ({effDateStr})</> : null}. Buat sesi baru dari pola <b>{code}</b> — link peserta/layar/kontrol baru diterbitkan:
+            </p>
             <div className="grid sm:grid-cols-2 gap-2">
               <input value={slugDraft} onChange={(e) => setSlugDraft(e.target.value)} placeholder="slug-sesi" className={INPUT} />
               <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Judul sesi" className={INPUT} />

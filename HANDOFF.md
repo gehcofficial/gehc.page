@@ -1,5 +1,31 @@
 # GEHC Portal — Handoff
 
+## Current — Draft W3 nyangkut di sesi Rescue Plan W2 (13 Okt 2026)
+
+**Laporan:** pola pekan W3 = Bedah Film (event sudah di 17 Okt prod), tapi tab Draft
+masih tampil sesi Rescue Plan Monolog milik event 11 Okt.
+
+**Akar:** `preferSession` (`worship-session-select.ts:19`) selalu menangkan `prevId`
+selama sesi ada di list — ganti event W2→W3 tak me-reset `selectedId` (komponen tak
+remount; `key` hanya `sessionEpoch`), jadi sesi W2 tetap terpilih + form/AI ikut
+pola lama. Ditambah: pilih pola di katalog tak membuat sesi baru, dan fallback
+`list[0]` mencot sesi event lain bila event aktif belum punya sesi.
+
+**Ubah (kode):** `worship-session-select.ts` (prev dihormati hanya
+bila se-event + se-pola; bila pola beda tapi ada sesi event yang cocok → pilih
+yang cocok; event tanpa sesi → `''` = empty-state buat baru, bukan sesi event
+lain) → `SessionDraftTab.tsx` (tipe event +`eventDate`; tanggal efektif sesi baru
+ikut event WIB fallback pekan; slug prefill `sesi-<tgl>-<pola>` untuk non-Monolog;
+teks empty-state sebut tanggal + link baru) → test
+`worship-session-select.test.ts` (+5: prev beda event, prev beda pola, event tanpa
+sesi; 11/11) → pemanggil (Draft + Kontrol) ikut tanpa ubah logika.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1113/1114 (1 flaky `lazy-routes` ChurchHub
+timeout, pra-ada) ✓. Tanpa migrasi DB. Sesi 11 Okt tak tersentuh.
+
+**Next:** QA staging (event W3 → katalog BEDAH_FILM → Draft lepas dari Rescue Plan
+→ Buat sesi `sesi-2026-10-17-bedah-film` → AI → Terapkan → Kontrol).
+
 ## Current — Geser SISTEMIK 18→17: satu aksi semua artefak ikut (uncommitted, 13 Okt 2026)
 
 **Laporan:** ganti tanggal event 18→17 via Kondisi → Pratinjau + Simpan, info sudah ada,
