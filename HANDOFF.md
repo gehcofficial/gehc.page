@@ -35,6 +35,21 @@ registrasi 10' PRA, no 3/8 notes varian, playbook §1/§3/§4) → test `worship
 `db:seed:worship:prod` HANYA atas persetujuan eksplisit. Follow-up: audit paralel 4 pola lain
 (menit tak diubah episode ini).
 
+**Deploy (13 Okt, ~10:45):** `db:seed:worship:staging` ✓ + baca-balik OK (MONOLOG: PRA/paralel/
+varian tersimpan; main=120 jemaat=105 kru=15) → commit `3118b1a` (9 file episode; seed +
+1 hunk docs DITAHAN milik sesi paralel) → push main ✓ → `staging:sync` ✓.
+**Insiden hotfix (discovered via prod 500):** commit paralel `684c073` mengimpor
+`server/routes/penatalayan-requests.mjs` yang tak ikut ter-commit → semua API prod
+`FUNCTION_INVOCATION_FAILED`. Hotfix `103b874` (4 file server+test milik sesi paralel,
+UI + screenshot tetap milik mereka) → push → prod `/api/version` = `103b874` ✓ pulih →
+`staging:sync` ulang → main = staging = `103b874` ✓.
+**Catatan:** (a) file seed (isi episode ini + restruktur 12-fase paralel) masih uncommitted —
+koordinasikan commit dengan sesi paralel, JANGAN `checkout` seed (staging DB sudah berisi);
+(b) tiap deploy prod menyapu alias `staging.*` ke deployment prod — `staging:sync` WAJIB
+dijalankan ulang setelah tiap push main (follow-up: pin domain staging.* ke branch staging
+di dasbor Vercel); (c) migrasi tabel `penatalayan-requests` di prod BELUM jalan (butuh
+persetujuan + sesi paralel) — endpoint-nya 500 sampai migrasi, tapi tak ganggu boot.
+
 ## Current — Family Tree hantu (Nicole): audit 10 rumah + always-sync (13 Okt 2026, uncommitted)
 
 **Laporan:** Family Tree Echad `2026-09` menampilkan Nicole yang "sudah tidak
