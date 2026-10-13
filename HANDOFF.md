@@ -120,12 +120,14 @@ uncommitted; JANGAN `git add -A`).
 (`fix(family-tree): hapus orphan Nicole/Gievara prod + audit ARSIP`) → push
 main OK (prod deploy dari main) → `staging:sync` OK (version staging vs main
 `9f33a9e` ✓ sama + alias unit). QA: bypass staging tak tersedia di env
-lokal, jadi smoke API lokal `PORT=8789 GEHC_ENV=staging` (server QA
-dimatikan setelahnya): `/api/db/groups` → Echad `2026-09`
-(Holly K./Aditya W., mentee non-ACTIVE=0) · Kairos (`ACTIVE:8 MOVED:1` =
-Veylicia by-design, disembunyikan kode) ✓. Sisa visual: konfirmasi user di
-`staging-youth` (pohon Echad tanpa Nicole; Kairos tanpa Christofel) +
-prod `youth.gehc.page` setelah deploy live.
+  lokal, jadi smoke API lokal `PORT=8789 GEHC_ENV=staging` (server QA
+  dimatikan setelahnya): `/api/db/groups` → Echad `2026-09`
+  (Holly K./Aditya W., mentee non-ACTIVE=0) · Kairos (`ACTIVE:8 MOVED:1` =
+  Veylicia by-design, disembunyikan kode) ✓. Sisa visual: konfirmasi user di
+  `staging-youth` (pohon Echad tanpa Nicole; Kairos tanpa Christofel) +
+  prod `youth.gehc.page` setelah deploy live.
+- Push `d17fe4a` ke main OK + `staging:sync` OK (version `d17fe4a` ✓ sama)
+  atas permintaan user — episode selesai.
 
 ## Current — Preview 2 variasi Pelsus: V1 `#/pelsus/` vs V2 `#/pelsus2/` by-person (10 Okt 2026, uncommitted)
 
