@@ -1,5 +1,40 @@
 # GEHC Portal — Handoff
 
+## Current — Geser SISTEMIK 18→17: satu aksi semua artefak ikut (uncommitted, 13 Okt 2026)
+
+**Laporan:** ganti tanggal event 18→17 via Kondisi → Pratinjau + Simpan, info sudah ada,
+tapi UI semua masih 18 (pill PROGRAM/EVENT, landing, Drive).
+
+**Akar (3 lapis):** (1) Dua jalur simpan: `Simpan kondisi (PUT)` hanya tulis
+`service_week_overrides` tanpa pindah baris; yang pindah hanya `Terapkan geser
+(POST dryRun:false)`. PUT tak cek tabrakan → override yatim + `needsMove`, data
+tetap 18. (2) `POST /geser` 409 karena 17 sudah terisi 2 baris — toast saja, tombol
+Simpan tetap sukses. (3) Apply lama hanya pindah 2 tabel (assignment+event, jam
+jadi midnight) tanpa rename `name/title`, tanpa pindah channel WA/schedule/sesi,
+tanpa rename Drive — pill/landing/Drive tetap 18.
+
+**Ubah (kode, belum commit):** `server/lib/service-events.mjs`
+(`renameServiceDateSuffix`) → `server/lib/service-geser.mjs` (baru: `planGeser`
+dry-run rinci + `applyGeser` transaksional: assignment, event+startDate (jam WIB
+dipertahankan via `shiftInstantKeepTime`), rename name, content title, sessionDate,
+schedule date, channel WA + eventId, timeline day; 409 bawa preview + label
+penghuni) → `service-overrides.mjs` (POST pakai lib baru + rename Drive
+best-effort; PUT GESER tolak bila bentrok/kosong) → `gdrive.mjs` (`renameFolder`)
++ `gdrive-events.mjs` (`renameEventFolders` by tag `[EV:slug:DIV]` + arsip, ID
+tetap) → `ServicePlanPanel.tsx` (satu alur Pratinjau/Terapkan sistemik, daftar
+tabrakan berlabel, Simpan dinonaktifkan untuk GESER, toast rinci + event
+`gehc:events-changed`) → test `service-geser.test.ts` (+7: rename, plan, apply,
+409, jam).
+
+**Verifikasi:** `lint` bersih ✓ `test` 1102/1103 (1 flaky `lazy-routes`
+ChurchHub timeout, lolos saat retry) ✓ `service-geser` 12/12 ✓. Tanpa migrasi DB.
+
+**Next:** kosongkan 2 baris penghuni 17 di staging → dry-run `18→17` → Terapkan
+sistemik → cek POV (ServicePlan chip, pill EVENT `17 Okt`, landing Agenda+detail,
+caption WA `Sabtu 17`, folder Drive baru, QR/check-in jalan) → commit file
+spesifik episode ini saja + push + `staging:sync`. Prod hanya setelah staging
+lolos. Pekan materi tetap W3 (by design); slug tetap.
+
 ## Current — Klik notif buka source SW: normalisasi URL push + navigasi (uncommitted)
 
 **Laporan:** selaku admin selalu dapat notif, tapi saat dibuka malah tampil source

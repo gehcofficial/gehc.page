@@ -8,7 +8,7 @@ import { ServingWeekChannelCard } from './ServingWeekChannelCard';
  * Tab gabungan "Ibadah Mingguan" — menggantikan Rencana bulan + Serving.
  * Alur: tentukan jenis layanan (Mentoring W1 / Serving W2+ bergilir) +
  * pola penanggung & tuan rumah → tema bulan → expand minggu (tema mingguan)
- * → kondisi khusus (GABUNGAN/LIBUR/ALIH, geser otomatis + rebase review).
+ * → kondisi khusus (GABUNGAN/LIBUR/ALIH/GESER sistemik + rebase review).
  * Matriks divisi tidak ada di sini (dikelola di Program & Event / Panel Divisi).
  */
 
@@ -157,13 +157,20 @@ export const ServicePlanPanel: React.FC = () => {
   const [condPartner, setCondPartner] = useState('');
   const [condLinked, setCondLinked] = useState('');
   const [condBusy, setCondBusy] = useState(false);
-  /** GESER: tanggal efektif + preview/apply pindah jadwal. */
+  /** GESER SISTEMIK: tanggal efektif + preview/apply pindah semua artefak. */
   const [condTo, setCondTo] = useState('');
   const [geserPreview, setGeserPreview] = useState<null | {
     assignments: Array<{ id: string; cycleIndex: number | null; responsible: string | null; host: string | null }>;
-    events: Array<{ id: string; name: string }>;
-    worshipSessionsFollow: number;
-    collisions: Array<{ kind: string; id: string }>;
+    events: Array<{ id: string; name: string; newName?: string }>;
+    worshipSessionsFollow?: number;
+    worshipSessions?: Array<{ id: string; title: string }>;
+    scheduleCount?: number;
+    channelCount?: number;
+    contentCount?: number;
+    timelineCount?: number;
+    driveFolderCount?: number;
+    newDateLabel?: string;
+    collisions: Array<{ kind: string; id: string; label?: string }>;
   }>(null);
   const [geserBusy, setGeserBusy] = useState(false);
   const [rebaseBusy, setRebaseBusy] = useState(false);
@@ -600,7 +607,7 @@ export const ServicePlanPanel: React.FC = () => {
     }
   };
 
-  /** GESER: preview dry-run lalu apply pindah (override + assignment + event). */
+  /** GESER SISTEMIK: preview dry-run lalu apply pindah semua artefak (satu aksi). */
   const previewGeser = async () => {
     if (!condDate || !condTo) return;
     setGeserBusy(true);
@@ -612,8 +619,10 @@ export const ServicePlanPanel: React.FC = () => {
         body: JSON.stringify({ from: condDate, to: condTo, dryRun: true }),
       });
       const d = await r.json().catch(() => ({}));
+      // 409 bentrok tetap bawa preview → tampilkan penghuni tanggal tujuan.
+      if (d.preview) setGeserPreview(d.preview);
+      else setGeserPreview(null);
       if (!r.ok) throw new Error(d.error || 'Gagal pratinjau geser');
-      setGeserPreview(d.preview);
     } catch (e: unknown) {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal pratinjau' });
     } finally {
@@ -623,7 +632,11 @@ export const ServicePlanPanel: React.FC = () => {
 
   const applyGeser = async () => {
     if (!condDate || !condTo) return;
-    if (!window.confirm(`Pindahkan ibadah ${condDate} → ${condTo}? Jadwal, event, sesi & check-in ikut pindah. Drive tidak di-rename.`)) return;
+    const p = geserPreview;
+    const ringkas = p
+      ? `${p.assignments.length} jadwal + ${p.events.length} event + ${p.worshipSessions?.length ?? p.worshipSessionsFollow ?? 0} sesi + ${p.scheduleCount ?? 0} tugas + ${p.channelCount ?? 0} grup WA + ${p.contentCount ?? 0} konten → ${condTo}. Nama event/judul/folder Drive ikut tanggal baru; slug/QR/check-in tetap.`
+      : `Pindahkan ibadah ${condDate} → ${condTo} secara sistemik?`;
+    if (!window.confirm(`Pindahkan sistemik ${condDate} → ${condTo}?\n${ringkas}`)) return;
     setGeserBusy(true);
     try {
       const r = await fetch('/api/service-overrides/geser', {
@@ -633,8 +646,16 @@ export const ServicePlanPanel: React.FC = () => {
         body: JSON.stringify({ from: condDate, to: condTo, note: condNote.trim() || null, dryRun: false }),
       });
       const d = await r.json().catch(() => ({}));
+      if (d.preview) setGeserPreview(d.preview);
       if (!r.ok) throw new Error(d.error || 'Gagal menggeser');
-      addToast({ type: 'success', title: `Geser OK: ${d.moved?.assignments || 0} jadwal + ${d.moved?.events || 0} event → ${condTo}` });
+      const m = d.moved || {};
+      const drv = d.drive || {};
+      addToast({
+        type: 'success',
+        title: `Geser sistemik OK → ${condTo}`,
+        description: `${m.assignments || 0} jadwal · ${m.events || 0} event · ${m.sessions || 0} sesi · ${m.schedules || 0} tugas · ${m.channels || 0} grup WA · ${m.contents || 0} konten${(drv.renamed?.length || 0) ? ` · Drive ${drv.renamed.length} folder` : ''}${(drv.errors?.length || 0) ? ` · Drive: ${drv.errors.length} gagal (cek log)` : ''}`,
+      });
+      try { window.dispatchEvent(new CustomEvent('gehc:events-changed')); } catch { /* abaikan */ }
       setCondDate(null);
       setGeserPreview(null);
       await fetchSchedule();
@@ -938,15 +959,28 @@ export const ServicePlanPanel: React.FC = () => {
                                     <span className="text-xs font-bold">{iso} →</span>
                                     <input type="date" value={condTo} onChange={(e) => { setCondTo(e.target.value); setGeserPreview(null); }} className="px-2 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white" />
                                     <button type="button" onClick={() => void previewGeser()} disabled={geserBusy || !condTo} className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-40">
-                                      {geserBusy ? 'Memeriksa…' : 'Pratinjau'}
+                                      {geserBusy ? 'Memeriksa…' : 'Pratinjau sistemik'}
                                     </button>
                                   </div>
-                                  {geserPreview && (
+                                  {geserPreview && geserPreview.collisions.length > 0 && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 p-2 text-[11px] text-red-800 space-y-1">
+                                      <p className="font-bold">⛔ Tanggal {condTo} sudah terisi ({geserPreview.collisions.length} baris) — kosongkan dulu:</p>
+                                      <ul className="list-disc pl-4 space-y-0.5">
+                                        {geserPreview.collisions.slice(0, 5).map((c) => (
+                                          <li key={`${c.kind}-${c.id}`}>{c.label || `${c.kind} ${c.id}`}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {geserPreview && geserPreview.collisions.length === 0 && (
                                     <div className="text-[11px] text-[#1B1B1B] space-y-1">
-                                      <p>📦 {geserPreview.assignments.length} jadwal{geserPreview.assignments.map((a) => ` (idx ${a.cycleIndex}/10 ${a.responsible || ''}→${a.host || ''}`).join('')} + {geserPreview.events.length} event + {geserPreview.worshipSessionsFollow} sesi ikut pindah.</p>
-                                      <p className="text-[#8C8880]">Drive tidak di-rename · QR/WA/check-in ikut eventId · materi tetap pekan ini.</p>
+                                      <p>📦 {geserPreview.assignments.length} jadwal{geserPreview.assignments.map((a) => ` (idx ${a.cycleIndex}/10 ${a.responsible || ''}→${a.host || ''}`).join('')} + {geserPreview.events.length} event + {geserPreview.worshipSessions?.length ?? geserPreview.worshipSessionsFollow ?? 0} sesi + {geserPreview.scheduleCount ?? 0} tugas + {geserPreview.channelCount ?? 0} grup WA + {geserPreview.contentCount ?? 0} konten{(geserPreview.driveFolderCount ?? 0) ? ` + ${geserPreview.driveFolderCount} folder Drive` : ''} ikut pindah.</p>
+                                      {geserPreview.events.slice(0, 2).map((e) => e.newName && e.newName !== e.name ? (
+                                        <p key={e.id} className="text-[#8C8880]">✏️ “{e.name}” → “{e.newName}”</p>
+                                      ) : null)}
+                                      <p className="text-[#8C8880]">Nama event/judul konten/folder Drive ikut tanggal baru · slug/QR/WA/check-in tetap (ikut eventId) · materi tetap pekan ini.</p>
                                       <button type="button" onClick={() => void applyGeser()} disabled={geserBusy} className="px-4 py-1.5 rounded-xl bg-violet-600 text-white text-xs font-bold disabled:opacity-40">
-                                        {geserBusy ? 'Memindahkan…' : `Terapkan geser → ${condTo}`}
+                                        {geserBusy ? 'Memindahkan…' : `Terapkan geser sistemik → ${condTo}`}
                                       </button>
                                     </div>
                                   )}
@@ -958,7 +992,11 @@ export const ServicePlanPanel: React.FC = () => {
                                   <button type="button" onClick={() => void deleteCond(iso)} className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50">Hapus (kembali normal)</button>
                                 )}
                                 <button type="button" onClick={() => setCondDate(null)} className="px-3 py-1.5 rounded-xl text-xs text-[#8C8880]">Batal</button>
-                                <button type="button" onClick={() => void saveCond()} disabled={condBusy} className="px-4 py-1.5 rounded-xl bg-violet-600 text-white text-xs font-bold disabled:opacity-40">{condBusy ? 'Menyimpan…' : 'Simpan kondisi'}</button>
+                                {condValue === 'GESER' ? (
+                                  <span title="GESER wajib lewat Terapkan geser sistemik agar semua ikut pindah" className="px-4 py-1.5 rounded-xl bg-gray-100 text-gray-400 text-xs font-bold cursor-not-allowed">Simpan kondisi (pakai Terapkan di atas)</span>
+                                ) : (
+                                  <button type="button" onClick={() => void saveCond()} disabled={condBusy} className="px-4 py-1.5 rounded-xl bg-violet-600 text-white text-xs font-bold disabled:opacity-40">{condBusy ? 'Menyimpan…' : 'Simpan kondisi'}</button>
+                                )}
                               </div>
                             </div>
                           )}

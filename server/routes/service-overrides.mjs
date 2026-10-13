@@ -1,7 +1,8 @@
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { listOverrides, upsertOverride, deleteOverride, OVERRIDE_CONDITIONS } from '../lib/service-overrides.mjs';
-import { wibDateOnly } from '../lib/event-venue.mjs';
+import { planGeser, applyGeser } from '../lib/service-geser.mjs';
+import { archiveFolderName } from '../lib/drive-folders.mjs';
 
 function toISODate(v) {
   if (!v) return null;
@@ -43,6 +44,25 @@ export function registerServiceOverrideRoutes(app, { wrap }) {
         const ev = await prisma.eventProgram.findUnique({ where: { id: linkedEventId }, select: { id: true } }).catch(() => null);
         if (!ev) return res.status(404).json({ error: 'Event alihan tidak ditemukan.' });
       }
+      // GESER via PUT hanya catat override — cegah override yatim: tolak bila
+      // tanggal tujuan bentrok atau tidak ada sumber. Untuk pindah sistemik
+      // (jadwal+event+sesi+channel+nama+Drive) pakai POST /geser dryRun:false.
+      if (condition === 'GESER' && newEventDate) {
+        try {
+          const { preview, collisions } = await planGeser(prisma, iso, String(newEventDate).slice(0, 10));
+          if (collisions.length) {
+            return res.status(409).json({
+              error: `Tanggal ${preview.to} sudah terisi (${collisions.length} baris: ${collisions.slice(0, 3).map((c) => c.label).join(' | ')}) — kosongkan dulu atau pakai Terapkan geser sistemik.`,
+              preview,
+            });
+          }
+          if (!preview.assignments.length && !preview.events.length && !preview.channels.length) {
+            return res.status(404).json({ error: `Tidak ada jadwal/event serving pada ${preview.from}.`, preview });
+          }
+        } catch (e) {
+          return res.status(e.status === 409 || e.status === 404 ? e.status : 400).json({ error: e.message });
+        }
+      }
       try {
         const saved = await upsertOverride(prisma, {
           eventDate: iso,
@@ -75,10 +95,12 @@ export function registerServiceOverrideRoutes(app, { wrap }) {
     }),
   );
 
-  // POST /api/service-overrides/geser — pindah ibadah ke tanggal efektif.
+  // POST /api/service-overrides/geser — pindah ibadah SISTEMIK ke tanggal efektif.
   // Body: { from: 'YYYY-MM-DD' (slot Minggu), to: 'YYYY-MM-DD', note?, dryRun? }
-  // dryRun=true → preview baris terdampak tanpa menulis. apply → override GESER +
-  // pindah servingAssignment + eventProgram serving. Session/check-in/Drive ikut eventId.
+  // dryRun=true → preview semua artefak tanpa menulis. apply → override GESER +
+  // pindah assignment + event (rename suffix tanggal) + sesi + jadwal petugas +
+  // channel WA + konten + timeline + rename folder Drive (best-effort).
+  // slug event/sesi tetap → QR/WA/check-in ikut eventId. Pekan materi tetap.
   app.post(
     '/api/service-overrides/geser',
     requireRole('KOMISI', 'SUPERADMIN'),
@@ -93,87 +115,53 @@ export function registerServiceOverrideRoutes(app, { wrap }) {
       if (!to) return res.status(400).json({ error: 'to wajib (YYYY-MM-DD, tanggal efektif).' });
       if (from === to) return res.status(400).json({ error: 'Tanggal geser harus berbeda dari tanggal asal.' });
 
-      const dayRange = (iso) => {
-        const day = new Date(`${iso}T00:00:00.000Z`);
-        return { gte: new Date(day.getTime() - 24 * 3600 * 1000), lt: new Date(day.getTime() + 2 * 24 * 3600 * 1000) };
-      };
-      const onDay = async (iso) => {
-        const r = dayRange(iso);
-        const [assignments, events] = await Promise.all([
-          prisma.servingAssignment.findMany({
-            where: { eventDate: { gte: r.gte, lt: r.lt } },
-            include: {
-              responsibleGroup: { select: { id: true, name: true } },
-              hostGroup: { select: { id: true, name: true } },
-            },
-          }).catch(() => []),
-          prisma.eventProgram.findMany({
-            where: { eventDate: { gte: r.gte, lt: r.lt } },
-            select: { id: true, name: true, serviceType: true, eventDate: true, status: true },
-          }).catch(() => []),
-        ]);
-        return {
-          assignments: assignments.filter((a) => wibDateOnly(a.eventDate) === iso),
-          events: events.filter((e) => wibDateOnly(e.eventDate) === iso),
-        };
-      };
-
-      const src = await onDay(from);
-      const dst = await onDay(to);
-      const movingEvents = src.events.filter((e) => ['SERVING_DAY', 'MENTORING_DAY'].includes(String(e.serviceType || '').toUpperCase()));
-      let sessionCount = 0;
-      if (movingEvents.length) {
-        sessionCount = await prisma.worshipSession.count({ where: { eventId: { in: movingEvents.map((e) => e.id) } } }).catch(() => 0);
-      }
-      const collisions = [
-        ...dst.assignments.map((a) => ({ kind: 'assignment', id: a.id })),
-        ...dst.events.map((e) => ({ kind: 'event', id: e.id, name: e.name })),
-      ];
-      const preview = {
-        from,
-        to,
-        assignments: src.assignments.map((a) => ({
-          id: a.id,
-          cycleIndex: a.cycleIndex,
-          responsible: a.responsibleGroup?.name || null,
-          host: a.hostGroup?.name || null,
-        })),
-        events: movingEvents.map((e) => ({ id: e.id, name: e.name, serviceType: e.serviceType, status: e.status })),
-        otherEventsOnDay: src.events.filter((e) => !movingEvents.some((m) => m.id === e.id)).map((e) => ({ id: e.id, name: e.name })),
-        worshipSessionsFollow: sessionCount,
-        collisions,
-        driveNote: 'Folder Drive berbasis nama+slug — tidak perlu rename; QR/WA/check-in ikut eventId.',
-      };
-      if (collisions.length) {
-        return res.status(409).json({ error: `Tanggal ${to} sudah terisi (${collisions.length} baris) — pilih tanggal lain atau kosongkan dulu.`, preview });
-      }
-      if (!src.assignments.length && !movingEvents.length) {
-        return res.status(404).json({ error: `Tidak ada jadwal/event serving pada ${from}.`, preview });
-      }
-      if (dryRun) {
-        return res.json({ ok: true, dryRun: true, preview });
+      try {
+        const { preview } = await planGeser(prisma, from, to);
+        const collisions = preview.collisions || [];
+        if (collisions.length) {
+          return res.status(409).json({
+            error: `Tanggal ${to} sudah terisi (${collisions.length} baris: ${collisions.slice(0, 3).map((c) => c.label).join(' | ')}) — pilih tanggal lain atau kosongkan dulu.`,
+            preview,
+          });
+        }
+        if (!preview.assignments.length && !preview.events.length && !preview.channels.length) {
+          return res.status(404).json({ error: `Tidak ada jadwal/event serving pada ${from}.`, preview });
+        }
+        if (dryRun) {
+          return res.json({ ok: true, dryRun: true, preview });
+        }
+      } catch (e) {
+        return res.status(e.status === 409 || e.status === 404 ? e.status : 400).json({ error: e.message, preview: e.preview || null });
       }
 
       const note = req.body?.note ? String(req.body.note).slice(0, 500) : null;
-      await upsertOverride(prisma, {
-        eventDate: from,
-        condition: 'GESER',
-        note,
-        newEventDate: to,
-        createdById: req.authUser?.id || null,
-      });
-      const target = new Date(`${to}T00:00:00.000Z`);
-      let movedAssignments = 0;
-      let movedEvents = 0;
-      for (const a of src.assignments) {
-        await prisma.servingAssignment.update({ where: { id: a.id }, data: { eventDate: target } }).catch(() => null);
-        movedAssignments += 1;
+      let result;
+      try {
+        result = await applyGeser(prisma, { from, to, note, createdById: req.authUser?.id || null });
+      } catch (e) {
+        return res.status(e.status === 409 || e.status === 404 ? e.status : 400).json({ error: e.message, preview: e.preview || null });
       }
-      for (const e of movingEvents) {
-        await prisma.eventProgram.update({ where: { id: e.id }, data: { eventDate: target } }).catch(() => null);
-        movedEvents += 1;
+      // Rename folder Drive best-effort (ID tetap → link tidak putus).
+      let drive = { renamed: [], skipped: [], errors: [] };
+      try {
+        const { renameEventFolders } = await import('../gdrive-events.mjs');
+        for (const r of result.renamed.filter((x) => x.to)) {
+          const evRow = await prisma.eventProgram.findUnique({ where: { id: r.id }, select: { id: true, slug: true, name: true, archiveFolderId: true } }).catch(() => null);
+          if (!evRow) continue;
+          const archiveName = evRow.archiveFolderId ? archiveFolderName(`${to}T00:00:00.000Z`, r.to) : null;
+          const one = await renameEventFolders(
+            { slug: evRow.slug, name: r.from },
+            r.to,
+            { archiveFolderId: evRow.archiveFolderId || null, archiveName },
+          ).catch((e) => ({ renamed: [], skipped: [], errors: [e.message] }));
+          drive.renamed.push(...(one.renamed || []));
+          drive.skipped.push(...(one.skipped || []));
+          drive.errors.push(...(one.errors || []));
+        }
+      } catch (e) {
+        drive.errors.push(e.message);
       }
-      res.json({ ok: true, dryRun: false, preview, moved: { assignments: movedAssignments, events: movedEvents } });
+      res.json({ ok: true, dryRun: false, preview: result.preview, moved: result.moved, renamed: result.renamed, drive });
     }),
   );
 }

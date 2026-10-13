@@ -2,7 +2,7 @@
  * Auto-provision event folders under pillar Drive folders.
  * Name: `<Event> [EV:<slug>:<DIV>]` plus division subfolders.
  */
-import { listFolders, createFolder } from './gdrive.mjs';
+import { listFolders, createFolder, renameFolder, clearListCache } from './gdrive.mjs';
 
 const PILLAR_MATCH = {
   LITURGIA: /^liturgia/i,
@@ -114,4 +114,85 @@ export async function createEventFolder(event, division) {
     await ensureChild(eventFolder.id, child);
   }
   return eventFolder.id;
+}
+
+/**
+ * Rename sistemik folder event mengikuti nama baru (best-effort).
+ * Cari folder by tag stabil `[EV:slug:DIV]` di semua parent yang dikenal,
+ * lalu `files.update(name)`. ID folder tetap → link Drive tidak putus.
+ * Return { renamed, skipped, errors }.
+ */
+export async function renameEventFolders(event, newName, opts = {}) {
+  const out = { renamed: [], skipped: [], errors: [] };
+  if (!event?.slug || !newName || event.name === newName) {
+    if (!opts.archiveFolderId) return out;
+  }
+  const divisions = Object.keys(PILLAR_MATCH);
+  const rootId = process.env.GDRIVE_ROOT_FOLDER_ID;
+  if (!rootId) {
+    out.errors.push('GDRIVE_ROOT_FOLDER_ID belum diisi.');
+    return out;
+  }
+  const seen = new Set();
+  const wantName = (div) => `${newName} [EV:${event.slug}:${div}]`;
+  async function scanParent(parentId, division) {
+    let folders = [];
+    try {
+      folders = await listFolders(parentId, 100);
+    } catch (e) {
+      out.errors.push(`List ${division}: ${e.message}`);
+      return;
+    }
+    for (const f of folders || []) {
+      if (!new RegExp(`\\[EV:${event.slug}:${division}\\]`, 'i').test(f.name || '')) continue;
+      if (seen.has(f.id)) continue;
+      seen.add(f.id);
+      if ((f.name || '') === wantName(division)) {
+        out.skipped.push({ id: f.id, name: f.name });
+        continue;
+      }
+      try {
+        const r = await renameFolder(f.id, wantName(division));
+        out.renamed.push({ id: f.id, from: f.name, to: r?.name || wantName(division), division });
+      } catch (e) {
+        out.errors.push(`${f.name}: ${e.message}`);
+      }
+    }
+  }
+  // Parent kanonik per divisi + fallback root pillar (event lama pra-migrasi).
+  const pillarOf = {};
+  try {
+    const roots = await listFolders(rootId, 100);
+    for (const [div, match] of Object.entries(PILLAR_MATCH)) {
+      const p = (roots || []).find((f) => match.test(f.name || ''));
+      if (p) pillarOf[div] = p;
+    }
+  } catch (e) {
+    out.errors.push(`List root: ${e.message}`);
+    return out;
+  }
+  for (const div of divisions) {
+    const pillar = pillarOf[div];
+    if (!pillar) continue;
+    // Kumpulkan parent kandidat: kanonik (Kurikulum / Arsip Event) + root pillar.
+    const parents = new Set([pillar.id]);
+    try {
+      const l1 = await listFolders(pillar.id, 100);
+      for (const f of l1 || []) {
+        if (/^(kurikulum|arsip event|kurikulum pemuridan|kurikulum & pembekalan)$/i.test(f.name || '')) parents.add(f.id);
+      }
+    } catch { /* abaikan */ }
+    for (const pid of parents) await scanParent(pid, div);
+  }
+  // Arsip Marturia (satu folder per event, nama `YYYY-MM judul`) ikut tanggal efektif.
+  if (opts.archiveFolderId && opts.archiveName) {
+    try {
+      const r = await renameFolder(opts.archiveFolderId, String(opts.archiveName).slice(0, 200));
+      out.renamed.push({ id: opts.archiveFolderId, from: '(arsip)', to: r?.name || opts.archiveName, division: 'ARSIP' });
+    } catch (e) {
+      out.errors.push(`arsip: ${e.message}`);
+    }
+  }
+  try { clearListCache(); } catch { /* abaikan */ }
+  return out;
 }

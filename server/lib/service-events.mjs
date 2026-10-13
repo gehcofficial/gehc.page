@@ -40,6 +40,22 @@ export function formatServiceNameByType(bipra, kolom, serviceType, theme, sunday
   return formatServiceName(prefix, theme, sundayISO);
 }
 
+/**
+ * Ganti suffix tanggal ID di akhir nama event: " - 18 Okt 2026" → " - 17 Okt 2026".
+ * Dipakai geser sistemik agar pill EVENT, landing, dan judul konten ikut tanggal efektif.
+ * Hanya suffix yang cocok pola yang diganti; selain itu nama dikembalikan apa adanya.
+ */
+export function renameServiceDateSuffix(name, toISO) {
+  const s = String(name || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(toISO || ''))) return s;
+  const next = formatSundayID(toISO);
+  // Pola: " - DD Mon YYYY" di akhir (Mon = Jan..Des). Contoh: "Ibadah Pemuda Raya: Tema - 18 Okt 2026"
+  if (/ - \d{2} (Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des) \d{4}$/.test(s)) {
+    return s.replace(/ - \d{2} (Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des) \d{4}$/, ` - ${next}`);
+  }
+  return s;
+}
+
 /** Instant UTC untuk eventDate (tengah malam UTC di tanggal Minggu itu). */
 export function sundayInstant(sundayISO) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(sundayISO || ''))) return null;

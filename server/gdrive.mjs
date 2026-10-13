@@ -372,6 +372,22 @@ export async function deleteFile(fileId) {
 }
 
 /**
+ * Rename file/folder by ID (best-effort, dipakai geser sistemik).
+ */
+export async function renameFolder(fileId, newName) {
+  const drive = await getDrive();
+  const res = await drive.files.update({
+    fileId,
+    requestBody: { name: String(newName).slice(0, 200) },
+    fields: 'id, name',
+    supportsAllDrives: true,
+  });
+  clearListCache();
+  try { chainCache.delete(fileId); } catch { /* abaikan */ }
+  return res.data;
+}
+
+/**
  * Get file metadata by ID.
  */
 export async function getFileInfo(fileId) {
