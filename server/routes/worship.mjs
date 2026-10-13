@@ -11,8 +11,49 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
-import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS } from '../lib/session-stage.mjs';
+import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS } from '../lib/session-stage.mjs';
+
+/** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
+async function likertMeans(prisma, sessionId) {
+  try {
+    const rows = await prisma.worshipLikertResponse.groupBy({
+      by: ['itemId'],
+      where: { sessionId },
+      _avg: { value: true },
+      _count: { _all: true },
+    });
+    const out = {};
+    for (const r of rows) out[r.itemId] = { avg: Number(r._avg?.value) || 0, n: Number(r._count?._all) || 0 };
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Agregat ronde film untuk layar (rata-rata PRE vs POST + delta). */
+async function filmRoundMeans(prisma, sessionId) {
+  try {
+    const rows = await prisma.worshipLikertResponse.groupBy({
+      by: ['topicCode'],
+      where: { sessionId },
+      _avg: { value: true },
+      _count: { _all: true },
+    });
+    const pick = (code) => rows.find((r) => String(r.topicCode || '').toUpperCase() === code);
+    const pre = pick('FILM_PRE');
+    const post = pick('FILM_POST');
+    const preAvg = pre ? Number(pre._avg?.value) || 0 : null;
+    const postAvg = post ? Number(post._avg?.value) || 0 : null;
+    return {
+      pre: { avg: preAvg, n: pre ? Number(pre._count?._all) || 0 : 0 },
+      post: { avg: postAvg, n: post ? Number(post._count?._all) || 0 : 0 },
+      delta: preAvg != null && postAvg != null ? Math.round((postAvg - preAvg) * 10) / 10 : null,
+    };
+  } catch {
+    return { pre: { avg: null, n: 0 }, post: { avg: null, n: 0 }, delta: null };
+  }
+}
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 const YOUTH_TENANT = 'tenant-youth';
@@ -87,6 +128,8 @@ export function normalizeConfig(raw, patternCode) {
     song: c.song && typeof c.song === 'object' && !Array.isArray(c.song) ? c.song : null,
     // Trigger pertanyaan mentor (MONOLOG gabungan; ditulis endpoint stage).
     fgd: c.fgd && typeof c.fgd === 'object' && !Array.isArray(c.fgd) ? c.fgd : null,
+    // Gate Likert 2 ronde (BEDAH_FILM: AWAL baseline + AKHIR delta; ditulis endpoint stage).
+    likertRounds: c.likertRounds && typeof c.likertRounds === 'object' && !Array.isArray(c.likertRounds) ? c.likertRounds : null,
     // Timer fase aktif (MONOLOG: F1 20' + F2 25' + F3 10' + Closing 5'; display-only).
     phase: c.phase && typeof c.phase === 'object' && !Array.isArray(c.phase) ? c.phase : null,
   };
@@ -563,6 +606,9 @@ export function registerWorshipRoutes(app, { wrap }) {
           open: ['LIKERT_OPEN', 'RUNNING'].includes(live.status),
           answered: Object.keys(myValues).length > 0,
           myValues,
+          // Gate 2 ronde film (AWAL/AKHIR) + rata-rata per item untuk delta pre→post.
+          rounds: config.likertRounds || { pre: 'open', post: 'closed' },
+          means: await likertMeans(prisma, live.id),
         },
         chips: {
           list: (
@@ -600,13 +646,30 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
 
-      const session = await prisma.worshipSession.findUnique({ where: { slug: String(req.body?.slug || '') } });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.body?.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       if (!['LIKERT_OPEN', 'RUNNING'].includes(session.status)) {
         return res.status(409).json({ error: 'Form Likert belum dibuka atau sudah ditutup.' });
       }
 
-      const items = await prisma.worshipLikertItem.findMany({ where: { sessionId: session.id } });
+      // Ronde film (BEDAH_FILM): PRE = baseline awal, POST = ukur delta.
+      // Tanpa `round` = perilaku lama (semua item wajib, untuk Post-to-Post).
+      const round = String(req.body?.round || '').toUpperCase();
+      if (round && round !== 'PRE' && round !== 'POST') {
+        return res.status(400).json({ error: 'Ronde harus PRE atau POST.' });
+      }
+      const sessionConfig = normalizeConfig(session.config, session.pattern?.code);
+      if (round) {
+        const gate = (sessionConfig.likertRounds || { pre: 'open', post: 'closed' })[round.toLowerCase()];
+        if (gate === 'closed') {
+          return res.status(409).json({ error: `Likert ${round === 'PRE' ? 'AWAL' : 'AKHIR'} belum dibuka operator.` });
+        }
+      }
+      const allItems = await prisma.worshipLikertItem.findMany({ where: { sessionId: session.id } });
+      const items = round ? allItems.filter((i) => String(i.topicCode || '').toUpperCase() === `FILM_${round}`) : allItems;
       const answers = req.body?.answers && typeof req.body.answers === 'object' ? req.body.answers : {};
       const rows = [];
       for (const item of items) {
@@ -616,7 +679,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         }
         rows.push({ item, value });
       }
-      if (!rows.length) return res.status(400).json({ error: 'Sesi belum memiliki pertanyaan.' });
+      if (!rows.length) {
+        return res.status(400).json({ error: round ? `Sesi belum memiliki pertanyaan ronde ${round}.` : 'Sesi belum memiliki pertanyaan.' });
+      }
 
       await prisma.$transaction(
         rows.map(({ item, value }) =>
@@ -634,6 +699,11 @@ export function registerWorshipRoutes(app, { wrap }) {
           }),
         ),
       );
+
+      // Pola tanpa topik rank (mis. film): tanpa alokasi ruang — balas hitungan saja.
+      if (!sessionConfig.topics.length) {
+        return res.json({ ok: true, round: round || null, answered: rows.length, total: items.length });
+      }
 
       const agg = await loadAggregates(prisma, session);
       const mine = agg.perUser.get(req.authUser.id) || {};
@@ -795,6 +865,8 @@ export function registerWorshipRoutes(app, { wrap }) {
         rounds: agg.config.rounds,
         screening: agg.config.screening,
         teams: agg.config.teams,
+        // Agregat ronde film untuk delta pre→post di layar.
+        likertMeans: await filmRoundMeans(prisma, liveState.id),
         wrapUpAt: liveState.wrapUpAt ? new Date(liveState.wrapUpAt).toISOString() : null,
       });
     }),
@@ -1174,6 +1246,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         // MONOLOG: Q1-Q3 langsung terbuka + fase F1 20' jalan. Timer utama
         // dibungkam (horizon 3 jam) agar auto-wrapup tak menendang di tengah
         // 60 menit — semua countdown terlihat berasal dari config.phase.
+        // BEDAH_FILM: horizon 3 jam juga (film 90' + pasca; countdown dari screening).
         try {
           const withPattern = await prisma.worshipSession.findUnique({
             where: { id: session.id },
@@ -1188,6 +1261,8 @@ export function registerWorshipRoutes(app, { wrap }) {
               fgd: curQ === 0 ? { currentQ: 3, triggerBy: null, triggerName: null } : cfg.fgd,
               phase: { name: 'F1', startedAt: now.toISOString(), durationSec: MONOLOG_PHASE_SECONDS.F1 },
             };
+          } else if (String(withPattern?.pattern?.code || '').toUpperCase() === 'BEDAH_FILM') {
+            data.config = { ...cfg, timerSeconds: 10800 };
           }
         } catch {
           /* abaikan — status tetap jalan */
@@ -1472,9 +1547,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         sessionPattern,
       );
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
-      // MONOLOG: buat chip Lesson Learned dari section `lesson` draft (maks 10).
+      // MONOLOG & BEDAH_FILM: buat chip Lesson Learned dari section `lesson` draft (maks 10).
       let lessonChips = [];
-      if (sessionPattern === 'MONOLOG') {
+      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM') {
         const lesson = b.storedDraft?.lesson && typeof b.storedDraft.lesson === 'object' ? b.storedDraft.lesson : {};
         lessonChips = Array.from({ length: 10 }, (_, i) => String(lesson[`lesson-chip-${i + 1}`] || '').trim())
           .filter(Boolean)
@@ -1487,6 +1562,15 @@ export function registerWorshipRoutes(app, { wrap }) {
             };
           })
           .filter((x) => x.code && x.label.replace('#', '').trim());
+      }
+      // BEDAH_FILM: buat 10 item Likert dari section `likert-film` draft
+      // (5 pernyataan × 2 ronde PRE/POST, teks sama — tanpa migrasi skema).
+      let filmLikert = [];
+      if (sessionPattern === 'BEDAH_FILM') {
+        const lf = b.storedDraft?.['likert-film'] && typeof b.storedDraft['likert-film'] === 'object' ? b.storedDraft['likert-film'] : {};
+        filmLikert = Array.from({ length: 5 }, (_, i) => String(lf[`likert-film-${i + 1}`] || '').trim())
+          .map((text, i) => ({ n: i + 1, text }))
+          .filter((x) => x.text);
       }
       const legacyItems = await prisma.worshipLikertItem.findMany({
         where: { sessionId: session.id },
@@ -1511,7 +1595,25 @@ export function registerWorshipRoutes(app, { wrap }) {
           });
         }
       }
-      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length });
+      if (filmLikert.length) {
+        let order = 0;
+        for (const round of ['PRE', 'POST']) {
+          for (const it of filmLikert) {
+            order += 1;
+            await prisma.worshipLikertItem.create({
+              data: {
+                id: uid('wli'),
+                sessionId: session.id,
+                topicCode: `FILM_${round}`,
+                text: it.text,
+                gospelNote: null,
+                sortOrder: order,
+              },
+            });
+          }
+        }
+      }
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2 });
     }),
   );
 
@@ -1629,8 +1731,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         return res.status(400).json({ error: 'Belum ada yang hadir (check-in/Likert masih kosong).' });
       }
       const picks = readPicks(session);
-      // MONOLOG: 3 acak bebas (tanpa patokan peran); pola lain komposisi baku 2+1+1.
-      const need = String(session.pattern?.code || '').toUpperCase() === 'MONOLOG' ? TESTIMONY_NEED_MONOLOG : undefined;
+      // MONOLOG: 3 acak bebas; BEDAH_FILM: 1 Mentee + 1 Mentor; pola lain komposisi baku 2+1+1.
+      const patternCode = String(session.pattern?.code || '').toUpperCase();
+      const need = patternCode === 'MONOLOG' ? TESTIMONY_NEED_MONOLOG : patternCode === 'BEDAH_FILM' ? TESTIMONY_NEED_FILM : undefined;
       const fresh = composePicks(pool, picks.map((p) => p.userId), need);
       if (!fresh.length) return res.status(409).json({ error: 'Semua yang hadir sudah terpilih.' });
       const at = new Date().toISOString();
@@ -1754,6 +1857,12 @@ export function registerWorshipRoutes(app, { wrap }) {
         cfg.fgd = cleaned;
         out.fgd = cleaned;
       }
+      if (b.likertRounds !== undefined) {
+        const cleaned = cleanLikertRounds(b.likertRounds);
+        if (!cleaned) return res.status(400).json({ error: 'State gate Likert tidak valid.' });
+        cfg.likertRounds = cleaned;
+        out.likertRounds = cleaned;
+      }
       if (b.discussion !== undefined) {
         return res.status(400).json({ error: 'Timer diskusi terpisah tidak dipakai lagi — pakai phase F1/F2/F3/CLOSING.' });
       }
@@ -1796,7 +1905,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const session = await prisma.worshipSession.findUnique({
         where: { id: found.id },
-        include: { chips: { orderBy: { sortOrder: 'asc' } }, likertItems: true },
+        include: { chips: { orderBy: { sortOrder: 'asc' } }, likertItems: true, pattern: { select: { code: true } } },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const agg = await loadAggregates(prisma, session);
@@ -1820,6 +1929,35 @@ export function registerWorshipRoutes(app, { wrap }) {
         notesByUser.get(n.userId)[n.topicCode] = n.content;
       }
 
+      // BEDAH_FILM: kolom PRE/POST per pernyataan + delta (tanpa rank ruang).
+      if (String(session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM') {
+        const items = [...(session.likertItems || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        const preItems = items.filter((i) => String(i.topicCode || '').toUpperCase() === 'FILM_PRE');
+        const postItems = items.filter((i) => String(i.topicCode || '').toUpperCase() === 'FILM_POST');
+        const respRows = await prisma.worshipLikertResponse.findMany({ where: { sessionId: session.id } });
+        const valByUserItem = new Map(respRows.map((r) => [`${r.userId}|${r.itemId}`, r.value]));
+        const filmHeaders = ['Nama', 'Email', 'BIPRA', ...preItems.map((_, i) => `PRE_${i + 1}`), ...postItems.map((_, i) => `POST_${i + 1}`), 'DeltaRata', 'Catatan_Q1', 'Catatan_Q2', 'Catatan_Q3', 'Chip1', 'Chip2', 'Chip3', 'Komitmen'];
+        const filmLines = [filmHeaders.map(csvEscape).join(',')];
+        for (const [userId] of agg.perUser) {
+          const u = userById.get(userId);
+          const preVals = preItems.map((it) => Number(valByUserItem.get(`${userId}|${it.id}`) || 0));
+          const postVals = postItems.map((it) => Number(valByUserItem.get(`${userId}|${it.id}`) || 0));
+          const mean = (a) => (a.length ? a.reduce((n, v) => n + v, 0) / a.length : 0);
+          const delta = (mean(postVals) - mean(preVals)).toFixed(1);
+          const chips = (chipsByUser.get(userId) || []).slice(0, 3);
+          const myNotes = notesByUser.get(userId) || {};
+          filmLines.push([
+            u?.name || userId, u?.email || '', u?.bipra || '',
+            ...preVals.map((v) => String(v || '')), ...postVals.map((v) => String(v || '')), delta,
+            myNotes['FILM-Q1'] || '', myNotes['FILM-Q2'] || '', myNotes['FILM-Q3'] || '',
+            chips[0] || '', chips[1] || '', chips[2] || '', myNotes.KOMITMEN || myNotes.Kesimpulan || '',
+          ].map(csvEscape).join(','));
+        }
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="worship-${session.slug}.csv"`);
+        res.send(`\uFEFF${filmLines.join('\r\n')}`);
+        return;
+      }
       const topics = agg.config.topics;
       const headers = [
         'Nama',

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   canOpenSegmentPattern,
+  filmLikertMeans,
+  filmLikertPairs,
   isQuestionOpen,
   MERGED_PATTERN_ALIAS,
   MONOLOG_QUESTION_KEYS,
@@ -11,15 +13,15 @@ import {
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
-import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
-import { cleanFgd, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
+import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
   it('pola non-post-to-post punya 3+ segmen (MONOLOG berakhir di penutup)', () => {
     for (const [code, segs] of Object.entries(PATTERN_SEGMENTS)) {
       expect(code).not.toBe('POST_TO_POST');
       expect(segs.length).toBeGreaterThanOrEqual(3);
-      expect(segs[segs.length - 1].id).toBe(code === 'MONOLOG' ? 'penutup' : 'komitmen');
+      expect(segs[segs.length - 1].id).toBe(code === 'MONOLOG' ? 'penutup' : code === 'BEDAH_FILM' ? 'kesaksian' : 'komitmen');
     }
   });
 
@@ -36,9 +38,64 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('penutup');
   });
 
-  it('BEDAH_FILM berakhir di komitmen', () => {
+  it('BEDAH_FILM: likert-awal → nonton → deep → likert-akhir → komitmen → kesaksian', () => {
+    expect(segmentForPattern('BEDAH_FILM', 'DRAFT', false)).toBe('likert-awal');
+    expect(segmentForPattern('BEDAH_FILM', 'LIKERT_OPEN', false)).toBe('likert-awal');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false)).toBe('likert-awal');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, screeningOn: true })).toBe('nonton');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true })).toBe('deep');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true })).toBe('likert-akhir');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true, postAnswered: true })).toBe('komitmen');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true, postAnswered: true, chipDone: true })).toBe('kesaksian');
     expect(segmentForPattern('BEDAH_FILM', 'WRAPUP', false)).toBe('komitmen');
-    expect(segmentForPattern('BEDAH_FILM', 'LIKERT_OPEN', false)).toBe('nonton');
+    expect(segmentForPattern('BEDAH_FILM', 'WRAPUP', true, undefined, { chipDone: true })).toBe('kesaksian');
+    expect(segmentForPattern('BEDAH_FILM', 'CLOSED', false)).toBe('kesaksian');
+  });
+
+  it('BEDAH_FILM: widget likert/chips/testimony per segmen', () => {
+    expect(PATTERN_SEGMENTS.BEDAH_FILM.map((s) => s.id)).toEqual(['likert-awal', 'nonton', 'deep', 'likert-akhir', 'komitmen', 'kesaksian']);
+    expect(widgetsFor('BEDAH_FILM', 'likert-awal')).toEqual(['likert']);
+    expect(widgetsFor('BEDAH_FILM', 'likert-akhir')).toEqual(['likert']);
+    expect(widgetsFor('BEDAH_FILM', 'komitmen')).toEqual(['chips', 'notes', 'download']);
+    expect(widgetsFor('BEDAH_FILM', 'kesaksian')).toEqual(['testimony', 'download']);
+  });
+
+  it('filmLikertPairs memasangkan PRE/POST + delta per peserta', () => {
+    const items = [
+      { id: 'a1', topicCode: 'FILM_PRE', text: 'Saya berani otentik' },
+      { id: 'a2', topicCode: 'FILM_PRE', text: 'Saya pakai topeng' },
+      { id: 'b1', topicCode: 'FILM_POST', text: 'Saya berani otentik' },
+      { id: 'b2', topicCode: 'FILM_POST', text: 'Saya pakai topeng' },
+    ];
+    const pairs = filmLikertPairs(items, { a1: 2, a2: 4, b1: 4 });
+    expect(pairs).toHaveLength(2);
+    expect(pairs[0]).toMatchObject({ n: 1, pre: 2, post: 4, delta: 2 });
+    expect(pairs[1]).toMatchObject({ n: 2, pre: 4, post: null, delta: null });
+    const means = filmLikertMeans(pairs, { a1: { avg: 2.5, n: 4 }, b1: { avg: 4, n: 3 } });
+    expect(means[0]).toMatchObject({ n: 1, preAvg: 2.5, preN: 4, postAvg: 4, postN: 3, delta: 1.5 });
+    expect(means[1].delta).toBeNull();
+  });
+
+  it('undi film: 1 Mentee + 1 Mentor (fallback bebas)', () => {
+    expect(TESTIMONY_NEED_FILM).toEqual([['MENTEE', 1], ['MENTOR', 1]]);
+    const pool = [
+      { userId: 'm1', name: 'Mentee', roles: ['MENTEE'] },
+      { userId: 't1', name: 'Mentor', roles: ['MENTOR'] },
+      { userId: 'm2', name: 'Mentee 2', roles: ['MENTEE'] },
+    ];
+    const picks = composePicks(pool, [], TESTIMONY_NEED_FILM, () => 0);
+    expect(picks).toHaveLength(2);
+    expect(picks.map((p) => p.role).sort()).toEqual(['MENTEE', 'MENTOR']);
+    // Pool tanpa mentor → dilengkapi bebas.
+    const picks2 = composePicks(pool.filter((p) => p.userId !== 't1'), [], TESTIMONY_NEED_FILM, () => 0);
+    expect(picks2).toHaveLength(2);
+  });
+
+  it('cleanLikertRounds: default AWAL buka + AKHIR tutup', () => {
+    expect(cleanLikertRounds(null)).toBeNull();
+    expect(cleanLikertRounds({})).toEqual({ pre: 'open', post: 'closed' });
+    expect(cleanLikertRounds({ pre: 'closed', post: 'open' })).toEqual({ pre: 'closed', post: 'open' });
+    expect(cleanLikertRounds({ pre: 'aneh' })).toEqual({ pre: 'open', post: 'closed' });
   });
 
   it('POST_TO_POST mendelegasikan ke alur lama', () => {
@@ -202,7 +259,7 @@ describe('session-engine: widget segmen', () => {
 
   it('film: nonton = screening+notes, kesaksian = testimony', () => {
     expect(widgetsFor('BEDAH_FILM', 'nonton')).toEqual(['screening', 'notes']);
-    expect(widgetsFor('BEDAH_FILM', 'kesaksian')).toContain('testimony');
+    expect(widgetsFor('BEDAH_FILM', 'kesaksian')).toEqual(['testimony', 'download']);
   });
 
   it('debat memakai rounds; kode asing kosong', () => {

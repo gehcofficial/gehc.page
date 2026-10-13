@@ -190,6 +190,21 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   };
 
+  // Gate Likert 2 ronde film (M0 buka AWAL → M1 kunci AWAL → M3 buka AKHIR).
+  const filmSetRounds = async (pre: 'open' | 'closed', post: 'open' | 'closed', label: string) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      await saveStage(detail.session.id, { likertRounds: { pre, post } });
+      setMsg({ kind: 'ok', text: label });
+      await loadDetail();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan gate.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // 4 tombol fase MONOLOG (F1 20' → F2 25' → F3 10' → Closing 5'). T1/T3 via
   // state (server ikut menulis phase); T2/T4 via stage. Transisi manual.
   const monologPhase = async (name: 'F2' | 'CLOSING') => {
@@ -512,7 +527,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const patternCode = String(detail?.session?.pattern?.code || '').toUpperCase();
   const isPostToPost = patternCode === 'POST_TO_POST';
   const isMonolog = patternCode === 'MONOLOG';
-  const canManageChips = isPostToPost || isMonolog;
+  const isFilm = patternCode === 'BEDAH_FILM';
+  const canManageChips = isPostToPost || isMonolog || isFilm;
   const [showArchive, setShowArchive] = useState(false);
   const visibleSessions = useMemo(() => {
     let rows = sessions;
@@ -651,6 +667,47 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   >
                     Reset ke Draft
                   </button>
+                </>
+              ) : isFilm ? (
+                <>
+                  {(
+                    [
+                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL' },
+                      { key: 'M1', label: 'Mulai Film · 90’', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci.'); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL (durasi film via panel Pemutaran)' },
+                      { key: 'M3', label: 'Buka Likert AKHIR · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + tampil delta pre→post' },
+                      { key: 'M4', label: 'Komitmen + Undi · 10’', run: async () => { await doAction('wrapup'); setMsg({ kind: 'ok', text: 'Wrapup: komitmen + chip terbuka — undi 2 via panel Undian.' }); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + chip (undi 1 Mentee + 1 Mentor via panel Undian)' },
+                    ] as const
+                  ).map((b) => (
+                    <button
+                      key={b.key}
+                      type="button"
+                      disabled={busy || !b.on}
+                      onClick={() => void b.run()}
+                      title={b.title}
+                      className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-emerald-600"
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('close')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
+                  >
+                    Tutup Sesi
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('reset')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
+                  >
+                    Reset ke Draft
+                  </button>
+                  <span className="text-[11px] font-bold text-[#8C8880]">
+                    Gate: AWAL {String(detail.session.config?.likertRounds?.pre || 'open').toUpperCase()} · AKHIR {String(detail.session.config?.likertRounds?.post || 'closed').toUpperCase()}
+                  </span>
                 </>
               ) : (
               visibleActions.map((a) => {

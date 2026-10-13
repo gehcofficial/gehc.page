@@ -145,13 +145,19 @@ const BEDAH_FILM_TEMPLATE: DraftSection[] = [
   {
     key: 'film',
     title: 'Film & ayat',
-    hint: 'Film 60–95 menit yang isu sentralnya = tema pekan.',
+    hint: 'Film 60–95 menit yang isu sentralnya = tema pekan (total = 80 + durasi film).',
     fields: [
       t('film-title', 'Judul film', 'text', 'Judul (durasi menit)'),
       t('film-alt', 'Kandidat lain + alasan pilih', 'textarea', '2 kandidat + alasan kecocokan tiap film'),
       t('film-scenes', '3 adegan paralel firman', 'textarea', 'Adegan 1/2/3 + kaitan ayat'),
-      t('pleno-prompt', 'Pancingan pleno', 'textarea', 'Karakter siapa yang paling ...?'),
+      t('pleno-prompt', 'Pancingan cadangan', 'textarea', 'Karakter siapa yang paling ...?'),
     ],
+  },
+  {
+    key: 'likert-film',
+    title: 'Likert film (5 pernyataan, dipakai awal + akhir)',
+    hint: 'Tulis 5 pernyataan skala 1–5 seputar film/tema (baseline, tanpa jawaban benar/salah). Teks yang sama dipakai di ronde AWAL dan AKHIR.',
+    fields: [1, 2, 3, 4, 5].map((n) => t(`likert-film-${n}`, `Pernyataan ${n}`, 'textarea', 'Saya ...')),
   },
   {
     key: 'deep',
@@ -162,6 +168,12 @@ const BEDAH_FILM_TEMPLATE: DraftSection[] = [
       t('film-q2', 'Pertanyaan 2 — topeng terberat', 'textarea', 'Topeng apa ...?'),
       t('film-q3', 'Pertanyaan 3 — langkah otentik', 'textarea', 'Langkah otentik minggu ini ...?'),
     ],
+  },
+  {
+    key: 'lesson',
+    title: 'Chip Lesson Learned (maks 10)',
+    hint: 'Kata pelajaran 1-2 kata dari firman pekan (format #Kata, maks 3 dipilih per peserta). Tampil sebagai pilihan + word cloud di layar.',
+    fields: Array.from({ length: 10 }, (_, i) => t(`lesson-chip-${i + 1}`, `Chip ${i + 1}`, 'text', '#KataKunci')),
   },
 ];
 

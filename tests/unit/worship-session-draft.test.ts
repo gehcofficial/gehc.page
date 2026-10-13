@@ -53,6 +53,14 @@ describe('session-draft: template kosongan 5 pola', () => {
     expect(templateFieldKeys('DUAL_MONOLOG').map((f) => f.key)).toEqual(keys);
   });
 
+  it('BEDAH_FILM: film + likert 5 (2 ronde) + deep 3 + lesson 10', () => {
+    const keys = templateFieldKeys('BEDAH_FILM').map((f) => f.key);
+    for (const k of ['film-title', 'film-scenes', 'likert-film-1', 'likert-film-5', 'film-q1', 'film-q3', 'lesson-chip-1', 'lesson-chip-10']) {
+      expect(keys).toContain(k);
+    }
+    expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
+  });
+
   it('kosongan penuh → filled 0', () => {
     const c = countFilled(emptySessionDraft('POST_TO_POST'));
     expect(c.filled).toBe(0);
@@ -228,6 +236,22 @@ describe('session-draft: AI proposal', () => {
     expect(prompt).toContain('song-story');
     expect(prompt).toContain('perlu verifikasi tim');
     expect(prompt).toContain('Mengikut Yesus Keputusanku');
+  });
+
+  it('prompt likert film: 5 pernyataan dipakai 2 ronde', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'T',
+      fundamentalFirman: { ref: 'Why 2:10', text: 'Setia sampai mati...' },
+      pattern: { code: 'BEDAH_FILM', name: 'Movie Breakdown', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('BEDAH_FILM'),
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('LIKERT FILM');
+    expect(prompt).toContain('likert-film-1');
+    expect(prompt).toContain('LESSON LEARNED');
   });
 
   it('tanpa kunci song-* → aturan bedah lagu absen', async () => {

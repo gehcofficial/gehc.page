@@ -5,6 +5,8 @@ import {
   MONOLOG_QUESTION_KEYS,
   PATTERN_SEGMENTS,
   canOpenSegmentPattern,
+  filmLikertMeans,
+  filmLikertPairs,
   isQuestionOpen,
   noteSlotsFor,
   segmentForPattern,
@@ -12,6 +14,7 @@ import {
   type SegmentWidget,
 } from '../../lib/session-engine';
 import {
+  SCALE_LABELS,
   STATUS_LABELS,
   type MentoringSessionPayload,
 } from '../../lib/mentoring';
@@ -45,6 +48,149 @@ function fmtRemain(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
+
+type LikertPayload = NonNullable<MentoringSessionPayload['likert']>;
+
+/**
+ * Widget Likert film 2 ronde (AWAL baseline → AKHIR delta).
+ * Ronde ditentukan segmen aktif; gate ikut `likert.rounds` dari kontrol.
+ */
+const FilmLikertCard: React.FC<{
+  slug: string;
+  likert: LikertPayload;
+  round: 'PRE' | 'POST';
+  editable: boolean;
+  showDelta: boolean;
+  onDone: () => void;
+}> = ({ slug, likert, round, editable, showDelta, onDone }) => {
+  const pairs = useMemo(() => filmLikertPairs(likert.items || [], likert.myValues || {}), [likert]);
+  const means = useMemo(() => filmLikertMeans(pairs, likert.means || {}), [pairs, likert]);
+  const [vals, setVals] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    const init: Record<string, number> = {};
+    for (const p of pairs) {
+      const id = round === 'PRE' ? p.preId : p.postId;
+      const v = id ? likert.myValues?.[id] : null;
+      if (id && v != null) init[id] = Number(v);
+    }
+    setVals(init);
+  }, [pairs, likert, round]);
+  const gate = String(likert.rounds?.[round.toLowerCase() as 'pre' | 'post'] ?? (round === 'PRE' ? 'open' : 'closed')).toLowerCase();
+  const canAnswer = editable && likert.open && gate !== 'closed';
+  const ids = pairs.map((p) => (round === 'PRE' ? p.preId : p.postId)).filter(Boolean) as string[];
+  const answeredCount = ids.filter((id) => vals[id] != null).length;
+  const submit = useCallback(async () => {
+    if (answeredCount < ids.length) {
+      setNote('Isi semua 5 pernyataan dulu (skala 1–5).');
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    try {
+      const answers: Record<string, number> = {};
+      for (const id of ids) answers[id] = vals[id];
+      const r = await fetch('/api/worship/likert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ slug, answers, round }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengirim.');
+      setNote('Tersimpan — terima kasih atas kejujuranmu.');
+      onDone();
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Gagal mengirim.');
+    } finally {
+      setBusy(false);
+    }
+  }, [answeredCount, ids, onDone, slug, vals, round]);
+  return (
+    <div className={CARD}>
+      <h4 className="text-sm font-black text-[#1B1B1B]">
+        Likert {round === 'PRE' ? 'AWAL' : 'AKHIR'}
+        <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">baseline</span>
+      </h4>
+      <p className="text-[11px] text-[#8C8880] mt-1">
+        {round === 'PRE'
+          ? 'Potret jujur sebelum nonton — tidak ada jawaban salah.'
+          : 'Lima pernyataan yang SAMA — jawab lagi dengan jujur setelah film.'}
+      </p>
+      {!canAnswer && (
+        <p className="mt-2 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          {likert.open ? 'Ronde ini belum dibuka operator.' : 'Akses Likert belum dibuka.'}
+        </p>
+      )}
+      <div className="mt-3 space-y-3">
+        {pairs.map((p) => {
+          const id = (round === 'PRE' ? p.preId : p.postId) || '';
+          return (
+            <div key={p.n} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-3">
+              <p className="text-xs font-bold text-[#1B1B1B]">{p.n}. {p.text}</p>
+              <div className="mt-2 flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    title={SCALE_LABELS[v - 1]}
+                    disabled={!canAnswer || busy}
+                    onClick={() => setVals((prev) => ({ ...prev, [id]: v }))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-black border disabled:opacity-60 ${vals[id] === v ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        disabled={!canAnswer || busy || answeredCount < ids.length}
+        onClick={() => void submit()}
+        className="mt-3 w-full py-2.5 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50"
+      >
+        {busy ? 'Mengirim…' : `Kirim Likert ${round === 'PRE' ? 'AWAL' : 'AKHIR'} (${answeredCount}/${ids.length})`}
+      </button>
+      {note && <p className="mt-2 text-[11px] text-[#8C8880]">{note}</p>}
+      {showDelta && (
+        <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3">
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Perubahan (awal → akhir)</p>
+          <div className="mt-2 space-y-1.5">
+            {pairs.map((p, i) => {
+              const m = means[i];
+              return (
+                <div key={p.n} className="flex items-center gap-2 text-[11px]">
+                  <span className="font-bold text-[#1B1B1B] w-6">P{p.n}</span>
+                  <span className="flex-1 text-[#8C8880] truncate">{p.text}</span>
+                  <span className="tabular-nums font-bold">
+                    {p.pre ?? '–'} → {p.post ?? '–'}
+                  </span>
+                  {p.delta != null && (
+                    <span className={`px-1.5 py-0.5 rounded-full font-black ${p.delta > 0 ? 'bg-emerald-50 text-emerald-700' : p.delta < 0 ? 'bg-amber-50 text-amber-700' : 'bg-stone-100 text-stone-500'}`}>
+                      {p.delta > 0 ? `+${p.delta}` : p.delta}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-[#8C8880]">
+            Rata-rata kelompok: {means.length ? '' : 'belum ada data'}
+            {means.map((m, i) => (
+              <span key={i} className="tabular-nums">
+                {i > 0 ? ' · ' : ''}P{m.n} {m.preAvg ?? '–'}→{m.postAvg ?? '–'} ({m.preN}/{m.postN})
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /**
  * Alur peserta generik semua pola non-post-to-post: segmen + widget
@@ -130,7 +276,23 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   }, [c, data?.guide, data?.deepGuide]);
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
   const filled = noteKeys.some((k) => String(notes[k] || '').trim());
-  const segment = segmentForPattern(c, status, filled, live);
+  // Progres film untuk stepper (pre/post likert, deep 3Q, chip, screening).
+  const filmPairs = useMemo(
+    () => (c === 'BEDAH_FILM' ? filmLikertPairs(data?.likert.items || [], data?.likert.myValues || {}) : []),
+    [c, data],
+  );
+  const filmExtra = useMemo(() => {
+    if (c !== 'BEDAH_FILM') return undefined;
+    return {
+      preAnswered: filmPairs.length > 0 && filmPairs.every((p) => p.pre != null),
+      postAnswered: filmPairs.length > 0 && filmPairs.every((p) => p.post != null),
+      deepFilled: ['FILM-Q1', 'FILM-Q2', 'FILM-Q3'].every((k) => String(notes[k] || '').trim()),
+      chipDone,
+      // Langsung dari data (tanpa `has`, agar tak sirkular dengan `segment`).
+      screeningOn: Boolean(data?.screening?.startedAt),
+    };
+  }, [c, filmPairs, notes, chipDone, data]);
+  const segment = segmentForPattern(c, status, filled, live, filmExtra);
   // F1 (Bedah Lagu): HP hanya menampilkan Q1-Q3.
   const visibleSlots = useMemo(() => {
     if (c === 'MONOLOG' && segment === 'lagu') {
@@ -272,12 +434,21 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           heading: 'Catatan',
           lines: noteKeys.map((k) => ({ label: slotLabel(k), body: String(notes[k] || '') })),
         },
+        ...(c === 'BEDAH_FILM' && filmPairs.length
+          ? [{
+              heading: 'Likert Film (awal → akhir)',
+              lines: filmPairs.map((p) => ({
+                label: `P${p.n}`,
+                body: `${p.pre ?? '–'} → ${p.post ?? '–'}${p.delta != null ? ` (Δ${p.delta > 0 ? '+' : ''}${p.delta})` : ''} · ${p.text}`,
+              })),
+            }]
+          : []),
         { heading: 'Komitmen', lines: [{ body: String(notes[COMMITMENT_KEY] || '') }] },
       ],
       chips: chipLabels,
     });
     downloadBlob(filename, blob);
-  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c, picked]);
+  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c, picked, filmPairs]);
 
   if (state.status === 'loading') {
     return (
@@ -295,7 +466,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     );
   }
 
-  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live);
+  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live, filmExtra);
   const editable = status !== 'DRAFT' && status !== 'CLOSED';
 
   return (
@@ -408,6 +579,17 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             <p className="text-xs text-[#8C8880] italic">Film menyusul — siapkan hati, HP silent.</p>
           )}
         </div>
+      )}
+
+      {has('likert') && data?.likert && (
+        <FilmLikertCard
+          slug={slug}
+          likert={data.likert}
+          round={segment === 'likert-akhir' ? 'POST' : 'PRE'}
+          editable={editable}
+          showDelta={segment === 'likert-akhir' || (filmExtra?.postAnswered ?? false)}
+          onDone={() => void load()}
+        />
       )}
 
       {has('teams') && teams.length > 0 && (

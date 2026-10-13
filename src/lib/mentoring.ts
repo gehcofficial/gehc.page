@@ -112,6 +112,10 @@ export type MentoringSessionPayload = {
     open: boolean;
     answered: boolean;
     myValues: Record<string, number>;
+    /** Gate 2 ronde film (AWAL/AKHIR); pola lain abaikan. */
+    rounds?: { pre: string; post: string } | null;
+    /** Rata-rata per itemId (untuk delta pre→post film). */
+    means?: Record<string, { avg: number; n: number }>;
   };
   chips: { list: { code: string; label: string; topicCode?: string | null }[]; mine: string[]; open: boolean };
   me: { id: string; name: string };
@@ -158,6 +162,8 @@ export type MentoringLivePayload = {
   rounds?: SessionRounds;
   screening?: SessionScreening;
   teams?: SessionTeams;
+  /** Agregat ronde film (delta pre→post di layar). */
+  likertMeans?: { pre: { avg: number | null; n: number }; post: { avg: number | null; n: number }; delta: number | null } | null;
   wrapUpAt: string | null;
 };
 

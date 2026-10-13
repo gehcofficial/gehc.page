@@ -17,7 +17,7 @@
 
 ## 2. Aturan elastis (inti sebagai jangkar)
 
-- **Inti panjang** (Debat ±140, Bedah Film ±150): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
+- **Inti panjang** (Debat ±140, Bedah Film ±170): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
 - **Inti kurang** (Post-to-Post 60): **tambah di Didaskalia** — menu baku: tambah waktu segmen inti, monolog conclusi oleh speaker, kesaksian, 1 pertanyaan pendalaman, bedah 1 bait lagu.
 - Monolog gabungan 120 / 3 Sequences 120: hampir pas, tambahan kecil atau jalan apa adanya. Dual Monolog dilebur ke Monolog (arsip).
 
@@ -78,7 +78,7 @@ dan bisa diaudit. Yang terpilih bersaksi live; yang lain tetap menulis catatan +
 | Post-to-Post | per pos + kesimpulan (ada) | opsional via undian |
 | Monolog gabungan | bedah lagu + 3 FGD + 2 deep sharing + Satu Kata + komitmen (Q dibuka pemicu) | undian 4 |
 | Debat | argumen terbaik + yang meyakinkan | — |
-| Bedah Film | 3 Q + komitmen otentik | undian 4 (momen kesaksian) |
+| Bedah Film | Likert AWAL 5 + 3 Q + Likert AKHIR 5 + komitmen + chip | undian 2 (1 Mentee + 1 Mentor) |
 | 3 Sequences | laporan tim + deklarasi | — |
 
 ## 7. Pemetaan 5 pola → 180 menit
@@ -122,16 +122,18 @@ Dual Monolog diarsipkan dan diserap seluruhnya (bedah lagu, Satu Kata, deep shar
 | Syafaat = doa tutup | 5 | gabung |
 | Foto (pasca minimal) | 5 | hemat |
 
-### Bedah Film (±166')
+### Bedah Film (±170', baku film 90; total = 80 + durasi)
 
 | Segmen | Menit | Status |
 |---|---|---|
-| Pra + pembuka hemat (1 lagu) | 12 | hemat |
-| Pengantar + persembahan (gabung, doa pra-nonton) | 10 | gabung |
-| Film 91' + konsumsi paralel (tuan rumah) | 91 | tetap + paralel |
-| Transisi + pleno + deep sharing (catat di HP) | 30 | tetap |
-| Undian + kesaksian 4 orang | 13 | tambah |
-| Syafaat = doa tutup (tanpa berkat terpisah) | 5 | gabung |
+| Pra (registrasi + persiapan + paralel proyektor/matras) | 10 | tetap (T-minus) |
+| Pembuka (1 lagu + doa) + persembahan & syafaat | 15 | tetap |
+| Transisi/pengantar + Likert AWAL 5 item | 10 | tetap |
+| Film 90' + konsumsi paralel (tuan rumah) | 90 | tetap + paralel |
+| Deep sharing 3 Q (catat di HP) | 10 | tetap |
+| Likert AKHIR (sama) + delta di layar | 5 | tambah |
+| Komitmen + chip + undi 2 kesaksian | 10 | tambah |
+| Doa tutup + terima kasih + HUT | 15 | tetap |
 | Foto | 5 | tetap |
 
 ### 3 Sequences (±165')
@@ -158,7 +160,7 @@ Tamu, Absensi, Dekorasi. Diakonia: Kebersihan, Konsumsi.
 - `phases` tiap pola di DB = implementasi tabel §7 (diselaraskan via seed).
 - Modul web per pola (`modules[]`): post-to-post `likert/rooms/timer/notes/chips/wordcloud`;
   monolog `timer/notes/fgd/testimony`; debat `rounds/timer/teams`;
-  film `screening/timer/notes/testimony`; 3-seq `teams/timer/notes`. Dual diarsipkan.
+  film `screening/timer/notes/testimony/likert/chips/wordcloud`; 3-seq `teams/timer/notes`. Dual diarsipkan.
 - Teknis trigger mentor: `config.fgd {currentQ 0–5, triggerBy, triggerName}` via endpoint stage;
   lagu: `config.song {title, about, singer}`; agregat Satu Kata di endpoint live.
 - Rincian teknis: [`worship-patterns.md`](worship-patterns.md).

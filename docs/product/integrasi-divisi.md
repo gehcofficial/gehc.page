@@ -63,18 +63,22 @@ Likert). Guard: apply/convert/delete hanya DRAFT kosong.
 
 Modul: `rounds, timer, teams`. Kontrol: `DebatPanel` (mosi + fase + skor).
 
-### 2.4 BEDAH_FILM — Movie Breakdown (145')
+### 2.4 BEDAH_FILM — Movie Breakdown (170', baku film 90; total = 80 + durasi)
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
-| 1. Opening + praise + pengantar | 15 | praise×2 | — |
-| 2. Pemutaran film | 91 | — (Multimedia) | — |
-| 3. Pleno analisa | 15 | — | — |
-| 4. Team discussion | 25 | — | — |
-| 5. Persembahan + konklusi + berkat | 15 | persembahan×1 | — |
+| PRA Registrasi + persiapan (+paralel proyektor/matras) | 10 | — | — |
+| Praise + persembahan & syafaat | 15 | praise×1, persembahan×1 | — |
+| F0 transisi/pengantar + L0 Likert AWAL 5 item | 10 | — | — |
+| F1 Pemutaran film (+konsumsi paralel) | 90 | — (Multimedia) | — |
+| L1 Deep sharing 3 Q | 10 | — | — |
+| L2 Likert AKHIR (sama) + delta layar | 5 | — | — |
+| L3 Komitmen + chip + L4 undi 2 kesaksian | 10 | — | — |
+| Doa tutup + terima kasih + HUT + foto | 20 | — | — |
 
-Modul: `screening, timer, notes, testimony`. Kontrol: `ScreeningPanel`
-(countdown dari `startedAt + durationMin`).
+Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
+`ScreeningPanel` (countdown dari `startedAt + durationMin`) + tombol M0–M4
+(gate Likert AWAL/AKHIR via `likertRounds`, wrapup + undi 1 Mentee + 1 Mentor).
 
 ### 2.5 THREE_SEQUENCES — 3 Sequence (120')
 

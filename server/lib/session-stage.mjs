@@ -46,6 +46,16 @@ export function cleanScreening(raw) {
   return { title, durationMin, startedAt };
 }
 
+/** Normalisasi gate Likert 2 ronde (BEDAH_FILM): AWAL (baseline) & AKHIR (ukur delta). */
+export function cleanLikertRounds(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const gate = (v, fallback) => {
+    const s = String(v ?? fallback).toLowerCase();
+    return s === 'closed' ? 'closed' : 'open';
+  };
+  return { pre: gate(raw.pre, 'open'), post: gate(raw.post, 'closed') };
+}
+
 /** Normalisasi trigger pertanyaan mentor (MONOLOG gabungan): Q 0-5 + siapa pemicu. */
 export function cleanFgd(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

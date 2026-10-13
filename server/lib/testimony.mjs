@@ -14,6 +14,9 @@ export const TESTIMONY_TOTAL = TESTIMONY_NEED.reduce((n, [, c]) => n + c, 0);
 /** Komposisi MONOLOG: 3 acak bebas tanpa patokan peran (nama + grup tampil di layar). */
 export const TESTIMONY_NEED_MONOLOG = [['ANY', 3]];
 
+/** Komposisi BEDAH_FILM: 1 Mentee + 1 Mentor (fallback bebas bila peran kurang). */
+export const TESTIMONY_NEED_FILM = [['MENTEE', 1], ['MENTOR', 1]];
+
 /**
  * Gabung pilihan manual operator ke picks yang sudah ada (tanpa duplikat,
  * nomor slot berlanjut). Dipakai bila undian hari-H tidak jadi.

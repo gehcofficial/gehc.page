@@ -89,6 +89,13 @@ describe('worship: config & ranking', () => {
     expect(normalizeConfig(null).phase).toBeNull();
   });
 
+  it('normalizeConfig meneruskan likertRounds film (default null)', () => {
+    const d = normalizeConfig({ likertRounds: { pre: 'closed', post: 'open' } }, 'BEDAH_FILM');
+    expect(d.likertRounds).toEqual({ pre: 'closed', post: 'open' });
+    expect(normalizeConfig(null).likertRounds).toBeNull();
+    expect(normalizeConfig({}, 'POST_TO_POST').likertRounds).toBeNull();
+  });
+
   it('rankTopics: kerentanan tertinggi lebih dulu', () => {
     expect(rankTopics({ HUBUNGAN: 3, PEKERJAAN: 9, KELUARGA: 6 }, CONFIG)).toEqual([
       'PEKERJAAN',

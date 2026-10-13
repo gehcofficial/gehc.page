@@ -209,7 +209,7 @@ npm run db:seed:liturgia-songs:prod
 - **Peta awal (draf, perlu review Didaskalia):** MONOLOG f1
   praise×3/worship×2/bedah-lagu×1, f2 firman, f6 persembahan×2;
   POST_TO_POST f1 praise×2, f2 firman; DEBAT f1 pembuka×1 + firman,
-  f3 persembahan×1; BEDAH_FILM f1 praise×2, f5 persembahan×1;
+  f3 persembahan×1; BEDAH_FILM f3 praise×1, f4 persembahan×1;
   THREE_SEQUENCES f1 pembuka×1 + firman, f6 firman + persembahan×1.
 - **Composer Liturgia**: kartu referensi rundown (baca-saja) + tombol
   **Bangun kerangka** (bulk, append; konfirmasi bila susunan sudah ada).

@@ -431,7 +431,7 @@ export function patternBlock(pattern) {
   } else if (code === 'DEBAT') {
     lines.push('- Bentuk: ronde debat + konklusi teologis; discussionFlow = alur ronde, peran, penjurian; deliveryPlan tekankan moderasi netral & timer mutlak.');
   } else if (code === 'BEDAH_FILM') {
-    lines.push('- Bentuk: screening + pleno analisa; discussionFlow = panduan pleno + deep sharing identitas; deliveryPlan tekankan setup pemutaran & fasilitasi pleno.');
+    lines.push('- Bentuk: Likert AWAL 5 item (baseline) + screening + deep sharing 3Q + Likert AKHIR (5 item yang sama, ukur delta) + komitmen/chip + undi 2 kesaksian; discussionFlow = urutan L0→L4; deliveryPlan tekankan setup pemutaran, gate likert 2 ronde, & fasilitasi delta.');
   } else if (code === 'THREE_SEQUENCES') {
     lines.push('- Bentuk: gamifikasi 3 sequence tanpa jeda (Melayani → Bersekutu → Bersaksi) + commissioning; discussionFlow = brief tiap sequence + aturan presentasi 4 menit; deliveryPlan tekankan komando countdown, pembagian 5 tim Mission Room, dan deklarasi Coram Deo.');
   } else {
@@ -1050,12 +1050,21 @@ export async function generateSessionDraft(input) {
     '- Tiap chip lahir dari poin eksegesis langkah 1; tolak yang generik (mis. #Bahagia tanpa kaitan firman).',
     '- lesson-chip yang tak terisi ide konkret boleh dikosongkan (jangan diada-ada).',
   ] : [];
+  const hasFilmLikert = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('likert-film-'));
+  const LIKERT_RULES = hasFilmLikert ? [
+    'ATURAN LIKERT FILM (TEPAT 5 PERNYATAAN, WAJIB):',
+    '- Tiap pernyataan 1 kalimat "Saya ..." seputar film/tema pekan (baseline pemahaman, BUKAN ujian — tanpa jawaban benar/salah).',
+    '- Kaitkan ke isu film + Fundamental Firman; pakai skala setuju 1–5 (1 = sangat tidak setuju, 5 = sangat setuju).',
+    '- Teks yang SAMA dipakai di ronde AWAL (sebelum nonton) dan AKHIR (sesudah deep sharing) untuk mengukur perubahan.',
+    '- Yang kosong ide konkret boleh dikosongkan (jangan diada-ada).',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
     ...FGD_RULES,
     ...SONG_RULES,
     ...CHIP_RULES,
+    ...LIKERT_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',

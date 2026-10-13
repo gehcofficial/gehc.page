@@ -174,9 +174,10 @@ describe('worship-patterns: patternBlock semua pola', () => {
     expect(lines).toContain('timer mutlak');
   });
 
-  it('BEDAH_FILM memakai pleno', () => {
+  it('BEDAH_FILM memakai Likert pre/post + undi 2', () => {
     const lines = patternBlock({ code: 'BEDAH_FILM', name: 'Bedah Film', phases: [], playbook: 'x' }).join('\n');
-    expect(lines).toContain('pleno');
+    expect(lines).toContain('Likert AWAL');
+    expect(lines).toContain('undi 2 kesaksian');
   });
 
   it('THREE_SEQUENCES memakai 3 sequence + commissioning', () => {

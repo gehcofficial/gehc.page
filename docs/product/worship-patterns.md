@@ -77,7 +77,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - `POST_TO_POST`: `likert/rooms/timer/notes/chips/wordcloud` — penuh.
 - `MONOLOG`: `timer/notes/fgd/testimony` — penuh (bedah lagu + 5 Q dipicu mentor + Satu Kata + PDF di `#/mentoring/<slug>`). Menyerap Dual Monolog (diarsipkan; sesi lama migrasi otomatis).
 - `DEBAT`: `rounds/timer/teams` — penuh (panel ronde/fase/skor di kontrol, mosi + skor di peserta & layar).
-- `BEDAH_FILM`: `screening/timer/notes/testimony` — penuh (panel mulai/henti, countdown di peserta & layar).
+- `BEDAH_FILM`: `screening/timer/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti, countdown di peserta & layar, Likert AWAL/AKHIR 5 item + delta, chip + undi 2).
 - `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
 - Status panggung live (`PUT .../sessions/:id/stage`, tersimpan di `config.rounds/screening/teams`); alur peserta
   generik `PatternDay` (segmen + widget dari `session-engine.ts`) untuk semua pola non-post-to-post.
@@ -113,7 +113,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - Tab **Draft Sesi** di `DidaskaliaStudioPanel` → `SessionDraftTab`: cari/buat sesi milik event pekan ini
   (`eventId` dari tanggal pekan; `POST /api/worship/sessions` bila belum ada), lalu tampilkan **form kosongan
   per pola** (`src/lib/worship-session-draft.ts`: Post-to-Post = 3 topik × 3 Likert + 12 chip + afirmasi + timer;
-  Monolog = 3 Q FGD + lagu (judul/makna/penyanyi) + 2 Q deep sharing; Debat = 5 mosi + Trap Reveal; Bedah Film = film + 3 Q;
+   Monolog = 3 Q FGD + lagu (judul/makna/penyanyi) + 2 Q deep sharing; Debat = 5 mosi + Trap Reveal; Bedah Film = film + Likert 5 (2 ronde) + 3 Q + chip;
   3 Sequences = yel-yel/sandi + 2 amplop).
 - **Isi dari AI**: `POST /api/didaskalia/studio/:ym/:week/session-draft` (`generateSessionDraft` di
   `server/lib/didaskalia-ai.mjs`) membaca tema + firman + outline 7 Path + ringkasan khotbah pekan ini;

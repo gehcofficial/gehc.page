@@ -248,6 +248,24 @@ const MentoringScreen: React.FC = () => {
                 </section>
               );
             }
+            {(() => {
+              const m = patternCode === 'BEDAH_FILM' ? data.likertMeans : null;
+              if (!m || (m.pre.n === 0 && m.post.n === 0)) return null;
+              return (
+                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Perubahan setelah film (awal → akhir)</p>
+                  <p className="font-display text-5xl font-black tabular-nums">
+                    {m.pre.avg?.toFixed(1) ?? '–'} <span className="text-white/40 text-3xl">→</span> {m.post.avg?.toFixed(1) ?? '–'}
+                    {m.delta != null && (
+                      <span className={`ml-3 text-2xl px-3 py-1 rounded-full ${m.delta > 0 ? 'bg-emerald-400/20 text-emerald-300' : m.delta < 0 ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-white/60'}`}>
+                        {m.delta > 0 ? `+${m.delta}` : m.delta}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-white/50 mt-2 tabular-nums">rata-rata {m.pre.n} awal · {m.post.n} akhir</p>
+                </section>
+              );
+            })()}
             const screening = data.screening;
             if (patternCode === 'BEDAH_FILM' && screening) {
               const remain = screening.startedAt
