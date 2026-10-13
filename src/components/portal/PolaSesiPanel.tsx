@@ -13,6 +13,7 @@ type WeekMeta = {
   mentoringTheme?: string;
   servingTheme?: string;
   patternCode?: string;
+  patternVariant?: { opening?: string | null; offering?: string | null };
 };
 
 type Props = {
@@ -60,7 +61,10 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
 
   const [weekMeta, setWeekMeta] = useState<WeekMeta | null>(null);
   const [patterns, setPatterns] = useState<WorshipPatternLite[]>([]);
-  const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null } | null>(null);
+  const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null; eventDate?: string | null } | null>(null);
+  // Jam jemaat mulai (T0): preview lokal + tersimpan di eventDate (ISO). PRA tampil T-minus sebelumnya.
+  const [t0Input, setT0Input] = useState('');
+  const [t0Dirty, setT0Dirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +86,24 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
         mentoringTheme: d.week?.mentoringTheme,
         servingTheme: d.week?.servingTheme,
         patternCode: d.week?.patternCode || 'MONOLOG',
+        patternVariant: d.week?.patternVariant || { opening: 'KEDUANYA', offering: 'HEMAT' },
       });
       setEvent(d.event || null);
+      // Prefill jam T0 dari eventDate (bagian jam, WIB). Tanggal ikut weekMeta.date.
+      const evDate = String(d.event?.eventDate || '');
+      if (evDate) {
+        const t = new Date(evDate);
+        if (!Number.isNaN(t.getTime())) {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(t);
+          const hh = parts.find((p) => p.type === 'hour')?.value || '13';
+          const mm = parts.find((p) => p.type === 'minute')?.value || '00';
+          setT0Input(`${pad(Number(hh))}:${pad(Number(mm))}`);
+        }
+      } else {
+        setT0Input('');
+      }
+      setT0Dirty(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Gagal memuat.');
     } finally {
@@ -128,6 +148,67 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
     },
     [addToast, canWrite, activeYm, activeWeek],
   );
+
+  const saveVariant = useCallback(
+    async (patch: { opening?: string; offering?: string }) => {
+      if (!canWrite) return;
+      const next = {
+        opening: String(patch.opening ?? weekMeta?.patternVariant?.opening ?? 'KEDUANYA').toUpperCase(),
+        offering: String(patch.offering ?? weekMeta?.patternVariant?.offering ?? 'HEMAT').toUpperCase(),
+      };
+      setWeekMeta((m) => (m ? { ...m, patternVariant: next } : m));
+      setBusy('variant');
+      try {
+        const r = await fetch(`/api/didaskalia/studio/${activeYm}/${activeWeek}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patternVariant: next }),
+        });
+        if (!r.ok) throw new Error('Gagal menyimpan varian.');
+        addToast({ type: 'success', title: 'Varian pekan tersimpan' });
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan varian.' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [addToast, canWrite, activeYm, activeWeek, weekMeta?.patternVariant],
+  );
+
+  // Simpan jam jemaat mulai (T0) ke eventDate (reuse PATCH /api/events/:id).
+  // Tanggal ikut weekMeta.date; jam dari input. Butuh peran Komisi+ (Didaskalia saja → 403 ramah).
+  const saveT0 = useCallback(async () => {
+    if (!canWrite || !event?.id || !t0Input) return;
+    const day = String(weekMeta?.date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      addToast({ type: 'error', title: 'Tanggal pekan belum ada.' });
+      return;
+    }
+    setBusy('t0');
+    try {
+      const r = await fetch(`/api/events/${event.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventDate: `${day}T${t0Input}:00+07:00` }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error((d as { error?: string }).error || `Gagal menyimpan jam (server ${r.status}).`);
+      setEvent((e) => (e ? { ...e, eventDate: `${day}T${t0Input}:00+07:00` } : e));
+      setT0Dirty(false);
+      addToast({ type: 'success', title: `Jam jemaat mulai: ${t0Input} WIB` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Gagal menyimpan jam.';
+      addToast({
+        type: 'error',
+        title: 'Jam belum tersimpan',
+        description: /403|Forbidden|akses|peran/i.test(msg) ? 'Butuh peran Komisi+ untuk ubah jam event — jam di bawah hanya preview lokal.' : msg,
+      });
+    } finally {
+      setBusy(null);
+    }
+  }, [addToast, canWrite, event?.id, t0Input, weekMeta?.date]);
 
   if (!activeYm) {
     return (
@@ -174,6 +255,27 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
           Pola pekan ini menentukan POV kontrol hari-H: tiap pola menyembunyikan modul yang tidak relevan. Draft, kontrol, dan 3 link
           (peserta/layar/kontrol) mengikuti event di atas.
         </p>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0]/60 px-3 py-2">
+          <span className="text-[11px] font-bold text-[#1B1B1B]">Jam jemaat mulai (T0):</span>
+          <input
+            type="time"
+            value={t0Input}
+            onChange={(e) => { setT0Input(e.target.value); setT0Dirty(true); }}
+            disabled={!canWrite}
+            className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-xs disabled:opacity-60"
+          />
+          <span className="text-[10px] text-[#8C8880]">PRA (doa petugas + siap kru) jalan T-minus sebelumnya.</span>
+          {canWrite && t0Dirty && event?.id && (
+            <button
+              type="button"
+              disabled={busy === 't0'}
+              onClick={() => void saveT0()}
+              className="ml-auto px-2.5 py-1.5 rounded-lg bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-50"
+            >
+              {busy === 't0' ? 'Menyimpan…' : 'Simpan jam ke event'}
+            </button>
+          )}
+        </div>
         {error && <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
       </div>
 
@@ -189,6 +291,13 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
               activeCode={weekMeta?.patternCode || 'MONOLOG'}
               canWrite={canWrite}
               busy={!!busy}
+              weekVariant={weekMeta?.patternVariant || { opening: 'KEDUANYA', offering: 'HEMAT' }}
+              t0={(() => {
+                const day = String(weekMeta?.date || '').slice(0, 10);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(day) && t0Input) return `${day}T${t0Input}:00+07:00`;
+                return event?.eventDate || null;
+              })()}
+              onVariantChange={(patch) => void saveVariant(patch)}
               onUse={(code) => void savePattern(code)}
               onCopyPlaybook={() => addToast({ type: 'success', title: 'Naskah pola disalin' })}
             />

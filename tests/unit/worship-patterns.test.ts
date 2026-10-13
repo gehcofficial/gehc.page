@@ -2,11 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { patternBlock } from '../../server/lib/didaskalia-ai.mjs';
 import {
   divisionLabel,
+  formatRangeAbs,
+  formatRangeRel,
+  isMainTrack,
   moduleLabel,
+  OFFERING_PENUH_DELTA_MIN,
+  patternCongregationMinutes,
   patternDurationDelta,
+  patternParallelCheck,
+  patternPreMinutes,
   patternTemplateCheck,
+  patternTimeline,
   patternTotalMinutes,
+  patternVariantText,
   prettyPlaybook,
+  sanitizePatternVariant,
   type WorshipPatternLite,
 } from '../../src/lib/worship-patterns';
 
@@ -79,6 +89,68 @@ describe('worship-patterns: helper katalog', () => {
     expect(
       patternTotalMinutes(minutes.map((m, i) => ({ no: i + 1, title: `Fase ${i + 1}`, minutes: m }))),
     ).toBe(120);
+  });
+
+  it('divisionLabel mengenal Diakonia', () => {
+    expect(divisionLabel('diakonia')).toBe('Diakonia');
+  });
+});
+
+describe('worship-patterns: timeline T-minus + paralel + varian', () => {
+  const PRA = [
+    { no: 1, title: 'Doa petugas', minutes: 5, anchor: 'PRA', parallelGroup: 'pra' },
+    { no: null, title: 'Check perlengkapan', minutes: 5, anchor: 'PRA', parallelGroup: 'pra', track: 'parallel' },
+    { no: null, title: 'Slide & sound', minutes: 5, anchor: 'PRA', parallelGroup: 'pra', track: 'parallel' },
+    { no: 2, title: 'Registrasi', minutes: 10, anchor: 'PRA', parallelGroup: 'pra-reg' },
+    { no: 3, title: 'Praise & Worship', minutes: 15, anchor: 'ACARA' },
+  ] as never;
+
+  it('paralel tak tambah total; PRA di luar total jemaat', () => {
+    expect(patternTotalMinutes(PRA)).toBe(30);
+    expect(patternCongregationMinutes(PRA)).toBe(15);
+    expect(patternPreMinutes(PRA)).toBe(15);
+  });
+
+  it('timeline: PRA negatif, paralel warisi window grup', () => {
+    const tl = patternTimeline(PRA);
+    const byTitle = new Map(tl.map((t) => [String(t.title), t]));
+    expect(byTitle.get('Doa petugas')).toMatchObject({ startMin: -15, endMin: -10 });
+    expect(byTitle.get('Check perlengkapan')).toMatchObject({ startMin: -15, endMin: -10 });
+    expect(byTitle.get('Registrasi')).toMatchObject({ startMin: -10, endMin: 0 });
+    expect(byTitle.get('Praise & Worship')).toMatchObject({ startMin: 0, endMin: 15 });
+    expect(isMainTrack({ track: 'parallel' } as never)).toBe(false);
+    expect(isMainTrack(null)).toBe(true);
+  });
+
+  it('format relatif + absolut T0', () => {
+    expect(formatRangeRel(-15, 0)).toBe('T-15–T0 · 15\'');
+    expect(formatRangeAbs(-15, 0, '2026-10-12T13:00:00+07:00')).toBe('12:45–13:00');
+    expect(formatRangeAbs(0, 15, null)).toBeNull();
+  });
+
+  it('parallelCheck memberi warning (bukan throw)', () => {
+    expect(patternParallelCheck([{ title: 'X', minutes: 5, parallelGroup: 'g', track: 'parallel' }] as never))
+      .toEqual(expect.arrayContaining([expect.stringContaining('tanpa main anchor')]));
+    expect(patternParallelCheck([
+      { title: 'Main', minutes: 5, parallelGroup: 'g' },
+      { title: 'Besar', minutes: 9, parallelGroup: 'g', track: 'parallel' },
+    ] as never).length).toBeGreaterThan(0);
+    expect(patternParallelCheck(PRA)).toEqual([]);
+  });
+
+  it('varian: sanitasi default + delta PENUH + teks', () => {
+    expect(sanitizePatternVariant(null)).toEqual({ opening: 'KEDUANYA', offering: 'HEMAT' });
+    expect(sanitizePatternVariant({ opening: 'doa', offering: 'penuh' } as never)).toEqual({ opening: 'DOA', offering: 'PENUH' });
+    expect(OFFERING_PENUH_DELTA_MIN).toBe(6);
+    expect(patternTotalMinutes([{ title: 'A', minutes: 10 }] as never, { opening: 'LAGU', offering: 'PENUH' })).toBe(16);
+    expect(patternVariantText({ opening: 'DOA', offering: 'PENUH' })).toContain('PENUH');
+    expect(patternVariantText(null)).toContain('HEMAT');
+  });
+
+  it('patternBlock ikutkan varian pekan', () => {
+    const lines = patternBlock({ code: 'MONOLOG', name: 'Monolog', phases: [], variant: { opening: 'DOA', offering: 'PENUH' } }).join('\n');
+    expect(lines).toContain('Varian pekan');
+    expect(lines).toContain('PENUH');
   });
 });
 

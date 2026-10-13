@@ -93,7 +93,19 @@ node scripts/worship-sim.mjs --participants 100 --mode final
   Slot adaptasi mingguan: `{{tema}}`, `{{firman_ref}}`, `{{firman_text}}`, `{{kitab_fokus}}`.
 - Tombol per pola: **Salin naskah** (copy playbook) + **Pakai pekan ini** (simpan `patternCode`, AI generate berikutnya mengikutinya via `patternBlock`).
   Dropdown pola di tab Inti punya tautan `Lihat detail pola →` ke tab katalog.
-- Helper: `src/lib/worship-patterns.ts` (`patternTotalMinutes`, `patternTemplateCheck`, `patternDurationDelta`, `moduleLabel`).
+- **Timeline & T0 (13 Okt 2026):** tiap fase boleh ber-`anchor` (`PRA` = kru T-minus sebelum jam jemaat, `ACARA`, `PASCA`) +
+  `parallelGroup`/`track: parallel` (se-grup jalan bareng, tak tambah total). Katalog tampil relatif (`T-15–T0`);
+  mode pekan tampil absolut bila event punya jam (`12:45–13:00`) — jam diedit via input **Jam jemaat mulai (T0)**
+  di `PolaSesiPanel` (reuse `PATCH /api/events/:id {eventDate}`, butuh peran Komisi+; selain itu jadi preview lokal).
+  Total baku = trek main; banner katalog memisah `jemaat + kru (T-minus)`.
+- **Varian pekan (13 Okt 2026):** tersimpan di studio week sebagai `patternVariant` (`opening: DOA|LAGU|KEDUANYA`,
+  `offering: HEMAT|PENUH`; default `KEDUANYA+HEMAT`; reset ikut kembali default). Pembuka total tetap 15'
+  (doa/lagu menumpang); persembahan PENUH +6' (kantong + lagu 1 → syafaat → lagu selingan → tutup + berkat,
+  syafaat & tutup pisah). Varian diteruskan ke prompt AI (`patternBlock`), tanpa mengubah skeleton
+  Liturgia (tetap kind `song`/`firman`; doa ditangani batas lunak doa/lagu buka → doa tutup).
+- Helper: `src/lib/worship-patterns.ts` (`patternTotalMinutes`, `patternTemplateCheck`, `patternDurationDelta`, `moduleLabel`,
+  `patternTimeline`, `patternCongregationMinutes`, `patternPreMinutes`, `patternParallelCheck`, `sanitizePatternVariant`,
+  `formatRangeRel`, `formatRangeAbs`, `patternVariantText`, `OFFERING_PENUH_DELTA_MIN`; cakupan bertambah `DIAKONIA`).
 - Seed: `server/_seed-worship-patterns.cjs` (6 pola, `phases[].notes`, playbook 7 bagian). Terapkan: `npm run db:seed:worship[:staging|:prod]`.
 
 ## 9. Draft Sesi Hari-H di Studio (5 Okt 2026)

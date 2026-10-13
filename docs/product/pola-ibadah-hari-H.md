@@ -43,12 +43,24 @@ Hierarki hemat saat over-time: (1) gabung penutup → (2) lagu tinggal 1 → (3)
 Dilarang: memotong isi inti, menghilangkan lesson learned, menghilangkan fisik persembahan.
 Penggabungan dicatat di rundown final H-1 (diputuskan Didaskalia + Liturgia).
 
-## 5. Trek paralel
+## 5. Trek paralel + T0
+
+**T0 = jam jemaat mulai** (jam pada `EventProgram.eventDate`, mis. undangan 13:00).
+Blok PRA (doa petugas + tuan rumah, check Diakonia, slide Marturia) jalan **T-minus** sebelum T0
+dan tidak menggeser jam jemaat. Di katalog, fase ber-`anchor: PRA` + `parallelGroup`/`track: parallel`
+(diupload via seed, tanpa migrasi); total baku = trek main; paralel tidak dihitung ganda.
 
 Ramah-tamah/konsumsi boleh jalan **paralel** saat segmen pasif panjang — ditulis
 `paralel→[segmen]`, tidak dihitung ganda. Contoh utama: Bedah Film — snack diedarkan
 tuan rumah selama nonton 91' (dibagikan sebelum lampu redup). Syarat: tidak mengganggu
 inti, pemilik jelas (tuan rumah), tercatat di rundown.
+
+**Varian persembahan (MONOLOG):** HEMAT = kantong jalan + 3 doa sekaligus (10');
+PENUH = kantong + lagu 1 → doa syafaat → lagu selingan → doa tutup + berkat (+6', syafaat &
+tutup pisah, tiap doa diucapkan eksplisit, pemilik satu nama). Lagu selingan = slot Liturgia
+di composer, bukan teks beku pola. **Varian pembuka:** DOA saja / LAGU saja / KEDUANYA
+(default) — menumpang dalam 15' (kurangi 1 praise bila perlu). Pilihan disimpan per pekan
+(`patternVariant`), katalog tetap kanonis.
 
 ## 6. Catatan, komitmen & kesaksian (modul web)
 

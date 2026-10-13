@@ -2,12 +2,24 @@ import React, { useMemo, useState } from 'react';
 import { BookOpen, CheckCircle2, Clock, Copy, Layers, Sparkles } from 'lucide-react';
 import {
   divisionLabel,
-  moduleLabel,
+  formatRangeAbs,
+  formatRangeRel,
+  OFFERING_LABELS,
+  OPENING_LABELS,
+  patternCongregationMinutes,
+  patternParallelCheck,
+  patternPreMinutes,
+  patternTimeline,
+  patternTotalMinutes,
   patternDurationDelta,
   patternTemplateCheck,
-  patternTotalMinutes,
+  moduleLabel,
   prettyPlaybook,
+  sanitizePatternVariant,
+  type OfferingVariant,
+  type OpeningVariant,
   type WorshipPatternLite,
+  type WorshipPatternVariant,
 } from '../../lib/worship-patterns';
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 
@@ -16,9 +28,17 @@ type Props = {
   activeCode?: string | null;
   canWrite?: boolean;
   busy?: boolean;
+  /** Varian pekan ini (dipakai untuk total + teks varian pola aktif). */
+  weekVariant?: WorshipPatternVariant | null;
+  /** T0 jam jemaat mulai (ISO beroffset / eventDate) — bila ada tampil jam absolut. */
+  t0?: string | null;
+  onVariantChange?: (patch: { opening?: string; offering?: string }) => void;
   onUse?: (code: string) => void;
   onCopyPlaybook?: (pattern: WorshipPatternLite) => void;
 };
+
+const phaseKey = (f: { no?: unknown; title?: unknown; minutes?: unknown; parallelGroup?: unknown; track?: unknown }) =>
+  `${String(f?.no ?? '')}|${String(f?.title ?? '')}|${String(f?.minutes ?? '')}|${String(f?.parallelGroup ?? '')}|${String(f?.track ?? '')}`;
 
 /** Naskah playbook siap baca di kartu putih: markdown ter-render + slot adaptasi jadi kata biasa. */
 function PlaybookView({ text }: { text: string }) {
@@ -30,7 +50,7 @@ function PlaybookView({ text }: { text: string }) {
   );
 }
 
-export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, canWrite, busy, onUse, onCopyPlaybook }) => {
+export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, canWrite, busy, weekVariant, t0, onVariantChange, onUse, onCopyPlaybook }) => {
   const [openCode, setOpenCode] = useState<string | null>(activeCode || 'POST_TO_POST');
   const [query, setQuery] = useState('');
   const list = useMemo(() => {
@@ -133,46 +153,122 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
           </div>
           <div className="p-4 space-y-3 bg-white">
             {open.summary && <p className="text-xs text-[#444]">{open.summary}</p>}
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1.5 inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Rundown {patternTotalMinutes(open.phases)}&prime;
-                {(() => { const d = patternDurationDelta(open); return d !== null && d !== 0 ? <span className="text-amber-600 normal-case"> (selisih {d > 0 ? '+' : ''}{d}&prime; vs baku)</span> : null; })()}
-              </p>
-              <div className="overflow-x-auto rounded-xl border border-[#EFEDE8]">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="bg-[#FAF9F5] text-[#8C8880]">
-                      <th className="text-left px-2.5 py-1.5 w-8">No</th>
-                      <th className="text-left px-2.5 py-1.5">Segmen</th>
-                      <th className="text-left px-2.5 py-1.5 w-16">Menit</th>
-                      <th className="text-left px-2.5 py-1.5">Cakupan</th>
-                      <th className="text-left px-2.5 py-1.5">Owner</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(open.phases || []).map((f, i) => (
-                      <tr key={i} className="border-t border-[#EFEDE8]">
-                        <td className="px-2.5 py-1.5 font-black">{f.no ?? i + 1}</td>
-                        <td className="px-2.5 py-1.5">
-                          <p className="font-bold text-[#1B1B1B]">{f.title}</p>
-                          {f.notes && <p className="text-[#8C8880]">{f.notes}</p>}
-                        </td>
-                        <td className="px-2.5 py-1.5">{f.minutes}&prime;</td>
-                        <td className="px-2.5 py-1.5">
-                          {f.division ? (
-                            <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-bold whitespace-nowrap">
-                              {divisionLabel(f.division)}
-                            </span>
-                          ) : (
-                            <span className="text-[#BDBAB2]">—</span>
-                          )}
-                        </td>
-                        <td className="px-2.5 py-1.5 text-[#8C8880]">{f.owner}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {(() => {
+              const isActive = open.code === activeCode;
+              const v = sanitizePatternVariant(isActive ? weekVariant : null);
+              const total = patternTotalMinutes(open.phases, isActive ? v : null);
+              const jemaat = patternCongregationMinutes(open.phases, isActive ? v : null);
+              const pre = patternPreMinutes(open.phases);
+              const timeline = patternTimeline(open.phases);
+              const byKey = new Map(timeline.map((t) => [phaseKey(t), t]));
+              const warns = patternParallelCheck(open.phases);
+              return (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
+                    <span className="text-[11px] font-black text-[#1B1B1B]">
+                      {jemaat}&prime; jemaat{pre > 0 ? ` + ${pre}' kru (T-minus)` : ''}{v.offering === 'PENUH' && isActive ? ' · termasuk +6 penuh' : ''}
+                    </span>
+                    {t0 ? (
+                      <span className="text-[10px] text-sky-700 font-bold">T0 {String(t0).slice(11, 16) || ''} WIB → absolut per baris</span>
+                    ) : (
+                      <span className="text-[10px] text-[#8C8880]">Relatif T-minus/T0 (isi jam T0 di panel Pola & Sesi untuk jam absolut)</span>
+                    )}
+                  </div>
+                  {isActive && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-[10px] font-bold text-[#8C8880]">
+                        Pembuka:{' '}
+                        <select
+                          value={v.opening || 'KEDUANYA'}
+                          disabled={!canWrite || !!busy || !onVariantChange}
+                          onChange={(e) => onVariantChange?.({ opening: e.target.value })}
+                          className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[11px] font-bold text-[#1B1B1B] disabled:opacity-60"
+                        >
+                          {(Object.keys(OPENING_LABELS) as OpeningVariant[]).map((k) => (
+                            <option key={k} value={k}>{OPENING_LABELS[k]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-[10px] font-bold text-[#8C8880]">
+                        Persembahan:{' '}
+                        <select
+                          value={v.offering || 'HEMAT'}
+                          disabled={!canWrite || !!busy || !onVariantChange}
+                          onChange={(e) => onVariantChange?.({ offering: e.target.value })}
+                          className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[11px] font-bold text-[#1B1B1B] disabled:opacity-60"
+                        >
+                          {(Object.keys(OFFERING_LABELS) as OfferingVariant[]).map((k) => (
+                            <option key={k} value={k}>{OFFERING_LABELS[k]}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1.5 inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Rundown {total}&prime;
+                      {(() => { const d = patternDurationDelta(open); return d !== null && d !== 0 ? <span className="text-amber-600 normal-case"> (selisih {d > 0 ? '+' : ''}{d}&prime; vs baku)</span> : null; })()}
+                    </p>
+                    {warns.length > 0 && (
+                      <p className="mb-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{warns.join(' ')}</p>
+                    )}
+                    <div className="overflow-x-auto rounded-xl border border-[#EFEDE8]">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-[#FAF9F5] text-[#8C8880]">
+                            <th className="text-left px-2.5 py-1.5 w-8">No</th>
+                            <th className="text-left px-2.5 py-1.5">Segmen</th>
+                            <th className="text-left px-2.5 py-1.5 w-16">Menit</th>
+                            <th className="text-left px-2.5 py-1.5">Waktu</th>
+                            <th className="text-left px-2.5 py-1.5">Cakupan</th>
+                            <th className="text-left px-2.5 py-1.5">Owner</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(open.phases || []).map((f, i) => {
+                            const t = byKey.get(phaseKey(f));
+                            const anchor = String((f as { anchor?: unknown }).anchor || '').toUpperCase();
+                            const parallel = String((f as { track?: unknown }).track || '').toLowerCase() === 'parallel';
+                            const rel = t ? formatRangeRel(t.startMin, t.endMin) : '—';
+                            const abs = t ? formatRangeAbs(t.startMin, t.endMin, isActive ? t0 || null : null) : null;
+                            return (
+                              <tr key={i} className={`border-t border-[#EFEDE8]${parallel ? ' bg-sky-50/40' : ''}`}>
+                                <td className="px-2.5 py-1.5 font-black">{f.no ?? i + 1}</td>
+                                <td className="px-2.5 py-1.5">
+                                  <p className="font-bold text-[#1B1B1B]">
+                                    {parallel ? <span className="mr-1 text-sky-600">↳</span> : null}{f.title}
+                                  </p>
+                                  <p className="mt-0.5 flex flex-wrap gap-1">
+                                    {anchor === 'PRA' && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-stone-100 border border-stone-300 text-stone-600 font-bold">T-minus · kru</span>}
+                                    {parallel && (f.parallelGroup ? <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">paralel→{(f.parallelGroup || '').slice(0, 18)}</span> : <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">paralel</span>)}
+                                  </p>
+                                  {f.notes && <p className="text-[#8C8880]">{f.notes}</p>}
+                                </td>
+                                <td className="px-2.5 py-1.5 whitespace-nowrap">{f.minutes}&prime;{parallel ? <span className="text-[#8C8880]"> ↯</span> : ''}</td>
+                                <td className="px-2.5 py-1.5 whitespace-nowrap">
+                                  <p className="font-bold text-[#1B1B1B]">{abs || rel}</p>
+                                  {abs && <p className="text-[#8C8880]">{rel}</p>}
+                                </td>
+                                <td className="px-2.5 py-1.5">
+                                  {f.division ? (
+                                    <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-bold whitespace-nowrap">
+                                      {divisionLabel(f.division)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#BDBAB2]">—</span>
+                                  )}
+                                </td>
+                                <td className="px-2.5 py-1.5 text-[#8C8880]">{f.owner}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="mt-1 text-[10px] text-[#8C8880]">↯ = jalan paralel, tak tambah total. T-minus = kru sebelum jam jemaat (T0).</p>
+                  </div>
+                </>
+              );
+            })()}
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1.5">Draft template (7 bagian)</p>
               <PlaybookView text={open.playbook || '(belum ada naskah)'} />

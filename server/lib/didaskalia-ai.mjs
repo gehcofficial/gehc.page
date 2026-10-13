@@ -408,6 +408,20 @@ export function patternBlock(pattern) {
     }
   }
   if (p?.playbook) lines.push(`- Skenario pola (jadikan kerangka alur hari Minggu):\n${String(p.playbook).slice(0, 4000)}`);
+  const v = p?.variant && typeof p.variant === 'object' ? p.variant : null;
+  if (v) {
+    const o = String(v.opening || '').toUpperCase();
+    const f = String(v.offering || '').toUpperCase();
+    const open = o === 'DOA'
+      ? 'Pembuka: doa buka 3 menit + praise/worship (tanpa lagu buka).'
+      : o === 'LAGU'
+        ? 'Pembuka: 1 lagu buka + praise/worship (tanpa doa buka panjang; kurangi 1 praise bila perlu).'
+        : 'Pembuka: doa buka 2 menit + 1 lagu buka + praise/worship dalam 15 menit (kurangi 1 praise bila perlu).';
+    const offer = f === 'PENUH'
+      ? 'Persembahan mode PENUH: kantong jalan + lagu 1 → doa syafaat → lagu selingan → doa tutup + berkat (syafaat & tutup pisah, tiap doa eksplisit).'
+      : 'Persembahan mode HEMAT: kantong jalan; doa persembahan + syafaat + tutup sekaligus.';
+    lines.push(`- Varian pekan: ${open} ${offer}`);
+  }
   if (code === 'MONOLOG') {
     lines.push('- Bentuk: monolog (+bedah lagu per bait, opsional dua suara) + pertanyaan dipicu mentor satu per satu + FGD 3 (observasi → interpretasi → aplikasi) + deep sharing 2 + Lesson Learned (pilih maks 3 chip) + komitmen; discussionFlow = urutan 5 pertanyaan + Lesson Learned; deliveryPlan tekankan bedah lagu dan fasilitasi pemicu.');
   } else if (code === 'POST_TO_POST') {

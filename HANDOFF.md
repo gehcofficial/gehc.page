@@ -1,5 +1,40 @@
 # GEHC Portal — Handoff
 
+## Current — Rundown paralel + T0 + varian pembuka/persembahan MONOLOG (13 Okt 2026, uncommitted)
+
+**Kebutuhan:** rundown di-breakdown (aktivitas paralel: registrasi Koinonia, check Diakonia,
+slide Marturia, doa Komisi/Tim Kerja — total tak berubah) + tulis start/end time; draft relatif,
+pekan ikuti jam mulai hari itu (13:00 = setelah doa petugas + tuan rumah); 1 waktu boleh
+multi-divisi; praise & worship boleh diawali doa buka / nyanyian buka / keduanya; persembahan
+dibuat opsi pisah syafaat + tutup (biasa diselipin lagu).
+
+**Keputusan dikunci:** T0 = jam jemaat mulai (`EventProgram.eventDate`); PRA = kru T-minus di luar
+total baku; 1 baris = 1 pemilik (multi-divisi = N baris se-grup paralel); pembuka menumpang 15';
+persembahan PENUH +6' (120→127 jemaat, ambil toleransi penutup, inti 60' utuh).
+
+**Ubah (kode):** `src/lib/worship-patterns.ts` (tipe `anchor/parallelGroup/track`, `patternVariant`
++ `DEFAULT_PATTERN_VARIANT`, `sanitizePatternVariant`, `patternTimeline/formatRangeRel/formatRangeAbs`,
+`patternTotalMinutes` main-only + delta PENUH, `patternCongregationMinutes/patternPreMinutes`,
+`patternParallelCheck`, `patternVariantText`, `DIAKONIA` + label varian) →
+`server/routes/didaskalia-studio.mjs` (default/reset/PATCH `patternVariant`, `resolveWeekPattern`
+16 fase + field penuh + `variant`, `resolveEventId` kembalikan `eventDate`, semua generate teruskan
+`patternVariant`) → `server/lib/didaskalia-ai.mjs` (`patternBlock` baris Varian pekan) →
+`PolaSesiPanel.tsx` (input jam T0 + Simpan ke event via `PATCH /api/events/:id`, prefill WIB,
+403 ramah untuk Didaskalia) + `WorshipPatternCatalog.tsx` (kolom Waktu relatif/absolut, badge
+T-minus/paralel, dropdown Pembuka/Persembahan pola aktif, warning paralel) →
+seed `_seed-worship-patterns.cjs` (MONOLOG: doa petugas 5' main + check Diakonia/Marturia paralel,
+registrasi 10' PRA, no 3/8 notes varian, playbook §1/§3/§4) → test `worship-patterns.test.ts`
+(+9: timeline, format, check, varian, patternBlock) → docs `worship-patterns.md` §8 +
+`pola-ibadah-hari-H.md` §5.
+
+**Verifikasi:** `lint` bersih ✓ `test` **1083/1083** (142 files) ✓ `build` OK ✓
+`node --check` seed + 2 route/AI ✓. Tanpa migrasi DB (semua JSON additive, fallback data lama).
+
+**Next:** `db:seed:worship:staging` → cek tab Katalog (relatif T-minus + Waktu absolut event 13:00
+→ pra 12:45–13:00) + dropdown varian + AI baca varian → commit + push + `staging:sync` →
+`db:seed:worship:prod` HANYA atas persetujuan eksplisit. Follow-up: audit paralel 4 pola lain
+(menit tak diubah episode ini).
+
 ## Current — Family Tree hantu (Nicole): audit 10 rumah + always-sync (13 Okt 2026, uncommitted)
 
 **Laporan:** Family Tree Echad `2026-09` menampilkan Nicole yang "sudah tidak
