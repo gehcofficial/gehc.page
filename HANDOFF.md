@@ -1,5 +1,28 @@
 # GEHC Portal — Handoff
 
+## Current — Baris pindahan GESER tak tampil + kartu WA tanggal efektif hilang (14 Okt 2026)
+
+**Laporan:** prod W3 sudah di 17 (assignment idx4 Logos→Dunamis + event ACTIVE
+"17 Okt 2026", override GESER tercatat — audit prod read-only), tapi di portal
+baris W3 kosong (tak daftar ke 17) dan kartu Grup WA/kontrol 17 tak muncul.
+
+**Akar (UI, 2 lapis):** (1) `specialsByDate` dikunci by `eventDate` (=17, tanggal
+efektif) padahal grid hanya render hari Minggu — baris pindahan `geser-18`
+tak pernah ketemu slot 18 → chip "Geser →" + penanggung/tuan rumah hilang.
+(2) `ServingWeekChannelCard` hanya render bila `!special` — setelah (1)
+diperbaiki pun kartu WA tanggal efektif (Sabtu 17) tetap tak ada tempat tampil.
+
+**Ubah (kode, 1 file):** `ServicePlanPanel.tsx` (specials dikunci
+by `geserFrom ?? eventDate` → baris W3 tampil chip + grup + event pindahan;
+kartu WA dirender untuk GESER dengan `date` = tanggal efektif + `key` agar
+ganti tanggal reload; channel dibuat/dikelola untuk hari-H sebenarnya).
+
+**Verifikasi:** `lint` bersih ✓ `service-geser` 12/12 + `worship-session-select`
+11/11 + `serving-week` 6/6 ✓. Tanpa migrasi DB; tanpa tulis ke prod (audit saja).
+
+**Next:** QA: baris W3 18 Okt tampil chip Geser → 17 Okt + Logos→Dunamis + kartu
+WA 17 Okt (buat link WA + sesi Bedah Film baru dari UI).
+
 ## Current — Draft W3 nyangkut di sesi Rescue Plan W2 (13 Okt 2026)
 
 **Laporan:** pola pekan W3 = Bedah Film (event sudah di 17 Okt prod), tapi tab Draft

@@ -458,7 +458,10 @@ export const ServicePlanPanel: React.FC = () => {
   const byDate = new Map<string, AssignRow>();
   [...rows, ...virtual].forEach((r) => byDate.set(String(r.eventDate).slice(0, 10), r));
   const specialsByDate = new Map<string, AssignRow>();
-  specials.forEach((r) => specialsByDate.set(String(r.eventDate).slice(0, 10), r));
+  // Baris pindahan GESER dikunci ke slot Minggu ASAL (geserFrom) agar tampil di
+  // baris W3 walau eventDate efektifnya sudah di tanggal lain (mis. Sabtu 17).
+  // Tanpa ini, chip "Geser →" + penanggung/tuan rumah hilang dari grid.
+  specials.forEach((r) => specialsByDate.set(String(r.geserFrom || r.eventDate).slice(0, 10), r));
   const overridesByDate = new Map<string, Override>();
   overrides.forEach((o) => overridesByDate.set(o.eventDate, o));
 
@@ -906,9 +909,16 @@ export const ServicePlanPanel: React.FC = () => {
                               {assign.event?.name && <span className="text-[#8C8880] truncate max-w-[220px]" title={assign.event.name}>{assign.event.name}</span>}
                             </div>
                           )}
-                          {!isMentoring && !special && (
-                            <ServingWeekChannelCard date={iso} canManage={canSwap || isBodTimkerja} />
-                          )}
+                           {!isMentoring && !special && (
+                             <ServingWeekChannelCard date={iso} canManage={canSwap || isBodTimkerja} />
+                           )}
+                           {!isMentoring && special?.condition === 'GESER' && (special.newEventDate || ov?.newEventDate) && (
+                             <ServingWeekChannelCard
+                               key={`channel-${special.newEventDate || ov?.newEventDate}`}
+                               date={String(special.newEventDate || ov?.newEventDate).slice(0, 10)}
+                               canManage={canSwap || isBodTimkerja}
+                             />
+                           )}
                           {special?.condition === 'ALIH' && special.linkedEventId && (
                             <p className="text-[11px] text-[#8C8880]">Dialihkan ke event <span className="font-mono">{special.linkedEventId}</span></p>
                           )}
