@@ -153,6 +153,7 @@ import { registerServingAssignmentRoutes } from './routes/serving-assignments.mj
 import { registerServingCycleRoutes } from './routes/serving-cycle.mjs';
 import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
 import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
+import { registerPenatalayanRequestRoutes } from './routes/penatalayan-requests.mjs';
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerLogoVoteRoutes } from './routes/logo-vote.mjs';
@@ -164,7 +165,7 @@ import { registerAnnouncementRoutes } from './routes/announcements.mjs';
 import { registerNotifCronRoutes } from './routes/notif-cron.mjs';
 import { runAnnouncementDispatch } from './routes/notif-cron.mjs';
 import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.mjs';
-import { markAlumniBulk } from './lib/member-role-sync.mjs';
+import { markAlumniBulk, markNonaktifBulk, restoreActiveBulk } from './lib/member-role-sync.mjs';
 import { captureScope, recordSnapshot } from './lib/regen-undo.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
@@ -3262,6 +3263,7 @@ registerAnnouncementRoutes(app, { wrap });
 registerNotifCronRoutes(app, { wrap });
 registerServiceOverrideRoutes(app, { wrap });
 registerServiceSwapRequestRoutes(app, { wrap });
+registerPenatalayanRequestRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
 registerDidaskaliaStudioRoutes(app, { wrap });
 registerLogoVoteRoutes(app, { wrap });
@@ -5913,8 +5915,17 @@ app.patch('/api/jemaat/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
   }
 
   await prisma.user.update({ where: { id: user.id }, data });
+  // Sinkron roster seperti bulk agar pohon tidak hantu (NONAKTIF/ACTIVE pun sync).
+  let rosterUpdated = 0;
+  if (memberStatus === 'ALUMNI') {
+    rosterUpdated = (await markAlumniBulk(prisma, { userIds: [user.id] })).updated;
+  } else if (memberStatus === 'NONAKTIF') {
+    rosterUpdated = (await markNonaktifBulk(prisma, { userIds: [user.id] })).updated;
+  } else if (memberStatus === 'ACTIVE') {
+    rosterUpdated = (await restoreActiveBulk(prisma, { userIds: [user.id] })).updated;
+  }
   const updated = await prisma.user.findUnique({ where: { id: user.id }, include: jemaatInclude() });
-  res.json({ ok: true, user: serializeJemaat(updated) });
+  res.json({ ok: true, user: serializeJemaat(updated), rosterUpdated });
 }));
 
 /** POST /api/jemaat/member-status/bulk � tandai beberapa orang sekaligus (sinkron roster grup) */
@@ -5931,7 +5942,10 @@ app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(a
     where: { id: { in: ids } },
     data: { memberStatus },
   });
-  // Sinkron ke roster grup: alumni ? GroupMember ALUMNI + cabut akses grup.
+  // Sinkron ke roster grup untuk SEMUA transisi (pohon = ACTIVE saja):
+  // ALUMNI → roster ALUMNI + cabut akses; NONAKTIF → roster PAST (hilang dari
+  // pohon, dilewati carry); ACTIVE kembali → roster ALUMNI periode berjalan
+  // dipulihkan. Sebelumnya hanya ALUMNI yang sync (hantu Nicole, Okt 2026).
   let roster = { updated: 0 };
   if (memberStatus === 'ALUMNI') {
     const snapData = await captureScope(prisma);
@@ -5939,6 +5953,24 @@ app.post('/api/jemaat/member-status/bulk', requireRole(...KOMISION_CORE), wrap(a
     await recordSnapshot(prisma, {
       action: 'ALUMNI',
       summary: `Tandai alumni ${roster.updated} baris roster (${ids.length} orang)`,
+      createdById: req.authUser?.id,
+      data: snapData,
+    }).catch(() => {});
+  } else if (memberStatus === 'NONAKTIF') {
+    const snapData = await captureScope(prisma);
+    roster = await markNonaktifBulk(prisma, { userIds: ids, note });
+    await recordSnapshot(prisma, {
+      action: 'NONAKTIF',
+      summary: `Tandai nonaktif ${roster.updated} baris roster (${ids.length} orang)`,
+      createdById: req.authUser?.id,
+      data: snapData,
+    }).catch(() => {});
+  } else if (memberStatus === 'ACTIVE') {
+    const snapData = await captureScope(prisma);
+    roster = await restoreActiveBulk(prisma, { userIds: ids });
+    await recordSnapshot(prisma, {
+      action: 'REACTIVE',
+      summary: `Aktifkan kembali ${roster.updated} baris roster (${ids.length} orang)`,
       createdById: req.authUser?.id,
       data: snapData,
     }).catch(() => {});
@@ -8495,7 +8527,7 @@ app.get('/api/penatalayan/roles', wrap(async (req, res) => {
 // POST /api/penatalayan/roles — create service role
 app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { name, division, description, sortOrder, subDivision, serviceTypes, checklistTemplate, scope } = req.body || {};
+  const { name, division, description, sortOrder, subDivision, serviceTypes, checklistTemplate, scope, isRequired } = req.body || {};
   const cleanName = String(name || '').trim();
   const cleanDiv = String(division || '').trim().toUpperCase();
   if (!cleanName || !cleanDiv) return res.status(400).json({ error: 'name & division wajib' });
@@ -8522,26 +8554,27 @@ app.post('/api/penatalayan/roles', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
     return res.json({ role, reactivated: true });
   }
   const id = 'sr-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const role = await prisma.serviceRole.create({
-    data: {
-      id,
-      name: cleanName,
-      division: cleanDiv,
-      scope: cleanScope,
-      subDivision: subDivision !== undefined ? (String(subDivision).trim() || null) : null,
-      serviceTypes: normServiceTypes(serviceTypes),
-      checklistTemplate: Array.isArray(checklistTemplate) ? checklistTemplate : null,
-      description: description || null,
-      sortOrder: sortOrder || 0,
-    },
-  });
+  const createData = {
+    id,
+    name: cleanName,
+    division: cleanDiv,
+    scope: cleanScope,
+    subDivision: subDivision !== undefined ? (String(subDivision).trim() || null) : null,
+    serviceTypes: normServiceTypes(serviceTypes),
+    checklistTemplate: Array.isArray(checklistTemplate) ? checklistTemplate : null,
+    description: description || null,
+    sortOrder: sortOrder || 0,
+  };
+  // isRequired: andalkan default DB (true) bila tak disebut - kompatibel client lama.
+  if (isRequired !== undefined) createData.isRequired = Boolean(isRequired);
+  const role = await prisma.serviceRole.create({ data: createData });
   res.status(201).json({ role });
 }));
 
 // PATCH /api/penatalayan/roles/:id — edit nama/divisi/sub-divisi/jenis/urutan/arsip
 app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
-  const { name, division, description, sortOrder, isActive, subDivision, serviceTypes, checklistTemplate, scope } = req.body || {};
+  const { name, division, description, sortOrder, isActive, subDivision, serviceTypes, checklistTemplate, scope, isRequired } = req.body || {};
   const data = {};
   if (name !== undefined) data.name = String(name).trim();
   const existing = division !== undefined || scope !== undefined
@@ -8564,6 +8597,7 @@ app.patch('/api/penatalayan/roles/:id', requireRole('SUPERADMIN', 'KOMISI', 'COM
   if (description !== undefined) data.description = description || null;
   if (sortOrder !== undefined) data.sortOrder = Number(sortOrder) || 0;
   if (isActive !== undefined) data.isActive = Boolean(isActive);
+  if (isRequired !== undefined) data.isRequired = Boolean(isRequired);
   const role = await prisma.serviceRole.update({ where: { id: req.params.id }, data });
   res.json({ role });
 }));
@@ -8819,7 +8853,7 @@ app.get('/api/penatalayan/board', requireRole(), wrap(async (req, res) => {
         user: s.user ? { id: s.user.id, name: s.user.name } : null,
       };
     }),
-    roles: roles.map((r) => ({ id: r.id, name: r.name, division: r.division, scope: r.scope, subDivision: r.subDivision, serviceTypes: r.serviceTypes })),
+    roles: roles.map((r) => ({ id: r.id, name: r.name, division: r.division, scope: r.scope, subDivision: r.subDivision, serviceTypes: r.serviceTypes, description: r.description || null, isRequired: r.isRequired !== false })),
     events: events.map((e) => ({
       id: e.id,
       name: e.name,

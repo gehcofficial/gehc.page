@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { shortName } from '../../lib/privacy-name';
 import { FullFamilyTree } from './FamilyTree';
+import { activeMentees } from '../../lib/family-tree';
 import { HeritageSection } from './HeritageSection';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import {
@@ -294,7 +295,8 @@ export const GroupDetailPage: React.FC = () => {
             <FullFamilyTree
               mentor={activeBatch.mentor}
               comentor={activeBatch.comentor || '—'}
-              mentees={(activeBatch.mentees || []).map((m) => ({ name: m.name, note: m.note, avatar: m.avatar }))}
+              // Pohon batch berjalan = ACTIVE saja (ALUMNI/PAST/MOVED hanya di tab Regenerasi).
+              mentees={activeMentees(activeBatch).map((m) => ({ name: m.name, note: m.note, avatar: m.avatar }))}
               color={group.color || 'var(--color-brand)'}
               mentorAvatar={activeBatch.mentorAvatar}
               comentorAvatar={activeBatch.comentorAvatar}

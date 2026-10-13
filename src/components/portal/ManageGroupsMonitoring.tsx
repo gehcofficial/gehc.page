@@ -4,6 +4,7 @@ import { YouthGroup, GroupMember, MonitoringRecord } from '../../types';
 import { AttendancePanel } from './AttendancePanel';
 import { GroupPrayerNotes } from './GroupPrayerNotes';
 import { MiniFamilyTree } from '../public/FamilyTree';
+import { activeMentees } from '../../lib/family-tree';
 import { DatePicker } from '../ui/DatePicker';
 import {
   Users,
@@ -1513,7 +1514,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-4 text-xs text-[#8C8880]">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span>Mentor: <strong>{currentBatch.mentor || '-'}</strong></span>
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-500"></span>Comentor: <strong>{currentBatch.comentor || '-'}</strong></span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span>Mentee: <strong>{currentBatch.mentees?.length || 0}</strong></span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400"></span>Mentee: <strong>{activeMentees(currentBatch).length}</strong></span>
                     </div>
                   </div>
 
@@ -1543,7 +1544,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
                       <div className="w-full max-w-2xl flex flex-col items-center">
                         <div className="w-full h-0.5 rounded-full max-w-md mb-4" style={{ backgroundColor: `${activeGroup.color}44` }} />
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 w-full justify-items-center">
-                          {(currentBatch.mentees || []).map((m) => (
+                          {/* Pohon = ACTIVE saja (ALUMNI/PAST/MOVED hanya di riwayat) */}
+                          {activeMentees(currentBatch).map((m) => (
                             <div key={m.name} className="flex flex-col items-center gap-1.5">
                               <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm border-2 border-white bg-gray-100 text-gray-600">
                                 {(m.name || '').split(' ').map((w: string) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'}

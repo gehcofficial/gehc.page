@@ -19,6 +19,7 @@ import {
   newEntityId,
 } from '../lib/drive-ownership.mjs';
 import { isKomisiOrSuperadmin as komisiGate } from '../division-rbac.mjs';
+import { currentPeriod, refreshGroupCounts } from '../lib/member-role-sync.mjs';
 import { canAccessDivision } from '../lib/division-access.mjs';
 import {
   PUBLIC_ALBUM_STATUS,
@@ -526,10 +527,14 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       }
       const name = String(req.body?.name || '').trim();
       if (!name) return res.status(400).json({ error: 'Nama wajib.' });
+      // Baris manual masuk periode berjalan agar tampil di pohon (sebelumnya
+      // batchPeriod null → tak terlihat di mana-mana kecuali DB).
+      const period = await currentPeriod(prisma, group.id);
       const row = await prisma.groupMember.create({
         data: {
           id: newEntityId('gmb'),
           groupId: group.id,
+          batchPeriod: period,
           name,
           email: String(req.body?.email || '').trim() || null,
           phone: String(req.body?.phone || '').trim() || null,
@@ -540,6 +545,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
         },
         include: { user: { select: { avatar: true } } },
       });
+      await refreshGroupCounts(prisma, [group.id]);
       res.status(201).json({ member: serializeGroupMember(row) });
     }),
   );
@@ -606,6 +612,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       }
       await prisma.attendanceRecord.deleteMany({ where: { groupMemberId: existing.id } }).catch(() => null);
       await prisma.groupMember.delete({ where: { id: existing.id } });
+      await refreshGroupCounts(prisma, [existing.groupId]);
       res.json({ ok: true });
     }),
   );

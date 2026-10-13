@@ -232,6 +232,61 @@ export async function markAlumniBulk(prisma, { userIds, period, note, revokeRole
 }
 
 /**
+ * Tandai NONAKTIF (bulk): baris roster ACTIVE → PAST agar hilang dari pohon
+ * batch berjalan (pohon = ACTIVE saja) dan dilewati carryActiveMembers.
+ * Peran portal TIDAK dicabut di sini (Komisi mencabut manual bila perlu).
+ * Selalu sinkron — sebelumnya hanya ALUMNI yang sync sehingga User NONAKTIF
+ * dengan roster ACTIVE menjadi hantu pohon (insiden Nicole, Okt 2026).
+ */
+export async function markNonaktifBulk(prisma, { userIds, note = null }) {
+  const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
+  let updated = 0;
+  for (const userId of ids) {
+    const rows = await prisma.groupMember.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { id: true, groupId: true },
+    });
+    for (const row of rows) {
+      await prisma.groupMember.update({
+        where: { id: row.id },
+        data: { status: 'PAST', alumniNote: note || null },
+      });
+      updated += 1;
+    }
+    await refreshGroupCounts(prisma, rows.map((r) => r.groupId));
+  }
+  return { updated, users: ids.length };
+}
+
+/**
+ * Aktifkan kembali: kembalikan baris ALUMNI pada periode BERJALAN grupnya
+ * menjadi ACTIVE (riwayat generasi lama PAST tidak ditulis ulang).
+ * Sebelumnya aktivasi ulang hanya mengubah User sehingga orang aktif
+ * hilang dari pohon (roster tetap ALUMNI).
+ */
+export async function restoreActiveBulk(prisma, { userIds }) {
+  const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
+  let updated = 0;
+  for (const userId of ids) {
+    const rows = await prisma.groupMember.findMany({
+      where: { userId, status: 'ALUMNI' },
+      select: { id: true, groupId: true, batchPeriod: true },
+    });
+    for (const row of rows) {
+      const period = await currentPeriod(prisma, row.groupId);
+      if (row.batchPeriod && row.batchPeriod !== period) continue;
+      await prisma.groupMember.update({
+        where: { id: row.id },
+        data: { status: 'ACTIVE', movedToGroupId: null, alumniDate: null, alumniNote: null },
+      });
+      updated += 1;
+    }
+    await refreshGroupCounts(prisma, rows.map((r) => r.groupId));
+  }
+  return { updated, users: ids.length };
+}
+
+/**
  * Bawa anggota ACTIVE generasi sebelumnya ke period baru.
  * - Alumni/nonaktif dilewati. Yang pindah grup dilewati (ditandai MOVED).
  * - Baris generasi lama ACTIVE → PAST.

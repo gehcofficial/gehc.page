@@ -172,6 +172,8 @@ interface AppContextType {
   addGroupMember: (member: Omit<GroupMember, 'id' | 'joinedDate'>) => Promise<void>;
   updateGroupMember: (id: string, updates: Partial<GroupMember>) => Promise<void>;
   deleteGroupMember: (id: string) => Promise<void>;
+  /** Tarik ulang grup+batch+anggota dari TiDB (pohon selalu sinkron pasca-mutasi). */
+  refreshGroups: () => Promise<void>;
 
   // Struktur Operations
   addStrukturMember: (member: Omit<StrukturMember, 'id'>) => void;
@@ -339,10 +341,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUserId]);
 
   useEffect(() => {
+    // Jangan semenkan seed/cache sebelum server sukses pertama kali.
+    if (!serverHydratedRef.current) return;
     writeStored(STORAGE_KEYS.GROUPS, JSON.stringify(groups));
   }, [groups]);
 
   useEffect(() => {
+    if (!serverHydratedRef.current) return;
     writeStored(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
   }, [members]);
 
@@ -362,6 +367,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // membutuhkannya dirender — bukan di setiap load pengunjung publik.
   const strukturLoadedRef = useRef(false);
   const contentLoadedRef = useRef(false);
+  // True setelah /api/db/groups sukses pertama kali — sebelum itu JANGAN
+  // menulis seed/cache ke localStorage (mencegah hantu seed abadi).
+  const serverHydratedRef = useRef(false);
 
   const ensureStruktur = useCallback(async () => {
     if (strukturLoadedRef.current) return;
@@ -397,16 +405,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Hydration API-first: kelompok + batch mentoring + anggota dari TiDB.
   // Menimpa localStorage lama agar panel Monitoring/family tree selalu sinkron
   // dengan seed terbaru (nama orang asli tetap dari database).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Coba versi lengkap (login) dulu; pengunjung publik jatuh ke versi ramping.
-        let r = await fetch('/api/db/groups/full', { credentials: 'include' });
-        if (!r.ok) r = await fetch('/api/db/groups');
-        if (!r.ok) return;
-        const d = await r.json();
-        if (cancelled || !Array.isArray(d.groups)) return;
+  // Diekstrak sebagai refreshGroups agar SETIAP mutasi (tambah/ubah/hapus
+  // anggota, alumni, carry, assign) bisa menarik ulang pohon — sebelumnya
+  // groupBatches hanya dibangun sekali saat mount sehingga nama terhapus
+  // tetap tampil di Family Tree sampai reload (insiden Nicole, Okt 2026).
+  const refreshGroups = useCallback(async () => {
+    try {
+      // Coba versi lengkap (login) dulu; pengunjung publik jatuh ke versi ramping.
+      let r = await fetch('/api/db/groups/full', { credentials: 'include' });
+      if (!r.ok) r = await fetch('/api/db/groups');
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!Array.isArray(d.groups)) return;
 
         const gMapped: YouthGroup[] = [];
         const bMapped: GroupBatch[] = [];
@@ -523,24 +533,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           roster.push({ ...m, familyRole: role });
         }
 
-        if (cancelled) return;
+        serverHydratedRef.current = true;
         setGroups(gMapped);
         setGroupBatches(bMapped);
         setMembers(roster);
       } catch {
         /* offline ? pertahankan data lokal */
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    void refreshGroups();
+  }, [refreshGroups]);
 
   useEffect(() => {
     writeStored(STORAGE_KEYS.INTEGRATION, JSON.stringify(integrationConfig));
   }, [integrationConfig]);
 
   useEffect(() => {
+    if (!serverHydratedRef.current) return;
     writeStored(STORAGE_KEYS.GROUP_BATCHES, JSON.stringify(groupBatches));
   }, [groupBatches]);
 
@@ -1045,6 +1056,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         g.id === member.group_id ? { ...g, memberCount: g.memberCount + 1 } : g
       )
     );
+    // Tarik ulang dari server agar pohon + hitungan pasti sinkron (periode batch).
+    void refreshGroups();
     addToast({
       type: 'success',
       title: 'Anggota Ditambahkan',
@@ -1067,6 +1080,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMembers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...saved } : m))
     );
+    void refreshGroups();
     addToast({
       type: 'success',
       title: 'Data Anggota Diperbarui',
@@ -1090,6 +1104,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : g
       )
     );
+    // Wajib: groupBatches (sumber pohon) ikut disegarkan — sebelumnya nama
+    // terhapus tetap tampil di Family Tree sampai reload.
+    void refreshGroups();
     addToast({
       type: 'info',
       title: 'Anggota Dihapus',
@@ -1331,6 +1348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addGroupMember,
         updateGroupMember,
         deleteGroupMember,
+        refreshGroups,
 
         addStrukturMember,
         updateStrukturMember,

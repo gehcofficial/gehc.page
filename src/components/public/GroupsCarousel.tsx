@@ -7,6 +7,7 @@ import { MiniFamilyTree } from './FamilyTree';
 import { SectionHeader } from './ui/SectionHeader';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { useSteerableMarquee } from '../../hooks/useSteerableMarquee';
+import { activeMentees } from '../../lib/family-tree';
 import { landingBeyondersHouses } from '../../lib/landing-groups';
 import type { YouthGroup } from '../../types';
 
@@ -161,8 +162,7 @@ export const GroupsCarousel: React.FC = () => {
         >
           {rendered.map((grp, i) => {
             const batch = currentBatchFor(grp.id);
-            const activeMentees = (batch?.mentees || []).filter((m) => String(m.status || 'ACTIVE').toUpperCase() === 'ACTIVE');
-            const menteeCount = batch?.mentees ? activeMentees.length : Math.max(0, (grp.memberCount || 0) - 2);
+            const menteeCount = batch ? activeMentees(batch).length : Math.max(0, (grp.memberCount || 0) - 2);
             const sourceIndex = i % visibleGroups.length;
             return (
               <GroupHouseCard

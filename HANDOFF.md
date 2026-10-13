@@ -1,5 +1,49 @@
 # GEHC Portal — Handoff
 
+## Current — Family Tree hantu (Nicole): audit 10 rumah + always-sync (13 Okt 2026, uncommitted)
+
+**Laporan:** Family Tree Echad `2026-09` menampilkan Nicole yang "sudah tidak
+ada di database". Akar (prod, read-only): baris orphan `Nicole` Echad
+`ACTIVE@2026-09` dengan `userId NULL` — tersembunyi di tab Anggota
+(`visibleMembers` filter `!userId`) tapi TAMPIL di pohon. Kasus sekelas di
+grup lain: `Gievara H. J. Bogar` (Metanoia orphan `ACTIVE@2026-09`) +
+`Christofel David Pesoth` (Kairos: `User ALUMNI` tapi roster `ACTIVE`).
+
+**Audit (`scripts/audit-family-tree.mjs`, READ-ONLY, report-only):**
+- Staging: bersih (0 hantu; Nicole staging = `ACTIVE` tertaut user — sah;
+  Veylicia `MOVED@2026-09` Kairos→Shalom = by-design, hanya riwayat).
+- Prod: hantu `ALUMNI/PAST@berjalan`=0 · mismatch=1 (Christofel) · orphan=5
+  (Echad 3: Nicole aktif + Chelsea/Nicole `2026-06`; Metanoia 2: Gievara
+  aktif + `2026-06`) · `memberCount` drift (Agape 14vs13, Hesed 12vs11,
+  Logos 11vs10) · nama ganda lintas grup=0 · `npm run audit:family-tree[:staging|:prod]`.
+
+**Ubah (pohon berjalan = ACTIVE saja; riwayat tak berubah):**
+`src/lib/family-tree.ts` (baru: `activeMentees`/`historyMentees`) →
+`GroupDetailPage` (tab roster filter ACTIVE; tab riwayat tetap semua+badge) →
+`ManageGroupsMonitoring` (tab family-tree + hitungan Mentee) →
+`GroupsCarousel` (ganti filter inline) → `AppContext`: hidrasi diekstrak jadi
+`refreshGroups()` (dipanggil pasca `add/update/deleteGroupMember` +
+`RegenerationWizard` via perubahan `houses`); tulis `localStorage`
+GROUPS/MEMBERS/BATCHES ditahan sampai server sukses pertama kali (anti
+semen seed `Nicole Naray` di `initialData.ts`).
+**Sync server:** `markNonaktifBulk` (ACTIVE→PAST) + `restoreActiveBulk`
+(pulihkan ALUMNI@periode-berjalan; PAST lama tetap) di
+`server/lib/member-role-sync.mjs`; `POST /bulk` + `PATCH /api/jemaat/:id`
+kini sync untuk ALUMNI/NONAKTIF/ACTIVE (+snapshot NONAKTIF/REACTIVE);
+`POST /api/groups/:id/members` isi `batchPeriod` periode berjalan (sebelumnya
+null → invisible) + `refreshGroupCounts` di create/delete (atasi drift count).
+
+**Verifikasi:** `lint` bersih · `test` **1076/1076** (142 files; 1 flake
+`lazy-routes` di run pertama, hijau di rerun — pre-existing) · `build` OK ·
+test baru `family-tree` (4) + `member-status-sync` (2).
+
+**Next (TAHAN — butuh persetujuan):** (a) perlakuan baris orphan prod
+(hapus Nicole/Gievara orphan vs tautkan ke User — report-only, tanpa ubah
+DB); (b) sinkron `memberCount` drift (Agape/Hesed/Logos); (c) QA staging
+(`staging:sync` lalu cek pohon Echad/Metanoia/Kairos + tab Anggota);
+(d) E2E hapus→pohon (deferred). Commit + push per batch (episode ini
+uncommitted; JANGAN `git add -A`).
+
 ## Current — Preview 2 variasi Pelsus: V1 `#/pelsus/` vs V2 `#/pelsus2/` by-person (10 Okt 2026, uncommitted)
 
 **Kebutuhan:** 1 orang bisa 2–3 surat suara (contoh: Kolom 3 + Pemuda); alur
@@ -41,6 +85,19 @@ cleanup reset+DRAFT ✓. Catatan: smoke pertama 404 karena menabrak server
 manual V1 vs V2 di staging-youth ikut §12; (c) putuskan pemenang → promosi ke
 `#/pelsus`, hapus varian kalah. Commit + push per batch (file episode ini +
 episode 18-Okt masih uncommitted).
+
+**Update 11 Okt (sisa dikerjakan):** commit `9e9264c` (lokal, main) ✓; staging
+DB = cluster bersama `.env` — 19 pel-* ternyata sudah hilang (0 ballot) jadi
+tanpa reset, langsung `db:seed:pelsus:staging` → 19 elections 18 Okt + 209
+DPT ✓ + pv2-* (pra-seeded, 9 DPT) ✓; `staging:sync` → deploy `9e9264c` + alias
+✓ (verify-vs-main "belum sama" = wajar, staging di depan prod); smoke staging
+(22 elections, judul11=0/18=19/pv2=3, people/search 1×3) ✓; QA visual lokal
+(build prod + Vite 3001 + API 8789): bilik berantai "Surat 1 dari 3",
+HomeV2 "Sudah 0 dari 3", DetailV2, PanitiaView cari→Paket Token/Manual —
+screenshot `v2-*.png` ✓; TANPA vote (staging pristine: 22/0 ballot/0 OPEN) ✓;
+server QA dimatikan. Catatan: port 8787 milik sesi paralel (pakai 878x lain);
+`vercel env pull` untuk BASIC staging (file secret sudah dihapus).
+**Tahan:** reseed `:prod` + merge/push main→prod = butuh persetujuan eksplisit.
 
 ## Current — Tabel pipa md-lite + rundown MONOLOG 1 tabel + hapus ringkasan atas (10 Okt 2026, uncommitted)
 
@@ -241,6 +298,13 @@ Verifikasi: lint ✓, suite ✓, build ✓, re-seed staging ✓ baca-balik (12 f
 4 divisi, 7/7 heading, 4/4 slot; sesi + soal + chip utuh; 0 migrasi).
 Sisa: commit file seed (tunggu sesi paralel — berisi rename mereka) + `db:seed:worship:prod`
 (menunggu persetujuan eksplisit).
+
+**Crosscheck penatalayan H-1 (11 Okt, menyusul):** `server/lib/petugas-crosscheck.mjs` murni
+(cocok eventId ATAU null+tanggal WIB sama; ringkasan konfirmasi/kehadiran) → `GET check-ins`
+balas `petugas{summary,byDivision,list}` + `event.date` → `EventCheckInTab` seksi Penatalayan
+(mode pra-event: kesiapan H-1 + missing; mode live: split petugas/jemaat + flag belum
+tercatat). Aksi konfirmasi tetap di alur penatalayan; auto-mark tak berubah.
+Verifikasi: lint ✓, suite 1066 hijau (1 flake lazy-routes lolos isolasi) ✓, build ✓.
 
 **POV rapih (11 Okt, menyusul):** tab Panduan → Sambutan personal (nama + Rescue Plan +
 pesan positif; akses dibuka/tunggu), tab Komitmen dihapus (komitmen tetap field di

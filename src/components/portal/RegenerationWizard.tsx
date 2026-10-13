@@ -69,7 +69,7 @@ function DirectoryPicker({ label, value, onPick, disabled }: {
 }
 
 export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; onChanged: () => void }> = ({ houses, canEdit, onChanged }) => {
-  const { addToast } = useApp();
+  const { addToast, refreshGroups } = useApp();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [period, setPeriod] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -84,6 +84,13 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
     } catch { /* skip */ }
   }, []);
   useEffect(() => { if (canEdit) void loadUndo(); }, [canEdit, loadUndo, houses]);
+
+  // houses berubah = aksi regen baru saja sukses (onChanged→load) → segarkan
+  // konteks global (groupBatches/pohon) agar publik + monitoring ikut sinkron.
+  useEffect(() => {
+    if (canEdit) void refreshGroups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houses]);
 
   const undoLastAction = async () => {
     setBusy('undo');
@@ -324,7 +331,7 @@ export const RegenerationWizard: React.FC<{ houses: House[]; canEdit: boolean; o
               <button type="button" disabled={busy === 'alumni'}
                 onClick={() => setPending({
                   title: `Aktifkan kembali ${alumniSel.length} orang?`,
-                  description: 'Status keanggotaan kembali ACTIVE (roster grup tidak otomatis dipulihkan).',
+                  description: 'Status keanggotaan kembali ACTIVE + baris ALUMNI periode berjalan dipulihkan ke pohon.',
                   confirmLabel: 'Aktifkan kembali',
                   run: () => markStatus('ACTIVE'),
                 })}
