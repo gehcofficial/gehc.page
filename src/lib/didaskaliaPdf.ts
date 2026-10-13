@@ -594,9 +594,10 @@ export function buildRhbPdfs(week: DidaskaliaWeek, studio: DidaskaliaStudio, opt
     w.y = 26;
     w.label(`RHB · Week ${week.index} · ${p.dayLabel}`, C.accent);
     w.title(p.title, 24);
-    w.subtitle([studio.chapterNo, studio.fundamentalFirman?.ref].filter(Boolean).join(' · '));
+    w.subtitle([studio.chapterNo, studio.kitabFokus].filter(Boolean).join(' · '));
     w.divider(7);
-    if (p.bacaanRef) w.field('Bacaan Alkitab', p.bacaanRef, 10);
+    if (studio.kitabFokus) w.field('Kitab / Bagian Fokus', studio.kitabFokus, 10);
+    if (p.bacaanRef) w.field('Bacaan hari ini', p.bacaanRef, 10);
     if (p.scriptureRef) w.field('Nats Pembimbing', p.scriptureRef, 10);
     if (p.scriptureText) w.callout(p.scriptureRef || 'Nats Pembimbing', p.scriptureText);
 

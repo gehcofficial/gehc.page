@@ -151,7 +151,7 @@ export type DidaskaliaSermon = {
 /** MD acuan mingguan (input awal skenario baru) — disimpan per pekan, bukan knowledge global. */
 export type DidaskaliaSourceMd = {
   service: { info?: { tema?: string; teksUtama?: string; teksJangkar?: string }; outline?: Partial<DidaskaliaSermonOutline>; rawLength?: number } | null;
-  rhb: { paths?: Array<{ pathIndex: number; title: string; scriptureRef: string; summary: string; bridge: string }> } | null;
+  rhb: { paths?: Array<{ pathIndex: number; title: string; scriptureRef: string; bacaanRef?: string; summary: string; bridge: string }> } | null;
 };
 
 /** Ruang lingkup catatan diskusi agar umpan balik terfokus per bagian. */
@@ -372,6 +372,23 @@ export function statusLabel(status: string): string {
     PUBLISHED: 'Rilis',
   };
   return map[status] || status;
+}
+
+/** Nama kitab dari sebuah ref (huruf depan sebelum nomor pasal) — untuk cek Bacaan vs Kitab Fokus. */
+export function refBookName(ref: string): string {
+  const m = String(ref || '').trim().match(/^(\d?\s*[A-Za-zÀ-ÿ.']+(?:\s+[A-Za-zÀ-ÿ.']+)*?)\s+\d/);
+  return (m ? m[1] : '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** True bila Bacaan harian tampak sebagai porsi dari Kitab Fokus statis (nama kitab sama; kosong = tidak dinilai). */
+export function bacaanMatchesKitab(bacaanRef: string, kitabFokus: string): boolean {
+  const b = String(bacaanRef || '').trim();
+  const k = String(kitabFokus || '').trim();
+  if (!b || !k) return true;
+  const bb = refBookName(b);
+  const kb = refBookName(k);
+  if (!bb || !kb) return true;
+  return bb === kb || bb.startsWith(kb) || kb.startsWith(bb);
 }
 
 /** Hash ringan (sinkron) untuk deteksi perubahan konten vs yang sudah dirilis. */

@@ -51,7 +51,7 @@ Tim menulis 2 file MD per pekan (lihat checklist §2b), lalu di Studio:
   - `Bukan berarti ...` / `Sering disalahpahami ...` → kotak pelurusan.
   - `**tebal**`, `*miring*`, `#### A./B./C.`, `---` pemisah (pemisah di akhir bagian tidak menjadi slide).
 
-**MD RHB** (`For RHB_<tanggal>.md`): 7× `### Path N: Judul Inggris (2–5 kata)` + `**Scripture:** ref` + narasi + `> jembatan 1 kalimat ke hari berikut`. Kurang dari 7 / Scripture kosong = parse gagal.
+**MD RHB** (`For RHB_<tanggal>.md`): 7× `### Path N: Judul Inggris (2–5 kata)` + `**Scripture:** ref` (Nats Pembimbing — pengaya, berbeda tiap hari) + opsional `**Bacaan:** ref` (porsi hari itu dari Kitab/Bagian Fokus statis; kosong = pertahankan) + narasi + `> jembatan 1 kalimat ke hari berikut`. Kurang dari 7 / Scripture kosong = parse gagal. Kitab/Bagian Fokus statis sepekan diambil dari Input Inti — jangan ditulis ulang per Path.
 
 **Batas sistem yang perlu diketahui penulis:**
 - Slide web: ≤9 baris estimasi & ≤5 bullet per slide, tanpa judul ganda (cukup header `Outline · no + judul`), slide berisi pemisah saja otomatis dibuang. Panjang tetap → slide bertambah, bukan teks dipotong.

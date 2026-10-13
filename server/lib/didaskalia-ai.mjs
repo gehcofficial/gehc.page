@@ -537,7 +537,9 @@ export async function generateWeekDraft(input) {
   ];
   const PATH_RULES = [
     'ATURAN (WAJIB):',
-    '- Fundamental Firman adalah JANGKAR TEMA; bagian hari ini diambil progresif dari Kitab/Bagian Fokus.',
+    '- Fundamental Firman adalah JANGKAR TEMA; Kitab/Bagian Fokus adalah ACUAN STATIS sepekan (sama untuk 7 hari, jangan ditulis ulang per hari).',
+    '- bacaanRef = PORSI HARIAN dari Kitab/Bagian Fokus (progresif hari 1→7, HARUS subset/rentang di dalam Kitab Fokus, jangan karang di luar rentangnya).',
+    '- scriptureRef (Nats Pembimbing) = ayat pengaya yang BERBEDA tiap hari, dikaitkan eksplisit ke bacaan hari itu & tema; scriptureText = kutipan singkatnya.',
     '- Judul Path WAJIB Bahasa Inggris menarik (2-5 kata). Isi lain Bahasa Indonesia.',
     '- Field: pathIndex, dayLabel, title, summary (maks 100 karakter), bacaanRef, scriptureRef (Nats Pembimbing), scriptureText (maks 180 karakter), homileticLens (2-3), hookQuestion, illustration (1-2 ilustrasi kontekstual dunia anak muda — kuliah/kerja/kos/relasi — maks 280 karakter), reflection (maks 3 kalimat), observeQ, interpretQ, applyQ, fgdQuestions (2-3), bridge (1 kalimat), imageStem "".',
     '- dayLabel Path ke-N WAJIB hari kalender ke-N: Path 1 = Minggu, 2 = Senin, 3 = Selasa, 4 = Rabu, 5 = Kamis, 6 = Jumat, 7 = Sabtu. Jangan menerjemahkan ke bahasa lain.',
@@ -574,7 +576,7 @@ export async function generateWeekDraft(input) {
   const onePathPrompt = (i, extra) => [
     ...HEAD,
     `TUGAS: buat Path ke-${i} dari 7 (hari ${DAY_LABELS[i - 1]}).`,
-    focus ? `Kitab/bagian fokus: ${focus} — tentukan porsi hari ke-${i} secara progresif.` : '',
+    focus ? `Kitab/bagian fokus (STATIS sepekan, jangan diubah): ${focus} — bacaanRef hari ke-${i} HARUS porsi progresif di dalam rentang ini (subset, jangan keluar rentang).` : '',
     extra || '',
     ...PATH_RULES.slice(0, -2),
   ].filter(Boolean).join('\n');
@@ -670,9 +672,10 @@ export const ENRICH_NOTES_CAP = 8000;
 const ENRICH_PATH_RULES = [
   'ATURAN (WAJIB):',
   '- JANGAN mengubah struktur: tetap 5 rhbSections dengan key yang sama.',
+  '- Kitab/Bagian Fokus adalah ACUAN STATIS sepekan (jangan ditulis ulang per hari).',
   '- dayLabel WAJIB hari kalender path ini (Path 1 = Minggu … Path 7 = Sabtu). Jangan menerjemahkan ke bahasa lain.',
   '- DILARANG mengosongkan field yang sudah terisi: setiap body RHB dan field Path WAJIB terisi penuh; bila ragu, tulis ulang sama kaya atau lebih kaya — JANGAN string kosong.',
-  '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (progresif dari Kitab Fokus), scriptureRef (Nats Pembimbing), dan SEMUA body rhbSections (masing-masing 300–600 karakter; MAKNA_IMPLIKASI = naskah siap-baca direct speech).',
+  '- Pertajam: judul Path (tetap Bahasa Inggris, kece), bacaanRef (PORSI HARIAN yang HARUS subset dari Kitab Fokus, progresif 1→7), scriptureRef (Nats Pembimbing pengaya, beda tiap hari, kaitkan eksplisit ke bacaan hari itu), dan SEMUA body rhbSections (masing-masing 300–600 karakter; MAKNA_IMPLIKASI = naskah siap-baca direct speech).',
   '- Pastikan tiap metode benar-benar menajamkan Fundamental Firman.',
   '- Integrasikan masukan dari "Catatan tim/diskusi" (jangan diabaikan).',
   '- Bahasa Indonesia hangat & kontekstual; hanya judul Path dalam Bahasa Inggris.',
@@ -703,7 +706,7 @@ export async function generateEnrichedDraft(input) {
     ...patternBlock(ctxInput.pattern),
     '',
     'ALUR PEMIKIRAN (WAJIB):',
-    '- Fundamental Firman = jangkar tema; Kitab/Bagian Fokus dibagi 7 hari sebagai Bacaan Alkitab; tiap hari punya Nats Pembimbing.',
+    '- Fundamental Firman = jangkar tema; Kitab/Bagian Fokus = ACUAN STATIS sepekan (sama 7 hari); Bacaan Alkitab = porsi harian yang HARUS subset dari Kitab Fokus; tiap hari punya Nats Pembimbing pengaya yang berbeda & dikaitkan eksplisit ke bacaannya.',
     '- Setiap metode (sesuai persentase) harus menajamkan & memperdalam Fundamental Firman.',
     '- Jaga KESINAMBUNGAN: Path 1 menyambung dari MINGGU LALU, Path 7 menjembatani MINGGU DEPAN (lihat konteks).',
     '',

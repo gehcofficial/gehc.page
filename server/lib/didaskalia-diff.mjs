@@ -49,7 +49,7 @@ export function computeRegenDiff(current, proposal) {
     push(sc, `Path ${i + 1} · Judul`, a.title, b.title);
     push(sc, `Path ${i + 1} · Ringkasan`, a.summary, b.summary);
     push(sc, `Path ${i + 1} · Nats Pembimbing`, a.scriptureRef, b.scriptureRef);
-    push(sc, `Path ${i + 1} · Bacaan Alkitab`, a.bacaanRef, b.bacaanRef);
+    push(sc, `Path ${i + 1} · Bacaan hari ini`, a.bacaanRef, b.bacaanRef);
     push(sc, `Path ${i + 1} · Perenungan`, a.reflection, b.reflection);
     const curBody = (a.rhbSections || []).map((s) => (s.body || '').trim()).join('|');
     const propBody = (b.rhbSections || []).map((s) => (s.body || '').trim()).join('|');

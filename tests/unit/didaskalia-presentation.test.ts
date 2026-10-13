@@ -160,14 +160,24 @@ describe('deck builders', () => {
     expect(deck.map((s) => s.id)).toEqual(['cover', 'sec-PENGANTAR', 'closing']);
   });
 
-  it('RHB harian menampilkan Bacaan Alkitab & Nats Pembimbing', () => {
+  it('RHB harian menampilkan Kitab statis + Bacaan hari ini + Nats Pembimbing', () => {
+    const studio = studioWithRhb();
+    studio.kitabFokus = '1 Timotius 3:1-13';
+    const content = contentFromStudio(studio, 1, '', '');
+    content.paths[1] = { ...content.paths[1], bacaanRef: '1 Timotius 3:3-4', scriptureRef: '1 Timotius 3:11' };
+    const deck = buildRhbDayDeck(content, 2);
+    const labels = (deck[0].fields || []).map((f) => f.label);
+    expect(labels).toEqual(['Kitab / Bagian Fokus', 'Bacaan hari ini', 'Nats Pembimbing']);
+    expect(deck[0].fields?.[0].value).toBe('1 Timotius 3:1-13');
+  });
+
+  it('RHB harian tanpa Kitab Fokus: hanya Bacaan + Nats (tanpa field kosong)', () => {
     const studio = studioWithRhb();
     const content = contentFromStudio(studio, 1, '', '');
     content.paths[1] = { ...content.paths[1], bacaanRef: '1 Timotius 3:3-4', scriptureRef: '1 Timotius 3:11' };
     const deck = buildRhbDayDeck(content, 2);
     const labels = (deck[0].fields || []).map((f) => f.label);
-    expect(labels).toContain('Bacaan Alkitab');
-    expect(labels).toContain('Nats Pembimbing');
+    expect(labels).toEqual(['Bacaan hari ini', 'Nats Pembimbing']);
   });
 
   it('RHB harian memakai gambar AI harian di semua slide (section lama diabaikan)', () => {
@@ -196,11 +206,15 @@ describe('deck builders', () => {
     expect(bare[0].imageFileId).toBeUndefined();
   });
 
-  it('rhbDayList mengembalikan 7 hari', () => {
+  it('rhbDayList mengembalikan 7 hari + bacaan porsi', () => {
     const studio = studioWithRhb();
+    studio.paths[0].bacaanRef = '1 Timotius 3:1-2';
+    studio.paths[0].scriptureRef = '1 Timotius 3:11';
     const days = rhbDayList(contentFromStudio(studio, 1, '', ''));
     expect(days).toHaveLength(7);
     expect(days[0].dayLabel).toBe('Minggu');
+    expect(days[0].bacaan).toBe('1 Timotius 3:1-2');
+    expect(days[0].ref).toBe('1 Timotius 3:11');
   });
 });
 
@@ -232,5 +246,16 @@ describe('caption', () => {
     const content = contentFromStudio(studio, 1, '2026-09-06', 'Tema');
     const text = buildWeekCaption({ doc: 'rhb', yearMonth: '2026-09', weekIndex: 1, content, origin: 'https://youth.gehc.page' });
     for (let d = 1; d <= 7; d += 1) expect(text).toContain(`/#/materi/rhb/2026-09/1/${d}`);
+  });
+
+  it('caption harian memuat Kitab statis + Bacaan hari ini + Nats', () => {
+    const studio = studioWithRhb();
+    studio.kitabFokus = '1 Timotius 3:1-13';
+    const content = contentFromStudio(studio, 1, '2026-09-06', 'Tema');
+    content.paths[1] = { ...content.paths[1], bacaanRef: '1 Timotius 3:3-4', scriptureRef: '1 Timotius 3:11' };
+    const text = buildDayCaption({ doc: 'rhb', yearMonth: '2026-09', weekIndex: 1, dayIndex: 2, content, origin: 'https://youth.gehc.page' });
+    expect(text).toContain('1 Timotius 3:1-13');
+    expect(text).toContain('Bacaan hari ini: 1 Timotius 3:3-4');
+    expect(text).toContain('Nats: 1 Timotius 3:11');
   });
 });

@@ -31,6 +31,7 @@ import {
   RHB_SECTIONS,
   RITUAL_LABELS,
   RITUAL_TYPES,
+  bacaanMatchesKitab,
   defaultStudio,
   defaultSermon,
   ensurePaths,
@@ -380,10 +381,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
-  /** Terapkan MD RHB ke 7 Path editor (judul/ref/ringkasan/jembatan), lalu simpan. */
+  /** Terapkan MD RHB ke 7 Path editor (judul/nats/bacaan/ringkasan/jembatan), lalu simpan. Bacaan kosong = pertahankan (Kitab Fokus statis jadi acuan). */
   const applyRhbToPaths = async () => {
     if (!canWrite || !studio.sourceMd?.rhb?.paths?.length) return;
-    const parsed = studio.sourceMd.rhb.paths as Array<{ pathIndex: number; title: string; scriptureRef: string; summary: string; bridge: string }>;
+    const parsed = studio.sourceMd.rhb.paths as Array<{ pathIndex: number; title: string; scriptureRef: string; bacaanRef?: string; summary: string; bridge: string }>;
     const next = ensurePaths(studio).map((p, i) => {
       const src = parsed[i];
       if (!src) return p;
@@ -391,6 +392,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         ...p,
         title: src.title || p.title,
         scriptureRef: src.scriptureRef || p.scriptureRef,
+        bacaanRef: (src.bacaanRef || '').trim() ? String(src.bacaanRef).trim() : p.bacaanRef,
         summary: src.summary || p.summary,
         bridge: src.bridge || p.bridge,
       };
@@ -1407,6 +1409,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           {tab === 'paths' && (<>
           {/* Editor 7 Path */}
           <div className="space-y-2">
+            <div className="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2">
+              <p className="text-[11px] text-sky-900"><b>Kitab / Bagian Fokus statis sepekan{studio.kitabFokus ? `: ${studio.kitabFokus}` : ''}</b> — tampil sama di 7 hari RHB. <b>Bacaan</b> = porsi hari itu dari kitab tersebut; <b>Nats Pembimbing</b> = ayat pengaya yang berbeda tiap hari.</p>
+            </div>
             <div className="flex items-center gap-2 px-1">
               <p className="text-[11px] text-[#8C8880]">1 gambar harian berlaku semua slide hari itu (background + overlay, seperti khotbah).</p>
               <button
@@ -1443,10 +1448,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                         <div><label className={labelCls}>Judul Path (Inggris)</label><input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Ringkasan Hari (1 kalimat)</label><input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} /></div>
                         <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} className={inputCls} /></div>
+                        <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} placeholder={studio.kitabFokus ? `Porsi hari ini dari ${studio.kitabFokus}` : 'Porsi hari ini dari Kitab Fokus'} className={inputCls} /></div>
                         <div><label className={labelCls}>Nats Pembimbing</label><input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Lensa Khotbah</label><input value={(p.homileticLens || []).join(', ')} onChange={(e) => setPath(i, { homileticLens: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} className={inputCls} /></div>
                       </div>
+                      {!bacaanMatchesKitab(p.bacaanRef || '', studio.kitabFokus || '') && (
+                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">⚠️ Bacaan ini tampak di luar Kitab Fokus statis ({studio.kitabFokus || '—'}). Pastikan porsi harian diambil dari kitab tersebut.</p>
+                      )}
                       <div><label className={labelCls}>Teks Nats Pembimbing</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
                       <div className="grid sm:grid-cols-2 gap-2">
                         <div><label className={labelCls}>Pertanyaan Pembuka</label><textarea value={p.hookQuestion} onChange={(e) => setPath(i, { hookQuestion: e.target.value })} rows={2} className={inputCls} /></div>

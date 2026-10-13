@@ -314,6 +314,7 @@ const RhbIndex: React.FC<{ route: ParsedMaterialHash; content: PresentationConte
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-300">RHB 7 Hari · Pekan {route.weekIndex} · v{version}</p>
           <h1 className="text-2xl sm:text-3xl font-black">{content.theme || content.kitabFokus || `Pekan ${route.weekIndex}`}</h1>
           <p className="text-sm text-white/60">{[content.date, content.chapterNo].filter(Boolean).join(' · ')}</p>
+          {content.kitabFokus && <p className="text-sm font-bold text-sky-300">📖 Kitab / Bagian Fokus (sepekan): {content.kitabFokus}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <CaptionPanel route={route} content={content} doc="rhb" canNotify={canNotify} notify={notify} />
@@ -333,7 +334,8 @@ const RhbIndex: React.FC<{ route: ParsedMaterialHash; content: PresentationConte
                 <span className="min-w-0 flex-1">
                   <span className="block text-[10px] font-black uppercase tracking-wider text-white/50">{d.dayLabel}</span>
                   <span className="block text-sm font-bold truncate">{d.title}</span>
-                  {d.ref && <span className="block text-[11px] text-white/50 truncate">{d.ref}</span>}
+                  {d.bacaan && <span className="block text-[11px] text-white/60 truncate">📖 {d.bacaan}</span>}
+                  {d.ref && <span className="block text-[11px] text-white/50 truncate">✨ {d.ref}</span>}
                 </span>
                 <span className="text-xs font-bold text-sky-300">Buka →</span>
               </a>

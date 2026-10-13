@@ -48,13 +48,18 @@ export function buildDayCaption(input: CaptionInput): string {
   if (input.doc === 'khutbah') return buildKhutbahCaption(input);
   const title = `RHB Pekan ${input.weekIndex} — ${path?.dayLabel || DAY_LABELS[dayIndex - 1]}`;
   const theme = path?.title || content.theme || content.kitabFokus || '';
-  const ref = [content.chapterNo, path?.scriptureRef].filter(Boolean).join(' · ');
+  const kitab = content.kitabFokus || '';
+  const bacaan = path?.bacaanRef || '';
+  const nats = path?.scriptureRef || '';
+  const ref = [content.chapterNo, kitab].filter(Boolean).join(' · ');
 
   return [
     `📖 *${title}*`,
     theme ? `*${theme}*` : '',
     content.date ? `🗓️ ${fmtDate(content.date)}` : '',
     ref ? `📌 ${ref}` : '',
+    bacaan ? `📖 Bacaan hari ini: ${bacaan}` : '',
+    nats ? `✨ Nats: ${nats}` : '',
     '',
     'RHB hari ini sudah siap dibaca. Yuk mulai dari Pengantar, lalu Refleksi Pribadi & Diskusi Kelompok 👇',
     url,

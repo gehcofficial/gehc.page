@@ -609,7 +609,8 @@ export function buildRhbDayDeck(content: PresentationContent, dayIndex: number):
       imageFileId: daily || content.images.cover,
       background: true,
       fields: [
-        path.bacaanRef ? { label: 'Bacaan Alkitab', value: path.bacaanRef } : null,
+        content.kitabFokus ? { label: 'Kitab / Bagian Fokus', value: content.kitabFokus } : null,
+        path.bacaanRef ? { label: 'Bacaan hari ini', value: path.bacaanRef } : null,
         path.scriptureRef ? { label: 'Nats Pembimbing', value: path.scriptureRef } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
@@ -866,13 +867,14 @@ export function buildDeck(doc: MaterialDoc, content: PresentationContent, dayInd
   return buildRhbDayDeck(content, dayIndex || 1);
 }
 
-/** Ringkasan 7 hari untuk halaman indeks RHB. */
-export function rhbDayList(content: PresentationContent): { dayIndex: number; dayLabel: string; title: string; ref: string }[] {
+/** Ringkasan 7 hari untuk halaman indeks RHB. ref = Nats Pembimbing (bervariasi); bacaan = porsi harian dari Kitab Fokus statis. */
+export function rhbDayList(content: PresentationContent): { dayIndex: number; dayLabel: string; title: string; ref: string; bacaan: string }[] {
   return content.paths.map((p, i) => ({
     dayIndex: i + 1,
     dayLabel: p.dayLabel || DAY_LABELS[i],
     title: p.title,
     ref: p.scriptureRef,
+    bacaan: p.bacaanRef || '',
   }));
 }
 

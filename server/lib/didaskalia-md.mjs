@@ -88,7 +88,8 @@ export function parseServiceMd(raw) {
 
 /**
  * Parse MD RHB (contoh: For RHB_1111026.md) → 7 Path.
- * Struktur: `### Path N: Judul` + `**Scripture:** ref` + narasi + `> bridge`.
+ * Struktur: `### Path N: Judul` + `**Scripture:** ref` (Nats Pembimbing, bervariasi)
+ *   + opsional `**Bacaan:** ref` (porsi harian dari Kitab/Bagian Fokus statis) + narasi + `> bridge`.
  */
 export function parseRhbMd(raw) {
   const md = unwrapPythonMd(raw);
@@ -98,15 +99,18 @@ export function parseRhbMd(raw) {
     const title = asStr(titleM ? titleM[1] : s.title, 120);
     const refM = s.body.match(/\*\*scripture:\*\*\s*([^\n]+)/i);
     const scriptureRef = asStr(refM ? refM[1] : '', 160);
+    const bacaanM = s.body.match(/\*\*bacaan:\*\*\s*([^\n]+)/i);
+    const bacaanRef = asStr(bacaanM ? bacaanM[1] : '', 160);
     const bridgeM = s.body.match(/^>\s*(.+)$/m);
     const bridge = asStr(bridgeM ? bridgeM[1] : '', 500);
     const summary = cleanBody(
       s.body
         .replace(/\*\*scripture:\*\*\s*[^\n]+\n?/i, '')
+        .replace(/\*\*bacaan:\*\*\s*[^\n]+\n?/i, '')
         .replace(/^>\s*.+$/m, ''),
       600
     );
-    return { pathIndex: i + 1, title, scriptureRef, summary, bridge };
+    return { pathIndex: i + 1, title, scriptureRef, bacaanRef, summary, bridge };
   });
   const missing = [];
   if (paths.length < 7) missing.push(`Hanya ${paths.length}/7 Path ditemukan`);
