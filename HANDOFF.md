@@ -43,6 +43,10 @@ varian tersimpan; main=120 jemaat=105 kru=15) → commit `3118b1a` (9 file episo
 `FUNCTION_INVOCATION_FAILED`. Hotfix `103b874` (4 file server+test milik sesi paralel,
 UI + screenshot tetap milik mereka) → push → prod `/api/version` = `103b874` ✓ pulih →
 `staging:sync` ulang → main = staging = `103b874` ✓.
+**Final (13 Okt, ~11:15):** catat HANDOFF `77f3b64` → push (docs-only, picu rebuild prod) →
+tunggu prod Ready → `staging:sync` tuntas → main = staging = `77f3b64` ✓ (semua alias
+staging.* ke deployment staging baru `mkpyqzxvo`). Verifikasi: prod `/api/version` =
+`77f3b64` 200 ✓; `staging-youth` 401 ✓ (protection = tepat di deployment staging).
 **Catatan:** (a) file seed (isi episode ini + restruktur 12-fase paralel) masih uncommitted —
 koordinasikan commit dengan sesi paralel, JANGAN `checkout` seed (staging DB sudah berisi);
 (b) tiap deploy prod menyapu alias `staging.*` ke deployment prod — `staging:sync` WAJIB
