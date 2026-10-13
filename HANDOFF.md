@@ -116,6 +116,17 @@ uncommitted; JANGAN `git add -A`).
 - Commit script+label; push main (= deploy prod, pohon Christofel hilang
   setelah live) + `staging:sync` + QA staging menyusul di bawah.
 
+**Update 13 Okt (push+sync+QA):** commit `9f33a9e`
+(`fix(family-tree): hapus orphan Nicole/Gievara prod + audit ARSIP`) → push
+main OK (prod deploy dari main) → `staging:sync` OK (version staging vs main
+`9f33a9e` ✓ sama + alias unit). QA: bypass staging tak tersedia di env
+lokal, jadi smoke API lokal `PORT=8789 GEHC_ENV=staging` (server QA
+dimatikan setelahnya): `/api/db/groups` → Echad `2026-09`
+(Holly K./Aditya W., mentee non-ACTIVE=0) · Kairos (`ACTIVE:8 MOVED:1` =
+Veylicia by-design, disembunyikan kode) ✓. Sisa visual: konfirmasi user di
+`staging-youth` (pohon Echad tanpa Nicole; Kairos tanpa Christofel) +
+prod `youth.gehc.page` setelah deploy live.
+
 ## Current — Preview 2 variasi Pelsus: V1 `#/pelsus/` vs V2 `#/pelsus2/` by-person (10 Okt 2026, uncommitted)
 
 **Kebutuhan:** 1 orang bisa 2–3 surat suara (contoh: Kolom 3 + Pemuda); alur
