@@ -9,6 +9,7 @@ import {
   Clock,
   Plus,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   Loader2,
   AlertTriangle,
@@ -135,6 +136,71 @@ function isoToDateInput(iso?: string | null): string {
 }
 import { EVENT_KINDS, eventKindLabel, normalizeEventKind } from '../../lib/event-kinds';
 
+type DetailSec = 'konten' | 'soal' | 'divisi' | 'pendaftar' | 'penatalayan' | 'rapat';
+
+const DETAIL_SECS: Array<{ id: DetailSec; label: string }> = [
+  { id: 'konten', label: 'Konten' },
+  { id: 'soal', label: 'Soal' },
+  { id: 'divisi', label: 'Divisi' },
+  { id: 'pendaftar', label: 'Pendaftar' },
+  { id: 'penatalayan', label: 'Penatalayan' },
+  { id: 'rapat', label: 'Rapat' },
+];
+
+const DEFAULT_OPEN_SECS: Record<DetailSec, boolean> = {
+  konten: true,
+  soal: false,
+  divisi: true,
+  pendaftar: false,
+  penatalayan: false,
+  rapat: false,
+};
+
+function openSecsKey(eventId: string): string {
+  return `event-detail-open:${eventId}`;
+}
+
+function scrollToSec(id: DetailSec): void {
+  document.getElementById(`evsec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const DetailSection: React.FC<{
+  id: DetailSec;
+  title: string;
+  summary?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}> = ({ id, title, summary, open, onToggle, children }) => (
+  <section id={`evsec-${id}`} className="scroll-mt-24 space-y-2">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="w-full flex items-center gap-2 px-1 py-1 text-left"
+    >
+      <span className="text-sm font-black text-[#1B1B1B]">{title}</span>
+      {summary && (
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold truncate">
+          {summary}
+        </span>
+      )}
+      <span className="ml-auto text-[#8C8880]">
+        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </span>
+    </button>
+    {open ? children : null}
+  </section>
+);
+
+function formatRange(start?: string, end?: string, fmt?: (d?: string) => string): string {
+  const f = fmt || ((d?: string) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'));
+  const s = start ? f(start) : '';
+  const e = end ? f(end) : '';
+  if (s && e && s !== e) return `${s} — ${e}`;
+  return s || e || '—';
+}
+
 export const EventWorkspacePanel: React.FC = () => {
   const { addToast, currentRole } = useApp();
   const { t } = useLang();
@@ -199,6 +265,24 @@ export const EventWorkspacePanel: React.FC = () => {
     startDate: '', endDate: '', whatsappGroupUrl: '',
     eventDate: '', venueName: '', locationDetail: '', mapUrl: '', mapEmbedQuery: '',
   });
+
+  // P0 UX: seksi detail yang bisa dilipat + diingat per event.
+  const [openSecs, setOpenSecs] = useState<Record<DetailSec, boolean>>({ ...DEFAULT_OPEN_SECS });
+  // P0 UX: ringkasan kesiapan terbit (ringan, best-effort).
+  const [readiness, setReadiness] = useState<{
+    kontenOk: boolean | null; soalCount: number | null; tapisanCount: number | null;
+  }>({ kontenOk: null, soalCount: null, tapisanCount: null });
+
+  const toggleSec = useCallback((id: DetailSec) => {
+    setOpenSecs((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        const eid = selected?.id;
+        if (eid) localStorage.setItem(openSecsKey(eid), JSON.stringify(next));
+      } catch { /* abaikan */ }
+      return next;
+    });
+  }, [selected?.id]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -278,6 +362,26 @@ export const EventWorkspacePanel: React.FC = () => {
     }
   };
 
+  const refreshReadiness = useCallback(async (eventId: string) => {
+    try {
+      const [c, q, p] = await Promise.all([
+        fetch(`/api/events/${encodeURIComponent(eventId)}/content`, { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/events/${encodeURIComponent(eventId)}/questions`, { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/events/${encodeURIComponent(eventId)}/penatalayan`, { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+      ]);
+      const item = (c as { item?: { title?: string; bannerUrl?: string; is_published?: boolean } } | null)?.item || null;
+      const soalCount = Array.isArray((q as { questions?: unknown[] } | null)?.questions)
+        ? ((q as { questions: unknown[] }).questions.length) : null;
+      const tapisanCount = Array.isArray((p as { assignments?: unknown[] } | null)?.assignments)
+        ? ((p as { assignments: unknown[] }).assignments.length) : null;
+      setReadiness({
+        kontenOk: item ? Boolean(String(item.title || '').trim()) : false,
+        soalCount,
+        tapisanCount,
+      });
+    } catch { /* best-effort, biarkan null */ }
+  }, []);
+
   const openDetail = async (ev: EventItem) => {
     setDetailLoading(true);
     try {
@@ -288,6 +392,13 @@ export const EventWorkspacePanel: React.FC = () => {
       setCanEdit(d.canEdit === true);
       setShowEdit(false);
       setView('detail');
+      try {
+        const raw = localStorage.getItem(openSecsKey(d.event.id));
+        if (raw) setOpenSecs({ ...DEFAULT_OPEN_SECS, ...(JSON.parse(raw) as Partial<Record<DetailSec, boolean>>) });
+        else setOpenSecs({ ...DEFAULT_OPEN_SECS });
+      } catch { setOpenSecs({ ...DEFAULT_OPEN_SECS }); }
+      setReadiness({ kontenOk: null, soalCount: null, tapisanCount: null });
+      void refreshReadiness(d.event.id);
       // Deliverable Rencana bulan yang tertaut (badge "dari Rencana bulan").
       fetch(`/api/events/${ev.id}/deliverables`, { credentials: 'include' })
         .then((lr) => lr.json())
@@ -585,7 +696,7 @@ export const EventWorkspacePanel: React.FC = () => {
             )}
             {selected.description && <p className="text-sm text-[#8C8880] mb-2">{selected.description}</p>}
             <div className="flex flex-wrap gap-4 text-xs text-[#8C8880]">
-              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDate(selected.startDate)} — {formatDate(selected.endDate)}</span>
+              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatRange(selected.startDate, selected.endDate, formatDate)}</span>
               {(selected.eventDate || selected.venueName) && (
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" />
@@ -597,56 +708,126 @@ export const EventWorkspacePanel: React.FC = () => {
               <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {(selected.meetings || []).length} rapat</span>
             </div>
           </div>
-          {selected.status === 'DONE' && (
-            <button
-              type="button"
-              onClick={async () => {
-                const r = await fetch(`/api/events/${selected.id}/make-warta`, {
-                  method: 'POST',
-                  credentials: 'include',
-                });
-                const d = await r.json().catch(() => ({}));
-                if (!r.ok) {
-                  addToast({ type: 'error', title: 'Gagal membuat draf Warta', description: d.error });
-                  return;
-                }
-                addToast({
-                  type: 'success',
-                  title: d.existed ? 'Draf Warta sudah ada' : `Draf Warta dibuat (+${d.photos || 0} foto)`,
-                  description: 'Selesaikan di Kelola Warta Pemuda → terbitkan.',
-                });
-              }}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shrink-0"
-              title="Buat draf Warta dokumentasi dari event ini (sekali saja)"
-            >
-              <FileText className="w-3.5 h-3.5" /> Draf Warta
-            </button>
-          )}
-          {canDeleteEvent && (
-            <button
-              type="button"
-              onClick={() => void deleteEvent()}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors shrink-0"
-              title="Hapus event (diblokir bila sudah punya data)"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Hapus
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => (showEdit ? setShowEdit(false) : startEdit())}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold hover:bg-[#333] transition-colors shrink-0"
-            >
-              <Pencil className="w-3.5 h-3.5" /> {showEdit ? 'Tutup' : 'Edit'}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {selected.status === 'DONE' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const r = await fetch(`/api/events/${selected.id}/make-warta`, {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
+                  const d = await r.json().catch(() => ({}));
+                  if (!r.ok) {
+                    addToast({ type: 'error', title: 'Gagal membuat draf Warta', description: d.error });
+                    return;
+                  }
+                  addToast({
+                    type: 'success',
+                    title: d.existed ? 'Draf Warta sudah ada' : `Draf Warta dibuat (+${d.photos || 0} foto)`,
+                    description: 'Selesaikan di Kelola Warta Pemuda → terbitkan.',
+                  });
+                }}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shrink-0"
+                title="Buat draf Warta dokumentasi dari event ini (sekali saja)"
+              >
+                <FileText className="w-3.5 h-3.5" /> Draf Warta
+              </button>
+            )}
+            {canDeleteEvent && (
+              <button
+                type="button"
+                onClick={() => void deleteEvent()}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors shrink-0"
+                title="Hapus event (diblokir bila sudah punya data)"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Hapus
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => (showEdit ? setShowEdit(false) : startEdit())}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold hover:bg-[#333] transition-colors shrink-0"
+              >
+                <Pencil className="w-3.5 h-3.5" /> {showEdit ? 'Tutup' : 'Edit'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* P0 UX: checklist Siap Terbit — klik loncat ke blok yang kurang */}
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[#D9D7D0]/60 bg-white px-3 py-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mr-1">Siap terbit</span>
+          <button
+            type="button"
+            onClick={() => { if (!openSecs.konten) toggleSec('konten'); requestAnimationFrame(() => scrollToSec('konten')); }}
+            className={`text-[10px] px-2 py-1 rounded-full font-bold border ${readiness.kontenOk ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : readiness.kontenOk === false ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]'}`}
+            title="Judul publik + banner di Konten publik"
+          >
+            {readiness.kontenOk == null ? 'Konten…' : readiness.kontenOk ? '✓ Konten' : '! Konten'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (!openSecs.soal) toggleSec('soal'); requestAnimationFrame(() => scrollToSec('soal')); }}
+            className="text-[10px] px-2 py-1 rounded-full font-bold border bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]"
+            title="Soal tambahan per event"
+          >
+            Soal{readiness.soalCount != null ? ` (${readiness.soalCount})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (!openSecs.divisi) toggleSec('divisi'); requestAnimationFrame(() => scrollToSec('divisi')); }}
+            className="text-[10px] px-2 py-1 rounded-full font-bold border bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]"
+            title="Divisi aktif event ini"
+          >
+            Divisi ({eventDivisions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (!openSecs.penatalayan) toggleSec('penatalayan'); requestAnimationFrame(() => scrollToSec('penatalayan')); }}
+            className="text-[10px] px-2 py-1 rounded-full font-bold border bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]"
+            title="Penugasan penatalayan aktif"
+          >
+            Tapisan{readiness.tapisanCount != null ? ` (${readiness.tapisanCount})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (!openSecs.rapat) toggleSec('rapat'); requestAnimationFrame(() => scrollToSec('rapat')); }}
+            className="text-[10px] px-2 py-1 rounded-full font-bold border bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]"
+            title="Rapat & jadwal"
+          >
+            Rapat ({(selected.meetings || []).length})
+          </button>
+        </div>
+
+        {/* P0 UX: sub-nav lengket antar-blok */}
+        <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-[#F7F5F0]/95 backdrop-blur">
+          <div className="flex gap-1 overflow-x-auto rounded-xl border border-[#D9D7D0] bg-[#FAF9F5] p-1">
+            {DETAIL_SECS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  if (!openSecs[s.id]) toggleSec(s.id);
+                  requestAnimationFrame(() => scrollToSec(s.id));
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap text-[#8C8880] hover:text-[#1B1B1B] hover:bg-white"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {showEdit && canEdit && (
           <form onSubmit={saveEdit} className="rounded-2xl border border-[#D9D7D0] bg-white p-4 space-y-3">
-            <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Meta event</p>
-            <EditField label="Nama event">
+            <p className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Meta event (internal panitia)</p>
+            <p className="text-[11px] text-[#8C8880] leading-relaxed -mt-2">
+              Nama di sini tidak tampil di landing — yang tampil adalah <strong>Judul publik</strong> di blok Konten di bawah
+              + tanggal WIB + tempat. Pola ibadah & Penanggung/Tuan Rumah ikut otomatis dari sistem.
+            </p>
+            <EditField label="Nama internal (panitia saja)" hint="Contoh operasional: BAKU TAU 4.0 / W3 Ancient Word.">
               <input
                 value={editForm.name}
                 onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -805,14 +986,36 @@ export const EventWorkspacePanel: React.FC = () => {
           </form>
         )}
 
-        <EventPublicContentBlock eventId={selected.id} />
+        <DetailSection
+          id="konten"
+          title="Konten publik"
+          summary={readiness.kontenOk == null ? 'landing Kegiatan' : readiness.kontenOk ? 'siap terbit' : 'belum lengkap'}
+          open={openSecs.konten}
+          onToggle={() => toggleSec('konten')}
+        >
+          <EventPublicContentBlock eventId={selected.id} />
+        </DetailSection>
 
-        <EventQuestionsBlock eventId={selected.id} />
+        <DetailSection
+          id="soal"
+          title="Pertanyaan tambahan"
+          summary={readiness.soalCount != null ? `${readiness.soalCount} soal` : 'bank soal'}
+          open={openSecs.soal}
+          onToggle={() => toggleSec('soal')}
+        >
+          <EventQuestionsBlock eventId={selected.id} />
+        </DetailSection>
 
         {/* Division Cards — hanya divisi yang aktif di event ini */}
+        <DetailSection
+          id="divisi"
+          title="Rincian per Divisi — Pre / During / Post"
+          summary={`${eventDivisions.length} divisi aktif`}
+          open={openSecs.divisi}
+          onToggle={() => toggleSec('divisi')}
+        >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 px-1">
-            <h3 className="text-sm font-black text-[#1B1B1B]">Rincian per Divisi — Pre / During / Post</h3>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
               {eventDivisions.length} divisi aktif
             </span>
@@ -886,20 +1089,41 @@ export const EventWorkspacePanel: React.FC = () => {
           )}
 
           {eventDivisions.length > 0 && (
-            <p className="text-[11px] text-[#8C8880] px-1">Sub-divisi (mis. Liturgia 3, Didaskalia 2, Koinonia 3, Diakonia 5, Marturia 4, Benzarpr 3) tetap tampil walau belum ada personel — tugas pre/during/post berguna untuk rekrutmen.</p>
+            <p className="text-[11px] text-[#8C8880] px-1">Sub-divisi tetap tampil walau belum ada personel — tugas pre/during/post berguna untuk rekrutmen.</p>
           )}
         </div>
+        </DetailSection>
 
-        {/* Pendaftar event: waiting pool BAKU TAU, EventAttendee untuk event lain */}
-        <EventAttendeesBlock eventId={selected.id} slug={selected.slug || selected.id} />
+        <DetailSection
+          id="pendaftar"
+          title="Pendaftar"
+          summary="daftar kehadiran"
+          open={openSecs.pendaftar}
+          onToggle={() => toggleSec('pendaftar')}
+        >
+          <EventAttendeesBlock eventId={selected.id} slug={selected.slug || selected.id} />
+        </DetailSection>
 
-        {/* Penatalayan & liturgi per event (Liturgia + Marturia) */}
-        <EventPenatalayanPanel eventId={selected.id} canEdit={canCreateEvent} />
+        <DetailSection
+          id="penatalayan"
+          title="Penatalayan & Liturgi"
+          summary={readiness.tapisanCount != null ? `${readiness.tapisanCount} penugasan` : 'jadwal petugas'}
+          open={openSecs.penatalayan}
+          onToggle={() => toggleSec('penatalayan')}
+        >
+          <EventPenatalayanPanel eventId={selected.id} canEdit={canCreateEvent} />
+        </DetailSection>
 
+        <DetailSection
+          id="rapat"
+          title="Rapat & Jadwal"
+          summary={`${(selected.meetings || []).length} rapat`}
+          open={openSecs.rapat}
+          onToggle={() => toggleSec('rapat')}
+        >
         {/* Meetings */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-[#1B1B1B]">Rapat & Jadwal</h3>
+          <div className="flex items-center justify-end">
             <button
               onClick={() => setShowMeetingForm(!showMeetingForm)}
               className="text-xs px-3 py-1.5 rounded-xl bg-[#181818] text-white font-bold hover:bg-[#333] transition-colors"
@@ -960,6 +1184,7 @@ export const EventWorkspacePanel: React.FC = () => {
             </div>
           ))}
         </div>
+        </DetailSection>
       </div>
     );
   }
