@@ -88,7 +88,9 @@ async function main() {
     }
 
     const flags = [];
-    if (ghosts.length) flags.push(`HANTU:${ghosts.length}`);
+    // ALUMNI/PAST@berjalan = arsip riwayat (disembunyikan dari pohon oleh
+    // kode pasca-fix Okt 2026; tampil hanya di tab Regenerasi/Riwayat).
+    if (ghosts.length) flags.push(`ARSIP:${ghosts.length}`);
     if (movedMarks.length) flags.push(`PINDAH:${movedMarks.length}`);
     if (mismatches.length) flags.push(`MISMATCH:${mismatches.length}`);
     if (orphans.length) flags.push(`ORPHAN:${orphans.length}`);
@@ -98,9 +100,9 @@ async function main() {
         `anggota@${period || '?'}=${JSON.stringify(byStatus)}${flags.length ? ' ⚠ ' + flags.join(' ') : ''}`,
     );
     for (const m of ghosts.slice(0, 15)) {
-      console.log(`    · HANTU "${m.name}" status=${m.status} period=${m.batchPeriod} user=${m.user?.name || '-'}(${m.user?.memberStatus || '?'})`);
+      console.log(`    · ARSIP "${m.name}" status=${m.status} period=${m.batchPeriod} (riwayat — disembunyikan dari pohon)`);
     }
-    if (ghosts.length > 15) console.log(`    … +${ghosts.length - 15} hantu lain`);
+    if (ghosts.length > 15) console.log(`    … +${ghosts.length - 15} arsip lain`);
     for (const m of movedMarks.slice(0, 10)) {
       console.log(`    · PINDAH "${m.name}" status=MOVED period=${m.batchPeriod} → ${m.movedToGroupId || '?'} (by-design: hanya riwayat, bukan pohon)`);
     }
@@ -108,7 +110,8 @@ async function main() {
       console.log(`    · MISMATCH "${m.name}" roster=${m.status} vs user.memberStatus=${m.user?.memberStatus}`);
     }
     for (const m of orphans.slice(0, 15)) {
-      console.log(`    · ORPHAN "${m.name}" status=${m.status} period=${m.batchPeriod || '-'} (tanpa userId — tak terlihat di tab Anggota, TAPI tampil di pohon)`);
+      const renders = String(m.status).toUpperCase() === 'ACTIVE' && m.batchPeriod === period;
+      console.log(`    · ORPHAN "${m.name}" status=${m.status} period=${m.batchPeriod || '-'} (tanpa userId — tak terlihat di tab Anggota${renders ? '; TAMPIL di pohon ⚠' : '; tidak tampil di pohon berjalan'})`);
     }
     if (orphans.length > 15) console.log(`    … +${orphans.length - 15} orphan lain`);
   }
@@ -144,7 +147,7 @@ async function main() {
   }
 
   console.log(
-    `\nRINGKASAN: hantu(non-ACTIVE@batch-berjalan)=${ghostTotal} mismatch=${mismatchTotal} ` +
+    `\nRINGKASAN: arsip(non-ACTIVE@batch-berjalan, hanya riwayat)=${ghostTotal} mismatch=${mismatchTotal} ` +
       `orphan(userId-null)=${orphanTotal} batchPeriod-null=${nullPeriodTotal} nama-ganda=${dupes}`,
   );
   console.log('Read-only: tidak ada yang diubah.');

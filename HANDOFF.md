@@ -99,6 +99,23 @@ DB); (b) sinkron `memberCount` drift (Agape/Hesed/Logos); (c) QA staging
 (d) E2E hapus→pohon (deferred). Commit + push per batch (episode ini
 uncommitted; JANGAN `git add -A`).
 
+**Update 13 Okt (apply disetujui user):** `scripts/fix-family-tree-orphans.mjs`
+(dry default, `--apply` menulis; `fix:family-tree:prod[:apply]`):
+- Dry-run: Nicole & Gievara orphan → 0 kandidat User → hapus; Christofel →
+  roster ALUMNI; drift Agape/Hesed/Logos.
+- Apply prod: hapus orphan `Nicole ACTIVE@2026-09` (Echad) + `Gievara
+  ACTIVE@2026-09` (Metanoia) — sebelumnya gagal FK `attendance_records`,
+  skrip kini hapus absensi baris itu dulu (sama seperti handler portal);
+  Christofel Kairos → `ALUMNI`+`alumniDate`; recount `memberCount`
+  (Echad 13→12, Agape 14→13, Hesed 12→11, Kairos 11→10, Logos 11→10,
+  Metanoia 11→10).
+- Re-audit prod: mismatch=0 · orphan tampil-pohon=0 · count selaras · Nicole
+  tersisa hanya `PAST@2026-06` (riwayat, tak tampil di pohon berjalan).
+  Label audit `HANTU`→`ARSIP` + orphan注明 tampil/tidak (pasca-fix kode,
+  non-ACTIVE tak pernah render di pohon).
+- Commit script+label; push main (= deploy prod, pohon Christofel hilang
+  setelah live) + `staging:sync` + QA staging menyusul di bawah.
+
 ## Current — Preview 2 variasi Pelsus: V1 `#/pelsus/` vs V2 `#/pelsus2/` by-person (10 Okt 2026, uncommitted)
 
 **Kebutuhan:** 1 orang bisa 2–3 surat suara (contoh: Kolom 3 + Pemuda); alur

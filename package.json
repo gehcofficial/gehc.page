@@ -82,6 +82,8 @@
     "audit:family-tree": "node scripts/audit-family-tree.mjs",
     "audit:family-tree:staging": "dotenv -e .env.staging -- node scripts/audit-family-tree.mjs",
     "audit:family-tree:prod": "dotenv -e .env.production -- node scripts/audit-family-tree.mjs",
+    "fix:family-tree:prod": "dotenv -e .env.production -- node scripts/fix-family-tree-orphans.mjs",
+    "fix:family-tree:prod:apply": "dotenv -e .env.production -- node scripts/fix-family-tree-orphans.mjs --apply",
     "db:fix:didaskalia:dry": "node scripts/fix-didaskalia-week.mjs --all",
     "db:fix:didaskalia:staging": "dotenv -e .env.staging -- node scripts/fix-didaskalia-week.mjs --all",
     "db:fix:didaskalia:staging:apply": "dotenv -e .env.staging -- node scripts/fix-didaskalia-week.mjs --all --apply",
