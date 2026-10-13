@@ -77,7 +77,11 @@ self.addEventListener('notificationclick', (event) => {
 
   const action = event.action;
   const data = event.notification.data || {};
+  // Normalisasi: URL telanjang `#/...` WAJIB jadi `/#/…` karena
+  // clients.openWindow() me-resolve relatif ke URL script SW (`/sw.js`).
+  // Tanpa ini, klik membuka `/sw.js#/…` (= source SW sebagai halaman).
   let url = data.url || '/';
+  if (typeof url === 'string' && url.startsWith('#')) url = `/${url}`;
 
   if (action === 'dismiss') {
     return;

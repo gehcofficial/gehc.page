@@ -1,5 +1,6 @@
 import { getPrisma } from '../db.mjs';
 import { sendPushNotification } from '../push.mjs';
+import { normalizePushUrl } from './push-url.mjs';
 import { resolveServingRepUserIds } from './serving-week.mjs';
 
 /** Kategori notifikasi (juga kolom boolean di notification_preferences). */
@@ -195,7 +196,9 @@ export async function pushToUsers(prisma, userIds, info) {
     requireInteraction: info.priority === 'URGENT',
     data: {
       type: info.category || 'announcement',
-      url: info.href || '/#/portal',
+      // WAJIB ternormalisasi: URL telanjang `#/...` akan di-resolve SW
+      // relatif ke `/sw.js` dan membuka source SW sebagai halaman.
+      url: normalizePushUrl(info.href),
       category: info.category,
       senderRole: info.senderRole,
       announcementId: info.announcementId || null,

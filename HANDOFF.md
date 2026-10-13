@@ -1,5 +1,35 @@
 # GEHC Portal — Handoff
 
+## Current — Klik notif buka source SW: normalisasi URL push + navigasi (uncommitted)
+
+**Laporan:** selaku admin selalu dapat notif, tapi saat dibuka malah tampil source
+code `sw.js` sebagai halaman (iOS).
+
+**Akar (2 lapis):** (1) pemanggil `pushToUsers` langsung mengirim `href: '#/portal'`
+telanjang (`index.mjs:7856,8345`, `didaskalia-studio.mjs:437`, `notif-cron.mjs:275`,
+`penatalayan-requests.mjs:68` + variabel `href` di 5 titik lain); `pushToUsers` tak
+menormalisasi (hanya `notify()` yang normalisasi). `clients.openWindow('#/...')`
+di-resolve browser relatif ke URL script SW → navigasi ke `/sw.js#/portal` → source
+tampil. (2) event `pwa-notification-click` tak punya listener — app terbuka hanya
+difokuskan tanpa navigasi.
+
+**Ubah (kode, belum commit):** `server/lib/push-url.mjs` (baru: `normalizePushUrl`
+murni — `#/x`→`/#/x`, `/x`→`/#/x`, absolut dipertahankan, kosong→`/#/portal`) →
+`server/lib/notify.mjs` (`pushToUsers.data.url` pakai helper; menutup semua call
+site sekarang + depan) → `server/lib/catalog-reminder.mjs` (sama) →
+`public/sw.js` (normalisasi `#`-prefix sebelum `openWindow`, defense-in-depth) →
+`src/lib/pwa-notification-nav.ts` (baru: listener `pwa-notification-click` →
+pindah `location.hash`, guard same-origin + anti-duplikat) + panggil di `main.tsx` →
+test `push-url.test.ts` (+5).
+
+**Verifikasi:** `lint` bersih ✓ `test` **1096/1096** (144 files) ✓ `build` OK ✓
+`node --check` sw + 3 lib ✓. Tanpa migrasi DB.
+
+**Next:** commit + push + `staging:sync` → QA HP: kirim push uji → klik saat app
+tertutup (mendarat halaman tujuan) + saat app terbuka (fokus + pindah halaman).
+Catatan: notifikasi yang SUDAH tampil di HP tak bisa diperbaiki retroaktif (data
+baked) — abaikan saja.
+
 ## Current — RHB Kitab Fokus statis + Bacaan porsi + Nats bervariasi (13 Okt 2026)
 
 **Kebutuhan:** RHB ditulis mengikuti Kitab/Bagian Fokus Studio yang statis sepekan,

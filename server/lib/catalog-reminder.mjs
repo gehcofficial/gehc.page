@@ -1,5 +1,6 @@
 import { genId64 } from '../role-assign.mjs';
 import { sendPushNotification } from '../push.mjs';
+import { normalizePushUrl } from './push-url.mjs';
 
 export function catalogReminderHref(catalog) {
   if (catalog === 'recreational') return '#/portal/account/profile?section=recreational';
@@ -62,7 +63,7 @@ export async function sendCatalogReminder(prisma, { userIds, catalog, itemId, it
         title: copy.title,
         body: copy.message,
         icon: '/icons/icon-192.png',
-        data: { type: 'CATALOG_REMINDER', url: `/${link}` },
+        data: { type: 'CATALOG_REMINDER', url: normalizePushUrl(link) },
       };
       for (const sub of subs) {
         try {

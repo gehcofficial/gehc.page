@@ -11,7 +11,11 @@ import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
+import { initPwaNotificationNav } from './lib/pwa-notification-nav.ts';
 import './index.css';
+
+// Klik notifikasi push saat app sudah terbuka → pindah ke halaman tujuan.
+initPwaNotificationNav();
 
 /** Hub, coming-soon unit, dan pitch deck dimuat terpisah dari bundle portal Pemuda. */
 const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
