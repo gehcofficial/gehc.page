@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — RHB Kitab Fokus statis + Bacaan porsi + Nats bervariasi (13 Okt 2026)
+
+**Kebutuhan:** RHB ditulis mengikuti Kitab/Bagian Fokus Studio yang statis sepekan,
+dengan Nats Pembimbing sebagai pengaya yang bervariasi per hari.
+
+**Ubah (kode, commit `ba52cc5`):** prompt AI (`didaskalia-ai.mjs`: kitab = ACUAN STATIS,
+bacaanRef HARUS subset progresif, scriptureRef = Nats pengaya beda tiap hari) →
+parser MD (`didaskalia-md.mjs`: `**Bacaan:**` opsional; kosong = pertahankan) +
+`applyRhbToPaths` tulis bacaan → editor Studio (banner kitab statis + placeholder
+porsi + peringatan kuning bila kitab beda; `bacaanMatchesKitab` di `didaskalia.ts`) →
+deck RHB (`didaskalia-presentation.ts`: field Kitab → Bacaan hari ini → Nats) →
+PDF RHB (`didaskaliaPdf.ts`: header kitab statis + subtitle kitab; sebelumnya kitab
+hilang di 7 PDF harian) → caption harian (kitab + bacaan + nats) + indeks RHB
+(header kitab + per-baris bacaan/nats) → diff pengajuan (`Bacaan hari ini`) →
+SOP `didaskalia-studio.md` §MD RHB → test baru `didaskalia-rhb-kitab-statis` (+6).
+
+**Verifikasi:** `lint` bersih ✓ `test` 1089 hijau (+6 baru; 2 `lazy-routes`
+timeout saat full-suite tapi 17/17 saat run sendiri = flaky beban) ✓ `build` OK ✓.
+Tanpa migrasi DB (field sudah ada; pekan lama tanpa bacaan tetap tampil).
+
+**Next:** push main + `staging:sync` → QA visual deck/PDF/caption RHB staging.
+
 ## Current — Rundown paralel + T0 + varian pembuka/persembahan MONOLOG (13 Okt 2026, uncommitted)
 
 **Kebutuhan:** rundown di-breakdown (aktivitas paralel: registrasi Koinonia, check Diakonia,
