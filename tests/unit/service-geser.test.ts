@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { OVERRIDE_CONDITIONS, effectiveDate, upsertOverride } from '../../server/lib/service-overrides.mjs';
+import { OVERRIDE_CONDITIONS, effectiveDate, originDateFor, upsertOverride } from '../../server/lib/service-overrides.mjs';
 import { renameServiceDateSuffix } from '../../server/lib/service-events.mjs';
 import { planGeser, applyGeser, shiftInstantKeepTime } from '../../server/lib/service-geser.mjs';
 
@@ -48,6 +48,17 @@ describe('GESER overrides', () => {
     const [sql, ...params] = calls[0] as [string, ...unknown[]];
     expect(sql).toContain('new_event_date');
     expect(params).toContain('2026-10-17');
+  });
+});
+
+describe('originDateFor (arah-balik GESER: materi ikut origin week)', () => {
+  const ov = new Map([['2026-10-18', { condition: 'GESER', newEventDate: '2026-10-17' }]]);
+  it('target geser kembali ke asal; selain itu tetap', () => {
+    expect(originDateFor('2026-10-17', ov)).toBe('2026-10-18');
+    expect(originDateFor('2026-10-18', ov)).toBe('2026-10-18');
+    expect(originDateFor('2026-10-11', ov)).toBe('2026-10-11');
+    expect(originDateFor('2026-10-17', new Map())).toBe('2026-10-17');
+    expect(originDateFor('', ov)).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BookOpen, Copy, ExternalLink, FileText, Loader2, Presentation } from 'lucide-react';
 import { useActiveAccess } from '../../hooks/useActiveAccess';
 import { useApp } from '../../context/AppContext';
-import { weekIndexForDateWib, yearMonthWib } from '../../lib/church-week';
+import { useOriginWeek } from '../../hooks/useOriginWeek';
 import { materialHashPath, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { defaultStudio, ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
@@ -32,8 +32,8 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
   const [files, setFiles] = useState<Record<string, DriveFile[]>>({ pembekalan: [], khutbah: [], rhb: [] });
   const [forbidden, setForbidden] = useState<Record<string, boolean>>({});
 
-  const ym = yearMonthWib(eventDate);
-  const weekIndex = eventDate ? weekIndexForDateWib(eventDate) : 1;
+  // Menghormati GESER: materi event geseran ikut origin week.
+  const { ym, weekIndex } = useOriginWeek(eventDate);
 
   const copyRhbCaption = async () => {
     if (!ym) { addToast({ type: 'error', title: 'Tanggal event belum tersedia.' }); return; }

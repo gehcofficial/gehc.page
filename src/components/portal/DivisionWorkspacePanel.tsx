@@ -75,7 +75,7 @@ import { useLang } from '../../context/LangContext';
 import { PanelGuide } from './PanelGuide';
 import { WhatsAppJoinCard } from './WhatsAppJoinCard';
 import { divisionDetailTabIds } from '../../lib/portal-nav-config';
-import { yearMonthWib, weekIndexForDateWib } from '../../lib/church-week';
+import { useOriginWeek } from '../../hooks/useOriginWeek';
 
 const ALL_DIVISIONS = PANTATUGAS.map((p) => p.name);
 
@@ -306,9 +306,11 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
   );
 
   // Konteks tanggal Studio (Fase 2): turunkan bulan/minggu dari event terpilih
-  // supaya tak perlu memilih tanggal dua kali.
-  const studioYearMonth = selectedEvent?.eventDate ? yearMonthWib(selectedEvent.eventDate) : '';
-  const studioWeekIndex = selectedEvent?.eventDate ? weekIndexForDateWib(selectedEvent.eventDate) : undefined;
+  // supaya tak perlu memilih tanggal dua kali. Menghormati GESER: event
+  // geseran 18→17 Okt tetap memakai origin week (materi ikut pekan asal).
+  const originWeek = useOriginWeek(selectedEvent?.eventDate);
+  const studioYearMonth = originWeek.ym;
+  const studioWeekIndex = selectedEvent?.eventDate ? originWeek.weekIndex : undefined;
 
   // Auto akses mingguan: bila event terpilih belum punya workspace divisi ini,
   // minta server melengkapinya sekali (idempoten) lalu muat ulang.

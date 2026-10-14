@@ -4,7 +4,7 @@ import { Calendar, FileText, BookOpen, Users, Loader2, ExternalLink, Presentatio
 import { EVENT_KINDS, normalizeEventKind } from '../../lib/event-kinds';
 import { KegiatanCalendar } from './KegiatanCalendar';
 import { useActiveAccess } from '../../hooks/useActiveAccess';
-import { yearMonthWib, weekIndexForDateWib } from '../../lib/church-week';
+import { useOriginWeek } from '../../hooks/useOriginWeek';
 import { materialHashPath } from '../../lib/didaskalia-presentation';
 
 type ServiceEvent = { id: string; slug?: string; name: string; eventDate: string | null; serviceType?: string | null; venueName?: string | null; kind?: string | null; metadata?: unknown };
@@ -107,6 +107,8 @@ export const IbadahMingguanPanel: React.FC = () => {
   }, [selectedId, selectedKind, canView01, canView03, fetchSub]);
 
   const selected = allEvents.find((e) => e.id === selectedId) || null;
+  // Menghormati GESER: materi event geseran ikut origin week.
+  const weekForSelected = useOriginWeek(selected?.eventDate);
   const dateLabel = selected?.eventDate ? new Date(selected.eventDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' }) + ' WIB' : '';
 
   if (loading) return <div className="py-16 text-center text-sm text-[#8C8880] flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat kegiatan…</div>;
@@ -164,8 +166,7 @@ export const IbadahMingguanPanel: React.FC = () => {
           ) : (
             <>
               {(() => {
-                const ym = yearMonthWib(selected.eventDate);
-                const weekIndex = selected.eventDate ? weekIndexForDateWib(selected.eventDate) : 1;
+                const { ym, weekIndex } = weekForSelected;
                 if (!ym) return null;
                 return (
                   <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">

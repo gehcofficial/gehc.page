@@ -39,6 +39,23 @@ export async function listOverrides(prisma, fromISO, toISO) {
 }
 
 /**
+ * Tanggal asal pekan: kebalikan effectiveDate. Bila `iso` adalah TARGET geser
+ * (new_event_date sebuah override GESER), kembalikan event_date asalnya agar
+ * materi (ringkasan khotbah + RHB) tetap ikut origin week. Selain itu
+ * kembalikan iso apa adanya.
+ */
+export function originDateFor(iso, overrides) {
+  const base = toISODate(iso);
+  if (!base || !(overrides instanceof Map)) return base;
+  for (const [origin, ov] of overrides) {
+    if (String(ov?.condition || '').toUpperCase() === 'GESER'
+      && toISODate(ov?.newEventDate) === base
+      && origin !== base) return origin;
+  }
+  return base;
+}
+
+/**
  * Tanggal efektif ibadah: bila ada override GESER yang valid, pakai newEventDate.
  * Pekan materi TIDAK ikut — tetap dari grid Minggu.
  */

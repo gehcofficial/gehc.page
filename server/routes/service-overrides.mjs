@@ -12,9 +12,11 @@ function toISODate(v) {
 
 export function registerServiceOverrideRoutes(app, { wrap }) {
   // GET /api/service-overrides?from=YYYY-MM-DD&to=YYYY-MM-DD
+  // Baca dibuka untuk semua login: peta ini dipakai klien me-resolve pekan
+  // materi event geseran (arah-balik GESER). Tulis tetap peran tulis di bawah.
   app.get(
     '/api/service-overrides',
-    requireRole('KOMISI', 'COMMITTEE', 'SUPERADMIN', 'BPMJ'),
+    requireRole(),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
