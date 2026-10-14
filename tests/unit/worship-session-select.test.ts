@@ -15,8 +15,8 @@ describe('preferSession: tidak nyangkut di sesi pola lama', () => {
     expect(preferSession([FILM, MONO], { prevId: 's-film', eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('s-mono');
   });
 
-  it('prev beda pola dipertahankan bila belum ada yang cocok (banner mismatch yang bicara)', () => {
-    expect(preferSession([MONO], { prevId: 's-mono', eventId: 'ev-1', preferPattern: 'BEDAH_FILM' })).toBe('s-mono');
+  it('prev beda pola → kosong bila belum ada yang cocok (buat sesi baru pola pekan)', () => {
+    expect(preferSession([MONO], { prevId: 's-mono', eventId: 'ev-1', preferPattern: 'BEDAH_FILM' })).toBe('');
   });
 
   it('prev beda event diabaikan (pindah W2 → W3 tidak bawa sesi lama)', () => {
@@ -38,9 +38,9 @@ describe('preferSession: tidak nyangkut di sesi pola lama', () => {
     expect(preferSession([MONO, FILM], { eventId: 'ev-1', preferPattern: 'BEDAH_FILM' })).toBe('s-film');
   });
 
-  it('fallback urutan list bila tak ada yang cocok pola', () => {
-    expect(preferSession([FILM, MONO], { eventId: 'ev-1', preferPattern: 'DEBAT' })).toBe('s-film');
+  it('tanpa preferPattern: fallback urutan list; dengan pola: kosong bila tak cocok', () => {
     expect(preferSession([FILM, MONO], { eventId: 'ev-1' })).toBe('s-film');
+    expect(preferSession([FILM, MONO], { eventId: 'ev-1', preferPattern: 'DEBAT' })).toBe('');
   });
 
   it('slug eksplisit menang atas preferensi', () => {

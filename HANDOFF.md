@@ -1,5 +1,27 @@
 # GEHC Portal — Handoff
 
+## Current — Siklus mingguan ideal: kosong → pola → draft → kontrol (14 Okt 2026)
+
+**Kebutuhan:** draft + kontrol tiap pekan mulai kosong; pilih pola + terapkan →
+draft tanggal itu muncul; isi → Terapkan; kontrol mengikuti. Semua ikut tanggal
+efektif event (18→17).
+
+**Ubah (kode):** `src/lib/effective-date.ts` (baru: `wibDayKey`/`effectiveSessionDay`
+event-dulu-pekan-fallback + `sessionSlugStem`) → `SessionDraftTab.tsx` (pakai
+helper; slug prefill `sesi-<tgl>-<pola>`) → `PolaSesiPanel.tsx` (`savePattern`
+auto-buat shell sesi kosong idempoten per event+pola + loncat ke Draft; `saveT0`
+pertahankan hari event — sebelumnya seret 17→18; header + preview `t0` tampil
+tanggal efektif + catatan slot) → `worship-session-select.ts` (preferPattern tanpa
+cocok → `''`, bukan sesi lama) → `MentoringControl.tsx` (gate `hasDraft`:
+tanpa isi → banner + fieldset kunci total tombol aksi, link tetap; tanpa sesi →
+panel kosong eksplisit) + `sessionHasDraftContent` di `worship-session-draft.ts`.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1124/1125 (1 flaky `lazy-routes` pra-ada) ✓
+baru: effective-date 8 + select ketat + gate 3 ✓ `build` OK ✓. Tanpa migrasi DB.
+
+**Next:** QA staging end-to-end (pekan kosong → katalog → draft kosong 17 Okt →
+AI → Terapkan → kontrol terbuka; saveT0 tak seret tanggal; ganti pola tak
+
 ## Current — Baris pindahan GESER tak tampil + kartu WA tanggal efektif hilang (14 Okt 2026)
 
 **Laporan:** prod W3 sudah di 17 (assignment idx4 Logos→Dunamis + event ACTIVE

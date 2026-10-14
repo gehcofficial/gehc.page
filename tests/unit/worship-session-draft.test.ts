@@ -4,6 +4,7 @@ import {
   draftToStored,
   emptySessionDraft,
   sessionDraftGuard,
+  sessionHasDraftContent,
   storedToSections,
   templateFieldKeys,
 } from '../../src/lib/worship-session-draft';
@@ -91,6 +92,24 @@ describe('session-draft: guard sesi terisi', () => {
     const g = sessionDraftGuard({ status: 'DRAFT', submittedCount: 0, hasItems: true });
     expect(g.locked).toBe(true);
     expect(g.reason).toContain('kontrol hari-H');
+  });
+});
+
+describe('session-draft: gate kontrol mengikuti bila draft terisi', () => {
+  it('null/kosong → belum terisi', () => {
+    expect(sessionHasDraftContent(null)).toBe(false);
+    expect(sessionHasDraftContent({ config: null, likertItems: [], chips: [] })).toBe(false);
+    expect(sessionHasDraftContent({ config: { draft: null } })).toBe(false);
+    expect(sessionHasDraftContent({ config: { draft: { fgd: { 'fgd-observe': '  ' } } } })).toBe(false);
+  });
+
+  it('draft form terisi → terisi', () => {
+    expect(sessionHasDraftContent({ config: { draft: { fgd: { 'fgd-observe': 'Apa yang kamu lihat?' } } } })).toBe(true);
+  });
+
+  it('soal/chip hasil Terapkan → terisi walau draft config kosong', () => {
+    expect(sessionHasDraftContent({ config: {}, likertItems: [{ id: 'x' }], chips: [] })).toBe(true);
+    expect(sessionHasDraftContent({ config: {}, likertItems: [], chips: [{ id: 'y' }] })).toBe(true);
   });
 });
 

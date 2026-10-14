@@ -5,6 +5,11 @@ import { WorshipPatternCatalog } from './WorshipPatternCatalog';
 import { SessionDraftTab } from './SessionDraftTab';
 import { MentoringControl } from '../mentoring/MentoringControl';
 import type { WorshipPatternLite } from '../../lib/worship-patterns';
+import { effectiveSessionDay, sessionSlugStem } from '../../lib/effective-date';
+
+function slugify(s: string): string {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
 
 type WeekMeta = {
   index: number;
@@ -122,6 +127,47 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
       .catch(() => setPatterns([]));
   }, []);
 
+  // Alur ideal mingguan: terapkan pola → shell sesi kosong untuk tanggal efektif
+  // langsung ada → draft tampil template kosong → isi → kontrol ikut.
+  // Idempoten per (event, pola); tanpa event → hanya simpan pola.
+  const ensurePatternSession = useCallback(
+    async (patternCode: string): Promise<'created' | 'exists' | 'no-event' | 'failed'> => {
+      const ev = event;
+      if (!ev?.id) return 'no-event';
+      const want = String(patternCode || 'MONOLOG').toUpperCase();
+      try {
+        const r = await fetch('/api/worship/sessions', { credentials: 'include' });
+        const d = r.ok ? await r.json() : { sessions: [] };
+        const list = (d.sessions || []) as Array<{ id: string; eventId?: string | null; pattern?: { code?: string | null } | null }>;
+        if (list.some((s) => s.eventId === ev.id && String(s.pattern?.code || '').toUpperCase() === want)) return 'exists';
+      } catch { /* lanjut buat; server 409 bila slug duplikat */ }
+      const day = effectiveSessionDay(ev.eventDate, weekMeta?.date, activeYm);
+      const slug = slugify(sessionSlugStem(day, want));
+      const title = `${want === 'MONOLOG' ? 'Ibadah' : want} — ${ev.name || day}`;
+      try {
+        const c = await fetch('/api/worship/sessions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patternCode: want, slug, title, eventId: ev.id, sessionDate: day || null }),
+        });
+        if (!c.ok) {
+          const dd = await readJson(c);
+          throw new Error((dd as { error?: string }).error || 'Gagal membuat sesi.');
+        }
+        return 'created';
+      } catch (e: unknown) {
+        addToast({
+          type: 'error',
+          title: 'Pola tersimpan, sesi belum terbuat',
+          description: e instanceof Error ? e.message : 'Buat manual dari tab Draft.',
+        });
+        return 'failed';
+      }
+    },
+    [addToast, event, weekMeta?.date, activeYm],
+  );
+
   const savePattern = useCallback(
     async (code: string) => {
       if (!canWrite) return;
@@ -136,7 +182,15 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
           body: JSON.stringify({ patternCode: next }),
         });
         if (!r.ok) throw new Error('Gagal menyimpan pola.');
-        addToast({ type: 'success', title: `Pola pekan: ${next}` });
+        const ensured = await ensurePatternSession(next);
+        if (ensured === 'created') {
+          addToast({ type: 'success', title: `Pola pekan: ${next} — draft kosong siap diisi` });
+          setSubTab('draft');
+        } else if (ensured === 'exists') {
+          addToast({ type: 'success', title: `Pola pekan: ${next}` });
+        } else if (ensured === 'no-event') {
+          addToast({ type: 'success', title: `Pola pekan: ${next}`, description: 'Belum ada event — sesi dibuat manual dari Kontrol.' });
+        }
         // Sinkronkan list sesi di bawah (SessionDraftTab linked + MentoringControl)
         // agar tidak menunjuk sesi pola lama setelah pekan berganti.
         setSessionEpoch((e) => e + 1);
@@ -146,7 +200,7 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
         setBusy(null);
       }
     },
-    [addToast, canWrite, activeYm, activeWeek],
+    [addToast, canWrite, activeYm, activeWeek, ensurePatternSession],
   );
 
   const saveVariant = useCallback(
@@ -177,10 +231,12 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
   );
 
   // Simpan jam jemaat mulai (T0) ke eventDate (reuse PATCH /api/events/:id).
-  // Tanggal ikut weekMeta.date; jam dari input. Butuh peran Komisi+ (Didaskalia saja → 403 ramah).
+  // Hari ikut TANGGAL EFEKTIF event (sudah termasuk geser, mis. 17) — hanya jam
+  // dari input. Memakai tanggal slot pekan akan menyeret event pindahan kembali
+  // ke 18. Butuh peran Komisi+ (Didaskalia saja → 403 ramah).
   const saveT0 = useCallback(async () => {
     if (!canWrite || !event?.id || !t0Input) return;
-    const day = String(weekMeta?.date || '').slice(0, 10);
+    const day = effectiveSessionDay(event?.eventDate, weekMeta?.date, activeYm);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
       addToast({ type: 'error', title: 'Tanggal pekan belum ada.' });
       return;
@@ -208,7 +264,7 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
     } finally {
       setBusy(null);
     }
-  }, [addToast, canWrite, event?.id, t0Input, weekMeta?.date]);
+  }, [addToast, canWrite, event, t0Input, weekMeta?.date, activeYm]);
 
   if (!activeYm) {
     return (
@@ -236,7 +292,12 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
           <span className="ml-auto text-[11px] text-[#8C8880] inline-flex items-center gap-1">
             <Calendar className="w-3 h-3" />
             Event: {event?.name || eventName || 'terpilih'}
-            {weekMeta?.date ? ` · ${fmtDate(String(weekMeta.date))}` : ''}
+            {(() => {
+              const eff = effectiveSessionDay(event?.eventDate, weekMeta?.date, activeYm);
+              const slot = String(weekMeta?.date || '').slice(0, 10);
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(eff)) return '';
+              return ` · ${fmtDate(eff)}${slot && slot !== eff ? ` (slot ${fmtDate(slot)})` : ''}`;
+            })()}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -293,7 +354,7 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
               busy={!!busy}
               weekVariant={weekMeta?.patternVariant || { opening: 'KEDUANYA', offering: 'HEMAT' }}
               t0={(() => {
-                const day = String(weekMeta?.date || '').slice(0, 10);
+                const day = effectiveSessionDay(event?.eventDate, weekMeta?.date, activeYm);
                 if (/^\d{4}-\d{2}-\d{2}$/.test(day) && t0Input) return `${day}T${t0Input}:00+07:00`;
                 return event?.eventDate || null;
               })()}

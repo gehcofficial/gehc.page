@@ -273,6 +273,25 @@ export function sessionDraftGuard(info: SessionLockInfo): { locked: boolean; rea
   return { locked: false, reason: '' };
 }
 
+/**
+ * Siklus ideal mingguan: kontrol hari-H mengikuti hanya SETELAH draft terisi.
+ * True bila config.draft ada field terisi, atau sudah ada soal/chip hasil
+ * Terapkan (kasus non-POST yang menulis chip lesson).
+ */
+export function sessionHasDraftContent(detail: {
+  config?: Record<string, unknown> | null;
+  likertItems?: Array<unknown> | null;
+  chips?: Array<unknown> | null;
+} | null | undefined): boolean {
+  if (!detail) return false;
+  if ((detail.likertItems || []).length > 0 || (detail.chips || []).length > 0) return true;
+  const draft = detail.config?.draft;
+  if (!draft || typeof draft !== 'object') return false;
+  return Object.values(draft as Record<string, unknown>).some(
+    (sec) => sec && typeof sec === 'object' && Object.values(sec as Record<string, unknown>).some((v) => String(v ?? '').trim()),
+  );
+}
+
 /** Kunci field template agar prompt AI tahu slot yang harus diisi (pola non-Post-to-Post). */
 export function templateFieldKeys(patternCode?: string | null): { section: string; key: string; label: string }[] {
   return emptySessionDraft(patternCode).flatMap((s) =>

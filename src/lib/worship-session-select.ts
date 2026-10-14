@@ -1,9 +1,10 @@
 /**
- * Pemilihan sesi otomatis: preferensi eksplisit dulu (sepanjang masih relevan
- * dengan konteks event/pola aktif), lalu pola pekan, lalu urutan list.
- * Dipakai MentoringControl + SessionDraftTab agar kontrol tidak nyangkut di
- * sesi pola lama (mis. judul film basi padahal pekan MONOLOG) atau sesi pekan
- * lain (mis. sesi Rescue Plan W2 masih terpilih setelah pindah ke event W3).
+ * Pemilihan sesi otomatis mengikuti siklus mingguan ideal (kosong → pola →
+ * draft → kontrol): preferensi eksplisit dulu (sepanjang masih relevan dengan
+ * konteks event/pola aktif), lalu sesi event yang cocok pola pekan. Bila pola
+ * pekan diset tapi event belum punya sesi pola itu → kosong (empty-state buat
+ * sesi baru), BUKAN sesi pola lama — agar draft/kontrol tiap pekan mulai bersih.
+ * Dipakai MentoringControl + SessionDraftTab.
  */
 
 export type SessionLite = {
@@ -30,12 +31,12 @@ export function preferSession(
         const prevPattern = String(prev.pattern?.code || '').toUpperCase();
         if (prevPattern === want) return prev.id;
         // Pola prev beda dari pola pekan: pilih sesi event yang cocok pola bila
-        // ada (agar tidak nyangkut di sesi lama); bila belum ada, pertahankan
-        // pilihan eksplisit agar banner mismatch + CTA buat/alihkan yang bicara.
+        // ada; bila belum ada → kosong (empty-state buat sesi baru pola pekan),
+        // bukan sesi lama — sesi lama tetap dibuka manual via daftar/arsip.
         if (o.eventId) {
           const forEvent = list.filter((s) => s.eventId === o.eventId);
           const match = forEvent.find((s) => String(s.pattern?.code || '').toUpperCase() === want);
-          if (match) return match.id;
+          return match ? match.id : '';
         }
         return prev.id;
       }
@@ -50,8 +51,10 @@ export function preferSession(
     const forEvent = list.filter((s) => s.eventId === o.eventId);
     if (forEvent.length) {
       if (want) {
+        // Ketat pola: tanpa sesi cocok → kosong (buat baru), bukan sesi lama.
+        // Tanpa preferPattern → fallback urutan list seperti dulu.
         const match = forEvent.find((s) => String(s.pattern?.code || '').toUpperCase() === want);
-        if (match) return match.id;
+        return match ? match.id : '';
       }
       return forEvent[0].id;
     }

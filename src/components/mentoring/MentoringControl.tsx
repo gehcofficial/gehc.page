@@ -18,6 +18,7 @@ import {
   type MentoringStatus,
 } from '../../lib/mentoring';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
+import { sessionHasDraftContent } from '../../lib/worship-session-draft';
 import { divisionLabel } from '../../lib/worship-patterns';
 import { TestimonyPanel } from './TestimonyPanel';
 import { DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
@@ -529,6 +530,14 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const isMonolog = patternCode === 'MONOLOG';
   const isFilm = patternCode === 'BEDAH_FILM';
   const canManageChips = isPostToPost || isMonolog || isFilm;
+  // Siklus ideal: kontrol mengikuti hanya setelah draft terisi. Tanpa isi,
+  // semua tombol aksi dikunci (link + pilihan sesi tetap bisa dipakai).
+  const hasDraft = useMemo(
+    () => sessionHasDraftContent(
+      detail ? { config: detail.session.config, likertItems: detail.likertItems, chips: detail.chips } : null,
+    ),
+    [detail],
+  );
   const [showArchive, setShowArchive] = useState(false);
   const visibleSessions = useMemo(() => {
     let rows = sessions;
@@ -615,8 +624,26 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         )}
       </div>
 
+      {!detail && (
+        <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-white p-4">
+          <p className="text-xs font-black text-[#1B1B1B]">Belum ada sesi untuk pekan ini.</p>
+          <p className="mt-0.5 text-[11px] text-[#8C8880]">
+            {eventId
+              ? 'Pilih pola di tab Katalog lalu terapkan ke pekan ini — draft kosong akan dibuatkan, isi dulu baru kontrol mengikuti.'
+              : 'Pilih event dulu, atau buat sesi manual dari tab Draft.'}
+          </p>
+        </div>
+      )}
+
       {detail && (
         <>
+          {!hasDraft && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-black text-amber-900">Draft sesi ini belum terisi — kontrol mengikuti setelah draft diisi.</p>
+              <p className="mt-0.5 text-[11px] text-amber-800">Isi dari tab Draft (manual atau AI) lalu Terapkan ke sesi. Tombol hari-H di bawah aktif setelah itu.</p>
+            </div>
+          )}
+          <fieldset disabled={!hasDraft} className={!hasDraft ? 'opacity-70 contents' : 'contents'}>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
               {isMonolog ? (
@@ -1195,6 +1222,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
               </ol>
             </div>
           )}
+          </fieldset>
         </>
       )}
 
