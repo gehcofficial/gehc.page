@@ -54,6 +54,8 @@ import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from 
 import { materialHashPath, delivererLabel, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
 import { isFlowStale, readFlowBaseline, writeFlowBaseline } from '../../lib/flow-stale';
+import { effectiveSessionDay } from '../../lib/effective-date';
+import { applyWeekPattern, WEEK_PATTERN_CHANGED_EVENT, type WeekPatternChangedDetail } from '../../lib/apply-week-pattern';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
@@ -189,7 +191,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [studio, setStudio] = useState<DidaskaliaStudio>(defaultStudio());
   const [weekMeta, setWeekMeta] = useState<WeekMeta | null>(null);
   const [patterns, setPatterns] = useState<import('../../lib/worship-patterns').WorshipPatternLite[]>([]);
-  const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null } | null>(null);
+  const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null; eventDate?: string | null } | null>(null);
   const [links, setLinks] = useState<Array<{ refId: string; label: string; url: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -295,23 +297,39 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       .catch(() => setPatterns([]));
   }, []);
 
-  /** Simpan pola ibadah pekan ini (AI generate berikutnya mengikutinya). */
+  // Simpan pola ibadah pekan ini lewat helper bersama (sama dengan katalog):
+  // PATCH + shell sesi kosong tanggal efektif + kabari panel lain. AI generate
+  // berikutnya mengikutinya.
   const savePattern = useCallback(async (code: string) => {
     if (!canWrite) return;
     const next = code || 'MONOLOG';
     setWeekMeta((m) => (m ? { ...m, patternCode: next } : m));
     try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patternCode: next }),
+      const out = await applyWeekPattern({
+        ym,
+        weekIndex,
+        patternCode: next,
+        event,
+        weekDate: weekMeta?.date ?? null,
       });
-      if (!r.ok) throw new Error('Gagal menyimpan pola.');
+      if (out.session === 'created') {
+        addToast({ type: 'success', title: `Pola pekan: ${next} — draft kosong siap diisi di tab Pola & Sesi` });
+      }
     } catch (e: unknown) {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan pola.' });
     }
-  }, [addToast, canWrite, weekIndex, ym]);
+  }, [addToast, canWrite, weekIndex, ym, event, weekMeta?.date]);
+
+  // Pola diubah dari panel lain (katalog Pola & Sesi) → ikut tanpa reload.
+  useEffect(() => {
+    const onPattern = (e: Event) => {
+      const d = (e as CustomEvent<WeekPatternChangedDetail>).detail;
+      if (!d || d.ym !== ym || Number(d.weekIndex) !== Number(weekIndex)) return;
+      setWeekMeta((m) => (m ? { ...m, patternCode: d.patternCode } : m));
+    };
+    window.addEventListener(WEEK_PATTERN_CHANGED_EVENT, onPattern);
+    return () => window.removeEventListener(WEEK_PATTERN_CHANGED_EVENT, onPattern);
+  }, [ym, weekIndex]);
 
   const loadSchedule = useCallback(async () => {
     try {
@@ -1359,13 +1377,19 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <label className="inline-flex items-center gap-2 text-[11px] font-bold text-[#8C8880]">
-                Pola ibadah
+                Pola ibadah pekan ini
+                {(() => {
+                  const eff = effectiveSessionDay(event?.eventDate, weekMeta?.date, ym);
+                  return /^\d{4}-\d{2}-\d{2}$/.test(eff) ? (
+                    <span className="font-normal">({eff.slice(8, 10)}/{eff.slice(5, 7)}) · sama dengan Katalog</span>
+                  ) : null;
+                })()}
                 <select
                   value={weekMeta?.patternCode || 'MONOLOG'}
                   disabled={!canWrite || !!busy}
                   onChange={(e) => void savePattern(e.target.value)}
                   className="rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-xs font-bold text-[#1B1B1B] focus:outline-none focus:border-black disabled:opacity-50"
-                  title="AI generate berikutnya mengikuti pola ini"
+                  title="Sama dengan pola di Katalog (tab Pola & Sesi) — berubah di satu tempat, ikut di semua. AI generate berikutnya mengikuti pola ini"
                 >
                   {[{ code: 'MONOLOG', name: 'Monologue & Dialogue' }, ...patterns.filter((p) => p.code !== 'MONOLOG' && (p as { status?: string }).status !== 'ARCHIVED')].map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>

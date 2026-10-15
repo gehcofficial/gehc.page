@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — Pola Katalog ↔ Studio dua arah + shell sesi (14 Okt 2026)
+
+**Laporan:** dropdown "Pola ibadah" di Studio/Inti manual — tak sync dengan katalog
+pekan (dua `savePattern` tulis field sama tanpa kabar; Studio tak buat shell sesi).
+
+**Ubah (kode):** `src/lib/apply-week-pattern.ts` (baru: satu penulis PATCH + shell
+sesi kosong idempoten tanggal efektif + event `gehc:week-pattern-changed`) + test
+(+5: create/exists/no-event/failed/PATCH-gagal) → `PolaSesiPanel.tsx` + 
+`DidaskaliaStudioPanel.tsx` (dua savePattern pakai helper; listener saling update
+weekMeta; label Studio + tanggal efektif & "sama dengan Katalog").
+
+**Verifikasi:** `lint` bersih ✓ `test` 1135/1136 (1 flaky `lazy-routes` pra-ada) ✓
+`build` OK ✓. Tanpa migrasi DB.
+
+**Next:** QA dua arah di event 17 Okt (Katalog→Studio & Studio→Katalog ikut;
+shell tepat satu; klik ulang tak ganda).
+
 ## Current — Siklus mingguan ideal: kosong → pola → draft → kontrol (14 Okt 2026)
 
 **Kebutuhan:** draft + kontrol tiap pekan mulai kosong; pilih pola + terapkan →

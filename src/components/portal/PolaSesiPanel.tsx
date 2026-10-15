@@ -5,11 +5,8 @@ import { WorshipPatternCatalog } from './WorshipPatternCatalog';
 import { SessionDraftTab } from './SessionDraftTab';
 import { MentoringControl } from '../mentoring/MentoringControl';
 import type { WorshipPatternLite } from '../../lib/worship-patterns';
-import { effectiveSessionDay, sessionSlugStem } from '../../lib/effective-date';
-
-function slugify(s: string): string {
-  return String(s || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
-}
+import { effectiveSessionDay } from '../../lib/effective-date';
+import { applyWeekPattern, WEEK_PATTERN_CHANGED_EVENT, type WeekPatternChangedDetail } from '../../lib/apply-week-pattern';
 
 type WeekMeta = {
   index: number;
@@ -127,47 +124,8 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
       .catch(() => setPatterns([]));
   }, []);
 
-  // Alur ideal mingguan: terapkan pola → shell sesi kosong untuk tanggal efektif
-  // langsung ada → draft tampil template kosong → isi → kontrol ikut.
-  // Idempoten per (event, pola); tanpa event → hanya simpan pola.
-  const ensurePatternSession = useCallback(
-    async (patternCode: string): Promise<'created' | 'exists' | 'no-event' | 'failed'> => {
-      const ev = event;
-      if (!ev?.id) return 'no-event';
-      const want = String(patternCode || 'MONOLOG').toUpperCase();
-      try {
-        const r = await fetch('/api/worship/sessions', { credentials: 'include' });
-        const d = r.ok ? await r.json() : { sessions: [] };
-        const list = (d.sessions || []) as Array<{ id: string; eventId?: string | null; pattern?: { code?: string | null } | null }>;
-        if (list.some((s) => s.eventId === ev.id && String(s.pattern?.code || '').toUpperCase() === want)) return 'exists';
-      } catch { /* lanjut buat; server 409 bila slug duplikat */ }
-      const day = effectiveSessionDay(ev.eventDate, weekMeta?.date, activeYm);
-      const slug = slugify(sessionSlugStem(day, want));
-      const title = `${want === 'MONOLOG' ? 'Ibadah' : want} — ${ev.name || day}`;
-      try {
-        const c = await fetch('/api/worship/sessions', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patternCode: want, slug, title, eventId: ev.id, sessionDate: day || null }),
-        });
-        if (!c.ok) {
-          const dd = await readJson(c);
-          throw new Error((dd as { error?: string }).error || 'Gagal membuat sesi.');
-        }
-        return 'created';
-      } catch (e: unknown) {
-        addToast({
-          type: 'error',
-          title: 'Pola tersimpan, sesi belum terbuat',
-          description: e instanceof Error ? e.message : 'Buat manual dari tab Draft.',
-        });
-        return 'failed';
-      }
-    },
-    [addToast, event, weekMeta?.date, activeYm],
-  );
-
+  // Alur ideal mingguan via helper bersama (sama dengan dropdown Studio):
+  // terapkan pola → shell sesi kosong tanggal efektif → draft → kontrol ikut.
   const savePattern = useCallback(
     async (code: string) => {
       if (!canWrite) return;
@@ -175,21 +133,22 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
       setWeekMeta((m) => (m ? { ...m, patternCode: next } : m));
       setBusy('pattern');
       try {
-        const r = await fetch(`/api/didaskalia/studio/${activeYm}/${activeWeek}`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patternCode: next }),
+        const out = await applyWeekPattern({
+          ym: activeYm,
+          weekIndex: activeWeek,
+          patternCode: next,
+          event,
+          weekDate: weekMeta?.date ?? null,
         });
-        if (!r.ok) throw new Error('Gagal menyimpan pola.');
-        const ensured = await ensurePatternSession(next);
-        if (ensured === 'created') {
+        if (out.session === 'created') {
           addToast({ type: 'success', title: `Pola pekan: ${next} — draft kosong siap diisi` });
           setSubTab('draft');
-        } else if (ensured === 'exists') {
+        } else if (out.session === 'exists') {
           addToast({ type: 'success', title: `Pola pekan: ${next}` });
-        } else if (ensured === 'no-event') {
+        } else if (out.session === 'no-event') {
           addToast({ type: 'success', title: `Pola pekan: ${next}`, description: 'Belum ada event — sesi dibuat manual dari Kontrol.' });
+        } else {
+          addToast({ type: 'error', title: 'Pola tersimpan, sesi belum terbuat', description: 'Buat manual dari tab Draft.' });
         }
         // Sinkronkan list sesi di bawah (SessionDraftTab linked + MentoringControl)
         // agar tidak menunjuk sesi pola lama setelah pekan berganti.
@@ -200,8 +159,20 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
         setBusy(null);
       }
     },
-    [addToast, canWrite, activeYm, activeWeek, ensurePatternSession],
+    [addToast, canWrite, activeYm, activeWeek, event, weekMeta?.date],
   );
+
+  // Pola diubah dari panel lain (dropdown Studio/Inti) → ikut tanpa reload.
+  useEffect(() => {
+    const onPattern = (e: Event) => {
+      const d = (e as CustomEvent<WeekPatternChangedDetail>).detail;
+      if (!d || d.ym !== activeYm || Number(d.weekIndex) !== Number(activeWeek)) return;
+      setWeekMeta((m) => (m ? { ...m, patternCode: d.patternCode } : m));
+      setSessionEpoch((x) => x + 1);
+    };
+    window.addEventListener(WEEK_PATTERN_CHANGED_EVENT, onPattern);
+    return () => window.removeEventListener(WEEK_PATTERN_CHANGED_EVENT, onPattern);
+  }, [activeYm, activeWeek]);
 
   const saveVariant = useCallback(
     async (patch: { opening?: string; offering?: string }) => {
