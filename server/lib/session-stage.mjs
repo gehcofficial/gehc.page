@@ -92,7 +92,41 @@ export function cleanPhase(raw) {
   const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
   if (!startedAt) return null;
   const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || MONOLOG_PHASE_SECONDS[name]));
-  return { name, startedAt, durationSec };
+  // Tampil di layar proyektor? Default true (perilaku lama); false = hitung
+  // diam-diam (HP peserta tetap melihat sisa waktu).
+  const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null
+    ? true
+    : !(raw.showOnScreen === false || raw.showOnScreen === 0 || String(raw.showOnScreen).toLowerCase() === 'false');
+  return { name, startedAt, durationSec, showOnScreen };
+}
+
+/**
+ * Preferensi tiap fase (diatur kontrol sebelum/saat live): durasi + tampil.
+ * Kunci tak dikenal dibuang; tiap fase selalu lengkap (default baku).
+ */
+export function cleanPhasePrefs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const keys = Object.keys(raw).filter((k) => MONOLOG_PHASES.includes(String(k).toUpperCase()));
+  if (!keys.length) return null;
+  const out = {};
+  for (const name of MONOLOG_PHASES) {
+    const r = raw[name] || {};
+    const durationSec = Math.min(7200, Math.max(60, Number(r.durationSec) || MONOLOG_PHASE_SECONDS[name]));
+    const showOnScreen = r.showOnScreen === undefined || r.showOnScreen === null
+      ? true
+      : !(r.showOnScreen === false || r.showOnScreen === 0 || String(r.showOnScreen).toLowerCase() === 'false');
+    out[name] = { durationSec, showOnScreen };
+  }
+  return out;
+}
+
+/** Preferensi baku (durasi baku + tampil semua). */
+export function defaultPhasePrefs() {
+  const out = {};
+  for (const name of MONOLOG_PHASES) {
+    out[name] = { durationSec: MONOLOG_PHASE_SECONDS[name], showOnScreen: true };
+  }
+  return out;
 }
 
 /** Normalisasi lagu bedah (MONOLOG gabungan). */

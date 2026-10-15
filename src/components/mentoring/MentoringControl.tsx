@@ -56,6 +56,7 @@ type SessionDetail = {
       rankFloors?: number[];
       expectedCount: number | null;
       chipLimit: number;
+      phasePrefs?: Record<string, { durationSec: number; showOnScreen: boolean }> | null;
     };
     pattern?: { code: string; name: string; phases?: { no?: number; title?: string; minutes?: number; owner?: string; division?: string | null }[] } | null;
   };
@@ -97,6 +98,53 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const [newItem, setNewItem] = useState({ topicCode: '', text: '', gospelNote: '' });
   const [newChip, setNewChip] = useState({ label: '', topicCode: '' });
   const [configDraft, setConfigDraft] = useState({ timerSeconds: 1200, expectedCount: '' });
+  /** Chip tambah waktu fleksibel (+5/+60/+300 dtk + custom 5–1800). */
+  const renderExtendChips = (run: (sec: number) => void, canRun: boolean) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">+ waktu:</span>
+      {[
+        { sec: 5, label: '+5 dtk' },
+        { sec: 60, label: '+1 mnt' },
+        { sec: 300, label: '+5 mnt' },
+      ].map((p) => (
+        <button
+          key={p.sec}
+          type="button"
+          disabled={busy || !canRun}
+          onClick={() => run(p.sec)}
+          className="px-3 py-2 rounded-full text-[11px] font-bold text-white disabled:opacity-60 bg-sky-500"
+        >
+          {p.label}
+        </button>
+      ))}
+      <input
+        type="number"
+        min={5}
+        max={1800}
+        value={extendCustom}
+        onChange={(e) => setExtendCustom(e.target.value)}
+        placeholder="dtk…"
+        title="Custom detik (5–1800)"
+        className="w-20 px-2.5 py-2 rounded-full text-[11px] font-bold border border-[#D9D7D0] focus:outline-none focus:border-brand"
+      />
+      <button
+        type="button"
+        disabled={busy || !canRun || !Number(extendCustom)}
+        onClick={() => { run(Number(extendCustom)); setExtendCustom(''); }}
+        className="px-3 py-2 rounded-full text-[11px] font-bold text-white disabled:opacity-60 bg-sky-700"
+      >
+        +custom
+      </button>
+    </div>
+  );
+  const [phasePrefsDraft, setPhasePrefsDraft] = useState<Record<string, { min: string; show: boolean }>>({
+    F1: { min: '20', show: true },
+    F2: { min: '25', show: true },
+    F3: { min: '10', show: true },
+    CLOSING: { min: '5', show: true },
+  });
+  /** Tambah waktu fleksibel: preset + custom (detik, 5–1800). */
+  const [extendCustom, setExtendCustom] = useState('');
   const [venues, setVenues] = useState<VenueRow[]>([]);
   const [rankVenues, setRankVenues] = useState<string[]>(['', '', '']);
   const [venueDraft, setVenueDraft] = useState({ name: '', capacity: '', kind: 'TERAS', note: '' });
@@ -128,6 +176,20 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         timerSeconds: d.session?.config?.timerSeconds ?? 1200,
         expectedCount: d.session?.config?.expectedCount ?? '',
       });
+      const pp = d.session?.config?.phasePrefs;
+      if (pp && typeof pp === 'object') {
+        setPhasePrefsDraft((prev) => {
+          const next = { ...prev };
+          for (const k of Object.keys(next)) {
+            const r = (pp as Record<string, { durationSec?: number; showOnScreen?: boolean }>)[k];
+            if (r && typeof r === 'object') {
+              if (Number(r.durationSec) > 0) next[k] = { ...next[k], min: String(Math.round(Number(r.durationSec) / 60)) };
+              if (r.showOnScreen !== undefined) next[k] = { ...next[k], show: r.showOnScreen !== false };
+            }
+          }
+          return next;
+        });
+      }
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat detail.' });
     }
@@ -206,8 +268,35 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   };
 
-  // 4 tombol fase MONOLOG (F1 20' → F2 25' → F3 10' → Closing 5'). T1/T3 via
-  // state (server ikut menulis phase); T2/T4 via stage. Transisi manual.
+  // Durasi tiap fase (detik) dari pengaturan kontrol; fallback baku 20/25/10/5.
+  const prefSec = (name: string): number => {
+    const mins = Number(phasePrefsDraft[name]?.min);
+    const fallback = { F1: 1200, F2: 1500, F3: 600, CLOSING: 300 }[name] || 300;
+    if (!Number.isFinite(mins) || mins <= 0) return fallback;
+    return Math.min(7200, Math.max(60, Math.round(mins * 60)));
+  };
+  const prefShow = (name: string): boolean => phasePrefsDraft[name]?.show !== false;
+
+  const savePhasePrefs = async () => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const prefs: Record<string, { durationSec: number; showOnScreen: boolean }> = {};
+      for (const name of ['F1', 'F2', 'F3', 'CLOSING']) {
+        prefs[name] = { durationSec: prefSec(name), showOnScreen: prefShow(name) };
+      }
+      await saveStage(detail.session.id, { phasePrefs: prefs });
+      setMsg({ kind: 'ok', text: 'Pengaturan fase tersimpan — dipakai mulai fase berikutnya.' });
+      await loadDetail();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan pengaturan fase.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 4 tombol fase MONOLOG (durasi + tampil ikut pengaturan di atas).
+  // Transisi manual; T1/T3 via state, T2/T4 via stage.
   const monologPhase = async (name: 'F2' | 'CLOSING') => {
     if (!detail) return;
     setBusy(true);
@@ -216,11 +305,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         name === 'F2'
           ? {
               fgd: { currentQ: 5, triggerBy: null, triggerName: null },
-              phase: { name: 'F2', startedAt: new Date().toISOString(), durationSec: 1500 },
+              phase: { name: 'F2', startedAt: new Date().toISOString(), durationSec: prefSec('F2'), showOnScreen: prefShow('F2') },
             }
-          : { phase: { name: 'CLOSING', startedAt: new Date().toISOString(), durationSec: 300 } };
+          : { phase: { name: 'CLOSING', startedAt: new Date().toISOString(), durationSec: prefSec('CLOSING'), showOnScreen: prefShow('CLOSING') } };
       await saveStage(detail.session.id, patch);
-      setMsg({ kind: 'ok', text: name === 'F2' ? 'Fase F2 Deep Sharing + Q4-Q5 dibuka (25 menit).' : 'Fase Closing & Transisi dibuka (5 menit).' });
+      const mins = Math.round(prefSec(name) / 60);
+      setMsg({ kind: 'ok', text: name === 'F2' ? `Fase F2 Deep Sharing + Q4-Q5 dibuka (${mins} menit).` : `Fase Closing & Transisi dibuka (${mins} menit).` });
       await loadDetail();
       await loadLive();
     } catch (e) {
@@ -230,19 +320,40 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   };
 
-  const extendPhase = async () => {
+  const startWithPrefs = async (base: 'start' | 'wrapup', phaseName: 'F1' | 'F3') => {
+    await doAction(base);
+    if (!detail) return;
+    try {
+      await saveStage(detail.session.id, {
+        phase: {
+          name: phaseName,
+          startedAt: new Date().toISOString(),
+          durationSec: prefSec(phaseName),
+          showOnScreen: prefShow(phaseName),
+        },
+      });
+      await loadDetail();
+      await loadLive();
+    } catch {
+      /* fase baku server tetap jalan */
+    }
+  };
+
+  const extendPhase = async (seconds?: number) => {
     if (!detail) return;
     const cur = live?.phase;
     if (!cur?.startedAt) {
       setMsg({ kind: 'err', text: 'Belum ada fase berjalan.' });
       return;
     }
+    const add = Math.min(1800, Math.max(5, Math.round(Number(seconds) || 300)));
     setBusy(true);
     try {
       await saveStage(detail.session.id, {
-        phase: { name: cur.name, startedAt: cur.startedAt, durationSec: Number(cur.durationSec) + 300 },
+        phase: { name: cur.name, startedAt: cur.startedAt, durationSec: Number(cur.durationSec) + add, showOnScreen: (cur as { showOnScreen?: boolean }).showOnScreen !== false },
       });
-      setMsg({ kind: 'ok', text: `Fase ${cur.name} ditambah 5 menit.` });
+      const label = add >= 60 ? `${Math.round(add / 60)} menit` : `${add} detik`;
+      setMsg({ kind: 'ok', text: `Fase ${cur.name} ditambah ${label}.` });
       await loadDetail();
       await loadLive();
     } catch (e) {
@@ -650,10 +761,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 <>
                   {(
                     [
-                      { key: 'F1', label: 'Mulai Bedah Lagu & Monolog · 20’', run: () => void doAction('start'), on: detail.session.status === 'DRAFT' },
-                      { key: 'F2', label: 'Deep Sharing Q4-Q5 · 25’', run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
-                      { key: 'F3', label: 'Kesaksian · 10’', run: () => void doAction('wrapup'), on: detail.session.status === 'RUNNING' },
-                      { key: 'CLOSING', label: 'Closing & Transisi · 5’', run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
+                      { key: 'F1', label: `Mulai Bedah Lagu & Monolog · ${Math.round(prefSec('F1') / 60)}’`, run: () => void startWithPrefs('start', 'F1'), on: detail.session.status === 'DRAFT' },
+                      { key: 'F2', label: `Deep Sharing Q4-Q5 · ${Math.round(prefSec('F2') / 60)}’`, run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
+                      { key: 'F3', label: `Kesaksian · ${Math.round(prefSec('F3') / 60)}’`, run: () => void startWithPrefs('wrapup', 'F3'), on: detail.session.status === 'RUNNING' },
+                      { key: 'CLOSING', label: `Closing & Transisi · ${Math.round(prefSec('CLOSING') / 60)}’`, run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
                     ] as const
                   ).map((b) => {
                     const active = live?.phase?.name === b.key;
@@ -670,14 +781,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                       </button>
                     );
                   })}
-                  <button
-                    type="button"
-                    disabled={busy || !live?.phase?.startedAt}
-                    onClick={() => void extendPhase()}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-sky-500"
-                  >
-                    +5 mnt fase
-                  </button>
+                  {renderExtendChips((s) => void extendPhase(s), Boolean(live?.phase?.startedAt))}
                   <button
                     type="button"
                     disabled={busy}
@@ -737,7 +841,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   </span>
                 </>
               ) : (
-              visibleActions.map((a) => {
+              <>
+              {visibleActions.filter((a) => a.action !== 'extend').map((a) => {
                 const label = isMonolog && a.action === 'start'
                   ? 'Mulai Bedah Lagu & Monolog'
                   : isMonolog && a.action === 'wrapup'
@@ -748,13 +853,16 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   key={a.action}
                   type="button"
                   disabled={busy}
-                  onClick={() => void doAction(a.action, a.action === 'extend' ? { seconds: 300 } : undefined)}
+                  onClick={() => void doAction(a.action)}
                   className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${a.tone}`}
                 >
                   {label}
                 </button>
                 );
-              })
+              })}
+              {visibleActions.some((a) => a.action === 'extend') &&
+                renderExtendChips((s) => void doAction('extend', { seconds: s }), true)}
+              </>
               )}
               <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
                 {isMonolog && live?.phase?.startedAt
@@ -797,6 +905,50 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </button>
               </div>
             </div>
+
+            {isMonolog && (
+              <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-bold">Pengaturan tiap fase</p>
+                  <span className="text-[10px] text-[#8C8880]">durasi per fase + tampil di layar proyektor</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void savePhasePrefs()}
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Simpan fase
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(['F1', 'F2', 'F3', 'CLOSING'] as const).map((name) => (
+                    <div key={name} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-2.5 space-y-1.5">
+                      <p className="text-[11px] font-black">{name}</p>
+                      <label className="flex items-center gap-1.5 text-[11px] text-[#8C8880]">
+                        <input
+                          type="number"
+                          min={1}
+                          max={120}
+                          value={phasePrefsDraft[name]?.min}
+                          onChange={(e) => setPhasePrefsDraft((p) => ({ ...p, [name]: { ...p[name], min: e.target.value } }))}
+                          className="w-16 px-2 py-1 rounded-lg border border-[#D9D7D0] text-xs font-bold focus:outline-none focus:border-brand"
+                        />
+                        mnt
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] text-[#8C8880] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={phasePrefsDraft[name]?.show !== false}
+                          onChange={(e) => setPhasePrefsDraft((p) => ({ ...p, [name]: { ...p[name], show: e.target.checked } }))}
+                          className="w-3.5 h-3.5 accent-[#181818]"
+                        />
+                        Tampil di layar
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isPostToPost && (
             <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-3">
@@ -1184,7 +1336,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           </div>
           )}
 
-          <TestimonyPanel sessionId={detail.session.id} freeForAll={isMonolog} />
+          <TestimonyPanel
+            sessionId={detail.session.id}
+            mode={isMonolog ? 'monolog' : isFilm ? 'film' : 'standard'}
+          />
           {patternCode === 'DEBAT' && (
             <DebatPanel sessionId={detail.session.id} />
           )}

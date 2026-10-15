@@ -12,7 +12,7 @@ import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -132,6 +132,10 @@ export function normalizeConfig(raw, patternCode) {
     likertRounds: c.likertRounds && typeof c.likertRounds === 'object' && !Array.isArray(c.likertRounds) ? c.likertRounds : null,
     // Timer fase aktif (MONOLOG: F1 20' + F2 25' + F3 10' + Closing 5'; display-only).
     phase: c.phase && typeof c.phase === 'object' && !Array.isArray(c.phase) ? c.phase : null,
+    // Preferensi tiap fase (durasi + tampil di layar; diatur kontrol; default baku).
+    phasePrefs: c.phasePrefs && typeof c.phasePrefs === 'object' && !Array.isArray(c.phasePrefs)
+      ? c.phasePrefs
+      : null,
   };
 }
 
@@ -638,6 +642,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         song: sessionSong(config),
         fgd: fgdState(config),
         phase: config.phase || null,
+        phasePrefs: config.phasePrefs || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
         screening: config.screening,
@@ -871,6 +876,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         song: sessionSong(agg.config),
         fgd: fgdState(agg.config),
         phase: agg.config.phase || null,
+        phasePrefs: agg.config.phasePrefs || null,
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
@@ -1307,7 +1313,8 @@ export function registerWorshipRoutes(app, { wrap }) {
         data.wrapUpAt = null;
         data.closedAt = null;
       } else if (action === 'extend') {
-        const seconds = Math.min(1800, Math.max(60, intOrNull(req.body?.seconds) || 300));
+        // Tambah waktu fleksibel (detik): preset +5/+60/+300 + custom, 5–1800.
+        const seconds = Math.min(1800, Math.max(5, intOrNull(req.body?.seconds) || 300));
         const cfg = normalizeConfig(session.config);
         data.config = { ...cfg, timerSeconds: cfg.timerSeconds + seconds };
         if (session.status === 'WRAPUP') {
@@ -1898,6 +1905,17 @@ export function registerWorshipRoutes(app, { wrap }) {
           if (!cleaned) return res.status(400).json({ error: 'Fase tidak valid (F1/F2/F3/CLOSING + waktu mulai).' });
           cfg.phase = cleaned;
           out.phase = cleaned;
+        }
+      }
+      if (b.phasePrefs !== undefined) {
+        if (b.phasePrefs === null) {
+          cfg.phasePrefs = null;
+          out.phasePrefs = null;
+        } else {
+          const cleaned = cleanPhasePrefs(b.phasePrefs);
+          if (!cleaned) return res.status(400).json({ error: 'Preferensi fase tidak valid.' });
+          cfg.phasePrefs = cleaned;
+          out.phasePrefs = cleaned;
         }
       }
       if (b.song !== undefined) {

@@ -8,11 +8,17 @@ type PoolInfo = { total: number; byRole: Record<string, number> };
 
 /**
  * Panel undian kesaksian (control room): pool kehadiran per peran,
- * tombol Putar (default 2 Mentee + 1 Mentor + 1 Co-mentor; `freeForAll`
- * = 3 acak bebas untuk MONOLOG, tanpa ulang),
- * daftar terpilih + reset. Hasil tampil di layar proyektor.
+ * tombol Putar, daftar terpilih + reset. Hasil tampil di layar proyektor
+ * (nama + grup).
+ * Mode: 'monolog' = 3 acak bebas; 'film' = tepat 2 (1 Mentee + 1 Mentor);
+ * 'standard' = 2 Mentee + 1 Mentor + 1 Co-mentor. Tanpa ulang.
  */
-export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean }> = ({ sessionId, freeForAll }) => {
+export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean; mode?: 'monolog' | 'film' | 'standard' }> = ({
+  sessionId,
+  freeForAll,
+  mode,
+}) => {
+  const drawMode = mode || (freeForAll ? 'monolog' : 'standard');
   const [pool, setPool] = useState<PoolInfo | null>(null);
   const [picks, setPicks] = useState<TestimonyPick[]>([]);
   const [busy, setBusy] = useState(false);
@@ -164,9 +170,11 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean 
         </span>
       </div>
       <p className="text-[11px] text-[#8C8880] mt-1">
-        {freeForAll
+        {drawMode === 'monolog'
           ? 'Tiap putaran: 3 acak bebas dari yang hadir (nama + grup tampil di layar; tanpa ulang).'
-          : 'Komposisi tiap putaran: 2 Mentee + 1 Mentor + 1 Co-mentor (dilengkapi acak bila peran kurang; tanpa ulang).'}
+          : drawMode === 'film'
+            ? 'Tiap putaran: tepat 2 orang (1 Mentee + 1 Mentor; nama + grup tampil di layar; tanpa ulang).'
+            : 'Komposisi tiap putaran: 2 Mentee + 1 Mentor + 1 Co-mentor (dilengkapi acak bila peran kurang; tanpa ulang).'}
       </p>
       {picks.length > 0 && (
         <ol className="mt-3 space-y-1.5">

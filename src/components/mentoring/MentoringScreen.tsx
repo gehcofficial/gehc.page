@@ -159,6 +159,8 @@ const MentoringScreen: React.FC = () => {
     F3: 'Kesaksian',
     CLOSING: 'Closing & Transisi',
   };
+  /** Timer fase tampil di layar? Mati = hitung diam-diam (HP peserta tetap melihat). */
+  const phaseVisible = data.phase?.showOnScreen !== false;
   const fmtPhase = (ms: number) =>
     `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
   const isMonologStandby = patternCode === 'MONOLOG' && !showWordCloud && phaseName !== 'F2';
@@ -295,9 +297,13 @@ const MentoringScreen: React.FC = () => {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Diskusi kelompok</p>
                       <p className="text-sm text-white/70 mt-1">Bagikan catatanmu — semua mencatat di HP.</p>
                     </div>
-                    <p className="font-display text-5xl font-black tabular-nums">
-                      {phaseRemainMs === null ? '––:––' : phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
-                    </p>
+                    {phaseVisible ? (
+                      <p className="font-display text-5xl font-black tabular-nums">
+                        {phaseRemainMs === null ? '––:––' : phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-white/50 italic shrink-0">mengalir…</p>
+                    )}
                   </section>
                   {phaseExpired && (
                     <p className="text-center text-sm font-bold text-amber-300">Waktu habis — menunggu operator membuka fase berikut.</p>
@@ -379,9 +385,13 @@ const MentoringScreen: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{PHASE_LABEL[phaseName || ''] || 'Kesaksian'}</p>
                 {phaseName === 'CLOSING' && <p className="text-sm text-white/70 mt-1">Terima kasih — sampai jumpa minggu depan.</p>}
               </div>
-              <p className="font-display text-5xl font-black tabular-nums">
-                {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
-              </p>
+              {phaseVisible ? (
+                <p className="font-display text-5xl font-black tabular-nums">
+                  {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+                </p>
+              ) : (
+                <p className="text-sm text-white/50 italic shrink-0">mengalir…</p>
+              )}
             </section>
           )}
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex items-center justify-center">

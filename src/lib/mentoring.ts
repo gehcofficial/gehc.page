@@ -91,7 +91,10 @@ export type SessionSong = {
 export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
 
 /** Timer fase aktif (MONOLOG): F1 20' + F2 25' + F3 10' + Closing 5'. Display-only; transisi manual. */
-export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING'; startedAt: string; durationSec: number } | null;
+export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING'; startedAt: string; durationSec: number; showOnScreen?: boolean } | null;
+
+/** Preferensi tiap fase (durasi + tampil di layar proyektor; diatur kontrol). */
+export type PhasePrefs = Partial<Record<'F1' | 'F2' | 'F3' | 'CLOSING', { durationSec: number; showOnScreen: boolean }>>;
 
 export type OneWordCount = { text: string; count: number };
 
@@ -130,6 +133,8 @@ export type MentoringSessionPayload = {
   fgd?: SessionFgdState;
   /** Fase aktif + countdown (MONOLOG gabungan). */
   phase?: SessionPhase;
+  /** Preferensi tiap fase (diatur kontrol; default durasi baku + tampil). */
+  phasePrefs?: PhasePrefs | null;
   testimony: TestimonyPick[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
@@ -157,6 +162,7 @@ export type MentoringLivePayload = {
   song?: SessionSong;
   fgd?: SessionFgdState;
   phase?: SessionPhase;
+  phasePrefs?: PhasePrefs | null;
   testimony: TestimonyPick[];
   oneWord?: OneWordCount[];
   rounds?: SessionRounds;
