@@ -134,8 +134,12 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
   const load = useCallback(async () => {
     try {
       const cfg = await fetchStage(sessionId);
-      setTitle(String(cfg.screening?.title || ''));
-      setDurationMin(Number(cfg.screening?.durationMin) || 91);
+      // Fallback ke judul draf (Terapkan lama tak menulis screening) — aturan
+      // parse sama dengan server: angka 2–3 digit sebelum "menit".
+      const draftTitle = String(cfg.draft?.film?.['film-title'] || '').trim();
+      setTitle(String(cfg.screening?.title || draftTitle || ''));
+      const m = String(cfg.screening?.title ? '' : draftTitle).match(/(\d{2,3})\s*menit/i);
+      setDurationMin(Number(cfg.screening?.durationMin) || (m ? Math.min(180, Math.max(10, Number(m[1]))) : 91));
       setStartedAt(cfg.screening?.startedAt || null);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat.');

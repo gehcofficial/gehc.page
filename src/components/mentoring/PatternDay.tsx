@@ -272,6 +272,18 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       const rest = base.filter((s) => !MONOLOG_QUESTION_KEYS.includes(s.key));
       return [...qs, ...rest];
     }
+    // BEDAH_FILM: label slot catatan = teks Q draf (film-q1..3 via deepGuide),
+    // bukan label hardcode generik — agar pertanyaan draf tampil di peserta.
+    if (c === 'BEDAH_FILM') {
+      const qs = (data?.deepGuide || []).filter(Boolean);
+      if (qs.length) {
+        return base.map((s) => {
+          const m = /^FILM-Q([1-3])$/.exec(s.key);
+          const text = m ? qs[Number(m[1]) - 1] : '';
+          return text ? { ...s, label: text } : s;
+        });
+      }
+    }
     return base;
   }, [c, data?.guide, data?.deepGuide]);
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
@@ -402,7 +414,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       sections: [
         {
           heading: 'Panduan',
-          lines: [...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => ({ label: `Q${i + 1}`, body: g })),
+          lines: [...(data.guide || []).filter(Boolean), ...(c === 'MONOLOG' || c === 'BEDAH_FILM' ? (data.deepGuide || []).filter(Boolean) : [])].map((g, i) => ({ label: `Q${i + 1}`, body: g })),
         },
         ...(song?.title
           ? [{

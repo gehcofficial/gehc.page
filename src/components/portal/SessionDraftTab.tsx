@@ -447,10 +447,11 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
             }),
           })),
         );
+        const sermonWarn = d.sermonEmpty && aiCode === 'BEDAH_FILM' ? ' Khotbah Studio kosong — Q2 hanya dikaitkan ke firman (isi big idea khotbah lalu ulangi bila perlu).' : '';
         setAiNote(
           lockedTitle
-            ? `Usulan AI mengelilingi film "${lockedTitle}": ${filled} field dilengkapi, ${kept} dipertahankan. Periksa lalu Simpan/Terapkan.`
-            : `Usulan AI: ${filled} field dilengkapi, ${kept} dipertahankan. Periksa tiap section lalu Simpan${aiCode === 'POST_TO_POST' ? '/Terapkan' : ''}.`,
+            ? `Usulan AI mengelilingi film "${lockedTitle}": ${filled} field dilengkapi, ${kept} dipertahankan.${sermonWarn} Periksa lalu Simpan/Terapkan.`
+            : `Usulan AI: ${filled} field dilengkapi, ${kept} dipertahankan.${sermonWarn} Periksa tiap section lalu Simpan${aiCode === 'POST_TO_POST' ? '/Terapkan' : ''}.`,
         );
       }
     } catch (e) {
@@ -500,9 +501,10 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal menerapkan draft.');
+      const screeningMsg = d.screening?.title ? ` Pemutaran film: "${String(d.screening.title).slice(0, 60)}" (${d.screening.durationMin || 90}').` : '';
       setMsg({
         kind: 'ok',
-        text: detailCode === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : 'Draft tersimpan ke sesi.',
+        text: detailCode === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : `Draft diterapkan ke sesi.${screeningMsg}`,
       });
       await loadDetail();
     } catch (e) {

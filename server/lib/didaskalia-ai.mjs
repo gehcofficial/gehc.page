@@ -1000,6 +1000,31 @@ function filmAnchorBlock(input) {
   return { title, lines };
 }
 
+/**
+ * Fokus khotbah pekan (big idea + teks utama + cuplikan outline) — acuan wajib
+ * Q2 deep sharing film (Bedah Teologis) dan pancingan pleno.
+ */
+function sermonFocusBlock(input) {
+  const bigIdea = asStr(input?.sermonBigIdea).slice(0, 300);
+  const tuRef = asStr(input?.sermonTeksUtama?.ref).slice(0, 160);
+  const tuText = asStr(input?.sermonTeksUtama?.text).slice(0, 400);
+  const ol = input?.sermonOutline && typeof input.sermonOutline === 'object' ? input.sermonOutline : null;
+  const parts = [];
+  if (ol) {
+    for (const k of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
+      const s = asStr(ol[k]).slice(0, 400);
+      if (s) parts.push(`${k}: ${s}`);
+    }
+  }
+  if (!bigIdea && !tuRef && !parts.length) return [];
+  return [
+    'FOKUS KHOTBAH PEKAN (acuan Q2 deep sharing + pancingan — WAJIB dirujuk eksplisit):',
+    bigIdea ? `- Big idea: ${bigIdea}` : '',
+    tuRef ? `- Teks utama: ${tuRef}${tuText ? ` — ${tuText}` : ''}` : '',
+    ...parts.slice(0, 4).map((p) => `- ${p}`),
+  ].filter(Boolean);
+}
+
 /** Nilai draft yang sudah diisi tim = masukan, bukan untuk ditimpa seenaknya. */
 function currentDraftBlock(input) {
   try {
@@ -1039,6 +1064,7 @@ export async function generateSessionDraft(input) {
     ...currentDraftBlock(input),
     input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
     input.sermonSummary ? `Ringkasan khotbah:\n${asStr(input.sermonSummary).slice(0, 1500)}` : '',
+    ...sermonFocusBlock(input),
     input.notes ? `Catatan/diskusi tim:\n${asStr(input.notes).slice(0, 2000)}` : '',
     '',
   ].filter(Boolean);
@@ -1124,6 +1150,14 @@ export async function generateSessionDraft(input) {
     '- Teks yang SAMA dipakai di ronde AWAL (sebelum nonton) dan AKHIR (sesudah deep sharing) untuk mengukur perubahan.',
     '- Yang kosong ide konkret boleh dikosongkan (jangan diada-ada).',
   ] : [];
+  const hasFilmDeep = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('film-q'));
+  const DEEP_FILM_RULES = hasFilmDeep ? [
+    'ATURAN DEEP SHARING FILM (TEPAT 3 PERTANYAAN, WAJIB — Q1 masa lalu, Q2 masa kini, Q3 langkah otentik):',
+    '- film-q1 (masa lalu): 1 pertanyaan + 1 analogi adegan film kunci (karakter/situasi spesifik, bukan generik).',
+    '- film-q2 (masa kini): WAJIB mengaitkan Bedah Teologis ringkasan khotbah pekan (sebut big idea + ref teks utama khotbah) dengan 1 adegan film + 1 situasi Beyonders (KRS, skripsi, shift, lembur, kos, keuangan awal). Bila ringkasan khotbah kosong, kaitkan ke Fundamental Firman dan tulis "(khotbah menyusul)".',
+    '- film-q3 (langkah otentik): SATU langkah nyata, konkret dan terukur minggu ini (nama orang + hari + aktivitas 30 menit).',
+    '- Tiap Q 1-2 kalimat.',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
@@ -1131,6 +1165,7 @@ export async function generateSessionDraft(input) {
     ...SONG_RULES,
     ...CHIP_RULES,
     ...LIKERT_RULES,
+    ...DEEP_FILM_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',

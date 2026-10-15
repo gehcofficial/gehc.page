@@ -46,6 +46,17 @@ export function cleanScreening(raw) {
   return { title, durationMin, startedAt };
 }
 
+/**
+ * Tebak durasi film (menit) dari judul draf — mis. "…(2017, 112 menit — …)" → 112.
+ * Hanya angka 2–3 digit tepat sebelum kata "menit" (tahun 4-digit diabaikan).
+ * Fallback 90 (slot F1 Pemutaran film).
+ */
+export function parseFilmDurationMin(title) {
+  const m = String(title || '').match(/(\d{2,3})\s*menit/i);
+  if (!m) return 90;
+  return Math.min(180, Math.max(10, Number(m[1])));
+}
+
 /** Normalisasi gate Likert 2 ronde (BEDAH_FILM): AWAL (baseline) & AKHIR (ukur delta). */
 export function cleanLikertRounds(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

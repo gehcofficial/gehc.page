@@ -8,7 +8,8 @@ import {
   storedToSections,
   templateFieldKeys,
 } from '../../src/lib/worship-session-draft';
-import { normalizeConfig } from '../../server/routes/worship.mjs';
+import { deepGuide, normalizeConfig } from '../../server/routes/worship.mjs';
+import { parseFilmDurationMin } from '../../server/lib/session-stage.mjs';
 
 const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
 
@@ -171,6 +172,36 @@ describe('session-draft: curasi The Case for Christ', () => {
   it('setiap nilai muat batas 2000 char server', () => {
     const vals = Object.values(CASE_FOR_CHRIST_DRAFT).flatMap((sec) => Object.values(sec));
     expect(vals.every((v) => typeof v === 'string' && v.length > 0 && v.length <= 2000)).toBe(true);
+  });
+});
+
+describe('session-draft: screening dari judul draf', () => {
+  it('parse "…2017, 112 menit…" → 112 (tahun diabaikan)', () => {
+    expect(parseFilmDurationMin('The Case for Christ (2017, 112 menit — tayang versi 60–95 menit)')).toBe(112);
+  });
+
+  it('tanpa angka menit → 90; clamp 10–180', () => {
+    expect(parseFilmDurationMin('Judul Tanpa Angka')).toBe(90);
+    expect(parseFilmDurationMin('Film (5 menit)')).toBe(90);
+    expect(parseFilmDurationMin('Film (09 menit)')).toBe(10);
+    expect(parseFilmDurationMin('Film (500 menit)')).toBe(180);
+  });
+});
+
+describe('session-draft: deepGuide film 3Q', () => {
+  it('draf film → 3 pertanyaan dari film-q1..3', () => {
+    const out = deepGuide({ draft: { deep: { 'film-q1': 'Q1?', 'film-q2': 'Q2?', 'film-q3': 'Q3?' } } });
+    expect(out).toEqual(['Q1?', 'Q2?', 'Q3?']);
+  });
+
+  it('draf monolog → tetap 2 pertanyaan deep-q', () => {
+    const out = deepGuide({ draft: { deep: { 'deep-q1': 'A?', 'deep-q2': 'B?' } } });
+    expect(out).toEqual(['A?', 'B?']);
+  });
+
+  it('kosong → fallback generik (film: 3, monolog: 2)', () => {
+    expect(deepGuide({ draft: { deep: { 'film-q1': 'X' } } })).toHaveLength(3);
+    expect(deepGuide({ draft: {} })).toHaveLength(2);
   });
 });
 
@@ -361,6 +392,39 @@ describe('session-draft: AI proposal', () => {
     const prompt = capturedPrompts.list.join('\n');
     expect(prompt).toContain('Gavin Stone');
     expect(prompt).toContain('JANGAN mengarang film populer');
+  });
+
+  it('prompt deep film: Q2 wajib kait Bedah Teologis khotbah', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 3,
+      theme: 'Ancient Word, Modern World',
+      fundamentalFirman: { ref: '1 Korintus 15:3-4', text: 'Kristus telah mati...' },
+      sermonSummary: 'Ringkasan…',
+      sermonBigIdea: 'Kebangkitan Yesus adalah fakta sejarah yang menuntut respons.',
+      sermonTeksUtama: { ref: '1 Korintus 15:3-8', text: '…' },
+      pattern: { code: 'BEDAH_FILM', name: 'Bedah Film', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('BEDAH_FILM'),
+      filmTitle: 'The Case for Christ',
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('DEEP SHARING FILM');
+    expect(prompt).toContain('FOKUS KHOTBAH PEKAN');
+    expect(prompt).toContain('Kebangkitan Yesus adalah fakta sejarah');
+    expect(prompt).toContain('1 Korintus 15:3-8');
+  });
+
+  it('tanpa kunci film-q → aturan deep film absen', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 3,
+      theme: 'T',
+      pattern: { code: 'DEBAT', name: 'Debat', phases: [], playbook: 'x' },
+      fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
+    });
+    expect(capturedPrompts.list.join('\n')).not.toContain('DEEP SHARING FILM');
   });
 
   it('draf saat ini dikirim sebagai masukan', async () => {

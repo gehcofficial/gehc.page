@@ -988,6 +988,9 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           pattern,
           pathsOutline,
           sermonSummary: st.sermon?.summary || '',
+          sermonBigIdea: st.sermon?.bigIdea || '',
+          sermonTeksUtama: st.sermon?.teksUtama || null,
+          sermonOutline: st.sermon?.outline || null,
           fieldKeys,
           currentDraft,
           filmTitle,
@@ -996,7 +999,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       } catch (e) {
         return res.status(502).json({ error: `AI gagal menyusun draft sesi: ${e.message}` });
       }
-      res.json({ pattern: { code: pattern.code, name: pattern.name }, draft });
+      const sermonEmpty = !st.sermon?.summary && !st.sermon?.bigIdea;
+      res.json({ pattern: { code: pattern.code, name: pattern.name }, draft, sermonEmpty });
     })
   );
 

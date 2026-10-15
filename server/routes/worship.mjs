@@ -12,7 +12,7 @@ import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -158,7 +158,11 @@ export function sessionSong(config) {
   };
 }
 
-/** 2 pertanyaan deep sharing dari draft sesi (fallback generik bila kosong). */
+/**
+ * Pertanyaan deep sharing dari draft sesi.
+ * BEDAH_FILM menyimpan `film-q1..3` (bukan `deep-q1/2`) — kembalikan 3 item
+ * agar Q draf tampil di peserta/layar/rekap, bukan generik.
+ */
 export function deepGuide(config) {
   const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
   const deep = draft.deep && typeof draft.deep === 'object' ? draft.deep : {};
@@ -169,6 +173,13 @@ export function deepGuide(config) {
     }
     return '';
   };
+  if (['film-q1', 'film-q2', 'film-q3'].some((k) => String(deep[k] || '').trim())) {
+    return [
+      pick(deep, ['film-q1']) || 'Adegan film mana yang paling kena ke kamu?',
+      pick(deep, ['film-q2']) || 'Kaitan apa dengan firman pekan ini?',
+      pick(deep, ['film-q3']) || 'Langkah otentik apa minggu ini?',
+    ];
+  }
   return [
     pick(deep, ['deep-q1', 'q1']) || 'Di mana kamu melihat dirimu dalam teks pekan ini?',
     pick(deep, ['deep-q2', 'q2']) || 'Langkah pulang apa minggu ini?',
@@ -1572,6 +1583,18 @@ export function registerWorshipRoutes(app, { wrap }) {
           .map((text, i) => ({ n: i + 1, text }))
           .filter((x) => x.text);
       }
+      // BEDAH_FILM: sinkronkan modul Pemutaran film dari judul draf (otomatis).
+      // Guard: bila pemutaran sudah mulai live (startedAt ada) → jangan sentuh.
+      let screeningPatch = null;
+      if (sessionPattern === 'BEDAH_FILM') {
+        const filmSec = b.storedDraft?.film && typeof b.storedDraft.film === 'object' ? b.storedDraft.film : {};
+        const filmTitle = String(filmSec['film-title'] || '').trim().slice(0, 200);
+        const liveScreening = session.config?.screening && typeof session.config.screening === 'object' ? session.config.screening : null;
+        if (filmTitle && !liveScreening?.startedAt) {
+          screeningPatch = { title: filmTitle, durationMin: parseFilmDurationMin(filmTitle), startedAt: null };
+          cfg.screening = screeningPatch;
+        }
+      }
       const legacyItems = await prisma.worshipLikertItem.findMany({
         where: { sessionId: session.id },
         select: { id: true },
@@ -1613,7 +1636,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           }
         }
       }
-      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2 });
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2, screening: screeningPatch });
     }),
   );
 
