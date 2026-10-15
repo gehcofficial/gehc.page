@@ -53,6 +53,8 @@ import { EventInviteCard } from './EventInviteCard';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import { PenatalayanBoard } from './PenatalayanBoard';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
+import { PenatalayanRotaForm } from './PenatalayanRotaForm';
+import { PenatalayanRequestQueue } from './PenatalayanRequestQueue';
 import DivisionPlanningTab from './DivisionPlanningTab';
 import { DidaskaliaStudioPanel } from './DidaskaliaStudioPanel';
 import { PolaSesiPanel } from './PolaSesiPanel';
@@ -1647,6 +1649,8 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   <PenatalayanBoard focusDivision={selectedDiv} />
                 </div>
                 <PenatalayanCalendar division={selectedDiv} serviceType={selectedEvent?.serviceType || null} eventId={selectedEvent?.id || null} />
+                <PenatalayanRotaForm division={selectedDiv} serviceType={selectedEvent?.serviceType || null} eventId={selectedEvent?.id || null} />
+                <PenatalayanRequestQueue division={selectedDiv} />
                 <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
                   <PenatalayanRolesEditor divisions={[selectedDiv]} divisionLabel={(dv) => dv === 'LITURGIA' ? 'Liturgia' : dv === 'MARTURIA' ? 'Marturia' : dv} />
                 </div>
@@ -1673,6 +1677,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
                   weekIndex={studioWeekIndex}
                   eventName={selectedEvent?.name}
                   initialSub={polaInitialSub}
+                  weekLoading={originWeek.loading}
                 />
               </div>
             )}

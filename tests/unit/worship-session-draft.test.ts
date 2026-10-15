@@ -150,6 +150,29 @@ vi.mock('../../server/ai-provider.mjs', () => ({
 }));
 
 import { generateSessionDraft } from '../../server/lib/didaskalia-ai.mjs';
+import { CASE_FOR_CHRIST_DRAFT } from '../../server/lib/bedah-film-case-for-christ.mjs';
+
+describe('session-draft: curasi The Case for Christ', () => {
+  it('memuat film + 5 likert + 3 deep + 10 chip', () => {
+    expect(CASE_FOR_CHRIST_DRAFT.film['film-title']).toContain('The Case for Christ');
+    expect(Object.keys(CASE_FOR_CHRIST_DRAFT['likert-film'])).toHaveLength(5);
+    expect(Object.keys(CASE_FOR_CHRIST_DRAFT.deep)).toHaveLength(3);
+    expect(Object.keys(CASE_FOR_CHRIST_DRAFT.lesson)).toHaveLength(10);
+  });
+
+  it('berakar firman kebangkitan + konteks Beyonders', () => {
+    const all = JSON.stringify(CASE_FOR_CHRIST_DRAFT);
+    expect(all).toContain('1 Korintus 15');
+    expect(all).toContain('Yohanes 20');
+    expect(all).toContain('500');
+    expect(all).toContain('Lee Strobel');
+  });
+
+  it('setiap nilai muat batas 2000 char server', () => {
+    const vals = Object.values(CASE_FOR_CHRIST_DRAFT).flatMap((sec) => Object.values(sec));
+    expect(vals.every((v) => typeof v === 'string' && v.length > 0 && v.length <= 2000)).toBe(true);
+  });
+});
 
 describe('session-draft: AI proposal', () => {
   it('POST_TO_POST terstruktur + clamp', async () => {
@@ -305,5 +328,53 @@ describe('session-draft: AI proposal', () => {
       fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
     });
     expect(capturedPrompts.list.join('\n')).not.toContain('LESSON LEARNED');
+  });
+
+  it('film kunci tim: judul dipakai sebagai anchor, bukan diganti', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 3,
+      theme: 'T',
+      fundamentalFirman: { ref: '1 Korintus 15:3-4', text: 'Kristus telah mati...' },
+      pattern: { code: 'BEDAH_FILM', name: 'Bedah Film', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('BEDAH_FILM'),
+      filmTitle: 'The Case for Christ (2017)',
+      currentDraft: { film: { 'film-title': 'The Case for Christ (2017)' } },
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('FILM KUNCI DARI TIM');
+    expect(prompt).toContain('The Case for Christ');
+    expect(prompt).toContain('JANGAN DIGANTI');
+    expect(prompt).toContain('Lee Strobel');
+  });
+
+  it('tanpa film kunci: anti-contoh menolak default lama', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 3,
+      theme: 'T',
+      pattern: { code: 'BEDAH_FILM', name: 'Bedah Film', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('BEDAH_FILM'),
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('Gavin Stone');
+    expect(prompt).toContain('JANGAN mengarang film populer');
+  });
+
+  it('draf saat ini dikirim sebagai masukan', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 3,
+      theme: 'T',
+      pattern: { code: 'BEDAH_FILM', name: 'Bedah Film', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('BEDAH_FILM'),
+      currentDraft: { film: { 'film-title': 'The Case for Christ' }, deep: { 'film-q1': 'sudah terisi' } },
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('DRAF SAAT INI');
+    expect(prompt).toContain('film-title');
   });
 });

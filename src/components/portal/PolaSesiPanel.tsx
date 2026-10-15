@@ -23,6 +23,8 @@ type Props = {
   weekIndex?: number;
   eventName?: string;
   initialSub?: 'katalog' | 'draft' | 'kontrol';
+  /** True saat origin week (GESER) masih dimuat — teruskan ke Draft agar AI tak baca pekan lama. */
+  weekLoading?: boolean;
 };
 
 async function readJson(r: Response) {
@@ -44,7 +46,7 @@ function fmtDate(iso: string) {
  * Mengikuti tanggal kegiatan dari DivisionWorkspacePanel (ym/weekIndex dari selectedEvent),
  * jadi ganti event di atas otomatis reload pola + draft + kontrol di bawah.
  */
-export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndexProp, eventName, initialSub }) => {
+export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndexProp, eventName, initialSub, weekLoading }) => {
   const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
@@ -55,11 +57,10 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
     if (initialSub) setSubTab(initialSub);
   }, [initialSub]);
 
-  const [ym] = useState(yearMonth || '');
-  const [weekIndex] = useState(weekIndexProp || 1);
-  // Ikuti event terpilih — tanggal dipilih sekali di DivisionWorkspacePanel.
-  const activeYm = yearMonth || ym;
-  const activeWeek = weekIndexProp || weekIndex;
+  // Ikuti event terpilih secara langsung (tanpa state beku) — penting untuk
+  // event GESER 18→17: props berubah W2→W3 setelah override termuat.
+  const activeYm = yearMonth || '';
+  const activeWeek = weekIndexProp || 1;
 
   const [weekMeta, setWeekMeta] = useState<WeekMeta | null>(null);
   const [patterns, setPatterns] = useState<WorshipPatternLite[]>([]);
@@ -260,6 +261,9 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">
             {weekMeta?.patternCode || 'MONOLOG'}
           </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
+            {activeYm || '…'}/W{activeWeek}{weekLoading ? ' · memuat pekan…' : ''}
+          </span>
           <span className="ml-auto text-[11px] text-[#8C8880] inline-flex items-center gap-1">
             <Calendar className="w-3 h-3" />
             Event: {event?.name || eventName || 'terpilih'}
@@ -343,7 +347,7 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
           </div>
           <div className={subTab === 'draft' ? '' : 'hidden'}>
             <SessionDraftTab
-              key={`draft-${sessionEpoch}`}
+              key={`draft-${activeYm}-${activeWeek}-${sessionEpoch}`}
               ym={activeYm}
               weekIndex={activeWeek}
               patternCode={weekMeta?.patternCode || 'MONOLOG'}
@@ -351,6 +355,7 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
               weekDate={weekMeta?.date}
               canWrite={canWrite}
               onPatternReset={() => void load()}
+              weekLoading={weekLoading}
             />
           </div>
           <div className={subTab === 'kontrol' ? '' : 'hidden'}>

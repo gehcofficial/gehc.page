@@ -958,9 +958,22 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const fieldKeys = Array.isArray(req.body?.fieldKeys)
         ? req.body.fieldKeys.slice(0, 40).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
         : [];
+      // Isi draft yang sudah diketik tim = masukan AI (jangan ditimpa). Khusus
+      // Bedah Film: film-title yang sudah ada = kunci utama.
+      const currentDraft = req.body?.currentDraft && typeof req.body.currentDraft === 'object' ? req.body.currentDraft : null;
+      const filmTitle = String(req.body?.filmTitle || currentDraft?.film?.['film-title'] || '').slice(0, 200);
+      const notes = String(req.body?.notes || '').slice(0, 2000);
 
       const team = await loadTeamContext(prisma);
       const pattern = await resolveWeekPattern(prisma, week, req.body?.patternCode, req.body?.patternVariant);
+      // Guard halusinasi: Studio kosong total + tanpa film kunci = tolak,
+      // jangan fallback ke judul lama (mis. Gavin Stone).
+      const studioEmpty =
+        !week.mentoringTheme && !week.servingTheme && !week.theme && !st.chapterNo &&
+        !st.fundamentalFirman?.ref && !st.kitabFokus && !pathsOutline && !st.sermon?.summary;
+      if (studioEmpty && !filmTitle) {
+        return res.status(400).json({ error: 'Studio pekan ini masih kosong dan belum ada judul film di draft. Isi Fundamental Firman/Kitab Fokus atau ketik judul film dulu, lalu ulangi Isi dari AI.' });
+      }
       let draft;
       try {
         draft = await generateSessionDraft({
@@ -976,6 +989,9 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           pathsOutline,
           sermonSummary: st.sermon?.summary || '',
           fieldKeys,
+          currentDraft,
+          filmTitle,
+          notes,
         });
       } catch (e) {
         return res.status(502).json({ error: `AI gagal menyusun draft sesi: ${e.message}` });

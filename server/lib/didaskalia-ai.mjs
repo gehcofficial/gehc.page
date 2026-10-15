@@ -964,8 +964,69 @@ function pericopeBlock(input) {
   ].filter(Boolean);
 }
 
+/**
+ * Judul film yang sudah diketik tim di draft = kunci utama (bukan usulan AI).
+ * Kembalikan blok prompt agar AI membangun di sekitarnya, bukan menimpanya.
+ */
+function filmAnchorBlock(input) {
+  const fromInput = asStr(input?.filmTitle);
+  const fromDraft = (() => {
+    try {
+      const d = input?.currentDraft;
+      if (d && typeof d === 'object') {
+        const v = d?.film?.['film-title'] || d?.['film-title'];
+        return asStr(v);
+      }
+    } catch { /* abaikan */ }
+    return '';
+  })();
+  const title = fromInput || fromDraft;
+  if (!title) return { title: '', lines: [] };
+  const lines = [
+    'FILM KUNCI DARI TIM (WAJIB DIPAKAI, JANGAN DIGANTI):',
+    `- film-title terkunci = "${title}". JANGAN mengusulkan judul lain sebagai pilihan utama.`,
+    '- Bangun film-scenes (3 adegan paralel firman), likert-film 1-5, film-q1..3, lesson-chip, dan pleno-prompt DI SEKITAR film ini + Fundamental Firman/Kitab Fokus pekan.',
+    '- film-alt WAJIB tetap berisi 2 kandidat lain + alasan + 1 kalimat kenapa kalah dari film kunci untuk perikop pekan ini.',
+  ];
+  // Sinopsis acuan agar AI tidak mengarang detail film yang sudah dikenal.
+  if (/case\s*for\s*christ/i.test(title)) {
+    lines.push(
+      'ACUAN FILM "The Case for Christ" (2017, kisah nyata Lee Strobel, jurnalis ateis Chicago Tribune, lulusan Yale Law; istri Leslie bertobat; investigasi ±2 tahun ke belasan pakar):',
+      '- Fakta kunci: anggaran ±$3jt, box office ±$17,6jt, sutradara Jon Gunn, penulis Brian Bird, pemain Mike Vogel (Lee) & Erika Christensen (Leslie).',
+      '- 4 argumen inti yang WAJIB jadi bahan adegan paralel: (1) Bukti eksekusi — Yesus benar mati disalib (bukan pingsan), teliti catatan medis; (2) Makam kosong — saksi pertama para wanita + konsistensi catatan; (3) Saksi pasca-kematian — menampakkan diri kepada 500+ orang sekaligus; (4) Transformasi murid — rela mati mempertahankan kesaksian, mustahil bila tahu itu dusta.',
+      '- Petakan ke 3 adegan film: adegan investigasi forensik/medis, adegan makam kosong & kesaksian wanita, adegan konfrontasi/pertobatan Lee + perubahan murid.',
+    );
+  }
+  return { title, lines };
+}
+
+/** Nilai draft yang sudah diisi tim = masukan, bukan untuk ditimpa seenaknya. */
+function currentDraftBlock(input) {
+  try {
+    const d = input?.currentDraft;
+    if (!d || typeof d !== 'object') return [];
+    const pairs = [];
+    for (const [sec, fields] of Object.entries(d)) {
+      if (!fields || typeof fields !== 'object') continue;
+      for (const [k, v] of Object.entries(fields)) {
+        const s = asStr(v).slice(0, 300);
+        if (s) pairs.push(`- ${k}: ${s}`);
+      }
+    }
+    if (!pairs.length) return [];
+    return [
+      'DRAF SAAT INI DARI TIM (MASUKAN — JANGAN BERTENTANGAN):',
+      ...pairs.slice(0, 30),
+      '- Untuk kunci di atas yang sudah terisi: PERTAHANKAN maknanya; AI hanya melengkapi kunci yang masih kosong atau memperbaiki redaksi tanpa mengubah keputusan tim (terutama film-title).',
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export async function generateSessionDraft(input) {
   const code = String(input?.pattern?.code || input?.patternCode || 'MONOLOG').toUpperCase() || 'MONOLOG';
+  const filmAnchor = filmAnchorBlock(input);
   const head = [
     'Susun ISI SESI HARI-H untuk pola ibadah berikut (Bahasa Indonesia).',
     '',
@@ -974,17 +1035,22 @@ export async function generateSessionDraft(input) {
     ...pericopeBlock(input),
     ...teamContextBlock(input),
     ...patternBlock(input.pattern),
+    ...filmAnchor.lines,
+    ...currentDraftBlock(input),
     input.pathsOutline ? `Kerangka 7 Path:\n${asStr(input.pathsOutline)}` : '',
     input.sermonSummary ? `Ringkasan khotbah:\n${asStr(input.sermonSummary).slice(0, 1500)}` : '',
+    input.notes ? `Catatan/diskusi tim:\n${asStr(input.notes).slice(0, 2000)}` : '',
     '',
   ].filter(Boolean);
 
   const EXEGESIS_RULES = [
     'LANGKAH 1 — EKSEGESIS (wajib dulu): dari teks Fundamental Firman + Kitab Fokus, rumuskan 3-5 poin inti perikop + 2-3 implikasi konkret bagi Beyonders (mahasiswa/pekerja muda Cikarang).',
     'LANGKAH 2 — SLOT POLA: kembangkan HANYA dari poin eksegesis langkah 1 (tiap slot lahir dari poin nomor berapa).',
-    'ANTI-CONTOH: contoh di skenario pola (film/judul default, tokoh bungsu-sulung, mosi/amplop bawaan) adalah ILUSTRASI — DILARANG memakai ulang kecuali justifikasi kecocokannya dengan perikop ditulis eksplisit.',
+    'ANTI-CONTOH: contoh di skenario pola (film/judul default seperti The Resurrection of Gavin Stone, tokoh bungsu-sulung, mosi/amplop bawaan) adalah ILUSTRASI — DILARANG memakai ulang sebagai film-title kecuali film kunci tim memang judul itu. Bila Studio kosong, JANGAN mengarang film populer; utamakan film kunci tim atau kosongkan.',
     'KONTEKSTUAL: Likert/FGD/mosi/kasus WAJIB menyebut situasi konkret Beyonders (KRS, skripsi, magang, shift, lembur, target, kos, keuangan awal, relasi Cikarang) — tolak yang generik.',
-    'KHUSUS FILM: kunci film-alt WAJIB berisi 2 kandidat lain + alasan kecocokan tiap film dengan perikop; film-title = pilihan utama yang paling cocok.',
+    filmAnchor.title
+      ? `KHUSUS FILM: film-title TERKUNCI = "${filmAnchor.title}" (JANGAN diganti). film-alt = 2 kandidat lain + alasan + kenapa kalah dari film kunci.`
+      : 'KHUSUS FILM: kunci film-alt WAJIB berisi 2 kandidat lain + alasan kecocokan tiap film dengan perikop; film-title = pilihan utama yang paling cocok dengan perikop (bukan default lama).',
   ];
 
   if (code === 'POST_TO_POST') {

@@ -20,6 +20,8 @@ type Props = {
   weekDate?: string | null;
   canWrite?: boolean;
   onPatternReset?: () => void;
+  /** True saat pekan origin (GESER) masih dimuat — AI dimatikan agar tak baca pekan lama. */
+  weekLoading?: boolean;
 };
 
 type SessionRow = {
@@ -163,7 +165,7 @@ function sectionsToPostToPost(sections: DraftSection[], proposalChips?: { topicC
   };
 }
 
-export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, event, weekDate, canWrite, onPatternReset }) => {
+export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, event, weekDate, canWrite, onPatternReset, weekLoading }) => {
   const code = String(patternCode || 'MONOLOG').toUpperCase();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -359,18 +361,27 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   };
 
   const fillFromAi = async () => {
-    if (!canWrite) return;
+    if (!canWrite || weekLoading) return;
     setAiBusy(true);
     setAiNote(null);
     setMsg(null);
     // Gunakan pola sesi bila sudah ada (editing), pola pekan bila buat baru.
     const aiCode = detail ? detailCode : code;
     try {
+      // Isi yang sudah diketik = masukan AI (jangan ditimpa). Khusus Bedah
+      // Film: film-title yang ada = kunci utama.
+      const currentStored = draftToStored(sections);
+      const lockedTitle = String(currentStored?.film?.['film-title'] || '').trim();
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/session-draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ patternCode: aiCode, fieldKeys: templateFieldKeys(aiCode) }),
+        body: JSON.stringify({
+          patternCode: aiCode,
+          fieldKeys: templateFieldKeys(aiCode),
+          currentDraft: currentStored,
+          filmTitle: lockedTitle,
+        }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'AI gagal menyusun draft sesi.');
@@ -381,10 +392,16 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         const chips: { code: string; label: string; topicCode?: string | null }[] = draft.chips || [];
         const affirm: Record<string, string[]> = draft.affirmations || {};
         proposalChips.current = chips.map((c) => ({ topicCode: c.topicCode || null }));
+        let kept = 0;
         setSections((prev) =>
           prev.map((s) => ({
             ...s,
             fields: s.fields.map((f) => {
+              // Pertahankan yang sudah terisi — AI hanya melengkapi yang kosong.
+              if (String(f.value || '').trim()) {
+                kept += 1;
+                return f;
+              }
               let v = '';
               const tm = /^topic-([A-Z]+)-(label|pic)$/.exec(f.key);
               if (s.key === 'topics' && tm) {
@@ -406,15 +423,35 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
             }),
           })),
         );
-        setAiNote(`Usulan AI: ${topics.length} topik, ${items.length} soal, ${chips.length} chip. Periksa tiap baris lalu Simpan/Terapkan.`);
+        setAiNote(`Usulan AI: ${topics.length} topik, ${items.length} soal, ${chips.length} chip. ${kept} field bikinan tim dipertahankan. Periksa lalu Simpan/Terapkan.`);
       } else {
         const vals: { key: string; value: string }[] = draft.values || [];
         const map = new Map(vals.map((x) => [x.key, x.value]));
         proposalChips.current = undefined;
+        let filled = 0;
+        let kept = 0;
         setSections((prev) =>
-          prev.map((s) => ({ ...s, fields: s.fields.map((f) => (map.has(f.key) ? { ...f, value: map.get(f.key) || '' } : f)) })),
+          prev.map((s) => ({
+            ...s,
+            fields: s.fields.map((f) => {
+              // Jangan overwrite: yang sudah terisi dipertahankan.
+              if (String(f.value || '').trim()) {
+                kept += 1;
+                return f;
+              }
+              if (map.has(f.key) && String(map.get(f.key) || '').trim()) {
+                filled += 1;
+                return { ...f, value: String(map.get(f.key) || '') };
+              }
+              return f;
+            }),
+          })),
         );
-        setAiNote(`Usulan AI: ${vals.length} field terisi. Periksa tiap section lalu Simpan${aiCode === 'POST_TO_POST' ? '/Terapkan' : ''}.`);
+        setAiNote(
+          lockedTitle
+            ? `Usulan AI mengelilingi film "${lockedTitle}": ${filled} field dilengkapi, ${kept} dipertahankan. Periksa lalu Simpan/Terapkan.`
+            : `Usulan AI: ${filled} field dilengkapi, ${kept} dipertahankan. Periksa tiap section lalu Simpan${aiCode === 'POST_TO_POST' ? '/Terapkan' : ''}.`,
+        );
       }
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'AI gagal.' });
@@ -570,7 +607,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         </div>
         <p className="mt-1.5 text-[11px] text-[#8C8880]">
           {event ? (
-            <>Event pekan ini: <b className="text-[#1B1B1B]">{event.name}</b>. Pilih pola → isi form kosongan (manual atau dari AI) → Terapkan ke sesi.</>
+            <>Event pekan ini: <b className="text-[#1B1B1B]">{event.name}</b>. Ketik judul film dulu bila sudah pasti (mis. The Case for Christ) — <b>Isi dari AI</b> akan membangun di sekitarnya tanpa menimpa yang sudah terisi.</>
           ) : (
             <>Belum ada event ibadah pada tanggal pekan ini — sesi hanya bisa dibuat manual dari kontrol hari-H.</>
           )}
@@ -669,9 +706,12 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         )}
 
         {detail && !mismatched && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" disabled={!canWrite || aiBusy} onClick={() => void fillFromAi()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
-              {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Isi dari AI pekan ini
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880] font-bold">
+              {ym}/W{weekIndex}{weekDate ? ` · slot ${String(weekDate).slice(0, 10)}` : ''}{effDateStr && weekDate && effDateStr !== String(weekDate).slice(0, 10) ? ` → event ${effDateStr}` : ''}
+            </span>
+            <button type="button" disabled={!canWrite || aiBusy || weekLoading} title={weekLoading ? 'Menunggu pekan origin (GESER) dimuat — agar AI baca pekan yang benar.' : 'Isi dari AI pekan ini (yang sudah diketik dipertahankan)'} onClick={() => void fillFromAi()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
+              {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {weekLoading ? 'Menunggu pekan…' : 'Isi dari AI pekan ini'}
             </button>
             <button type="button" disabled={!canWrite || saveBusy} onClick={() => void saveDraft()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#1B1B1B] disabled:opacity-50">
               {saveBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan draft
