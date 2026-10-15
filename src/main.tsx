@@ -11,6 +11,7 @@ import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
+import { LoadingOverlay } from './components/public/ui/LoadingOverlay.tsx';
 import { initPwaNotificationNav } from './lib/pwa-notification-nav.ts';
 import './index.css';
 
@@ -42,7 +43,7 @@ const hubHost = isHubHost(host);
 const UNIT_LANDING_PORTALS = new Set(['men', 'women', 'teen', 'kids', 'kolom', 'community']);
 
 const HubFallback: React.FC = () => (
-  <div className="min-h-screen bg-[#FAF9F5]" aria-busy="true" />
+  <LoadingOverlay variant="fullscreen" kind="generic" />
 );
 
 /**

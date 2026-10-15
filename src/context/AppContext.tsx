@@ -136,6 +136,8 @@ interface AppContextType {
   authUser: User | null;
   authLoading: boolean;
   ssoClientId: string | null;
+  /** true selama /api/auth/config belum terjawab — tombol Google menunggu ini, BUKAN authLoading (/me). */
+  ssoLoading: boolean;
   loginWithCredential: (credential: string) => Promise<void>;
   logoutSso: () => Promise<void>;
   refreshAuthUser: () => Promise<void>;
@@ -588,6 +590,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [ssoClientId, setSsoClientId] = useState<string | null>(null);
+  const [ssoLoading, setSsoLoading] = useState(true);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isPlatformOperator, setIsPlatformOperator] = useState(false);
   const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
@@ -610,17 +613,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     let cancelled = false;
+    // Config Google (ringan, tanpa DB) jalan sendiri agar tombol login
+    // langsung muncul tanpa menunggu /me yang kena TiDB/cold-start.
+    fetchAuthConfig()
+      .then((cfg) => { if (!cancelled) setSsoClientId(cfg.clientId); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setSsoLoading(false); });
     (async () => {
-      const [cfgResult, meResult] = await Promise.allSettled([
-        fetchAuthConfig(),
-        fetchMeFull(),
-      ]);
-      if (cancelled) return;
-      if (cfgResult.status === 'fulfilled') {
-        setSsoClientId(cfgResult.value.clientId);
-      }
-      if (meResult.status === 'fulfilled') {
-        const me = meResult.value;
+      try {
+        const me = await fetchMeFull();
+        if (cancelled) return;
         setAuthUser(me.user);
         if (me.activeRole) setRoleOverride(me.activeRole);
         setIsPlatformAdmin(me.platformAdmin || me.isPlatformOperator);
@@ -628,7 +630,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPlatformCapabilities(me.platformCapabilities || []);
         setIsBodTimkerja(me.isBodTimkerja);
         setIsDidaskalia(me.isDidaskalia);
-      }
+      } catch { /* anonim — tetap lanjut */ }
+      if (cancelled) return;
       const hash = window.location.hash;
       if (isAdminHash(hash)) setActiveViewState('admin');
       else if (isPortalHash(hash)) setActiveViewState('portal');
@@ -1318,6 +1321,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         authUser,
         authLoading,
         ssoClientId,
+        ssoLoading,
         loginWithCredential,
         logoutSso,
         refreshAuthUser,

@@ -12,16 +12,20 @@ export function sourceEventOf(event) {
 export async function eventSignupStats(prisma, event) {
   const source = sourceEventOf(event);
   try {
+    // Dibatasi 2000 baris agar event besar tidak menahan /api/events/landing.
+    // Hasil landing di-cache 45s di level route (lihat events-public.mjs).
     const [pools, attendees] = await Promise.all([
       source
         ? prisma.waitingPool.findMany({
             where: { sourceEvent: source },
             select: { userId: true, eventCheckedInAt: true },
+            take: 2000,
           })
         : [],
       prisma.eventAttendee.findMany({
         where: { eventId: event.id },
         select: { userId: true, checkedInAt: true },
+        take: 2000,
       }).catch(() => []),
     ]);
     const poolUserIds = new Set(pools.map((p) => p.userId).filter(Boolean));

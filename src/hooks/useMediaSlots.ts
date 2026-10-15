@@ -52,7 +52,10 @@ function mergeSlots(d: SlotsResponse): MediaSlots {
 }
 
 async function fetchSlots(): Promise<MediaSlots> {
-  const r = await fetch('/api/media/slots', { cache: 'no-store' });
+  // Biarkan browser/CDN pakai cache (server kirim Cache-Control 60s + SWR).
+  // `no-store` sebelumnya memaksa tiap mount menghantam Drive/TiDB.
+  const r = await fetch('/api/media/slots');
+  if (!r.ok) throw new Error(`slots ${r.status}`);
   const d = (await r.json()) as SlotsResponse;
   return mergeSlots(d);
 }
@@ -90,10 +93,12 @@ export function useMediaSlots(): MediaSlots {
     queryKey: MEDIA_SLOTS_QUERY_KEY,
     queryFn: fetchSlots,
     staleTime: STALE_MS,
-    gcTime: 5 * STALE_MS,
+    gcTime: 10 * STALE_MS,
     refetchInterval: 300_000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
     refetchIntervalInBackground: false,
+    retry: 1,
     placeholderData: DEFAULT_SLOTS,
   });
   return data ?? DEFAULT_SLOTS;

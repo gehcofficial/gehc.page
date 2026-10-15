@@ -38,11 +38,40 @@ export async function joinWithGoogleCredential(credential: string, code: string)
   await finishAuthRedirect('#/portal');
 }
 
-export async function loadGoogleClientId(): Promise<string | null> {
+const CLIENT_ID_KEY = 'gehc_google_client_id_v1';
+const CLIENT_ID_TTL = 5 * 60_000;
+
+let memClientId: string | null | undefined;
+
+function readCachedClientId(): string | null | null {
+  if (memClientId !== undefined) return memClientId;
   try {
-    const cfg = await fetchAuthConfig();
-    return cfg.clientId;
+    const raw = localStorage.getItem(CLIENT_ID_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { id: string | null; at: number };
+    if (Date.now() - parsed.at > CLIENT_ID_TTL) return null;
+    memClientId = parsed.id;
+    return parsed.id;
   } catch {
     return null;
+  }
+}
+
+function writeCachedClientId(id: string | null) {
+  memClientId = id;
+  try {
+    localStorage.setItem(CLIENT_ID_KEY, JSON.stringify({ id, at: Date.now() }));
+  } catch { /* storage diblokir */ }
+}
+
+export async function loadGoogleClientId(): Promise<string | null> {
+  const cached = readCachedClientId();
+  if (cached) return cached;
+  try {
+    const cfg = await fetchAuthConfig();
+    if (cfg.clientId) writeCachedClientId(cfg.clientId);
+    return cfg.clientId;
+  } catch {
+    return cached;
   }
 }

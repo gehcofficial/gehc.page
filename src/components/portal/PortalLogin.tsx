@@ -1,39 +1,64 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GehcLogo } from '../brand/GehcLogo';
 import { BrandCaption } from '../brand/BrandCaption';
 import GoogleLoginButton from '../auth/GoogleLoginButton';
+import { LoadingOverlay } from '../public/ui/LoadingOverlay';
 import { useApp } from '../../context/AppContext';
 import { getNextFromHash } from '../../lib/hash-routes';
 import { finishAuthRedirect } from '../../lib/auth-redirect';
 
 export const PortalLogin: React.FC = () => {
-  const { setActiveView, ssoClientId, authLoading } = useApp();
+  const { setActiveView, ssoClientId, ssoLoading } = useApp();
   const [form, setForm] = useState({ login: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [busyGoogle, setBusyGoogle] = useState(false);
   const [err, setErr] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
+  const lastCredential = useRef<string | null>(null);
 
   const afterAuth = async () => {
     const next = getNextFromHash();
     await finishAuthRedirect(next);
   };
 
-  const onCredential = (credential: string) => {
+  const runGoogle = (credential: string) => {
+    lastCredential.current = credential;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setBusyGoogle(true);
+    setErr('');
     fetch('/api/auth/google', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
+      signal: ctrl.signal,
     })
       .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).error || 'Login gagal');
+        if (!r.ok) throw new Error((await r.json().catch(() => ({})) as { error?: string }).error || 'Login gagal');
         await afterAuth();
       })
-      .catch((e) => setErr(e.message));
+      .catch((e) => {
+        if (ctrl.signal.aborted) return; // timeout — overlay menampilkan retry
+        setErr(e.message);
+        setBusyGoogle(false);
+      });
+  };
+
+  const onCredential = (credential: string) => runGoogle(credential);
+
+  const retryGoogle = () => {
+    if (lastCredential.current) runGoogle(lastCredential.current);
   };
 
   const localLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy || busyGoogle) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setBusy(true);
     setErr('');
     fetch('/api/auth/local', {
@@ -41,13 +66,23 @@ export const PortalLogin: React.FC = () => {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ login: form.login, password: form.password }),
+      signal: ctrl.signal,
     })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).error || 'Login gagal');
         await afterAuth();
       })
-      .catch((x) => setErr(x.message))
-      .finally(() => setBusy(false));
+      .catch((x) => {
+        if (ctrl.signal.aborted) return;
+        setErr(x.message);
+      })
+      .finally(() => { if (!ctrl.signal.aborted) setBusy(false); });
+  };
+
+  const cancelBusy = () => {
+    abortRef.current?.abort();
+    setBusy(false);
+    setBusyGoogle(false);
   };
 
   return (
@@ -62,9 +97,11 @@ export const PortalLogin: React.FC = () => {
           </p>
         </div>
 
-        <div className="rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
-          {authLoading ? (
-            <p className="text-[11px] text-white/40 text-center leading-relaxed">Memuat opsi masuk…</p>
+        <div className="relative rounded-[28px] bg-white/[0.04] border border-white/10 p-6 space-y-4">
+          {ssoLoading ? (
+            <div className="flex items-center justify-center gap-2 py-2" aria-busy="true" aria-live="polite">
+              <span className="w-32 h-10 rounded-full bg-white/10 animate-pulse" />
+            </div>
           ) : ssoClientId ? (
             <div className="flex justify-center pb-1">
               <GoogleLoginButton clientId={ssoClientId} onCredential={onCredential} onError={setErr} />
@@ -111,6 +148,17 @@ export const PortalLogin: React.FC = () => {
 
           {err && (
             <p className="text-[11px] text-red-400 font-semibold text-center">{err}</p>
+          )}
+          {(busyGoogle || busy) && (
+            <LoadingOverlay
+              variant="section"
+              kind={busyGoogle ? 'google' : 'generic'}
+              dark
+              timeoutMs={25000}
+              onTimeout={cancelBusy}
+              onRetry={busyGoogle ? retryGoogle : undefined}
+              onBack={cancelBusy}
+            />
           )}
         </div>
 

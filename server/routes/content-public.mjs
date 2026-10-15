@@ -1,4 +1,5 @@
 import { getPrisma } from '../db.mjs';
+import { getPublicCache, setPublicCache, bustPublicCache, setPublicCacheHeaders } from '../lib/public-cache.mjs';
 import { requireRole } from '../auth.mjs';
 import { isKomisiOrSuperadmin } from '../division-rbac.mjs';
 import { getDriveMode, listFolders, listFiles, getFolderChain } from '../gdrive.mjs';
@@ -295,13 +296,27 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
+    // Landing hanya butuh 30 terbaru; arsip dibaca via tab khusus bila perlu.
+    // Cache 45s agar burst pengunjung tidak menghantam TiDB tiap detik.
+    const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 30));
+    const scopeKey = JSON.stringify(tenantWhere(req) || null);
+    const cacheKey = `content:public:${scopeKey}:limit=${limit}`;
+    const hit = getPublicCache(cacheKey);
+    if (hit) {
+      setPublicCacheHeaders(res, 45, 300);
+      return res.json(hit);
+    }
+
     const items = await prisma.contentItem.findMany({
       where: { isPublished: true, ...(tenantWhere(req) || {}) },
       orderBy: [{ publishedAt: 'desc' }],
-      take: 100,
+      take: limit,
     });
 
-    res.json({ items: items.map(fromDbContent) });
+    const payload = { items: items.map(fromDbContent) };
+    setPublicCache(cacheKey, payload, 45_000);
+    setPublicCacheHeaders(res, 45, 300);
+    res.json(payload);
   }));
 
   app.post('/api/content', requireRole(...CMS_ROLES), wrap(async (req, res) => {
@@ -316,6 +331,8 @@ export function registerContentPublicRoutes(app, { wrap }) {
     const id = body.id || `cnt-${Date.now()}`;
     const data = { ...toDbContent(body, { id }), tenantId: tenantForWrite(req) };
     const created = await prisma.contentItem.create({ data });
+    bustPublicCache('content:public:');
+    bustPublicCache('events:landing:');
     res.status(201).json({ item: fromDbContent(created) });
   }));
 
@@ -330,6 +347,8 @@ export function registerContentPublicRoutes(app, { wrap }) {
     Object.assign(merged, req.body || {});
     const data = toDbContent(merged, { id: req.params.id });
     const updated = await prisma.contentItem.update({ where: { id: req.params.id }, data });
+    bustPublicCache('content:public:');
+    bustPublicCache('events:landing:');
     res.json({ item: fromDbContent(updated) });
   }));
 
@@ -338,6 +357,8 @@ export function registerContentPublicRoutes(app, { wrap }) {
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
     await prisma.contentItem.delete({ where: { id: req.params.id } }).catch(() => null);
+    bustPublicCache('content:public:');
+    bustPublicCache('events:landing:');
     res.json({ ok: true });
   }));
 
@@ -456,6 +477,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
     for (const key of LANDING_MEDIA_KEYS) {
       if (slots.landing?.[key]) media[key] = slots.landing[key];
     }
+    setPublicCacheHeaders(res, 60, 600);
     res.json({
       media: Object.keys(media).length > 0 ? media : null,
       source: Object.keys(media).length > 0 ? source : 'fallback',
@@ -465,6 +487,7 @@ export function registerContentPublicRoutes(app, { wrap }) {
 
   app.get('/api/media/slots', wrap(async (_req, res) => {
     const { slots, source } = await loadDriveSlots();
+    setPublicCacheHeaders(res, 60, 600);
     res.json({ slots, source });
   }));
 

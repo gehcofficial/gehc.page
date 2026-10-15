@@ -295,11 +295,22 @@ app.post('/api/auth/google', wrap(async (req, res) => {
 }));
 
 app.get('/api/auth/me', wrap(async (req, res) => {
-  if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  if (!req.authUser) {
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(401).json({ error: 'Belum login.' });
+  }
   const u = req.authUser;
   const segments = profileSegments(u);
   const ctx = resolveSessionContext(req.sessionMeta, u);
   const activeTenant = activeTenantId(req);
+  // Dua lookup tambahan (BodTimkerja + struktur) jalan paralel agar /me
+  // tidak membayar RTT TiDB sekuensial (terasa di login & refresh sesi).
+  const needsBod = (u.roles || []).some((r) => r.role === 'COMMITTEE');
+  const [bod, didaskalia] = await Promise.all([
+    needsBod ? isBodTimkerja(u).catch(() => false) : false,
+    loadStruktur(u).then((sm) => String(sm?.division || '').toUpperCase() === 'DIDASKALIA').catch(() => false),
+  ]);
+  res.setHeader('Cache-Control', 'private, no-store');
   res.json({
     user: u,
     activeRole: ctx.activeRole,
@@ -320,10 +331,8 @@ app.get('/api/auth/me', wrap(async (req, res) => {
     platformAdmin: Boolean(req.platformAdmin),
     platformCapabilities: req.platformCapabilities || [],
     isPlatformOperator: Boolean(req.platformOperator),
-    isBodTimkerja: (u.roles || []).some((r) => r.role === 'COMMITTEE')
-      ? await isBodTimkerja(u)
-      : false,
-    isDidaskalia: await loadStruktur(u).then((sm) => String(sm?.division || '').toUpperCase() === 'DIDASKALIA').catch(() => false),
+    isBodTimkerja: bod,
+    isDidaskalia: didaskalia,
   });
 }));
 

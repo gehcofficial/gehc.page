@@ -61,6 +61,16 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/** Bilah progres overlay loading standar (geser bolak-balik). */
+@keyframes loading-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+.animate-loading-bar {
+  animation: loading-slide 1.2s ease-in-out infinite;
+}
+
 .animate-marquee {
   display: flex;
   width: max-content;
@@ -103,6 +113,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
   .animate-fade-in,
+  .animate-loading-bar,
   .brand-city-letter {
     animation: none;
   }

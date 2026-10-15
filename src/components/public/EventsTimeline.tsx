@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
+import { EventsLandingSkeleton } from './ui/Skeleton';
+import { LoadingOverlay } from './ui/LoadingOverlay';
 import { Countdown } from './ui/Countdown';
 import { EventVenueMap } from './ui/EventVenueMap';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
@@ -54,21 +56,35 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
 }) => {
   const { contentItems, setPublicTab, ensureContent } = useApp();
   const { t } = useLang();
+  const [landingLoading, setLandingLoading] = useState(true);
   useEffect(() => { void ensureContent(); }, [ensureContent]);
   const slots = useMediaSlots();
   const [full, setFull] = useState<LandingFull[]>([]);
   const [compact, setCompact] = useState<LandingCompact[]>([]);
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [eventClosed, setEventClosed] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    fetch('/api/events/landing')
+  const loadLanding = () => {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLandingLoading(true);
+    fetch('/api/events/landing', { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => {
+        if (ctrl.signal.aborted) return;
         setFull(d.full || []);
         setCompact(d.compact || []);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!ctrl.signal.aborted) setLandingLoading(false); });
+  };
+
+  useEffect(() => {
+    loadLanding();
+    return () => abortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -236,6 +252,19 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       )}
 
       <div className="mt-12 space-y-10">
+        {landingLoading ? (
+          <div className="relative">
+            <EventsLandingSkeleton />
+            <LoadingOverlay
+              variant="section"
+              kind="events"
+              timeoutMs={15000}
+              onTimeout={() => abortRef.current?.abort()}
+              onRetry={loadLanding}
+            />
+          </div>
+        ) : (
+          <>
         {/* Kartu penuh */}
         {featured && (
           <div className="space-y-6">
@@ -313,6 +342,8 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
+        )}
+          </>
         )}
       </div>
     </section>

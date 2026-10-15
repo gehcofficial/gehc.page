@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import GoogleLoginButton from '../../../auth/GoogleLoginButton';
+import { LoadingOverlay } from '../../ui/LoadingOverlay';
 import { Field } from '../../ui/joinParts';
 import { loadGoogleClientId } from '../../../../lib/google-auth-flow';
 import { referralCodeFromHash } from '../../../../lib/marturia';
@@ -52,14 +53,26 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
 }) => {
   const tone = panelTone(theme === 'dark' ? 'dark' : 'light');
   const [clientId, setClientId] = useState<string | null>(null);
+  const [cfgLoading, setCfgLoading] = useState(true);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastCredential = useRef<string | null>(null);
 
   useEffect(() => {
-    loadGoogleClientId().then(setClientId);
+    let cancelled = false;
+    loadGoogleClientId().then((id) => { if (!cancelled) setClientId(id); })
+      .finally(() => { if (!cancelled) setCfgLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
-  const onCredential = async (credential: string) => {
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const runCredential = async (credential: string) => {
+    lastCredential.current = credential;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setBusy(true);
     setErr('');
     try {
@@ -68,6 +81,7 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential, ref: referralCodeFromHash() || undefined }),
+        signal: ctrl.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -77,6 +91,7 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential }),
+            signal: ctrl.signal,
           });
           const loginData = await login.json().catch(() => ({}));
           if (!login.ok) throw new Error((loginData as { error?: string }).error || 'Login gagal.');
@@ -86,27 +101,50 @@ export const GoogleRegisterPanel: React.FC<PanelProps> = ({
       }
       await finishAuthRedirect(next);
     } catch (e) {
+      if (ctrl.signal.aborted) return; // timeout — overlay menampilkan retry
       setErr((e as Error).message);
       setBusy(false);
     }
   };
 
+  const onCredential = async (credential: string) => { await runCredential(credential); };
+
+  const cancelBusy = () => {
+    abortRef.current?.abort();
+    setBusy(false);
+  };
+
+  const retryBusy = () => {
+    if (lastCredential.current) void runCredential(lastCredential.current);
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-3">
       {title && <p className={`text-[10px] font-black uppercase tracking-widest ${tone.label}`}>{title}</p>}
       {hint && <p className={`text-xs leading-relaxed ${tone.hint}`}>{hint}</p>}
       {err && <p className={`text-xs font-semibold ${tone.err}`}>{err}</p>}
       {busy && (
-        <p className={`text-xs flex items-center justify-center gap-2 ${tone.hint}`}>
-          <Loader2 className="w-4 h-4 animate-spin" /> Membuat akun…
-        </p>
+        <LoadingOverlay
+          variant="section"
+          kind="google"
+          dark={theme === 'dark'}
+          timeoutMs={25000}
+          onTimeout={cancelBusy}
+          onRetry={retryBusy}
+          onBack={cancelBusy}
+        />
       )}
       {clientId && !busy && (
         <div className="flex justify-center">
           <GoogleLoginButton clientId={clientId} onCredential={onCredential} onError={setErr} />
         </div>
       )}
-      {!clientId && (
+      {cfgLoading && !clientId && !busy && (
+        <div className="flex justify-center py-1" aria-busy="true">
+          <span className="w-40 h-10 rounded-full bg-black/5 animate-pulse" />
+        </div>
+      )}
+      {!cfgLoading && !clientId && (
         <p className={`text-[10px] text-center ${tone.hint}`}>
           Google SSO belum dikonfigurasi — gunakan email & kata sandi.
         </p>

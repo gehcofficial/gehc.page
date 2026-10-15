@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { getPublicCache, setPublicCache, setPublicCacheHeaders } from '../lib/public-cache.mjs';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import {
@@ -73,6 +74,13 @@ export function registerEventsPublicRoutes(app, { wrap }) {
   app.get('/api/events/landing', wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const scopeKey = JSON.stringify(tenantWhere(req) || null);
+    const cacheKey = `events:landing:${scopeKey}`;
+    const hit = getPublicCache(cacheKey);
+    if (hit) {
+      setPublicCacheHeaders(res, 45, 300);
+      return res.json(hit);
+    }
     let full = [];
     let linkedIds = [];
     try {
@@ -130,7 +138,10 @@ export function registerEventsPublicRoutes(app, { wrap }) {
     } catch {
       compact = [];
     }
-    res.json({ full, compact });
+    const payload = { full, compact };
+    setPublicCache(cacheKey, payload, 45_000);
+    setPublicCacheHeaders(res, 45, 300);
+    res.json(payload);
   }));
 
   // BAKU TAU exact routes registered early in index.mjs (before /api/events/:id)

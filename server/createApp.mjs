@@ -37,6 +37,34 @@ export function createApp() {
   });
 
   app.use(express.json({ limit: '20mb' }));
+  // Ukur durasi request publik read-heavy (Fase 0: observabilitas delay).
+  // Header Server-Timing + log lambat (>800ms) agar TTFB mudah dilacak.
+  const TIMED_PREFIXES = [
+    '/api/auth/config',
+    '/api/auth/me',
+    '/api/content/public',
+    '/api/events/landing',
+    '/api/db/service-schedule',
+    '/api/db/group-albums',
+    '/api/media/slots',
+    '/api/media/landing',
+  ];
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    const path = String(req.path || '');
+    if (!TIMED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(p))) return next();
+    const start = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - start;
+      try {
+        res.setHeader('Server-Timing', `app;dur=${ms}`);
+      } catch { /* header sudah terkirim */ }
+      if (ms > 800) {
+        console.warn(`[perf] lambat ${req.method} ${path} → ${ms}ms (status ${res.statusCode})`);
+      }
+    });
+    next();
+  });
   // Body terlalu besar → JSON 413 (bukan halaman HTML Express) agar klien tampilkan pesan jelas.
   // Batas 20MB menampung ~15MB biner + overhead base64/JSON untuk foto HP sebelum dikompres.
   app.use((err, _req, res, next) => {

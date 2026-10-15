@@ -2,6 +2,7 @@
  * Drive ownership: slot visual, cover kelompok, album, arsip acara, BZP, kesaksian.
  */
 import { getPrisma } from '../db.mjs';
+import { getPublicCache, setPublicCache, setPublicCacheHeaders } from '../lib/public-cache.mjs';
 import { requireRole, isSuperadminEmail } from '../auth.mjs';
 import { getDriveMode, getFolderChain } from '../gdrive.mjs';
 import { resolveAccess } from '../gdrive-policy.mjs';
@@ -181,6 +182,12 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
       if (!Number.isFinite(span) || span < 0 || span > 60 * 86400000) {
         return res.status(400).json({ error: 'Rentang maksimum 60 hari.' });
       }
+      const cacheKey = `service-schedule:${from}:${to}`;
+      const hit = getPublicCache(cacheKey);
+      if (hit) {
+        setPublicCacheHeaders(res, 60, 300);
+        return res.json(hit);
+      }
       const rows = await prisma.serviceSchedule
         .findMany({
           where: {
@@ -296,7 +303,10 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         timeEnd: r.timeEnd || null,
         status: r.status,
       }));
-      res.json({ duties, byDay: groupDutiesByDay(rows), serving });
+      const payload = { duties, byDay: groupDutiesByDay(rows), serving };
+      setPublicCache(cacheKey, payload, 60_000);
+      setPublicCacheHeaders(res, 60, 300);
+      res.json(payload);
     }),
   );
 
@@ -331,6 +341,12 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
       const prisma = getPrisma();
       if (!prisma) return res.json({ albums: [] });
       const limit = Math.min(24, Math.max(1, Number(req.query.limit) || 9));
+      const cacheKey = `group-albums:${limit}`;
+      const hit = getPublicCache(cacheKey);
+      if (hit) {
+        setPublicCacheHeaders(res, 60, 300);
+        return res.json(hit);
+      }
       const rows = await prisma.groupAlbum
         .findMany({
           where: { status: PUBLIC_ALBUM_STATUS, showOnLanding: true },
@@ -344,7 +360,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         ? await prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true } }).catch(() => [])
         : [];
       const nameById = new Map(groups.map((g) => [g.id, g.name]));
-      res.json({
+      const payload = {
         albums: visible.map((r) =>
           serializePublicAlbum(r, {
             groupName: nameById.get(r.groupId) || null,
@@ -352,7 +368,10 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
             previews: previewList(r.previewFileIds),
           }),
         ),
-      });
+      };
+      setPublicCache(cacheKey, payload, 60_000);
+      setPublicCacheHeaders(res, 60, 300);
+      res.json(payload);
     }),
   );
 

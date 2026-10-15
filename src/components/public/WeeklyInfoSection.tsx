@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ContentItem } from '../../types';
 import { SectionHeader } from './ui/SectionHeader';
+import { WartaGridSkeleton } from './ui/Skeleton';
+import { LoadingOverlay } from './ui/LoadingOverlay';
 import { WartaServiceDutySection, WartaPelayananBlock } from './WartaServiceDutySection';
 import { useLang } from '../../context/LangContext';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
@@ -21,8 +23,36 @@ import {
 
 export const WeeklyInfoSection: React.FC = () => {
   const { t } = useLang();
-  const { contentItems, addToast, ensureContent } = useApp();
-  useEffect(() => { void ensureContent(); }, [ensureContent]);
+  const { contentItems, addToast, ensureContent, upsertContentItem } = useApp();
+  const [contentLoading, setContentLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void ensureContent().finally(() => { if (alive) setContentLoading(false); });
+    return () => { alive = false; };
+  }, [ensureContent]);
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  /** Muat ulang warta bila request awal macet (tombol retry overlay). */
+  const reloadContent = () => {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setReloading(true);
+    fetch('/api/content/public?limit=30', { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        if (ctrl.signal.aborted) return;
+        if (Array.isArray(d.items)) {
+          for (const item of d.items) upsertContentItem(item);
+        }
+        setContentLoading(false);
+      })
+      .catch(() => {})
+      .finally(() => { if (!ctrl.signal.aborted) setReloading(false); });
+  };
+  const waiting = contentLoading || reloading;
   const slots = useMediaSlots();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,7 +145,18 @@ export const WeeklyInfoSection: React.FC = () => {
       <WartaServiceDutySection />
 
       {/* Warta Cards Grid */}
-      {filteredPosts.length === 0 ? (
+      {waiting ? (
+        <div className="relative">
+          <WartaGridSkeleton count={6} />
+          <LoadingOverlay
+            variant="section"
+            kind="content"
+            timeoutMs={15000}
+            onTimeout={() => abortRef.current?.abort()}
+            onRetry={reloadContent}
+          />
+        </div>
+      ) : filteredPosts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-3xl border border-[#D9D7D0]/40 p-8">
           <BookOpen className="w-12 h-12 text-[#8C8880] mx-auto mb-3 opacity-50" />
           <h3 className="text-lg font-bold text-[#1B1B1B]">Belum Ada Warta Ditemukan</h3>
@@ -134,6 +175,8 @@ export const WeeklyInfoSection: React.FC = () => {
                 <img
                   src={bannerOf(item)}
                   alt={item.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute top-4 left-4">

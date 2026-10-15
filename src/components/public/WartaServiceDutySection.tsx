@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Users } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { SectionHeader } from './ui/SectionHeader';
+import { DutyCardsSkeleton } from './ui/Skeleton';
+import { LoadingOverlay } from './ui/LoadingOverlay';
 import { ServiceDutySections, type DutyPerson } from './DutyPersonChip';
 
 type Duty = {
@@ -59,23 +61,34 @@ const DutyDayBlock: React.FC<{ duties: Duty[]; serving: Serving }> = ({ duties, 
 export const WartaServiceDutySection: React.FC = () => {
   const [duties, setDuties] = useState<Duty[]>([]);
   const [serving, setServing] = useState<Record<string, Serving>>({});
+  const [loading, setLoading] = useState(true);
   const reduce = useReducedMotion();
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadSchedule = () => {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
     const from = new Date().toISOString().slice(0, 10);
     const to = new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
-    fetch(`/api/db/service-schedule?from=${from}&to=${to}`)
+    fetch(`/api/db/service-schedule?from=${from}&to=${to}`, { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : { duties: [], serving: {} }))
       .then((d) => {
-        if (cancelled) return;
+        if (ctrl.signal.aborted) return;
         setDuties((d.duties || []) as Duty[]);
         setServing((d.serving || {}) as Record<string, Serving>);
       })
       .catch(() => {
-        if (!cancelled) { setDuties([]); setServing({}); }
-      });
-    return () => { cancelled = true; };
+        if (!ctrl.signal.aborted) { setDuties([]); setServing({}); }
+      })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
+  };
+
+  useEffect(() => {
+    loadSchedule();
+    return () => abortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const days = useMemo(() => {
@@ -93,6 +106,21 @@ export const WartaServiceDutySection: React.FC = () => {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(0, 3);
   }, [duties, serving]);
+
+  if (loading) {
+    return (
+      <div className="relative">
+        <DutyCardsSkeleton />
+        <LoadingOverlay
+          variant="section"
+          kind="schedule"
+          timeoutMs={15000}
+          onTimeout={() => abortRef.current?.abort()}
+          onRetry={loadSchedule}
+        />
+      </div>
+    );
+  }
 
   if (!days.length) return null;
 

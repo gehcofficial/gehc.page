@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Calendar, Images, MapPin } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SectionHeader } from './ui/SectionHeader';
+import { CardSkeleton } from './ui/Skeleton';
+import { LoadingOverlay } from './ui/LoadingOverlay';
 
 type PublicAlbum = {
   id: string;
@@ -30,15 +32,54 @@ export const GroupActivitySection: React.FC = () => {
   const { openGroupDetail, setPublicTab } = useApp();
   const reduce = useReducedMotion();
   const [albums, setAlbums] = useState<PublicAlbum[]>([]);
+  const [loading, setLoading] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const loadAlbums = () => {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    fetch('/api/db/group-albums?limit=9', { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : { albums: [] }))
+      .then((d) => { if (!ctrl.signal.aborted) setAlbums((d.albums || []) as PublicAlbum[]); })
+      .catch(() => { if (!ctrl.signal.aborted) setAlbums([]); })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/db/group-albums?limit=9')
-      .then((r) => (r.ok ? r.json() : { albums: [] }))
-      .then((d) => { if (!cancelled) setAlbums((d.albums || []) as PublicAlbum[]); })
-      .catch(() => { if (!cancelled) setAlbums([]); });
-    return () => { cancelled = true; };
+    loadAlbums();
+    return () => abortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (loading) {
+    return (
+      <section className="py-14 sm:py-20 px-4 sm:px-8 max-w-[1200px] mx-auto">
+        <div className="relative">
+          <div className="mb-10">
+            <SectionHeader
+              eyebrow="Kegiatan Kelompok"
+              title="Cerita dari rumah-rumah Beyonders"
+              subtitle="Momen yang dibagikan para kelompok — dipublikasikan dengan izin mentor dan Komisi."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <CardSkeleton key={i} className="rounded-3xl" />
+            ))}
+          </div>
+          <LoadingOverlay
+            variant="section"
+            kind="events"
+            timeoutMs={15000}
+            onTimeout={() => abortRef.current?.abort()}
+            onRetry={loadAlbums}
+          />
+        </div>
+      </section>
+    );
+  }
 
   if (!albums.length) return null;
 
