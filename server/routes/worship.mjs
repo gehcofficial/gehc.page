@@ -11,7 +11,7 @@ import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
-import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
+import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
 import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
@@ -1764,12 +1764,29 @@ export function registerWorshipRoutes(app, { wrap }) {
       // MONOLOG: 3 acak bebas; BEDAH_FILM: 1 Mentee + 1 Mentor; pola lain komposisi baku 2+1+1.
       const patternCode = String(session.pattern?.code || '').toUpperCase();
       const need = patternCode === 'MONOLOG' ? TESTIMONY_NEED_MONOLOG : patternCode === 'BEDAH_FILM' ? TESTIMONY_NEED_FILM : undefined;
-      const fresh = composePicks(pool, picks.map((p) => p.userId), need);
+      // BEDAH_FILM dibatasi tepat 2 live: undi saat penuh ditolak (tawarkan
+      // ganti), kecuali flag replace (2 baru mengganti 2 lama).
+      const isFilm = patternCode === 'BEDAH_FILM';
+      const wantReplace = req.body?.replace === true;
+      if (isFilm && !wantReplace && picks.length >= TESTIMONY_FILM_CAP) {
+        return res.status(409).json({
+          error: 'Sudah 2 orang live — ganti atau reset untuk mengundi ulang.',
+          full: true,
+          picks,
+        });
+      }
+      const fresh = composePicks(pool, wantReplace && isFilm ? [] : picks.map((p) => p.userId), need);
       if (!fresh.length) return res.status(409).json({ error: 'Semua yang hadir sudah terpilih.' });
       const at = new Date().toISOString();
-      const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
+      const stamped = fresh.map((p) => ({ ...p, at }));
+      // Sabuk pengaman: total film tak pernah melebihi 2 (fresh diutamakan).
+      const merged = wantReplace && isFilm
+        ? stamped.map((p, i) => ({ ...p, slot: i + 1 }))
+        : isFilm
+          ? applyFilmCap(picks, stamped).picks
+          : [...picks, ...stamped];
       await writePicks(prisma, session, merged);
-      res.json({ ok: true, fresh, picks: merged });
+      res.json({ ok: true, fresh, picks: merged, replaced: wantReplace && isFilm });
     }),
   );
 
@@ -1782,7 +1799,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const found = await findSession(prisma, req.params.id);
       if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
-      const session = await prisma.worshipSession.findUnique({ where: { id: found.id } });
+      const session = await prisma.worshipSession.findUnique({
+        where: { id: found.id },
+        include: { pattern: { select: { code: true } } },
+      });
       if (!['LIKERT_OPEN', 'RUNNING', 'WRAPUP'].includes(String(session.status || '').toUpperCase())) {
         return res.status(409).json({ error: 'Pilihan manual hanya bisa saat sesi berlangsung.' });
       }
@@ -1811,6 +1831,14 @@ export function registerWorshipRoutes(app, { wrap }) {
         }
       }
       const picks = readPicks(session);
+      // BEDAH_FILM dibatasi tepat 2 live: tambah manual saat penuh ditolak.
+      if (String(session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' && picks.length >= TESTIMONY_FILM_CAP) {
+        return res.status(409).json({
+          error: 'Sudah 2 orang live — reset dulu untuk menambah manual.',
+          full: true,
+          picks,
+        });
+      }
       const at = new Date().toISOString();
       const fresh = mergeManualPicks(
         picks,
@@ -1822,9 +1850,12 @@ export function registerWorshipRoutes(app, { wrap }) {
         })),
       );
       if (!fresh.length) return res.status(409).json({ error: 'Semua yang dipilih sudah terdaftar.' });
-      const merged = [...picks, ...fresh.map((p) => ({ ...p, at }))];
-      await writePicks(prisma, session, merged);
-      res.json({ ok: true, fresh, picks: merged });
+      const stampedManual = fresh.map((p) => ({ ...p, at }));
+      const mergedManual = String(session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM'
+        ? applyFilmCap(picks, stampedManual).picks
+        : [...picks, ...stampedManual];
+      await writePicks(prisma, session, mergedManual);
+      res.json({ ok: true, fresh, picks: mergedManual });
     }),
   );
 

@@ -23,6 +23,8 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean;
   const [picks, setPicks] = useState<TestimonyPick[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  /** Tawaran ganti saat kuota film penuh (2 orang live). */
+  const [fullOffer, setFullOffer] = useState<TestimonyPick[] | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ userId: string; name: string }[]>([]);
@@ -48,18 +50,33 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean;
     void load();
   }, [load]);
 
-  const draw = async () => {
+  const draw = async (replace = false) => {
     setBusy(true);
     setMsg(null);
+    setFullOffer(null);
     try {
       const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/testimony/draw`, {
         method: 'POST',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(replace ? { replace: true } : {}),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d?.error || 'Gagal mengundi.');
+      if (!r.ok) {
+        // Kuota film penuh → tawarkan ganti (bukan error buta).
+        if (r.status === 409 && (d as { full?: boolean }).full) {
+          setPicks((d as { picks?: TestimonyPick[] }).picks || []);
+          setFullOffer((d as { picks?: TestimonyPick[] }).picks || []);
+          return;
+        }
+        throw new Error(d?.error || 'Gagal mengundi.');
+      }
       setPicks(d.picks || []);
-      setMsg(`Terundi ${(d.fresh || []).length} orang — tampil di layar.`);
+      setMsg(
+        (d as { replaced?: boolean }).replaced
+          ? `Diganti dengan 2 orang baru — tampil di layar.`
+          : `Terundi ${((d as { fresh?: unknown[] }).fresh || []).length} orang — tampil di layar.`,
+      );
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal mengundi.');
     } finally {
@@ -218,6 +235,32 @@ export const TestimonyPanel: React.FC<{ sessionId: string; freeForAll?: boolean;
           </button>
         )}
       </div>
+      {fullOffer && fullOffer.length > 0 && (
+        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3" role="alert">
+          <p className="text-[11px] font-black text-amber-900">
+            Sudah 2 orang live: {fullOffer.map((p) => `${p.name}${p.groupName ? ` (${p.groupName})` : ''}`).join(' · ')}
+          </p>
+          <p className="text-[11px] text-amber-800 mt-0.5">Ganti dengan undian 2 orang baru?</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void draw(true)}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 text-white text-[11px] font-bold disabled:opacity-60"
+            >
+              Ya, ganti
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setFullOffer(null)}
+              className="px-3 py-1.5 rounded-xl border border-amber-300 text-[11px] font-bold text-amber-800 disabled:opacity-60"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
         <p className="text-[11px] font-bold">Pilih manual <span className="font-normal text-[#8C8880]">(bila undian tidak jadi)</span></p>
         <label className="flex items-center gap-1.5 rounded-xl border border-[#D9D7D0] bg-white px-3 py-2">

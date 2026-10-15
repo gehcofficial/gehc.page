@@ -14,7 +14,7 @@ import {
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
-import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
+import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
 import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
@@ -231,8 +231,7 @@ describe('testimony: composePicks', () => {
     expect(new Set(picks.map((p) => p.userId)).size).toBe(3);
   });
 
-  it('manual: tanpa duplikat, slot berlanjut, grup terbawa', () => {
-    const existing = [
+  it('manual: tanpa duplikat, slot berlanjut, grup terbawa', () => {    const existing = [
       { userId: 'm1', name: 'Mentor A', role: 'MENTOR', groupName: 'Agape', slot: 1 },
       { userId: 'e1', name: 'Mentee 1', role: 'MENTEE', groupName: null, slot: 2 },
     ];
@@ -246,6 +245,20 @@ describe('testimony: composePicks', () => {
     expect(fresh[0]).toMatchObject({ name: 'Co A', role: 'CO_MENTOR', groupName: 'Shalom' });
     expect(fresh[1]).toMatchObject({ role: 'OTHER', groupName: null });
     expect(mergeManualPicks([], [])).toEqual([]);
+  });
+
+  it('film: batas tepat 2 live, fresh diutamakan', () => {
+    expect(TESTIMONY_FILM_CAP).toBe(2);
+    const a = { userId: 'a', slot: 1 };
+    const b = { userId: 'b', slot: 2 };
+    expect(applyFilmCap([], [])).toEqual({ picks: [], capped: false });
+    expect(applyFilmCap([a], [b])).toEqual({ picks: [a, b], capped: false });
+    // Penuh + fresh 2 → 2 baru menang, lama dibuang.
+    const out = applyFilmCap([a, b], [{ userId: 'c' }, { userId: 'd' }]);
+    expect(out.picks.map((p) => p.userId)).toEqual(['c', 'd']);
+    expect(out.capped).toBe(true);
+    // Keadaan aneh (1 lama + 2 fresh) → tetap 2.
+    expect(applyFilmCap([a], [b, { userId: 'c' }]).picks).toHaveLength(2);
   });
 });
 

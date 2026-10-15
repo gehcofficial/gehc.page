@@ -17,6 +17,20 @@ export const TESTIMONY_NEED_MONOLOG = [['ANY', 3]];
 /** Komposisi BEDAH_FILM: 1 Mentee + 1 Mentor (fallback bebas bila peran kurang). */
 export const TESTIMONY_NEED_FILM = [['MENTEE', 1], ['MENTOR', 1]];
 
+/** Batas total yang live untuk BEDAH_FILM: tepat 2 orang. */
+export const TESTIMONY_FILM_CAP = TESTIMONY_NEED_FILM.reduce((n, [, c]) => n + c, 0);
+
+/**
+ * Terapkan batas film: gabung picks lama + fresh, potong ke batas (fresh
+ * diutamakan). Kembalikan { picks, capped } — capped true bila ada yang
+ * dibuang karena melebihi batas.
+ */
+export function applyFilmCap(existing, fresh, cap = TESTIMONY_FILM_CAP) {
+  const list = [...(existing || []), ...(fresh || [])];
+  if (list.length <= cap) return { picks: list, capped: false };
+  return { picks: list.slice(list.length - cap), capped: true };
+}
+
 /**
  * Gabung pilihan manual operator ke picks yang sudah ada (tanpa duplikat,
  * nomor slot berlanjut). Dipakai bila undian hari-H tidak jadi.
