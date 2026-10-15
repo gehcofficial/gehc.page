@@ -61,6 +61,19 @@ import crypto from 'node:crypto';
 
 const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
+/**
+ * Aturan tampil arsip bulletin: HANYA event lampau (tanggal WIB < hari ini)
+ * yang ringkasannya PUBLISHED. Planning, event hari-H, dan event lampau
+ * tanpa ringkasan disembunyikan total.
+ */
+export function isArchiveVisible(entry, todayWib) {
+  if (!entry || !entry.ringkasan) return false;
+  const day = String(entry.date || '').slice(0, 10);
+  const today = String(todayWib || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+  return day < today;
+}
+
 function previewList(ids) {
   const arr = Array.isArray(ids) ? ids : [];
   return arr.slice(0, 10).filter(Boolean).map((id) => ({
@@ -427,6 +440,16 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           }
         }
       } catch { /* abaikan — tombol ringkasan disembunyikan */ }
+      // Aturan tampil bulletin: HANYA event lampau (tanggal WIB < hari ini)
+      // yang ringkasannya PUBLISHED. Planning (mis. 25 Okt), event hari-H,
+      // dan event lampau tanpa ringkasan: disembunyikan total.
+      const todayWib = (() => {
+        try {
+          return new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+        } catch {
+          return '';
+        }
+      })();
       res.setHeader('Cache-Control', 'public, max-age=300');
       res.json({
         events: rows.map((e, i) => {
@@ -437,6 +460,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           const key = wk.yearMonth ? `${wk.yearMonth}/${wk.weekIndex}` : '';
           let day = '';
           try { day = wibDateOnly(e.eventDate || e.startDate); } catch { /* abaikan */ }
+          const ringkasan = key && published.has(key) ? { ym: wk.yearMonth, week: wk.weekIndex } : null;
           return {
             id: e.id,
             name: e.name,
@@ -446,9 +470,9 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
             date: day,
             previews: previewList(e.previewFileIds),
             hasArchive: Boolean(e.archiveFolderId),
-            ringkasan: key && published.has(key) ? { ym: wk.yearMonth, week: wk.weekIndex } : null,
+            ringkasan,
           };
-        }),
+        }).filter((e) => isArchiveVisible(e, todayWib)),
       });
     }),
   );

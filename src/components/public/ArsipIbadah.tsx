@@ -79,26 +79,21 @@ const ArsipCard: React.FC<{ event: ArsipEvent; dateLabel: string }> = ({ event, 
           <span>{dateLabel || event.period || '—'}</span>
         </div>
         <h3 className="text-lg font-bold tracking-tight text-[#1B1B1B]">{event.name}</h3>
-        {ringkasan ? (
-          <>
-            {ringkasan.teksUtama?.ref ? (
-              <p className="text-xs font-bold text-brand">{ringkasan.teksUtama.ref}</p>
-            ) : null}
-            {ringkasan.bigIdea ? (
-              <p className="text-xs text-[#1B1B1B] leading-relaxed line-clamp-3">{ringkasan.bigIdea}</p>
-            ) : null}
-            {event.ringkasan ? (
-              <a
-                href={`#/ringkasan/${event.ringkasan.ym}/${event.ringkasan.week}`}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B1B1B] hover:text-brand w-fit"
-              >
-                <BookOpen className="w-3.5 h-3.5" /> {t.arsip.readSummary}
-              </a>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-xs text-[#8C8880]">{t.arsip.unpublished}</p>
-        )}
+        {/* Server hanya mengirim event published+lewat — ringkasan selalu ada. */}
+        {ringkasan?.teksUtama?.ref ? (
+          <p className="text-xs font-bold text-brand">{ringkasan.teksUtama.ref}</p>
+        ) : null}
+        {ringkasan?.bigIdea ? (
+          <p className="text-xs text-[#1B1B1B] leading-relaxed line-clamp-3">{ringkasan.bigIdea}</p>
+        ) : null}
+        {event.ringkasan ? (
+          <a
+            href={`#/ringkasan/${event.ringkasan.ym}/${event.ringkasan.week}`}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B1B1B] hover:text-brand w-fit"
+          >
+            <BookOpen className="w-3.5 h-3.5" /> {t.arsip.readSummary}
+          </a>
+        ) : null}
         {(event.previews || []).length > 0 ? (
           <div>
             <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] mb-2 inline-flex items-center gap-1.5">

@@ -141,7 +141,6 @@ export const id: Dict = {
     title: 'Minggu-minggu sebelumnya',
     sub: 'Gambar sampul Studio, rangkuman khotbah, dan galeri tiap ibadah — terbuka untuk umum.',
     loading: 'Memuat arsip ibadah…',
-    unpublished: 'Ringkasan khotbah pekan ini belum diterbitkan.',
     galleryDay: 'Galeri hari itu',
     driveAll: 'Lihat semua di Drive',
     driveLogin: 'Masuk untuk unduh di Drive',

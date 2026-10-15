@@ -54,6 +54,14 @@ const RITUAL_REF_BY_TYPE = {
 
 const DOCS = ['pembekalan', 'khutbah', 'rhb'];
 
+/**
+ * Dokumen yang penerbitannya menandai pekan PUBLISHED (pintu ringkasan publik).
+ * Khutbah ikut — tanpanya tombol publik tak pernah menyala walau PDF khotbah terbit.
+ */
+export function publishedOnPublishDoc(doc) {
+  return ['pembekalan', 'rhb', 'khutbah'].includes(String(doc || ''));
+}
+
 /** Lima section baku RHB harian (urutan tetap) — sinkron dengan src/lib/didaskalia.ts. */
 const RHB_SECTION_DEFS = [
   { key: 'PENGANTAR', title: 'Pengantar' },
@@ -1814,7 +1822,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
               },
             },
           };
-          if (doc === 'pembekalan' || doc === 'rhb') s.status = 'PUBLISHED';
+          // Publish dokumen apa pun (termasuk khutbah) = pekan terbit.
+          // Tanpa ini, ringkasan khotbah publik tak pernah menyala walau PDF
+          // khotbah sudah diterbitkan (kasus W1/W2 Okt 2026).
+          if (publishedOnPublishDoc(doc)) s.status = 'PUBLISHED';
           return { ...w, studio: s };
         },
         req.authUser?.id

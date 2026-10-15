@@ -148,7 +148,6 @@ export const en = {
     title: 'Previous Sundays',
     sub: 'Studio cover art, sermon summaries, and photo galleries from each service — open to everyone.',
     loading: 'Loading worship archive…',
-    unpublished: 'This week’s sermon summary has not been published yet.',
     galleryDay: 'That day’s gallery',
     driveAll: 'View all on Drive',
     driveLogin: 'Sign in to download on Drive',
