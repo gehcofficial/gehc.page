@@ -9,12 +9,13 @@ import {
   noteSlotsFor,
   PATTERN_SEGMENTS,
   resolvePatternCode,
+  resolvePinnedSegment,
   segmentForPattern,
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
 import { classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
   it('pola non-post-to-post punya 3+ segmen (MONOLOG berakhir di penutup)', () => {
@@ -308,8 +309,52 @@ describe('session-stage: validasi', () => {
       name: 'F2',
       startedAt: '2026-10-11T09:00:00.000Z',
       durationSec: 1500,
+      showOnScreen: true,
     });
     expect(cleanPhase({ name: 'F1', startedAt: 'x', durationSec: 5 })).toMatchObject({ durationSec: 60 });
     expect(cleanPhase({ name: 'F3', startedAt: 'x', durationSec: 99999 })).toMatchObject({ durationSec: 7200 });
+  });
+
+  it('phase: tampil di layar default true, bisa dimatikan', () => {
+    expect(cleanPhase({ name: 'F1', startedAt: 'x' })).toMatchObject({ showOnScreen: true });
+    expect(cleanPhase({ name: 'F1', startedAt: 'x', showOnScreen: false })).toMatchObject({ showOnScreen: false });
+    expect(cleanPhase({ name: 'F1', startedAt: 'x', showOnScreen: 0 })).toMatchObject({ showOnScreen: false });
+  });
+
+  it('phasePrefs: durasi + tampil per fase dinormalisasi', () => {
+    expect(cleanPhasePrefs(null)).toBeNull();
+    expect(cleanPhasePrefs({})).toBeNull();
+    const out = cleanPhasePrefs({
+      F1: { durationSec: 600, showOnScreen: false },
+      F2: { durationSec: 5 },
+      NGACO: { durationSec: 100 },
+    });
+    expect(out.F1).toMatchObject({ durationSec: 600, showOnScreen: false });
+    expect(out.F2).toMatchObject({ durationSec: 60, showOnScreen: true });
+    expect(out.NGACO).toBeUndefined();
+    expect(out.CLOSING).toMatchObject({ durationSec: 300, showOnScreen: true });
+  });
+});
+
+describe('session-engine: pin mundur ke flow terbuka', () => {
+  const order = ['sambutan', 'lagu', 'catatan', 'satu-kata', 'penutup'];
+
+  it('tanpa pin / pin tak dikenal → ikut alur server', () => {
+    expect(resolvePinnedSegment(order, null, 'catatan')).toBe('catatan');
+    expect(resolvePinnedSegment(order, 'ngaco', 'catatan')).toBe('catatan');
+  });
+
+  it('pin ke tahap yang sudah terbuka dipertahankan', () => {
+    expect(resolvePinnedSegment(order, 'lagu', 'catatan')).toBe('lagu');
+    expect(resolvePinnedSegment(order, 'catatan', 'catatan')).toBe('catatan');
+  });
+
+  it('pin ke tahap yang belum terbuka jatuh ke alur server', () => {
+    expect(resolvePinnedSegment(order, 'penutup', 'catatan')).toBe('catatan');
+  });
+
+  it('alur server maju tidak menarik pin mundur paksa', () => {
+    expect(resolvePinnedSegment(order, 'lagu', 'satu-kata')).toBe('lagu');
+    expect(resolvePinnedSegment(order, 'lagu', 'penutup')).toBe('lagu');
   });
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clapperboard, Download, Flag, Loader2, Send, Sparkles, Swords, Users } from 'lucide-react';
+import { Check, Clapperboard, Download, Flag, Loader2, Lock, Send, Sparkles, Swords, Users } from 'lucide-react';
 import {
   COMMITMENT_KEY,
   MONOLOG_QUESTION_KEYS,
@@ -9,6 +9,7 @@ import {
   filmLikertPairs,
   isQuestionOpen,
   noteSlotsFor,
+  resolvePinnedSegment,
   segmentForPattern,
   widgetsFor,
   type SegmentWidget,
@@ -208,6 +209,9 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const [chipDone, setChipDone] = useState(false);
   const [chipBusy, setChipBusy] = useState(false);
   const [chipNote, setChipNote] = useState<string | null>(null);
+  /** Pin mundur ke tahap yang sudah terbuka (ala post-to-post); null = ikut alur server. */
+  const [pinned, setPinned] = useState<string | null>(null);
+  useEffect(() => { setPinned(null); }, [slug]);
 
   const load = useCallback(async () => {
     if (!slug) {
@@ -304,7 +308,9 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       screeningOn: Boolean(data?.screening?.startedAt),
     };
   }, [c, filmPairs, notes, chipDone, data]);
-  const segment = segmentForPattern(c, status, filled, live, filmExtra);
+  const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);
+  const derivedSegment = segmentForPattern(c, status, filled, live, filmExtra);
+  const segment = resolvePinnedSegment(segmentOrder, pinned, derivedSegment);
   // F1 (Bedah Lagu): HP hanya menampilkan Q1-Q3.
   const visibleSlots = useMemo(() => {
     if (c === 'MONOLOG' && segment === 'lagu') {
@@ -513,19 +519,36 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           )}
         </div>
         {steps.length > 0 && (
-          <div className="mt-3 flex gap-1.5">
-            {steps.map((s) => (
-              <div
-                key={s.id}
-                className={`flex-1 rounded-full px-2 py-1 text-center text-[10px] font-black ${
-                  s.id === segment ? 'bg-[#1B1B1B] text-white' : 'bg-[#FAF9F5] text-[#8C8880]'
-                }`}
-                title={s.hint}
-              >
-                {s.label}
-              </div>
-            ))}
-          </div>
+          <nav className="mt-3 flex gap-1.5 overflow-x-auto pb-1" aria-label="Tahap ibadah">
+            {steps.map((s) => {
+              const unlocked = canOpenSegmentPattern(c, s.id, status, filled, live, filmExtra);
+              const isActive = s.id === segment;
+              const isPast = segmentOrder.indexOf(s.id) < segmentOrder.indexOf(segment);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  disabled={!unlocked}
+                  title={s.hint}
+                  onClick={() => { setPinned(s.id); window.scrollTo({ top: 0 }); }}
+                  className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all disabled:opacity-60 ${
+                    isActive
+                      ? 'bg-[#1B1B1B] text-white border-transparent'
+                      : isPast
+                        ? 'bg-brand/10 text-brand border-brand/20'
+                        : 'bg-[#FAF9F5] text-[#8C8880] border-[#D9D7D0]'
+                  }`}
+                >
+                  {isPast && !isActive
+                    ? <Check className="w-3 h-3" />
+                    : !unlocked
+                      ? <Lock className="w-3 h-3" />
+                      : null}
+                  {s.label}
+                </button>
+              );
+            })}
+          </nav>
         )}
       </div>
 

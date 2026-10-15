@@ -119,6 +119,22 @@ export function canOpenSegmentPattern(
   return order.indexOf(segment) <= order.indexOf(target);
 }
 
+/**
+ * Segmen efektif dengan pin mundur (kembali ke flow yang sudah terbuka).
+ * Pin dipakai hanya bila tahapnya sudah terbuka (indeks ≤ tahap alur server);
+ * selain itu (pin ke depan / tak dikenal / kosong) ikut alur server — sehingga
+ * polling yang memajukan alur tak pernah menarik mundur paksa.
+ */
+export function resolvePinnedSegment(
+  order: string[],
+  pinned: string | null,
+  derived: string,
+): string {
+  if (!pinned || !order.includes(pinned)) return derived;
+  if (!order.includes(derived)) return pinned;
+  return order.indexOf(pinned) <= order.indexOf(derived) ? pinned : derived;
+}
+
 /** Slot catatan peserta per pola (topicCode WorshipNote; KOMITMEN selalu terakhir). */
 export type NoteSlot = { key: string; label: string; placeholder: string };
 
