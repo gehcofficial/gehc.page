@@ -3,7 +3,21 @@ import { Check, HandHelping, Loader2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
-import type { ServiceRoleRequest } from '../../types/penatalayan';
+
+/**
+ * Bentuk item antrean minimal yang dipakai komponen ini.
+ * (Duplikat ringan dari ServiceRoleRequest milik sesi paralel agar file ini
+ * mandiri — rekonsiliasi saat types/penatalayan.ts mereka masuk main.)
+ */
+type QueueItem = {
+  id: string;
+  date: string;
+  roleName?: string | null;
+  requesterName?: string | null;
+  note?: string | null;
+  canFulfill?: boolean;
+  canCancel?: boolean;
+};
 
 type Props = { division: string };
 
@@ -19,7 +33,7 @@ const dayLabel = (iso: string) =>
 export const PenatalayanRequestQueue: React.FC<Props> = ({ division }) => {
   const { currentRole } = useApp();
   void currentRole;
-  const [items, setItems] = useState<ServiceRoleRequest[]>([]);
+  const [items, setItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [picks, setPicks] = useState<Record<string, SearchableOption[]>>({});
   const [busy, setBusy] = useState<string | null>(null);

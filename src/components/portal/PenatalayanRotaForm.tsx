@@ -3,7 +3,19 @@ import { CalendarPlus, Info, Loader2, Save, Send, HandHelping } from 'lucide-rea
 import { useApp } from '../../context/AppContext';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
-import type { ServiceRole, ServiceRoleRequest } from '../../types/penatalayan';
+import type { ServiceRole } from '../../types/penatalayan';
+
+/**
+ * Bentuk antrean request minimal yang dipakai form ini.
+ * (Duplikat ringan dari ServiceRoleRequest milik sesi paralel agar file ini
+ * mandiri — rekonsiliasi saat types/penatalayan.ts mereka masuk main.)
+ */
+type ServiceRoleRequestLite = {
+  serviceRoleId: string;
+};
+
+/** ServiceRole + penanda opsional (isRequired menyusul dari sesi paralel). */
+type RoleRow = ServiceRole & { isRequired?: boolean };
 
 type Props = {
   division: string;
@@ -40,9 +52,9 @@ export const PenatalayanRotaForm: React.FC<Props> = ({ division, serviceType, ev
   const { currentRole } = useApp();
   const canWrite = WRITE_ROLES.includes(String(currentRole || ''));
   const [date, setDate] = useState(nextSundays(1)[0]);
-  const [roles, setRoles] = useState<ServiceRole[]>([]);
+  const [roles, setRoles] = useState<RoleRow[]>([]);
   const [existing, setExisting] = useState<Existing[]>([]);
-  const [pending, setPending] = useState<ServiceRoleRequest[]>([]);
+  const [pending, setPending] = useState<ServiceRoleRequestLite[]>([]);
   const [picks, setPicks] = useState<Record<string, SearchableOption[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
