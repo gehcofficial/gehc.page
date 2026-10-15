@@ -5,6 +5,7 @@ import { SectionHeader } from './ui/SectionHeader';
 import { WartaGridSkeleton } from './ui/Skeleton';
 import { LoadingOverlay } from './ui/LoadingOverlay';
 import { WartaServiceDutySection, WartaPelayananBlock } from './WartaServiceDutySection';
+import { ArsipIbadah } from './ArsipIbadah';
 import { useLang } from '../../context/LangContext';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
 import {
@@ -157,11 +158,15 @@ export const WeeklyInfoSection: React.FC = () => {
           />
         </div>
       ) : filteredPosts.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl border border-[#D9D7D0]/40 p-8">
-          <BookOpen className="w-12 h-12 text-[#8C8880] mx-auto mb-3 opacity-50" />
-          <h3 className="text-lg font-bold text-[#1B1B1B]">Belum Ada Warta Ditemukan</h3>
-          <p className="text-xs text-[#8C8880] mt-1">Coba sesuaikan kata kunci pencarian Anda.</p>
-        </div>
+        searchQuery.trim() || selectedTag !== 'Semua' ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-[#D9D7D0]/40 p-8">
+            <BookOpen className="w-12 h-12 text-[#8C8880] mx-auto mb-3 opacity-50" />
+            <h3 className="text-lg font-bold text-[#1B1B1B]">Belum Ada Warta Ditemukan</h3>
+            <p className="text-xs text-[#8C8880] mt-1">Coba sesuaikan kata kunci pencarian Anda.</p>
+          </div>
+        ) : (
+          <ArsipIbadah />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredPosts.map((item) => (

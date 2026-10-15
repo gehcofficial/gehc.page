@@ -1177,6 +1177,80 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     })
   );
 
+  /**
+   * Ringkasan khotbah publik per pekan (untuk bulletin/arsip ibadah).
+   * HANYA pekan PUBLISHED yang keluar — DRAFT tetap 404 (pintu ke publik).
+   */
+  async function loadPublishedWeek(prisma, yearMonth, weekIndex) {
+    if (!ymRe.test(yearMonth) || !weekIndex) return { error: 'Parameter tidak valid.', status: 400 };
+    const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
+    const weeks = plan ? readWeeks(plan) : [];
+    const week = weekOrDefault(weeks, yearMonth, weekIndex);
+    const studio = sanitizeStudio(week.studio);
+    if (String(studio.status || '').toUpperCase() !== 'PUBLISHED') {
+      return { error: 'Ringkasan pekan ini belum diterbitkan.', status: 404 };
+    }
+    return { week, studio };
+  }
+
+  // GET /api/ibadah/ringkasan/:yearMonth/:weekIndex — narasi khotbah publik
+  app.get(
+    '/api/ibadah/ringkasan/:yearMonth/:weekIndex',
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      const loaded = await loadPublishedWeek(prisma, yearMonth, weekIndex);
+      if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
+      const { week, studio } = loaded;
+      const sermon = studio.sermon || {};
+      const tu = sermon.teksUtama || {};
+      const ol = sermon.outline || {};
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.json({
+        yearMonth,
+        weekIndex: week.index,
+        date: week.date || '',
+        theme: week.mentoringTheme || week.servingTheme || week.theme || '',
+        bigIdea: String(sermon.bigIdea || ''),
+        teksUtama: { ref: String(tu.ref || ''), text: String(tu.text || '') },
+        outline: {
+          pengantar: String(ol.pengantar || ''),
+          bedahTeologis: String(ol.bedahTeologis || ''),
+          jembatan: String(ol.jembatan || ''),
+          kesimpulan: String(ol.kesimpulan || ''),
+        },
+        coverUrl: studio.presentation?.cover ? `/api/ibadah/ringkasan/${yearMonth}/${week.index}/gambar` : null,
+      });
+    })
+  );
+
+  // GET /api/ibadah/ringkasan/:yearMonth/:weekIndex/gambar — cover Studio publik (pekan published saja)
+  app.get(
+    '/api/ibadah/ringkasan/:yearMonth/:weekIndex/gambar',
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      const loaded = await loadPublishedWeek(prisma, yearMonth, weekIndex);
+      if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
+      const fileId = String(loaded.studio.presentation?.cover || '').trim();
+      if (!fileId) return res.status(404).json({ error: 'Belum ada gambar sampul pekan ini.' });
+      try {
+        const { meta, stream } = await getFileStream(fileId);
+        res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        stream.on('error', () => { try { res.end(); } catch { /* abaikan */ } });
+        stream.pipe(res);
+      } catch {
+        res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+      }
+    })
+  );
+
   // GET /api/didaskalia/asset/:fileId — proxy gambar (login-gated, tanpa share publik)
   app.get(
     '/api/didaskalia/asset/:fileId',

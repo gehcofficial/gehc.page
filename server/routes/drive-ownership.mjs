@@ -30,7 +30,9 @@ import {
 } from '../lib/public-albums.mjs';
 import { PUBLIC_DUTY_STATUSES, assignCycleIndexes, filterPublicDuties, groupDutiesByDay } from '../lib/service-duty.mjs';
 import { sundaysInMonth } from '../lib/church-year.mjs';
-import { listOverrides } from '../lib/service-overrides.mjs';
+import { listOverrides, originDateFor } from '../lib/service-overrides.mjs';
+import { weekIndexForDate } from '../lib/penatalayan-access.mjs';
+import { wibDateOnly } from '../lib/event-venue.mjs';
 import { loadCyclePairs, pairFromList } from '../lib/serving-cycle.mjs';
 import { congregationUserWhere } from '../lib/system-users.mjs';
 import { replaceVisualStem, backupToOpsFolder, scheduleVisualsPublish } from '../lib/visual-slot-write.mjs';
@@ -397,19 +399,54 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           previewFileIds: true,
         },
       });
+      // Petakan tiap event ke pekan materi (GESER-aware) + tandai yang ringkasan
+      // khotbahnya sudah PUBLISHED (tombol ringkasan publik hanya untuk itu).
+      let overrides = new Map();
+      try {
+        const days = rows.map((e) => { try { return wibDateOnly(e.eventDate || e.startDate); } catch { return ''; } }).filter(Boolean).sort();
+        if (days.length) overrides = await listOverrides(prisma, days[0], days[days.length - 1]);
+      } catch { /* tanpa override — perilaku lama */ }
+      const yms = new Set();
+      const weekOf = rows.map((e) => {
+        let day = '';
+        try { day = wibDateOnly(e.eventDate || e.startDate); } catch { /* abaikan */ }
+        const origin = originDateFor(day, overrides) || day;
+        const { yearMonth, weekIndex } = origin ? weekIndexForDate(`${origin}T00:00:00.000Z`) : { yearMonth: '', weekIndex: 1 };
+        if (yearMonth) yms.add(yearMonth);
+        return { yearMonth, weekIndex };
+      });
+      const published = new Set();
+      try {
+        const plans = yms.size
+          ? await prisma.ministryMonthPlan.findMany({ where: { yearMonth: { in: [...yms] } }, select: { yearMonth: true, weeks: true } })
+          : [];
+        for (const p of plans || []) {
+          for (const w of (Array.isArray(p.weeks) ? p.weeks : [])) {
+            const st = w?.studio && typeof w.studio === 'object' ? w.studio : {};
+            if (String(st.status || '').toUpperCase() === 'PUBLISHED') published.add(`${p.yearMonth}/${Number(w?.index)}`);
+          }
+        }
+      } catch { /* abaikan — tombol ringkasan disembunyikan */ }
+      res.setHeader('Cache-Control', 'public, max-age=300');
       res.json({
-        events: rows.map((e) => {
+        events: rows.map((e, i) => {
           const when = e.eventDate || e.startDate;
           const iso = when ? new Date(when).toISOString() : '';
           const mmYyyy = iso ? `${iso.slice(5, 7)}-${iso.slice(0, 4)}` : '';
+          const wk = weekOf[i] || { yearMonth: '', weekIndex: 1 };
+          const key = wk.yearMonth ? `${wk.yearMonth}/${wk.weekIndex}` : '';
+          let day = '';
+          try { day = wibDateOnly(e.eventDate || e.startDate); } catch { /* abaikan */ }
           return {
             id: e.id,
             name: e.name,
             slug: e.slug,
             status: e.status,
             period: mmYyyy,
+            date: day,
             previews: previewList(e.previewFileIds),
             hasArchive: Boolean(e.archiveFolderId),
+            ringkasan: key && published.has(key) ? { ym: wk.yearMonth, week: wk.weekIndex } : null,
           };
         }),
       });
