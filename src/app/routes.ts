@@ -13,7 +13,7 @@ export const PUBLIC_ROUTES = [
   'benzarpreneurship',
 ] as const;
 
-export type PublicRouteId = (typeof PUBLIC_ROUTES)[number] | 'event-signup';
+export type PublicRouteId = (typeof PUBLIC_ROUTES)[number] | 'event-signup' | 'arsip';
 
 export const LEGACY_HASH_MAP: Record<string, PublicRouteId> = {
   home: 'beyonders',
@@ -31,6 +31,7 @@ export function tabFromHash(hash: string): PublicRouteId {
   if (path === 'portal' || path.startsWith('portal/')) return 'beyonders';
   if (path.startsWith('event/')) return 'event-signup';
   if (path === 'ringkasan' || path.startsWith('ringkasan/')) return 'ringkasan';
+  if (path.startsWith('arsip/')) return 'arsip';
   if ((PUBLIC_ROUTES as readonly string[]).includes(path)) return path as PublicRouteId;
   if (LEGACY_HASH_MAP[path]) return LEGACY_HASH_MAP[path];
   return 'beyonders';

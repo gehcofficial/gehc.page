@@ -16,6 +16,10 @@ describe('ringkasan publik: routing hash', () => {
     expect(tabFromHash('#/bulletin')).toBe('bulletin');
     expect(tabFromHash('#/warta')).toBe('bulletin');
   });
+
+  it('#/arsip/:id → tab arsip', () => {
+    expect(tabFromHash('#/arsip/evt-123')).toBe('arsip');
+  });
 });
 
 describe('ringkasan publik: publish khutbah = terbit', () => {
@@ -29,15 +33,14 @@ describe('ringkasan publik: publish khutbah = terbit', () => {
 });
 
 describe('ringkasan publik: visibilitas arsip', () => {
-  const ring = { ym: '2026-10', week: 3 };
-  it('planning (25 Okt) + hari-H + tanpa ringkasan: sembunyi', () => {
+  const ring = { ym: '2026-10', week: 3, published: false };
+  it('planning (25 Okt) + hari-H: sembunyi; lampau tampil walau draf live', () => {
     expect(isArchiveVisible({ date: '2026-10-25', ringkasan: ring }, '2026-10-16')).toBe(false);
     expect(isArchiveVisible({ date: '2026-10-16', ringkasan: ring }, '2026-10-16')).toBe(false);
-    expect(isArchiveVisible({ date: '2026-10-04', ringkasan: null }, '2026-10-16')).toBe(false);
+    expect(isArchiveVisible({ date: '2026-10-04', ringkasan: ring }, '2026-10-16')).toBe(true);
   });
 
-  it('lampau + published: tampil; tanggal tak valid: sembunyi', () => {
-    expect(isArchiveVisible({ date: '2026-10-04', ringkasan: ring }, '2026-10-16')).toBe(true);
+  it('tanggal tak valid: sembunyi', () => {
     expect(isArchiveVisible({ date: '', ringkasan: ring }, '2026-10-16')).toBe(false);
     expect(isArchiveVisible(null, '2026-10-16')).toBe(false);
   });

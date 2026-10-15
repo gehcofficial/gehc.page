@@ -32,6 +32,7 @@ const PantatugasShowcase = React.lazy(() => import('./components/public/Pantatug
 const EventsTimeline = React.lazy(() => import('./components/public/EventsTimeline').then((m) => ({ default: m.EventsTimeline })));
 const ChurchYearSection = React.lazy(() => import('./components/public/ChurchYearSection').then((m) => ({ default: m.ChurchYearSection })));
 const RingkasanPublik = React.lazy(() => import('./components/public/RingkasanPublik').then((m) => ({ default: m.RingkasanPublik })));
+const ArsipDetail = React.lazy(() => import('./components/public/ArsipDetail').then((m) => ({ default: m.ArsipDetail })));
 const WeeklyInfoSection = React.lazy(() => import('./components/public/WeeklyInfoSection').then((m) => ({ default: m.WeeklyInfoSection })));
 const GroupDetailPage = React.lazy(() => import('./components/public/GroupDetailPage').then((m) => ({ default: m.GroupDetailPage })));
 const JoinPage = React.lazy(() => import('./components/public/JoinPage').then((m) => ({ default: m.JoinPage })));
@@ -169,6 +170,11 @@ const MainAppContent: React.FC = () => {
         {publicTab === 'ringkasan' && (
           <Suspense fallback={<SectionFallback />}>
             <RingkasanPublik />
+          </Suspense>
+        )}
+        {publicTab === 'arsip' && (
+          <Suspense fallback={<SectionFallback />}>
+            <ArsipDetail />
           </Suspense>
         )}
         {publicTab === 'benzarpreneurship' && (

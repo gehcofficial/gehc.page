@@ -62,12 +62,12 @@ import crypto from 'node:crypto';
 const PHOTO_KINDS = new Set(['PA', 'WORSHIP', 'ADHOC']);
 
 /**
- * Aturan tampil arsip bulletin: HANYA event lampau (tanggal WIB < hari ini)
- * yang ringkasannya PUBLISHED. Planning, event hari-H, dan event lampau
- * tanpa ringkasan disembunyikan total.
+ * Aturan tampil arsip bulletin: HANYA event lampau (tanggal WIB < hari ini).
+ * Planning dan event hari-H disembunyikan total. Flag published ikut di
+ * payload agar UI menandai narasi "draf live" vs "terbit".
  */
 export function isArchiveVisible(entry, todayWib) {
-  if (!entry || !entry.ringkasan) return false;
+  if (!entry) return false;
   const day = String(entry.date || '').slice(0, 10);
   const today = String(todayWib || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
@@ -440,9 +440,9 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           }
         }
       } catch { /* abaikan — tombol ringkasan disembunyikan */ }
-      // Aturan tampil bulletin: HANYA event lampau (tanggal WIB < hari ini)
-      // yang ringkasannya PUBLISHED. Planning (mis. 25 Okt), event hari-H,
-      // dan event lampau tanpa ringkasan: disembunyikan total.
+      // Aturan tampil bulletin: HANYA event lampau (tanggal WIB < hari ini).
+      // Planning (mis. 25 Okt) dan event hari-H disembunyikan total.
+      // Narasi ikut draf live; flag published menandai "draf live" vs "terbit".
       const todayWib = (() => {
         try {
           return new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
@@ -460,7 +460,7 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
           const key = wk.yearMonth ? `${wk.yearMonth}/${wk.weekIndex}` : '';
           let day = '';
           try { day = wibDateOnly(e.eventDate || e.startDate); } catch { /* abaikan */ }
-          const ringkasan = key && published.has(key) ? { ym: wk.yearMonth, week: wk.weekIndex } : null;
+          const ringkasan = key ? { ym: wk.yearMonth, week: wk.weekIndex, published: published.has(key) } : null;
           return {
             id: e.id,
             name: e.name,

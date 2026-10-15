@@ -1187,18 +1187,30 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
 
   /**
    * Ringkasan khotbah publik per pekan (untuk bulletin/arsip ibadah).
-   * HANYA pekan PUBLISHED yang keluar — DRAFT tetap 404 (pintu ke publik).
+   * Pekan LAMPAU (tanggal slot < hari ini WIB) tersaji dari draf live +
+   * ditandai "draf live" bila belum PUBLISHED. Pekan PLANNING (slot hari ini/
+   * masa depan) yang belum published tetap 404.
    */
+  function todayWibDay() {
+    try {
+      return new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+    } catch {
+      return '';
+    }
+  }
   async function loadPublishedWeek(prisma, yearMonth, weekIndex) {
     if (!ymRe.test(yearMonth) || !weekIndex) return { error: 'Parameter tidak valid.', status: 400 };
     const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
     const weeks = plan ? readWeeks(plan) : [];
     const week = weekOrDefault(weeks, yearMonth, weekIndex);
     const studio = sanitizeStudio(week.studio);
-    if (String(studio.status || '').toUpperCase() !== 'PUBLISHED') {
+    const published = String(studio.status || '').toUpperCase() === 'PUBLISHED';
+    const slotDay = String(week.date || '').slice(0, 10);
+    const today = todayWibDay();
+    if (!published && (!/^\d{4}-\d{2}-\d{2}$/.test(slotDay) || !today || slotDay >= today)) {
       return { error: 'Ringkasan pekan ini belum diterbitkan.', status: 404 };
     }
-    return { week, studio };
+    return { week, studio, published, live: !published };
   }
 
   // GET /api/ibadah/ringkasan/:yearMonth/:weekIndex — narasi khotbah publik
@@ -1211,7 +1223,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const weekIndex = getWeekIndex(req);
       const loaded = await loadPublishedWeek(prisma, yearMonth, weekIndex);
       if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
-      const { week, studio } = loaded;
+      const { week, studio, published } = loaded;
       const sermon = studio.sermon || {};
       const tu = sermon.teksUtama || {};
       const ol = sermon.outline || {};
@@ -1220,6 +1232,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         yearMonth,
         weekIndex: week.index,
         date: week.date || '',
+        published: Boolean(published),
         theme: week.mentoringTheme || week.servingTheme || week.theme || '',
         bigIdea: String(sermon.bigIdea || ''),
         teksUtama: { ref: String(tu.ref || ''), text: String(tu.text || '') },

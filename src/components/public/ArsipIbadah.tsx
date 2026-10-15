@@ -1,126 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Calendar, Images } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { Calendar, ChevronRight } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 
-type RingkasanRef = { ym: string; week: number } | null;
-
-type ArsipEvent = {
+export type ArsipEvent = {
   id: string;
   name: string;
   period: string;
   date: string;
   previews: { id: string; thumbnailUrl: string }[];
   hasArchive: boolean;
-  ringkasan: RingkasanRef;
-};
-
-type Ringkasan = {
-  theme: string;
-  date: string;
-  bigIdea: string;
-  teksUtama: { ref: string; text: string };
-  coverUrl: string | null;
+  ringkasan: { ym: string; week: number; published: boolean } | null;
 };
 
 const PAGE = 4;
 
-function fmtDate(day: string, fallback: string) {
-  const raw = (day || fallback || '').slice(0, 10);
+export function fmtArsipDate(day: string) {
+  const raw = (day || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—';
   const d = new Date(`${raw}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return raw;
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
 }
 
-const ArsipCard: React.FC<{ event: ArsipEvent; dateLabel: string }> = ({ event, dateLabel }) => {
-  const { authUser, setPublicTab } = useApp();
-  const { t } = useLang();
-  const [ringkasan, setRingkasan] = useState<Ringkasan | null>(null);
-  const [imgOk, setImgOk] = useState(true);
-
-  useEffect(() => {
-    if (!event.ringkasan) return;
-    let alive = true;
-    fetch(`/api/ibadah/ringkasan/${event.ringkasan.ym}/${event.ringkasan.week}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => { if (alive) setRingkasan(d); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [event.ringkasan]);
-
-  const openDrive = async () => {
-    if (!authUser) {
-      setPublicTab('login');
-      return;
-    }
-    const r = await fetch(`/api/events/${event.id}/archive-link`, { credentials: 'include' });
-    const d = await r.json().catch(() => ({}));
-    if (d.driveUrl) window.open(d.driveUrl, '_blank');
-  };
-
-  return (
-    <article className="bg-white rounded-[28px] overflow-hidden border border-[#D9D7D0]/40 shadow-sm flex flex-col">
-      {ringkasan?.coverUrl && imgOk ? (
-        <div className="w-full aspect-[16/9] overflow-hidden bg-[#F0EFEB]">
-          <img
-            src={ringkasan.coverUrl}
-            alt={event.name}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgOk(false)}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      ) : null}
-      <div className="p-6 sm:p-7 flex-1 flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-[11px] text-[#8C8880] font-medium">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>{dateLabel || event.period || '—'}</span>
-        </div>
-        <h3 className="text-lg font-bold tracking-tight text-[#1B1B1B]">{event.name}</h3>
-        {/* Server hanya mengirim event published+lewat — ringkasan selalu ada. */}
-        {ringkasan?.teksUtama?.ref ? (
-          <p className="text-xs font-bold text-brand">{ringkasan.teksUtama.ref}</p>
-        ) : null}
-        {ringkasan?.bigIdea ? (
-          <p className="text-xs text-[#1B1B1B] leading-relaxed line-clamp-3">{ringkasan.bigIdea}</p>
-        ) : null}
-        {event.ringkasan ? (
-          <a
-            href={`#/ringkasan/${event.ringkasan.ym}/${event.ringkasan.week}`}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B1B1B] hover:text-brand w-fit"
-          >
-            <BookOpen className="w-3.5 h-3.5" /> {t.arsip.readSummary}
-          </a>
-        ) : null}
-        {(event.previews || []).length > 0 ? (
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-[#8C8880] mb-2 inline-flex items-center gap-1.5">
-              <Images className="w-3.5 h-3.5" /> {t.arsip.galleryDay}
-            </p>
-            <div className="grid grid-cols-4 gap-1.5">
-              {event.previews.slice(0, 4).map((p) => (
-                <img key={p.id} src={p.thumbnailUrl} alt="" loading="lazy" className="aspect-square object-cover rounded-xl" />
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {event.hasArchive ? (
-          <button
-            type="button"
-            onClick={openDrive}
-            className="mt-1 w-fit px-4 py-2 rounded-full bg-[#181818] text-white text-xs font-bold"
-          >
-            {authUser ? t.arsip.driveAll : t.arsip.driveLogin}
-          </button>
-        ) : null}
-      </div>
-    </article>
-  );
-};
-
-/** Grid arsip ibadah: 4 event terbaru terbuka + see more (+4). */
+/** Daftar tanggal arsip: ringkas, klik-untuk-buka halaman detail (#/arsip/:id). */
 export const ArsipIbadah: React.FC = () => {
   const { t } = useLang();
   const [events, setEvents] = useState<ArsipEvent[]>([]);
@@ -147,9 +49,31 @@ export const ArsipIbadah: React.FC = () => {
         </h2>
         <p className="text-xs text-[#8C8880] mt-1 max-w-2xl">{t.arsip.sub}</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2.5">
         {events.slice(0, visible).map((e) => (
-          <ArsipCard key={e.id} event={e} dateLabel={fmtDate(e.date, e.period)} />
+          <a
+            key={e.id}
+            href={`#/arsip/${e.id}`}
+            className="flex items-center gap-3 bg-white rounded-2xl border border-[#D9D7D0]/40 px-4 py-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            {e.previews?.[0] ? (
+              <img src={e.previews[0].thumbnailUrl} alt="" loading="lazy" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+            ) : (
+              <span className="w-12 h-12 rounded-xl bg-[#F0EFEB] flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 text-[#8C8880]" />
+              </span>
+            )}
+            <span className="flex-1 min-w-0">
+              <span className="block text-[11px] text-[#8C8880] font-medium">{fmtArsipDate(e.date)}</span>
+              <span className="block text-sm font-bold text-[#1B1B1B] truncate">{e.name}</span>
+            </span>
+            {e.ringkasan && !e.ringkasan.published ? (
+              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold">
+                {t.arsip.draftLive}
+              </span>
+            ) : null}
+            <ChevronRight className="w-4 h-4 text-[#8C8880] shrink-0" />
+          </a>
         ))}
       </div>
       {visible < events.length ? (

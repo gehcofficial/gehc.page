@@ -87,6 +87,7 @@ type PublicTab =
   | 'events'
   | 'bulletin'
   | 'ringkasan'
+  | 'arsip'
   | 'gallery'
   | 'join'
   | 'login'
