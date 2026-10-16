@@ -62,8 +62,9 @@ const FilmLikertCard: React.FC<{
   round: 'PRE' | 'POST';
   editable: boolean;
   showDelta: boolean;
+  affirm?: { low: string; high: string } | null;
   onDone: () => void;
-}> = ({ slug, likert, round, editable, showDelta, onDone }) => {
+}> = ({ slug, likert, round, editable, showDelta, affirm, onDone }) => {
   const pairs = useMemo(() => filmLikertPairs(likert.items || [], likert.myValues || {}), [likert]);
   const means = useMemo(() => filmLikertMeans(pairs, likert.means || {}), [pairs, likert]);
   const [vals, setVals] = useState<Record<string, number>>({});
@@ -100,7 +101,9 @@ const FilmLikertCard: React.FC<{
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal mengirim.');
-      setNote('Tersimpan — terima kasih atas kejujuranmu.');
+      setNote(typeof (d as { affirmation?: unknown }).affirmation === 'string' && (d as { affirmation: string }).affirmation
+        ? (d as { affirmation: string }).affirmation
+        : 'Tersimpan — terima kasih atas kejujuranmu.');
       onDone();
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Gagal mengirim.');
@@ -108,6 +111,11 @@ const FilmLikertCard: React.FC<{
       setBusy(false);
     }
   }, [answeredCount, ids, onDone, slug, vals, round]);
+  const allAnswered = answeredCount >= ids.length && ids.length > 0;
+  const roundAvg = allAnswered
+    ? ids.reduce((n, id) => n + (vals[id] || 0), 0) / ids.length
+    : null;
+  const affirmText = allAnswered && affirm ? (Number(roundAvg) <= 3 ? affirm.low : affirm.high) : null;
   return (
     <div className={CARD}>
       <h4 className="text-sm font-black text-[#1B1B1B]">
@@ -157,6 +165,12 @@ const FilmLikertCard: React.FC<{
         {busy ? 'Mengirim…' : `Kirim Likert ${round === 'PRE' ? 'AWAL' : 'AKHIR'} (${answeredCount}/${ids.length})`}
       </button>
       {note && <p className="mt-2 text-[11px] text-[#8C8880]">{note}</p>}
+      {affirmText && (
+        <div className="mt-3 rounded-xl border border-brand/30 bg-gradient-to-r from-brand/10 to-brand-end/10 px-3 py-2.5">
+          <p className="text-[10px] font-black uppercase tracking-wider text-brand mb-0.5">Afirmasi firman untukmu</p>
+          <p className="text-xs leading-relaxed text-[#1B1B1B]">{affirmText}</p>
+        </div>
+      )}
       {showDelta && (
         <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3">
           <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Perubahan (awal → akhir)</p>
@@ -205,6 +219,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     status: 'loading',
   });
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Afirmasi firman yang baru diterima dari server (tampil instan setelah simpan). */
+  const [noteAffirm, setNoteAffirm] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<string[]>([]);
   const [chipDone, setChipDone] = useState(false);
   const [chipBusy, setChipBusy] = useState(false);
@@ -292,7 +308,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   }, [c, data?.guide, data?.deepGuide]);
   const noteKeys = useMemo(() => slots.map((s) => s.key).filter((k) => k !== COMMITMENT_KEY), [slots]);
   const filled = noteKeys.some((k) => String(notes[k] || '').trim());
-  // Progres film untuk stepper (pre/post likert, deep 3Q, chip, screening).
+  // Progres film untuk stepper (pre/post likert, chip, gate AKHIR).
   const filmPairs = useMemo(
     () => (c === 'BEDAH_FILM' ? filmLikertPairs(data?.likert.items || [], data?.likert.myValues || {}) : []),
     [c, data],
@@ -302,12 +318,13 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     return {
       preAnswered: filmPairs.length > 0 && filmPairs.every((p) => p.pre != null),
       postAnswered: filmPairs.length > 0 && filmPairs.every((p) => p.post != null),
-      deepFilled: ['FILM-Q1', 'FILM-Q2', 'FILM-Q3'].every((k) => String(notes[k] || '').trim()),
       chipDone,
       // Langsung dari data (tanpa `has`, agar tak sirkular dengan `segment`).
       screeningOn: Boolean(data?.screening?.startedAt),
+      // Gate AKHIR dari kontrol (M3) — peserta maju mengikuti gate, bukan countdown.
+      postOpen: String(data?.likert.rounds?.post || 'closed').toLowerCase() === 'open',
     };
-  }, [c, filmPairs, notes, chipDone, data]);
+  }, [c, filmPairs, chipDone, data]);
   const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);
   const derivedSegment = segmentForPattern(c, status, filled, live, filmExtra);
   const segment = resolvePinnedSegment(segmentOrder, pinned, derivedSegment);
@@ -342,6 +359,13 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       if (!r.ok) {
         setSaveError(d?.error || 'Gagal menyimpan catatan.');
         throw new Error(d?.error || 'Gagal menyimpan.');
+      }
+      // Segarkan catatan + tampilkan afirmasi firman langsung tanpa tunggu polling.
+      if (d.notes && typeof d.notes === 'object') {
+        setData((prev) => (prev ? { ...prev, notes: d.notes } : prev));
+      }
+      if (d.affirmations && typeof d.affirmations === 'object') {
+        setNoteAffirm((prev) => ({ ...prev, ...(d.affirmations as Record<string, string>) }));
       }
     },
     [slug],
@@ -382,11 +406,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   }, [slug, picked, load]);
 
   const screening = data?.screening || null;
-  const screeningOn = has('screening') && screening?.startedAt;
-  const now = useNowTick(Boolean(screeningOn));
-  const screeningRemain = screeningOn
-    ? new Date(screening.startedAt as string).getTime() + (screening.durationMin || 90) * 60000 - now
-    : null;
 
   const rounds = data?.rounds || null;
   const currentRound = rounds?.rounds?.[rounds?.current || 0] || null;
@@ -514,6 +533,17 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                 </p>
               </div>
             ) : null
+          ) : c === 'BEDAH_FILM' ? (
+            phaseRemainMs !== null && phaseName === 'M0' ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                  Likert Awal{phaseExpired ? ' · waktu habis' : ''}
+                </p>
+                <p className="font-display text-2xl font-black tabular-nums">
+                  {phaseExpired ? '00:00' : fmtRemain(phaseRemainMs)}
+                </p>
+              </div>
+            ) : null
           ) : (
             <SessionTimer timer={data.timer} />
           )}
@@ -603,15 +633,21 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           <h4 className="text-sm font-black text-[#1B1B1B] mb-2 inline-flex items-center gap-1.5">
             <Clapperboard className="w-4 h-4 text-brand" /> Pemutaran
           </h4>
-          {screening ? (
-            <div className="rounded-xl bg-[#111] text-white p-4 flex items-center justify-between gap-3">
+          {screening?.startedAt ? (
+            <div className="rounded-xl bg-[#111] text-white p-4 space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold truncate">{screening.title}</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400 shrink-0">● Tayang</p>
+              </div>
+              <p className="text-[11px] text-white/60">Harap tenang, fokus mendengar — HP tetap boleh untuk menjawab 3 catatan di bawah.</p>
+            </div>
+          ) : screening ? (
+            <div className="rounded-xl bg-[#111] text-white p-4">
               <p className="text-xs font-bold truncate">{screening.title}</p>
-              <p className="text-2xl font-black tabular-nums shrink-0">
-                {screeningRemain === null ? '––:––' : fmtRemain(screeningRemain)}
-              </p>
+              <p className="text-[11px] text-white/60 mt-1">Film segera mulai — siapkan hati dan 3 catatanmu.</p>
             </div>
           ) : (
-            <p className="text-xs text-[#8C8880] italic">Film menyusul — siapkan hati, HP silent.</p>
+            <p className="text-xs text-[#8C8880] italic">Film menyusul — siapkan hati, HP tetap boleh dipegang untuk menjawab.</p>
           )}
         </div>
       )}
@@ -623,6 +659,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           round={segment === 'likert-akhir' ? 'POST' : 'PRE'}
           editable={editable}
           showDelta={segment === 'likert-akhir' || (filmExtra?.postAnswered ?? false)}
+          affirm={data.affirmations ? { low: data.affirmations.likertLow, high: data.affirmations.likertHigh } : null}
           onDone={() => void load()}
         />
       )}
@@ -748,6 +785,18 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             </p>
           )}
           <SessionNotes slots={visibleSlots} values={notes} onSave={saveNote} disabled={!editable} lockedKeys={lockedKeys} />
+          {c === 'BEDAH_FILM' && data?.affirmations && (
+            <div className="space-y-2">
+              {visibleSlots
+                .filter((s) => String(notes[s.key] || noteAffirm[s.key] || '').trim() && data.affirmations?.notes[s.key])
+                .map((s) => (
+                  <div key={s.key} className="rounded-xl border border-brand/30 bg-gradient-to-r from-brand/10 to-brand-end/10 px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-brand mb-0.5">Afirmasi firman untukmu</p>
+                    <p className="text-xs leading-relaxed text-[#1B1B1B]">{data.affirmations?.notes[s.key]}</p>
+                  </div>
+                ))}
+            </div>
+          )}
         </>
       )}
       {saveError && <p className="text-[11px] text-red-600">{saveError}</p>}

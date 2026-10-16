@@ -223,6 +223,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
   const doAction = async (action: string, extra?: Record<string, unknown>) => {
     if (!detail) return;
+    if (action === 'reset') {
+      const ok = window.confirm(
+        'Reset ke Draft akan MENGHAPUS SEMUA isi audiens (jawaban Likert, vote, catatan, hasil undian) sesi ini. Soal + Lesson Learned master tetap. Lanjut?',
+      );
+      if (!ok) return;
+    }
     if (action === 'start') {
       const code = String(detail.session.pattern?.code || '').toUpperCase();
       const p = live?.progress || detail.progress;
@@ -803,10 +809,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 <>
                   {(
                     [
-                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL' },
-                      { key: 'M1', label: 'Mulai Film · 90’', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci.'); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL (durasi film via panel Pemutaran)' },
-                      { key: 'M3', label: 'Buka Likert AKHIR · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + tampil delta pre→post' },
-                      { key: 'M4', label: 'Komitmen + Undi · 10’', run: async () => { await doAction('wrapup'); setMsg({ kind: 'ok', text: 'Wrapup: komitmen + chip terbuka — undi 2 via panel Undian.' }); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + chip (undi 1 Mentee + 1 Mentor via panel Undian)' },
+                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); await saveStage(detail.session.id, { phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true } }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL + timer 5 menit (satu-satunya timer film)' },
+                      { key: 'M1', label: 'Mulai Film (ikuti film)', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci. Layar mode tenang.'); await saveStage(detail.session.id, { phase: null }); await loadDetail(); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL + matikan timer (mengikuti durasi film)' },
+                      { key: 'M3', label: 'Buka Likert AKHIR + Lesson Learned · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + Lesson Learned serentak + tampil delta pre→post' },
+                      { key: 'M4', label: 'Undi + Kesaksian · 10’', run: async () => { await doAction('wrapup'); setMsg({ kind: 'ok', text: 'Wrapup: undi 2 via panel Undian — nama + grup + hasil Lesson Learned tampil di layar.' }); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + undi 1 Mentee + 1 Mentor via panel Undian' },
                     ] as const
                   ).map((b) => (
                     <button
@@ -1287,7 +1293,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
           {canManageChips && (
           <div className={CARD}>
-            <p className="text-sm font-black">Chip words ({detail.chips.length})</p>
+            <p className="text-sm font-black">Lesson Learned ({detail.chips.length})</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {detail.chips.map((chip) => (
                 <span

@@ -217,6 +217,27 @@ export async function oneWordAggregate(prisma, sessionId, limit = 20) {
 }
 
 /**
+ * Afirmasi firman BEDAH_FILM dari draft sesi (section `affirm`).
+ * Tampil otomatis di HP peserta setelah menjawab: per Q catatan
+ * (FILM-Q1..3) + varian Likert rendah/tinggi. Fallback generik dari
+ * 1Kor 15 / Yoh 20 / Kis 4 bila draf belum diisi.
+ */
+export function filmAffirm(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const a = draft.affirm && typeof draft.affirm === 'object' ? draft.affirm : {};
+  const pick = (key, fallback) => String(a[key] || '').trim() || fallback;
+  return {
+    notes: {
+      'FILM-Q1': pick('affirm-q1', 'Kejujuranmu dilihat Tuhan — Ia mati untuk dosamu sesuai Kitab Suci (1Kor 15:3). Topeng boleh tanggal di hadapan-Nya.'),
+      'FILM-Q2': pick('affirm-q2', 'Kristus menampakkan diri kepada lebih dari 500 saudara (1Kor 15:6) — bukti itu untukmu juga, bukan cuma mereka.'),
+      'FILM-Q3': pick('affirm-q3', 'Sebab tidak mungkin bagi kami untuk tidak berkata-kata tentang apa yang telah kami lihat dan dengar (Kis 4:20) — langkah kecilmu adalah kesaksian.'),
+    },
+    likertLow: pick('affirm-likert-low', 'Meragukan itu manusiawi — Tomas pun ragu, dan Yesus datang menemuinya (Yoh 20:27). Tetap jalan, tetap cari.'),
+    likertHigh: pick('affirm-likert-high', 'Imanmu bertumbuh — teguh, giat, dan berlimpah dalam pekerjaan Tuhan (1Kor 15:58). Jadilah saksi minggu ini.'),
+  };
+}
+
+/**
  * Kode slot catatan yang boleh diisi peserta: topik sesi + KESIMPULAN +
  * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
  */
@@ -640,6 +661,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         guide: fgdGuide(config),
         deepGuide: deepGuide(config),
         song: sessionSong(config),
+        affirmations: String(live.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' ? filmAffirm(config) : null,
         fgd: fgdState(config),
         phase: config.phase || null,
         phasePrefs: config.phasePrefs || null,
@@ -716,9 +738,11 @@ export function registerWorshipRoutes(app, { wrap }) {
         ),
       );
 
-      // Pola tanpa topik rank (mis. film): tanpa alokasi ruang — balas hitungan saja.
+      // Pola tanpa topik rank (mis. film): tanpa alokasi ruang — balas hitungan + afirmasi firman.
       if (!sessionConfig.topics.length) {
-        return res.json({ ok: true, round: round || null, answered: rows.length, total: items.length });
+        const affirm = filmAffirm(sessionConfig);
+        const avg = rows.length ? rows.reduce((n, r) => n + r.value, 0) / rows.length : 0;
+        return res.json({ ok: true, round: round || null, answered: rows.length, total: items.length, affirmation: avg <= 3 ? affirm.likertLow : affirm.likertHigh });
       }
 
       const agg = await loadAggregates(prisma, session);
@@ -832,7 +856,13 @@ export function registerWorshipRoutes(app, { wrap }) {
       const mine = await prisma.worshipNote.findMany({ where: { sessionId: live.id, userId: req.authUser.id } });
       const notes = {};
       for (const n of mine) notes[n.topicCode] = n.content;
-      res.json({ ok: true, notes });
+      // Afirmasi per Q film yang baru disimpan (tampil otomatis di HP peserta).
+      const affirm = filmAffirm(config);
+      const affirmations = {};
+      for (const { topicCode, content } of rows) {
+        if (content && affirm.notes[topicCode]) affirmations[topicCode] = affirm.notes[topicCode];
+      }
+      res.json({ ok: true, notes, affirmations });
     }),
   );
 
@@ -1312,6 +1342,30 @@ export function registerWorshipRoutes(app, { wrap }) {
         data.startedAt = null;
         data.wrapUpAt = null;
         data.closedAt = null;
+        // Reset keras: hapus SEMUA isi audiens (jawaban/vote/catatan/undi)
+        // + panggung live (screening/phase/gate) agar tak ada sisa nyangkut
+        // (kasus: gate AKHIR OPEN tertinggal saat status DRAFT). Soal/chip
+        // master + config.draft dipertahankan — tak perlu Terapkan ulang.
+        try {
+          const cfg = normalizeConfig(session.config);
+          cfg.testimony = null;
+          cfg.screening = null;
+          cfg.phase = null;
+          cfg.fgd = null;
+          cfg.likertRounds = null;
+          data.config = cfg;
+        } catch {
+          /* abaikan — status tetap di-reset */
+        }
+        try {
+          await prisma.$transaction([
+            prisma.worshipLikertResponse.deleteMany({ where: { sessionId: session.id } }),
+            prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } }),
+            prisma.worshipNote.deleteMany({ where: { sessionId: session.id } }),
+          ]);
+        } catch {
+          /* abaikan — status tetap di-reset */
+        }
       } else if (action === 'extend') {
         // Tambah waktu fleksibel (detik): preset +5/+60/+300 + custom, 5–1800.
         const seconds = Math.min(1800, Math.max(5, intOrNull(req.body?.seconds) || 300));
@@ -1921,6 +1975,12 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (b.likertRounds !== undefined) {
         const cleaned = cleanLikertRounds(b.likertRounds);
         if (!cleaned) return res.status(400).json({ error: 'State gate Likert tidak valid.' });
+        // Guard urutan: AKHIR hanya boleh dibuka saat sesi berjalan/wrapup —
+        // cegah gate nyangkut (kasus: AKHIR OPEN saat status DRAFT).
+        const st = String(session.status || '').toUpperCase();
+        if (cleaned.post === 'open' && (st === 'DRAFT' || st === 'LIKERT_OPEN')) {
+          return res.status(409).json({ error: 'Likert AKHIR hanya bisa dibuka setelah film mulai (status RUNNING).' });
+        }
         cfg.likertRounds = cleaned;
         out.likertRounds = cleaned;
       }

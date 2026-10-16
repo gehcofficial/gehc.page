@@ -10,6 +10,42 @@ import SessionTimer from './SessionTimer';
 import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 
+/**
+ * Nada bioskop bawaan (WebAudio, tanpa file): sapuan lembut naik
+ * sebagai penanda lampu redup. Diputar via klik (kebijakan autoplay).
+ */
+const CinemaToneButton: React.FC = () => {
+  const play = () => {
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.6);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 2.4);
+      window.setTimeout(() => void ctx.close(), 3000);
+    } catch {
+      /* audio tak didukung — abaikan */
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={play}
+      className="mt-4 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/20"
+    >
+      ▶ Nada bioskop
+    </button>
+  );
+};
+
 const MentoringScreen: React.FC = () => {
   const route = parseMentoringHash(typeof window !== 'undefined' ? window.location.hash : '');
   const slug = route?.slug || '';
@@ -140,12 +176,18 @@ const MentoringScreen: React.FC = () => {
   const { session, timer, progress, rooms, wordcloud } = data;
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.submitted / progress.total) * 100)) : 0;
   const patternCode = String(session.pattern?.code || '').toUpperCase();
+  const testimony = data.testimony || [];
+  const isFilm = patternCode === 'BEDAH_FILM';
+  // Finale film: WRAPUP/CLOSED atau sudah ada terundi — layar gabungan
+  // (delta + hasil Lesson Learned + nama & grup terundi) sekaligus.
+  const filmFinale = isFilm && (session.status === 'WRAPUP' || session.status === 'CLOSED' || testimony.length > 0);
   // MONOLOG: word cloud (Lesson Learned) hanya mengambil alih layar saat WRAPUP/CLOSED —
   // vote awal saat RUNNING tidak boleh menyembunyikan FGD/diskusi.
   const showWordCloud = patternCode === 'MONOLOG'
     ? session.status === 'WRAPUP' || session.status === 'CLOSED'
-    : session.status === 'WRAPUP' || wordcloud.length > 0;
-  const testimony = data.testimony || [];
+    : isFilm
+      ? filmFinale || wordcloud.length > 0
+      : session.status === 'WRAPUP' || wordcloud.length > 0;
   const phaseName = String(data.phase?.name || '').toUpperCase() || null;
   const phaseRemainMs = data.phase?.startedAt
     ? Math.max(0, new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - tick)
@@ -179,7 +221,18 @@ const MentoringScreen: React.FC = () => {
 
       {!showWordCloud && (
         <>
-          {patternCode !== 'MONOLOG' && (
+          {isFilm && data.phase?.name === 'M0' && phaseRemainMs !== null && (
+            <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Likert Awal</p>
+                <p className="text-sm text-white/60 mt-1">Isi 5 pernyataan di HP — tidak ada jawaban salah.</p>
+              </div>
+              <p className="font-display text-5xl font-black tabular-nums">
+                {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+              </p>
+            </section>
+          )}
+          {patternCode !== 'MONOLOG' && !(isFilm && session.status !== 'LIKERT_OPEN') && (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <Timer className="w-8 h-8 text-brand" />
@@ -269,19 +322,23 @@ const MentoringScreen: React.FC = () => {
               );
             })()}
             const screening = data.screening;
+            // Film mengikuti durasi tayang — tanpa countdown. Sebelum/saat putar,
+            // layar imbauan tenang (HP peserta tetap boleh untuk menjawab).
             if (patternCode === 'BEDAH_FILM' && screening) {
-              const remain = screening.startedAt
-                ? Math.max(0, new Date(screening.startedAt).getTime() + screening.durationMin * 60000 - Date.now())
-                : null;
-              const mm = remain === null ? '--' : String(Math.floor(remain / 60000)).padStart(2, '0');
-              const ss = remain === null ? '--' : String(Math.floor((remain % 60000) / 1000)).padStart(2, '0');
+              const onAir = Boolean(screening.startedAt);
               return (
-                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Sedang diputar</p>
-                    <p className="font-display text-2xl font-black mt-1">{screening.title}</p>
-                  </div>
-                  <p className="font-display text-5xl font-black tabular-nums">{mm}:{ss}</p>
+                <section className="rounded-[28px] bg-gradient-to-b from-white/10 to-white/5 border border-white/10 p-10 sm:p-14 flex-1 flex flex-col items-center justify-center text-center gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">
+                    {onAir ? '● Sedang diputar' : 'Bersiap menonton'}
+                  </p>
+                  <p className="font-display text-2xl sm:text-3xl font-black mt-1">{screening.title}</p>
+                  <p className="font-display text-xl sm:text-2xl font-black text-white/90">
+                    Harap tenang, fokus mendengar
+                  </p>
+                  <p className="text-sm text-white/50 max-w-md">
+                    HP tetap boleh dipegang untuk menjawab 3 catatan — jawab jujur, tiap jawaban ada afirmasi firman untukmu.
+                  </p>
+                  {onAir && <CinemaToneButton />}
                 </section>
               );
             }
@@ -371,10 +428,40 @@ const MentoringScreen: React.FC = () => {
         </>
       )}
 
-      {showWordCloud && patternCode !== 'MONOLOG' && (
+      {showWordCloud && patternCode !== 'MONOLOG' && !filmFinale && (
         <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex items-center justify-center">
           <WordCloud items={wordcloud} className="text-center" />
         </section>
+      )}
+
+      {filmFinale && (
+        <div className="flex flex-col gap-8 flex-1">
+          {(() => {
+            const m = data.likertMeans;
+            if (!m || (m.pre.n === 0 && m.post.n === 0)) return null;
+            return (
+              <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Perubahan setelah film (awal → akhir)</p>
+                <p className="font-display text-5xl font-black tabular-nums">
+                  {m.pre.avg?.toFixed(1) ?? '–'} <span className="text-white/40 text-3xl">→</span> {m.post.avg?.toFixed(1) ?? '–'}
+                  {m.delta != null && (
+                    <span className={`ml-3 text-2xl px-3 py-1 rounded-full ${m.delta > 0 ? 'bg-emerald-400/20 text-emerald-300' : m.delta < 0 ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-white/60'}`}>
+                      {m.delta > 0 ? `+${m.delta}` : m.delta}
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-white/50 mt-2 tabular-nums">rata-rata {m.pre.n} awal · {m.post.n} akhir</p>
+              </section>
+            );
+          })()}
+          <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand mb-4">Lesson Learned jemaat</p>
+              <WordCloud items={wordcloud} className="text-center" />
+            </div>
+          </section>
+          {testimony.length > 0 && <TestimonyWheel picks={testimony} />}
+        </div>
       )}
 
       {showWordCloud && patternCode === 'MONOLOG' && (

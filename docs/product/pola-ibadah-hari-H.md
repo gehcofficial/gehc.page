@@ -17,7 +17,7 @@
 
 ## 2. Aturan elastis (inti sebagai jangkar)
 
-- **Inti panjang** (Debat ±140, Bedah Film ±170): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
+- **Inti panjang** (Debat ±140, Bedah Film ±155): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
 - **Inti kurang** (Post-to-Post 60): **tambah di Didaskalia** — menu baku: tambah waktu segmen inti, monolog conclusi oleh speaker, kesaksian, 1 pertanyaan pendalaman, bedah 1 bait lagu.
 - Monolog gabungan 120 / 3 Sequences 120: hampir pas, tambahan kecil atau jalan apa adanya. Dual Monolog dilebur ke Monolog (arsip).
 
@@ -122,19 +122,21 @@ Dual Monolog diarsipkan dan diserap seluruhnya (bedah lagu, Satu Kata, deep shar
 | Syafaat = doa tutup | 5 | gabung |
 | Foto (pasca minimal) | 5 | hemat |
 
-### Bedah Film (±170', baku film 90; total = 80 + durasi)
+### Bedah Film (±155', baku film 90; total = 65 + durasi)
 
 | Segmen | Menit | Status |
 |---|---|---|
-| Pra (registrasi + persiapan + paralel proyektor/matras) | 10 | tetap (T-minus) |
-| Pembuka (1 lagu + doa) + persembahan & syafaat | 15 | tetap |
-| Transisi/pengantar + Likert AWAL 5 item | 10 | tetap |
-| Film 90' + konsumsi paralel (tuan rumah) | 90 | tetap + paralel |
-| Deep sharing 3 Q (catat di HP) | 10 | tetap |
-| Likert AKHIR (sama) + delta di layar | 5 | tambah |
-| Komitmen + chip + undi 2 kesaksian | 10 | tambah |
-| Doa tutup + terima kasih + HUT | 15 | tetap |
-| Foto | 5 | tetap |
+| Registrasi Ulang | 5 | tetap |
+| Persiapan Ibadah (paralel: proyektor/sound + matras/konsumsi) | 5 | tetap (T-minus) |
+| Opening (Lagu buka, Doa Buka, Praise & Worship) | 5 | tetap |
+| Persembahan + Doa (persembahan & syafaat) | 10 | tetap |
+| Transisi — jabarkan Alkitab + Likert Awal (infokan isi catatan saat film) | 5 | tetap |
+| Movie Breakdown (ikuti durasi film) + konsumsi paralel (tuan rumah) | 90 | tetap + paralel |
+| Transisi — konklusi + Likert Akhir + Lesson Learned Chip + 2 kesaksian | 15 | tetap |
+| Lagu & Doa Penutup | 5 | tetap |
+| Terima kasih + Pengumuman | 5 | tetap |
+| HUT + Doa | 5 | tetap |
+| Foto Bersama | 5 | tetap |
 
 ### 3 Sequences (±165')
 

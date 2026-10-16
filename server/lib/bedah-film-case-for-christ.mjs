@@ -30,7 +30,7 @@ export const CASE_FOR_CHRIST_DRAFT = {
   'likert-film': {
     'likert-film-1': 'Saya merasa perlu bukti yang kuat sebelum percaya kebangkitan Yesus relevan bagi kuliah/pekerjaan saya.',
     'likert-film-2': 'Saya yakin Yesus benar-benar mati disalib dan bangkit secara historis (1 Korintus 15:3-4), bukan sekadar kiasan.',
-    'likert-film-3': 'Saya berani jujur soal keraguan iman saya di depan teman kos/kelompok, seperti Leslie kepada Lee.',
+    'likert-film-3': 'Saya terbuka membicarakan keraguan iman saya dengan teman kos/kelompok atau mentor.',
     'likert-film-4': 'Saya merasa perubahan hidup saya (sikap di shift/kampus/kos) bisa menjadi bukti Injil bagi orang lain.',
     'likert-film-5': 'Saya percaya Injil memberikan arah bagi keputusan hidup saya minggu ini (KRS, magang, lembur, relasi).',
   },

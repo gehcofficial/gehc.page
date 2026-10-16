@@ -161,12 +161,24 @@ const BEDAH_FILM_TEMPLATE: DraftSection[] = [
   },
   {
     key: 'deep',
-    title: 'Deep sharing (3 pertanyaan wajib)',
-    hint: 'Q1 masa lalu, Q2 masa kini, Q3 langkah otentik.',
+    title: 'Catatan selama film (3 pertanyaan wajib)',
+    hint: 'Q1 masa lalu, Q2 masa kini, Q3 langkah otentik. Dijawab di HP selama film + afirmasi firman per jawaban.',
     fields: [
       t('film-q1', 'Pertanyaan 1 — akting suci', 'textarea', 'Kapan terakhir ...?'),
       t('film-q2', 'Pertanyaan 2 — topeng terberat', 'textarea', 'Topeng apa ...?'),
       t('film-q3', 'Pertanyaan 3 — langkah otentik', 'textarea', 'Langkah otentik minggu ini ...?'),
+    ],
+  },
+  {
+    key: 'affirm',
+    title: 'Afirmasi firman (tampil setelah peserta menjawab)',
+    hint: '1 afirmasi per Q catatan + 2 varian Likert (skor rendah/tinggi). Tampil otomatis di HP peserta.',
+    fields: [
+      t('affirm-q1', 'Afirmasi Q1', 'textarea', 'Kejujuranmu dilihat Tuhan ... (1Kor 15:3)'),
+      t('affirm-q2', 'Afirmasi Q2', 'textarea', 'Bukti itu menguatkanmu ... (1Kor 15:5-8)'),
+      t('affirm-q3', 'Afirmasi Q3', 'textarea', 'Langkah kecilmu berarti ... (Kis 4:19-20)'),
+      t('affirm-likert-low', 'Afirmasi Likert (rata-rata ≤ 3)', 'textarea', 'Meragukan itu manusiawi — Tomas pun ... (Yoh 20:27)'),
+      t('affirm-likert-high', 'Afirmasi Likert (rata-rata > 3)', 'textarea', 'Imanmu bertumbuh — jadilah saksi ... (1Kor 15:58)'),
     ],
   },
   {

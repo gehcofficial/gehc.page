@@ -156,7 +156,7 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
     try {
       const d = await saveStage(sessionId, { screening: patch });
       setStartedAt(d.screening?.startedAt || null);
-      setMsg(patch.startedAt ? 'Pemutaran dimulai — countdown jalan di layar.' : 'Tersimpan.');
+      setMsg(patch.startedAt ? 'Pemutaran dimulai — layar mode tenang (tanpa countdown).' : 'Tersimpan.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {

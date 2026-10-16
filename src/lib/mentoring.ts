@@ -90,8 +90,8 @@ export type SessionSong = {
 
 export type SessionFgdState = { currentQ: number; triggerBy: string | null; triggerName: string | null } | null;
 
-/** Timer fase aktif (MONOLOG): F1 20' + F2 25' + F3 10' + Closing 5'. Display-only; transisi manual. */
-export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING'; startedAt: string; durationSec: number; showOnScreen?: boolean } | null;
+/** Timer fase aktif (MONOLOG F1/F2/F3/CLOSING + film M0 = jendela Likert AWAL 5'). Display-only; transisi manual. */
+export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING' | 'M0'; startedAt: string; durationSec: number; showOnScreen?: boolean } | null;
 
 /** Preferensi tiap fase (durasi + tampil di layar proyektor; diatur kontrol). */
 export type PhasePrefs = Partial<Record<'F1' | 'F2' | 'F3' | 'CLOSING', { durationSec: number; showOnScreen: boolean }>>;
@@ -131,6 +131,8 @@ export type MentoringSessionPayload = {
   song?: SessionSong;
   /** Status trigger Q mentor (MONOLOG gabungan). */
   fgd?: SessionFgdState;
+  /** Afirmasi firman BEDAH_FILM (dari draft sesi; tampil setelah menjawab). */
+  affirmations?: { notes: Record<string, string>; likertLow: string; likertHigh: string } | null;
   /** Fase aktif + countdown (MONOLOG gabungan). */
   phase?: SessionPhase;
   /** Preferensi tiap fase (diatur kontrol; default durasi baku + tampil). */

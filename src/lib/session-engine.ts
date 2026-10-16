@@ -37,10 +37,9 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   ],
   BEDAH_FILM: [
     { id: 'likert-awal', label: 'Likert Awal', hint: '5 pernyataan baseline sebelum nonton (wajib semua).' },
-    { id: 'nonton', label: 'Nonton & Catat', hint: 'Catat 3 adegan paralel firman selama film.' },
-    { id: 'deep', label: 'Deep Sharing', hint: '3 pertanyaan wajib + komitmen.' },
-    { id: 'likert-akhir', label: 'Likert Akhir', hint: '5 item yang sama — lihat perubahanmu.' },
-    { id: 'komitmen', label: 'Komitmen + Chip', hint: 'Komitmen otentik + chip Lesson Learned.' },
+    { id: 'nonton', label: 'Nonton & Catat', hint: 'Catat 3 Q selama film — tiap jawaban ada afirmasi firman.' },
+    { id: 'likert-akhir', label: 'Likert Akhir', hint: '5 item yang sama + Lesson Learned terbuka serentak.' },
+    { id: 'lesson-learned', label: 'Lesson Learned', hint: 'Pilih maks 3 chip + komitmen.' },
     { id: 'kesaksian', label: 'Kesaksian', hint: 'Undi 1 Mentee + 1 Mentor + unduh rekap.' },
   ],
   THREE_SEQUENCES: [
@@ -52,13 +51,14 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
 
-/** State progres film untuk stepper (pre/post likert, deep, chip, screening). */
+/** State progres film untuk stepper (pre/post likert, chip, gate AKHIR). */
 export type FilmProgress = {
   preAnswered?: boolean;
   postAnswered?: boolean;
-  deepFilled?: boolean;
   chipDone?: boolean;
   screeningOn?: boolean;
+  /** Gate ronde AKHIR terbuka (kontrol M3) — peserta maju ke likert-akhir. */
+  postOpen?: boolean;
 };
 
 /** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
@@ -80,17 +80,19 @@ export function segmentForPattern(
     if (st === 'RUNNING') return phase === 'F2' ? 'catatan' : order[1] || order[0];
     return order[0];
   }
-  // BEDAH_FILM: likert-awal → nonton → deep → likert-akhir → komitmen → kesaksian.
+  // BEDAH_FILM: likert-awal → nonton → likert-akhir (+Lesson Learned serentak) → lesson-learned → kesaksian.
+  // Maju mengikuti GATE kontrol (postOpen), bukan countdown — film mengikuti durasi tayang.
   if (c === 'BEDAH_FILM') {
     const e = extra || {};
-    if (st === 'WRAPUP') return e.chipDone ? 'kesaksian' : 'komitmen';
+    if (st === 'WRAPUP') return e.chipDone ? 'kesaksian' : 'lesson-learned';
     if (st === 'RUNNING') {
       if (!e.preAnswered) return 'likert-awal';
-      if (e.screeningOn) return 'nonton';
-      if (!e.deepFilled) return 'deep';
-      if (!e.postAnswered) return 'likert-akhir';
-      if (!e.chipDone) return 'komitmen';
-      return 'kesaksian';
+      if (e.postOpen || e.postAnswered) {
+        if (!e.postAnswered) return 'likert-akhir';
+        if (!e.chipDone) return 'lesson-learned';
+        return 'kesaksian';
+      }
+      return 'nonton';
     }
     return 'likert-awal';
   }
@@ -253,9 +255,8 @@ export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = 
   BEDAH_FILM: {
     'likert-awal': ['likert'],
     nonton: ['screening', 'notes'],
-    deep: ['notes'],
-    'likert-akhir': ['likert'],
-    komitmen: ['chips', 'notes', 'download'],
+    'likert-akhir': ['likert', 'chips'],
+    'lesson-learned': ['chips', 'notes', 'download'],
     kesaksian: ['testimony', 'download'],
   },
   THREE_SEQUENCES: {

@@ -8,7 +8,7 @@ import {
   storedToSections,
   templateFieldKeys,
 } from '../../src/lib/worship-session-draft';
-import { deepGuide, normalizeConfig } from '../../server/routes/worship.mjs';
+import { deepGuide, filmAffirm, normalizeConfig } from '../../server/routes/worship.mjs';
 import { parseFilmDurationMin } from '../../server/lib/session-stage.mjs';
 
 const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
@@ -55,9 +55,9 @@ describe('session-draft: template kosongan 5 pola', () => {
     expect(templateFieldKeys('DUAL_MONOLOG').map((f) => f.key)).toEqual(keys);
   });
 
-  it('BEDAH_FILM: film + likert 5 (2 ronde) + deep 3 + lesson 10', () => {
+  it('BEDAH_FILM: film + likert 5 (2 ronde) + deep 3 + afirmasi 5 + lesson 10', () => {
     const keys = templateFieldKeys('BEDAH_FILM').map((f) => f.key);
-    for (const k of ['film-title', 'film-scenes', 'likert-film-1', 'likert-film-5', 'film-q1', 'film-q3', 'lesson-chip-1', 'lesson-chip-10']) {
+    for (const k of ['film-title', 'film-scenes', 'likert-film-1', 'likert-film-5', 'film-q1', 'film-q3', 'affirm-q1', 'affirm-likert-low', 'affirm-likert-high', 'lesson-chip-1', 'lesson-chip-10']) {
       expect(keys).toContain(k);
     }
     expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
@@ -169,9 +169,33 @@ describe('session-draft: curasi The Case for Christ', () => {
     expect(all).toContain('Lee Strobel');
   });
 
+  it('Likert PRE baseline tanpa spoiler (tanpa nama tokoh/plot)', () => {
+    const vals = Object.values(CASE_FOR_CHRIST_DRAFT['likert-film']);
+    for (const v of vals) {
+      expect(v).not.toMatch(/Leslie|Lee Strobel/);
+    }
+  });
+
   it('setiap nilai muat batas 2000 char server', () => {
     const vals = Object.values(CASE_FOR_CHRIST_DRAFT).flatMap((sec) => Object.values(sec));
     expect(vals.every((v) => typeof v === 'string' && v.length > 0 && v.length <= 2000)).toBe(true);
+  });
+});
+
+describe('session-draft: filmAffirm afirmasi per jawaban', () => {
+  it('kosong → fallback 1Kor 15 / Yoh 20 / Kis 4', () => {
+    const out = filmAffirm({ draft: {} });
+    expect(Object.keys(out.notes)).toEqual(['FILM-Q1', 'FILM-Q2', 'FILM-Q3']);
+    expect(out.notes['FILM-Q1']).toContain('1Kor 15:3');
+    expect(out.likertLow).toContain('Yoh 20:27');
+    expect(out.likertHigh).toContain('1Kor 15:58');
+  });
+
+  it('draf terisi → pakai redaksi tim', () => {
+    const out = filmAffirm({ draft: { affirm: { 'affirm-q1': 'Custom Q1', 'affirm-likert-high': 'Custom high' } } });
+    expect(out.notes['FILM-Q1']).toBe('Custom Q1');
+    expect(out.notes['FILM-Q2']).toContain('1Kor 15:6');
+    expect(out.likertHigh).toBe('Custom high');
   });
 });
 

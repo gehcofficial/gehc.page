@@ -1,5 +1,364 @@
 # GEHC Portal — Handoff
 
+## Current — Daftar hadir di portal + ringkasan untuk semua berperan (16 Okt 2026)
+
+**Minta:** (1) fitur mendaftar kehadiran di portal Info Event (tidak hanya
+landing); (2) ringkasan khotbah bisa diakses semua orang seperti RHB.
+
+**Ubah (kode, belum push):**
+- `EventInfoPanel.tsx` (+ `lib/event-register.ts`): tombol Daftar Kehadiran
+  utk event aktif yg belum terdaftar (pakai `register-auth` + refresh;
+  server tetap gate INTERNAL/ARCHIVED/peran).
+- `didaskalia-studio.mjs`: `canViewDoc` khutbah = beyonders+staf (diekspor
+  sbg `canViewMaterialDoc` + test); pesan 403 disesuaikan; pembekalan tetap.
+- Test `portal-event-access.test.ts` (+5).
+
+**Verifikasi:** `lint` bersih utk file episode (1 error lokal milik file
+untracked sesi paralel, tak ikut push) ✓ test baru 5/5 ✓ `build` OK ✓.
+
+**Next:** QA — daftar dari portal (QR+WA muncul), event Internal ditolak
+sopan, Mentee buka deck khutbah, pembekalan tetap 403.
+
+**Deploy:** BELUM commit/push (hemat deployment; workspace paralel aktif).
+
+## Current — PDF via print + caption pindah tab Syukur (16 Okt 2026)
+
+**Minta:** PDF persis website (via print); penatalayan hilang hanya di
+unduhan (landing tetap); caption Koinonia pindah ke panel (tab sendiri).
+
+**Ubah (sudah push `468fbb2`):**
+- `ArsipDetail`: tombol jadi Cetak/PDF (`window.print`); print hanya
+  khotbah (hero+ide+ayat+4 seksi) — tombol/galeri/petugas/caption/nav/
+  footer `print:hidden`; hapus seksi caption + builder jsPDF tak dipakai.
+- Baru tab `syukur` Koinonia (`portal-nav-config`, `DetailTab`, `TAB_META`,
+  i18n `tabSyukur` ID/EN) + `EventThanksCard` (pilih arsip → caption
+  sunting → Salin/WA) + `lib/arsip-caption.ts` + test.
+- `ringkasanPdf.ts` tetap untuk tombol Warta.
+
+**Verifikasi:** `lint` bersih ✓ `arsip-caption` 2/2 + nav 28/28 ✓
+`build` OK ✓.
+
+**Next:** QA print preview (hanya khotbah) + tab Syukur + Warta PDF.
+
+**Deploy:** push main ✓ → CI hijau ✓ → Vercel production Ready ✓.
+HANDOFF ini belum di-commit (campur sesi paralel).
+
+## Current — Deck desktop: rail + font lg (16 Okt 2026)
+
+**Minta:** deck di laptop kosong, di HP pas. Pilih: rail + font besar.
+
+**Ubah (push `f9400f8` + `f7b623c`):** `DeckShell` rail daftar slide desktop (`hidden lg:`, sticky, klik lompat, auto-scroll item aktif; label via `deckRailLabel`) + container `lg:max-w-7xl`; `SlideView` font naik 1 tingkat di `lg` + artikel `lg:min-h` center vertikal; `MdBlocks` +1 tingkat `lg` (paper/overlay/plain, cetak tak berubah); HP (`<lg`) piksel-identik.
+
+**Verifikasi:** label + struktur rail 21/21 ✓ full 1179/1180 (flaky pra-ada) ✓ lint bersih ✓ build Vercel OK ✓ push ✓. Visual browser tak bisa login staging (password demo tak cocok) — minta eyeball pemilik di laptop 1366/1920 vs HP 390.
+
+## Current — Unduh PDF ringkasan khotbah (dibuat di HP) (16 Okt 2026)
+
+**Minta:** fitur download as PDF di website, khususnya ringkasan khotbah.
+
+**Ubah (sudah push `4a4e48a`):** baru `lib/ringkasanPdf.ts` (builder jsPDF
+client-side: sampul + ide + ayat + 4 seksi + lampiran petugas + footer link;
+cover best-effort) + tombol Unduh PDF di `ArsipDetail` (busy + fallback)
++ tombol Warta disambungkan ke builder yang sama (sebelumnya toast palsu).
+
+**Verifikasi:** `lint` bersih ✓ `ringkasan-pdf` 3/3 ✓ `build` OK ✓.
+
+**Next:** QA HP (unduh terbuka benar, tanpa cover tetap jadi, teks panjang
+multi-halaman).
+
+**Deploy:** push main ✓ → CI hijau ✓ → Vercel production Ready ✓ →
+`staging:sync` tuntas (main = staging = `4a4e48a`) ✓. HANDOFF ini belum
+di-commit (campur sesi paralel).
+
+## Current — Guard acuan RHB 0 path (16 Okt 2026)
+
+**Laporan:** user tempel MD lengkap ke kotak acuan (tab Inti) → notif "0/7 Path … Simpan sebagai acuan" menyesatkan. Sebab: salah kotak (importer ada di tab 7 Path) + kode lama menyimpan acuan kosong.
+
+**Ubah (sudah push `2076ef0`):** `parseWeeklyMd('rhb')` — hasil 0 path → tidak disimpan + pesan mengarahkan ke "Import MD lengkap" tab 7 Path (1 file, 6 baris).
+
+**Verifikasi:** lint bersih ✓ file 13/13 ✓ push ✓. Cara benar tetap: tab 7 Path → Import MD lengkap → Parse → Terapkan.
+
+## Current — Arsip: hero overlay teks-di-gambar + grouping petugas (16 Okt 2026)
+
+**Minta:** (1) teks ringkasan menimpa gambar cover; (2) daftar petugas
+dikelompokkan Divisi → Role → Orang dengan styling bagus.
+
+**Ubah (kode, belum push):** `ArsipDetail.tsx` — cover jadi hero
+(gradient + bigIdea overlay + chip tanggal; fallback tata lama bila tanpa
+cover/gagal load; ayat tetap di bawah); seksi petugas memakai
+`groupPeopleByDivision` + warna divisi reuse + sub-grup Role + `DutyPersonChip`.
+
+**Verifikasi:** `lint` bersih ✓ full suite 1173/1173 ✓ `build` OK ✓.
+
+**Next:** QA visual HP 360 + desktop (kontras teks, fallback tanpa cover,
+“Lainnya” utk tanpa divisi).
+
+**Deploy:** BELUM commit/push (hemat deployment; workspace paralel aktif).
+
+## Current — Import MD RHB 7 hari jadi ke 7 Path (16 Okt 2026)
+
+**Minta:** file `Ancient_Word...Paths_1-7.md` (RHB harian lengkap 18–24 Okt = W3) bisa diregenerate/diterapkan; flow saat ini?
+
+**Temuan:** parser acuan (`parseRhbMd`) MENOLAK file tsb (0/7: `# PATH` 1 pagar bukan heading + wajib `**Scripture:**` sedang file pakai `**Ayat Renungan:**`). File tsb = konten final (5 section + Jembatan), bukan acuan — AI tak diperlukan.
+
+**Ubah (sudah push `79d4d99`):** `parseRhbFullMd` baru (7 `# PATH N` + `## judul` + Ayat Renungan + 5 section + Jembatan; validasi per hari) + `POST /api/didaskalia/parse-md kind=rhb-full` + blok **Import MD lengkap** di tab 7 Path (paste → Parse → preview 7 judul → mode Timpa/Isi-kosong → Terapkan; tulis judul+nats+5 section+bridge verbatim, Bacaan tak disentuh, tolak bila pendingRegen PENDING). Parser terverifikasi ke file asli: ok 7/7.
+
+**Verifikasi:** file +2 ✓ full 1172/1173 (flaky pra-ada) ✓ lint bersih ✓ push ✓.
+
+**Cara pakai (prod, setelah deploy):** Studio W3 → tab 7 Path → tempel isi file → Parse MD → Terapkan ke 7 Path → cek 7 hari → Ilustrasikan + Terbitkan seperti biasa. Tombol AI tak perlu disentuh.
+
+## Current — Ringkasan publik render MdBlocks (16 Okt 2026)
+
+**Minta:** tulisan ringkasan penuh simbol parser (`*`, `#`, `>`). Pakai renderer bawaan (disetujui).
+
+**Ubah (sudah push `30b6bf4`):** `RingkasanPublik.tsx` + `ArsipDetail.tsx` render tiap bagian outline via `parseMdLite` (+`speech` untuk kesimpulan) + `<MdBlocks tone="paper" density="compact" />` (sama dengan deck portal); tes render cuplikan asli tanpa simbol (+1, total file 11).
+
+**Verifikasi:** file 11/11 ✓ full 1170/1171 (flaky pra-ada) ✓ lint bersih ✓ push ✓. Browser live prod `#/ringkasan/2026-10/2`: heading biru, blockquote + chip ref, strong/emphasis, list berpoin, separator — tanpa simbol mentah ✓.
+
+## Current — Fix redirect arsip/ringkasan ke landing (16 Okt 2026)
+
+**Laporan:** klik tiap tanggal kembali ke landing. Akar: parser live App (`lib/hash-routes.ts`) tak kenal segmen `arsip/`/`ringkasan/` → default `beyonders`; fallback `routes.ts` di AppContext kode mati. Dampak ganda: `#/ringkasan/...` juga tak pernah terbuka.
+
+**Ubah (sudah push `c0e0e56`):** `hash-routes.ts` (+union tab, PUBLIC_TABS, handler `ringkasan/`+`arsip/`); tes parser live +2 (total file 10).
+
+**Verifikasi:** file 10/10 ✓ full 1169/1170 (flaky pra-ada) ✓ lint bersih ✓ push ✓. Browser live prod: `#/arsip/<id 11 Okt>` → detail penuh (cover, bigIdea, 4 section, galeri, tuan rumah Hesed + Avodah + 30 petugas, caption + Salin + WA) ✓.
+
+## Current — Arsip klik-per-tanggal + narasi live + caption (15 Okt 2026)
+
+**Minta:** warta kosong → tampilkan tanggal ARCHIVED/DONE berisi ringkasan + galeri + tuan rumah; gambar default = cover AI Studio; tiap tanggal klikable + routing (untuk caption Koinonia ke grup).
+
+**Ubah (sudah push `98aa123`):**
+- Server: gerbang ringkasan/gambar longgar — pekan lampau sajikan draf live + flag `published` (planning tetap 404); arsip tampil DONE/ARCHIVED lampau + `ringkasan {ym,week,published}` selalu ada.
+- Client: `ArsipIbadah` jadi daftar tanggal klik → `#/arsip/:id`; `ArsipDetail` baru (cover, narasi 4 bagian, galeri, tuan rumah + penanggung jawab + petugas via service-schedule publik, caption terima kasih + Salin + WA); route `arsip` di routes/AppContext/App; i18n arsip +caption id/en.
+- Tes +1 (route arsip; total file 9).
+
+**Verifikasi:** file 9/9 ✓ full 1167/1168 (flaky pra-ada) ✓ lint bersih ✓ push ✓. Prod live `98aa123`: arsip 7 event lampau (4 & 11 Okt + Sept, semua live), 25 Okt + 17 Okt absen (tepat — planning/masa depan), ringkasan W2 200.
+
+## Current — Publish khutbah = terbit + arsip sembunyikan planning (15 Okt 2026)
+
+**Minta:** W1/W2 "belum diterbitkan" padahal link harusnya bisa diakses; planning (25 Okt) jangan muncul.
+
+**Akar:** publish khotbah tak menandai PUBLISHED (hanya pembekalan/RHB) + arsip tampilkan semua event berfolder.
+
+**Ubah (sudah push `9078a96`):** `publishedOnPublishDoc` (+khutbah) di `didaskalia-studio.mjs`; `isArchiveVisible` (published + tanggal < hari ini WIB) + filter server di `drive-ownership.mjs`; kartu disederhanakan (tanpa pesan mati); skrip `backfill-published-khutbah.mjs` (dry-run default, lewati pendingRegen); tes +3 (total file 10).
+
+**Verifikasi:** file 10/10 ✓ full 1166/1167 (flaky pra-ada) ✓ lint bersih ✓ push ✓.
+
+**Fakta prod (cek read-only):** W1–W4 SEMUA DRAFT dan TANPA render (`render=[-]`; cover ada W1–W3). Backfill dry-run prod = 0 kandidat (tepat — tak ada snapshot khutbah yang bisa di-flip). Artinya W1/W2 memang belum pernah di-publish via tab Terbitkan (bukan sekadar status salah).
+
+**Tinggal tindakan tim (tak bisa/harusnya tidak otomatis):** publish W1/W2/W3 dari Studio → tab Terbitkan → publish khotbah (kode baru otomatis tandai PUBLISHED). Setelah itu tombol + narasi + gambar menyala di bulletin; W4 (25 Okt) tetap sembunyi sampai lewat + published.
+
+## Current — Undian film dibatasi tepat 2 + tawaran ganti (16 Okt 2026)
+
+**Minta:** kesaksian Bedah Film yang live harus tepat 2 orang (batas 2);
+kalau penuh, tawarkan ganti (pool dari pendaftar/hadir — sudah dikonfirmasi).
+
+**Ubah (sudah push `abd73ca`):**
+- `testimony.mjs` (baru `TESTIMONY_FILM_CAP` + `applyFilmCap`: fresh
+  diutamakan, tak pernah >2).
+- `worship.mjs` (draw + manual: film penuh tanpa flag → 409 `full:true`;
+  flag `replace:true` → 2 baru ganti 2 lama, slot dari 1; sabuk pengaman
+  cap di semua jalur merge; manual ikut pola film).
+- `TestimonyPanel.tsx` (tawaran ganti saat `full`: tampilkan 2 nama live +
+  tombol Ya-ganti/Batal; pola lain tak berubah).
+- Test `session-engine.test.ts` (+batas film).
+
+**Verifikasi:** `lint` bersih ✓ `session-engine` 37/37 ✓ `build` OK ✓
+full suite 1158/1159 (1 flaky `lazy-routes` pra-ada) ✓.
+
+**Next:** QA — undi 1× = 2 di layar; undi lagi → tawaran (batal = tetap,
+ganti = 2 baru); manual saat penuh ditolak; Monolog/standar tak terpengaruh.
+
+**Deploy:** push main ✓ → CI hijau ✓ → Vercel production Ready ✓ →
+`staging:sync` tuntas (main = staging, 9 alias) ✓. HANDOFF ini belum
+di-commit (campur sesi paralel).
+
+## Current — Bulletin arsip ibadah + ringkasan publik (15 Okt 2026)
+
+**Minta:** warta kosong → grid 4 event terbuka + see more; tiap grid: gambar Studio + narasi khotbah + button ringkasan (publik penuh) + galeri hari itu (thumbnail).
+
+**Ubah (kode, sudah push `2ba2e25`):**
+- Server: `GET /api/ibadah/ringkasan/:ym/:week` + `/gambar` (publik, published-only, 404 bila DRAFT) di `didaskalia-studio.mjs`; `public-archive` tambah `date` + `ringkasan {ym,week}|null` (GESER-aware via `originDateFor` + `weekIndexForDate`, cek PUBLISHED per ym) di `drive-ownership.mjs`.
+- Client: `ArsipIbadah.tsx` (baru: 4 terbuka + see more +4, cover lazy, narasi bigIdea, tombol `#/ringkasan`, thumbnail Drive) dipakai ganti empty-state warta (bila tanpa filter) di `WeeklyInfoSection.tsx`; `RingkasanPublik.tsx` (baru: `#/ringkasan/:ym/:week` baca-saja + 404 ramah); route `ringkasan` di `routes.ts`/`AppContext`/`App.tsx` (EventArchiveGallery dilepas dari bulletin, file tetap untuk halaman galeri); i18n `arsip`+`ringkasan` id/en.
+- Test `ringkasan-publik.test.ts` (+4: routing hash, mapping 17→W3, kalender).
+
+**Verifikasi:** `ringkasan-publik` 4/4 ✓ full 1162/1163 (1 flaky `lazy-routes` pra-ada) ✓ lint src/server/tests bersih (error hanya `dist/` basi sesi paralel) ✓. Push main ✓ + `staging:sync` ✓ (`2ba2e25` sama, 9 alias). Staging anon: `public-archive` 200 (9 event, 0 ringkasan), ringkasan W3 → 404 tepat (gate jalan).
+
+**PENTING — belum ada pekan PUBLISHED di prod maupun staging** (cek DB: nol). Tombol/narasi/gambar hanya muncul setelah pekan di-PUBLISH via Studio (persetujuan HOD — pintu ke publik, jangan publish sepihak). Agar kartu 17 Okt tampil penuh: publish W3 + pastikan cover terisi (unggah/generate di Studio tab gambar).
+
+## Current — Mentoring: back-nav semua pola + timer per fase + undi film 2 orang + extend detik (16 Okt 2026)
+
+**Minta:** (1) dialog Monolog keluar layar di HP → perbaiki; (2) opsi kembali
+ke flow terbuka ala post-to-post; (3) tiap step bisa diatur waktunya (tidak
+fix) + toggle tampil di layar per step; (4) Bedah Film undian ala Monolog
+(nama + grup di layar), tetap 2 orang; (5) tambah waktu fleksibel
+(+5/+60/+300 dtk + custom, bukan cuma +5 mnt).
+
+**Ubah (kode, belum push):**
+- `session-engine.ts` (`resolvePinnedSegment`) + `PatternDay.tsx` (baris tahap
+  jadi nav scroll + tombol kembali; pin mundur, tak ditarik maju paksa).
+- `session-stage.mjs` (`cleanPhase` terima `showOnScreen` default true;
+  baru `cleanPhasePrefs`/`defaultPhasePrefs`) + `worship.mjs` (cabang
+  `phasePrefs`, payload `phasePrefs` di 2 live endpoint, clamp `extend`
+  60→5 dtk).
+- `mentoring.ts` (tipe `showOnScreen` + `PhasePrefs`).
+- `MentoringControl.tsx` (blok Pengaturan tiap fase F1/F2/F3/CLOSING:
+  durasi menit + toggle tampil; tombol fase pakai preferensi; extend jadi
+  chip +5/+60/+300 dtk + custom 5–1800; `TestimonyPanel mode=film` utk film).
+- `TestimonyPanel.tsx` (prop `mode`; teks film: tepat 2 orang nama+grup;
+  server memang sudah undi 2 utk film).
+- `MentoringScreen.tsx` (timer fase disembunyikan bila dimatikan; HP peserta
+  tak berubah — tetap tampil).
+- Test `session-engine.test.ts` (+pin mundur 4, +showOnScreen, +phasePrefs;
+  1 ekspektasi lama disesuaikan field baru).
+
+**Verifikasi:** `lint` bersih (1 error lokal milik file untracked sesi paralel,
+tak ikut push) ✓ full suite 1158/1159 (1 flaky `lazy-routes` pra-ada) ✓
+`build` OK ✓.
+
+**Next:** QA — HP 320/360 (tahap scroll + mundur; jawaban tak hilang);
+kontrol (ubah durasi → countdown ikut; toggle mati → layar sembunyi, HP
+tampil); undi film (tepat 2 + grup di layar); extend custom 45 dtk.
+
+**Deploy:** 520a48f (back-nav) + edd5513 (timer/undi) → push main ✓ →
+CI hijau ✓ → Vercel production Ready ✓ → `staging:sync` tuntas
+(main = staging = `edd5513`, 9 alias) ✓. HANDOFF ini belum di-commit
+(campur sesi paralel).
+
+## Current — Pull prod → staging penuh (kode + data) (15 Okt 2026)
+
+**Minta:** semua yang ada di website prod sekarang ke staging, termasuk data.
+
+**Jalan:**
+- `staging:sync` ✓ — `main:staging` (`0b41663..b33d081`), deploy `gehcpage-l44tyzq04` + 9 alias, `/api/version` main == staging (`b33d081`) ✓.
+- `db:copy:prod-to-staging` dry-run ✓ (132/138 tabel, 10497 baris, exclude operator/push/ai-config/avatar, password scrub) → `:apply` ✓ 10497 baris, 0 gagal, 75.6s.
+- `db:seed-users:staging` ✓ (users 279, roles 397, struktur 39, mentee ter-link 92).
+- Verifikasi staging: sesi 17 Okt = film-title Case for Christ ✓, film-q2 kait khotbah ✓, Likert 10 + chip 10 (hasil Terapkan prod ikut tersalin) ✓, W3 bigIdea "kesaksian historis" ✓.
+
+**Catatan:** `screening: null` di staging = cermin akurat prod (Terapkan prod terjadi sebelum fix screening deploy). Isi otomatis pada Terapkan berikutnya (kode baru sudah live di kedua sisi). File Drive tidak ikut copy (by design — hanya ID sebagai teks). `worship_patterns` ikut dari prod (6 pola); bila tampak basi di staging → `db:seed:worship:staging`.
+
+## Current — Standar loading global anti-bosan + kunci interaksi (15 Okt 2026)
+
+**Kebutuhan:** saat waiting tampil UI standar (tidak bosan) dan user tak bisa
+asal scroll/swipe/klik ganda. Pilihan: semua loading dikunci, gaya branded
+menyenangkan, timeout + retry.
+
+**Ubah (kode, belum push):**
+- Baru: `ui/LoadingOverlay.tsx` (varian fullscreen/section, delay tampil 300ms,
+  pesan playful bergilir >3dtk, timeout default 20dtk + tombol Coba lagi/Kembali,
+  tone gelap utk auth, `role=status` + fokus), `hooks/useLoadingLock.ts`
+  (kunci body scroll + touchmove/wheel, counter aman tumpuk), `lib/loading-copy.ts`
+  (kontrak waktu) + `index.css` (`loading-slide` + reduced-motion).
+- i18n `en.ts`/`id.ts`: kamus `loading` (judul per kind + 4 pesan playful + teks timeout).
+- Pakai: `App.tsx` (SectionFallback + SessionRestore → overlay fullscreen),
+  `main.tsx` (HubFallback → overlay), `PortalLogin` (overlay di kartu + abort +
+  retry Google 25dtk + kunci form lokal anti double-submit), `AuthPanels`
+  (overlay + abort + retry), `WeeklyInfoSection`/`EventsTimeline`/
+  `WartaServiceDutySection`/`GroupActivitySection` (overlay section + abort +
+  retry; skeleton lama dipertahankan di bawah overlay).
+- Test baru `loading-copy.test.ts` (+4: delay tampil, fun mode, timeout, putar pesan).
+
+**Verifikasi:** `lint` bersih ✓ `build` OK ✓ `test` 1152/1153 — 1 gagal
+`worship-session-draft` (`parseFilmDurationMin` clamp) milik sesi paralel
+(test + sumber di luar file saya; belum ada di main) — file saya hijau semua
+(termasuk `loading-copy` 4/4).
+
+**Next:** QA manual throttling Fast 4G — overlay muncul >300ms, pesan berganti
+>3dtk, scroll/swipe terkunci, matikan server → timeout → Coba lagi; cek
+`prefers-reduced-motion` dan screen-reader.
+
+**Deploy:** b60e449 (fix 2 file) + ca7bd6e (perf+loading) + b33d081
+(mandirikan tipe) → push main ✓ → CI `lint-and-test` hijau ✓ → Vercel
+production Ready ✓ (22:02 WIB, semua alias) → `youth.gehc.page` 200 ✓.
+Catatan: commit perf menyerap file loading (satu commit, tetap 1 push).
+HANDOFF ini belum di-commit (campur sesi paralel) — section ini tetap di
+working tree.
+
+## Current — Terapkan isi Pemutaran + deep-Q tampil + prompt kait khotbah (15 Okt 2026)
+
+**Laporan:** sesudah Terapkan, modul Pemutaran film tetap kosong (judul kosong, durasi 91 = fallback) — perlu isi manual; deep sharing draf (film-q1..3) tak tampil di peserta/layar; Q deep tak dikaitkan ke ringkasan khotbah Studio. Akar (tiga rantai putus): `apply-draft` BEDAH_FILM tak menulis `config.screening` (`worship.mjs:1566` hanya Likert+chip) sedang `ScreeningPanel` hanya baca `config.screening` (`StagePanels.tsx:137`); `deepGuide()` hanya kenal `deep-q1/2` sedang template film simpan `film-q1..3` (`worship.mjs:162`); prompt hanya terima `sermon.summary` tanpa bigIdea/teksUtama/outline dan tanpa aturan deep-film.
+
+**Ubah (kode, sudah push `1cd975b`):**
+- `server/lib/session-stage.mjs` (`parseFilmDurationMin`: angka 2–3 digit sebelum "menit", tahun diabaikan, fallback 90) → `worship.mjs` `apply-draft` tulis `screening {title, durationMin, startedAt:null}` dari film-title + guard live (startedAt ada → tak sentuh) + balas `screening` ke UI.
+- `StagePanels.tsx` fallback baca `draft.film['film-title']` (selamatkan sesi Terapkan-lama); `SessionDraftTab.tsx` pesan sukses sebut Pemutaran terisi.
+- `deepGuide()` kembalikan 3Q bila ada kunci film-q (MONOLOG tetap 2) → peserta (`PatternDay` label slot dari deepGuide), layar (`MentoringScreen`), rekap PDF (`PatternDay:405` ikut BEDAH_FILM).
+- Prompt: `sermonFocusBlock` (bigIdea + teksUtama + cuplikan outline) + `DEEP_FILM_RULES` (Q1 analogi adegan; Q2 WAJIB Bedah Teologis khotbah + bigIdea + ref, fallback "(khotbah menyusul)"; Q3 nama+hari); route kirim bigIdea/teksUtama/outline + flag `sermonEmpty` → warning di `aiNote`.
+- Test (+7: parse durasi, deepGuide film/monolog, 2 prompt deep-film).
+
+**Verifikasi:** `worship-session-draft` 43/43 ✓ full suite 1152/1153 (1 flaky `lazy-routes` pra-ada) ✓. `lint`: gagal karena artefak `dist/assets` basi milik sesi paralel (50 error TS6053 semua di `dist/`, nol di `src/`/`server/` — tak terkait perubahan ini).
+
+**Data prod:** Studio W3 = tema "Ancient Word, Modern World", FF Kis 1:1-3, kitab 2Ptr 1:3-15, bigIdea "kesaksian historis" — selaras Case for Christ. `film-q2` sesi 17 Okt diperbarui langsung (tulis 1 kunci draf, sesi DRAFT) agar kait 2Ptr 1:3-15 + Kis 1:1-3 + bigIdea.
+
+**Deploy:** commit `1cd975b` (8 file; HANDOFF disisakan) → push main ✓ (`vercel:gc` 0 kandidat) ✓.
+
+## Current — AI Bedah Film pakai judul tim + curasi Case for Christ 17 Okt (15 Okt 2026)
+
+**Laporan:** `Isi dari AI pekan ini` untuk event 17 Okt (GESER 18→17, origin 2026-10/W3) tak sinkron Studio — fallback ke Gavin Stone/Soul Surfer. Penyebab: route hanya kirim firman/paths/sermon tanpa judul film; klik menimpa `film-title` yang sudah diketik; tombol bisa diklik saat origin week masih loading (baca W2 lama); Studio kosong total tetap di-generate (halusinasi).
+
+**Ubah (kode, belum push):**
+- `server/lib/didaskalia-ai.mjs` (`filmAnchorBlock` + `currentDraftBlock` + sinopsis Case for Christ: Lee Strobel/Yale Law/Leslie/±2 thn/4 argumen eksekusi–makam kosong–500 saksi–murid rela mati; ANTI-CONTOH sebut Gavin Stone eksplisit).
+- `server/routes/didaskalia-studio.mjs` (`POST .../session-draft` terima `currentDraft/filmTitle/notes`; guard 400 bila Studio kosong + tanpa judul — cegah fallback lama).
+- `SessionDraftTab.tsx` (kirim `currentDraft` + `filmTitle`; merge hanya isi yang kosong — tak overwrite; badge `ym/W + slot → event`; prop `weekLoading`; hint ketik judul dulu).
+- `PolaSesiPanel.tsx` (hapus state beku ym/week; `key` ikut ym-week-epoch; badge pekan; teruskan `weekLoading`).
+- `DivisionWorkspacePanel.tsx` (teruskan `originWeek.loading` ke Pola).
+- Baru: `server/lib/bedah-film-case-for-christ.mjs` (curasi lengkap: film-alt 2 kandidat + 3 adegan ↔ 1Kor 15:3-8/Yoh 20/Kis 4 + pleno + likert 5 + deep 3Q + 10 chip) + `scripts/fill-bedah-film-case-for-christ.mjs` (dry-run default; `--apply/--force/--create`; abort bila bukan DRAFT / sudah ada soal).
+- Test `worship-session-draft.test.ts` (+6: anchor film, anti-contoh, draf masukan, 3 curasi).
+
+**Verifikasi:** `lint` bersih ✓ `test` 1141/1142 (1 flaky `lazy-routes` ChurchHub-timeout pra-ada, tak terkait) ✓ `worship-session-draft` 36/36 ✓.
+
+**Next:** QA staging/prod: event geser 18→17 → badge W3 + tombol "Menunggu pekan…" hilang setelah override termuat; ketik judul film → AI lengkapi tanpa ganti judul; Studio kosong + judul kosong → 400 ramah.
+
+**Deploy:** commit `0111305` (8 file; HANDOFF disisakan — section sesi paralel belum push) → push main ✓ (Vercel prod deploy 1x; `vercel:gc` 0 kandidat) ✓.
+
+**Data prod 17 Okt:** TERISI ✓ — `fill-bedah-film-case-for-christ.mjs --apply` ke `sesi-2026-10-17-bedah-film` [DRAFT] (event "Ancient Word, Modern World - 17 Okt 2026", 0 item/responses; film-title lama kosong). Tinggal buka tab Draft → periksa → `Terapkan ke sesi`.
+
+## Current — Performa loading: login Google + Warta/Kegiatan (15 Okt 2026)
+
+**Laporan:** login Google delay, warta/kegiatan terbaru delay, banyak tempat lain terasa lambat.
+
+**Akar:** tombol Google nunggu `/api/auth/me` (TiDB) + GSI lazy tanpa preconnect;
+Warta/Kegiatan triple-waterfall tanpa cache tanpa skeleton; semua section landing
+eager-import; endpoint publik tanpa `Cache-Control`, `media/slots` pakai
+`no-store`, `content/public take 100`, stats landing N-query tak terbatas.
+
+**Ubah (kode, belum push):**
+- Server: `lib/public-cache.mjs` (baru) + `createApp.mjs` (Server-Timing + log
+  >800ms) + `content-public` (limit default 30, cache 45s, bust saat mutasi,
+  Cache-Control media) + `events-public` (cache landing 45s) +
+  `drive-ownership` (cache service-schedule & group-albums 60s) + `index.mjs`
+  (`/me` paralel Bod/Didaskalia + `no-store`) + `event-signup-stats` (take 2000).
+- Frontend: `AppContext` (`ssoLoading` terpisah — tombol Google tak tunggu `/me`)
+  + `google-auth-flow` (cache clientId 5 mnt) + `PortalLogin` (skeleton + spinner
+  Google) + `AuthPanels` (skeleton config) + `index.html` (preconnect GSI, font
+  gabungan 1 request, pwa defer) + `ui/Skeleton` (baru) dipakai
+  `WeeklyInfoSection`/`EventsTimeline`/`WartaServiceDutySection` +
+  `useMediaSlots` (hapus `no-store`, `refetchOnMount:false`) + `App.tsx`
+  (code-split 19 section per tab + warm idle content/landing).
+- Gambar: banner warta `lazy+async`.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1135/1136 (1 flaky `lazy-routes`
+ChurchHub-timeout pra-ada, hijau saat rerun isolasi) ✓ `build` OK ✓
+(chunks Warta/Events terpisah 8–12kB). Tanpa migrasi DB.
+
+**Next:** QA manual — login Google <1s tampil tombol + spinner saat klik;
+tab Warta/Kegiatan tampil skeleton dulu; cek Network TTFB + header
+`Cache-Control`/`Server-Timing`; ukur sebelum/sesudah di throttling Fast 4G.
+
+**Deploy:** BELUM commit/push (hemat deployment; workspace paralel aktif).
+File saya saja bila commit:
+`server/lib/public-cache.mjs, server/createApp.mjs, server/index.mjs,
+server/lib/event-signup-stats.mjs, server/routes/content-public.mjs,
+server/routes/events-public.mjs, server/routes/drive-ownership.mjs,
+index.html, src/App.tsx, src/context/AppContext.tsx,
+src/lib/google-auth-flow.ts, src/hooks/useMediaSlots.ts,
+src/components/portal/PortalLogin.tsx,
+src/components/public/auth/shared/AuthPanels.tsx,
+src/components/public/WeeklyInfoSection.tsx,
+src/components/public/EventsTimeline.tsx,
+src/components/public/WartaServiceDutySection.tsx,
+src/components/public/ui/Skeleton.tsx, HANDOFF.md`.
+Perintah: `lint` + `test` sudah hijau di atas; lalu commit spesifik +
+push + `staging:sync` satu batch.
+
 ## Current — Pola Katalog ↔ Studio dua arah + shell sesi (14 Okt 2026)
 
 **Laporan:** dropdown "Pola ibadah" di Studio/Inti manual — tak sync dengan katalog
@@ -16,6 +375,40 @@ weekMeta; label Studio + tanggal efektif & "sama dengan Katalog").
 
 **Next:** QA dua arah di event 17 Okt (Katalog→Studio & Studio→Katalog ikut;
 shell tepat satu; klik ulang tak ganda).
+
+**Deploy:** commit `0b41663` (5 file; HANDOFF hanya section sendiri via splice)
+→ push main ✓ → `staging:sync` tuntas sekali jalan (deploy `gehcpage-cw4gagz4w`
+Ready + 9 alias + verifikasi main = staging = `0b41663`) ✓.
+
+## Current — Materi event geseran ikut origin week (deploy e81afbf)
+
+**Laporan:** event dipindah 18→17 Okt, tapi isinya sinkron dgn 11 Okt (W2) —
+seharusnya draf W3 (kosongan, perlu diisi); RHB + ringkasan ikut W3 atau tanggal baru?
+
+**Akar:** grid minggu = Minggu–Sabtu → Sabtu 17 Okt jatuh ke W2; 3 resolve
+tanggal→minggu (`DivisionWorkspacePanel`, `EventDidaskaliaMaterials`,
+`IbadahMingguanPanel`) tak kenal GESER; `effectiveDate` hanya satu arah
+(pekan→event). Data tidak rusak — hanya salah alamat minggu. Dikunci: materi
+ikut origin week W3 (RHB tetap Path 1 Minggu…7 Sabtu milik W3).
+
+**Ubah (kode, belum commit):** `service-overrides.mjs` lib (`originDateFor`,
+kebalikan `effectiveDate`) + routes (GET baca dibuka semua login; tulis tetap) →
+`church-week.ts` (`WeekOverride`, `originDateForEvent`, `weekForEventDate`) →
+hook baru `useOriginWeek.ts` (fetch map ±7 hari, fallback perilaku lama) →
+pakai di 3 komponen → test `church-week.test.ts` (+5) + `service-geser.test.ts`
+(+1 originDateFor).
+
+**Verifikasi:** `lint` bersih ✓ `test` **1131/1131** (146 files; 1 flaky
+`lazy-routes` + 1 ekspektasi null milik saya, keduanya hijau di rerun/isolasi) ✓
+`build` OK ✓. Tanpa migrasi DB.
+
+**Deploy:** commit `e81afbf` (9 file; campuran paralel dikecualikan via
+revert-restore) → push main ✓ → `staging:sync` tuntas → main = staging = prod =
+`e81afbf` ✓. File paralel tak tersentuh (satu sisipan JSX paralel dikembalikan
+di posisi logis pasca-Kalender — pemilik harap cek).
+
+**Next:** QA manual event 17 Okt (Studio, materi/RHB, pola & sesi, ibadah mingguan
+→ semua tunjuk W3; W2 tak tersentuh).
 
 ## Current — Siklus mingguan ideal: kosong → pola → draft → kontrol (14 Okt 2026)
 
@@ -38,6 +431,11 @@ baru: effective-date 8 + select ketat + gate 3 ✓ `build` OK ✓. Tanpa migrasi
 
 **Next:** QA staging end-to-end (pekan kosong → katalog → draft kosong 17 Okt →
 AI → Terapkan → kontrol terbuka; saveT0 tak seret tanggal; ganti pola tak
+nyangkut).
+
+**Deploy:** commit `037554d` (10 file; HANDOFF hanya section sendiri via splice)
+→ push main ✓ → `staging:sync` tuntas sekali jalan (deploy `gehcpage-tdzivafn0`
+Ready + 9 alias + verifikasi main = staging = `037554d`) ✓.
 
 ## Current — Baris pindahan GESER tak tampil + kartu WA tanggal efektif hilang (14 Okt 2026)
 
@@ -61,6 +459,10 @@ ganti tanggal reload; channel dibuat/dikelola untuk hari-H sebenarnya).
 
 **Next:** QA: baris W3 18 Okt tampil chip Geser → 17 Okt + Logos→Dunamis + kartu
 WA 17 Okt (buat link WA + sesi Bedah Film baru dari UI).
+
+**Deploy:** commit `536f40d` (3 file; HANDOFF hanya section sendiri via splice)
+→ push main ✓ → `staging:sync` tuntas sekali jalan (deploy `gehcpage-2zf3av798`
+Ready + 9 alias + verifikasi main = staging = `536f40d`) ✓.
 
 ## Current — Draft W3 nyangkut di sesi Rescue Plan W2 (13 Okt 2026)
 
@@ -88,7 +490,72 @@ timeout, pra-ada) ✓. Tanpa migrasi DB. Sesi 11 Okt tak tersentuh.
 **Next:** QA staging (event W3 → katalog BEDAH_FILM → Draft lepas dari Rescue Plan
 → Buat sesi `sesi-2026-10-17-bedah-film` → AI → Terapkan → Kontrol).
 
-## Current — Geser SISTEMIK 18→17: satu aksi semua artefak ikut (uncommitted, 13 Okt 2026)
+**Deploy:** commit `ad3c85f` (4 file episode; HANDOFF hanya section sendiri via
+splice, file paralel tak tersentuh) → push main ✓ (prod = ad3c85f) → branch
+staging ✓ + deploy preview `gehcpage-f0a30cibe` (Ready) + 9 alias ✓ (semua
+`/api/version` = ad3c85f).
+
+## Current — UX detail Program Event P0 (deploy 1891ca9, 13 Okt 2026)
+
+**Kebutuhan:** halaman detail event satu scroll terlalu panjang (header → Edit
+venue/maps → Konten publik → bank Soal + request + approval → 6 divisi
+Pre/During/Post → Pendaftar → Penatalayan 5 divisi → Rapat); user bingung cari
+tombol Simpan + beda Nama internal vs Judul publik.
+
+**Ubah (kode, 1 file):** `src/components/portal/EventWorkspacePanel.tsx`
+(+282/−57) → 6 seksi collapsible (`konten/soal/divisi/pendaftar/penatalayan/rapat`,
+status buka diingat per event di `localStorage`) + sub-nav lengket + checklist
+Siap Terbit (Konten ✓/! dari `/content`, Soal N dari `/questions`, Tapisan N dari
+`/penatalayan`, Divisi/Rapat dari state; klik = buka + loncat) + label
+`Nama internal (panitia saja)` + catatan auto pola & PJ/Tuan Rumah + fix rentang
+tanggal dobel + tombol aksi header `flex-wrap` untuk HP.
+
+**Verifikasi:** `lint` bersih ✓ `test` 1109 lolos, 1 flaky timeout
+`lazy-routes ChurchHub` (tak terkait) ✓ push `main` 1891ca9 ✓
+`staging:sync` ✓ sama (`1891ca9`, alias staging-* terpasang).
+
+**Next:** QA staging detail event (buka/tutup seksi, checklist loncat, persist
+per event) → lanjut auto-fill pola ibadah + PJ/Tuan Rumah grup-only di landing
+Kegiatan (disetujui: nama grup + label/status saja).
+
+## Current — Movie Breakdown 2 ronde: Likert AWAL/AKHIR + delta + undi 2 (deploy 1891ca9)
+
+**Kebutuhan (fokus movie):** pra-film Likert AWAL 5 item (baseline) → nonton → Deep 3Q
+web → Likert AKHIR (5 item sama, lihat perbedaan) → komitmen + chip card → undi 2
+kesaksian. Total ikut film (baku 170 = 80 + 90; 85→165).
+
+**Ubah (kode, belum commit):** seed `BEDAH_FILM` ditulis ulang (15 fase main + 2 paralel
+PRA, baku 170, modul +`likert/chips/wordcloud`; playbook §1–§7: F0/L0–L4, delta,
+concern proyektor/dresscode/matras/konsumsi) → template draft `likert-film` (5) +
+`lesson` (10 chip, kunci sama dgn MONOLOG) → AI `LIKERT_RULES` + `patternBlock` →
+server `worship.mjs` (`cleanLikertRounds` + `likertRounds` di config/stage/payload,
+POST likert `round` PRE/POST + gate + tanpa rank untuk film, apply-draft film tulis
+10 item + chip, undi film 1+1 via `TESTIMONY_NEED_FILM`, CSV film PRE/POST+Delta,
+`likertMeans`/`filmRoundMeans`, horizon start 3 jam anti-auto-wrapup) →
+`session-engine.ts` (6 segmen + widget `likert` + progres + `filmLikertPairs/Means`) →
+`PatternDay.tsx` (`FilmLikertCard` 2 ronde + panel delta + rekap PDF) →
+`MentoringControl.tsx` (tombol M0–M4 + gate + chip film) → `MentoringScreen.tsx`
+(panel delta layar) → `mentoring.ts` (tipe rounds/means) → test (+13:
+template, engine, undi, rounds, AI likert) + selaraskan 2 test lama →
+docs `pola-ibadah-hari-H` + `integrasi-divisi` + `worship-patterns` + `liturgia-lagu`.
+
+**Verifikasi:** `lint` bersih ✓ `test` **1110/1110** (144 files; 1 flaky
+`lazy-routes` lolos rerun) ✓ `build` OK ✓ `db:seed:worship:staging` ✓ baca-balik
+OK (baku 170, 15+2 fase, modul lengkap, 7 heading + 4 slot).
+
+**Deploy:** commit `2884dca` (18 file; seed + HANDOFF + rename paralel dikecualikan
+via revert-restore/filter) → push main ✓ (paralel mendarat `1891ca9` di atasnya) →
+`staging:sync` (2× timeout jaringan, lolos di retry) → main = staging = prod =
+`1891ca9` ✓ (prod 200, staging-youth 401 tepat). File paralel tak tersentuh.
+
+**Next:** QA staging tab Katalog + Draft Sesi film (isi AI likert+chip) → Terapkan →
+sesi uji: M0 isi AWAL → M1 nonton → M2 deep → M3 isi AKHIR + cek delta layar →
+M4 komitmen/chip + undi 2 → PDF + CSV.
+`db:seed:worship:prod` HANYA atas persetujuan eksplisit. Follow-up: Battle (85+5+10,
+mosi grup, moderator) + Semi Drama (draf 150) — pola lain tak disentuh.
+Catatan: seed + HANDOFF masih campur kerja paralel (dibiarkan untuk mereka).
+
+## Current — Geser SISTEMIK 18→17: satu aksi semua artefak ikut (deploy 9d95cff, 13 Okt 2026)
 
 **Laporan:** ganti tanggal event 18→17 via Kondisi → Pratinjau + Simpan, info sudah ada,
 tapi UI semua masih 18 (pill PROGRAM/EVENT, landing, Drive).
@@ -119,9 +586,14 @@ ChurchHub timeout, lolos saat retry) ✓ `service-geser` 12/12 ✓. Tanpa migras
 
 **Next:** kosongkan 2 baris penghuni 17 di staging → dry-run `18→17` → Terapkan
 sistemik → cek POV (ServicePlan chip, pill EVENT `17 Okt`, landing Agenda+detail,
-caption WA `Sabtu 17`, folder Drive baru, QR/check-in jalan) → commit file
-spesifik episode ini saja + push + `staging:sync`. Prod hanya setelah staging
-lolos. Pekan materi tetap W3 (by design); slug tetap.
+caption WA `Sabtu 17`, folder Drive baru, QR/check-in jalan). Pekan materi tetap
+W3 (by design); slug tetap.
+
+**Deploy:** commit `9d95cff` → push main ✓ (prod `youth.gehc.page` = 9d95cff) →
+`staging:sync` branch ✓ + deploy preview `gehcpage-3gyd19gxk` (Ready) + 9 alias
+staging ✓ (semua `/api/version` = 9d95cff). Perhatian: `vercel deploy`/`alias`
+sering `fetch failed` (jaringan) — retry per alias; jangan deploy ulang bila
+preview sudah Ready (hemat storage).
 
 ## Current — Klik notif buka source SW: normalisasi URL push + navigasi (uncommitted)
 
@@ -148,10 +620,14 @@ test `push-url.test.ts` (+5).
 **Verifikasi:** `lint` bersih ✓ `test` **1096/1096** (144 files) ✓ `build` OK ✓
 `node --check` sw + 3 lib ✓. Tanpa migrasi DB.
 
-**Next:** commit + push + `staging:sync` → QA HP: kirim push uji → klik saat app
-tertutup (mendarat halaman tujuan) + saat app terbuka (fokus + pindah halaman).
-Catatan: notifikasi yang SUDAH tampil di HP tak bisa diperbaiki retroaktif (data
-baked) — abaikan saja.
+**Deploy:** commit `d7fd59e` (8 file episode; entri HANDOFF paralel dikembalikan
+utuh tak ikut commit) → push main ✓ (sesi paralel mendarat `9d95cff` di atasnya) →
+`staging:sync` tuntas → main = staging = `9d95cff` ✓ (prod 200, staging-youth 401
+tepat). File paralel tak tersentuh.
+
+**Next:** QA HP: kirim push uji → klik saat app tertutup (mendarat halaman tujuan)
++ saat app terbuka (fokus + pindah halaman). Catatan: notifikasi yang SUDAH tampil
+di HP tak bisa diperbaiki retroaktif (data baked) — abaikan saja.
 
 ## Current — RHB Kitab Fokus statis + Bacaan porsi + Nats bervariasi (13 Okt 2026)
 
@@ -5233,3 +5709,53 @@ Lihat [`docs/tech/database-migrations.md`](docs/tech/database-migrations.md).
 
 ## Episode: Kegiatan hub + service scheduling + bonding (11 Sep 2026, branch cursor/kegiatan-service-hub)
 Hub Kegiatan, Info Event per-event, Monitoring lock+tarik, album bonding, tab Ibadah Mingguan, antrean swap PAIR, gate BOD+Didaskalia, merge 10 grup. DB applied (status/overrides/swap tables + merge COMMIT OK). JANGAN reset/stash saat agen bekerja.
+
+## Episode: Kartu publik #/events — pola + grup serving, judul 2 baris (16 Okt 2026, main `0133375`)
+
+Done:
+- `GET /api/events/landing` bawa `venue{eventId,serviceType,kind}` + `worship{patternCode/Name,sessionTitle,status}` (publik-aman, tanpa config/accessCode) + `serving` nyata; fallback sesi via `sessionDate`.
+- `EventsTimeline` full card: judul split tema/tanggal (`splitThemeDate`, `text-balance`), baris tanggal penuh, meta bawah jam saja (`fmtTimeWib`), box tengah `EventMiddleInfo` (SERVING → nama grup Penanggung+Tuan Rumah; MENTORING → label Komisi + Tim Kerja; BAKUTAU → hidden; fallback `service-schedule` bila serving nyata belum ada).
+- Test `event-dates.test.ts` (+5: split + time). Lint bersih, 1179 test hijau (1 flaky `lazy-routes ChurchHub timeout`, tak terkait), build OK.
+- Commit `0133375` → push `main` (prod) + `staging:sync` (branch staging + deploy `gehcpage-kzg6ege7p` + 9 alias staging).
+
+Next:
+- Cek visual `https://staging-youth.gehc.page/#/events` (desktop 1440px + HP 360px): box tengah terisi, pola muncul bila sesi Didaskalia tertaut eventId/tanggal.
+- Bila pola kosong: tautkan `WorshipSession.eventId` (atau samakan `sessionDate` hari event).
+- QA prod `https://youth.gehc.page/#/events` setelah deploy main selesai.
+
+Commands:
+```powershell
+git log --oneline -3   # 0133375 di atas
+npm run staging:sync   # sudah jalan (deploy + alias); sisa 3 alias dipasang manual via vercel alias set
+```
+
+## Episode: Kartu #/events tweak proporsi — panel kanan gabung (16 Okt 2026, main `e339d93`)
+
+Done (lint bersih, 18 test hijau, build OK):
+- `EventsTimeline`: 3 kolom → 2 kolom; `EventMiddleInfo` pindah ke panel kanan (`lg:w-72`, `self-end`) di atas countdown; kiri `max-w-2xl`; padding HP `p-6`.
+- Box: hanya nama pola + badge status (Segera/Dibuka/Berlangsung/Penutup/Selesai); `sessionTitle` mentah tidak dirender.
+- `Countdown`: label `whitespace-nowrap`, gap 3→2 (tidak wrap di panel sempit).
+- Commit `e339d93` → push `main` ✓ (prod auto-deploy). Branch `staging` = `main` ✓ (push sukses).
+
+Staging sync SELESAI (setelah `vercel login`):
+- Deploy preview `gehcpage-lakmut63h` sukses, 9/9 alias staging menunjuk deployment baru.
+- Verifikasi `/api/version`: main = staging = `e339d93` ✓ sama.
+## Episode: Movie Breakdown 11 blok + selaraskan kontrol/peserta/layar (16 Okt 2026, belum commit)
+
+Minta (5 concern): (1) rundown 11 blok (Registrasi 5 mnt s/d Foto 5 mnt); (2) tahapan kontrol vs peserta inkonsisten + Likert #3 spoiler + hapus Deep Sharing ganti afirmasi; (3) Reset ke Draft hapus total isi audiens; (4) undian tampil nama+grup + hasil Lesson Learned di layar, rename chip card; (5) timer hanya Likert Awal, film tanpa timer + overlay tenang + audio bioskop, M3 buka Likert Akhir + chip serentak. Plus error Gate AKHIR OPEN saat DRAFT.
+
+Ubah (kode, lint bersih, 1190 test hijau + 1 flaky pre-existing lazy-routes ChurchHub):
+- Seed server/_seed-worship-patterns.cjs: BEDAH_FILM 15 fase+2 paralel -> 11 blok (155 mnt = 65+durasi), playbook S1/S3/S4/S5/S6/S7 + naskah monolog siap baca per blok; defaultDurationMin 170->155. Dok pola-ibadah-hari-H.md + worship-patterns.md selaras.
+- src/lib/session-engine.ts: segmen film 6->5 (likert-awal -> nonton -> likert-akhir -> lesson-learned -> kesaksian, deep dihapus); likert-akhir: [likert,chips]; maju ikut gate postOpen bukan countdown; FilmProgress.deepFilled -> postOpen.
+- Likert: bedah-film-case-for-christ.mjs #3 tanpa spoiler. Draft tambah section affirm (Q1-3 + likert-low/high); server filmAffirm() + affirmations di payload + affirmation di POST likert/PUT notes; peserta tampil kartu afirmasi instan (Likert + tiap Q).
+- Reset keras server/routes/worship.mjs (reset): hapus responses/votes/notes + testimony/screening/phase/fgd/gate (soal+chip master + draft dipertahankan); guard 409 AKHIR dibuka saat DRAFT/LIKERT_OPEN; UI confirm ganda.
+- Kontrol: M0 (timer 5 mnt fase M0) -> M1 Mulai Film ikuti film (matikan phase) -> M3 Buka Likert AKHIR + Lesson Learned -> M4 Undi + Kesaksian; heading Chip words -> Lesson Learned. Fase M0 300 dtk (session-stage.mjs FILM_PHASES + mentoring.ts SessionPhase).
+- Layar: finale film gabungan (delta + Lesson Learned + roda nama&grup); timer disembunyi saat film (kecuali LIKERT_OPEN); screening tanpa countdown -> kartu tenang + tombol Nada bioskop (WebAudio). Peserta: kartu countdown M0, screening Tayang, HP tetap bisa jawab.
+- Test: session-engine (segmen/widget/M0/phase), worship-session-draft (affirm 5 field, anti-spoiler, filmAffirm), seed/playbook via reseed.
+
+Akar error screenshot: reset lunak tak hapus jawaban+gate + filmSetRounds tanpa guard -> pil centang hantu + Gate AWAL CLOSED AKHIR OPEN saat DRAFT. Teratasi Episode C + guard.
+
+Next (belum jalan):
+- git add file episode ini saja (JANGAN -A, sesi paralel aktif) -> commit -> push + npm run staging:sync (1 batch).
+- npm run db:seed:worship:staging (pola 11 blok) -> QA staging event 17 Okt (M0 timer -> PRE+afirmasi -> M1 tenang -> 3Q+afirmasi -> M3 serentak -> POST+delta -> M4 undi 2 -> layar gabungan -> Reset hapus total).
+- Patch teks Likert #3 sesi prod sesi-2026-10-17-bedah-film (PRE/POST) bila sudah Terapkan; db:seed:worship:prod bila rundown disetujui.

@@ -6,7 +6,8 @@
 
 ## 1. Konsep
 
-- **Pola ibadah** = skenario ibadah yang bisa dipakai ulang (Monolog, Debat, Bedah Film, Post-to-Post, 3 Sequences).
+- **Pola ibadah** = skenario ibadah yang bisa dipakai ulang. Standar nama English-only (9 Okt 2026; kode stabil):
+  Monologue & Dialogue, The Battle of Minds, Movie Breakdown, Post-to-Post, Mission Sequence. Penjelas Indonesia ada di `summary` tiap pola.
   Dimiliki **Didaskalia** (`WorshipPattern.ownerDivision = 'DIDASKALIA'`), berisi `phases` (rundown) dan `playbook`
   (skenario markdown).
 - **Sesi hari-H** (`WorshipSession`) = pola yang dipakai pada satu event/tanggal. Sesi mengaktifkan **modul web**
@@ -77,7 +78,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - `POST_TO_POST`: `likert/rooms/timer/notes/chips/wordcloud` — penuh.
 - `MONOLOG`: `timer/notes/fgd/testimony` — penuh (bedah lagu + 5 Q dipicu mentor + Satu Kata + PDF di `#/mentoring/<slug>`). Menyerap Dual Monolog (diarsipkan; sesi lama migrasi otomatis).
 - `DEBAT`: `rounds/timer/teams` — penuh (panel ronde/fase/skor di kontrol, mosi + skor di peserta & layar).
-- `BEDAH_FILM`: `screening/timer/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti, countdown di peserta & layar, Likert AWAL/AKHIR 5 item + delta, chip + undi 2).
+- `BEDAH_FILM`: `screening/timer/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti tanpa countdown, timer hanya M0 Likert AWAL 5', layar mode tenang + nada bioskop, Likert AWAL/AKHIR 5 item + afirmasi + delta, Lesson Learned + undi 2 dengan nama & grup di layar).
 - `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
 - Status panggung live (`PUT .../sessions/:id/stage`, tersimpan di `config.rounds/screening/teams`); alur peserta
   generik `PatternDay` (segmen + widget dari `session-engine.ts`) untuk semua pola non-post-to-post.

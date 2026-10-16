@@ -39,25 +39,26 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('MONOLOG', 'CLOSED', false)).toBe('penutup');
   });
 
-  it('BEDAH_FILM: likert-awal → nonton → deep → likert-akhir → komitmen → kesaksian', () => {
+  it('BEDAH_FILM: likert-awal → nonton → likert-akhir (+Lesson Learned) → lesson-learned → kesaksian', () => {
     expect(segmentForPattern('BEDAH_FILM', 'DRAFT', false)).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'LIKERT_OPEN', false)).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false)).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, screeningOn: true })).toBe('nonton');
-    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true })).toBe('deep');
-    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true })).toBe('likert-akhir');
-    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true, postAnswered: true })).toBe('komitmen');
-    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', true, undefined, { preAnswered: true, deepFilled: true, postAnswered: true, chipDone: true })).toBe('kesaksian');
-    expect(segmentForPattern('BEDAH_FILM', 'WRAPUP', false)).toBe('komitmen');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true })).toBe('nonton');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, postOpen: true })).toBe('likert-akhir');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, postOpen: true, postAnswered: true })).toBe('lesson-learned');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, postOpen: true, postAnswered: true, chipDone: true })).toBe('kesaksian');
+    expect(segmentForPattern('BEDAH_FILM', 'WRAPUP', false)).toBe('lesson-learned');
     expect(segmentForPattern('BEDAH_FILM', 'WRAPUP', true, undefined, { chipDone: true })).toBe('kesaksian');
     expect(segmentForPattern('BEDAH_FILM', 'CLOSED', false)).toBe('kesaksian');
   });
 
   it('BEDAH_FILM: widget likert/chips/testimony per segmen', () => {
-    expect(PATTERN_SEGMENTS.BEDAH_FILM.map((s) => s.id)).toEqual(['likert-awal', 'nonton', 'deep', 'likert-akhir', 'komitmen', 'kesaksian']);
+    expect(PATTERN_SEGMENTS.BEDAH_FILM.map((s) => s.id)).toEqual(['likert-awal', 'nonton', 'likert-akhir', 'lesson-learned', 'kesaksian']);
     expect(widgetsFor('BEDAH_FILM', 'likert-awal')).toEqual(['likert']);
-    expect(widgetsFor('BEDAH_FILM', 'likert-akhir')).toEqual(['likert']);
-    expect(widgetsFor('BEDAH_FILM', 'komitmen')).toEqual(['chips', 'notes', 'download']);
+    expect(widgetsFor('BEDAH_FILM', 'nonton')).toEqual(['screening', 'notes']);
+    expect(widgetsFor('BEDAH_FILM', 'likert-akhir')).toEqual(['likert', 'chips']);
+    expect(widgetsFor('BEDAH_FILM', 'lesson-learned')).toEqual(['chips', 'notes', 'download']);
     expect(widgetsFor('BEDAH_FILM', 'kesaksian')).toEqual(['testimony', 'download']);
   });
 
@@ -312,8 +313,8 @@ describe('session-stage: validasi', () => {
     expect(cleanTeams(null)).toBeNull();
   });
 
-  it('phase: nama valid F1/F2/F3/CLOSING + durasi baku 20/25/10/5', () => {
-    expect(MONOLOG_PHASE_SECONDS).toEqual({ F1: 1200, F2: 1500, F3: 600, CLOSING: 300 });
+  it('phase: nama valid F1/F2/F3/CLOSING + M0 film + durasi baku 20/25/10/5 (+M0 5)', () => {
+    expect(MONOLOG_PHASE_SECONDS).toEqual({ F1: 1200, F2: 1500, F3: 600, CLOSING: 300, M0: 300 });
     expect(cleanPhase(null)).toBeNull();
     expect(cleanPhase({})).toBeNull();
     expect(cleanPhase({ name: 'ngawur', startedAt: 'x' })).toBeNull();
@@ -326,6 +327,7 @@ describe('session-stage: validasi', () => {
     });
     expect(cleanPhase({ name: 'F1', startedAt: 'x', durationSec: 5 })).toMatchObject({ durationSec: 60 });
     expect(cleanPhase({ name: 'F3', startedAt: 'x', durationSec: 99999 })).toMatchObject({ durationSec: 7200 });
+    expect(cleanPhase({ name: 'M0', startedAt: 'x' })).toMatchObject({ name: 'M0', durationSec: 300, showOnScreen: true });
   });
 
   it('phase: tampil di layar default true, bisa dimatikan', () => {

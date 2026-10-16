@@ -108,50 +108,62 @@ Modul: rounds, timer, teams (rounds/teams tampil sebagai tabel statik + timer ma
 const BEDAH_FILM_PLAYBOOK = `# Bedah Film — Dropping the Filter
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Bedah Film. **Durasi baku:** 145 menit (film 91 menit + diskusi 40 menit; varian film pendek 60 menit = total 115 menit).
-**Tujuan:** Membuka topeng kesalehan (fake holiness, Christianese) — syarat menjadi murid adalah otentik di hadapan Tuhan dan sesama, seperti api & Roh dalam {{firman_ref}}, bukan sekadar jubah luar.
-**Ayat jangkar default:** 2 Raja-raja 2:1-15. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}). Film default: The Resurrection of Gavin Stone (91 menit); boleh diganti film lain yang memuat isu {{tema}}.
+**Nama:** Bedah Film. **Durasi baku:** 155 menit (film 90 menit; total = 65 + durasi film; film 85 → 150).
+**Tujuan:** Mengukur perubahan lewat film — Likert awal (baseline) → nonton & catat (3 Q + afirmasi firman per jawaban) → Likert akhir (5 item yang sama + afirmasi delta) → Lesson Learned + 2 kesaksian. Membuka topeng kesalehan (fake holiness, Christianese) — syarat menjadi murid adalah otentik di hadapan Tuhan dan sesama, seperti api & Roh dalam {{firman_ref}}, bukan sekadar jubah luar.
+**Ayat jangkar default:** 2 Raja-raja 2:1-15. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}). Film default 90 menit (bisa bervariasi 60-95; total mengikuti); boleh diganti film lain yang memuat isu {{tema}}.
 
 ## 2. Pra-acara (H-7 s/d H-1)
-1. Konfirmasi lisensi pemutaran + uji proyektor/sound/subtitle + lampu redup + kursi melingkar untuk pleno.
-2. Siapkan panduan pleno (2-3 perwakilan campuran Mentor/Mentee) + 3 pertanyaan deep sharing dari {{tema}} + tisu + gitar/piano untuk transisi.
-3. Briefing mentor: mulai duluan, jangan potong tangisan, tutup dengan saling mendoakan. Tonton film minimal 1 kali + catat 3 adegan kunci yang paralel dengan {{firman_ref}}.
-4. Cetak sinopsis 1 paragraf tanpa spoiler + ayat {{firman_ref}} untuk dibagikan saat pengantar.
+1. Konfirmasi lisensi pemutaran + uji proyektor/sound/subtitle + lampu redup + matras/alas + konsumsi (diedarkan sebelum lampu redup).
+2. Umumkan dresscode pekan ini via pengumuman/caption H-7.
+3. Susun 5 pernyataan Likert dari {{tema}} (skala 1–5, dipakai awal & akhir, redaksi PRE netral tanpa spoiler) + 3 pertanyaan catatan selama film (Q1 masa lalu, Q2 masa kini, Q3 langkah otentik) + afirmasi firman per jawaban + 8-10 chip Lesson Learned dari {{firman_ref}}.
+4. Briefing mentor: mulai duluan, jangan potong tangisan, tutup dengan saling mendoakan. Tonton film minimal 1 kali + catat 3 adegan kunci yang paralel dengan {{firman_ref}}.
+5. Cetak sinopsis 1 paragraf tanpa spoiler + ayat {{firman_ref}} untuk dibagikan saat pengantar.
 
-## 3. Rundown
+## 3. Rundown (11 blok — total 155' dengan film 90')
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
-| 1 | Opening + praise singkat + doa | 10 | Liturgia + MC | Doa + baca {{firman_ref}} 1 menit |
-| 2 | Pengantar film | 5 | Main Speaker | Sinopsis tanpa spoiler + jembatan ke {{tema}} |
-| 3 | Pemutaran film | 91 | Multimedia | Lampu redup, HP silent, tidak ada komentar |
-| 4 | Transisi emosional | 4 | Pemusik | Piano/gitar, lampu separuh, hening |
-| 5 | Pleno analisa film | 15 | MC | 2-3 suara + pancingan {{tema}} |
-| 6 | Team discussion / deep sharing | 25 | Mentor | 3 pertanyaan wajib {{tema}} |
-| 7 | Doa persembahan & kolekte | 5 | Main Speaker | Doa sambil musik lembut |
-| 8 | Konklusi teologis & doa berkat | 10 | Main Speaker | Api & Roh vs jubah luar + panggilan otentik |
+| 1 | Registrasi Ulang | 5 | Tuan Rumah, Penerima Tamu, Absensi | QR check-in ulang + sambut; masuk pool undian |
+| 2 | Persiapan Ibadah | 5 | Tuan Rumah (+ paralel: proyektor/sound + matras/konsumsi) | Doa petugas + standby kru sebelum T0; konsumsi diedarkan sebelum lampu redup |
+| 3 | Opening (Lagu buka, Doa Buka, Praise & Worship) | 5 | Pemimpin Pujian, Liturgi, Multimedia | 1 lagu + doa buka dalam 5 mnt |
+| 4 | Persembahan + Doa (persembahan & syafaat) | 10 | Main Speaker, Pendoa, Pengumpul | Kantong jalan + doa persembahan & syafaat |
+| 5 | Transisi — jabarkan Alkitab + Likert Awal (infokan isi catatan saat film) | 5 | Main Speaker, MC | Sinopsis tanpa spoiler + jembatan ke {{tema}} + "buka HP, isi catatan saat film nanti" (M0) |
+| 6 | Movie Breakdown (ikuti durasi film) | 90 | Main Speaker, Multimedia | Layar mode tenang (tanpa countdown); HP tetap boleh untuk jawab 3 Q + afirmasi; konsumsi paralel (M1) |
+| 7 | Transisi — konklusi + Likert Akhir + Lesson Learned Chip + 2 kesaksian | 15 | MC, Mentor, 2 terundi | Konklusi firman + Likert AKHIR 5 item yang sama + Lesson Learned maks 3 + undi 1 Mentee + 1 Mentor maju bersaksi (M3 → M4) |
+| 8 | Lagu & Doa Penutup | 5 | Liturgia, Pendoa | 1 lagu + doa tutup + berkat |
+| 9 | Terima kasih + Pengumuman | 5 | Tuan Rumah, MC, Komisi/Tim Kerja | Apresiasi tuan rumah + info komisi |
+| 10 | HUT + Doa | 5 | MC, yang HUT | Rayakan dan doakan yang berulang tahun |
+| 11 | Foto Bersama | 5 | Fotografer, Videografer | Foto session + dokumentasi |
 
 ## 4. Naskah siap baca
-**Pengantar (5 menit, tanpa spoiler):** "Malam ini kita menonton kisah seorang yang memakai topeng kesalehan demi bertahan hidup. Jangan cari siapa orangnya — cari dirimu. Ayat kita: {{firman_text}} ({{firman_ref}}). Tema kita {{tema}}. Selama 91 menit, izinkan Roh menyorot filter yang kamu pakai minggu ini."
-**Transisi emosional (4 menit):** (musik lembut, lampu separuh) "Tahan dulu komentar. Tarik napas. Biarkan adegan terakhir mengendap. Kalau matamu panas — tidak apa-apa. Tuhan sedang bekerja."
-**Pleno (15 menit, pancingan wajib):** "Karakter siapa yang paling bikin kamu tertampar, dan kenapa? Hubungkan dengan {{firman_ref}} — di mana letak topengmu dalam {{tema}} minggu ini?"
-**Deep sharing (25 menit, 3 pertanyaan wajib — sesuaikan redaksi dengan {{tema}}):** Q1 "Kapan terakhir kamu berakting suci agar diterima?" Q2 "Topeng apa yang paling berat kamu pakai dalam {{tema}}?" Q3 "Apa arti {{firman_ref}} bagimu: api & Roh, bukan sekadar jubah — langkah otentik apa minggu ini?"
-**Konklusi (10 menit):** "Elisa tidak meminta jubah Elia — ia meminta api dan Roh. Jubah bisa dipalsukan; kuasa tidak. Lepaskan filter. Jadilah murid yang otentik dalam {{tema}} — mulai dari kelompok kecilmu malam ini."
+**Registrasi Ulang (5 menit):** "Shalom, Beyonders! Scan QR check-in ulang — yang hadir masuk pool undian kesaksian. Silakan duduk, siapkan HP yang baterainya cukup."
+**Persiapan Ibadah (5 menit):** (doa petugas + standby kru; konsumsi diedarkan) "Tim proyektor standby, matras siap. Hadirkan hatimu — kita mulai tepat waktu."
+**Opening (5 menit — lagu buka, doa buka, praise & worship):** "Selamat datang di Movie Breakdown. Hari ini {{tema}} dari {{firman_ref}}. Kita buka dengan satu lagu, lalu doa — tata hatimu."
+**Persembahan + Doa (10 menit — persembahan & syafaat):** "Kantong jalan. Kita berdoa untuk persembahan dan syafaat — bawa satu nama yang butuh {{tema}} minggu ini."
+**Transisi — jabarkan Alkitab + Likert Awal (5 menit):** "Malam ini kita menonton kisah seorang yang memakai topeng demi bertahan hidup. Jangan cari siapa orangnya — cari dirimu. Ayat kita: {{firman_text}} ({{firman_ref}}). Buka HP — jawab 5 pernyataan awal dengan jujur (tidak ada jawaban salah). Nanti selama film, isi juga 3 catatan (Q1-Q3) — HP tetap boleh dipegang."
+**Movie Breakdown (ikuti durasi film):** (layar mode tenang, lampu redup) "Harap tenang, fokus mendengar. Selama film, izinkan Roh menyorot filter yang kamu pakai minggu ini. Catat adegan yang menamparmu — tiap jawaban ada afirmasi firman untukmu."
+**Transisi — konklusi + Likert Akhir + Lesson Learned + 2 kesaksian (15 menit):** "Film selesai — apa yang berubah? Isi 5 pernyataan yang SAMA dengan jujur, lihat deltamu di layar. Pilih maksimal 3 Lesson Learned yang mewakili aha-momentmu. Dua nama terundi maju bersaksi — yang lain simak, ini buah malam ini."
+**Lagu & Doa Penutup (5 menit):** "Kita tutup dengan satu lagu dan doa berkat — bawa komitmen otentikmu keluar pintu ini."
+**Terima kasih + Pengumuman (5 menit):** "Terima kasih tuan rumah dan semua yang melayani. Info komisi pekan ini — dengarkan baik-baik."
+**HUT + Doa (5 menit):** "Yang berulang tahun pekan ini maju — kita rayakan dan doakan."
+**Foto Bersama (5 menit):** "Semua maju — foto bersama!"
 
 ## 5. Modul web & konfigurasi sesi
-Modul: screening, timer, notes. Config sesi: {filmJudul, durasiDetik, subtitleBahasa, 3 adeganKunci:[{menit, catatan}], pancinganPleno, qDeepSharing:[3]}. Timer layar untuk segmen 4-8. Notes: komitmen "topeng yang kulepas minggu ini" (opsional anonim, ekspor CSV).
+Modul: screening, timer, notes, testimony, likert, chips, wordcloud. Config sesi: {filmJudul, durasiDetik (arsip saja, tanpa countdown), likertRounds:{pre:'open'|'closed', post:'open'|'closed'}, 3 catatan film (Q1-Q3 + afirmasi per jawaban), afirmasi Likert (rendah/tinggi), chipLimit: 3}. Likert = 10 item (5 FILM_PRE + 5 FILM_POST, teks sama, PRE tanpa spoiler); delta pre→post = rata-rata POST − PRE per item, tampil di layar + PDF + CSV. Gates kontrol: M0 (buka AWAL, timer 5') → M1 (mulai film + kunci AWAL, tanpa timer, layar mode tenang) → M3 (buka AKHIR + Lesson Learned serentak, tampil delta) → M4 (undi 2 + kesaksian). Notes: 3 Q selama film + afirmasi per jawaban + komitmen (autosave, unduh PDF, ekspor CSV). Undi: 1 Mentee + 1 Mentor (fallback bebas); nama + grup + hasil Lesson Learned tampil gabungan di layar.
 
 ## 6. Peran & personil
-- Main Speaker (1): pengantar + konklusi, kuasai paralel film ↔ {{firman_ref}}.
-- Multimedia (1-2): proyektor, sound, subtitle, cadangan laptop + kabel HDMI + hotspot.
-- MC pleno (1): pilih 2-3 suara campuran Mentor/Mentee, jaga waktu 15 menit.
-- Mentor (1 per 8): pimpin deep sharing, mulai duluan, jangan menghakimi.
-- Pemusik (1): 4 menit transisi + latar doa, volume rendah.
+- Main Speaker (1): pengantar transisi + penanggung jawab isi film, kuasai paralel film ↔ {{firman_ref}}.
+- Multimedia + Tata Suara (1-2): proyektor, sound, subtitle, layar mode tenang (tanpa countdown), cadangan laptop + kabel HDMI + hotspot.
+- MC (1): Likert AWAL/AKHIR + Lesson Learned + undian, jaga waktu tiap blok.
+- Mentor (1 per 8): pimpin L1, mulai duluan, jangan menghakimi.
+- Tuan Rumah + Absensi (2-3): registrasi, sambut, konsumsi, matras.
+- Diakonia: matras/alas + konsumsi (paralel persiapan + diedarkan sebelum redup).
+- Fotografer dan Videografer (1-2): foto bersama dan dokumentasi.
 
 ## 7. Adaptasi tema & firman pekan ini
-1. Ganti {{tema}}/{{firman_ref}}; bila film default kurang cocok, pilih film lain (60-95 menit) yang isu sentralnya = {{tema}} dan tulis 3 adegan paralel baru.
-2. Tulis ulang 3 pertanyaan deep sharing dari kosakata {{tema}} (rumus Q1 masa lalu, Q2 masa kini, Q3 langkah).
-3. Siapkan pancingan pleno cadangan bila jemaat diam 30 detik: "Adegan [X] mengingatkanku pada {{firman_ref}} bagian [...] — ada yang merasakan hal sama?"
-4. Cek durasi total: film + 54 menit bingkai. Potong 1 lagu bila film melebihi 95 menit.`;
+1. Ganti {{tema}}/{{firman_ref}}/{{firman_text}}/{{kitab_fokus}}; bila film default kurang cocok, pilih film lain (60-95 menit) yang isu sentralnya = {{tema}} dan tulis 3 adegan paralel baru. Total = 65 + durasi film.
+2. Tulis ulang 5 pernyataan Likert dari kosakata {{tema}} (kalimat "Saya ..." + kaitan film; tanpa jawaban benar/salah; PRE tanpa spoiler/nama tokoh) + 3 pertanyaan catatan selama film (rumus Q1 masa lalu, Q2 masa kini, Q3 langkah) + afirmasi firman tiap jawaban + 8-10 chip Lesson Learned format #Kata.
+3. Siapkan pancingan cadangan bila jemaat diam 30 detik: "Adegan [X] mengingatkanku pada {{firman_ref}} bagian [...] — ada yang merasakan hal sama?"
+4. Cek durasi total: 65 + durasi film (film 90 → 155). Bila film melebihi 95 menit, pilih film lain atau potong 1 lagu praise.`;
 
 const THREE_SEQUENCES_PLAYBOOK = `# The 3 Sequences (Coram Deo Challenge)
 
@@ -201,86 +213,145 @@ Modul: teams, timer, notes. Config sesi: {kelompokBesar:[{nama,anggota,lantai}],
 3. Sesuaikan yel-yel: wajib memuat 1 kata dari {{tema}} + 1 frasa dari {{firman_ref}}.
 4. Atur ulang komposisi tim bila kehadiran di bawah 12 orang: gabung Narasi+Presentasi, Lapangan minimal 3 orang.`;
 
-const MONOLOG_PLAYBOOK = `# Monolog, Bedah Lagu & Deep Sharing
+const MONOLOG_PLAYBOOK = `# Monologue & Dialogue — 60 menit inti, 120 menit ibadah penuh
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Monolog, Bedah Lagu & Deep Sharing. **Durasi baku:** 120 menit (varian padat 90 menit: bedah lagu 10 menit + sharing 25 menit).
-**Tujuan:** Menyampaikan eksposisi utuh {{tema}} dari {{firman_ref}} dalam satu suara yang jelas (opsional dua suara), mengendapkannya lewat nyanyian yang disadari, diskusi terpandu yang dipicu mentor, deep sharing yang jujur, dan satu kata penutup dari setiap hati.
+**Nama:** Monologue & Dialogue. **Durasi baku:** 120 menit (105 menit jemaat T0→T+105 + 15 menit kru PRA T-minus; inti web 60 menit: F1 20 + F2 25 + F3 10 + Closing 5). Mode PENUH persembahan +6 menit (→ 111 menit jemaat).
+**Tujuan:** Menyampaikan eksposisi utuh {{tema}} dari {{firman_ref}} dalam satu suara yang jelas, mengendapkannya lewat nyanyian yang disadari, diskusi terpandu, kesaksian yang jujur, dan chip Lesson Learned dari setiap hati.
 **Ayat jangkar:** {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
-Pola default bila pekan tidak memilih pola khusus. Menyerap Dual Monolog: bedah lagu, Satu Kata, deep sharing, dan undian kesaksian.
+Pola default bila pekan tidak memilih pola khusus. Cakupan: Koinonia di luar ibadah, Liturgia di luar firman, Didaskalia dari Bedah Lagu sampai Closing, Marturia dokumentasi.
 
 ## 2. Pra-acara (H-7 s/d H-1)
-1. Main Speaker siapkan naskah monolog 25-30 menit dari {{firman_ref}} (struktur: teks → konteks → 2-3 poin → aplikasi {{tema}} → panggilan). Boleh dua suara (A rapi + B kusut) untuk tema pertobatan/keterpurukan.
-2. Didaskalia tetapkan lagu bedah pekan ini (judul + makna tiap bait + penyanyi) + siapkan 5 pertanyaan web: 3 FGD (observasi → interpretasi → aplikasi) + 2 deep sharing (observasi teks → langkah pulang).
-3. Tunjuk pemicu pertanyaan: Mentor/Co-mentor tiap kelompok; bila absen, tunjuk 1 perwakilan jemaat sebagai pemicu (umumkan di briefing).
-4. Bagi kelompok 5-8 orang + siapkan ruang diskusi. Uji sound/proyektor untuk slide poin khotbah + lirik lagu (tanpa teks panjang).
-5. Siapkan undian kesaksian (modul testimony) untuk momen Satu Kata.
+1. Main Speaker siapkan monolog 15-20 menit dari {{firman_ref}} (teks, konteks, 2-3 poin, aplikasi {{tema}}, panggilan).
+2. Didaskalia tetapkan lagu bedah pekan ini (judul + makna tiap bait + penyanyi) + siapkan 5 pertanyaan web: 3 FGD observasi-interpretasi-aplikasi + 2 deep sharing cermin-diri dan langkah-pulang + 8-10 chip Lesson Learned dari {{firman_ref}}.
+3. Settlement kelompok mentoring: tetapkan Mentor dan Co-mentor tiap kelompok 5-8 orang; siapkan ruang diskusi.
+4. Settlement penatalayan: tetapkan Main Speaker, MC, Liturgia, Multimedia, Tuan Rumah, Pengumpul kantong, dan Fotografer dari jadwal pekan berjalan.
+5. Uji sound, lirik, proyektor, kode sesi proyektor, dan QR check-in.
 
 ## 3. Rundown
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
-| 1 | Praise & Worship + Bedah Lagu | 20 | Liturgia + Main Speaker | 2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi) dalam terang {{tema}} |
-| 2 | Monolog khotbah (opsional dua suara) | 30 | Main Speaker (Didaskalia) | Eksposisi {{firman_ref}} → aplikasi {{tema}} → panggilan |
-| 3 | Briefing + trigger pertanyaan | 5 | Main Speaker + Mentor | Bagi kelompok; umumkan pemicu tiap kelompok; Q dibuka satu per satu dari kontrol |
-| 4 | FGD + Deep Sharing terpandu | 40 | Mentor/Pemicu | 3 FGD + 2 deep sharing; tiap Q dipicu berurutan; jawab di web; tutup komitmen & doa |
-| 5 | Satu Kata + kesaksian | 10 | MC + Mentor | Tiap peserta tulis 1 kata di web; 3-4 undian bersaksi live |
-| 6 | Komitmen + persembahan & doa berkat | 15 | Main Speaker | Komitmen di web + unduh PDF; ayat penutup {{firman_ref}} + berkat |
+| 1 | Doa petugas + tuan rumah (PRA, T-15→T-10) + paralel: check perlengkapan (Diakonia) + slide & sound (Marturia) | 5 | Komisi/Tim Kerja, Tuan Rumah + paralel | Doa + bagi tugas; paralel tak tambah total |
+| 2 | Registrasi ulang kehadiran (PRA, T-10→T0) | 10 | Tuan Rumah, Penerima Tamu, Absensi | QR check-in ulang + sambut; yang hadir masuk pool undian |
+| 3 | Praise & Worship (T0→T+15) | 15 | Pemimpin Pujian, Liturgi, Multimedia | Varian pembuka per pekan: DOA / LAGU / KEDUANYA (default); total tetap 15 |
+| 4 | F1 Bedah Lagu & Monolog | 20 | Main Speaker, Liturgia, Pembaca Firman | Satu lagu dibedah per bait (makna + penyanyi) dalam terang tema pekan + monolog: eksposisi Firman pekan → aplikasi tema pekan → panggilan; umumkan pemicu tiap kelompok; Q1-Q3 terbuka di HP (T1) |
+| 5 | F2 Deep Sharing Q4-Q5 | 25 | Mentor, Co-mentor/Pemicu, Mentee | 3 FGD + 2 deep sharing; tiap Q dipicu berurutan; jawab di web; tutup komitmen & doa (T2) |
+| 6 | F3 Kesaksian | 10 | MC, Mentor, 3 terundi | Tiap peserta tulis chip Lesson Learned (maks 3); undi bebas 3 bersaksi live + word cloud (T3) |
+| 7 | Closing & Transisi | 5 | Main Speaker, Mentor | Rekap + unduh PDF + terima kasih (T4) |
+| 8 | Persembahan + doa | 10 (PENUH 16) | Main Speaker, Pendoa, Pengumpul | HEMAT: 3 doa sekaligus. PENUH (+6): kantong + lagu 1 → syafaat → lagu selingan → tutup + berkat |
+| 9 | Terima kasih + Pengumuman | 5 | Tuan Rumah, MC, Komisi/Tim Kerja | Apresiasi tuan rumah + info komisi; konsumsi paralel |
+| 10 | Selebrasi HUT + doa | 5 | MC, yang HUT | Rayakan dan doakan yang berulang tahun |
+| 11 | Foto bersama | 5 | Fotografer, Videografer | Foto session + dokumentasi |
+| 12 | Acara bebas & pulang | 5 | Tuan Rumah | Ramah-tamah paralel, tidak dihitung ganda |
 
 ## 4. Naskah siap baca
-**Pembuka ibadah:** "Selamat pagi, Beyonders. Hari ini kita merenungkan {{tema}} dari {{firman_ref}}. Kita mulai dengan menyanyi — bukan otomatisasi, tapi dengan kesadaran."
-**Bedah lagu (10 menit dalam segmen 1):** "Kita nyanyikan bait 1 — berhenti — apa arti baris ini dalam terang {{firman_ref}}? Lagu ini tentang [makna], dinyanyikan oleh [penyanyi]. Baru lanjut bait 2."
-**Transisi khotbah → diskusi (3 menit, jangan dilewatkan):** "Firman sudah diberitakan: {{firman_text}}. Sekarang Firman itu harus mengendap lewat mulutmu sendiri. Bagi ke kelompok 5-8 orang. Pemicumu akan membuka pertanyaan satu per satu di HP kalian — jawab jujur, tulis di web."
-**Panduan mentor/pemicu:** "Mulai dengan doa 1 menit. Buka Q1 (observasi): baca {{firman_ref}} bersama, tandai kata kerja. Q2 (interpretasi): kaitkan dengan {{tema}} + kitab {{kitab_fokus}}. Q3 (aplikasi): tiap orang sebut 1 langkah + 1 pergumulan. Q4 (deep sharing 1): di mana kamu melihat dirimu dalam teks? Q5 (deep sharing 2): langkah pulang apa minggu ini? Tutup 5 menit: komitmen + doa saling mendoakan. Zero judgment — jangan potong tangisan."
-**Satu Kata (mentor membuka):** "Minggu ini satu kataku: Lelah. Sekarang giliranmu — tulis satu kata untuk minggumu di web."
-**Penutup:** "Kita sudah mendengar, menyanyi dengan sadar, dan saling menguatkan. Unduh rekapmu — bawa komitmenmu keluar pintu ini. {{firman_ref}} menjadi bekal {{tema}}-mu minggu ini."
+**Pembuka (varian DOA):** "Tata hatimu — kita mulai dalam doa." **(varian LAGU):** "Selamat datang, Beyonders. Hari ini kita merenungkan {{tema}} dari {{firman_ref}}. Tata hatimu — kita mulai dengan menyanyi." **(varian KEDUANYA, default):** doa buka 2 menit, lalu 1 lagu buka, lanjut praise/worship.
+**Persembahan (HEMAT):** kantong jalan + 3 doa sekaligus. **(PENUH):** "Kantong jalan diiringi lagu; kita berdoa syafaat; selingan satu lagu; terima berkat dan doa tutup."
+**Bedah lagu:** "Kita nyanyikan bait 1, berhenti. Apa arti baris ini dalam terang {{firman_ref}}? Baru lanjut bait 2."
+**Transisi khotbah ke diskusi:** "Firman sudah diberitakan: {{firman_text}}. Sekarang Firman itu harus mengendap lewat mulutmu sendiri. Buka HP kalian — Q1 sampai Q3 sudah terbuka."
+**Panduan mentor:** "Mulai dengan doa 1 menit. Q1 observasi: baca {{firman_ref}} bersama. Q2 interpretasi: kaitkan dengan {{tema}}. Q3 aplikasi: tiap orang sebut 1 langkah. Q4: di mana kamu melihat dirimu dalam teks? Q5: langkah pulang apa minggu ini? Tutup dengan komitmen dan doa. Zero judgment."
+**Kesaksian:** "Tiga nama terundi tampil ke depan. Yang lain pilih maksimal 3 chip yang mewakili aha-moment kalian."
+**Penutup:** "Unduh rekapmu dan bawa komitmenmu keluar pintu ini. {{firman_ref}} menjadi bekal {{tema}}-mu minggu ini."
 
 ## 5. Modul web & konfigurasi sesi
-Modul: timer, notes, fgd, testimony. Timer layar untuk monolog (30) + diskusi (40) + Satu Kata (10). Notes: 3 FGD + 2 deep sharing + Satu Kata + komitmen per anggota (autosave, unduh PDF, ekspor CSV untuk follow-up mentor). Trigger Q: kontrol membuka Q1–Q5 berurutan (config.fgd); peserta hanya bisa menjawab Q yang terbuka. Lagu: config.song (judul + makna + penyanyi) tampil di web + layar + PDF.
+Modul: timer, notes, fgd, testimony, chips, wordcloud. Fase web: F1 20 menit, F2 25 menit, F3 10 menit, Closing 5 menit — tiap tombol kontrol langsung menjalankan countdown fasenya; habis waktu menunggu operator, tidak auto-lanjut. Trigger Q: T1 membuka Q1-Q3, T2 membuka Q4-Q5. Undian: bebas 3 orang tanpa ulang (nama dan grup tampil di layar). Chip: pilih maksimal 3 per peserta, agregat word cloud. Notes: Q1-Q5 plus Komitmen per anggota (autosave, unduh PDF, ekspor CSV untuk follow-up mentor).
 
 ## 6. Peran & personil
-- Main Speaker (1, Didaskalia): kuasai naskah + slide poin + lirik bedah, jaga waktu 30 menit. Boleh dua suara untuk tema pertobatan.
-- Mentor/Co-mentor (1 per 5-8 jemaat): fasilitasi 5 Q, pastikan semua bersuara, buka diri dulu maksimal 2 menit, jaga zero judgment.
-- Pemicu perwakilan (bila mentor absen): 1 jemaat per kelompok, diumumkan di briefing, hanya membuka Q + menjaga giliran.
-- Liturgia + Multimedia (2-3): lagu + lirik + timer + countdown Satu Kata.
-- MC: jaga transisi, undian kesaksian, hening sebelum doa tutup.
+- Main Speaker (1, settlement penatalayan): monolog 15-20 menit, persembahan dan doa, closing.
+- Liturgia (2-3): pujian, liturgi, lirik dan bedah lagu.
+- Mentor dan Co-mentor (1 per 5-8 jemaat): fasilitasi F2, pastikan semua bersuara, buka diri dulu maksimal 2 menit.
+- MC (1): transisi, undian kesaksian, HUT.
+- Tuan Rumah dan Absensi (2-3): registrasi, sambut, konsumsi, acara bebas.
+- Multimedia (1-2): proyektor, countdown fase, kode sesi.
+- Fotografer dan Videografer (1-2): foto bersama dan dokumentasi.
+- Komisi dan Tim Kerja: pengumuman 5 menit.
 
 ## 7. Adaptasi tema & firman pekan ini
-1. Ganti {{tema}}/{{firman_ref}}/{{kitab_fokus}}; turunkan 3 FGD + 2 deep sharing dari teks (jangan generik): observasi harus menunjuk kata/frasa spesifik {{firman_ref}}.
-2. Pilih 1 lagu yang liriknya memuat kosakata {{tema}}; tulis makna tiap bait + nama penyanyi di config.song.
-3. Pilih 2-3 ilustrasi dunia Beyonders (KRS/tugas/skripsi/magang; shift/lembur/target; kos/keuangan/relasi) yang memuat {{tema}}.
-4. Tulis panggilan 2 kalimat di akhir monolog yang menyebut respons spesifik terhadap {{tema}} minggu ini.
-5. Sesuaikan durasi: tema doktrinal berat → monolog 35 + diskusi 45; tema aplikatif → monolog 25 + diskusi 40 + kesaksian 10 menit.`;
+1. Ganti {{tema}}, {{firman_ref}}, {{firman_text}}, dan {{kitab_fokus}}; turunkan 3 FGD dan 2 deep sharing dari kata dan frasa spesifik {{firman_ref}}.
+2. Pilih 1 lagu yang liriknya memuat kosakata {{tema}}; tulis makna tiap bait dan nama penyanyi.
+3. Susun 8-10 chip Lesson Learned dari poin Firman pekan (format pagar-Kata, tolak yang generik).
+4. Pilih 2-3 ilustrasi dunia Beyonders (KRS, tugas, skripsi, magang, shift, lembur, target, kos, keuangan awal, relasi) yang memuat {{tema}}.
+5. Sesuaikan durasi blok liturgi bila jemaat membludak: tambah 5 menit registrasi, kurangi 1 lagu praise; inti web 60 menit tidak dipotong.`;
 
 const PATTERNS = [
   {
     code: 'MONOLOG',
-    name: 'Monolog, Bedah Lagu & Deep Sharing',
-    summary:
-      'Pola default: monolog (+bedah lagu) → pertanyaan dipicu mentor → FGD + deep sharing → Satu Kata → komitmen. Menyerap Dual Monolog.',
+    name: 'Monologue & Dialogue',
+    summary: '',
     defaultDurationMin: 120,
-    modules: ['timer', 'notes', 'fgd', 'testimony'],
+    modules: ['timer', 'notes', 'fgd', 'testimony', 'chips', 'wordcloud'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship + Bedah Lagu', minutes: 20, owner: 'Liturgia + Main Speaker',
-        notes: '2-3 lagu; 1 lagu dibedah per bait (makna + penyanyi).',
+        no: 1, title: 'Doa petugas + tuan rumah', minutes: 5, owner: 'Komisi/Tim Kerja, Tuan Rumah', division: 'KOINONIA',
+        anchor: 'PRA', parallelGroup: 'pra',
+        notes: 'Doa petugas + pembagian tugas. Jam jemaat (T0) mulai setelah blok PRA selesai.',
+      },
+      {
+        no: null, title: 'Check perlengkapan', minutes: 5, owner: 'Diakonia', division: 'DIAKONIA',
+        anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
+        notes: 'Paralel doa: cek kebersihan, kursi, konsumsi, toilet. Tak tambah total.',
+      },
+      {
+        no: null, title: 'Siapkan slide & sound', minutes: 5, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
+        anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
+        notes: 'Paralel doa: slide, lirik, proyektor, sound standby sebelum T0. Tak tambah total.',
+      },
+      {
+        no: 2, title: 'Registrasi ulang kehadiran', minutes: 10, owner: 'Tuan Rumah, Penerima Tamu, Absensi', division: 'KOINONIA',
+        anchor: 'PRA', parallelGroup: 'pra-reg',
+        notes: 'QR check-in ulang + sambut (T-10→T0); yang hadir masuk pool undian.',
+      },
+      {
+        no: 3, title: 'Praise & Worship', minutes: 15, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+        anchor: 'ACARA',
+        notes: 'Varian pembuka (pilih per pekan): DOA = doa buka 3 mnt; LAGU = 1 lagu buka; KEDUANYA (default) = doa 2 mnt + 1 lagu buka + praise/worship. Total tetap 15 mnt (kurangi 1 praise bila perlu).',
         segments: [
-          { key: 'praise', label: 'Praise', kind: 'song', songs: 3 },
+          { key: 'praise', label: 'Praise', kind: 'song', songs: 2 },
           { key: 'worship', label: 'Worship', kind: 'song', songs: 2 },
-          { key: 'bedah-lagu', label: 'Bedah Lagu', kind: 'song', songs: 1 },
         ],
       },
       {
-        no: 2, title: 'Monolog khotbah (opsional dua suara)', minutes: 30, owner: 'Main Speaker (Didaskalia)',
-        notes: 'Eksposisi firman pekan + aplikasi tema + panggilan.',
-        segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
+        no: 4, title: 'F1 Bedah Lagu & Monolog', minutes: 20, owner: 'Main Speaker, Liturgia, Pembaca Firman', division: 'DIDASKALIA',
+        notes: 'Satu lagu dibedah per bait (makna + penyanyi) dalam terang tema pekan + monolog: eksposisi Firman pekan → aplikasi tema pekan → panggilan; umumkan pemicu tiap kelompok; Q1-Q3 terbuka di HP tanpa countdown. Pemicu: tombol kontrol T1.',
+        segments: [
+          { key: 'bedah-lagu', label: 'Bedah Lagu', kind: 'song', songs: 1 },
+          { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
+        ],
       },
-      { no: 3, title: 'Briefing + trigger pertanyaan', minutes: 5, owner: 'Main Speaker + Mentor', notes: 'Bagi kelompok; umumkan pemicu; Q dibuka satu per satu dari kontrol.' },
-      { no: 4, title: 'FGD + Deep Sharing terpandu', minutes: 40, owner: 'Mentor/Pemicu', notes: '3 FGD + 2 deep sharing; jawab di web; tutup komitmen & doa.' },
-      { no: 5, title: 'Satu Kata + kesaksian', minutes: 10, owner: 'MC + Mentor', notes: '1 kata/orang di web; 3-4 undian bersaksi live.' },
       {
-        no: 6, title: 'Komitmen + persembahan & doa berkat', minutes: 15, owner: 'Main Speaker',
-        notes: 'Komitmen di web + unduh PDF; ayat penutup + berkat.',
+        no: 5, title: 'F2 Deep Sharing Q4-Q5', minutes: 25, owner: 'Mentor, Co-mentor/Pemicu, Mentee', division: 'DIDASKALIA',
+        notes: '3 FGD + 2 deep sharing; tiap Q dipicu berurutan; jawab di web; tutup komitmen & doa. Countdown + Q1-Q5 looping di layar. Pemicu: tombol kontrol T2.',
+      },
+      {
+        no: 6, title: 'F3 Kesaksian', minutes: 10, owner: 'MC, Mentor, 3 terundi', division: 'DIDASKALIA',
+        notes: 'Tiap peserta tulis chip Lesson Learned (maks 3) di web; undi bebas 3 bersaksi live (nama + grup di layar) + word cloud. Pemicu: tombol kontrol T3.',
+      },
+      {
+        no: 7, title: 'Closing & Transisi', minutes: 5, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
+        notes: 'Rekap + unduh PDF + terima kasih. Pemicu: tombol kontrol T4.',
+      },
+      {
+        no: 8, title: 'Persembahan + doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        anchor: 'ACARA',
+        notes: 'Mode HEMAT (default, 10 mnt): kantong jalan; Komitmen di web + unduh PDF; ayat penutup Firman pekan + berkat; 3 doa sekaligus. Mode PENUH (+6 mnt): kantong + lagu 1 → doa syafaat → lagu selingan → doa tutup + berkat (syafaat & tutup pisah, tiap doa eksplisit).',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 2 }],
+      },
+      {
+        no: 9, title: 'Terima kasih + Pengumuman', minutes: 5, owner: 'Tuan Rumah, MC, Komisi/Tim Kerja', division: 'KOINONIA',
+        notes: 'Apresiasi tuan rumah + info komisi; konsumsi dan ramah-tamah jalan paralel.',
+      },
+      {
+        no: 10, title: 'Selebrasi HUT + doa', minutes: 5, owner: 'MC, yang HUT', division: 'KOINONIA',
+        notes: 'Rayakan dan doakan yang berulang tahun.',
+      },
+      {
+        no: 11, title: 'Foto bersama', minutes: 5, owner: 'Fotografer, Videografer', division: 'MARTURIA',
+        notes: 'Foto session + dokumentasi.',
+      },
+      {
+        no: 12, title: 'Acara bebas & pulang', minutes: 5, owner: 'Tuan Rumah', division: 'KOINONIA',
+        anchor: 'PASCA',
+        notes: 'Ramah-tamah paralel mengikuti blok terima kasih, tidak dihitung ganda.',
       },
     ],
     playbook: MONOLOG_PLAYBOOK,
@@ -313,7 +384,7 @@ const PATTERNS = [
   },
   {
     code: 'DEBAT',
-    name: 'Debat — The Battle of Minds',
+    name: 'The Battle of Minds',
     summary: '5 ronde × 20 menit, timer mutlak, karantina HP, konklusi teologis membongkar dikotomi palsu.',
     defaultDurationMin: 140,
     modules: ['rounds', 'timer', 'teams'],
@@ -339,23 +410,67 @@ const PATTERNS = [
   },
   {
     code: 'BEDAH_FILM',
-    name: 'Bedah Film',
-    summary: 'Pemutaran film + pleno analisa + deep sharing identitas & topeng.',
-    defaultDurationMin: 145,
-    modules: ['screening', 'timer', 'notes', 'testimony'],
+    name: 'Movie Breakdown',
+    summary: 'Likert awal + nonton & catat (afirmasi firman) + likert akhir + Lesson Learned + 2 kesaksian.',
+    defaultDurationMin: 155,
+    modules: ['screening', 'timer', 'notes', 'testimony', 'likert', 'chips', 'wordcloud'],
     phases: [
       {
-        no: 1, title: 'Opening + praise + pengantar', minutes: 15, owner: 'Main Speaker',
-        notes: 'Sinopsis tanpa spoiler + jembatan ke tema pekan.',
-        segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
+        no: 1, title: 'Registrasi Ulang', minutes: 5, owner: 'Tuan Rumah, Penerima Tamu, Absensi', division: 'KOINONIA',
+        anchor: 'PRA', parallelGroup: 'pra-reg',
+        notes: 'QR check-in ulang + sambut; yang hadir masuk pool undian.',
       },
-      { no: 2, title: 'Pemutaran film', minutes: 91, owner: 'Multimedia', notes: 'Lampu redup, HP silent, tanpa komentar selama film.' },
-      { no: 3, title: 'Pleno analisa film', minutes: 15, owner: 'MC', notes: '2-3 suara campuran Mentor/Mentee + pancingan tema.' },
-      { no: 4, title: 'Team discussion / deep sharing', minutes: 25, owner: 'Mentor', notes: '3 pertanyaan wajib: akting suci, topeng terberat, langkah otentik.' },
       {
-        no: 5, title: 'Persembahan + konklusi + doa berkat', minutes: 15, owner: 'Main Speaker',
-        notes: 'Api & Roh vs jubah luar + panggilan otentik.',
+        no: 2, title: 'Persiapan Ibadah', minutes: 5, owner: 'Tuan Rumah', division: 'KOINONIA',
+        anchor: 'PRA', parallelGroup: 'pra',
+        notes: 'Doa petugas + standby kru sebelum T0. Paralel: proyektor/sound/subtitle (Marturia) + matras/konsumsi diedarkan sebelum lampu redup (Diakonia) — tak tambah total.',
+      },
+      {
+        no: 3, title: 'Opening (Lagu buka, Doa Buka, Praise & Worship)', minutes: 5, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+        anchor: 'ACARA',
+        notes: '1 lagu + doa buka dalam 5 mnt.',
+        segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 1 }],
+      },
+      {
+        no: 4, title: 'Persembahan + Doa (persembahan & syafaat)', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        anchor: 'ACARA',
+        notes: 'Kantong jalan + doa persembahan & syafaat; doa tutup + berkat di segmen 8.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
+      },
+      {
+        no: 5, title: 'Transisi — jabarkan Alkitab + Likert Awal', minutes: 5, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+        anchor: 'ACARA',
+        notes: 'Sinopsis tanpa spoiler + jembatan ke {{tema}} + infokan isi 3 catatan (Q1-Q3) selama film nanti. Pemicu: tombol kontrol M0 (timer 5 menit).',
+      },
+      {
+        no: 6, title: 'Movie Breakdown (ikuti durasi film)', minutes: 90, owner: 'Main Speaker, Multimedia', division: 'DIDASKALIA',
+        anchor: 'ACARA',
+        notes: 'Layar mode tenang tanpa countdown (ikuti film, baku 90); lampu redup; HP tetap boleh untuk jawab 3 Q + afirmasi firman per jawaban; konsumsi paralel. Pemicu: tombol kontrol M1.',
+      },
+      {
+        no: 7, title: 'Transisi — konklusi + Likert Akhir + Lesson Learned Chip + 2 kesaksian', minutes: 15, owner: 'MC, Mentor, 2 terundi', division: 'DIDASKALIA',
+        anchor: 'ACARA',
+        notes: 'Konklusi firman + Likert AKHIR 5 item yang sama + Lesson Learned maks 3 (terbuka serentak via M3) + undi 1 Mentee + 1 Mentor maju bersaksi (M4); nama + grup + hasil Lesson Learned tampil gabungan di layar.',
+      },
+      {
+        no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        anchor: 'ACARA',
+        notes: '1 lagu + doa tutup + berkat.',
+      },
+      {
+        no: 9, title: 'Terima kasih + Pengumuman', minutes: 5, owner: 'Tuan Rumah, MC, Komisi/Tim Kerja', division: 'KOINONIA',
+        anchor: 'ACARA',
+        notes: 'Apresiasi tuan rumah + info komisi; konsumsi dan ramah-tamah jalan paralel.',
+      },
+      {
+        no: 10, title: 'HUT + Doa', minutes: 5, owner: 'MC, yang HUT', division: 'KOINONIA',
+        anchor: 'ACARA',
+        notes: 'Rayakan dan doakan yang berulang tahun.',
+      },
+      {
+        no: 11, title: 'Foto Bersama', minutes: 5, owner: 'Fotografer, Videografer', division: 'MARTURIA',
+        anchor: 'ACARA',
+        notes: 'Foto session + dokumentasi.',
       },
     ],
     playbook: BEDAH_FILM_PLAYBOOK,
@@ -363,7 +478,7 @@ const PATTERNS = [
   },
   {
     code: 'THREE_SEQUENCES',
-    name: 'The 3 Sequences',
+    name: 'Mission Sequence',
     summary: 'Gamifikasi misi tanpa jeda: Melayani → Bersekutu → Bersaksi, ditutup Commissioning.',
     defaultDurationMin: 120,
     modules: ['teams', 'timer', 'notes'],
