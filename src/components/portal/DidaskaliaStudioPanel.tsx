@@ -388,6 +388,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal parse (server ${r.status}).`);
+      // Format MD lengkap 7 hari (# PATH + ## judul + 5 section) BUKAN MD acuan:
+      // jangan simpan acuan kosong yang menyesatkan — arahkan ke importer.
+      if (kind === 'rhb' && !(d.paths || []).length) {
+        setMdMsg('Ini MD RHB lengkap 7 hari, bukan MD acuan — tidak disimpan. Pakai "Import MD lengkap" di tab 7 Path.');
+        return;
+      }
       if (d.missing?.length) {
         setMdMsg(`MD ${kind} terbaca tapi kurang: ${d.missing.join('; ')}. Simpan dulu sebagai acuan, lengkapi manual.`);
       } else {
