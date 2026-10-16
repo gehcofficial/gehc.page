@@ -256,6 +256,24 @@ describe('caption', () => {
     expect(deckRailLabel({ id: 'd', title: '  ' }, 3)).toBe('Slide 4');
   });
 
+  it('DeckShell: rail desktop ada, sembunyi di HP', async () => {
+    const React = (await import('react')).default;
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { DeckShell } = await import('../../src/components/presentation/DeckShell');
+    const html = renderToStaticMarkup(
+      React.createElement(DeckShell, {
+        slides: [{ id: 'a', title: 'Bedah Teologis' }, { id: 'b' }],
+        docTitle: 'Ringkasan',
+        exitHash: '#/portal',
+        renderSlide: (i: number) => React.createElement('p', null, `isi ${i}`),
+      }),
+    );
+    expect(html).toContain('Daftar slide');
+    expect(html).toContain('Bedah Teologis');
+    expect(html).toContain('Slide 2');
+    expect(html).toContain('hidden lg:block');
+  });
+
   it('caption harian memuat Kitab statis + Bacaan hari ini + Nats', () => {
     const studio = studioWithRhb();
     studio.kitabFokus = '1 Timotius 3:1-13';
