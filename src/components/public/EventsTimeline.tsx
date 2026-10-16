@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarDays, MapPin, ArrowRight, Users } from 'lucide-react';
+import { CalendarDays, MapPin, ArrowRight, Users, Clock3, Presentation, HandHeart, Home } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { SectionHeader, Reveal } from './ui/SectionHeader';
@@ -8,7 +8,7 @@ import { LoadingOverlay } from './ui/LoadingOverlay';
 import { Countdown } from './ui/Countdown';
 import { EventVenueMap } from './ui/EventVenueMap';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
-import { eventDayState } from '../../lib/event-dates';
+import { eventDayState, splitThemeDate, fmtTimeWib } from '../../lib/event-dates';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -20,6 +20,22 @@ type LandingVenue = {
   eventDate?: string;
   status?: string;
   slug?: string;
+  eventId?: string;
+  serviceType?: string | null;
+  kind?: string | null;
+};
+
+type LandingWorship = {
+  patternCode?: string | null;
+  patternName?: string | null;
+  sessionTitle?: string | null;
+  status?: string | null;
+};
+
+type LandingServing = {
+  responsible?: string | null;
+  host?: string | null;
+  projected?: boolean;
 };
 
 type LandingFull = {
@@ -35,6 +51,8 @@ type LandingFull = {
   venue?: LandingVenue | null;
   isBakutau?: boolean;
   stats?: { registered?: number } | null;
+  worship?: LandingWorship | null;
+  serving?: LandingServing | null;
 };
 
 type LandingCompact = {
@@ -43,6 +61,105 @@ type LandingCompact = {
   status: string;
   kind?: string;
   eventDate?: string;
+};
+
+/**
+ * Box tengah kartu penuh: Pola Ibadah + grup serving (tanpa nama petugas).
+ * - SERVING_DAY → Penanggung + Tuan Rumah (nama grup saja).
+ * - MENTORING_DAY → "Komisi + Tim Kerja" (label saja).
+ * - BAKUTAU → null (tidak tampil).
+ * Fallback: bila landing belum bawa serving nyata, ambil proyeksi publik
+ * /api/db/service-schedule?from=day&to=day (sudah termasuk "(perkiraan)").
+ */
+const EventMiddleInfo: React.FC<{ item: LandingFull }> = ({ item }) => {
+  const serviceType = String(item.venue?.serviceType || '').toUpperCase();
+  const isMentoring = serviceType === 'MENTORING_DAY';
+  const isServing = serviceType === 'SERVING_DAY';
+  const worship = item.worship || null;
+  const [fallback, setFallback] = useState<LandingServing | null>(null);
+
+  const eventIso = item.venue?.eventDate || item.event_date || null;
+  const dayKey = (() => {
+    if (!eventIso) return null;
+    const t = new Date(eventIso).getTime();
+    if (Number.isNaN(t)) return null;
+    return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  })();
+
+  useEffect(() => {
+    if (item.isBakutau || !isServing || item.serving || !dayKey) return;
+    let cancelled = false;
+    fetch(`/api/db/service-schedule?from=${dayKey}&to=${dayKey}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return;
+        const s = (d.serving || {})[dayKey] as LandingServing | undefined;
+        if (s && (s.responsible || s.host)) setFallback(s);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [item.isBakutau, isServing, item.serving, dayKey]);
+
+  if (item.isBakutau) return null;
+  const serving = item.serving || fallback;
+  const showWorship = Boolean(worship?.patternName || worship?.patternCode);
+  const showBox = showWorship || isServing || isMentoring || Boolean(serving?.responsible || serving?.host);
+  if (!showBox) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.07] backdrop-blur-md p-4 sm:p-5 space-y-3 min-w-0">
+      {showWorship && (
+        <div className="flex items-start gap-2">
+          <Presentation className="w-4 h-4 text-sky-300 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Pola Ibadah</p>
+            <p className="text-sm font-black text-white leading-snug truncate">
+              {worship?.patternName || worship?.patternCode}
+            </p>
+            {worship?.sessionTitle && (
+              <p className="text-[11px] text-white/60 leading-snug line-clamp-2">{worship.sessionTitle}</p>
+            )}
+          </div>
+        </div>
+      )}
+      {isMentoring ? (
+        <div className="flex items-start gap-2">
+          <HandHeart className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Penanggung Jawab</p>
+            <p className="text-xs font-bold text-white/90">Komisi + Tim Kerja</p>
+          </div>
+        </div>
+      ) : (serving?.responsible || serving?.host) ? (
+        <div className="space-y-2">
+          {serving?.responsible && (
+            <div className="flex items-start gap-2">
+              <HandHeart className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Penanggung Jawab</p>
+                <p className="text-xs font-bold text-white/90 truncate">
+                  {serving.responsible}
+                  {serving.projected ? <span className="font-normal text-white/50"> (perkiraan)</span> : null}
+                </p>
+              </div>
+            </div>
+          )}
+          {serving?.host && (
+            <div className="flex items-start gap-2">
+              <Home className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Tuan Rumah</p>
+                <p className="text-xs font-bold text-white/90 truncate">
+                  {serving.host}
+                  {serving.projected ? <span className="font-normal text-white/50"> (perkiraan)</span> : null}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 /**
@@ -129,24 +246,6 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
       })
       : '—';
 
-  const fmtWib = (iso?: string) =>
-    iso
-      ? new Date(iso).toLocaleString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Jakarta',
-      })
-      : null;
-
-  const cardDate = (item: LandingFull) => {
-    if (item.venue?.eventDate) return `${fmtWib(item.venue.eventDate)} WIB`;
-    return fmtDate(item.event_date || item.published_at);
-  };
-
   const cardLocation = (item: LandingFull) =>
     item.location_detail || item.venue?.locationDetail || null;
 
@@ -162,6 +261,10 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
     const closed = (isBakutau && eventClosed) || item.venue?.status === 'ARCHIVED';
     // Badge mengikuti tanggal WIB: hari-H ? hijau, selain itu "Akan Datang".
     const happening = eventDayState(item.venue?.eventDate || item.event_date) === 'today';
+    // Judul dipecah: tema (h3) + tanggal (baris 2) agar tidak gantung "17".
+    const { theme } = splitThemeDate(item.title);
+    const eventIso = item.venue?.eventDate || item.event_date || item.published_at || null;
+    const timeOnly = fmtTimeWib(item.venue?.eventDate || null);
     return (
       <div key={item.id} className="relative overflow-hidden rounded-[36px] bg-[#111111] text-white shadow-2xl">
         <img
@@ -172,8 +275,8 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30" />
-        <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-          <div className="max-w-xl">
+        <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="flex-1 min-w-0 max-w-xl">
             {happening ? (
               <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-3">
                 {t.events.happeningToday}
@@ -183,17 +286,25 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
                 {t.events.featuredBadge}
               </span>
             )}
-            <h3 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-              {item.title}
+            <h3 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight text-balance">
+              {theme}
             </h3>
+            {eventIso && (
+              <p className="text-sm sm:text-base font-bold text-white/90 mt-1.5 capitalize flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-brand shrink-0" />
+                {fmtDate(eventIso)}
+              </p>
+            )}
             {item.subtitle && (
               <p className="text-sm text-white/70 mt-2 leading-relaxed">{item.subtitle}</p>
             )}
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-4 text-xs text-white/80">
-              <span className="flex items-center gap-1.5 capitalize">
-                <CalendarDays className="w-3.5 h-3.5 text-brand" />
-                {cardDate(item)}
-              </span>
+              {timeOnly ? (
+                <span className="flex items-center gap-1.5">
+                  <Clock3 className="w-3.5 h-3.5 text-brand" />
+                  {timeOnly}
+                </span>
+              ) : null}
               {cardLocation(item) && (
                 <span className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-brand" />
@@ -215,7 +326,11 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
             )}
           </div>
 
-          <div className="shrink-0 space-y-3 self-start lg:self-end">
+          <div className="flex-1 min-w-0 lg:max-w-xs self-start lg:self-center">
+            <EventMiddleInfo item={item} />
+          </div>
+
+          <div className="shrink-0 lg:w-60 space-y-3 self-start lg:self-end">
             {!closed && item.venue?.eventDate && <Countdown targetIso={item.venue.eventDate} />}
             {showStats && (
               <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">

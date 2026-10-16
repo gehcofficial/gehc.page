@@ -93,14 +93,83 @@ export function registerEventsPublicRoutes(app, { wrap }) {
       linkedIds = [...new Set(items.map((c) => c.eventId).filter(Boolean))];
       const venueByEvent = {};
       const statsByEvent = {};
+      const worshipByEvent = {};
+      const servingByEvent = {};
       if (linkedIds.length) {
         const evs = await prisma.eventProgram.findMany({ where: { id: { in: linkedIds } } }).catch(() => []);
+        // Pola ibadah publik (tanpa config/accessCode): batch per eventId.
+        try {
+          const sessions = await prisma.worshipSession.findMany({
+            where: { eventId: { in: linkedIds } },
+            include: { pattern: { select: { code: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => []);
+          for (const s of sessions) {
+            if (!s?.eventId || worshipByEvent[s.eventId]) continue;
+            worshipByEvent[s.eventId] = {
+              patternCode: s.pattern?.code || null,
+              patternName: s.pattern?.name || null,
+              sessionTitle: s.title || null,
+              status: s.status || null,
+            };
+          }
+          // Fallback: sesi tertaut tanggal (sessionDate = hari event) untuk event tanpa eventId.
+          const missing = evs.filter((e) => !worshipByEvent[e.id] && e.eventDate);
+          if (missing.length) {
+            const days = [...new Set(missing.map((e) => new Date(e.eventDate).toISOString().slice(0, 10)))];
+            const byDate = await prisma.worshipSession.findMany({
+              where: { sessionDate: { in: days.map((d) => new Date(`${d}T00:00:00.000Z`)) } },
+              include: { pattern: { select: { code: true, name: true } } },
+              orderBy: { createdAt: 'desc' },
+            }).catch(() => []);
+            const byDay = new Map();
+            for (const s of byDate) {
+              const k = s.sessionDate instanceof Date
+                ? s.sessionDate.toISOString().slice(0, 10)
+                : String(s.sessionDate || '').slice(0, 10);
+              if (k && !byDay.has(k)) byDay.set(k, s);
+            }
+            for (const e of missing) {
+              const k = new Date(e.eventDate).toISOString().slice(0, 10);
+              const s = byDay.get(k);
+              if (s) {
+                worshipByEvent[e.id] = {
+                  patternCode: s.pattern?.code || null,
+                  patternName: s.pattern?.name || null,
+                  sessionTitle: s.title || null,
+                  status: s.status || null,
+                };
+              }
+            }
+          }
+        } catch { /* pola opsional */ }
+        // Serving nyata (penanggung + tuan rumah): nama grup saja, publik-aman.
+        try {
+          const servingRows = await prisma.servingAssignment.findMany({
+            where: { eventId: { in: linkedIds } },
+            include: {
+              responsibleGroup: { select: { name: true } },
+              hostGroup: { select: { name: true } },
+            },
+          }).catch(() => []);
+          for (const s of servingRows) {
+            if (!s?.eventId) continue;
+            servingByEvent[s.eventId] = {
+              responsible: s.responsibleGroup?.name || null,
+              host: s.hostGroup?.name || null,
+              projected: false,
+            };
+          }
+        } catch { /* serving opsional */ }
         await Promise.all(evs.map(async (e) => {
           venueByEvent[e.id] = {
             ...venueOf(e, e.id === BAKU_TAU_EVENT_ID),
             status: e.status,
             slug: e.slug,
             name: e.name,
+            eventId: e.id,
+            serviceType: e.serviceType || null,
+            kind: e.kind || null,
           };
           try {
             statsByEvent[e.id] = await eventSignupStats(prisma, e);
@@ -112,6 +181,8 @@ export function registerEventsPublicRoutes(app, { wrap }) {
         venue: c.eventId ? venueByEvent[c.eventId] || null : null,
         isBakutau: c.id === 'cnt-bakutau',
         stats: c.eventId ? statsByEvent[c.eventId] || null : null,
+        worship: c.eventId ? worshipByEvent[c.eventId] || null : null,
+        serving: c.eventId ? servingByEvent[c.eventId] || null : null,
       }));
     } catch {
       full = [];

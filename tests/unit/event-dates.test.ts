@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventDayState, todayWibKey, wibDayKey } from '../../src/lib/event-dates';
+import { eventDayState, todayWibKey, wibDayKey, splitThemeDate, fmtTimeWib } from '../../src/lib/event-dates';
 import { lifecycleAction, shiftDayKey } from '../../server/lib/event-lifecycle.mjs';
 
 const NOW = new Date('2026-09-09T10:00:00+07:00'); // Rabu 9 Sep 2026 WIB
@@ -52,5 +52,34 @@ describe('lifecycleAction', () => {
 
   it('shiftDayKey mundur 7 hari', () => {
     expect(shiftDayKey('2026-09-09', -7)).toBe('2026-09-02');
+  });
+});
+
+describe('splitThemeDate', () => {
+  it('pisahkan tema dan tanggal suffix', () => {
+    expect(splitThemeDate('Ancient Word, Modern World - 17 Okt 2026')).toEqual({
+      theme: 'Ancient Word, Modern World',
+      dateSuffix: '17 Okt 2026',
+    });
+    expect(splitThemeDate('More Than Good News — 04 Oktober 2026')).toEqual({
+      theme: 'More Than Good News',
+      dateSuffix: '04 Oktober 2026',
+    });
+  });
+
+  it('tanpa tanggal → dateSuffix null', () => {
+    expect(splitThemeDate('Ibadah Pemuda Raya')).toEqual({
+      theme: 'Ibadah Pemuda Raya',
+      dateSuffix: null,
+    });
+    expect(splitThemeDate('')).toEqual({ theme: '', dateSuffix: null });
+  });
+});
+
+describe('fmtTimeWib', () => {
+  it('jam WIB saja', () => {
+    expect(fmtTimeWib('2026-10-17T09:00:00Z')).toBe('Pukul 16.00 WIB');
+    expect(fmtTimeWib(null)).toBeNull();
+    expect(fmtTimeWib('ngaco')).toBeNull();
   });
 });
