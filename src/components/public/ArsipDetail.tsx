@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Calendar, Check, Copy, Images, Send, Users } from 'lucide-react';
+import { BookOpen, Calendar, Check, Copy, Download, Images, Loader2, Send, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { copyText, whatsappShareUrl } from '../../lib/rhb-caption';
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
+import { buildRingkasanPdf, fetchImageDataUrl } from '../../lib/ringkasanPdf';
+import { downloadBlob } from '../../lib/mentoringPdf';
 import { fmtArsipDate, type ArsipEvent } from './ArsipIbadah';
 import {
   DIVISION_STYLE,
@@ -68,6 +70,7 @@ export const ArsipDetail: React.FC = () => {
   const [missing, setMissing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [imgOk, setImgOk] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const dutyGroups = useMemo(() => groupDuties(duties), [duties]);
 
   useEffect(() => {
@@ -139,6 +142,31 @@ export const ArsipDetail: React.FC = () => {
     if (d.driveUrl) window.open(d.driveUrl, '_blank');
   };
 
+  const downloadPdf = async () => {
+    if (!event || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const coverDataUrl = ringkasan?.coverUrl ? await fetchImageDataUrl(ringkasan.coverUrl) : null;
+      const { filename, blob } = buildRingkasanPdf({
+        title: event.name,
+        dateLabel: fmtArsipDate(event.date),
+        bigIdea: ringkasan?.bigIdea || null,
+        verseRef: ringkasan?.teksUtama?.ref || null,
+        verseText: ringkasan?.teksUtama?.text || null,
+        sections: SECTION_KEYS.filter((k) => ringkasan?.outline?.[k]?.trim()).map((k) => ({
+          label: sectionLabel(k),
+          body: String(ringkasan?.outline?.[k] || ''),
+        })),
+        duties: duties.map((d) => ({ name: d.name, role: d.role, division: d.division })),
+        link: `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}#/arsip/${event.id}`,
+        coverDataUrl,
+      });
+      downloadBlob(filename, blob);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   if (missing) {
     return (
       <section className="py-20 px-4 max-w-2xl mx-auto text-center">
@@ -165,6 +193,17 @@ export const ArsipDetail: React.FC = () => {
       <p className="text-xs text-[#8C8880] mt-1 inline-flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5" /> {fmtArsipDate(event.date)}
       </p>
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => void downloadPdf()}
+          disabled={pdfBusy}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold disabled:opacity-60"
+        >
+          {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          <span>{pdfBusy ? 'Menyiapkan PDF…' : 'Unduh PDF'}</span>
+        </button>
+      </div>
 
       {ringkasan?.coverUrl && imgOk ? (
         <div className="relative mt-6 rounded-[28px] overflow-hidden border border-[#D9D7D0]/40">

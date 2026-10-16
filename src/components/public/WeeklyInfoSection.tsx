@@ -8,6 +8,8 @@ import { WartaServiceDutySection, WartaPelayananBlock } from './WartaServiceDuty
 import { ArsipIbadah } from './ArsipIbadah';
 import { useLang } from '../../context/LangContext';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
+import { buildRingkasanPdf, fetchImageDataUrl } from '../../lib/ringkasanPdf';
+import { downloadBlob } from '../../lib/mentoringPdf';
 import {
   BookOpen,
   Calendar,
@@ -61,6 +63,32 @@ export const WeeklyInfoSection: React.FC = () => {
   const [album, setAlbum] = useState<{ name: string; url: string; mimeType?: string }[]>([]);
 
   const bannerOf = (item: ContentItem) => item.bannerUrl || slots.warta.bannerDefault;
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  /** Unduh warta terbuka sebagai PDF (gantikan toast palsu). */
+  const downloadWartaPdf = async (item: ContentItem) => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const coverDataUrl = await fetchImageDataUrl(bannerOf(item));
+      const { filename, blob } = buildRingkasanPdf({
+        title: item.title,
+        dateLabel: item.published_at || null,
+        bigIdea: item.subtitle || null,
+        verseRef: item.scripture ? 'Ayat renungan' : null,
+        verseText: item.scripture || null,
+        sections: [{ label: item.category || 'Warta', body: item.body || '' }],
+        link: typeof window !== 'undefined' ? window.location.href : null,
+        coverDataUrl,
+      });
+      downloadBlob(filename, blob);
+      addToast({ type: 'success', title: 'PDF warta terunduh', description: 'Siap dibaca offline & dibagikan.' });
+    } catch {
+      addToast({ type: 'error', title: 'Gagal membuat PDF', description: 'Coba lagi sebentar.' });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!selectedItem) {
@@ -371,17 +399,12 @@ export const WeeklyInfoSection: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => {
-                      addToast({
-                        type: 'info',
-                        title: 'Mengunduh Warta PDF',
-                        description: 'Lembar buletin digital siap dibaca offline.',
-                      });
-                    }}
-                    className="px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                    onClick={() => { if (selectedItem) void downloadWartaPdf(selectedItem); }}
+                    disabled={pdfBusy}
+                    className="px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-60"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Unduh PDF</span>
+                    <span>{pdfBusy ? 'Menyiapkan…' : 'Unduh PDF'}</span>
                   </button>
                 </div>
               </div>
