@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseServiceMd, parseRhbMd, unwrapPythonMd } from '../../server/lib/didaskalia-md.mjs';
+import { parseServiceMd, parseRhbMd, parseRhbFullMd, unwrapPythonMd } from '../../server/lib/didaskalia-md.mjs';
 import { clampSermon } from '../../server/lib/didaskalia-ai.mjs';
 import { buildPembekalanCaption, buildKhutbahCaption } from '../../src/lib/rhb-caption';
 
@@ -158,6 +158,47 @@ describe('FGD 3Q + kembali kontekstual', () => {
     expect(b?.paragraphs?.join('\n')).toContain('perwakilan bergiliran');
     expect(patternTechnicalBullets('POST_TO_POST')).toHaveLength(4);
     expect(patternTechnicalBullets('MONOLOG')[0]).toContain('Ikuti alur');
+  });
+
+  it('parseRhbFullMd: 7 hari jadi Ancient Word (verbatim, tanpa AI)', () => {
+    const day = (n: number, title: string, ref: string) => [
+      `# PATH ${n} — HARI`,
+      `## ${title}`,
+      `**Ayat Renungan: ${ref}**`,
+      '',
+      '### Pengantar',
+      `Pengantar hari ${n}.`,
+      '',
+      '### Pembahasan Tematis',
+      `Bahasan hari ${n} dengan *mythos*.`,
+      '',
+      '### Makna dan Implikasi bagi Beyonders',
+      `Makna hari ${n}.`,
+      '',
+      '### Pertanyaan untuk Refleksi Pribadi',
+      `1. Refleksi hari ${n}?`,
+      '',
+      '### Pertanyaan untuk Diskusi Kelompok',
+      `1. Diskusi hari ${n}?`,
+      '',
+      `### Jembatan ke Path ${n + 1}`,
+      `Jembatan hari ${n}.`,
+    ].join('\n');
+    const md = [1, 2, 3, 4, 5, 6, 7].map((n) => day(n, `JUDUL ${n}`, `Ref ${n}`)).join('\n\n---\n\n');
+    const out = parseRhbFullMd(md);
+    expect(out.ok).toBe(true);
+    expect(out.missing).toEqual([]);
+    expect(out.paths).toHaveLength(7);
+    expect(out.paths[0]).toMatchObject({ pathIndex: 1, title: 'JUDUL 1', scriptureRef: 'Ref 1' });
+    expect(out.paths[0].sections.PENGANTAR).toContain('Pengantar hari 1');
+    expect(out.paths[0].sections.DISKUSI_KELOMPOK).toContain('Diskusi hari 1');
+    expect(out.paths[0].bridge).toContain('Jembatan hari 1');
+  });
+
+  it('parseRhbFullMd: tolak file tak lengkap dengan pesan per hari', () => {
+    const out = parseRhbFullMd('# PATH 1 — X\n## T\n');
+    expect(out.ok).toBe(false);
+    expect(out.missing.join(';')).toContain('Hanya 1/7 Path');
   });
 
   it('remember/last portal place: fallback aman + round-trip bila storage ada', async () => {    const { rememberPortalPlace, lastPortalPlace } = await import('../../src/lib/didaskalia-presentation');

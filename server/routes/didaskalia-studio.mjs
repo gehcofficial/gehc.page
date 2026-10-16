@@ -27,7 +27,7 @@ import {
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
-import { parseServiceMd, parseRhbMd } from '../lib/didaskalia-md.mjs';
+import { parseServiceMd, parseRhbMd, parseRhbFullMd } from '../lib/didaskalia-md.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 import { listOverrides, effectiveDate } from '../lib/service-overrides.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
@@ -540,8 +540,9 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   }));
 
   // ---------- Parse MD mingguan (input awal skenario baru, tanpa AI) ----------
-  // POST /api/didaskalia/parse-md { kind: 'service'|'rhb', content }
+  // POST /api/didaskalia/parse-md { kind: 'service'|'rhb'|'rhb-full', content }
   // → { ok, missing[], info/paths } untuk prefill editor pekan.
+  // 'rhb-full' = MD RHB 7 hari jadi (judul + Ayat Renungan + 5 section + Jembatan).
   app.post('/api/didaskalia/parse-md', requireDivision('DIDASKALIA'), requireRole(...WRITE_ROLES), wrap(async (req, res) => {
     const kind = String(req.body?.kind || '').toLowerCase();
     const content = String(req.body?.content || '');
@@ -549,7 +550,8 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     if (content.length > 300000) return res.status(413).json({ error: 'Dokumen terlalu besar (maks ~300 KB teks).' });
     if (kind === 'service') return res.json({ kind, ...parseServiceMd(content) });
     if (kind === 'rhb') return res.json({ kind, ...parseRhbMd(content) });
-    return res.status(400).json({ error: 'kind harus service atau rhb.' });
+    if (kind === 'rhb-full') return res.json({ kind, ...parseRhbFullMd(content) });
+    return res.status(400).json({ error: 'kind harus service, rhb, atau rhb-full.' });
   }));
 
   // ---------- Verifikasi ayat via bolls.life (READ-ONLY, tanpa API key) ----------

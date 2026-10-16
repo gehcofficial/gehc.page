@@ -206,6 +206,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [mdServiceText, setMdServiceText] = useState('');
   const [mdRhbText, setMdRhbText] = useState('');
   const [mdMsg, setMdMsg] = useState<string | null>(null);
+  /** Import MD RHB lengkap 7 hari jadi (judul + nats + 5 section + jembatan). */
+  type FullRhbPath = { pathIndex: number; title: string; scriptureRef: string; sections: Record<string, string>; bridge: string };
+  const [mdFullText, setMdFullText] = useState('');
+  const [fullParsed, setFullParsed] = useState<Array<FullRhbPath> | null>(null);
+  const [fullMode, setFullMode] = useState<'replace' | 'merge'>('replace');
+  const [fullMsg, setFullMsg] = useState<string | null>(null);
   /** Pola gambar cover: AI generate (default) | UPLOAD manual | MOTIF seri. */
   const [coverStyle, setCoverStyle] = useState<'AI' | 'UPLOAD' | 'MOTIF'>('AI');
   /** Status token Drive pemilik (untuk pra-cek sebelum generate gambar). */
@@ -417,6 +423,68 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     });
     await save({ paths: next });
     addToast({ type: 'success', title: 'MD RHB diterapkan ke 7 Path' });
+  };
+
+  /** Parse MD RHB lengkap (7 hari jadi) → preview 7 judul, tanpa tulis DB. */
+  const parseFullRhb = async () => {
+    if (!canWrite) return;
+    if (!mdFullText.trim()) { setFullMsg('Tempel dulu isi MD 7 hari (format "# PATH N" + "## Judul" + 5 section).'); return; }
+    setBusy('md-full-parse');
+    setFullMsg(null);
+    try {
+      const r = await fetch('/api/didaskalia/parse-md', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'rhb-full', content: mdFullText }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal parse (server ${r.status}).`);
+      if (d.missing?.length) {
+        setFullParsed(null);
+        setFullMsg(`Belum valid: ${d.missing.join('; ')}`);
+        return;
+      }
+      setFullParsed(d.paths || []);
+      const titles = (d.paths || []).map((p: { pathIndex: number; title: string }) => `${p.pathIndex}. ${p.title}`).join(' · ');
+      setFullMsg(`7 hari valid ✓ — ${titles}. Pilih mode lalu Terapkan.`);
+    } catch (e: unknown) {
+      setFullParsed(null);
+      setFullMsg(e instanceof Error ? e.message : 'Gagal parse MD.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Terapkan hasil parse MD lengkap ke 7 Path (verbatim, tanpa AI). Bacaan tak disentuh. */
+  const applyFullRhb = async () => {
+    if (!canWrite || !fullParsed?.length) return;
+    if (studio.pendingRegen && String(studio.pendingRegen.status || '').toUpperCase() === 'PENDING') {
+      setFullMsg('Ada pengajuan draf/perkaya PENDING — setujui/tolak dulu sebelum import (agar tak tertimpa).');
+      return;
+    }
+    if (!window.confirm(`Terapkan MD lengkap ke 7 Path (mode ${fullMode === 'replace' ? 'TIMPA penuh' : 'isi yang kosong saja'})? Bacaan harian tidak diubah.`)) return;
+    const byIndex = new Map<number, FullRhbPath>(fullParsed.map((p) => [Number(p.pathIndex), p]));
+    const next = ensurePaths(studio).map((p) => {
+      const src = byIndex.get(Number(p.pathIndex));
+      if (!src) return p;
+      const secs = ensureRhbSections(p.rhbSections).map((s) => {
+        const v = String(src.sections?.[s.key] || '').trim();
+        if (!v) return s;
+        if (fullMode === 'merge' && String(s.body || '').trim()) return s;
+        return { ...s, body: v };
+      });
+      return {
+        ...p,
+        title: src.title || p.title,
+        scriptureRef: src.scriptureRef || p.scriptureRef,
+        bridge: String(src.bridge || '').trim() ? String(src.bridge) : p.bridge,
+        rhbSections: secs,
+      };
+    });
+    await save({ paths: next });
+    setFullMsg(`MD lengkap diterapkan ke 7 Path (mode ${fullMode}). Cek tiap hari, lalu Ilustrasikan + Terbitkan.`);
+    addToast({ type: 'success', title: 'MD lengkap diterapkan ke 7 Path' });
   };
 
   /** Terapkan MD Service ke draf Ringkasan (teks utama + 4 outline), lalu simpan. */
@@ -1435,6 +1503,40 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           <div className="space-y-2">
             <div className="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2">
               <p className="text-[11px] text-sky-900"><b>Kitab / Bagian Fokus statis sepekan{studio.kitabFokus ? `: ${studio.kitabFokus}` : ''}</b> — tampil sama di 7 hari RHB. <b>Bacaan</b> = porsi hari itu dari kitab tersebut; <b>Nats Pembimbing</b> = ayat pengaya yang berbeda tiap hari.</p>
+            </div>
+            <div className="rounded-xl bg-white border border-[#D9D7D0]/60 p-3 space-y-2">
+              <p className="text-[11px] font-black text-[#1B1B1B]">Import MD lengkap (7 hari jadi — tanpa AI)</p>
+              <p className="text-[11px] text-[#8C8880]">Tempel MD format <code># PATH N</code> + <code>## Judul</code> + <code>**Ayat Renungan:**</code> + 5 section + <code>### Jembatan</code>. Parse → Terapkan menulis judul, nats, 5 section & jembatan verbatim. Bacaan tak diubah.</p>
+              <textarea value={mdFullText} onChange={(e) => setMdFullText(e.target.value)} rows={4} placeholder="# PATH 1 — MINGGU…&#10;## JUDUL&#10;**Ayat Renungan: …**&#10;### Pengantar…" disabled={!canWrite} className={`${inputCls} font-mono disabled:opacity-60`} />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!canWrite || busy === 'md-full-parse'}
+                  onClick={() => void parseFullRhb()}
+                  className="px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-50"
+                >
+                  {busy === 'md-full-parse' ? 'Memeriksa…' : 'Parse MD'}
+                </button>
+                {fullParsed?.length ? (
+                  <>
+                    <label className="text-[11px] text-[#1B1B1B] inline-flex items-center gap-1">
+                      <input type="radio" checked={fullMode === 'replace'} onChange={() => setFullMode('replace')} /> Timpa penuh
+                    </label>
+                    <label className="text-[11px] text-[#1B1B1B] inline-flex items-center gap-1">
+                      <input type="radio" checked={fullMode === 'merge'} onChange={() => setFullMode('merge')} /> Isi yang kosong
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!canWrite}
+                      onClick={() => void applyFullRhb()}
+                      className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
+                    >
+                      Terapkan ke 7 Path
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              {fullMsg ? <p className="text-[11px] text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">{fullMsg}</p> : null}
             </div>
             <div className="flex items-center gap-2 px-1">
               <p className="text-[11px] text-[#8C8880]">1 gambar harian berlaku semua slide hari itu (background + overlay, seperti khotbah).</p>

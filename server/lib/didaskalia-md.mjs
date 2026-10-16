@@ -119,3 +119,101 @@ export function parseRhbMd(raw) {
   });
   return { ok: missing.length === 0, missing, paths };
 }
+
+/**
+ * Parse MD RHB LENGKAP 7 hari (isi harian jadi, mis. Ancient_Word Paths_1-7.md).
+ * Struktur per hari:
+ *   `# PATH N — …` + `## Judul` + `**Ayat Renungan: ref**`
+ *   + `### Pengantar|Pembahasan Tematis|Makna dan Implikasi bagi Beyonders|
+ *     Pertanyaan untuk Refleksi Pribadi|Pertanyaan untuk Diskusi Kelompok`
+ *   + `### Jembatan …` (= bridge).
+ * @returns {{ ok, missing: string[], paths: [{ pathIndex, title, scriptureRef, sections, bridge }] }}
+ */
+const FULL_SECTION_KEYS = [
+  { key: 'PENGANTAR', match: /^pengantar$/i },
+  { key: 'PEMBAHASAN_TEMATIS', match: /^pembahasan tematis$/i },
+  { key: 'MAKNA_IMPLIKASI', match: /^makna (dan|&) implikasi( bagi beyonders)?$/i },
+  { key: 'REFLEKSI_PRIBADI', match: /^pertanyaan untuk refleksi pribadi$/i },
+  { key: 'DISKUSI_KELOMPOK', match: /^pertanyaan untuk diskusi kelompok$/i },
+];
+
+export function parseRhbFullMd(raw) {
+  const md = unwrapPythonMd(raw);
+  const lines = String(md || '').split('\n');
+  const blocks = [];
+  let cur = null;
+  for (const line of lines) {
+    const h1 = line.match(/^#\s+PATH\s+(\d+)\b/i);
+    if (h1) {
+      if (cur) blocks.push(cur);
+      cur = { pathIndex: Number(h1[1]), lines: [] };
+      continue;
+    }
+    if (cur) cur.lines.push(line);
+  }
+  if (cur) blocks.push(cur);
+
+  const paths = blocks.slice(0, 7).map((b, i) => {
+    const pathIndex = Number.isInteger(b.pathIndex) && b.pathIndex >= 1 && b.pathIndex <= 7 ? b.pathIndex : i + 1;
+    let title = '';
+    let scriptureRef = '';
+    const sections = {};
+    let bridge = '';
+    let curKey = '';
+    let curBridge = false;
+    const buf = [];
+    const flush = () => {
+      const t = buf.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      buf.length = 0;
+      if (curBridge) {
+        if (t) bridge = `${bridge ? `${bridge}\n\n` : ''}${t}`.slice(0, 2000);
+      } else if (curKey) {
+        sections[curKey] = `${sections[curKey] ? `${sections[curKey]}\n\n` : ''}${t}`.slice(0, 20000);
+      }
+      curKey = '';
+      curBridge = false;
+    };
+    for (const line of b.lines) {
+      const h2 = line.match(/^##\s+(.*)$/);
+      if (h2 && !title) {
+        flush();
+        title = asStr(h2[1], 120);
+        continue;
+      }
+      const ayat = line.match(/^\*\*ayat renungan:\s*(.+)$/i);
+      if (ayat) {
+        flush();
+        scriptureRef = asStr(ayat[1].replace(/\*+\s*$/, ''), 160);
+        continue;
+      }
+      const h3 = line.match(/^###\s+(.*)$/);
+      if (h3) {
+        flush();
+        const name = h3[1].trim();
+        const hit = FULL_SECTION_KEYS.find((k) => k.match.test(name));
+        if (hit) curKey = hit.key;
+        else if (/^jembatan/i.test(name)) curBridge = true;
+        continue;
+      }
+      if (/^---+\s*$/.test(line)) {
+        flush();
+        continue;
+      }
+      buf.push(line);
+    }
+    flush();
+    return { pathIndex, title, scriptureRef, sections, bridge: bridge.trim() };
+  });
+
+  const missing = [];
+  if (paths.length < 7) missing.push(`Hanya ${paths.length}/7 Path ditemukan (heading "# PATH N" tidak lengkap?)`);
+  paths.forEach((p, i) => {
+    const n = p.pathIndex || i + 1;
+    if (!p.title) missing.push(`Path ${n}: judul (## …) kosong`);
+    if (!p.scriptureRef) missing.push(`Path ${n}: Ayat Renungan kosong`);
+    for (const k of FULL_SECTION_KEYS) {
+      if (!p.sections[k.key]?.trim()) missing.push(`Path ${n}: section ${k.key} kosong`);
+    }
+  });
+  return { ok: missing.length === 0, missing, paths };
+}
