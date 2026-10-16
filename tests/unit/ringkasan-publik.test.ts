@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tabFromHash } from '../../src/app/routes';
+import { parseHashRoute } from '../../src/lib/hash-routes';
 import { originDateFor } from '../../server/lib/service-overrides.mjs';
 import { weekIndexForDate } from '../../server/lib/penatalayan-access.mjs';
 import { publishedOnPublishDoc } from '../../server/routes/didaskalia-studio.mjs';
@@ -19,6 +20,18 @@ describe('ringkasan publik: routing hash', () => {
 
   it('#/arsip/:id → tab arsip', () => {
     expect(tabFromHash('#/arsip/evt-123')).toBe('arsip');
+  });
+
+  it('parser live (App): arsip + ringkasan tak jatuh ke landing', () => {
+    expect(parseHashRoute('#/arsip/evt-123').tab).toBe('arsip');
+    expect(parseHashRoute('#/ringkasan/2026-10/3').tab).toBe('ringkasan');
+  });
+
+  it('parser live (App): hash lama tak berubah', () => {
+    expect(parseHashRoute('#/bulletin').tab).toBe('bulletin');
+    expect(parseHashRoute('#/warta').tab).toBe('bulletin');
+    expect(parseHashRoute('#/event/bakutau').tab).toBe('event-signup');
+    expect(parseHashRoute('#/tak-dikenal').tab).toBe('beyonders');
   });
 });
 

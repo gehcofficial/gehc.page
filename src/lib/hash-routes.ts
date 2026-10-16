@@ -8,9 +8,11 @@ export type ParsedHashRoute = {
     | 'join'
     | 'login'
     | 'register'
-    | 'event-signup'
-    | 'group-detail'
-    | 'benzarpreneurship';
+  | 'event-signup'
+  | 'group-detail'
+  | 'ringkasan'
+  | 'arsip'
+  | 'benzarpreneurship';
   eventSlug?: string;
   params: URLSearchParams;
 };
@@ -31,6 +33,8 @@ const PUBLIC_TABS = new Set<ParsedHashRoute['tab']>([
   'leaders',
   'events',
   'bulletin',
+  'ringkasan',
+  'arsip',
   'join',
   'login',
   'register',
@@ -56,6 +60,14 @@ export function parseHashRoute(hash = typeof window !== 'undefined' ? window.loc
   }
   if (first === 'group-detail') {
     return { tab: 'group-detail', params };
+  }
+  // Halaman publik berparameter: ringkasan khotbah + detail arsip per event.
+  // (Tanpa ini keduanya jatuh ke default 'beyonders' = landing.)
+  if (first === 'ringkasan') {
+    return { tab: 'ringkasan', params };
+  }
+  if (first === 'arsip') {
+    return { tab: 'arsip', params };
   }
   if (LEGACY_MAP[first]) {
     return { tab: LEGACY_MAP[first], params };
