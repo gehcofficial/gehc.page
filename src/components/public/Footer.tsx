@@ -73,7 +73,7 @@ export const Footer: React.FC = () => {
   const phone = profile.contactPhone || '';
 
   return (
-    <footer className="bg-[#151515] text-white pt-16 sm:pt-24 pb-12 px-4 sm:px-8 rounded-t-[44px] sm:rounded-t-[64px] relative z-20 mt-16">
+    <footer className="bg-[#151515] text-white pt-16 sm:pt-24 pb-12 px-4 sm:px-8 rounded-t-[44px] sm:rounded-t-[64px] relative z-20 mt-16 print:hidden">
       <div className="max-w-[1440px] mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 sm:gap-16 mb-16">
           

@@ -62,7 +62,7 @@ export function divisionDetailTabIds(division: string): string[] {
     case 'DIDASKALIA': return ['studio', 'pola', 'penatalayan', 'members'];
     case 'LITURGIA': return ['penatalayan', 'ibadah', 'members'];
     case 'MARTURIA': return ['liputan', 'galeri', 'desain', 'kesaksian', 'misi', 'penatalayan', 'ibadah', 'members'];
-    case 'KOINONIA': return ['checkin', 'ajak', 'penatalayan', 'ibadah', 'members'];
+    case 'KOINONIA': return ['checkin', 'ajak', 'syukur', 'penatalayan', 'ibadah', 'members'];
     case 'DIAKONIA': return ['tugas', 'logistik', 'konsumsi', 'kesehatan', 'peduli', 'perantau', 'penatalayan', 'ibadah', 'members'];
     default: return ['overview', 'ibadah', 'members', 'discussions', 'drive', 'planning'];
   }

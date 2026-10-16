@@ -65,7 +65,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="fixed top-[18px] left-0 right-0 z-50 flex items-center justify-center px-4 w-full pointer-events-none">
+      <header className="fixed top-[18px] left-0 right-0 z-50 flex items-center justify-center px-4 w-full pointer-events-none print:hidden">
         <div className="pointer-events-auto w-full max-w-[1120px] flex items-center justify-between bg-[#151515]/95 backdrop-blur-2xl rounded-full px-3 py-2 shadow-2xl border border-white/15 h-[58px] transition-all duration-300">
           
           {/* Brand */}

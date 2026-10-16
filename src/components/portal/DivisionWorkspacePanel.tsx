@@ -46,10 +46,12 @@ import {
   UtensilsCrossed,
   HeartPulse,
   HandHeart,
+  HeartHandshake,
   Briefcase,
 } from 'lucide-react';
 import { EventCheckInTab } from './EventCheckInTab';
 import { EventInviteCard } from './EventInviteCard';
+import { EventThanksCard } from './EventThanksCard';
 import PenatalayanCalendar from './PenatalayanCalendar';
 import { PenatalayanBoard } from './PenatalayanBoard';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
@@ -146,7 +148,7 @@ interface EventItem {
   startDate?: string | null;
 }
 
-type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'galeri' | 'liputan' | 'desain' | 'kesaksian' | 'misi' | 'tugas' | 'logistik' | 'konsumsi' | 'kesehatan' | 'peduli' | 'perantau' | 'checkin' | 'ajak' | 'ibadah' | 'studio' | 'pola';
+  type DetailTab = 'overview' | 'members' | 'discussions' | 'drive' | 'penatalayan' | 'planning' | 'warta' | 'gallery' | 'galeri' | 'liputan' | 'desain' | 'kesaksian' | 'misi' | 'tugas' | 'logistik' | 'konsumsi' | 'kesehatan' | 'peduli' | 'perantau' | 'checkin' | 'ajak' | 'syukur' | 'ibadah' | 'studio' | 'pola';
 
 export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ division }) => {
   const { addToast, authUser } = useApp();
@@ -389,6 +391,7 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
     perantau: { label: 'Perantau', icon: <Briefcase className="w-3.5 h-3.5" /> },
     checkin: { label: d.tabCheckin, icon: <QrCode className="w-3.5 h-3.5" /> },
     ajak: { label: d.tabAjak, icon: <Send className="w-3.5 h-3.5" /> },
+    syukur: { label: d.tabSyukur, icon: <HeartHandshake className="w-3.5 h-3.5" /> },
     studio: { label: 'Studio', icon: <BookOpen className="w-3.5 h-3.5" /> },
     pola: { label: 'Pola & Sesi', icon: <Clapperboard className="w-3.5 h-3.5" /> },
   };
@@ -1632,6 +1635,12 @@ export const DivisionWorkspacePanel: React.FC<{ division?: string }> = ({ divisi
             {activeTab === 'ajak' && selectedDiv === 'KOINONIA' && (
               <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
                 <EventInviteCard />
+              </div>
+            )}
+
+            {activeTab === 'syukur' && selectedDiv === 'KOINONIA' && (
+              <div className="rounded-2xl border border-[#D9D7D0]/60 bg-white p-4">
+                <EventThanksCard />
               </div>
             )}
 

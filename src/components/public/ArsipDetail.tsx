@@ -1,11 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Calendar, Check, Copy, Download, Images, Loader2, Send, Users } from 'lucide-react';
+import { Calendar, Images, Printer, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
-import { copyText, whatsappShareUrl } from '../../lib/rhb-caption';
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
-import { buildRingkasanPdf, fetchImageDataUrl } from '../../lib/ringkasanPdf';
-import { downloadBlob } from '../../lib/mentoringPdf';
 import { fmtArsipDate, type ArsipEvent } from './ArsipIbadah';
 import {
   DIVISION_STYLE,
@@ -68,9 +65,7 @@ export const ArsipDetail: React.FC = () => {
   const [serving, setServing] = useState<Serving | null>(null);
   const [duties, setDuties] = useState<Duty[]>([]);
   const [missing, setMissing] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [imgOk, setImgOk] = useState(true);
-  const [pdfBusy, setPdfBusy] = useState(false);
   const dutyGroups = useMemo(() => groupDuties(duties), [duties]);
 
   useEffect(() => {
@@ -108,29 +103,6 @@ export const ArsipDetail: React.FC = () => {
       .catch(() => {});
   }, [event]);
 
-  const caption = useMemo(() => {
-    if (!event) return '';
-    const host = serving?.host ? `tuan rumah ${serving.host}` : '';
-    const resp = serving?.responsible ? `penanggung jawab ${serving.responsible}` : '';
-    const who = [host, resp].filter(Boolean).join(' & ');
-    return [
-      `Terima kasih Tuhan untuk ibadah "${event.name}" (${fmtArsipDate(event.date)}).`,
-      who ? `Terima kasih ${who} dan semua petugas yang melayani.` : 'Terima kasih semua petugas yang melayani.',
-      ringkasan?.teksUtama?.ref ? `Firman: ${ringkasan.teksUtama.ref}.` : '',
-      ringkasan?.bigIdea ? ringkasan.bigIdea : '',
-      `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}#/arsip/${event.id}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-  }, [event, serving, ringkasan]);
-
-  const doCopy = async () => {
-    if (await copyText(caption)) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
   const openDrive = async () => {
     if (!event) return;
     if (!authUser) {
@@ -140,31 +112,6 @@ export const ArsipDetail: React.FC = () => {
     const r = await fetch(`/api/events/${event.id}/archive-link`, { credentials: 'include' });
     const d = await r.json().catch(() => ({}));
     if (d.driveUrl) window.open(d.driveUrl, '_blank');
-  };
-
-  const downloadPdf = async () => {
-    if (!event || pdfBusy) return;
-    setPdfBusy(true);
-    try {
-      const coverDataUrl = ringkasan?.coverUrl ? await fetchImageDataUrl(ringkasan.coverUrl) : null;
-      const { filename, blob } = buildRingkasanPdf({
-        title: event.name,
-        dateLabel: fmtArsipDate(event.date),
-        bigIdea: ringkasan?.bigIdea || null,
-        verseRef: ringkasan?.teksUtama?.ref || null,
-        verseText: ringkasan?.teksUtama?.text || null,
-        sections: SECTION_KEYS.filter((k) => ringkasan?.outline?.[k]?.trim()).map((k) => ({
-          label: sectionLabel(k),
-          body: String(ringkasan?.outline?.[k] || ''),
-        })),
-        duties: duties.map((d) => ({ name: d.name, role: d.role, division: d.division })),
-        link: `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}#/arsip/${event.id}`,
-        coverDataUrl,
-      });
-      downloadBlob(filename, blob);
-    } finally {
-      setPdfBusy(false);
-    }
   };
 
   if (missing) {
@@ -181,8 +128,8 @@ export const ArsipDetail: React.FC = () => {
     k === 'pengantar' ? t.ringkasan.sPengantar : k === 'bedahTeologis' ? t.ringkasan.sBedah : k === 'jembatan' ? t.ringkasan.sJembatan : t.ringkasan.sKesimpulan;
 
   return (
-    <article className="py-14 sm:py-20 px-4 sm:px-8 max-w-[800px] mx-auto">
-      <a href="#/bulletin" className="text-xs font-bold text-[#8C8880] hover:text-[#1B1B1B]">{t.arsip.backToArchive}</a>
+    <article className="py-14 sm:py-20 px-4 sm:px-8 max-w-[800px] mx-auto print:py-0 print:px-0 print:max-w-none">
+      <a href="#/bulletin" className="text-xs font-bold text-[#8C8880] hover:text-[#1B1B1B] print:hidden">{t.arsip.backToArchive}</a>
       <p className="mt-4 text-[11px] font-black uppercase tracking-[0.2em] text-brand flex items-center gap-2">
         {t.arsip.eyebrow}
         {event.ringkasan && !event.ringkasan.published ? (
@@ -193,20 +140,19 @@ export const ArsipDetail: React.FC = () => {
       <p className="text-xs text-[#8C8880] mt-1 inline-flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5" /> {fmtArsipDate(event.date)}
       </p>
-      <div className="mt-3">
+      <div className="mt-3 print:hidden">
         <button
           type="button"
-          onClick={() => void downloadPdf()}
-          disabled={pdfBusy}
+          onClick={() => window.print()}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#181818] hover:bg-black text-white text-xs font-bold disabled:opacity-60"
         >
-          {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-          <span>{pdfBusy ? 'Menyiapkan PDF…' : 'Unduh PDF'}</span>
+          <Printer className="w-3.5 h-3.5" />
+          <span>Cetak / PDF</span>
         </button>
       </div>
 
       {ringkasan?.coverUrl && imgOk ? (
-        <div className="relative mt-6 rounded-[28px] overflow-hidden border border-[#D9D7D0]/40">
+        <div className="relative mt-6 rounded-[28px] overflow-hidden border border-[#D9D7D0]/40 [-webkit-print-color-adjust:exact] [print-color-adjust:exact]">
           <img
             src={ringkasan.coverUrl}
             alt={event.name}
@@ -248,7 +194,7 @@ export const ArsipDetail: React.FC = () => {
       )}
 
       {(event.previews || []).length > 0 ? (
-        <section className="mt-10">
+        <section className="mt-10 print:hidden">
           <h2 className="text-sm font-black text-[#1B1B1B] uppercase tracking-wider inline-flex items-center gap-1.5">
             <Images className="w-4 h-4" /> {t.arsip.galleryDay}
           </h2>
@@ -270,7 +216,7 @@ export const ArsipDetail: React.FC = () => {
       ) : null}
 
       {serving || duties.length ? (
-        <section className="mt-10 p-5 rounded-[24px] bg-[#FAF9F5] border border-[#D9D7D0]/50">
+        <section className="mt-10 p-5 rounded-[24px] bg-[#FAF9F5] border border-[#D9D7D0]/50 print:hidden">
           <h2 className="text-sm font-black text-[#1B1B1B] uppercase tracking-wider inline-flex items-center gap-1.5">
             <Users className="w-4 h-4" /> {t.arsip.hostTitle}
           </h2>
@@ -318,30 +264,6 @@ export const ArsipDetail: React.FC = () => {
           </div>
         </section>
       ) : null}
-
-      <section className="mt-10 p-5 rounded-[24px] bg-white border border-[#D9D7D0]/60">
-        <h2 className="text-sm font-black text-[#1B1B1B] uppercase tracking-wider inline-flex items-center gap-1.5">
-          <BookOpen className="w-4 h-4" /> {t.arsip.captionTitle}
-        </h2>
-        <p className="mt-3 text-xs text-[#1B1B1B] leading-relaxed whitespace-pre-line">{caption}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={doCopy}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold"
-          >
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? t.arsip.copied : t.arsip.copy}
-          </button>
-          <a
-            href={whatsappShareUrl(caption)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
-          >
-            <Send className="w-3.5 h-3.5" /> {t.arsip.shareWa}
-          </a>
-        </div>
-      </section>
     </article>
   );
 };

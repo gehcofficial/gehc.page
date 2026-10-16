@@ -430,6 +430,7 @@ export const portalId: typeof portalEn = {
     tabPlanning: 'Rencana',
     tabCheckin: 'Check-in',
     tabAjak: 'Ajak & Jemput',
+    tabSyukur: 'Terima Kasih',
     tabWarta: 'Warta',
     tabGallery: 'Galeri',
     tabKesaksian: 'Kesaksian & Story',
