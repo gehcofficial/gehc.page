@@ -43,8 +43,8 @@ export const Countdown: React.FC<{ targetIso?: string | null }> = ({ targetIso }
   ];
 
   return (
-    <div className="flex items-center gap-3" aria-label={t.events.startsIn}>
-      <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-1.5">
+    <div className="flex items-center gap-2" aria-label={t.events.startsIn}>
+      <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-1.5 whitespace-nowrap shrink-0">
         <CalendarClock className="w-3.5 h-3.5" />
         {t.events.startsIn}
       </span>

@@ -102,23 +102,35 @@ const EventMiddleInfo: React.FC<{ item: LandingFull }> = ({ item }) => {
 
   if (item.isBakutau) return null;
   const serving = item.serving || fallback;
-  const showWorship = Boolean(worship?.patternName || worship?.patternCode);
-  const showBox = showWorship || isServing || isMentoring || Boolean(serving?.responsible || serving?.host);
+  const patternLabel = worship?.patternName || worship?.patternCode || null;
+  const statusLabel = (() => {
+    switch (String(worship?.status || '').toUpperCase()) {
+      case 'DRAFT': return 'Segera';
+      case 'LIKERT_OPEN': return 'Dibuka';
+      case 'RUNNING': return 'Berlangsung';
+      case 'WRAPUP': return 'Penutup';
+      case 'CLOSED': return 'Selesai';
+      default: return null;
+    }
+  })();
+  const showBox = Boolean(patternLabel) || isServing || isMentoring || Boolean(serving?.responsible || serving?.host);
   if (!showBox) return null;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.07] backdrop-blur-md p-4 sm:p-5 space-y-3 min-w-0">
-      {showWorship && (
+      {patternLabel && (
         <div className="flex items-start gap-2">
           <Presentation className="w-4 h-4 text-sky-300 shrink-0 mt-0.5" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Pola Ibadah</p>
-            <p className="text-sm font-black text-white leading-snug truncate">
-              {worship?.patternName || worship?.patternCode}
+            <p className="text-sm font-black text-white leading-snug">
+              {patternLabel}
+              {statusLabel && (
+                <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-400/15 text-sky-200 whitespace-nowrap">
+                  {statusLabel}
+                </span>
+              )}
             </p>
-            {worship?.sessionTitle && (
-              <p className="text-[11px] text-white/60 leading-snug line-clamp-2">{worship.sessionTitle}</p>
-            )}
           </div>
         </div>
       )}
@@ -275,8 +287,8 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
           className="absolute inset-0 w-full h-full object-cover opacity-40"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30" />
-        <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row gap-6 lg:gap-8">
-          <div className="flex-1 min-w-0 max-w-xl">
+        <div className="relative p-6 sm:p-12 flex flex-col lg:flex-row gap-6 lg:gap-10">
+          <div className="flex-1 min-w-0 max-w-2xl">
             {happening ? (
               <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-3">
                 {t.events.happeningToday}
@@ -326,11 +338,8 @@ export const EventsTimeline: React.FC<{ condensed?: boolean; showHeader?: boolea
             )}
           </div>
 
-          <div className="flex-1 min-w-0 lg:max-w-xs self-start lg:self-center">
+          <div className="shrink-0 lg:w-72 space-y-3 self-start lg:self-end">
             <EventMiddleInfo item={item} />
-          </div>
-
-          <div className="shrink-0 lg:w-60 space-y-3 self-start lg:self-end">
             {!closed && item.venue?.eventDate && <Countdown targetIso={item.venue.eventDate} />}
             {showStats && (
               <p className="text-[10px] font-bold text-white/70 flex items-center gap-1.5 justify-center">
