@@ -5,14 +5,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
 
+export type DeckSlideLite = {
+  id: string;
+  title?: string;
+  inlineTitle?: { lead: string; title: string };
+};
+
 export type DeckShellProps = {
-  slides: { id: string }[];
+  slides: DeckSlideLite[];
   docTitle: string;
   eyebrow?: string;
   exitHash: string;
   headerRight?: React.ReactNode;
   renderSlide: (index: number) => React.ReactNode;
 };
+
+/** Label rail: judul slide, fallback judul inline, terakhir nomor slide. */
+export function deckRailLabel(slide: DeckSlideLite, index: number): string {
+  const t = String(slide.title || slide.inlineTitle?.title || '').trim();
+  return t || `Slide ${index + 1}`;
+}
 
 export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow, exitHash, headerRight, renderSlide }) => {
   const total = slides.length;
@@ -70,6 +82,12 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
   }, [next, prev, total, exit, toggleFullscreen]);
 
   const progress = useMemo(() => (total <= 1 ? 100 : Math.round(((i + 1) / total) * 100)), [i, total]);
+
+  // Rail desktop: item aktif selalu terlihat (tanpa gerakkan scroll konten).
+  const activeRailRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeRailRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [i]);
 
   // Swipe horizontal (mobile): geser kiri = lanjut, geser kanan = kembali.
   // Ambang 60px & dominan horizontal agar scroll vertikal tidak ketrigger.
@@ -163,7 +181,36 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <div className="w-full max-w-6xl min-w-0 m-auto break-words">{total ? renderSlide(i) : null}</div>
+        <div className="w-full max-w-6xl lg:max-w-7xl min-w-0 m-auto break-words">
+          <div className="lg:flex lg:gap-6 lg:items-start">
+            <aside aria-label="Daftar slide" className="hidden lg:block w-60 shrink-0 lg:sticky lg:top-2 max-h-[calc(100dvh-220px)] overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-2 print:hidden">
+              <p className="px-2 pt-1 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+                Slide {i + 1}/{total}
+              </p>
+              <ol className="space-y-1">
+                {slides.map((s, idx) => (
+                  <li key={s.id}>
+                    <button
+                      ref={idx === i ? activeRailRef : undefined}
+                      type="button"
+                      onClick={() => { setStarted(true); setI(idx); }}
+                      aria-current={idx === i}
+                      className={`w-full flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition ${
+                        idx === i ? 'bg-sky-500/20 text-white' : 'text-white/55 hover:bg-white/5 hover:text-white/85'
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded-full grid place-items-center text-[10px] font-black shrink-0 ${idx === i ? 'bg-sky-400 text-white' : 'bg-white/10 text-white/60'}`}>
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-medium truncate">{deckRailLabel(s, idx)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </aside>
+            <div className="min-w-0 flex-1">{total ? renderSlide(i) : null}</div>
+          </div>
+        </div>
       </main>
     </div>
   );

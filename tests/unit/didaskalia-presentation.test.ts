@@ -248,6 +248,14 @@ describe('caption', () => {
     for (let d = 1; d <= 7; d += 1) expect(text).toContain(`/#/materi/rhb/2026-09/1/${d}`);
   });
 
+  it('deckRailLabel: judul > inlineTitle > nomor slide', async () => {
+    const { deckRailLabel } = await import('../../src/components/presentation/DeckShell');
+    expect(deckRailLabel({ id: 'a', title: 'Bedah Teologis' }, 0)).toBe('Bedah Teologis');
+    expect(deckRailLabel({ id: 'b', inlineTitle: { lead: 'Senin', title: 'Path 2' } }, 1)).toBe('Path 2');
+    expect(deckRailLabel({ id: 'c' }, 2)).toBe('Slide 3');
+    expect(deckRailLabel({ id: 'd', title: '  ' }, 3)).toBe('Slide 4');
+  });
+
   it('caption harian memuat Kitab statis + Bacaan hari ini + Nats', () => {
     const studio = studioWithRhb();
     studio.kitabFokus = '1 Timotius 3:1-13';

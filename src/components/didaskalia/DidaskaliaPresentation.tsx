@@ -40,8 +40,8 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
   const isBg = Boolean(slide.background && img);
   const dense = slide.density === 'compact';
   const roomy = slide.density === 'roomy';
-  const ddCls = dense ? 'text-[13px] sm:text-sm' : roomy ? 'text-base sm:text-lg' : 'text-sm sm:text-base';
-  const liCls = dense ? 'text-[13px] sm:text-sm' : roomy ? 'text-base sm:text-lg' : 'text-sm sm:text-base';
+  const ddCls = dense ? 'text-[13px] sm:text-sm lg:text-[15px]' : roomy ? 'text-base sm:text-lg lg:text-xl' : 'text-sm sm:text-base lg:text-lg';
+  const liCls = dense ? 'text-[13px] sm:text-sm lg:text-[15px]' : roomy ? 'text-base sm:text-lg lg:text-xl' : 'text-sm sm:text-base lg:text-lg';
 
   const body = (
     <>
@@ -51,7 +51,7 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
         </p>
       )}
       {slide.title && !slide.hideTitle && !slide.smallTitle && (
-        <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl text-white drop-shadow' : 'text-2xl sm:text-4xl'}`}>{slide.title}</h1>
+        <h1 className={`font-black leading-tight ${isBg ? 'text-3xl sm:text-5xl lg:text-6xl text-white drop-shadow' : 'text-2xl sm:text-4xl lg:text-5xl'}`}>{slide.title}</h1>
       )}
       {slide.title && slide.smallTitle && (
         <p className={`text-xs sm:text-sm font-black uppercase tracking-[0.14em] ${isBg ? 'text-sky-200' : 'text-sky-700 print:text-sky-700'}`}>{slide.title}</p>
@@ -59,10 +59,10 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
       {slide.inlineTitle && (
         <p className="leading-snug">
           <span className={`text-[11px] font-black uppercase tracking-[0.18em] ${isBg ? 'text-sky-200' : 'text-sky-600 print:text-sky-700'}`}>{slide.inlineTitle.lead} — </span>
-          <span className={`text-xl sm:text-2xl font-extrabold ${isBg ? 'text-white drop-shadow' : 'text-white print:text-black'}`}>{slide.inlineTitle.title}</span>
+          <span className={`text-xl sm:text-2xl lg:text-3xl font-extrabold ${isBg ? 'text-white drop-shadow' : 'text-white print:text-black'}`}>{slide.inlineTitle.title}</span>
         </p>
       )}
-      {slide.subtitle && <p className={`text-sm sm:text-base ${isBg ? 'text-white/85' : 'text-white/70 print:text-black/70'}`}>{slide.subtitle}</p>}
+      {slide.subtitle && <p className={`text-sm sm:text-base lg:text-lg ${isBg ? 'text-white/85' : 'text-white/70 print:text-black/70'}`}>{slide.subtitle}</p>}
       {!isBg && img && (
         <img src={img} alt="" loading="lazy" className="w-full max-h-[42vh] object-cover rounded-2xl border border-white/10" />
       )}
@@ -116,16 +116,16 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
 
   if (isBg) {
     return (
-      <article className="relative overflow-hidden rounded-[26px] border border-white/10 min-h-[58vh] flex items-end print:border-black/20 [-webkit-print-color-adjust:exact] [print-color-adjust:exact] min-w-0 break-words">
+      <article className="relative overflow-hidden rounded-[26px] border border-white/10 min-h-[58vh] lg:min-h-[64vh] flex items-end print:border-black/20 [-webkit-print-color-adjust:exact] [print-color-adjust:exact] min-w-0 break-words">
         <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
-        <div className="relative z-10 w-full p-6 sm:p-10 space-y-4">{body}</div>
+        <div className="relative z-10 w-full p-6 sm:p-10 lg:p-12 space-y-4">{body}</div>
       </article>
     );
   }
 
   return (
-    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 space-y-5 print:border-black/20 print:bg-white min-w-0 break-words">
+    <article className="rounded-[26px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 p-6 sm:p-10 lg:p-12 space-y-5 lg:min-h-[50vh] lg:flex lg:flex-col lg:justify-center print:border-black/20 print:bg-white min-w-0 break-words">
       {body}
     </article>
   );

@@ -191,8 +191,8 @@ export function MdBlocks({ blocks, tone = 'overlay', speech = false, density }: 
   const boldCls = onPaper ? 'font-bold text-sky-700' : tone === 'overlay' ? 'font-bold text-sky-200' : 'font-bold text-sky-300 print:text-sky-700';
   const accentDot = onPaper ? 'bg-sky-600' : tone === 'overlay' ? 'bg-white' : 'bg-sky-400';
   const kickerCls = onPaper ? 'text-sky-700' : tone === 'overlay' ? 'text-sky-200' : 'text-sky-300 print:text-sky-700';
-  const para = !density ? 'text-base sm:text-xl' : density === 'roomy' ? 'text-lg sm:text-2xl' : 'text-sm sm:text-base';
-  const big = !density ? 'text-lg sm:text-2xl' : density === 'roomy' ? 'text-xl sm:text-3xl' : 'text-base sm:text-xl';
+  const para = !density ? 'text-base sm:text-xl lg:text-2xl' : density === 'roomy' ? 'text-lg sm:text-2xl lg:text-3xl' : 'text-sm sm:text-base lg:text-lg';
+  const big = !density ? 'text-lg sm:text-2xl lg:text-3xl' : density === 'roomy' ? 'text-xl sm:text-3xl lg:text-4xl' : 'text-base sm:text-xl lg:text-2xl';
   const gap = density === 'compact' ? 'space-y-2.5' : density === 'roomy' ? 'space-y-5' : 'space-y-4';
 
   return (
