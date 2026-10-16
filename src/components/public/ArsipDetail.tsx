@@ -3,6 +3,7 @@ import { BookOpen, Calendar, Check, Copy, Images, Send, Users } from 'lucide-rea
 import { useApp } from '../../context/AppContext';
 import { useLang } from '../../context/LangContext';
 import { copyText, whatsappShareUrl } from '../../lib/rhb-caption';
+import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 import { fmtArsipDate, type ArsipEvent } from './ArsipIbadah';
 
 type Ringkasan = {
@@ -159,7 +160,9 @@ export const ArsipDetail: React.FC = () => {
         ringkasan?.outline?.[k] ? (
           <section key={k} className="mt-8">
             <h2 className="text-sm font-black text-[#1B1B1B] uppercase tracking-wider">{sectionLabel(k)}</h2>
-            <p className="mt-2 text-sm text-[#1B1B1B]/90 leading-relaxed whitespace-pre-line">{ringkasan.outline[k]}</p>
+            <div className="mt-2">
+              <MdBlocks blocks={parseMdLite(ringkasan.outline[k], { speech: k === 'kesimpulan' })} tone="paper" density="compact" />
+            </div>
           </section>
         ) : null,
       )}

@@ -1,4 +1,7 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { MdBlocks, parseMdLite } from '../../src/lib/md-lite';
 import { tabFromHash } from '../../src/app/routes';
 import { parseHashRoute } from '../../src/lib/hash-routes';
 import { originDateFor } from '../../server/lib/service-overrides.mjs';
@@ -20,6 +23,28 @@ describe('ringkasan publik: routing hash', () => {
 
   it('#/arsip/:id → tab arsip', () => {
     expect(tabFromHash('#/arsip/evt-123')).toBe('arsip');
+  });
+
+  it('outline khotbah ter-render tanpa simbol mentah', () => {
+    const excerpt = [
+      '#### A. Pribadi yang Sempurna',
+      '',
+      '> *"Dia yang tidak mengenal dosa"* (2 Korintus 5:21)',
+      '',
+      'Manusia mencoba menambal jarak itu dengan **kesalehan diri**. Poin Utama bagi Anak Muda: statusmu berubah.',
+      '',
+      '* Satu',
+      '* Dua',
+    ].join('\n');
+    const html = renderToStaticMarkup(
+      React.createElement(MdBlocks, { blocks: parseMdLite(excerpt), tone: 'paper', density: 'compact' }),
+    );
+    expect(html).toContain('Pribadi yang Sempurna');
+    expect(html).toContain('2 Korintus 5:21');
+    expect(html).toContain('kesalehan diri');
+    expect(html).not.toContain('**');
+    expect(html).not.toContain('####');
+    expect(html).not.toMatch(/>\s*\*/);
   });
 
   it('parser live (App): arsip + ringkasan tak jatuh ke landing', () => {

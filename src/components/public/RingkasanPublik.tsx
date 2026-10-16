@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
+import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 
 type Ringkasan = {
   yearMonth: string;
@@ -78,7 +79,9 @@ export const RingkasanPublik: React.FC = () => {
         return data.outline?.[k] ? (
           <section key={k} className="mt-8">
             <h2 className="text-sm font-black text-[#1B1B1B] uppercase tracking-wider">{label}</h2>
-            <p className="mt-2 text-sm text-[#1B1B1B]/90 leading-relaxed whitespace-pre-line">{data.outline[k]}</p>
+            <div className="mt-2">
+              <MdBlocks blocks={parseMdLite(data.outline[k], { speech: k === 'kesimpulan' })} tone="paper" density="compact" />
+            </div>
           </section>
         ) : null;
       })}
