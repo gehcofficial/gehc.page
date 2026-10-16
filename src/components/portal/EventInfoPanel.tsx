@@ -11,6 +11,7 @@ import { EventProfileCompleteCard } from './EventProfileCompleteCard';
 import { EventSelfAnswersCard } from './EventSelfAnswersCard';
 import { EventPhotoShare } from './EventPhotoShare';
 import { parseHashSearch, parsePortalHash } from '../../lib/portal-routes';
+import { canShowPortalRegister } from '../../lib/event-register';
 
 const BAKU_TAU_EVENT_ID = 'evt-baku-tau-4-0';
 
@@ -92,6 +93,8 @@ export const EventInfoPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [regBusy, setRegBusy] = useState(false);
+  const [regError, setRegError] = useState('');
 
   useEffect(() => {
     const onHash = () => setEventKey(currentEventKey());
@@ -145,6 +148,29 @@ export const EventInfoPanel: React.FC = () => {
   }, [eventKey]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Daftar kehadiran langsung dari portal (sama seperti landing). */
+  const registerInPortal = async () => {
+    if (!ev || regBusy) return;
+    setRegBusy(true);
+    setRegError('');
+    try {
+      const key = ev.slug || ev.id;
+      const r = await fetch(`/api/events/${encodeURIComponent(key)}/register-auth`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Pendaftaran gagal.');
+      await load(true);
+    } catch (e) {
+      setRegError(e instanceof Error ? e.message : 'Pendaftaran gagal.');
+    } finally {
+      setRegBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -307,8 +333,9 @@ export const EventInfoPanel: React.FC = () => {
           <p className="text-xs text-[#8C8880] leading-relaxed">
             {isBaku
               ? 'QR dan tombol grup WhatsApp muncul setelah Anda daftar kehadiran (bukan hanya membuat akun).'
-              : 'Pendaftaran/kehadiran untuk event ini dikelola panitia. Lihat agenda mendatang untuk ikut serta.'}
+              : 'Daftar kehadiran langsung dari sini — sama seperti di landing page.'}
           </p>
+          {regError && <p className="text-xs text-red-600 font-bold">{regError}</p>}
           {isBaku ? (
             <a
               href="#/event/bakutau"
@@ -318,13 +345,27 @@ export const EventInfoPanel: React.FC = () => {
               Daftar Kehadiran
             </a>
           ) : (
-            <button
-              type="button"
-              onClick={goAgenda}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1B1B1B] text-white text-xs font-black uppercase"
-            >
-              Lihat Agenda Mendatang <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <>
+              {canShowPortalRegister({ registered, status: statusUp, isBaku }) && (
+                <button
+                  type="button"
+                  onClick={() => void registerInPortal()}
+                  disabled={regBusy}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand text-white text-xs font-black uppercase disabled:opacity-60"
+                >
+                  {regBusy ? 'Mendaftarkan…' : 'Daftar Kehadiran'}
+                </button>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={goAgenda}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1B1B1B] text-white text-xs font-black uppercase"
+                >
+                  Lihat Agenda Mendatang <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

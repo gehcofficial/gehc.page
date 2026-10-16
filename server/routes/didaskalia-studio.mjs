@@ -62,6 +62,20 @@ export function publishedOnPublishDoc(doc) {
   return ['pembekalan', 'rhb', 'khutbah'].includes(String(doc || ''));
 }
 
+/**
+ * RBAC materi presentasi per peran efektif (mengikuti topeng peran aktif):
+ * 01 pembekalan = mentor+staf; 02 khutbah & 03 rhb = beyonders+staf.
+ */
+export function canViewMaterialDoc(roles, doc) {
+  const list = (Array.isArray(roles) ? roles : []).map((r) => String(r || '').toUpperCase());
+  const isPriv = ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].some((r) => list.includes(r));
+  const isMentor = list.includes('MENTOR') || list.includes('CO_MENTOR');
+  const isBeyonder = isMentor || list.includes('MENTEE');
+  const d = String(doc || '').toLowerCase();
+  if (d === 'rhb' || d === 'khutbah') return isBeyonder || isPriv;
+  return isMentor || isPriv;
+}
+
 /** Lima section baku RHB harian (urutan tetap) — sinkron dengan src/lib/didaskalia.ts. */
 const RHB_SECTION_DEFS = [
   { key: 'PENGANTAR', title: 'Pengantar' },
@@ -1127,14 +1141,9 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     return (req.authUser?.roles || []).map((r) => r.role);
   }
 
-  /** RBAC materi: 01/02 mentor+staf, 03 beyonders+staf (mengikuti topeng peran aktif). */
+  /** RBAC materi: 01 mentor+staf, 02/03 beyonders+staf (mengikuti topeng peran aktif). */
   function canViewDoc(req, doc) {
-    const roles = effectiveRoles(req);
-    const isPriv = ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].some((r) => roles.includes(r));
-    const isMentor = roles.includes('MENTOR') || roles.includes('CO_MENTOR');
-    const isBeyonder = isMentor || roles.includes('MENTEE');
-    if (doc === 'rhb') return isBeyonder || isPriv;
-    return isMentor || isPriv;
+    return canViewMaterialDoc(effectiveRoles(req), doc);
   }
 
   // GET /api/didaskalia/presentation/2026-09/1?doc=pembekalan|khutbah|rhb[&day=3]
@@ -1165,7 +1174,11 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           : await isAssignedDidaskaliaOfficer(req.authUser, { eventId: event?.id || undefined, date: week.date });
         if (!assigned) {
           return res.status(403).json({
-            error: doc === 'rhb' ? 'RHB hanya untuk Beyonders (mentor/mentee).' : 'Materi ini hanya untuk Mentor/Co-mentor, staf, atau petugas yang ditugaskan.',
+            error: doc === 'rhb'
+              ? 'RHB hanya untuk Beyonders (mentor/mentee).'
+              : doc === 'khutbah'
+                ? 'Ringkasan khotbah hanya untuk Beyonders (mentor/mentee) dan staf.'
+                : 'Materi ini hanya untuk Mentor/Co-mentor, staf, atau petugas yang ditugaskan.',
           });
         }
       }
