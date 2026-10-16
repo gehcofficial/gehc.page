@@ -5759,3 +5759,16 @@ Next (belum jalan):
 - git add file episode ini saja (JANGAN -A, sesi paralel aktif) -> commit -> push + npm run staging:sync (1 batch).
 - npm run db:seed:worship:staging (pola 11 blok) -> QA staging event 17 Okt (M0 timer -> PRE+afirmasi -> M1 tenang -> 3Q+afirmasi -> M3 serentak -> POST+delta -> M4 undi 2 -> layar gabungan -> Reset hapus total).
 - Patch teks Likert #3 sesi prod sesi-2026-10-17-bedah-film (PRE/POST) bila sudah Terapkan; db:seed:worship:prod bila rundown disetujui.
+
+## Episode: Push main + staging sync bedah-film (16 Okt 2026, commit 184711d)
+
+Done:
+- Push main OK (b6efb7a..184711d) -> prod auto-deploy.
+- npm run staging:sync OK: branch staging + deploy + verifikasi /api/version main = staging = 184711d (sama).
+- 2 alias gagal dipasang (scope error, perlu manual): staging-community.gehc.page + staging-gehcpage.vercel.app.
+- npm run vercel:gc dry-run: 3 deployment, 0 kandidat hapus.
+
+Next:
+- Pasang 2 alias manual via vercel alias set (atau dashboard).
+- npm run db:seed:worship:staging (pola 11 blok) -> QA staging event 17 Okt.
+- Patch teks Likert #3 sesi prod bila sudah Terapkan; db:seed:worship:prod bila rundown disetujui.
