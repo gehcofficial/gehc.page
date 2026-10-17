@@ -154,10 +154,14 @@ import { generateSessionDraft } from '../../server/lib/didaskalia-ai.mjs';
 import { CASE_FOR_CHRIST_DRAFT } from '../../server/lib/bedah-film-case-for-christ.mjs';
 
 describe('session-draft: curasi The Case for Christ', () => {
-  it('memuat film + 5 likert + 3 deep + 10 chip', () => {
+  it('memuat film + 5 likert + 3 deep + 5 afirmasi + 10 chip', () => {
     expect(CASE_FOR_CHRIST_DRAFT.film['film-title']).toContain('The Case for Christ');
     expect(Object.keys(CASE_FOR_CHRIST_DRAFT['likert-film'])).toHaveLength(5);
     expect(Object.keys(CASE_FOR_CHRIST_DRAFT.deep)).toHaveLength(3);
+    expect(Object.keys(CASE_FOR_CHRIST_DRAFT.affirm)).toHaveLength(5);
+    expect(Object.keys(CASE_FOR_CHRIST_DRAFT.affirm)).toEqual(
+      expect.arrayContaining(['affirm-q1', 'affirm-q2', 'affirm-q3', 'affirm-likert-low', 'affirm-likert-high']),
+    );
     expect(Object.keys(CASE_FOR_CHRIST_DRAFT.lesson)).toHaveLength(10);
   });
 

@@ -39,6 +39,13 @@ export const CASE_FOR_CHRIST_DRAFT = {
     'film-q2': 'Bukti kebangkitan mana yang paling menampar kamu — eksekusi medis, makam kosong, 500 saksi (1 Korintus 15:5-8), atau murid yang rela mati (Kis 4:19-20)? Kaitkan ke Yohanes 20 dan situasimu (kos, kampus, shift, keuangan) minggu ini.',
     'film-q3': 'Satu langkah otentik minggu ini: kepada siapa kamu akan jujur soal iman/keraguanmu dan mengajak menyelidiki Yesus (ngobrol 30 menit, baca Yohanes 20 bareng, ikut Bedah Teologis)? Tulis nama + harinya.',
   },
+  affirm: {
+    'affirm-q1': 'Kejujuranmu dilihat Tuhan — Ia mati untuk dosamu sesuai Kitab Suci (1Kor 15:3). Topeng boleh tanggal di hadapan-Nya.',
+    'affirm-q2': 'Kristus menampakkan diri kepada lebih dari 500 saudara (1Kor 15:6) — bukti itu untukmu juga, bukan cuma mereka.',
+    'affirm-q3': 'Sebab tidak mungkin bagi kami untuk tidak berkata-kata tentang apa yang telah kami lihat dan dengar (Kis 4:20) — langkah kecilmu adalah kesaksian.',
+    'affirm-likert-low': 'Meragukan itu manusiawi — Tomas pun ragu, dan Yesus datang menemuinya (Yoh 20:27). Tetap jalan, tetap cari.',
+    'affirm-likert-high': 'Imanmu bertumbuh — teguh, giat, dan berlimpah dalam pekerjaan Tuhan (1Kor 15:58). Jadilah saksi minggu ini.',
+  },
   lesson: {
     'lesson-chip-1': '#Bangkit',
     'lesson-chip-2': '#BuktiNyata',
