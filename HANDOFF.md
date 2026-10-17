@@ -22,7 +22,9 @@ SUPERADMIN & KOMISI `canWrite=true` + 11 fase di sesi & event (`/api/events/:id/
 `session.phases`) ✓. Sisa QA staging: KOINONIA (lihat-saja), divisi lain
 (Ruang Kontrol), mentor non-divisi (tab Jadwal).
 
-**Deploy:** push main → staging:sync → /api/version main = staging.
+**Deploy:** push main ✓ (`9d643dc`) → prod hub & youth `/api/version` = `9d643dc` ✓
+→ `staging:sync` ✓ (branch+deploy+alias 9/9 domain) → staging `/api/version` =
+`9d643dc` ✓.
 
 
 ## Current — Usulan penatalayan multi-divisi oleh Mentor/Co-mentor (17 Okt 2026)
