@@ -26,12 +26,18 @@ malam ini.
 - Sim: `scripts/film-sim.mjs` (`npm run film:sim`) — replay M0→M1→M3→M4
   di staging + assert per langkah; `--stop m0|m1|m3|m4` untuk QA manual.
 
-**Verifikasi:** `lint` bersih ✓; full suite 153 file / 1196 test lulus 100%
-(termasuk kasus peserta telat & fase film di `session-engine.test.ts`) ✓;
-`film:sim` staging (lihat di bawah).
+**Verifikasi:** `lint` bersih ✓; full suite 153 file / 1196 test ✓ (rerun
+setelah rebase di atas episode rundown `9d643dc`); `film:sim` staging
+(`2c686eb`) **23/23 assert LULUS** — M0 300s → M1 marker tayang + gate
+terkunci → M3 gate AKHIR + delta + wordcloud → M4 600s → CLOSED; layar
+film tanpa kartu "Waktu tersisa" (kode lama `180:00` hilang).
+
+**Deploy:** staging ✓ (`2c686eb` · alias 9/9 domain · `/api/version` cocok) →
+push `main` ✓ (OK cek visual user) → prod menyusul verifikasi `/api/version`.
 
 **Next:** cek visual 3 URL staging (layar/HP peserta/kontrol) memakai sesi
-`demo-bedah-film-sim-utama` dari `film:sim`.
+`demo-bedah-film-sim-utama` (ditinggal RUNNING di M3, kode layar `5CDFC4`,
+jawaban awal/akhir + delta sudah terisi).
 
 ## Current — Akses rundown pola: semua divisi lihat, tombol tetap least privilege (17 Okt 2026)
 
