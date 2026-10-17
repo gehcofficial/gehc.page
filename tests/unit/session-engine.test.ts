@@ -4,6 +4,7 @@ import {
   filmLikertMeans,
   filmLikertPairs,
   isQuestionOpen,
+  mergeFilmVals,
   MERGED_PATTERN_ALIAS,
   MONOLOG_QUESTION_KEYS,
   noteSlotsFor,
@@ -79,6 +80,31 @@ describe('session-engine: registry segmen', () => {
     const means = filmLikertMeans(pairs, { a1: { avg: 2.5, n: 4 }, b1: { avg: 4, n: 3 } });
     expect(means[0]).toMatchObject({ n: 1, preAvg: 2.5, preN: 4, postAvg: 4, postN: 3, delta: 1.5 });
     expect(means[1].delta).toBeNull();
+  });
+
+  it('mergeFilmVals: polling tidak menghapus pilihan lokal yang belum dikirim', () => {
+    const pairs = filmLikertPairs(
+      [
+        { id: 'a1', topicCode: 'FILM_PRE', text: 'P1' },
+        { id: 'a2', topicCode: 'FILM_PRE', text: 'P2' },
+        { id: 'b1', topicCode: 'FILM_POST', text: 'P1' },
+        { id: 'b2', topicCode: 'FILM_POST', text: 'P2' },
+      ],
+      {},
+    );
+    // 3 pilihan lokal (belum submit) vs payload server kosong → tetap utuh.
+    const local = { a1: 2, a2: 5 };
+    const afterPoll = mergeFilmVals(local, pairs, 'PRE', {});
+    expect(afterPoll).toEqual({ a1: 2, a2: 5 });
+    expect(afterPoll).toBe(local); // referensi stabil → tanpa re-render sia-sia
+    // Jawaban tersimpan server ikut termuat saat init.
+    expect(mergeFilmVals({}, pairs, 'PRE', { a1: 4, a2: 1 })).toEqual({ a1: 4, a2: 1 });
+    // Lokal menang atas server untuk id yang sama (belum submit ulang).
+    expect(mergeFilmVals({ a1: 3 }, pairs, 'PRE', { a1: 4, a2: 1 })).toEqual({ a1: 3, a2: 1 });
+    // Ganti ronde PRE→POST membuang id ronde lama.
+    expect(mergeFilmVals({ a1: 3, a2: 5 }, pairs, 'POST', { b1: 2 })).toEqual({ b1: 2 });
+    // Nilai server non-numerik diabaikan.
+    expect(mergeFilmVals({}, pairs, 'PRE', { a1: Number.NaN } as Record<string, number>)).toEqual({});
   });
 
   it('undi film: 1 Mentee + 1 Mentor (fallback bebas)', () => {

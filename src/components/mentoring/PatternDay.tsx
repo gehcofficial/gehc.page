@@ -8,6 +8,7 @@ import {
   filmLikertMeans,
   filmLikertPairs,
   isQuestionOpen,
+  mergeFilmVals,
   noteSlotsFor,
   resolvePinnedSegment,
   segmentForPattern,
@@ -78,13 +79,8 @@ const FilmLikertCard: React.FC<{
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
-    const init: Record<string, number> = {};
-    for (const p of pairs) {
-      const id = round === 'PRE' ? p.preId : p.postId;
-      const v = id ? likert.myValues?.[id] : null;
-      if (id && v != null) init[id] = Number(v);
-    }
-    setVals(init);
+    // Polling 20 dtk mengganti objek payload — merge menjaga pilihan yang belum dikirim.
+    setVals((prev) => mergeFilmVals(prev, pairs, round, likert.myValues || {}));
   }, [pairs, likert, round]);
   const gate = String(likert.rounds?.[round.toLowerCase() as 'pre' | 'post'] ?? (round === 'PRE' ? 'open' : 'closed')).toLowerCase();
   const canAnswer = editable && likert.open && gate !== 'closed';

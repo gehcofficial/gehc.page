@@ -25,6 +25,10 @@ malam ini.
   terkunci); copy kartu gate diperjelas.
 - Sim: `scripts/film-sim.mjs` (`npm run film:sim`) — replay M0→M1→M3→M4
   di staging + assert per langkah; `--stop m0|m1|m3|m4` untuk QA manual.
+- Fix dirasa user: pilihan Likert sering terhapus saat menjawab (harus
+  input 2×). Akar: effect init kartu Likert menimpa `vals` tiap payload
+  polling 20 dtk. Kini merge-preserve `mergeFilmVals` (pilihan lokal belum
+  terkirim dipertahankan; id ronde lain dibuang) + unit test regresi.
 
 **Verifikasi:** `lint` bersih ✓; full suite 153 file / 1196 test ✓ (rerun
 setelah rebase di atas episode rundown `9d643dc`); `film:sim` staging

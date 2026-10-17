@@ -242,6 +242,32 @@ export function filmLikertMeans(
   });
 }
 
+/**
+ * Pilihan Likert film saat payload polling (20 dtk) menyegar: pertahankan
+ * pilihan lokal yang belum dikirim, isi hanya yang belum ada dari jawaban
+ * tersimpan server, dan buang id ronde lain (id PRE≠POST). Mengembalikan
+ * referensi lama bila tak ada perubahan agar tak memicu re-render.
+ */
+export function mergeFilmVals(
+  prev: Record<string, number>,
+  pairs: FilmLikertPair[],
+  round: 'PRE' | 'POST',
+  myValues: Record<string, number> | null | undefined,
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const p of pairs || []) {
+    const id = round === 'PRE' ? p.preId : p.postId;
+    if (!id) continue;
+    const local = prev[id];
+    const server = myValues?.[id];
+    const v = local != null ? local : server != null ? Number(server) : null;
+    if (v != null && Number.isFinite(v)) next[id] = v;
+  }
+  const keys = Object.keys(next);
+  const same = keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
+  return same ? prev : next;
+}
+
 export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = {
   MONOLOG: {
     sambutan: ['welcome'],
