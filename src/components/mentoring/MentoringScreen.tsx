@@ -46,6 +46,13 @@ const CinemaToneButton: React.FC = () => {
   );
 };
 
+/** Label timer langkah film (M0/M3/M4) — timer sesi penuh tak dipakai; bagian film tanpa timer. */
+const FILM_STEP_LABELS: Record<string, { label: string; sub: string }> = {
+  M0: { label: 'Likert Awal', sub: 'Isi 5 pernyataan di HP — tidak ada jawaban salah.' },
+  M3: { label: 'Likert Akhir & Lesson Learned', sub: 'Isi 5 pernyataan + pilih chip pelajaran di HP.' },
+  M4: { label: 'Undi & Kesaksian', sub: 'Dengarkan kesaksian yang terundi.' },
+};
+
 const MentoringScreen: React.FC = () => {
   const route = parseMentoringHash(typeof window !== 'undefined' ? window.location.hash : '');
   const slug = route?.slug || '';
@@ -206,6 +213,23 @@ const MentoringScreen: React.FC = () => {
   const fmtPhase = (ms: number) =>
     `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
   const isMonologStandby = patternCode === 'MONOLOG' && !showWordCloud && phaseName !== 'F2';
+  /** Label timer langkah film + kartu delta (dipakai blok utama & saat word cloud tampil). */
+  const filmStepInfo = isFilm && phaseName ? FILM_STEP_LABELS[phaseName] || null : null;
+  const filmMeans = data.likertMeans;
+  const filmDeltaCard = filmMeans && (filmMeans.pre.n > 0 || filmMeans.post.n > 0) ? (
+    <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Perubahan setelah film (awal → akhir)</p>
+      <p className="font-display text-5xl font-black tabular-nums">
+        {filmMeans.pre.avg?.toFixed(1) ?? '–'} <span className="text-white/40 text-3xl">→</span> {filmMeans.post.avg?.toFixed(1) ?? '–'}
+        {filmMeans.delta != null && (
+          <span className={`ml-3 text-2xl px-3 py-1 rounded-full ${filmMeans.delta > 0 ? 'bg-emerald-400/20 text-emerald-300' : filmMeans.delta < 0 ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-white/60'}`}>
+            {filmMeans.delta > 0 ? `+${filmMeans.delta}` : filmMeans.delta}
+          </span>
+        )}
+      </p>
+      <p className="text-xs text-white/50 mt-2 tabular-nums">dari {filmMeans.pre.n} jawaban awal · {filmMeans.post.n} jawaban akhir</p>
+    </section>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[#111] text-white p-8 sm:p-12 flex flex-col gap-8">
@@ -221,18 +245,22 @@ const MentoringScreen: React.FC = () => {
 
       {!showWordCloud && (
         <>
-          {isFilm && data.phase?.name === 'M0' && phaseRemainMs !== null && (
+          {isFilm && filmStepInfo && phaseRemainMs !== null && (
             <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Likert Awal</p>
-                <p className="text-sm text-white/60 mt-1">Isi 5 pernyataan di HP — tidak ada jawaban salah.</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">{filmStepInfo.label}</p>
+                <p className="text-sm text-white/60 mt-1">{filmStepInfo.sub}</p>
               </div>
-              <p className="font-display text-5xl font-black tabular-nums">
-                {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
-              </p>
+              {phaseVisible ? (
+                <p className="font-display text-5xl font-black tabular-nums">
+                  {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+                </p>
+              ) : (
+                <p className="text-sm text-white/50 italic shrink-0">mengalir…</p>
+              )}
             </section>
           )}
-          {patternCode !== 'MONOLOG' && !(isFilm && session.status !== 'LIKERT_OPEN') && (
+          {patternCode !== 'MONOLOG' && !isFilm && (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <Timer className="w-8 h-8 text-brand" />
@@ -303,42 +331,48 @@ const MentoringScreen: React.FC = () => {
                 </section>
               );
             }
-            {(() => {
-              const m = patternCode === 'BEDAH_FILM' ? data.likertMeans : null;
-              if (!m || (m.pre.n === 0 && m.post.n === 0)) return null;
+            if (patternCode === 'BEDAH_FILM') {
+              // M3 (gate AKHIR dibuka) → panduan Likert Akhir + delta pre→post;
+              // sebelum itu kartu tayang; bagian film sendiri tanpa countdown.
+              const postOpen = String(data.likertRounds?.post || 'closed').toLowerCase() === 'open';
+              if (postOpen) {
+                return (
+                  <>
+                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-10 flex flex-col items-center justify-center text-center gap-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Likert Akhir dibuka</p>
+                      <p className="font-display text-2xl sm:text-3xl font-black">Isi 5 pernyataan + Lesson Learned di HP</p>
+                      <p className="text-sm text-white/50 max-w-md">Perubahan awal → akhir tampil di sini saat jawaban masuk.</p>
+                    </section>
+                    {filmDeltaCard}
+                  </>
+                );
+              }
+              const screening = data.screening;
+              if (screening) {
+                const onAir = Boolean(screening.startedAt);
+                return (
+                  <section className="rounded-[28px] bg-gradient-to-b from-white/10 to-white/5 border border-white/10 p-10 sm:p-14 flex-1 flex flex-col items-center justify-center text-center gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">
+                      {onAir ? '● Sedang diputar' : 'Bersiap menonton'}
+                    </p>
+                    <p className="font-display text-2xl sm:text-3xl font-black mt-1">{screening.title}</p>
+                    <p className="font-display text-xl sm:text-2xl font-black text-white/90">
+                      Harap tenang, fokus mendengar
+                    </p>
+                    <p className="text-sm text-white/50 max-w-md">
+                      HP tetap boleh dipegang untuk menjawab 3 catatan — jawab jujur, tiap jawaban ada afirmasi firman untukmu.
+                    </p>
+                    {onAir && <CinemaToneButton />}
+                  </section>
+                );
+              }
               return (
-                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Perubahan setelah film (awal → akhir)</p>
-                  <p className="font-display text-5xl font-black tabular-nums">
-                    {m.pre.avg?.toFixed(1) ?? '–'} <span className="text-white/40 text-3xl">→</span> {m.post.avg?.toFixed(1) ?? '–'}
-                    {m.delta != null && (
-                      <span className={`ml-3 text-2xl px-3 py-1 rounded-full ${m.delta > 0 ? 'bg-emerald-400/20 text-emerald-300' : m.delta < 0 ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-white/60'}`}>
-                        {m.delta > 0 ? `+${m.delta}` : m.delta}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-white/50 mt-2 tabular-nums">rata-rata {m.pre.n} awal · {m.post.n} akhir</p>
-                </section>
-              );
-            })()}
-            const screening = data.screening;
-            // Film mengikuti durasi tayang — tanpa countdown. Sebelum/saat putar,
-            // layar imbauan tenang (HP peserta tetap boleh untuk menjawab).
-            if (patternCode === 'BEDAH_FILM' && screening) {
-              const onAir = Boolean(screening.startedAt);
-              return (
-                <section className="rounded-[28px] bg-gradient-to-b from-white/10 to-white/5 border border-white/10 p-10 sm:p-14 flex-1 flex flex-col items-center justify-center text-center gap-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">
-                    {onAir ? '● Sedang diputar' : 'Bersiap menonton'}
-                  </p>
-                  <p className="font-display text-2xl sm:text-3xl font-black mt-1">{screening.title}</p>
-                  <p className="font-display text-xl sm:text-2xl font-black text-white/90">
-                    Harap tenang, fokus mendengar
-                  </p>
+                <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex flex-col items-center justify-center text-center gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Movie Breakdown</p>
+                  <p className="font-display text-2xl sm:text-3xl font-black">Ikuti tayangan film</p>
                   <p className="text-sm text-white/50 max-w-md">
-                    HP tetap boleh dipegang untuk menjawab 3 catatan — jawab jujur, tiap jawaban ada afirmasi firman untukmu.
+                    HP tetap boleh dipegang untuk menulis 3 catatan — jawab jujur, tiap jawaban ada afirmasi firman untukmu.
                   </p>
-                  {onAir && <CinemaToneButton />}
                 </section>
               );
             }
@@ -429,31 +463,38 @@ const MentoringScreen: React.FC = () => {
       )}
 
       {showWordCloud && patternCode !== 'MONOLOG' && !filmFinale && (
-        <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex items-center justify-center">
-          <WordCloud items={wordcloud} className="text-center" />
-        </section>
+        isFilm ? (
+          <div className="flex flex-col gap-8 flex-1">
+            {filmStepInfo && phaseRemainMs !== null && (
+              <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{filmStepInfo.label}</p>
+                  <p className="text-sm text-white/70 mt-1">{filmStepInfo.sub}</p>
+                </div>
+                {phaseVisible ? (
+                  <p className="font-display text-5xl font-black tabular-nums">
+                    {phaseExpired ? '00:00' : fmtPhase(phaseRemainMs)}
+                  </p>
+                ) : (
+                  <p className="text-sm text-white/50 italic shrink-0">mengalir…</p>
+                )}
+              </section>
+            )}
+            {filmDeltaCard}
+            <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex items-center justify-center">
+              <WordCloud items={wordcloud} className="text-center" />
+            </section>
+          </div>
+        ) : (
+          <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex-1 flex items-center justify-center">
+            <WordCloud items={wordcloud} className="text-center" />
+          </section>
+        )
       )}
 
       {filmFinale && (
         <div className="flex flex-col gap-8 flex-1">
-          {(() => {
-            const m = data.likertMeans;
-            if (!m || (m.pre.n === 0 && m.post.n === 0)) return null;
-            return (
-              <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Perubahan setelah film (awal → akhir)</p>
-                <p className="font-display text-5xl font-black tabular-nums">
-                  {m.pre.avg?.toFixed(1) ?? '–'} <span className="text-white/40 text-3xl">→</span> {m.post.avg?.toFixed(1) ?? '–'}
-                  {m.delta != null && (
-                    <span className={`ml-3 text-2xl px-3 py-1 rounded-full ${m.delta > 0 ? 'bg-emerald-400/20 text-emerald-300' : m.delta < 0 ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-white/60'}`}>
-                      {m.delta > 0 ? `+${m.delta}` : m.delta}
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-white/50 mt-2 tabular-nums">rata-rata {m.pre.n} awal · {m.post.n} akhir</p>
-              </section>
-            );
-          })()}
+          {filmDeltaCard}
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 flex items-center justify-center">
             <div className="text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand mb-4">Lesson Learned jemaat</p>

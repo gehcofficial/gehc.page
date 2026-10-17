@@ -911,6 +911,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
         screening: agg.config.screening,
+        likertRounds: agg.config.likertRounds || null,
         teams: agg.config.teams,
         // Agregat ronde film untuk delta pre→post di layar.
         likertMeans: await filmRoundMeans(prisma, liveState.id),

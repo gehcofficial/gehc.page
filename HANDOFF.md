@@ -1,5 +1,38 @@
 # GEHC Portal — Handoff
 
+## Current — Bedah Film: timer per langkah & sinkron 3 view (17 Okt 2026)
+
+**Minta:** hapus durasi sesi penuh (timer 180:00 tidak muncul di layar film),
+countdown hanya per langkah (M0/M3/M4), bagian film tanpa timer; sinkronkan
+layar/HP peserta/kontrol (fase, gate Likert, marker tayang) untuk acara
+malam ini.
+
+**Ubah (kode, commit episode ini — di atas episode rundown 9d643dc):**
+- Server: `FILM_PHASES=['M0','M3','M4']` + `FILM_PHASE_SECONDS`
+  (M0/M3 5', M4 10') di `session-stage.mjs` (fallback `cleanPhase` ikut);
+  `/live` kini mengirim `likertRounds` (gate AWAL/AKHIR).
+- Kontrol: M1 = mulai + kunci Likert + marker ● Sedang diputar otomatis;
+  M3 = buka Likert AKHIR + hentikan marker + fase M3 5'; M4 = wrapup +
+  fase M4 10'; chip "+waktu" saat fase film; input "Timer sesi (detik)"
+  film diganti keterangan auto-tutup 3 jam.
+- Layar: kartu "Waktu tersisa" tidak lagi muncul untuk film (tanpa timer
+  sesi penuh); kartu langkah M0/M3/M4 dengan countdown; kartu delta
+  (dead-code diperbaiki) tampil saat gate AKHIR dibuka & finale; panduan
+  konklusi saat AKHIR terbuka; fallback "Movie Breakdown" bila screening
+  belum diisi.
+- Peserta: chip langkah M3/M4 di kartu tontonan; peserta telat (belum isi
+  Likert AWAL saat gate dikunci) **lanjut ke Nonton & Catat** (tidak
+  terkunci); copy kartu gate diperjelas.
+- Sim: `scripts/film-sim.mjs` (`npm run film:sim`) — replay M0→M1→M3→M4
+  di staging + assert per langkah; `--stop m0|m1|m3|m4` untuk QA manual.
+
+**Verifikasi:** `lint` bersih ✓; full suite 153 file / 1196 test lulus 100%
+(termasuk kasus peserta telat & fase film di `session-engine.test.ts`) ✓;
+`film:sim` staging (lihat di bawah).
+
+**Next:** cek visual 3 URL staging (layar/HP peserta/kontrol) memakai sesi
+`demo-bedah-film-sim-utama` dari `film:sim`.
+
 ## Current — Akses rundown pola: semua divisi lihat, tombol tetap least privilege (17 Okt 2026)
 
 **Minta:** rundown pola (11 blok) terlihat untuk semua divisi; tuan rumah &

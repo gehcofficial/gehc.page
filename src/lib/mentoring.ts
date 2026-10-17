@@ -169,6 +169,8 @@ export type MentoringLivePayload = {
   oneWord?: OneWordCount[];
   rounds?: SessionRounds;
   screening?: SessionScreening;
+  /** Gate 2 ronde Likert film (AWAL/AKHIR) — label step M3 di layar. */
+  likertRounds?: { pre: string; post: string } | null;
   teams?: SessionTeams;
   /** Agregat ronde film (delta pre→post di layar). */
   likertMeans?: { pre: { avg: number | null; n: number }; post: { avg: number | null; n: number }; delta: number | null } | null;

@@ -81,20 +81,23 @@ export function cleanFgd(raw) {
 /** Nama fase MONOLOG yang sah (20'/25'/10'/5' = 60 menit). */
 export const MONOLOG_PHASES = ['F1', 'F2', 'F3', 'CLOSING'];
 
-/** Fase timer BEDAH_FILM: M0 = jendela Likert AWAL 5' (satu-satunya timer film). */
-export const FILM_PHASES = ['M0'];
+/** Timer langkah BEDAH_FILM (tanpa timer sesi penuh): M0 Likert AWAL 5', M3 Likert AKHIR 5', M4 Undi & Kesaksian 10'. */
+export const FILM_PHASES = ['M0', 'M3', 'M4'];
 
 /** Durasi baku tiap fase MONOLOG (detik): F1 20' + F2 25' + F3 10' + Closing 5'. */
-export const MONOLOG_PHASE_SECONDS = { F1: 1200, F2: 1500, F3: 600, CLOSING: 300, M0: 300 };
+export const MONOLOG_PHASE_SECONDS = { F1: 1200, F2: 1500, F3: 600, CLOSING: 300 };
 
-/** Normalisasi timer fase (MONOLOG F1/F2/F3/CLOSING + film M0): satu fase aktif + countdown display-only. Transisi selalu manual. */
+/** Durasi baku timer langkah film (detik): AWAL 5' + AKHIR 5' + Undi 10'. */
+export const FILM_PHASE_SECONDS = { M0: 300, M3: 300, M4: 600 };
+
+/** Normalisasi timer fase (MONOLOG F1/F2/F3/CLOSING + langkah film M0/M3/M4): satu fase aktif + countdown display-only. Transisi selalu manual. */
 export function cleanPhase(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const name = String(raw.name || '').toUpperCase();
   if (![...MONOLOG_PHASES, ...FILM_PHASES].includes(name)) return null;
   const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
   if (!startedAt) return null;
-  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || MONOLOG_PHASE_SECONDS[name]));
+  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || MONOLOG_PHASE_SECONDS[name] || FILM_PHASE_SECONDS[name]));
   // Tampil di layar proyektor? Default true (perilaku lama); false = hitung
   // diam-diam (HP peserta tetap melihat sisa waktu).
   const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null

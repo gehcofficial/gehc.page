@@ -51,7 +51,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
 
-/** State progres film untuk stepper (pre/post likert, chip, gate AKHIR). */
+/** State progres film untuk stepper (pre/post likert, chip, gate AWAL/AKHIR). */
 export type FilmProgress = {
   preAnswered?: boolean;
   postAnswered?: boolean;
@@ -59,6 +59,8 @@ export type FilmProgress = {
   screeningOn?: boolean;
   /** Gate ronde AKHIR terbuka (kontrol M3) — peserta maju ke likert-akhir. */
   postOpen?: boolean;
+  /** Gate ronde AWAL masih terbuka (kontrol M0) — peserta telat tanpa jawaban tak terkunci. */
+  preOpen?: boolean;
 };
 
 /** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
@@ -86,7 +88,8 @@ export function segmentForPattern(
     const e = extra || {};
     if (st === 'WRAPUP') return e.chipDone ? 'kesaksian' : 'lesson-learned';
     if (st === 'RUNNING') {
-      if (!e.preAnswered) return 'likert-awal';
+      // Peserta telat saat gate AWAL sudah dikunci (M1) lanjut nonton — bukan terkunci.
+      if (!e.preAnswered && e.preOpen !== false) return 'likert-awal';
       if (e.postOpen || e.postAnswered) {
         if (!e.postAnswered) return 'likert-akhir';
         if (!e.chipDone) return 'lesson-learned';

@@ -50,6 +50,13 @@ function fmtRemain(ms: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** Label timer langkah film (timer sesi penuh tidak dipakai; bagian film tanpa timer). */
+const FILM_STEP_LABELS: Record<string, string> = {
+  M0: 'Likert Awal',
+  M3: 'Likert Akhir & Lesson Learned',
+  M4: 'Undi & Kesaksian',
+};
+
 type LikertPayload = NonNullable<MentoringSessionPayload['likert']>;
 
 /**
@@ -129,7 +136,13 @@ const FilmLikertCard: React.FC<{
       </p>
       {!canAnswer && (
         <p className="mt-2 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-          {likert.open ? 'Ronde ini belum dibuka operator.' : 'Akses Likert belum dibuka.'}
+          {gate === 'closed'
+            ? round === 'PRE'
+              ? 'Ronde AWAL sudah dikunci — lanjut ke tahap Nonton & Catat.'
+              : 'Likert AKHIR dibuka setelah sesi film selesai.'
+            : likert.open
+              ? 'Ronde ini belum dibuka operator.'
+              : 'Akses Likert belum dibuka.'}
         </p>
       )}
       <div className="mt-3 space-y-3">
@@ -323,6 +336,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       screeningOn: Boolean(data?.screening?.startedAt),
       // Gate AKHIR dari kontrol (M3) — peserta maju mengikuti gate, bukan countdown.
       postOpen: String(data?.likert.rounds?.post || 'closed').toLowerCase() === 'open',
+      // Gate AWAL sudah dikunci (M1) → peserta telat lanjut nonton, tak terkunci.
+      preOpen: String(data?.likert.rounds?.pre || 'open').toLowerCase() !== 'closed',
     };
   }, [c, filmPairs, chipDone, data]);
   const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);
@@ -534,10 +549,10 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               </div>
             ) : null
           ) : c === 'BEDAH_FILM' ? (
-            phaseRemainMs !== null && phaseName === 'M0' ? (
+            phaseRemainMs !== null && phaseName && FILM_STEP_LABELS[phaseName] ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                  Likert Awal{phaseExpired ? ' · waktu habis' : ''}
+                  {FILM_STEP_LABELS[phaseName]}{phaseExpired ? ' · waktu habis' : ''}
                 </p>
                 <p className="font-display text-2xl font-black tabular-nums">
                   {phaseExpired ? '00:00' : fmtRemain(phaseRemainMs)}

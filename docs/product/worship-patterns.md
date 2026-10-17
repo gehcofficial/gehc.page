@@ -78,7 +78,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - `POST_TO_POST`: `likert/rooms/timer/notes/chips/wordcloud` — penuh.
 - `MONOLOG`: `timer/notes/fgd/testimony` — penuh (bedah lagu + 5 Q dipicu mentor + Satu Kata + PDF di `#/mentoring/<slug>`). Menyerap Dual Monolog (diarsipkan; sesi lama migrasi otomatis).
 - `DEBAT`: `rounds/timer/teams` — penuh (panel ronde/fase/skor di kontrol, mosi + skor di peserta & layar).
-- `BEDAH_FILM`: `screening/timer/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti tanpa countdown, timer hanya M0 Likert AWAL 5', layar mode tenang + nada bioskop, Likert AWAL/AKHIR 5 item + afirmasi + delta, Lesson Learned + undi 2 dengan nama & grup di layar).
+- `BEDAH_FILM`: `screening/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti tanpa countdown; timer **per langkah saja**: M0 Likert AWAL 5', M3 Likert AKHIR 5', M4 Undi & Kesaksian 10' — tanpa timer sesi penuh, bagian pemutaran film tanpa timer; M1 otomatis menandai film tayang, M3 menghentikannya; peserta telat (gate AWAL terkunci) lanjut ke Nonton & Catat; layar mode tenang + nada bioskop, Likert AWAL/AKHIR 5 item + afirmasi + delta, Lesson Learned + undi 2 dengan nama & grup di layar). Sim: `npm run film:sim`.
 - `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
 - Status panggung live (`PUT .../sessions/:id/stage`, tersimpan di `config.rounds/screening/teams`); alur peserta
   generik `PatternDay` (segmen + widget dari `session-engine.ts`) untuk semua pola non-post-to-post.

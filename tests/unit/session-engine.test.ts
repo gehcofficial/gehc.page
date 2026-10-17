@@ -15,7 +15,7 @@ import {
   widgetsFor,
 } from '../../src/lib/session-engine';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG, TESTIMONY_TOTAL } from '../../server/lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, FILM_PHASE_SECONDS, MONOLOG_PHASE_SECONDS, ROUND_PHASE_LABEL } from '../../server/lib/session-stage.mjs';
 
 describe('session-engine: registry segmen', () => {
   it('pola non-post-to-post punya 3+ segmen (MONOLOG berakhir di penutup)', () => {
@@ -43,6 +43,9 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('BEDAH_FILM', 'DRAFT', false)).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'LIKERT_OPEN', false)).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false)).toBe('likert-awal');
+    // Peserta telat: gate AWAL sudah dikunci (M1) → lanjut nonton, tak terkunci.
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: false, preOpen: false })).toBe('nonton');
+    expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: false, preOpen: true })).toBe('likert-awal');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, screeningOn: true })).toBe('nonton');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true })).toBe('nonton');
     expect(segmentForPattern('BEDAH_FILM', 'RUNNING', false, undefined, { preAnswered: true, postOpen: true })).toBe('likert-akhir');
@@ -313,8 +316,9 @@ describe('session-stage: validasi', () => {
     expect(cleanTeams(null)).toBeNull();
   });
 
-  it('phase: nama valid F1/F2/F3/CLOSING + M0 film + durasi baku 20/25/10/5 (+M0 5)', () => {
-    expect(MONOLOG_PHASE_SECONDS).toEqual({ F1: 1200, F2: 1500, F3: 600, CLOSING: 300, M0: 300 });
+  it('phase: nama valid F1/F2/F3/CLOSING + langkah film M0/M3/M4 + durasi baku 20/25/10/5 (+5/5/10)', () => {
+    expect(MONOLOG_PHASE_SECONDS).toEqual({ F1: 1200, F2: 1500, F3: 600, CLOSING: 300 });
+    expect(FILM_PHASE_SECONDS).toEqual({ M0: 300, M3: 300, M4: 600 });
     expect(cleanPhase(null)).toBeNull();
     expect(cleanPhase({})).toBeNull();
     expect(cleanPhase({ name: 'ngawur', startedAt: 'x' })).toBeNull();
@@ -328,6 +332,10 @@ describe('session-stage: validasi', () => {
     expect(cleanPhase({ name: 'F1', startedAt: 'x', durationSec: 5 })).toMatchObject({ durationSec: 60 });
     expect(cleanPhase({ name: 'F3', startedAt: 'x', durationSec: 99999 })).toMatchObject({ durationSec: 7200 });
     expect(cleanPhase({ name: 'M0', startedAt: 'x' })).toMatchObject({ name: 'M0', durationSec: 300, showOnScreen: true });
+    expect(cleanPhase({ name: 'M3', startedAt: 'x' })).toMatchObject({ name: 'M3', durationSec: 300, showOnScreen: true });
+    expect(cleanPhase({ name: 'M4', startedAt: 'x' })).toMatchObject({ name: 'M4', durationSec: 600, showOnScreen: true });
+    expect(cleanPhase({ name: 'M1', startedAt: 'x' })).toBeNull();
+    expect(cleanPhase({ name: 'M2', startedAt: 'x' })).toBeNull();
   });
 
   it('phase: tampil di layar default true, bisa dimatikan', () => {
