@@ -17,7 +17,10 @@ type PenEvent = {
   kind?: string | null;
   serviceType?: string | null;
   status?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
+
+type GroupPick = { id: string; name: string };
 
 type Assignment = {
   id: string;
@@ -77,6 +80,11 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const [error, setError] = useState('');
   const [showRoles, setShowRoles] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [groups, setGroups] = useState<GroupPick[]>([]);
+  const [respId, setRespId] = useState('');
+  const [hostId, setHostId] = useState('');
+  const [groupBusy, setGroupBusy] = useState<'save' | 'route' | null>(null);
+  const [groupMsg, setGroupMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +99,11 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       setRoles(d.roles || []);
       setAssignments(d.assignments || []);
       setPrevious(d.previous || null);
+      const pg = (d.event?.metadata && typeof d.event.metadata === 'object'
+        ? (d.event.metadata as Record<string, unknown>).penatalayanGroups
+        : null) as { responsibleGroupId?: string; hostGroupId?: string } | null;
+      setRespId(pg?.responsibleGroupId ? String(pg.responsibleGroupId) : '');
+      setHostId(pg?.hostGroupId ? String(pg.hostGroupId) : '');
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat penatalayan.');
@@ -107,6 +120,16 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    let alive = true;
+    fetch('/api/groups', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { groups: [] }))
+      .then((d) => { if (alive) setGroups(Array.isArray(d.groups) ? d.groups.map((g: { id: string; name: string }) => ({ id: String(g.id), name: String(g.name) })) : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [canEdit]);
 
   const dateStr = useMemo(() => {
     if (!event?.eventDate) return null;
@@ -193,6 +216,67 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     }
   };
 
+  const routingAt = useMemo(() => {
+    const v = event?.metadata && typeof event.metadata === 'object'
+      ? (event.metadata as Record<string, unknown>).penatalayanRoutingAt
+      : null;
+    return v ? String(v) : null;
+  }, [event?.metadata]);
+
+  const saveGroups = async () => {
+    setGroupBusy('save');
+    setGroupMsg(null);
+    try {
+      const both = respId && hostId;
+      const r = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          penatalayanGroups: both ? { responsibleGroupId: respId, hostGroupId: hostId } : null,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal menyimpan grup.');
+      setGroupMsg({ ok: true, text: both ? 'Grup tersimpan.' : 'Grup dikosongkan.' });
+      await load();
+    } catch (e) {
+      setGroupMsg({ ok: false, text: e instanceof Error ? e.message : 'Gagal menyimpan grup.' });
+    } finally {
+      setGroupBusy(null);
+    }
+  };
+
+  const sendRouting = async () => {
+    if (!respId || !hostId) {
+      setGroupMsg({ ok: false, text: 'Simpan grup Tuan Rumah & Penanggungjawab dulu.' });
+      return;
+    }
+    if (!window.confirm('Kirim routing ke mentor & co-mentor kedua grup? Mereka akan menerima notifikasi + tautan pengisian usulan.')) return;
+    setGroupBusy('route');
+    setGroupMsg(null);
+    try {
+      const r = await fetch(`/api/events/${eventId}/penatalayan-routing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal mengirim routing.');
+      const sent = Array.isArray(d.sent) ? d.sent.reduce((n: number, s: { count?: number }) => n + (s.count || 0), 0) : 0;
+      setGroupMsg({
+        ok: true,
+        text: d.warning ? String(d.warning) : `Routing terkirim ke ${sent || d.recipients || 0} mentor/co-mentor.`,
+      });
+      await load();
+    } catch (e) {
+      setGroupMsg({ ok: false, text: e instanceof Error ? e.message : 'Gagal mengirim routing.' });
+    } finally {
+      setGroupBusy(null);
+    }
+  };
+
   const totalAssigned = assignments.filter((a) => a.status !== 'CANCELLED').length;
 
   return (
@@ -235,6 +319,75 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {canEdit && (
+        <div className="rounded-2xl border border-[#D9D7D0]/60 bg-[#FAF9F5] p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#8C8880]">
+              Tuan Rumah & Penanggungjawab (routing grup)
+            </p>
+            {routingAt && (
+              <span className="text-[10px] text-[#8C8880]">
+                Routing terakhir: {new Date(routingAt).toLocaleString('id-ID')}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-[#8C8880]">
+            Pilih grup untuk event spesial (mis. Bedah Film). Mentor & co-mentor kedua grup bisa diarahkan mengisi usulan
+            penatalayan lewat tombol kirim routing — divisi tetap yang menyetujui.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-[11px] font-bold text-[#5C5850] space-y-1">
+              <span>Penanggungjawab</span>
+              <select
+                value={respId}
+                onChange={(e) => setRespId(e.target.value)}
+                className="w-full text-xs px-2.5 py-1.5 rounded-xl border border-[#D9D7D0] bg-white font-semibold"
+              >
+                <option value="">— belum dipilih —</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </label>
+            <label className="text-[11px] font-bold text-[#5C5850] space-y-1">
+              <span>Tuan Rumah</span>
+              <select
+                value={hostId}
+                onChange={(e) => setHostId(e.target.value)}
+                className="w-full text-xs px-2.5 py-1.5 rounded-xl border border-[#D9D7D0] bg-white font-semibold"
+              >
+                <option value="">— belum dipilih —</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void saveGroups()}
+              disabled={groupBusy !== null || (Boolean(respId) !== Boolean(hostId))}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181818] text-white text-[11px] font-bold disabled:opacity-40"
+            >
+              {groupBusy === 'save' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Simpan grup
+            </button>
+            <button
+              type="button"
+              onClick={() => void sendRouting()}
+              disabled={groupBusy !== null || !respId || !hostId}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850] hover:border-[#1B1B1B] disabled:opacity-40"
+            >
+              {groupBusy === 'route' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
+              Kirim routing ke mentor
+            </button>
+            {Boolean(respId) !== Boolean(hostId) && (
+              <span className="text-[10px] text-amber-700">Isi keduanya (atau kosongkan keduanya untuk menghapus).</span>
+            )}
+          </div>
+          {groupMsg && (
+            <p className={`text-[11px] font-bold ${groupMsg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{groupMsg.text}</p>
+          )}
+        </div>
+      )}
 
       {canEdit && showRoles && (
         <div className="rounded-2xl border border-[#D9D7D0]/60 bg-[#FAF9F5] p-4">

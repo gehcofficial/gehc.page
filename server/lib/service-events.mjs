@@ -3,8 +3,13 @@
  * Pola: "{prefix}: {Tema} - {DD Mon YYYY}" (ID).
  * Contoh: "Ibadah Pemuda: Hidup Kudus - 06 Sep 2026".
  */
+import { wibDateOnly } from './event-venue.mjs';
 
 const ID_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+const isWorshipLike = (e) =>
+  ['MENTORING_DAY', 'SERVING_DAY'].includes(String(e?.serviceType || '')) ||
+  String(e?.kind || '').toUpperCase() === 'UMUM';
 
 export function formatSundayID(isoDate) {
   const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -67,4 +72,26 @@ export function sundayWIBInstant(sundayISO, hour = 9) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(sundayISO || ''))) return null;
   const h = String(Math.min(23, Math.max(0, Number(hour) || 9))).padStart(2, '0');
   return new Date(`${sundayISO}T${h}:00:00+07:00`);
+}
+
+/**
+ * Satu event ibadah (SERVING_DAY / MENTORING_DAY / kind UMUM) pada tanggal WIB tsb.
+ * Dipakai auto-tautan penatalayan (usulan & jadwal) agar eventId tidak kosong —
+ * semantik sama dengan auto-link POST /api/penatalayan/schedules/bulk.
+ * Return eventId atau null.
+ */
+export async function resolveWorshipEventByDate(prisma, dateISO) {
+  const iso = String(dateISO || '').slice(0, 10);
+  if (!prisma || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const dayStart = new Date(`${iso}T00:00:00.000Z`);
+  const rows = await prisma.eventProgram.findMany({
+    where: { eventDate: { gte: new Date(dayStart.getTime() - 86400000), lt: new Date(dayStart.getTime() + 2 * 86400000) } },
+    select: { id: true, eventDate: true, serviceType: true, kind: true },
+    orderBy: { eventDate: 'asc' },
+  }).catch(() => []);
+  for (const e of Array.isArray(rows) ? rows : []) {
+    if (wibDateOnly(e.eventDate) !== iso) continue;
+    if (isWorshipLike(e)) return String(e.id);
+  }
+  return null;
 }

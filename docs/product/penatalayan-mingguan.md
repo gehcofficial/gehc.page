@@ -57,3 +57,34 @@ Katalog kode: `TOOL_VIDEOS` di `src/lib/serving-week-caption.ts`
 npm run db:migrate:serving-week          # tabel serving_week_channels
 npm run db:migrate:serving-week:staging
 ```
+
+## 7. Sinkron eventId & routing grup (Okt 2026)
+
+- **Auto-taut event** — usulan mentor (`proposals/bulk`), request divisi, dan
+  fulfill kini selalu menautkan `eventId` event ibadah pada **tanggal WIB yang
+  sama** (SERVING_DAY / MENTORING_DAY / kind UMUM) bila klien tidak mengirim
+  `eventId`. Helper: `resolveWorshipEventByDate` (`server/lib/service-events.mjs`).
+- **Backfill data lama**:
+
+```powershell
+npm run backfill:penatalayan-link             # dry-run (lokal/.env)
+npm run backfill:penatalayan-link:staging     # dry-run staging
+# tambahkan --apply untuk menulis, lalu:
+npm run backfill:petugas-attendance:staging   # absensi otomatis petugas
+```
+
+- **Panel usulan mentor** menampilkan banner “Mengisi untuk: {event}” dan
+  mendukung deep-link `#/portal/<ns>/penatalayan-usulan?date=&event=`
+  (dari notifikasi routing).
+- **Routing penatalayan event** (mis. Bedah Film): di panel Penatalayan event,
+  SUPERADMIN/Komisi/Committee menetapkan **grup Tuan Rumah & Penanggungjawab**
+  (tersimpan di `EventProgram.metadata.penatalayanGroups`) lalu tombol
+  **Kirim routing ke mentor** — mentor + co-mentor ACTIVE kedua grup menerima
+  notifikasi kategori `penatalayan` berisi tautan pengisian usulan; divisi
+  tetap meng-approve. Timestamp terakhir: `metadata.penatalayanRoutingAt`.
+- **Kartu Info Event** (`/api/db/service-schedule`): event ber-`penatalayanGroups`
+  menampilkan Tuan Rumah/Penanggungjawab pada hari yang belum punya baris siklus.
+- **Notifikasi mentoring day (W1)**: cron Jumat H-2 & Sabtu H-1 kini juga
+  mengirim pengingat ke **HOD (LEAD/CO_LEAD) event MENTORING_DAY** —
+  `resolveMentoringDayHods` (`server/lib/serving-week.mjs`).
+

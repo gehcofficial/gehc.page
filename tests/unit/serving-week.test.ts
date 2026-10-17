@@ -3,6 +3,7 @@ import {
   assertTransition,
   canTransition,
   parseWeekDate,
+  resolveMentoringDayHods,
   serializeWeekChannel,
   validateWaUrl,
 } from '../../server/lib/serving-week.mjs';
@@ -71,5 +72,34 @@ describe('serving-week: caption', () => {
     expect(t).toContain('Konfirmasi');
     expect(t).toContain('QRIS');
     expect(t).toContain('@BOD');
+  });
+});
+
+describe('serving-week: HOD mentoring day', () => {
+  const mkPrisma = (events: unknown[], leads: unknown[]) => ({
+    eventProgram: { findMany: async () => events },
+    eventDivisionMember: { findMany: async () => leads },
+  });
+
+  it('mengambil HOD event MENTORING_DAY tanggal WIB + dedupe', async () => {
+    const events = [
+      { id: 'ev-ment', eventDate: new Date('2026-10-18T02:00:00.000Z'), serviceType: 'MENTORING_DAY' },
+      { id: 'ev-srv', eventDate: new Date('2026-10-18T02:00:00.000Z'), serviceType: 'SERVING_DAY' },
+    ];
+    const leads = [
+      { userId: 'u1', role: 'LEAD', user: { name: 'Holly' }, eventDivision: { division: 'LITURGIA' } },
+      { userId: 'u2', role: 'CO_LEAD', user: { name: 'Yosef' }, eventDivision: { division: 'DIDASKALIA' } },
+      { userId: 'u1', role: 'LEAD', user: { name: 'Holly' }, eventDivision: { division: 'LITURGIA' } },
+    ];
+    const out = await resolveMentoringDayHods(mkPrisma(events, leads) as never, '2026-10-18');
+    expect(out.map((h) => `${h.userId}:${h.role}`)).toEqual(['u1:LEAD', 'u2:CO_LEAD']);
+    expect(out[0].division).toBe('LITURGIA');
+  });
+
+  it('tanpa event mentoring / tanggal rusak = kosong', async () => {
+    const events = [{ id: 'ev-srv', eventDate: new Date('2026-10-18T02:00:00.000Z'), serviceType: 'SERVING_DAY' }];
+    expect(await resolveMentoringDayHods(mkPrisma(events, []) as never, '2026-10-18')).toEqual([]);
+    expect(await resolveMentoringDayHods(mkPrisma(events, []) as never, 'ngaco')).toEqual([]);
+    expect(await resolveMentoringDayHods(null as never, '2026-10-18')).toEqual([]);
   });
 });

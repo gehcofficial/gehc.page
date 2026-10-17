@@ -3,6 +3,7 @@ import { CalendarPlus, Info, Loader2, Send } from 'lucide-react';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
 import type { ServiceRole } from '../../types/penatalayan';
+import { parseHashSearch } from '../../lib/portal-routes';
 
 const ALL_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'] as const;
 
@@ -32,6 +33,7 @@ const fmtDate = (iso: string) =>
 
 type RoleRow = ServiceRole & { isRequired?: boolean };
 type Existing = { roleId: string; userId: string; userName: string };
+type DayEvent = { id: string; name?: string | null; eventDate?: string | null };
 type PendingMine = {
   id: string;
   serviceRoleId: string;
@@ -42,13 +44,31 @@ type PendingMine = {
   status: string;
 };
 
+/** Tanggal & event awal dari deep-link routing (#/portal/<ns>/penatalayan-usulan?date=&event=). */
+function initialHashTarget(): { date: string | null; eventId: string | null } {
+  try {
+    const q = parseHashSearch();
+    const d = String(q.get('date') || '').slice(0, 10);
+    const e = String(q.get('event') || '').trim();
+    return {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null,
+      eventId: /^[A-Za-z0-9_-]{1,64}$/.test(e) ? e : null,
+    };
+  } catch {
+    return { date: null, eventId: null };
+  }
+}
+
 /**
  * Panel usulan Mentor/Co-mentor: semua divisi terbuka (read), multi-role x
  * multi-people dalam 1 tanggal, kirim sebagai antrean PENDING.
  * Approve tetap di tiap divisi (PenatalayanRequestQueue).
  */
 export const MentorPenatalayanUsulanPanel: React.FC = () => {
-  const [date, setDate] = useState(nextSundays(1)[0]);
+  const hashTarget = useMemo(() => initialHashTarget(), []);
+  const [date, setDate] = useState(hashTarget.date || nextSundays(1)[0]);
+  const [linkedEventId, setLinkedEventId] = useState<string | null>(hashTarget.eventId);
+  const [dayEvents, setDayEvents] = useState<DayEvent[]>([]);
   const [divisions, setDivisions] = useState<string[]>([...ALL_DIVISIONS]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [existing, setExisting] = useState<Existing[]>([]);
@@ -87,10 +107,12 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
         return [{ roleId, userId, userName: String(u?.name || '') }];
       }));
       setPendingMine(Array.isArray(dq.requests) ? dq.requests : []);
+      setDayEvents(Array.isArray(ds.events) ? (ds.events as DayEvent[]) : []);
     } catch {
       setRoles([]);
       setExisting([]);
       setPendingMine([]);
+      setDayEvents([]);
     } finally {
       setLoading(false);
     }
@@ -148,6 +170,21 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
     [picks],
   );
 
+  const activeEvent = useMemo(() => {
+    if (linkedEventId) {
+      const linked = dayEvents.find((e) => e.id === linkedEventId);
+      if (linked) return linked;
+    }
+    return dayEvents.find((e) => String(e.eventDate || '').slice(0, 10) === date) || null;
+  }, [linkedEventId, dayEvents, date]);
+
+  const dateOptions = useMemo(() => (sundays.includes(date) ? sundays : [date, ...sundays]), [sundays, date]);
+
+  const pickDate = useCallback((val: string) => {
+    setDate(val);
+    setLinkedEventId(null);
+  }, []);
+
   const toggleDivision = (d: string) =>
     setDivisions((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
@@ -166,7 +203,7 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ date, items }),
+        body: JSON.stringify({ date, items, ...(activeEvent ? { eventId: activeEvent.id } : {}) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal mengirim usulan.');
@@ -182,7 +219,7 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [picks, assignedIds, pendingMineKeys, date, load]);
+  }, [picks, assignedIds, pendingMineKeys, date, activeEvent, load]);
 
   const cancelMine = useCallback(async (id: string) => {
     try {
@@ -202,10 +239,23 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <CalendarPlus className="w-4 h-4 text-[#0EA5E9]" />
           <h3 className="text-sm font-black text-[#1B1B1B]">Usulan Pelayanan — semua divisi terbuka</h3>
-          <select value={date} onChange={(e) => setDate(e.target.value)} className="ml-auto text-xs px-2.5 py-1.5 rounded-xl border border-[#D9D7D0] font-bold">
-            {sundays.map((s) => <option key={s} value={s}>{fmtDate(s)}</option>)}
+          <select value={date} onChange={(e) => pickDate(e.target.value)} className="ml-auto text-xs px-2.5 py-1.5 rounded-xl border border-[#D9D7D0] font-bold">
+            {dateOptions.map((s) => (
+              <option key={s} value={s}>
+                {fmtDate(s)}{activeEvent && s === date ? ` — ${activeEvent.name}` : ''}
+              </option>
+            ))}
           </select>
         </div>
+        {activeEvent && (
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] text-sky-800">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-bold">Mengisi untuk:</span>
+            <span>{activeEvent.name}</span>
+            <span className="text-sky-600">· {fmtDate(String(activeEvent.eventDate || date).slice(0, 10))}</span>
+            {linkedEventId && <span className="text-sky-600">(routing dari divisi)</span>}
+          </div>
+        )}
         <div className="flex flex-wrap gap-1.5">
           {ALL_DIVISIONS.map((d) => (
             <button

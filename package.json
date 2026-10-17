@@ -77,6 +77,8 @@
     "sim:session-drafts:upload:staging": "dotenv -e .env.staging -- node scripts/simulate-session-drafts.mjs --upload-only --event-date=2026-10-04",
     "backfill:petugas-attendance": "node scripts/backfill-petugas-attendance.mjs",
     "backfill:petugas-attendance:staging": "dotenv -e .env.staging -- node scripts/backfill-petugas-attendance.mjs",
+    "backfill:penatalayan-link": "node scripts/backfill-penatalayan-event-link.mjs",
+    "backfill:penatalayan-link:staging": "dotenv -e .env.staging -- node scripts/backfill-penatalayan-event-link.mjs",
     "audit:event-access:staging": "dotenv -e .env.staging -- node scripts/audit-event-access.mjs",
     "audit:event-access:prod": "dotenv -e .env.production -- node scripts/audit-event-access.mjs",
     "audit:family-tree": "node scripts/audit-family-tree.mjs",

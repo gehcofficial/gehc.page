@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
+import { resolveWorshipEventByDate } from '../lib/service-events.mjs';
 import { approverUserIdsForService } from '../lib/service-approvers.mjs';
 import {
   canTransitionRequest,
@@ -138,17 +139,18 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
         return res.status(409).json({ error: 'Sudah ada request menunggu untuk role & tanggal itu.' });
       }
     }
+    const effectiveEventId = eventId ? String(eventId) : await resolveWorshipEventByDate(prisma, dateStr).catch(() => null);
     const id = `prr-${crypto.randomUUID()}`;
     const created = await createRequestRow(prisma, {
       id,
       serviceRoleId: role.id,
-      eventId: eventId ? String(eventId) : null,
+      eventId: effectiveEventId,
       date: dateStr,
       requesterId: req.authUser?.id || 'unknown',
       note: note ? String(note).slice(0, 500) : null,
       proposedUserId: proposed,
     });
-    let leads = await divisionLeadIds(prisma, { eventId: eventId || null, division: role.division });
+    let leads = await divisionLeadIds(prisma, { eventId: effectiveEventId, division: role.division });
     if (!leads.length) {
       try {
         const all = await approverUserIdsForService(prisma);
@@ -175,6 +177,7 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
     const norm = normalizeProposalItems(req.body || {});
     if (!norm.ok) return res.status(400).json({ error: norm.errors[0], errors: norm.errors });
     const { date: dateStr, eventId, rows } = norm;
+    const effectiveEventId = eventId ? String(eventId) : await resolveWorshipEventByDate(prisma, dateStr).catch(() => null);
     const roleIds = [...new Set(rows.map((r) => r.serviceRoleId))];
     const userIds = [...new Set(rows.map((r) => r.userId))];
     const [roles, users] = await Promise.all([
@@ -203,7 +206,7 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
       if (await hasPendingProposalForUser(prisma, role.id, dateStr, row.userId)) { skipped.push({ ...row, reason: 'Usulan sama masih menunggu.' }); continue; }
       const id = `prr-${crypto.randomUUID()}`;
       const rec = await createRequestRow(prisma, {
-        id, serviceRoleId: role.id, eventId, date: dateStr,
+        id, serviceRoleId: role.id, eventId: effectiveEventId, date: dateStr,
         requesterId: req.authUser?.id || 'unknown', note: row.note,
         proposedUserId: row.userId, batchId,
       });
@@ -211,7 +214,7 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
       if (role.division) notifyDivisions.add(String(role.division).toUpperCase());
     }
     try {
-      const leadLists = await Promise.all([...notifyDivisions].map((d) => divisionLeadIds(prisma, { eventId: eventId || null, division: d }).catch(() => [])));
+      const leadLists = await Promise.all([...notifyDivisions].map((d) => divisionLeadIds(prisma, { eventId: effectiveEventId, division: d }).catch(() => [])));
       let leads = [...new Set(leadLists.flat())].filter((x) => x && x !== req.authUser?.id);
       if (!leads.length) {
         try {
@@ -243,12 +246,13 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
     if (!finalUserId) return res.status(400).json({ error: 'userId wajib (atau setujui usulan yang sudah ada namanya).' });
     const person = await prisma.user.findUnique({ where: { id: String(finalUserId) }, select: { id: true } }).catch(() => null);
     if (!person) return res.status(404).json({ error: 'Orang tidak ditemukan.' });
+    const scheduleEventId = row.eventId ? String(row.eventId) : await resolveWorshipEventByDate(prisma, row.date).catch(() => null);
     const schedule = await prisma.serviceSchedule.create({
       data: {
         id: `ss-${crypto.randomUUID()}`,
         serviceRoleId: row.serviceRoleId,
         userId: person.id,
-        eventId: row.eventId,
+        eventId: scheduleEventId,
         date: new Date(`${row.date}T00:00:00.000Z`),
         timeStart: timeStart ? String(timeStart) : null,
         timeEnd: timeEnd ? String(timeEnd) : null,

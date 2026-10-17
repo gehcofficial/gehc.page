@@ -303,28 +303,54 @@ export async function runServingWeekReminders(prisma, now = new Date()) {
 
   // Jumat (H-2) & Sabtu (H-1): sapa perwakilan + petugas Minggu ini.
   if (dow !== 5 && dow !== 6) return { skipped: true, reason: 'bukan Jumat/Sabtu WIB' };
+
+  // Cabang mentoring day (W1 tanpa ServingAssignment): HOD panca tugas event
+  // MENTORING_DAY Minggu ini tetap dapat pengingat H-2/H-1.
+  let mentoring = { phase: dow === 5 ? 'mentoring-h-2' : 'mentoring-h-1', recipients: 0, pushed: 0 };
+  try {
+    const { resolveMentoringDayHods } = await import('../lib/serving-week.mjs');
+    const hods = await resolveMentoringDayHods(prisma, sunday);
+    const hodIds = [...new Set(hods.map((h) => h.userId).filter(Boolean))];
+    if (hodIds.length) {
+      const r = dow === 5
+        ? await notifyIds(hodIds, {
+            title: `Mentoring Day Minggu ${sunday}`,
+            message: 'Cek kesiapan divisi untuk ibadah mentoring Minggu ini (modul, venue, konsumsi, petugas). Lengkapi kekurangan lewat portal → divisi & event.',
+          })
+        : await notifyIds(hodIds, {
+            title: `Besok Mentoring Day (${sunday})`,
+            message: 'Final check kesiapan divisi untuk mentoring day besok — koordinasi petugas, venue, dan kebutuhan divisi.',
+          });
+      mentoring = { phase: mentoring.phase, recipients: r.recipients, pushed: r.pushed };
+    }
+  } catch { /* mentoring opsional */ }
+
   let channel = null;
   try {
     channel = await prisma.servingWeekChannel.findUnique({
       where: { eventDate: new Date(`${sunday}T00:00:00.000Z`) },
     }).catch(() => null);
   } catch {
+    if (mentoring.recipients) return { sunday, mentoring };
     return { skipped: true, reason: 'tabel serving_week_channels belum ada' };
   }
   const userIds = await resolveServingRepUserIds(prisma, sunday).catch(() => []);
-  if (!userIds.length) return { skipped: true, reason: 'belum ada petugas/perwakilan', sunday };
+  if (!userIds.length) {
+    if (mentoring.recipients) return { sunday, mentoring };
+    return { skipped: true, reason: 'belum ada petugas/perwakilan', sunday };
+  }
   if (dow === 5) {
     const r = await notifyIds(userIds, {
       title: `Konfirmasi tugas Minggu ${sunday}`,
       message: `Buka portal → Penatalayan → tugas saya → Konfirmasi.${channel?.waUrl ? ' Link grup koordinasi ada di kartu grup WA temporer.' : ' Grup WA temporer menyusul dari BOD.'} Hadiri Representative Day sesuai jadwal.`,
     });
-    return { phase: 'h-2', sunday, ...r };
+    return { phase: 'h-2', sunday, ...r, mentoring };
   }
   const r = await notifyIds(userIds, {
     title: `Siap melayani besok (${sunday})`,
     message: 'Cek kembali tugas + checklist di portal. Cara scan QR & konfirmasi ada di caption panduan grup WA. Tim doa siaga — sampaikan pokok doa ke Liturgia.',
   });
-  return { phase: 'h-1', sunday, ...r };
+  return { phase: 'h-1', sunday, ...r, mentoring };
 }
 
 /**

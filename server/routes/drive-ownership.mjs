@@ -245,6 +245,43 @@ export function registerEventArchivePublicRoute(app, { wrap }) {
         };
       }
 
+      // Event spesial ber-grup penatalayan (mis. Bedah Film): Tuan Rumah/Penanggungjawab
+      // dari metadata event mengisi hari yang belum punya baris siklus serving.
+      try {
+        const dayMs = 86400000;
+        const fromD = new Date(`${from}T00:00:00.000Z`);
+        const toD = new Date(`${to}T00:00:00.000Z`);
+        const evs = await prisma.eventProgram.findMany({
+          where: { eventDate: { gte: new Date(fromD.getTime() - dayMs), lt: new Date(toD.getTime() + 2 * dayMs) } },
+          select: { eventDate: true, metadata: true },
+          orderBy: { eventDate: 'asc' },
+          take: 200,
+        }).catch(() => []);
+        const metaRows = (evs || []).filter((e) => e.metadata && typeof e.metadata === 'object' && e.metadata.penatalayanGroups);
+        const gidSet = new Set();
+        for (const e of metaRows) {
+          const g = e.metadata.penatalayanGroups || {};
+          if (g.responsibleGroupId) gidSet.add(String(g.responsibleGroupId));
+          if (g.hostGroupId) gidSet.add(String(g.hostGroupId));
+        }
+        const groupRows = gidSet.size
+          ? await prisma.group.findMany({ where: { id: { in: [...gidSet] } }, select: { id: true, name: true } }).catch(() => [])
+          : [];
+        const nameById = new Map((groupRows || []).map((g) => [String(g.id), g.name]));
+        for (const e of metaRows) {
+          const iso = wibDateOnly(e.eventDate);
+          if (!iso || iso < from || iso > to) continue;
+          if (serving[iso]) continue; // baris nyata / jadwal serving menang
+          const g = e.metadata.penatalayanGroups || {};
+          serving[iso] = {
+            responsible: g.responsibleGroupId ? (nameById.get(String(g.responsibleGroupId)) || null) : null,
+            host: g.hostGroupId ? (nameById.get(String(g.hostGroupId)) || null) : null,
+            hostGroupId: g.hostGroupId ? String(g.hostGroupId) : null,
+            projected: false,
+          };
+        }
+      } catch { /* fallback opsional */ }
+
       // Proyeksi siklus (prediksi) untuk tanggal yang belum punya baris nyata —
       // supaya penanggung/tuan rumah tetap tampil walau jadwal belum di-generate.
       try {

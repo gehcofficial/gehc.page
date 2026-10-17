@@ -168,6 +168,8 @@ import { sendNotification, pushToUsers, NOTIFY_CATEGORIES } from './lib/notify.m
 import { markAlumniBulk, markNonaktifBulk, restoreActiveBulk } from './lib/member-role-sync.mjs';
 import { captureScope, recordSnapshot } from './lib/regen-undo.mjs';
 import { venueOf, wibDateOnly } from './lib/event-venue.mjs';
+import { resolveWorshipEventByDate } from './lib/service-events.mjs';
+import { parsePenatalayanGroups, normalizePenatalayanGroupsInput, mergePenatalayanGroupsIntoMetadata, resolveGroupMentors } from './lib/event-groups.mjs';
 import { assignOrgSlot } from './services/org-assign.mjs';
 import { createApp } from './createApp.mjs';
 import { KOMISION, KOMISION_CORE } from './lib/rbac-constants.mjs';
@@ -3356,7 +3358,7 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
 
   const {
     name, description, startDate, endDate, status, kind, churchProgramId, whatsappGroupUrl,
-    eventDate, venueName, locationDetail, mapUrl, mapEmbedQuery,
+    eventDate, venueName, locationDetail, mapUrl, mapEmbedQuery, penatalayanGroups,
   } = req.body || {};
 
   const data = {};
@@ -3405,10 +3407,28 @@ app.patch('/api/events/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), w
   if (mapUrl !== undefined) data.mapUrl = mapUrl || null;
   if (mapEmbedQuery !== undefined) data.mapEmbedQuery = mapEmbedQuery || null;
 
-  if (!Object.keys(data).length) return res.status(400).json({ error: 'Tidak ada perubahan.' });
+  const hasGroupsChange = penatalayanGroups !== undefined;
+  if (!Object.keys(data).length && !hasGroupsChange) return res.status(400).json({ error: 'Tidak ada perubahan.' });
 
   const existing = await prisma.eventProgram.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+  // Grup Tuan Rumah / Penanggungjawab penatalayan (metadata, tanpa migrasi skema).
+  if (hasGroupsChange) {
+    const norm = normalizePenatalayanGroupsInput(penatalayanGroups);
+    if (!norm.ok) return res.status(400).json({ error: norm.error });
+    if (norm.value) {
+      const found = await prisma.group.findMany({
+        where: { id: { in: [norm.value.responsibleGroupId, norm.value.hostGroupId] } },
+        select: { id: true },
+      }).catch(() => []);
+      const ids = new Set((found || []).map((g) => String(g.id)));
+      if (!ids.has(norm.value.responsibleGroupId) || !ids.has(norm.value.hostGroupId)) {
+        return res.status(400).json({ error: 'Grup penanggungjawab/tuan rumah tidak ditemukan.' });
+      }
+    }
+    data.metadata = mergePenatalayanGroupsIntoMetadata(existing.metadata, norm.value);
+  }
 
   const ev = await prisma.eventProgram.update({ where: { id: req.params.id }, data });
 
@@ -8644,7 +8664,33 @@ app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
     include: { serviceRole: true, user: { select: { id: true, name: true, email: true } } },
     orderBy: [{ date: 'asc' }, { timeStart: 'asc' }],
   });
-  res.json({ schedules });
+  // Event ibadah pada rentang (aditif; untuk label tanggal + tautan usulan penatalayan).
+  let events = [];
+  const fromISO = String(from || to || '').slice(0, 10);
+  const toISO = String(to || from || '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fromISO) && /^\d{4}-\d{2}-\d{2}$/.test(toISO)) {
+    const dayMs = 86400000;
+    const fromD = new Date(`${fromISO}T00:00:00.000Z`);
+    const toD = new Date(`${toISO}T00:00:00.000Z`);
+    const rowsEv = await prisma.eventProgram.findMany({
+      where: { eventDate: { gte: new Date(fromD.getTime() - dayMs), lt: new Date(toD.getTime() + 2 * dayMs) } },
+      select: { id: true, name: true, eventDate: true, serviceType: true, kind: true, status: true },
+      orderBy: { eventDate: 'asc' },
+      take: 400,
+    }).catch(() => []);
+    events = (rowsEv || [])
+      .map((e) => ({
+        id: e.id,
+        name: e.name,
+        eventDate: wibDateOnly(e.eventDate),
+        serviceType: e.serviceType || null,
+        status: e.status || null,
+      }))
+      .filter((e) => e.eventDate && e.eventDate >= fromISO && e.eventDate <= toISO
+        && (['MENTORING_DAY', 'SERVING_DAY'].includes(String(e.serviceType || '')) || String(e.kind || '').toUpperCase() === 'UMUM'))
+      .map(({ id, name, eventDate, serviceType }) => ({ id, name, eventDate, serviceType }));
+  }
+  res.json({ schedules, events });
 }));
 
 // POST /api/penatalayan/schedules � assign person(s) to role for a date/event
@@ -8995,15 +9041,9 @@ app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 
   // supaya penugasan dari Panel Divisi & Program/Event tidak terpisah.
   const autoEventByDay = new Map();
   if (!eventId) {
-    const evs = await prisma.eventProgram.findMany({
-      where: { eventDate: { in: dayDates } },
-      select: { id: true, eventDate: true, serviceType: true, kind: true },
-      orderBy: { eventDate: 'asc' },
-    }).catch(() => []);
-    for (const e of evs) {
-      const iso = e.eventDate instanceof Date ? e.eventDate.toISOString().slice(0, 10) : String(e.eventDate || '').slice(0, 10);
-      const isWorship = ['MENTORING_DAY', 'SERVING_DAY'].includes(String(e.serviceType || '')) || String(e.kind || '').toUpperCase() === 'UMUM';
-      if (iso && isWorship && !autoEventByDay.has(iso)) autoEventByDay.set(iso, e.id);
+    for (const day of [...new Set(rows.map((r) => r.date))]) {
+      const evId = await resolveWorshipEventByDate(prisma, day).catch(() => null);
+      if (evId) autoEventByDay.set(day, evId);
     }
   }
   const existing = await prisma.serviceSchedule.findMany({
@@ -9136,7 +9176,7 @@ app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const event = await prisma.eventProgram.findUnique({
     where: { id: req.params.id },
-    select: { id: true, name: true, eventDate: true, kind: true, serviceType: true, status: true, slug: true },
+    select: { id: true, name: true, eventDate: true, kind: true, serviceType: true, status: true, slug: true, metadata: true },
   });
   if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
@@ -9166,6 +9206,66 @@ app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
   ]);
 
   res.json({ event, roles, assignments, previous });
+}));
+
+// POST /api/events/:id/penatalayan-routing — kirim routing ke mentor/co-mentor
+// grup Tuan Rumah & Penanggungjawab (metadata.penatalayanGroups) agar mereka
+// mengisi usulan penatalayan; divisi tinggal approve.
+app.post('/api/events/:id/penatalayan-routing', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+  const prisma = getPrisma();
+  if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const event = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, name: true, eventDate: true, metadata: true },
+  });
+  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  const groups = parsePenatalayanGroups(event.metadata);
+  if (!groups) {
+    return res.status(400).json({ error: 'Tetapkan dulu grup Tuan Rumah & Penanggungjawab untuk event ini.' });
+  }
+  const mentors = await resolveGroupMentors(prisma, groups);
+  if (!mentors.length) {
+    return res.json({ ok: true, recipients: 0, sent: [], warning: 'Belum ada mentor/co-mentor aktif di kedua grup.' });
+  }
+  const dateISO = wibDateOnly(event.eventDate) || (event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 10) : null);
+  const roleLabel = (g) => (g === 'TUAN_RUMAH' ? 'Tuan Rumah' : 'Penanggungjawab');
+
+  // Kelompokkan per (namespace × peran grup) agar deep-link & pesan tepat sasaran.
+  const buckets = new Map();
+  for (const m of mentors) {
+    const key = `${m.namespace}|${m.groupRole}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, { namespace: m.namespace, groupRole: m.groupRole, userIds: [], groupNames: new Set() });
+    }
+    const b = buckets.get(key);
+    b.userIds.push(m.userId);
+    b.groupNames.add(m.groupName);
+  }
+
+  const sent = [];
+  try {
+    for (const b of buckets.values()) {
+      const gLabel = roleLabel(b.groupRole);
+      const names = [...b.groupNames].join(' & ');
+      const qs = dateISO ? `date=${dateISO}&event=${encodeURIComponent(event.id)}` : `event=${encodeURIComponent(event.id)}`;
+      const href = `#/portal/${b.namespace}/penatalayan-usulan?${qs}`;
+      const result = await sendNotification({
+        category: 'penatalayan',
+        priority: 'TASK',
+        title: `Isi penatalayan — ${event.name}`,
+        message: `Kamu ditunjuk ${gLabel} grup ${names} untuk ${event.name}${dateISO ? ` (${dateISO})` : ''}. Buka portal → Usulan Pelayanan, pilih nama dari kelompok binaanmu — divisi akan menyetujui.`,
+        href,
+        audience: { type: 'USER', userIds: b.userIds },
+      });
+      sent.push({ namespace: b.namespace, groupRole: b.groupRole, count: result?.count || 0, pushed: result?.pushed || 0 });
+    }
+    const meta = mergePenatalayanGroupsIntoMetadata(event.metadata, groups);
+    meta.penatalayanRoutingAt = new Date().toISOString();
+    await prisma.eventProgram.update({ where: { id: event.id }, data: { metadata: meta } }).catch(() => null);
+    res.json({ ok: true, recipients: mentors.length, date: dateISO, sent });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || 'Gagal mengirim routing.' });
+  }
 }));
 
 // GET /api/events/:id/worship — sesi pola ibadah untuk event ini (kartu Info Event).

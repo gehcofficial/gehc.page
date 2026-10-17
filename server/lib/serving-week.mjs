@@ -3,6 +3,7 @@
  * Siklus: DRAFT (siapkan) → OPEN (H-3, undangan disebar) → CLOSED (H+1, arsip).
  * Keluar-grup WA tetap manual di HP; sistem memberi daftar + caption + arsip.
  */
+import { wibDateOnly } from './event-venue.mjs';
 
 export const WEEK_STATUSES = ['DRAFT', 'OPEN', 'CLOSED'];
 const NEXT = { DRAFT: ['OPEN'], OPEN: ['CLOSED', 'DRAFT'], CLOSED: [] };
@@ -182,5 +183,46 @@ export async function buildWeekInviteList(prisma, eventDateISO) {
     };
   } catch {
     return empty;
+  }
+}
+
+/**
+ * HOD (LEAD/CO_LEAD) divisi pada event MENTORING_DAY tanggal WIB tsb.
+ * Dipakai cron H-2/H-1 agar panca tugas tahu kesiapan mentoring day (W1 —
+ * tanpa row ServingAssignment, jadi tidak tercakup runServingWeekReminders).
+ */
+export async function resolveMentoringDayHods(prisma, eventDateISO) {
+  if (!prisma || !DATE_RE.test(String(eventDateISO || ''))) return [];
+  try {
+    const dayStart = new Date(`${eventDateISO}T00:00:00.000Z`);
+    const rows = await prisma.eventProgram.findMany({
+      where: { eventDate: { gte: new Date(dayStart.getTime() - 86400000), lt: new Date(dayStart.getTime() + 2 * 86400000) } },
+      select: { id: true, eventDate: true, serviceType: true },
+      orderBy: { eventDate: 'asc' },
+    }).catch(() => []);
+    const event = (rows || []).find(
+      (e) => String(e.serviceType || '') === 'MENTORING_DAY' && wibDateOnly(e.eventDate) === eventDateISO,
+    );
+    if (!event) return [];
+    const leads = await prisma.eventDivisionMember.findMany({
+      where: { eventDivision: { eventId: event.id }, role: { in: ['LEAD', 'CO_LEAD'] } },
+      select: { userId: true, role: true, user: { select: { name: true } }, eventDivision: { select: { division: true } } },
+    }).catch(() => []);
+    const seen = new Set();
+    const out = [];
+    for (const l of leads || []) {
+      const uid = String(l.userId || '');
+      if (!uid || seen.has(uid)) continue;
+      seen.add(uid);
+      out.push({
+        userId: uid,
+        name: l.user?.name || uid,
+        division: l.eventDivision?.division || null,
+        role: l.role,
+      });
+    }
+    return out;
+  } catch {
+    return [];
   }
 }
