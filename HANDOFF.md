@@ -33,7 +33,8 @@ terkunci → M3 gate AKHIR + delta + wordcloud → M4 600s → CLOSED; layar
 film tanpa kartu "Waktu tersisa" (kode lama `180:00` hilang).
 
 **Deploy:** staging ✓ (`2c686eb` · alias 9/9 domain · `/api/version` cocok) →
-push `main` ✓ (OK cek visual user) → prod menyusul verifikasi `/api/version`.
+push `main` ✓ (OK cek visual user) → prod ✓ (`22fa5dd` terverifikasi) →
+staging diselaraskan ke main.
 
 **Next:** cek visual 3 URL staging (layar/HP peserta/kontrol) memakai sesi
 `demo-bedah-film-sim-utama` (ditinggal RUNNING di M3, kode layar `5CDFC4`,
