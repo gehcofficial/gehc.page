@@ -33,14 +33,18 @@ multi-orang, 1 tanggal, semua divisi terbuka); approve tetap di tiap divisi
 (termasuk `penatalayan-proposals` baru 5/5) ✓. Timeout `lazy-routes`
 (ChurchHub cold-import >5 dtk di mesin ini) dinaikkan ke 20 dtk.
 
-**Next:** migrasi staging (`npm run db:migrate:penatalayan-requests:staging`
-+ `staging:sync`) → QA: mentor kirim usulan multi-role, divisi approve satu
-klik, tolak/ganti nama, batalkan usulan, cek notifikasi. (Migrasi local
-sudah dijalankan ✓.)
+**Next:** QA staging: mentor kirim usulan multi-role (tab Usulan Pelayanan),
+divisi approve satu klik (`Setujui X`), tolak/ganti nama, batalkan usulan,
+cek notifikasi. Migrasi local ✓ prod ✓ staging ✓.
 
-**Deploy:** commit episode ini → migrasi prod (additive) → push main ✓ CI →
-`staging:sync` (status final di update lokal, sengaja belum di-commit —
-workspace paralel aktif).
+**Deploy:** push main ✓ (`783a605`) → CI hijau ✓ → Vercel production
+Ready ✓ → migrasi prod ✓ → `staging:sync` ✓ (branch+deploy+alias via sesi
+login akun `gehcofficial`) → `/api/version` main = staging = staging-youth
+= `783a605` ✓. Catatan: `vercel tokens add` CLI diblokir 403 ("Cannot
+create tokens for this app") — token multi-akun per-repo belum jadi
+(buat via dashboard nanti; `scripts/sync-staging.mjs` sudah dukung
+`VERCEL_TOKEN`). HANDOFF diff ini sengaja dibiarkan uncommitted (workspace
+paralel aktif).
 
 
 ## Current — Daftar hadir di portal + ringkasan untuk semua berperan (16 Okt 2026)
@@ -5831,5 +5835,5 @@ Next:
 - QA di prod: kontrol 11 blok, M0 timer 5 mnt, PRE+afirmasi, M1 tenang, 3Q+afirmasi, M3 serentak, POST+delta, M4 undi, layar gabungan.
 
 Update staging (16 Okt 2026, sesi prod):
-- Branch staging = main = da7889c (push git OK). Deploy+alias staging GAGAL: Vercel CLI "Not authorized" (auth.json expired) � perlu `vercel login` lalu `npm run staging:sync` ulang (branch sudah selaras; tinggal deploy+alias+verify).
-- DB staging: pola 11 blok ? + sesi staging di-reset+apply penuh (WRAPUP -> DRAFT, data uji dihapus, draft 5 section + affirm, PRE+POST 5+5, 10 chip, gate bersih). QA staging bisa jalan sekarang (runtime staging = kode episode 184711d).
+- Branch staging = main = 783a605 (head saat ini; termasuk commit sesi paralel penatalayan: usulan multi-divisi mentor/co-mentor). Deploy+alias staging OK setelah `vercel login` ulang: deploy gehcpage-rjigk9gyq + 9/9 alias (termasuk staging-community.gehc.page + staging-gehcpage.vercel.app yang sebelumnya gagal). /api/version main = staging = 783a605 sama.
+- DB staging: pola 11 blok OK + sesi staging di-reset+apply penuh (WRAPUP -> DRAFT, data uji dihapus, draft 5 section + affirm, PRE+POST 5+5, 10 chip, gate bersih). QA staging: staging-youth.gehc.page/#/mentoring/sesi-2026-10-17-bedah-film/kontrol.
