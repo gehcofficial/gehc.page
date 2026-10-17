@@ -1,5 +1,44 @@
 # GEHC Portal — Handoff
 
+## Current — Penatalayan event: sinkron eventId + routing grup + pengingat HOD mentoring (17 Okt 2026)
+
+**Minta:** (A) usulan/jadwal penatalayan sering lepas dari event (`eventId` kosong
+→ absensi otomatis petugas ter-skip) — benahi server+klien+backfill; (C) event
+spesial (mis. Bedah Film) punya Tuan Rumah & Penanggungjawab grup → mentor/co-mentor
+kedua grup bisa di-routing mengisi usulan; (B) HOD panca tugas dapat pengingat
+H-2/H-1 saat mentoring day (W1 tanpa baris ServingAssignment).
+
+**Ubah:**
+- A: helper `resolveWorshipEventByDate` (`server/lib/service-events.mjs`, match
+  tanggal **WIB** ±1 hari, SERVING_DAY/MENTORING_DAY/UMUM, first-wins);
+  dipakai auto-link `schedules/bulk` + fallback `proposals/bulk`, request
+  tunggal, dan `fulfill` (`penatalayan-requests.mjs`). Panel usulan mentor:
+  banner “Mengisi untuk: {event}”, kirim `eventId`, dukung deep-link
+  `?date=&event=`; `GET /api/penatalayan/schedules` mengembalikan `events`
+  (aditif). Script `backfill:penatalayan-link(:staging)` (dry-run default).
+- C: `server/lib/event-groups.mjs` (parse/normalize/merge + `resolveGroupMentors`);
+  `PATCH /api/events/:id` menyimpan `metadata.penatalayanGroups`;
+  `POST /api/events/:id/penatalayan-routing` (SUPERADMIN/KOMISI/COMMITTEE)
+  mengirim notifikasi `penatalayan` + deep-link per namespace ke mentor &
+  co-mentor ACTIVE, mencatat `metadata.penatalayanRoutingAt`; kartu grup +
+  tombol routing di `EventPenatalayanPanel`; fallback kartu Info Event
+  (`/api/db/service-schedule`) untuk hari ber-grup.
+- B: `resolveMentoringDayHods` (`serving-week.mjs`) + cabang mentoring di
+  `runServingWeekReminders` (Jumat H-2 / Sabtu H-1, HOD saja; tetap jalan
+  walau tabel serving_week_channels absen).
+
+**Verifikasi:** lint ✓; unit 155 file / 1216 test lulus ✓ (baru: `event-groups`
+9 test; extend `service-events` +`serving-week`). Smoke API lokal (staging DB,
+read-only): boot ✓; `/api/penatalayan/schedules?from=..&to=..` → `events:[…]` ✓;
+`/api/events/:id/penatalayan` → `event.metadata` ✓; route baru terdaftar (401) ✓.
+Sisa QA staging: PATCH grup + kirim routing nyata, usulan mentor dari deep-link,
+cron Jumat/Sabtu.
+
+**Deploy:** push `main` ✓ (`c2ba91e`, cherry-pick di atas episode bedah film
+`2d29d0a` via worktree terpisah — WIP paralel aman) → prod `youth.gehc.page`
+`/api/version` = `c2ba91e` ✓ → `staging:sync` ✓ (9/9 alias · `/api/version`
+staging = `c2ba91e`).
+
 ## Current — Bedah Film: timer per langkah & sinkron 3 view (17 Okt 2026)
 
 **Minta:** hapus durasi sesi penuh (timer 180:00 tidak muncul di layar film),
