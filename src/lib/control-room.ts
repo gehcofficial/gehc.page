@@ -33,6 +33,7 @@ export type WorshipMini = {
   status?: string | null;
   patternCode?: string | null;
   patternName?: string | null;
+  phases?: Array<{ no?: number; title?: string; minutes?: number; owner?: string; division?: string | null }> | null;
 };
 
 export type DayBlockView = DayBlock & {
@@ -41,6 +42,7 @@ export type DayBlockView = DayBlock & {
   worshipStatus?: string | null;
   worshipSlug?: string | null;
   worshipPattern?: string | null;
+  worshipPhases?: Array<{ no?: number; title?: string; minutes?: number; owner?: string; division?: string | null }> | null;
 };
 
 /** Gabungkan blok hari + status live ibadah + sesi mentoring per event. */
@@ -61,6 +63,7 @@ export function mergeDayStatus(
       worshipStatus: ses?.status ?? null,
       worshipSlug: ses?.slug ?? null,
       worshipPattern: ses?.patternCode ?? ses?.patternName ?? null,
+      worshipPhases: Array.isArray(ses?.phases) ? ses.phases : null,
     };
   });
 }

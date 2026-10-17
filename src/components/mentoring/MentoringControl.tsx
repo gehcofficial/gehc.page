@@ -19,7 +19,7 @@ import {
 } from '../../lib/mentoring';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
-import { divisionLabel } from '../../lib/worship-patterns';
+import { PatternRundownList } from './PatternRundownList';
 import { TestimonyPanel } from './TestimonyPanel';
 import { DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
 
@@ -42,6 +42,7 @@ type ChipRow = { id: string; code: string; label: string; topicCode?: string | n
 
 type NoteRow = { userId: string; userName: string; topicCode: string; content: string };
 type SessionDetail = {
+  permissions?: { canWrite: boolean };
   session: {
     id: string;
     slug: string;
@@ -656,6 +657,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     [detail],
   );
   const [showArchive, setShowArchive] = useState(false);
+  const canWrite = detail?.permissions?.canWrite !== false;
   const visibleSessions = useMemo(() => {
     let rows = sessions;
     if (onlyEvent && eventId) {
@@ -754,13 +756,20 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
       {detail && (
         <>
+          {!canWrite && (
+            <div className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3">
+              <p className="text-xs font-black text-sky-900">Mode lihat-saja — kendali oleh tim Didaskalia/Komisi.</p>
+              <p className="mt-0.5 text-[11px] text-sky-800">Rundown & status sesi tetap tampil lengkap. Tombol aksi hari-H hanya aktif untuk pengurus Didaskalia, Komisi, atau Komite BOD.</p>
+            </div>
+          )}
           {!hasDraft && (
             <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
               <p className="text-xs font-black text-amber-900">Draft sesi ini belum terisi — kontrol mengikuti setelah draft diisi.</p>
               <p className="mt-0.5 text-[11px] text-amber-800">Isi dari tab Draft (manual atau AI) lalu Terapkan ke sesi. Tombol hari-H di bawah aktif setelah itu.</p>
             </div>
           )}
-          <fieldset disabled={!hasDraft} className={!hasDraft ? 'opacity-70 contents' : 'contents'}>
+          <PatternRundownList patternName={detail.session.pattern?.name} phases={detail.session.pattern?.phases} />
+          <fieldset disabled={!hasDraft || !canWrite} className={(!hasDraft || !canWrite) ? 'opacity-70 contents' : 'contents'}>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
               {isMonolog ? (
@@ -1354,34 +1363,6 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           )}
           {patternCode === 'THREE_SEQUENCES' && (
             <TeamsPanel sessionId={detail.session.id} />
-          )}
-
-          {detail.session.pattern?.phases && detail.session.pattern.phases.length > 0 && (
-            <div className={CARD}>
-              <p className="text-sm font-black">Rundown pola — {detail.session.pattern.name}</p>
-              <ol className="mt-3 space-y-2">
-                {detail.session.pattern.phases.map((p, i) => (
-                  <li key={i} className="flex items-start gap-3 rounded-xl border border-[#EFEDE8] p-3">
-                    <span className="w-6 h-6 rounded-full bg-brand/10 text-brand text-[11px] font-black flex items-center justify-center shrink-0">
-                      {p.no ?? i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold">
-                        {p.title}
-                        {p.division ? (
-                          <span className="ml-1.5 text-[10px] px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-bold whitespace-nowrap">
-                            {divisionLabel(p.division)}
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="text-[11px] text-[#8C8880]">
-                        {[p.minutes ? `${p.minutes}'` : null, p.owner].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
           )}
           </fieldset>
         </>

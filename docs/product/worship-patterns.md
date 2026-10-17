@@ -1,4 +1,4 @@
-# Pola Ibadah & Mentoring Day (F5)
+﻿# Pola Ibadah & Mentoring Day (F5)
 
 > Status: **live di staging** (29 Sep 2026). Kode: `server/routes/worship.mjs`, `src/components/mentoring/*`,
 > `src/lib/mentoring.ts`, `src/lib/mentoringPdf.ts`, seed `server/_seed-worship-patterns.cjs`,
@@ -133,3 +133,24 @@ node scripts/worship-sim.mjs --participants 100 --mode final
   berjalan/terisi dilaporkan sebagai `kept` dan tidak disentuh).
 - `DELETE /api/worship/sessions/:id` (Didaskalia + tulis): hanya DRAFT dengan 0 respons/vote/catatan;
   hapus cascade (items → responses, chips → votes, notes) dalam satu transaksi, else 404/409.
+
+## 11. Akses Rundown (17 Okt 2026)
+
+- **Lihat (read-only) untuk semua divisi + tuan rumah/PJ:**
+  - `MentoringControl` (`#/mentoring/<slug>/kontrol`): kartu Rundown pola
+    tampil untuk semua login; `permissions.canWrite` menentukan banner
+    **Mode lihat-saja** + fieldset aksi ter-disable.
+  - `ControlRoomPanel` (tab `ibadah` **semua divisi**): expander
+    "Rundown pola" per blok ibadah — payload `GET /api/events/:id/worship`
+    kini memuat `pattern.phases`.
+  - `ManageGroupsMonitoring` tab **Jadwal Pelayanan**: expander
+    "Rundown pola ibadah" per baris real (lazy fetch) + link kontrol —
+    tuan rumah/penanggung jawab ikut jadwal yang sudah ada.
+- **Kendali (write) tetap least privilege:** `PUT /state` dan
+  `PUT /stage` tetap `requireDivision('DIDASKALIA')` +
+  `requireRole(SUPERADMIN/KOMISI/COMMITTEE)`; UI hanya menyembunyikan
+  tombol (server tetap 403 — defense in depth). Operator di luar peran itu:
+  daftarkan sebagai Tim Kerja Didaskalia event.
+- Komponen bersama: `src/components/mentoring/PatternRundownList.tsx`
+  (`bare` untuk expander, kartu penuh untuk kontrol). Peserta (MENTEE)
+  tidak diberi rundown penuh — alur tetap per segmen (anti-spoiler film).

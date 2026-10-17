@@ -42,6 +42,7 @@ import { useMediaSlots, MEDIA_SLOTS_QUERY_KEY } from '../../hooks/useMediaSlots'
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABEL } from '../../lib/roles';
 import { waMeHref, waDigits } from '../../lib/wa';
+import { PatternRundownList, type PatternPhase } from '../mentoring/PatternRundownList';
 
 export const ManageGroupsMonitoring: React.FC = () => {
   const {
@@ -193,7 +194,7 @@ export const ManageGroupsMonitoring: React.FC = () => {
     id: string; eventDate: string; responsibleGroupId?: string | null; hostGroupId?: string | null;
     cycleIndex?: number | null; isSwapped?: boolean; swapReason?: string | null;
     responsibleGroup?: { name: string } | null; hostGroup?: { name: string } | null;
-    event?: { name: string } | null; isVirtual?: boolean;
+    event?: { id?: string; name: string } | null; isVirtual?: boolean;
   };
   const [schedFull, setSchedFull] = useState<SchedRow[]>([]);
   const [schedLoading, setSchedLoading] = useState(false);
@@ -204,6 +205,8 @@ export const ManageGroupsMonitoring: React.FC = () => {
   const [schedAgree, setSchedAgree] = useState(false);
   const [schedReason, setSchedReason] = useState('');
   const [schedBusy, setSchedBusy] = useState(false);
+  const [schedRundownId, setSchedRundownId] = useState<string | null>(null);
+  const [schedRundown, setSchedRundown] = useState<Record<string, { loading?: boolean; error?: string; patternName?: string | null; slug?: string | null; phases?: PatternPhase[] }>>({});
   const [mySwapReqs, setMySwapReqs] = useState<Array<{ id: string; aEventDate: string; bEventDate: string; scope: string; reason: string; status: string; decideNote?: string | null }>>([]);
   const todayISO = new Date().toISOString().slice(0, 10);
   useEffect(() => {
@@ -229,6 +232,31 @@ export const ManageGroupsMonitoring: React.FC = () => {
     && (r.responsibleGroupId === schedTargetGroup || r.hostGroupId === schedTargetGroup),
   );
   const schedRowB = schedFull.find((r) => String(r.eventDate).slice(0, 10) === schedTargetDate && !r.isVirtual) || null;
+  const toggleSchedRundown = async (rowId: string, eventId: string) => {
+    if (schedRundownId === rowId) {
+      setSchedRundownId(null);
+      return;
+    }
+    setSchedRundownId(rowId);
+    if (schedRundown[rowId]) return;
+    setSchedRundown((m) => ({ ...m, [rowId]: { loading: true } }));
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/worship`, { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+      const s = d?.session || null;
+      setSchedRundown((m) => ({
+        ...m,
+        [rowId]: {
+          patternName: s?.patternName || null,
+          slug: s?.slug || null,
+          phases: Array.isArray(s?.phases) ? s.phases : [],
+        },
+      }));
+    } catch (e) {
+      setSchedRundown((m) => ({ ...m, [rowId]: { error: e instanceof Error ? e.message : 'Gagal memuat rundown.' } }));
+    }
+  };
   const submitSwapReq = async (rowDate: string) => {
     if (!activeGroup) return;
     if (!schedTargetGroup || !schedTargetDate || !schedReason.trim() || !schedAgree) {
@@ -1647,10 +1675,46 @@ export const ManageGroupsMonitoring: React.FC = () => {
                         {r.cycleIndex != null && <span className="text-[10px] font-mono text-[#8C8880]">idx {r.cycleIndex}/10</span>}
                       </span>
                     </div>
-                    {canWriteMonitoring && !open && !past && !r.isVirtual && (
-                      <button type="button" onClick={() => { setSchedReqDate(r.id); setSchedTargetGroup(''); setSchedTargetDate(''); setSchedPeer(''); setSchedAgree(false); setSchedReason(''); }} className="text-[11px] font-bold text-sky-700 hover:underline">
-                        Minta tukar minggu ini →
-                      </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {!r.isVirtual && r.event?.id && (
+                        <button
+                          type="button"
+                          onClick={() => { const evId = r.event?.id; if (evId) void toggleSchedRundown(r.id, evId); }}
+                          className="text-[11px] font-bold text-brand hover:underline"
+                        >
+                          {schedRundownId === r.id ? 'Tutup rundown' : 'Rundown pola ibadah →'}
+                        </button>
+                      )}
+                      {canWriteMonitoring && !open && !past && !r.isVirtual && (
+                        <button type="button" onClick={() => { setSchedReqDate(r.id); setSchedTargetGroup(''); setSchedTargetDate(''); setSchedPeer(''); setSchedAgree(false); setSchedReason(''); }} className="text-[11px] font-bold text-sky-700 hover:underline">
+                          Minta tukar minggu ini →
+                        </button>
+                      )}
+                    </div>
+                    {schedRundownId === r.id && (
+                      <div className="rounded-xl border border-[#EFEDE8] bg-white p-3">
+                        {schedRundown[r.id]?.loading ? (
+                          <p className="text-[11px] text-[#8C8880]">Memuat rundown…</p>
+                        ) : schedRundown[r.id]?.error ? (
+                          <p className="text-[11px] text-red-600">{schedRundown[r.id]?.error}</p>
+                        ) : (schedRundown[r.id]?.phases?.length || 0) > 0 ? (
+                          <>
+                            <PatternRundownList patternName={schedRundown[r.id]?.patternName} phases={schedRundown[r.id]?.phases} bare />
+                            {schedRundown[r.id]?.slug && (
+                              <a
+                                href={`#/mentoring/${encodeURIComponent(String(schedRundown[r.id]?.slug))}/kontrol`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-[11px] font-bold text-brand hover:underline"
+                              >
+                                Buka kontrol sesi →
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-[#8C8880] italic">Belum ada sesi pola ibadah untuk event ini.</p>
+                        )}
+                      </div>
                     )}
                     {canWriteMonitoring && !open && (past || r.isVirtual) && (
                       <p className="text-[10px] text-[#8C8880] italic">{past ? 'Sudah lewat — tidak bisa ditukar.' : 'Prediksi — bisa diusul setelah jadi jadwal real.'}</p>

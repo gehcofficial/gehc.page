@@ -1,5 +1,30 @@
 # GEHC Portal — Handoff
 
+## Current — Akses rundown pola: semua divisi lihat, tombol tetap least privilege (17 Okt 2026)
+
+**Minta:** rundown pola (11 blok) terlihat untuk semua divisi; tuan rumah &
+penanggung jawab ikut jadwal pelayanan yang sudah ada; kendali tombol tetap
+standar terbaik. Peserta (MENTEE) tidak diberi rundown penuh (anti-spoiler).
+
+**Ubah:**
+- Server: `GET /api/events/:id/worship` memuat `pattern.phases`; `GET
+  /api/worship/sessions/:id` menambah `permissions.canWrite` (WRITE_ROLES +
+  `canAccessDivision('DIDASKALIA')`).
+- Klien: komponen bersama `PatternRundownList` (kartu/bare) — dipakai
+  `MentoringControl` (banner Mode lihat-saja + fieldset ter-disable saat
+  `!canWrite`; rundown pindah keluar fieldset agar tetap tajam), `ControlRoomPanel`
+  (expander per blok ibadah — semua divisi), `ManageGroupsMonitoring` tab Jadwal
+  (expander rundown + link kontrol per baris real — tuan rumah/PJ).
+- `control-room.ts`: `WorshipMini.phases` → `DayBlockView.worshipPhases`.
+
+**Verifikasi:** lint ✓; units 153 file / 1196 lulus ✓; smoke API lokal:
+SUPERADMIN & KOMISI `canWrite=true` + 11 fase di sesi & event (`/api/events/:id/worship`
+`session.phases`) ✓. Sisa QA staging: KOINONIA (lihat-saja), divisi lain
+(Ruang Kontrol), mentor non-divisi (tab Jadwal).
+
+**Deploy:** push main → staging:sync → /api/version main = staging.
+
+
 ## Current — Usulan penatalayan multi-divisi oleh Mentor/Co-mentor (17 Okt 2026)
 
 **Minta:** Mentor/Co-mentor bisa mengusulkan nama petugas (multi-role ×
@@ -38,13 +63,14 @@ divisi approve satu klik (`Setujui X`), tolak/ganti nama, batalkan usulan,
 cek notifikasi. Migrasi local ✓ prod ✓ staging ✓.
 
 **Deploy:** push main ✓ (`783a605`) → CI hijau ✓ → Vercel production
-Ready ✓ → migrasi prod ✓ → `staging:sync` ✓ (branch+deploy+alias via sesi
-login akun `gehcofficial`) → `/api/version` main = staging = staging-youth
-= `783a605` ✓. Catatan: `vercel tokens add` CLI diblokir 403 ("Cannot
-create tokens for this app") — token multi-akun per-repo belum jadi
-(buat via dashboard nanti; `scripts/sync-staging.mjs` sudah dukung
-`VERCEL_TOKEN`). HANDOFF diff ini sengaja dibiarkan uncommitted (workspace
-paralel aktif).
+Ready ✓ → migrasi prod ✓ → `staging:sync` ✓ (branch+deploy+alias) →
+`/api/version` main = staging = staging-youth = `783a605` ✓. Token
+multi-akun per-repo ✓ terpasang di `.env` (`VERCEL_TOKEN`, scope **Full
+Account** — team-scope bikin CLI preflight `/v2/user` 404 "User not
+found"; terverifikasi via `whoami` + `teams ls`). `scripts/sync-staging.mjs`
+otomatis pakai token → instance VS Code/agen antar repo tidak saling
+menimpa sesi login. HANDOFF diff ini sengaja dibiarkan uncommitted
+(workspace paralel aktif).
 
 
 ## Current — Daftar hadir di portal + ringkasan untuk semua berperan (16 Okt 2026)

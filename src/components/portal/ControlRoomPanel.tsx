@@ -8,6 +8,7 @@ import {
   mergeDayStatus,
   pushToFreeShow,
 } from '../../lib/control-room';
+import { PatternRundownList, type PatternPhase } from '../mentoring/PatternRundownList';
 
 type DayBlock = {
   id: string; kind: string; eventId?: string | null; title?: string | null;
@@ -75,7 +76,7 @@ export const ControlRoomPanel: React.FC<{ eventId: string; eventDate?: string | 
           });
         } catch { /* event tanpa live — abaikan */ }
         try {
-          const w = await api<{ session?: { slug?: string; title?: string; status?: string; patternCode?: string; patternName?: string } | null }>(
+          const w = await api<{ session?: { slug?: string; title?: string; status?: string; patternCode?: string; patternName?: string; phases?: PatternPhase[] } | null }>(
             `/api/events/${id}/worship`,
           );
           if (w.session) {
@@ -83,6 +84,7 @@ export const ControlRoomPanel: React.FC<{ eventId: string; eventDate?: string | 
               eventId: id,
               slug: w.session.slug, title: w.session.title, status: w.session.status,
               patternCode: w.session.patternCode, patternName: w.session.patternName,
+              phases: w.session.phases,
             });
           }
         } catch { /* tanpa sesi mentoring — abaikan */ }
@@ -189,6 +191,14 @@ export const ControlRoomPanel: React.FC<{ eventId: string; eventDate?: string | 
                   </>
                 )}
               </div>
+              {b.kind === 'ibadah-block' && Array.isArray(b.worshipPhases) && b.worshipPhases.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[11px] font-bold text-brand cursor-pointer select-none">
+                    Rundown pola{b.worshipPattern ? ` — ${b.worshipPattern}` : ''} ({b.worshipPhases.length} blok)
+                  </summary>
+                  <PatternRundownList phases={b.worshipPhases} bare />
+                </details>
+              )}
             </li>
           ))}
         </ol>

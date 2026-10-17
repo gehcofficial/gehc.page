@@ -8,7 +8,7 @@
 import crypto from 'node:crypto';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
-import { requireDivision } from '../lib/division-access.mjs';
+import { canAccessDivision, requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
@@ -1156,7 +1156,12 @@ export function registerWorshipRoutes(app, { wrap }) {
       const canReadNotes = (req.authUser?.roles || []).some((r) =>
         ['SUPERADMIN', 'KOMISI', 'COMMITTEE'].includes(r.role),
       );
+      // Mode lihat-saja: baca = semua login; tulis = WRITE_ROLES + divisi Didaskalia
+      // (guard endpoint tetap requireDivision + requireRole — ini hanya untuk UI).
+      const isWriterRole = (req.authUser?.roles || []).some((r) => WRITE_ROLES.includes(r.role));
+      const canWrite = isWriterRole && (await canAccessDivision(req.authUser, 'DIDASKALIA'));
       res.json({
+        permissions: { canWrite },
         session: {
           id: liveSession.id,
           slug: liveSession.slug,

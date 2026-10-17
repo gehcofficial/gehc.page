@@ -9178,7 +9178,7 @@ app.get('/api/events/:id/worship', requireRole(), wrap(async (req, res) => {
     select: { id: true, name: true, eventDate: true },
   });
   if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-  const withPattern = { pattern: { select: { code: true, name: true } } };
+  const withPattern = { pattern: { select: { code: true, name: true, phases: true } } };
   let session = await prisma.worshipSession.findFirst({
     where: { eventId: event.id },
     include: withPattern,
@@ -9201,6 +9201,7 @@ app.get('/api/events/:id/worship', requireRole(), wrap(async (req, res) => {
       sessionDate: session.sessionDate,
       patternCode: session.pattern?.code || null,
       patternName: session.pattern?.name || null,
+      phases: Array.isArray(session.pattern?.phases) ? session.pattern.phases : [],
     },
   });
 }));
