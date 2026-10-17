@@ -1863,6 +1863,8 @@ model ServiceRole {
   serviceTypes      String       @default("SERVING_DAY,MENTORING_DAY") @map("service_types") @db.VarChar(64) // CSV
   checklistTemplate Json?        @map("checklist_template")
   description       String?      @db.Text
+  /// P4: wajib diisi tiap tanggal (false = opsional, boleh kosong).
+  isRequired        Boolean      @default(true) @map("is_required")
   isActive          Boolean      @default(true) @map("is_active")
   sortOrder         Int          @default(0) @map("sort_order")
   createdAt         DateTime     @default(now()) @map("created_at") @db.DateTime(3)
@@ -1872,6 +1874,34 @@ model ServiceRole {
 
   @@index([division, isActive])
   @@map("service_roles")
+}
+
+/// P4: antrean lowongan role per tanggal — diminta ke divisi, dipenuhi koordinator
+/// dengan menunjuk nama (→ ServiceSchedule SCHEDULED). Tanpa relasi Prisma
+/// (disengaja, ala service_swap_requests) agar migrasi TiDB tetap ringan.
+model ServiceRoleRequest {
+  id                  String    @id @db.VarChar(64)
+  serviceRoleId       String    @map("service_role_id") @db.VarChar(64)
+  eventId             String?   @map("event_id") @db.VarChar(64)
+  date                DateTime  @db.Date
+  requesterId         String    @map("requester_id") @db.VarChar(64)
+  note                String?   @db.Text
+  status              String    @default("PENDING") @db.VarChar(16) // PENDING|FULFILLED|CANCELLED
+  fulfilledScheduleId String?   @map("fulfilled_schedule_id") @db.VarChar(64)
+  decidedById         String?   @map("decided_by_id") @db.VarChar(64)
+  decidedAt           DateTime? @map("decided_at") @db.DateTime(3)
+  /// P5: usulan nama oleh mentor (approve satu klik oleh divisi).
+  proposedUserId      String?   @map("proposed_user_id") @db.VarChar(64)
+  /// P5: grup kiriman bulk (multi-role x multi-orang dalam satu submit).
+  batchId             String?   @map("batch_id") @db.VarChar(64)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([serviceRoleId, date])
+  @@index([status])
+  @@index([serviceRoleId, date, proposedUserId], map: "service_role_requests_proposed_idx")
+  @@index([status, batchId], map: "service_role_requests_batch_idx")
+  @@map("service_role_requests")
 }
 
 enum ServiceScope {

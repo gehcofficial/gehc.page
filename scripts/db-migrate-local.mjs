@@ -316,6 +316,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-penatalayan-requests.cjs',
+    label: 'Penatalayan requests: antrean + usulan mentor (proposed_user_id, batch_id)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-didaskalia-knowledge.cjs',
     label: 'Didaskalia knowledge base + instruksi AI',
     required: true,

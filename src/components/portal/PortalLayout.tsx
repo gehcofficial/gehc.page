@@ -7,6 +7,7 @@ import { InternalWartaPanel } from './InternalWartaPanel';
 import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
+import { MentorPenatalayanUsulanPanel } from './MentorPenatalayanUsulanPanel';
 import { PastoralCareBoard } from './PastoralCareBoard';
 import { BeyondersLeadersPanel } from './BeyondersLeadersPanel';
 import { ManageStruktur } from './ManageStruktur';
@@ -265,6 +266,7 @@ export const PortalLayout: React.FC = () => {
     catalog: GraduationCap,
     'org-hierarchy': Network,
     'groups-monitoring': Users,
+    'penatalayan-usulan': ClipboardList,
     'absensi-grup': ClipboardCheck,
     'beyonders-leaders': Crown,
     'pastoral-care': HeartHandshake,
@@ -1119,6 +1121,12 @@ export const PortalLayout: React.FC = () => {
             </div>
           )}
           {activeTab === 'groups-monitoring' && <ManageGroupsMonitoring />}
+          {activeTab === 'penatalayan-usulan' && (
+            <div className="space-y-4">
+              <PanelGuide guideId="penatalayan-usulan" />
+              <MentorPenatalayanUsulanPanel />
+            </div>
+          )}
           {activeTab === 'absensi-grup' && (
             <div className="space-y-4">
               <PanelGuide guideId="absensi-grup" />

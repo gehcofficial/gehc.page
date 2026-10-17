@@ -166,6 +166,7 @@ const BASE_NAV: PortalNavItemDef[] = [
   { id: 'catalog', label: 'Katalog Minat, Kampus & Gelar', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Minat, kampus, gelar pelayanan/akademis', portals: ALL_PORTAL_IDS },
   { id: 'org-hierarchy', label: 'Kelola Hirarki', roles: CHURCH_ROLES.komisi, group: 'Komunitas', subtitle: 'Pohon organisasi multi-domain', portals: JEMAAT_ONLY_PORTALS },
   { id: 'groups-monitoring', label: 'Monitoring 10 Kelompok', roles: ['KOMISI', 'BPMJ', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', portals: YOUTH_ONLY_PORTALS },
+  { id: 'penatalayan-usulan', label: 'Usulan Pelayanan', roles: ['MENTOR', 'CO_MENTOR'], group: 'Komunitas', subtitle: 'Usul multi-divisi, approve divisi', portals: YOUTH_ONLY_PORTALS },
   { id: 'absensi-grup', label: 'Absensi Grup', roles: ['MENTOR', 'CO_MENTOR'], group: 'Komunitas', subtitle: 'Hadir anggota kelompok binaan', portals: YOUTH_ONLY_PORTALS },
   { id: 'beyonders-leaders', label: 'Pemimpin 10 Rumah', roles: ['KOMISI', 'COMMITTEE', 'BPMJ'], group: 'Komunitas', subtitle: 'Nama landing & generasi Retreat', portals: YOUTH_ONLY_PORTALS },
   { id: 'pastoral-care', label: 'Portal Doa', roles: ['KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE'], group: 'Komunitas', subtitle: 'Kabar penggembalaan (privat)', portals: ALL_PORTAL_IDS },
@@ -239,8 +240,8 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
   ],
   KOMISI: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'people', 'onboarding', 'jethro-placement', 'youth-gehc', 'catalog', 'org-hierarchy', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro', 'events', 'wa-channels', 'integrations', 'church-info', 'media-guide', 'content-testimonials', 'account'],
   COMMITTEE: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'beyonders-leaders', 'pastoral-care', 'jethro-placement', 'content-weekly', 'content-activities', 'struktur', 'events', 'wa-channels', 'media-guide', 'account'],
-  MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'absensi-grup', 'pastoral-care', 'account'],
-  CO_MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'absensi-grup', 'pastoral-care', 'account'],
+  MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'penatalayan-usulan', 'absensi-grup', 'pastoral-care', 'account'],
+  CO_MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'penatalayan-usulan', 'absensi-grup', 'pastoral-care', 'account'],
   MENTEE: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
   BPMJ: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
 };

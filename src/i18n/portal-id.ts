@@ -152,6 +152,7 @@ export const portalId: typeof portalEn = {
     catalog: 'Katalog Minat, Kampus & Gelar',
     'org-hierarchy': 'Kelola Hirarki',
     'groups-monitoring': 'Monitoring 10 Kelompok',
+    'penatalayan-usulan': 'Usulan Pelayanan',
     'absensi-grup': 'Absensi Grup',
     groupsMonitoringBinaan: 'Monitoring Kelompok Binaan',
     groupsMonitoringMine: 'Monitoring Kelompok Saya',
@@ -642,6 +643,13 @@ export const portalId: typeof portalEn = {
       steps: ['Pilih domain.', 'Tambah cabang, slot posisi, atau referensi grup.', 'Orang di-assign ke slot dari Jemaat / Onboarding — bukan dari editor pohon ini.'],
       when: 'Pohonnya salah atau perlu slot RBAC baru.',
       notFor: 'Nama dan foto halaman Pengurus publik ada di Struktur Organisasi. Dua lapisan ini sengaja terpisah, bukan duplikat.',
+    },
+    'penatalayan-usulan': {
+      title: 'Usulan Pelayanan',
+      purpose: 'Mentor dan co-mentor mengusulkan nama untuk peran pelayanan lintas divisi pada satu tanggal — multi-peran dan multi-orang dalam sekali kirim.',
+      steps: ['Pilih tanggal pelayanan.', 'Centang divisi yang perannya mau kamu lihat.', 'Cari dan pilih nama per peran lalu kirim — tiap item menunggu di antrean divisi sampai disetujui.'],
+      when: 'Sebelum rota dikunci, saat anggota binaanmu bisa mengisi peran ibadah.',
+      notFor: 'Ini usulan, bukan jadwal — divisi menyetujui tiap nama, dan penugasan baru muncul di jadwal setelah disetujui.',
     },
     'absensi-grup': {
       title: 'Absensi grup',

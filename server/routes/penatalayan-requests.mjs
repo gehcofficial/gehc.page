@@ -19,6 +19,8 @@ import {
   divisionLeadIds,
   getRequest,
   hasActiveSchedule,
+  hasActiveScheduleForUser,
+  hasPendingProposalForUser,
   hasPendingRequest,
   listRequests,
   setRequestStatus,
@@ -74,8 +76,9 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
   app.get('/api/penatalayan/requests', requireRole(), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const { division, status, from, to } = req.query || {};
-    const rows = await listRequests(prisma, { division, status, from, to });
+    const { division, divisions, status, from, to, mine, batchId, requesterId } = req.query || {};
+    const mineId = String(mine || '') === '1' ? req.authUser?.id : (requesterId ? String(requesterId) : undefined);
+    const rows = await listRequests(prisma, { division, divisions, status, from, to, requesterId: mineId, batchId });
     const coord = isCoord(req.authUser);
     const headDivs = new Set();
     if (!coord && req.authUser?.id) {
@@ -97,21 +100,43 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
     });
   }));
 
-  // ---------- Minta divisi (role wajib yang kosong) ----------
+  // ---------- Minta divisi (role wajib yang kosong / usulan nama mentor) ----------
   app.post('/api/penatalayan/requests', requireRole(...WRITE_ROLES), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-    const { serviceRoleId, date, eventId, note } = req.body || {};
+    const { serviceRoleId, date, eventId, note, proposedUserId } = req.body || {};
     const dateStr = toDbDate(date);
     if (!serviceRoleId || !dateStr) return res.status(400).json({ error: 'serviceRoleId & date (YYYY-MM-DD) wajib.' });
     const role = await prisma.serviceRole.findUnique({ where: { id: String(serviceRoleId) } }).catch(() => null);
     if (!role || role.isActive === false) return res.status(404).json({ error: 'Role tidak ditemukan / nonaktif.' });
-    if (role.isRequired === false) return res.status(400).json({ error: 'Role opsional tidak perlu di-request.' });
-    if (await hasActiveSchedule(prisma, role.id, dateStr)) {
-      return res.status(409).json({ error: 'Role sudah terisi pada tanggal itu.' });
-    }
-    if (await hasPendingRequest(prisma, role.id, dateStr)) {
-      return res.status(409).json({ error: 'Sudah ada request menunggu untuk role & tanggal itu.' });
+    const proposed = proposedUserId ? String(proposedUserId) : null;
+    if (!proposed && role.isRequired === false) return res.status(400).json({ error: 'Role opsional tidak perlu di-request.' });
+    // Jalur mentor dengan nama usulan: scope binaan + komponen UNIT.
+    if (proposed) {
+      if (String(role.scope || 'UNIT').toUpperCase() !== 'UNIT') {
+        const { isScopedMentor } = await import('../lib/mentor-assign.mjs');
+        if (isScopedMentor(req.authUser)) return res.status(403).json({ error: 'Mentor hanya mengusulkan komponen unit pemuda.' });
+      }
+      const { isScopedMentor, assertMentorAssignScope } = await import('../lib/mentor-assign.mjs');
+      if (isScopedMentor(req.authUser)) {
+        try { await assertMentorAssignScope(prisma, req.authUser, [proposed]); }
+        catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+      }
+      const person = await prisma.user.findUnique({ where: { id: proposed }, select: { id: true } }).catch(() => null);
+      if (!person) return res.status(404).json({ error: 'Orang usulan tidak ditemukan.' });
+      if (await hasActiveScheduleForUser(prisma, role.id, dateStr, proposed)) {
+        return res.status(409).json({ error: 'Orang itu sudah terjadwal pada role & tanggal itu.' });
+      }
+      if (await hasPendingProposalForUser(prisma, role.id, dateStr, proposed)) {
+        return res.status(409).json({ error: 'Usulan yang sama masih menunggu.' });
+      }
+    } else {
+      if (await hasActiveSchedule(prisma, role.id, dateStr)) {
+        return res.status(409).json({ error: 'Role sudah terisi pada tanggal itu.' });
+      }
+      if (await hasPendingRequest(prisma, role.id, dateStr)) {
+        return res.status(409).json({ error: 'Sudah ada request menunggu untuk role & tanggal itu.' });
+      }
     }
     const id = `prr-${crypto.randomUUID()}`;
     const created = await createRequestRow(prisma, {
@@ -121,6 +146,7 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
       date: dateStr,
       requesterId: req.authUser?.id || 'unknown',
       note: note ? String(note).slice(0, 500) : null,
+      proposedUserId: proposed,
     });
     let leads = await divisionLeadIds(prisma, { eventId: eventId || null, division: role.division });
     if (!leads.length) {
@@ -131,13 +157,78 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
     }
     await notifyUsers(prisma, leads, {
       type: 'APPROVAL_ITEM',
-      title: `Butuh ${role.name} — ${dateStr}`,
-      message: `${req.authUser?.name || 'Koordinator'} meminta divisi ${role.division} menyiapkan ${role.name} untuk ${dateStr}${note ? `: ${note}` : ''}.`,
+      title: proposed ? `Usulan ${role.name} — ${dateStr}` : `Butuh ${role.name} — ${dateStr}`,
+      message: proposed
+        ? `${req.authUser?.name || 'Mentor'} mengusulkan petugas untuk ${role.name} (${role.division}) pada ${dateStr}${note ? `: ${note}` : ''}.`
+        : `${req.authUser?.name || 'Koordinator'} meminta divisi ${role.division} menyiapkan ${role.name} untuk ${dateStr}${note ? `: ${note}` : ''}.`,
     });
     res.status(201).json({ request: created });
   }));
 
-  // ---------- Penuhi request (tunjuk nama → SCHEDULED otomatis) ----------
+  // ---------- Usulan bulk mentor (multi-role x multi-people, 1 tanggal) ----------
+  // Body: { date, eventId?, items: [{ serviceRoleId, userId, note? }] }
+  // Hasil per-item (best standard): created / skipped (exists/outOfScope) — tidak all-or-nothing.
+  app.post('/api/penatalayan/proposals/bulk', requireRole(...WRITE_ROLES), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+    const { normalizeProposalItems, MAX_PROPOSAL_ITEMS } = await import('../lib/penatalayan-proposals.mjs');
+    const norm = normalizeProposalItems(req.body || {});
+    if (!norm.ok) return res.status(400).json({ error: norm.errors[0], errors: norm.errors });
+    const { date: dateStr, eventId, rows } = norm;
+    const roleIds = [...new Set(rows.map((r) => r.serviceRoleId))];
+    const userIds = [...new Set(rows.map((r) => r.userId))];
+    const [roles, users] = await Promise.all([
+      prisma.serviceRole.findMany({ where: { id: { in: roleIds } } }).catch(() => []),
+      prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true } }).catch(() => []),
+    ]);
+    const roleById = new Map((roles || []).map((r) => [String(r.id), r]));
+    const validUsers = new Set((users || []).map((u) => String(u.id)));
+    const { isScopedMentor, assertMentorAssignScope } = await import('../lib/mentor-assign.mjs');
+    const scoped = isScopedMentor(req.authUser);
+    if (scoped) {
+      const nonUnit = (roles || []).find((r) => String(r.scope || 'UNIT').toUpperCase() !== 'UNIT');
+      if (nonUnit) return res.status(403).json({ error: 'Mentor hanya mengusulkan komponen unit pemuda.' });
+      try { await assertMentorAssignScope(prisma, req.authUser, userIds); }
+      catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+    }
+    const batchId = `pb-${crypto.randomUUID()}`;
+    const created = [];
+    const skipped = [];
+    const notifyDivisions = new Set();
+    for (const row of rows) {
+      const role = roleById.get(String(row.serviceRoleId));
+      if (!role || role.isActive === false) { skipped.push({ ...row, reason: 'Role tidak ditemukan / nonaktif.' }); continue; }
+      if (!validUsers.has(String(row.userId))) { skipped.push({ ...row, reason: 'Orang tidak ditemukan.' }); continue; }
+      if (await hasActiveScheduleForUser(prisma, role.id, dateStr, row.userId)) { skipped.push({ ...row, reason: 'Sudah terjadwal.' }); continue; }
+      if (await hasPendingProposalForUser(prisma, role.id, dateStr, row.userId)) { skipped.push({ ...row, reason: 'Usulan sama masih menunggu.' }); continue; }
+      const id = `prr-${crypto.randomUUID()}`;
+      const rec = await createRequestRow(prisma, {
+        id, serviceRoleId: role.id, eventId, date: dateStr,
+        requesterId: req.authUser?.id || 'unknown', note: row.note,
+        proposedUserId: row.userId, batchId,
+      });
+      created.push(rec);
+      if (role.division) notifyDivisions.add(String(role.division).toUpperCase());
+    }
+    try {
+      const leadLists = await Promise.all([...notifyDivisions].map((d) => divisionLeadIds(prisma, { eventId: eventId || null, division: d }).catch(() => [])));
+      let leads = [...new Set(leadLists.flat())].filter((x) => x && x !== req.authUser?.id);
+      if (!leads.length) {
+        try {
+          const all = await approverUserIdsForService(prisma);
+          leads = (all || []).filter((x) => x && x !== req.authUser?.id);
+        } catch { /* abaikan */ }
+      }
+      await notifyUsers(prisma, leads, {
+        type: 'APPROVAL_ITEM',
+        title: `Usulan penatalayan (${created.length}) — ${dateStr}`,
+        message: `${req.authUser?.name || 'Mentor'} mengusulkan ${created.length} petugas untuk ${dateStr} (batch ${created.length} dibuat, ${skipped.length} dilewati).`,
+      });
+    } catch { /* notifikasi opsional */ }
+    res.status(201).json({ ok: true, batchId, created, skipped, total: rows.length, maxItems: MAX_PROPOSAL_ITEMS });
+  }));
+
+  // ---------- Penuhi request (setujui usulan / tunjuk nama → SCHEDULED otomatis) ----------
   app.post('/api/penatalayan/requests/:id/fulfill', requireRole(...COORD_ROLES), wrap(async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
@@ -148,8 +239,9 @@ export function registerPenatalayanRequestRoutes(app, { wrap }) {
     const okHead = isCoord(req.authUser) || (await isDivisionHeadOf(prisma, req.authUser?.id, row.roleDivision));
     if (!okHead) return res.status(403).json({ error: 'Hanya koordinator / kepala divisi terkait.' });
     const { userId, timeStart, timeEnd, notes } = req.body || {};
-    if (!userId) return res.status(400).json({ error: 'userId wajib.' });
-    const person = await prisma.user.findUnique({ where: { id: String(userId) }, select: { id: true } }).catch(() => null);
+    const finalUserId = userId ? String(userId) : (row.proposedUserId ? String(row.proposedUserId) : null);
+    if (!finalUserId) return res.status(400).json({ error: 'userId wajib (atau setujui usulan yang sudah ada namanya).' });
+    const person = await prisma.user.findUnique({ where: { id: String(finalUserId) }, select: { id: true } }).catch(() => null);
     if (!person) return res.status(404).json({ error: 'Orang tidak ditemukan.' });
     const schedule = await prisma.serviceSchedule.create({
       data: {

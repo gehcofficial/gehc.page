@@ -158,6 +158,7 @@ export const portalEn = {
     catalog: 'Interests, campuses & titles',
     'org-hierarchy': 'Manage Hierarchy',
     'groups-monitoring': 'Monitor 10 Groups',
+    'penatalayan-usulan': 'Serving Proposals',
     'absensi-grup': 'Group Attendance',
     groupsMonitoringBinaan: 'Monitor My Group',
     groupsMonitoringMine: 'My Group Monitoring',
@@ -648,6 +649,13 @@ export const portalEn = {
       steps: ['Pick a domain.', 'Add branch, position slot, or group reference.', 'People are assigned to slots from Congregation / Onboarding — not from this tree editor.'],
       when: 'The tree itself is wrong or a new RBAC slot is needed.',
       notFor: 'Names and photos on the public Leaders page are Org Chart (Struktur). These are two intentional layers, not duplicates.',
+    },
+    'penatalayan-usulan': {
+      title: 'Serving Proposals',
+      purpose: 'Mentors and co-mentors propose names for service roles across divisions for a given date — multi-role and multi-person in one submission.',
+      steps: ['Pick the service date.', 'Tick the divisions whose roles you want to see.', 'Search and pick names per role, then send — every item waits in that division’s queue until approved.'],
+      when: 'Before the rota is locked, when your group members can fill worship service roles.',
+      notFor: 'This is a proposal, not a schedule — the division approves each name, and the assignment only appears on the schedule after approval.',
     },
     'absensi-grup': {
       title: 'Group attendance',

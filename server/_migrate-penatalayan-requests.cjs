@@ -2,6 +2,7 @@
  * Idempotent: flag wajib/opsional role penatalayan + antrean request ke divisi.
  *   service_roles.is_required (default true = wajib)
  *   service_role_requests (PENDING → FULFILLED / CANCELLED)
+ *   + usulan mentor: proposed_user_id + batch_id (multi-role x multi-people)
  *
  * Jalankan: npm run db:migrate:penatalayan-requests[:staging|:prod]
  */
@@ -53,6 +54,20 @@ async function ensureColumn(conn, table, column, ddl) {
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   `);
   console.log('service_role_requests OK');
+
+  await ensureColumn(conn, 'service_role_requests', 'proposed_user_id', 'VARCHAR(64) NULL');
+  await ensureColumn(conn, 'service_role_requests', 'batch_id', 'VARCHAR(64) NULL');
+  try {
+    await conn.query('CREATE INDEX IF NOT EXISTS `service_role_requests_proposed_idx` ON `service_role_requests` (`service_role_id`, `date`, `proposed_user_id`)');
+  } catch {
+    try { await conn.query('CREATE INDEX `service_role_requests_proposed_idx` ON `service_role_requests` (`service_role_id`, `date`, `proposed_user_id`)'); } catch { /* sudah ada */ }
+  }
+  try {
+    await conn.query('CREATE INDEX IF NOT EXISTS `service_role_requests_batch_idx` ON `service_role_requests` (`status`, `batch_id`)');
+  } catch {
+    try { await conn.query('CREATE INDEX `service_role_requests_batch_idx` ON `service_role_requests` (`status`, `batch_id`)'); } catch { /* sudah ada */ }
+  }
+  console.log('service_role_requests usulan (proposed_user_id, batch_id) OK');
 
   await conn.end();
   console.log('✓ Selesai (penatalayan requests).');

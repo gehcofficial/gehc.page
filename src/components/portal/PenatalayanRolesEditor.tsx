@@ -10,7 +10,7 @@ type Props = {
   onChanged?: () => void;
 };
 
-type Edit = { name: string; division: string; subDivision: string; serviceTypes: string[]; checklist: string; sortOrder: number };
+type Edit = { name: string; division: string; subDivision: string; serviceTypes: string[]; checklist: string; sortOrder: number; description: string; isRequired: boolean };
 
 const TYPES = [
   { id: 'SERVING_DAY', label: 'Serving' },
@@ -30,6 +30,8 @@ function editFrom(role: ServiceRole): Edit {
     serviceTypes: parseTypes(role.serviceTypes),
     checklist: (role.checklistTemplate || []).join('\n'),
     sortOrder: role.sortOrder,
+    description: role.description || '',
+    isRequired: role.isRequired !== false,
   };
 }
 
@@ -106,6 +108,8 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
           serviceTypes: e.serviceTypes.join(','),
           checklistTemplate: checklist,
           sortOrder: e.sortOrder,
+          description: e.description.trim(),
+          isRequired: e.isRequired,
         }),
       });
       if (!r.ok) {
@@ -244,11 +248,27 @@ export const PenatalayanRolesEditor: React.FC<Props> = ({ divisions, divisionLab
                             {t.label}
                           </button>
                         ))}
+                        <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1B1B1B] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={edit.isRequired}
+                            onChange={(e) => setEdit({ isRequired: e.target.checked })}
+                            className="w-3.5 h-3.5 accent-sky-600"
+                          />
+                          Wajib tiap tanggal
+                        </label>
                         <textarea
                           value={edit.checklist}
                           onChange={(e) => setEdit({ checklist: e.target.value })}
                           rows={2}
                           placeholder="Checklist persiapan (satu per baris)"
+                          className="flex-1 min-w-[240px] px-2 py-1 rounded-lg border border-[#D9D7D0] text-[11px]"
+                        />
+                        <textarea
+                          value={edit.description}
+                          onChange={(e) => setEdit({ description: e.target.value })}
+                          rows={2}
+                          placeholder="Deskripsi tugas role ini (untuk apa, kapan dibutuhkan)"
                           className="flex-1 min-w-[240px] px-2 py-1 rounded-lg border border-[#D9D7D0] text-[11px]"
                         />
                       </div>

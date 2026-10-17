@@ -8,6 +8,8 @@ export interface ServiceRole {
   /** Template item checklist (mis. persiapan Tuan Rumah). */
   checklistTemplate?: string[] | null;
   description?: string | null;
+  /** false = opsional, boleh kosong tiap tanggal. Default true (wajib). */
+  isRequired?: boolean;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -99,6 +101,37 @@ export const SERVICE_STATUS_COLORS: Record<string, { bg: string; text: string }>
   CONFIRMED: { bg: 'bg-green-100', text: 'text-green-700' },
   DONE: { bg: 'bg-gray-100', text: 'text-gray-600' },
   CANCELLED: { bg: 'bg-red-100', text: 'text-red-600' },
+};
+
+/** Antrean lowongan role ke divisi (request → dipenuhi koordinator). */
+export interface ServiceRoleRequest {
+  id: string;
+  serviceRoleId: string;
+  eventId?: string | null;
+  date: string;
+  requesterId: string;
+  requesterName?: string | null;
+  /** Usulan mentor: orang yang diusulkan (approve = tunjuk nama ini). */
+  proposedUserId?: string | null;
+  proposedUserName?: string | null;
+  /** Id batch bila dibuat via usulan massal multi-role x multi-people. */
+  batchId?: string | null;
+  note?: string | null;
+  status: 'PENDING' | 'FULFILLED' | 'CANCELLED';
+  fulfilledScheduleId?: string | null;
+  decidedById?: string | null;
+  decidedAt?: string | null;
+  createdAt: string;
+  roleName?: string | null;
+  roleDivision?: string | null;
+  canFulfill?: boolean;
+  canCancel?: boolean;
+}
+
+export const REQUEST_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Menunggu divisi',
+  FULFILLED: 'Terpenuhi',
+  CANCELLED: 'Dibatalkan',
 };
 
 export const MEETING_STATUS_LABELS: Record<string, string> = {

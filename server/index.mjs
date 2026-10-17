@@ -8648,7 +8648,8 @@ app.get('/api/penatalayan/schedules', requireRole(), wrap(async (req, res) => {
 }));
 
 // POST /api/penatalayan/schedules � assign person(s) to role for a date/event
-app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+// Mentor/co-mentor kini mengusulkan via /api/penatalayan/proposals/bulk atau POST /requests (usulan nama).
+app.post('/api/penatalayan/schedules', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   const { serviceRoleId, userId, userIds, eventId, date, timeStart, timeEnd, notes } = req.body || {};
   const ids = Array.isArray(userIds) && userIds.length ? userIds : (userId ? [userId] : []);
@@ -8951,7 +8952,8 @@ app.get('/api/penatalayan/people', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTE
 
 // POST /api/penatalayan/schedules/bulk - penugasan massal:
 // komponen[] � orang[] � tanggal[] (idempoten; notifikasi ringkas per orang).
-app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR'), wrap(async (req, res) => {
+// Mentor/co-mentor memakai /api/penatalayan/proposals/bulk (usulan → approve divisi).
+app.post('/api/penatalayan/schedules/bulk', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const { serviceRoleId, serviceRoleIds, userIds, dates, timeStart, timeEnd, eventId } = req.body || {};

@@ -44,6 +44,9 @@ function mapRow(r) {
     date,
     requesterId: r.requester_id,
     requesterName: r.requester_name || null,
+    proposedUserId: r.proposed_user_id || null,
+    proposedUserName: r.proposed_user_name || null,
+    batchId: r.batch_id || null,
     note: r.note || null,
     status: r.status,
     fulfilledScheduleId: r.fulfilled_schedule_id || null,
@@ -55,45 +58,74 @@ function mapRow(r) {
   };
 }
 
-/** Daftar request + info role (untuk antrean per divisi). */
-export async function listRequests(prisma, { division, status = 'PENDING', from, to, limit = 200 } = {}) {
+/** Daftar request + info role (untuk antrean per divisi). Mendukung division CSV, mine, batchId. */
+export async function listRequests(prisma, { division, divisions, status = 'PENDING', from, to, limit = 200, requesterId, mine, batchId } = {}) {
   const st = String(status || '').toUpperCase();
   if (st && st !== 'ALL' && !REQUEST_STATUSES.includes(st)) throw new Error('status tidak valid.');
-  const div = division ? String(division).toUpperCase() : null;
+  const divList = [
+    ...(divisions ? String(divisions).split(',') : []),
+    ...(division ? String(division).split(',') : []),
+  ].map((s) => String(s).trim().toUpperCase()).filter(Boolean);
+  const div = divList.length === 1 ? divList[0] : null;
   const cap = Math.min(Number(limit) || 200, 500);
-  let rows;
-  if (st === 'ALL' && !div) {
-    rows = await prisma.$queryRaw`
-      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name
+  const mineId = mine ? String(mine) : (requesterId ? String(requesterId) : null);
+  const batch = batchId ? String(batchId) : null;
+  const baseSelect = `
+      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name,
+        pu.name AS proposed_user_name
       FROM service_role_requests q
       JOIN service_roles r ON r.id = q.service_role_id
       LEFT JOIN users u ON u.id = q.requester_id
+      LEFT JOIN users pu ON pu.id = q.proposed_user_id`;
+  let rows;
+  if (divList.length > 1) {
+    rows = await prisma.$queryRawUnsafe(
+      `${baseSelect} WHERE r.division IN (${divList.map(() => '?').join(',')})${st !== 'ALL' ? ' AND q.status = ?' : ''}${mineId ? ' AND q.requester_id = ?' : ''}${batch ? ' AND q.batch_id = ?' : ''} ORDER BY q.date ASC, q.created_at ASC LIMIT ${cap}`,
+      ...divList,
+      ...(st !== 'ALL' ? [st] : []),
+      ...(mineId ? [mineId] : []),
+      ...(batch ? [batch] : []),
+    );
+  } else if (st === 'ALL' && !div) {
+    rows = await prisma.$queryRaw`
+      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name,
+        pu.name AS proposed_user_name
+      FROM service_role_requests q
+      JOIN service_roles r ON r.id = q.service_role_id
+      LEFT JOIN users u ON u.id = q.requester_id
+      LEFT JOIN users pu ON pu.id = q.proposed_user_id
       ORDER BY q.date ASC, q.created_at ASC
       LIMIT ${cap}`;
   } else if (st === 'ALL') {
     rows = await prisma.$queryRaw`
-      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name
+      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name,
+        pu.name AS proposed_user_name
       FROM service_role_requests q
       JOIN service_roles r ON r.id = q.service_role_id
       LEFT JOIN users u ON u.id = q.requester_id
+      LEFT JOIN users pu ON pu.id = q.proposed_user_id
       WHERE r.division = ${div}
       ORDER BY q.date ASC, q.created_at ASC
       LIMIT ${cap}`;
   } else if (!div) {
     rows = await prisma.$queryRaw`
-      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name
+      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name,
+        pu.name AS proposed_user_name
       FROM service_role_requests q
       JOIN service_roles r ON r.id = q.service_role_id
       LEFT JOIN users u ON u.id = q.requester_id
+      LEFT JOIN users pu ON pu.id = q.proposed_user_id
       WHERE q.status = ${st}
       ORDER BY q.date ASC, q.created_at ASC
       LIMIT ${cap}`;
   } else {
     rows = await prisma.$queryRaw`
-      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name
+      SELECT q.*, r.name AS role_name, r.division AS role_division, u.name AS requester_name,
+        pu.name AS proposed_user_name
       FROM service_role_requests q
       JOIN service_roles r ON r.id = q.service_role_id
       LEFT JOIN users u ON u.id = q.requester_id
+      LEFT JOIN users pu ON pu.id = q.proposed_user_id
       WHERE r.division = ${div} AND q.status = ${st}
       ORDER BY q.date ASC, q.created_at ASC
       LIMIT ${cap}`;
@@ -102,15 +134,18 @@ export async function listRequests(prisma, { division, status = 'PENDING', from,
   const toD = toDbDate(to);
   return (Array.isArray(rows) ? rows : [])
     .map(mapRow)
-    .filter((r) => r && (!fromD || r.date >= fromD) && (!toD || r.date <= toD));
+    .filter((r) => r && (!fromD || r.date >= fromD) && (!toD || r.date <= toD)
+      && (!mineId || r.requesterId === mineId) && (!batch || r.batchId === batch));
 }
 
 /** Satu request + info role. */
 export async function getRequest(prisma, id) {
   const rows = await prisma.$queryRaw`
-    SELECT q.*, r.name AS role_name, r.division AS role_division
+    SELECT q.*, r.name AS role_name, r.division AS role_division,
+      pu.name AS proposed_user_name
     FROM service_role_requests q
     JOIN service_roles r ON r.id = q.service_role_id
+    LEFT JOIN users pu ON pu.id = q.proposed_user_id
     WHERE q.id = ${String(id)}
     LIMIT 1`;
   return mapRow(Array.isArray(rows) ? rows[0] : null);
@@ -134,10 +169,43 @@ export async function hasPendingRequest(prisma, serviceRoleId, dateStr) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
-export async function createRequestRow(prisma, { id, serviceRoleId, eventId, date, requesterId, note }) {
-  await prisma.$executeRaw`
-    INSERT INTO service_role_requests (id, service_role_id, event_id, date, requester_id, note, status)
-    VALUES (${id}, ${String(serviceRoleId)}, ${eventId || null}, ${date}, ${String(requesterId)}, ${note || null}, 'PENDING')`;
+/** Ada request PENDING untuk role+tanggal+orang usulan? (dedupe usulan multi-people). */
+export async function hasPendingProposalForUser(prisma, serviceRoleId, dateStr, proposedUserId) {
+  if (!proposedUserId) return hasPendingRequest(prisma, serviceRoleId, dateStr);
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT id FROM service_role_requests
+      WHERE service_role_id = ${String(serviceRoleId)} AND date = ${dateStr}
+        AND proposed_user_id = ${String(proposedUserId)} AND status = 'PENDING'
+      LIMIT 1`;
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    // Kolom belum ada (migrasi belum jalan) -> fallback cek kasar.
+    return hasPendingRequest(prisma, serviceRoleId, dateStr);
+  }
+}
+
+/** Ada jadwal aktif (bukan CANCELLED) untuk role+tanggal+orang? */
+export async function hasActiveScheduleForUser(prisma, serviceRoleId, dateStr, userId) {
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM service_schedules
+    WHERE service_role_id = ${String(serviceRoleId)} AND date = ${dateStr}
+      AND user_id = ${String(userId)} AND status <> 'CANCELLED'
+    LIMIT 1`;
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function createRequestRow(prisma, { id, serviceRoleId, eventId, date, requesterId, note, proposedUserId, batchId }) {
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO service_role_requests (id, service_role_id, event_id, date, requester_id, note, status, proposed_user_id, batch_id)
+      VALUES (${id}, ${String(serviceRoleId)}, ${eventId || null}, ${date}, ${String(requesterId)}, ${note || null}, 'PENDING', ${proposedUserId ? String(proposedUserId) : null}, ${batchId ? String(batchId) : null})`;
+  } catch {
+    // Fallback DB lama tanpa kolom usulan.
+    await prisma.$executeRaw`
+      INSERT INTO service_role_requests (id, service_role_id, event_id, date, requester_id, note, status)
+      VALUES (${id}, ${String(serviceRoleId)}, ${eventId || null}, ${date}, ${String(requesterId)}, ${note || null}, 'PENDING')`;
+  }
   return getRequest(prisma, id);
 }
 

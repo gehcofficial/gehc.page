@@ -11,6 +11,10 @@
  * Skrip ini mengurutkan: (1) fast-forward branch `staging` = main,
  * (2) deploy preview + pasang alias (dengan retry — jaringan sering gagal),
  * (3) bandingkan /api/version staging vs main.
+ *
+ * Multi-akun: isi `VERCEL_TOKEN` di `.env` (token per-repo, buat via
+ * `vercel tokens create <nama> --scope <team>`) — deploy/alias otomatis
+ * memakai `--token` sehingga tidak bergantung sesi login CLI.
  */
 import 'dotenv/config';
 import { execSync } from 'node:child_process';
@@ -23,6 +27,9 @@ const MAIN_URL = 'https://youth.gehc.page';
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '';
 /** Basic Auth host staging (`user:password`) bila aktif. */
 const BASIC = process.env.STAGING_BASIC_AUTH || '';
+/** Token Vercel per-repo (multi-akun) — opsional; tanpa ini pakai sesi login CLI. */
+const TOKEN = process.env.VERCEL_TOKEN || '';
+const TOKEN_ARG = TOKEN ? ` --token=${TOKEN}` : '';
 
 const args = process.argv.slice(2);
 const BRANCH_ONLY = args.includes('--branch-only');
@@ -84,7 +91,7 @@ if (NO_DEPLOY) {
   for (let i = 1; i <= 5 && !url; i += 1) {
     console.log(`  vercel deploy — percobaan ${i}/5…`);
     try {
-      const out = run('vercel.cmd deploy --yes');
+      const out = run(`vercel.cmd deploy --yes${TOKEN_ARG}`);
       const urls = [...out.matchAll(/https:\/\/[a-z0-9-]+\.vercel\.app/g)].map((m) => m[0]);
       url = urls[urls.length - 1] || '';
     } catch (e) {
@@ -98,7 +105,7 @@ if (NO_DEPLOY) {
   }
   console.log(`  deployment: ${url}`);
   for (const alias of ALL_STAGING_ALIASES) {
-    tryRun(`vercel.cmd alias set ${url} ${alias} --scope ${SCOPE}`, 2, `alias ${alias}`);
+    tryRun(`vercel.cmd alias set ${url} ${alias} --scope ${SCOPE}${TOKEN_ARG}`, 2, `alias ${alias}`);
     console.log(`  alias → https://${alias}`);
   }
 }

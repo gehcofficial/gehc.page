@@ -1,5 +1,48 @@
 # GEHC Portal — Handoff
 
+## Current — Usulan penatalayan multi-divisi oleh Mentor/Co-mentor (17 Okt 2026)
+
+**Minta:** Mentor/Co-mentor bisa mengusulkan nama petugas (multi-role ×
+multi-orang, 1 tanggal, semua divisi terbuka); approve tetap di tiap divisi
+(komisi/koordinator); status per-item (partial approve).
+
+**Ubah (kode, commit episode ini):**
+- DB: `service_role_requests` + `proposed_user_id` + `batch_id` (+2 index)
+  via `server/_migrate-penatalayan-requests.cjs`; `service_roles.is_required`
+  (P4 wajib/opsional). Jalankan `db:migrate:penatalayan-requests[:staging]`.
+- Lib baru `server/lib/penatalayan-proposals.mjs` (normalisasi + dedupe +
+  cap item, `proposalRowKey`) + test; `penatalayan-requests.mjs`:
+  `listRequests` (division CSV, mine, batchId), `proposedUserName`,
+  `hasActiveScheduleForUser`, `hasPendingProposalForUser`,
+  `createRequestRow({proposedUserId, batchId})`.
+- API: `POST /api/penatalayan/proposals/bulk` (per-item created/skipped,
+  notifikasi per divisi); `POST /requests` terima `proposedUserId`
+  (usulan tunggal mentor); `fulfill` fallback ke `proposedUserId` bila
+  `userId` tak dikirim (approve satu klik).
+- Kunci direct-assign mentor: `POST /schedules` & `/schedules/bulk` kini
+  hanya SUPERADMIN/KOMISI/COMMITTEE (mentor → usulan).
+- UI: `MentorPenatalayanUsulanPanel` (tab baru `penatalayan-usulan`,
+  roles MENTOR/CO_MENTOR, youth) — pilih tanggal, centang divisi, cari
+  nama binaan per role (exclude terisi/usulan pending per-role), kirim
+  bulk; daftar "Usulanku" + batalkan. `PenatalayanRequestQueue` menampilkan
+  "Usulan nama: X" + tombol `Setujui X` (atau ganti orang). `PenatalayanBoard`
+  + status wajib/opsional + tombol "Minta divisi". i18n guide `penatalayan-usulan`
+  (en+id), nav def + icons + type `ServiceRoleRequest`.
+
+**Verifikasi:** `lint` bersih ✓ full suite 153 file / 1196 test lulus 100%
+(termasuk `penatalayan-proposals` baru 5/5) ✓. Timeout `lazy-routes`
+(ChurchHub cold-import >5 dtk di mesin ini) dinaikkan ke 20 dtk.
+
+**Next:** migrasi staging (`npm run db:migrate:penatalayan-requests:staging`
++ `staging:sync`) → QA: mentor kirim usulan multi-role, divisi approve satu
+klik, tolak/ganti nama, batalkan usulan, cek notifikasi. (Migrasi local
+sudah dijalankan ✓.)
+
+**Deploy:** commit episode ini → migrasi prod (additive) → push main ✓ CI →
+`staging:sync` (status final di update lokal, sengaja belum di-commit —
+workspace paralel aktif).
+
+
 ## Current — Daftar hadir di portal + ringkasan untuk semua berperan (16 Okt 2026)
 
 **Minta:** (1) fitur mendaftar kehadiran di portal Info Event (tidak hanya
@@ -19,7 +62,10 @@ untracked sesi paralel, tak ikut push) ✓ test baru 5/5 ✓ `build` OK ✓.
 **Next:** QA — daftar dari portal (QR+WA muncul), event Internal ditolak
 sopan, Mentee buka deck khutbah, pembekalan tetap 403.
 
-**Deploy:** BELUM commit/push (hemat deployment; workspace paralel aktif).
+**Deploy:** push main ✓ → CI hijau ✓ → Vercel production Ready ✓ →
+staging terverifikasi via /api/version (main = staging = `184711d`;
+`staging:sync` timeout di sisi CLI tapi hasil akhir selaras) ✓. HANDOFF
+ini belum di-commit (campur sesi paralel).
 
 ## Current — PDF via print + caption pindah tab Syukur (16 Okt 2026)
 
@@ -5772,3 +5818,18 @@ Next:
 - Pasang 2 alias manual via vercel alias set (atau dashboard).
 - npm run db:seed:worship:staging (pola 11 blok) -> QA staging event 17 Okt.
 - Patch teks Likert #3 sesi prod bila sudah Terapkan; db:seed:worship:prod bila rundown disetujui.
+
+## Prod diterapkan penuh � Bedah Film 17 Okt (16 Okt 2026, sesi prod)
+
+Done:
+- Pola BEDAH_FILM di DB prod + staging: 11 blok, 155 mnt (seed prod + staging OK).
+- Sesi prod sesi-2026-10-17-bedah-film di-Terapkan penuh (skrip one-off, setara Reset + Apply-draft): draft 5 section (film, likert-film, deep, affirm, lesson) + 5 afirmasi lengkap; soal Likert PRE+POST 5+5 (teks anti-spoiler); 10 chip Lesson Learned; screening fresh 112 mnt; gate bersih (likertRounds/phase/fgd/testimony/rounds null); data uji (10 jawaban/3 vote/4 catatan/undian lama) dihapus; status DRAFT.
+- Staging: sesi sengaja TIDAK disentuh (status WRAPUP dari simulasi 16 Okt).
+- server/lib/bedah-film-case-for-christ.mjs: section affirm (5 teks penuh 1Kor 15/Yoh 20/Kis 4) + test kurasi diperbarui; lint bersih, test terkait 46 hijau.
+
+Next:
+- QA di prod: kontrol 11 blok, M0 timer 5 mnt, PRE+afirmasi, M1 tenang, 3Q+afirmasi, M3 serentak, POST+delta, M4 undi, layar gabungan.
+
+Update staging (16 Okt 2026, sesi prod):
+- Branch staging = main = da7889c (push git OK). Deploy+alias staging GAGAL: Vercel CLI "Not authorized" (auth.json expired) � perlu `vercel login` lalu `npm run staging:sync` ulang (branch sudah selaras; tinggal deploy+alias+verify).
+- DB staging: pola 11 blok ? + sesi staging di-reset+apply penuh (WRAPUP -> DRAFT, data uji dihapus, draft 5 section + affirm, PRE+POST 5+5, 10 chip, gate bersih). QA staging bisa jalan sekarang (runtime staging = kode episode 184711d).

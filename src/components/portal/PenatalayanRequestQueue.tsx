@@ -15,6 +15,9 @@ type QueueItem = {
   roleName?: string | null;
   requesterName?: string | null;
   note?: string | null;
+  proposedUserId?: string | null;
+  proposedUserName?: string | null;
+  batchId?: string | null;
   canFulfill?: boolean;
   canCancel?: boolean;
 };
@@ -67,20 +70,25 @@ export const PenatalayanRequestQueue: React.FC<Props> = ({ division }) => {
     return (list as Array<{ id: string; name: string }>).map((p) => ({ value: String(p.id), label: String(p.name) }));
   }, []);
 
-  const act = useCallback(async (id: string, kind: 'fulfill' | 'cancel') => {
+  const act = useCallback(async (it: QueueItem, kind: 'fulfill' | 'cancel') => {
+    const id = it.id;
     const opts = picks[id] || [];
-    if (kind === 'fulfill' && !opts.length) {
+    // Usulan mentor dengan nama: setujui langsung boleh tanpa memilih ulang.
+    if (kind === 'fulfill' && !opts.length && !it.proposedUserId) {
       setMsg('Pilih dulu orang yang ditunjuk.');
       return;
     }
     setBusy(`${kind}:${id}`);
     setMsg('');
     try {
+      const body = kind === 'fulfill'
+        ? (opts.length ? { userId: opts[0].value } : {})
+        : {};
       const r = await fetch(`/api/penatalayan/requests/${id}/${kind}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(kind === 'fulfill' ? { userId: opts[0].value } : {}),
+        body: JSON.stringify(body),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal memproses.');
@@ -113,6 +121,11 @@ export const PenatalayanRequestQueue: React.FC<Props> = ({ division }) => {
             <p className="text-[11px] text-[#8C8880]">
               Diminta {it.requesterName ? `oleh ${it.requesterName}` : ''}{it.note ? ` — “${it.note}”` : ''}
             </p>
+            {it.proposedUserName && (
+              <p className="mt-1 text-[11px] text-sky-700 font-bold">
+                Usulan nama: {it.proposedUserName}
+              </p>
+            )}
             {it.canFulfill !== false && (
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <div className="flex-1 min-w-[200px]">
@@ -122,22 +135,23 @@ export const PenatalayanRequestQueue: React.FC<Props> = ({ division }) => {
                     onSearch={searchPeople}
                     onChange={(_v, opts) => setPicks((p) => ({ ...p, [it.id]: opts.slice(0, 1) }))}
                     max={1}
-                    placeholder="Tunjuk orang…"
+                    placeholder={it.proposedUserName ? 'Ganti orang (opsional)…' : 'Tunjuk orang…'}
                   />
                 </div>
                 <button
                   type="button"
                   disabled={busy === `fulfill:${it.id}`}
-                  onClick={() => void act(it.id, 'fulfill')}
+                  onClick={() => void act(it, 'fulfill')}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold disabled:opacity-50"
                 >
-                  {busy === `fulfill:${it.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Penuhi
+                  {busy === `fulfill:${it.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}{' '}
+                  {it.proposedUserName && !(picks[it.id] || []).length ? `Setujui ${it.proposedUserName}` : 'Penuhi'}
                 </button>
                 {it.canCancel !== false && (
                   <button
                     type="button"
                     disabled={busy === `cancel:${it.id}`}
-                    onClick={() => void act(it.id, 'cancel')}
+                    onClick={() => void act(it, 'cancel')}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#D9D7D0] text-[11px] font-bold text-[#8C8880] disabled:opacity-50"
                   >
                     {busy === `cancel:${it.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />} Batalkan

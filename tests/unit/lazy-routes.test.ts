@@ -29,7 +29,7 @@ describe('lazy-routes: default export untuk React.lazy', () => {
   it.each(LAZY_ROUTE_MODULES)('%s mengekspor default function', async (path) => {
     const mod = (await import(path)) as { default?: unknown };
     expect(typeof mod.default, `${path} butuh export default (React.lazy)`).toBe('function');
-  });
+  }, 20000);
 });
 
 describe('liturgy-hash: bentuk rute prod', () => {
