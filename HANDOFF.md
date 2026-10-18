@@ -39,6 +39,34 @@ cron Jumat/Sabtu.
 `/api/version` = `c2ba91e` ✓ → `staging:sync` ✓ (9/9 alias · `/api/version`
 staging = `c2ba91e`).
 
+## Current — Pre-roll bioskop di layar BEDAH_FILM + pengumuman custom (17 Okt 2026)
+
+**Minta:** kartu "Bersiap menonton" terlihat kecil & statis; minta teks jauh
+lebih besar, muncul beranimasi + ikon relevan, teks berganti-ganti seperti
+himbauan pre-show bioskop (lolos sensor Benzinema, "Youth GEHC
+mempersembahkan", info nyeleneh), dan pengumuman yang bisa diatur operator
+(mis. konsumsi tuan rumah).
+
+**Ubah:**
+- Lib murni `src/lib/film-preroll.ts` (`buildFilmPreRoll`): deck 10 slide default
+  (pembuka → cap sensor → judul film → himbauan tenang → HP → konsumsi →
+  penutup) + slide pengumuman custom (maks 6 × 140 huruf) disisipkan setelah
+  info konsumsi.
+- Komponen `src/components/mentoring/FilmPreRoll.tsx`: carousel 7 s/slide, ikon
+  lucide per slide, animasi `film-preroll-enter`/`film-preroll-stamp` (hormat
+  `prefers-reduced-motion`), strip judul film + durasi selalu terlihat, dots
+  indikator.
+- `MentoringScreen.tsx`: "Bersiap menonton" → slideshow; "Sedang diputar" →
+  tampilan tenang teks besar (tanpa rotasi) + nada bioskop.
+- `cleanScreening` (`server/lib/session-stage.mjs`) menormalkan `screening.preShow`
+  (array maks 6 × 140); tipe `SessionScreening.preShow`; `ScreeningPanel`
+  (Didaskalia) dapat textarea "Pengumuman tambahan (1 baris = 1 pengumuman)".
+
+**Verifikasi:** lint ✓; unit 154 file / 1201 test lulus ✓ (baru: `film-preroll`
+4 test, kasus `cleanScreening` preShow). QA visual lokal (mock API, viewport
+1920×1080): rotasi 7 s terverifikasi, slide pembuka/judul/cap sensor/custom/
+on-air tampil benar. Sisa: QA staging sesi BEDAH_FILM nyata.
+
 ## Current — Bedah Film: timer per langkah & sinkron 3 view (17 Okt 2026)
 
 **Minta:** hapus durasi sesi penuh (timer 180:00 tidak muncul di layar film),

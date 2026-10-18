@@ -336,6 +336,15 @@ describe('session-stage: validasi', () => {
     expect(cleanScreening({ title: 'Gavin Stone', durationMin: 500 })).toMatchObject({ title: 'Gavin Stone', durationMin: 180 });
   });
 
+  it('screening: preShow dirapikan (maks 6 baris, 140 huruf, kosong dibuang)', () => {
+    const out = cleanScreening({
+      title: 'Gavin Stone',
+      preShow: ['  Konsumsi setelah film  ', '', 'a'.repeat(200), 1, 2, 3, 4, 5],
+    });
+    expect(out?.preShow).toEqual(['Konsumsi setelah film', 'a'.repeat(140), '1', '2', '3', '4']);
+    expect(cleanScreening({ title: 'X' })?.preShow).toEqual([]);
+  });
+
   it('teams: batas 8 tim, tanpa nama dibuang', () => {
     const out = cleanTeams({ teams: [{ name: 'Soal', members: ['A'] }, { name: '' }, { name: 'Lapangan' }] });
     expect(out.teams.map((t) => t.name)).toEqual(['Soal', 'Lapangan']);

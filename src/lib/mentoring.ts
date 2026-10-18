@@ -72,7 +72,7 @@ export type SessionRound = {
 
 export type SessionRounds = { rounds: SessionRound[]; current: number; phase: string } | null;
 
-export type SessionScreening = { title: string; durationMin: number; startedAt: string | null } | null;
+export type SessionScreening = { title: string; durationMin: number; startedAt: string | null; preShow: string[] } | null;
 
 export type SessionTeam = { name: string; task: string; members: string[]; done: boolean };
 

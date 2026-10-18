@@ -43,7 +43,12 @@ export function cleanScreening(raw) {
   if (!title) return null;
   const durationMin = Math.min(180, Math.max(10, Number(raw.durationMin) || 90));
   const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
-  return { title, durationMin, startedAt };
+  // Pengumuman tambahan pre-roll layar (maks 6 baris, tiap baris 140 huruf).
+  const preShow = (Array.isArray(raw.preShow) ? raw.preShow : [])
+    .map((line) => str(line, 140).trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  return { title, durationMin, startedAt, preShow };
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   type MentoringLivePayload,
 } from '../../lib/mentoring';
 import SessionTimer from './SessionTimer';
+import FilmPreRoll from './FilmPreRoll';
 import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 
@@ -350,11 +351,16 @@ const MentoringScreen: React.FC = () => {
               const screening = data.screening;
               if (screening) {
                 const onAir = Boolean(screening.startedAt);
+                // Layar tunggu: pre-roll ala bioskop (slide berganti tiap 7 s).
+                // Film tayang (onAir): rotasi berhenti — tampilan tenang + nada bioskop.
+                if (!onAir) {
+                  return (
+                    <FilmPreRoll title={screening.title} durationMin={screening.durationMin} customLines={screening.preShow} />
+                  );
+                }
                 return (
                   <section className="rounded-[28px] bg-gradient-to-b from-white/10 to-white/5 border border-white/10 p-10 sm:p-14 flex-1 flex flex-col items-center justify-center text-center gap-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">
-                      {onAir ? '● Sedang diputar' : 'Bersiap menonton'}
-                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">● Sedang diputar</p>
                     <p className="font-display text-2xl sm:text-3xl font-black mt-1">{screening.title}</p>
                     <p className="font-display text-xl sm:text-2xl font-black text-white/90">
                       Harap tenang, fokus mendengar
@@ -362,7 +368,7 @@ const MentoringScreen: React.FC = () => {
                     <p className="text-sm text-white/50 max-w-md">
                       HP tetap boleh dipegang untuk menjawab 3 catatan — jawab jujur, tiap jawaban ada afirmasi firman untukmu.
                     </p>
-                    {onAir && <CinemaToneButton />}
+                    <CinemaToneButton />
                   </section>
                 );
               }

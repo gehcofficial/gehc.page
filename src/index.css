@@ -110,11 +110,51 @@
   }
 }
 
+/* ---------- Pre-roll film (BEDAH_FILM): slide masuk seperti kartu layar bioskop ---------- */
+@keyframes film-preroll-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(26px) scale(0.97);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.film-preroll-enter {
+  animation: film-preroll-enter 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Cap sensor: masuk membesar + miring, seperti distempel. */
+@keyframes film-preroll-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(-7deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.film-preroll-stamp {
+  animation: film-preroll-stamp 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
   .animate-fade-in,
   .animate-loading-bar,
-  .brand-city-letter {
+  .brand-city-letter,
+  .film-preroll-enter,
+  .film-preroll-stamp {
     animation: none;
   }
 }

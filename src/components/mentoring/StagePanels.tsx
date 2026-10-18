@@ -124,12 +124,13 @@ export const DebatPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   );
 };
 
-/** Panel pemutaran film: judul + durasi + tombol mulai/henti. */
+/** Panel pemutaran film: judul + durasi + pengumuman pre-roll + tombol mulai/henti. */
 export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const { msg, setMsg, busy, setBusy } = useStageMsg();
   const [title, setTitle] = useState('');
   const [durationMin, setDurationMin] = useState(91);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [preShow, setPreShow] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -141,6 +142,7 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
       const m = String(cfg.screening?.title ? '' : draftTitle).match(/(\d{2,3})\s*menit/i);
       setDurationMin(Number(cfg.screening?.durationMin) || (m ? Math.min(180, Math.max(10, Number(m[1]))) : 91));
       setStartedAt(cfg.screening?.startedAt || null);
+      setPreShow(Array.isArray(cfg.screening?.preShow) ? cfg.screening.preShow.join('\n') : '');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat.');
     }
@@ -150,11 +152,18 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
     void load();
   }, [load]);
 
+  const preShowLines = () =>
+    preShow
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+
   const save = async (patch: Record<string, unknown>) => {
     setBusy(true);
     setMsg(null);
     try {
-      const d = await saveStage(sessionId, { screening: patch });
+      const d = await saveStage(sessionId, { screening: { ...patch, preShow: preShowLines() } });
       setStartedAt(d.screening?.startedAt || null);
       setMsg(patch.startedAt ? 'Pemutaran dimulai — layar mode tenang (tanpa countdown).' : 'Tersimpan.');
     } catch (e) {
@@ -175,6 +184,19 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul film" className={INPUT} />
         <input value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value) || 91)} type="number" min={10} max={180} placeholder="Durasi (menit)" className={INPUT} />
       </div>
+      <label className="block mt-2">
+        <span className="text-[11px] font-bold text-[#8C8880]">
+          Pengumuman tambahan di layar tunggu (1 baris = 1 pengumuman, maks 6 — mis. info konsumsi)
+        </span>
+        <textarea
+          value={preShow}
+          onChange={(e) => setPreShow(e.target.value)}
+          rows={3}
+          maxLength={6 * 141}
+          placeholder={'Tuan rumah membagikan konsumsi selama sesi\nSelamat datang, silakan duduk manis'}
+          className={`${INPUT} mt-1 resize-y`}
+        />
+      </label>
       <div className="mt-2 flex gap-2">
         {!startedAt ? (
           <button type="button" disabled={busy || !title.trim()} onClick={() => void save({ title: title.trim(), durationMin, startedAt: new Date().toISOString() })} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-60">
