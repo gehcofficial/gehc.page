@@ -143,6 +143,14 @@ const DEBAT_TEMPLATE: DraftSection[] = [
 
 const BEDAH_FILM_TEMPLATE: DraftSection[] = [
   {
+    key: 'pembuka',
+    title: 'Pesan pembuka (sebelum Likert AWAL)',
+    hint: 'Tampil di HP peserta saat segmen Likert Awal dibuka — salam singkat + arahkan mengisi baseline. Kosongkan = teks bawaan otomatis.',
+    fields: [
+      t('opening', 'Pesan pembuka', 'textarea', 'Selamat datang di Bedah Film malam ini ...'),
+    ],
+  },
+  {
     key: 'film',
     title: 'Film & ayat',
     hint: 'Film 60–95 menit yang isu sentralnya = tema pekan (total = 80 + durasi film).',

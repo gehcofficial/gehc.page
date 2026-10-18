@@ -133,6 +133,8 @@ export type MentoringSessionPayload = {
   fgd?: SessionFgdState;
   /** Afirmasi firman BEDAH_FILM (dari draft sesi; tampil setelah menjawab). */
   affirmations?: { notes: Record<string, string>; likertLow: string; likertHigh: string } | null;
+  /** Pesan pembuka BEDAH_FILM dari draft (tampil di segmen Likert AWAL). */
+  opening?: string | null;
   /** Fase aktif + countdown (MONOLOG gabungan). */
   phase?: SessionPhase;
   /** Preferensi tiap fase (diatur kontrol; default durasi baku + tampil). */

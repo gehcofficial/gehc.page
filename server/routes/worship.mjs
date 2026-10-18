@@ -238,6 +238,18 @@ export function filmAffirm(config) {
 }
 
 /**
+ * Pesan pembuka BEDAH_FILM dari draft sesi (section `pembuka`).
+ * Tampil di HP peserta di segmen Likert AWAL sebelum kartu pernyataan.
+ * Null bila draft kosong → UI memakai teks bawaan.
+ */
+export function openingText(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const sec = draft.pembuka && typeof draft.pembuka === 'object' ? draft.pembuka : {};
+  const v = String(sec.opening || '').trim();
+  return v ? v.slice(0, 600) : null;
+}
+
+/**
  * Kode slot catatan yang boleh diisi peserta: topik sesi + KESIMPULAN +
  * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
  */
@@ -659,6 +671,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
         notes,
         guide: fgdGuide(config),
+        opening: openingText(config),
         deepGuide: deepGuide(config),
         song: sessionSong(config),
         affirmations: String(live.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' ? filmAffirm(config) : null,

@@ -96,9 +96,16 @@ malam ini.
   input 2×). Akar: effect init kartu Likert menimpa `vals` tiap payload
   polling 20 dtk. Kini merge-preserve `mergeFilmVals` (pilihan lokal belum
   terkirim dipertahankan; id ronde lain dibuang) + unit test regresi.
+- Pesan pembuka film (permintaan user): field draft baru section `pembuka`
+  (`opening`, editable di tab Draft Studio — otomatis ikut AI fill) →
+  server `openingText()` (trim, cap 600) di payload peserta → kartu
+  "Selamat datang" di atas kartu Likert AWAL (HP) memakai teks draft;
+  kosong = teks bawaan menyebut judul film dari modul Pemutaran. Tanpa
+  migrasi DB; `apply-draft` menyimpan section generik (sudah aman).
 
-**Verifikasi:** `lint` bersih ✓; full suite 153 file / 1196 test ✓ (rerun
-setelah rebase di atas episode rundown `9d643dc`); `film:sim` staging
+**Verifikasi:** `lint` bersih ✓; full suite 153 file / 1200 test ✓ (1196 +
+3 test `openingText`; rerun setelah rebase di atas episode rundown
+`9d643dc`); `film:sim` staging
 (`2c686eb`) **23/23 assert LULUS** — M0 300s → M1 marker tayang + gate
 terkunci → M3 gate AKHIR + delta + wordcloud → M4 600s → CLOSED; layar
 film tanpa kartu "Waktu tersisa" (kode lama `180:00` hilang).

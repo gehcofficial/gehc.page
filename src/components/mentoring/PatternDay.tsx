@@ -663,6 +663,24 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
+      {c === 'BEDAH_FILM' && segment === 'likert-awal' && (
+        <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand">Selamat datang</p>
+          <p className="text-lg font-black tracking-tight mt-1">Shalom, {data?.me?.name || 'Peserta'}!</p>
+          <p className="text-xs leading-relaxed mt-1.5 whitespace-pre-line">
+            {data?.opening ||
+              `Selamat datang di ${data?.session.title || 'Bedah Film'}.${
+                screening?.title ? ` Malam ini kita menonton “${screening.title}”.` : ''
+              } Isi 5 pernyataan AWAL dulu sebagai potret jujur sebelum nonton — tidak ada jawaban salah.`}
+          </p>
+          <p className="text-[11px] text-[#8C8880] mt-1.5">
+            {editable
+              ? 'Isi dan kirim 5 pernyataan di bawah — layar besar menampilkan perubahan AWAL → AKHIR nanti.'
+              : 'Siapkan hatimu; akses dibuka sesaat lagi oleh tim.'}
+          </p>
+        </div>
+      )}
+
       {has('likert') && data?.likert && (
         <FilmLikertCard
           slug={slug}
