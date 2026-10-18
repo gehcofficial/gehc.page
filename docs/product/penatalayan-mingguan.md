@@ -69,9 +69,13 @@ npm run db:migrate:serving-week:staging
 ```powershell
 npm run backfill:penatalayan-link             # dry-run (lokal/.env)
 npm run backfill:penatalayan-link:staging     # dry-run staging
+npm run backfill:penatalayan-link:prod        # dry-run produksi
 # tambahkan --apply untuk menulis, lalu:
 npm run backfill:petugas-attendance:staging   # absensi otomatis petugas
 ```
+
+Staging & produksi sudah dibackfill (18 Okt 2026): 10 jadwal 20 Sep → event
+`Follow the True Voice`; dry-run ulang kini `linked=0`.
 
 - **Panel usulan mentor** menampilkan banner “Mengisi untuk: {event}” dan
   mendukung deep-link `#/portal/<ns>/penatalayan-usulan?date=&event=`
@@ -87,4 +91,47 @@ npm run backfill:petugas-attendance:staging   # absensi otomatis petugas
 - **Notifikasi mentoring day (W1)**: cron Jumat H-2 & Sabtu H-1 kini juga
   mengirim pengingat ke **HOD (LEAD/CO_LEAD) event MENTORING_DAY** —
   `resolveMentoringDayHods` (`server/lib/serving-week.mjs`).
+- Kategori `penatalayan` bertipe notifikasi **`APPROVAL_ITEM`** (bukan
+  `IDLE_FLAG`): bell hanya menampilkan ke penerima (memberId) dan tidak bocor
+  ke dasbor regenerasi Jethro Engine.
+
+## 8. Panduan pakai (per peran)
+
+**Mentor / Co-mentor — "Usulan Pelayanan"** (`#/portal/mentor/penatalayan-usulan`)
+
+1. Dari notifikasi routing, klik tautan → tanggal & event terisi otomatis
+   (banner **"Mengisi untuk: {event}"**). Tanpa tautan: pilih tanggal dulu
+   (8 Minggu ke depan).
+2. Cari nama binaan per komponen (multi-peran × multi-orang dalam sekali
+   kirim) → **Kirim**. Hanya komponen unit pemuda; di luar binaan ditolak.
+3. Salah pilih? Batalkan usulan yang masih **Menunggu** di kartu "Usulanku".
+
+**Divisi (KOMISI/COMMITTEE/HOD) — antrean & jadwal**
+
+- Portal → **Divisi** (Liturgia/Didaskalia/Koinonia/Diakonia/Marturia) →
+  tab **Penatalayan**: papan fokus divisi, kalender, form penugasan (rota),
+  kelola komponen, dan **Antrean usulan** → setujui (1 klik, otomatis jadi
+  jadwal `SCHEDULED`) atau tunjuk nama lain.
+
+**Event — tab "Penatalayan"** (Program & Event → pilih event)
+
+- Susun personel per komponen, salin dari event sebelumnya, ubah status
+  (Dijadwalkan → Dikonfirmasi → Selesai).
+- Kartu **Tuan Rumah & Penanggungjawab (routing grup)**: pilih 2 grup →
+  **Simpan grup** → **Kirim routing ke mentor**. Mentor + co-mentor ACTIVE
+  kedua grup menerima notifikasi + deep-link; divisi tetap approve.
+
+**Petugas**
+
+- Notifikasi H-2/H-1 → portal → Penatalayan → **tugas saya** → Konfirmasi.
+  Setelah `CONFIRMED`, kehadiran petugas ter-isi otomatis.
+
+**Operasional**
+
+- Backfill data lama: lihat perintah di §7 (dry-run default; `--apply`
+  untuk menulis).
+- Routing tanpa mentor aktif → respons `recipients: 0` + warning: lengkapi
+  roster grup dulu.
+- Cron harian: Jumat H-2 & Sabtu H-1 (petugas serving + HOD mentoring day),
+  Senin H+1 (BOD tutup grup WA).
 

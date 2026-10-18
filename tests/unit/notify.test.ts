@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { senderCapabilities, NOTIFY_CATEGORIES } from '../../server/lib/notify.mjs';
+import { senderCapabilities, NOTIFY_CATEGORIES, CATEGORY_TO_TYPE } from '../../server/lib/notify.mjs';
 
 const user = (...roles: string[]) => ({ roles: roles.map((role) => ({ role })) });
 
@@ -41,5 +41,18 @@ describe('senderCapabilities', () => {
     expect(senderCapabilities(user('COMMITTEE'), 'TIMKERJA').audiences).toContain('SERVING_REPS');
     expect(senderCapabilities(user('MENTOR')).audiences).not.toContain('SERVING_REPS');
     expect(senderCapabilities(user('COMMITTEE'), 'LITURGIA').audiences).not.toContain('SERVING_REPS');
+  });
+});
+
+describe('CATEGORY_TO_TYPE (visibilitas bell)', () => {
+  it('penatalayan = APPROVAL_ITEM (hanya penerima, bukan IDLE_FLAG kolateral)', () => {
+    expect(CATEGORY_TO_TYPE.penatalayan).toBe('APPROVAL_ITEM');
+    expect(CATEGORY_TO_TYPE.penatalayan).not.toBe('IDLE_FLAG');
+  });
+
+  it('semua kategori punya tipe', () => {
+    for (const c of NOTIFY_CATEGORIES) {
+      expect(CATEGORY_TO_TYPE[c], c).toBeTruthy();
+    }
   });
 });

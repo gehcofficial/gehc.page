@@ -13,6 +13,7 @@
  *   node scripts/backfill-penatalayan-event-link.mjs
  *   node scripts/backfill-penatalayan-event-link.mjs --apply
  *   npm run backfill:penatalayan-link:staging   # dry-run staging
+ *   npm run backfill:penatalayan-link:prod      # dry-run produksi
  */
 import 'dotenv/config';
 import { getPrisma } from '../server/db.mjs';
@@ -31,15 +32,24 @@ async function main() {
   const [scheds, reqs] = await Promise.all([
     prisma.serviceSchedule.findMany({
       where: { eventId: null },
-      select: { id: true, date: true, serviceRole: { select: { name: true } } },
+      select: { id: true, date: true, serviceRoleId: true },
       orderBy: { date: 'asc' },
     }),
     prisma.serviceRoleRequest.findMany({
       where: { eventId: null, status: 'PENDING' },
-      select: { id: true, date: true, serviceRole: { select: { name: true } } },
+      select: { id: true, date: true, serviceRoleId: true },
       orderBy: { date: 'asc' },
     }),
   ]);
+  const roleIds = [...new Set([...scheds, ...reqs].map((r) => r.serviceRoleId).filter(Boolean))];
+  const roleById = new Map(
+    (roleIds.length
+      ? await prisma.serviceRole
+          .findMany({ where: { id: { in: roleIds } }, select: { id: true, name: true } })
+          .catch(() => [])
+      : []
+    ).map((r) => [r.id, r.name]),
+  );
   console.log(`Jadwal tanpa eventId: ${scheds.length}`);
   console.log(`Request PENDING tanpa eventId: ${reqs.length}`);
 
@@ -60,7 +70,7 @@ async function main() {
         continue;
       }
       tally.linked += 1;
-      if (details.length < 20) details.push(`${kind} ${day} ${r.serviceRole?.name || ''} → ${eventId}`);
+      if (details.length < 20) details.push(`${kind} ${day} ${roleById.get(r.serviceRoleId) || r.serviceRoleId || ''} → ${eventId}`);
       if (APPLY) {
         if (kind === 'schedule') {
           await prisma.serviceSchedule.update({ where: { id: r.id }, data: { eventId } });

@@ -1,5 +1,45 @@
 # GEHC Portal — Handoff
 
+## Current — Penatalayan lanjutan: backfill eventId (staging+prod) + QA staging E2E + fix tipe notifikasi (18 Okt 2026)
+
+**Minta:** tindak lanjut episode penatalayan — jalankan backfill eventId (script
+baru), QA staging end-to-end (routing → usul → approve → jadwal), panduan pakai,
+apply backfill staging + prod.
+
+**Ubah:**
+- Fix `scripts/backfill-penatalayan-event-link.mjs`: model `ServiceRoleRequest`
+  tak punya relasi `serviceRole` → select ganti `serviceRoleId` + map nama via
+  `prisma.serviceRole` (sebelumnya crash sebelum melapor); npm script baru
+  `backfill:penatalayan-link:prod`.
+- **Backfill terpasang**: staging & produksi — 10 jadwal 20 Sep → event
+  `Follow the True Voice` (`linked=10`, `noEvent=0`); dry-run ulang kedua env
+  `linked=0` / `Jadwal tanpa eventId: 0`.
+- Fix kolateral notifikasi: mapping kategori `penatalayan` di
+  `server/lib/notify.mjs` dari `IDLE_FLAG` → `APPROVAL_ITEM` (bell kini hanya
+  ke penerima; sebelumnya semua user melihat notif routing & bocor ke dasbor
+  regenerasi JethroEngine yang memfilter `IDLE_FLAG`). `CATEGORY_TO_TYPE`
+  di-export + unit test di `tests/unit/notify.test.ts`.
+- Docs: `docs/product/penatalayan-mingguan.md` §8 panduan pakai per peran +
+  perintah backfill `:prod`.
+
+**QA staging E2E (API + browser, DB staging):** login `stevania.hadinda@gehc.demo`
+(KOMISI+MENTOR Agape) → PATCH `penatalayanGroups` event 25 Okt (Agape =
+Penanggungjawab, Avodah = Tuan Rumah) → `POST /api/events/:id/penatalayan-routing`
+— 4 penerima tepat (mentor & co-mentor tiap grup: Jurry/Syallomitha/Zhanon/Rendy),
+`payload.href` deep-link benar, `metadata.penatalayanRoutingAt` terisi →
+`proposals/bulk` dengan `eventId` → PENDING → `fulfill` → jadwal `SCHEDULED`
+dengan `eventId` benar; deep-link di UI menampilkan banner “Mengisi untuk:
+Ibadah Pemuda Raya: Our Roots & DNA - 25 Okt 2026”. Setelah fix tipe, notif
+routing baru `APPROVAL_ITEM`, tidak tampil di bell user non-penerima; notif lama
+`IDLE_FLAG` di-RESOLVED.
+Catatan: `npx prisma generate` lokal dijalankan ulang (client stale —
+`proposedUserId` tak dikenal); QA meninggalkan data staging (1 jadwal + 1 usulan
+PENDING→FULFILLED Farly, 25 Okt). Sisa: cron Jumat/Sabtu (uji jadwal asli),
+konfirmasi petugas (butuh akun petugas berpassword).
+
+**Deploy:** batch commit ini → push `main` → `staging:sync` → verifikasi
+`/api/version` prod & staging sama.
+
 ## Current — Penatalayan event: sinkron eventId + routing grup + pengingat HOD mentoring (17 Okt 2026)
 
 **Minta:** (A) usulan/jadwal penatalayan sering lepas dari event (`eventId` kosong

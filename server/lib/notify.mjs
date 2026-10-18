@@ -6,11 +6,14 @@ import { resolveServingRepUserIds } from './serving-week.mjs';
 /** Kategori notifikasi (juga kolom boolean di notification_preferences). */
 export const NOTIFY_CATEGORIES = ['announcement', 'warta', 'kegiatan', 'penatalayan', 'tugas', 'pengingat', 'birthday', 'materi'];
 
-const CATEGORY_TO_TYPE = {
+export const CATEGORY_TO_TYPE = {
   announcement: 'ANNOUNCEMENT',
   warta: 'IDLE_FLAG',
   kegiatan: 'IDLE_FLAG',
-  penatalayan: 'IDLE_FLAG',
+  // Penatalayan = tugas rutin (bukan idle flag Jethro Engine): tipe
+  // APPROVAL_ITEM → bell hanya menampilkan ke penerima (memberId), dan
+  // tidak bocor ke dasbor regenerasi (JethroEngine filter type IDLE_FLAG).
+  penatalayan: 'APPROVAL_ITEM',
   tugas: 'APPROVAL_ITEM',
   pengingat: 'RUNBOOK_DUE',
   birthday: 'BIRTHDAY_WISH',

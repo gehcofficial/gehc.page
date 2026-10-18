@@ -79,6 +79,7 @@
     "backfill:petugas-attendance:staging": "dotenv -e .env.staging -- node scripts/backfill-petugas-attendance.mjs",
     "backfill:penatalayan-link": "node scripts/backfill-penatalayan-event-link.mjs",
     "backfill:penatalayan-link:staging": "dotenv -e .env.staging -- node scripts/backfill-penatalayan-event-link.mjs",
+    "backfill:penatalayan-link:prod": "dotenv -e .env.production -- node scripts/backfill-penatalayan-event-link.mjs",
     "audit:event-access:staging": "dotenv -e .env.staging -- node scripts/audit-event-access.mjs",
     "audit:event-access:prod": "dotenv -e .env.production -- node scripts/audit-event-access.mjs",
     "audit:family-tree": "node scripts/audit-family-tree.mjs",
