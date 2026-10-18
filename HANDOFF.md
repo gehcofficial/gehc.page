@@ -150,13 +150,15 @@ malam ini.
 terkunci → M3 gate AKHIR + delta + wordcloud → M4 600s → CLOSED; layar
 film tanpa kartu "Waktu tersisa" (kode lama `180:00` hilang).
 
-**Deploy:** staging ✓ (`2c686eb` · alias 9/9 domain · `/api/version` cocok) →
-push `main` ✓ (OK cek visual user) → prod ✓ (`22fa5dd` terverifikasi) →
-staging diselaraskan ke main.
+**Deploy:** staging ✓ (`2c686eb` · alias 9/9 domain · `/api/version`) → main ✓
+(`22fa5dd`) → prod ✓ → fix Likert `2d29d0a` → prod+staging ✓ → pesan pembuka
+`1adacf3` → prod+staging ✓ (terverifikasi `/api/version` = `4f49d3a`, turunan
+`1adacf3` dari sesi paralel; branch `staging` = `main`).
 
-**Next:** cek visual 3 URL staging (layar/HP peserta/kontrol) memakai sesi
+**Next:** cek visual staging (layar/HP peserta/kontrol) memakai sesi
 `demo-bedah-film-sim-utama` (ditinggal RUNNING di M3, kode layar `5CDFC4`,
-jawaban awal/akhir + delta sudah terisi).
+jawaban awal/akhir + delta sudah terisi). Pesan pembuka film diisi tim di
+tab Draft → section `pembuka` (kosong = teks bawaan menyebut judul film).
 
 ## Current — Akses rundown pola: semua divisi lihat, tombol tetap least privilege (17 Okt 2026)
 
