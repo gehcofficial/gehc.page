@@ -8,11 +8,12 @@ import {
   filmLikertMeans,
   filmLikertPairs,
   isQuestionOpen,
-  mergeFilmVals,
   noteSlotsFor,
   resolvePinnedSegment,
   segmentForPattern,
   widgetsFor,
+  ROUND_STEP_SECONDS,
+  roundStepLabel,
   type SegmentWidget,
 } from '../../lib/session-engine';
 import {
@@ -51,13 +52,6 @@ function fmtRemain(ms: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** Label timer langkah film (timer sesi penuh tidak dipakai; bagian film tanpa timer). */
-const FILM_STEP_LABELS: Record<string, string> = {
-  M0: 'Likert Awal',
-  M3: 'Likert Akhir & Lesson Learned',
-  M4: 'Undi & Kesaksian',
-};
-
 type LikertPayload = NonNullable<MentoringSessionPayload['likert']>;
 
 /**
@@ -79,8 +73,13 @@ const FilmLikertCard: React.FC<{
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
-    // Polling 20 dtk mengganti objek payload — merge menjaga pilihan yang belum dikirim.
-    setVals((prev) => mergeFilmVals(prev, pairs, round, likert.myValues || {}));
+    const init: Record<string, number> = {};
+    for (const p of pairs) {
+      const id = round === 'PRE' ? p.preId : p.postId;
+      const v = id ? likert.myValues?.[id] : null;
+      if (id && v != null) init[id] = Number(v);
+    }
+    setVals(init);
   }, [pairs, likert, round]);
   const gate = String(likert.rounds?.[round.toLowerCase() as 'pre' | 'post'] ?? (round === 'PRE' ? 'open' : 'closed')).toLowerCase();
   const canAnswer = editable && likert.open && gate !== 'closed';
@@ -132,13 +131,7 @@ const FilmLikertCard: React.FC<{
       </p>
       {!canAnswer && (
         <p className="mt-2 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-          {gate === 'closed'
-            ? round === 'PRE'
-              ? 'Ronde AWAL sudah dikunci — lanjut ke tahap Nonton & Catat.'
-              : 'Likert AKHIR dibuka setelah sesi film selesai.'
-            : likert.open
-              ? 'Ronde ini belum dibuka operator.'
-              : 'Akses Likert belum dibuka.'}
+          {likert.open ? 'Ronde ini belum dibuka operator.' : 'Akses Likert belum dibuka.'}
         </p>
       )}
       <div className="mt-3 space-y-3">
@@ -283,6 +276,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     ? new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - phaseTick
     : null;
   const phaseExpired = phaseRemainMs !== null && phaseRemainMs <= 0;
+  const stepTick = useNowTick(Boolean(data?.rounds?.stepStartedAt));
   const slots = useMemo(() => {
     const base = noteSlotsFor(c);
     if (c === 'MONOLOG') {
@@ -332,8 +326,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       screeningOn: Boolean(data?.screening?.startedAt),
       // Gate AKHIR dari kontrol (M3) — peserta maju mengikuti gate, bukan countdown.
       postOpen: String(data?.likert.rounds?.post || 'closed').toLowerCase() === 'open',
-      // Gate AWAL sudah dikunci (M1) → peserta telat lanjut nonton, tak terkunci.
-      preOpen: String(data?.likert.rounds?.pre || 'open').toLowerCase() !== 'closed',
     };
   }, [c, filmPairs, chipDone, data]);
   const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);
@@ -420,6 +412,11 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
   const rounds = data?.rounds || null;
   const currentRound = rounds?.rounds?.[rounds?.current || 0] || null;
+  const debatStepIdx = Math.max(0, Number(rounds?.step) || 0);
+  const debatStepSec = Number(rounds?.stepSeconds) || ROUND_STEP_SECONDS[debatStepIdx] || 60;
+  const debatStepRemainMs = rounds?.stepStartedAt
+    ? Math.max(0, new Date(rounds.stepStartedAt).getTime() + debatStepSec * 1000 - stepTick)
+    : debatStepSec * 1000;
   const teams = data?.teams?.teams || [];
   const testimony = data?.testimony || [];
   const song = data?.song || null;
@@ -466,8 +463,13 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           ? [{
               heading: 'Ronde debat',
               lines: [
+                { label: 'Langkah', body: `${debatStepIdx + 1}/11 — ${roundStepLabel(debatStepIdx)}` },
                 { label: 'Mosi', body: currentRound.mosi },
+                ...(rounds?.teams?.pro?.name || rounds?.teams?.kontra?.name
+                  ? [{ label: 'Tim', body: `PRO: ${[rounds?.teams?.pro?.mentor, ...(rounds?.teams?.pro?.members || [])].filter(Boolean).join(', ') || rounds?.teams?.pro?.name || '-'} · KONTRA: ${[rounds?.teams?.kontra?.mentor, ...(rounds?.teams?.kontra?.members || [])].filter(Boolean).join(', ') || rounds?.teams?.kontra?.name || '-'}` }]
+                  : []),
                 { body: `PRO (${currentRound.pro || '-'}) ${currentRound.proScore} : ${currentRound.kontraScore} KONTRA (${currentRound.kontra || '-'})` },
+                ...((rounds?.trapReveal || '').trim() ? [{ label: 'Trap Reveal', body: rounds?.trapReveal || '' }] : []),
               ],
             }]
           : []),
@@ -545,16 +547,30 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               </div>
             ) : null
           ) : c === 'BEDAH_FILM' ? (
-            phaseRemainMs !== null && phaseName && FILM_STEP_LABELS[phaseName] ? (
+            phaseRemainMs !== null && phaseName === 'M0' ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                  {FILM_STEP_LABELS[phaseName]}{phaseExpired ? ' · waktu habis' : ''}
+                  Likert Awal{phaseExpired ? ' · waktu habis' : ''}
                 </p>
                 <p className="font-display text-2xl font-black tabular-nums">
                   {phaseExpired ? '00:00' : fmtRemain(phaseRemainMs)}
                 </p>
               </div>
             ) : null
+          ) : c === 'DEBAT' ? (
+            rounds?.stepStartedAt && rounds?.stepShowOnScreen !== false ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                  Langkah {debatStepIdx + 1}/11 · {roundStepLabel(debatStepIdx)}
+                  {debatStepRemainMs <= 0 ? ' · waktu habis' : ''}
+                </p>
+                <p className="font-display text-2xl font-black tabular-nums">
+                  {debatStepRemainMs <= 0 ? '00:00' : fmtRemain(debatStepRemainMs)}
+                </p>
+              </div>
+            ) : (
+              <SessionTimer timer={data.timer} />
+            )
           ) : (
             <SessionTimer timer={data.timer} />
           )}
@@ -625,13 +641,41 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           </h4>
           {currentRound ? (
             <div className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] p-3 space-y-1.5">
-              <p className="text-xs font-black">{currentRound.mosi}</p>
-              <p className="text-[11px] text-[#8C8880]">
-                PRO: {currentRound.pro || '-'} · KONTRA: {currentRound.kontra || '-'}
+              <p className="text-[11px] font-black uppercase tracking-widest text-brand">
+                Langkah {debatStepIdx + 1}/11 · {roundStepLabel(debatStepIdx)}
               </p>
+              <p className="text-xs font-black">{currentRound.mosi}</p>
+              {rounds?.teams && (rounds.teams.pro?.name || rounds.teams.kontra?.name) ? (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">PRO</p>
+                    <p className="text-[11px] font-bold">{rounds.teams.pro.name || 'Tim PRO'}</p>
+                    <p className="text-[10px] text-[#8C8880]">
+                      {[rounds.teams.pro.mentor, ...(rounds.teams.pro.members || [])].filter(Boolean).join(', ') || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-rose-50 border border-rose-200 p-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-700">KONTRA</p>
+                    <p className="text-[11px] font-bold">{rounds.teams.kontra.name || 'Tim KONTRA'}</p>
+                    <p className="text-[10px] text-[#8C8880]">
+                      {[rounds.teams.kontra.mentor, ...(rounds.teams.kontra.members || [])].filter(Boolean).join(', ') || '—'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#8C8880]">
+                  PRO: {currentRound.pro || '-'} · KONTRA: {currentRound.kontra || '-'}
+                </p>
+              )}
               <p className="text-[11px] font-bold">
                 Fase: {ROUND_PHASE_LABEL[rounds?.phase || ''] || rounds?.phase} · Skor {currentRound.proScore} : {currentRound.kontraScore}
               </p>
+              {String(rounds?.phase || '') === 'selesai' && (rounds?.trapReveal || '').trim() && (
+                <div className="mt-2 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/10 to-brand-end/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand">Trap Reveal</p>
+                  <p className="text-xs leading-relaxed mt-1 whitespace-pre-line">{rounds?.trapReveal}</p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-xs text-[#8C8880] italic">Mosi menyusul dari moderator.</p>
@@ -660,24 +704,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           ) : (
             <p className="text-xs text-[#8C8880] italic">Film menyusul — siapkan hati, HP tetap boleh dipegang untuk menjawab.</p>
           )}
-        </div>
-      )}
-
-      {c === 'BEDAH_FILM' && segment === 'likert-awal' && (
-        <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
-          <p className="text-[10px] font-black uppercase tracking-widest text-brand">Selamat datang</p>
-          <p className="text-lg font-black tracking-tight mt-1">Shalom, {data?.me?.name || 'Peserta'}!</p>
-          <p className="text-xs leading-relaxed mt-1.5 whitespace-pre-line">
-            {data?.opening ||
-              `Selamat datang di ${data?.session.title || 'Bedah Film'}.${
-                screening?.title ? ` Malam ini kita menonton “${screening.title}”.` : ''
-              } Isi 5 pernyataan AWAL dulu sebagai potret jujur sebelum nonton — tidak ada jawaban salah.`}
-          </p>
-          <p className="text-[11px] text-[#8C8880] mt-1.5">
-            {editable
-              ? 'Isi dan kirim 5 pernyataan di bawah — layar besar menampilkan perubahan AWAL → AKHIR nanti.'
-              : 'Siapkan hatimu; akses dibuka sesaat lagi oleh tim.'}
-          </p>
         </div>
       )}
 

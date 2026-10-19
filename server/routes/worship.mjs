@@ -238,18 +238,6 @@ export function filmAffirm(config) {
 }
 
 /**
- * Pesan pembuka BEDAH_FILM dari draft sesi (section `pembuka`).
- * Tampil di HP peserta di segmen Likert AWAL sebelum kartu pernyataan.
- * Null bila draft kosong → UI memakai teks bawaan.
- */
-export function openingText(config) {
-  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
-  const sec = draft.pembuka && typeof draft.pembuka === 'object' ? draft.pembuka : {};
-  const v = String(sec.opening || '').trim();
-  return v ? v.slice(0, 600) : null;
-}
-
-/**
  * Kode slot catatan yang boleh diisi peserta: topik sesi + KESIMPULAN +
  * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
  */
@@ -671,7 +659,6 @@ export function registerWorshipRoutes(app, { wrap }) {
         me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
         notes,
         guide: fgdGuide(config),
-        opening: openingText(config),
         deepGuide: deepGuide(config),
         song: sessionSong(config),
         affirmations: String(live.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' ? filmAffirm(config) : null,
@@ -924,7 +911,6 @@ export function registerWorshipRoutes(app, { wrap }) {
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
         screening: agg.config.screening,
-        likertRounds: agg.config.likertRounds || null,
         teams: agg.config.teams,
         // Agregat ronde film untuk delta pre→post di layar.
         likertMeans: await filmRoundMeans(prisma, liveState.id),
@@ -1675,6 +1661,41 @@ export function registerWorshipRoutes(app, { wrap }) {
           cfg.screening = screeningPatch;
         }
       }
+      // DEBAT: materialisasi ronde dari Draft Sesi (mosi → ronde, tim PRO/KONTRA,
+      // lembar juri awal, Trap Reveal). Tanpa migrasi skema — semua di config.rounds.
+      let debatRounds = null;
+      if (sessionPattern === 'DEBAT') {
+        const d = b.storedDraft && typeof b.storedDraft === 'object' ? b.storedDraft : {};
+        const mosiSec = d.mosi && typeof d.mosi === 'object' ? d.mosi : {};
+        const mosiList = Array.from({ length: 5 }, (_, i) => str(mosiSec[`mosi-${i + 1}`], 500)).filter(Boolean);
+        const teamsSec = d.teams && typeof d.teams === 'object' ? d.teams : {};
+        const jurySec = d.juri && typeof d.juri === 'object' ? d.juri : {};
+        const trapSec = d.trap && typeof d.trap === 'object' ? d.trap : {};
+        const splitNames = (v) => String(v || '').split(/[,;\n]/).map((s) => s.trim()).filter(Boolean).slice(0, 12);
+        const juryNames = Array.from({ length: 3 }, (_, i) => str(jurySec[`juri-${i + 1}`], 80)).filter(Boolean);
+        const list = (mosiList.length ? mosiList : ['']).map((mosi) => ({
+          mosi,
+          pro: '',
+          kontra: '',
+          proScore: 0,
+          kontraScore: 0,
+          jury: juryNames.map((name) => ({ name, pro: {}, kontra: {} })),
+        }));
+        debatRounds = cleanRounds({
+          rounds: list,
+          current: 0,
+          phase: 'brief',
+          step: 0,
+          stepStartedAt: null,
+          stepShowOnScreen: true,
+          teams: {
+            pro: { name: str(teamsSec['pro-name'], 80), mentor: str(teamsSec['pro-mentor'], 80), members: splitNames(teamsSec['pro-members']) },
+            kontra: { name: str(teamsSec['kontra-name'], 80), mentor: str(teamsSec['kontra-mentor'], 80), members: splitNames(teamsSec['kontra-members']) },
+          },
+          trapReveal: str(trapSec['trap-reveal'], 2000),
+        });
+        cfg.rounds = debatRounds;
+      }
       const legacyItems = await prisma.worshipLikertItem.findMany({
         where: { sessionId: session.id },
         select: { id: true },
@@ -1716,7 +1737,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           }
         }
       }
-      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2, screening: screeningPatch });
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2, screening: screeningPatch, rounds: debatRounds ? debatRounds.rounds.length : 0 });
     }),
   );
 

@@ -1,5 +1,40 @@
 # GEHC Portal — Handoff
 
+## Current — Debat `DEBAT` penuh: 11 langkah bertimer + lembar juri + tim undian + Trap Reveal (19 Okt 2026)
+
+**Minta:** naikkan pola Didaskalia "The Battle of Minds" (`DEBAT`) ke paritas
+MONOLOG/BEDAH_FILM: mesin 11 langkah bertimer per ronde, lembar juri 4-kriteria
+berbobot, editor tim PRO/KONTRA + undian H-1, dan alur kontrol hari-H
+pola-spesifik ala FILM (D0–D2). Tanpa migrasi Prisma; RBAC tak berubah;
+kompatibel mundur dengan sesi DEBAT lama.
+
+**Ubah:**
+- `server/lib/session-stage.mjs`: `ROUND_STEPS` (11 langkah, 3×240s+8×60s=1200s),
+  `ROUND_STEP_SECONDS`, `JURY_CRITERIA`/`JURY_WEIGHTS`, `roundStepLabel()`,
+  `jurySideScore()`; `cleanRounds()` diperluas (`step`, `stepStartedAt`,
+  `stepSeconds`, `stepShowOnScreen`, `teams {pro,kontra}`, `trapReveal`, `jury[]`)
+  dengan default aman untuk sesi lama.
+- `src/lib/session-engine.ts`: konstanta klien paritas + `SEGMENT_WIDGETS.DEBAT`
+  aktifkan widget `teams`.
+- `src/lib/mentoring.ts`: tipe `JurySide`/`SessionJury`/`DebatTeam` + perluasan `SessionRounds`.
+- `src/lib/worship-session-draft.ts`: `DEBAT_TEMPLATE` jadi 5 section (aturan, mosi,
+  teams, juri, trap); `server/lib/didaskalia-ai.mjs`: aturan DEBAT (mosi dikotomi
+  palsu + Trap Reveal merujuk firman) + `patternBlock` DEBAT diperkaya.
+- `server/routes/worship.mjs`: `apply-draft` DEBAT materialisasi `config.rounds`
+  (mosi → ronde, tim, juri awal, Trap Reveal).
+- `StagePanels.tsx` `DebatPanel` (langkah+timer, lembar juri, tim, undi, Trap Reveal);
+  `MentoringControl.tsx` tombol D0–D2 (Mulai Ronde 1 → Ronde Berikutnya → Trap Reveal);
+  `MentoringScreen.tsx` + `PatternDay.tsx` tampilkan langkah/timer, kartu tim, skor, Trap Reveal.
+- Docs: `worship-patterns.md`, `integrasi-divisi.md`, `pola-ibadah-hari-H.md`;
+  test baru `tests/unit/debat-steps.test.ts` (8 lulus).
+
+**Verifikasi:** `node --check` server ✓; `worship.test.ts` 24 ✓,
+`debat-steps.test.ts` 8 ✓, `worship-session-draft.test.ts` 46 ✓; `tsc --noEmit`
+hanya error lama milik sesi paralel (`session-engine.test.ts` — `mergeFilmVals`/`preOpen`),
+tak ada dari perubahan episode ini.
+
+**Deploy:** batch commit episode ini → push `main` (sesuai aturan batching).
+
 ## Current — Deck tamu English `#/welcome` (19 Okt 2026)
 
 **Minta:** deck presentasi 3 slide (English) memperkenalkan GMIM Eben Haezer

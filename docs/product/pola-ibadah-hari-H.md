@@ -122,6 +122,14 @@ Dual Monolog diarsipkan dan diserap seluruhnya (bedah lagu, Satu Kata, deep shar
 | Syafaat = doa tutup | 5 | gabung |
 | Foto (pasca minimal) | 5 | hemat |
 
+Tiap ronde (20') = 11 langkah bertimer **di layar & peserta**: The Reveal 1′ ·
+Brainstorming & AI Strategy 4′ · Paparan PRO 4′ · Paparan KONTRA 4′ ·
+Sanggahan-1 PRO/KONTRA 1′ · Sanggahan-2 PRO/KONTRA 1′ · Final Blow PRO/KONTRA 1′ ·
+Jeda 1′ (3×240s + 8×60s = 1200s) — display-only, transisi manual moderator.
+Delegasi 3 orang/tim (1 Mentor + 2 Mentee), sisi PRO/KONTRA diundi acak H-1 (tanpa ulang),
+HP dikarantina (AI hanya saat Brainstorming). Juri menilai 4 kriteria berbobot
+(biblika 40 · logika 30 · teamwork 20 · etika 10) → skor PRO/KONTRA otomatis per ronde.
+
 ### Bedah Film (±155', baku film 90; total = 65 + durasi)
 
 | Segmen | Menit | Status |

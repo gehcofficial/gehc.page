@@ -429,7 +429,11 @@ export function patternBlock(pattern) {
   } else if (code === 'DUAL_MONOLOG') {
     lines.push('- Bentuk: drama 2 speaker (Outer Exile + Inner Exile) + pembacaan berbalasan + bedah lagu; discussionFlow = panduan deep sharing (mentor buka dulu, Satu Kata, 2 pertanyaan wajib); deliveryPlan tekankan blocking, cue musik/lampu, dan transisi ke konvergensi firman.');
   } else if (code === 'DEBAT') {
-    lines.push('- Bentuk: ronde debat + konklusi teologis; discussionFlow = alur ronde, peran, penjurian; deliveryPlan tekankan moderasi netral & timer mutlak.');
+    lines.push('- Bentuk: 5 ronde × 20 menit; tiap ronde 11 langkah bertimer (The Reveal 1\' → Brainstorming & AI Strategy 4\' → Pemaparan PRO 4\' → KONTRA 4\' → Sanggahan-1 PRO/KONTRA 1\' → Sanggahan-2 PRO/KONTRA 1\' → Final Blow PRO/KONTRA 1\' → Jeda 1\'); HP dikarantina, AI hanya saat Brainstorming.');
+    lines.push('- Tim PRO & KONTRA masing-masing delegasi 3 orang (1 Mentor + 2 Mentee); sisi ditentukan UNDIAN acak H-1 (tanpa ulang). Mosi = dikotomi palsu "A yang baik vs B yang baik".');
+    lines.push('- Penilaian: lembar juri 4 kriteria berbobot per ronde — argumen biblika 40 · logika 30 · teamwork 20 · etika 10 (total 100/juri); skor PRO/KONTRA + total lintas ronde.');
+    lines.push('- discussionFlow = alur ronde + peran PRO/KONTRA + peran juri; deliveryPlan tekankan moderasi netral, timer mutlak per langkah, dan disiplin karantina HP.');
+    lines.push('- Konklusi = TRAP REVEAL 20 menit: bongkar bahwa kedua sisi mosi adalah dikotomi palsu di hadapan firman pekan; wajib merujuk eksplisit Fundamental Firman.');
   } else if (code === 'BEDAH_FILM') {
     lines.push('- Bentuk: Likert AWAL 5 item (baseline) + screening + deep sharing 3Q + Likert AKHIR (5 item yang sama, ukur delta) + komitmen/chip + undi 2 kesaksian; discussionFlow = urutan L0→L4; deliveryPlan tekankan setup pemutaran, gate likert 2 ronde, & fasilitasi delta.');
   } else if (code === 'THREE_SEQUENCES') {
@@ -1158,6 +1162,15 @@ export async function generateSessionDraft(input) {
     '- film-q3 (langkah otentik): SATU langkah nyata, konkret dan terukur minggu ini (nama orang + hari + aktivitas 30 menit).',
     '- Tiap Q 1-2 kalimat.',
   ] : [];
+  const hasDebat = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('mosi-'));
+  const DEBAT_RULES = hasDebat ? [
+    'ATURAN DEBAT (WAJIB):',
+    '- mosi-1..mosi-5: TEPAT 5 mosi dikotomi palsu "A yang baik vs B yang baik" dari pergumulan tema pekan (1 mosi per ronde); tiap mosi 1 kalimat, tidak memihak.',
+    '- trap-reveal: 1 paragraf 4-6 kalimat — kedua sisi tiap mosi runtuh sebagai dikotomi palsu di hadapan firman pekan; WAJIB merujuk eksplisit Fundamental Firman (sebutkan ref-nya) + 1 implikasi konkret bagi Beyonders.',
+    '- debat-rules/debat-quarantine: alur 11 langkah bertimer + aturan karantina HP (AI/HP hanya saat Brainstorming 4′) — ringkas dan teknis.',
+    '- pro-name/pro-mentor/pro-members/kontra-*: NAMA orang nyata tim; bila belum pasti, KOSONGKAN (jangan mengarang nama).',
+    '- juri-1..juri-3: nama juri bila diketahui; bila belum, kosongkan.',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
@@ -1166,6 +1179,7 @@ export async function generateSessionDraft(input) {
     ...CHIP_RULES,
     ...LIKERT_RULES,
     ...DEEP_FILM_RULES,
+    ...DEBAT_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',

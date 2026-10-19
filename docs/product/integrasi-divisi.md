@@ -24,7 +24,7 @@
 
 ## 2. Peta 5 pola (sumber: `server/_seed-worship-patterns.cjs`)
 
-### 2.1 MONOLOG — Monolog, Bedah Lagu & Deep Sharing (120', default)
+### 2.1 MONOLOG — Monologue & Dialogue (120', default)
 
 | Fase | Menit | Owner | Segmen lagu | Firman |
 |---|---|---|---|---|
@@ -39,7 +39,7 @@ Modul web: `timer, notes, fgd, testimony`. Kontrol: `FgdTriggerPanel` + roda
 kesaksian (2 Mentee + 1 Mentor + 1 Co-mentor) + handoff kurasi `→ Marturia`.
 Layar: panduan FGD + Q terkunci + kartu lagu + agregat Satu Kata.
 
-### 2.2 POST_TO_POST (60')
+### 2.2 POST_TO_POST — Post-to-Post (60')
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Layar: panduan FGD + Q terkunci + kartu lagu + agregat Satu Kata.
 Modul: `likert, rooms, timer, notes, chips, wordcloud` (satu-satunya pola
 Likert). Guard: apply/convert/delete hanya DRAFT kosong.
 
-### 2.3 DEBAT — Battle of Minds (140')
+### 2.3 DEBAT — The Battle of Minds (140')
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
@@ -61,7 +61,13 @@ Likert). Guard: apply/convert/delete hanya DRAFT kosong.
 | 3. Persembahan & transisi | 10 | persembahan×1 | — |
 | 4. Konklusi teologis | 20 | — | — |
 
-Modul: `rounds, timer, teams`. Kontrol: `DebatPanel` (mosi + fase + skor).
+Modul: `rounds, timer, teams`. Kontrol: `DebatPanel` (5 ronde × 11 langkah bertimer +
+lembar juri 4-kriteria berbobot + tim PRO/KONTRA undian H-1 + Trap Reveal) &
+tombol hari-H D0–D2 (Mulai Ronde 1 → Ronde Berikutnya → Trap Reveal).
+Tiap ronde 20′: The Reveal 1′ · Brainstorming & AI 4′ · Paparan PRO 4′ · KONTRA 4′ ·
+Sanggahan-1 PRO/KONTRA 1′ · Sanggahan-2 PRO/KONTRA 1′ · Final Blow PRO/KONTRA 1′ · Jeda 1′
+(3×240s + 8×60s = 1200s). Juri: biblika 40 · logika 30 · teamwork 20 · etika 10 →
+skor PRO/KONTRA otomatis per ronde + total. HP dikarantina; AI hanya saat Brainstorming.
 
 ### 2.4 BEDAH_FILM — Movie Breakdown (170', baku film 90; total = 80 + durasi)
 
@@ -80,7 +86,7 @@ Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
 `ScreeningPanel` (countdown dari `startedAt + durationMin`) + tombol M0–M4
 (gate Likert AWAL/AKHIR via `likertRounds`, wrapup + undi 1 Mentee + 1 Mentor).
 
-### 2.5 THREE_SEQUENCES — 3 Sequence (120')
+### 2.5 THREE_SEQUENCES — Mission Sequence (120')
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|

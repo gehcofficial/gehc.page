@@ -31,7 +31,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'penutup', label: 'Penutup', hint: 'Komitmen + transisi 5 menit + rekap + unduh.' },
   ],
   DEBAT: [
-    { id: 'mosi', label: 'Mosi & Tim', hint: 'Lihat mosi ronde dan tim kamu.' },
+    { id: 'mosi', label: 'Mosi & Tim', hint: 'Mosi ronde aktif + langkah & timer + tim kamu.' },
     { id: 'catatan', label: 'Catatan Argumen', hint: 'Argumen terbaik + yang meyakinkanmu.' },
     { id: 'komitmen', label: 'Komitmen', hint: 'Siapa yang akan kamu nasihati + unduh rekap.' },
   ],
@@ -51,7 +51,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
 
-/** State progres film untuk stepper (pre/post likert, chip, gate AWAL/AKHIR). */
+/** State progres film untuk stepper (pre/post likert, chip, gate AKHIR). */
 export type FilmProgress = {
   preAnswered?: boolean;
   postAnswered?: boolean;
@@ -59,8 +59,6 @@ export type FilmProgress = {
   screeningOn?: boolean;
   /** Gate ronde AKHIR terbuka (kontrol M3) — peserta maju ke likert-akhir. */
   postOpen?: boolean;
-  /** Gate ronde AWAL masih terbuka (kontrol M0) — peserta telat tanpa jawaban tak terkunci. */
-  preOpen?: boolean;
 };
 
 /** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
@@ -88,8 +86,7 @@ export function segmentForPattern(
     const e = extra || {};
     if (st === 'WRAPUP') return e.chipDone ? 'kesaksian' : 'lesson-learned';
     if (st === 'RUNNING') {
-      // Peserta telat saat gate AWAL sudah dikunci (M1) lanjut nonton — bukan terkunci.
-      if (!e.preAnswered && e.preOpen !== false) return 'likert-awal';
+      if (!e.preAnswered) return 'likert-awal';
       if (e.postOpen || e.postAnswered) {
         if (!e.postAnswered) return 'likert-akhir';
         if (!e.chipDone) return 'lesson-learned';
@@ -242,30 +239,41 @@ export function filmLikertMeans(
   });
 }
 
-/**
- * Pilihan Likert film saat payload polling (20 dtk) menyegar: pertahankan
- * pilihan lokal yang belum dikirim, isi hanya yang belum ada dari jawaban
- * tersimpan server, dan buang id ronde lain (id PRE≠POST). Mengembalikan
- * referensi lama bila tak ada perubahan agar tak memicu re-render.
- */
-export function mergeFilmVals(
-  prev: Record<string, number>,
-  pairs: FilmLikertPair[],
-  round: 'PRE' | 'POST',
-  myValues: Record<string, number> | null | undefined,
-): Record<string, number> {
-  const next: Record<string, number> = {};
-  for (const p of pairs || []) {
-    const id = round === 'PRE' ? p.preId : p.postId;
-    if (!id) continue;
-    const local = prev[id];
-    const server = myValues?.[id];
-    const v = local != null ? local : server != null ? Number(server) : null;
-    if (v != null && Number.isFinite(v)) next[id] = v;
-  }
-  const keys = Object.keys(next);
-  const same = keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
-  return same ? prev : next;
+/** Langkah baku 1 ronde debat (11 langkah = 20 menit = 1200 dtk) — paritas server. */
+export const ROUND_STEPS: { key: string; label: string; seconds: number }[] = [
+  { key: 'reveal', label: 'The Reveal — mosi + PRO vs KONTRA', seconds: 60 },
+  { key: 'brainstorm', label: 'Brainstorming & AI Strategy', seconds: 240 },
+  { key: 'pro', label: 'Pemaparan PRO', seconds: 240 },
+  { key: 'kontra', label: 'Pemaparan KONTRA', seconds: 240 },
+  { key: 'sanggah1-pro', label: 'Sanggahan 1 PRO', seconds: 60 },
+  { key: 'sanggah1-kontra', label: 'Sanggahan 1 KONTRA', seconds: 60 },
+  { key: 'sanggah2-pro', label: 'Sanggahan 2 PRO (utamakan Mentee)', seconds: 60 },
+  { key: 'sanggah2-kontra', label: 'Sanggahan 2 KONTRA (utamakan Mentee)', seconds: 60 },
+  { key: 'blow-pro', label: 'Final Blow PRO', seconds: 60 },
+  { key: 'blow-kontra', label: 'Final Blow KONTRA', seconds: 60 },
+  { key: 'jeda', label: 'Jeda & transisi', seconds: 60 },
+];
+
+export const ROUND_STEP_SECONDS = ROUND_STEPS.map((s) => s.seconds);
+
+export const JURY_CRITERIA: { key: string; label: string; weight: number }[] = [
+  { key: 'biblika', label: 'Argumen biblika', weight: 40 },
+  { key: 'logika', label: 'Logika', weight: 30 },
+  { key: 'teamwork', label: 'Teamwork', weight: 20 },
+  { key: 'etika', label: 'Etika', weight: 10 },
+];
+
+export const JURY_WEIGHTS: Record<string, number> = { biblika: 40, logika: 30, teamwork: 20, etika: 10 };
+
+export function roundStepLabel(step: number | string | null | undefined): string {
+  const s = ROUND_STEPS[Number(step)] || ROUND_STEPS[0];
+  return s.label;
+}
+
+/** Skor satu sisi (PRO/KONTRA) dari 4 kriteria berbobot (maks 100). */
+export function jurySideScore(side: Record<string, unknown> | null | undefined): number {
+  const o = side && typeof side === 'object' ? side : {};
+  return JURY_CRITERIA.reduce((n, c) => n + Math.min(c.weight, Math.max(0, Number(o[c.key]) || 0)), 0);
 }
 
 export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = {
@@ -277,7 +285,7 @@ export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = 
     penutup: ['testimony', 'notes', 'download'],
   },
   DEBAT: {
-    mosi: ['rounds'],
+    mosi: ['rounds', 'teams'],
     catatan: ['rounds', 'notes'],
     komitmen: ['rounds', 'notes', 'download'],
   },

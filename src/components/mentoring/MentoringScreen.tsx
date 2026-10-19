@@ -10,6 +10,7 @@ import SessionTimer from './SessionTimer';
 import FilmPreRoll from './FilmPreRoll';
 import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
+import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
 
 /**
  * Nada bioskop bawaan (WebAudio, tanpa file): sapuan lembut naik
@@ -195,7 +196,9 @@ const MentoringScreen: React.FC = () => {
     ? session.status === 'WRAPUP' || session.status === 'CLOSED'
     : isFilm
       ? filmFinale || wordcloud.length > 0
-      : session.status === 'WRAPUP' || wordcloud.length > 0;
+      : patternCode === 'DEBAT'
+        ? wordcloud.length > 0
+        : session.status === 'WRAPUP' || wordcloud.length > 0;
   const phaseName = String(data.phase?.name || '').toUpperCase() || null;
   const phaseRemainMs = data.phase?.startedAt
     ? Math.max(0, new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - tick)
@@ -317,19 +320,66 @@ const MentoringScreen: React.FC = () => {
             const rounds = data.rounds;
             const cur = rounds?.rounds?.[rounds?.current || 0];
             if (patternCode === 'DEBAT' && cur) {
+              const stepIdx = Math.max(0, Number(rounds?.step) || 0);
+              const secTotal = Number(rounds?.stepSeconds) || ROUND_STEP_SECONDS[stepIdx] || 60;
+              const showStep = rounds?.stepShowOnScreen !== false;
+              const remainMs = rounds?.stepStartedAt
+                ? Math.max(0, new Date(rounds.stepStartedAt).getTime() + secTotal * 1000 - tick)
+                : secTotal * 1000;
+              const teamsCfg = rounds?.teams;
+              const trapOn = String(rounds?.phase || '') === 'selesai' || session.status === 'WRAPUP' || session.status === 'CLOSED';
+              const fmt = (ms: number) =>
+                `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
               return (
-                <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
-                    Ronde {(rounds?.current || 0) + 1}/{rounds?.rounds?.length} · {rounds?.phase}
-                  </p>
-                  <p className="font-display text-2xl font-black">{cur.mosi}</p>
-                  <p className="text-sm text-white/60 mt-2">
-                    PRO: {cur.pro || '-'} · KONTRA: {cur.kontra || '-'}
-                  </p>
-                  <p className="font-display text-4xl font-black mt-3 tabular-nums">
-                    {cur.proScore} <span className="text-white/40 text-2xl">:</span> {cur.kontraScore}
-                  </p>
-                </section>
+                <>
+                  <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Langkah {stepIdx + 1}/11</p>
+                      <p className="font-display text-2xl font-black mt-1">{roundStepLabel(stepIdx)}</p>
+                    </div>
+                    {showStep ? (
+                      <p className="font-display text-5xl font-black tabular-nums">{fmt(remainMs)}</p>
+                    ) : (
+                      <p className="text-sm text-white/50 italic shrink-0">mengalir…</p>
+                    )}
+                  </section>
+
+                  <section className="rounded-[28px] bg-white/5 border border-white/10 p-8">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
+                      Ronde {(rounds?.current || 0) + 1}/{rounds?.rounds?.length} · {rounds?.phase}
+                    </p>
+                    <p className="font-display text-2xl font-black">{cur.mosi || 'Mosi menyusul'}</p>
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div className="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">PRO</p>
+                        <p className="font-display text-lg font-black mt-1">{teamsCfg?.pro?.name || 'Tim PRO'}</p>
+                        <p className="text-xs text-white/50 mt-1">
+                          {[teamsCfg?.pro?.mentor && `Mentor: ${teamsCfg.pro.mentor}`, (teamsCfg?.pro?.members || []).join(', ')].filter(Boolean).join(' · ') || '—'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-rose-400/10 border border-rose-300/20 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-rose-300">KONTRA</p>
+                        <p className="font-display text-lg font-black mt-1">{teamsCfg?.kontra?.name || 'Tim KONTRA'}</p>
+                        <p className="text-xs text-white/50 mt-1">
+                          {[teamsCfg?.kontra?.mentor && `Mentor: ${teamsCfg.kontra.mentor}`, (teamsCfg?.kontra?.members || []).join(', ')].filter(Boolean).join(' · ') || '—'}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="font-display text-4xl font-black mt-4 tabular-nums">
+                      <span className="text-emerald-300">{cur.proScore}</span>
+                      <span className="text-white/40 text-2xl"> : </span>
+                      <span className="text-rose-300">{cur.kontraScore}</span>
+                    </p>
+                    <p className="text-[11px] text-white/40 mt-1">Skor juri — biblika 40 · logika 30 · teamwork 20 · etika 10</p>
+                  </section>
+
+                  {trapOn && (rounds?.trapReveal || '').trim() && (
+                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-10">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Trap Reveal — dikotomi palsu dibongkar</p>
+                      <p className="font-display text-2xl sm:text-3xl font-black mt-3 whitespace-pre-line">{rounds?.trapReveal}</p>
+                    </section>
+                  )}
+                </>
               );
             }
             if (patternCode === 'BEDAH_FILM') {

@@ -275,6 +275,26 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   };
 
+  // Langkah debat hari-H: simpan patch ke config.rounds TANPA menghapus
+  // mosi/tim/juri (server mengganti seluruh objek rounds tiap PUT).
+  const debatStage = async (patch: Record<string, unknown>, label: string) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const cur = detail.session.config?.rounds && typeof detail.session.config.rounds === 'object'
+        ? (detail.session.config.rounds as Record<string, unknown>)
+        : {};
+      await saveStage(detail.session.id, { rounds: { ...cur, ...patch } });
+      setMsg({ kind: 'ok', text: label });
+      await loadDetail();
+      await loadLive();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan langkah debat.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Durasi tiap fase (detik) dari pengaturan kontrol; fallback baku 20/25/10/5.
   const prefSec = (name: string): number => {
     const mins = Number(phasePrefsDraft[name]?.min);
@@ -647,6 +667,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const isPostToPost = patternCode === 'POST_TO_POST';
   const isMonolog = patternCode === 'MONOLOG';
   const isFilm = patternCode === 'BEDAH_FILM';
+  const isDebat = patternCode === 'DEBAT';
+  const debatRoundsState = (detail?.session?.config?.rounds || null) as { rounds?: unknown[]; current?: number; step?: number } | null;
+  const debatRoundCount = Array.isArray(debatRoundsState?.rounds) ? debatRoundsState.rounds.length : 0;
+  const debatCurrent = Number(debatRoundsState?.current) || 0;
   const canManageChips = isPostToPost || isMonolog || isFilm;
   // Siklus ideal: kontrol mengikuti hanya setelah draft terisi. Tanpa isi,
   // semua tombol aksi dikunci (link + pilihan sesi tetap bisa dipakai).
@@ -818,10 +842,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 <>
                   {(
                     [
-                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); await saveStage(detail.session.id, { phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true } }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL + timer langkah 5 menit' },
-                      { key: 'M1', label: 'Mulai Film (ikuti film)', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci. Layar mode tenang.'); const sc = live?.screening; await saveStage(detail.session.id, { phase: null, ...(sc?.title ? { screening: { title: sc.title, durationMin: sc.durationMin, startedAt: new Date().toISOString() } } : {}) }); await loadDetail(); await loadLive(); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL + tandai film tayang (mengikuti durasi film)' },
-                      { key: 'M3', label: 'Buka Likert AKHIR + Lesson Learned · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka — delta tampil di layar.'); const sc = live?.screening; await saveStage(detail.session.id, { phase: { name: 'M3', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true }, ...(sc?.title ? { screening: { title: sc.title, durationMin: sc.durationMin, startedAt: null } } : {}) }); await loadDetail(); await loadLive(); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + Lesson Learned serentak + timer 5 menit + hentikan marker tayang' },
-                      { key: 'M4', label: 'Undi + Kesaksian · 10’', run: async () => { await doAction('wrapup'); await saveStage(detail.session.id, { phase: { name: 'M4', startedAt: new Date().toISOString(), durationSec: 600, showOnScreen: true } }); setMsg({ kind: 'ok', text: 'Wrapup: undi 2 via panel Undian — nama + grup + hasil Lesson Learned tampil di layar.' }); await loadDetail(); await loadLive(); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + undi 1 Mentee + 1 Mentor via panel Undian + timer 10 menit' },
+                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); await saveStage(detail.session.id, { phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true } }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL + timer 5 menit (satu-satunya timer film)' },
+                      { key: 'M1', label: 'Mulai Film (ikuti film)', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci. Layar mode tenang.'); await saveStage(detail.session.id, { phase: null }); await loadDetail(); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL + matikan timer (mengikuti durasi film)' },
+                      { key: 'M3', label: 'Buka Likert AKHIR + Lesson Learned · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + Lesson Learned serentak + tampil delta pre→post' },
+                      { key: 'M4', label: 'Undi + Kesaksian · 10’', run: async () => { await doAction('wrapup'); setMsg({ kind: 'ok', text: 'Wrapup: undi 2 via panel Undian — nama + grup + hasil Lesson Learned tampil di layar.' }); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + undi 1 Mentee + 1 Mentor via panel Undian' },
                     ] as const
                   ).map((b) => (
                     <button
@@ -835,7 +859,6 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                       {b.label}
                     </button>
                   ))}
-                  {renderExtendChips((s) => void extendPhase(s), Boolean(live?.phase?.startedAt))}
                   <button
                     type="button"
                     disabled={busy}
@@ -854,6 +877,72 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   </button>
                   <span className="text-[11px] font-bold text-[#8C8880]">
                     Gate: AWAL {String(detail.session.config?.likertRounds?.pre || 'open').toUpperCase()} · AKHIR {String(detail.session.config?.likertRounds?.post || 'closed').toUpperCase()}
+                  </span>
+                </>
+              ) : isDebat ? (
+                <>
+                  {(() => {
+                    const atLast = debatRoundCount > 0 && debatCurrent >= debatRoundCount - 1;
+                    const buttons = [
+                      {
+                        key: 'D0',
+                        label: `Mulai Ronde 1 · Reveal 1′`,
+                        on: ['DRAFT', 'OPEN', 'LIKERT_OPEN'].includes(String(detail.session.status)),
+                        title: 'Buka sesi + ronde 1 langkah The Reveal (1 menit)',
+                        run: async () => {
+                          await doAction('start');
+                          await debatStage({ current: 0, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() }, 'Ronde 1 dimulai — The Reveal 1′.');
+                        },
+                      },
+                      {
+                        key: 'D1',
+                        label: `Ronde Berikutnya (${Math.min(debatCurrent + 2, Math.max(1, debatRoundCount || debatCurrent + 2))}/${debatRoundCount || '?'})`,
+                        on: detail.session.status === 'RUNNING' && debatRoundCount > 0 && !atLast,
+                        title: 'Lanjut ke ronde berikutnya (langkah balik ke The Reveal)',
+                        run: () => debatStage({ current: debatCurrent + 1, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() }, `Ronde ${debatCurrent + 2} — The Reveal.`),
+                      },
+                      {
+                        key: 'D2',
+                        label: 'Trap Reveal · 20′',
+                        on: detail.session.status === 'RUNNING',
+                        title: 'Konklusi: bongkar dikotomi palsu (buka wrapup + naskah Trap Reveal)',
+                        run: async () => {
+                          await doAction('wrapup');
+                          await debatStage({ phase: 'selesai' }, 'Trap Reveal dibuka — konklusi 20′.');
+                        },
+                      },
+                    ];
+                    return buttons.map((b) => (
+                      <button
+                        key={b.key}
+                        type="button"
+                        disabled={busy || !b.on}
+                        onClick={() => void b.run()}
+                        title={b.title}
+                        className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-emerald-600"
+                      >
+                        {b.label}
+                      </button>
+                    ));
+                  })()}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('close')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
+                  >
+                    Tutup Sesi
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doAction('reset')}
+                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
+                  >
+                    Reset ke Draft
+                  </button>
+                  <span className="text-[11px] font-bold text-[#8C8880]">
+                    Ronde {debatRoundCount ? debatCurrent + 1 : 0}/{debatRoundCount || 0} · langkah {Number(debatRoundsState?.step ?? 0) + 1}/11
                   </span>
                 </>
               ) : (
@@ -881,7 +970,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
               </>
               )}
               <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
-                {(isMonolog || isFilm) && live?.phase?.startedAt
+                {isMonolog && live?.phase?.startedAt
                   ? `Fase ${live.phase.name} · sisa ±${Math.max(0, Math.round((new Date(live.phase.startedAt).getTime() + Number(live.phase.durationSec) * 1000 - Date.now()) / 60000))} mnt · `
                   : ''}
                 Status: {STATUS_LABELS[detail.session.status]}
@@ -889,23 +978,16 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
             </div>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {!isFilm ? (
-                <label className="space-y-1">
-                  <span className="text-[11px] text-[#8C8880]">Timer sesi (detik)</span>
-                  <input
-                    className={INPUT}
-                    type="number"
-                    min={60}
-                    value={configDraft.timerSeconds}
-                    onChange={(e) => setConfigDraft((c) => ({ ...c, timerSeconds: Number(e.target.value) }))}
-                  />
-                </label>
-              ) : (
-                <div className="space-y-1">
-                  <span className="text-[11px] text-[#8C8880]">Timer film</span>
-                  <p className="text-[11px] font-bold text-[#1B1B1B]">Mengikuti durasi tayang — tanpa hitung mundur. Auto-tutup 3 jam sebagai jaring pengaman.</p>
-                </div>
-              )}
+              <label className="space-y-1">
+                <span className="text-[11px] text-[#8C8880]">Timer sesi (detik)</span>
+                <input
+                  className={INPUT}
+                  type="number"
+                  min={60}
+                  value={configDraft.timerSeconds}
+                  onChange={(e) => setConfigDraft((c) => ({ ...c, timerSeconds: Number(e.target.value) }))}
+                />
+              </label>
               <label className="space-y-1">
                 <span className="text-[11px] text-[#8C8880]">Target peserta (opsional)</span>
                 <input

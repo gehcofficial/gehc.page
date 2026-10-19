@@ -62,15 +62,36 @@ export type TestimonyPick = {
   at?: string;
 };
 
+export type JurySide = { biblika: number; logika: number; teamwork: number; etika: number };
+
+export type SessionJury = { name: string; pro: JurySide; kontra: JurySide };
+
 export type SessionRound = {
   mosi: string;
   pro: string;
   kontra: string;
   proScore: number;
   kontraScore: number;
+  /** Lembar juri berbobot per ronde (4 kriteria × PRO/KONTRA). */
+  jury?: SessionJury[];
 };
 
-export type SessionRounds = { rounds: SessionRound[]; current: number; phase: string } | null;
+export type DebatTeam = { name: string; mentor: string; members: string[] };
+
+export type SessionRounds = {
+  rounds: SessionRound[];
+  current: number;
+  phase: string;
+  /** Langkah aktif 1 ronde (0-10) + timer langkah (display-only). */
+  step?: number;
+  stepStartedAt?: string | null;
+  stepSeconds?: number;
+  stepShowOnScreen?: boolean;
+  /** Kartu tim PRO/KONTRA (delegasi 3 orang). */
+  teams?: { pro: DebatTeam; kontra: DebatTeam };
+  /** Naskah Trap Reveal (konklusi membongkar dikotomi palsu). */
+  trapReveal?: string;
+} | null;
 
 export type SessionScreening = { title: string; durationMin: number; startedAt: string | null; preShow: string[] } | null;
 
@@ -133,8 +154,6 @@ export type MentoringSessionPayload = {
   fgd?: SessionFgdState;
   /** Afirmasi firman BEDAH_FILM (dari draft sesi; tampil setelah menjawab). */
   affirmations?: { notes: Record<string, string>; likertLow: string; likertHigh: string } | null;
-  /** Pesan pembuka BEDAH_FILM dari draft (tampil di segmen Likert AWAL). */
-  opening?: string | null;
   /** Fase aktif + countdown (MONOLOG gabungan). */
   phase?: SessionPhase;
   /** Preferensi tiap fase (diatur kontrol; default durasi baku + tampil). */

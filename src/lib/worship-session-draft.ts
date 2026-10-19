@@ -128,28 +128,52 @@ const MONOLOG_TEMPLATE: DraftSection[] = [
 
 const DEBAT_TEMPLATE: DraftSection[] = [
   {
+    key: 'aturan',
+    title: 'Aturan main & logistik hari-H',
+    hint: '5 ronde × 20 menit. Delegasi 3 orang/tim (1 Mentor + 2 Mentee). HP/AI hanya saat Brainstorming 4′ — sisanya karantina HP.',
+    fields: [
+      t('debat-rules', 'Aturan & alur ronde', 'textarea', '5 ronde × 20 menit; tiap ronde 11 langkah (Reveal → Brainstorming → Paparan → 2× Sanggahan → Final Blow → Jeda). Karantina HP; AI hanya saat Brainstorming.'),
+      t('debat-quarantine', 'Aturan karantina & penalti', 'textarea', 'HP dikumpulkan saat Reveal dan dikembalikan saat Brainstorming; penalti bila melanggar.'),
+    ],
+  },
+  {
     key: 'mosi',
     title: 'Mosi (3–5, dikotomi palsu)',
-    hint: 'Rumus: "A yang baik vs B yang baik" dari pergumulan tema.',
-    fields: [1, 2, 3, 4, 5].map((n) => t(`mosi-${n}`, `Mosi ${n}`, 'textarea', '... vs ...')),
+    hint: 'Rumus: "A yang baik vs B yang baik" dari pergumulan tema. Tiap mosi untuk 1 ronde.',
+    fields: [1, 2, 3, 4, 5].map((n) => t(`mosi-${n}`, `Mosi ${n}`, 'textarea', '... yang baik vs ... yang baik')),
+  },
+  {
+    key: 'teams',
+    title: 'Tim PRO & KONTRA (undian H-1)',
+    hint: 'Delegasi 3 orang/tim: 1 Mentor + 2 Mentee. Sisi ditentukan undian H-1 (acak, tanpa ulang).',
+    fields: [
+      t('pro-name', 'Nama tim PRO', 'text', 'mis. Tim Api'),
+      t('pro-mentor', 'Mentor PRO', 'text', 'Nama mentor'),
+      t('pro-members', 'Anggota PRO (2 Mentee)', 'text', 'Nama1, Nama2'),
+      t('kontra-name', 'Nama tim KONTRA', 'text', 'mis. Tim Angin'),
+      t('kontra-mentor', 'Mentor KONTRA', 'text', 'Nama mentor'),
+      t('kontra-members', 'Anggota KONTRA (2 Mentee)', 'text', 'Nama1, Nama2'),
+    ],
+  },
+  {
+    key: 'juri',
+    title: 'Juri & kriteria penilaian',
+    hint: '4 kriteria berbobot: argumen biblika 40 · logika 30 · teamwork 20 · etika 10 (total 100/juri). Isi nama juri (1–3 orang).',
+    fields: [
+      t('juri-1', 'Juri 1', 'text', 'Nama juri 1'),
+      t('juri-2', 'Juri 2', 'text', 'Nama juri 2'),
+      t('juri-3', 'Juri 3', 'text', 'Nama juri 3'),
+    ],
   },
   {
     key: 'trap',
     title: 'Trap Reveal (konklusi)',
-    hint: '1 paragraf: kedua sisi runtuh di hadapan firman pekan.',
+    hint: '1 paragraf: kedua sisi runtuh di hadapan firman pekan (membongkar dikotomi palsu). 20 menit penutup.',
     fields: [t('trap-reveal', 'Naskah Trap Reveal', 'textarea', 'Setiap mosi tadi adalah dikotomi palsu ...')],
   },
 ];
 
 const BEDAH_FILM_TEMPLATE: DraftSection[] = [
-  {
-    key: 'pembuka',
-    title: 'Pesan pembuka (sebelum Likert AWAL)',
-    hint: 'Tampil di HP peserta saat segmen Likert Awal dibuka — salam singkat + arahkan mengisi baseline. Kosongkan = teks bawaan otomatis.',
-    fields: [
-      t('opening', 'Pesan pembuka', 'textarea', 'Selamat datang di Bedah Film malam ini ...'),
-    ],
-  },
   {
     key: 'film',
     title: 'Film & ayat',

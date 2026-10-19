@@ -21,7 +21,78 @@ export const ROUND_PHASE_LABEL = {
   selesai: 'Ronde selesai',
 };
 
-/** Normalisasi state ronde debat (maks 5 ronde). */
+/**
+ * Langkah baku 1 ronde debat (11 langkah = 20 menit = 1200 dtk):
+ * The Reveal 1' · Brainstorming & AI 4' · Paparan PRO 4' · KONTRA 4' ·
+ * Sanggahan-1 PRO/KONTRA 1' · Sanggahan-2 PRO/KONTRA 1' · Final Blow PRO/KONTRA 1' · Jeda 1'.
+ * Timer per langkah = display-only (transisi manual oleh moderator).
+ */
+export const ROUND_STEPS = [
+  { key: 'reveal', label: 'The Reveal — mosi + PRO vs KONTRA', seconds: 60 },
+  { key: 'brainstorm', label: 'Brainstorming & AI Strategy', seconds: 240 },
+  { key: 'pro', label: 'Pemaparan PRO', seconds: 240 },
+  { key: 'kontra', label: 'Pemaparan KONTRA', seconds: 240 },
+  { key: 'sanggah1-pro', label: 'Sanggahan 1 PRO', seconds: 60 },
+  { key: 'sanggah1-kontra', label: 'Sanggahan 1 KONTRA', seconds: 60 },
+  { key: 'sanggah2-pro', label: 'Sanggahan 2 PRO (utamakan Mentee)', seconds: 60 },
+  { key: 'sanggah2-kontra', label: 'Sanggahan 2 KONTRA (utamakan Mentee)', seconds: 60 },
+  { key: 'blow-pro', label: 'Final Blow PRO', seconds: 60 },
+  { key: 'blow-kontra', label: 'Final Blow KONTRA', seconds: 60 },
+  { key: 'jeda', label: 'Jeda & transisi', seconds: 60 },
+];
+
+/** Durasi baku tiap langkah (detik), indeks = nomor langkah (0-10). */
+export const ROUND_STEP_SECONDS = ROUND_STEPS.map((s) => s.seconds);
+
+/** Empat kriteria penjurian + bobot (total 100 per juri per tim). */
+export const JURY_CRITERIA = [
+  { key: 'biblika', label: 'Argumen biblika', weight: 40 },
+  { key: 'logika', label: 'Logika', weight: 30 },
+  { key: 'teamwork', label: 'Teamwork', weight: 20 },
+  { key: 'etika', label: 'Etika', weight: 10 },
+];
+
+export const JURY_WEIGHTS = { biblika: 40, logika: 30, teamwork: 20, etika: 10 };
+
+/** Label langkah ke-n (0-10) — fallback langkah pertama. */
+export function roundStepLabel(step) {
+  const s = ROUND_STEPS[Number(step)] || ROUND_STEPS[0];
+  return s.label;
+}
+
+/** Skor satu sisi (PRO/KONTRA) dari 4 kriteria berbobot (maks 100). */
+export function jurySideScore(side) {
+  const o = side && typeof side === 'object' ? side : {};
+  return JURY_CRITERIA.reduce(
+    (n, c) => n + Math.min(c.weight, Math.max(0, Number(o[c.key]) || 0)),
+    0,
+  );
+}
+
+function cleanJurySide(raw) {
+  const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const out = {};
+  for (const c of JURY_CRITERIA) out[c.key] = Math.min(c.weight, Math.max(0, Number(o[c.key]) || 0));
+  return out;
+}
+
+function cleanJury(raw) {
+  return (Array.isArray(raw) ? raw : []).slice(0, 5).map((j) => ({
+    name: str(j?.name, 80),
+    pro: cleanJurySide(j?.pro),
+    kontra: cleanJurySide(j?.kontra),
+  }));
+}
+
+function cleanDebatTeam(raw) {
+  return {
+    name: str(raw?.name, 80),
+    mentor: str(raw?.mentor, 80),
+    members: (Array.isArray(raw?.members) ? raw.members : []).slice(0, 12).map((m) => str(m, 80)).filter(Boolean),
+  };
+}
+
+/** Normalisasi state ronde debat (maks 5 ronde) + langkah, juri, tim, Trap Reveal. */
 export function cleanRounds(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const list = (Array.isArray(raw.rounds) ? raw.rounds : []).slice(0, 5).map((r) => ({
@@ -30,10 +101,20 @@ export function cleanRounds(raw) {
     kontra: str(r?.kontra, 120),
     proScore: Math.max(0, Number(r?.proScore) || 0),
     kontraScore: Math.max(0, Number(r?.kontraScore) || 0),
+    jury: cleanJury(r?.jury),
   }));
   const current = Math.min(Math.max(0, Number(raw.current) || 0), Math.max(0, list.length - 1));
   const phase = ROUND_PHASES.includes(String(raw.phase)) ? String(raw.phase) : 'brief';
-  return { rounds: list, current, phase };
+  const step = Math.min(ROUND_STEPS.length - 1, Math.max(0, Number(raw.step) || 0));
+  const stepStartedAt = raw.stepStartedAt ? String(raw.stepStartedAt).slice(0, 30) : null;
+  const stepSeconds = Math.min(7200, Math.max(10, Number(raw.stepSeconds) || ROUND_STEP_SECONDS[step]));
+  const stepShowOnScreen = raw.stepShowOnScreen === undefined || raw.stepShowOnScreen === null
+    ? true
+    : !(raw.stepShowOnScreen === false || raw.stepShowOnScreen === 0 || String(raw.stepShowOnScreen).toLowerCase() === 'false');
+  const teamsRaw = raw.teams && typeof raw.teams === 'object' && !Array.isArray(raw.teams) ? raw.teams : {};
+  const teams = { pro: cleanDebatTeam(teamsRaw.pro), kontra: cleanDebatTeam(teamsRaw.kontra) };
+  const trapReveal = str(raw.trapReveal, 2000);
+  return { rounds: list, current, phase, step, stepStartedAt, stepSeconds, stepShowOnScreen, teams, trapReveal };
 }
 
 /** Normalisasi status pemutaran film. */
