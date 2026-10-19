@@ -326,9 +326,17 @@ describe('session-stage: validasi', () => {
     expect(ROUND_PHASE_LABEL.pro).toBe('Pemaparan PRO');
   });
 
-  it('rounds kosong/null → null', () => {
+  it('rounds kosong/null → null / default aman (kompatibel mundur)', () => {
     expect(cleanRounds(null)).toBeNull();
-    expect(cleanRounds({})).toEqual({ rounds: [], current: 0, phase: 'brief' });
+    expect(cleanRounds([])).toBeNull();
+    expect(cleanRounds({})).toMatchObject({
+      rounds: [],
+      current: 0,
+      phase: 'brief',
+      step: 0,
+      stepShowOnScreen: true,
+      trapReveal: '',
+    });
   });
 
   it('screening: judul wajib, durasi dibatasi', () => {
