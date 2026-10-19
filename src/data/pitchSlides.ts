@@ -72,7 +72,8 @@ export type PitchSlide = {
   flow?: PitchFlowStep[];
   weights?: PitchWeight[];
   checklist?: PitchChecklistItem[];
-  image?: { src: string; alt: string; caption?: string };
+  /** `images` opsional: bila ada, dirender sebagai galeri (grid) alih-alih satu gambar. */
+  image?: { src: string; alt: string; caption?: string; images?: Array<{ src: string; alt: string }> };
 };
 
 export const PITCH_SLIDES: PitchSlide[] = [

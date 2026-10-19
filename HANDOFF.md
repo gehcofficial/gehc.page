@@ -1,5 +1,33 @@
 # GEHC Portal — Handoff
 
+## Current — Deck tamu English `#/welcome` (19 Okt 2026)
+
+**Minta:** deck presentasi 3 slide (English) memperkenalkan GMIM Eben Haezer
+Cikarang untuk tamu/misionaris: (1) GMIM gereja Injili yang fokus melayani
+anak muda perantau di Cikarang (kawasan industri), (2) prioritas rumah
+pemuridan kecil yang terus tumbuh & berlipat, (3) dokumentasi kegiatan +
+rekreasi (sport & art).
+
+**Ubah:**
+- Data `src/data/visitorPitchSlides.ts` (English: cover + 3 slide + penutup) +
+  wrapper `src/components/hub/PitchVisitors.tsx` (reuse `PitchDeck`).
+- `PitchDeck.tsx`: kind `image` mendukung `images[]` → galeri grid (aditif;
+  deck GEHC.page & Mentor tak berubah).
+- `src/lib/host-context.ts`: `isVisitorPitchHash` (`#/welcome`); `src/main.tsx`:
+  rute lazy `PitchVisitors` — identik di semua host (dipasang sebelum cabang
+  hub/unit).
+- `ChurchHub.tsx`: tautan "Guests · EN" → `#/welcome`.
+
+**Verifikasi:** lint ✓ (hanya error lama `session-engine.test.ts` dari sesi
+paralel); unit 1215/1217 lulus (2 gagal = sesi paralel session-engine);
+`vite build` ✓ (chunk `PitchVisitors` teremit); QA browser
+`localhost:4173/#/welcome` — 5 slide tampil, galeri slide 4 render dengan foto
+nyata. URL: `https://gehc.page/#/welcome` (juga semua subdomain unit). Catatan:
+foto "sport" belum ada aset khusus — sementara pakai foto kegiatan terdekat,
+ganti dengan foto asli bila tersedia.
+
+**Deploy:** batch commit ini → push `main`.
+
 ## Current — Penatalayan lanjutan: backfill eventId (staging+prod) + QA staging E2E + fix tipe notifikasi (18 Okt 2026)
 
 **Minta:** tindak lanjut episode penatalayan — jalankan backfill eventId (script

@@ -68,6 +68,7 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
   const active = (i: number) => i === step;
 
   if (slide.kind === 'image' && slide.image) {
+    const gallery = slide.image.images?.length ? slide.image.images : null;
     return (
       <div>
         <Header slide={slide} step={step} />
@@ -77,14 +78,27 @@ function SlideBody({ slide, step, reduce }: { slide: PitchSlide; step: number; r
           animate={{ opacity: reveal(1) ? 1 : 0, y: reveal(1) || reduce ? 0 : 16 }}
           transition={{ duration: 0.35 }}
           aria-hidden={!reveal(1)}
-          className="mt-[1.2em] flex justify-center"
+          className="mt-[1.2em] flex flex-col items-center"
         >
-          <figure className="max-w-[min(62em,92vw)]">
-            <img src={slide.image.src} alt={slide.image.alt} className="w-full rounded-[1.2em] border border-white/15 shadow-2xl" />
-            {slide.image.caption && (
-              <figcaption className="text-[0.95em] text-white/60 mt-[0.7em] text-center">{slide.image.caption}</figcaption>
-            )}
-          </figure>
+          {gallery ? (
+            <div className="w-full max-w-[min(72em,94vw)] grid grid-cols-2 sm:grid-cols-3 gap-[0.7em]">
+              {gallery.map((g) => (
+                <img
+                  key={g.src}
+                  src={g.src}
+                  alt={g.alt}
+                  className="w-full aspect-[4/3] object-cover rounded-[1em] border border-white/15 shadow-xl"
+                />
+              ))}
+            </div>
+          ) : (
+            <figure className="max-w-[min(62em,92vw)]">
+              <img src={slide.image.src} alt={slide.image.alt} className="w-full rounded-[1.2em] border border-white/15 shadow-2xl" />
+            </figure>
+          )}
+          {slide.image.caption && (
+            <p className="text-[0.95em] text-white/60 mt-[0.7em] text-center">{slide.image.caption}</p>
+          )}
         </motion.div>
       </div>
     );

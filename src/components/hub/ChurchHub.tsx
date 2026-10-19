@@ -19,6 +19,7 @@ import {
   Music2,
   Mail,
   Presentation,
+  Globe,
   type LucideIcon,
 } from 'lucide-react';
 import { useMediaSlots } from '../../hooks/useMediaSlots';
@@ -151,6 +152,13 @@ const ChurchHub: React.FC = () => {
             >
               <Presentation className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Pitch</span>
+            </a>
+            <a
+              href="#/welcome"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#D9D7D0] text-[#1B1B1B] text-xs font-bold uppercase tracking-wider hover:bg-white transition-all"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Guests · EN
             </a>
             <a
               href={youthPortalUrl()}

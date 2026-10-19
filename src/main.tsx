@@ -5,7 +5,7 @@ import { LangProvider } from './context/LangContext.tsx';
 import { QueryProvider } from './app/QueryProvider.tsx';
 import { AppHashRouter } from './app/RouterBridge.tsx';
 import { AppErrorBoundary } from './components/ErrorBoundary.tsx';
-import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isPaparanHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isPelsus2Hash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
+import { isHubHost, isAppHash, isAuthHash, isMaterialHash, isPaparanHash, isReportHash, isMentorPitchHash, isPitchHash, isPelsusHash, isPelsus2Hash, isVisitorPitchHash, isVotingHash, resolveHostUnit } from './lib/host-context.ts';
 import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
@@ -23,6 +23,7 @@ const ChurchHub = React.lazy(() => import('./components/hub/ChurchHub.tsx'));
 const UnitLanding = React.lazy(() => import('./components/unit/UnitLanding.tsx'));
 const PitchDeck = React.lazy(() => import('./components/hub/PitchDeck.tsx'));
 const PitchMentor = React.lazy(() => import('./components/hub/PitchMentor.tsx'));
+const PitchVisitors = React.lazy(() => import('./components/hub/PitchVisitors.tsx'));
 const DidaskaliaPresentation = React.lazy(() => import('./components/didaskalia/DidaskaliaPresentation.tsx'));
 const ReportPresentation = React.lazy(() => import('./components/reports/ReportPresentation.tsx'));
 const BpmjPaparan = React.lazy(() => import('./components/paparan/BpmjPaparan.tsx'));
@@ -82,6 +83,15 @@ const AppRoot: React.FC = () => {
     return (
       <Suspense fallback={<HubFallback />}>
         <PitchDeck />
+      </Suspense>
+    );
+  }
+
+  // Deck tamu (English) — identik di semua host (hub & unit).
+  if (isVisitorPitchHash(hash)) {
+    return (
+      <Suspense fallback={<HubFallback />}>
+        <PitchVisitors />
       </Suspense>
     );
   }

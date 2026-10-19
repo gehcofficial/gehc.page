@@ -150,3 +150,9 @@ export function isMentorPitchHash(hash: string): boolean {
     h.startsWith('#/panduan/')
   );
 }
+
+/** Deck tamu (English) — perkenalan GMIM Eben Haezer Cikarang. Identik di semua host. */
+export function isVisitorPitchHash(hash: string): boolean {
+  const h = String(hash || '');
+  return h === '#/welcome' || h.startsWith('#/welcome/') || h.startsWith('#/welcome?');
+}
