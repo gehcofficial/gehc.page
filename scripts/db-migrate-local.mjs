@@ -386,6 +386,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-worship-lab.cjs',
+    label: 'Creative Lab: update karya kelompok (worship_lab_updates)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-liturgy-songs.cjs',
     label: 'Liturgia: pustaka lagu + setlist ibadah (songs, service_songs)',
     required: true,

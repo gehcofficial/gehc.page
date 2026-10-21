@@ -232,8 +232,9 @@ export function cleanSong(raw) {
 /**
  * Normalisasi papan tim (maks 8 tim, 20 anggota per tim).
  * CREATIVE_LAB menambah sub-tim paralel: `pot` & `bag` (masing-masing 2-6
- * anggota) + `scribe` (juru digital) + `station` (meja/stasiun). Field baru
- * opsional — THREE_SEQUENCES/DEBAT tetap kompatibel (default kosong).
+ * anggota), `station` (meja/stasiun), serta identitas akun untuk update karya:
+ * `repUserId` (perwakilan), `repName`, `memberUserIds[]`. Field baru opsional —
+ * THREE_SEQUENCES/DEBAT tetap kompatibel (default kosong).
  */
 export function cleanTeams(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -246,6 +247,12 @@ export function cleanTeams(raw) {
     station: str(t?.station, 80),
     pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
     bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+    repUserId: str(t?.repUserId, 64),
+    repName: str(t?.repName, 80),
+    memberUserIds: [...new Set((Array.isArray(t?.memberUserIds) ? t.memberUserIds : [])
+      .map((m) => str(m, 64))
+      .filter(Boolean))]
+      .slice(0, 20),
   })).filter((t) => t.name);
   if (!teams.length) return null;
   return { teams };
@@ -275,6 +282,11 @@ export function cleanActivity(raw) {
   const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || 120));
   const rawDur = raw.durations && typeof raw.durations === 'object' && !Array.isArray(raw.durations) ? raw.durations : {};
   const durationFor = (key, fallback) => Math.min(7200, Math.max(60, Number(rawDur[key]) || fallback));
+  // Urutan presentasi hasil undian: index tim unik 0-7. Kosong = urutan papan.
+  const presentOrder = [...new Set((Array.isArray(raw.presentOrder) ? raw.presentOrder : [])
+    .map((n) => Math.floor(Number(n)))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 7))]
+    .slice(0, 8);
   return {
     phase,
     startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
@@ -284,6 +296,8 @@ export function cleanActivity(raw) {
     presentIndex: Math.min(7, Math.max(0, Number(raw.presentIndex) || 0)),
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
+    presentOrder,
+    presentDrawnAt: raw.presentDrawnAt ? String(raw.presentDrawnAt).slice(0, 30) : null,
     durations: {
       A1: durationFor('A1', ACTIVITY_PHASE_SECONDS.A1),
       A2: durationFor('A2', ACTIVITY_PHASE_SECONDS.A2),
@@ -313,15 +327,20 @@ export function creativeLabFromDraft(storedDraft) {
   for (let n = 1; n <= 8; n += 1) {
     const name = str(groups[`group-${n}-name`], 80).trim();
     if (!name) continue;
+    const legacyScribe = str(groups[`group-${n}-scribe`], 80);
     teams.push({
       name,
       task: str(groups[`group-${n}-task`], 200),
       members: splitNames(groups[`group-${n}-members`], 20),
       done: false,
-      scribe: str(groups[`group-${n}-scribe`], 80),
+      scribe: legacyScribe,
       station: str(groups[`group-${n}-station`], 80) || `Meja ${n}`,
       pot: splitNames(groups[`group-${n}-pot`], 6),
       bag: splitNames(groups[`group-${n}-bag`], 6),
+      // Perwakilan group: field baru `group-n-rep`; fallback juru digital lama.
+      repName: str(groups[`group-${n}-rep`], 80) || legacyScribe,
+      repUserId: '',
+      memberUserIds: [],
     });
   }
   const a1 = d['activity-1'] && typeof d['activity-1'] === 'object' ? d['activity-1'] : {};

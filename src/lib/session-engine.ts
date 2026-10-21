@@ -50,8 +50,8 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   CREATIVE_LAB: [
     { id: 'pembuka', label: 'Pembuka', hint: 'Praise & Worship — siapkan hati, duduk per kelompok.' },
     { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman, lalu pahami 6 kartu jar + aturan aktivitas.' },
-    { id: 'aktivitas-1', label: 'Activity 1 — Roots Reminder Jar', hint: 'Tulis 6 kartu kelompok; juru digital input ke web.' },
-    { id: 'aktivitas-2', label: 'Activity 2 — Creative Lab', hint: 'Tim Pot & Tim Tas bekerja paralel; jaga timer 25 menit.' },
+    { id: 'aktivitas-1', label: 'Activity 1 — Roots Reminder Jar', hint: 'Tulis 6 kartu di kertas; pilih 2 pertanyaan untuk diisi di web.' },
+    { id: 'aktivitas-2', label: 'Activity 2 — Creative Lab', hint: 'Tim Pot & Tim Tas paralel; perwakilan kelompok melapor ke Admin.' },
     { id: 'presentasi', label: 'Presentasi', hint: '2 menit per kelompok: pot, tas, dan komitmen.' },
     { id: 'refleksi', label: 'Refleksi & Satu Kata', hint: 'Pilih chip Satu Kata + tulis komitmen.' },
     { id: 'penutup', label: 'Penutup', hint: 'Persembahan, lagu, doa tutup + unduh rekap.' },
@@ -214,7 +214,7 @@ export function noteSlotsFor(code: string | null | undefined): NoteSlot[] {
 }
 
 /** Widget per segmen: welcome | guide | song | chips | rounds | screening | teams | testimony | notes | download | likert | activity. */
-export type SegmentWidget = 'welcome' | 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download' | 'likert' | 'activity';
+export type SegmentWidget = 'welcome' | 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download' | 'likert' | 'activity' | 'jar' | 'lab';
 
 /** Urutan kunci Q terpandu MONOLOG (3 FGD + 2 deep sharing). */
 export const MONOLOG_QUESTION_KEYS = ['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2'];
@@ -373,9 +373,9 @@ export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = 
   CREATIVE_LAB: {
     pembuka: ['welcome'],
     briefing: ['guide'],
-    'aktivitas-1': ['activity', 'teams', 'notes'],
-    'aktivitas-2': ['activity', 'teams', 'notes'],
-    presentasi: ['teams', 'notes'],
+    'aktivitas-1': ['activity', 'jar', 'teams'],
+    'aktivitas-2': ['activity', 'lab', 'teams'],
+    presentasi: ['teams', 'lab'],
     refleksi: ['chips', 'notes', 'download'],
     penutup: ['chips', 'download'],
   },

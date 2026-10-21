@@ -100,12 +100,67 @@ export type SessionTeam = {
   task: string;
   members: string[];
   done: boolean;
-  /** Creative Lab: juru digital, meja/stasiun, sub-tim paralel Pot & Tas. */
+  /** Creative Lab: meja/stasiun, sub-tim paralel Pot & Tas. */
   scribe?: string;
   station?: string;
   pot?: string[];
   bag?: string[];
+  /** Creative Lab: perwakilan & anggota terhubung akun (untuk feed group). */
+  repUserId?: string;
+  repName?: string;
+  memberUserIds?: string[];
 };
+
+/** Satu update karya/foto Creative Lab (hanya group sendiri untuk peserta). */
+export type SessionLabUpdate = {
+  id: string;
+  teamIndex: number;
+  teamName: string;
+  userId: string;
+  userName: string;
+  kind: 'POT' | 'BAG' | 'COMMIT' | 'GROUP' | 'NOTE' | string;
+  body: string;
+  progress: number | null;
+  photoUrl: string | null;
+  thumbUrl: string | null;
+  acknowledgedAt?: string | null;
+  createdAt: string | null;
+};
+
+export type SessionLabTeamSummary = {
+  index: number;
+  name: string;
+  repName: string;
+  repUserId: string;
+  memberCount: number;
+  done: boolean;
+  pot: { meaning: string; progress: number | null; photos: SessionLabUpdate[] };
+  bag: { meaning: string; progress: number | null; photos: SessionLabUpdate[] };
+  commitment: string;
+  groupPhoto: SessionLabUpdate | null;
+  photoCount: number;
+  photoComplete: boolean;
+  lastUpdateAt: string | null;
+  updateCount: number;
+};
+
+export type SessionLabSummary = {
+  teams: SessionLabTeamSummary[];
+  presentOrder: number[];
+  updates?: SessionLabUpdate[];
+} | null;
+
+/** POV peserta: hanya group sendiri. */
+export type SessionLabMine = {
+  teamIndex: number | null;
+  teamName: string | null;
+  isRep: boolean;
+  repName: string;
+  members: string[];
+  done: boolean;
+  phase: string;
+  updates: SessionLabUpdate[];
+} | null;
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
 
@@ -137,6 +192,9 @@ export type SessionActivity = {
   presentIndex: number;
   presentStartedAt: string | null;
   presentSeconds: number;
+  /** Urutan presentasi hasil undian (index tim). */
+  presentOrder?: number[];
+  presentDrawnAt?: string | null;
   durations?: { A1: number; A2: number; PRESENT: number };
 } | null;
 
@@ -144,7 +202,12 @@ export type SessionActivity = {
 export type SessionActivityBrief = {
   briefing: { core: string; rules: string; jarIntro: string };
   a1: { title: string; goal: string; tools: string; steps: string; output: string; minutes: number };
-  a2: { title: string; goal: string; tools: string; pot: string; bag: string; commit: string; minutes: number };
+  a2: {
+    title: string; goal: string; tools: string;
+    pot: string; bag: string;
+    potMeaning: string; bagMeaning: string;
+    report: string; commit: string; minutes: number;
+  };
   present: { order: string; questions: string; seconds: number };
   closing: { script: string; commit: string; prayer: string };
 } | null;
@@ -200,6 +263,8 @@ export type MentoringSessionPayload = {
   activity?: SessionActivity;
   activityBrief?: SessionActivityBrief;
   jarCards?: SessionJarCard[];
+  /** Creative Lab: update group sendiri (perwakilan/anggota). */
+  lab?: SessionLabMine;
   myResult: MentoringMyResult | null;
   rooms: MentoringRoom[];
   progress: { submitted: number; total: number };
@@ -235,6 +300,8 @@ export type MentoringLivePayload = {
   activity?: SessionActivity;
   activityBrief?: SessionActivityBrief;
   jarCards?: SessionJarCard[];
+  /** Creative Lab: ringkasan semua group + foto untuk layar. */
+  lab?: SessionLabSummary;
   /** Agregat ronde film (delta pre→post di layar). */
   likertMeans?: { pre: { avg: number | null; n: number }; post: { avg: number | null; n: number }; delta: number | null } | null;
   wrapUpAt: string | null;

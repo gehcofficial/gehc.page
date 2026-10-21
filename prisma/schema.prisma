@@ -2762,6 +2762,7 @@ model WorshipSession {
   chips     WorshipChip[]
   chipVotes WorshipChipVote[]
   notes     WorshipNote[]
+  labUpdates WorshipLabUpdate[]
 
   @@index([tenantId, status])
   @@index([patternId])
@@ -2848,6 +2849,32 @@ model WorshipNote {
   @@unique([sessionId, userId, topicCode])
   @@index([sessionId, topicCode])
   @@map("worship_notes")
+}
+
+/// Creative Lab — update per kelompok: makna/progress Pot/Tas, komitmen,
+/// catatan anggota, dan foto karya (2 Pot + 2 Tas + 1 foto bersama).
+model WorshipLabUpdate {
+  id               String    @id @db.VarChar(64)
+  sessionId        String    @map("session_id") @db.VarChar(64)
+  teamIndex        Int       @map("team_index")
+  teamName         String    @map("team_name") @db.VarChar(80)
+  userId           String    @map("user_id") @db.VarChar(64)
+  /// POT | BAG | COMMIT | GROUP | NOTE
+  kind             String    @db.VarChar(12)
+  body             String?   @db.Text
+  progress         Int?
+  photoFileId      String?   @map("photo_file_id") @db.VarChar(128)
+  photoUrl         String?   @map("photo_url") @db.VarChar(500)
+  thumbUrl         String?   @map("thumb_url") @db.VarChar(500)
+  acknowledgedAt   DateTime? @map("acknowledged_at") @db.DateTime(3)
+  acknowledgedById String?   @map("acknowledged_by_id") @db.VarChar(64)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  session WorshipSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, teamIndex, createdAt])
+  @@index([sessionId, kind, createdAt])
+  @@map("worship_lab_updates")
 }
 
 // ---------- Liturgia: Pustaka Lagu + Setlist Ibadah (lintas unit) ----------

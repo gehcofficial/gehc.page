@@ -69,10 +69,13 @@ describe('session-draft: template kosongan 6 pola', () => {
       expect(keys).toContain(k);
     }
     expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(25);
-    expect(keys).toContain('group-1-scribe');
+    expect(keys).toContain('group-1-rep');
     expect(keys).toContain('group-5-bag');
     expect(keys).toContain('a1-minutes');
     expect(keys).toContain('a2-minutes');
+    expect(keys).toContain('a2-pot-meaning');
+    expect(keys).toContain('a2-bag-meaning');
+    expect(keys).toContain('a2-report');
     expect(keys).toContain('present-seconds');
     expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(10);
   });

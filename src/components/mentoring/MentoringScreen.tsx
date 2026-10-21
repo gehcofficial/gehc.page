@@ -490,7 +490,19 @@ const MentoringScreen: React.FC = () => {
               const brief = data.activityBrief;
               const phase = act.phase;
               const card = jar[act.cardIndex];
-              const presenting = teams[act.presentIndex];
+              const labTeams = data.lab?.teams || [];
+              const order = (() => {
+                const out: number[] = [];
+                for (const n of act.presentOrder || []) {
+                  const i = Number(n);
+                  if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
+                }
+                for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
+                return out;
+              })();
+              const presentTeamIndex = order[act.presentIndex] ?? act.presentIndex;
+              const presenting = teams[presentTeamIndex];
+              const presentingLab = labTeams.find((t) => t.index === presentTeamIndex) || null;
               const totalSec = phase === 'PRESENT' ? act.presentSeconds : act.durationSec;
               const startedAt = phase === 'PRESENT' ? act.presentStartedAt : act.startedAt;
               const remainMs = startedAt
@@ -503,11 +515,11 @@ const MentoringScreen: React.FC = () => {
                       : phase === 'DONE' ? 'Refleksi & Satu Kata'
                         : 'Briefing Creative Lab';
               const phaseSub =
-                phase === 'A1' ? `Tulis 6 kartu · juru digital input ke web · ${brief?.a1.minutes || 15} menit`
-                  : phase === 'A2' ? `Tim Pot ∥ Tim Tas bekerja paralel · ${brief?.a2.minutes || 25} menit`
+                phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web · ${brief?.a1.minutes || 15} menit`
+                  : phase === 'A2' ? `Tim Pot ∥ Tim Tas paralel · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
                     : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · pot, tas, komitmen`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                        : 'Duduk per kelompok · 6 kartu jar · juru digital · presentasi 2 menit.';
+                        : 'Duduk per kelompok · semua menulis 6 kartu · pilih 2 untuk web · presentasi 2 menit.';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -523,36 +535,114 @@ const MentoringScreen: React.FC = () => {
                   </section>
 
                   {phase === 'PRESENT' && presenting && (
-                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-10 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Sedang presentasi</p>
-                      <p className="font-display text-3xl sm:text-4xl font-black mt-2">{presenting.name}</p>
-                      <p className="text-sm text-white/60 mt-2">
-                        {[presenting.station, presenting.scribe && `Juru digital: ${presenting.scribe}`].filter(Boolean).join(' · ') || 'Pot, tas, dan komitmen kelompok'}
-                      </p>
+                    <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 sm:p-10">
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Sedang presentasi</p>
+                        <p className="font-display text-4xl sm:text-5xl font-black mt-2">{presenting.name}</p>
+                        <p className="text-sm text-white/60 mt-2">
+                          {presentingLab?.repName || presenting.repName ? `Perwakilan: ${presentingLab?.repName || presenting.repName}` : 'Perwakilan kelompok'}
+                        </p>
+                      </div>
+                      {presentingLab ? (
+                        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
+                          <div className="space-y-4">
+                            <div className="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Pot · progress {presentingLab.pot.progress ?? 0}%</p>
+                              <p className="text-sm text-white/80 mt-1.5">{presentingLab.pot.meaning || 'Makna Pot belum diisi.'}</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {presentingLab.pot.photos.map((p) => (
+                                  <img key={p.id} src={p.photoUrl || ''} alt="Karya Pot" className="h-32 w-full object-cover rounded-xl border border-white/10" />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="rounded-2xl bg-brand/10 border border-brand/30 p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tas · progress {presentingLab.bag.progress ?? 0}%</p>
+                              <p className="text-sm text-white/80 mt-1.5">{presentingLab.bag.meaning || 'Makna Tas belum diisi.'}</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {presentingLab.bag.photos.map((p) => (
+                                  <img key={p.id} src={p.photoUrl || ''} alt="Karya Tas" className="h-32 w-full object-cover rounded-xl border border-white/10" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-4">
+                            {presentingLab.groupPhoto && (
+                              <img src={presentingLab.groupPhoto.photoUrl || ''} alt="Foto bersama" className="w-full max-h-72 object-cover rounded-2xl border border-white/10" />
+                            )}
+                            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
+                              <p className="font-display text-xl sm:text-2xl font-black mt-1.5">{presentingLab.commitment || 'Belum diisi.'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-center text-sm text-white/60 mt-4">Menunggu update karya kelompok…</p>
+                      )}
                     </section>
                   )}
 
-                  {card && act.showOnScreen && (phase === 'A1' || phase === 'A2' || phase === 'IDLE') && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-10 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
-                        Kartu jar {act.cardIndex + 1}/6
-                      </p>
-                      <p className="font-display text-3xl sm:text-4xl font-black">{card.title}</p>
-                      {card.direction && <p className="text-sm text-white/60 mt-3 max-w-2xl mx-auto">{card.direction}</p>}
+                  {act.showOnScreen && (phase === 'A1' || phase === 'A2' || phase === 'IDLE') && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                          {phase === 'A1' ? 'The Roots Reminder Jar — 6 pertanyaan' : 'Kartu jar kelompok'}
+                        </p>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-brand">Semua menulis 6 · pilih 2 di web</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        {jar.map((c, i) => (
+                          <div key={c.code || i} className={`rounded-2xl border p-5 sm:p-6 min-h-[150px] flex flex-col justify-center ${i === act.cardIndex ? 'bg-brand/20 border-brand/40' : 'bg-white/5 border-white/10'}`}>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-brand">Kartu {i + 1}</p>
+                            <p className="font-display text-2xl sm:text-3xl font-black mt-1.5 leading-tight">{c.title}</p>
+                            {c.direction && <p className="text-sm text-white/60 mt-2 leading-relaxed">{c.direction}</p>}
+                          </div>
+                        ))}
+                      </div>
                     </section>
                   )}
 
                   {phase === 'A2' && brief && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <section className="rounded-[28px] bg-emerald-400/10 border border-emerald-300/20 p-7">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Tim Pot — Grow What You Believe</p>
-                        <p className="text-sm text-white/70 mt-2">{brief.a2.pot || 'Gambarkan apa yang perlu dirawat agar iman bertumbuh.'}</p>
+                    <div className="space-y-4">
+                      <section className="rounded-[28px] bg-[#111] border border-brand/40 p-6 sm:p-8 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Instruksi melapor</p>
+                        <p className="font-display text-2xl sm:text-3xl font-black mt-2">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
+                        <p className="text-sm text-white/60 mt-2">Bawa hasil karya Pot & Tas, lalu unggah foto bersama seluruh anggota + karya di HP perwakilan.</p>
                       </section>
-                      <section className="rounded-[28px] bg-brand/10 border border-brand/30 p-7">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tim Tas — Carry The Gospel</p>
-                        <p className="text-sm text-white/70 mt-2">{brief.a2.bag || 'Gambarkan nilai Injil yang dibawa ke kuliah, kerja, kos, dan pergaulan.'}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <section className="rounded-[28px] bg-emerald-400/10 border border-emerald-300/20 p-7 sm:p-8">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Pot — Grow What You Believe</p>
+                          <p className="text-base sm:text-lg text-white/80 mt-2 leading-relaxed">{brief.a2.potMeaning}</p>
+                          <p className="text-sm text-emerald-200/80 mt-3"><b>Refleksi:</b> {brief.a2.pot}</p>
+                        </section>
+                        <section className="rounded-[28px] bg-brand/10 border border-brand/30 p-7 sm:p-8">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tas — Carry The Gospel</p>
+                          <p className="text-base sm:text-lg text-white/80 mt-2 leading-relaxed">{brief.a2.bagMeaning}</p>
+                          <p className="text-sm text-brand/80 mt-3"><b>Refleksi:</b> {brief.a2.bag}</p>
+                        </section>
+                      </div>
+                      <section className="rounded-2xl bg-white/5 border border-white/10 p-5 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
+                        <p className="text-sm text-white/70 mt-1">{brief.a2.commit}</p>
                       </section>
                     </div>
+                  )}
+
+                  {(phase === 'A2' || phase === 'PRESENT' || phase === 'DONE') && order.length > 0 && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Urutan presentasi hasil undian</p>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-brand">{order.length} kelompok</span>
+                      </div>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {order.map((teamIndex, pos) => (
+                          <div key={`${teamIndex}-${pos}`} className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${phase === 'PRESENT' && pos === act.presentIndex ? 'bg-brand/20 border-brand/40' : 'bg-white/5 border-white/10'}`}>
+                            <span className="w-8 h-8 rounded-full bg-white/10 grid place-items-center font-display text-lg font-black shrink-0">{pos + 1}</span>
+                            <span className="font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
+                            {phase === 'PRESENT' && pos === act.presentIndex && <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-brand">tampil</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   )}
 
                   {phase === 'DONE' && brief?.closing.script && (
@@ -567,21 +657,31 @@ const MentoringScreen: React.FC = () => {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-4">
                         Papan kelompok {phase === 'PRESENT' ? '· giliran presentasi' : ''}
                       </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {teams.map((t, i) => (
-                          <div key={i} className={`rounded-2xl p-5 border ${phase === 'PRESENT' && i === act.presentIndex ? 'bg-brand/20 border-brand/40' : 'bg-white/5 border-white/10'}`}>
-                            <p className="font-display text-lg font-black">{t.name} {t.done && '✓'}</p>
-                            {t.station && <p className="text-[11px] text-white/40 mt-0.5">{t.station}</p>}
-                            <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
-                            {(t.pot?.length || t.bag?.length) ? (
-                              <div className="mt-2 space-y-0.5">
-                                {t.pot?.length ? <p className="text-[11px] text-emerald-300/80">Pot: {t.pot.join(', ')}</p> : null}
-                                {t.bag?.length ? <p className="text-[11px] text-brand/80">Tas: {t.bag.join(', ')}</p> : null}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {teams.map((t, i) => {
+                          const lt = labTeams.find((x) => x.index === i);
+                          return (
+                            <div key={i} className={`rounded-2xl p-5 border ${phase === 'PRESENT' && i === presentTeamIndex ? 'bg-brand/20 border-brand/40' : 'bg-white/5 border-white/10'}`}>
+                              <div className="flex items-start gap-2">
+                                <p className="font-display text-lg font-black">{t.name} {t.done && '✓'}</p>
+                                <span className={`ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${lt?.done ? 'bg-emerald-400/20 text-emerald-300' : 'bg-white/10 text-white/50'}`}>{lt?.done ? 'selesai' : 'proses'}</span>
                               </div>
-                            ) : null}
-                            {t.scribe && <p className="text-[11px] text-white/40 mt-2">Juru digital: {t.scribe}</p>}
-                          </div>
-                        ))}
+                              {t.repName && <p className="text-[11px] text-white/50 mt-0.5">Perwakilan: {t.repName}</p>}
+                              {t.station && <p className="text-[11px] text-white/40 mt-0.5">{t.station}</p>}
+                              <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
+                              {lt && (
+                                <div className="mt-2 space-y-1">
+                                  <p className="text-[11px] text-emerald-300/80">Pot {lt.pot.progress ?? 0}% · Tas {lt.bag.progress ?? 0}%</p>
+                                  <div className="flex gap-1.5">
+                                    {lt.pot.photos[0] && <img src={lt.pot.photos[0].thumbUrl || lt.pot.photos[0].photoUrl || ''} alt="Pot" className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
+                                    {lt.bag.photos[0] && <img src={lt.bag.photos[0].thumbUrl || lt.bag.photos[0].photoUrl || ''} alt="Tas" className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
+                                    {lt.groupPhoto && <img src={lt.groupPhoto.thumbUrl || lt.groupPhoto.photoUrl || ''} alt="Bersama" className="h-12 w-12 rounded-lg object-cover border border-emerald-300/40" />}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </section>
                   )}

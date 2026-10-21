@@ -185,7 +185,8 @@ export function buildMentoringRecapPdf(input: MentoringRecapInput): { filename: 
   return { filename: `mentoring-${slugSafe}-${nameSafe}.pdf`, blob: doc.output('blob') };
 }
 
-export type SessionRecapSection = { heading: string; lines: { label?: string; body: string }[] };
+export type SessionRecapLine = { label?: string; body: string; photoData?: string };
+export type SessionRecapSection = { heading: string; lines: SessionRecapLine[] };
 
 export type SessionRecapInput = {
   kicker: string;
@@ -271,12 +272,21 @@ export function buildSessionRecapPdf(input: SessionRecapInput): { filename: stri
   }
 
   for (const sec of input.sections) {
-    const filled = sec.lines.filter((l) => String(l.body || '').trim());
+    const filled = sec.lines.filter((l) => String(l.body || '').trim() || l.photoData);
     if (!filled.length) continue;
     heading(sec.heading);
     for (const line of filled) {
       if (line.label) paragraph(line.label, 9.5, C.accent);
-      paragraph(String(line.body), 9.5);
+      if (String(line.body || '').trim()) paragraph(String(line.body), 9.5);
+      if (line.photoData) {
+        ensure(66);
+        try {
+          doc.addImage(line.photoData, 'JPEG', M, y, 88, 60);
+          y += 64;
+        } catch {
+          paragraph('(foto tidak dapat dimuat)', 8.5, C.muted);
+        }
+      }
       y += 1;
     }
   }

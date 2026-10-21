@@ -25,6 +25,7 @@ import {
 import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import SessionTimer from './SessionTimer';
 import { SessionNotes } from './SessionNotes';
+import { JarWebSlots, LabGroupPanel } from './CreativeLabPanels';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 
@@ -273,6 +274,18 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     : null;
   const phaseExpired = phaseRemainMs !== null && phaseRemainMs <= 0;
   const labAct = data?.activity || null;
+  const presentOrder = useMemo(() => {
+    const teams = data?.teams?.teams || [];
+    const raw = Array.isArray(labAct?.presentOrder) ? labAct.presentOrder : [];
+    const out: number[] = [];
+    for (const n of raw) {
+      const i = Number(n);
+      if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
+    }
+    for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
+    return out;
+  }, [data?.teams?.teams, labAct?.presentOrder]);
+  const presentTeamIndex = presentOrder[labAct?.presentIndex || 0] ?? labAct?.presentIndex ?? 0;
   const activityTick = useNowTick(Boolean(labAct?.startedAt || labAct?.presentStartedAt));
   const activityTotalSec = labAct
     ? (labAct.phase === 'PRESENT' ? labAct.presentSeconds : labAct.durationSec)
@@ -362,6 +375,12 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       const first3 = new Set(MONOLOG_QUESTION_KEYS.slice(0, 3));
       return slots.filter((s) => first3.has(s.key));
     }
+    if (c === 'CREATIVE_LAB') {
+      // A1 memakai 2 slot web khusus; A2/presentasi tidak memakai catatan bebas.
+      // Refleksi/penutup hanya menyimpan komitmen kelompok.
+      if (segment === 'aktivitas-1' || segment === 'aktivitas-2' || segment === 'presentasi') return [];
+      return slots.filter((s) => s.key === COMMITMENT_KEY);
+    }
     return slots;
   }, [c, segment, slots]);
   const steps = PATTERN_SEGMENTS[c] || [];
@@ -374,14 +393,14 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     if (mine.length) setChipDone(true);
   }, [data?.chips?.mine]);
 
-  const saveNote = useCallback(
-    async (key: string, value: string) => {
+  const saveNotes = useCallback(
+    async (entries: { topicCode: string; content: string }[]) => {
       setSaveError(null);
       const r = await fetch('/api/worship/notes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ slug, notes: [{ topicCode: key, content: value }] }),
+        body: JSON.stringify({ slug, notes: entries }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -397,6 +416,10 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       }
     },
     [slug],
+  );
+  const saveNote = useCallback(
+    (key: string, value: string) => saveNotes([{ topicCode: key, content: value }]),
+    [saveNotes],
   );
 
   // Hook chip Lesson Learned — wajib di atas semua early return (aturan hooks).
@@ -452,13 +475,33 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     return MONOLOG_QUESTION_KEYS.filter((_, i) => !isQuestionOpen(i + 1, fgdQ));
   }, [c, fgdQ]);
 
-  const download = useCallback(() => {
+  const download = useCallback(async () => {
     if (!data) return;
     const slotLabel = (key: string) => slots.find((s) => s.key === key)?.label || key;
     const mineChips = data.chips?.mine || [];
     const chipLabels = (data.chips?.list || [])
       .filter((chip) => picked.includes(chip.code) || mineChips.includes(chip.code))
       .map((chip) => ({ code: chip.code, label: chip.label }));
+    const labUpdates = data.lab?.updates || [];
+    const latestLab = (kind: string) => labUpdates.find((u) => u.kind === kind && (String(u.body || '').trim() || u.progress != null)) || null;
+    const labPhotoRows = labUpdates.filter((u) => u.photoUrl).slice(0, 5);
+    const photoData = new Map<string, string>();
+    await Promise.all(labPhotoRows.map(async (u) => {
+      try {
+        const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}/lab/photo/${encodeURIComponent(u.id)}`, { credentials: 'include' });
+        if (!r.ok) return;
+        const blob = await r.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('read'));
+          reader.readAsDataURL(blob);
+        });
+        if (dataUrl) photoData.set(u.id, dataUrl);
+      } catch {
+        /* foto gagal dimuat — tetap unduh rekap teks */
+      }
+    }));
     const { blob, filename } = buildSessionRecapPdf({
       kicker: `GEHC YOUTH — ${data.session.pattern?.name || c}`.toUpperCase(),
       title: data.session.title,
@@ -505,6 +548,23 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         ...(testimony.length
           ? [{ heading: 'Kesaksian', lines: testimony.map((p) => ({ label: `Slot ${p.slot}`, body: `${p.name} (${p.role})` })) }]
           : []),
+        ...(c === 'CREATIVE_LAB' && data.lab
+          ? [{
+              heading: 'Karya kelompok',
+              lines: [
+                { label: 'Kelompok', body: String(data.lab.teamName || '') },
+                { label: 'Perwakilan', body: String(data.lab.repName || '') },
+                { label: 'Makna Pot', body: `${latestLab('POT')?.body || ''}${latestLab('POT')?.progress != null ? ` (progress ${latestLab('POT')?.progress}%)` : ''}` },
+                { label: 'Makna Tas', body: `${latestLab('BAG')?.body || ''}${latestLab('BAG')?.progress != null ? ` (progress ${latestLab('BAG')?.progress}%)` : ''}` },
+                { label: 'Komitmen kelompok', body: latestLab('COMMIT')?.body || '' },
+                ...labPhotoRows.map((u, i) => ({
+                  label: `${u.kind === 'GROUP' ? 'Foto bersama' : u.kind === 'POT' ? 'Foto Pot' : 'Foto Tas'} ${i + 1}`,
+                  body: '',
+                  photoData: photoData.get(u.id),
+                })),
+              ],
+            }]
+          : []),
         {
           heading: 'Catatan',
           lines: noteKeys.map((k) => ({ label: slotLabel(k), body: String(notes[k] || '') })),
@@ -518,12 +578,12 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               })),
             }]
           : []),
-        { heading: 'Komitmen', lines: [{ body: String(notes[COMMITMENT_KEY] || '') }] },
+        { heading: 'Komitmen', lines: [{ body: String(notes[COMMITMENT_KEY] || (c === 'CREATIVE_LAB' ? latestLab('COMMIT')?.body : '') || '') }] },
       ],
       chips: chipLabels,
     });
     downloadBlob(filename, blob);
-  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c, picked, filmPairs]);
+  }, [data, notes, slots, noteKeys, currentRound, screening, teams, testimony, c, picked, filmPairs, slug]);
 
   if (state.status === 'loading') {
     return (
@@ -586,7 +646,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
                 {LAB_PHASE_LABEL[labAct.phase] || 'Creative Lab'}
-                {labAct.phase === 'PRESENT' ? ` · kelompok ${labAct.presentIndex + 1}` : ''}
+                {labAct.phase === 'PRESENT' ? ` · ${teams[presentTeamIndex]?.name || `kelompok ${presentTeamIndex + 1}`}` : ''}
                 {activityExpired ? ' · waktu habis' : ''}
               </p>
               <p className="font-display text-2xl font-black tabular-nums">
@@ -789,22 +849,46 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             {labAct.phase === 'A2' && brief && (
               <div className="mt-2 grid gap-2">
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Tim Pot — Grow What You Believe</p>
-                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.pot || 'Gambarkan apa yang perlu dirawat agar iman bertumbuh.'}</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Pot — Grow What You Believe</p>
+                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.potMeaning}</p>
+                  <p className="text-[10px] text-emerald-800/80 mt-1"><b>Refleksi:</b> {brief.a2.pot}</p>
                 </div>
                 <div className="rounded-xl bg-brand/5 border border-brand/20 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tim Tas — Carry The Gospel</p>
-                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.bag || 'Gambarkan nilai Injil yang kamu bawa ke kuliah, kerja, dan pergaulan.'}</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tas — Carry The Gospel</p>
+                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.bagMeaning}</p>
+                  <p className="text-[10px] text-brand/80 mt-1"><b>Refleksi:</b> {brief.a2.bag}</p>
                 </div>
+                <p className="text-[11px] font-bold text-[#1B1B1B]">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
                 {brief.a2.commit && <p className="text-[11px] text-[#8C8880]">Komitmen kelompok: {brief.a2.commit}</p>}
               </div>
             )}
-            <p className="text-[10px] text-[#8C8880] mt-2">
-              Juru digital kelompok mengetik 6 kartu ke catatan di bawah (JAR-ROOT s/d JAR-STEP). Semua anggota tetap menulis versi kertas.
-            </p>
+            {labAct.phase === 'A1' && (
+              <p className="text-[10px] text-[#8C8880] mt-2">
+                Semua anggota menulis 6 pertanyaan di kertas. Di web, setiap peserta memilih 2 pertanyaan dan mengisi jawabannya di panel di bawah.
+              </p>
+            )}
           </div>
         );
       })()}
+
+      {has('jar') && (data.jarCards?.length || 0) > 0 && (
+        <JarWebSlots
+          cards={data.jarCards || []}
+          values={notes}
+          disabled={!editable}
+          onSave={saveNotes}
+        />
+      )}
+
+      {has('lab') && data.lab && (
+        <LabGroupPanel
+          slug={slug}
+          lab={data.lab}
+          brief={data.activityBrief || null}
+          phase={String(data.activity?.phase || 'IDLE')}
+          onReload={() => void load()}
+        />
+      )}
 
       {has('teams') && teams.length > 0 && (
         <div className={CARD}>
@@ -816,7 +900,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               <div key={i} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
                 <p className="text-xs font-black">
                   {t.name} {t.done && <span className="text-emerald-600">✓</span>}
-                  {c === 'CREATIVE_LAB' && labAct?.phase === 'PRESENT' && i === labAct.presentIndex && (
+                  {c === 'CREATIVE_LAB' && labAct?.phase === 'PRESENT' && i === presentTeamIndex && (
                     <span className="ml-1.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-brand text-white align-middle">tampil</span>
                   )}
                 </p>
@@ -824,7 +908,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                 {t.members.length > 0 && <p className="text-[11px] mt-0.5">{t.members.join(' · ')}</p>}
                 {c === 'CREATIVE_LAB' && (
                   <div className="mt-1 space-y-0.5">
-                    {t.station && <p className="text-[10px] text-[#8C8880]">Meja: {t.station}{t.scribe ? ` · Juru digital: ${t.scribe}` : ''}</p>}
+                    {t.station && <p className="text-[10px] text-[#8C8880]">Meja: {t.station}{t.repName ? ` · Perwakilan: ${t.repName}` : ''}</p>}
                     {t.pot?.length ? <p className="text-[10px] text-emerald-700">Tim Pot: {t.pot.join(', ')}</p> : null}
                     {t.bag?.length ? <p className="text-[10px] text-brand">Tim Tas: {t.bag.join(', ')}</p> : null}
                   </div>

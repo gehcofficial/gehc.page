@@ -13,6 +13,8 @@ import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
 import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
+import { createFolder as driveCreateFolder, listFolders as driveListFolders, uploadFile as driveUploadFile, deleteFile as driveDeleteFile, getFileStream as driveGetFileStream, getDriveMode } from '../gdrive.mjs';
+import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -250,9 +252,12 @@ export function creativeLabBrief(config) {
       title: pick(a2, ['a2-title'], 'Roots & DNA Creative Lab'),
       goal: pick(a2, ['a2-goal']),
       tools: pick(a2, ['a2-tools']),
-      pot: pick(a2, ['a2-pot']),
-      bag: pick(a2, ['a2-bag']),
-      commit: pick(a2, ['a2-commit']),
+      pot: pick(a2, ['a2-pot'], 'Gambarkan apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh (akar, tunas, atau buah).'),
+      bag: pick(a2, ['a2-bag'], 'Gambarkan nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
+      potMeaning: pick(a2, ['a2-pot-meaning'], 'Apa yang kita percayai seharusnya bertumbuh dan terlihat dalam hidup kita. Pot melambangkan tempat benih iman bertumbuh. Peserta dapat melukis simbol akar, tunas, atau buah sebagai gambaran iman yang dirawat melalui tindakan nyata.'),
+      bagMeaning: pick(a2, ['a2-bag-meaning'], 'Membawa Injil ke mana pun kita pergi. Tas kanvas menjadi simbol kehidupan pemuda perantauan. Di mana pun mereka tinggal, bekerja, belajar, dan bergaul, mereka tetap dapat membawa nilai kasih, kerendahan hati, pelayanan, dan persatuan dalam Kristus.'),
+      report: pick(a2, ['a2-report'], 'Perwakilan setiap kelompok maju melapor kepada Admin.'),
+      commit: pick(a2, ['a2-commit'], 'Sertakan satu kata, simbol, atau kalimat pendek yang mewakili komitmen kelompok.'),
       minutes: Math.max(1, Number(pick(a2, ['a2-minutes'], '25')) || 25),
     },
     present: {
@@ -266,6 +271,157 @@ export function creativeLabBrief(config) {
       prayer: pick(closing, ['closing-prayer']),
     },
   };
+}
+
+/* ---------------- Creative Lab — update karya kelompok ---------------- */
+
+const LAB_KINDS = ['POT', 'BAG', 'COMMIT', 'GROUP', 'NOTE'];
+const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
+const LAB_PHASE_WRITABLE = 'A2';
+
+function labDriveWriteEnabled() {
+  return process.env.GDRIVE_WRITE === '1' || hasUserDriveToken();
+}
+
+function labPhotoCount(rows, kind) {
+  return rows.filter((r) => r.kind === kind && r.photoUrl).length;
+}
+
+function labTeamRows(rows, teamIndex) {
+  return rows.filter((r) => Number(r.teamIndex) === Number(teamIndex));
+}
+
+/** Tim yang memuat user (perwakilan atau anggota). Null bila belum di-assign. */
+export function findLabTeam(config, userId) {
+  const teams = Array.isArray(config?.teams?.teams) ? config.teams.teams : [];
+  const uid = String(userId || '');
+  if (!uid) return null;
+  for (let index = 0; index < teams.length; index += 1) {
+    const team = teams[index];
+    const isRep = String(team?.repUserId || '') === uid;
+    const isMember = (Array.isArray(team?.memberUserIds) ? team.memberUserIds : []).some((id) => String(id) === uid);
+    if (isRep || isMember) return { index, team, isRep };
+  }
+  return null;
+}
+
+/** Urutan presentasi: hasil undian + tim baru yang belum masuk, tanpa duplikat. */
+export function labPresentationOrder(activity, teamCount) {
+  const count = Math.max(0, Number(teamCount) || 0);
+  const out = [];
+  for (const n of Array.isArray(activity?.presentOrder) ? activity.presentOrder : []) {
+    const i = Math.floor(Number(n));
+    if (Number.isInteger(i) && i >= 0 && i < count && !out.includes(i)) out.push(i);
+  }
+  for (let i = 0; i < count; i += 1) if (!out.includes(i)) out.push(i);
+  return out;
+}
+
+function labRowPublic(row, userName = '') {
+  return {
+    id: row.id,
+    teamIndex: row.teamIndex,
+    teamName: row.teamName,
+    userId: row.userId,
+    userName,
+    kind: row.kind,
+    body: row.body || '',
+    progress: row.progress == null ? null : Number(row.progress),
+    photoUrl: row.photoUrl || null,
+    thumbUrl: row.thumbUrl || row.photoUrl || null,
+    acknowledgedAt: row.acknowledgedAt ? new Date(row.acknowledgedAt).toISOString() : null,
+    createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+  };
+}
+
+async function labRows(prisma, sessionId, teamIndex = null) {
+  try {
+    return await prisma.worshipLabUpdate.findMany({
+      where: { sessionId, ...(teamIndex == null ? {} : { teamIndex: Number(teamIndex) }) },
+      orderBy: { createdAt: 'desc' },
+      take: 600,
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function labRowsWithNames(prisma, rows) {
+  const ids = [...new Set(rows.map((r) => r.userId).filter(Boolean))];
+  const users = ids.length
+    ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }).catch(() => [])
+    : [];
+  const byId = new Map(users.map((u) => [u.id, u.name || '']));
+  return rows.map((r) => labRowPublic(r, byId.get(r.userId) || ''));
+}
+
+/** Ringkasan per tim untuk kontrol/layar: makna, progress, foto, komitmen. */
+export function labSummary(rows, teams, activity) {
+  const list = (Array.isArray(teams) ? teams : []).map((team, index) => {
+    const mine = labTeamRows(rows, index);
+    const latestWith = (kind) => mine.find((r) => r.kind === kind && (String(r.body || '').trim() || r.progress != null)) || null;
+    const latestPhoto = (kind) => mine.find((r) => r.kind === kind && r.photoUrl) || null;
+    const pot = latestWith('POT');
+    const bag = latestWith('BAG');
+    const commit = latestWith('COMMIT');
+    const potPhotos = mine.filter((r) => r.kind === 'POT' && r.photoUrl).slice(0, 2);
+    const bagPhotos = mine.filter((r) => r.kind === 'BAG' && r.photoUrl).slice(0, 2);
+    const groupPhoto = latestPhoto('GROUP');
+    const lastUpdateAt = mine[0]?.createdAt ? new Date(mine[0].createdAt).toISOString() : null;
+    return {
+      index,
+      name: team.name,
+      repName: team.repName || '',
+      repUserId: team.repUserId || '',
+      memberCount: Array.isArray(team.memberUserIds) ? team.memberUserIds.length : (team.members || []).length,
+      done: Boolean(team.done),
+      pot: {
+        meaning: pot?.body || '',
+        progress: pot?.progress == null ? null : Number(pot.progress),
+        photos: potPhotos.map((r) => labRowPublic(r)),
+      },
+      bag: {
+        meaning: bag?.body || '',
+        progress: bag?.progress == null ? null : Number(bag.progress),
+        photos: bagPhotos.map((r) => labRowPublic(r)),
+      },
+      commitment: commit?.body || '',
+      groupPhoto: groupPhoto ? labRowPublic(groupPhoto) : null,
+      photoCount: potPhotos.length + bagPhotos.length + (groupPhoto ? 1 : 0),
+      photoComplete: Boolean(groupPhoto) && potPhotos.length <= 2 && bagPhotos.length <= 2,
+      lastUpdateAt,
+      updateCount: mine.length,
+    };
+  });
+  const order = labPresentationOrder(activity, list.length);
+  return { teams: list, presentOrder: order };
+}
+
+/** Folder Drive "Creative Lab" (di bawah folder Didaskalia event bila ada). */
+async function ensureLabFolder(prisma, session) {
+  let parent = process.env.GDRIVE_ROOT_FOLDER_ID || null;
+  if (session.eventId) {
+    const div = await prisma.eventDivision.findUnique({
+      where: { eventId_division: { eventId: session.eventId, division: 'DIDASKALIA' } },
+    }).catch(() => null);
+    if (div?.driveFolderId) parent = div.driveFolderId;
+  }
+  if (!parent) return null;
+  const findOrCreate = async (name) => {
+    const subs = await driveListFolders(parent, 100).catch(() => []);
+    const found = subs.find((f) => String(f.name || '').toLowerCase() === name.toLowerCase());
+    if (found) return found;
+    return driveCreateFolder(parent, name);
+  };
+  const root = await findOrCreate('Creative Lab');
+  if (!root?.id) return null;
+  // Subfolder per sesi (slug) supaya foto tidak tercampur.
+  const subs = await driveListFolders(root.id, 100).catch(() => []);
+  const slug = String(session.slug || 'sesi').toLowerCase();
+  const found = subs.find((f) => String(f.name || '').toLowerCase() === slug);
+  if (found) return found.id;
+  const created = await driveCreateFolder(root.id, slug).catch(() => null);
+  return created?.id || null;
 }
 
 /** Status trigger Q mentor (0 = belum dibuka; 1-5 = Q ke-n terbuka). */
@@ -699,6 +855,9 @@ export function registerWorshipRoutes(app, { wrap }) {
 
       res.setHeader('Cache-Control', 'no-store');
       const pcode = String(live.pattern?.code || session.pattern?.code || '').toUpperCase();
+      const myLabTeam = pcode === 'CREATIVE_LAB' ? findLabTeam(config, req.authUser.id) : null;
+      const myLabRows = myLabTeam ? await labRows(prisma, live.id, myLabTeam.index) : [];
+      const myLabUpdates = myLabTeam ? await labRowsWithNames(prisma, myLabRows) : [];
       res.json({
         session: {
           id: live.id,
@@ -746,6 +905,16 @@ export function registerWorshipRoutes(app, { wrap }) {
         activity: pcode === 'CREATIVE_LAB' ? config.activity || null : null,
         activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(config) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(config) : [],
+        lab: pcode === 'CREATIVE_LAB' ? {
+          teamIndex: myLabTeam?.index ?? null,
+          teamName: myLabTeam?.team?.name || null,
+          isRep: Boolean(myLabTeam?.isRep),
+          repName: myLabTeam?.team?.repName || '',
+          members: Array.isArray(myLabTeam?.team?.members) ? myLabTeam.team.members : [],
+          done: Boolean(myLabTeam?.team?.done),
+          phase: config.activity?.phase || 'IDLE',
+          updates: myLabUpdates,
+        } : null,
         phasePrefs: config.phasePrefs || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
@@ -902,7 +1071,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
 
-      const session = await prisma.worshipSession.findUnique({ where: { slug: String(req.body?.slug || '') } });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.body?.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const timedNote = await ensureAutoState(prisma, session);
       const live = await ensureAutoClosed(prisma, timedNote);
@@ -910,7 +1082,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         return res.status(409).json({ error: 'Catatan hanya bisa diisi saat sesi berlangsung.' });
       }
 
-      const config = normalizeConfig(live.config);
+      const config = normalizeConfig(live.config, session.pattern?.code);
       const allowed = allowedNoteCodes(config);
       const raw = Array.isArray(req.body?.notes) ? req.body.notes : [];
       const rows = [];
@@ -921,6 +1093,24 @@ export function registerWorshipRoutes(app, { wrap }) {
         rows.push({ topicCode, content });
       }
       if (!rows.length) return res.status(400).json({ error: 'Tidak ada catatan yang dikirim.' });
+
+      // Reminder Jar: setiap peserta hanya boleh menyimpan 2 dari 6 pertanyaan.
+      if (String(session.pattern?.code || '').toUpperCase() === 'CREATIVE_LAB') {
+        const jarCodes = new Set(CREATIVE_LAB_JAR.map((c) => c.code));
+        const jarRows = rows.filter((r) => jarCodes.has(r.topicCode) && String(r.content || '').trim());
+        if (jarRows.length > 2) {
+          return res.status(400).json({ error: 'Pilih maksimal 2 pertanyaan Reminder Jar untuk diisi di web.' });
+        }
+        const incomingCodes = new Set(jarRows.map((r) => r.topicCode));
+        const existingJar = await prisma.worshipNote.findMany({
+          where: { sessionId: live.id, userId: req.authUser.id, topicCode: { in: [...jarCodes] } },
+          select: { topicCode: true, content: true },
+        });
+        const kept = existingJar.filter((n) => !incomingCodes.has(n.topicCode) && String(n.content || '').trim());
+        if (kept.length + jarRows.length > 2) {
+          return res.status(400).json({ error: 'Kamu sudah menyimpan 2 pertanyaan. Kosongkan salah satu dulu untuk mengganti.' });
+        }
+      }
 
       for (const { topicCode, content } of rows) {
         const key = { sessionId_userId_topicCode: { sessionId: live.id, userId: req.authUser.id, topicCode } };
@@ -948,6 +1138,324 @@ export function registerWorshipRoutes(app, { wrap }) {
     }),
   );
 
+  /* ------------- Creative Lab: update/photo perwakilan kelompok ------------- */
+
+  app.get(
+    '/api/worship/sessions/:id/participants',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+
+      let participants = [];
+      if (found.eventId) {
+        const attendees = await prisma.eventAttendee.findMany({
+          where: { eventId: found.eventId },
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: { registeredAt: 'asc' },
+          take: 500,
+        }).catch(() => []);
+        participants = attendees.map((a) => a.user).filter(Boolean);
+      }
+      if (!participants.length) {
+        const roles = await prisma.userRole.findMany({
+          where: { tenantId: YOUTH_TENANT },
+          include: { user: { select: { id: true, name: true, email: true } } },
+          take: 1000,
+        }).catch(() => []);
+        participants = roles.map((r) => r.user).filter(Boolean);
+      }
+      const byId = new Map(participants.map((u) => [u.id, u]));
+      const groups = await prisma.group.findMany({
+        where: { tenantId: YOUTH_TENANT, status: 'ACTIVE' },
+        include: {
+          members: {
+            where: { status: 'ACTIVE' },
+            include: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+        orderBy: { name: 'asc' },
+        take: 60,
+      }).catch(() => []);
+      res.json({
+        participants: [...byId.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
+        groups: groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          members: g.members
+            .filter((m) => m.userId && m.user)
+            .map((m) => ({ id: m.userId, name: m.user?.name || m.name })),
+        })),
+      });
+    }),
+  );
+
+  app.post(
+    '/api/worship/session/:slug/lab/updates',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
+      if (!['RUNNING', 'WRAPUP'].includes(live.status)) {
+        return res.status(409).json({ error: 'Sesi belum berjalan atau sudah ditutup.' });
+      }
+      if (String(session.pattern?.code || '').toUpperCase() !== 'CREATIVE_LAB') {
+        return res.status(400).json({ error: 'Fitur ini hanya untuk Creative Lab.' });
+      }
+      const config = normalizeConfig(live.config, session.pattern?.code);
+      if (String(config.activity?.phase || '').toUpperCase() !== LAB_PHASE_WRITABLE) {
+        return res.status(409).json({ error: 'Update karya hanya dibuka saat Activity 2.' });
+      }
+      const mine = findLabTeam(config, req.authUser.id);
+      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.' });
+
+      const kind = String(req.body?.kind || '').toUpperCase();
+      if (!['POT', 'BAG', 'COMMIT', 'NOTE'].includes(kind)) {
+        return res.status(400).json({ error: 'Jenis update tidak dikenal.' });
+      }
+      if (kind !== 'NOTE' && !mine.isRep) {
+        return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengubah makna, progress, dan komitmen.' });
+      }
+      const body = str(req.body?.body, 2000);
+      const progressRaw = req.body?.progress;
+      const progress = progressRaw === undefined || progressRaw === null || progressRaw === ''
+        ? null
+        : Math.min(100, Math.max(0, Math.round(Number(progressRaw) || 0)));
+      if (kind === 'COMMIT' && !body) return res.status(400).json({ error: 'Komitmen kelompok wajib diisi.' });
+      if (kind === 'NOTE' && !body) return res.status(400).json({ error: 'Catatan tidak boleh kosong.' });
+      if ((kind === 'POT' || kind === 'BAG') && !body && progress == null) {
+        return res.status(400).json({ error: 'Isi makna/progress karya dulu.' });
+      }
+
+      const row = await prisma.worshipLabUpdate.create({
+        data: {
+          id: uid('wlu'),
+          sessionId: live.id,
+          teamIndex: mine.index,
+          teamName: String(mine.team.name || '').slice(0, 80),
+          userId: req.authUser.id,
+          kind,
+          body: body || null,
+          progress: kind === 'POT' || kind === 'BAG' ? progress : null,
+        },
+      });
+      res.status(201).json({ ok: true, update: labRowPublic(row, req.authUser.name || '') });
+    }),
+  );
+
+  app.post(
+    '/api/worship/session/:slug/lab/photos',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      if (!labDriveWriteEnabled()) return res.status(403).json({ error: 'Upload Drive belum diaktifkan.' });
+
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
+      if (!['RUNNING', 'WRAPUP'].includes(live.status)) {
+        return res.status(409).json({ error: 'Sesi belum berjalan atau sudah ditutup.' });
+      }
+      if (String(session.pattern?.code || '').toUpperCase() !== 'CREATIVE_LAB') {
+        return res.status(400).json({ error: 'Fitur ini hanya untuk Creative Lab.' });
+      }
+      const config = normalizeConfig(live.config, session.pattern?.code);
+      if (String(config.activity?.phase || '').toUpperCase() !== LAB_PHASE_WRITABLE) {
+        return res.status(409).json({ error: 'Upload foto hanya dibuka saat Activity 2.' });
+      }
+      const mine = findLabTeam(config, req.authUser.id);
+      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.' });
+      if (!mine.isRep) return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengunggah foto karya.' });
+
+      const kind = String(req.body?.kind || '').toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(LAB_PHOTO_LIMIT, kind)) {
+        return res.status(400).json({ error: 'Slot foto harus POT, BAG, atau GROUP.' });
+      }
+      const rows = await labRows(prisma, live.id, mine.index);
+      if (labPhotoCount(rows, kind) >= LAB_PHOTO_LIMIT[kind]) {
+        const label = kind === 'GROUP' ? 'foto bersama' : `foto ${kind === 'POT' ? 'Pot' : 'Tas'}`;
+        return res.status(400).json({ error: `Kuota ${label} sudah penuh (maks ${LAB_PHOTO_LIMIT[kind]}). Hapus salah satu dulu untuk mengganti.` });
+      }
+
+      const filename = String(req.body?.filename || '');
+      const mimetype = String(req.body?.mimetype || '');
+      const rawData = String(req.body?.data || '').replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+      if (!filename || !rawData) return res.status(400).json({ error: 'filename dan data wajib.' });
+      if (rawData.length > 20_000_000) {
+        return res.status(400).json({ error: 'File terlalu besar (maks ~15MB sebelum dikompres).' });
+      }
+      const nameLower = filename.toLowerCase();
+      if (!mimetype.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/.test(nameLower)) {
+        return res.status(400).json({ error: 'Hanya file gambar (JPG, PNG, WebP, HEIC).' });
+      }
+
+      let jpeg;
+      try {
+        const { decodeImageUpload, toJpegBuffer } = await import('../lib/drive-jpeg.mjs');
+        const decoded = decodeImageUpload({ mimetype, data: rawData, filename }, { maxBytes: 20_000_000 });
+        jpeg = await toJpegBuffer(decoded.buffer, { maxWidth: 1600 });
+      } catch (e) {
+        const msg = String(e?.message || '');
+        if (/Format foto|Ukuran foto|Data foto/i.test(msg)) return res.status(400).json({ error: msg });
+        console.error('[creative-lab] kompres gagal:', e);
+        return res.status(422).json({ error: 'Foto tidak terbaca (termasuk HEIC lama). Simpan ulang sebagai JPG lalu coba lagi.' });
+      }
+
+      const folderId = await ensureLabFolder(prisma, live);
+      if (!folderId) return res.status(400).json({ error: 'Folder Drive Creative Lab belum siap.' });
+      const safeBase = String(filename).replace(/\.[a-z0-9]+$/i, '').slice(0, 80) || 'karya';
+      const label = kind === 'GROUP' ? 'foto-bersama' : kind.toLowerCase();
+      const file = await driveUploadFile(folderId, {
+        originalname: `${label}-${safeBase}.jpg`,
+        mimetype: 'image/jpeg',
+        buffer: jpeg,
+      });
+      const row = await prisma.worshipLabUpdate.create({
+        data: {
+          id: uid('wlu'),
+          sessionId: live.id,
+          teamIndex: mine.index,
+          teamName: String(mine.team.name || '').slice(0, 80),
+          userId: req.authUser.id,
+          kind,
+          body: str(req.body?.caption, 300),
+          photoFileId: String(file.id || '').slice(0, 128),
+          photoUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w1600`,
+          thumbUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500`,
+        },
+      });
+      res.status(201).json({ ok: true, update: labRowPublic(row, req.authUser.name || '') });
+    }),
+  );
+
+  app.get(
+    '/api/worship/session/:slug/lab/photo/:updateId',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const row = await prisma.worshipLabUpdate.findUnique({ where: { id: String(req.params.updateId || '') } }).catch(() => null);
+      if (!row || row.sessionId !== session.id || !row.photoFileId) return res.status(404).json({ error: 'Foto tidak ditemukan.' });
+      const config = normalizeConfig(session.config, session.pattern?.code);
+      const mine = findLabTeam(config, req.authUser.id);
+      const writerRole = (req.authUser?.roles || []).some((r) => WRITE_ROLES.includes(r.role));
+      if (!(mine && row.teamIndex === mine.index) && !writerRole) {
+        return res.status(403).json({ error: 'Tidak boleh membuka foto kelompok lain.' });
+      }
+      try {
+        const { meta, stream } = await driveGetFileStream(row.photoFileId);
+        res.setHeader('Content-Type', meta?.mimeType || 'image/jpeg');
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        stream.pipe(res);
+      } catch {
+        return res.status(502).json({ error: 'Gagal mengambil foto dari Drive.' });
+      }
+    }),
+  );
+
+  app.delete(
+    '/api/worship/session/:slug/lab/updates/:updateId',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const config = normalizeConfig(session.config, session.pattern?.code);
+      const mine = findLabTeam(config, req.authUser.id);
+      const row = await prisma.worshipLabUpdate.findUnique({ where: { id: String(req.params.updateId || '') } }).catch(() => null);
+      if (!row || row.sessionId !== session.id) return res.status(404).json({ error: 'Update tidak ditemukan.' });
+      const writerRole = (req.authUser?.roles || []).some((r) => WRITE_ROLES.includes(r.role));
+      if (!(mine && mine.isRep && row.teamIndex === mine.index) && !writerRole) {
+        return res.status(403).json({ error: 'Tidak boleh menghapus update kelompok lain.' });
+      }
+      await prisma.worshipLabUpdate.delete({ where: { id: row.id } });
+      if (row.photoFileId) void driveDeleteFile(row.photoFileId).catch(() => {});
+      res.json({ ok: true });
+    }),
+  );
+
+  app.post(
+    '/api/worship/session/:slug/lab/done',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const config = normalizeConfig(session.config, session.pattern?.code);
+      const mine = findLabTeam(config, req.authUser.id);
+      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab.' });
+      if (!mine.isRep) return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa menandai laporan selesai.' });
+      const rows = await labRows(prisma, session.id, mine.index);
+      if (!rows.some((r) => r.kind === 'GROUP' && r.photoUrl)) {
+        return res.status(400).json({ error: 'Foto bersama seluruh anggota + hasil karya wajib diunggah sebelum lapor selesai.' });
+      }
+      const teams = Array.isArray(config.teams?.teams) ? [...config.teams.teams] : [];
+      if (!teams[mine.index]) return res.status(400).json({ error: 'Kelompok tidak ditemukan di papan.' });
+      teams[mine.index] = { ...teams[mine.index], done: true };
+      const nextConfig = { ...config, teams: { teams } };
+      await prisma.worshipSession.update({ where: { id: session.id }, data: { config: nextConfig } });
+      res.json({ ok: true, done: true });
+    }),
+  );
+
+  app.put(
+    '/api/worship/sessions/:id/lab/ack',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const updateId = String(req.body?.updateId || '');
+      const row = await prisma.worshipLabUpdate.findUnique({ where: { id: updateId } }).catch(() => null);
+      if (!row || row.sessionId !== found.id) return res.status(404).json({ error: 'Update tidak ditemukan.' });
+      const acknowledged = req.body?.acknowledged !== false;
+      const saved = await prisma.worshipLabUpdate.update({
+        where: { id: row.id },
+        data: {
+          acknowledgedAt: acknowledged ? new Date() : null,
+          acknowledgedById: acknowledged ? req.authUser.id : null,
+        },
+      });
+      res.json({ ok: true, update: labRowPublic(saved) });
+    }),
+  );
+
   app.get(
     '/api/worship/live/:slug',
     wrap(async (req, res) => {
@@ -971,6 +1479,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
       res.setHeader('Cache-Control', 'no-store');
       const pcode = String(liveState.pattern?.code || session.pattern?.code || '').toUpperCase();
+      const liveLabRows = pcode === 'CREATIVE_LAB' ? await labRows(prisma, liveState.id) : [];
+      const liveLab = pcode === 'CREATIVE_LAB'
+        ? { ...labSummary(liveLabRows, agg.config.teams?.teams || [], agg.config.activity), updates: await labRowsWithNames(prisma, liveLabRows.slice(0, 80)) }
+        : null;
       res.json({
         session: {
           id: liveState.id,
@@ -993,6 +1505,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         activity: pcode === 'CREATIVE_LAB' ? agg.config.activity || null : null,
         activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(agg.config) : [],
+        lab: liveLab,
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
@@ -1246,6 +1759,14 @@ export function registerWorshipRoutes(app, { wrap }) {
       // (guard endpoint tetap requireDivision + requireRole — ini hanya untuk UI).
       const isWriterRole = (req.authUser?.roles || []).some((r) => WRITE_ROLES.includes(r.role));
       const canWrite = isWriterRole && (await canAccessDivision(req.authUser, 'DIDASKALIA'));
+      const controlPcode = String(liveSession.pattern?.code || '').toUpperCase();
+      const controlLabRows = controlPcode === 'CREATIVE_LAB' ? await labRows(prisma, liveSession.id) : [];
+      const controlLab = controlPcode === 'CREATIVE_LAB'
+        ? {
+            ...labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity),
+            updates: await labRowsWithNames(prisma, controlLabRows),
+          }
+        : null;
       res.json({
         permissions: { canWrite },
         session: {
@@ -1272,6 +1793,7 @@ export function registerWorshipRoutes(app, { wrap }) {
               updatedAt: n.updatedAt,
             }))
           : [],
+        lab: controlLab,
         progress: { submitted: agg.submitted, total: agg.config.expectedCount || (await youthUserCount(prisma)) },
       });
     }),
@@ -2168,6 +2690,48 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!Object.keys(out).length) return res.status(400).json({ error: 'Tidak ada yang disimpan.' });
       await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
       res.json({ ok: true, ...out });
+    }),
+  );
+
+  app.get(
+    '/api/worship/sessions/:id/lab.csv',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { id: found.id },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const config = normalizeConfig(session.config, session.pattern?.code);
+      const rows = await labRows(prisma, session.id);
+      const teams = Array.isArray(config.teams?.teams) ? config.teams.teams : [];
+      const summary = labSummary(rows, teams, config.activity);
+      const headers = [
+        'Kelompok', 'Perwakilan', 'JumlahAnggota', 'Status',
+        'MaknaPot', 'ProgressPot', 'FotoPot1', 'FotoPot2',
+        'MaknaTas', 'ProgressTas', 'FotoTas1', 'FotoTas2',
+        'Komitmen', 'FotoBersama', 'FotoLengkap', 'UpdateTerakhir',
+      ];
+      const lines = [headers.map(csvEscape).join(',')];
+      for (const t of summary.teams) {
+        lines.push([
+          t.name, t.repName, String(t.memberCount), t.done ? 'SELESAI' : 'PROSES',
+          t.pot.meaning, t.pot.progress == null ? '' : String(t.pot.progress),
+          t.pot.photos[0]?.photoUrl || '', t.pot.photos[1]?.photoUrl || '',
+          t.bag.meaning, t.bag.progress == null ? '' : String(t.bag.progress),
+          t.bag.photos[0]?.photoUrl || '', t.bag.photos[1]?.photoUrl || '',
+          t.commitment, t.groupPhoto?.photoUrl || '', t.photoComplete ? 'YA' : 'BELUM',
+          t.lastUpdateAt || '',
+        ].map(csvEscape).join(','));
+      }
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="creative-lab-${session.slug}.csv"`);
+      res.send(`\uFEFF${lines.join('\r\n')}`);
     }),
   );
 

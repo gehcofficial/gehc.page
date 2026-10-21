@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
 
@@ -29,7 +29,9 @@ async function fetchStage(sessionId: string) {
   const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}`, { credentials: 'include' });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d?.error || 'Gagal memuat status panggung.');
-  return d.session?.config || {};
+  const config = d.session?.config || {};
+  // Panel Creative Lab butuh ringkasan update/foto kelompok; panel lain mengabaikan.
+  return { ...config, lab: d.lab || null, session: d.session || null };
 }
 
 export async function saveStage(sessionId: string, patch: Record<string, unknown>) {
@@ -515,6 +517,9 @@ type LabTeamRow = {
   station: string;
   pot: string[];
   bag: string[];
+  repUserId: string;
+  repName: string;
+  memberUserIds: string[];
 };
 
 type LabActivity = {
@@ -526,8 +531,40 @@ type LabActivity = {
   presentIndex: number;
   presentStartedAt: string | null;
   presentSeconds: number;
+  presentOrder: number[];
+  presentDrawnAt: string | null;
   durations: { A1: number; A2: number; PRESENT: number };
 };
+
+type LabParticipant = { id: string; name: string; email?: string | null };
+type LabGroupOption = { id: string; name: string; members: LabParticipant[] };
+type LabPhotoRow = {
+  id: string;
+  kind: string;
+  body: string;
+  progress: number | null;
+  photoUrl: string | null;
+  thumbUrl: string | null;
+  createdAt: string | null;
+};
+type LabTeamSummary = {
+  index: number;
+  name: string;
+  repName: string;
+  repUserId: string;
+  memberCount: number;
+  done: boolean;
+  pot: { meaning: string; progress: number | null; photos: LabPhotoRow[] };
+  bag: { meaning: string; progress: number | null; photos: LabPhotoRow[] };
+  commitment: string;
+  groupPhoto: LabPhotoRow | null;
+  photoCount: number;
+  photoComplete: boolean;
+  lastUpdateAt: string | null;
+  updateCount: number;
+};
+type LabSummary = { teams: LabTeamSummary[]; presentOrder: number[] };
+
 
 const LAB_JAR_TITLES = [
   'A Root I Carry',
@@ -547,6 +584,9 @@ const labEmptyTeam = (): LabTeamRow => ({
   station: '',
   pot: [],
   bag: [],
+  repUserId: '',
+  repName: '',
+  memberUserIds: [],
 });
 
 const labDefaultActivity = (): LabActivity => ({
@@ -558,6 +598,8 @@ const labDefaultActivity = (): LabActivity => ({
   presentIndex: 0,
   presentStartedAt: null,
   presentSeconds: 120,
+  presentOrder: [],
+  presentDrawnAt: null,
   durations: { A1: 900, A2: 1500, PRESENT: 120 },
 });
 
@@ -588,6 +630,11 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const [cards, setCards] = useState<Array<{ title: string; direction: string }>>(
     LAB_JAR_TITLES.map((title) => ({ title, direction: '' })),
   );
+  const [participants, setParticipants] = useState<LabParticipant[]>([]);
+  const [groupOptions, setGroupOptions] = useState<LabGroupOption[]>([]);
+  const [lab, setLab] = useState<LabSummary | null>(null);
+  const [rosterSearch, setRosterSearch] = useState<Record<number, string>>({});
+  const [savedTeamNames, setSavedTeamNames] = useState('');
   const [loading, setLoading] = useState(true);
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
 
@@ -597,6 +644,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
+      setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
       const a = cfg.activity && typeof cfg.activity === 'object' ? cfg.activity : {};
       const dur = a.durations && typeof a.durations === 'object' ? a.durations : {};
       setActivity({
@@ -610,12 +658,15 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         presentIndex: Math.min(7, Math.max(0, Number(a.presentIndex) || 0)),
         presentStartedAt: a.presentStartedAt || null,
         presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 120,
+        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= 7) : [],
+        presentDrawnAt: a.presentDrawnAt || null,
         durations: {
           A1: Number(dur.A1) || 900,
           A2: Number(dur.A2) || 1500,
           PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 120,
         },
       });
+      setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
       const jar = cfg.draft?.jar && typeof cfg.draft.jar === 'object' ? cfg.draft.jar : {};
       setCards(
         LAB_JAR_TITLES.map((title, i) => ({
@@ -630,12 +681,100 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     }
   }, [sessionId, setMsg]);
 
+  const loadParticipants = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/participants`, { credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal memuat peserta.');
+      setParticipants(Array.isArray(d.participants) ? d.participants : []);
+      setGroupOptions(Array.isArray(d.groups) ? d.groups : []);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal memuat peserta.');
+    }
+  }, [sessionId, setMsg]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadParticipants();
+  }, [load, loadParticipants]);
 
   const setTeam = (i: number, patch: Partial<LabTeamRow>) =>
     setTeams((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+
+  const namedTeamCount = teams.filter((t) => t.name.trim()).length;
+  const presentationOrder = useMemo(() => {
+    const out: number[] = [];
+    for (const n of activity.presentOrder) {
+      const i = Number(n);
+      if (Number.isInteger(i) && i >= 0 && i < namedTeamCount && !out.includes(i)) out.push(i);
+    }
+    for (let i = 0; i < namedTeamCount; i += 1) if (!out.includes(i)) out.push(i);
+    return out;
+  }, [activity.presentOrder, namedTeamCount]);
+  const currentTeamIndex = presentationOrder[activity.presentIndex] ?? activity.presentIndex;
+
+  const selectMember = (teamIndex: number, userId: string, checked: boolean) => {
+    setTeams((prev) => prev.map((t, i) => {
+      if (i !== teamIndex) return t;
+      const ids = new Set(t.memberUserIds || []);
+      if (checked) ids.add(userId); else ids.delete(userId);
+      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
+      const repStillMember = ids.has(t.repUserId);
+      return {
+        ...t,
+        memberUserIds: [...ids],
+        members: names,
+        repUserId: repStillMember ? t.repUserId : '',
+        repName: repStillMember ? t.repName : '',
+      };
+    }));
+  };
+
+  const selectRep = (teamIndex: number, userId: string) => {
+    const person = participants.find((p) => p.id === userId);
+    setTeams((prev) => prev.map((t, i) => {
+      if (i !== teamIndex) return t;
+      const ids = new Set(t.memberUserIds || []);
+      if (userId) ids.add(userId);
+      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
+      return { ...t, repUserId: userId, repName: person?.name || '', memberUserIds: [...ids], members: names };
+    }));
+  };
+
+  const syncMembersFromGroups = () => {
+    setTeams((prev) => prev.map((t) => {
+      if (!t.name.trim()) return t;
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const target = norm(t.name);
+      const group = groupOptions.find((g) => norm(g.name) === target || norm(g.name).includes(target) || target.includes(norm(g.name)));
+      if (!group) return t;
+      const ids = group.members.map((m) => m.id);
+      return { ...t, members: group.members.map((m) => m.name), memberUserIds: ids };
+    }));
+    setMsg('Anggota kelompok diselaraskan dari kelompok mentoring. Pilih perwakilan lalu simpan.');
+  };
+
+  const drawOrder = () => {
+    if (!namedTeamCount) {
+      setMsg('Isi nama kelompok dulu sebelum mengundi.');
+      return;
+    }
+    if (activity.presentOrder.length && !window.confirm('Urutan presentasi sudah ada. Undi ulang dan ganti urutan?')) return;
+    const arr = Array.from({ length: namedTeamCount }, (_, i) => i);
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
+  };
+
+  const moveOrder = (index: number, delta: number) => {
+    const next = [...presentationOrder];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    void pushActivity({ presentOrder: next, presentDrawnAt: new Date().toISOString() }, 'Urutan presentasi disesuaikan manual.');
+  };
 
   const saveTeams = async () => {
     const named = teams.filter((t) => t.name.trim());
@@ -646,11 +785,18 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     setBusy(true);
     setMsg(null);
     try {
-      await saveStage(sessionId, { teams: { teams: named } });
+      const nextNames = named.map((t) => t.name.trim()).join('|');
+      const namesChanged = nextNames !== savedTeamNames;
+      const nextActivity = namesChanged
+        ? { ...activity, presentOrder: [], presentDrawnAt: null, presentIndex: 0 }
+        : activity;
+      await saveStage(sessionId, { teams: { teams: named }, activity: nextActivity });
+      if (namesChanged) setActivity(nextActivity);
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
-      setMsg('Papan kelompok tersimpan — tampil di peserta & layar.');
+      setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
+      setMsg(namesChanged ? 'Papan kelompok tersimpan — undi ulang urutan presentasi.' : 'Papan kelompok tersimpan — tampil di peserta & layar.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
@@ -685,15 +831,15 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const startPresent = () => {
     const startedAt = new Date().toISOString();
     void pushActivity(
-      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: activity.presentIndex },
+      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)) },
       'Presentasi dimulai.',
     );
   };
 
   const nextGroup = () => {
-    const count = teams.filter((t) => t.name.trim()).length;
+    const count = Math.max(1, presentationOrder.length);
     const next = activity.presentIndex + 1;
-    if (next >= Math.max(1, count)) {
+    if (next >= count) {
       void pushActivity(
         { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1) },
         'Semua kelompok presentasi — lanjut refleksi/konklusi.',
@@ -701,7 +847,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       return;
     }
     const startedAt = new Date().toISOString();
-    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next }, `Giliran kelompok ${next + 1}.`);
+    const team = teams[presentationOrder[next]];
+    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next }, `Giliran ${team?.name || `kelompok ${next + 1}`}.`);
   };
 
   const stopTimer = () => {
@@ -743,7 +890,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           <div className="mt-3 flex items-center justify-between rounded-xl bg-[#1B1B1B] px-4 py-3 text-white">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-white/50">
-                {activity.phase === 'PRESENT' ? `Kelompok ${Math.min(teams.length, activity.presentIndex + 1)} / ${Math.max(1, teams.filter((t) => t.name.trim()).length)}` : 'Timer fase'}
+                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)}` : 'Timer fase'}
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
@@ -759,14 +906,89 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           {activity.phase === 'PRESENT' && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-bold text-[#8C8880]">
-                Sedang tampil: Kelompok {activity.presentIndex + 1}
-                {teams[activity.presentIndex]?.name ? ` — ${teams[activity.presentIndex].name}` : ''}
+                Sedang tampil: {teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`}
+                {teams[currentTeamIndex]?.repName ? ` — ${teams[currentTeamIndex].repName}` : ''}
               </span>
               <button type="button" disabled={busy} onClick={nextGroup} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
                 Kelompok berikutnya <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
+
+          <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-black text-[#8C8880]">Urutan presentasi</p>
+              <span className="text-[10px] text-[#8C8880]">
+                {activity.presentDrawnAt ? `diundi ${new Date(activity.presentDrawnAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'belum diundi'}
+              </span>
+              <button type="button" disabled={busy || !namedTeamCount} onClick={drawOrder} className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand text-white text-[11px] font-bold disabled:opacity-60">
+                <Dices className="w-3.5 h-3.5" /> {activity.presentOrder.length ? 'Undi ulang' : 'Undi urutan'}
+              </button>
+            </div>
+            <div className="mt-2 space-y-1">
+              {presentationOrder.map((teamIndex, pos) => (
+                <div key={`${teamIndex}-${pos}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${pos === activity.presentIndex && activity.phase === 'PRESENT' ? 'bg-brand/10 border border-brand/30' : 'bg-[#FAF9F5]'}`}>
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#D9D7D0] text-[10px] font-black grid place-items-center">{pos + 1}</span>
+                  <span className="text-xs font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
+                  {teams[teamIndex]?.repName && <span className="text-[10px] text-[#8C8880] truncate">· {teams[teamIndex].repName}</span>}
+                  <span className="ml-auto flex gap-1">
+                    <button type="button" disabled={busy || pos === 0} onClick={() => moveOrder(pos, -1)} className="p-1 disabled:opacity-30" title="Naik"><ChevronLeft className="w-3.5 h-3.5 rotate-90" /></button>
+                    <button type="button" disabled={busy || pos === presentationOrder.length - 1} onClick={() => moveOrder(pos, 1)} className="p-1 disabled:opacity-30" title="Turun"><ChevronRight className="w-3.5 h-3.5 rotate-90" /></button>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-[#8C8880]">Undian dilakukan di kontrol; peserta & layar mengikuti urutan ini. Jika kelompok berubah, undi ulang.</p>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-black text-[#8C8880]">Laporan karya kelompok</p>
+              <a href={`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab.csv`} className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#D9D7D0] text-[11px] font-bold">
+                Unduh CSV
+              </a>
+            </div>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-left text-[10px]">
+                <thead>
+                  <tr className="text-[#8C8880]">
+                    <th className="py-1 pr-2">Kelompok</th>
+                    <th className="py-1 pr-2">Perwakilan</th>
+                    <th className="py-1 pr-2">Pot</th>
+                    <th className="py-1 pr-2">Tas</th>
+                    <th className="py-1 pr-2">Foto</th>
+                    <th className="py-1 pr-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(lab?.teams || []).map((t) => (
+                    <tr key={t.index} className="border-t border-[#EFEDE8]">
+                      <td className="py-1.5 pr-2 font-bold">{t.name}</td>
+                      <td className="py-1.5 pr-2">{t.repName || '—'}</td>
+                      <td className="py-1.5 pr-2">{t.pot.progress == null ? '—' : `${t.pot.progress}%`}</td>
+                      <td className="py-1.5 pr-2">{t.bag.progress == null ? '—' : `${t.bag.progress}%`}</td>
+                      <td className="py-1.5 pr-2">{t.photoCount} · {t.photoComplete ? 'lengkap' : 'belum'}</td>
+                      <td className="py-1.5 pr-2">
+                        <span className={`px-1.5 py-0.5 rounded-full font-black ${t.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{t.done ? 'SELESAI' : 'PROSES'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {!lab?.teams?.length && <tr><td colSpan={6} className="py-2 text-[#8C8880]">Belum ada kelompok/laporan.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-2 grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+              {(lab?.teams || []).flatMap((t) => [
+                ...t.pot.photos.map((p) => ({ ...p, key: `${t.index}-pot-${p.id}`, label: `Pot ${t.name}` })),
+                ...t.bag.photos.map((p) => ({ ...p, key: `${t.index}-bag-${p.id}`, label: `Tas ${t.name}` })),
+                ...(t.groupPhoto ? [{ ...t.groupPhoto, key: `${t.index}-group`, label: `Bersama ${t.name}` }] : []),
+              ]).slice(0, 15).map((p) => (
+                <a key={p.key} href={p.photoUrl || '#'} target="_blank" rel="noreferrer" className="block">
+                  <img src={p.thumbUrl || p.photoUrl || ''} alt={p.label} title={p.label} className="h-16 w-full object-cover rounded-lg border border-[#EFEDE8]" />
+                </a>
+              ))}
+            </div>
+          </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             <label className="text-[10px] font-bold text-[#8C8880]">
@@ -831,7 +1053,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           <div className="mt-3">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim()).length})</p>
-              <span className="text-[10px] text-[#8C8880]">5-8 orang · juru digital · Tim Pot/Tas</span>
+              <button type="button" onClick={syncMembersFromGroups} className="text-[10px] font-bold text-brand underline">Sinkron anggota dari kelompok mentoring</button>
             </div>
             <div className="mt-2 space-y-2">
               {teams.map((t, i) => (
@@ -844,7 +1066,15 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <input value={t.station} onChange={(e) => setTeam(i, { station: e.target.value })} placeholder="Meja / stasiun" className={INPUT} />
-                    <input value={t.scribe} onChange={(e) => setTeam(i, { scribe: e.target.value })} placeholder="Juru digital (input 6 kartu)" className={INPUT} />
+                    <select value={t.repUserId || ''} onChange={(e) => selectRep(i, e.target.value)} className={INPUT}>
+                      <option value="">Perwakilan kelompok…</option>
+                      {participants.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                      {t.repUserId && !participants.some((p) => p.id === t.repUserId) && (
+                        <option value={t.repUserId}>{t.repName || t.repUserId}</option>
+                      )}
+                    </select>
                   </div>
                   <input
                     value={t.members.join(', ')}
@@ -852,6 +1082,33 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                     placeholder="Anggota (pisah koma)"
                     className={INPUT}
                   />
+                  <details className="rounded-lg border border-[#EFEDE8] bg-[#FAF9F5] p-2">
+                    <summary className="text-[10px] font-bold text-[#8C8880] cursor-pointer">
+                      Pilih anggota akun ({t.memberUserIds.length} dipilih){t.repName ? ` · perwakilan: ${t.repName}` : ''}
+                    </summary>
+                    <input
+                      value={rosterSearch[i] || ''}
+                      onChange={(e) => setRosterSearch((prev) => ({ ...prev, [i]: e.target.value }))}
+                      placeholder="Cari nama…"
+                      className={`${INPUT} mt-2`}
+                    />
+                    <div className="mt-2 max-h-40 overflow-auto space-y-1">
+                      {participants
+                        .filter((p) => !(rosterSearch[i] || '').trim() || p.name.toLowerCase().includes((rosterSearch[i] || '').toLowerCase()))
+                        .map((p) => (
+                          <label key={p.id} className="flex items-center gap-2 text-[11px] px-1 py-0.5">
+                            <input
+                              type="checkbox"
+                              checked={t.memberUserIds.includes(p.id)}
+                              onChange={(e) => selectMember(i, p.id, e.target.checked)}
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="truncate">{p.name}</span>
+                          </label>
+                        ))}
+                    </div>
+                    <p className="mt-1 text-[9px] text-[#8C8880]">Anggota akun dipakai untuk feed group & update peserta. Nama manual tetap bisa diisi.</p>
+                  </details>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <input
                       value={t.pot.join(', ')}
@@ -868,7 +1125,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                   </div>
                   <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
                     <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
-                    Selesai
+                    Selesai (override Admin)
                   </label>
                 </div>
               ))}

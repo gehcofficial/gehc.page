@@ -79,8 +79,8 @@ describe('session-engine: registry segmen', () => {
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'DONE' })).toBe('refleksi');
     expect(segmentForPattern('CREATIVE_LAB', 'WRAPUP', false)).toBe('refleksi');
     expect(segmentForPattern('CREATIVE_LAB', 'CLOSED', false)).toBe('penutup');
-    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-1')).toEqual(['activity', 'teams', 'notes']);
-    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-2')).toEqual(['activity', 'teams', 'notes']);
+    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-1')).toEqual(['activity', 'jar', 'teams']);
+    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-2')).toEqual(['activity', 'lab', 'teams']);
     expect(widgetsFor('CREATIVE_LAB', 'refleksi')).toEqual(['chips', 'notes', 'download']);
   });
 
