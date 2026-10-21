@@ -11,9 +11,9 @@ import {
 import { deepGuide, filmAffirm, normalizeConfig } from '../../server/routes/worship.mjs';
 import { parseFilmDurationMin } from '../../server/lib/session-stage.mjs';
 
-const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
+const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES', 'CREATIVE_LAB'];
 
-describe('session-draft: template kosongan 5 pola', () => {
+describe('session-draft: template kosongan 6 pola', () => {
   it.each(CODES)('%s punya section + kunci field unik', (code) => {
     const sections = emptySessionDraft(code);
     expect(sections.length).toBeGreaterThan(0);
@@ -61,6 +61,20 @@ describe('session-draft: template kosongan 5 pola', () => {
       expect(keys).toContain(k);
     }
     expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
+  });
+
+  it('CREATIVE_LAB: 6 kartu jar + 5 kelompok × 5 field + durasi fase', () => {
+    const keys = templateFieldKeys('CREATIVE_LAB').map((f) => f.key);
+    for (const k of ['jar-root', 'jar-truth', 'jar-lost', 'jar-community', 'jar-verse', 'jar-step']) {
+      expect(keys).toContain(k);
+    }
+    expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(25);
+    expect(keys).toContain('group-1-scribe');
+    expect(keys).toContain('group-5-bag');
+    expect(keys).toContain('a1-minutes');
+    expect(keys).toContain('a2-minutes');
+    expect(keys).toContain('present-seconds');
+    expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(10);
   });
 
   it('kosongan penuh → filled 0', () => {
@@ -453,6 +467,25 @@ describe('session-draft: AI proposal', () => {
       fieldKeys: [{ key: 'mosi-1', label: 'Mosi 1' }],
     });
     expect(capturedPrompts.list.join('\n')).not.toContain('DEEP SHARING FILM');
+  });
+
+  it('prompt Creative Lab: jar/a1/a2/group + anti-ngarang nama', async () => {
+    capturedPrompts.list = [];
+    await generateSessionDraft({
+      yearMonth: '2026-10',
+      weekIndex: 2,
+      theme: 'Akar yang Berbuah',
+      fundamentalFirman: { ref: 'Yakobus 1:22-25', text: 'Jadilah pelaku firman...' },
+      pattern: { code: 'CREATIVE_LAB', name: 'Creative Lab', phases: [], playbook: 'x' },
+      fieldKeys: templateFieldKeys('CREATIVE_LAB'),
+    });
+    const prompt = capturedPrompts.list.join('\n');
+    expect(prompt).toContain('ATURAN CREATIVE LAB');
+    expect(prompt).toContain('jar-root');
+    expect(prompt).toContain('a2-pot');
+    expect(prompt).toContain('a2-bag');
+    expect(prompt).toContain('group-*');
+    expect(prompt).toContain('jangan mengarang nama');
   });
 
   it('draf saat ini dikirim sebagai masukan', async () => {

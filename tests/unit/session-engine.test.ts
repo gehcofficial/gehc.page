@@ -23,7 +23,8 @@ describe('session-engine: registry segmen', () => {
     for (const [code, segs] of Object.entries(PATTERN_SEGMENTS)) {
       expect(code).not.toBe('POST_TO_POST');
       expect(segs.length).toBeGreaterThanOrEqual(3);
-      expect(segs[segs.length - 1].id).toBe(code === 'MONOLOG' ? 'penutup' : code === 'BEDAH_FILM' ? 'kesaksian' : 'komitmen');
+      const last = code === 'MONOLOG' ? 'penutup' : code === 'BEDAH_FILM' ? 'kesaksian' : code === 'CREATIVE_LAB' ? 'penutup' : 'komitmen';
+      expect(segs[segs.length - 1].id).toBe(last);
     }
   });
 
@@ -64,6 +65,23 @@ describe('session-engine: registry segmen', () => {
     expect(widgetsFor('BEDAH_FILM', 'likert-akhir')).toEqual(['likert', 'chips']);
     expect(widgetsFor('BEDAH_FILM', 'lesson-learned')).toEqual(['chips', 'notes', 'download']);
     expect(widgetsFor('BEDAH_FILM', 'kesaksian')).toEqual(['testimony', 'download']);
+  });
+
+  it('CREATIVE_LAB: segmen mengikuti fase A1 → A2 → PRESENT → DONE', () => {
+    expect(PATTERN_SEGMENTS.CREATIVE_LAB.map((s) => s.id)).toEqual([
+      'pembuka', 'briefing', 'aktivitas-1', 'aktivitas-2', 'presentasi', 'refleksi', 'penutup',
+    ]);
+    expect(segmentForPattern('CREATIVE_LAB', 'DRAFT', false)).toBe('pembuka');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'IDLE' })).toBe('briefing');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A1' })).toBe('aktivitas-1');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A2' })).toBe('aktivitas-2');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'PRESENT' })).toBe('presentasi');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'DONE' })).toBe('refleksi');
+    expect(segmentForPattern('CREATIVE_LAB', 'WRAPUP', false)).toBe('refleksi');
+    expect(segmentForPattern('CREATIVE_LAB', 'CLOSED', false)).toBe('penutup');
+    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-1')).toEqual(['activity', 'teams', 'notes']);
+    expect(widgetsFor('CREATIVE_LAB', 'aktivitas-2')).toEqual(['activity', 'teams', 'notes']);
+    expect(widgetsFor('CREATIVE_LAB', 'refleksi')).toEqual(['chips', 'notes', 'download']);
   });
 
   it('filmLikertPairs memasangkan PRE/POST + delta per peserta', () => {
@@ -146,11 +164,16 @@ describe('session-engine: registry segmen', () => {
   });
 
   it('slot catatan selalu diakhiri KOMITMEN', () => {
-    for (const code of ['MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES']) {
+    for (const code of ['MONOLOG', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES', 'CREATIVE_LAB']) {
       const slots = noteSlotsFor(code);
       expect(slots.length).toBeGreaterThan(1);
       expect(slots[slots.length - 1].key).toBe('KOMITMEN');
     }
+  });
+
+  it('CREATIVE_LAB: 6 kartu jar + KOMITMEN', () => {
+    const keys = noteSlotsFor('CREATIVE_LAB').map((s) => s.key);
+    expect(keys).toEqual(['JAR-ROOT', 'JAR-TRUTH', 'JAR-LOST', 'JAR-COMMUNITY', 'JAR-VERSE', 'JAR-STEP', 'KOMITMEN']);
   });
 
   it('DUAL_MONOLOG dilebur ke MONOLOG (alias + slot gabungan)', () => {
@@ -200,6 +223,7 @@ describe('session-engine: registry segmen', () => {
     expect(sessionModuleLabel('fgd')).toBe('Panduan FGD');
     expect(sessionModuleLabel('testimony')).toBe('Undian kesaksian');
     expect(sessionModuleLabel('rounds')).toBe('Ronde debat');
+    expect(sessionModuleLabel('activity')).toBe('Aktivitas & timer');
     expect(TESTIMONY_TOTAL).toBe(4);
   });
 });

@@ -21,7 +21,7 @@ import { preferSession, sessionOptionLabel } from '../../lib/worship-session-sel
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
 import { PatternRundownList } from './PatternRundownList';
 import { TestimonyPanel } from './TestimonyPanel';
-import { DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
+import { ActivityPanel, DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -668,10 +668,11 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const isMonolog = patternCode === 'MONOLOG';
   const isFilm = patternCode === 'BEDAH_FILM';
   const isDebat = patternCode === 'DEBAT';
+  const isCreativeLab = patternCode === 'CREATIVE_LAB';
   const debatRoundsState = (detail?.session?.config?.rounds || null) as { rounds?: unknown[]; current?: number; step?: number } | null;
   const debatRoundCount = Array.isArray(debatRoundsState?.rounds) ? debatRoundsState.rounds.length : 0;
   const debatCurrent = Number(debatRoundsState?.current) || 0;
-  const canManageChips = isPostToPost || isMonolog || isFilm;
+  const canManageChips = isPostToPost || isMonolog || isFilm || isCreativeLab;
   // Siklus ideal: kontrol mengikuti hanya setelah draft terisi. Tanpa isi,
   // semua tombol aksi dikunci (link + pilihan sesi tetap bisa dipakai).
   const hasDraft = useMemo(
@@ -1453,6 +1454,9 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           )}
           {patternCode === 'THREE_SEQUENCES' && (
             <TeamsPanel sessionId={detail.session.id} />
+          )}
+          {isCreativeLab && (
+            <ActivityPanel sessionId={detail.session.id} />
           )}
           </fieldset>
         </>

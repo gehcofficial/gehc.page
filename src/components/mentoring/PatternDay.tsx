@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Clapperboard, Download, Flag, Loader2, Lock, Send, Sparkles, Swords, Users } from 'lucide-react';
+import { Check, Clapperboard, Download, Flag, Loader2, Lock, Send, Sparkles, Swords, Timer, Users } from 'lucide-react';
 import {
   COMMITMENT_KEY,
   MONOLOG_QUESTION_KEYS,
@@ -272,6 +272,25 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     ? new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000 - phaseTick
     : null;
   const phaseExpired = phaseRemainMs !== null && phaseRemainMs <= 0;
+  const labAct = data?.activity || null;
+  const activityTick = useNowTick(Boolean(labAct?.startedAt || labAct?.presentStartedAt));
+  const activityTotalSec = labAct
+    ? (labAct.phase === 'PRESENT' ? labAct.presentSeconds : labAct.durationSec)
+    : 0;
+  const activityStartedAt = labAct
+    ? (labAct.phase === 'PRESENT' ? labAct.presentStartedAt : labAct.startedAt)
+    : null;
+  const activityRemainMs = activityStartedAt
+    ? new Date(activityStartedAt).getTime() + activityTotalSec * 1000 - activityTick
+    : activityTotalSec * 1000;
+  const activityExpired = Boolean(activityStartedAt) && activityRemainMs <= 0;
+  const LAB_PHASE_LABEL: Record<string, string> = {
+    IDLE: 'Briefing',
+    A1: 'Activity 1 · Roots Reminder Jar',
+    A2: 'Activity 2 · Pot ∥ Tas',
+    PRESENT: 'Presentasi kelompok',
+    DONE: 'Refleksi & Satu Kata',
+  };
   const stepTick = useNowTick(Boolean(data?.rounds?.stepStartedAt));
   const slots = useMemo(() => {
     const base = noteSlotsFor(c);
@@ -326,8 +345,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       preOpen: String(data?.likert.rounds?.pre || 'open').toLowerCase() !== 'closed',
     };
   }, [c, filmPairs, chipDone, data]);
+  const activityExtra = useMemo(() => {
+    if (c !== 'CREATIVE_LAB') return undefined;
+    return {
+      activityPhase: data?.activity?.phase || 'IDLE',
+      presentIndex: Number(data?.activity?.presentIndex) || 0,
+    };
+  }, [c, data?.activity?.phase, data?.activity?.presentIndex]);
+  const segmentExtra = c === 'CREATIVE_LAB' ? activityExtra : filmExtra;
   const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);
-  const derivedSegment = segmentForPattern(c, status, filled, live, filmExtra);
+  const derivedSegment = segmentForPattern(c, status, filled, live, segmentExtra);
   const segment = resolvePinnedSegment(segmentOrder, pinned, derivedSegment);
   // F1 (Bedah Lagu): HP hanya menampilkan Q1-Q3.
   const visibleSlots = useMemo(() => {
@@ -514,7 +541,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     );
   }
 
-  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live, filmExtra);
+  const open = (id: string) => canOpenSegmentPattern(c, id, status, filled, live, segmentExtra);
   const editable = status !== 'DRAFT' && status !== 'CLOSED';
 
   return (
@@ -555,6 +582,17 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                 </p>
               </div>
             ) : null
+          ) : c === 'CREATIVE_LAB' && labAct ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                {LAB_PHASE_LABEL[labAct.phase] || 'Creative Lab'}
+                {labAct.phase === 'PRESENT' ? ` · kelompok ${labAct.presentIndex + 1}` : ''}
+                {activityExpired ? ' · waktu habis' : ''}
+              </p>
+              <p className="font-display text-2xl font-black tabular-nums">
+                {labAct.phase === 'DONE' ? '✓' : activityExpired ? '00:00' : fmtRemain(activityRemainMs)}
+              </p>
+            </div>
           ) : c === 'DEBAT' ? (
             rounds?.stepStartedAt && rounds?.stepShowOnScreen !== false ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-[#1B1B1B] text-white px-4 py-3">
@@ -576,7 +614,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         {steps.length > 0 && (
           <nav className="mt-3 flex gap-1.5 overflow-x-auto pb-1" aria-label="Tahap ibadah">
             {steps.map((s) => {
-              const unlocked = canOpenSegmentPattern(c, s.id, status, filled, live, filmExtra);
+              const unlocked = canOpenSegmentPattern(c, s.id, status, filled, live, segmentExtra);
               const isActive = s.id === segment;
               const isPast = segmentOrder.indexOf(s.id) < segmentOrder.indexOf(segment);
               return (
@@ -621,8 +659,9 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           <p className="text-[10px] font-black uppercase tracking-widest text-brand">Selamat datang</p>
           <p className="text-lg font-black tracking-tight mt-1">Shalom, {data.me?.name || 'Peserta'}!</p>
           <p className="text-xs leading-relaxed mt-1.5">
-            Selamat datang di {data.session.title}. Hari ini tentang Rescue Plan — Tuhan punya
-            rencana penyelamatan untukmu, dan kamu tidak berjalan sendirian.
+            {c === 'CREATIVE_LAB'
+              ? `Selamat datang di ${data.session.title}. Hari ini firman menjadi karya: kita mengisi The Roots Reminder Jar, lalu membuat pot dan tas yang membawa nilai Injil ke kuliah, kerja, dan pergaulan. Duduklah bersama kelompokmu.`
+              : `Selamat datang di ${data.session.title}. Hari ini tentang Rescue Plan — Tuhan punya rencana penyelamatan untukmu, dan kamu tidak berjalan sendirian.`}
           </p>
           <p className="text-[11px] text-[#8C8880] mt-1.5">
             {editable
@@ -717,19 +756,79 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         />
       )}
 
+      {has('activity') && labAct && (() => {
+        const brief = data.activityBrief;
+        const card = (data.jarCards || [])[labAct.cardIndex];
+        return (
+          <div className={CARD}>
+            <h4 className="text-sm font-black text-[#1B1B1B] mb-2 inline-flex items-center gap-1.5">
+              <Timer className="w-4 h-4 text-brand" />
+              {labAct.phase === 'A2' ? 'Activity 2 — Roots & DNA Creative Lab' : 'Activity 1 — The Roots Reminder Jar'}
+            </h4>
+            <div className="rounded-xl bg-[#111] text-white px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                {labAct.phase === 'A2' ? 'Tim Pot ∥ Tim Tas · 25 menit' : `Tulis 6 kartu · ${brief?.a1.minutes || 15} menit`}
+                {activityExpired ? ' · waktu habis' : ''}
+              </p>
+              <p className="font-display text-2xl font-black tabular-nums">
+                {activityExpired ? '00:00' : fmtRemain(activityRemainMs)}
+              </p>
+            </div>
+            {labAct.phase === 'A1' && card && (
+              <div className="mt-2 rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2.5">
+                <p className="text-[10px] font-black uppercase tracking-wider text-brand">
+                  Kartu {labAct.cardIndex + 1}/6 · arahan tim
+                </p>
+                <p className="text-xs font-black mt-0.5">{card.title}</p>
+                {card.direction && <p className="text-[11px] text-[#8C8880] leading-relaxed mt-0.5">{card.direction}</p>}
+              </div>
+            )}
+            {labAct.phase === 'A1' && brief?.a1.steps && (
+              <p className="text-[11px] text-[#8C8880] leading-relaxed mt-2 whitespace-pre-line">{brief.a1.steps}</p>
+            )}
+            {labAct.phase === 'A2' && brief && (
+              <div className="mt-2 grid gap-2">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Tim Pot — Grow What You Believe</p>
+                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.pot || 'Gambarkan apa yang perlu dirawat agar iman bertumbuh.'}</p>
+                </div>
+                <div className="rounded-xl bg-brand/5 border border-brand/20 px-3 py-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tim Tas — Carry The Gospel</p>
+                  <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.bag || 'Gambarkan nilai Injil yang kamu bawa ke kuliah, kerja, dan pergaulan.'}</p>
+                </div>
+                {brief.a2.commit && <p className="text-[11px] text-[#8C8880]">Komitmen kelompok: {brief.a2.commit}</p>}
+              </div>
+            )}
+            <p className="text-[10px] text-[#8C8880] mt-2">
+              Juru digital kelompok mengetik 6 kartu ke catatan di bawah (JAR-ROOT s/d JAR-STEP). Semua anggota tetap menulis versi kertas.
+            </p>
+          </div>
+        );
+      })()}
+
       {has('teams') && teams.length > 0 && (
         <div className={CARD}>
           <h4 className="text-sm font-black text-[#1B1B1B] mb-2 inline-flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-brand" /> Tim misi
+            <Users className="w-4 h-4 text-brand" /> {c === 'CREATIVE_LAB' ? 'Papan kelompok' : 'Tim misi'}
           </h4>
           <div className="space-y-1.5">
             {teams.map((t, i) => (
               <div key={i} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
                 <p className="text-xs font-black">
                   {t.name} {t.done && <span className="text-emerald-600">✓</span>}
+                  {c === 'CREATIVE_LAB' && labAct?.phase === 'PRESENT' && i === labAct.presentIndex && (
+                    <span className="ml-1.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-brand text-white align-middle">tampil</span>
+                  )}
                 </p>
                 {t.task && <p className="text-[11px] text-[#8C8880]">{t.task}</p>}
                 {t.members.length > 0 && <p className="text-[11px] mt-0.5">{t.members.join(' · ')}</p>}
+                {c === 'CREATIVE_LAB' && (
+                  <div className="mt-1 space-y-0.5">
+                    {t.station && <p className="text-[10px] text-[#8C8880]">Meja: {t.station}{t.scribe ? ` · Juru digital: ${t.scribe}` : ''}</p>}
+                    {t.pot?.length ? <p className="text-[10px] text-emerald-700">Tim Pot: {t.pot.join(', ')}</p> : null}
+                    {t.bag?.length ? <p className="text-[10px] text-brand">Tim Tas: {t.bag.join(', ')}</p> : null}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -759,16 +858,18 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             <div className="text-center py-4 space-y-2">
               <Sparkles className="w-7 h-7 text-brand mx-auto" />
               <p className="font-display text-xl font-black">Thank you, {data.me?.name || 'Peserta'}!</p>
-              <p className="text-xs text-[#8C8880]">Lesson learned-mu tercatat. Lihat layar utama di depan.</p>
+              <p className="text-xs text-[#8C8880]">{c === 'CREATIVE_LAB' ? 'Satu Kata-mu tercatat. Lihat layar utama di depan.' : 'Lesson learned-mu tercatat. Lihat layar utama di depan.'}</p>
             </div>
           ) : (data.chips?.list || []).length === 0 ? (
-            <p className="text-xs text-[#8C8880] italic">Pilihan lesson learned menyusul dari tim — siapkan hatimu.</p>
+            <p className="text-xs text-[#8C8880] italic">{c === 'CREATIVE_LAB' ? 'Pilihan Satu Kata menyusul dari tim — siapkan hatimu.' : 'Pilihan lesson learned menyusul dari tim — siapkan hatimu.'}</p>
           ) : (
             <div className="space-y-3">
               <div>
-                <h4 className="text-sm font-black text-[#1B1B1B]">Lesson Learned</h4>
+                <h4 className="text-sm font-black text-[#1B1B1B]">{c === 'CREATIVE_LAB' ? 'Satu Kata' : 'Lesson Learned'}</h4>
                 <p className="text-[11px] text-[#8C8880] mt-0.5">
-                  Pilih maksimal {chipLimit} kata yang paling mewakili aha-moment kamu hari ini.
+                  {c === 'CREATIVE_LAB'
+                    ? `Pilih maksimal ${chipLimit} kata yang paling mewakili pelajaranmu hari ini.`
+                    : `Pilih maksimal ${chipLimit} kata yang paling mewakili aha-moment kamu hari ini.`}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

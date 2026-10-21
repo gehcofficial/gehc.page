@@ -438,6 +438,11 @@ export function patternBlock(pattern) {
     lines.push('- Bentuk: Likert AWAL 5 item (baseline) + screening + deep sharing 3Q + Likert AKHIR (5 item yang sama, ukur delta) + komitmen/chip + undi 2 kesaksian; discussionFlow = urutan L0→L4; deliveryPlan tekankan setup pemutaran, gate likert 2 ronde, & fasilitasi delta.');
   } else if (code === 'THREE_SEQUENCES') {
     lines.push('- Bentuk: gamifikasi 3 sequence tanpa jeda (Melayani → Bersekutu → Bersaksi) + commissioning; discussionFlow = brief tiap sequence + aturan presentasi 4 menit; deliveryPlan tekankan komando countdown, pembagian 5 tim Mission Room, dan deklarasi Coram Deo.');
+  } else if (code === 'CREATIVE_LAB') {
+    lines.push('- Bentuk: Serving Day berbasis karya — firman & briefing 15\' → Activity 1 The Roots Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step) → Activity 2 Roots & DNA Creative Lab 25\' (Tim Pot "Grow What You Believe" ∥ Tim Tas "Carry The Gospel") → presentasi 2\'/kelompok 10\' → konklusi 10\' → persembahan 10\' → lagu + doa tutup 5\'.');
+    lines.push('- Kelompok 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 juru digital (input 6 kartu ke web), Tim Pot 2-4 orang, Tim Tas 2-4 orang. Peserta sudah duduk per kelompok sejak T0.');
+    lines.push('- discussionFlow = alur briefing → A1 → A2 → presentasi → refleksi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer A1/A2/presentasi, peran juru digital, dan pembersihan 3 menit terakhir.');
+    lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan pot/tas & 6 kartu harus lahir dari tema/firman, bukan generik.');
   } else {
     lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
   }
@@ -1171,6 +1176,16 @@ export async function generateSessionDraft(input) {
     '- pro-name/pro-mentor/pro-members/kontra-*: NAMA orang nyata tim; bila belum pasti, KOSONGKAN (jangan mengarang nama).',
     '- juri-1..juri-3: nama juri bila diketahui; bila belum, kosongkan.',
   ] : [];
+  const hasCreativeLab = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('jar-'));
+  const CREATIVE_LAB_RULES = hasCreativeLab ? [
+    'ATURAN CREATIVE LAB (WAJIB):',
+    '- jar-root..jar-step: tulis arahan Indonesia yang konkret + 1 contoh kalimat Beyonders (KRS, skripsi, magang, shift, lembur, kos, keuangan awal, relasi) yang menyebut eksplisit tema/firman pekan.',
+    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan "Grow What You Believe" (merawat iman), a2-bag = arahan "Carry The Gospel" (nilai Injil di kuliah/kerja/kos/pergaulan); a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
+    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=120.',
+    '- brief-core (inti khotbah 8-10 menit) & closing-script wajib merujuk eksplisit Fundamental Firman (sebutkan ref-nya) + aplikasi konkret bagi Beyonders.',
+    '- group-*: NAMA kelompok/anggota/juru digital/Tim Pot/Tas = orang nyata; bila belum pasti, KOSONGKAN (jangan mengarang nama). Boleh isi nama kelompok tematik dari tema, tetapi anggota tetap kosong.',
+    '- present-order/present-questions: urutan & 2 pertanyaan apresiasi singkat (2 menit/kelompok).',
+  ] : [];
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
@@ -1180,6 +1195,7 @@ export async function generateSessionDraft(input) {
     ...LIKERT_RULES,
     ...DEEP_FILM_RULES,
     ...DEBAT_RULES,
+    ...CREATIVE_LAB_RULES,
     '- Isi SEMUA kunci template berikut (kecuali yang benar-benar tak relevan) dengan 1-3 kalimat spesifik tema & firman pekan (bukan generik).',
     '- Slot bernada solusi (komitmen, reveal, pancingan, afirmasi) WAJIB merujuk eksplisit ke Fundamental Firman; slot bacaan/observasi memakai Kitab Fokus.',
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',

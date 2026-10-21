@@ -95,7 +95,17 @@ export type SessionRounds = {
 
 export type SessionScreening = { title: string; durationMin: number; startedAt: string | null; preShow: string[] } | null;
 
-export type SessionTeam = { name: string; task: string; members: string[]; done: boolean };
+export type SessionTeam = {
+  name: string;
+  task: string;
+  members: string[];
+  done: boolean;
+  /** Creative Lab: juru digital, meja/stasiun, sub-tim paralel Pot & Tas. */
+  scribe?: string;
+  station?: string;
+  pot?: string[];
+  bag?: string[];
+};
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
 
@@ -116,6 +126,30 @@ export type SessionPhase = { name: 'F1' | 'F2' | 'F3' | 'CLOSING' | 'M0'; starte
 
 /** Preferensi tiap fase (durasi + tampil di layar proyektor; diatur kontrol). */
 export type PhasePrefs = Partial<Record<'F1' | 'F2' | 'F3' | 'CLOSING', { durationSec: number; showOnScreen: boolean }>>;
+
+/** State panggung Creative Lab (fase aktivitas + timer + kartu jar + presentasi). */
+export type SessionActivity = {
+  phase: 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  startedAt: string | null;
+  durationSec: number;
+  showOnScreen: boolean;
+  cardIndex: number;
+  presentIndex: number;
+  presentStartedAt: string | null;
+  presentSeconds: number;
+  durations?: { A1: number; A2: number; PRESENT: number };
+} | null;
+
+/** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
+export type SessionActivityBrief = {
+  briefing: { core: string; rules: string; jarIntro: string };
+  a1: { title: string; goal: string; tools: string; steps: string; output: string; minutes: number };
+  a2: { title: string; goal: string; tools: string; pot: string; bag: string; commit: string; minutes: number };
+  present: { order: string; questions: string; seconds: number };
+  closing: { script: string; commit: string; prayer: string };
+} | null;
+
+export type SessionJarCard = { key: string; code: string; title: string; direction: string };
 
 export type OneWordCount = { text: string; count: number };
 
@@ -162,6 +196,10 @@ export type MentoringSessionPayload = {
   rounds?: SessionRounds;
   screening?: SessionScreening;
   teams?: SessionTeams;
+  /** Creative Lab: panggung aktivitas, brief & 6 kartu jar. */
+  activity?: SessionActivity;
+  activityBrief?: SessionActivityBrief;
+  jarCards?: SessionJarCard[];
   myResult: MentoringMyResult | null;
   rooms: MentoringRoom[];
   progress: { submitted: number; total: number };
@@ -193,6 +231,10 @@ export type MentoringLivePayload = {
   /** Gate 2 ronde Likert film (AWAL/AKHIR) — label step M3 di layar. */
   likertRounds?: { pre: string; post: string } | null;
   teams?: SessionTeams;
+  /** Creative Lab: panggung aktivitas, brief & 6 kartu jar. */
+  activity?: SessionActivity;
+  activityBrief?: SessionActivityBrief;
+  jarCards?: SessionJarCard[];
   /** Agregat ronde film (delta pre→post di layar). */
   likertMeans?: { pre: { avg: number | null; n: number }; post: { avg: number | null; n: number }; delta: number | null } | null;
   wrapUpAt: string | null;

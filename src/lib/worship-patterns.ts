@@ -254,6 +254,7 @@ export const MODULE_LABELS: Record<string, string> = {
   teams: 'Tim',
   fgd: 'Panduan FGD',
   testimony: 'Undian kesaksian',
+  activity: 'Aktivitas & timer',
 };
 
 export function moduleLabel(code: string): string {

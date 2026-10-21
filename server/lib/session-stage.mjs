@@ -229,7 +229,12 @@ export function cleanSong(raw) {
   return { title, about: str(raw.about, 2000), singer: str(raw.singer, 120) };
 }
 
-/** Normalisasi papan tim misi (maks 8 tim, 20 anggota per tim). */
+/**
+ * Normalisasi papan tim (maks 8 tim, 20 anggota per tim).
+ * CREATIVE_LAB menambah sub-tim paralel: `pot` & `bag` (masing-masing 2-6
+ * anggota) + `scribe` (juru digital) + `station` (meja/stasiun). Field baru
+ * opsional — THREE_SEQUENCES/DEBAT tetap kompatibel (default kosong).
+ */
 export function cleanTeams(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const teams = (Array.isArray(raw.teams) ? raw.teams : []).slice(0, 8).map((t) => ({
@@ -237,7 +242,113 @@ export function cleanTeams(raw) {
     task: str(t?.task, 200),
     members: (Array.isArray(t?.members) ? t.members : []).slice(0, 20).map((m) => str(m, 80)).filter(Boolean),
     done: Boolean(t?.done),
+    scribe: str(t?.scribe, 80),
+    station: str(t?.station, 80),
+    pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+    bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
   })).filter((t) => t.name);
   if (!teams.length) return null;
   return { teams };
+}
+
+/** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
+export const ACTIVITY_PHASES = ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
+
+/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi 2'/kelompok. */
+export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 120, DONE: 0 };
+
+/**
+ * Normalisasi state panggung Creative Lab:
+ * fase aktivitas + timer, kartu jar yang tampil di layar (0-5), dan
+ * kelompok yang sedang presentasi (presentIndex + timer 2').
+ */
+export function cleanActivity(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const phase = ACTIVITY_PHASES.includes(String(raw.phase || '').toUpperCase())
+    ? String(raw.phase).toUpperCase()
+    : 'IDLE';
+  const fallbackSec = ACTIVITY_PHASE_SECONDS[phase] || 0;
+  const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || fallbackSec || 60));
+  const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null
+    ? true
+    : !(raw.showOnScreen === false || raw.showOnScreen === 0 || String(raw.showOnScreen).toLowerCase() === 'false');
+  const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || 120));
+  const rawDur = raw.durations && typeof raw.durations === 'object' && !Array.isArray(raw.durations) ? raw.durations : {};
+  const durationFor = (key, fallback) => Math.min(7200, Math.max(60, Number(rawDur[key]) || fallback));
+  return {
+    phase,
+    startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
+    durationSec,
+    showOnScreen,
+    cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
+    presentIndex: Math.min(7, Math.max(0, Number(raw.presentIndex) || 0)),
+    presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
+    presentSeconds,
+    durations: {
+      A1: durationFor('A1', ACTIVITY_PHASE_SECONDS.A1),
+      A2: durationFor('A2', ACTIVITY_PHASE_SECONDS.A2),
+      PRESENT: durationFor('PRESENT', presentSeconds),
+    },
+  };
+}
+
+/** Pecah daftar nama dari teks bebas (koma/titik-koma/baris baru). */
+function splitNames(raw, max = 20) {
+  return String(raw || '')
+    .split(/[,;\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+/**
+ * Materialisasi Draft Sesi CREATIVE_LAB → papan tim + state aktivitas.
+ * Membaca `storedDraft` (bentuk { [section]: { [field]: string } }).
+ * Nama/anggota yang kosong tidak dikarang (tim tanpa nama dilewati).
+ */
+export function creativeLabFromDraft(storedDraft) {
+  const d = storedDraft && typeof storedDraft === 'object' ? storedDraft : {};
+  const groups = d.groups && typeof d.groups === 'object' ? d.groups : {};
+  const teams = [];
+  for (let n = 1; n <= 8; n += 1) {
+    const name = str(groups[`group-${n}-name`], 80).trim();
+    if (!name) continue;
+    teams.push({
+      name,
+      task: str(groups[`group-${n}-task`], 200),
+      members: splitNames(groups[`group-${n}-members`], 20),
+      done: false,
+      scribe: str(groups[`group-${n}-scribe`], 80),
+      station: str(groups[`group-${n}-station`], 80) || `Meja ${n}`,
+      pot: splitNames(groups[`group-${n}-pot`], 6),
+      bag: splitNames(groups[`group-${n}-bag`], 6),
+    });
+  }
+  const a1 = d['activity-1'] && typeof d['activity-1'] === 'object' ? d['activity-1'] : {};
+  const a2 = d['activity-2'] && typeof d['activity-2'] === 'object' ? d['activity-2'] : {};
+  const present = d.present && typeof d.present === 'object' ? d.present : {};
+  const minutes = (v, fallback) => {
+    const n = Number(String(v ?? '').replace(/[^\d.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
+  };
+  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], 120)));
+  return {
+    teams: teams.length ? { teams } : null,
+    activity: cleanActivity({
+      phase: 'IDLE',
+      startedAt: null,
+      durationSec: ACTIVITY_PHASE_SECONDS.A1,
+      showOnScreen: true,
+      cardIndex: 0,
+      presentIndex: 0,
+      presentStartedAt: null,
+      presentSeconds,
+      // Slot durasi hasil draf (dipakai kontrol saat memulai tiap fase).
+      durations: {
+        A1: Math.min(7200, Math.max(60, minutes(a1['a1-minutes'], 15) * 60)),
+        A2: Math.min(7200, Math.max(60, minutes(a2['a2-minutes'], 25) * 60)),
+        PRESENT: presentSeconds,
+      },
+    }),
+  };
 }

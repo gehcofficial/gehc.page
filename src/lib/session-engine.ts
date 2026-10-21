@@ -47,6 +47,15 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'laporan', label: 'Laporan & Catat', hint: 'Tulis hasil + pelajaran misimu.' },
     { id: 'komitmen', label: 'Deklarasi', hint: 'Deklarasi Coram Deo + unduh rekap.' },
   ],
+  CREATIVE_LAB: [
+    { id: 'pembuka', label: 'Pembuka', hint: 'Praise & Worship — siapkan hati, duduk per kelompok.' },
+    { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman, lalu pahami 6 kartu jar + aturan aktivitas.' },
+    { id: 'aktivitas-1', label: 'Activity 1 — Roots Reminder Jar', hint: 'Tulis 6 kartu kelompok; juru digital input ke web.' },
+    { id: 'aktivitas-2', label: 'Activity 2 — Creative Lab', hint: 'Tim Pot & Tim Tas bekerja paralel; jaga timer 25 menit.' },
+    { id: 'presentasi', label: 'Presentasi', hint: '2 menit per kelompok: pot, tas, dan komitmen.' },
+    { id: 'refleksi', label: 'Refleksi & Satu Kata', hint: 'Pilih chip Satu Kata + tulis komitmen.' },
+    { id: 'penutup', label: 'Penutup', hint: 'Persembahan, lagu, doa tutup + unduh rekap.' },
+  ],
 };
 
 export const POST_TO_POST_ORDER: SegmentId[] = ['likert', 'arah', 'kunjungan', 'lesson'];
@@ -63,13 +72,22 @@ export type FilmProgress = {
   preOpen?: boolean;
 };
 
+/** State panggung Creative Lab (fase aktivitas + kelompok yang presentasi). */
+export type ActivityProgress = {
+  activityPhase?: string | null;
+  presentIndex?: number;
+};
+
+/** Progres segmen gabungan (film + aktivitas) — aditif, kompatibel pola lama. */
+export type SessionProgress = FilmProgress & ActivityProgress;
+
 /** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
 export function segmentForPattern(
   code: string | null | undefined,
   status: string,
   filled: boolean,
   live?: { phaseName?: string | null },
-  extra?: FilmProgress,
+  extra?: SessionProgress,
 ): string {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) return segmentFor(status as never, filled) as string;
@@ -99,6 +117,20 @@ export function segmentForPattern(
     }
     return 'likert-awal';
   }
+  // CREATIVE_LAB: segmen maju mengikuti fase panggung (A1 → A2 → PRESENT → DONE).
+  if (c === 'CREATIVE_LAB') {
+    const phase = String((extra || {}).activityPhase || 'IDLE').toUpperCase();
+    if (st === 'CLOSED') return 'penutup';
+    if (st === 'WRAPUP') return 'refleksi';
+    if (st === 'RUNNING') {
+      if (phase === 'A1') return 'aktivitas-1';
+      if (phase === 'A2') return 'aktivitas-2';
+      if (phase === 'PRESENT') return 'presentasi';
+      if (phase === 'DONE') return 'refleksi';
+      return 'briefing';
+    }
+    return 'pembuka';
+  }
   if (st === 'WRAPUP') return order[order.length - 1];
   if (st === 'RUNNING') {
     return filled ? order[order.length - 1] : order[1] || order[0];
@@ -113,7 +145,7 @@ export function canOpenSegmentPattern(
   status: string,
   filled: boolean,
   live?: { phaseName?: string | null },
-  extra?: FilmProgress,
+  extra?: SessionProgress,
 ): boolean {
   const c = resolvePatternCode(code);
   if (c === 'POST_TO_POST' || !PATTERN_SEGMENTS[c]) {
@@ -165,6 +197,14 @@ export const NOTE_SLOTS: Record<string, NoteSlot[]> = {
   THREE_SEQUENCES: [
     { key: 'LAPORAN', label: 'Laporan misimu', placeholder: 'Peran + hasil tim + pelajaran...' },
   ],
+  CREATIVE_LAB: [
+    { key: 'JAR-ROOT', label: 'A Root I Carry', placeholder: 'Nilai iman/tradisi baik yang ingin kamu bawa...' },
+    { key: 'JAR-TRUTH', label: 'A Truth I Need to Remember', placeholder: 'Kebenaran tentang Kristus yang ingin kamu ingat...' },
+    { key: 'JAR-LOST', label: 'When I Feel Lost', placeholder: 'Pesan penguatan saat merasa jauh dari Tuhan...' },
+    { key: 'JAR-COMMUNITY', label: 'A Word for My Community', placeholder: 'Pesan untuk anggota kelompokmu...' },
+    { key: 'JAR-VERSE', label: 'A Verse to Hold Onto', placeholder: 'Ayat + referensi yang ingin kamu pegang...' },
+    { key: 'JAR-STEP', label: 'My Next Faith Step', placeholder: 'Satu tindakan nyata minggu ini...' },
+  ],
 };
 
 export function noteSlotsFor(code: string | null | undefined): NoteSlot[] {
@@ -173,8 +213,8 @@ export function noteSlotsFor(code: string | null | undefined): NoteSlot[] {
   return [...slots, { key: COMMITMENT_KEY, label: 'Komitmen pribadiku', placeholder: 'Satu komitmen spesifik minggu ini...' }];
 }
 
-/** Widget per segmen: welcome | guide | song | chips | rounds | screening | teams | testimony | notes | download | likert. */
-export type SegmentWidget = 'welcome' | 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download' | 'likert';
+/** Widget per segmen: welcome | guide | song | chips | rounds | screening | teams | testimony | notes | download | likert | activity. */
+export type SegmentWidget = 'welcome' | 'guide' | 'song' | 'chips' | 'rounds' | 'screening' | 'teams' | 'testimony' | 'notes' | 'download' | 'likert' | 'activity';
 
 /** Urutan kunci Q terpandu MONOLOG (3 FGD + 2 deep sharing). */
 export const MONOLOG_QUESTION_KEYS = ['FGD-OBSERVE', 'FGD-INTERPRET', 'FGD-APPLY', 'DEEP-Q1', 'DEEP-Q2'];
@@ -330,6 +370,15 @@ export const SEGMENT_WIDGETS: Record<string, Record<string, SegmentWidget[]>> = 
     laporan: ['teams', 'notes'],
     komitmen: ['notes', 'download'],
   },
+  CREATIVE_LAB: {
+    pembuka: ['welcome'],
+    briefing: ['guide'],
+    'aktivitas-1': ['activity', 'teams', 'notes'],
+    'aktivitas-2': ['activity', 'teams', 'notes'],
+    presentasi: ['teams', 'notes'],
+    refleksi: ['chips', 'notes', 'download'],
+    penutup: ['chips', 'download'],
+  },
 };
 
 export function widgetsFor(code: string | null | undefined, segment: string): SegmentWidget[] {
@@ -350,6 +399,7 @@ export const SESSION_MODULE_LABELS: Record<string, string> = {
   teams: 'Tim misi',
   fgd: 'Panduan FGD',
   testimony: 'Undian kesaksian',
+  activity: 'Aktivitas & timer',
 };
 
 export function sessionModuleLabel(code: string): string {

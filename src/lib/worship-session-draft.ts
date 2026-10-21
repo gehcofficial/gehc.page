@@ -242,7 +242,104 @@ const THREE_SEQUENCES_TEMPLATE: DraftSection[] = [
   },
 ];
 
-export const SESSION_DRAFT_CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'] as const;
+/**
+ * Creative Lab (Serving Day): 105' jemaat — firman + briefing 15', Activity 1
+ * (Roots Reminder Jar) 15', Activity 2 (pot ∥ tas) 25', presentasi 2'/kelompok
+ * 10', konklusi 10', persembahan 10', lagu + doa tutup 5'.
+ * Kelompok 5-8 orang: koordinator + juru digital + sub-tim Pot/Tas.
+ */
+const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
+  {
+    key: 'briefing',
+    title: 'Firman & briefing aktivitas',
+    hint: 'Inti khotbah 8-10 menit + aturan main 5-7 menit. Peserta sudah duduk per kelompok sejak awal.',
+    fields: [
+      t('brief-core', 'Inti khotbah (8-10 menit)', 'textarea', 'Firman pekan ... → tema ... → panggilan ...'),
+      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '5-8 orang/kelompok; juru digital; Tim Pot ∥ Tim Tas; presentasi 2 menit.'),
+      t('jar-intro', 'Pengantar The Roots Reminder Jar', 'textarea', 'Jar berisi pesan semua anggota; dibawa pulang & dibuka saat butuh penguatan.'),
+    ],
+  },
+  {
+    key: 'jar',
+    title: 'Enam kartu jar (judul English, arahan Indonesia)',
+    hint: 'Tiap orang menulis 6 kartu. Arahan & contoh wajib menyebut tema/firman pekan ini, bukan generik.',
+    fields: [
+      t('jar-root', '1. A Root I Carry', 'textarea', 'Nilai iman/tradisi baik dari keluarga atau GMIM yang ingin terus dibawa.'),
+      t('jar-truth', '2. A Truth I Need to Remember', 'textarea', 'Kebenaran tentang Kristus/Injil yang ingin diingat saat masa sulit.'),
+      t('jar-lost', '3. When I Feel Lost', 'textarea', 'Pesan penguatan untuk diri sendiri saat jauh dari Tuhan/kesepian.'),
+      t('jar-community', '4. A Word for My Community', 'textarea', 'Pesan positif untuk anggota kelompok sebagai saudara seiman.'),
+      t('jar-verse', '5. A Verse to Hold Onto', 'textarea', 'Satu ayat + referensi yang ingin dipegang sepanjang perjalanan iman.'),
+      t('jar-step', '6. My Next Faith Step', 'textarea', 'Satu tindakan nyata menghidupi Injil dalam minggu-minggu mendatang.'),
+    ],
+  },
+  {
+    key: 'activity-1',
+    title: 'Activity 1 — The Roots Reminder Jar (15 menit)',
+    hint: 'Kelompok menulis 6 kartu serentak; juru digital mengetik hasil kelompok ke web.',
+    fields: [
+      t('a1-title', 'Nama aktivitas', 'text', 'The Roots Reminder Jar'),
+      t('a1-goal', 'Tujuan', 'textarea', 'Setiap kelompok membuat satu jar berisi pesan semua anggotanya ...'),
+      t('a1-tools', 'Alat & bahan', 'textarea', 'Jar/toples 1 liter (muat 30-48 kertas), 6 set kertas kecil, pulpen/spidol.'),
+      t('a1-steps', 'Langkah (1-2-3)', 'textarea', '1) Bagikan 6 kertas/orang. 2) Tulis 6 kartu. 3) Lipat & masukkan jar. 4) Juru digital input.'),
+      t('a1-output', 'Output kelompok', 'text', 'Satu jar berisi 30-48 kartu + 6 kartu digital di web.'),
+      t('a1-minutes', 'Durasi (menit)', 'number', '15'),
+    ],
+  },
+  {
+    key: 'activity-2',
+    title: 'Activity 2 — Roots & DNA Creative Lab (25 menit, Pot ∥ Tas)',
+    hint: 'Satu kelompok 5-8 orang dibagi 2 sub-tim paralel: Tim Pot (2-4) dan Tim Tas (2-4). Sisa 3 menit bersih-bersih.',
+    fields: [
+      t('a2-title', 'Nama aktivitas', 'text', 'Roots & DNA Creative Lab'),
+      t('a2-goal', 'Tujuan', 'textarea', 'Menerjemahkan nilai Injil menjadi karya yang bisa dilihat & disentuh ...'),
+      t('a2-tools', 'Alat & bahan', 'textarea', 'Pot tanah/plastik, tas kanvas, cat akrilik, kuas, palet, koran/celemek, tempat jemur.'),
+      t('a2-pot', 'Arahan Pot — Grow What You Believe', 'textarea', 'Gambarkan apa yang perlu dirawat agar iman & nilai Injil bertumbuh (akar/tunas/buah).'),
+      t('a2-bag', 'Arahan Tas — Carry The Gospel', 'textarea', 'Gambarkan nilai Injil yang dibawa ke kuliah, kerja, kos, dan pergaulan (kasih, rendah hati, pelayanan, persatuan).'),
+      t('a2-commit', 'Komitmen kelompok (1 kata/simbol/kalimat)', 'textarea', 'Satu kata/simbol/kalimat yang mewakili komitmen kelompok, ditulis di kedua karya.'),
+      t('a2-minutes', 'Durasi (menit)', 'number', '25'),
+    ],
+  },
+  {
+    key: 'groups',
+    title: 'Kelompok (5-8 orang) & pembagian peran',
+    hint: 'Isi 5 kelompok (maks 8). Anggota dipisah koma. Juru digital mengetik 6 kartu kelompok; Tim Pot & Tim Tas bekerja paralel. Nama kosong dilewati.',
+    fields: Array.from({ length: 5 }, (_, i) => i + 1).flatMap((n) => [
+      t(`group-${n}-name`, `Kelompok ${n} — nama`, 'text', `Kelompok ${n}`),
+      t(`group-${n}-members`, `Kelompok ${n} — anggota`, 'text', 'Nama1, Nama2, Nama3, Nama4, Nama5'),
+      t(`group-${n}-scribe`, `Kelompok ${n} — juru digital`, 'text', 'Nama (input 6 kartu ke web)'),
+      t(`group-${n}-pot`, `Kelompok ${n} — Tim Pot`, 'text', 'Nama1, Nama2'),
+      t(`group-${n}-bag`, `Kelompok ${n} — Tim Tas`, 'text', 'Nama3, Nama4'),
+    ]),
+  },
+  {
+    key: 'present',
+    title: 'Presentasi hasil (2 menit/kelompok)',
+    hint: 'Urutan kelompok + 2 pertanyaan apresiasi. Total 10 menit untuk 5 kelompok.',
+    fields: [
+      t('present-order', 'Urutan presentasi & aturan', 'textarea', 'Kelompok 1 → 2 → ...; 2 menit/kelompok; pot, tas, dan komitmen sekaligus.'),
+      t('present-questions', 'Pertanyaan apresiasi', 'textarea', 'Apa yang paling menggambarkan iman kelompokmu? Langkah nyata apa minggu ini?'),
+      t('present-seconds', 'Detik per kelompok', 'number', '120'),
+    ],
+  },
+  {
+    key: 'closing',
+    title: 'Konklusi & komitmen (10 menit)',
+    hint: 'Konklusi firman + Satu Kata + komitmen kelompok. Wajib merujuk Fundamental Firman pekan ini.',
+    fields: [
+      t('closing-script', 'Naskah konklusi', 'textarea', 'Akar yang sehat menghasilkan buah ... (firman pekan)'),
+      t('closing-commit', 'Komitmen kelompok', 'textarea', 'Kami akan ... mulai minggu ini ...'),
+      t('closing-prayer', 'Doa penutup', 'textarea', 'Doa syafaat & pengutusan ...'),
+    ],
+  },
+  {
+    key: 'lesson',
+    title: 'Chip Satu Kata (maks 10)',
+    hint: 'Kata pelajaran 1-2 kata dari firman pekan (format #Kata, maks 3 dipilih per peserta) — tampil sebagai word cloud di layar saat refleksi.',
+    fields: Array.from({ length: 10 }, (_, i) => t(`lesson-chip-${i + 1}`, `Chip ${i + 1}`, 'text', '#KataKunci')),
+  },
+];
+
+export const SESSION_DRAFT_CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES', 'CREATIVE_LAB'] as const;
 
 /** Template kosongan per pola (tanpa nilai). */
 export function emptySessionDraft(patternCode?: string | null): DraftSection[] {
@@ -258,6 +355,8 @@ export function emptySessionDraft(patternCode?: string | null): DraftSection[] {
       return structuredClone(BEDAH_FILM_TEMPLATE);
     case 'THREE_SEQUENCES':
       return structuredClone(THREE_SEQUENCES_TEMPLATE);
+    case 'CREATIVE_LAB':
+      return structuredClone(CREATIVE_LAB_TEMPLATE);
     default:
       return structuredClone(MONOLOG_TEMPLATE);
   }

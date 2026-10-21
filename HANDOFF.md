@@ -1,5 +1,45 @@
 # GEHC Portal — Handoff
 
+## Current — Pola Didaskalia `CREATIVE_LAB` (Creative Lab, 21 Okt 2026)
+
+**Minta:** tambah pola ibadah baru *Creative Lab* (`CREATIVE_LAB`) dari program
+RUACH SERVING DAY: firman menjadi karya (Roots Reminder Jar, pot, tas), total
+jemaat 105' + kru PRA 20' (baku 125'), Activity 2 berjalan paralel Tim Pot ∥
+Tim Tas, dan jar ditulis manual (kertas) **dan** digital (1 juru digital per
+kelompok mengetik 6 kartu ke web). Tanpa migrasi Prisma.
+
+**Ubah:**
+- `server/lib/session-stage.mjs`: `ACTIVITY_PHASES`/`ACTIVITY_PHASE_SECONDS`,
+  `cleanActivity()`, `creativeLabFromDraft()` (trim nama kelompok), perluasan
+  aditif `cleanTeams()` (`scribe`, `station`, `pot[]`, `bag[]`).
+- `src/lib/session-engine.ts`: `PATTERN_SEGMENTS.CREATIVE_LAB` (7 segmen),
+  `NOTE_SLOTS` 6 kartu + `KOMITMEN`, `SEGMENT_WIDGETS` (`activity`), tipe
+  `ActivityProgress`, `segmentForPattern` mengikuti fase panggung.
+- `src/lib/worship-session-draft.ts`: `CREATIVE_LAB_TEMPLATE` (8 section,
+  63 field: briefing, jar, activity-1/2, groups 5×5, present, closing, lesson).
+- `server/routes/worship.mjs`: `normalizeConfig` menyimpan `activity`; helper
+  `CREATIVE_LAB_JAR`, `jarCards()`, `creativeLabBrief()`; payload peserta &
+  layar mengirim `activity`/`activityBrief`/`jarCards`; `/stage` menerima
+  `activity`; `apply-draft` materialisasi `teams` + `activity` + chip.
+- `server/lib/didaskalia-ai.mjs`: `patternBlock` CREATIVE_LAB +
+  `CREATIVE_LAB_RULES` (tidak mengarang nama `jar-*`/`group-*`).
+- `server/_seed-worship-patterns.cjs`: `CREATIVE_LAB_PLAYBOOK` (7 bagian) +
+  pola `CREATIVE_LAB` (125', PRA + 8 blok, paralel `a1`/`a2`, `sortOrder: 45`).
+- UI: `ActivityPanel` (`StagePanels.tsx`: timer A1/A2/presentasi, next group,
+  reset, durasi, toggle layar, navigator 6 kartu, papan kelompok); wiring
+  `MentoringControl`; layar `MentoringScreen`; peserta `PatternDay` (header
+  timer, widget `activity`/`teams`, welcome & chip Satu Kata).
+- Docs: `worship-patterns.md` §7/§8/§9 + §12 (rundown, 6 kartu, state, QA),
+  `integrasi-divisi.md` §2.6.
+- Test: `tests/unit/creative-lab.test.ts` (9) + perluasan
+  `session-engine`, `worship-session-draft`, `worship-patterns`.
+
+**Verifikasi:** `node --check` 4 file server ✓; `tsc --noEmit` ✓;
+`npm run test` → **157 files / 1242 tests passed** (termasuk 9 test Creative Lab).
+
+**Deploy:** commit `feat(didaskalia): ...` → push batch `main`; lalu
+`npm run db:seed:worship:staging` → QA staging → `:prod`.
+
 ## Current — Debat `DEBAT` penuh: 11 langkah bertimer + lembar juri + tim undian + Trap Reveal (19 Okt 2026)
 
 **Minta:** naikkan pola Didaskalia "The Battle of Minds" (`DEBAT`) ke paritas

@@ -66,6 +66,7 @@ describe('worship-patterns: helper katalog', () => {
     expect(moduleLabel('rounds')).toBe('Ronde');
     expect(moduleLabel('screening')).toBe('Pemutaran');
     expect(moduleLabel('teams')).toBe('Tim');
+    expect(moduleLabel('activity')).toBe('Aktivitas & timer');
     expect(moduleLabel('fgd')).toBe('Panduan FGD');
     expect(moduleLabel('testimony')).toBe('Undian kesaksian');
     expect(moduleLabel('custom')).toBe('custom');
@@ -183,6 +184,16 @@ describe('worship-patterns: patternBlock semua pola', () => {
   it('THREE_SEQUENCES memakai 3 sequence + commissioning', () => {
     const lines = patternBlock({ code: 'THREE_SEQUENCES', name: '3 Sequences', phases: [], playbook: 'x' }).join('\n');
     expect(lines).toContain('3 sequence');
+  });
+
+  it('CREATIVE_LAB memakai 6 kartu jar + pot/tas paralel', () => {
+    const lines = patternBlock({ code: 'CREATIVE_LAB', name: 'Creative Lab', phases: [], playbook: 'x' }).join('\n');
+    expect(lines).toContain('The Roots Reminder Jar');
+    expect(lines).toContain('A Root I Carry');
+    expect(lines).toContain('My Next Faith Step');
+    expect(lines).toContain('Grow What You Believe');
+    expect(lines).toContain('Carry The Gospel');
+    expect(lines).toContain('juru digital');
   });
 
   it('phase notes + division ikut ke prompt AI', () => {

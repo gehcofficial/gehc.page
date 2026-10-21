@@ -12,7 +12,7 @@ import { canAccessDivision, requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -136,6 +136,8 @@ export function normalizeConfig(raw, patternCode) {
     phasePrefs: c.phasePrefs && typeof c.phasePrefs === 'object' && !Array.isArray(c.phasePrefs)
       ? c.phasePrefs
       : null,
+    // Panggung Creative Lab (fase A1/A2/Presentasi + kartu jar + kelompok presentasi).
+    activity: cleanActivity(c.activity),
   };
 }
 
@@ -188,6 +190,82 @@ export function deepGuide(config) {
     pick(deep, ['deep-q1', 'q1']) || 'Di mana kamu melihat dirimu dalam teks pekan ini?',
     pick(deep, ['deep-q2', 'q2']) || 'Langkah pulang apa minggu ini?',
   ];
+}
+
+/**
+ * Enam kartu The Roots Reminder Jar (CREATIVE_LAB). Teks arahan diambil dari
+ * draft sesi (`jar`), fallback generik bila belum diisi.
+ */
+export const CREATIVE_LAB_JAR = [
+  { key: 'root', code: 'JAR-ROOT', title: 'A Root I Carry', field: 'jar-root', fallback: 'Nilai iman atau tradisi baik dari keluarga/GMIM yang ingin kamu bawa ke mana pun pergi.' },
+  { key: 'truth', code: 'JAR-TRUTH', title: 'A Truth I Need to Remember', field: 'jar-truth', fallback: 'Kebenaran tentang Kristus/Injil yang ingin kamu ingat saat masa sulit.' },
+  { key: 'lost', code: 'JAR-LOST', title: 'When I Feel Lost', field: 'jar-lost', fallback: 'Pesan penguatan untuk dirimu sendiri saat merasa jauh dari Tuhan atau kehilangan arah.' },
+  { key: 'community', code: 'JAR-COMMUNITY', title: 'A Word for My Community', field: 'jar-community', fallback: 'Pesan positif untuk anggota kelompokmu sebagai saudara seiman.' },
+  { key: 'verse', code: 'JAR-VERSE', title: 'A Verse to Hold Onto', field: 'jar-verse', fallback: 'Satu ayat Alkitab + referensi yang ingin kamu pegang dalam perjalanan iman.' },
+  { key: 'step', code: 'JAR-STEP', title: 'My Next Faith Step', field: 'jar-step', fallback: 'Satu tindakan nyata untuk menghidupi Injil dalam minggu-minggu mendatang.' },
+];
+
+export function jarCards(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const jar = draft.jar && typeof draft.jar === 'object' ? draft.jar : {};
+  return CREATIVE_LAB_JAR.map((c) => ({
+    key: c.key,
+    code: c.code,
+    title: c.title,
+    direction: String(jar[c.field] || '').trim() || c.fallback,
+  }));
+}
+
+/** Briefing Creative Lab (dari draft sesi) — tampil di layar & HP peserta. */
+export function creativeLabBrief(config) {
+  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
+  const sec = (k) => (draft[k] && typeof draft[k] === 'object' ? draft[k] : {});
+  const pick = (o, keys, fallback = '') => {
+    for (const k of keys) {
+      const v = String(o[k] || '').trim();
+      if (v) return v;
+    }
+    return fallback;
+  };
+  const briefing = sec('briefing');
+  const a1 = sec('activity-1');
+  const a2 = sec('activity-2');
+  const present = sec('present');
+  const closing = sec('closing');
+  return {
+    briefing: {
+      core: pick(briefing, ['brief-core']),
+      rules: pick(briefing, ['brief-rules']),
+      jarIntro: pick(briefing, ['jar-intro']),
+    },
+    a1: {
+      title: pick(a1, ['a1-title'], 'The Roots Reminder Jar'),
+      goal: pick(a1, ['a1-goal']),
+      tools: pick(a1, ['a1-tools']),
+      steps: pick(a1, ['a1-steps']),
+      output: pick(a1, ['a1-output']),
+      minutes: Math.max(1, Number(pick(a1, ['a1-minutes'], '15')) || 15),
+    },
+    a2: {
+      title: pick(a2, ['a2-title'], 'Roots & DNA Creative Lab'),
+      goal: pick(a2, ['a2-goal']),
+      tools: pick(a2, ['a2-tools']),
+      pot: pick(a2, ['a2-pot']),
+      bag: pick(a2, ['a2-bag']),
+      commit: pick(a2, ['a2-commit']),
+      minutes: Math.max(1, Number(pick(a2, ['a2-minutes'], '25')) || 25),
+    },
+    present: {
+      order: pick(present, ['present-order']),
+      questions: pick(present, ['present-questions']),
+      seconds: Math.min(600, Math.max(30, Number(pick(present, ['present-seconds'], '120')) || 120)),
+    },
+    closing: {
+      script: pick(closing, ['closing-script']),
+      commit: pick(closing, ['closing-commit']),
+      prayer: pick(closing, ['closing-prayer']),
+    },
+  };
 }
 
 /** Status trigger Q mentor (0 = belum dibuka; 1-5 = Q ke-n terbuka). */
@@ -620,6 +698,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
 
       res.setHeader('Cache-Control', 'no-store');
+      const pcode = String(live.pattern?.code || session.pattern?.code || '').toUpperCase();
       res.json({
         session: {
           id: live.id,
@@ -661,9 +740,12 @@ export function registerWorshipRoutes(app, { wrap }) {
         guide: fgdGuide(config),
         deepGuide: deepGuide(config),
         song: sessionSong(config),
-        affirmations: String(live.pattern?.code || '').toUpperCase() === 'BEDAH_FILM' ? filmAffirm(config) : null,
+        affirmations: pcode === 'BEDAH_FILM' ? filmAffirm(config) : null,
         fgd: fgdState(config),
         phase: config.phase || null,
+        activity: pcode === 'CREATIVE_LAB' ? config.activity || null : null,
+        activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(config) : null,
+        jarCards: pcode === 'CREATIVE_LAB' ? jarCards(config) : [],
         phasePrefs: config.phasePrefs || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
         rounds: config.rounds,
@@ -888,6 +970,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       const agg = await loadAggregates(prisma, liveState);
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
       res.setHeader('Cache-Control', 'no-store');
+      const pcode = String(liveState.pattern?.code || session.pattern?.code || '').toUpperCase();
       res.json({
         session: {
           id: liveState.id,
@@ -907,6 +990,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         fgd: fgdState(agg.config),
         phase: agg.config.phase || null,
         phasePrefs: agg.config.phasePrefs || null,
+        activity: pcode === 'CREATIVE_LAB' ? agg.config.activity || null : null,
+        activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null,
+        jarCards: pcode === 'CREATIVE_LAB' ? jarCards(agg.config) : [],
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
         oneWord: await oneWordAggregate(prisma, liveState.id),
         rounds: agg.config.rounds,
@@ -1626,7 +1712,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
       // MONOLOG & BEDAH_FILM: buat chip Lesson Learned dari section `lesson` draft (maks 10).
       let lessonChips = [];
-      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM') {
+      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM' || sessionPattern === 'CREATIVE_LAB') {
         const lesson = b.storedDraft?.lesson && typeof b.storedDraft.lesson === 'object' ? b.storedDraft.lesson : {};
         lessonChips = Array.from({ length: 10 }, (_, i) => String(lesson[`lesson-chip-${i + 1}`] || '').trim())
           .filter(Boolean)
@@ -1696,6 +1782,14 @@ export function registerWorshipRoutes(app, { wrap }) {
         });
         cfg.rounds = debatRounds;
       }
+      // CREATIVE_LAB: materialisasi kelompok (5-8 orang, juru digital, Tim Pot/Tas)
+      // + state aktivitas (timer A1/A2/presentasi, kartu jar) dari Draft Sesi.
+      let creativeLab = null;
+      if (sessionPattern === 'CREATIVE_LAB') {
+        creativeLab = creativeLabFromDraft(b.storedDraft);
+        if (creativeLab?.teams) cfg.teams = cleanTeams(creativeLab.teams);
+        if (creativeLab?.activity) cfg.activity = cleanActivity(creativeLab.activity);
+      }
       const legacyItems = await prisma.worshipLikertItem.findMany({
         where: { sessionId: session.id },
         select: { id: true },
@@ -1737,7 +1831,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           }
         }
       }
-      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2, screening: screeningPatch, rounds: debatRounds ? debatRounds.rounds.length : 0 });
+      res.json({ ok: true, saved: true, cleaned: legacyIds.length, chips: lessonChips.length, likert: filmLikert.length * 2, screening: screeningPatch, rounds: debatRounds ? debatRounds.rounds.length : 0, teams: creativeLab?.teams?.teams?.length || 0, activity: creativeLab?.activity || null });
     }),
   );
 
@@ -2005,6 +2099,17 @@ export function registerWorshipRoutes(app, { wrap }) {
         if (!cleaned) return res.status(400).json({ error: 'Minimal satu tim bernama.' });
         cfg.teams = cleaned;
         out.teams = cleaned;
+      }
+      if (b.activity !== undefined) {
+        if (b.activity === null) {
+          cfg.activity = null;
+          out.activity = null;
+        } else {
+          const cleaned = cleanActivity(b.activity);
+          if (!cleaned) return res.status(400).json({ error: 'State aktivitas tidak valid.' });
+          cfg.activity = cleaned;
+          out.activity = cleaned;
+        }
       }
       if (b.fgd !== undefined) {
         const cleaned = cleanFgd(b.fgd);

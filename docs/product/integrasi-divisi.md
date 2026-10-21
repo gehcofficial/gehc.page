@@ -97,6 +97,32 @@ Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
 
 Modul: `teams, timer, notes`. Kontrol: `TeamsPanel` + countdown misi.
 
+### 2.6 CREATIVE_LAB — Creative Lab (125')
+
+Program *Serving Day*: firman menjadi karya (jar, pot, tas). Total 125' =
+PRA 20' (kru) + jemaat 105'.
+
+| Fase | Menit | Segmen lagu | Firman |
+|---|---|---|---|
+| PRA (1 main + 3 paralel `pra`) | 20 | — | — |
+| 1. Praise & Worship | 15 | pembuka×1 | **auto** |
+| 2. Preaching & Briefing (6 kartu + juru digital) | 15 | — | — |
+| 3. Activity 1 — Roots Reminder Jar (+ input web paralel) | 15 | — | — |
+| 4. Activity 2 — Pot ∥ Tas (paralel `a2`) | 25 | — | — |
+| 5. Presentasi (2'/kelompok, maks 5) | 10 | — | — |
+| 6. Conclusion (konklusi + Satu Kata + komitmen) | 10 | — | — |
+| 7. Persembahan + doa | 10 | persembahan×1 | **auto** |
+| 8. Lagu + Doa Tutup | 5 | penutup×1 | — |
+
+Modul: `activity, teams, timer, notes, chips, wordcloud`. Kontrol:
+`ActivityPanel` (A1/A2/Presentasi/berikutnya/stop/reset + durasi fase +
+navigator 6 kartu jar + papan kelompok dengan juru digital & Tim Pot/Tas).
+State `config.activity` (tanpa migrasi): `phase, startedAt, durationSec,
+presentStartedAt, presentSeconds, presentIndex, cardIndex, showOnScreen,
+durations`. Enam kartu: A Root I Carry · A Truth I Need to Remember ·
+When I Feel Lost · A Word for My Community · A Verse to Hold Onto ·
+My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` + `KOMITMEN`.
+
 ## 3. Peran per divisi (RACI ringkas)
 
 - **Koinonia (R timeline hari)**: susun blok per tanggal (ibadah→event,

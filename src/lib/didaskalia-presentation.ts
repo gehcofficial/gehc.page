@@ -577,6 +577,15 @@ export function patternTechnicalBullets(patternCode?: string, patternName?: stri
         'Atur presentasi 4 menit per tim + deklarasi penutup.',
         close,
       ];
+    case 'CREATIVE_LAB':
+      return [
+        `Siapkan meja per kelompok (5-8 orang) + alat seni sebelum T0 — jar, 6 set kertas/orang, pot, tas kanvas, cat, kuas (${name}).`,
+        'Briefing 15 menit: khotbah singkat + 6 kartu jar + aturan juru digital + presentasi 2 menit/kelompok.',
+        'A1 15 menit: tiap orang menulis 6 kartu, lipat ke jar; juru digital input 6 kartu ke web (JAR-ROOT s/d JAR-STEP).',
+        'A2 25 menit: Tim Pot (Grow What You Believe) ∥ Tim Tas (Carry The Gospel) di meja yang sama; 3 menit terakhir bersih-bersih.',
+        'Presentasi 2 menit/kelompok (pot, tas, komitmen); lebih dari 5 kelompok → 90 detik atau blok 12 menit.',
+        'Konklusi 10 menit merujuk firman pekan + Satu Kata + komitmen; tutup dengan persembahan, lagu, dan doa.',
+      ];
     default:
       return [
         `Ikuti alur ${name}: buka dengan pemanasan dekat tema, gali teks bersama, terapkan nyata, tutup komitmen.`,
