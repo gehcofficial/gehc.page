@@ -8,6 +8,7 @@ import {
   filmLikertMeans,
   filmLikertPairs,
   isQuestionOpen,
+  mergeFilmVals,
   noteSlotsFor,
   resolvePinnedSegment,
   segmentForPattern,
@@ -73,13 +74,8 @@ const FilmLikertCard: React.FC<{
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
-    const init: Record<string, number> = {};
-    for (const p of pairs) {
-      const id = round === 'PRE' ? p.preId : p.postId;
-      const v = id ? likert.myValues?.[id] : null;
-      if (id && v != null) init[id] = Number(v);
-    }
-    setVals(init);
+    // Polling 20 dtk mengganti objek payload — merge menjaga pilihan yang belum dikirim.
+    setVals((prev) => mergeFilmVals(prev, pairs, round, likert.myValues || {}));
   }, [pairs, likert, round]);
   const gate = String(likert.rounds?.[round.toLowerCase() as 'pre' | 'post'] ?? (round === 'PRE' ? 'open' : 'closed')).toLowerCase();
   const canAnswer = editable && likert.open && gate !== 'closed';
@@ -326,6 +322,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       screeningOn: Boolean(data?.screening?.startedAt),
       // Gate AKHIR dari kontrol (M3) — peserta maju mengikuti gate, bukan countdown.
       postOpen: String(data?.likert.rounds?.post || 'closed').toLowerCase() === 'open',
+      // Gate AWAL sudah dikunci (M1) → peserta telat lanjut nonton, tak terkunci.
+      preOpen: String(data?.likert.rounds?.pre || 'open').toLowerCase() !== 'closed',
     };
   }, [c, filmPairs, chipDone, data]);
   const segmentOrder = useMemo(() => (PATTERN_SEGMENTS[c] || []).map((s) => s.id), [c]);

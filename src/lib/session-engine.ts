@@ -59,6 +59,8 @@ export type FilmProgress = {
   screeningOn?: boolean;
   /** Gate ronde AKHIR terbuka (kontrol M3) — peserta maju ke likert-akhir. */
   postOpen?: boolean;
+  /** Gate ronde AWAL masih terbuka (kontrol M0) — peserta telat tanpa jawaban tak terkunci. */
+  preOpen?: boolean;
 };
 
 /** Segmen aktif generik: maju mengikuti status + fase MONOLOG (F1/F2/F3/CLOSING). */
@@ -86,7 +88,8 @@ export function segmentForPattern(
     const e = extra || {};
     if (st === 'WRAPUP') return e.chipDone ? 'kesaksian' : 'lesson-learned';
     if (st === 'RUNNING') {
-      if (!e.preAnswered) return 'likert-awal';
+      // Peserta telat saat gate AWAL sudah dikunci (M1) lanjut nonton — bukan terkunci.
+      if (!e.preAnswered && e.preOpen !== false) return 'likert-awal';
       if (e.postOpen || e.postAnswered) {
         if (!e.postAnswered) return 'likert-akhir';
         if (!e.chipDone) return 'lesson-learned';
@@ -237,6 +240,32 @@ export function filmLikertMeans(
       delta: preAvg != null && postAvg != null ? Math.round((postAvg - preAvg) * 10) / 10 : null,
     };
   });
+}
+
+/**
+ * Pilihan Likert film saat payload polling (20 dtk) menyegar: pertahankan
+ * pilihan lokal yang belum dikirim, isi hanya yang belum ada dari jawaban
+ * tersimpan server, dan buang id ronde lain (id PRE≠POST). Mengembalikan
+ * referensi lama bila tak ada perubahan agar tak memicu re-render.
+ */
+export function mergeFilmVals(
+  prev: Record<string, number>,
+  pairs: FilmLikertPair[],
+  round: 'PRE' | 'POST',
+  myValues: Record<string, number> | null | undefined,
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const p of pairs || []) {
+    const id = round === 'PRE' ? p.preId : p.postId;
+    if (!id) continue;
+    const local = prev[id];
+    const server = myValues?.[id];
+    const v = local != null ? local : server != null ? Number(server) : null;
+    if (v != null && Number.isFinite(v)) next[id] = v;
+  }
+  const keys = Object.keys(next);
+  const same = keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
+  return same ? prev : next;
 }
 
 /** Langkah baku 1 ronde debat (11 langkah = 20 menit = 1200 dtk) — paritas server. */

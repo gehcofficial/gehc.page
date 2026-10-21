@@ -115,7 +115,7 @@ describe('pola ibadah minggu ini', () => {
       pattern: { code: 'DEBAT', name: 'Debat', summary: '', playbook: '' },
     });
     expect(allPrompts()).toContain('POLA IBADAH MINGGU INI');
-    expect(allPrompts()).toContain('ronde debat');
+    expect(allPrompts()).toContain('11 langkah bertimer');
   });
 
   it('metode default terkunci (Praktika + Tematika + Biblika) bila tak dipilih', async () => {
