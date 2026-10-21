@@ -37,8 +37,12 @@ kelompok mengetik 6 kartu ke web). Tanpa migrasi Prisma.
 **Verifikasi:** `node --check` 4 file server ✓; `tsc --noEmit` ✓;
 `npm run test` → **157 files / 1242 tests passed** (termasuk 9 test Creative Lab).
 
-**Deploy:** commit `feat(didaskalia): ...` → push batch `main`; lalu
-`npm run db:seed:worship:staging` → QA staging → `:prod`.
+**Deploy:** commit `2ef2c8a` → push `main` ✓ (prod auto-deploy, `/api/version` = 2ef2c8a).
+Staging: branch + deploy + 8 alias ✓ (`/api/version` = 2ef2c8a), seed
+`npm run db:seed:worship:staging` ✓, QA API: pola **Creative Lab** (125', 14 fase,
+modul `teams/timer/notes/chips/wordcloud/activity`) ✓.
+
+**Next:** review UI staging → `npm run db:seed:worship:prod` (belum dijalankan).
 
 ## Current — Debat `DEBAT` penuh: 11 langkah bertimer + lembar juri + tim undian + Trap Reveal (19 Okt 2026)
 
