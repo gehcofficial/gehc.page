@@ -32,7 +32,7 @@ function refreshToken() {
 
 function addEnv(key, val, target) {
   console.log(`> vercel env add ${key} ${target}`);
-  execSync(`vercel env add ${key} ${target} --force`, {
+  execSync(`vercel env add ${key} ${target} --force --yes`, {
     input: val,
     stdio: ['pipe', 'inherit', 'inherit'],
   });
