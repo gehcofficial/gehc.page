@@ -72,7 +72,6 @@ const FIELD_KEYS = {
     ['trap-reveal', 'Trap Reveal'],
   ],
   BEDAH_FILM: [
-    ['opening', 'Pesan pembuka'],
     ['film-title', 'Judul film'], ['film-alt', 'Kandidat lain + alasan'], ['film-scenes', 'Adegan paralel'], ['pleno-prompt', 'Pancingan pleno'],
     ['film-q1', 'Pertanyaan 1'], ['film-q2', 'Pertanyaan 2'], ['film-q3', 'Pertanyaan 3'],
   ],

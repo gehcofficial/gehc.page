@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, Clock, Copy, Layers, Sparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock, Copy, Layers, Sparkles, Timer } from 'lucide-react';
 import {
   divisionLabel,
   formatRangeAbs,
@@ -22,6 +22,10 @@ import {
   type WorshipPatternVariant,
 } from '../../lib/worship-patterns';
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
+import { JURY_CRITERIA, ROUND_STEPS } from '../../lib/session-engine';
+
+/** Detik → mm:ss (mis. 240 → 4:00, 60 → 1:00). */
+const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 type Props = {
   patterns: WorshipPatternLite[];
@@ -266,6 +270,39 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                     </div>
                     <p className="mt-1 text-[10px] text-[#8C8880]">↯ = jalan paralel, tak tambah total. T-minus = kru sebelum jam jemaat (T0).</p>
                   </div>
+                  {open.code === 'DEBAT' && (
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1.5 inline-flex items-center gap-1">
+                        <Timer className="w-3 h-3" /> Template per ronde — 11 langkah (20&prime;)
+                      </p>
+                      <p className="mb-1.5 text-[10px] text-[#8C8880]">
+                        5 ronde &times; 20&prime; = 100&prime; &middot; 10 grup Beyonders: tiap ronde 2 tim (PRO vs KONTRA) — tiap grup dapat giliran berdebat.
+                      </p>
+                      <div className="overflow-x-auto rounded-xl border border-[#EFEDE8]">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-[#FAF9F5] text-[#8C8880]">
+                              <th className="text-left px-2.5 py-1.5 w-8">No</th>
+                              <th className="text-left px-2.5 py-1.5">Langkah</th>
+                              <th className="text-left px-2.5 py-1.5 w-16">Durasi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ROUND_STEPS.map((s, i) => (
+                              <tr key={s.key} className="border-t border-[#EFEDE8]">
+                                <td className="px-2.5 py-1.5 font-black">{i + 1}</td>
+                                <td className="px-2.5 py-1.5 font-bold text-[#1B1B1B]">{s.label}</td>
+                                <td className="px-2.5 py-1.5 whitespace-nowrap">{mmss(s.seconds)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="mt-1 text-[10px] text-[#8C8880]">
+                        Lembar juri berbobot: {JURY_CRITERIA.map((c) => `${c.label} ${c.weight}`).join(' · ')} (maks 100/sisi).
+                      </p>
+                    </div>
+                  )}
                 </>
               );
             })()}

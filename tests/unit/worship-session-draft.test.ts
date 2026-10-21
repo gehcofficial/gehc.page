@@ -8,7 +8,7 @@ import {
   storedToSections,
   templateFieldKeys,
 } from '../../src/lib/worship-session-draft';
-import { deepGuide, filmAffirm, normalizeConfig, openingText } from '../../server/routes/worship.mjs';
+import { deepGuide, filmAffirm, normalizeConfig } from '../../server/routes/worship.mjs';
 import { parseFilmDurationMin } from '../../server/lib/session-stage.mjs';
 
 const CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES'];
@@ -57,7 +57,7 @@ describe('session-draft: template kosongan 5 pola', () => {
 
   it('BEDAH_FILM: film + likert 5 (2 ronde) + deep 3 + afirmasi 5 + lesson 10', () => {
     const keys = templateFieldKeys('BEDAH_FILM').map((f) => f.key);
-    for (const k of ['film-title', 'film-scenes', 'likert-film-1', 'likert-film-5', 'film-q1', 'film-q3', 'affirm-q1', 'affirm-likert-low', 'affirm-likert-high', 'lesson-chip-1', 'lesson-chip-10', 'opening']) {
+    for (const k of ['film-title', 'film-scenes', 'likert-film-1', 'likert-film-5', 'film-q1', 'film-q3', 'affirm-q1', 'affirm-likert-low', 'affirm-likert-high', 'lesson-chip-1', 'lesson-chip-10']) {
       expect(keys).toContain(k);
     }
     expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
@@ -230,25 +230,6 @@ describe('session-draft: deepGuide film 3Q', () => {
   it('kosong → fallback generik (film: 3, monolog: 2)', () => {
     expect(deepGuide({ draft: { deep: { 'film-q1': 'X' } } })).toHaveLength(3);
     expect(deepGuide({ draft: {} })).toHaveLength(2);
-  });
-});
-
-describe('session-draft: pesan pembuka film', () => {
-  it('draft pembuka terisi → dipakai (trim)', () => {
-    expect(openingText({ draft: { pembuka: { opening: '  Shalom, selamat datang!  ' } } })).toBe(
-      'Shalom, selamat datang!',
-    );
-  });
-
-  it('kosong / tanpa draft → null (UI pakai teks bawaan)', () => {
-    expect(openingText({ draft: { pembuka: { opening: '   ' } } })).toBeNull();
-    expect(openingText({ draft: {} })).toBeNull();
-    expect(openingText({})).toBeNull();
-  });
-
-  it('dibatasi 600 karakter (jaga payload)', () => {
-    const long = 'a'.repeat(900);
-    expect(openingText({ draft: { pembuka: { opening: long } } })?.length).toBe(600);
   });
 });
 
