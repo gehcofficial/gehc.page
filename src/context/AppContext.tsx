@@ -94,7 +94,8 @@ type PublicTab =
   | 'register'
   | 'event-signup'
   | 'group-detail'
-  | 'benzarpreneurship';
+  | 'benzarpreneurship'
+  | 'attendance-scan';
 
 interface AppContextType {
   // Navigation & Tenant
@@ -237,7 +238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.location.hash = '#/beyonders';
     }
   };
-  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail'] as const;
+  const TAB_IDS = ['beyonders', 'leaders', 'events', 'bulletin', 'gallery', 'join', 'login', 'register', 'event-signup', 'benzarpreneurship', 'group-detail', 'attendance-scan'] as const;
   const tabFromHash = (): PublicTab => {
     const parsed = parseHashRoute();
     if (parsed.tab === 'group-detail') return 'group-detail';

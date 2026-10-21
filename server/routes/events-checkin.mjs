@@ -1,8 +1,17 @@
 import crypto from 'node:crypto';
+import QRCode from 'qrcode';
 import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { BAKU_TAU_EVENT_ID, BAKU_TAU_SOURCE_EVENT, normalizePhone } from '../lib/baku-tau.mjs';
 import { parseCheckInCode, timestampsMatch } from '../lib/check-in-code.mjs';
+import {
+  attendanceLogCode,
+  attendanceWindow,
+  buildEventQrToken,
+  verifyEventPin,
+  verifyEventQrToken,
+} from '../lib/event-qr-token.mjs';
+import { rateLimit } from '../lib/rate-limit.mjs';
 import { resolveEventBySlug, SLUG_TO_EVENT_ID } from './events-public.mjs';
 import { isKoinoniaOperator, mentoredGroupIds, isGroupMentorOf } from '../lib/checkin-access.mjs';
 import { scheduleMatchesEvent, summarizePetugas, wibDayKey } from '../lib/petugas-crosscheck.mjs';
@@ -142,7 +151,30 @@ function serializeScan(s) {
     waitingPoolId: s.waitingPoolId,
     userId: s.userId,
     userName: s.user?.name || null,
+    /** OPERATOR = panitia memindai QR peserta; SELF = peserta memindai QR event; MENTOR = absensi grup. */
+    source: /^EVENT-(QR|PIN)\|/.test(String(s.code || ''))
+      ? 'SELF'
+      : String(s.code || '').startsWith('MENTOR:')
+        ? 'MENTOR'
+        : 'OPERATOR',
   };
+}
+
+/** Origin publik untuk tautan QR (hormati proxy Vercel). */
+function requestOrigin(req) {
+  const envOrigin = String(process.env.APP_ORIGIN || '').trim();
+  if (envOrigin) return envOrigin.replace(/\/+$/, '');
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim();
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
+/** Pesan manusiawi untuk alasan jendela absensi tertutup. */
+function windowMessage(reason) {
+  if (reason === 'NOT_YET') return 'Absensi mandiri belum dibuka. Coba lagi mendekati hari acara.';
+  if (reason === 'CLOSED') return 'Absensi mandiri sudah ditutup. Hubungi Tuan Rumah/Koinonia.';
+  if (reason === 'NO_DATE') return 'Tanggal acara belum ditetapkan, absensi mandiri belum aktif.';
+  return 'Absensi mandiri tidak tersedia saat ini.';
 }
 
 function csvCell(value) {
@@ -453,6 +485,159 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     });
   }));
 
+  // ---------------- Absensi mandiri: QR event dipindai peserta ----------------
+  // Kebalikan dari QR pribadi: panitia menampilkan satu QR (token 30 dtk + PIN),
+  // peserta memindai dengan akunnya sendiri → kehadiran tercatat atas namanya.
+
+  app.get('/api/events/:slug/attendance-qr', requireRole('KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
+    if (!(await requireCheckInOp(req, res))) return;
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEvent(prisma, req.params.slug);
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const win = attendanceWindow(resolved.event?.eventDate ?? null);
+    const qr = buildEventQrToken(resolved.id);
+    const url = `${requestOrigin(req)}/#/hadir/${encodeURIComponent(resolved.slug || resolved.id)}?t=${encodeURIComponent(qr.token)}`;
+    const image = await QRCode.toDataURL(url, { margin: 1, width: 640, errorCorrectionLevel: 'M' }).catch(() => null);
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      event: { id: resolved.id, slug: resolved.slug, name: resolved.name },
+      token: qr.token,
+      pin: qr.pin,
+      slot: qr.slot,
+      slotMs: qr.slotMs,
+      expiresAt: qr.expiresAt,
+      url,
+      qr: image,
+      open: win.open,
+      reason: win.reason,
+      validFrom: win.validFrom,
+      validTo: win.validTo,
+    });
+  }));
+
+  app.get('/api/events/:slug/my-attendance', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEvent(prisma, req.params.slug);
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const userId = req.authUser.id;
+    const win = attendanceWindow(resolved.event?.eventDate ?? null);
+    const attendee = await prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId: resolved.id, userId } },
+      select: { checkedInAt: true },
+    }).catch(() => null);
+
+    return res.json({
+      present: Boolean(attendee?.checkedInAt),
+      checkedInAt: attendee?.checkedInAt || null,
+      name: req.authUser.name || null,
+      open: win.open,
+      reason: win.reason,
+      validFrom: win.validFrom,
+      validTo: win.validTo,
+      event: { id: resolved.id, slug: resolved.slug, name: resolved.name },
+    });
+  }));
+
+  app.post('/api/events/:slug/attendance/scan', requireRole(), wrap(async (req, res) => {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+
+    const resolved = await resolveEvent(prisma, req.params.slug);
+    if (!resolved) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+
+    const userId = req.authUser.id;
+    const win = attendanceWindow(resolved.event?.eventDate ?? null);
+    if (!win.open) {
+      return res.status(403).json({ result: 'CLOSED', reason: win.reason, message: windowMessage(win.reason) });
+    }
+
+    const quota = rateLimit(`attendance:${userId}`, { limit: 10, windowMs: 5 * 60 * 1000 });
+    if (!quota.allowed) {
+      return res.status(429).json({
+        result: 'RATE_LIMITED',
+        message: `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(quota.retryAfterMs / 1000)} detik.`,
+      });
+    }
+
+    const tokenRaw = String(req.body?.token || '').trim();
+    const pinRaw = String(req.body?.pin || '').trim();
+    if (!tokenRaw && !pinRaw) return res.status(400).json({ error: 'Token QR atau PIN wajib.' });
+
+    const kind = tokenRaw ? 'qr' : 'pin';
+    const verified = tokenRaw
+      ? verifyEventQrToken(tokenRaw, { eventId: resolved.id })
+      : verifyEventPin(pinRaw, { eventId: resolved.id });
+
+    if (!verified.ok) {
+      await logScan(prisma, {
+        eventId: resolved.id,
+        userId,
+        code: attendanceLogCode(kind, verified.slot ?? 0),
+        result: verified.reason === 'EXPIRED' ? 'EXPIRED' : 'MISMATCH',
+        scannedById: userId,
+      });
+      const message = verified.reason === 'EXPIRED'
+        ? 'QR/PIN sudah kedaluwarsa — pindai QR terbaru di layar panitia.'
+        : 'QR/PIN tidak cocok dengan event ini. Pastikan memindai QR yang benar.';
+      return res.json({ result: verified.reason === 'EXPIRED' ? 'EXPIRED' : 'MISMATCH', message });
+    }
+
+    const at = new Date();
+    const existing = await prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId: resolved.id, userId } },
+      select: { checkedInAt: true },
+    }).catch(() => null);
+
+    if (existing?.checkedInAt) {
+      await logScan(prisma, {
+        eventId: resolved.id,
+        userId,
+        code: attendanceLogCode(kind, verified.slot),
+        result: 'DUPLICATE',
+        scannedById: userId,
+      });
+      return res.json({
+        result: 'DUPLICATE',
+        message: `Kamu sudah tercatat hadir${req.authUser.name ? ` sebagai ${req.authUser.name}` : ''}.`,
+        name: req.authUser.name || null,
+        checkedInAt: existing.checkedInAt,
+      });
+    }
+
+    // Baris attendee belum ada → walk-in mandiri (tetap tercatat + bisa dibatalkan panitia).
+    await markAttendee(prisma, resolved.id, userId, userId, at);
+
+    if (resolved.isBakutau) {
+      await prisma.waitingPool.updateMany({
+        where: { userId, sourceEvent: BAKU_TAU_SOURCE_EVENT, eventCheckedInAt: null },
+        data: { eventCheckedInAt: at, eventCheckedInById: userId },
+      }).catch(() => null);
+    }
+
+    await logScan(prisma, {
+      eventId: resolved.id,
+      userId,
+      code: attendanceLogCode(kind, verified.slot),
+      result: 'OK',
+      scannedById: userId,
+    });
+
+    return res.json({
+      result: 'OK',
+      message: `Kehadiranmu tercatat${req.authUser.name ? `, ${req.authUser.name}` : ''}. Selamat datang!`,
+      name: req.authUser.name || null,
+      checkedInAt: at.toISOString(),
+      self: true,
+    });
+  }));
+
   app.get('/api/events/:slug/check-ins', requireRole('KOMISI', 'COMMITTEE'), wrap(async (req, res) => {
     if (!(await requireCheckInOp(req, res))) return;
     const prisma = getPrisma();
@@ -484,6 +669,10 @@ export function registerEventCheckInRoutes(app, { wrap }) {
     const byResult = Object.fromEntries(grouped.map((g) => [g.result, g._count._all]));
 
     const counts = await countRegistration(prisma, resolved);
+    // Absensi mandiri (peserta memindai QR event) — dikenali dari prefix kode.
+    const self = await prisma.eventCheckIn.count({
+      where: { eventId: resolved.id, code: { startsWith: 'EVENT-' }, result: 'OK' },
+    }).catch(() => 0);
     // Petugas confirmed yang hadir otomatis (metadata.autoPetugas).
     const autoRows = resolved.isBakutau ? [] : await prisma.eventAttendee.findMany({
       where: { eventId: resolved.id, checkedInAt: { not: null } },
@@ -499,8 +688,10 @@ export function registerEventCheckInRoutes(app, { wrap }) {
       duplicate: byResult.DUPLICATE || 0,
       unknown: byResult.UNKNOWN || 0,
       mismatch: byResult.MISMATCH || 0,
+      expired: byResult.EXPIRED || 0,
       walkIn: byResult.WALK_IN || 0,
       voided: byResult.VOIDED || 0,
+      self,
       totalScans: grouped.reduce((sum, g) => sum + g._count._all, 0),
     };
 
@@ -637,10 +828,11 @@ export function registerEventCheckInRoutes(app, { wrap }) {
       include: { user: { select: { name: true } } },
     });
 
-    const header = 'waktu,hasil,nama,waiting_pool_id,user_id,kode,operator';
+    const header = 'waktu,hasil,sumber,nama,waiting_pool_id,user_id,kode,operator';
     const rows = scans.map((s) => [
       s.scannedAt.toISOString(),
       s.result,
+      /^EVENT-(QR|PIN)\|/.test(String(s.code || '')) ? 'SELF' : String(s.code || '').startsWith('MENTOR:') ? 'MENTOR' : 'OPERATOR',
       csvCell(s.user?.name || ''),
       s.waitingPoolId || '',
       s.userId || '',

@@ -6,6 +6,7 @@ import { EventDidaskaliaMaterials } from './EventDidaskaliaMaterials';
 import { EventHostCheckIn } from './EventHostCheckIn';
 import { EventServiceDutyCard } from './EventServiceDutyCard';
 import { EventWorshipCard } from './EventWorshipCard';
+import { EventAttendanceCard } from './EventAttendanceCard';
 import { EventVenueMap } from '../public/ui/EventVenueMap';
 import { EventProfileCompleteCard } from './EventProfileCompleteCard';
 import { EventSelfAnswersCard } from './EventSelfAnswersCard';
@@ -280,6 +281,9 @@ export const EventInfoPanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Absensi mandiri (QR event) — muncul hanya saat jendela absensi buka */}
+      <EventAttendanceCard eventId={ev.id} slug={ev.slug || ev.id} />
 
       {/* Pelayanan + pola ibadah minggu ini */}
       <EventServiceDutyCard eventDate={eventDate} />

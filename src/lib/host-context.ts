@@ -84,7 +84,7 @@ export function isYouthAppHost(host: string): boolean {
 const APP_HASH_PREFIXES = ['#/portal', '#/admin', '#/claim', '#/forgot-password', '#/reset-password'];
 
 /** Rute publik yang tetap dirender aplikasi di host unit (login/daftar/signup event). */
-const AUTH_HASH_PREFIXES = ['#/login', '#/register', '#/join', '#/event'];
+const AUTH_HASH_PREFIXES = ['#/login', '#/register', '#/join', '#/event', '#/hadir'];
 
 export function isAppHash(hash: string): boolean {
   const h = String(hash || '');

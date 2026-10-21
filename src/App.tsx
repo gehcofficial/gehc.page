@@ -43,6 +43,7 @@ const ResetPasswordPage = React.lazy(() => import('./components/public/auth/Rese
 const BenzarpreneurshipPage = React.lazy(() => import('./pages/BenzarpreneurshipPage'));
 const RegisterPage = React.lazy(() => import('./components/public/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const EventSignupRouter = React.lazy(() => import('./components/public/auth/EventSignupRouter').then((m) => ({ default: m.EventSignupRouter })));
+const EventSelfCheckIn = React.lazy(() => import('./components/portal/EventSelfCheckIn').then((m) => ({ default: m.EventSelfCheckIn })));
 
 const SectionFallback: React.FC = () => (
   <LoadingOverlay variant="fullscreen" kind="generic" />
@@ -80,6 +81,19 @@ const MainAppContent: React.FC = () => {
       <Suspense fallback={<SectionFallback />}>
         <ResetPasswordPage />
       </Suspense>
+    );
+  }
+
+  // Absensi mandiri: peserta memindai QR event. Butuh login, jadi komponennya
+  // sendiri yang menampilkan ajakan masuk (dengan `next` kembali ke token QR).
+  if (hash.startsWith('#/hadir/')) {
+    const slug = decodeURIComponent(hash.replace(/^#\/hadir\//, '').split(/[?#]/)[0] || '') || 'bakutau';
+    return (
+      <div className="min-h-screen bg-[#FAF9F5]">
+        <Suspense fallback={<SectionFallback />}>
+          <EventSelfCheckIn slug={slug} />
+        </Suspense>
+      </div>
     );
   }
 

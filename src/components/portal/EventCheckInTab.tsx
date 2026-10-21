@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, ClipboardPaste, Download, ImagePlus, Loader2, QrCode, Undo2, UserPlus, XCircle } from 'lucide-react';
+import { EventAttendanceQrScreen } from './EventAttendanceQrScreen';
 
-type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'WALK_IN' | 'VOIDED';
+type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'EXPIRED' | 'WALK_IN' | 'VOIDED';
 
 type ScanRow = {
   id: string;
@@ -21,8 +22,10 @@ type Stats = {
   duplicate: number;
   unknown: number;
   mismatch: number;
+  expired?: number;
   walkIn: number;
   voided: number;
+  self?: number;
   totalScans: number;
 };
 
@@ -66,6 +69,7 @@ const RESULT_STYLE: Record<ScanResult, string> = {
   DUPLICATE: 'bg-amber-50 border-amber-200 text-amber-800',
   UNKNOWN: 'bg-red-50 border-red-200 text-red-800',
   MISMATCH: 'bg-red-50 border-red-200 text-red-800',
+  EXPIRED: 'bg-amber-50 border-amber-200 text-amber-800',
   WALK_IN: 'bg-blue-50 border-blue-200 text-blue-800',
   VOIDED: 'bg-[#EFEDE8] border-[#D9D7D0] text-[#5C5850]',
 };
@@ -116,6 +120,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(true);
+  /** Mode kebalikan: satu QR event dipindai peserta (absensi mandiri). */
+  const [showScreen, setShowScreen] = useState(false);
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/check-ins`, { credentials: 'include' });
@@ -393,13 +399,37 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
           <h4 className="text-sm font-bold text-[#1B1B1B]">Check-in hari H</h4>
           <p className="text-xs text-[#8C8880]">{eventName} · Koinonia (Persekutuan & Integrasi)</p>
         </div>
-        <a
-          href={`/api/events/${encodeURIComponent(eventId)}/check-ins/export`}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#5C5850]"
-        >
-          <Download className="w-3.5 h-3.5" /> CSV
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowScreen((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold ${
+              showScreen
+                ? 'bg-[#1B1B1B] border-[#1B1B1B] text-white'
+                : 'bg-white border-[#D9D7D0] text-[#5C5850]'
+            }`}
+            title="Tampilkan satu QR event untuk dipindai peserta (absensi mandiri)"
+          >
+            <QrCode className="w-3.5 h-3.5" /> {showScreen ? 'Sembunyikan QR layar' : 'QR di layar'}
+          </button>
+          <a
+            href={`/api/events/${encodeURIComponent(eventId)}/check-ins/export`}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FAF9F5] border border-[#D9D7D0] text-xs font-semibold text-[#5C5850]"
+          >
+            <Download className="w-3.5 h-3.5" /> CSV
+          </a>
+        </div>
       </div>
+
+      {showScreen && (
+        <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4">
+          <EventAttendanceQrScreen eventId={eventId} eventName={eventName} />
+          <p className="mt-3 text-[10px] text-[#8C8880]">
+            Peserta memindai dengan kamera HP (langsung membuka portal) atau mengetik PIN. QR &amp; PIN berganti 30 detik.
+            Scan panitia di bawah tetap bisa dipakai sebagai cadangan.
+          </p>
+        </div>
+      )}
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -407,6 +437,7 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
             { label: 'Terdaftar', value: stats.registered },
             { label: 'Sudah masuk', value: stats.checkedIn },
             { label: 'Scan OK', value: stats.ok },
+            ...((stats.self || 0) > 0 ? [{ label: 'Absen mandiri', value: stats.self as number }] : []),
             { label: 'Walk-in', value: stats.walkIn },
             ...((stats.auto || 0) > 0 ? [{ label: 'Otomatis (petugas)', value: stats.auto as number }] : []),
           ].map((c) => (

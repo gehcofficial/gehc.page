@@ -182,6 +182,14 @@ My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` + `KOMITMEN`.
 
 ## 7. Implementasi P1 (catatan teknis)
 
+- **Absensi mandiri (QR event).** Dua mode hidup berdampingan: (1) panitia
+  memindai QR pribadi peserta (alur lama, cadangan), (2) peserta memindai satu
+  QR event di layar Koinonia. Token `GEHC-EV|<eventId>|<slot>|<sig>` berputar
+  tiap 30 dtk (HMAC `SESSION_SECRET`) + PIN 6 digit, valid hanya pada jendela
+  `eventDate` −2 jam s/d +6 jam; rate limit 10 percobaan/5 menit/user. Kehadiran
+  ditulis lewat `markAttendee()` yang sama → walk-in mandiri tercatat, audit di
+  `event_check_ins` dengan prefix `EVENT-QR|`/`EVENT-PIN|` (tanpa kolom baru).
+  Halaman peserta: `#/hadir/<slug>?t=…` (token di hash, tidak terkirim ke server).
 - `day_timeline_items(day, sort_order, kind, event_id?, title/body/owner/
   minutes)` — migrasi `server/_migrate-day-timeline.cjs` + npm
   `db:migrate:day-timeline[:staging|:prod]`; tulis

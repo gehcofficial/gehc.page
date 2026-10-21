@@ -182,6 +182,7 @@ Simpan = auto-sync TiDB & landing page.
 | `#/login` | Masuk portal (Google / email+password) |
 | `#/register` | Daftar membership Beyonders → `WAITING_POOL` |
 | `#/event/bakutau` | Daftar kehadiran BAKU TAU (kontekstual) |
+| `#/hadir/<slug>?t=TOKEN` | Absensi mandiri: pindai QR event di layar panitia (butuh login) |
 | `#/join?inv=CODE` | Undangan panitia (role dari invite) |
 | `#/join?token=` | Legacy waitlist bridge |
 

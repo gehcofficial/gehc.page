@@ -140,6 +140,9 @@
     "db:migrate:worship-notes": "node server/_migrate-worship-notes.cjs",
     "db:migrate:worship-notes:staging": "dotenv -e .env.staging -- node server/_migrate-worship-notes.cjs",
     "db:migrate:worship-notes:prod": "dotenv -e .env.production -- node server/_migrate-worship-notes.cjs",
+    "db:migrate:worship-lab": "node server/_migrate-worship-lab.cjs",
+    "db:migrate:worship-lab:staging": "dotenv -e .env.staging -- node server/_migrate-worship-lab.cjs",
+    "db:migrate:worship-lab:prod": "dotenv -e .env.production -- node server/_migrate-worship-lab.cjs",
     "db:seed:worship": "node server/_seed-worship-patterns.cjs",
     "db:seed:worship:staging": "dotenv -e .env.staging -- node server/_seed-worship-patterns.cjs",
     "db:seed:worship:prod": "dotenv -e .env.production -- node server/_seed-worship-patterns.cjs",
@@ -290,6 +293,7 @@
     "mysql2": "^3.23.4",
     "pdfkit": "^0.20.2",
     "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-router-dom": "^7.9.1",
@@ -314,4 +318,3 @@
     "vitest": "^3.2.4"
   }
 }
-

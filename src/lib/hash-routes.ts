@@ -12,7 +12,8 @@ export type ParsedHashRoute = {
   | 'group-detail'
   | 'ringkasan'
   | 'arsip'
-  | 'benzarpreneurship';
+  | 'benzarpreneurship'
+  | 'attendance-scan';
   eventSlug?: string;
   params: URLSearchParams;
 };
@@ -52,6 +53,11 @@ export function parseHashRoute(hash = typeof window !== 'undefined' ? window.loc
 
   if (segments[0] === 'event' && segments[1]) {
     return { tab: 'event-signup', eventSlug: segments[1], params };
+  }
+
+  // Absensi mandiri (`#/hadir/<slug>?t=...`) — token di hash, tak terkirim ke server.
+  if (segments[0] === 'hadir' && segments[1]) {
+    return { tab: 'attendance-scan', eventSlug: segments[1], params };
   }
 
   const first = segments[0] || 'beyonders';

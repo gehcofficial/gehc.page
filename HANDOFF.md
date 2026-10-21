@@ -1,5 +1,41 @@
 # GEHC Portal — Handoff
 
+## Current — Absensi mandiri: QR event dipindai peserta (21 Okt 2026)
+
+**Minta:** kebalikan dari alur sekarang (QR pribadi dipindai Koinonia). Panitia
+punya satu QR event; peserta memindai dengan akunnya sendiri dan langsung
+tercatat hadir. QR pribadi + scanner Koinonia tetap dipertahankan (dual mode).
+
+**Jalan:**
+- `server/lib/event-qr-token.mjs`: token `GEHC-EV|<eventId>|<slot>|<sig12>`,
+  slot 30 detik + HMAC `SESSION_SECRET`, toleransi ±1 slot; PIN 6 digit per slot;
+  `attendanceWindow()` = buka H−2 jam s/d +6 jam dari `eventDate`;
+  `attendanceLogCode()`/`isSelfScanCode()` (konvensi prefix, tanpa kolom baru).
+- `server/lib/rate-limit.mjs`: sliding window in-memory (10 percobaan / 5 menit
+  per user) untuk menahan brute-force PIN.
+- `server/routes/events-checkin.mjs`: `GET /api/events/:slug/attendance-qr`
+  (operator: token + PIN + data URL QR lokal via `qrcode`, `no-store`),
+  `GET /api/events/:slug/my-attendance` (peserta), dan
+  `POST /api/events/:slug/attendance/scan` (self walk-in bila baris attendee
+  belum ada; DUPLICATE bila sudah; BAKU TAU ikut menandai `waiting_pool`).
+  Stats dapat `self` + `expired`; CSV dapat kolom `sumber`; `serializeScan`
+  mengirim `source` (OPERATOR/SELF/MENTOR).
+- UI: `EventSelfCheckIn` (halaman `#/hadir/<slug>?t=`, kamera BarcodeDetector +
+  fallback jsQR, input PIN, auto-submit token dari hash), `EventAttendanceQrScreen`
+  (layar QR + PIN + mode layar penuh, refresh 20 dtk) di tab `EventCheckInTab`,
+  `EventAttendanceCard` di Info Event (muncul hanya saat jendela buka/belum hadir).
+- Rute: `parseHashRoute` → `attendance-scan`; `PublicTab`+`TAB_IDS`;
+  `AUTH_HASH_PREFIXES` + `#/hadir` (host hub tetap render aplikasi).
+- Docs: `userflow.md` (rute baru). Test: `event-qr-token.test.ts` (14),
+  `event-attendance.test.ts` (6).
+
+**Verifikasi:** `lint` bersih ✓ `build` OK ✓ test baru 20 hijau ✓. Full `test`
+masih 2 merah dari sesi paralel (`CREATIVE_LAB`: `session-engine.test.ts`,
+`worship-session-draft.test.ts`) — bukan dari episode ini.
+
+**Belum:** uji browser staging (kamera butuh HTTPS), QA QR 30 dtk di layar TV,
+dan keputusan produk: geofence venue (fase 3).
+
 ## Current — Pola Didaskalia `CREATIVE_LAB` (Creative Lab, 21 Okt 2026)
 
 **Minta:** tambah pola ibadah baru *Creative Lab* (`CREATIVE_LAB`) dari program
