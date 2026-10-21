@@ -953,7 +953,11 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                   ? 'Mulai Bedah Lagu & Monolog'
                   : isMonolog && a.action === 'wrapup'
                     ? 'Buka Lesson Learned'
-                    : a.label;
+                    : isCreativeLab && a.action === 'start'
+                      ? 'Mulai Sesi'
+                      : isCreativeLab && a.action === 'wrapup'
+                        ? 'Buka Satu Kata'
+                        : a.label;
                 return (
                 <button
                   key={a.action}
@@ -1011,6 +1015,31 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </button>
               </div>
             </div>
+
+            {isCreativeLab && (
+              <div className="mt-4 space-y-2">
+                <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
+                  <b>Alur hari-H:</b> Mulai Sesi → <b>A1</b> (Jar 15′) → <b>A2</b> (Pot ∥ Tas 25′) → <b>Presentasi</b> →{' '}
+                  <b>Kelompok berikutnya</b> sampai <b>DONE</b> → <b>Buka Satu Kata</b>. Timer aktivitas display-only; transisi manual.
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
+                  <span>
+                    Timer sesi pola ini <b className="text-[#1B1B1B]">105 menit = 6300 detik</b> (PRA 20′ terpisah).
+                  </span>
+                  {Number(configDraft.timerSeconds) !== 6300 && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 6300 }))}
+                      className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
+                    >
+                      Pakai 6300 dtk
+                    </button>
+                  )}
+                </div>
+                <ActivityPanel sessionId={detail.session.id} />
+              </div>
+            )}
 
             {isMonolog && (
               <div className="mt-4 rounded-xl border border-[#EFEDE8] p-3 space-y-2">
@@ -1393,7 +1422,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
           {canManageChips && (
           <div className={CARD}>
-            <p className="text-sm font-black">Lesson Learned ({detail.chips.length})</p>
+            <p className="text-sm font-black">{isCreativeLab ? 'Satu Kata' : 'Lesson Learned'} ({detail.chips.length})</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {detail.chips.map((chip) => (
                 <span
@@ -1442,10 +1471,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           </div>
           )}
 
-          <TestimonyPanel
-            sessionId={detail.session.id}
-            mode={isMonolog ? 'monolog' : isFilm ? 'film' : 'standard'}
-          />
+          {!isCreativeLab && (
+            <TestimonyPanel
+              sessionId={detail.session.id}
+              mode={isMonolog ? 'monolog' : isFilm ? 'film' : 'standard'}
+            />
+          )}
           {patternCode === 'DEBAT' && (
             <DebatPanel sessionId={detail.session.id} />
           )}
@@ -1454,9 +1485,6 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           )}
           {patternCode === 'THREE_SEQUENCES' && (
             <TeamsPanel sessionId={detail.session.id} />
-          )}
-          {isCreativeLab && (
-            <ActivityPanel sessionId={detail.session.id} />
           )}
           </fieldset>
         </>
