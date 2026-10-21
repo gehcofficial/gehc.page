@@ -1,5 +1,45 @@
 # GEHC Portal — Handoff
 
+## Current — Creative Lab lengkap: laporan kelompok + undian presentasi (21 Okt 2026)
+
+**Minta:** lengkapi pola `CREATIVE_LAB` sesuai alur Serving Day: Reminder Jar
+2 slot web (semua 6 pertanyaan ditulis di kertas), layar 6 kartu besar, laporan
+Activity 2 per kelompok (makna Pot/Tas, progress, komitmen, foto), feed hanya
+untuk kelompok sendiri, undian urutan presentasi, laporan kontrol + CSV, PDF
+peserta dengan foto, dan batas 5 foto per kelompok (2 Pot + 2 Tas + 1 bersama).
+
+**Done:**
+- `prisma/schema.prisma` + `server/_migrate-worship-lab.cjs` (aditif, idempoten):
+  tabel `worship_lab_updates` untuk `POT`/`BAG`/`GROUP`/`COMMIT`/`NOTE`.
+  Terdaftar di `scripts/db-migrate-local.mjs` + script
+  `db:migrate:worship-lab[:staging|:prod]`.
+- `server/routes/worship.mjs`: reminder jar server-side max 2 jawaban
+  `JAR-*`; endpoint update/foto/hapus/selesai/ack/CSV; payload peserta hanya
+  kelompok sendiri; payload kontrol/layar memuat ringkasan semua kelompok;
+  kuota foto `POT:2/BAG:2/GROUP:1`; foto bersama wajib sebelum “Lapor selesai”.
+- `server/lib/session-stage.mjs`: `repUserId`/`repName`/`memberUserIds`,
+  `presentOrder`/`presentDrawnAt`, fallback `group-n-rep` dari draft.
+- `server/_seed-worship-patterns.cjs`: playbook + fase A1/A2/presentasi
+  diperbarui (2 slot web, perwakilan, 5 foto, undian).
+- UI: `CreativeLabPanels.tsx` (`JarWebSlots`, `LabGroupPanel`), integrasi
+  `PatternDay.tsx`; kontrol `StagePanels.tsx` (picker peserta, rep, sync grup,
+  undian/acak ulang, urutan manual, tabel laporan, galeri, CSV); layar
+  `MentoringScreen.tsx` (6 kartu besar, makna Pot/Tas, urutan presentasi,
+  tampilan karya); PDF `mentoringPdf.ts` + foto via proxy same-origin.
+- Test: `lint` bersih; `npm run test` **159 files / 1266 tests passed**.
+
+**Verifikasi lokal:** API jar menolak jawaban ke-3 (400); update Pot berhasil
+saat A2; “Lapor selesai” tanpa foto bersama ditolak (400); update terkunci saat
+PRESENT (409); CSV 200; config sesi dipulihkan setelah QA.
+
+**Deploy:** commit `98ee972` → push `main` (prod `/api/version` = 98ee972) →
+`staging:sync` (8 alias, `/api/version` staging = 98ee972). Migrasi staging
+(`db:migrate:local`) + produksi (`db:migrate:worship-lab:prod`) berhasil:
+`worship_lab_updates` dibuat.
+
+**Next:** QA browser staging (upload 5 foto Drive, PDF peserta, layar proyektor),
+lalu minta operator memakai tombol undian sebelum presentasi.
+
 ## Current — Absensi mandiri: QR event dipindai peserta (21 Okt 2026)
 
 **Minta:** kebalikan dari alur sekarang (QR pribadi dipindai Koinonia). Panitia
