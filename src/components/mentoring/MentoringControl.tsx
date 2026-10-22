@@ -511,7 +511,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan briefing.');
-      setMsg({ kind: 'ok', text: 'Pengumuman pencatat dan pengundian tersimpan. Layar menampilkannya.' });
+      setMsg({ kind: 'ok', text: 'Tersimpan. Pengundian tampil saat Firman & Briefing. Nama pencatat tampil di Sesi 2.' });
       await loadDetail();
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan briefing.' });
@@ -1162,21 +1162,21 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
                   <span>
-                    Timer sesi pola ini <b className="text-[#1B1B1B]">120 menit = 7200 detik</b> (PRA 20′ terpisah; Firman & Briefing 15′; Presentasi Kelompok blok 30′).
+                    Timer sesi pola ini <b className="text-[#1B1B1B]">140 menit = 8400 detik</b> (PRA 20′ terpisah; jemaat sampai Acara Bebas & Pulang).
                   </span>
-                  {Number(configDraft.timerSeconds) !== 7200 && (
+                  {Number(configDraft.timerSeconds) !== 8400 && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 7200 }))}
+                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 8400 }))}
                       className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
                     >
-                      Pakai 7200 dtk
+                      Pakai 8400 dtk
                     </button>
                   )}
                 </div>
                 <div className="rounded-xl border border-[#EFEDE8] bg-white p-3 space-y-2">
-                  <p className="text-[11px] font-black text-[#1B1B1B]">Briefing di layar · pencatat & pengundian</p>
+                  <p className="text-[11px] font-black text-[#1B1B1B]">Pengumuman layar · pencatat di Sesi 2, pengundian di briefing</p>
                   <label className="block text-[11px] text-[#8C8880] space-y-1">
                     <span className="font-bold">Umumkan pencatat</span>
                     <textarea

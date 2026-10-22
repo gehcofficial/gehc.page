@@ -253,7 +253,7 @@ const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
   {
     key: 'briefing',
     title: 'Firman & Briefing',
-    hint: 'Firman 15 menit. Briefing mengumumkan pencatat dan pengundian. Teks itu tampil di layar dan bisa diubah dari panel kontrol.',
+    hint: 'Firman 15 menit. Briefing mengumumkan pengundian di layar. Nama pencatat tampil hanya di Sesi 2 dan bisa diubah dari panel kontrol.',
     fields: [
       t('brief-core', 'Inti khotbah', 'textarea', 'Firman pekan ... → tema ... → panggilan ...'),
       t('brief-scribe', 'Pengumuman pencatat', 'textarea', 'Umumkan perwakilan pencatat tiap kelompok.'),

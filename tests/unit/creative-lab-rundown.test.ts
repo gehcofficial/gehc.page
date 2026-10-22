@@ -6,6 +6,7 @@ import {
 } from '../../server/lib/creative-lab-rundown.mjs';
 import {
   canonicalCreativeLabPhases as clientPhases,
+  labDisplayShowsRepNames,
   normalizeCreativeLabPhases as clientNorm,
 } from '../../src/lib/creative-lab-rundown';
 import { patternCongregationMinutes, patternPreMinutes, patternTotalMinutes } from '../../src/lib/worship-patterns';
@@ -31,7 +32,7 @@ describe('creative lab rundown: baca katalog lama', () => {
     );
   });
 
-  it('judul legacy menjadi rundown baku 20 + 120', () => {
+  it('judul legacy menjadi rundown baku 20 + 140', () => {
     const phases = serverNorm(LEGACY, 'CREATIVE_LAB');
     expect(phases.map((p) => p.title)).toEqual([
       'Persiapan Ruang & Perlengkapan',
@@ -46,6 +47,10 @@ describe('creative lab rundown: baca katalog lama', () => {
       'Konklusi',
       'Persembahan & Doa',
       'Lagu & Doa Penutup',
+      'Terima Kasih & Pengumuman',
+      'HUT & Doa',
+      'Foto Bersama',
+      'Acara Bebas & Pulang',
     ]);
     expect(phases.find((p) => p.title === 'Presentasi Kelompok')?.minutes).toBe(30);
     expect(phases.find((p) => p.title === 'Firman & Briefing')?.minutes).toBe(15);
@@ -53,8 +58,16 @@ describe('creative lab rundown: baca katalog lama', () => {
     expect(phases.find((p) => p.title === 'Persiapan Ruang & Perlengkapan')?.notes || '').toMatch(/kedatangan/);
     expect(phases.some((p) => /bag painting|pilih 2 pertanyaan|preaching/i.test(String(p.title)))).toBe(false);
     expect(patternPreMinutes(phases)).toBe(20);
-    expect(patternCongregationMinutes(phases)).toBe(120);
-    expect(patternTotalMinutes(phases)).toBe(140);
+    expect(patternCongregationMinutes(phases)).toBe(140);
+    expect(patternTotalMinutes(phases)).toBe(160);
+    const pasca = phases.slice(-4);
+    expect(pasca.map((p) => p.minutes)).toEqual([5, 5, 5, 5]);
+    expect(pasca.map((p) => p.owner)).toEqual([
+      'Tuan Rumah, MC, Komisi/Tim Kerja',
+      'MC, yang HUT',
+      'Fotografer, Videografer',
+      'Tuan Rumah',
+    ]);
     expect(clientNorm(LEGACY).map((p) => p.title)).toEqual(phases.map((p) => p.title));
   });
 
@@ -71,11 +84,21 @@ describe('creative lab rundown: baca katalog lama', () => {
       code: 'CREATIVE_LAB',
       name: 'Creative Lab',
       summary: 'The Roots Reminder Jar 15',
-      defaultDurationMin: 140,
+      defaultDurationMin: 160,
       phases: LEGACY,
     });
     expect(shown.summary).toContain('Sesi 1 · Reminder Jar');
     expect(shown.summary).not.toContain('The Roots');
     expect(shown.phases.find((p) => p.title === 'Sesi 2 · Art Stations')?.minutes).toBe(25);
+    expect(shown.defaultDurationMin).toBe(160);
+  });
+
+  it('nama perwakilan dan pencatat hanya di layar Sesi 2', () => {
+    expect(labDisplayShowsRepNames('A2')).toBe(true);
+    expect(labDisplayShowsRepNames('IDLE')).toBe(false);
+    expect(labDisplayShowsRepNames('A1')).toBe(false);
+    expect(labDisplayShowsRepNames('PRESENT')).toBe(false);
+    expect(labDisplayShowsRepNames('DONE')).toBe(false);
+    expect(labDisplayShowsRepNames('')).toBe(false);
   });
 });

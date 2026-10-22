@@ -1,20 +1,24 @@
 # GEHC Portal — Handoff
 
-## Current — Diet CPU Vercel Fluid (22 Okt 2026)
+## Current — Penutup Creative Lab + nama perwakilan (22 Okt 2026)
 
-**Minta:** turunkan Active CPU fungsi `/api` (Hobby 4 jam/bulan; terpakai 9j39m 22 Sep–22 Okt). Lonjakan hari Minggu dari poll layar. Cabang `cursor/vercel-cpu-diet-d5fe` dari `main` `dcfa400`. Tanpa ubah data produksi, tanpa deploy/alias.
+**Minta:** sesudah Lagu & Doa Penutup, salin pasca Monolog (Terima Kasih & Pengumuman sampai Acara Bebas & Pulang). Timer ikut. Nama perwakilan/pencatat tidak tampil di layar Firman & Briefing, hanya di Sesi 2. Cabang `cursor/lab-closing-names-d5fe` dari `main` (sudah rebased ke `18c97c7` + PR #22 CPU diet). Data sesi `sesi-2026-10-25-creative-lab` boleh di staging dan produksi.
 
 **Done:**
-- Poll layar (mentoring, liturgi, hari, ruang kontrol, absensi) jeda saat tab tersembunyi, segar saat kembali, dan mundur 15s→30s atau 20s→40s bila 304. Timer tetap dihitung di klien dari `startedAt`.
-- ETag dari hitungan/stempel waktu, bukan agregat penuh. Pola tanpa playbook. Pengguna di-cache 20 dtk. Jumlah pemuda di-cache 10 menit.
-- `/api/health` tidak menyentuh DB kecuali `?db=1`. `/api/config` probe 60 dtk + `s-maxage`. Ringkasan/presentasi di-cache per host (`Vary: Host`). Prisma di `globalThis`, pool Vercel `connection_limit=1`, timeout 8 dtk. `maxDuration` tetap 60.
-- PDF parse/render tetap di server (bukan jalur poll).
+- Pola CREATIVE_LAB: empat segmen pasca, menit/owner/catatan mengikuti Monolog. Total baku 160 menit (PRA 20 + jemaat 140). Timer sesi 8400 detik.
+- Staging dan produksi: pola + timer sesi itu sudah ditulis. Staging status WRAPUP, produksi DRAFT. Tidak ada sesi CREATIVE_LAB lain.
+- Layar proyektor: pengundian tetap di briefing. Nama pencatat dan perwakilan kelompok hanya saat fase A2.
+- Merge `main`: poll layar `visible-poll` + ETag tetap di `MentoringScreen` bersama `labDisplayShowsRepNames`.
 
-**Next:** pantau Active CPU minggu ibadah berikutnya. Jangan `staging:sync` dari cabang ini.
+**Next:** merge PR setelah CI hijau. Jangan `staging:sync`.
 
-**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **169 file / 1340 tes** lulus. `npm run build` lulus.
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` · `npm run build` setelah merge.
 
-**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · `npm run build` · branch `cursor/vercel-cpu-diet-d5fe`
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/lab-closing-names-d5fe`
+
+## Prior — Diet CPU Vercel Fluid (22 Okt 2026, sudah di `main` PR #22 `18c97c7`)
+
+**Done:** poll layar + 304/ETag, cache ringkasan/presentasi per host, Prisma pool diet, health/config murah. Cabang `cursor/vercel-cpu-diet-d5fe` sudah digabung ke `main`.
 
 ## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 
