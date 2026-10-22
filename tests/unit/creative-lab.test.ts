@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
-import { allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
+import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../../server/lib/lab-drive.mjs';
-import { codeFromMentoringHash } from '../../src/lib/mentoring';
+import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
 
 describe('creative-lab: cleanActivity', () => {
   it('null → null; kosong → default IDLE', () => {
@@ -42,6 +42,9 @@ describe('creative-lab: cleanActivity', () => {
     expect(a.presentSeconds).toBe(600);
     expect(a.durations).toEqual({ A1: 60, A2: 7200, PRESENT: 60 });
     expect(cleanActivity({ presentIndex: 12 }).presentIndex).toBe(9);
+    expect(cleanActivity({}).presentSlide).toBe(0);
+    expect(cleanActivity({ presentSlide: 1 }).presentSlide).toBe(1);
+    expect(cleanActivity({ presentSlide: 9 }).presentSlide).toBe(2);
   });
 
   it('cleanTeams default tetap 8; Creative Lab boleh 10', () => {
@@ -323,6 +326,44 @@ describe('creative-lab: folder foto', () => {
     expect(pickEventFolder(folders, 'serving')?.id).toBe('4');
     expect(pickEventFolder(folders, '')).toBeNull();
     expect(pickEventFolder(folders, 'lain')).toBeNull();
+  });
+});
+
+describe('creative-lab: navigasi slide presentasi', () => {
+  it('maju per slide, lalu pindah kelompok; sesi lama tanpa slide mulai di Pot', () => {
+    expect(stepLabPresentation({ presentIndex: 0 }, 3, 1)).toEqual({ phase: 'PRESENT', presentIndex: 0, presentSlide: 1 });
+    expect(stepLabPresentation({ presentIndex: 0, presentSlide: 1 }, 3, 1)).toEqual({ phase: 'PRESENT', presentIndex: 0, presentSlide: 2 });
+    expect(stepLabPresentation({ presentIndex: 0, presentSlide: 2 }, 3, 1)).toEqual({ phase: 'PRESENT', presentIndex: 1, presentSlide: 0 });
+    expect(stepLabPresentation({ presentIndex: 2, presentSlide: 2 }, 3, 1)).toEqual({ phase: 'DONE', presentIndex: 2, presentSlide: 2 });
+  });
+
+  it('mundur di slide pertama kembali ke foto bersama kelompok sebelumnya', () => {
+    expect(stepLabPresentation({ presentIndex: 0, presentSlide: 0 }, 3, -1)).toEqual({ phase: 'PRESENT', presentIndex: 0, presentSlide: 0 });
+    expect(stepLabPresentation({ presentIndex: 2, presentSlide: 0 }, 3, -1)).toEqual({ phase: 'PRESENT', presentIndex: 1, presentSlide: 2 });
+    expect(stepLabPresentation({ presentIndex: 1, presentSlide: 2 }, 3, -1)).toEqual({ phase: 'PRESENT', presentIndex: 1, presentSlide: 1 });
+  });
+});
+
+describe('creative-lab: unggah admin dan kuota', () => {
+  const photo = (kind: string) => ({ kind, photoUrl: 'https://drive.example/x' });
+
+  it('pengurus boleh saat A2, presentasi, dan penutupan; peserta dan fase lain ditolak', () => {
+    expect(adminLabPhotoAllowed({ roles: ['SUPERADMIN'], status: 'RUNNING', phase: 'A2' }).ok).toBe(true);
+    expect(adminLabPhotoAllowed({ roles: [{ role: 'KOMISI' }], status: 'RUNNING', phase: 'PRESENT' }).ok).toBe(true);
+    expect(adminLabPhotoAllowed({ roles: ['COMMITTEE'], status: 'WRAPUP', phase: 'DONE' }).ok).toBe(true);
+    expect(adminLabPhotoAllowed({ roles: ['SUPERADMIN'], status: 'RUNNING', phase: 'DONE' }).ok).toBe(true);
+    expect(adminLabPhotoAllowed({ roles: ['MENTEE'], status: 'RUNNING', phase: 'A2' })).toMatchObject({ ok: false, status: 403 });
+    expect(adminLabPhotoAllowed({ roles: ['SUPERADMIN'], status: 'RUNNING', phase: 'A1' })).toMatchObject({ ok: false, status: 409 });
+    expect(adminLabPhotoAllowed({ roles: ['SUPERADMIN'], status: 'CLOSED', phase: 'PRESENT' })).toMatchObject({ ok: false, status: 409 });
+  });
+
+  it('kuota sama dengan perwakilan: Pot 2, Tas 2, bersama 1', () => {
+    expect(labPhotoQuota([photo('POT')], 'POT').ok).toBe(true);
+    expect(labPhotoQuota([photo('POT'), photo('POT')], 'pot')).toMatchObject({ ok: false, status: 400 });
+    expect(labPhotoQuota([photo('BAG'), { kind: 'BAG', photoUrl: null }], 'BAG').ok).toBe(true);
+    expect(labPhotoQuota([photo('BAG'), photo('BAG')], 'BAG')).toMatchObject({ ok: false, status: 400 });
+    expect(labPhotoQuota([photo('GROUP')], 'GROUP')).toMatchObject({ ok: false, status: 400 });
+    expect(labPhotoQuota([], 'NOTE')).toMatchObject({ ok: false, status: 400 });
   });
 });
 

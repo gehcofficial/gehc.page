@@ -1,5 +1,29 @@
 # GEHC Portal — Handoff
 
+## Current — Creative Lab: 3 slide presentasi + unggah admin (22 Okt 2026)
+
+**Minta:** layar presentasi tiap kelompok jadi 3 slide (Pot, Tas, foto bersama),
+admin mengunggah/menghapus foto atas nama kelompok, thumbnail kontrol bisa dibesarkan,
+dan peserta melihat petunjuk foto landscape.
+
+**Done:**
+- `presentSlide` (0–2) di `config.activity` lewat `cleanActivity`. Sesi lama tanpa field
+  mulai di slide Pot. Kontrol: Berikutnya / Sebelumnya; setelah slide 3 pindah ke
+  kelompok berikutnya di `presentOrder`. Timer 2 menit direset hanya saat ganti kelompok.
+- `POST/DELETE /api/worship/sessions/:id/lab/photos|updates` untuk peran kontrol
+  (SUPERADMIN, KOMISI, COMMITTEE + divisi Didaskalia) saat A2, PRESENT, DONE, atau
+  status WRAPUP. Kuota tetap Pot 2 / Tas 2 / bersama 1. Folder Drive sama dengan
+  unggah perwakilan. `userId` baris mencatat siapa yang mengunggah.
+- Kontrol: lightbox `object-contain`, hapus foto, tombol **Upload atas nama kelompok**.
+- HP peserta: "Disarankan foto landscape".
+
+**Next:** QA layar proyektor (portrait dan landscape tidak terpotong) dan unggah
+admin saat presentasi bila kuota perwakilan belum penuh.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm run test` **163 file / 1297 tes** lulus.
+
+**Commands:** `npm run lint` · `npm run test` · branch `cursor/creative-lab-present-slides-69e4` ke `staging`.
+
 ## Current — Creative Lab: 10 kelompok dari database (22 Okt 2026)
 
 **Minta:** isi papan Creative Lab dari 10 kelompok Beyonders (Agape … Shalom),

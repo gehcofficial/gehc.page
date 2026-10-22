@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
+import { LAB_PRESENT_SLIDES, stepLabPresentation } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -535,6 +536,7 @@ type LabActivity = {
   showOnScreen: boolean;
   cardIndex: number;
   presentIndex: number;
+  presentSlide: number;
   presentStartedAt: string | null;
   presentSeconds: number;
   presentOrder: number[];
@@ -551,6 +553,7 @@ type LabPhotoRow = {
   progress: number | null;
   photoUrl: string | null;
   thumbUrl: string | null;
+  userName?: string;
   createdAt: string | null;
 };
 type LabTeamSummary = {
@@ -604,6 +607,7 @@ const labDefaultActivity = (): LabActivity => ({
   showOnScreen: true,
   cardIndex: 0,
   presentIndex: 0,
+  presentSlide: 0,
   presentStartedAt: null,
   presentSeconds: 120,
   presentOrder: [],
@@ -640,6 +644,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   );
   const [groupOptions, setGroupOptions] = useState<LabGroupOption[]>([]);
   const [lab, setLab] = useState<LabSummary | null>(null);
+  const [uploadSlot, setUploadSlot] = useState<Record<number, 'POT' | 'BAG' | 'GROUP'>>({});
+  const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
   const [savedTeamNames, setSavedTeamNames] = useState('');
   const [loading, setLoading] = useState(true);
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
@@ -662,6 +668,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         showOnScreen: a.showOnScreen !== false,
         cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
         presentIndex: Math.min(LAB_INDEX_MAX, Math.max(0, Number(a.presentIndex) || 0)),
+        presentSlide: Math.min(2, Math.max(0, Math.floor(Number(a.presentSlide) || 0))),
         presentStartedAt: a.presentStartedAt || null,
         presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 120,
         presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
@@ -782,7 +789,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
+    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0, presentSlide: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
   };
 
   const moveOrder = (index: number, delta: number) => {
@@ -848,8 +855,35 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const startPresent = () => {
     const startedAt = new Date().toISOString();
     void pushActivity(
-      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)) },
-      'Presentasi dimulai.',
+      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)), presentSlide: 0 },
+      'Presentasi dimulai. Slide 1: Pot.',
+    );
+  };
+
+  const stepSlide = (direction: 1 | -1) => {
+    const count = Math.max(1, presentationOrder.length);
+    const next = stepLabPresentation(activity, count, direction);
+    if (next.phase === 'DONE') {
+      void pushActivity(
+        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: next.presentIndex, presentSlide: next.presentSlide },
+        'Semua kelompok presentasi — lanjut refleksi/konklusi.',
+      );
+      return;
+    }
+    const changedGroup = next.presentIndex !== activity.presentIndex;
+    const startedAt = new Date().toISOString();
+    const team = teams[presentationOrder[next.presentIndex]];
+    void pushActivity(
+      {
+        phase: 'PRESENT',
+        startedAt: activity.startedAt || startedAt,
+        presentStartedAt: changedGroup ? startedAt : activity.presentStartedAt,
+        presentIndex: next.presentIndex,
+        presentSlide: next.presentSlide,
+      },
+      changedGroup
+        ? `Giliran ${team?.name || `kelompok ${next.presentIndex + 1}`}.`
+        : `Slide ${next.presentSlide + 1}/3 · ${LAB_PRESENT_SLIDES[next.presentSlide]}.`,
     );
   };
 
@@ -858,14 +892,14 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     const next = activity.presentIndex + 1;
     if (next >= count) {
       void pushActivity(
-        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1) },
+        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1), presentSlide: 0 },
         'Semua kelompok presentasi — lanjut refleksi/konklusi.',
       );
       return;
     }
     const startedAt = new Date().toISOString();
     const team = teams[presentationOrder[next]];
-    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next }, `Giliran ${team?.name || `kelompok ${next + 1}`}.`);
+    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next, presentSlide: 0 }, `Giliran ${team?.name || `kelompok ${next + 1}`}.`);
   };
 
   const stopTimer = () => {
@@ -874,9 +908,69 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
 
   const resetStage = () => {
     void pushActivity(
-      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0 },
+      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
       'Timer & panggung direset.',
     );
+  };
+
+  const adminUpload = async (teamIndex: number, file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setMsg('Foto terlalu besar (maks 15MB).');
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Gagal membaca file.'));
+        reader.readAsDataURL(file);
+      });
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          teamIndex,
+          kind: uploadSlot[teamIndex] || 'POT',
+          filename: file.name,
+          mimetype: file.type,
+          data,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengunggah foto.');
+      const who = d?.update?.userName ? ` Tercatat atas nama ${d.update.userName}.` : '';
+      setMsg(`Foto tersimpan untuk kelompok.${who}`);
+      await load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal mengunggah foto.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const adminDeletePhoto = async (updateId: string) => {
+    if (!window.confirm('Hapus foto ini dari kelompok?')) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/updates/${encodeURIComponent(updateId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menghapus foto.');
+      setLightbox(null);
+      setMsg('Foto dihapus. Slot kuota bisa diisi lagi.');
+      await load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal menghapus foto.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const activeCard = cards[activity.cardIndex] || cards[0];
@@ -907,7 +1001,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           <div className="mt-3 flex items-center justify-between rounded-xl bg-[#1B1B1B] px-4 py-3 text-white">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-white/50">
-                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)}` : 'Timer fase'}
+                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)} · slide ${activity.presentSlide + 1}/3 ${LAB_PRESENT_SLIDES[activity.presentSlide] || ''}` : 'Timer fase'}
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
@@ -925,9 +1019,16 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <span className="text-[11px] font-bold text-[#8C8880]">
                 Sedang tampil: {teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`}
                 {teams[currentTeamIndex]?.repName ? ` — ${teams[currentTeamIndex].repName}` : ''}
+                {' · '}slide {activity.presentSlide + 1}/3 {LAB_PRESENT_SLIDES[activity.presentSlide]}
               </span>
-              <button type="button" disabled={busy} onClick={nextGroup} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
-                Kelompok berikutnya <ChevronRight className="w-3.5 h-3.5" />
+              <button type="button" disabled={busy} onClick={() => stepSlide(-1)} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-60">
+                <ChevronLeft className="w-3.5 h-3.5" /> Sebelumnya
+              </button>
+              <button type="button" disabled={busy} onClick={() => stepSlide(1)} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
+                Berikutnya <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" disabled={busy} onClick={nextGroup} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-60">
+                Lewati kelompok
               </button>
             </div>
           )}
@@ -994,17 +1095,80 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                 </tbody>
               </table>
             </div>
-            <div className="mt-2 grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-              {(lab?.teams || []).flatMap((t) => [
-                ...t.pot.photos.map((p) => ({ ...p, key: `${t.index}-pot-${p.id}`, label: `Pot ${t.name}` })),
-                ...t.bag.photos.map((p) => ({ ...p, key: `${t.index}-bag-${p.id}`, label: `Tas ${t.name}` })),
-                ...(t.groupPhoto ? [{ ...t.groupPhoto, key: `${t.index}-group`, label: `Bersama ${t.name}` }] : []),
-              ]).slice(0, 15).map((p) => (
-                <a key={p.key} href={p.photoUrl || '#'} target="_blank" rel="noreferrer" className="block">
-                  <img src={p.thumbUrl || p.photoUrl || ''} alt={p.label} title={p.label} className="h-16 w-full object-cover rounded-lg border border-[#EFEDE8]" />
-                </a>
-              ))}
+            <div className="mt-3 space-y-2">
+              {(lab?.teams || []).map((t) => {
+                const shots = [
+                  ...t.pot.photos.map((p) => ({ ...p, label: `Pot · ${t.name}` })),
+                  ...t.bag.photos.map((p) => ({ ...p, label: `Tas · ${t.name}` })),
+                  ...(t.groupPhoto ? [{ ...t.groupPhoto, label: `Bersama · ${t.name}` }] : []),
+                ];
+                return (
+                  <div key={t.index} className="rounded-lg border border-[#EFEDE8] p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[11px] font-black">{t.name || `Kelompok ${t.index + 1}`}</p>
+                      <select
+                        className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[10px] font-bold"
+                        value={uploadSlot[t.index] || 'POT'}
+                        onChange={(e) => setUploadSlot((s) => ({ ...s, [t.index]: e.target.value as 'POT' | 'BAG' | 'GROUP' }))}
+                      >
+                        <option value="POT">Pot (maks 2)</option>
+                        <option value="BAG">Tas (maks 2)</option>
+                        <option value="GROUP">Bersama (maks 1)</option>
+                      </select>
+                      <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold cursor-pointer">
+                        <ImagePlus className="w-3 h-3" /> Upload atas nama kelompok
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={busy}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            void adminUpload(t.index, file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                      {shots.map((p) => (
+                        <div key={p.id} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setLightbox({ src: p.photoUrl || p.thumbUrl || '', label: p.label })}
+                            className="block w-full"
+                            title={p.userName ? `${p.label} · ${p.userName}` : p.label}
+                          >
+                            <img src={p.thumbUrl || p.photoUrl || ''} alt={p.label} className="h-16 w-full object-cover rounded-lg border border-[#EFEDE8]" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void adminDeletePhoto(p.id)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white grid place-items-center"
+                            title="Hapus foto"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {!shots.length && <p className="text-[10px] text-[#8C8880] col-span-3">Belum ada foto.</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+            {lightbox && (
+              <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+                <div className="relative max-w-5xl w-full max-h-[92vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => setLightbox(null)} className="absolute -top-2 right-0 w-8 h-8 rounded-full bg-white text-[#1B1B1B] grid place-items-center" title="Tutup">
+                    <X className="w-4 h-4" />
+                  </button>
+                  <p className="text-white text-xs font-bold mb-2">{lightbox.label}</p>
+                  <img src={lightbox.src} alt={lightbox.label} className="max-h-[85vh] max-w-full object-contain" />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2">

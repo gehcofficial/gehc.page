@@ -193,6 +193,8 @@ export type SessionActivity = {
   showOnScreen: boolean;
   cardIndex: number;
   presentIndex: number;
+  /** 0 = Pot, 1 = Tas, 2 = foto bersama. Kosong pada sesi lama berarti slide Pot. */
+  presentSlide?: number;
   presentStartedAt: string | null;
   presentSeconds: number;
   /** Urutan presentasi hasil undian (index tim). */
@@ -334,6 +336,36 @@ export function codeFromMentoringHash(hash: string): string {
   const q = String(hash || '').split('?')[1] || '';
   const code = new URLSearchParams(q).get('code') || '';
   return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+export const LAB_PRESENT_SLIDES = ['Pot', 'Tas', 'Foto bersama'] as const;
+
+/**
+ * Berikutnya/Sebelumnya di kontrol presentasi.
+ * Slide 0→1→2, lalu kelompok berikutnya di presentOrder. Setelah slide terakhir
+ * kelompok terakhir, fase menjadi DONE. Sesi tanpa presentSlide dianggap slide 0.
+ */
+export function stepLabPresentation(
+  activity: { presentIndex?: number; presentSlide?: number },
+  orderLength: number,
+  direction: 1 | -1,
+): { phase: 'PRESENT' | 'DONE'; presentIndex: number; presentSlide: number } {
+  const count = Math.max(0, Math.floor(Number(orderLength) || 0));
+  const last = Math.max(0, count - 1);
+  let index = Math.floor(Number(activity?.presentIndex) || 0);
+  if (!Number.isInteger(index) || index < 0) index = 0;
+  if (index > last) index = last;
+  let slide = Math.floor(Number(activity?.presentSlide) || 0);
+  if (!Number.isInteger(slide) || slide < 0) slide = 0;
+  if (slide > 2) slide = 2;
+  if (direction > 0) {
+    if (slide < 2) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide + 1 };
+    if (count === 0 || index >= last) return { phase: 'DONE', presentIndex: index, presentSlide: 2 };
+    return { phase: 'PRESENT', presentIndex: index + 1, presentSlide: 0 };
+  }
+  if (slide > 0) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide - 1 };
+  if (index <= 0) return { phase: 'PRESENT', presentIndex: 0, presentSlide: 0 };
+  return { phase: 'PRESENT', presentIndex: index - 1, presentSlide: 2 };
 }
 
 export function fmtClock(totalSeconds: number): string {

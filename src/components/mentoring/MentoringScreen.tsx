@@ -49,6 +49,35 @@ const CinemaToneButton: React.FC = () => {
   );
 };
 
+const LabSlideArt: React.FC<{
+  label: string;
+  meaning: string;
+  photos: { id: string; photoUrl: string | null }[];
+  tone: 'emerald' | 'brand';
+}> = ({ label, meaning, photos, tone }) => {
+  const shown = photos.filter((p) => p.photoUrl).slice(0, 2);
+  const frame = 'h-[58vh] rounded-2xl bg-black/40 border border-white/10 grid place-items-center overflow-hidden';
+  return (
+    <div className="space-y-4">
+      <div className={shown.length > 1 ? 'grid grid-cols-2 gap-4' : 'grid grid-cols-1'}>
+        {(shown.length ? shown : [{ id: 'empty', photoUrl: null }]).map((p) => (
+          <div key={p.id} className={frame}>
+            {p.photoUrl ? (
+              <img src={p.photoUrl} alt={`Karya ${label}`} className="max-h-full max-w-full object-contain" />
+            ) : (
+              <p className="text-sm text-white/50">Foto {label} belum diunggah.</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className={`rounded-2xl border p-4 text-center ${tone === 'emerald' ? 'bg-emerald-400/10 border-emerald-300/20' : 'bg-brand/10 border-brand/30'}`}>
+        <p className={`text-[10px] font-bold uppercase tracking-widest ${tone === 'emerald' ? 'text-emerald-300' : 'text-brand'}`}>Makna {label}</p>
+        <p className="font-display text-xl sm:text-3xl font-black mt-1.5">{meaning}</p>
+      </div>
+    </div>
+  );
+};
+
 /** Label timer langkah film (M0/M3/M4) — timer sesi penuh tak dipakai; bagian film tanpa timer. */
 const FILM_STEP_LABELS: Record<string, { label: string; sub: string }> = {
   M0: { label: 'Likert Awal', sub: 'Isi 5 pernyataan di HP — tidak ada jawaban salah.' },
@@ -511,8 +540,10 @@ const MentoringScreen: React.FC = () => {
                 return out;
               })();
               const presentTeamIndex = order[act.presentIndex] ?? act.presentIndex;
+              const presentSlide = Math.min(2, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
               const presenting = teams[presentTeamIndex];
               const presentingLab = labTeams.find((t) => t.index === presentTeamIndex) || null;
+              const slideTitles = ['Pot — Grow What You Believe', 'Tas — Carry The Gospel', 'Foto bersama & komitmen'];
               const totalSec = phase === 'PRESENT' ? act.presentSeconds : act.durationSec;
               const startedAt = phase === 'PRESENT' ? act.presentStartedAt : act.startedAt;
               const remainMs = startedAt
@@ -527,7 +558,7 @@ const MentoringScreen: React.FC = () => {
               const phaseSub =
                 phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web · ${brief?.a1.minutes || 15} menit`
                   : phase === 'A2' ? `Tim Pot ∥ Tim Tas paralel · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
-                    : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · pot, tas, komitmen`
+                    : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · slide ${presentSlide + 1}/3`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
                         : 'Duduk per kelompok · semua menulis 6 kartu · pilih 2 untuk web · presentasi 2 menit.';
               return (
@@ -553,37 +584,42 @@ const MentoringScreen: React.FC = () => {
                           {presentingLab?.repName || presenting.repName ? `Perwakilan: ${presentingLab?.repName || presenting.repName}` : 'Perwakilan kelompok'}
                         </p>
                       </div>
+                      <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mt-4">
+                        {presentSlide + 1}/3 · {slideTitles[presentSlide]}
+                      </p>
                       {presentingLab ? (
-                        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
-                          <div className="space-y-4">
-                            <div className="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Pot · progress {presentingLab.pot.progress ?? 0}%</p>
-                              <p className="text-sm text-white/80 mt-1.5">{presentingLab.pot.meaning || 'Makna Pot belum diisi.'}</p>
-                              <div className="mt-2 grid grid-cols-2 gap-2">
-                                {presentingLab.pot.photos.map((p) => (
-                                  <img key={p.id} src={p.photoUrl || ''} alt="Karya Pot" className="h-32 w-full object-cover rounded-xl border border-white/10" />
-                                ))}
+                        <div className="mt-4">
+                          {presentSlide === 0 && (
+                            <LabSlideArt
+                              label="Pot"
+                              meaning={presentingLab.pot.meaning || 'Makna Pot belum diisi.'}
+                              photos={presentingLab.pot.photos}
+                              tone="emerald"
+                            />
+                          )}
+                          {presentSlide === 1 && (
+                            <LabSlideArt
+                              label="Tas"
+                              meaning={presentingLab.bag.meaning || 'Makna Tas belum diisi.'}
+                              photos={presentingLab.bag.photos}
+                              tone="brand"
+                            />
+                          )}
+                          {presentSlide === 2 && (
+                            <div className="space-y-4">
+                              <div className="h-[68vh] rounded-2xl bg-black/40 border border-white/10 grid place-items-center overflow-hidden">
+                                {presentingLab.groupPhoto?.photoUrl ? (
+                                  <img src={presentingLab.groupPhoto.photoUrl} alt="Foto bersama" className="max-h-full max-w-full object-contain" />
+                                ) : (
+                                  <p className="text-sm text-white/50">Foto bersama belum diunggah.</p>
+                                )}
+                              </div>
+                              <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
+                                <p className="font-display text-2xl sm:text-4xl font-black mt-1.5">{presentingLab.commitment || 'Belum diisi.'}</p>
                               </div>
                             </div>
-                            <div className="rounded-2xl bg-brand/10 border border-brand/30 p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tas · progress {presentingLab.bag.progress ?? 0}%</p>
-                              <p className="text-sm text-white/80 mt-1.5">{presentingLab.bag.meaning || 'Makna Tas belum diisi.'}</p>
-                              <div className="mt-2 grid grid-cols-2 gap-2">
-                                {presentingLab.bag.photos.map((p) => (
-                                  <img key={p.id} src={p.photoUrl || ''} alt="Karya Tas" className="h-32 w-full object-cover rounded-xl border border-white/10" />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="space-y-4">
-                            {presentingLab.groupPhoto && (
-                              <img src={presentingLab.groupPhoto.photoUrl || ''} alt="Foto bersama" className="w-full max-h-72 object-cover rounded-2xl border border-white/10" />
-                            )}
-                            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
-                              <p className="font-display text-xl sm:text-2xl font-black mt-1.5">{presentingLab.commitment || 'Belum diisi.'}</p>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-center text-sm text-white/60 mt-4">Menunggu update karya kelompok…</p>

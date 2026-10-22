@@ -488,6 +488,7 @@ export const LabGroupPanel: React.FC<{
           </div>
           <p className="text-[10px] text-[#8C8880] leading-relaxed">
             <b>Wajib:</b> 1 foto bersama seluruh anggota kelompok + hasil karya Pot/Tas. Maksimal 2 foto Pot, 2 foto Tas, dan 1 foto bersama.
+            {' '}Disarankan foto landscape.
           </p>
           <button
             type="button"

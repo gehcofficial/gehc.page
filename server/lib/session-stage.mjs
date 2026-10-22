@@ -309,6 +309,8 @@ export function cleanActivity(raw) {
     showOnScreen,
     cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
     presentIndex: Math.min(LAB_PRESENT_INDEX_MAX, Math.max(0, Number(raw.presentIndex) || 0)),
+    // 0 Pot, 1 Tas, 2 foto bersama. Sesi lama tanpa field ini mulai di slide Pot.
+    presentSlide: Math.min(2, Math.max(0, Math.floor(Number(raw.presentSlide) || 0))),
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
     presentOrder,
