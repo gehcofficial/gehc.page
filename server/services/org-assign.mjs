@@ -51,6 +51,7 @@ export async function assignOrgSlot(prisma, {
   assignedBy,
   note = null,
   updateOnboarding = true,
+  tenantId = null,
 }) {
   const node = await prisma.orgNode.findUnique({ where: { id: orgNodeId } });
   if (!node || !node.isActive) throw new Error('Slot organisasi tidak ditemukan.');
@@ -82,6 +83,7 @@ export async function assignOrgSlot(prisma, {
       assignedBy,
       note,
       updateOnboarding,
+      tenantId,
     });
     roleAssignmentId = assignment.id;
 

@@ -1,4 +1,5 @@
 /** Map Prisma ContentItem ↔ frontend ContentItem shape. */
+import { YOUTH_TENANT_ID } from './tenant-defaults.mjs';
 
 function isoDate(d) {
   if (!d) return undefined;
@@ -36,7 +37,7 @@ export function fromDbContent(c) {
   };
 }
 
-export function toDbContent(item, { id, tenantId = 'tenant-youth' } = {}) {
+export function toDbContent(item, { id, tenantId = YOUTH_TENANT_ID } = {}) {
   const tags = {
     labels: item.tags || [],
     ...(item.scripture ? { scripture: item.scripture } : {}),
@@ -93,13 +94,13 @@ export function wartaBodyFromContent(contentJson, fallbackTitle = '') {
   return parts.join('\n\n') || fallbackTitle;
 }
 
-export async function syncWartaToContentItem(prisma, warta) {
+export async function syncWartaToContentItem(prisma, warta, { tenantId = YOUTH_TENANT_ID } = {}) {
   const contentJson = warta.contentJson && typeof warta.contentJson === 'object' ? warta.contentJson : {};
   const body = wartaBodyFromContent(warta.contentJson, warta.title);
 
   const id = `cnt-warta-${warta.id}`;
   const data = {
-    tenantId: 'tenant-youth',
+    tenantId,
     type: 'WEEKLY_INFO',
     title: warta.title,
     subtitle: contentJson.subtitle || contentJson.ayat || null,

@@ -380,7 +380,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (strukturLoadedRef.current) return;
     strukturLoadedRef.current = true;
     try {
-      const r = await fetch('/api/db/struktur');
+      const r = await fetch('/api/db/struktur', { credentials: 'include' });
       if (!r.ok) return;
       const d = await r.json();
       if (!Array.isArray(d.members)) return;

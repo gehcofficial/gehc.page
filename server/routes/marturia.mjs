@@ -9,6 +9,7 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { requireDivision } from '../lib/division-access.mjs';
 import { newEntityId } from '../lib/drive-ownership.mjs';
+import { tenantForWrite } from '../lib/tenant-scope.mjs';
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
 
@@ -351,7 +352,7 @@ export function registerMarturiaRoutes(app, { wrap }) {
       const item = await prisma.testimonial.create({
         data: {
           id: newEntityId('tst'),
-          tenantId: 'tenant-youth',
+          tenantId: tenantForWrite(req),
           authorName: name,
           groupName: `sesi:${sessionId}`,
           quote: `(Terpilih di roda kesaksian sesi ${sessionId} sebagai ${role || 'jemaat'} — menunggu tulisan.)`,

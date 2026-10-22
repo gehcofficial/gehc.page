@@ -7,6 +7,7 @@ import { resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
 import { resolveEventDefaults } from '../lib/event-defaults.mjs';
 import { requireServiceTheme } from '../lib/service-approvers.mjs';
 import { EVENT_ACTIVITY_CATEGORIES } from './content-public.mjs';
+import { tenantForWrite } from '../lib/tenant-scope.mjs';
 
 // Tema/generate = hasil rembuk BOD Tim Kerja + Didaskalia (+ Komisi)
 const themeGate = (req, res, next) => {
@@ -318,7 +319,7 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
         event = await prisma.eventProgram.create({
           data: {
             id: `evt-${slug}`,
-            tenantId: 'tenant-youth',
+            tenantId: tenantForWrite(req),
             slug,
             name: item.title.slice(0, 160),
             description: item.notes || `Dari Rencana bulan ${item.plan?.yearMonth || ''} minggu ${item.weekIndex}.`,
@@ -505,7 +506,7 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
         const ev = await prisma.eventProgram.create({
           data: {
             id: `evt-${slug}`,
-            tenantId: 'tenant-youth',
+            tenantId: tenantForWrite(req),
             slug,
             name,
             description: isGabungan
@@ -534,7 +535,7 @@ export function registerMinistryPlanRoutes(app, { wrap }) {
         await prisma.contentItem.create({
           data: {
             id: `cnt-${Date.now().toString(36)}${crypto.randomBytes(2).toString('hex')}`,
-            tenantId: 'tenant-youth',
+            tenantId: tenantForWrite(req),
             type: 'ACTIVITY',
             title: name,
             subtitle: plan?.theme || null,
