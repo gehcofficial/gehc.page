@@ -2,18 +2,23 @@
 
 ## Current — Penutup Creative Lab + nama perwakilan (22 Okt 2026)
 
-**Minta:** sesudah Lagu & Doa Penutup, salin pasca Monolog (Terima Kasih & Pengumuman sampai Acara Bebas & Pulang). Timer ikut. Nama perwakilan/pencatat tidak tampil di layar Firman & Briefing, hanya di Sesi 2. Cabang `cursor/lab-closing-names-d5fe` dari `main`. Data sesi `sesi-2026-10-25-creative-lab` boleh di staging dan produksi.
+**Minta:** sesudah Lagu & Doa Penutup, salin pasca Monolog (Terima Kasih & Pengumuman sampai Acara Bebas & Pulang). Timer ikut. Nama perwakilan/pencatat tidak tampil di layar Firman & Briefing, hanya di Sesi 2. Cabang `cursor/lab-closing-names-d5fe` dari `main` (sudah rebased ke `18c97c7` + PR #22 CPU diet). Data sesi `sesi-2026-10-25-creative-lab` boleh di staging dan produksi.
 
 **Done:**
 - Pola CREATIVE_LAB: empat segmen pasca, menit/owner/catatan mengikuti Monolog. Total baku 160 menit (PRA 20 + jemaat 140). Timer sesi 8400 detik.
 - Staging dan produksi: pola + timer sesi itu sudah ditulis. Staging status WRAPUP, produksi DRAFT. Tidak ada sesi CREATIVE_LAB lain.
 - Layar proyektor: pengundian tetap di briefing. Nama pencatat dan perwakilan kelompok hanya saat fase A2.
+- Merge `main`: poll layar `visible-poll` + ETag tetap di `MentoringScreen` bersama `labDisplayShowsRepNames`.
 
-**Next:** episode kedalaman Ringkasan Khotbah pekan 4 (cabang terpisah). Jangan `staging:sync`.
+**Next:** merge PR setelah CI hijau. Jangan `staging:sync`.
 
-**Verifikasi:** `tsc --noEmit` bersih. `npm test` **168 file / 1338 tes** lulus.
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` · `npm run build` setelah merge.
 
 **Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/lab-closing-names-d5fe`
+
+## Prior — Diet CPU Vercel Fluid (22 Okt 2026, sudah di `main` PR #22 `18c97c7`)
+
+**Done:** poll layar + 304/ETag, cache ringkasan/presentasi per host, Prisma pool diet, health/config murah. Cabang `cursor/vercel-cpu-diet-d5fe` sudah digabung ke `main`.
 
 ## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 

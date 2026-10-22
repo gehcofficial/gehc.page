@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, Loader2, Timer } from 'lucide-react';
 import {
   STATUS_LABELS,
@@ -14,6 +14,7 @@ import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
 import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
  * Nada bioskop bawaan (WebAudio, tanpa file): sapuan lembut naik
@@ -112,37 +113,36 @@ const MentoringScreen: React.FC = () => {
   const [data, setData] = useState<MentoringLivePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const liveEtag = useRef({ etag: null as string | null });
   const load = useCallback(async () => {
-    if (!slug || !code) return;
+    if (!slug || !code) return false;
     try {
-      const r = await fetch(`/api/worship/live/${encodeURIComponent(slug)}?code=${encodeURIComponent(code)}`, {
-        cache: 'no-store',
-      });
+      const polled = await fetchWithEtag(
+        `/api/worship/live/${encodeURIComponent(slug)}?code=${encodeURIComponent(code)}`,
+        liveEtag.current,
+      );
+      if (polled.unchanged) return false;
+      const r = polled.response;
+      const d = polled.data as MentoringLivePayload & { error?: string };
       if (r.status === 401) {
         setError('Kode sesi salah atau sudah dirotasi.');
         setData(null);
-        return;
+        return true;
       }
-      const d = await r.json();
       if (!r.ok) {
         setError(d?.error || `Gagal memuat (server ${r.status}).`);
-        return;
+        return true;
       }
       setError(null);
       setData(d);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat layar.');
+      return true;
     }
   }, [slug, code]);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => {
-      if (document.hidden) return;
-      void load();
-    }, 15000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useEffect(() => startVisiblePoll(() => load(), 15000, 30000), [load]);
 
   // Detik berjalan untuk countdown fase + carousel Q (selalu dipanggil — aturan hooks).
   const [tick, setTick] = useState(() => Date.now());

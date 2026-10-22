@@ -58,8 +58,16 @@ export const EventAttendanceQrScreen: React.FC<{ eventId: string; eventName: str
 
   // Token berganti tiap 30 detik → segarkan sedikit lebih cepat dari slot.
   useEffect(() => {
-    const t = setInterval(() => { void load(); }, 20000);
-    return () => clearInterval(t);
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      void load();
+    }, 20000);
+    const onVis = () => { if (!document.hidden) void load(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [load]);
 
   useEffect(() => {

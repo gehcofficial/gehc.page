@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Copy, Loader2, RefreshCw } from 'lucide-react';
 import {
   KIND_LABEL,
@@ -6,6 +6,7 @@ import {
   activeSection,
 } from '../../lib/liturgy-live';
 import { PortalBackButton } from './PortalBackButton';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
  * Kontrol tata ibadah — operator Liturgia (wajib login + peran tulis).
@@ -20,30 +21,29 @@ export const LiturgyControl: React.FC<{ eventKey: string }> = ({ eventKey }) => 
   const [err, setErr] = useState('');
   const [code, setCode] = useState('');
 
+  const liveEtag = useRef({ etag: null as string | null });
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/events/${encodeURIComponent(eventKey)}/liturgy-live`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const d = (await r.json().catch(() => ({}))) as LivePayload & { error?: string };
-      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const polled = await fetchWithEtag(
+        `/api/events/${encodeURIComponent(eventKey)}/liturgy-live`,
+        liveEtag.current,
+        { credentials: 'include' },
+      );
+      if (polled.unchanged) return false;
+      const d = (polled.data || {}) as LivePayload & { error?: string };
+      if (!polled.response.ok) throw new Error(d.error || `HTTP ${polled.response.status}`);
       setErr('');
       setData(d);
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Gagal memuat.');
+      return true;
     } finally {
       setLoading(false);
     }
   }, [eventKey]);
 
-  useEffect(() => {
-    void load();
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 20000);
-    return () => clearInterval(t);
-  }, [load]);
+  useEffect(() => startVisiblePoll(() => load(), 15000, 30000), [load]);
 
   const save = async (body: Record<string, unknown>, ok = 'Tersimpan') => {
     setSaving(true);

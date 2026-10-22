@@ -400,10 +400,14 @@ export function LayarView({ id }: { id: string }) {
     let fails = 0; let t: number; let alive = true;
     const tick = async () => {
       if (!alive) return;
+      if (document.hidden) {
+        t = window.setTimeout(tick, 12000);
+        return;
+      }
       try { await load(); fails = 0; } catch { fails += 1; }
-      t = window.setTimeout(tick, Math.max(5000, nextPollDelay(fails, 5000)));
+      t = window.setTimeout(tick, Math.max(12000, nextPollDelay(fails, 12000)));
     };
-    t = window.setTimeout(tick, 5000);
+    t = window.setTimeout(tick, 12000);
     return () => { alive = false; window.clearTimeout(t); };
   }, [load, code]);
   const save = (v: string) => {
