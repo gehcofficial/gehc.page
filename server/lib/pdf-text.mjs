@@ -1,3 +1,4 @@
+import './iterator-polyfill.mjs';
 import { extractText, getDocumentProxy } from 'unpdf';
 
 /** Teks gabungan dari PDF (semua halaman). */

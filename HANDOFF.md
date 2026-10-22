@@ -13,7 +13,7 @@
 
 **Next:** QA browser dengan sesi login bila `DATABASE_URL` tersedia. Jangan deploy dari cabang ini.
 
-**Verifikasi:** `tsc --noEmit` bersih. `npm test` **167 file / 1325 tes** lulus. `npm run build` lulus (chunk terpisah untuk Sumber, Konten, Gambar, dan Pengetahuan). Layar Studio tidak dibuka di browser: `DATABASE_URL` di mesin ini mengarah ke TiDB Cloud produksi.
+**Verifikasi:** `tsc --noEmit` bersih. `npm test` **167 file / 1325 tes** lulus di Node 20 (sama dengan CI). `npm run build` lulus. CI `lint-and-test` sempat gagal karena `unpdf` membutuhkan global `Iterator` yang belum ada di Node 20; polyfill ada di `server/lib/iterator-polyfill.mjs`. Layar Studio tidak dibuka di browser: `DATABASE_URL` mengarah ke TiDB Cloud produksi.
 
 **Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/didaskalia-studio-ux-d5fe`.
 
