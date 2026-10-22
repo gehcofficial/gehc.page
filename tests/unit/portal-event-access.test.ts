@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canShowPortalRegister } from '../../src/lib/event-register';
-import { canViewMaterialDoc } from '../../server/routes/didaskalia-studio.mjs';
+import { canViewMaterialDoc, materialVisibility } from '../../src/lib/material-visibility.mjs';
 
 describe('event-register: tombol daftar di portal', () => {
   it('tampil bila belum terdaftar & event aktif', () => {
@@ -28,11 +28,13 @@ describe('canViewMaterialDoc: ringkasan setara RHB', () => {
     }
   });
 
-  it('pembekalan tetap mentor + staf (mentee ditolak)', () => {
+  it('pembekalan: mentor + staf + tim Didaskalia (mentee ditolak)', () => {
     expect(canViewMaterialDoc(['MENTOR'], 'pembekalan')).toBe(true);
     expect(canViewMaterialDoc(['KOMISI'], 'pembekalan')).toBe(true);
     expect(canViewMaterialDoc(['MENTEE'], 'pembekalan')).toBe(false);
     expect(canViewMaterialDoc([], 'pembekalan')).toBe(false);
+    expect(canViewMaterialDoc([], 'pembekalan', { didaskaliaTeam: true })).toBe(true);
+    expect(materialVisibility('pembekalan', { roles: ['MENTEE'] }).reason).toMatch(/mentor/i);
   });
 
   it('mengikuti topeng peran aktif (huruf kecil aman)', () => {

@@ -76,6 +76,21 @@ const SlideView: React.FC<{ slide: DeckSlide }> = ({ slide }) => {
           density={slide.density}
         />
       )}
+      {slide.readOnlySource && (
+        <div className={`rounded-2xl px-4 py-3 border ${isBg ? 'bg-white/10 border-white/20' : 'bg-amber-500/10 border-amber-400/25 print:bg-amber-50'}`}>
+          <p className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-amber-200' : 'text-amber-200 print:text-amber-800'}`}>
+            {slide.readOnlySource.label}
+            <span className="font-normal normal-case tracking-normal text-white/50 print:text-black/50"> · hanya baca</span>
+          </p>
+          <a
+            href={slide.readOnlySource.href}
+            onClick={() => rememberPortalPlace()}
+            className="mt-1 inline-flex text-xs font-bold text-sky-300 hover:text-sky-200 print:text-sky-800 underline"
+          >
+            Buka slide sumber di Ringkasan Khotbah →
+          </a>
+        </div>
+      )}
       {slide.callout && (
         <div className={`rounded-2xl p-4 border ${isBg ? 'bg-white/10 border-white/25 backdrop-blur-sm' : 'bg-sky-500/15 border-sky-400/30 print:bg-sky-50'}`}>
           <p className={`text-[10px] font-black uppercase tracking-wider ${isBg ? 'text-sky-200' : 'text-sky-300 print:text-sky-700'}`}>{slide.callout.label}</p>

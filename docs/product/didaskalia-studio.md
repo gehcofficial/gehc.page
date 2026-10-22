@@ -8,7 +8,7 @@ Empat masukan di tab Sumber mengisi studio. Yang lain (7 Path, outline khotbah, 
 
 | Tab | Isi |
 |---|---|
-| Sumber | Teks Utama, Kitab Bagian Fokus, MD RHB 7 Path, MD Serving Day. Unggah atau tempel. Teks Utama dan Kitab Bagian Fokus terisi terpisah; teks utama tidak disalin ke kerangka fundamental. Lalu Rapikan & cek, lalu Parse. Terbaca n/n hanya judul, nats, lima bagian RHB, dan empat outline. Chapter, kerangka, metode, dan kolom path lama tidak masuk hitungan. |
+| Sumber | Teks Utama, Kitab Bagian Fokus, MD RHB 7 Path, MD Mentoring Day (label baru; header lama *Serving Day* tetap terbaca). Unggah atau tempel. Teks Utama dan Kitab Bagian Fokus terisi terpisah; teks utama tidak disalin ke kerangka fundamental. Lalu Rapikan & cek, lalu Parse. Terbaca n/n hanya judul, nats, lima bagian RHB, dan empat outline. Chapter, kerangka, metode, dan kolom path lama tidak masuk hitungan. |
 | Konten | Kiri: tujuh hari dan Khotbah. Kanan: editor bagian itu. Lencana **dari MD** bila teks masih sama dengan hasil parse, **diubah** bila sudah disunting. |
 | Diskusi | Catatan rekan tim dan tombol **Perkaya** (opsional, kapan saja). |
 | Gambar | Satu tindakan **Buat semua gambar**: 1 cover + 4 bagian khotbah + 7 hari RHB. Galeri, sisa kuota, dan buat ulang per gambar. |
@@ -45,7 +45,9 @@ Parser menerima teks polos PDF dan markdown.
 
 **RHB.** Kepala `Path N`. Nats hari itu: Nats Pembimbing, Nas Pembimbing, Ayat Renungan, atau Scripture. Lima bagian plus Jembatan. Path 1 = Minggu … Path 7 = Sabtu.
 
-**Serving Day.** Kitab Fundamental = teks utama khotbah. Kitab Bagian Fokus = kitab fokus. Fondasi Teologis = Pengantar. Juga Bedah Teologis, Jembatan, Kesimpulan.
+**MD Mentoring Day** (naskah sermon tim kerja awal bulan; dulu *Serving Day* di header MD). Kitab Fundamental = teks utama khotbah. Kitab Bagian Fokus = kitab fokus. Fondasi Teologis = Pengantar. Juga Bedah Teologis, Jembatan, Kesimpulan.
+
+**Pembekalan (01)** — garis besar 4 komponen memuat pratinjau read-only dari Ringkasan Khotbah (doc 02); sunting hanya di sumber. Akses: mentor/co-mentor, komisi/BPMJ/komite/superadmin, petugas Didaskalia terjadwal, atau anggota/HoD divisi Didaskalia (`materialVisibility`).
 
 ## Sebelum terbit
 

@@ -50,6 +50,8 @@ export type DeckSlide = {
   callout?: { label: string; value: string };
   /** Tautan aksi (mis. garis besar → doc Ringkasan Khotbah 02). */
   cta?: { label: string; href: string; text: string };
+  /** Garis besar dari doc 02 — pratinjau read-only + tautan sumber. */
+  readOnlySource?: { label: string; href: string };
   /**
    * Sembunyikan judul besar (h1) — identitas cukup dari kicker.
    * Dipakai slide isi pembekalan & RHB (khotbah tidak tersentuh).
@@ -195,53 +197,152 @@ function stripListMarker(line: string): string {
   return String(line || '')
     .replace(/^\s*(#{2,4}\s+|> ?)/, '')
     .replace(/^\s*(\d+[.)]|[*\-])\s+/, '')
-    .replace(/^\s*[A-E][.)]\s+/, '')
+    .replace(/^\s*[A-Za-z][.)]\s+/, '')
     .trim();
+}
+
+function wordCount(s: string): number {
+  return String(s || '').split(/\s+/).filter(Boolean).length;
+}
+
+/** Baris judul/subjudul (bukan tubuh paragraf) — dilewati saat ambil kutipan garis besar. */
+function isHeadingLikeLine(line: string): boolean {
+  const raw = String(line || '');
+  const t = stripMd(raw).trim();
+  if (!t || t === '---') return true;
+  if (/^#{2,4}\s/.test(raw)) return true;
+  const headingTail = (rest: string) => !/[.!?]$/.test(rest.trim()) && wordCount(rest) < 8;
+  if (/^[a-z][.)]\s/.test(t)) return headingTail(t.replace(/^.\s*[.)]\s*/, ''));
+  if (/^[A-Za-z][.)]\s/.test(t)) return headingTail(t.replace(/^.\s*[.)]\s*/, ''));
+  if (/^\d+[.)]\s/.test(t)) return headingTail(t.replace(/^\d+[.)]\s*/, ''));
+  return false;
+}
+
+function trimAtWordBoundary(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const ws = cut.lastIndexOf(' ');
+  return `${(ws > 40 ? cut.slice(0, ws) : cut).trim()} …`;
+}
+
+/** Potong hanya di akhir kalimat utuh; bila satu kalimat saja, jatuh ke batas kata. */
+function completeSentencesUpTo(text: string, maxChars: number): string {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  if (t.length <= maxChars) return t;
+  const parts = t.match(/[^.!?]+[.!?]+/g) || [];
+  if (!parts.length) return trimAtWordBoundary(t, maxChars);
+  let out = '';
+  for (const p of parts) {
+    if ((out + p).length > maxChars && out) break;
+    out += p;
+  }
+  if (!out.trim()) out = parts[0] || t;
+  if (out.length > maxChars) return trimAtWordBoundary(out, maxChars);
+  return out.trim();
+}
+
+function firstBodyParagraph(text: string, minChars = 20): string {
+  const paras = String(text || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  for (const para of paras) {
+    const lines = para.split('\n').map((l) => l.trim()).filter(Boolean);
+    const bodyLines = lines.filter((l) => !isHeadingLikeLine(l));
+    const clean = bodyLines.map(stripListMarker).join(' ').replace(/\s+/g, ' ').trim();
+    if (clean.length >= minChars) return clean;
+  }
+  for (const line of String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)) {
+    if (isHeadingLikeLine(line)) continue;
+    const clean = stripListMarker(line).replace(/\s+/g, ' ').trim();
+    if (clean.length >= minChars) return clean;
+  }
+  return '';
 }
 
 const GARIS_BESAR_TAKEAWAY_RE = /(poin utama|ingatlah|kuncinya|camkan|jadi,? hari ini)/i;
 
+export type ExtractKeySentenceOpts = { pengantar?: boolean };
+
 /**
- * Ambil 1 kalimat kunci VERBATIM dari satu bagian outline (untuk garis besar pembekalan).
- * Prioritas: baris takeaway ("Poin Utama bagi Anak Muda: ...") → baris pertama.
- * Kata-kata tidak diubah; hanya kupas penanda list dan potong di batas kata bila
- * melebihi budget (±200 char, prefix verbatim + elipsis).
+ * Ambil kutipan VERBATIM dari satu bagian outline (garis besar pembekalan).
+ * Prioritas: baris takeaway → paragraf tubuh pertama (lewati judul/list marker).
+ * Potong hanya di akhir kalimat (Pengantar: paragraf intro utuh selama muat budget).
  */
-export function extractKeySentence(text?: string): string {
+export function extractKeySentence(text?: string, opts?: ExtractKeySentenceOpts): string {
   const lines = String(text || '')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
   if (!lines.length) return '';
-  const raw = lines.find((l) => GARIS_BESAR_TAKEAWAY_RE.test(stripMd(l))) || lines[0];
-  const clean = stripListMarker(raw).replace(/\s+/g, ' ').trim();
-  if (!clean) return '';
-  const m = clean.match(/^[^.!?]+[.!?]/);
-  let s = (m ? m[0] : clean).trim();
-  // Abaikan chunk sampah (pemisah `---`/kosong) — tak ada huruf/angka.
-  if (!stripMd(s).replace(/[^A-Za-zÀ-ÿ0-9]/g, '')) return '';
-  if (s.length > GARIS_BESAR_MAX_CHARS) {
-    const cut = s.slice(0, GARIS_BESAR_MAX_CHARS);
-    const ws = cut.lastIndexOf(' ');
-    s = `${(ws > 80 ? cut.slice(0, ws) : cut).trim()} …`;
+  const takeawayLine = lines.find((l) => GARIS_BESAR_TAKEAWAY_RE.test(stripMd(l)) && !isHeadingLikeLine(l));
+  if (takeawayLine) {
+    const clean = stripListMarker(takeawayLine).replace(/\s+/g, ' ').trim();
+    if (clean.length >= 20) return completeSentencesUpTo(clean, GARIS_BESAR_MAX_CHARS);
   }
-  return s;
+  const body = firstBodyParagraph(text || '');
+  if (!body) return '';
+  if (!stripMd(body).replace(/[^A-Za-zÀ-ÿ0-9]/g, '')) return '';
+  if (opts?.pengantar) {
+    const lines = String(text || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const merged = lines
+      .filter((l) => !isHeadingLikeLine(l))
+      .map(stripListMarker)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const intro = merged.length >= 20 ? merged : body;
+    return completeSentencesUpTo(intro, GARIS_BESAR_MAX_CHARS * 4);
+  }
+  const m = body.match(/^[^.!?]+[.!?]/);
+  const first = (m ? m[0] : body).trim();
+  return completeSentencesUpTo(first, GARIS_BESAR_MAX_CHARS);
 }
 
-export type GarisBesarItem = { key: KhutbahOutlineKey; no: string; title: string; sentence: string };
+export type GarisBesarSourceRef = { doc: 'khutbah'; key: KhutbahOutlineKey; slideIndex: number };
+
+export type GarisBesarItem = {
+  key: KhutbahOutlineKey;
+  no: string;
+  title: string;
+  sentence: string;
+  sourceRef: GarisBesarSourceRef;
+};
+
+/** Indeks slide doc 02 untuk bagian outline (0 = cover). */
+export function khutbahOutlineSlideIndex(content: PresentationContent, key: KhutbahOutlineKey): number {
+  const deck = buildKhutbahDeck(content);
+  const idx = deck.findIndex((s) => s.id === `outline-${key}` || s.id.startsWith(`outline-${key}-`));
+  if (idx >= 0) return idx;
+  const order: KhutbahOutlineKey[] = ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan'];
+  return 1 + Math.max(0, order.indexOf(key));
+}
 
 /**
  * Garis besar 4 komponen outline (urutan tetap, hanya yang terisi).
  * Dipakai modul Pembekalan 01 agar tak menduplikasi seluruh isi literal doc 02.
  */
-export function extractGarisBesar(outline?: DidaskaliaSermon['outline']): GarisBesarItem[] {
+export function extractGarisBesar(
+  outline?: DidaskaliaSermon['outline'],
+  content?: PresentationContent,
+): GarisBesarItem[] {
   const o = outline || { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '' };
+  const stub: PresentationContent = content || {
+    weekIndex: 1,
+    date: '',
+    theme: '',
+    chapterNo: '',
+    fundamentalFirman: { ref: '', text: '' },
+    kitabFokus: '',
+    paths: [],
+    sermon: { ...defaultSermon(), outline: o },
+    images: {},
+  };
   return (Object.keys(KHUTBAH_OUTLINE_SECTIONS) as KhutbahOutlineKey[])
     .map((key) => ({
       key,
       no: KHUTBAH_OUTLINE_SECTIONS[key].no,
       title: KHUTBAH_OUTLINE_SECTIONS[key].title,
-      sentence: extractKeySentence(o[key]),
+      sentence: extractKeySentence(o[key], { pengantar: key === 'pengantar' }),
+      sourceRef: { doc: 'khutbah' as const, key, slideIndex: khutbahOutlineSlideIndex(stub, key) },
     }))
     .filter((g) => g.sentence);
 }
@@ -354,7 +455,7 @@ function paginateSlides(slides: DeckSlide[]): DeckSlide[] {
 export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
   const { paths, images, sermon } = content;
   const deliverer = content.deliverer || 'Pengkhotbah / Deliverer';
-  const garis = extractGarisBesar(sermon.outline);
+  const garis = extractGarisBesar(sermon.outline, content);
   const khutbahHref = khutbahHashFor(content);
   const isMonolog = !content.patternCode || String(content.patternCode).toUpperCase() === 'MONOLOG';
   const flow = sermon.discussionFlow || [];
@@ -397,21 +498,29 @@ export function buildPembekalanDeck(content: PresentationContent): DeckSlide[] {
       cost: 1 + Math.max(1, estimateUnitLines(g.sentence)),
     }))
   );
-  const garisSlides: DeckSlide[] = (garisPages.length ? garisPages : [[]]).map((page, ci, arr) => ({
-    id: `garis-besar${arr.length > 1 ? `-${ci + 1}` : ''}`,
-    kind: 'section' as const,
-    kicker: 'Garis Besar · 4 Komponen',
-    title: content.theme || 'Alur Pekan',
-    hideTitle: true,
-    density: densityFor(pageLines(page) + (ci === arr.length - 1 ? 5 : 0)),
-    paragraphs: splitPacked(page).paras,
-    ...(ci === arr.length - 1
-      ? {
-        callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02).' } as { label: string; value: string },
-        cta: { label: 'Buka Ringkasan Khotbah', href: khutbahHref, text: 'Detail 4 bagian verbatim' },
-      }
-      : {}),
-  }));
+  const garisByKey = new Map(garis.map((g) => [g.key, g]));
+  const garisSlides: DeckSlide[] = (garisPages.length ? garisPages : [[]]).map((page, ci, arr) => {
+    const keysOnPage = garis.filter((g) => page.some((b) => b.t === 'para' && String(b.text).includes(`#### ${g.no}.`))).map((g) => g.key);
+    const source = keysOnPage.length === 1 ? garisByKey.get(keysOnPage[0]) : undefined;
+    return {
+      id: `garis-besar${arr.length > 1 ? `-${ci + 1}` : ''}`,
+      kind: 'section' as const,
+      kicker: 'Garis Besar · 4 Komponen',
+      title: content.theme || 'Alur Pekan',
+      hideTitle: true,
+      density: densityFor(pageLines(page) + (ci === arr.length - 1 ? 5 : 0)),
+      paragraphs: splitPacked(page).paras,
+      readOnlySource: source
+        ? { label: `Pratinjau · Sumber: Ringkasan Khotbah §${source.no}`, href: khutbahHref }
+        : undefined,
+      ...(ci === arr.length - 1
+        ? {
+          callout: { label: 'Detail Penuh', value: 'Uraian tiap komponen ada di Ringkasan Khotbah (doc 02). Sunting hanya di sumber.' } as { label: string; value: string },
+          cta: { label: 'Buka Ringkasan Khotbah', href: khutbahHref, text: 'Detail 4 bagian verbatim' },
+        }
+        : {}),
+    };
+  });
 
   // 3. Bagian A — packing budget: deliver + checklist pendek jadi 1 slide
   //    gabungan; panjang tetap pecah per jenis.

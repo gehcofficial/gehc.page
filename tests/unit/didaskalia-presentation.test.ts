@@ -68,7 +68,7 @@ describe('parseMaterialHash', () => {
 describe('deck builders', () => {
   it('pembekalan: cover + garis 4 komponen + A deliver + B pola + penutup (tanpa slide AI / literal penuh)', () => {
     const studio = studioWithRhb();
-    studio.sermon = { ...studio.sermon, slideOutline: [{ title: 'S1', bullets: ['b1', 'b2'], visualNote: '' }, { title: 'S2', bullets: [], visualNote: '' }], outline: { pengantar: 'P1', bedahTeologis: '', jembatan: 'J1', kesimpulan: 'K1' } };
+    studio.sermon = { ...studio.sermon, slideOutline: [{ title: 'S1', bullets: ['b1', 'b2'], visualNote: '' }, { title: 'S2', bullets: [], visualNote: '' }], outline: { pengantar: 'Pengantar singkat yang cukup panjang untuk garis besar.', bedahTeologis: '', jembatan: 'Jembatan singkat yang memenuhi panjang minimum garis besar.', kesimpulan: 'Kesimpulan singkat yang memenuhi panjang minimum garis besar.' } };
     const deck = buildPembekalanDeck(contentFromStudio(studio, 1, '2026-09-06', 'Tema Pekan'));
     expect(deck[0].kind).toBe('cover');
     expect(deck[0].title).toBe('Tema Pekan');
@@ -86,7 +86,7 @@ describe('deck builders', () => {
     expect(deck.map((s) => s.id)).toEqual(['cover', 'garis-besar', 'a-deliver', 'b-pola', 'b-teknis-1', 'b-teknis-2', 'penutup']);
     const garis = deck.find((s) => s.id === 'garis-besar');
     expect(garis?.paragraphs).toHaveLength(3);
-    expect(garis?.paragraphs?.[0]).toContain('P1');
+    expect(garis?.paragraphs?.[0]).toContain('Pengantar singkat');
     expect(garis?.title).not.toContain('(');
     expect(garis?.cta?.href).toBe('#/materi/khutbah/2026-09/1');
     expect(garis?.callout?.label).toBe('Detail Penuh');

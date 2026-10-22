@@ -37,7 +37,31 @@ function fullStudio() {
   return studio;
 }
 
+const WEEK4_PENGANTAR = [
+  '1. Fondasi Teologis',
+  '',
+  'a. Masalahnya: Ketika Identitas gereja tereduksi menjadi preferensi pribadi, gereja kehilangan pusat.',
+  '',
+  'Generasi muda kehilangan pahlawan ketika pusat bergeser. Ini mengarah pada 1 Korintus 1:13 dan perlunya kembali ke akar identitas yang utuh.',
+].join('\n');
+
 describe('extractKeySentence (verbatim)', () => {
+  it('pekan 4 Our Roots: pengantar tidak menjadi "a." dan memuat tubuh intro', () => {
+    const s = extractKeySentence(WEEK4_PENGANTAR, { pengantar: true });
+    expect(s).not.toBe('a.');
+    expect(s.length).toBeGreaterThan(40);
+    expect(s).toContain('Ketika Identitas');
+    expect(s).toMatch(/1 Korintus 1:13/);
+    expect(s).toMatch(/\.$/);
+  });
+
+  it('bedah: mengabaikan subjudul A. dan mengutamakan takeaway', () => {
+    const bedah = [
+      'A. Pribadi yang Sempurna: Yesus satu-satunya manusia tanpa dosa.',
+      'Poin Utama bagi Anak Muda: status kita diubahkan secara permanen.',
+    ].join('\n');
+    expect(extractKeySentence(bedah)).toBe('Poin Utama bagi Anak Muda: status kita diubahkan secara permanen.');
+  });
   it('mengutamakan baris takeaway', () => {
     expect(extractKeySentence(OUTLINE.bedahTeologis)).toBe(
       'Poin Utama bagi Anak Muda: status kita diubahkan secara permanen.'
@@ -85,6 +109,8 @@ describe('extractGarisBesar', () => {
       const src = OUTLINE[item.key].replace(/\s+/g, ' ');
       const plain = item.sentence.replace(/ …$/, '');
       expect(src).toContain(plain.slice(0, 20));
+      expect(item.sourceRef.doc).toBe('khutbah');
+      expect(item.sourceRef.key).toBe(item.key);
     }
   });
 });

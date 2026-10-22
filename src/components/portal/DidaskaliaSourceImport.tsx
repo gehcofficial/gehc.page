@@ -13,6 +13,7 @@ import {
   type DidaskaliaStudio,
 } from '../../lib/didaskalia';
 import { blobToBase64 } from '../../lib/didaskaliaPdf';
+import { MD_MENTORING_DAY_LABEL } from '../../lib/md-mentoring-day';
 
 type Toast = { type: 'success' | 'error' | 'warning'; title: string; description?: string };
 type ChangeRow = { kind?: string; location?: string; before?: string; after?: string; note?: string };
@@ -95,7 +96,7 @@ export const DidaskaliaSourceImport: React.FC<{
   const rapikan = async (kind: 'rhb' | 'service') => {
     const content = kind === 'rhb' ? rhbText : serviceText;
     if (!content.trim()) {
-      setNotice(kind === 'rhb' ? 'Tempel atau unggah naskah RHB dulu.' : 'Tempel atau unggah naskah Serving Day dulu.');
+      setNotice(kind === 'rhb' ? 'Tempel atau unggah naskah RHB dulu.' : `Tempel atau unggah naskah ${MD_MENTORING_DAY_LABEL} dulu.`);
       return;
     }
     setBusy(`norm-${kind}`);
@@ -154,7 +155,7 @@ export const DidaskaliaSourceImport: React.FC<{
   const parseAndApply = async () => {
     if (!canWrite) return;
     if (!rhbText.trim() && !serviceText.trim()) {
-      setNotice('Tempel minimal satu naskah: RHB 7 Path atau Serving Day.');
+      setNotice(`Tempel minimal satu naskah: RHB 7 Path atau ${MD_MENTORING_DAY_LABEL}.`);
       return;
     }
     if (studio.pendingRegen && String(studio.pendingRegen.status || '').toUpperCase() === 'PENDING') {
@@ -187,7 +188,7 @@ export const DidaskaliaSourceImport: React.FC<{
           body: JSON.stringify({ kind: 'service', content: serviceText }),
         });
         const d = await readJson(r);
-        if (!r.ok) throw new Error(String(d.error || 'Gagal parse Serving Day.'));
+        if (!r.ok) throw new Error(String(d.error || `Gagal parse ${MD_MENTORING_DAY_LABEL}.`));
         svc = d as typeof svc;
         warnings.push(...(Array.isArray(d.missing) ? d.missing.map((x) => `Service: ${x}`) : []));
       }
@@ -339,7 +340,7 @@ export const DidaskaliaSourceImport: React.FC<{
             disabled={!canWrite}
             onChange={(ref) => onScripture({ teksUtama: ref })}
           />
-          <p className="text-[10px] text-[#8C8880] mt-1">Teks utama khotbah. Terisi otomatis bila MD Serving Day memuatnya.</p>
+          <p className="text-[10px] text-[#8C8880] mt-1">Teks utama khotbah. Terisi otomatis bila {MD_MENTORING_DAY_LABEL} memuatnya.</p>
         </div>
         <div>
           <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1">Kitab Bagian Fokus</p>
@@ -365,7 +366,7 @@ export const DidaskaliaSourceImport: React.FC<{
           </div>
         </div>
         <div className="space-y-1.5">
-          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Serving Day</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">{MD_MENTORING_DAY_LABEL}</p>
           <textarea value={serviceText} onChange={(e) => setServiceText(e.target.value)} onBlur={() => void peekScripture(serviceText)} rows={6} disabled={!canWrite} placeholder="Tempel teks PDF/MD. Teks Utama mengisi kolom teks utama. Kitab Bagian Fokus terisi sendiri. Fondasi Teologis = Pengantar." className={`${inputCls} font-mono disabled:opacity-60`} />
           <div className="flex flex-wrap gap-1.5">
             <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white text-[11px] font-bold cursor-pointer">
@@ -381,7 +382,7 @@ export const DidaskaliaSourceImport: React.FC<{
       <p className="text-[10px] text-[#8C8880]">Rapikan menyusun format, ejaan, dan usulan bahasa inklusif. Ayat tidak diubah. Boleh dilewati: Parse membaca teks yang ada di kotak.</p>
       {review && (
         <div className="rounded-xl bg-white border border-sky-200 p-3 space-y-2">
-          <p className="text-[11px] font-black text-[#1B1B1B]">Usulan rapikan · {review.kind === 'rhb' ? 'RHB' : 'Serving Day'}</p>
+          <p className="text-[11px] font-black text-[#1B1B1B]">Usulan rapikan · {review.kind === 'rhb' ? 'RHB' : MD_MENTORING_DAY_LABEL}</p>
           {review.changes.length === 0 && <p className="text-[11px] text-[#8C8880]">Tidak ada butir perubahan tercatat. Tetap tinjau teks di bawah.</p>}
           <div className="max-h-40 overflow-y-auto space-y-1">
             {review.changes.map((c, i) => (

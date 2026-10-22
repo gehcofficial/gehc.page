@@ -128,7 +128,7 @@ export const DidaskaliaKontenPane: React.FC<{
           onClick={() => setSel('khotbah')}
           className={`w-full text-left rounded-xl px-2.5 py-2 border ${sel === 'khotbah' ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#1B1B1B] border-transparent hover:bg-[#FAF9F5]'}`}
         >
-          <span className="text-[10px] font-black uppercase tracking-wider opacity-70">Serving Day</span>
+          <span className="text-[10px] font-black uppercase tracking-wider opacity-70">MD Mentoring Day</span>
           <span className="block text-xs font-bold">Khotbah</span>
         </button>
       </div>

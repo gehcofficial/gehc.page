@@ -26,7 +26,7 @@ const CARD = {
  * Ringkasan Khotbah sinkron dengan tanggal event. RBAC dijaga endpoint Drive.
  */
 export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: string; eventDate?: string | null }> = ({ eventId, eventName, eventDate }) => {
-  const { canView01, canView03 } = useActiveAccess();
+  const { canView01, canView01Reason, canView03, canView03Reason } = useActiveAccess();
   const { addToast } = useApp();
   const [busy, setBusy] = useState(true);
   const [files, setFiles] = useState<Record<string, DriveFile[]>>({ pembekalan: [], khutbah: [], rhb: [] });
@@ -109,7 +109,8 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
     return () => { cancelled = true; };
   }, [eventId]);
 
-  const visible = (['pembekalan', 'khutbah', 'rhb'] as const).filter((k) => {
+  const docOrder = ['rhb', 'khutbah', 'pembekalan'] as const;
+  const visible = docOrder.filter((k) => {
     if (k === 'pembekalan') return canView01 && !forbidden.pembekalan;
     if (k === 'rhb') return canView03 && !forbidden.rhb;
     return true;
@@ -129,19 +130,21 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
             <Presentation className="w-3.5 h-3.5" /> Presentasi Web
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {canView01 && (
-              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
-                <ExternalLink className="w-3 h-3" /> Pembekalan
-              </a>
-            )}
-            <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
-              <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
-            </a>
             {canView03 && (
               <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
                 <ExternalLink className="w-3 h-3" /> RHB 7 Hari
               </a>
             )}
+            <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+              <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
+            </a>
+            {canView01 ? (
+              <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-200 px-3 py-1.5 text-[11px] font-bold text-amber-900">
+                <ExternalLink className="w-3 h-3" /> Pembekalan
+              </a>
+            ) : canView01Reason ? (
+              <span className="text-[10px] text-amber-800/80 px-2 py-1 rounded-full bg-amber-50 border border-amber-200" title={canView01Reason}>Pembekalan: {canView01Reason}</span>
+            ) : null}
             {canView03 && (
               <button type="button" onClick={() => void copyRhbCaption()} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white">
                 <Copy className="w-3 h-3" /> Caption RHB
@@ -161,7 +164,15 @@ export const EventDidaskaliaMaterials: React.FC<{ eventId: string; eventName: st
       {busy ? (
         <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat materi…</p>
       ) : total === 0 ? (
-        <p className="text-xs text-[#8C8880] italic">Belum ada materi untuk event ini. Didaskalia mengunggah via Panel Divisi → Didaskalia → Studio.</p>
+        <div className="space-y-2">
+          <p className="text-xs text-[#8C8880] italic">Belum ada materi untuk event ini. Didaskalia mengunggah via Panel Divisi → Didaskalia → Studio.</p>
+          {!canView01 && canView01Reason && (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{canView01Reason}</p>
+          )}
+          {!canView03 && canView03Reason && (
+            <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">{canView03Reason}</p>
+          )}
+        </div>
       ) : (
         <div className="space-y-3">
           {visible.map((k) => {
