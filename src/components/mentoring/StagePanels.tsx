@@ -572,7 +572,7 @@ type LabTeamRow = {
 };
 
 type LabActivity = {
-  phase: 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  phase: 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
   startedAt: string | null;
   durationSec: number;
   showOnScreen: boolean;
@@ -704,7 +704,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const a = cfg.activity && typeof cfg.activity === 'object' ? cfg.activity : {};
       const dur = a.durations && typeof a.durations === 'object' ? a.durations : {};
       setActivity({
-        phase: ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'].includes(String(a.phase || '').toUpperCase())
+        phase: ['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'].includes(String(a.phase || '').toUpperCase())
           ? String(a.phase).toUpperCase() as LabActivity['phase']
           : 'IDLE',
         startedAt: a.startedAt || null,
@@ -957,9 +957,23 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     void pushActivity({ startedAt: null, presentStartedAt: null }, 'Timer dihentikan (transisi manual).');
   };
 
+  const startDraw = () => {
+    void pushActivity(
+      { phase: 'DRAW', startedAt: new Date().toISOString(), durationSec: 300, presentStartedAt: null },
+      'Undian — tampilkan nomor grup di layar.',
+    );
+  };
+
+  const startBriefing = () => {
+    void pushActivity(
+      { phase: 'IDLE', startedAt: new Date().toISOString(), durationSec: 900, presentStartedAt: null },
+      'Firman & Briefing 15 menit — 10 menit judul firman, 5 menit panggil perwakilan.',
+    );
+  };
+
   const resetStage = () => {
     void pushActivity(
-      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
+      { phase: 'DRAW', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
       'Timer & panggung direset.',
     );
   };
@@ -1057,6 +1071,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-end">
+              <button type="button" disabled={busy} onClick={startDraw} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Undian</button>
+              <button type="button" disabled={busy} onClick={startBriefing} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Briefing</button>
               <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
               <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
               <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>

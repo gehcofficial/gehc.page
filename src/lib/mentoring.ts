@@ -212,7 +212,12 @@ export type SessionActivity = {
 
 /** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
 export type SessionActivityBrief = {
-  briefing: { core: string; rules: string; jarIntro: string; scribe: string; draw: string };
+  firmanTitle?: string;
+  firmanPoints?: string;
+  briefing: {
+    core: string; rules: string; jarIntro: string; scribe: string; draw: string;
+    audienceDirective?: string; projectorDirective?: string;
+  };
   a1: { title: string; subtitle: string; goal: string; tools: string; steps: string; output: string; minutes: number };
   a2: {
     title: string; goal: string; tools: string;
@@ -224,6 +229,13 @@ export type SessionActivityBrief = {
   };
   present: { order: string; questions: string; seconds: number };
   closing: { script: string; commit: string; prayer: string };
+  activities?: Array<{
+    index: number; title: string; minutes: number;
+    konteks?: string; pertanyaan?: string; contoh?: string;
+    stationMedia?: string; stationTheme?: string;
+    stationBMedia?: string; stationBTheme?: string;
+  }>;
+  activityCount?: number;
 } | null;
 
 /** Sepuluh kelompok Beyonders. Duplikat daftar server agar UI tidak mengimpor `.mjs`. */
@@ -392,7 +404,7 @@ export function codeFromMentoringHash(hash: string): string {
   return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama'] as const;
+export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama · Commitment'] as const;
 
 /** Kuota foto Creative Lab. Sama dengan server `LAB_PHOTO_LIMIT`. */
 export const LAB_PHOTO_CAP = { POT: 2, BAG: 2, GROUP: 1 } as const;
@@ -409,7 +421,9 @@ export function stepLabPresentation(
   activity: { presentIndex?: number; presentSlide?: number },
   orderLength: number,
   direction: 1 | -1,
+  slideMax = 2,
 ): { phase: 'PRESENT' | 'DONE'; presentIndex: number; presentSlide: number } {
+  const maxSlide = Math.max(0, Math.floor(Number(slideMax) || 0));
   const count = Math.max(0, Math.floor(Number(orderLength) || 0));
   const last = Math.max(0, count - 1);
   let index = Math.floor(Number(activity?.presentIndex) || 0);
@@ -417,15 +431,15 @@ export function stepLabPresentation(
   if (index > last) index = last;
   let slide = Math.floor(Number(activity?.presentSlide) || 0);
   if (!Number.isInteger(slide) || slide < 0) slide = 0;
-  if (slide > 2) slide = 2;
+  if (slide > maxSlide) slide = maxSlide;
   if (direction > 0) {
-    if (slide < 2) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide + 1 };
-    if (count === 0 || index >= last) return { phase: 'DONE', presentIndex: index, presentSlide: 2 };
+    if (slide < maxSlide) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide + 1 };
+    if (count === 0 || index >= last) return { phase: 'DONE', presentIndex: index, presentSlide: maxSlide };
     return { phase: 'PRESENT', presentIndex: index + 1, presentSlide: 0 };
   }
   if (slide > 0) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide - 1 };
   if (index <= 0) return { phase: 'PRESENT', presentIndex: 0, presentSlide: 0 };
-  return { phase: 'PRESENT', presentIndex: index - 1, presentSlide: 2 };
+  return { phase: 'PRESENT', presentIndex: index - 1, presentSlide: maxSlide };
 }
 
 export function fmtClock(totalSeconds: number): string {

@@ -943,7 +943,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
-      {has('chips') && (
+      {has('chips') && (c !== 'CREATIVE_LAB' || data.chips?.open || (data.chips?.list || []).length > 0) && (
         <div className={CARD}>
           {chipDone ? (
             <div className="text-center py-4 space-y-2">

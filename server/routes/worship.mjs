@@ -19,6 +19,12 @@ import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, ge
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
 import { canonicalCreativeLabPhases, legacyCreativeLabHits, presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
+import {
+  jarCardsFromDraft,
+  creativeLabBriefFromDraft,
+  jarNoteCodes,
+  presentSlideCount,
+} from '../lib/creative-lab-draft.mjs';
 import { finishIfMatch, weakEtag } from '../lib/http-cache.mjs';
 
 const PATTERN_LEAN = {
@@ -281,99 +287,18 @@ export function deepGuide(config) {
  * draft sesi (`jar`), fallback generik bila belum diisi.
  * Tema pekan ada di subjudul, bukan di nama aktivitas.
  */
-export const CREATIVE_LAB_JAR = [
-  { key: 'root', code: 'JAR-ROOT', title: 'A Root I Carry', field: 'jar-root', fallback: 'Nilai iman atau tradisi baik dari keluarga/GMIM yang ingin kamu bawa ke mana pun pergi.' },
-  { key: 'truth', code: 'JAR-TRUTH', title: 'A Truth I Need to Remember', field: 'jar-truth', fallback: 'Kebenaran tentang Kristus/Injil yang ingin kamu ingat saat masa sulit.' },
-  { key: 'lost', code: 'JAR-LOST', title: 'When I Feel Lost', field: 'jar-lost', fallback: 'Pesan penguatan untuk dirimu sendiri saat merasa jauh dari Tuhan atau kehilangan arah.' },
-  { key: 'community', code: 'JAR-COMMUNITY', title: 'A Word for My Community', field: 'jar-community', fallback: 'Pesan positif untuk anggota kelompokmu sebagai saudara seiman.' },
-  { key: 'verse', code: 'JAR-VERSE', title: 'A Verse to Hold Onto', field: 'jar-verse', fallback: 'Satu ayat Alkitab + referensi yang ingin kamu pegang dalam perjalanan iman.' },
-  { key: 'step', code: 'JAR-STEP', title: 'My Next Faith Step', field: 'jar-step', fallback: 'Satu tindakan nyata untuk menghidupi Injil dalam minggu-minggu mendatang.' },
-];
+/** Legacy export — kartu jar dari parser draft (kosong = 6 slot generik). */
+export const CREATIVE_LAB_JAR = jarCardsFromDraft({});
 
 export function jarCards(config) {
-  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
-  const jar = draft.jar && typeof draft.jar === 'object' ? draft.jar : {};
-  return CREATIVE_LAB_JAR.map((c) => ({
-    key: c.key,
-    code: c.code,
-    title: c.title,
-    direction: String(jar[c.field] || '').trim() || c.fallback,
-  }));
+  const draft = config?.draft && typeof config.draft === 'object' ? config.draft : {};
+  return jarCardsFromDraft(draft);
 }
 
 /** Briefing Creative Lab (dari draft sesi) — tampil di layar & HP peserta. */
 export function creativeLabBrief(config) {
-  const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
-  const sec = (k) => (draft[k] && typeof draft[k] === 'object' ? draft[k] : {});
-  const pick = (o, keys, fallback = '') => {
-    for (const k of keys) {
-      const v = String(o[k] || '').trim();
-      if (v) return v;
-    }
-    return fallback;
-  };
-  const briefing = sec('briefing');
-  const a1 = sec('activity-1');
-  const a2 = sec('activity-2');
-  const present = sec('present');
-  const closing = sec('closing');
-  const legacyA1 = new Set(['the roots reminder jar', 'roots reminder jar']);
-  const legacyA2 = new Set(['roots & dna creative lab', 'roots and dna creative lab']);
-  const genericTitle = (raw, fallback, legacy) => {
-    const v = String(raw || '').trim();
-    if (!v || legacy.has(v.toLowerCase())) return fallback;
-    return v;
-  };
-  const stationA = {
-    media: pick(a2, ['a2-a-media', 'a2-station-a-media'], 'Pot'),
-    theme: pick(a2, ['a2-a-theme', 'a2-station-a-theme'], 'Grow What You Believe'),
-  };
-  const stationB = {
-    media: pick(a2, ['a2-b-media', 'a2-station-b-media'], 'Tas'),
-    theme: pick(a2, ['a2-b-theme', 'a2-station-b-theme'], 'Carry the Gospel'),
-  };
-  return {
-    briefing: {
-      core: pick(briefing, ['brief-core']),
-      rules: pick(briefing, ['brief-rules']),
-      jarIntro: pick(briefing, ['jar-intro']),
-      scribe: pick(briefing, ['brief-scribe'], 'Umumkan perwakilan pencatat tiap kelompok.'),
-      draw: pick(briefing, ['brief-draw'], 'Umumkan pengundian urutan presentasi kelompok.'),
-    },
-    a1: {
-      title: genericTitle(pick(a1, ['a1-title'], ''), 'Reminder Jar', legacyA1),
-      subtitle: pick(a1, ['a1-subtitle', 'a1-theme'], 'Roots'),
-      goal: pick(a1, ['a1-goal']),
-      tools: pick(a1, ['a1-tools']),
-      steps: pick(a1, ['a1-steps']),
-      output: pick(a1, ['a1-output']),
-      minutes: Math.max(1, Number(pick(a1, ['a1-minutes'], '15')) || 15),
-    },
-    a2: {
-      title: genericTitle(pick(a2, ['a2-title'], ''), 'Art Stations', legacyA2),
-      goal: pick(a2, ['a2-goal']),
-      tools: pick(a2, ['a2-tools']),
-      stationA,
-      stationB,
-      pot: pick(a2, ['a2-pot'], 'Gambarkan apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh (akar, tunas, atau buah).'),
-      bag: pick(a2, ['a2-bag'], 'Gambarkan nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
-      potMeaning: pick(a2, ['a2-pot-meaning'], 'Apa yang kita percayai seharusnya bertumbuh dan terlihat dalam hidup kita. Pot melambangkan tempat benih iman bertumbuh. Peserta dapat melukis simbol akar, tunas, atau buah sebagai gambaran iman yang dirawat melalui tindakan nyata.'),
-      bagMeaning: pick(a2, ['a2-bag-meaning'], 'Membawa Injil ke mana pun kita pergi. Tas kanvas menjadi simbol kehidupan pemuda perantauan. Di mana pun mereka tinggal, bekerja, belajar, dan bergaul, mereka tetap dapat membawa nilai kasih, kerendahan hati, pelayanan, dan persatuan dalam Kristus.'),
-      report: pick(a2, ['a2-report'], 'Perwakilan setiap kelompok maju melapor kepada Admin.'),
-      commit: pick(a2, ['a2-commit'], 'Sertakan satu kata, simbol, atau kalimat pendek yang mewakili komitmen kelompok.'),
-      minutes: Math.max(1, Number(pick(a2, ['a2-minutes'], '25')) || 25),
-    },
-    present: {
-      order: pick(present, ['present-order']),
-      questions: pick(present, ['present-questions']),
-      seconds: Math.min(600, Math.max(30, Number(pick(present, ['present-seconds'], '150')) || 150)),
-    },
-    closing: {
-      script: pick(closing, ['closing-script']),
-      commit: pick(closing, ['closing-commit']),
-      prayer: pick(closing, ['closing-prayer']),
-    },
-  };
+  const draft = config?.draft && typeof config.draft === 'object' ? config.draft : {};
+  return creativeLabBriefFromDraft(draft);
 }
 
 /* ---------------- Creative Lab — update karya kelompok ---------------- */
@@ -1176,7 +1101,9 @@ export function registerWorshipRoutes(app, { wrap }) {
             })
           ).map((c) => ({ code: c.code, label: c.label, topicCode: c.topicCode })),
           mine: myVotes.map((v) => v.chipCode),
-          open: ['RUNNING', 'WRAPUP'].includes(live.status),
+          open: pcode === 'CREATIVE_LAB'
+            ? Boolean(config.labChipsOpen) && ['RUNNING', 'WRAPUP'].includes(live.status)
+            : ['RUNNING', 'WRAPUP'].includes(live.status),
         },
         me: { id: req.authUser.id, name: req.authUser.name || 'Peserta' },
         notes,
@@ -1387,7 +1314,7 @@ export function registerWorshipRoutes(app, { wrap }) {
 
       // Reminder Jar: setiap peserta hanya boleh menyimpan 2 dari 6 pertanyaan.
       if (String(session.pattern?.code || '').toUpperCase() === 'CREATIVE_LAB') {
-        const jarCodes = new Set(CREATIVE_LAB_JAR.map((c) => c.code));
+        const jarCodes = jarNoteCodes(config.draft);
         const jarRows = rows.filter((r) => jarCodes.has(r.topicCode) && String(r.content || '').trim());
         if (jarRows.length > 2) {
           return res.status(400).json({ error: 'Pilih maksimal 2 pertanyaan Reminder Jar untuk diisi di web.' });
@@ -2700,7 +2627,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
       // MONOLOG & BEDAH_FILM: buat chip Lesson Learned dari section `lesson` draft (maks 10).
       let lessonChips = [];
-      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM' || sessionPattern === 'CREATIVE_LAB') {
+      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM') {
         const lesson = b.storedDraft?.lesson && typeof b.storedDraft.lesson === 'object' ? b.storedDraft.lesson : {};
         lessonChips = Array.from({ length: 10 }, (_, i) => String(lesson[`lesson-chip-${i + 1}`] || '').trim())
           .filter(Boolean)

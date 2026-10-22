@@ -48,13 +48,12 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'komitmen', label: 'Penutup Sesi', hint: 'Deklarasi Coram Deo + unduh rekap. Id segmen tetap komitmen.' },
   ],
   CREATIVE_LAB: [
-    { id: 'pembuka', label: 'Praise & Worship', hint: 'Siapkan hati, duduk per kelompok.' },
-    { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman 15 menit, lalu umumkan pencatat dan pengundian.' },
-    { id: 'aktivitas-1', label: 'Sesi 1 · Reminder Jar', hint: 'Tulis 6 kartu di kertas; pilih 2 pertanyaan untuk diisi di web (paralel).' },
-    { id: 'aktivitas-2', label: 'Sesi 2 · Art Stations', hint: 'Dua stasiun paralel; perwakilan kelompok melapor ke Admin.' },
-    { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Sekitar 2,5 menit per kelompok: Stasiun A, Stasiun B, dan Slide Bersama.' },
-    { id: 'refleksi', label: 'Refleksi & Satu Kata', hint: 'Pilih chip Satu Kata + tulis komitmen.' },
-    { id: 'penutup', label: 'Penutup', hint: 'Persembahan, lagu, doa tutup + unduh rekap.' },
+    { id: 'briefing', label: 'Firman & Briefing', hint: '10 menit layar judul firman; 5 menit panggil perwakilan. Undian sudah di depan.' },
+    { id: 'aktivitas-1', label: 'Sesi 1', hint: 'Tulis di kertas; pilih 2 pertanyaan untuk diisi di web.' },
+    { id: 'aktivitas-2', label: 'Sesi 2', hint: 'Perwakilan mengisi makna & foto; yang lain melihat progres.' },
+    { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Satu slide per aktivitas seni + Commitment. Reaksi Suka/Biasa/Kurang.' },
+    { id: 'refleksi', label: 'Refleksi', hint: 'Reaksi presentasi + komitmen pribadi.' },
+    { id: 'penutup', label: 'Penutup', hint: 'Liturgi penutup + unduh rekap.' },
   ],
 };
 
@@ -127,9 +126,10 @@ export function segmentForPattern(
       if (phase === 'A2') return 'aktivitas-2';
       if (phase === 'PRESENT') return 'presentasi';
       if (phase === 'DONE') return 'refleksi';
+      if (phase === 'DRAW') return 'briefing';
       return 'briefing';
     }
-    return 'pembuka';
+    return 'briefing';
   }
   if (st === 'WRAPUP') return order[order.length - 1];
   if (st === 'RUNNING') {
