@@ -119,4 +119,22 @@ describe('guardNormalized', () => {
     expect(guarded.warnings.some((w) => /Nats Pembimbing dikembalikan|Referensi ayat hilang/.test(w.note))).toBe(true);
     expect(guarded.normalized).toMatch(/\*\*Nats Pembimbing:/);
   });
+
+  it('mengembalikan bagian Serving Day yang diringkas menjadi satu kalimat', () => {
+    const long = 'Uraian naskah sumber yang memuat poin, subpoin, dan penerapan. '.repeat(12);
+    const source = toStandardServiceMd({
+      info: { tema: 'Our Roots & DNA', teksUtama: '1 Korintus 1:13', kitabFokus: '2 Timotius 1:3--18' },
+      outline: {
+        pengantar: long,
+        bedahTeologis: 'Bedah yang tetap panjang dan tidak diringkas menjadi satu kalimat oleh penyunting.',
+        jembatan: '',
+        kesimpulan: '',
+      },
+    });
+    const shortened = source.replace(long.trim(), 'Pentingnya kembali ke akar identitas kita.');
+    const guarded = guardNormalized('service', source, shortened);
+    expect(guarded.preview.outline.pengantar.length).toBeGreaterThan(400);
+    expect(guarded.preview.outline.pengantar).toContain('subpoin');
+    expect(guarded.warnings.some((w) => /jauh lebih pendek/.test(w.note))).toBe(true);
+  });
 });

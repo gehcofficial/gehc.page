@@ -28,7 +28,7 @@ import {
 import { getDriveMode, getFileStream, listFolders, createFolder, uploadFile } from '../gdrive.mjs';
 import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
-import { parseServiceMd, parseRhbMd, parseRhbFullMd } from '../lib/didaskalia-md.mjs';
+import { parseServiceMd, parseRhbMd, parseRhbFullMd, sermonWithLiteralOutline } from '../lib/didaskalia-md.mjs';
 import { normalizeMaterial, translateProposal } from '../lib/didaskalia-normalize.mjs';
 import { mergeStudioSection, sanitizeSourceSnapshot } from '../lib/didaskalia-section.mjs';
 import { decodeTextFile, extractPdfText } from '../lib/pdf-text.mjs';
@@ -1412,7 +1412,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const loaded = await loadPublishedWeek(prisma, yearMonth, weekIndex);
       if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
       const { week, studio, published } = loaded;
-      const sermon = studio.sermon || {};
+      const sermon = sermonWithLiteralOutline(studio.sermon || {}, studio.sourceMd);
       const tu = sermon.teksUtama || {};
       const ol = sermon.outline || {};
       res.setHeader('Cache-Control', 'public, max-age=300');
@@ -2026,7 +2026,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
                 kitabFokus: s.kitabFokus || '',
                 methodMix: Array.isArray(s.methodMix) ? s.methodMix : [],
                 paths: sanitizePaths(s.paths),
-                sermon: s.sermon || { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] },
+                sermon: sermonWithLiteralOutline(s.sermon || { methods: [], rationale: '', summary: '', slideOutline: [], deliveryPlan: [], prepChecklist: [], discussionFlow: [] }, s.sourceMd),
                 images: sanitizeImages(s.presentation),
               },
             },

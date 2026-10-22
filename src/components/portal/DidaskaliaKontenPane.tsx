@@ -15,7 +15,7 @@ import {
   type DidaskaliaSourceSnapshot,
   type DidaskaliaStudio,
 } from '../../lib/didaskalia';
-import { delivererLabel } from '../../lib/didaskalia-presentation';
+import { delivererLabel, sermonWithLiteralOutline } from '../../lib/didaskalia-presentation';
 import { isFlowStale, readFlowBaseline, writeFlowBaseline } from '../../lib/flow-stale';
 import { copyText } from '../../lib/rhb-caption';
 
@@ -230,7 +230,20 @@ export const DidaskaliaKontenPane: React.FC<{
           <div className="flex flex-wrap items-center gap-2">
             <Presentation className="w-4 h-4 text-brand" />
             <h4 className="text-sm font-black text-[#1B1B1B]">Khotbah</h4>
-            <p className="w-full text-[11px] text-[#8C8880]">Halaman Ringkasan Khotbah memakai teks utama dan empat bagian outline. Inti pesan, kutipan ayat, ringkasan singkat, dan metode boleh kosong: tidak ada di naskah sumber dan tidak menghalangi halaman.</p>
+            <p className="w-full text-[11px] text-[#8C8880]">Halaman Ringkasan Khotbah memakai teks utama dan empat bagian outline. Bila naskah sumber jauh lebih panjang dari ringkasan di kolom ini, halaman memakai naskah sumber. Inti pesan, kutipan ayat, ringkasan singkat, dan metode boleh kosong.</p>
+          {canWrite && studio.sourceMd?.service?.outline && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = sermonWithLiteralOutline(sermon, studio.sourceMd);
+                patchSermon(() => next);
+                addToast({ type: 'success', title: 'Empat bagian diisi dari naskah sumber. Simpan mengikuti otomatis.' });
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#D9D7D0] text-[11px] font-bold text-[#1B1B1B]"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> Pulihkan dari naskah sumber
+            </button>
+          )}
             <button type="button" disabled={!canWrite || busy === 'sermon'} onClick={() => void runSermon()} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50">
               {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Segarkan metode &amp; inti pesan
             </button>

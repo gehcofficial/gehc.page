@@ -1,10 +1,16 @@
+import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
 import {
   buildKhutbahDeck,
   chunkSermonSection,
   contentFromStudio,
+  preferLiteralSection,
+  releaseDrift,
+  sermonWithLiteralOutline,
 } from '../../src/lib/didaskalia-presentation';
 import { defaultStudio } from '../../src/lib/didaskalia';
+import { extractPdfText } from '../../server/lib/pdf-text.mjs';
+import { parseServiceMd, sermonWithLiteralOutline as sermonWithLiteralOutlineServer } from '../../server/lib/didaskalia-md.mjs';
 
 const MD_PENGANTAR = 'Manusia mengira masalah terbesar adalah finansial dan masa depan.\n\nPadahal masalah terbesar adalah dosa yang memisahkan dari Allah yang Mahasuci.';
 const MD_BEDAH = [
@@ -133,5 +139,67 @@ describe('buildKhutbahDeck (standar literal)', () => {
     const fields = (cover.fields || []).map((f) => `${f.label}: ${f.value}`).join(' | ');
     expect(fields).toContain('2 Korintus 5:21');
     expect(fields).toContain('Kolose 1:13-14');
+  });
+});
+
+const WEEK4_SHORT = {
+  pengantar: 'Pentingnya kembali ke akar identitas kita sebagai gereja dan kehidupan iman.',
+  bedahTeologis: 'Pentingnya Injil sebagai pusat identitas kita, bukan ciri khas yang kita perdebatkan.',
+  jembatan: 'Dilanjutkan dengan tantangan bagi generasi muda untuk meneruskan iman yang utuh.',
+  kesimpulan: 'Kita harus memastikan bahwa identitas yang kita wariskan berakar pada Injil.',
+};
+
+describe('outline khotbah memakai naskah sumber bila field hanya ringkasan', () => {
+  it('kalimat pendek diganti sumber; suntingan panjang tetap', () => {
+    const source = '#### a. Masalahnya\n\nUraian lengkap dengan 1 Korintus 1:13 dan penerapan. '.repeat(8);
+    expect(preferLiteralSection(WEEK4_SHORT.pengantar, source)).toBe(source.trim());
+    expect(preferLiteralSection('', source)).toBe(source.trim());
+    expect(preferLiteralSection(WEEK4_SHORT.pengantar, '')).toBe(WEEK4_SHORT.pengantar);
+    const edited = `${'Suntingan tim yang memang disimpan karena sudah panjang. '.repeat(8)}1 Korintus 1:13`;
+    expect(edited.trim().length).toBeGreaterThanOrEqual(400);
+    expect(preferLiteralSection(edited, source)).toBe(edited.trim());
+    expect(preferLiteralSection(source, source)).toBe(source.trim());
+  });
+
+  it('deck pekan 4 fixture memuat ayat dan subpoin, bukan parafrase satu kalimat', async () => {
+    const buf = readFileSync(new URL('../fixtures/didaskalia/service-2026-10-w4.pdf', import.meta.url));
+    const parsed = parseServiceMd(await extractPdfText(buf));
+    const studio = defaultStudio();
+    studio.sermon.teksUtama = { ref: '', text: 'kutipan tetap' };
+    studio.sermon.outline = { ...WEEK4_SHORT };
+    studio.sermon.summary = 'Ringkasan singkat yang tidak menjadi slide.';
+    studio.sourceMd = {
+      service: { info: parsed.info, outline: parsed.outline, rawLength: parsed.rawLength },
+      rhb: null,
+    };
+    const shallow = buildKhutbahDeck(contentFromStudio({ ...studio, sourceMd: null }, 4, '2026-10-25', 'Our Roots & DNA'));
+    const deepContent = contentFromStudio(studio, 4, '2026-10-25', 'Our Roots & DNA');
+    const deep = buildKhutbahDeck(deepContent);
+    expect(shallow).toHaveLength(5);
+    expect(deep.length).toBeGreaterThan(shallow.length);
+    const keys = ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan'] as const;
+    for (const key of keys) {
+      expect(deepContent.sermon.outline[key]).toBe(String(parsed.outline[key]).trim());
+      expect(deepContent.sermon.outline[key].length).toBeGreaterThan(400);
+      expect(shallow.flatMap((s) => s.paragraphs || []).join('\n')).toContain(WEEK4_SHORT[key]);
+    }
+    const shown = deep.flatMap((s) => s.paragraphs || []).join('\n');
+    expect(shown).toContain('Riedel');
+    expect(shown).toMatch(/1 Korintus 1:13/);
+    expect(shown).toContain('Lois');
+    expect(shown).not.toContain(WEEK4_SHORT.pengantar);
+    expect(deepContent.sermon.teksUtama.ref).toBe('1 Korintus 1:13');
+    expect(deepContent.sermon.teksUtama.text).toBe('kutipan tetap');
+    expect(deepContent.sermon.summary).toBe(studio.sermon.summary);
+    const server = sermonWithLiteralOutlineServer(studio.sermon, studio.sourceMd);
+    expect(server.outline.pengantar).toBe(deepContent.sermon.outline.pengantar);
+    expect(sermonWithLiteralOutline(studio.sermon, studio.sourceMd).outline.bedahTeologis).toBe(server.outline.bedahTeologis);
+    expect(releaseDrift(deepContent, { sermon: { ...studio.sermon, outline: { ...WEEK4_SHORT } } })).toBe('stale');
+    const perSection = Object.fromEntries(keys.map((key) => [
+      key,
+      deep.filter((s) => s.id.startsWith(`outline-${key}`)).length,
+    ]));
+    expect(perSection).toEqual({ pengantar: 10, bedahTeologis: 16, jembatan: 12, kesimpulan: 6 });
+    expect(deep).toHaveLength(45);
   });
 });

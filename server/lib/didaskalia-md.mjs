@@ -342,6 +342,42 @@ export function toStandardRhbMd(paths) {
   }).join('\n');
 }
 
+const OUTLINE_KEYS = ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan'];
+
+/**
+ * Naskah sumber yang jauh lebih panjang mengalahkan ringkasan satu-dua kalimat.
+ * Suntingan yang sudah sepanjang sumber tetap dipakai.
+ */
+export function preferLiteralSection(edited, source) {
+  const e = String(edited || '').trim();
+  const s = String(source || '').trim();
+  if (!s) return e;
+  if (!e) return s;
+  if (e.length < 400 && s.length >= e.length + 200 && s.length >= e.length * 2) return s;
+  return e;
+}
+
+/** Outline yang dirender deck: salin bagian sumber bila field khotbah hanya ringkasan. */
+export function sermonWithLiteralOutline(sermon, sourceMd) {
+  const base = sermon && typeof sermon === 'object' ? { ...sermon } : {};
+  const service = sourceMd && typeof sourceMd === 'object' ? sourceMd.service : null;
+  const src = service && service.outline && typeof service.outline === 'object' ? service.outline : null;
+  if (!src) return base;
+  const prev = base.outline && typeof base.outline === 'object' ? base.outline : {};
+  const outline = { ...prev };
+  for (const key of OUTLINE_KEYS) outline[key] = preferLiteralSection(prev[key], src[key]);
+  const infoRef = service.info && typeof service.info.teksUtama === 'string' ? service.info.teksUtama.trim() : '';
+  const tu = base.teksUtama && typeof base.teksUtama === 'object' ? base.teksUtama : {};
+  return {
+    ...base,
+    outline,
+    teksUtama: {
+      ref: String(tu.ref || infoRef || ''),
+      text: String(tu.text || ''),
+    },
+  };
+}
+
 export function toStandardServiceMd({ info = {}, outline = {} } = {}) {
   return [
     '## A. Informasi Sesi',
@@ -382,7 +418,7 @@ function lostRefs(sourceBody, nextBody) {
 
 /**
  * Setelah AI merapikan: ayat sumber yang hilang atau berubah dikembalikan.
- * Bagian yang kehilangan referensi ayat kembali ke teks sumber.
+ * Bagian yang kehilangan referensi ayat, atau yang menyusut jadi satu kalimat, kembali ke teks sumber.
  */
 export function guardNormalized(kind, source, normalized) {
   const warnings = [];
@@ -399,6 +435,9 @@ export function guardNormalized(kind, source, normalized) {
       } else if (lostRefs(sourceBody, aiBody)) {
         outline[key] = sourceBody;
         warnings.push({ kind: 'ayat', location: key, note: 'Referensi ayat hilang atau berubah — teks sumber dipertahankan.' });
+      } else if (preferLiteralSection(aiBody, sourceBody) !== aiBody.trim()) {
+        outline[key] = sourceBody;
+        warnings.push({ kind: 'ayat', location: key, note: 'Bagian AI jauh lebih pendek dari naskah — teks sumber dipertahankan.' });
       } else outline[key] = aiBody;
     }
     const info = {

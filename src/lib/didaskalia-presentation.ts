@@ -975,6 +975,38 @@ export function applyPublishedSnapshot(content: PresentationContent, snapshot?: 
   return next;
 }
 
+const OUTLINE_KEYS = ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan'] as const;
+
+/** Naskah sumber yang jauh lebih panjang mengalahkan ringkasan satu-dua kalimat. */
+export function preferLiteralSection(edited?: string | null, source?: string | null): string {
+  const e = String(edited || '').trim();
+  const s = String(source || '').trim();
+  if (!s) return e;
+  if (!e) return s;
+  if (e.length < 400 && s.length >= e.length + 200 && s.length >= e.length * 2) return s;
+  return e;
+}
+
+/** Outline deck memakai naskah sumber bila field khotbah hanya ringkasan. */
+export function sermonWithLiteralOutline<T extends { outline?: Partial<Record<string, string>>; teksUtama?: { ref?: string; text?: string } }>(
+  sermon: T | null | undefined,
+  sourceMd?: { service?: { info?: { teksUtama?: string }; outline?: Partial<Record<string, string>> } | null } | null,
+): T {
+  const base = (sermon ? { ...sermon } : {}) as T;
+  const service = sourceMd?.service;
+  const src = service?.outline;
+  if (!src) return base;
+  const prev = base.outline || {};
+  const outline = { ...prev };
+  for (const key of OUTLINE_KEYS) outline[key] = preferLiteralSection(prev[key], src[key]);
+  const tu = base.teksUtama || {};
+  return {
+    ...base,
+    outline,
+    teksUtama: { ref: String(tu.ref || service?.info?.teksUtama || ''), text: String(tu.text || '') },
+  };
+}
+
 /** Konten presentasi dari studio (live). */
 export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, date: string, theme: string, serviceType?: string | null, patternName?: string | null, patternCode?: string | null): PresentationContent {
   return {
@@ -985,7 +1017,7 @@ export function contentFromStudio(studio: DidaskaliaStudio, weekIndex: number, d
     fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
     kitabFokus: studio.kitabFokus || '',
     paths: ensurePaths(studio),
-    sermon: studio.sermon || defaultSermon(),
+    sermon: sermonWithLiteralOutline(studio.sermon || defaultSermon(), studio.sourceMd),
     images: studio.presentation || {},
     deliverer: delivererLabel(serviceType),
     patternName: patternName || undefined,
