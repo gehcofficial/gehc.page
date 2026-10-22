@@ -30,6 +30,7 @@ import { generateImageBase64 } from '../ai-provider.mjs';
 import { computeRegenDiff, proposalFromDraft, richnessCheck } from '../lib/didaskalia-diff.mjs';
 import { parseServiceMd, parseRhbMd, parseRhbFullMd } from '../lib/didaskalia-md.mjs';
 import { normalizeMaterial, translateProposal } from '../lib/didaskalia-normalize.mjs';
+import { mergeStudioSection, sanitizeSourceSnapshot } from '../lib/didaskalia-section.mjs';
 import { decodeTextFile, extractPdfText } from '../lib/pdf-text.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 import { listOverrides, effectiveDate } from '../lib/service-overrides.mjs';
@@ -219,6 +220,7 @@ function sanitizeStudio(raw) {
   s.sermon = sanitizeSermonShape(s.sermon);
   s.sourceMd = sanitizeSourceMd(s.sourceMd);
   s.sourceSignoff = sanitizeSignoff(s.sourceSignoff);
+  s.sourceSnapshot = sanitizeSourceSnapshot(s.sourceSnapshot);
   return s;
 }
 
@@ -801,7 +803,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         weekIndex,
         (week) => {
           const st = { ...week.studio };
-          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'sourceMd', 'discussion', 'rituals', 'presentation', 'generation']) {
+          for (const k of ['chapterNo', 'fundamentalFirman', 'kitabFokus', 'status', 'homileticMethods', 'methodMix', 'paths', 'sermon', 'sourceMd', 'discussion', 'rituals', 'presentation', 'generation', 'sourceSnapshot']) {
             if (body[k] !== undefined) st[k] = body[k];
           }
           const next = { ...week, studio: st };
@@ -817,6 +819,32 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       );
       res.json({ week: saved });
     })
+  );
+
+  // Satu bagian (path / khotbah / sumber / diskusi), bukan seluruh JSON minggu.
+  app.patch(
+    '/api/didaskalia/studio/:yearMonth/:weekIndex/section',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const yearMonth = String(req.params.yearMonth || '');
+      const weekIndex = getWeekIndex(req);
+      if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
+      const target = String(req.body?.target || '');
+      if (!['path', 'sermon', 'sumber', 'discussion', 'presentation'].includes(target)) {
+        return res.status(400).json({ error: 'target bagian tidak dikenal.' });
+      }
+      const saved = await saveStudioWeek(
+        prisma,
+        yearMonth,
+        weekIndex,
+        (week) => ({ ...week, studio: sanitizeStudio(mergeStudioSection(week.studio, req.body || {})) }),
+        req.authUser?.id,
+      );
+      res.json({ week: { ...saved, studio: sanitizeStudio(saved?.studio) } });
+    }),
   );
 
   // ---------- Reset pola pekan ke MONOLOG (+ hapus sesi DRAFT kosong tertaut) ----------

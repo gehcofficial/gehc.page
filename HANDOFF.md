@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia lima tab Studio (22 Okt 2026)
+
+**Minta:** susunan ulang Studio yang sudah disetujui, di cabang terpisah dari impor sumber. Lima tab: Sumber (empat masukan), Konten, Diskusi, Gambar, Terbitkan. Pengetahuan pindah ke menu roda gigi. Simpan per bagian, pekerjaan AI tidak mengunci layar. Tanpa deploy dan tanpa migrasi.
+
+**Done:**
+- Sumber hanya Kitab Fundamental, Kitab Bagian Fokus, MD RHB, dan MD Serving Day. Ayat di MD mengisi dua kolom kitab. Checklist bagian terbaca / kurang.
+- Konten menggabungkan 7 Path dan Khotbah (daftar kiri, editor kanan) dengan lencana dari MD / diubah.
+- Diskusi: catatan rekan + Perkaya. Isi contoh catatan dan unggah pengetahuan dihapus dari tab itu.
+- Terbitkan memuat persetujuan HOD, PDF, caption, pratinjau, jadwal, dan Meet.
+- PATCH bagian (`/section`) menulis satu bagian JSON. Tab yang sudah dibuka tetap terpasang.
+
+**Next:** QA browser dengan sesi login bila `DATABASE_URL` tersedia. Jangan deploy dari cabang ini.
+
+**Verifikasi:** `tsc --noEmit` bersih. `npm test` **167 file / 1325 tes** lulus. `npm run build` lulus (chunk terpisah untuk Sumber, Konten, Gambar, dan Pengetahuan). Layar Studio tidak dibuka di browser: `DATABASE_URL` di mesin ini mengarah ke TiDB Cloud produksi.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/didaskalia-studio-ux-d5fe`.
+
 ## Current — Didaskalia impor sumber + tab Gambar (22 Okt 2026)
 
 **Minta:** naskah tim (RHB + Serving Day) jadi sumber Studio. Rapikan opsional. Parse → setujui HOD sudah boleh terbit tanpa Perkaya. Satu tempat gambar: Buat semua gambar (12) dengan progres, lewati yang ada, dan buat ulang per baris. Tanpa deploy dan tanpa migrasi.

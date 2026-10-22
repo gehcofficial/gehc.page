@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2,
   Sparkles,
@@ -8,29 +8,22 @@ import {
   Upload,
   Calendar,
   Link2,
-  Plus,
   Copy,
   Wand2,
   RefreshCw,
   Send,
-  ChevronDown,
-  ChevronRight,
   Presentation,
   BookOpen,
   Users,
-  Info,
   ShieldCheck,
   ExternalLink,
   MessageCircle,
+  Settings,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { BibleRefPicker } from './BibleRefPicker';
-import { HOMILETIC_METHODS_DATA } from '../../data/homiletic-methods';
 import {
-  RHB_SECTIONS,
   RITUAL_LABELS,
   RITUAL_TYPES,
-  bacaanMatchesKitab,
   defaultStudio,
   defaultSermon,
   ensurePaths,
@@ -51,14 +44,14 @@ import {
   type RitualType,
 } from '../../lib/didaskalia';
 import { blobToBase64, buildKhutbahPdf, buildPembekalanPdf, buildRhbPdfs } from '../../lib/didaskaliaPdf';
-import { materialHashPath, delivererLabel, rememberPortalPlace } from '../../lib/didaskalia-presentation';
+import { materialHashPath, rememberPortalPlace } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, buildPembekalanCaption, buildKhutbahCaption, copyText } from '../../lib/rhb-caption';
-import { isFlowStale, readFlowBaseline, writeFlowBaseline } from '../../lib/flow-stale';
-import { effectiveSessionDay } from '../../lib/effective-date';
+import { readFlowBaseline, writeFlowBaseline } from '../../lib/flow-stale';
 import { applyWeekPattern, WEEK_PATTERN_CHANGED_EVENT, type WeekPatternChangedDetail } from '../../lib/apply-week-pattern';
-import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
-import { DidaskaliaSourceImport } from './DidaskaliaSourceImport';
-import { DidaskaliaGambarPanel } from './DidaskaliaGambarPanel';
+const DidaskaliaSumberTab = lazy(() => import('./DidaskaliaSourceImport').then((m) => ({ default: m.DidaskaliaSourceImport })));
+const DidaskaliaGambarTab = lazy(() => import('./DidaskaliaGambarPanel').then((m) => ({ default: m.DidaskaliaGambarPanel })));
+const DidaskaliaKontenPane = lazy(() => import('./DidaskaliaKontenPane').then((m) => ({ default: m.DidaskaliaKontenPane })));
+const DidaskaliaSettingsTab = lazy(() => import('./DidaskaliaKnowledgePanel').then((m) => ({ default: m.DidaskaliaKnowledgePanel })));
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -139,13 +132,13 @@ async function collectPdfImages(st: DidaskaliaStudio) {
   return { coverImage: await assetDataUrl(pres.cover), rhbDayImages, khutbahSectionImages };
 }
 
-type StudioTab = 'inti' | 'paths' | 'khotbah' | 'gambar' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal';
+type StudioTab = 'sumber' | 'konten' | 'diskusi' | 'gambar' | 'terbitkan';
 
 /** Pesan galat AI yang bisa ditindaklanjuti. */
 function friendlyAiError(e: unknown): string {
   const msg = e instanceof Error ? e.message : 'AI gagal.';
   if (/terpotong|JSON tidak valid/i.test(msg)) {
-    return 'Keluaran AI terpotong — coba lagi, atau kurangi dokumen pengetahuan aktif di tab "Pengetahuan".';
+    return 'Keluaran AI terpotong — coba lagi, atau kurangi dokumen pengetahuan aktif di menu setelan.';
   }
   return msg;
 }
@@ -154,7 +147,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
-  const [tab, setTab] = useState<StudioTab>('inti');
+  const [tab, setTab] = useState<StudioTab>('sumber');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jobs, setJobs] = useState<Array<{ id: string; label: string; status: 'running' | 'ok' | 'error' }>>([]);
+  const [mountedTabs, setMountedTabs] = useState<Partial<Record<StudioTab, boolean>>>({ sumber: true });
   const [ym, setYm] = useState(yearMonth || currentYearMonth());
   const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
@@ -171,6 +167,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const weeksInMonth = useMemo(() => sundaysOfMonth(ym), [ym]);
 
   const [studio, setStudio] = useState<DidaskaliaStudio>(defaultStudio());
+  const studioRef = useRef(studio);
+  studioRef.current = studio;
+  const dirtyRef = useRef(new Set<string>());
+  const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const queueRef = useRef(Promise.resolve());
+  const sermonSnap = useRef<string | null>(null);
+  const locRef = useRef({ ym, weekIndex });
+  locRef.current = { ym, weekIndex };
+  const pendingBuildRef = useRef<Record<string, { loc: { ym: string; weekIndex: number }; build: () => Record<string, unknown> }>>({});
   const [weekMeta, setWeekMeta] = useState<WeekMeta | null>(null);
   const [patterns, setPatterns] = useState<import('../../lib/worship-patterns').WorshipPatternLite[]>([]);
   const [event, setEvent] = useState<{ id: string; name: string; serviceType?: string | null; eventDate?: string | null } | null>(null);
@@ -180,7 +185,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastAiKind, setLastAiKind] = useState<'draft' | 'sermon' | 'enrich' | null>(null);
-  const [expandedPath, setExpandedPath] = useState<number | null>(1);
   const [comment, setComment] = useState('');
   const [useDiscussionContext, setUseDiscussionContext] = useState(true);
   const [enDraft, setEnDraft] = useState<Record<string, { titleEn: string; summaryEn: string; bigIdeaEn: string }>>({});
@@ -200,6 +204,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   }, []);
 
+  useEffect(() => { setMountedTabs((m) => (m[tab] ? m : { ...m, [tab]: true })); }, [tab]);
   useEffect(() => { if (tab === 'terbitkan' || tab === 'gambar') void checkDriveAuth(); }, [tab, checkDriveAuth]);
 
   /** Perbandingan longgar teks DB vs kanonis (abaikan kapital/spasi/tanda baca). */
@@ -246,7 +251,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, { credentials: 'include' });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal memuat studio (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      const nextStudio = { ...defaultStudio(), ...(d.week?.studio || {}) };
+      sermonSnap.current = JSON.stringify(nextStudio.sermon ?? null);
+      setStudio(nextStudio);
       setWeekMeta({ index: d.week?.index, date: d.week?.date, theme: d.week?.theme, mentoringTheme: d.week?.mentoringTheme, servingTheme: d.week?.servingTheme, patternCode: d.week?.patternCode || 'MONOLOG' });
       // Tanpa baseline tercatat, anggap alur sejalan pola aktif (hindari banner palsu).
       if (!readFlowBaseline(ym, weekIndex)) writeFlowBaseline(ym, weekIndex, d.week?.patternCode || 'MONOLOG');
@@ -317,37 +324,195 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     } catch { /* abaikan */ }
   }, [ym]);
 
-  useEffect(() => { if (tab === 'jadwal') void loadSchedule(); }, [tab, loadSchedule]);
+  useEffect(() => { if (tab === 'terbitkan') void loadSchedule(); }, [tab, loadSchedule]);
 
-  const save = useCallback(async (patch?: Partial<DidaskaliaStudio>, opts?: { silent?: boolean }): Promise<DidaskaliaStudio | null> => {
-    if (!canWrite) return null;
-    const payload = { ...studio, ...(patch || {}) };
-    setSaving(true);
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studio: payload }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal simpan (server ${r.status}).`);
-      const next = { ...defaultStudio(), ...(d.week?.studio || {}) };
-      setStudio(next);
-      if (!opts?.silent) addToast({ type: 'success', title: 'Studio tersimpan' });
-      return next;
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal simpan.' });
-      return null;
-    } finally {
-      setSaving(false);
+  const enqueueSection = useCallback((body: Record<string, unknown>, loc?: { ym: string; weekIndex: number }) => {
+    const where = loc || locRef.current;
+    const run = queueRef.current.then(async () => {
+      if (!canWrite) return false;
+      setSaving(true);
+      try {
+        const r = await fetch(`/api/didaskalia/studio/${where.ym}/${where.weekIndex}/section`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const d = await readJson(r);
+        if (!r.ok) throw new Error(d.error || 'Gagal menyimpan bagian.');
+        return true;
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyimpan bagian.' });
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    });
+    queueRef.current = run.then(() => undefined, () => undefined);
+    return run;
+  }, [addToast, canWrite]);
+
+  const scheduleSection = useCallback((key: string, build: () => Record<string, unknown>) => {
+    dirtyRef.current.add(key);
+    const loc = { ...locRef.current };
+    pendingBuildRef.current[key] = { loc, build };
+    if (timersRef.current[key]) clearTimeout(timersRef.current[key]);
+    timersRef.current[key] = setTimeout(() => {
+      const pending = pendingBuildRef.current[key];
+      delete pendingBuildRef.current[key];
+      if (!pending) return;
+      void enqueueSection(pending.build(), pending.loc).finally(() => dirtyRef.current.delete(key));
+    }, 700);
+  }, [enqueueSection]);
+
+  const flushSections = useCallback(async () => {
+    const keys = Object.keys(pendingBuildRef.current);
+    for (const key of keys) {
+      if (timersRef.current[key]) clearTimeout(timersRef.current[key]);
+      const pending = pendingBuildRef.current[key];
+      delete pendingBuildRef.current[key];
+      if (pending) await enqueueSection(pending.build(), pending.loc).finally(() => dirtyRef.current.delete(key));
     }
-  }, [addToast, canWrite, studio, weekIndex, ym]);
+    await queueRef.current;
+  }, [enqueueSection]);
+
+  const sermonJson = JSON.stringify(studio.sermon ?? null);
+  const scheduleRef = useRef(scheduleSection);
+  scheduleRef.current = scheduleSection;
+  useEffect(() => {
+    if (sermonSnap.current === null || sermonSnap.current === sermonJson) {
+      sermonSnap.current = sermonJson;
+      return;
+    }
+    sermonSnap.current = sermonJson;
+    scheduleRef.current('sermon', () => ({ target: 'sermon', sermon: studioRef.current.sermon }));
+  }, [sermonJson]);
+
+  const applyServerStudio = useCallback((incoming: DidaskaliaStudio) => {
+    setStudio((prev) => {
+      const out: DidaskaliaStudio = { ...defaultStudio(), ...incoming };
+      const dirty = dirtyRef.current;
+      if ([...dirty].some((k) => k.startsWith('path:'))) out.paths = prev.paths;
+      if (dirty.has('sermon') || dirty.has('meta')) out.sermon = prev.sermon;
+      if (dirty.has('meta')) {
+        out.homileticMethods = prev.homileticMethods;
+        out.methodMix = prev.methodMix;
+        out.chapterNo = prev.chapterNo;
+        out.fundamentalFirman = prev.fundamentalFirman;
+      }
+      if (dirty.has('sumber')) {
+        out.kitabFokus = prev.kitabFokus;
+        out.fundamentalFirman = prev.fundamentalFirman;
+        out.chapterNo = prev.chapterNo;
+        out.sourceMd = prev.sourceMd;
+        out.sourceSnapshot = prev.sourceSnapshot;
+        out.paths = prev.paths;
+        out.sermon = prev.sermon;
+      }
+      if (dirty.has('discussion')) out.discussion = prev.discussion;
+      if (dirty.has('presentation')) out.presentation = prev.presentation;
+      sermonSnap.current = JSON.stringify(out.sermon ?? null);
+      studioRef.current = out;
+      return out;
+    });
+  }, []);
+
+  const startJob = (id: string, label: string) => {
+    setJobs((list) => [...list.filter((j) => j.id !== id), { id, label, status: 'running' as const }]);
+  };
+  const finishJob = (id: string, status: 'ok' | 'error') => {
+    setJobs((list) => list.map((j) => (j.id === id ? { ...j, status } : j)));
+  };
+
+  const onScripture = (patch: { teksUtama?: string; kitabFokus?: string }) => {
+    setStudio((s) => {
+      const sermon = {
+        ...s.sermon,
+        teksUtama: {
+          ...(s.sermon?.teksUtama || { ref: '', text: '' }),
+          ...(patch.teksUtama !== undefined ? { ref: patch.teksUtama } : {}),
+        },
+      };
+      const fundamental = patch.teksUtama && !String(s.fundamentalFirman?.ref || '').trim()
+        ? { ...s.fundamentalFirman, ref: patch.teksUtama }
+        : s.fundamentalFirman;
+      const next = {
+        ...s,
+        sermon,
+        kitabFokus: patch.kitabFokus ?? s.kitabFokus,
+        fundamentalFirman: fundamental,
+      };
+      sermonSnap.current = JSON.stringify(sermon);
+      studioRef.current = next;
+      return next;
+    });
+    scheduleSection('sumber', () => ({
+      target: 'sumber',
+      sumber: {
+        kitabFokus: studioRef.current.kitabFokus,
+        teksUtama: studioRef.current.sermon?.teksUtama,
+        fundamentalFirman: studioRef.current.fundamentalFirman,
+      },
+    }));
+  };
+
+  const commitSumber = (sumber: Record<string, unknown>) => {
+    dirtyRef.current.add('sumber');
+    if (sumber.sermon) sermonSnap.current = JSON.stringify(sumber.sermon);
+    setStudio((s) => {
+      const next = { ...s } as DidaskaliaStudio;
+      if (Array.isArray(sumber.paths)) next.paths = sumber.paths as DidaskaliaStudio['paths'];
+      if (sumber.sermon && typeof sumber.sermon === 'object') next.sermon = sumber.sermon as DidaskaliaStudio['sermon'];
+      if (typeof sumber.kitabFokus === 'string') next.kitabFokus = sumber.kitabFokus;
+      if (typeof sumber.chapterNo === 'string') next.chapterNo = sumber.chapterNo;
+      if (sumber.sourceMd && typeof sumber.sourceMd === 'object') next.sourceMd = sumber.sourceMd as DidaskaliaStudio['sourceMd'];
+      if (sumber.sourceSnapshot && typeof sumber.sourceSnapshot === 'object') next.sourceSnapshot = sumber.sourceSnapshot as DidaskaliaStudio['sourceSnapshot'];
+      if (sumber.fundamentalFirman && typeof sumber.fundamentalFirman === 'object') {
+        next.fundamentalFirman = { ...s.fundamentalFirman, ...(sumber.fundamentalFirman as DidaskaliaStudio['fundamentalFirman']) };
+      }
+      studioRef.current = next;
+      return next;
+    });
+    return enqueueSection({ target: 'sumber', sumber }).finally(() => {
+      if (!pendingBuildRef.current.sumber) dirtyRef.current.delete('sumber');
+    });
+  };
+
+  const patchMeta = (patch: { chapterNo?: string; homileticMethods?: string[]; methodMix?: DidaskaliaMethodMix[]; fundamentalFirman?: { ref?: string; text?: string } }) => {
+    setStudio((s) => {
+      const next = {
+        ...s,
+        ...(patch.chapterNo !== undefined ? { chapterNo: patch.chapterNo } : {}),
+        ...(patch.homileticMethods ? { homileticMethods: patch.homileticMethods } : {}),
+        ...(patch.methodMix ? { methodMix: patch.methodMix } : {}),
+        ...(patch.fundamentalFirman ? { fundamentalFirman: { ...s.fundamentalFirman, ...patch.fundamentalFirman } } : {}),
+      };
+      studioRef.current = next;
+      return next;
+    });
+    scheduleSection('meta', () => ({
+      target: 'sermon',
+      homileticMethods: studioRef.current.homileticMethods,
+      methodMix: studioRef.current.methodMix,
+      chapterNo: studioRef.current.chapterNo,
+      fundamentalFirman: studioRef.current.fundamentalFirman,
+    }));
+  };
+
+  const patchSermon = (recipe: (sermon: DidaskaliaStudio['sermon']) => DidaskaliaStudio['sermon']) => {
+    setStudio((s) => {
+      const sermon = recipe({ ...defaultSermon(), ...s.sermon });
+      const next = { ...s, sermon };
+      studioRef.current = next;
+      return next;
+    });
+  };
 
   const runAi = useCallback(async (kind: 'draft' | 'sermon' | 'enrich') => {
     if (!canWrite) return;
-    await save(); // jangan buang edit terakhir
-    setBusy(kind);
+    await flushSections();
+    const jobId = `ai-${kind}`;
+    startJob(jobId, kind === 'draft' ? 'Susun dari nol' : kind === 'enrich' ? 'Perkaya' : 'Metode & inti pesan');
     setLastAiKind(kind);
     setError(null);
     try {
@@ -367,7 +532,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
       let merged: DidaskaliaStudio = { ...defaultStudio(), ...(d.week?.studio || {}) };
-      setStudio(merged);
+      applyServerStudio(merged);
       // Jaring pengaman: lengkapi Bagian A/B bila draf tidak mengisinya.
       if (kind !== 'sermon') {
         const sm = merged.sermon || defaultSermon();
@@ -383,7 +548,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             const d2 = await readJson(r2);
             if (r2.ok && d2.week?.studio) {
               merged = { ...defaultStudio(), ...d2.week.studio };
-              setStudio(merged);
+              applyServerStudio(merged);
             }
           } catch {
             /* lanjut tanpa extras */
@@ -412,13 +577,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       // Draf/perkaya menyusun alur mengikuti pola aktif — catat baseline-nya.
       if (kind !== 'sermon') writeFlowBaseline(ym, weekIndex, weekMeta?.patternCode || 'MONOLOG');
+      finishJob(jobId, 'ok');
     } catch (e: unknown) {
       setError(friendlyAiError(e));
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
-    } finally {
-      setBusy(null);
+      finishJob(jobId, 'error');
     }
-  }, [addToast, canWrite, comment, save, studio.homileticMethods, studio.discussion, useDiscussionContext, weekIndex, weekMeta, ym]);
+  }, [addToast, applyServerStudio, canWrite, comment, flushSections, studio.homileticMethods, studio.discussion, useDiscussionContext, weekIndex, weekMeta, ym]);
 
   const aiRefine = useCallback(async (fieldLabel: string, current: string, apply: (text: string) => void) => {
     if (!canWrite || !current.trim()) return;
@@ -472,12 +637,11 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     if (!s) return;
     apply(s.text);
     dismissSuggestion(key);
-    addToast({ type: 'success', title: 'Usulan diterapkan — klik Simpan' });
+    addToast({ type: 'success', title: 'Usulan diterapkan' });
   };
   const proposeTranslate = async (target: 'path' | 'sermon', pathIndex?: number) => {
     if (!canWrite) return;
-    const saved = await save(undefined, { silent: true });
-    if (!saved) return;
+    await flushSections();
     const key = target === 'path' ? `path:${pathIndex}` : 'sermon';
     setBusy(`tr-${key}`);
     try {
@@ -508,18 +672,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const savePathTranslation = async (i: number, pathIndex: number) => {
     const draft = enDraft[`path:${pathIndex}`];
     if (!draft) return;
-    const next = ensurePaths(studio).map((row, idx) => (idx === i ? { ...row, titleEn: draft.titleEn, summaryEn: draft.summaryEn } : row));
-    const saved = await save({ paths: next });
-    if (saved) setEnDraft((s) => { const c = { ...s }; delete c[`path:${pathIndex}`]; return c; });
+    setPath(i, { titleEn: draft.titleEn, summaryEn: draft.summaryEn });
+    setEnDraft((s) => { const c = { ...s }; delete c[`path:${pathIndex}`]; return c; });
   };
 
-  const saveSermonTranslation = async () => {
+  const saveSermonTranslation = () => {
     const draft = enDraft.sermon;
     if (!draft) return;
-    const saved = await save({
-      sermon: { ...studio.sermon, bigIdeaEn: draft.bigIdeaEn, summaryEn: draft.summaryEn },
-    });
-    if (saved) setEnDraft((s) => { const c = { ...s }; delete c.sermon; return c; });
+    patchSermon((sermon) => ({ ...sermon, bigIdeaEn: draft.bigIdeaEn, summaryEn: draft.summaryEn }));
+    setEnDraft((s) => { const c = { ...s }; delete c.sermon; return c; });
   };
 
   const suggestionBox = (key: string, apply: (t: string) => void) => {
@@ -553,7 +714,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'Gagal memproses persetujuan.');
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      if (d.week?.studio) applyServerStudio({ ...defaultStudio(), ...d.week.studio });
       await load();
       addToast({ type: 'success', title: action === 'approve' ? 'Regenerate disetujui & diterapkan' : 'Pengajuan ditolak' });
     } catch (e) {
@@ -572,7 +733,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || 'Gagal mengembalikan versi.');
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
+      if (d.week?.studio) applyServerStudio({ ...defaultStudio(), ...d.week.studio });
       await load();
       addToast({ type: 'success', title: 'Dikembalikan ke versi sebelumnya' });
     } catch (e) {
@@ -581,10 +742,13 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   };
 
   const setPath = (i: number, patch: Partial<DidaskaliaPath>) => {
+    const pathIndex = i + 1;
     setStudio((s) => {
-      const next = ensurePaths(s).map((p, idx) => (idx === i ? { ...p, ...patch } : p));
-      return { ...s, paths: next };
+      const next = { ...s, paths: ensurePaths(s).map((p, idx) => (idx === i ? { ...p, ...patch } : p)) };
+      studioRef.current = next;
+      return next;
     });
+    scheduleSection(`path:${pathIndex}`, () => ({ target: 'path', pathIndex, path: ensurePaths(studioRef.current)[i] }));
   };
 
   const uploadImage = async (file: File): Promise<string> => {
@@ -600,15 +764,22 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     return String(d.fileId || '');
   };
 
-  const setRhbSection = (i: number, key: string, patch: Partial<DidaskaliaRhbSection>) =>
+  const setRhbSection = (i: number, key: string, patch: Partial<DidaskaliaRhbSection>) => {
+    const pathIndex = i + 1;
     setStudio((s) => {
-      const next = ensurePaths(s).map((p, idx) =>
-        idx === i
-          ? { ...p, rhbSections: ensureRhbSections(p.rhbSections).map((x) => (x.key === key ? { ...x, ...patch } : x)) }
-          : p
-      );
-      return { ...s, paths: next };
+      const next = {
+        ...s,
+        paths: ensurePaths(s).map((p, idx) =>
+          idx === i
+            ? { ...p, rhbSections: ensureRhbSections(p.rhbSections).map((x) => (x.key === key ? { ...x, ...patch } : x)) }
+            : p
+        ),
+      };
+      studioRef.current = next;
+      return next;
     });
+    scheduleSection(`path:${pathIndex}`, () => ({ target: 'path', pathIndex, path: ensurePaths(studioRef.current)[i] }));
+  };
 
   const refreshFlow = async () => {
     if (!canWrite) return;
@@ -624,7 +795,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal menyegarkan (server ${r.status}).`);
-      if (d.week?.studio) setStudio({ ...defaultStudio(), ...d.week.studio });
+      if (d.week?.studio) applyServerStudio({ ...defaultStudio(), ...d.week.studio });
       writeFlowBaseline(ym, weekIndex, pattern);
       const n = (d.extras?.discussionFlow || []).length;
       addToast({ type: 'success', title: `Bagian A/B disegarkan mengikuti ${pattern}${n ? ` (${n} langkah alur)` : ''}` });
@@ -671,47 +842,12 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     };
     const discussion = [...(studio.discussion || []), entry];
     setComment('');
-    await save({ discussion });
-  };
-
-  /** Unggah berkas .md/.txt dari Diskusi → jadi dokumen Pengetahuan tim (konteks AI). */
-  const discussionFileRef = useRef<HTMLInputElement | null>(null);
-  const uploadDiscussionFile = async (file?: File | null) => {
-    if (!file || !canWrite) return;
-    if (!/\.(md|markdown|txt)$/i.test(file.name)) {
-      addToast({ type: 'error', title: 'Hanya berkas .md atau .txt' });
-      return;
-    }
-    setBusy('discussion-upload');
-    try {
-      const content = await file.text();
-      const title = file.name.replace(/\.(md|markdown|txt)$/i, '').slice(0, 200) || 'Dokumen';
-      const r = await fetch('/api/didaskalia/knowledge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ title, content, category: 'REFERENSI', source: 'DISCUSSION', fileName: file.name }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || 'Gagal mengunggah.');
-      const entry = {
-        id: `c-${Date.now()}`,
-        text: `Berkas ditambahkan ke Pengetahuan tim: ${title} (${file.name})`,
-        at: new Date().toISOString(),
-        resolved: false,
-        userId: authUser?.id || null,
-        userName: currentUser?.name || authUser?.name || null,
-        role: currentRole || null,
-        scope: commentScope,
-      };
-      await save({ discussion: [...(studio.discussion || []), entry] });
-      addToast({ type: 'success', title: `Berkas "${file.name}" masuk Pengetahuan` });
-    } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal mengunggah.' });
-    } finally {
-      setBusy(null);
-      if (discussionFileRef.current) discussionFileRef.current.value = '';
-    }
+    setStudio((s) => {
+      const next = { ...s, discussion };
+      studioRef.current = next;
+      return next;
+    });
+    await enqueueSection({ target: 'discussion', discussion });
   };
 
   const uploadToDrive = async (files: Array<{ filename: string; blob: Blob; pathIndex?: number }>, subfolder: string) => {
@@ -743,7 +879,9 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const uploadCoverFile = async (file: File) => {
     try {
       const fid = await uploadImage(file);
-      await save({ presentation: { ...(studio.presentation || {}), cover: fid, coverStyle: 'UPLOAD' } }, { silent: true });
+      const presentation = { ...(studioRef.current.presentation || {}), cover: fid, coverStyle: 'UPLOAD' as const };
+      setStudio((s) => ({ ...s, presentation }));
+      await enqueueSection({ target: 'presentation', presentation });
       addToast({ type: 'success', title: 'Cover terunggah' });
     } catch (e) {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal unggah cover.' });
@@ -751,12 +889,15 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   };
 
   const clearCover = () => {
-    void save({ presentation: { ...(studio.presentation || {}), cover: '' } }, { silent: true });
+    const presentation = { ...(studioRef.current.presentation || {}), cover: '' };
+    setStudio((s) => ({ ...s, presentation }));
+    void enqueueSection({ target: 'presentation', presentation });
   };
 
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload', studioOverride?: DidaskaliaStudio) => {
     if (!weekMeta) return;
-    const st = studioOverride || studio;
+    await flushSections();
+    const st = studioOverride || studioRef.current;
     if (mode === 'upload' && st.sourceSignoff?.status === 'PENDING') {
       if (!window.confirm('Naskah sumber belum disetujui HOD. Hasil impor tetap bisa diterbitkan. Lanjutkan unggah ke Drive?')) return;
     }
@@ -796,7 +937,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     } finally {
       setBusy(null);
     }
-  }, [addToast, event?.serviceType, load, patterns, studio, weekIndex, weekMeta, ym]);
+  }, [addToast, event?.serviceType, flushSections, load, patterns, weekIndex, weekMeta, ym]);
 
   const generateSchedule = async () => {
     setSchedBusy(true);
@@ -828,48 +969,77 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
-  const toggleMethod = (m: string) => {
-    setStudio((s) => {
-      const cur = s.homileticMethods || [];
-      return { ...s, homileticMethods: cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m] };
-    });
+  const approveSource = async () => {
+    if (!canWrite) return;
+    startJob('source-approve', 'Persetujuan HOD');
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/source-signoff`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || 'Gagal menyetujui naskah.');
+      if (d.week?.studio) applyServerStudio({ ...defaultStudio(), ...d.week.studio });
+      addToast({ type: 'success', title: 'Naskah sumber disetujui' });
+      finishJob('source-approve', 'ok');
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyetujui.' });
+      finishJob('source-approve', 'error');
+    }
   };
 
   const pdfButton = (doc: 'pembekalan' | 'khutbah' | 'rhb', label: string, icon: React.ReactNode) => (
     <div className="flex items-stretch gap-1.5">
-      <button type="button" disabled={!!busy} onClick={() => void generateDoc(doc, 'upload')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0EA5E9] text-white text-xs font-bold disabled:opacity-50">
+      <button type="button" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'upload')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0EA5E9] text-white text-xs font-bold disabled:opacity-50">
         {busy === `pdf-${doc}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}{label}
       </button>
-      <button type="button" title="Unduh saja" disabled={!!busy} onClick={() => void generateDoc(doc, 'download')} className="px-2.5 rounded-xl border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-50"><Download className="w-3.5 h-3.5" /></button>
+      <button type="button" title="Unduh saja" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'download')} className="px-2.5 rounded-xl border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-50"><Download className="w-3.5 h-3.5" /></button>
       {needsRepublish(studio, doc) && <span className="self-center text-[10px] font-bold text-amber-600">belum rilis ulang</span>}
     </div>
   );
 
   const studioTabs: Array<{ id: StudioTab; label: string }> = [
-    { id: 'inti', label: 'Inti' },
-    { id: 'paths', label: '7 Path' },
-    { id: 'khotbah', label: 'Khotbah' },
-    { id: 'gambar', label: 'Gambar' },
+    { id: 'sumber', label: 'Sumber' },
+    { id: 'konten', label: 'Konten' },
     { id: 'diskusi', label: 'Diskusi' },
+    { id: 'gambar', label: 'Gambar' },
     { id: 'terbitkan', label: 'Terbitkan' },
-    { id: 'pengetahuan', label: 'Pengetahuan' },
-    { id: 'jadwal', label: 'Jadwal & Meet' },
   ];
+  const sumberOn = hasSource;
+  const disetujuiOn = studio.sourceSignoff?.status === 'APPROVED' || studio.status === 'APPROVED' || studio.status === 'PUBLISHED';
+  const terbitOn = Boolean(studio.render?.pembekalan || studio.render?.khutbah || studio.render?.rhb);
+  const tabFallback = <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>;
 
   return (
     <div className="space-y-4">
-      {/* Header kontrol */}
       <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <BookOpen className="w-4 h-4 text-[#0EA5E9]" />
           <h3 className="text-sm font-black text-[#1B1B1B]">Studio Didaskalia</h3>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">{statusLabel(studio.status)}</span>
-          <div className="ml-auto flex flex-wrap gap-1.5">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sumberOn ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>Sumber</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${disetujuiOn ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>Disetujui</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${terbitOn ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>Terbit</span>
+          <span className="text-[10px] text-[#8C8880]">{saving ? 'Menyimpan…' : 'Tersimpan'}</span>
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
             {studioTabs.map((s) => (
               <button key={s.id} type="button" onClick={() => setTab(s.id)} className={`text-[11px] px-3 py-1.5 rounded-full font-bold border ${tab === s.id ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white text-[#8C8880] border-[#D9D7D0]'}`}>{s.label}</button>
             ))}
+            <button type="button" onClick={() => { setSettingsOpen(true); setMountedTabs((m) => ({ ...m })); }} title="Pengetahuan dan instruksi AI" className="p-1.5 rounded-full border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B]">
+              <Settings className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
+        {jobs.some((j) => j.status === 'running' || j.status === 'error') && (
+          <div className="flex flex-wrap gap-1.5">
+            {jobs.filter((j) => j.status === 'running' || j.status === 'error').slice(-4).map((j) => (
+              <span key={j.id} className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${j.status === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-sky-50 border-sky-200 text-sky-800'}`}>
+                {j.status === 'running' ? 'Berjalan' : 'Gagal'} · {j.label}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap items-end gap-2">
           {yearMonth ? (
             <div className="text-[11px] text-[#8C8880] inline-flex items-center gap-1">
@@ -900,8 +1070,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </>
           )}
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={() => void save()} disabled={!canWrite || saving} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan
+            <button type="button" onClick={() => void flushSections()} disabled={!canWrite || saving} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan sekarang
             </button>
           </div>
         </div>
@@ -910,8 +1080,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           <div className="flex flex-wrap items-center gap-2">
             <p className="flex-1 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>
             {lastAiKind && canWrite && (
-              <button type="button" onClick={() => void runAi(lastAiKind)} disabled={!!busy} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Coba lagi
+              <button type="button" onClick={() => void runAi(lastAiKind)} disabled={jobs.some((j) => j.id === `ai-${lastAiKind}` && j.status === 'running')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+                <RefreshCw className="w-3.5 h-3.5" /> Coba lagi
               </button>
             )}
           </div>
@@ -922,7 +1092,153 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
         <p className="text-xs text-[#8C8880] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat studio…</p>
       ) : (
         <>
-          {tab === 'inti' && (<>
+          {mountedTabs.sumber && (
+            <div hidden={tab !== 'sumber'} className="space-y-3">
+              <Suspense fallback={tabFallback}>
+                <DidaskaliaSumberTab
+                  canWrite={canWrite}
+                  ym={ym}
+                  weekIndex={weekIndex}
+                  studio={studio}
+                  busy={busy}
+                  setBusy={setBusy}
+                  onScripture={onScripture}
+                  commitSumber={commitSumber}
+                  onStudio={applyServerStudio}
+                  downloadPembekalan={(st) => generateDoc('pembekalan', 'download', st)}
+                  addToast={addToast}
+                />
+              </Suspense>
+              {!hasSource && (
+                <button type="button" disabled={!canWrite || jobs.some((j) => j.id === 'ai-draft' && j.status === 'running')} onClick={() => void runAi('draft')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold text-[#8C8880] disabled:opacity-50">
+                  <Sparkles className="w-3.5 h-3.5" /> Susun dari nol
+                </button>
+              )}
+            </div>
+          )}
+          {mountedTabs.konten && (
+            <div hidden={tab !== 'konten'}>
+              <Suspense fallback={tabFallback}>
+                <DidaskaliaKontenPane
+                  canWrite={canWrite}
+                  busy={busy}
+                  studio={studio}
+                  paths={paths}
+                  ym={ym}
+                  weekIndex={weekIndex}
+                  patternCode={weekMeta?.patternCode || 'MONOLOG'}
+                  serviceType={event?.serviceType}
+                  enDraft={enDraft}
+                  setEnDraft={setEnDraft}
+                  bibleCheck={bibleCheck}
+                  suggest={suggest}
+                  setPath={setPath}
+                  setRhbSection={setRhbSection}
+                  patchSermon={patchSermon}
+                  patchMeta={patchMeta}
+                  onNote={(pathIndex) => { setCommentScope(`PATH:${pathIndex}`); setDiscussFilter('ALL'); setTab('diskusi'); }}
+                  proposeTranslate={proposeTranslate}
+                  savePathTranslation={savePathTranslation}
+                  saveSermonTranslation={saveSermonTranslation}
+                  aiSuggest={aiSuggest}
+                  applySuggestion={applySuggestion}
+                  dismissSuggestion={dismissSuggestion}
+                  verifyBibleVerses={() => { void verifyBibleVerses(); }}
+                  looseSame={looseSame}
+                  refreshFlow={() => { void refreshFlow(); }}
+                  runSermon={() => { void runAi('sermon'); }}
+                  addToast={addToast}
+                />
+              </Suspense>
+            </div>
+          )}
+          {mountedTabs.diskusi && (
+            <div hidden={tab !== 'diskusi'} id="didaskalia-discussion" className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
+              <div className="flex items-center gap-2"><Users className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Diskusi</h4><span className="ml-auto text-[10px] text-[#8C8880]">bagian: <b>{scopeLabel(commentScope)}</b></span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {['ALL', 'GENERAL', 'INTI', 'SERMON'].map((v) => (
+                  <button key={v} type="button" onClick={() => setDiscussFilter(v)} className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${discussFilter === v ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>
+                    {v === 'ALL' ? 'Semua' : scopeLabel(v)}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {(studio.discussion || []).filter((c) => discussFilter === 'ALL' || (c.scope || 'GENERAL') === discussFilter).map((c) => (
+                  <div key={c.id} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
+                    <p className="text-[10px] font-bold text-[#1B1B1B]">
+                      {c.userName || 'Tim'}
+                      {c.role ? <span className="text-[#8C8880] font-normal"> · {c.role}</span> : null}
+                      <span className="ml-2 text-[9px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5">{scopeLabel(c.scope)}</span>
+                    </p>
+                    <p className="text-xs text-[#1B1B1B] whitespace-pre-wrap mt-0.5">{c.text}</p>
+                    <p className="text-[10px] text-[#8C8880] mt-1">{new Date(c.at).toLocaleString('id-ID')}</p>
+                  </div>
+                ))}
+                {(studio.discussion || []).length === 0 && <p className="text-[11px] text-[#8C8880] italic">Belum ada catatan diskusi.</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={commentScope} onChange={(e) => setCommentScope(e.target.value)} className={`${inputCls} w-auto`}>
+                  <option value="GENERAL">Bagian: Umum</option>
+                  <option value="INTI">Bagian: Inti Pesan</option>
+                  <option value="SERMON">Bagian: Ringkasan Khotbah</option>
+                  {paths.map((row) => <option key={row.pathIndex} value={`PATH:${row.pathIndex}`}>Bagian: Path {row.pathIndex} · {row.dayLabel}</option>)}
+                </select>
+                <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Catatan rekan tim…" className={inputCls} />
+                <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#EFEDE8]">
+                <button type="button" disabled={!canWrite || jobs.some((j) => j.id === 'ai-enrich' && j.status === 'running')} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">
+                  <Wand2 className="w-3.5 h-3.5" /> Perkaya
+                </button>
+                <span className="text-[10px] font-bold text-[#8C8880]">Opsional · kapan saja · bukan syarat terbit</span>
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880]">
+                  <input type="checkbox" checked={useDiscussionContext} onChange={(e) => setUseDiscussionContext(e.target.checked)} className="w-3.5 h-3.5 rounded border-[#D9D7D0]" />
+                  Pakai diskusi ini sebagai konteks
+                </label>
+                {(studio.generation || 0) > 0 && (
+                  <span className="text-[10px] font-bold text-[#8C8880]">Generasi ke-{studio.generation}</span>
+                )}
+              </div>
+            </div>
+          )}
+          {mountedTabs.gambar && (
+            <div hidden={tab !== 'gambar'}>
+              <Suspense fallback={tabFallback}>
+                <DidaskaliaGambarTab
+                  canWrite={canWrite}
+                  ym={ym}
+                  weekIndex={weekIndex}
+                  studio={studio}
+                  driveChecked={driveAuth.checked}
+                  driveOk={driveAuth.ok}
+                  onStudio={applyServerStudio}
+                  onDriveFail={() => { setDriveAuth((s) => ({ ...s, checked: true, ok: false })); void checkDriveAuth(); }}
+                  uploadCover={uploadCoverFile}
+                  clearCover={clearCover}
+                  addToast={addToast}
+                />
+              </Suspense>
+            </div>
+          )}
+          {mountedTabs.terbitkan && (
+            <div hidden={tab !== 'terbitkan'} className="space-y-3">
+          <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#0EA5E9]" />
+              <h4 className="text-sm font-black text-[#1B1B1B]">Persetujuan naskah sumber</h4>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${studio.sourceSignoff?.status === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : studio.sourceSignoff?.status === 'PENDING' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>
+                {studio.sourceSignoff?.status === 'APPROVED' ? 'Disetujui' : studio.sourceSignoff?.status === 'PENDING' ? 'Menunggu HOD' : 'Belum diajukan'}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#8C8880]">Persetujuan ini mencatat bahwa HOD sudah meninjau naskah impor. Pekan tetap bisa terbit sebelum disetujui. Perkaya bukan syarat.</p>
+            {studio.sourceSignoff?.status === 'APPROVED' && studio.sourceSignoff?.decidedByName && (
+              <p className="text-[11px] text-emerald-800">Disetujui {studio.sourceSignoff.decidedByName}</p>
+            )}
+            {approval.canApprove && hasSource && studio.sourceSignoff?.status !== 'APPROVED' && (
+              <button type="button" onClick={() => void approveSource()} disabled={jobs.some((j) => j.id === 'source-approve' && j.status === 'running')} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">Setujui HOD</button>
+            )}
+            {!approval.canApprove && <p className="text-[11px] text-[#8C8880]">Hanya kepala divisi Didaskalia atau superadmin yang menyetujui.</p>}
+          </div>
           {/* Persetujuan HOD & riwayat regenerate */}
           {(approval.pending || (approval.history || []).length > 0) && (
             <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
@@ -977,544 +1293,27 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               )}
             </div>
           )}
-
-          {/* Input inti */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelCls}>Chapter</label>
-                <select
-                  value={studio.chapterNo || '0'}
-                  onChange={(e) => setStudio((s) => ({ ...s, chapterNo: e.target.value }))}
-                  className={inputCls}
-                >
-                  {Array.from({ length: 53 }, (_, i) => (
-                    <option key={i} value={String(i)}>Chapter {i}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Fundamental Firman (ayat)</label>
-                <BibleRefPicker
-                  value={studio.fundamentalFirman?.ref || ''}
-                  onChange={(ref) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, ref } }))}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Kitab / Bagian Fokus</label>
-                <BibleRefPicker
-                  value={studio.kitabFokus}
-                  onChange={(ref) => setStudio((s) => ({ ...s, kitabFokus: ref }))}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>Inti Pesan (Big Idea) &amp; Kerangka</label>
-              <textarea
-                value={studio.fundamentalFirman?.text || ''}
-                onChange={(e) => setStudio((s) => ({ ...s, fundamentalFirman: { ...s.fundamentalFirman, text: e.target.value } }))}
-                rows={3}
-                placeholder={'Satu kalimat inti pesan, lalu poin utama.\nMis. Redefining Greatness through Service\n- Apa yang dunia sebut "hebat"?\n- Everlasting Glory\n- Ambassador (Mat 28:18)'}
-                className={inputCls}
-              />
-              <p className="text-[10px] text-[#8C8880] mt-1">
-                Isi: <b>inti pesan</b> (1 kalimat) + kerangka/poin khotbah — bukan teks ayat (teks nats ditulis di tiap Path).
-              </p>
-            </div>
-            <div>
-              <label className={labelCls}>Metode Khotbah (pilih / biarkan AI memilih)</label>
-              <div className="flex flex-wrap gap-1.5">
-                {HOMILETIC_METHODS_DATA.map((m) => {
-                  const on = studio.homileticMethods?.includes(m.name);
-                  return (
-                    <span key={m.name} className="inline-flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleMethod(m.name)}
-                        title={`${m.name} — ${m.short}\n\n${m.description}\n\nAnalogi: ${m.analogy}`}
-                        className={`text-[11px] px-2.5 py-1 rounded-l-full border font-bold ${on ? 'bg-sky-100 border-sky-300 text-sky-800' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
-                      >
-                        {m.name}
-                      </button>
-                      <span
-                        title={`${m.description}\n\nAnalogi: ${m.analogy}`}
-                        className={`inline-flex items-center justify-center w-5 h-[26px] rounded-r-full border border-l-0 ${on ? 'bg-sky-100 border-sky-300 text-sky-700' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
-                      >
-                        <Info className="w-3 h-3" />
-                      </span>
-                    </span>
-                  );
-                })}
-                {(studio.homileticMethods || [])
-                  .filter((m) => !HOMILETIC_METHODS_DATA.some((d) => d.name === m))
-                  .map((m) => (
-                    <button key={m} type="button" onClick={() => toggleMethod(m)} title="Metode lama (tersimpan)" className="text-[11px] px-2.5 py-1 rounded-full border font-bold bg-amber-50 border-amber-300 text-amber-800">{m} ✕</button>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>Analisa Metode (%)</label>
-              <div className="space-y-1.5">
-                {(studio.methodMix || []).map((row, i) => (
-                  <div key={i} className="flex flex-wrap items-center gap-1.5">
-                    <select
-                      value={row.method}
-                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, method: e.target.value } : x) }))}
-                      className={`${inputCls} flex-1 min-w-[150px]`}
-                    >
-                      <option value="">Pilih metode…</option>
-                      {HOMILETIC_METHODS_DATA.map((m) => <option key={m.name} value={m.name}>{m.name}</option>)}
-                    </select>
-                    <input
-                      type="number" min={0} max={100}
-                      value={row.percent}
-                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, percent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } : x) }))}
-                      className={`${inputCls} w-20`}
-                    />
-                    <span className="text-xs font-bold text-[#8C8880]">%</span>
-                    <input
-                      value={row.note || ''}
-                      placeholder="Catatan (opsional)"
-                      onChange={(e) => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).map((x, xi) => xi === i ? { ...x, note: e.target.value } : x) }))}
-                      className={`${inputCls} flex-1 min-w-[150px]`}
-                    />
-                    <button type="button" onClick={() => setStudio((s) => ({ ...s, methodMix: (s.methodMix || []).filter((_, xi) => xi !== i) }))} className="text-[10px] text-red-600 font-bold">Hapus</button>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setStudio((s) => ({ ...s, methodMix: [...(s.methodMix || []), { method: '', percent: 0, note: '' } as DidaskaliaMethodMix] }))} className="text-[11px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah metode</button>
-                  <span className="text-[10px] text-[#8C8880]">Total: {(studio.methodMix || []).reduce((n, r) => n + (Number(r.percent) || 0), 0)}%</span>
-                </div>
-              </div>
-            </div>
-            <DidaskaliaSourceImport
-              canWrite={canWrite}
-              canApprove={approval.canApprove}
-              ym={ym}
-              weekIndex={weekIndex}
-              studio={studio}
-              busy={busy}
-              setBusy={setBusy}
-              save={save}
-              onStudio={setStudio}
-              downloadPembekalan={(st) => generateDoc('pembekalan', 'download', st)}
-              addToast={addToast}
-            />
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex items-center gap-2 text-[11px] font-bold text-[#8C8880]">
                 Pola ibadah pekan ini
-                {(() => {
-                  const eff = effectiveSessionDay(event?.eventDate, weekMeta?.date, ym);
-                  return /^\d{4}-\d{2}-\d{2}$/.test(eff) ? (
-                    <span className="font-normal">({eff.slice(8, 10)}/{eff.slice(5, 7)}) · sama dengan Katalog</span>
-                  ) : null;
-                })()}
                 <select
                   value={weekMeta?.patternCode || 'MONOLOG'}
-                  disabled={!canWrite || !!busy}
+                  disabled={!canWrite}
                   onChange={(e) => void savePattern(e.target.value)}
                   className="rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-xs font-bold text-[#1B1B1B] focus:outline-none focus:border-black disabled:opacity-50"
-                  title="Sama dengan pola di Katalog (tab Pola & Sesi) — berubah di satu tempat, ikut di semua. AI generate berikutnya mengikuti pola ini"
                 >
-                  {[{ code: 'MONOLOG', name: 'Monologue & Dialogue' }, ...patterns.filter((p) => p.code !== 'MONOLOG' && (p as { status?: string }).status !== 'ARCHIVED')].map((p) => (
-                    <option key={p.code} value={p.code}>{p.name}</option>
+                  {[{ code: 'MONOLOG', name: 'Monologue & Dialogue' }, ...patterns.filter((pt) => pt.code !== 'MONOLOG' && (pt as { status?: string }).status !== 'ARCHIVED')].map((pt) => (
+                    <option key={pt.code} value={pt.code}>{pt.name}</option>
                   ))}
-                  {weekMeta?.patternCode && weekMeta.patternCode !== 'MONOLOG' && !patterns.some((p) => p.code === weekMeta.patternCode) && (
+                  {weekMeta?.patternCode && weekMeta.patternCode !== 'MONOLOG' && !patterns.some((pt) => pt.code === weekMeta.patternCode) && (
                     <option value={weekMeta.patternCode}>{weekMeta.patternCode}</option>
                   )}
                 </select>
               </label>
-              <button type="button" onClick={() => onOpenPola?.()} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola →</button>
-              {!hasSource && (
-                <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} title="Hanya bila belum ada naskah sumber. Hasil = pengajuan, menunggu persetujuan HOD." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
-                  {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun dari nol
-                </button>
-              )}
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Opsional, kapan saja. Bukan syarat terbit. Butuh diskusi terisi dan centang konteks.">
-                {busy === 'enrich' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Perkaya dengan diskusi
-              </button>
-              <span className="text-[10px] font-bold text-[#8C8880]">Opsional · kapan saja · bukan syarat terbit</span>
-              {(studio.generation || 0) > 0 && (
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${(studio.generation || 0) > 3 ? 'bg-amber-50 border border-amber-300 text-amber-700' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]'}`}>
-                  Generasi ke-{studio.generation}{(studio.generation || 0) > 3 ? ' — disarankan maks 2-3×' : ''}
-                </span>
-              )}
-              <details className="text-[11px]">
-                <summary className="cursor-pointer font-bold text-[#8C8880]">Lainnya</summary>
-                <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} title="Menyegarkan metode dan inti pesan. Outline dari naskah sumber tetap." className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50">
-                  {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Segarkan metode &amp; inti pesan
-                </button>
-              </details>
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] ml-1">
-                <input
-                  type="checkbox"
-                  checked={useDiscussionContext}
-                  onChange={(e) => setUseDiscussionContext(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-[#D9D7D0]"
-                />
-                Pakai diskusi internal sebagai konteks AI
-              </label>
+              <button type="button" onClick={() => onOpenPola?.()} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola</button>
             </div>
           </div>
-
-          </>)}
-          {tab === 'paths' && (<>
-          {/* Editor 7 Path */}
-          <div className="space-y-2">
-            <div className="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2">
-              <p className="text-[11px] text-sky-900"><b>Kitab / Bagian Fokus statis sepekan{studio.kitabFokus ? `: ${studio.kitabFokus}` : ''}</b> — tampil sama di 7 hari RHB. <b>Bacaan</b> = porsi hari itu dari kitab tersebut; <b>Nats Pembimbing</b> = ayat pengaya yang berbeda tiap hari.</p>
-            </div>
-            <p className="text-[11px] text-[#8C8880] px-1">Gambar harian dibuat di tab Gambar. Nats Pembimbing = ayat pengaya hari itu.</p>
-            {paths.map((p, i) => {
-              const open = expandedPath === p.pathIndex;
-              return (
-                <div key={p.pathIndex} className="bg-white rounded-2xl border border-[#D9D7D0]/60 overflow-hidden">
-                  <button type="button" onClick={() => setExpandedPath(open ? null : p.pathIndex)} className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-[#FAF9F5]">
-                    {open ? <ChevronDown className="w-4 h-4 text-[#8C8880]" /> : <ChevronRight className="w-4 h-4 text-[#8C8880]" />}
-                    <span className="w-6 h-6 rounded-full bg-[#0EA5E9] text-white text-[11px] font-black grid place-items-center">{p.pathIndex}</span>
-                    <span className="text-sm font-bold text-[#1B1B1B] truncate">{p.title}</span>
-                    <span className="ml-auto text-[10px] text-[#8C8880]">{p.dayLabel}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setCommentScope(`PATH:${p.pathIndex}`); setDiscussFilter('ALL'); document.getElementById('didaskalia-discussion')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-                      className="text-[10px] font-bold text-sky-700 border border-sky-200 bg-sky-50 rounded-full px-2 py-0.5"
-                      title="Tulis catatan untuk Path ini"
-                    >
-                      + Catatan
-                    </button>
-                  </button>
-                  {open && (
-                    <div className="px-4 pb-4 space-y-2 border-t border-[#EFEDE8]">
-                      <div className="grid sm:grid-cols-2 gap-2 pt-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className={labelCls}>Judul Path</label>
-                            <button type="button" disabled={!!busy || !canWrite} onClick={() => void proposeTranslate('path', p.pathIndex)} className="text-[10px] font-bold text-sky-700">Terjemahkan ke English</button>
-                          </div>
-                          <input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} />
-                          {enDraft[`path:${p.pathIndex}`] && (
-                            <div className="mt-1 rounded-xl border border-sky-200 bg-sky-50 p-2 space-y-1">
-                              <label className={labelCls}>Usulan judul English</label>
-                              <input value={enDraft[`path:${p.pathIndex}`].titleEn} onChange={(e) => setEnDraft((s) => ({ ...s, [`path:${p.pathIndex}`]: { ...s[`path:${p.pathIndex}`], titleEn: e.target.value } }))} className={inputCls} />
-                              <label className={labelCls}>Usulan ringkasan English</label>
-                              <textarea value={enDraft[`path:${p.pathIndex}`].summaryEn} onChange={(e) => setEnDraft((s) => ({ ...s, [`path:${p.pathIndex}`]: { ...s[`path:${p.pathIndex}`], summaryEn: e.target.value } }))} rows={2} className={inputCls} />
-                              <div className="flex gap-2">
-                                <button type="button" onClick={() => void savePathTranslation(i, p.pathIndex)} className="text-[10px] font-bold text-white bg-sky-600 px-3 py-1 rounded-full">Simpan terjemahan</button>
-                                <button type="button" onClick={() => setEnDraft((s) => { const c = { ...s }; delete c[`path:${p.pathIndex}`]; return c; })} className="text-[10px] font-bold text-[#8C8880]">Batal</button>
-                              </div>
-                            </div>
-                          )}
-                          {(p.titleEn || p.summaryEn) && !enDraft[`path:${p.pathIndex}`] && <p className="text-[10px] text-[#8C8880] mt-1">English: {p.titleEn || '—'}{p.summaryEn ? ` · ${p.summaryEn}` : ''}</p>}
-                        </div>
-                        <div><label className={labelCls}>Ringkasan Hari (1 kalimat)</label><input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} /></div>
-                        <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} placeholder={studio.kitabFokus ? `Porsi hari ini dari ${studio.kitabFokus}` : 'Porsi hari ini dari Kitab Fokus'} className={inputCls} /></div>
-                        <div><label className={labelCls}>Nats Pembimbing</label><input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} /></div>
-                      </div>
-                      {!bacaanMatchesKitab(p.bacaanRef || '', studio.kitabFokus || '') && (
-                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">⚠️ Bacaan ini tampak di luar Kitab Fokus statis ({studio.kitabFokus || '—'}). Pastikan porsi harian diambil dari kitab tersebut.</p>
-                      )}
-                      <div><label className={labelCls}>Teks Nats Pembimbing</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
-                      <div className="grid sm:grid-cols-2 gap-2">
-                        <div><label className={labelCls}>Pertanyaan Pembuka</label><textarea value={p.hookQuestion} onChange={(e) => setPath(i, { hookQuestion: e.target.value })} rows={2} className={inputCls} /></div>
-                        <div><label className={labelCls}>Ilustrasi</label><textarea value={p.illustration} onChange={(e) => setPath(i, { illustration: e.target.value })} rows={2} className={inputCls} /></div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className={labelCls}>Perenungan</label>
-                          <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
-                        </div>
-                        <textarea value={p.reflection} onChange={(e) => setPath(i, { reflection: e.target.value })} rows={4} className={inputCls} />
-                        {suggestionBox(`path:${i}:reflection`, (t) => setPath(i, { reflection: t }))}
-                      </div>
-                      <div className="grid sm:grid-cols-3 gap-2">
-                        <div><label className={labelCls}>Amati</label><input value={p.observeQ} onChange={(e) => setPath(i, { observeQ: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Pahami</label><input value={p.interpretQ} onChange={(e) => setPath(i, { interpretQ: e.target.value })} className={inputCls} /></div>
-                        <div><label className={labelCls}>Terapkan</label><input value={p.applyQ} onChange={(e) => setPath(i, { applyQ: e.target.value })} className={inputCls} /></div>
-                      </div>
-                      <div><label className={labelCls}>Pertanyaan FGD (pisahkan dengan enter)</label><textarea value={(p.fgdQuestions || []).join('\n')} onChange={(e) => setPath(i, { fgdQuestions: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} rows={3} className={inputCls} /></div>
-                      <div><label className={labelCls}>Jembatan ke Path Berikutnya</label><textarea value={p.bridge} onChange={(e) => setPath(i, { bridge: e.target.value })} rows={2} className={inputCls} /></div>
-
-                      {/* RHB harian: 5 section + gambar opsional per section */}
-                      <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-3.5 h-3.5 text-sky-700" />
-                          <p className="text-[11px] font-black text-sky-800">RHB Harian — 5 Section</p>
-                          <span className="ml-auto text-[10px] text-[#8C8880]">visual: 1 gambar AI harian</span>
-                        </div>
-                        {ensureRhbSections(p.rhbSections).map((sec) => (
-                          <div key={sec.key} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
-                            <p className="text-[11px] font-bold text-[#1B1B1B]">{sec.title}</p>
-                            <textarea
-                              value={sec.body}
-                              onChange={(e) => setRhbSection(i, sec.key, { body: e.target.value })}
-                              rows={3}
-                              placeholder="Isi section… (pisahkan baris kosong untuk paragraf baru)"
-                              className={inputCls}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          </>)}
-          {tab === 'khotbah' && (<>
-          {/* Ringkasan Khotbah + slide */}
-          <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Presentation className="w-4 h-4 text-brand" />
-              <h4 className="text-sm font-black text-[#1B1B1B]">Ringkasan Khotbah & Kerangka Slide</h4>
-            </div>
-            <div><label className={labelCls}>Metode</label><input value={(studio.sermon?.methods || []).join(', ')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, methods: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } }))} className={inputCls} /></div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={labelCls}>Inti Pesan (Big Idea) — 1 kalimat</label>
-                <button type="button" disabled={!!busy || !canWrite} onClick={() => void proposeTranslate('sermon')} className="text-[10px] font-bold text-sky-700">Terjemahkan ke English</button>
-              </div>
-              <input value={studio.sermon?.bigIdea || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, bigIdea: e.target.value } }))} placeholder="Satu kalimat inti pesan pekan ini" className={inputCls} />
-              {enDraft.sermon && (
-                <div className="mt-1 rounded-xl border border-sky-200 bg-sky-50 p-2 space-y-1">
-                  <label className={labelCls}>Usulan inti pesan English</label>
-                  <input value={enDraft.sermon.bigIdeaEn} onChange={(e) => setEnDraft((s) => ({ ...s, sermon: { ...s.sermon, bigIdeaEn: e.target.value } }))} className={inputCls} />
-                  <label className={labelCls}>Usulan ringkasan English</label>
-                  <textarea value={enDraft.sermon.summaryEn} onChange={(e) => setEnDraft((s) => ({ ...s, sermon: { ...s.sermon, summaryEn: e.target.value } }))} rows={3} className={inputCls} />
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => void saveSermonTranslation()} className="text-[10px] font-bold text-white bg-sky-600 px-3 py-1 rounded-full">Simpan terjemahan</button>
-                    <button type="button" onClick={() => setEnDraft((s) => { const c = { ...s }; delete c.sermon; return c; })} className="text-[10px] font-bold text-[#8C8880]">Batal</button>
-                  </div>
-                </div>
-              )}
-              {(studio.sermon?.bigIdeaEn || studio.sermon?.summaryEn) && !enDraft.sermon && <p className="text-[10px] text-[#8C8880] mt-1">English tersimpan di samping naskah Indonesia.</p>}
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div><label className={labelCls}>Teks Utama Sermon (ref)</label><input value={studio.sermon?.teksUtama?.ref || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), ref: e.target.value } } }))} placeholder="mis. 2 Korintus 5:21" className={inputCls} /></div>
-              <div><label className={labelCls}>Kutipan singkat Teks Utama</label><input value={studio.sermon?.teksUtama?.text || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), text: e.target.value } } }))} placeholder="Kutipan maks 180 karakter" className={inputCls} /></div>
-            </div>
-            {/* Verifikasi ayat via bolls.life — TB kanonis, KJV/ESV pembanding; koreksi manual */}
-            <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-sky-700" />
-                <p className="text-[11px] font-black text-sky-800">Verifikasi Alkitab · TB + KJV + ESV</p>
-                <button
-                  type="button"
-                  disabled={!canWrite || bibleCheck?.loading}
-                  onClick={() => void verifyBibleVerses()}
-                  className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[10px] font-bold disabled:opacity-50"
-                >
-                  {bibleCheck?.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />} Verifikasi ayat
-                </button>
-              </div>
-              <p className="text-[10px] text-[#8C8880]">Sumber: bolls.life (tanpa key). NIV tidak tersedia (dibatasi penerbit). Hasil hanya peringatan — tempel manual bila perlu.</p>
-              {bibleCheck?.error && <p className="text-[11px] text-red-600">{bibleCheck.error}</p>}
-              {(bibleCheck?.checks || []).map((c, ci) => {
-                const normRef = (s?: string) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-                const want = [
-                  { ref: String(studio.sermon?.teksUtama?.ref || ''), text: studio.sermon?.teksUtama?.text || '' },
-                  { ref: String(studio.fundamentalFirman?.ref || ''), text: studio.fundamentalFirman?.text || '' },
-                ];
-                const dbText = (want.find((w) => w.ref && normRef(w.ref) === normRef(c.ref))?.text) ?? '';
-                const tb = (c.results || []).find((x) => x.version === 'TB' && !x.error);
-                const same = tb && !tb.ablated ? looseSame(tb.text, dbText) : null;
-                return (
-                  <div key={`${c.ref}-${ci}`} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
-                    <p className="text-[11px] font-bold text-[#1B1B1B]">{c.ref || '(ref kosong)'}
-                      {same === true && <span className="ml-2 text-[10px] font-bold text-emerald-700">✅ Sesuai TB</span>}
-                      {same === false && <span className="ml-2 text-[10px] font-bold text-amber-700">⚠️ Beda dari TB — salin &amp; tempel manual</span>}
-                    </p>
-                    {!c.parsed && <p className="text-[10px] text-red-600">Referensi tidak dikenali.</p>}
-                    {tb?.ablated && <p className="text-[10px] text-red-600">Teks ditarik penerbit di bolls.life.</p>}
-                    {tb?.text && !tb.ablated && (
-                      <div className="flex items-start gap-2">
-                        <p className="flex-1 text-[11px] text-[#1B1B1B]">TB: “{tb.text}”</p>
-                        <button
-                          type="button"
-                          onClick={() => { void copyText(tb.text || '').then((ok) => addToast(ok ? { type: 'success', title: 'Kutipan TB disalin — tempel manual ke kolom teks.' } : { type: 'error', title: 'Gagal menyalin.' })); }}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold text-sky-700"
-                        >
-                          <Copy className="w-3 h-3" /> Salin
-                        </button>
-                      </div>
-                    )}
-                    {tb?.error && <p className="text-[10px] text-red-600">{tb.error}</p>}
-                    <details className="text-[10px] text-[#8C8880]">
-                      <summary className="cursor-pointer font-bold">Pembanding Inggris (KJV · ESV)</summary>
-                      {(c.results || []).filter((x) => x.version !== 'TB').map((x, xi) => (
-                        <p key={xi} className="mt-1"><b>{x.version}:</b> {x.error ? <span className="text-red-600">{x.error}</span> : `“${x.text}”`}</p>
-                      ))}
-                    </details>
-                  </div>
-                );
-              })}
-            </div>
-            {(Object.entries({ pengantar: 'Outline · 1 Pengantar', bedahTeologis: 'Outline · 2 Bedah Teologis', jembatan: 'Outline · 3 Jembatan', kesimpulan: 'Outline · 4 Kesimpulan (siap-baca)' }) as Array<[keyof NonNullable<DidaskaliaStudio['sermon']['outline']>, string]>).map(([key, label]) => (
-              <div key={key}><label className={labelCls}>{label}</label><textarea value={studio.sermon?.outline?.[key] || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, outline: { pengantar: '', bedahTeologis: '', jembatan: '', kesimpulan: '', ...(s.sermon?.outline || {}), [key]: e.target.value } } }))} rows={key === 'kesimpulan' ? 3 : 4} className={inputCls} /></div>
-            ))}
-            <div><label className={labelCls}>Alasan Pemilihan Metode</label><textarea value={studio.sermon?.rationale || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, rationale: e.target.value } }))} rows={2} className={inputCls} /></div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={labelCls}>Ringkasan</label>
-                <button type="button" disabled={!!busy} onClick={() => void aiSuggest('sermon:summary', 'Ringkasan Khotbah', studio.sermon?.summary || '', 'SERMON')} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
-              </div>
-              <textarea value={studio.sermon?.summary || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: e.target.value } }))} rows={5} className={inputCls} />
-              {suggestionBox('sermon:summary', (t) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: t } })))}
-            </div>
-
-            {/* Bagian A — untuk pengkhotbah/deliverer */}
-            <div className="rounded-xl bg-[#FFF7F9] border border-rose-100 p-3 space-y-2">
-              <p className="text-[11px] font-black text-rose-800">
-                Bagian A · Untuk {delivererLabel(event?.serviceType)}
-              </p>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className={labelCls}>Panduan Deliver per Metode</label>
-                  <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: [...(s.sermon?.deliveryPlan || []), { method: '', how: '' }] } }))} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
-                </div>
-                <div className="space-y-1.5">
-                  {(studio.sermon?.deliveryPlan || []).map((row, di) => (
-                    <div key={di} className="flex flex-wrap items-center gap-1.5">
-                      <input
-                        value={row.method}
-                        onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).map((x, xi) => xi === di ? { ...x, method: e.target.value } : x) } }))}
-                        placeholder="Metode"
-                        className={`${inputCls} w-40`}
-                      />
-                      <input
-                        value={row.how}
-                        onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).map((x, xi) => xi === di ? { ...x, how: e.target.value } : x) } }))}
-                        placeholder="Bagaimana menyampaikannya secara praktis…"
-                        className={`${inputCls} flex-1 min-w-[180px]`}
-                      />
-                      <button type="button" onClick={() => setStudio((s) => ({ ...s, sermon: { ...s.sermon, deliveryPlan: (s.sermon?.deliveryPlan || []).filter((_, xi) => xi !== di) } }))} className="text-[10px] text-red-600 font-bold">Hapus</button>
-                    </div>
-                  ))}
-                  {(studio.sermon?.deliveryPlan || []).length === 0 && <p className="text-[10px] text-[#8C8880] italic">Belum ada. AI akan mengisi saat draf dibuat.</p>}
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Checklist Persiapan Khotbah (pisahkan dengan enter)</label>
-                <textarea value={(studio.sermon?.prepChecklist || []).join('\n')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, prepChecklist: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } }))} rows={3} className={inputCls} />
-              </div>
-            </div>
-
-            {/* Bagian B — untuk mentor & co-mentor */}
-            <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="text-[11px] font-black text-sky-800">Bagian B · Untuk Mentor &amp; Co-Mentor</p>
-                <button
-                  type="button"
-                  disabled={!canWrite || !!busy}
-                  onClick={() => void refreshFlow()}
-                  title="Susun ulang panduan deliver, checklist & alur mengikuti pola ibadah aktif (menimpa isi sekarang)"
-                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
-                >
-                  {busy === 'extras-refresh' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Segarkan Bagian A/B
-                </button>
-              </div>
-              {isFlowStale(readFlowBaseline(ym, weekIndex), weekMeta?.patternCode, (studio.sermon?.discussionFlow || []).length) && (
-                <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">
-                  Pola ibadah pekan ini <b>{weekMeta?.patternCode || 'MONOLOG'}</b>, tetapi alur di bawah masih versi pola lama.
-                  Klik <b>Segarkan Bagian A/B</b> untuk menyusun ulang — atau sunting manual.
-                </p>
-              )}
-              <div>
-                <label className={labelCls}>Alur FGD Hari Minggu (kontekstual tema; pisahkan dengan enter)</label>
-                <textarea value={(studio.sermon?.discussionFlow || []).join('\n')} onChange={(e) => { setStudio((s) => ({ ...s, sermon: { ...s.sermon, discussionFlow: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) } })); writeFlowBaseline(ym, weekIndex, weekMeta?.patternCode || 'MONOLOG'); }} rows={4} className={inputCls} />
-              </div>
-              <p className="text-[10px] text-[#8C8880]">Gambaran 7 hari diambil dari ringkasan tiap Path di atas.</p>
-            </div>
-
-            <p className="text-[11px] text-[#8C8880]">Gambar bagian khotbah dibuat di tab Gambar (bersama cover dan 7 hari RHB).</p>
-          </div>
-
-          </>)}
-          {tab === 'gambar' && (
-            <DidaskaliaGambarPanel
-              canWrite={canWrite}
-              ym={ym}
-              weekIndex={weekIndex}
-              studio={studio}
-              driveChecked={driveAuth.checked}
-              driveOk={driveAuth.ok}
-              onStudio={setStudio}
-              onDriveFail={() => { setDriveAuth((s) => ({ ...s, checked: true, ok: false })); void checkDriveAuth(); }}
-              uploadCover={uploadCoverFile}
-              clearCover={clearCover}
-              addToast={addToast}
-            />
-          )}
-          {tab === 'diskusi' && (<>
-          {/* Diskusi */}
-          <div id="didaskalia-discussion" className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
-            <div className="flex items-center gap-2"><Users className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Diskusi Internal</h4><span className="ml-auto text-[10px] text-[#8C8880]">bagian terpilih: <b>{scopeLabel(commentScope)}</b></span></div>
-                        <div className="flex flex-wrap gap-1.5">
-              {['ALL', 'GENERAL', 'INTI', 'SERMON'].map((v) => (
-                <button key={v} type="button" onClick={() => setDiscussFilter(v)} className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${discussFilter === v ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}>
-                  {v === 'ALL' ? 'Semua' : scopeLabel(v)}
-                </button>
-              ))}
-              {(studio.discussion || []).some((c) => (c.scope || '').startsWith('PATH:')) && (
-                <select value={discussFilter} onChange={(e) => setDiscussFilter(e.target.value)} className="text-[10px] px-2 py-1 rounded-full border border-[#D9D7D0]">
-                  <option value="ALL">Semua bagian…</option>
-                  {Array.from(new Set<string>((studio.discussion || []).map((c) => String(c.scope || 'GENERAL')))).map((sc) => (
-                    <option key={sc} value={sc}>{scopeLabel(String(sc))}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="space-y-2">
-              {(studio.discussion || [])
-                .filter((c) => discussFilter === 'ALL' || (c.scope || 'GENERAL') === discussFilter)
-                .map((c) => (
-                <div key={c.id} className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
-                  <p className="text-[10px] font-bold text-[#1B1B1B]">
-                    {c.userName || 'Tim'}
-                    {c.role ? <span className="text-[#8C8880] font-normal"> · {c.role}</span> : null}
-                    <span className="ml-2 text-[9px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5">{scopeLabel(c.scope)}</span>
-                  </p>
-                  <p className="text-xs text-[#1B1B1B] whitespace-pre-wrap mt-0.5">{c.text}</p>
-                  <p className="text-[10px] text-[#8C8880] mt-1">{new Date(c.at).toLocaleString('id-ID')}</p>
-                </div>
-              ))}
-              {(studio.discussion || []).length === 0 && <p className="text-[11px] text-[#8C8880] italic">Belum ada catatan diskusi.</p>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={commentScope} onChange={(e) => setCommentScope(e.target.value)} className={`${inputCls} w-auto`}>
-                <option value="GENERAL">Bagian: Umum</option>
-                <option value="INTI">Bagian: Inti Pesan</option>
-                <option value="SERMON">Bagian: Ringkasan Khotbah</option>
-                {paths.map((p) => <option key={p.pathIndex} value={`PATH:${p.pathIndex}`}>Bagian: Path {p.pathIndex} · {p.dayLabel}</option>)}
-              </select>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Tulis catatan/usulan untuk tim…" className={inputCls} />
-              <button
-                type="button"
-                onClick={() => setComment('Kembangkan tiap section RHB dari pengetahuan tim + ilustrasi kuliah/kerja/kos yang konkret: tiap body minimal 400 karakter; MAKNA & Implikasi wajib naskah siap-baca direct-speech yang hangat; jangan mengosongkan field apa pun.')}
-                disabled={!canWrite}
-                title="Isi kotak dengan template instruksi pengayaan"
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold disabled:opacity-50"
-              >
-                <Wand2 className="w-3.5 h-3.5" /> Isi contoh catatan
-              </button>
-              <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
-              <button
-                type="button"
-                onClick={() => discussionFileRef.current?.click()}
-                disabled={!canWrite || busy === 'discussion-upload'}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50"
-                title="Unggah .md/.txt sebagai pengetahuan tim untuk AI"
-              >
-                {busy === 'discussion-upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Unggah ke Pengetahuan
-              </button>
-              <input ref={discussionFileRef} type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="hidden" onChange={(e) => void uploadDiscussionFile(e.target.files?.[0])} />
-            </div>
-          </div>
-
-          </>)}
-          {tab === 'terbitkan' && (<>
           {/* Generate PDF */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-[#0EA5E9]" /><h4 className="text-sm font-black text-[#1B1B1B]">Terbitkan Dokumen</h4></div>
@@ -1531,7 +1330,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               </p>
             ))}
           </div>
-
           {/* Presentasi Web + Caption */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -1576,12 +1374,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               ))}
             </div>
           </div>
-          </>)}
-          {tab === 'pengetahuan' && (<>
-          <DidaskaliaKnowledgePanel canWrite={canWrite} />
-          </>)}
-
-          {tab === 'jadwal' && (<>
           {/* Jadwal */}
           <div className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -1638,10 +1430,24 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             </div>
             <button type="button" disabled={!canWrite || schedBusy} onClick={() => void saveLinks()} className="px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">Simpan link</button>
           </div>
-          </>)}
+            </div>
+          )}
         </>
+      )}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 overflow-y-auto" onClick={() => setSettingsOpen(false)}>
+          <div className="max-w-3xl mx-auto bg-[#FAF9F5] rounded-2xl p-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2">
+              <Settings className="w-4 h-4 text-[#8C8880]" />
+              <h4 className="text-sm font-black text-[#1B1B1B]">Pengetahuan &amp; instruksi AI</h4>
+              <button type="button" onClick={() => setSettingsOpen(false)} className="ml-auto text-xs font-bold text-[#8C8880]">Tutup</button>
+            </div>
+            <Suspense fallback={tabFallback}>
+              <DidaskaliaSettingsTab canWrite={canWrite} />
+            </Suspense>
+          </div>
+        </div>
       )}
     </div>
   );
 };
-

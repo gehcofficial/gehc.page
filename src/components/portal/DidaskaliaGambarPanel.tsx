@@ -152,7 +152,7 @@ export const DidaskaliaGambarPanel: React.FC<{
       <div className="flex flex-wrap items-center gap-2">
         <ImagePlus className="w-4 h-4 text-[#0EA5E9]" />
         <h4 className="text-sm font-black text-[#1B1B1B]">Gambar</h4>
-        <span className="text-[10px] font-bold text-[#8C8880]">{filled}/12 slot · kuota pekan 12</span>
+        <span className="text-[10px] font-bold text-[#8C8880]">{filled}/12 slot · sisa kuota {Math.max(0, 12 - filled)}</span>
       </div>
       <p className="text-[11px] text-[#8C8880]">Satu tindakan membuat 1 cover, 4 gambar bagian khotbah, dan 7 gambar hari RHB. Gambar yang sudah ada bisa dilewati. Satu baris tetap bisa dibuat ulang.</p>
       {driveChecked && !driveOk && (
@@ -189,6 +189,13 @@ export const DidaskaliaGambarPanel: React.FC<{
       <button type="button" disabled={!canWrite || !!running} onClick={() => void runAll()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
         {running === 'all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Buat semua gambar
       </button>
+      {filled > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {slots.filter((s) => s.fileId).map((s) => (
+            <img key={s.id} src={`/api/didaskalia/asset/${encodeURIComponent(s.fileId)}`} alt={s.label} title={s.label} className="w-14 h-14 rounded-lg object-cover border border-[#EFEDE8] shrink-0" />
+          ))}
+        </div>
+      )}
       <div className="space-y-1.5">
         {slots.map((slot) => (
           <div key={slot.id} className="flex items-center gap-2 rounded-xl border border-[#EFEDE8] px-2 py-1.5">
