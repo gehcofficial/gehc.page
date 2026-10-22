@@ -242,6 +242,8 @@ export const CREATIVE_LAB_GROUP_NAMES = [
 ];
 
 export const LAB_MAX_TEAMS = CREATIVE_LAB_GROUP_NAMES.length;
+/** Pelukis per stasiun. Sama dengan LAB_PHOTO_LIMIT POT/BAG (bukan 4). */
+export const LAB_STATION_CAP = 2;
 export const LAB_ROSTER_MAX = 8;
 /** Indeks presentasi terakhir (0 … 9). */
 export const LAB_PRESENT_INDEX_MAX = LAB_MAX_TEAMS - 1;
@@ -322,8 +324,8 @@ export function cleanTeams(raw, opts = {}) {
     done: Boolean(t?.done),
     scribe: str(t?.scribe, 80),
     station: str(t?.station, 80),
-    pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
-    bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+    pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
+    bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
     repUserId: str(t?.repUserId, 64),
     repName: str(t?.repName, 80),
     memberUserIds: [...new Set((Array.isArray(t?.memberUserIds) ? t.memberUserIds : [])
@@ -418,8 +420,8 @@ export function creativeLabFromDraft(storedDraft) {
       done: false,
       scribe: legacyScribe,
       station: str(groups[`group-${n}-station`], 80) || `Meja ${n}`,
-      pot: splitNames(groups[`group-${n}-pot`], 6),
-      bag: splitNames(groups[`group-${n}-bag`], 6),
+      pot: splitNames(groups[`group-${n}-pot`], LAB_STATION_CAP),
+      bag: splitNames(groups[`group-${n}-bag`], LAB_STATION_CAP),
       // Perwakilan group: field baru `group-n-rep`; fallback juru digital lama.
       repName: str(groups[`group-${n}-rep`], 80) || legacyScribe,
       repUserId: '',
@@ -522,7 +524,7 @@ export function buildCreativeLabTeams(dbGroups, opts = {}) {
     const keepList = (list) => (Array.isArray(list) ? list : [])
       .map((n) => String(n || '').trim())
       .filter((n) => n && names.has(n.toLowerCase()))
-      .slice(0, 4);
+      .slice(0, LAB_STATION_CAP);
     const repId = String(ex.repUserId || '');
     const repOk = Boolean(repId) && ids.has(repId);
     const person = repOk ? base._people.find((p) => p.id === repId) : null;
@@ -571,8 +573,8 @@ export function buildCreativeLabTeams(dbGroups, opts = {}) {
           done: Boolean(ex.done),
           scribe: str(ex.scribe, 80),
           station: str(ex.station, 80),
-          pot: (Array.isArray(ex.pot) ? ex.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
-          bag: (Array.isArray(ex.bag) ? ex.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+          pot: (Array.isArray(ex.pot) ? ex.pot : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
+          bag: (Array.isArray(ex.bag) ? ex.bag : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
           repUserId: str(ex.repUserId, 64),
           repName: str(ex.repName, 80),
           memberUserIds: [...new Set((Array.isArray(ex.memberUserIds) ? ex.memberUserIds : []).map((m) => str(m, 64)).filter(Boolean))].slice(0, 20),

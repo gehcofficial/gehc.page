@@ -38,6 +38,7 @@ import {
   newResetToken,
 } from './auth.mjs';
 import { requireDivision } from './lib/division-access.mjs';
+import { normalizeCreativeLabPhases } from './lib/creative-lab-rundown.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
 import { resolveHostContext, hostFromReq, isStagingProtectedHost, defaultHostContext } from './lib/host-context.mjs';
 import { withTenant, tenantWhere, tenantForWrite, activeTenantId, canAccessTenant, isJemaatScope } from './lib/tenant-scope.mjs';
@@ -9405,7 +9406,7 @@ app.get('/api/events/:id/worship', requireRole(), wrap(async (req, res) => {
       sessionDate: session.sessionDate,
       patternCode: session.pattern?.code || null,
       patternName: session.pattern?.name || null,
-      phases: Array.isArray(session.pattern?.phases) ? session.pattern.phases : [],
+      phases: normalizeCreativeLabPhases(session.pattern?.phases, session.pattern?.code),
     },
   });
 }));

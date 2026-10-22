@@ -362,14 +362,23 @@ export function isMentoringHash(hash: string): boolean {
   return h === '#/mentoring' || h.startsWith('#/mentoring/') || h.startsWith('#/mentoring?');
 }
 
+function decodeHashSeg(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function parseMentoringHash(hash: string): MentoringRoute | null {
   const raw = String(hash || '')
     .replace(/^#\/?/, '')
     .split('?')[0];
   const seg = raw.split('/').filter(Boolean);
   if (seg[0] !== 'mentoring') return null;
-  const view: MentoringView = seg[2] === 'layar' ? 'layar' : seg[2] === 'kontrol' ? 'kontrol' : 'peserta';
-  return { slug: seg[1] || '', view };
+  const tail = String(seg[2] || '').toLowerCase();
+  const view: MentoringView = tail === 'layar' ? 'layar' : tail === 'kontrol' ? 'kontrol' : 'peserta';
+  return { slug: decodeHashSeg(seg[1] || ''), view };
 }
 
 export function mentoringCodeKey(slug: string): string {
@@ -384,6 +393,12 @@ export function codeFromMentoringHash(hash: string): string {
 }
 
 export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama'] as const;
+
+/** Kuota foto Creative Lab. Sama dengan server `LAB_PHOTO_LIMIT`. */
+export const LAB_PHOTO_CAP = { POT: 2, BAG: 2, GROUP: 1 } as const;
+
+/** Centang pelukis di kartu kelompok — ditampilkan sama dengan kuota foto stasiun. */
+export const LAB_STATION_CAP = LAB_PHOTO_CAP.POT;
 
 /**
  * Berikutnya/Sebelumnya di kontrol presentasi.
