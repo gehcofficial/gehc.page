@@ -255,7 +255,7 @@ const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
     hint: 'Inti khotbah 8-10 menit + aturan main 5-7 menit. Peserta sudah duduk per kelompok sejak awal.',
     fields: [
       t('brief-core', 'Inti khotbah (8-10 menit)', 'textarea', 'Firman pekan ... → tema ... → panggilan ...'),
-      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '5-8 orang/kelompok; semua menulis 6 kartu, pilih 2 untuk web; perwakilan melapor ke Admin; Tim Pot ∥ Tim Tas; presentasi 2 menit.'),
+      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '10 kelompok Beyonders, 5-8 orang; semua menulis 6 kartu, pilih 2 untuk web; perwakilan melapor ke Admin; Tim Pot ∥ Tim Tas melukis; presentasi 2 menit × 10 kelompok.'),
       t('jar-intro', 'Pengantar The Roots Reminder Jar', 'textarea', 'Jar berisi pesan semua anggota; dibawa pulang & dibuka saat butuh penguatan.'),
     ],
   },
@@ -288,13 +288,13 @@ const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
   {
     key: 'activity-2',
     title: 'Activity 2 — Roots & DNA Creative Lab (25 menit, Pot ∥ Tas)',
-    hint: 'Satu kelompok 5-8 orang dibagi 2 sub-tim paralel: Tim Pot (2-4) dan Tim Tas (2-4). Perwakilan kelompok melapor ke Admin dan mengunggah foto karya.',
+    hint: 'Satu kelompok 5-8 orang dibagi 2 sub-tim paralel: Tim Pot (2-4) dan Tim Tas (2-4) melukis di meja yang sama. Perwakilan kelompok melapor ke Admin dan mengunggah foto karya.',
     fields: [
       t('a2-title', 'Nama aktivitas', 'text', 'Roots & DNA Creative Lab'),
       t('a2-goal', 'Tujuan', 'textarea', 'Menerjemahkan nilai Injil menjadi karya yang bisa dilihat & disentuh ...'),
       t('a2-tools', 'Alat & bahan', 'textarea', 'Pot tanah/plastik, tas kanvas, cat akrilik, kuas, palet, koran/celemek, tempat jemur.'),
-      t('a2-pot', 'Arahan Pot — Grow What You Believe', 'textarea', 'Gambarkan apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh.'),
-      t('a2-bag', 'Arahan Tas — Carry The Gospel', 'textarea', 'Gambarkan nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
+      t('a2-pot', 'Arahan Pot — Grow What You Believe', 'textarea', 'Lukis apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh.'),
+      t('a2-bag', 'Arahan Tas — Carry The Gospel', 'textarea', 'Lukis nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
       t('a2-pot-meaning', 'Makna Pot — Grow What You Believe', 'textarea', 'Apa yang kita percayai seharusnya bertumbuh dan terlihat dalam hidup kita. Pot melambangkan tempat benih iman bertumbuh. Peserta dapat melukis simbol akar, tunas, atau buah sebagai gambaran iman yang dirawat melalui tindakan nyata.'),
       t('a2-bag-meaning', 'Makna Tas — Carry The Gospel', 'textarea', 'Membawa Injil ke mana pun kita pergi. Tas kanvas menjadi simbol kehidupan pemuda perantauan. Di mana pun mereka tinggal, bekerja, belajar, dan bergaul, mereka tetap dapat membawa nilai kasih, kerendahan hati, pelayanan, dan persatuan dalam Kristus.'),
       t('a2-report', 'Arahan melapor ke Admin', 'text', 'Perwakilan setiap kelompok maju melapor kepada Admin.'),
@@ -303,23 +303,11 @@ const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
     ],
   },
   {
-    key: 'groups',
-    title: 'Kelompok (5-8 orang) & pembagian peran',
-    hint: 'Isi 5 kelompok (maks 8). Anggota dipisah koma. Perwakilan melapor ke Admin & mengunggah foto. Tim Pot & Tim Tas bekerja paralel. Nama kosong dilewati.',
-    fields: Array.from({ length: 5 }, (_, i) => i + 1).flatMap((n) => [
-      t(`group-${n}-name`, `Kelompok ${n} — nama`, 'text', `Kelompok ${n}`),
-      t(`group-${n}-members`, `Kelompok ${n} — anggota`, 'text', 'Nama1, Nama2, Nama3, Nama4, Nama5'),
-      t(`group-${n}-rep`, `Kelompok ${n} — perwakilan`, 'text', 'Nama perwakilan (melapor ke Admin)'),
-      t(`group-${n}-pot`, `Kelompok ${n} — Tim Pot`, 'text', 'Nama1, Nama2'),
-      t(`group-${n}-bag`, `Kelompok ${n} — Tim Tas`, 'text', 'Nama3, Nama4'),
-    ]),
-  },
-  {
     key: 'present',
     title: 'Presentasi hasil (2 menit/kelompok)',
-    hint: 'Urutan kelompok + 2 pertanyaan apresiasi. Total 10 menit untuk 5 kelompok.',
+    hint: '10 kelompok × 2 menit = 20 menit. Urutan diundi di kontrol. Dua pertanyaan apresiasi.',
     fields: [
-      t('present-order', 'Urutan presentasi & aturan', 'textarea', 'Kelompok 1 → 2 → ...; 2 menit/kelompok; pot, tas, dan komitmen sekaligus.'),
+      t('present-order', 'Urutan presentasi & aturan', 'textarea', '10 kelompok × 2 menit; urutan diundi di kontrol; pot, tas, dan komitmen sekaligus.'),
       t('present-questions', 'Pertanyaan apresiasi', 'textarea', 'Apa yang paling menggambarkan iman kelompokmu? Langkah nyata apa minggu ini?'),
       t('present-seconds', 'Detik per kelompok', 'number', '120'),
     ],

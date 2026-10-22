@@ -97,31 +97,32 @@ Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
 
 Modul: `teams, timer, notes`. Kontrol: `TeamsPanel` + countdown misi.
 
-### 2.6 CREATIVE_LAB — Creative Lab (125')
+### 2.6 CREATIVE_LAB — Creative Lab (135')
 
-Program *Serving Day*: firman menjadi karya (jar, pot, tas). Total 125' =
-PRA 20' (kru) + jemaat 105'.
+Program *Serving Day*: firman menjadi karya (jar, pot, tas). Total 135' =
+PRA 20' (kru) + jemaat 115' (presentasi 20' untuk 10 kelompok × 2').
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
 | PRA (1 main + 3 paralel `pra`) | 20 | — | — |
 | 1. Praise & Worship | 15 | pembuka×1 | **auto** |
-| 2. Preaching & Briefing (6 kartu + juru digital) | 15 | — | — |
-| 3. Activity 1 — Roots Reminder Jar (+ input web paralel) | 15 | — | — |
-| 4. Activity 2 — Pot ∥ Tas (paralel `a2`) | 25 | — | — |
-| 5. Presentasi (2'/kelompok, maks 5) | 10 | — | — |
+| 2. Preaching & Briefing (6 kartu + perwakilan) | 15 | — | — |
+| 3. Activity 1 — Roots Reminder Jar (kertas 6, web pilih 2) | 15 | — | — |
+| 4. Activity 2 — Pot ∥ Tas melukis (paralel `a2`) | 25 | — | — |
+| 5. Presentasi (10 kelompok × 2') | 20 | — | — |
 | 6. Conclusion (konklusi + Satu Kata + komitmen) | 10 | — | — |
 | 7. Persembahan + doa | 10 | persembahan×1 | **auto** |
 | 8. Lagu + Doa Tutup | 5 | penutup×1 | — |
 
 Modul: `activity, teams, timer, notes, chips, wordcloud`. Kontrol:
 `ActivityPanel` (A1/A2/Presentasi/berikutnya/stop/reset + durasi fase +
-navigator 6 kartu jar + papan kelompok dengan juru digital & Tim Pot/Tas).
-State `config.activity` (tanpa migrasi): `phase, startedAt, durationSec,
-presentStartedAt, presentSeconds, presentIndex, cardIndex, showOnScreen,
-durations`. Enam kartu: A Root I Carry · A Truth I Need to Remember ·
-When I Feel Lost · A Word for My Community · A Verse to Hold Onto ·
-My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` + `KOMITMEN`.
+navigator 6 kartu jar + **Muat 10 kelompok** Agape–Shalom, perwakilan
+dari anggota kelompok, Tim Pot/Tas). State di `config` (tanpa migrasi):
+`activity` + `teams[].groupId`. Enam kartu: A Root I Carry · A Truth I
+Need to Remember · When I Feel Lost · A Word for My Community · A Verse
+to Hold Onto · My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` +
+`KOMITMEN` (maks 2 jawaban jar). Foto di folder event
+`[EV:<slug>:DIDASKALIA]`, anak `Foto Kelompok` dan `Hasil Karya`.
 
 ## 3. Peran per divisi (RACI ringkas)
 

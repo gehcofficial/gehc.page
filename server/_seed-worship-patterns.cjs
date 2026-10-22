@@ -276,14 +276,14 @@ Modul: timer, notes, fgd, testimony, chips, wordcloud. Fase web: F1 20 menit, F2
 const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Creative Lab (Serving Day). **Durasi baku:** 125 menit (105 menit jemaat T0→T+105 + 20 menit kru PRA T-minus).
+**Nama:** Creative Lab (Serving Day). **Durasi baku:** 135 menit (115 menit jemaat T0→T+115 + 20 menit kru PRA T-minus).
 **Tujuan:** Firman {{tema}} dari {{firman_ref}} tidak berhenti di telinga, tetapi menjadi karya yang terlihat dan komitmen yang dibawa pulang. Lewat The Roots Reminder Jar setiap orang menyimpan penguatan iman; lewat Roots & DNA Creative Lab kelompok menerjemahkan nilai Injil menjadi pot dan tas yang dipakai sehari-hari.
 **Ayat jangkar default:** Yakobus 1:22-25. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
 
 ## 2. Pra-acara (H-7 s/d H-1)
 1. Didaskalia menetapkan tema, 6 kartu jar, dan arahan pot/tas dari {{firman_ref}}; siapkan 1 contoh karya utuh untuk ditunjukkan.
 2. Diakonia menyiapkan per kelompok: 1 jar/toples ±1 liter (muat 30-48 kertas), 6 set kertas kecil per orang, pulpen/spidol, pot, tas kanvas, cat akrilik, kuas, palet, koran/celemek, dan area jemur.
-3. Koinonia membagi kelompok 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 perwakilan kelompok, Tim Pot 2-4 orang, Tim Tas 2-4 orang.
+3. Koinonia memakai sepuluh kelompok baku (Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom), masing-masing 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 perwakilan kelompok, Tim Pot 2-4 orang, Tim Tas 2-4 orang.
 4. Marturia menyiapkan slide contoh karya, timer layar, sound, dan dokumentasi; Liturgia menyiapkan praise/worship + lagu tutup.
 5. Briefing perwakilan: setiap peserta menulis 6 kartu di kertas, lalu memilih 2 pertanyaan untuk diisi di web (2 slot, tidak boleh sama). Perwakilan melapor ke Admin dan mengunggah foto karya.
 6. Layout ruang: peserta langsung duduk per kelompok sejak T0; meja Pot dan Tas disiapkan di meja kelompok yang sama agar tidak ada perpindahan saat aktivitas.
@@ -294,13 +294,13 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 |---|---|---|---|---|
 | — | Persiapan ruang & stasiun seni (PRA, T-20→T0) | 20 | Diakonia | Layout per kelompok, alat seni, area jemur; paralel doa kru, registrasi, slide/sound |
 | 1 | Praise & Worship (T0→T+15) | 15 | Liturgia | 1 lagu buka + doa + praise/worship; peserta duduk per kelompok |
-| 2 | Preaching & Briefing (T+15→T+30) | 15 | Didaskalia | Khotbah 8-10 menit + briefing 6 kartu, aturan, juru digital, presentasi |
+| 2 | Preaching & Briefing (T+15→T+30) | 15 | Didaskalia | Khotbah 8-10 menit + briefing 6 kartu, aturan, perwakilan, presentasi |
 | 3 | Activity 1 — The Roots Reminder Jar (T+30→T+45) | 15 | Didaskalia + Mentor | Tiap orang menulis 6 kartu; lipat & masukkan jar; pilih 2 pertanyaan untuk web |
-| 4 | Activity 2 — Roots & DNA Creative Lab (T+45→T+70) | 25 | Didaskalia + Mentor | Tim Pot ∥ Tim Tas; perwakilan melapor ke Admin + unggah foto; 3 menit terakhir bersih-bersih |
-| 5 | Presentasi hasil (T+70→T+80) | 10 | MC/Didaskalia | Urutan hasil undian; 2 menit per kelompok: pot, tas, komitmen |
-| 6 | Conclusion (T+80→T+90) | 10 | Didaskalia | Konklusi firman + Satu Kata + komitmen kelompok |
-| 7 | Persembahan (T+90→T+100) | 10 | Liturgia | Kantong jalan + doa persembahan & syafaat |
-| 8 | Lagu + Doa Tutup (T+100→T+105) | 5 | Liturgia | 1 lagu + doa tutup + berkat |
+| 4 | Activity 2 — Roots & DNA Creative Lab (T+45→T+70) | 25 | Didaskalia + Mentor | Tim Pot ∥ Tim Tas melukis; perwakilan melapor ke Admin + unggah foto; 3 menit terakhir bersih-bersih |
+| 5 | Presentasi hasil (T+70→T+90) | 20 | MC/Didaskalia | Urutan hasil undian; 10 kelompok × 2 menit: pot, tas, komitmen |
+| 6 | Conclusion (T+90→T+100) | 10 | Didaskalia | Konklusi firman + Satu Kata + komitmen kelompok |
+| 7 | Persembahan (T+100→T+110) | 10 | Liturgia | Kantong jalan + doa persembahan & syafaat |
+| 8 | Lagu + Doa Tutup (T+110→T+115) | 5 | Liturgia | 1 lagu + doa tutup + berkat |
 
 ## 4. Naskah siap baca
 **Pembuka:** "Selamat datang, Beyonders. Hari ini kita tidak hanya mendengar firman — kita akan membuat sesuatu dari firman itu. Duduklah bersama kelompokmu."
@@ -313,7 +313,7 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 **Penutup:** "Unduh rekapmu, bawa komitmenmu, dan buka kembali jar kelompokmu saat kamu membutuhkan penguatan. {{firman_ref}} menjadi bekal {{tema}}-mu minggu ini."
 
 ## 5. Modul web & konfigurasi sesi
-Modul: teams, timer, notes, chips, wordcloud, lab updates. Panel kontrol hari-H: papan kelompok (5-8 orang, koordinator, perwakilan, Tim Pot/Tas), timer A1 15', A2 25', presentasi 2'/kelompok, navigator 6 kartu jar untuk layar, undian urutan presentasi, status laporan/foto per kelompok, dan unduh CSV. Timer display-only; transisi manual oleh operator. Peserta: semua menulis 6 kartu, memilih 2 pertanyaan untuk 2 slot web; perwakilan mengisi makna/progress Pot & Tas, komitmen, dan 5 foto (2 Pot + 2 Tas + 1 bersama). Semua anggota melihat feed group sendiri. Contoh config: activity {phase:A1|A2|PRESENT|DONE, durations:{A1:900,A2:1500,PRESENT:120}, cardIndex, presentIndex, presentOrder, presentDrawnAt}; teams {teams:[{name, members, repUserId, repName, memberUserIds, pot, bag, done}]}. Tabel worship_lab_updates (migrasi aditif).
+Modul: teams, timer, notes, chips, wordcloud, lab updates. Panel kontrol hari-H: papan 10 kelompok baku (5-8 orang, koordinator, perwakilan, Tim Pot/Tas) lewat tombol "Muat 10 kelompok", timer A1 15', A2 25', presentasi 2'/kelompok (blok 20'), navigator 6 kartu jar untuk layar, undian urutan presentasi, status laporan/foto per kelompok, dan unduh CSV. Timer display-only; transisi manual oleh operator. Peserta: semua menulis 6 kartu, memilih 2 pertanyaan untuk 2 slot web; perwakilan mengisi makna/progress Pot & Tas, komitmen, dan 5 foto (2 Pot + 2 Tas + 1 bersama). Semua anggota melihat feed group sendiri. Foto masuk ke folder event "<event> [EV:<slug>:DIDASKALIA]" di bawah Didaskalia [MENTOR]/Kurikulum: Foto Kelompok/<nama> dan Hasil Karya/<nama>. Folder bertag tidak pernah di-rename atau dipindah. Contoh config: activity {phase:A1|A2|PRESENT|DONE, durations:{A1:900,A2:1500,PRESENT:120}, cardIndex, presentIndex 0-9, presentOrder, presentDrawnAt}; teams {teams:[{groupId, name, members, repUserId, repName, memberUserIds, pot, bag, done, missing}]}. Tabel worship_lab_updates (tanpa migrasi baru).
 
 ## 6. Peran & personil
 - Main Speaker (1, Didaskalia): khotbah singkat, briefing, konklusi.
@@ -330,7 +330,7 @@ Modul: teams, timer, notes, chips, wordcloud, lab updates. Panel kontrol hari-H:
 1. Ganti {{tema}}, {{firman_ref}}, {{firman_text}}, dan {{kitab_fokus}}; turunkan 6 kartu dan arahan pot/tas dari kata dan frasa spesifik {{firman_ref}}.
 2. Tulis ulang setiap arahan kartu dengan 1 contoh konkret dunia Beyonders (KRS, skripsi, magang, shift, lembur, kos, keuangan awal, relasi) yang memuat {{tema}}.
 3. Arahkan pot ke pertumbuhan iman dan tas ke nilai Injil yang dibawa ke tempat kerja/kuliah; tulis komitmen kelompok di kedua karya.
-4. Bila kelompok lebih dari 5: presentasi 90 detik/kelompok atau tambah blok presentasi menjadi 12 menit; bila kelompok hanya 3-4, presentasi boleh 2,5 menit/kelompok.
+4. Presentasi tetap 2 menit per kelompok untuk sepuluh kelompok baku (blok 20 menit). Kelompok yang belum ada di database tampil sebagai peringatan dan tidak ikut undian.
 5. Bila waktu persiapan kurang, minta peserta melukis hanya satu objek per kelompok (pot atau tas) dan presentasi tetap 2 menit.
 6. Foto wajib: 1 foto bersama seluruh anggota + hasil karya; maksimal 2 foto Pot dan 2 foto Tas. Perwakilan menekan "Lapor selesai" hanya setelah foto bersama terunggah.`;
 
@@ -573,8 +573,8 @@ const PATTERNS = [
     code: 'CREATIVE_LAB',
     name: 'Creative Lab',
     summary:
-      'Serving Day berbasis karya: firman & briefing 15′, The Roots Reminder Jar 15′, Roots & DNA Creative Lab (pot ∥ tas) 25′, presentasi 2′/kelompok 10′, konklusi 10′, persembahan 10′, lagu + doa tutup 5′.',
-    defaultDurationMin: 125,
+      'Serving Day berbasis karya: firman & briefing 15′, The Roots Reminder Jar 15′, Roots & DNA Creative Lab (pot ∥ tas) 25′, presentasi 10 kelompok × 2′ = 20′, konklusi 10′, persembahan 10′, lagu + doa tutup 5′.',
+    defaultDurationMin: 135,
     modules: ['teams', 'timer', 'notes', 'chips', 'wordcloud', 'activity', 'lab'],
     phases: [
       {
@@ -630,9 +630,9 @@ const PATTERNS = [
         notes: 'Paralel di meja yang sama: Tim Tas 2-4 orang menggambarkan nilai Injil yang dibawa ke kuliah, kerja, kos, dan pergaulan. Perwakilan unggah maks 2 foto Tas + 1 foto bersama. Tak tambah total.',
       },
       {
-        no: 5, title: 'Presentasi hasil', minutes: 10, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
+        no: 5, title: 'Presentasi hasil', minutes: 20, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: 'Urutan tampil mengikuti undian di kontrol; 2 menit per kelompok (pot, tas, komitmen). Maks 5 kelompok; bila lebih, kontrol memakai 90 detik/kelompok atau blok 12 menit.',
+        notes: 'Urutan tampil mengikuti undian di kontrol; 10 kelompok × 2 menit (pot, tas, komitmen). Kelompok yang belum termuat tidak ikut undian.',
       },
       {
         no: 6, title: 'Conclusion', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',

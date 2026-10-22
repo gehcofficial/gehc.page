@@ -2,7 +2,7 @@
  * Auto-provision event folders under pillar Drive folders.
  * Name: `<Event> [EV:<slug>:<DIV>]` plus division subfolders.
  */
-import { listFolders, createFolder, renameFolder, clearListCache } from './gdrive.mjs';
+import { listFolders, listAllFolders, createFolder, renameFolder, clearListCache } from './gdrive.mjs';
 
 const PILLAR_MATCH = {
   LITURGIA: /^liturgia/i,
@@ -28,7 +28,7 @@ function eventFolderName(event, division) {
 }
 
 async function findNamed(parentId, matcher) {
-  const folders = await listFolders(parentId, 100);
+  const folders = await listAllFolders(parentId, { fresh: true });
   return folders.find((f) => matcher.test(f.name)) || null;
 }
 
