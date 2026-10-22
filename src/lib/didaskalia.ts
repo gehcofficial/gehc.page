@@ -226,6 +226,25 @@ export type DidaskaliaRegenProposal = {
   sermon: DidaskaliaSermon;
 };
 
+export type DidaskaliaSourceSnapshot = {
+  kitabFundamental?: string;
+  kitabFokus?: string;
+  paths?: Array<{
+    pathIndex: number;
+    title?: string;
+    scriptureRef?: string;
+    summary?: string;
+    bridge?: string;
+    sections?: Record<string, string>;
+  }>;
+  sermon?: {
+    teksUtamaRef?: string;
+    bigIdea?: string;
+    summary?: string;
+    outline?: Partial<DidaskaliaSermonOutline>;
+  };
+};
+
 /** Tinjauan HOD atas naskah yang diimpor. Kosong = pekan lama, tetap bisa terbit. */
 export type DidaskaliaSourceSignoff = {
   status: 'PENDING' | 'APPROVED';
@@ -285,6 +304,8 @@ export type DidaskaliaStudio = {
   pendingRegen?: DidaskaliaPendingRegen | null;
   /** Persetujuan naskah sumber (impor). Bukan syarat terbit. */
   sourceSignoff?: DidaskaliaSourceSignoff | null;
+  /** Teks yang masuk dari MD, untuk lencana dari MD / diubah. */
+  sourceSnapshot?: DidaskaliaSourceSnapshot | null;
   /** Riwayat versi (maks 20) untuk undo. */
   regenHistory?: DidaskaliaRegenHistory[];
   render: Partial<Record<'pembekalan' | 'khutbah' | 'rhb', DidaskaliaRenderMeta>>;
@@ -371,6 +392,40 @@ export function defaultStudio(): DidaskaliaStudio {
     regenHistory: [],
     render: {},
   };
+}
+
+/** `md` = masih sama dengan naskah, `edited` = sudah disunting, null = bukan dari MD. */
+export function fieldOrigin(current: string, snapshot?: string | null): 'md' | 'edited' | null {
+  const snap = String(snapshot ?? '').trim();
+  if (!snap) return null;
+  return String(current || '').trim() === snap ? 'md' : 'edited';
+}
+
+export function sourceChecklist(studio: DidaskaliaStudio): Array<{ id: string; label: string; ok: boolean }> {
+  const paths = ensurePaths(studio);
+  const items: Array<{ id: string; label: string; ok: boolean }> = [
+    { id: 'fund', label: 'Kitab Fundamental', ok: Boolean(String(studio.sermon?.teksUtama?.ref || studio.fundamentalFirman?.ref || '').trim()) },
+    { id: 'fokus', label: 'Kitab Bagian Fokus', ok: Boolean(String(studio.kitabFokus || '').trim()) },
+  ];
+  for (const p of paths) {
+    const title = String(p.title || '').trim();
+    items.push({ id: `t${p.pathIndex}`, label: `Path ${p.pathIndex} judul`, ok: Boolean(title) && !/^Path \d+$/i.test(title) });
+    items.push({ id: `n${p.pathIndex}`, label: `Path ${p.pathIndex} Nats Pembimbing`, ok: Boolean(String(p.scriptureRef || '').trim()) });
+    for (const sec of ensureRhbSections(p.rhbSections)) {
+      items.push({ id: `s${p.pathIndex}-${sec.key}`, label: `Path ${p.pathIndex} ${sec.title}`, ok: Boolean(String(sec.body || '').trim()) });
+    }
+  }
+  const outline = studio.sermon?.outline;
+  const sermonBits = [
+    ['pengantar', 'Khotbah Pengantar'],
+    ['bedahTeologis', 'Khotbah Bedah Teologis'],
+    ['jembatan', 'Khotbah Jembatan'],
+    ['kesimpulan', 'Khotbah Kesimpulan'],
+  ] as const;
+  for (const [key, label] of sermonBits) {
+    items.push({ id: key, label, ok: Boolean(String(outline?.[key] || '').trim()) });
+  }
+  return items;
 }
 
 /** Ada naskah tim yang sudah masuk editor (bukan shell Path kosong). */
