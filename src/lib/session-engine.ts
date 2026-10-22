@@ -43,16 +43,16 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'kesaksian', label: 'Kesaksian', hint: 'Undi 1 Mentee + 1 Mentor + unduh rekap.' },
   ],
   THREE_SEQUENCES: [
-    { id: 'misi', label: 'Mission Room', hint: 'Ikuti peran tim kamu.' },
-    { id: 'laporan', label: 'Laporan & Catat', hint: 'Tulis hasil + pelajaran misimu.' },
-    { id: 'komitmen', label: 'Deklarasi', hint: 'Deklarasi Coram Deo + unduh rekap.' },
+    { id: 'misi', label: 'Sesi 3 · Mission Room', hint: 'Kerjakan seluruh misi bersama tim gabunganmu. Peran di dalam tim hanya pembagian tugas.' },
+    { id: 'laporan', label: 'Laporan & Catat', hint: 'Tulis hasil tim gabungan + pelajaran misimu.' },
+    { id: 'komitmen', label: 'Penutup Sesi', hint: 'Deklarasi Coram Deo + unduh rekap. Id segmen tetap komitmen.' },
   ],
   CREATIVE_LAB: [
-    { id: 'pembuka', label: 'Pembuka', hint: 'Praise & Worship — siapkan hati, duduk per kelompok.' },
+    { id: 'pembuka', label: 'Praise & Worship', hint: 'Siapkan hati, duduk per kelompok.' },
     { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman, lalu pahami 6 kartu jar + aturan aktivitas.' },
-    { id: 'aktivitas-1', label: 'Activity 1 — Roots Reminder Jar', hint: 'Tulis 6 kartu di kertas; pilih 2 pertanyaan untuk diisi di web.' },
-    { id: 'aktivitas-2', label: 'Activity 2 — Creative Lab', hint: 'Tim Pot & Tim Tas paralel; perwakilan kelompok melapor ke Admin.' },
-    { id: 'presentasi', label: 'Presentasi', hint: '2 menit per kelompok: pot, tas, dan komitmen.' },
+    { id: 'aktivitas-1', label: 'Sesi 1 · Reminder Jar', hint: 'Tulis 6 kartu di kertas; pilih 2 pertanyaan untuk diisi di web (paralel).' },
+    { id: 'aktivitas-2', label: 'Sesi 2 · Art Stations', hint: 'Dua stasiun paralel; perwakilan kelompok melapor ke Admin.' },
+    { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Sekitar 2,5 menit per kelompok: Stasiun A, Stasiun B, dan Slide Bersama.' },
     { id: 'refleksi', label: 'Refleksi & Satu Kata', hint: 'Pilih chip Satu Kata + tulis komitmen.' },
     { id: 'penutup', label: 'Penutup', hint: 'Persembahan, lagu, doa tutup + unduh rekap.' },
   ],
@@ -195,7 +195,7 @@ export const NOTE_SLOTS: Record<string, NoteSlot[]> = {
     { key: 'FILM-Q3', label: 'Langkah otentik minggu ini?', placeholder: 'Tulis komitmen spesifik...' },
   ],
   THREE_SEQUENCES: [
-    { key: 'LAPORAN', label: 'Laporan misimu', placeholder: 'Peran + hasil tim + pelajaran...' },
+    { key: 'LAPORAN', label: 'Laporan misimu', placeholder: 'Hasil tim gabungan + pelajaran...' },
   ],
   CREATIVE_LAB: [
     { key: 'JAR-ROOT', label: 'A Root I Carry', placeholder: 'Nilai iman/tradisi baik yang ingin kamu bawa...' },

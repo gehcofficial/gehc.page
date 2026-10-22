@@ -57,9 +57,9 @@ Likert). Guard: apply/convert/delete hanya DRAFT kosong.
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
 | 1. Opening & nyanyian | 10 | pembuka×1 | **auto** (doa + baca firman + aturan emas) |
-| 2. 5 ronde debat | 100 | — | — |
-| 3. Persembahan & transisi | 10 | persembahan×1 | — |
-| 4. Konklusi teologis | 20 | — | — |
+| 2. Sesi 1 · Debat (5 ronde × 20 di catatan) | 100 | — | — |
+| 3. Persembahan & Doa | 10 | persembahan×1 | — |
+| 4. Konklusi (Trap Reveal di catatan) | 20 | — | — |
 
 Modul: `rounds, timer, teams`. Kontrol: `DebatPanel` (5 ronde × 11 langkah bertimer +
 lembar juri 4-kriteria berbobot + tim PRO/KONTRA undian H-1 + Trap Reveal) &
@@ -90,38 +90,47 @@ Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
-| 1. Opening & praise | 10 | pembuka×1 | **auto** |
-| 2–5. Sequence 1–3 + presentasi | 75 | — | — |
-| 6. Khotbah penutup & persembahan | 15 | persembahan×1 | **auto** |
-| 7. Commissioning | 15 | — | — |
+| 1. Praise & Worship | 10 | pembuka×1 | **auto** (pembuka) |
+| 2. Sesi 1 · Snack & Merge | 10 | — | — |
+| 3. Sesi 2 · Kode Alkitab | 15 | — | — |
+| 4. Sesi 3 · Mission Room (5 tim gabungan) | 30 | — | — |
+| 5. Presentasi Kelompok | 20 | — | — |
+| 6. Konklusi (firman penutup) | 10 | — | **auto** |
+| 7. Penutup Sesi · Commissioning & Deklarasi | 10 | — | — |
+| 8. Persembahan & Doa | 10 | persembahan×1 | — |
+| 9. Lagu & Doa Penutup | 5 | — | — |
+
+Sesi 3 memakai 5 tim gabungan (2 kelompok mentoring per tim, seluruh misi).
+Peran Soal / Lapangan / Narasi / Presentasi / Editor hanya teks di dalam tim.
 
 Modul: `teams, timer, notes`. Kontrol: `TeamsPanel` + countdown misi.
 
-### 2.6 CREATIVE_LAB — Creative Lab (125')
+### 2.6 CREATIVE_LAB — Creative Lab (135')
 
-Program *Serving Day*: firman menjadi karya (jar, pot, tas). Total 125' =
-PRA 20' (kru) + jemaat 105'.
+Program *Serving Day*: firman menjadi karya (Reminder Jar, dua stasiun). Total 135' =
+PRA 20' (kru) + jemaat 115' (Presentasi Kelompok 30', sekitar 2,5' per kelompok termasuk transisi).
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
-| PRA (1 main + 3 paralel `pra`) | 20 | — | — |
-| 1. Praise & Worship | 15 | pembuka×1 | **auto** |
-| 2. Preaching & Briefing (6 kartu + juru digital) | 15 | — | — |
-| 3. Activity 1 — Roots Reminder Jar (+ input web paralel) | 15 | — | — |
-| 4. Activity 2 — Pot ∥ Tas (paralel `a2`) | 25 | — | — |
-| 5. Presentasi (2'/kelompok, maks 5) | 10 | — | — |
-| 6. Conclusion (konklusi + Satu Kata + komitmen) | 10 | — | — |
-| 7. Persembahan + doa | 10 | persembahan×1 | **auto** |
-| 8. Lagu + Doa Tutup | 5 | penutup×1 | — |
+| PRA (Persiapan Ruang & Perlengkapan + 3 paralel) | 20 | — | — |
+| 1. Praise & Worship | 10 | pembuka×1 | — |
+| 2. Firman & Briefing | 10 | — | **auto** |
+| 3. Sesi 1 · Reminder Jar (kertas 6, web pilih 2 (paralel)) | 15 | — | — |
+| 4. Sesi 2 · Art Stations (20' melukis paralel + 5' unggah) | 25 | — | — |
+| 5. Presentasi Kelompok (blok 30') | 30 | — | — |
+| 6. Konklusi | 10 | — | — |
+| 7. Persembahan & Doa | 10 | persembahan×1 | — |
+| 8. Lagu & Doa Penutup | 5 | penutup×1 | — |
 
 Modul: `activity, teams, timer, notes, chips, wordcloud`. Kontrol:
-`ActivityPanel` (A1/A2/Presentasi/berikutnya/stop/reset + durasi fase +
-navigator 6 kartu jar + papan kelompok dengan juru digital & Tim Pot/Tas).
-State `config.activity` (tanpa migrasi): `phase, startedAt, durationSec,
-presentStartedAt, presentSeconds, presentIndex, cardIndex, showOnScreen,
-durations`. Enam kartu: A Root I Carry · A Truth I Need to Remember ·
-When I Feel Lost · A Word for My Community · A Verse to Hold Onto ·
-My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` + `KOMITMEN`.
+`ActivityPanel` (tombol Sesi 1/Sesi 2 — kunci A1/A2 — Presentasi/berikutnya/stop/reset + durasi fase +
+navigator 6 kartu jar + **Muat 10 kelompok** Agape–Shalom, perwakilan
+dari anggota kelompok, Stasiun A/B). State di `config` (tanpa migrasi):
+`activity` + `teams[].groupId`. Enam kartu: A Root I Carry · A Truth I
+Need to Remember · When I Feel Lost · A Word for My Community · A Verse
+to Hold Onto · My Next Faith Step. Slot peserta `JAR-ROOT`…`JAR-STEP` +
+`KOMITMEN` (maks 2 jawaban jar). Foto di folder event
+`[EV:<slug>:DIDASKALIA]`, anak `Foto Kelompok` dan `Hasil Karya`.
 
 ## 3. Peran per divisi (RACI ringkas)
 

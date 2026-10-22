@@ -63,19 +63,20 @@ describe('session-draft: template kosongan 6 pola', () => {
     expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
   });
 
-  it('CREATIVE_LAB: 6 kartu jar + 5 kelompok × 5 field + durasi fase', () => {
+  it('CREATIVE_LAB: 6 kartu jar + durasi fase, tanpa field kelompok bebas', () => {
     const keys = templateFieldKeys('CREATIVE_LAB').map((f) => f.key);
     for (const k of ['jar-root', 'jar-truth', 'jar-lost', 'jar-community', 'jar-verse', 'jar-step']) {
       expect(keys).toContain(k);
     }
-    expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(25);
-    expect(keys).toContain('group-1-rep');
-    expect(keys).toContain('group-5-bag');
+    expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(0);
     expect(keys).toContain('a1-minutes');
     expect(keys).toContain('a2-minutes');
     expect(keys).toContain('a2-pot-meaning');
     expect(keys).toContain('a2-bag-meaning');
     expect(keys).toContain('a2-report');
+    expect(keys).toContain('a1-subtitle');
+    expect(keys).toContain('a2-a-media');
+    expect(keys).toContain('a2-b-theme');
     expect(keys).toContain('present-seconds');
     expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(10);
   });
@@ -472,7 +473,7 @@ describe('session-draft: AI proposal', () => {
     expect(capturedPrompts.list.join('\n')).not.toContain('DEEP SHARING FILM');
   });
 
-  it('prompt Creative Lab: jar/a1/a2/group + anti-ngarang nama', async () => {
+  it('prompt Creative Lab: sepuluh kelompok baku, tanpa mengarang nama', async () => {
     capturedPrompts.list = [];
     await generateSessionDraft({
       yearMonth: '2026-10',
@@ -487,8 +488,10 @@ describe('session-draft: AI proposal', () => {
     expect(prompt).toContain('jar-root');
     expect(prompt).toContain('a2-pot');
     expect(prompt).toContain('a2-bag');
-    expect(prompt).toContain('group-*');
-    expect(prompt).toContain('jangan mengarang nama');
+    expect(prompt).toContain('Agape');
+    expect(prompt).toContain('Shalom');
+    expect(prompt).toContain('Jangan mengarang kelompok ke-11');
+    expect(prompt).not.toContain('group-*');
   });
 
   it('draf saat ini dikirim sebagai masukan', async () => {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
+import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -16,7 +17,7 @@ type RoundRow = {
   jury: JuryRow[];
 };
 type DebatTeamRow = { name: string; mentor: string; members: string[] };
-type TeamRow = { name: string; task: string; members: string[]; done: boolean };
+type TeamRow = { name: string; task: string; members: string[]; done: boolean; pair?: string[]; roles?: string };
 
 const PHASES = ['brief', 'pro', 'kontra', 'sanggah', 'blow', 'jeda', 'selesai'];
 
@@ -427,7 +428,7 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
   );
 };
 
-/** Panel tim misi: susun tim + anggota + tandai selesai. */
+/** Panel Mission Sequence: 5 tim gabungan. Tim lama tidak ditimpa sampai tombol default ditekan. */
 export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const { msg, setMsg, busy, setBusy } = useStageMsg();
   const [teams, setTeams] = useState<TeamRow[]>([]);
@@ -436,7 +437,7 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     try {
       const cfg = await fetchStage(sessionId);
       const list: TeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
-      setTeams(list.length ? list : [{ name: '', task: '', members: [], done: false }]);
+      setTeams(list.length ? list.map((t) => ({ ...t, pair: Array.isArray(t.pair) ? t.pair : [], roles: t.roles || '' })) : [{ name: '', task: '', members: [], done: false, pair: [], roles: '' }]);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat.');
     }
@@ -449,12 +450,22 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const set = (i: number, patch: Partial<TeamRow>) =>
     setTeams((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
+  const setPair = (i: number, slot: 0 | 1, value: string) => {
+    setTeams((prev) => prev.map((t, j) => {
+      if (j !== i) return t;
+      const pair = [t.pair?.[0] || '', t.pair?.[1] || ''];
+      pair[slot] = value;
+      const named = pair.filter(Boolean);
+      return { ...t, pair, name: named.length ? named.join(' & ') : t.name };
+    }));
+  };
+
   const save = async () => {
     setBusy(true);
     setMsg(null);
     try {
-      await saveStage(sessionId, { teams: { teams } });
-      setMsg('Papan tim tersimpan — tampil di peserta & layar.');
+      await saveStage(sessionId, { teams: { teams: teams.slice(0, MISSION_TEAM_CAP) } });
+      setMsg('Papan tim gabungan tersimpan — tampil di peserta dan layar.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
@@ -462,12 +473,22 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     }
   };
 
+  const loadDefault = () => {
+    if (teams.some((t) => t.name.trim()) && !window.confirm('Ganti papan yang tersimpan dengan 5 pasangan default? Tim lama tidak berubah sebelum kamu menekan Simpan tim.')) return;
+    setTeams(defaultJointTeams());
+    setMsg('Pasangan default dimuat di layar ini. Tekan Simpan tim agar tersimpan.');
+  };
+
   return (
     <div className={CARD}>
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-brand" />
-        <p className="text-sm font-black">Tim misi</p>
+        <p className="text-sm font-black">Tim gabungan</p>
+        <span className="ml-auto text-[10px] font-bold text-[#8C8880]">{teams.length}/{MISSION_TEAM_CAP}</span>
       </div>
+      <p className="mt-1 text-[10px] text-[#8C8880] leading-relaxed">
+        Lima tim, masing-masing dua kelompok mentoring. Tiap tim menjalankan seluruh misi. Peran lama hanya saran di dalam tim. Papan yang sudah tersimpan tidak diganti otomatis.
+      </p>
       <div className="mt-3 space-y-2">
         {teams.map((t, i) => (
           <div key={i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
@@ -477,7 +498,27 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {[0, 1].map((slot) => (
+                <select key={slot} value={t.pair?.[slot] || ''} onChange={(e) => setPair(i, slot as 0 | 1, e.target.value)} className={INPUT}>
+                  <option value="">{slot === 0 ? 'Kelompok A…' : 'Kelompok B…'}</option>
+                  {BEYONDERS_GROUPS.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  {t.pair?.[slot] && !BEYONDERS_GROUPS.includes(t.pair[slot] as typeof BEYONDERS_GROUPS[number]) && (
+                    <option value={t.pair[slot]}>{t.pair[slot]}</option>
+                  )}
+                </select>
+              ))}
+            </div>
             <input value={t.task} onChange={(e) => set(i, { task: e.target.value })} placeholder="Tugas tim" className={INPUT} />
+            <textarea
+              value={t.roles || ''}
+              onChange={(e) => set(i, { roles: e.target.value })}
+              rows={2}
+              placeholder={MISSION_INTERNAL_ROLES}
+              className={`${INPUT} resize-y`}
+            />
             <input
               value={t.members.join(', ')}
               onChange={(e) => set(i, { members: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
@@ -490,12 +531,15 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
             </label>
           </div>
         ))}
-        <div className="flex gap-2">
-          {teams.length < 8 && (
-            <button type="button" onClick={() => setTeams((p) => [...p, { name: '', task: '', members: [], done: false }])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
+        <div className="flex flex-wrap gap-2">
+          {teams.length < MISSION_TEAM_CAP && (
+            <button type="button" onClick={() => setTeams((p) => [...p, { name: '', task: 'Menjalankan seluruh misi bersama.', members: [], done: false, pair: [], roles: MISSION_INTERNAL_ROLES }])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
               <Plus className="w-3.5 h-3.5" /> Tim
             </button>
           )}
+          <button type="button" onClick={loadDefault} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
+            Pasangan default
+          </button>
           <button type="button" disabled={busy} onClick={() => void save()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan tim
           </button>
@@ -507,6 +551,9 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 };
 
 /* ---------------------------------- Creative Lab ---------------------------------- */
+
+const LAB_TEAM_CAP = 10;
+const LAB_INDEX_MAX = LAB_TEAM_CAP - 1;
 
 type LabTeamRow = {
   name: string;
@@ -520,6 +567,8 @@ type LabTeamRow = {
   repUserId: string;
   repName: string;
   memberUserIds: string[];
+  groupId: string;
+  missing: boolean;
 };
 
 type LabActivity = {
@@ -529,6 +578,7 @@ type LabActivity = {
   showOnScreen: boolean;
   cardIndex: number;
   presentIndex: number;
+  presentSlide: number;
   presentStartedAt: string | null;
   presentSeconds: number;
   presentOrder: number[];
@@ -545,6 +595,7 @@ type LabPhotoRow = {
   progress: number | null;
   photoUrl: string | null;
   thumbUrl: string | null;
+  userName?: string;
   createdAt: string | null;
 };
 type LabTeamSummary = {
@@ -587,6 +638,8 @@ const labEmptyTeam = (): LabTeamRow => ({
   repUserId: '',
   repName: '',
   memberUserIds: [],
+  groupId: '',
+  missing: false,
 });
 
 const labDefaultActivity = (): LabActivity => ({
@@ -596,11 +649,12 @@ const labDefaultActivity = (): LabActivity => ({
   showOnScreen: true,
   cardIndex: 0,
   presentIndex: 0,
+  presentSlide: 0,
   presentStartedAt: null,
-  presentSeconds: 120,
+  presentSeconds: 150,
   presentOrder: [],
   presentDrawnAt: null,
-  durations: { A1: 900, A2: 1500, PRESENT: 120 },
+  durations: { A1: 900, A2: 1500, PRESENT: 150 },
 });
 
 function useLabTick(active: boolean): number {
@@ -630,11 +684,13 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const [cards, setCards] = useState<Array<{ title: string; direction: string }>>(
     LAB_JAR_TITLES.map((title) => ({ title, direction: '' })),
   );
-  const [participants, setParticipants] = useState<LabParticipant[]>([]);
   const [groupOptions, setGroupOptions] = useState<LabGroupOption[]>([]);
   const [lab, setLab] = useState<LabSummary | null>(null);
-  const [rosterSearch, setRosterSearch] = useState<Record<number, string>>({});
+  const [uploadSlot, setUploadSlot] = useState<Record<number, 'POT' | 'BAG' | 'GROUP'>>({});
+  const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
   const [savedTeamNames, setSavedTeamNames] = useState('');
+  const [participantsReady, setParticipantsReady] = useState(false);
+  const [stations, setStations] = useState({ a: 'Pot', b: 'Tas' });
   const [loading, setLoading] = useState(true);
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
 
@@ -655,18 +711,24 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         durationSec: Number(a.durationSec) || Number(dur.A1) || 900,
         showOnScreen: a.showOnScreen !== false,
         cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
-        presentIndex: Math.min(7, Math.max(0, Number(a.presentIndex) || 0)),
+        presentIndex: Math.min(LAB_INDEX_MAX, Math.max(0, Number(a.presentIndex) || 0)),
+        presentSlide: Math.min(2, Math.max(0, Math.floor(Number(a.presentSlide) || 0))),
         presentStartedAt: a.presentStartedAt || null,
-        presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 120,
-        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= 7) : [],
+        presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 150,
+        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
         presentDrawnAt: a.presentDrawnAt || null,
         durations: {
           A1: Number(dur.A1) || 900,
           A2: Number(dur.A2) || 1500,
-          PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 120,
+          PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 150,
         },
       });
       setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
+      const a2 = cfg.draft?.['activity-2'] && typeof cfg.draft['activity-2'] === 'object' ? cfg.draft['activity-2'] : {};
+      setStations({
+        a: String(a2['a2-a-media'] || '').trim() || 'Pot',
+        b: String(a2['a2-b-media'] || '').trim() || 'Tas',
+      });
       const jar = cfg.draft?.jar && typeof cfg.draft.jar === 'object' ? cfg.draft.jar : {};
       setCards(
         LAB_JAR_TITLES.map((title, i) => ({
@@ -686,8 +748,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/participants`, { credentials: 'include' });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat peserta.');
-      setParticipants(Array.isArray(d.participants) ? d.participants : []);
       setGroupOptions(Array.isArray(d.groups) ? d.groups : []);
+      setParticipantsReady(true);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat peserta.');
     }
@@ -701,71 +763,83 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const setTeam = (i: number, patch: Partial<LabTeamRow>) =>
     setTeams((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
-  const namedTeamCount = teams.filter((t) => t.name.trim()).length;
+  const membersOf = (team: LabTeamRow) => {
+    if (!team.groupId) return [];
+    const group = groupOptions.find((g) => g.id === team.groupId);
+    return (group?.members || []).filter((m) => m.id && m.name);
+  };
+  const presentableIndexes = useMemo(
+    () => teams.map((t, i) => (t.name.trim() && !t.missing ? i : -1)).filter((i) => i >= 0),
+    [teams],
+  );
+  const namedTeamCount = presentableIndexes.length;
   const presentationOrder = useMemo(() => {
+    const allowed = new Set(presentableIndexes);
     const out: number[] = [];
     for (const n of activity.presentOrder) {
       const i = Number(n);
-      if (Number.isInteger(i) && i >= 0 && i < namedTeamCount && !out.includes(i)) out.push(i);
+      if (allowed.has(i) && !out.includes(i)) out.push(i);
     }
-    for (let i = 0; i < namedTeamCount; i += 1) if (!out.includes(i)) out.push(i);
+    for (const i of presentableIndexes) if (!out.includes(i)) out.push(i);
     return out;
-  }, [activity.presentOrder, namedTeamCount]);
+  }, [activity.presentOrder, presentableIndexes]);
   const currentTeamIndex = presentationOrder[activity.presentIndex] ?? activity.presentIndex;
 
-  const selectMember = (teamIndex: number, userId: string, checked: boolean) => {
-    setTeams((prev) => prev.map((t, i) => {
-      if (i !== teamIndex) return t;
-      const ids = new Set(t.memberUserIds || []);
-      if (checked) ids.add(userId); else ids.delete(userId);
-      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
-      const repStillMember = ids.has(t.repUserId);
-      return {
-        ...t,
-        memberUserIds: [...ids],
-        members: names,
-        repUserId: repStillMember ? t.repUserId : '',
-        repName: repStillMember ? t.repName : '',
-      };
-    }));
-  };
-
   const selectRep = (teamIndex: number, userId: string) => {
-    const person = participants.find((p) => p.id === userId);
     setTeams((prev) => prev.map((t, i) => {
       if (i !== teamIndex) return t;
+      const person = membersOf(t).find((m) => m.id === userId);
       const ids = new Set(t.memberUserIds || []);
       if (userId) ids.add(userId);
-      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
-      return { ...t, repUserId: userId, repName: person?.name || '', memberUserIds: [...ids], members: names };
+      return { ...t, repUserId: userId, repName: person?.name || '', memberUserIds: [...ids] };
     }));
   };
 
-  const syncMembersFromGroups = () => {
-    setTeams((prev) => prev.map((t) => {
-      if (!t.name.trim()) return t;
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const target = norm(t.name);
-      const group = groupOptions.find((g) => norm(g.name) === target || norm(g.name).includes(target) || target.includes(norm(g.name)));
-      if (!group) return t;
-      const ids = group.members.map((m) => m.id);
-      return { ...t, members: group.members.map((m) => m.name), memberUserIds: ids };
+  const toggleRole = (teamIndex: number, key: 'pot' | 'bag', name: string) => {
+    setTeams((prev) => prev.map((t, i) => {
+      if (i !== teamIndex) return t;
+      const cur = t[key] || [];
+      if (cur.includes(name)) return { ...t, [key]: cur.filter((n) => n !== name) };
+      if (cur.length >= LAB_STATION_CAP) return t;
+      return { ...t, [key]: [...cur, name] };
     }));
-    setMsg('Anggota kelompok diselaraskan dari kelompok mentoring. Pilih perwakilan lalu simpan.');
+  };
+
+  const loadTenGroups = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/load-groups`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal memuat kelompok.');
+      await load();
+      const missing = Array.isArray(d.missing) ? d.missing.filter(Boolean) : [];
+      const locked = d.orderLocked ? ' Urutan yang sudah punya laporan karya tidak diacak.' : '';
+      setMsg(missing.length
+        ? `10 kelompok dimuat. Belum ada di database: ${missing.join(', ')}.${locked}`
+        : `10 kelompok Beyonders dimuat.${locked}`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal memuat kelompok.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const drawOrder = () => {
     if (!namedTeamCount) {
-      setMsg('Isi nama kelompok dulu sebelum mengundi.');
+      setMsg('Muat 10 kelompok dulu sebelum mengundi.');
       return;
     }
     if (activity.presentOrder.length && !window.confirm('Urutan presentasi sudah ada. Undi ulang dan ganti urutan?')) return;
-    const arr = Array.from({ length: namedTeamCount }, (_, i) => i);
+    const arr = [...presentableIndexes];
     for (let i = arr.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
+    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0, presentSlide: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
   };
 
   const moveOrder = (index: number, delta: number) => {
@@ -787,11 +861,12 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     try {
       const nextNames = named.map((t) => t.name.trim()).join('|');
       const namesChanged = nextNames !== savedTeamNames;
-      const nextActivity = namesChanged
-        ? { ...activity, presentOrder: [], presentDrawnAt: null, presentIndex: 0 }
-        : activity;
-      await saveStage(sessionId, { teams: { teams: named }, activity: nextActivity });
-      if (namesChanged) setActivity(nextActivity);
+      await saveStage(sessionId, namesChanged
+        ? { teams: { teams: named }, resetPresentOrder: true }
+        : { teams: { teams: named } });
+      if (namesChanged) {
+        setActivity((a) => ({ ...a, presentOrder: [], presentDrawnAt: null, presentIndex: 0, presentSlide: 0 }));
+      }
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
@@ -824,15 +899,42 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     const seconds = phase === 'A1' ? activity.durations.A1 : activity.durations.A2;
     void pushActivity(
       { phase, startedAt, durationSec: seconds, presentStartedAt: null },
-      phase === 'A1' ? 'Activity 1 berjalan — jar + input kartu.' : 'Activity 2 berjalan — Tim Pot dan Tim Tas paralel.',
+      phase === 'A1' ? 'Sesi 1 berjalan — jar + input kartu (web 2 dari 6, paralel).' : `Sesi 2 berjalan — Stasiun A (${stations.a}) dan Stasiun B (${stations.b}) paralel.`,
     );
   };
 
   const startPresent = () => {
     const startedAt = new Date().toISOString();
     void pushActivity(
-      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)) },
-      'Presentasi dimulai.',
+      { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)), presentSlide: 0 },
+      'Presentasi Kelompok dimulai. Slide Stasiun A.',
+    );
+  };
+
+  const stepSlide = (direction: 1 | -1) => {
+    const count = Math.max(1, presentationOrder.length);
+    const next = stepLabPresentation(activity, count, direction);
+    if (next.phase === 'DONE') {
+      void pushActivity(
+        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: next.presentIndex, presentSlide: next.presentSlide },
+        'Semua kelompok presentasi — lanjut refleksi/konklusi.',
+      );
+      return;
+    }
+    const changedGroup = next.presentIndex !== activity.presentIndex;
+    const startedAt = new Date().toISOString();
+    const team = teams[presentationOrder[next.presentIndex]];
+    void pushActivity(
+      {
+        phase: 'PRESENT',
+        startedAt: activity.startedAt || startedAt,
+        presentStartedAt: changedGroup ? startedAt : activity.presentStartedAt,
+        presentIndex: next.presentIndex,
+        presentSlide: next.presentSlide,
+      },
+      changedGroup
+        ? `Giliran ${team?.name || `kelompok ${next.presentIndex + 1}`}.`
+        : `Slide ${next.presentSlide + 1}/3 · ${LAB_PRESENT_SLIDES[next.presentSlide]}.`,
     );
   };
 
@@ -841,14 +943,14 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     const next = activity.presentIndex + 1;
     if (next >= count) {
       void pushActivity(
-        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1) },
+        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1), presentSlide: 0 },
         'Semua kelompok presentasi — lanjut refleksi/konklusi.',
       );
       return;
     }
     const startedAt = new Date().toISOString();
     const team = teams[presentationOrder[next]];
-    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next }, `Giliran ${team?.name || `kelompok ${next + 1}`}.`);
+    void pushActivity({ phase: 'PRESENT', startedAt, presentStartedAt: startedAt, presentIndex: next, presentSlide: 0 }, `Giliran ${team?.name || `kelompok ${next + 1}`}.`);
   };
 
   const stopTimer = () => {
@@ -857,9 +959,69 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
 
   const resetStage = () => {
     void pushActivity(
-      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0 },
+      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
       'Timer & panggung direset.',
     );
+  };
+
+  const adminUpload = async (teamIndex: number, file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setMsg('Foto terlalu besar (maks 15MB).');
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Gagal membaca file.'));
+        reader.readAsDataURL(file);
+      });
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          teamIndex,
+          kind: uploadSlot[teamIndex] || 'POT',
+          filename: file.name,
+          mimetype: file.type,
+          data,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal mengunggah foto.');
+      const who = d?.update?.userName ? ` Tercatat atas nama ${d.update.userName}.` : '';
+      setMsg(`Foto tersimpan untuk kelompok.${who}`);
+      await load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal mengunggah foto.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const adminDeletePhoto = async (updateId: string) => {
+    if (!window.confirm('Hapus foto ini dari kelompok?')) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/updates/${encodeURIComponent(updateId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menghapus foto.');
+      setLightbox(null);
+      setMsg('Foto dihapus. Slot kuota bisa diisi lagi.');
+      await load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal menghapus foto.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const activeCard = cards[activity.cardIndex] || cards[0];
@@ -871,9 +1033,9 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     return activity.durationSec * 1000;
   })();
   const phaseLabel =
-    activity.phase === 'A1' ? 'Activity 1 · Roots Reminder Jar'
-      : activity.phase === 'A2' ? 'Activity 2 · Pot ∥ Tas'
-        : activity.phase === 'PRESENT' ? 'Presentasi kelompok'
+    activity.phase === 'A1' ? 'Sesi 1 · Reminder Jar'
+      : activity.phase === 'A2' ? `Sesi 2 · Art Stations (${stations.a} ∥ ${stations.b})`
+        : activity.phase === 'PRESENT' ? 'Presentasi Kelompok'
           : activity.phase === 'DONE' ? 'Selesai — refleksi' : 'Belum mulai';
 
   return (
@@ -890,13 +1052,13 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           <div className="mt-3 flex items-center justify-between rounded-xl bg-[#1B1B1B] px-4 py-3 text-white">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-white/50">
-                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)}` : 'Timer fase'}
+                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)} · slide ${activity.presentSlide + 1}/3 ${LAB_PRESENT_SLIDES[activity.presentSlide] || ''}` : 'Timer fase'}
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-end">
-              <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">A1</button>
-              <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">A2</button>
+              <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
+              <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
               <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
               <button type="button" disabled={busy} onClick={stopTimer} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Stop</button>
               <button type="button" disabled={busy} onClick={resetStage} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Reset</button>
@@ -908,9 +1070,16 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <span className="text-[11px] font-bold text-[#8C8880]">
                 Sedang tampil: {teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`}
                 {teams[currentTeamIndex]?.repName ? ` — ${teams[currentTeamIndex].repName}` : ''}
+                {' · '}slide {activity.presentSlide + 1}/3 {LAB_PRESENT_SLIDES[activity.presentSlide]}
               </span>
-              <button type="button" disabled={busy} onClick={nextGroup} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
-                Kelompok berikutnya <ChevronRight className="w-3.5 h-3.5" />
+              <button type="button" disabled={busy} onClick={() => stepSlide(-1)} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-60">
+                <ChevronLeft className="w-3.5 h-3.5" /> Sebelumnya
+              </button>
+              <button type="button" disabled={busy} onClick={() => stepSlide(1)} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
+                Berikutnya <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" disabled={busy} onClick={nextGroup} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-60">
+                Lewati kelompok
               </button>
             </div>
           )}
@@ -954,8 +1123,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                   <tr className="text-[#8C8880]">
                     <th className="py-1 pr-2">Kelompok</th>
                     <th className="py-1 pr-2">Perwakilan</th>
-                    <th className="py-1 pr-2">Pot</th>
-                    <th className="py-1 pr-2">Tas</th>
+                    <th className="py-1 pr-2">Stasiun A</th>
+                    <th className="py-1 pr-2">Stasiun B</th>
                     <th className="py-1 pr-2">Foto</th>
                     <th className="py-1 pr-2">Status</th>
                   </tr>
@@ -977,22 +1146,85 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                 </tbody>
               </table>
             </div>
-            <div className="mt-2 grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-              {(lab?.teams || []).flatMap((t) => [
-                ...t.pot.photos.map((p) => ({ ...p, key: `${t.index}-pot-${p.id}`, label: `Pot ${t.name}` })),
-                ...t.bag.photos.map((p) => ({ ...p, key: `${t.index}-bag-${p.id}`, label: `Tas ${t.name}` })),
-                ...(t.groupPhoto ? [{ ...t.groupPhoto, key: `${t.index}-group`, label: `Bersama ${t.name}` }] : []),
-              ]).slice(0, 15).map((p) => (
-                <a key={p.key} href={p.photoUrl || '#'} target="_blank" rel="noreferrer" className="block">
-                  <img src={p.thumbUrl || p.photoUrl || ''} alt={p.label} title={p.label} className="h-16 w-full object-cover rounded-lg border border-[#EFEDE8]" />
-                </a>
-              ))}
+            <div className="mt-3 space-y-2">
+              {(lab?.teams || []).map((t) => {
+                const shots = [
+                  ...t.pot.photos.map((p) => ({ ...p, label: `Stasiun A · ${stations.a} · ${t.name}` })),
+                  ...t.bag.photos.map((p) => ({ ...p, label: `Stasiun B · ${stations.b} · ${t.name}` })),
+                  ...(t.groupPhoto ? [{ ...t.groupPhoto, label: `Bersama · ${t.name}` }] : []),
+                ];
+                return (
+                  <div key={t.index} className="rounded-lg border border-[#EFEDE8] p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[11px] font-black">{t.name || `Kelompok ${t.index + 1}`}</p>
+                      <select
+                        className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[10px] font-bold"
+                        value={uploadSlot[t.index] || 'POT'}
+                        onChange={(e) => setUploadSlot((s) => ({ ...s, [t.index]: e.target.value as 'POT' | 'BAG' | 'GROUP' }))}
+                      >
+                        <option value="POT">Stasiun A · {stations.a} (maks {LAB_PHOTO_CAP.POT})</option>
+                        <option value="BAG">Stasiun B · {stations.b} (maks {LAB_PHOTO_CAP.BAG})</option>
+                        <option value="GROUP">Foto Bersama (maks {LAB_PHOTO_CAP.GROUP})</option>
+                      </select>
+                      <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold cursor-pointer">
+                        <ImagePlus className="w-3 h-3" /> Upload atas nama kelompok
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={busy}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            void adminUpload(t.index, file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                      {shots.map((p) => (
+                        <div key={p.id} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setLightbox({ src: p.photoUrl || p.thumbUrl || '', label: p.label })}
+                            className="block w-full"
+                            title={p.userName ? `${p.label} · ${p.userName}` : p.label}
+                          >
+                            <img src={p.thumbUrl || p.photoUrl || ''} alt={p.label} className="h-16 w-full object-cover rounded-lg border border-[#EFEDE8]" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void adminDeletePhoto(p.id)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white grid place-items-center"
+                            title="Hapus foto"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {!shots.length && <p className="text-[10px] text-[#8C8880] col-span-3">Belum ada foto.</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+            {lightbox && (
+              <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+                <div className="relative max-w-5xl w-full max-h-[92vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => setLightbox(null)} className="absolute -top-2 right-0 w-8 h-8 rounded-full bg-white text-[#1B1B1B] grid place-items-center" title="Tutup">
+                    <X className="w-4 h-4" />
+                  </button>
+                  <p className="text-white text-xs font-bold mb-2">{lightbox.label}</p>
+                  <img src={lightbox.src} alt={lightbox.label} className="max-h-[85vh] max-w-full object-contain" />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             <label className="text-[10px] font-bold text-[#8C8880]">
-              A1 (menit)
+              Sesi 1 (menit)
               <input
                 type="number" min={1} max={120}
                 value={Math.round(activity.durations.A1 / 60)}
@@ -1001,7 +1233,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               />
             </label>
             <label className="text-[10px] font-bold text-[#8C8880]">
-              A2 (menit)
+              Sesi 2 (menit)
               <input
                 type="number" min={1} max={120}
                 value={Math.round(activity.durations.A2 / 60)}
@@ -1014,7 +1246,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <input
                 type="number" min={30} max={600}
                 value={activity.presentSeconds}
-                onChange={(e) => setActivity((a) => ({ ...a, presentSeconds: Math.max(30, Math.min(600, Number(e.target.value) || 120)), durations: { ...a.durations, PRESENT: Math.max(30, Math.min(600, Number(e.target.value) || 120)) } }))}
+                onChange={(e) => setActivity((a) => ({ ...a, presentSeconds: Math.max(30, Math.min(600, Number(e.target.value) || 150)), durations: { ...a.durations, PRESENT: Math.max(30, Math.min(600, Number(e.target.value) || 150)) } }))}
                 className={`${INPUT} mt-1`}
               />
             </label>
@@ -1051,92 +1283,85 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           </div>
 
           <div className="mt-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim()).length})</p>
-              <button type="button" onClick={syncMembersFromGroups} className="text-[10px] font-bold text-brand underline">Sinkron anggota dari kelompok mentoring</button>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim() && !t.missing).length}/{LAB_TEAM_CAP})</p>
+              <button type="button" disabled={busy} onClick={() => void loadTenGroups()} className="text-[10px] font-bold text-brand underline disabled:opacity-60">Muat 10 kelompok</button>
             </div>
+            <p className="mt-1 text-[10px] text-[#8C8880]">Nama dan anggota datang dari 10 kelompok Beyonders. Sesi yang sudah terisi tidak berubah sampai tombol ini ditekan. Perwakilan, Stasiun A ({stations.a}), dan Stasiun B ({stations.b}) dipilih dari anggota kelompok itu.</p>
             <div className="mt-2 space-y-2">
-              {teams.map((t, i) => (
-                <div key={i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-                  <div className="flex gap-2">
-                    <input value={t.name} onChange={(e) => setTeam(i, { name: e.target.value })} placeholder={`Nama kelompok ${i + 1}`} className={INPUT} />
-                    <button type="button" onClick={() => setTeams((p) => p.filter((_, j) => j !== i))} className="shrink-0 px-2 text-red-500" title="Hapus kelompok">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <input value={t.station} onChange={(e) => setTeam(i, { station: e.target.value })} placeholder="Meja / stasiun" className={INPUT} />
-                    <select value={t.repUserId || ''} onChange={(e) => selectRep(i, e.target.value)} className={INPUT}>
-                      <option value="">Perwakilan kelompok…</option>
-                      {participants.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+              {teams.map((t, i) => {
+                const options = membersOf(t);
+                const rolePick = (key: 'pot' | 'bag', label: string) => (
+                  <div className="rounded-lg border border-[#EFEDE8] p-2">
+                    <p className="text-[10px] font-bold text-[#8C8880]">{label} ({(t[key] || []).length}/{LAB_STATION_CAP})</p>
+                    <div className="mt-1 max-h-28 overflow-auto space-y-0.5">
+                      {options.map((p) => (
+                        <label key={`${key}-${p.id}`} className="flex items-center gap-2 text-[11px]">
+                          <input
+                            type="checkbox"
+                            checked={(t[key] || []).includes(p.name)}
+                            onChange={() => toggleRole(i, key, p.name)}
+                            className="w-3.5 h-3.5"
+                          />
+                          <span className="truncate">{p.name}</span>
+                        </label>
                       ))}
-                      {t.repUserId && !participants.some((p) => p.id === t.repUserId) && (
-                        <option value={t.repUserId}>{t.repName || t.repUserId}</option>
-                      )}
-                    </select>
-                  </div>
-                  <input
-                    value={t.members.join(', ')}
-                    onChange={(e) => setTeam(i, { members: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                    placeholder="Anggota (pisah koma)"
-                    className={INPUT}
-                  />
-                  <details className="rounded-lg border border-[#EFEDE8] bg-[#FAF9F5] p-2">
-                    <summary className="text-[10px] font-bold text-[#8C8880] cursor-pointer">
-                      Pilih anggota akun ({t.memberUserIds.length} dipilih){t.repName ? ` · perwakilan: ${t.repName}` : ''}
-                    </summary>
-                    <input
-                      value={rosterSearch[i] || ''}
-                      onChange={(e) => setRosterSearch((prev) => ({ ...prev, [i]: e.target.value }))}
-                      placeholder="Cari nama…"
-                      className={`${INPUT} mt-2`}
-                    />
-                    <div className="mt-2 max-h-40 overflow-auto space-y-1">
-                      {participants
-                        .filter((p) => !(rosterSearch[i] || '').trim() || p.name.toLowerCase().includes((rosterSearch[i] || '').toLowerCase()))
-                        .map((p) => (
-                          <label key={p.id} className="flex items-center gap-2 text-[11px] px-1 py-0.5">
-                            <input
-                              type="checkbox"
-                              checked={t.memberUserIds.includes(p.id)}
-                              onChange={(e) => selectMember(i, p.id, e.target.checked)}
-                              className="w-3.5 h-3.5"
-                            />
-                            <span className="truncate">{p.name}</span>
-                          </label>
-                        ))}
+                      {!options.length && <p className="text-[10px] text-[#8C8880]">Muat kelompok untuk memilih anggota.</p>}
                     </div>
-                    <p className="mt-1 text-[9px] text-[#8C8880]">Anggota akun dipakai untuk feed group & update peserta. Nama manual tetap bisa diisi.</p>
-                  </details>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <input
-                      value={t.pot.join(', ')}
-                      onChange={(e) => setTeam(i, { pot: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                      placeholder="Tim Pot — Grow What You Believe"
-                      className={INPUT}
-                    />
-                    <input
-                      value={t.bag.join(', ')}
-                      onChange={(e) => setTeam(i, { bag: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                      placeholder="Tim Tas — Carry The Gospel"
-                      className={INPUT}
-                    />
                   </div>
-                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
-                    <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
-                    Selesai (override Admin)
-                  </label>
-                </div>
-              ))}
+                );
+                return (
+                  <div key={t.groupId || i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        value={t.name}
+                        onChange={(e) => setTeam(i, { name: e.target.value })}
+                        readOnly={Boolean(t.groupId)}
+                        placeholder={`Nama kelompok ${i + 1}`}
+                        className={INPUT}
+                      />
+                      {!t.groupId && (
+                        <button type="button" onClick={() => setTeams((p) => p.filter((_, j) => j !== i))} className="shrink-0 px-2 text-red-500" title="Hapus kelompok">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {t.missing && <p className="text-[10px] font-bold text-amber-800">Belum ada di database — baris peringatan, tidak ikut undian presentasi.</p>}
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <input value={t.station} onChange={(e) => setTeam(i, { station: e.target.value })} placeholder="Meja / stasiun" className={INPUT} />
+                      <select value={t.repUserId || ''} onChange={(e) => selectRep(i, e.target.value)} className={INPUT}>
+                        <option value="">Perwakilan kelompok…</option>
+                        {options.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                        {t.repUserId && !options.some((p) => p.id === t.repUserId) && (
+                          <option value={t.repUserId}>{t.repName || t.repUserId}</option>
+                        )}
+                      </select>
+                    </div>
+                    <p className="text-[11px] text-[#8C8880]">
+                      {t.members.length ? t.members.join(', ') : 'Belum ada roster. Tekan Muat 10 kelompok.'}
+                      {t.memberUserIds.length > t.members.length ? ` · ${t.memberUserIds.length} akun bisa melihat feed` : ''}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {rolePick('pot', `Stasiun A · ${stations.a}`)}
+                      {rolePick('bag', `Stasiun B · ${stations.b}`)}
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
+                      <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
+                      Selesai (override Admin)
+                    </label>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {teams.length < 8 && (
+              {teams.length < LAB_TEAM_CAP && (
                 <button type="button" onClick={() => setTeams((p) => [...p, labEmptyTeam()])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
                   <Plus className="w-3.5 h-3.5" /> Kelompok
                 </button>
               )}
-              <button type="button" disabled={busy} onClick={() => void saveTeams()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
+              <button type="button" disabled={busy || !participantsReady} onClick={() => void saveTeams()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan kelompok
               </button>
             </div>

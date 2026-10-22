@@ -1,5 +1,108 @@
 # GEHC Portal — Handoff
 
+## Current — Penutup Sesi dan liturgi baku (22 Okt 2026)
+
+**Minta:** momen khas pola menjadi item terakhir Didaskalia (`Penutup Sesi · <Nama>`); liturgi ibadah tetap `Persembahan & Doa` 10 dan `Lagu & Doa Penutup` 5, divisi LITURGIA. Mission Sequence: Konklusi = firman penutup, bukan commissioning; commissioning bukan lagi tersimpan di dalam persembahan. Branch baru dari `staging` `dd8b245`. Jangan sentuh `main` atau database.
+
+**Done:**
+- Mission Sequence 120': Praise 10, Sesi 1 · Snack & Merge 10, Sesi 2 · Kode Alkitab 15, Sesi 3 · Mission Room 30, Presentasi Kelompok 20, Konklusi 10, Penutup Sesi · Commissioning & Deklarasi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5.
+- Debat: Konklusi sebelum liturgi, plus Lagu & Doa Penutup 5 (baku 145'). Bedah Film: persembahan pindah ke sesudah Konklusi (baku 155'). Monolog: Lagu & Doa Penutup 5 terpisah (baku 125'). Creative Lab sudah sesuai. Post-to-Post tidak ditambah blok persembahan.
+- Id segmen peserta `komitmen` tetap; label tampilannya Penutup Sesi. Kunci fase internal tidak diganti. Seed hanya jalan bila file dieksekusi langsung.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog tersimpan harus mengikuti urutan ini. QA browser butuh database.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **165 file / 1313 tes** lulus. `npm run build` lulus. Database dan browser tidak dijalankan.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/penutup-sesi-liturgi-926a`.
+
+## Current — Rundown lama, kuota stasiun, kontrol mandiri (22 Okt 2026)
+
+**Minta:** sesi `sesi-2026-10-25-creative-lab` masih menampilkan rundown katalog lama (seed staging belum dijalankan); kartu kelompok menulis `(0/4)` sementara label foto `(maks 2)`; URL kontrol mandiri kosong (“Belum ada sesi untuk pekan ini”) sementara kontrol di portal tampil. Branch baru dari `staging` `b373d71`. Jangan sentuh `main` atau database.
+
+**Done:**
+- Judul dan menit Creative Lab yang masih legacy dinormalisasi saat dibaca (API katalog, detail sesi, event worship, studio) dan di daftar rundown. Hasilnya PRA 20' + jemaat 115' (Praise 10, Firman & Briefing 10, Sesi 1 · Reminder Jar 15, Sesi 2 · Art Stations 25, Presentasi Kelompok 30). Baris Bag Painting dan “Pilih 2 pertanyaan” tidak ikut tampil. Simpan pola yang masih legacy menuliskan rundown baku; membuka halaman tidak menulis database.
+- Centang pelukis di kartu kelompok memakai cap 2, sama dengan `LAB_PHOTO_LIMIT` Pot/Tas. Simpan tim memotong daftar ke 2.
+- `#/mentoring/<slug>/kontrol` memuat sesi dari slug itu (termasuk di luar 50 sesi terbaru) dan tidak menampilkan empty-state pekan selama sesi tersebut ketemu.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog tersimpan harus ikut judul baru. QA browser hari-H butuh database.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **164 file / 1305 tes** lulus. `npm run build` lulus. Layar browser tidak dijalankan di sini (tidak ada `DATABASE_URL`).
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/lab-rundown-kontrol-926a` · compare `staging...cursor/lab-rundown-kontrol-926a`.
+
+## Current — Template generik + rundown baku (22 Okt 2026)
+
+**Minta:** aktivitas Creative Lab jadi template generik; rundown 135' dengan Presentasi Kelompok 30'; Mission Sequence = 5 tim gabungan; tiga bug kontrol; judul rundown semua pola memakai kosakata yang sama. Branch `cursor/creative-lab-templates-926a` ke `staging`. Jangan sentuh `main`.
+
+**Done:**
+- Nama tampilan: Sesi 1 · Reminder Jar (subjudul tema, default Roots) dan Sesi 2 · Art Stations (media + judul tema, default Pot / Grow What You Believe dan Tas / Carry the Gospel). Kunci simpan tetap `POT`/`BAG`/`GROUP` dan fase `A1`/`A2`/`PRESENT`. Judul lama dinormalisasi saat dibaca.
+- Creative Lab: Praise & Worship 10, Firman & Briefing 10, Sesi 1 15, Sesi 2 25 (20' melukis paralel + 5' unggah di catatan), Presentasi Kelompok 30 (timer default 150 detik; nilai tersimpan, termasuk 120, tidak ditimpa), Konklusi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5. Jemaat 115' + PRA 20'.
+- Mission Sequence: 5 tim gabungan (`pair` + `roles`), tombol **Pasangan default** tidak menimpa papan sampai disimpan, cap simpan 5, CSV satu baris per tim.
+- Reset ke Draft mengosongkan aktivitas, tanda selesai tim, dan karya lab; roster tetap. Simpan kelompok hanya mengirim tim (server mengabaikan `activity` bila `teams` ikut). Tombol terkunci sampai peserta termuat. Admin memilih kelompok tanpa harus jadi anggota.
+- Panduan judul: `docs/product/rundown-writing.md`.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog staging harus mengikuti judul baru. Sesi yang sudah tersimpan tidak perlu migrasi.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm run test` **163 file / 1299 tes** lulus. `npm run build` lulus. Layar hari-H tidak dijalankan di browser pada lingkungan ini (tidak ada database).
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/creative-lab-templates-926a`.
+
+## Current — Creative Lab: 3 slide presentasi + unggah admin (22 Okt 2026)
+
+**Minta:** layar presentasi tiap kelompok jadi 3 slide (Pot, Tas, foto bersama),
+admin mengunggah/menghapus foto atas nama kelompok, thumbnail kontrol bisa dibesarkan,
+dan peserta melihat petunjuk foto landscape.
+
+**Done:**
+- `presentSlide` (0–2) di `config.activity` lewat `cleanActivity`. Sesi lama tanpa field
+  mulai di slide Pot. Kontrol: Berikutnya / Sebelumnya; setelah slide 3 pindah ke
+  kelompok berikutnya di `presentOrder`. Timer 2 menit direset hanya saat ganti kelompok.
+- `POST/DELETE /api/worship/sessions/:id/lab/photos|updates` untuk peran kontrol
+  (SUPERADMIN, KOMISI, COMMITTEE + divisi Didaskalia) saat A2, PRESENT, DONE, atau
+  status WRAPUP. Kuota tetap Pot 2 / Tas 2 / bersama 1. Folder Drive sama dengan
+  unggah perwakilan. `userId` baris mencatat siapa yang mengunggah.
+- Kontrol: lightbox `object-contain`, hapus foto, tombol **Upload atas nama kelompok**.
+- HP peserta: "Disarankan foto landscape".
+
+**Next:** QA layar proyektor (portrait dan landscape tidak terpotong) dan unggah
+admin saat presentasi bila kuota perwakilan belum penuh.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm run test` **163 file / 1297 tes** lulus.
+
+**Commands:** `npm run lint` · `npm run test` · branch `cursor/creative-lab-present-slides-69e4` ke `staging`.
+
+## Current — Creative Lab: 10 kelompok dari database (22 Okt 2026)
+
+**Minta:** isi papan Creative Lab dari 10 kelompok Beyonders (Agape … Shalom),
+perwakilan dari anggota kelompok, layar membaca kode di hash, kontrol mandiri
+tidak kosong, foto di folder event `[EV:…]`, presentasi 10 × 2 menit.
+Tanpa migrasi Prisma. Three Sequences tetap 8 tim. Folder Drive bertag tidak
+di-rename atau dipindah.
+
+**Done:**
+- `buildCreativeLabTeams` + `cleanTeams({ maxTeams })` (default 8, Creative Lab 10).
+  `POST /api/worship/sessions/:id/lab/load-groups` (tombol **Muat 10 kelompok**).
+  Apply-draft sesi baru mengisi kelompok dari DB. Sesi lama tidak ditimpa
+  saat kontrol dibuka. Bila sudah ada `worship_lab_updates`, urutan indeks dikunci.
+- UI: nama terkunci bila `groupId` ada; dropdown perwakilan/Pot/Tas dari anggota
+  kelompok; layar `#/…/layar?code=` menang atas localStorage; kontrol mandiri
+  punya shell, status memuat, dan redirect 401.
+- Foto: `Didaskalia [MENTOR]/Kurikulum/<event> [EV:slug:DIDASKALIA]/Foto Kelompok|Hasil Karya/<nama>`.
+  Pencarian folder berpaginasi. Tidak memanggil rename/move.
+- Rundown: jemaat 115' + PRA 20' = 135' (presentasi 20'). Jar tetap 6 pilih 2.
+  Activity 2 tetap melukis.
+- Branch `cursor/creative-lab-groups-69e4`, PR ke `staging`. Belum merge, belum deploy, env tidak disentuh.
+
+**Next:** QA manual di staging setelah merge (jangan dari branch ini):
+seed worship staging, sesi lama tekan **Muat 10 kelompok**, cek dropdown
+perwakilan, layar dengan `?code=`, unggah foto ke folder event, Three Sequences
+masih 8. Lalu baru pertimbangkan `main`.
+
+**Verifikasi:** `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` bersih.
+`npm run test` 159 file / 1276 tes lulus (setelah perbaikan huruf besar pada assert prompt).
+
+**Commands:** `npm run lint` · `npm run test` · PR menarget `staging`.
+
 ## Current — QA keamanan direktori (22 Okt 2026)
 
 **Minta:** verifikasi staging (4 poin) + buka draft PR bila bisa.

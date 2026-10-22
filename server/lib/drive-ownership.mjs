@@ -48,8 +48,9 @@ export const SUBDIVISION_CHILDREN = {
   'Liturgi & Ibadah': ['Foto', 'Berkas', 'Berkas/rundown', 'Foto/ibadah'],
   'Musik & Vokal': ['Foto', 'Berkas', 'Berkas/chord', 'Foto/rehearsal'],
   'Doa & Intercession': ['Foto', 'Berkas', 'Berkas/pokok-doa'],
-  // Didaskalia: Kurikulum by-event → 3 sub per event (01..03) diatur di gdrive-events.mjs;
-  // pengarahan tim di sub sendiri. Legacy entries tetap dikenali tapi tidak diprovision lagi.
+  // Didaskalia: Kurikulum by-event → 3 sub per event (01..03) diatur di gdrive-events.mjs.
+  // Creative Lab menambah Foto Kelompok + Hasil Karya saat unggah (DIDASKALIA_LAB_FOLDERS),
+  // tanpa menamai ulang folder bertag. Legacy entries tetap dikenali tapi tidak diprovision lagi.
   Kurikulum: [],
   'Kurikulum dan Modul': ['Foto', 'Berkas', 'Berkas/modul', 'Berkas/modul-rhb'],
   'Pembekalan dan Pengarahan': ['Foto', 'Berkas', 'Foto/pembekalan', 'Berkas/materi-tim'],
@@ -77,6 +78,13 @@ export const BZP_CATEGORY_FOLDER = {
 };
 
 export const BZP_OPS_EXTRA = ['Pesanan', 'Cover'];
+
+/**
+ * Anak folder Creative Lab di dalam `<event> [EV:<slug>:DIDASKALIA]`.
+ * Tidak memakai tag baru (ACL ikut tag event). Tidak mengganti 01–03.
+ * Foto bersama → Foto Kelompok/<kelompok>; Pot & Tas → Hasil Karya/<kelompok>.
+ */
+export const DIDASKALIA_LAB_FOLDERS = ['Foto Kelompok', 'Hasil Karya'];
 
 export const ZONE_OWNERS = {
   'Ruang Anggota [MENTEE]': {

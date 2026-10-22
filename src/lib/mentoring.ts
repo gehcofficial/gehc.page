@@ -109,6 +109,13 @@ export type SessionTeam = {
   repUserId?: string;
   repName?: string;
   memberUserIds?: string[];
+  /** Id kelompok Beyonders. Kosong bila baris peringatan (belum ada di database). */
+  groupId?: string;
+  missing?: boolean;
+  /** Mission Sequence: dua kelompok yang digabung jadi satu tim. */
+  pair?: string[];
+  /** Peran di dalam tim gabungan (bukan tim terpisah). */
+  roles?: string;
 };
 
 /** Satu update karya/foto Creative Lab (hanya group sendiri untuk peserta). */
@@ -160,6 +167,9 @@ export type SessionLabMine = {
   done: boolean;
   phase: string;
   updates: SessionLabUpdate[];
+  /** Pengurus sesi boleh mengerjakan kelompok mana pun tanpa jadi anggota. */
+  asAdmin?: boolean;
+  teamChoices?: { index: number; name: string }[];
 } | null;
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
@@ -190,6 +200,8 @@ export type SessionActivity = {
   showOnScreen: boolean;
   cardIndex: number;
   presentIndex: number;
+  /** 0 = Pot, 1 = Tas, 2 = foto bersama. Kosong pada sesi lama berarti slide Pot. */
+  presentSlide?: number;
   presentStartedAt: string | null;
   presentSeconds: number;
   /** Urutan presentasi hasil undian (index tim). */
@@ -201,9 +213,11 @@ export type SessionActivity = {
 /** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
 export type SessionActivityBrief = {
   briefing: { core: string; rules: string; jarIntro: string };
-  a1: { title: string; goal: string; tools: string; steps: string; output: string; minutes: number };
+  a1: { title: string; subtitle: string; goal: string; tools: string; steps: string; output: string; minutes: number };
   a2: {
     title: string; goal: string; tools: string;
+    stationA: { media: string; theme: string };
+    stationB: { media: string; theme: string };
     pot: string; bag: string;
     potMeaning: string; bagMeaning: string;
     report: string; commit: string; minutes: number;
@@ -211,6 +225,42 @@ export type SessionActivityBrief = {
   present: { order: string; questions: string; seconds: number };
   closing: { script: string; commit: string; prayer: string };
 } | null;
+
+/** Sepuluh kelompok Beyonders. Duplikat daftar server agar UI tidak mengimpor `.mjs`. */
+export const BEYONDERS_GROUPS = [
+  'Agape', 'Avodah', 'Dunamis', 'Echad', 'Hesed', 'Kairos', 'Logos', 'Metanoia', 'Ruach', 'Shalom',
+] as const;
+
+export const MISSION_TEAM_CAP = 5;
+export const MISSION_INTERNAL_ROLES = 'Soal · Lapangan · Narasi · Presentasi · Editor (peran di dalam tim, bukan tim terpisah)';
+
+/** Lima tim gabungan default: kelompok 1+2, 3+4, … Nama memakai '&'. */
+export function defaultJointTeams(groupNames: readonly string[] = BEYONDERS_GROUPS) {
+  const names = groupNames.map((n) => String(n || '').trim()).filter(Boolean);
+  return Array.from({ length: MISSION_TEAM_CAP }, (_, i) => {
+    const a = names[i * 2] || `Kelompok ${i * 2 + 1}`;
+    const b = names[i * 2 + 1] || `Kelompok ${i * 2 + 2}`;
+    return {
+      name: `${a} & ${b}`,
+      task: 'Menjalankan seluruh misi bersama.',
+      members: [] as string[],
+      done: false,
+      pair: [a, b],
+      roles: MISSION_INTERNAL_ROLES,
+    };
+  });
+}
+
+export function labStationCopy(brief?: SessionActivityBrief) {
+  const a = brief?.a2?.stationA;
+  const b = brief?.a2?.stationB;
+  return {
+    mediaA: a?.media || 'Pot',
+    themeA: a?.theme || 'Grow What You Believe',
+    mediaB: b?.media || 'Tas',
+    themeB: b?.theme || 'Carry the Gospel',
+  };
+}
 
 export type SessionJarCard = { key: string; code: string; title: string; direction: string };
 
@@ -312,18 +362,70 @@ export function isMentoringHash(hash: string): boolean {
   return h === '#/mentoring' || h.startsWith('#/mentoring/') || h.startsWith('#/mentoring?');
 }
 
+function decodeHashSeg(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function parseMentoringHash(hash: string): MentoringRoute | null {
   const raw = String(hash || '')
     .replace(/^#\/?/, '')
     .split('?')[0];
   const seg = raw.split('/').filter(Boolean);
   if (seg[0] !== 'mentoring') return null;
-  const view: MentoringView = seg[2] === 'layar' ? 'layar' : seg[2] === 'kontrol' ? 'kontrol' : 'peserta';
-  return { slug: seg[1] || '', view };
+  const tail = String(seg[2] || '').toLowerCase();
+  const view: MentoringView = tail === 'layar' ? 'layar' : tail === 'kontrol' ? 'kontrol' : 'peserta';
+  return { slug: decodeHashSeg(seg[1] || ''), view };
 }
 
 export function mentoringCodeKey(slug: string): string {
   return `gehc_mentoring_code_${slug}`;
+}
+
+/** Kode proyektor dari query di dalam hash (`#/mentoring/<slug>/layar?code=`). */
+export function codeFromMentoringHash(hash: string): string {
+  const q = String(hash || '').split('?')[1] || '';
+  const code = new URLSearchParams(q).get('code') || '';
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama'] as const;
+
+/** Kuota foto Creative Lab. Sama dengan server `LAB_PHOTO_LIMIT`. */
+export const LAB_PHOTO_CAP = { POT: 2, BAG: 2, GROUP: 1 } as const;
+
+/** Centang pelukis di kartu kelompok — ditampilkan sama dengan kuota foto stasiun. */
+export const LAB_STATION_CAP = LAB_PHOTO_CAP.POT;
+
+/**
+ * Berikutnya/Sebelumnya di kontrol presentasi.
+ * Slide 0→1→2, lalu kelompok berikutnya di presentOrder. Setelah slide terakhir
+ * kelompok terakhir, fase menjadi DONE. Sesi tanpa presentSlide dianggap slide 0.
+ */
+export function stepLabPresentation(
+  activity: { presentIndex?: number; presentSlide?: number },
+  orderLength: number,
+  direction: 1 | -1,
+): { phase: 'PRESENT' | 'DONE'; presentIndex: number; presentSlide: number } {
+  const count = Math.max(0, Math.floor(Number(orderLength) || 0));
+  const last = Math.max(0, count - 1);
+  let index = Math.floor(Number(activity?.presentIndex) || 0);
+  if (!Number.isInteger(index) || index < 0) index = 0;
+  if (index > last) index = last;
+  let slide = Math.floor(Number(activity?.presentSlide) || 0);
+  if (!Number.isInteger(slide) || slide < 0) slide = 0;
+  if (slide > 2) slide = 2;
+  if (direction > 0) {
+    if (slide < 2) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide + 1 };
+    if (count === 0 || index >= last) return { phase: 'DONE', presentIndex: index, presentSlide: 2 };
+    return { phase: 'PRESENT', presentIndex: index + 1, presentSlide: 0 };
+  }
+  if (slide > 0) return { phase: 'PRESENT', presentIndex: index, presentSlide: slide - 1 };
+  if (index <= 0) return { phase: 'PRESENT', presentIndex: 0, presentSlide: 0 };
+  return { phase: 'PRESENT', presentIndex: index - 1, presentSlide: 2 };
 }
 
 export function fmtClock(totalSeconds: number): string {

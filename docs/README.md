@@ -11,6 +11,7 @@
 - [Beyonders revision v2](product/revision-v2-beyonders.md)
 - [Roadmap](product/roadmap.md)
 - [Pola ibadah hari-H — aturan operasional 180-max](product/pola-ibadah-hari-H.md)
+- [Panduan menulis rundown](product/rundown-writing.md)
 - [Studio Didaskalia — SOP mingguan tim & HOD](product/didaskalia-studio.md)
 - [Pustaka Lagu Liturgia — setlist, chord & FreeShow](product/liturgia-lagu.md)
 - [Penatalayan mingguan — mentor assign, WA temporer & Representative Day](product/penatalayan-mingguan.md)

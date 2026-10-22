@@ -47,6 +47,11 @@ describe('preferSession: tidak nyangkut di sesi pola lama', () => {
     expect(preferSession([FILM, MONO], { slug: 'sesi-film', eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('s-film');
   });
 
+  it('slug tautan kontrol menang atas sesi yang sedang terbuka', () => {
+    expect(preferSession([FILM, MONO], { prevId: 's-mono', slug: 'sesi-film', eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('s-film');
+    expect(preferSession([FILM, MONO], { prevId: 's-mono', slug: 'tidak-ada', eventId: 'ev-1' })).toBe('s-mono');
+  });
+
   it('tanpa event: sesi pertama; kosong: string kosong', () => {
     expect(preferSession([OTHER, MONO], {})).toBe('s-lain');
     expect(preferSession([], { eventId: 'ev-1', preferPattern: 'MONOLOG' })).toBe('');

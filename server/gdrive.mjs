@@ -176,6 +176,65 @@ export async function listFolders(parentId, pageSize = 50) {
   });
 }
 
+/** Semua subfolder, mengikuti nextPageToken. `fresh` melewati cache daftar. */
+export async function listAllFolders(parentId, { fresh = false } = {}) {
+  const drive = await getDrive();
+  const target = parentId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';
+  const key = `folders-all:${target}`;
+  const run = async () => {
+    const out = [];
+    let pageToken;
+    do {
+      const res = await drive.files.list({
+        q: `'${target}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        pageSize: 100,
+        pageToken,
+        orderBy: 'name',
+        fields: 'nextPageToken, files(id, name, mimeType, createdTime)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      out.push(...(res.data.files || []));
+      pageToken = res.data.nextPageToken || undefined;
+    } while (pageToken);
+    return out;
+  };
+  if (fresh) return run();
+  return withCache(key, run);
+}
+
+/** Cari folder di seluruh Drive yang namanya memuat `fragment` (paginasi penuh). */
+export async function findFoldersNamed(fragment) {
+  const drive = await getDrive();
+  const safe = String(fragment || '').replace(/'/g, "\\'");
+  if (!safe) return [];
+  const out = [];
+  let pageToken;
+  do {
+    const res = await drive.files.list({
+      q: `name contains '${safe}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      pageSize: 100,
+      pageToken,
+      fields: 'nextPageToken, files(id, name, parents, createdTime)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    out.push(...(res.data.files || []));
+    pageToken = res.data.nextPageToken || undefined;
+  } while (pageToken);
+  return out;
+}
+
+export async function getFolderMeta(fileId) {
+  const drive = await getDrive();
+  const res = await drive.files.get({
+    fileId,
+    fields: 'id, name, mimeType, parents',
+    supportsAllDrives: true,
+  });
+  return res.data;
+}
+
 export async function listFiles({ folderId, query, pageSize = 24, fresh = false } = {}) {
   const drive = await getDrive();
   const target = folderId || process.env.GDRIVE_ROOT_FOLDER_ID || 'root';

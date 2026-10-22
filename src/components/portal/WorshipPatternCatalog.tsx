@@ -23,6 +23,7 @@ import {
 } from '../../lib/worship-patterns';
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 import { JURY_CRITERIA, ROUND_STEPS } from '../../lib/session-engine';
+import { normalizeCreativeLabPhases } from '../../lib/creative-lab-rundown';
 
 /** Detik → mm:ss (mis. 240 → 4:00, 60 → 1:00). */
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -60,7 +61,9 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     const visible = (patterns || []).filter((p) => (p as { status?: string }).status !== 'ARCHIVED' || p.code === activeCode);
-    const sorted = [...visible].sort((a, b) => (a.code === 'MONOLOG' ? -1 : b.code === 'MONOLOG' ? 1 : (a.code || '').localeCompare(b.code || '')));
+    const sorted = [...visible]
+      .map((p) => ({ ...p, phases: normalizeCreativeLabPhases(p.phases, p.code) }))
+      .sort((a, b) => (a.code === 'MONOLOG' ? -1 : b.code === 'MONOLOG' ? 1 : (a.code || '').localeCompare(b.code || '')));
     if (!q) return sorted;
     return sorted.filter((p) => `${p.code} ${p.name} ${p.summary || ''}`.toLowerCase().includes(q));
   }, [patterns, query]);

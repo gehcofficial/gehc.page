@@ -229,30 +229,113 @@ export function cleanSong(raw) {
   return { title, about: str(raw.about, 2000), singer: str(raw.singer, 120) };
 }
 
+/** Batas generik cleanTeams bila pemanggil tidak mengirim maxTeams. */
+export const DEFAULT_MAX_TEAMS = 8;
+/** Mission Sequence: 5 tim gabungan, masing-masing 2 kelompok mentoring. */
+export const SEQUENCE_MAX_TEAMS = 5;
+/** Peran lama Mission Room — sekarang teks peran di dalam tiap tim gabungan. */
+export const MISSION_INTERNAL_ROLES = 'Soal · Lapangan · Narasi · Presentasi · Editor (peran di dalam tim, bukan tim terpisah)';
+
+/** Sepuluh kelompok Beyonders yang dipakai Creative Lab, urut nama. */
+export const CREATIVE_LAB_GROUP_NAMES = [
+  'Agape', 'Avodah', 'Dunamis', 'Echad', 'Hesed', 'Kairos', 'Logos', 'Metanoia', 'Ruach', 'Shalom',
+];
+
+export const LAB_MAX_TEAMS = CREATIVE_LAB_GROUP_NAMES.length;
+/** Pelukis per stasiun. Sama dengan LAB_PHOTO_LIMIT POT/BAG (bukan 4). */
+export const LAB_STATION_CAP = 2;
+export const LAB_ROSTER_MAX = 8;
+/** Indeks presentasi terakhir (0 … 9). */
+export const LAB_PRESENT_INDEX_MAX = LAB_MAX_TEAMS - 1;
+
 /**
- * Normalisasi papan tim (maks 8 tim, 20 anggota per tim).
- * CREATIVE_LAB menambah sub-tim paralel: `pot` & `bag` (masing-masing 2-6
- * anggota), `station` (meja/stasiun), serta identitas akun untuk update karya:
- * `repUserId` (perwakilan), `repName`, `memberUserIds[]`. Field baru opsional —
- * THREE_SEQUENCES/DEBAT tetap kompatibel (default kosong).
+ * Lima tim gabungan Mission Sequence. Default pasangan urut 1+2, 3+4, …
+ * dari sepuluh kelompok Beyonders. `roles` hanya saran peran di dalam tim.
  */
-export function cleanTeams(raw) {
+export function buildJointMissionTeams(groupNames) {
+  const names = (Array.isArray(groupNames) && groupNames.length ? groupNames : CREATIVE_LAB_GROUP_NAMES)
+    .map((n) => String(n || '').trim())
+    .filter(Boolean);
+  const teams = [];
+  for (let i = 0; i < SEQUENCE_MAX_TEAMS; i += 1) {
+    const a = names[i * 2] || `Kelompok ${i * 2 + 1}`;
+    const b = names[i * 2 + 1] || `Kelompok ${i * 2 + 2}`;
+    teams.push({
+      name: `${a} & ${b}`,
+      task: 'Menjalankan seluruh misi bersama.',
+      members: [],
+      done: false,
+      scribe: '',
+      station: '',
+      pot: [],
+      bag: [],
+      repUserId: '',
+      repName: '',
+      memberUserIds: [],
+      groupId: '',
+      missing: false,
+      pair: [a, b],
+      roles: MISSION_INTERNAL_ROLES,
+    });
+  }
+  return { teams };
+}
+
+/** Indeks tim gabungan untuk seorang peserta: akun, nama, lalu nama kelompok. */
+export function matchJointTeam(teams, who = {}) {
+  const list = Array.isArray(teams) ? teams : [];
+  const uid = String(who.userId || '');
+  const name = String(who.name || '').trim().toLowerCase();
+  const group = String(who.groupName || '').trim().toLowerCase();
+  if (uid) {
+    for (let i = 0; i < list.length; i += 1) {
+      const ids = Array.isArray(list[i]?.memberUserIds) ? list[i].memberUserIds : [];
+      if (ids.some((id) => String(id) === uid)) return i;
+    }
+  }
+  if (name) {
+    for (let i = 0; i < list.length; i += 1) {
+      const members = Array.isArray(list[i]?.members) ? list[i].members : [];
+      if (members.some((m) => String(m).trim().toLowerCase() === name)) return i;
+    }
+  }
+  if (group) {
+    for (let i = 0; i < list.length; i += 1) {
+      const pair = Array.isArray(list[i]?.pair) ? list[i].pair : [];
+      if (pair.some((p) => String(p).trim().toLowerCase() === group)) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Normalisasi papan tim. Default maks 8. Mission Sequence memanggil dengan
+ * `{ maxTeams: 5 }`, Creative Lab dengan `{ maxTeams: 10 }`.
+ * `pair` (dua kelompok) dan `roles` (peran di dalam tim) untuk Mission Sequence.
+ * Sub-tim `pot` & `bag` tetap kunci simpan Creative Lab (Stasiun A / B).
+ */
+export function cleanTeams(raw, opts = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const teams = (Array.isArray(raw.teams) ? raw.teams : []).slice(0, 8).map((t) => ({
+  const cap = Math.min(LAB_MAX_TEAMS, Math.max(1, Number(opts.maxTeams) || DEFAULT_MAX_TEAMS));
+  const teams = (Array.isArray(raw.teams) ? raw.teams : []).slice(0, cap).map((t) => ({
     name: str(t?.name, 80),
     task: str(t?.task, 200),
     members: (Array.isArray(t?.members) ? t.members : []).slice(0, 20).map((m) => str(m, 80)).filter(Boolean),
     done: Boolean(t?.done),
     scribe: str(t?.scribe, 80),
     station: str(t?.station, 80),
-    pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
-    bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+    pot: (Array.isArray(t?.pot) ? t.pot : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
+    bag: (Array.isArray(t?.bag) ? t.bag : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
     repUserId: str(t?.repUserId, 64),
     repName: str(t?.repName, 80),
     memberUserIds: [...new Set((Array.isArray(t?.memberUserIds) ? t.memberUserIds : [])
       .map((m) => str(m, 64))
       .filter(Boolean))]
       .slice(0, 20),
+    groupId: str(t?.groupId, 64),
+    missing: Boolean(t?.missing),
+    pair: (Array.isArray(t?.pair) ? t.pair : []).slice(0, 2).map((m) => str(m, 80)).filter(Boolean),
+    roles: str(t?.roles, 400),
   })).filter((t) => t.name);
   if (!teams.length) return null;
   return { teams };
@@ -261,8 +344,8 @@ export function cleanTeams(raw) {
 /** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
 export const ACTIVITY_PHASES = ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
 
-/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi 2'/kelompok. */
-export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 120, DONE: 0 };
+/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi ~2,5'/kelompok. */
+export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 150, DONE: 0 };
 
 /**
  * Normalisasi state panggung Creative Lab:
@@ -279,21 +362,23 @@ export function cleanActivity(raw) {
   const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null
     ? true
     : !(raw.showOnScreen === false || raw.showOnScreen === 0 || String(raw.showOnScreen).toLowerCase() === 'false');
-  const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || 120));
+  const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || ACTIVITY_PHASE_SECONDS.PRESENT));
   const rawDur = raw.durations && typeof raw.durations === 'object' && !Array.isArray(raw.durations) ? raw.durations : {};
   const durationFor = (key, fallback) => Math.min(7200, Math.max(60, Number(rawDur[key]) || fallback));
-  // Urutan presentasi hasil undian: index tim unik 0-7. Kosong = urutan papan.
+  // Urutan presentasi hasil undian: index tim unik 0-9. Kosong = urutan papan.
   const presentOrder = [...new Set((Array.isArray(raw.presentOrder) ? raw.presentOrder : [])
     .map((n) => Math.floor(Number(n)))
-    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 7))]
-    .slice(0, 8);
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
+    .slice(0, LAB_MAX_TEAMS);
   return {
     phase,
     startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
     durationSec,
     showOnScreen,
     cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
-    presentIndex: Math.min(7, Math.max(0, Number(raw.presentIndex) || 0)),
+    presentIndex: Math.min(LAB_PRESENT_INDEX_MAX, Math.max(0, Number(raw.presentIndex) || 0)),
+    // 0 Pot, 1 Tas, 2 foto bersama. Sesi lama tanpa field ini mulai di slide Pot.
+    presentSlide: Math.min(2, Math.max(0, Math.floor(Number(raw.presentSlide) || 0))),
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
     presentOrder,
@@ -335,8 +420,8 @@ export function creativeLabFromDraft(storedDraft) {
       done: false,
       scribe: legacyScribe,
       station: str(groups[`group-${n}-station`], 80) || `Meja ${n}`,
-      pot: splitNames(groups[`group-${n}-pot`], 6),
-      bag: splitNames(groups[`group-${n}-bag`], 6),
+      pot: splitNames(groups[`group-${n}-pot`], LAB_STATION_CAP),
+      bag: splitNames(groups[`group-${n}-bag`], LAB_STATION_CAP),
       // Perwakilan group: field baru `group-n-rep`; fallback juru digital lama.
       repName: str(groups[`group-${n}-rep`], 80) || legacyScribe,
       repUserId: '',
@@ -350,7 +435,7 @@ export function creativeLabFromDraft(storedDraft) {
     const n = Number(String(v ?? '').replace(/[^\d.]/g, ''));
     return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
   };
-  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], 120)));
+  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], ACTIVITY_PHASE_SECONDS.PRESENT)));
   return {
     teams: teams.length ? { teams } : null,
     activity: cleanActivity({
@@ -369,5 +454,146 @@ export function creativeLabFromDraft(storedDraft) {
         PRESENT: presentSeconds,
       },
     }),
+  };
+}
+
+function normLabName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Papan Creative Lab dari kelompok aktif di database.
+ * `memberUserIds` = semua anggota aktif yang punya akun (akses feed).
+ * `members` = roster tampilan, check-in didahulukan, maks 8.
+ * `lockOrder` mempertahankan indeks tim yang sudah punya update karya.
+ */
+export function buildCreativeLabTeams(dbGroups, opts = {}) {
+  const checked = new Set((opts.checkedInIds || []).map((id) => String(id)));
+  const existing = Array.isArray(opts.existingTeams) ? opts.existingTeams : [];
+  const lockOrder = Boolean(opts.lockOrder);
+  const byName = new Map();
+  for (const g of Array.isArray(dbGroups) ? dbGroups : []) {
+    const key = normLabName(g?.name);
+    if (key && !byName.has(key)) byName.set(key, g);
+  }
+
+  const makeFresh = (canonical, index) => {
+    const g = byName.get(normLabName(canonical));
+    const people = [];
+    const seen = new Set();
+    for (const m of g?.members || []) {
+      const id = String(m?.userId || m?.id || '').trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      people.push({ id, name: String(m?.name || m?.user?.name || '').trim() });
+    }
+    people.sort((a, b) => {
+      const ac = checked.has(a.id) ? 0 : 1;
+      const bc = checked.has(b.id) ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return a.name.localeCompare(b.name, 'id');
+    });
+    const roster = people.filter((p) => p.name).slice(0, LAB_ROSTER_MAX);
+    return {
+      groupId: g?.id ? String(g.id) : '',
+      name: g?.name ? String(g.name).trim() : canonical,
+      missing: !g,
+      task: '',
+      members: roster.map((p) => p.name),
+      done: false,
+      scribe: '',
+      station: `Meja ${index + 1}`,
+      pot: [],
+      bag: [],
+      repUserId: '',
+      repName: '',
+      memberUserIds: people.map((p) => p.id).slice(0, 20),
+      _people: people,
+    };
+  };
+
+  const fresh = CREATIVE_LAB_GROUP_NAMES.map((name, i) => makeFresh(name, i));
+
+  const applyExisting = (base, ex) => {
+    if (!ex) {
+      const { _people, ...rest } = base;
+      return rest;
+    }
+    const ids = new Set(base.memberUserIds);
+    const names = new Set(base._people.map((p) => p.name.toLowerCase()).filter(Boolean));
+    const keepList = (list) => (Array.isArray(list) ? list : [])
+      .map((n) => String(n || '').trim())
+      .filter((n) => n && names.has(n.toLowerCase()))
+      .slice(0, LAB_STATION_CAP);
+    const repId = String(ex.repUserId || '');
+    const repOk = Boolean(repId) && ids.has(repId);
+    const person = repOk ? base._people.find((p) => p.id === repId) : null;
+    const { _people, ...rest } = base;
+    return {
+      ...rest,
+      task: str(ex.task, 200),
+      station: str(ex.station, 80) || rest.station,
+      done: Boolean(ex.done),
+      pot: keepList(ex.pot),
+      bag: keepList(ex.bag),
+      repUserId: repOk ? repId : '',
+      repName: repOk ? (person?.name || str(ex.repName, 80)) : '',
+      scribe: str(ex.scribe, 80),
+    };
+  };
+
+  const matchFresh = (ex, consumed) => fresh.find((f) => {
+    if (consumed.has(f)) return false;
+    const idMatch = f.groupId && String(ex?.groupId || '') === f.groupId;
+    const nameMatch = normLabName(ex?.name) === normLabName(f.name);
+    return idMatch || nameMatch;
+  });
+
+  let teams;
+  if (!lockOrder) {
+    const consumed = new Set();
+    teams = fresh.map((base) => {
+      const ex = existing.find((t) => matchFresh(t, consumed) === base);
+      if (ex) consumed.add(base);
+      return applyExisting(base, ex);
+    });
+  } else {
+    const consumed = new Set();
+    teams = [];
+    for (const ex of existing) {
+      const base = matchFresh(ex, consumed);
+      if (!base) {
+        if (!str(ex?.name, 80)) continue;
+        teams.push({
+          groupId: str(ex.groupId, 64),
+          name: str(ex.name, 80),
+          missing: false,
+          task: str(ex.task, 200),
+          members: (Array.isArray(ex.members) ? ex.members : []).slice(0, 20).map((m) => str(m, 80)).filter(Boolean),
+          done: Boolean(ex.done),
+          scribe: str(ex.scribe, 80),
+          station: str(ex.station, 80),
+          pot: (Array.isArray(ex.pot) ? ex.pot : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
+          bag: (Array.isArray(ex.bag) ? ex.bag : []).slice(0, LAB_STATION_CAP).map((m) => str(m, 80)).filter(Boolean),
+          repUserId: str(ex.repUserId, 64),
+          repName: str(ex.repName, 80),
+          memberUserIds: [...new Set((Array.isArray(ex.memberUserIds) ? ex.memberUserIds : []).map((m) => str(m, 64)).filter(Boolean))].slice(0, 20),
+        });
+        continue;
+      }
+      consumed.add(base);
+      teams.push(applyExisting(base, ex));
+    }
+    for (const base of fresh) {
+      if (consumed.has(base)) continue;
+      teams.push(applyExisting(base, null));
+    }
+    teams = teams.slice(0, LAB_MAX_TEAMS);
+  }
+
+  return {
+    teams,
+    missing: fresh.filter((f) => f.missing).map((f) => f.name),
+    orderLocked: lockOrder,
   };
 }

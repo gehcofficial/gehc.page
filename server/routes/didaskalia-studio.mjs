@@ -12,6 +12,7 @@ import { requireDivision } from '../lib/division-access.mjs';
 import { sundaysInMonth, toISODate, addDays } from '../lib/church-year.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
 import { deleteEmptySession } from './worship.mjs';
+import { presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
 import {
   generateWeekDraft,
   generateEnrichedDraft,
@@ -276,9 +277,13 @@ async function resolveWeekPattern(prisma, week, override, variantOverride) {
       const row = await prisma.worshipPattern.findUnique({ where: { code: c } });
       if (row) {
         let phases = [];
+        let summary = row.summary || '';
         try {
           const raw = typeof row.phases === 'string' ? JSON.parse(row.phases) : row.phases;
-          if (Array.isArray(raw)) phases = raw.slice(0, 16).map((f) => ({
+          const shown = presentWorshipPattern({ ...row, phases: raw });
+          summary = shown?.summary || summary;
+          const source = Array.isArray(shown?.phases) ? shown.phases : [];
+          phases = source.slice(0, 16).map((f) => ({
             no: f?.no ?? null,
             title: String(f?.title || ''),
             minutes: Number(f?.minutes) || 0,
@@ -291,7 +296,7 @@ async function resolveWeekPattern(prisma, week, override, variantOverride) {
             segments: Array.isArray(f?.segments) ? f.segments.slice(0, 8) : null,
           }));
         } catch { /* abaikan */ }
-        return { code: row.code, name: row.name, summary: row.summary || '', phases, playbook: String(row.playbook || '').slice(0, 4000), variant };
+        return { code: row.code, name: row.name, summary, phases, playbook: String(row.playbook || '').slice(0, 4000), variant };
       }
     } catch { /* tabel pola belum ada — fallback literal */ }
     return null;
@@ -980,7 +985,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const st = sanitizeStudio(week.studio);
       const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}${p.summary ? ` — ${p.summary}` : ''}`).join('\n');
       const fieldKeys = Array.isArray(req.body?.fieldKeys)
-        ? req.body.fieldKeys.slice(0, 40).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
+        ? req.body.fieldKeys.slice(0, 80).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
         : [];
       // Isi draft yang sudah diketik tim = masukan AI (jangan ditimpa). Khusus
       // Bedah Film: film-title yang sudah ada = kunci utama.

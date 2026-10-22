@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizeCreativeLabPhases } from '../../lib/creative-lab-rundown';
 import { divisionLabel } from '../../lib/worship-patterns';
 
 export type PatternPhase = {
@@ -19,7 +20,7 @@ export const PatternRundownList: React.FC<{
   phases?: PatternPhase[] | null;
   bare?: boolean;
 }> = ({ patternName, phases, bare }) => {
-  const rows = Array.isArray(phases) ? phases : [];
+  const rows = normalizeCreativeLabPhases(Array.isArray(phases) ? phases : []);
   if (!rows.length) return null;
   const list = (
     <ol className="space-y-2">
