@@ -76,6 +76,8 @@ export type DidaskaliaPath = {
   pathIndex: number;
   dayLabel: string;
   title: string;
+  /** Judul English paralel. Tidak menimpa `title`. */
+  titleEn?: string;
   /** Nats Pembimbing: ayat kunci harian yang diulas & berasosiasi dengan tema. */
   scriptureRef: string;
   scriptureText: string;
@@ -83,6 +85,8 @@ export type DidaskaliaPath = {
   bacaanRef: string;
   /** Gambaran besar hari itu (1 kalimat) untuk halaman summary. */
   summary: string;
+  /** Ringkasan English paralel. Tidak menimpa `summary`. */
+  summaryEn?: string;
   homileticLens: string[];
   hookQuestion: string;
   illustration: string;
@@ -132,6 +136,8 @@ export type DidaskaliaSermonOutline = {
 export type DidaskaliaSermon = {
   /** Inti Pesan 1 kalimat yang memaku khotbah. */
   bigIdea: string;
+  /** Inti pesan English paralel. Tidak menimpa `bigIdea`. */
+  bigIdeaEn?: string;
   /** Teks Utama sermon (Serving Day) — bedakan dari Fundamental Firman (jangkar mingguan). */
   teksUtama: { ref: string; text: string };
   /** 4 outline pola For Service. */
@@ -139,6 +145,8 @@ export type DidaskaliaSermon = {
   methods: string[];
   rationale: string;
   summary: string;
+  /** Ringkasan English paralel. Tidak menimpa `summary`. */
+  summaryEn?: string;
   slideOutline: DidaskaliaSlide[];
   /** Bagian A — panduan deliver per metode (untuk pengkhotbah). */
   deliveryPlan: DidaskaliaDeliveryStep[];
@@ -218,6 +226,15 @@ export type DidaskaliaRegenProposal = {
   sermon: DidaskaliaSermon;
 };
 
+/** Tinjauan HOD atas naskah yang diimpor. Kosong = pekan lama, tetap bisa terbit. */
+export type DidaskaliaSourceSignoff = {
+  status: 'PENDING' | 'APPROVED';
+  requestedAt?: string;
+  requestedByName?: string;
+  decidedAt?: string;
+  decidedByName?: string;
+};
+
 /** Pengajuan regenerate yang menunggu persetujuan HOD. */
 export type DidaskaliaPendingRegen = {
   id: string;
@@ -266,6 +283,8 @@ export type DidaskaliaStudio = {
   generation?: number;
   /** Pengajuan regenerate yang menunggu persetujuan HOD. */
   pendingRegen?: DidaskaliaPendingRegen | null;
+  /** Persetujuan naskah sumber (impor). Bukan syarat terbit. */
+  sourceSignoff?: DidaskaliaSourceSignoff | null;
   /** Riwayat versi (maks 20) untuk undo. */
   regenHistory?: DidaskaliaRegenHistory[];
   render: Partial<Record<'pembekalan' | 'khutbah' | 'rhb', DidaskaliaRenderMeta>>;
@@ -354,7 +373,26 @@ export function defaultStudio(): DidaskaliaStudio {
   };
 }
 
-/** Pastikan selalu ada 7 Path dengan field lengkap. */
+/** Ada naskah tim yang sudah masuk editor (bukan shell Path kosong). */
+export function studioHasImportedSource(studio: DidaskaliaStudio): boolean {
+  const paths = ensurePaths(studio);
+  const pathHit = paths.some((p) => {
+    const body = (p.rhbSections || []).some((s) => String(s.body || '').trim());
+    const nats = String(p.scriptureRef || '').trim();
+    const customTitle = String(p.title || '').trim() && !/^Path \d+$/i.test(String(p.title || '').trim());
+    return body || (Boolean(nats) && customTitle);
+  });
+  const sermon = studio.sermon;
+  const sermonHit = Boolean(
+    String(sermon?.teksUtama?.ref || '').trim()
+    || String(sermon?.outline?.pengantar || '').trim()
+    || String(sermon?.outline?.bedahTeologis || '').trim()
+    || String(sermon?.outline?.jembatan || '').trim()
+    || String(sermon?.outline?.kesimpulan || '').trim(),
+  );
+  return pathHit || sermonHit;
+}
+
 export function ensurePaths(studio: DidaskaliaStudio): DidaskaliaPath[] {
   const list = Array.isArray(studio.paths) ? studio.paths : [];
   return Array.from({ length: 7 }, (_, i) => {
