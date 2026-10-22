@@ -1,5 +1,18 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia rilis khotbah pekan 4 (22 Okt 2026)
+
+**Minta:** halaman `/materi/khutbah/2026-10/4` hanya satu slide. Studio terisi, Terbitkan bilang belum rilis ulang, snapshot `KHUTBAH v1`. Jangan republish produksi.
+
+**Done (kode, belum di produksi):**
+- Produksi membaca `studio.render.khutbah.snapshot`, bukan PDF Drive. Snapshot v1 (18 Okt 2026 10.36 WIB, tampil 17 Okt di zona AS) outline-nya kosong dan menimpa naskah live. HOD approve 23:02 WIB hanya mengubah `sourceSignoff`; snapshot tetap v1.
+- Halaman materi memakai naskah tersimpan bila snapshot outline kosong. Tombol rilis menyimpan snapshot dulu, lalu Drive; gagal Drive tetap tertulis di kartu.
+- Produksi tidak diubah.
+
+**Next:** setelah cabang ini di `main`, owner buka Terbitkan pekan 4 dan klik **Rilis ulang Ringkasan Khotbah**. Sampai itu, produksi tetap satu slide. Jangan `staging:sync`.
+
+**Commands:** `npx vitest run tests/unit/didaskalia-live-sermon.test.ts tests/unit/didaskalia-khutbah-literal.test.ts` · branch `cursor/didaskalia-feedback-1025-d5fe`
+
 ## Current — Didaskalia lima tab Studio (22 Okt 2026)
 
 **Minta:** susunan ulang Studio yang sudah disetujui, di cabang terpisah dari impor sumber. Lima tab: Sumber (empat masukan), Konten, Diskusi, Gambar, Terbitkan. Pengetahuan pindah ke menu roda gigi. Simpan per bagian, pekerjaan AI tidak mengunci layar. Tanpa deploy dan tanpa migrasi.

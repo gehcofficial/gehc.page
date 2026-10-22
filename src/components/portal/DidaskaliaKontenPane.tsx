@@ -4,6 +4,7 @@ import { HOMILETIC_METHODS_DATA } from '../../data/homiletic-methods';
 import {
   RHB_SECTIONS,
   bacaanMatchesKitab,
+  citationsOutsideWeek,
   defaultSermon,
   ensureRhbSections,
   fieldOrigin,
@@ -221,6 +222,7 @@ export const DidaskaliaKontenPane: React.FC<{
           <div className="flex flex-wrap items-center gap-2">
             <Presentation className="w-4 h-4 text-brand" />
             <h4 className="text-sm font-black text-[#1B1B1B]">Khotbah</h4>
+            <p className="w-full text-[11px] text-[#8C8880]">Halaman Ringkasan Khotbah memakai teks utama dan empat bagian outline. Inti pesan, kutipan ayat, ringkasan singkat, dan metode boleh kosong: tidak ada di naskah sumber dan tidak menghalangi halaman.</p>
             <button type="button" disabled={!canWrite || busy === 'sermon'} onClick={() => void runSermon()} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50">
               {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Segarkan metode &amp; inti pesan
             </button>
@@ -381,6 +383,19 @@ export const DidaskaliaKontenPane: React.FC<{
             {isFlowStale(readFlowBaseline(ym, weekIndex), patternCode, (sermon.discussionFlow || []).length) && (
               <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">Pola {patternCode} berbeda dari alur yang tersimpan. Segarkan Bagian A/B atau sunting manual.</p>
             )}
+            {(() => {
+              const outside = citationsOutsideWeek((sermon.discussionFlow || []).join('\n'), [
+                sermon.teksUtama?.ref || '',
+                studio.kitabFokus || '',
+                studio.fundamentalFirman?.ref || '',
+              ]);
+              if (!outside.length) return null;
+              return (
+                <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">
+                  Alur menyebut {outside.join(', ')}. Ayat pekan ini: {[sermon.teksUtama?.ref, studio.kitabFokus].filter(Boolean).join(' · ') || 'belum diisi'}. Sunting manual. Bukan salah baca parser.
+                </p>
+              );
+            })()}
             <label className={labelCls}>Alur FGD hari Minggu</label>
             <textarea value={(sermon.discussionFlow || []).join('\n')} onChange={(e) => { patchSermon((s) => ({ ...s, discussionFlow: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })); writeFlowBaseline(ym, weekIndex, patternCode); }} rows={4} className={inputCls} />
           </div>

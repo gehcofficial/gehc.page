@@ -8,7 +8,10 @@ import { DeckShell } from '../presentation/DeckShell';
 import {
   MATERIAL_DOC_LABEL,
   buildDeck,
+  applyPublishedSnapshot,
   contentFromStudio,
+  releaseDrift,
+  type ReleaseDrift,
   docAccess,
   lastPortalPlace,
   materialAbsoluteUrl,
@@ -22,12 +25,12 @@ import {
   type PresentationContent,
 } from '../../lib/didaskalia-presentation';
 import { buildDayCaption, buildWeekCaption, copyText, whatsappShareUrl } from '../../lib/rhb-caption';
-import { ensurePaths, type DidaskaliaStudio } from '../../lib/didaskalia';
+import { type DidaskaliaStudio } from '../../lib/didaskalia';
 import { MdBlocks, inlineSpans, parseMdLite } from '../../lib/md-lite';
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'ok'; content: PresentationContent; published: boolean; version: number }
+  | { status: 'ok'; content: PresentationContent; published: boolean; version: number; drift: ReleaseDrift }
   | { status: 'forbidden'; message: string }
   | { status: 'error'; message: string };
 
@@ -365,6 +368,11 @@ export default function DidaskaliaPresentation() {
   }, []);
 
   const route = useMemo(() => parseMaterialHash(hash), [hash]);
+  if (typeof document !== 'undefined' && route && state.status !== 'ok') {
+    document.title = route.doc === 'khutbah'
+      ? `Ringkasan Khotbah — Pekan ${route.weekIndex}`
+      : MATERIAL_DOC_LABEL[route.doc];
+  }
 
   useEffect(() => {
     if (!route) return;
@@ -384,14 +392,10 @@ export default function DidaskaliaPresentation() {
         if (r.status === 403) { setState({ status: 'forbidden', message: d.error || 'Tidak berhak mengakses materi ini.' }); return; }
         if (!r.ok) { setState({ status: 'error', message: d.error || `Gagal memuat (server ${r.status}).` }); return; }
         const studio = d.studio as DidaskaliaStudio;
-        const content = contentFromStudio(studio, route.weekIndex, d.meta?.date || '', d.meta?.theme || '', d.meta?.serviceType || null, d.meta?.patternName || null, d.meta?.patternCode || null);
-        if (d.snapshot) {
-          const snap = d.snapshot as { paths?: DidaskaliaStudio['paths']; sermon?: DidaskaliaStudio['sermon']; images?: DidaskaliaStudio['presentation'] };
-          content.paths = ensurePaths({ ...studio, paths: snap.paths || studio.paths });
-          content.sermon = snap.sermon || content.sermon;
-          content.images = snap.images || content.images;
-        }
-        setState({ status: 'ok', content, published: Boolean(d.published), version: Number(d.version) || 1 });
+        const live = contentFromStudio(studio, route.weekIndex, d.meta?.date || '', d.meta?.theme || '', d.meta?.serviceType || null, d.meta?.patternName || null, d.meta?.patternCode || null);
+        const drift = route.doc === 'khutbah' ? releaseDrift(live, d.snapshot || null) : (d.snapshot ? 'current' : 'unreleased');
+        const content = applyPublishedSnapshot(live, d.snapshot || null);
+        setState({ status: 'ok', content, published: Boolean(d.published), version: Number(d.version) || 1, drift });
       })
       .catch((e) => { if (!cancelled) setState({ status: 'error', message: e instanceof Error ? e.message : 'Gagal memuat.' }); });
     return () => { cancelled = true; };
@@ -440,7 +444,14 @@ export default function DidaskaliaPresentation() {
     );
   }
 
-  const { content, published, version } = state;
+  const { content, published, version, drift } = state;
+  const docTitle = route.doc === 'khutbah' && content.theme
+    ? `${MATERIAL_DOC_LABEL.khutbah} — ${content.theme}`
+    : MATERIAL_DOC_LABEL[route.doc];
+  if (typeof document !== 'undefined') document.title = docTitle;
+  const staleBanner = route.doc === 'khutbah' && drift === 'stale'
+    ? `Draf studio berbeda dari rilis v${version}. Halaman ini menampilkan naskah tersimpan, bukan snapshot rilis.`
+    : undefined;
 
   if (route.doc === 'rhb' && !route.dayIndex) {
     return (
@@ -460,7 +471,8 @@ export default function DidaskaliaPresentation() {
     <>
       <DeckShell
         slides={slides}
-        docTitle={route.dayIndex ? `${docLabel} — ${dayLabel || `Hari ${route.dayIndex}`}` : docLabel}
+        docTitle={route.dayIndex ? `${docLabel} — ${dayLabel || `Hari ${route.dayIndex}`}` : docTitle}
+        banner={staleBanner}
         eyebrow={eyebrow}
         exitHash="#/portal"
         headerRight={

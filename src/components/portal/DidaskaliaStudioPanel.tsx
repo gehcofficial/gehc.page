@@ -28,8 +28,11 @@ import {
   defaultSermon,
   ensurePaths,
   ensureRhbSections,
+  formatJakarta,
   hashContent,
   needsRepublish,
+  publishFeedback,
+  releaseState,
   statusLabel,
   studioHasImportedSource,
   filterCommentsByScope,
@@ -101,8 +104,10 @@ async function readJson(r: Response): Promise<any> {
 
 async function assetDataUrl(fileId?: string): Promise<string | undefined> {
   if (!fileId) return undefined;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const r = await fetch(`/api/didaskalia/asset/${encodeURIComponent(fileId)}`, { credentials: 'include' });
+    const r = await fetch(`/api/didaskalia/asset/${encodeURIComponent(fileId)}`, { credentials: 'include', signal: ctrl.signal });
     if (!r.ok) return undefined;
     const blob = await r.blob();
     return await new Promise<string>((resolve) => {
@@ -112,6 +117,8 @@ async function assetDataUrl(fileId?: string): Promise<string | undefined> {
     });
   } catch {
     return undefined;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -183,6 +190,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [publishNote, setPublishNote] = useState<Record<string, { tone: 'running' | 'ok' | 'warn' | 'error'; title: string; detail?: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [lastAiKind, setLastAiKind] = useState<'draft' | 'sermon' | 'enrich' | null>(null);
   const [comment, setComment] = useState('');
@@ -855,15 +863,27 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     const uploaded: Array<{ name: string; driveFileId: string; pathIndex?: number }> = [];
     for (const f of files) {
       const data = await blobToBase64(f.blob);
-      const r = await fetch(`/api/events/${event.id}/divisions/DIDASKALIA/drive/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: f.filename, mimetype: 'application/pdf', data, subfolder }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || 'Gagal upload ke Drive.');
-      uploaded.push({ name: f.filename, driveFileId: d.file?.id, pathIndex: f.pathIndex });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000);
+      try {
+        const r = await fetch(`/api/events/${event.id}/divisions/DIDASKALIA/drive/upload`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          signal: ctrl.signal,
+          body: JSON.stringify({ filename: f.filename, mimetype: 'application/pdf', data, subfolder }),
+        });
+        const d = await readJson(r);
+        if (r.status === 413) throw new Error('PDF terlalu besar untuk unggahan server.');
+        if (!r.ok) throw new Error(d.error || `Gagal upload ke Drive (server ${r.status}).`);
+        if (!d.file?.id) throw new Error('Drive tidak mengembalikan file.');
+        uploaded.push({ name: f.filename, driveFileId: d.file.id, pathIndex: f.pathIndex });
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') throw new Error('Unggah Drive habis waktu.');
+        throw e;
+      } finally {
+        clearTimeout(timer);
+      }
     }
     return uploaded;
   };
@@ -894,50 +914,103 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     void enqueueSection({ target: 'presentation', presentation });
   };
 
+  const postPublish = async (doc: 'pembekalan' | 'khutbah' | 'rhb', version: number, files: Array<{ name: string; driveFileId: string; pathIndex?: number }>, hash: string, driveFolder: string) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({ doc, version, files, hash, driveFolder }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || `Gagal menyimpan rilis (server ${r.status}).`);
+      const meta = d.week?.studio?.render?.[doc];
+      if (!meta?.snapshot) throw new Error('Server tidak menyimpan snapshot. Halaman materi tidak berubah.');
+      return meta as { version?: number; renderedAt?: string };
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') throw new Error('Menyimpan snapshot habis waktu. Halaman materi tidak berubah.');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload', studioOverride?: DidaskaliaStudio) => {
-    if (!weekMeta) return;
-    await flushSections();
+    if (!weekMeta) {
+      const note = { tone: 'error' as const, title: 'Pekan belum termuat', detail: 'Muat ulang studio, lalu klik lagi.' };
+      setPublishNote((n) => ({ ...n, [doc]: note }));
+      addToast({ type: 'error', title: note.title, description: note.detail });
+      return;
+    }
+    const folder = doc === 'khutbah' ? '02 Ringkasan Khotbah' : doc === 'rhb' ? '03 RHB 7 Hari' : '01 Pembekalan Mentor - Co mentor';
+    setPublishNote((n) => ({ ...n, [doc]: { tone: 'running', title: mode === 'download' ? 'Menyusun PDF…' : 'Menyimpan naskah ke halaman materi…' } }));
+    try {
+      await flushSections();
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : 'Gagal menyimpan draf.';
+      setPublishNote((n) => ({ ...n, [doc]: { tone: 'error', title: 'Draf belum tersimpan', detail } }));
+      addToast({ type: 'error', title: 'Draf belum tersimpan', description: detail });
+      return;
+    }
     const st = studioOverride || studioRef.current;
     if (mode === 'upload' && st.sourceSignoff?.status === 'PENDING') {
-      if (!window.confirm('Naskah sumber belum disetujui HOD. Hasil impor tetap bisa diterbitkan. Lanjutkan unggah ke Drive?')) return;
+      if (!window.confirm('Naskah sumber belum disetujui HOD. Hasil impor tetap bisa diterbitkan. Lanjutkan?')) {
+        setPublishNote((n) => { const next = { ...n }; delete next[doc]; return next; });
+        return;
+      }
     }
     const patternCode = weekMeta.patternCode || 'MONOLOG';
     const patternName = patterns.find((p) => String(p.code || '').toUpperCase() === patternCode)?.name || null;
-    const opts = { version: (st.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, patternCode, patternName, ...(await collectPdfImages(st)) };
-    const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio: st };
+    const version = (st.render?.[doc]?.version || 0) + 1;
+    const hash = doc === 'khutbah'
+      ? hashContent({ fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, sermon: st.sermon })
+      : hashContent({ chapterNo: st.chapterNo, fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, paths: st.paths });
     setBusy(`pdf-${doc}`);
+    let snapshotSaved = false;
     try {
-      if (doc === 'pembekalan') {
-        const { filename, blob } = buildPembekalanPdf(week, st, opts);
-        if (mode === 'download') download(filename, blob);
-        else {
-          const uploaded = await uploadToDrive([{ filename, blob }], '01 Pembekalan Mentor - Co mentor');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: st.chapterNo, fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, paths: st.paths }), driveFolder: '01 Pembekalan Mentor - Co mentor' }) });
-        }
-      } else if (doc === 'khutbah') {
-        const { filename, blob } = buildKhutbahPdf(week, st, opts);
-        if (mode === 'download') download(filename, blob);
-        else {
-          const uploaded = await uploadToDrive([{ filename, blob }], '02 Ringkasan Khotbah');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, sermon: st.sermon }), driveFolder: '02 Ringkasan Khotbah' }) });
-        }
-      } else {
-        const docs = buildRhbPdfs(week, st, opts);
-        if (!docs.length) throw new Error('7 Path belum ada.');
-        if (mode === 'download') docs.forEach((d) => download(d.filename, d.blob));
-        else {
-          const uploaded = await uploadToDrive(docs, '03 RHB 7 Hari');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: st.chapterNo, fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, paths: st.paths }), driveFolder: '03 RHB 7 Hari' }) });
-        }
+      if (mode === 'upload') {
+        const meta = await postPublish(doc, version, st.render?.[doc]?.files || [], hash, folder);
+        snapshotSaved = true;
+        const saved = publishFeedback({ saved: true, version: Number(meta.version) || version });
+        setPublishNote((n) => ({ ...n, [doc]: { tone: 'ok', title: saved.title, detail: 'Menyusun PDF…' } }));
+      }
+      const opts = { version, serviceType: event?.serviceType || null, patternCode, patternName, ...(await collectPdfImages(st)) };
+      const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio: st };
+      const built = doc === 'pembekalan'
+        ? [buildPembekalanPdf(week, st, opts)]
+        : doc === 'khutbah'
+          ? [buildKhutbahPdf(week, st, opts)]
+          : buildRhbPdfs(week, st, opts);
+      if (!built.length) throw new Error('7 Path belum ada.');
+      if (mode === 'download') {
+        built.forEach((d) => download(d.filename, d.blob));
+        setPublishNote((n) => ({ ...n, [doc]: { tone: 'ok', title: 'PDF diunduh', detail: 'Unduh tidak mengubah halaman materi.' } }));
+        addToast({ type: 'success', title: 'PDF diunduh', description: 'Halaman materi tidak berubah.' });
+        return;
+      }
+      let driveError = '';
+      try {
+        const uploaded = await uploadToDrive(built.map((d) => ({ filename: d.filename, blob: d.blob, pathIndex: (d as { pathIndex?: number }).pathIndex })), folder);
+        await postPublish(doc, version, uploaded, hash, folder);
+      } catch (e) {
+        driveError = e instanceof Error ? e.message : 'Gagal unggah Drive.';
       }
       await load();
-      addToast({ type: 'success', title: mode === 'download' ? 'PDF diunduh' : 'PDF terbit ke Drive' });
+      const feedback = publishFeedback({ saved: true, driveError, version });
+      setPublishNote((n) => ({ ...n, [doc]: { tone: feedback.tone === 'ok' ? 'ok' : 'warn', title: feedback.title, detail: feedback.detail } }));
+      addToast({ type: feedback.tone === 'ok' ? 'success' : 'warning', title: feedback.title, description: feedback.detail });
     } catch (e: unknown) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate PDF.' });
+      const detail = e instanceof Error ? e.message : 'Gagal generate PDF.';
+      const feedback = publishFeedback({ saved: snapshotSaved, driveError: detail, version: snapshotSaved ? version : null });
+      setPublishNote((n) => ({ ...n, [doc]: { tone: feedback.tone === 'error' ? 'error' : 'warn', title: feedback.title, detail: feedback.detail } }));
+      addToast({ type: feedback.tone === 'error' ? 'error' : 'warning', title: feedback.title, description: feedback.detail });
     } finally {
       setBusy(null);
     }
-  }, [addToast, event?.serviceType, flushSections, load, patterns, weekIndex, weekMeta, ym]);
+  }, [addToast, event?.id, event?.serviceType, flushSections, load, patterns, weekIndex, weekMeta, ym]);
 
   const generateSchedule = async () => {
     setSchedBusy(true);
@@ -990,15 +1063,29 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
-  const pdfButton = (doc: 'pembekalan' | 'khutbah' | 'rhb', label: string, icon: React.ReactNode) => (
-    <div className="flex items-stretch gap-1.5">
-      <button type="button" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'upload')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0EA5E9] text-white text-xs font-bold disabled:opacity-50">
-        {busy === `pdf-${doc}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}{label}
-      </button>
-      <button type="button" title="Unduh saja" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'download')} className="px-2.5 rounded-xl border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-50"><Download className="w-3.5 h-3.5" /></button>
-      {needsRepublish(studio, doc) && <span className="self-center text-[10px] font-bold text-amber-600">belum rilis ulang</span>}
-    </div>
-  );
+  const pdfButton = (doc: 'pembekalan' | 'khutbah' | 'rhb', label: string, icon: React.ReactNode) => {
+    const state = releaseState(studio, doc);
+    const action = state === 'stale' ? 'Rilis ulang' : state === 'unreleased' ? 'Terbitkan' : 'Rilis ulang';
+    const note = publishNote[doc];
+    return (
+      <div className="rounded-xl border border-[#E7E5DE] p-2 space-y-1.5 min-w-[220px]">
+        <div className="flex items-stretch gap-1.5">
+          <button type="button" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'upload')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0EA5E9] text-white text-xs font-bold disabled:opacity-50">
+            {busy === `pdf-${doc}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}{action} {label}
+          </button>
+          <button type="button" title="Unduh saja, tidak mengubah halaman materi" disabled={busy === `pdf-${doc}`} onClick={() => void generateDoc(doc, 'download')} className="px-2.5 rounded-xl border border-[#D9D7D0] text-[#8C8880] hover:text-[#1B1B1B] disabled:opacity-50"><Download className="w-3.5 h-3.5" /></button>
+        </div>
+        <p className={`text-[10px] font-bold ${state === 'current' ? 'text-emerald-700' : 'text-amber-700'}`}>
+          {state === 'current' ? 'Sama dengan rilis' : state === 'stale' ? 'Draf berbeda dari rilis' : 'Belum dirilis'}
+        </p>
+        {note && (
+          <p className={`text-[10px] ${note.tone === 'error' ? 'text-red-700' : note.tone === 'warn' ? 'text-amber-800' : 'text-[#1B1B1B]'}`}>
+            <b>{note.title}</b>{note.detail ? ` — ${note.detail}` : ''}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const studioTabs: Array<{ id: StudioTab; label: string }> = [
     { id: 'sumber', label: 'Sumber' },
@@ -1322,11 +1409,11 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               {pdfButton('khutbah', 'Ringkasan Khotbah (02)', <Upload className="w-3.5 h-3.5" />)}
               {pdfButton('rhb', 'RHB 7 Hari (03)', <Upload className="w-3.5 h-3.5" />)}
             </div>
-            <p className="text-[11px] text-[#8C8880]">Tombol biru mengunggah ke Drive event minggu ini. Ikon unduh menyimpan PDF saja. RHB menghasilkan 7 file terpisah (Minggu–Sabtu).</p>
+            <p className="text-[11px] text-[#8C8880]">Tombol biru menyimpan snapshot ke halaman materi dulu, lalu mengunggah PDF ke Drive. Bila Drive gagal, halaman tetap memakai naskah yang baru disimpan dan pesannya tetap di kartu ini. Ikon unduh tidak mengubah halaman. RHB menghasilkan 7 file.</p>
             {(Object.entries(studio.render || {}) as Array<[string, import('../../lib/didaskalia').DidaskaliaRenderMeta | undefined]>).map(([doc, meta]) => meta && (
               <p key={doc} className="text-[11px] text-[#8C8880]">
-                <span className="font-bold text-[#1B1B1B] uppercase">{doc}</span> v{meta.version} · {meta.files?.length || 0} file · {meta.renderedAt ? new Date(meta.renderedAt).toLocaleDateString('id-ID') : ''}
-                {meta.snapshot ? <span className="text-emerald-700 font-bold"> · snapshot rilis</span> : <span className="text-amber-600"> · belum ada snapshot</span>}
+                <span className="font-bold text-[#1B1B1B] uppercase">{doc}</span> v{meta.version} · {meta.files?.length || 0} file · terakhir dirilis {formatJakarta(meta.renderedAt)}
+                {needsRepublish(studio, doc as 'pembekalan' | 'khutbah' | 'rhb') ? <span className="text-amber-700 font-bold"> · draf lebih baru</span> : <span className="text-emerald-700 font-bold"> · sama dengan draf</span>}
               </p>
             ))}
           </div>
@@ -1337,7 +1424,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <h4 className="text-sm font-black text-[#1B1B1B]">Presentasi Web &amp; Caption</h4>
             </div>
             <p className="text-[11px] text-[#8C8880]">
-              Deck presentasi per pekan (Pembekalan/Khutbah) dan per hari (RHB). Konten dibekukan saat dokumen dirilis.
+              Halaman materi membaca naskah studio. Snapshot rilis yang kosong tidak menyembunyikan outline yang sudah terisi. Rilis ulang menyalin naskah itu ke snapshot.
             </p>
             <p className="text-[11px] text-[#8C8880]">Gambar cover, bagian khotbah, dan hari RHB ada di tab <button type="button" onClick={() => setTab('gambar')} className="font-bold text-sky-700">Gambar</button>. Unduh PDF memakai naskah yang tersimpan. Bila naskah sumber masih menunggu HOD, unggah ke Drive minta konfirmasi — pekan lama tanpa pengajuan tetap langsung terbit.</p>
             <div className="flex flex-wrap gap-2">

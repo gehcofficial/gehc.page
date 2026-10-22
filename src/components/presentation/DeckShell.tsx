@@ -17,6 +17,7 @@ export type DeckShellProps = {
   eyebrow?: string;
   exitHash: string;
   headerRight?: React.ReactNode;
+  banner?: string;
   renderSlide: (index: number) => React.ReactNode;
 };
 
@@ -26,7 +27,7 @@ export function deckRailLabel(slide: DeckSlideLite, index: number): string {
   return t || `Slide ${index + 1}`;
 }
 
-export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow, exitHash, headerRight, renderSlide }) => {
+export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow, exitHash, headerRight, banner, renderSlide }) => {
   const total = slides.length;
   const [i, setI] = useState(0);
   const [isFull, setIsFull] = useState(false);
@@ -175,6 +176,7 @@ export const DeckShell: React.FC<DeckShellProps> = ({ slides, docTitle, eyebrow,
           <div className="h-full bg-sky-400 transition-all" style={{ width: `${progress}%` }} />
         </div>
       </header>
+      {banner && <p className="bg-amber-300 text-[#1B1B1B] text-[11px] font-bold px-4 py-2 print:hidden">{banner}</p>}
 
       <main
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6"

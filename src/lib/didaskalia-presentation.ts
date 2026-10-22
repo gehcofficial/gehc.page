@@ -150,8 +150,32 @@ export function effectiveRhbSections(path: DidaskaliaPath): DidaskaliaRhbSection
   return saved.map((s) => ({ ...s, body: legacy[s.key] || s.body }));
 }
 
+/** `--` dari markdown jadi tanda hubung ayat. */
+export function tidyScriptureDashes(ref: string): string {
+  return String(ref || '').replace(/(\d)\s*--+\s*(\d)/g, '$1–$2');
+}
+
+function sameScripture(a: string, b: string) {
+  const n = (s: string) => tidyScriptureDashes(s).replace(/\s+/g, ' ').trim().toLowerCase();
+  return Boolean(n(a) && n(a) === n(b));
+}
+
 function weekCoverSubtitle(content: PresentationContent): string {
-  return [content.date, content.kitabFokus].filter(Boolean).join(' · ');
+  return [content.date, tidyScriptureDashes(content.kitabFokus)].filter(Boolean).join(' · ');
+}
+
+/** Cover khotbah: teks utama, kitab fokus, dan jangkar hanya bila memang ayat lain. */
+export function khutbahCoverFields(content: PresentationContent): { label: string; value: string }[] {
+  const utama = tidyScriptureDashes(content.sermon?.teksUtama?.ref || '').trim();
+  const fokus = tidyScriptureDashes(content.kitabFokus || '').trim();
+  const jangkar = tidyScriptureDashes(content.fundamentalFirman?.ref || '').trim();
+  const fields: { label: string; value: string }[] = [];
+  if (utama) fields.push({ label: 'Teks Utama Khotbah', value: utama });
+  if (fokus && !sameScripture(fokus, utama)) fields.push({ label: 'Kitab Bagian Fokus', value: fokus });
+  if (jangkar && !sameScripture(jangkar, utama) && !sameScripture(jangkar, fokus)) {
+    fields.push({ label: 'Teks Jangkar Mingguan', value: jangkar });
+  }
+  return fields;
 }
 
 /** Tugas operasional mentor/co-mentor yang berlaku di semua pola. */
@@ -580,7 +604,7 @@ export function patternTechnicalBullets(patternCode?: string, patternName?: stri
     case 'CREATIVE_LAB':
       return [
         `Siapkan meja per kelompok (5-8 orang) + alat seni sebelum T0 — jar, 6 set kertas/orang, media Stasiun A dan B, cat, kuas (${name}).`,
-        'Firman & Briefing 10 menit: khotbah singkat + 6 kartu jar + aturan perwakilan + Presentasi Kelompok.',
+        'Firman & Briefing 15 menit: khotbah singkat, lalu umumkan pencatat dan pengundian.',
         'Sesi 1 · Reminder Jar 15 menit: tiap orang menulis 6 kartu di kertas, lipat ke jar, lalu memilih 2 dari 6 untuk diisi di web (paralel).',
         'Sesi 2 · Art Stations 25 menit: 20 menit melukis Stasiun A ∥ Stasiun B (paralel), lalu 5 menit unggah foto dan makna.',
         'Presentasi Kelompok: 10 kelompok × sekitar 2,5 menit, blok 30 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Urutan dari undian kontrol.',
@@ -849,8 +873,8 @@ export function literalKhutbahSlides(
 }
 
 export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
-  // Standar literal-MD: 4 bagian outline MD Service verbatim, di-chunk rapi.
-  const { sermon, images } = content;
+  // Empat bagian outline adalah slide Ringkasan. Field summary tidak menjadi slide.
+  const { images } = content;
   const slides: DeckSlide[] = [
     {
       id: 'cover',
@@ -860,10 +884,7 @@ export function buildKhutbahDeck(content: PresentationContent): DeckSlide[] {
       subtitle: weekCoverSubtitle(content),
       imageFileId: images.cover,
       background: true,
-      fields: [
-        sermon.teksUtama?.ref ? { label: 'Teks Utama Khotbah', value: sermon.teksUtama.ref } : null,
-        content.fundamentalFirman?.ref ? { label: 'Teks Jangkar Mingguan', value: content.fundamentalFirman.ref } : null,
-      ].filter(Boolean) as { label: string; value: string }[],
+      fields: khutbahCoverFields(content),
     },
     ...literalKhutbahSlides(content, 'Outline', 'outline', undefined, { bareTitle: true, maxLines: 9, maxBullets: 5 }),
   ];
@@ -893,6 +914,65 @@ export function delivererLabel(serviceType?: string | null): string {
   if (t.includes('MENTORING')) return 'Perwakilan Tim Didaskalia';
   if (t.includes('SERVING')) return 'Perwakilan yang akan Berkhotbah';
   return 'Pengkhotbah / Deliverer';
+}
+
+function filled(value?: string | null) {
+  return Boolean(String(value || '').trim());
+}
+
+/** Empat bagian outline adalah isi Ringkasan Khotbah. */
+export function sermonOutlineFilled(sermon?: { outline?: Partial<Record<string, string>> } | null) {
+  const outline = sermon?.outline || {};
+  return ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan'].some((key) => filled(outline[key]));
+}
+
+function pathsFilled(paths?: PresentationContent['paths']) {
+  return (paths || []).some((p) => filled(p.title) || filled(p.scriptureRef) || (p.rhbSections || []).some((s) => filled(s.body)));
+}
+
+function imagesFilled(images?: PresentationContent['images']) {
+  const img = images || {};
+  const literal = img.khutbahLiteral && typeof img.khutbahLiteral === 'object' ? Object.keys(img.khutbahLiteral).length : 0;
+  const rhb = img.rhbAi && typeof img.rhbAi === 'object' ? Object.keys(img.rhbAi).length : 0;
+  return Boolean(img.cover) || literal > 0 || rhb > 0;
+}
+
+export type ReleaseDrift = 'unreleased' | 'stale' | 'current';
+
+/** Snapshot kosong atau beda dari studio tersimpan. Halaman tetap menampilkan studio. */
+export function releaseDrift(
+  live: PresentationContent,
+  snapshot?: { sermon?: PresentationContent['sermon']; images?: PresentationContent['images'] } | null,
+): ReleaseDrift {
+  if (!snapshot) return 'unreleased';
+  if (sermonOutlineFilled(live.sermon) && !sermonOutlineFilled(snapshot.sermon)) return 'stale';
+  const pack = (sermon?: PresentationContent['sermon']) => JSON.stringify([
+    sermon?.outline || null,
+    String(sermon?.summary || ''),
+    String(sermon?.teksUtama?.ref || ''),
+  ]);
+  if (pack(live.sermon) !== pack(snapshot.sermon)) return 'stale';
+  if (imagesFilled(live.images) && !imagesFilled(snapshot.images)) return 'stale';
+  return 'current';
+}
+
+/**
+ * Halaman materi memakai studio live setelah parse.
+ * Snapshot publish hanya mengisi bagian yang masih kosong.
+ */
+export function applyPublishedSnapshot(content: PresentationContent, snapshot?: Partial<PresentationContent> & { paths?: PresentationContent['paths']; sermon?: PresentationContent['sermon']; images?: PresentationContent['images'] } | null): PresentationContent {
+  if (!snapshot) return content;
+  const next: PresentationContent = { ...content };
+  if (!sermonOutlineFilled(content.sermon) && snapshot.sermon) next.sermon = snapshot.sermon;
+  if (!pathsFilled(content.paths) && Array.isArray(snapshot.paths) && snapshot.paths.length) {
+    next.paths = ensurePaths({ paths: snapshot.paths } as DidaskaliaStudio);
+  }
+  if (!imagesFilled(content.images) && snapshot.images) next.images = snapshot.images;
+  if (!filled(content.fundamentalFirman?.ref) && filled(snapshot.fundamentalFirman?.ref) && snapshot.fundamentalFirman) {
+    next.fundamentalFirman = snapshot.fundamentalFirman;
+  }
+  if (!filled(content.kitabFokus) && filled(snapshot.kitabFokus)) next.kitabFokus = String(snapshot.kitabFokus);
+  return next;
 }
 
 /** Konten presentasi dari studio (live). */
