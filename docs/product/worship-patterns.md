@@ -116,7 +116,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
   (`eventId` dari tanggal pekan; `POST /api/worship/sessions` bila belum ada), lalu tampilkan **form kosongan
   per pola** (`src/lib/worship-session-draft.ts`: Post-to-Post = 3 topik × 3 Likert + 12 chip + afirmasi + timer;
    Monolog = 3 Q FGD + lagu (judul/makna/penyanyi) + 2 Q deep sharing; Debat = 5 mosi + Trap Reveal; Bedah Film = film + Likert 5 (2 ronde) + 3 Q + chip;
-  3 Sequences = yel-yel/sandi + 2 amplop; Creative Lab = briefing + 6 kartu jar + Activity 1/2 (Pot ∥ Tas) + presentasi + closing + 10 chip Satu Kata + durasi fase).
+  Mission Sequence = yel-yel/sandi + 2 amplop + 5 tim gabungan; Creative Lab = Firman & Briefing + 6 kartu jar + Sesi 1 · Reminder Jar / Sesi 2 · Art Stations + Presentasi Kelompok + Konklusi + 10 chip Satu Kata + durasi fase).
 - **Isi dari AI**: `POST /api/didaskalia/studio/:ym/:week/session-draft` (`generateSessionDraft` di
   `server/lib/didaskalia-ai.mjs`) membaca tema + firman + outline 7 Path + ringkasan khotbah pekan ini;
   Post-to-Post terstruktur penuh (topik, 9 Likert, chip, afirmasi), pola lain nilai per kunci template.
@@ -159,8 +159,8 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 ## 12. CREATIVE_LAB — Creative Lab (21 Okt 2026)
 
 Pola ibadah karya-kreatif untuk *Serving Day*: firman menjadi karya nyata
-(Roots Reminder Jar, pot, tas). Total baku **135'** = **PRA 20'** (kru) +
-**jemaat 115'** (95' inti + blok presentasi 20' untuk 10 kelompok × 2').
+(Reminder Jar, dua stasiun seni). Total baku **135'** = **PRA 20'** (kru) +
+**jemaat 115'** (Presentasi Kelompok 30' untuk 10 kelompok, sekitar 2,5' termasuk transisi).
 Tanpa migrasi Prisma — pola cukup baris `worship_patterns` via seed,
 state hari-H di `config` (`groupId` / anggota / perwakilan di JSON).
 
@@ -168,15 +168,15 @@ state hari-H di `config` (`groupId` / anggota / perwakilan di JSON).
 
 | Blok | Menit | Anchor | Catatan |
 |---|---|---|---|
-| PRA — persiapan ruang & stasiun seni | 20 | `PRA` | main 1 fase + 3 paralel `parallelGroup: 'pra'` (doa kru, registrasi, slide/sound) |
-| 1. Praise & Worship | 15 | `ACARA` | — |
-| 2. Preaching & Briefing | 15 | `ACARA` | khotbah singkat + aturan + 6 kartu + perwakilan |
-| 3. Activity 1 — The Roots Reminder Jar | 15 | `ACARA` | kertas 6 kartu ∥ web pilih 2 dari 6 (`parallelGroup: 'a1'`) |
-| 4. Activity 2 — Pot ∥ Tas (melukis) | 25 | `ACARA` | `parallelGroup: 'a2'`: Pot (main) ∥ Tas (parallel), satu meja |
-| 5. Presentasi hasil | 20 | `ACARA` | 10 kelompok × 2'; urutan undian; yang `missing` tidak diundi |
-| 6. Conclusion | 10 | `ACARA` | konklusi firman + Satu Kata + komitmen |
-| 7. Persembahan + doa | 10 | `ACARA` | — |
-| 8. Lagu + Doa Tutup | 5 | `ACARA` | — |
+| PRA — Persiapan Ruang & Perlengkapan | 20 | `PRA` | main 1 fase + 3 paralel `parallelGroup: 'pra'` (Doa Petugas, Registrasi Ulang, Cek Slide & Sound) |
+| 1. Praise & Worship | 10 | `ACARA` | — |
+| 2. Firman & Briefing | 10 | `ACARA` | khotbah singkat + aturan + 6 kartu + perwakilan |
+| 3. Sesi 1 · Reminder Jar | 15 | `ACARA` | kertas 6 kartu; web pilih 2 dari 6 ditandai (paralel) di catatan, bukan baris sendiri |
+| 4. Sesi 2 · Art Stations | 25 | `ACARA` | 20' melukis Stasiun A ∥ Stasiun B (paralel) + 5' unggah; nama media di draft |
+| 5. Presentasi Kelompok | 30 | `ACARA` | 10 kelompok × ~2,5' termasuk transisi; yang `missing` tidak diundi |
+| 6. Konklusi | 10 | `ACARA` | firman + Satu Kata + komitmen |
+| 7. Persembahan & Doa | 10 | `ACARA` | — |
+| 8. Lagu & Doa Penutup | 5 | `ACARA` | — |
 
 `patternTotalMinutes` = 135 (trek main termasuk PRA),
 `patternCongregationMinutes` = 115, `patternPreMinutes` = 20.
@@ -199,17 +199,19 @@ fallback generik bila kosong.
 |---|---|
 | `phase` | `IDLE` → `A1` → `A2` → `PRESENT` → `DONE` |
 | `startedAt` / `durationSec` | timer fase A1/A2 (display-only, transisi manual) |
-| `presentStartedAt` / `presentSeconds` | timer presentasi per kelompok |
+| `presentStartedAt` / `presentSeconds` | timer presentasi per kelompok (default baru 150 detik; nilai tersimpan, termasuk 120, tidak ditimpa) |
 | `presentIndex` | kelompok yang sedang tampil (0-9) |
 | `cardIndex` | kartu jar aktif di layar (0-5) |
 | `showOnScreen` | tampilkan kartu/timer di `/layar` |
-| `durations` | `{ A1, A2, PRESENT }` hasil edit panel (default 15'/25'/120") |
+| `durations` | `{ A1, A2, PRESENT }` hasil edit panel (default 15'/25'/150") |
 
-`cleanActivity()` (server) meng-clamp semua nilai; `PUT .../stage` menerima
-`{ activity }` dan `{ teams }` secara terpisah. `config.teams` diperluas
+`cleanActivity()` (server) meng-clamp semua nilai. `PUT .../stage` yang membawa
+`teams` hanya menulis tim; `activity` di request yang sama diabaikan.
+`resetPresentOrder` hanya mengosongkan urutan undian. `config.teams` diperluas
 aditif: `scribe`, `station`, `pot[]`, `bag[]`, `groupId`, `memberUserIds`,
-`missing` — `cleanTeams` default tetap maks 8 (`THREE_SEQUENCES`);
-Creative Lab memakai `{ maxTeams: 10 }`.
+`missing`, `pair[]`, `roles` — `cleanTeams` default tetap maks 8;
+Mission Sequence memakai `{ maxTeams: 5 }`; Creative Lab `{ maxTeams: 10 }`.
+Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto Bersama).
 
 ### 12.4 Kontrol & layar
 
@@ -239,7 +241,7 @@ Creative Lab memakai `{ maxTeams: 10 }`.
 ### 12.5 QA
 
 1. `npm run db:seed:worship:staging` → katalog Pola Ibadah, kartu
-   **Creative Lab** (135', presentasi 20').
+   **Creative Lab** (135', Presentasi Kelompok 30').
 2. Sesi baru: **Terapkan ke sesi** mengisi 10 kelompok dari database
    (bukan teks bebas). Sesi yang sudah ada: buka kontrol lalu tekan
    **Muat 10 kelompok** (tidak menimpa otomatis).
@@ -248,5 +250,5 @@ Creative Lab memakai `{ maxTeams: 10 }`.
 4. Layar dengan `?code=` di dalam hash tidak menanyakan kode lagi.
 5. Foto Pot/Tas masuk `Hasil Karya/<kelompok>`; foto bersama masuk
    `Foto Kelompok/<kelompok>` di bawah folder event `[EV:…]`.
-6. Three Sequences tetap maks 8 tim.
+6. Mission Sequence maks 5 tim gabungan. Tombol **Pasangan default** tidak menimpa papan sampai disimpan. Panduan judul: `docs/product/rundown-writing.md`.
 7. `npm run lint` + `npm run test`.

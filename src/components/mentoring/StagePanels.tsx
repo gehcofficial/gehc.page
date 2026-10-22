@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
-import { LAB_PRESENT_SLIDES, stepLabPresentation } from '../../lib/mentoring';
+import { BEYONDERS_GROUPS, LAB_PRESENT_SLIDES, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -17,7 +17,7 @@ type RoundRow = {
   jury: JuryRow[];
 };
 type DebatTeamRow = { name: string; mentor: string; members: string[] };
-type TeamRow = { name: string; task: string; members: string[]; done: boolean };
+type TeamRow = { name: string; task: string; members: string[]; done: boolean; pair?: string[]; roles?: string };
 
 const PHASES = ['brief', 'pro', 'kontra', 'sanggah', 'blow', 'jeda', 'selesai'];
 
@@ -428,7 +428,7 @@ export const ScreeningPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =
   );
 };
 
-/** Panel tim misi: susun tim + anggota + tandai selesai. */
+/** Panel Mission Sequence: 5 tim gabungan. Tim lama tidak ditimpa sampai tombol default ditekan. */
 export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const { msg, setMsg, busy, setBusy } = useStageMsg();
   const [teams, setTeams] = useState<TeamRow[]>([]);
@@ -437,7 +437,7 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     try {
       const cfg = await fetchStage(sessionId);
       const list: TeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
-      setTeams(list.length ? list : [{ name: '', task: '', members: [], done: false }]);
+      setTeams(list.length ? list.map((t) => ({ ...t, pair: Array.isArray(t.pair) ? t.pair : [], roles: t.roles || '' })) : [{ name: '', task: '', members: [], done: false, pair: [], roles: '' }]);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat.');
     }
@@ -450,12 +450,22 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const set = (i: number, patch: Partial<TeamRow>) =>
     setTeams((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
+  const setPair = (i: number, slot: 0 | 1, value: string) => {
+    setTeams((prev) => prev.map((t, j) => {
+      if (j !== i) return t;
+      const pair = [t.pair?.[0] || '', t.pair?.[1] || ''];
+      pair[slot] = value;
+      const named = pair.filter(Boolean);
+      return { ...t, pair, name: named.length ? named.join(' & ') : t.name };
+    }));
+  };
+
   const save = async () => {
     setBusy(true);
     setMsg(null);
     try {
-      await saveStage(sessionId, { teams: { teams } });
-      setMsg('Papan tim tersimpan — tampil di peserta & layar.');
+      await saveStage(sessionId, { teams: { teams: teams.slice(0, MISSION_TEAM_CAP) } });
+      setMsg('Papan tim gabungan tersimpan — tampil di peserta dan layar.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
@@ -463,12 +473,22 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
     }
   };
 
+  const loadDefault = () => {
+    if (teams.some((t) => t.name.trim()) && !window.confirm('Ganti papan yang tersimpan dengan 5 pasangan default? Tim lama tidak berubah sebelum kamu menekan Simpan tim.')) return;
+    setTeams(defaultJointTeams());
+    setMsg('Pasangan default dimuat di layar ini. Tekan Simpan tim agar tersimpan.');
+  };
+
   return (
     <div className={CARD}>
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-brand" />
-        <p className="text-sm font-black">Tim misi</p>
+        <p className="text-sm font-black">Tim gabungan</p>
+        <span className="ml-auto text-[10px] font-bold text-[#8C8880]">{teams.length}/{MISSION_TEAM_CAP}</span>
       </div>
+      <p className="mt-1 text-[10px] text-[#8C8880] leading-relaxed">
+        Lima tim, masing-masing dua kelompok mentoring. Tiap tim menjalankan seluruh misi. Peran lama hanya saran di dalam tim. Papan yang sudah tersimpan tidak diganti otomatis.
+      </p>
       <div className="mt-3 space-y-2">
         {teams.map((t, i) => (
           <div key={i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
@@ -478,7 +498,27 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {[0, 1].map((slot) => (
+                <select key={slot} value={t.pair?.[slot] || ''} onChange={(e) => setPair(i, slot as 0 | 1, e.target.value)} className={INPUT}>
+                  <option value="">{slot === 0 ? 'Kelompok A…' : 'Kelompok B…'}</option>
+                  {BEYONDERS_GROUPS.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  {t.pair?.[slot] && !BEYONDERS_GROUPS.includes(t.pair[slot] as typeof BEYONDERS_GROUPS[number]) && (
+                    <option value={t.pair[slot]}>{t.pair[slot]}</option>
+                  )}
+                </select>
+              ))}
+            </div>
             <input value={t.task} onChange={(e) => set(i, { task: e.target.value })} placeholder="Tugas tim" className={INPUT} />
+            <textarea
+              value={t.roles || ''}
+              onChange={(e) => set(i, { roles: e.target.value })}
+              rows={2}
+              placeholder={MISSION_INTERNAL_ROLES}
+              className={`${INPUT} resize-y`}
+            />
             <input
               value={t.members.join(', ')}
               onChange={(e) => set(i, { members: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
@@ -491,12 +531,15 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
             </label>
           </div>
         ))}
-        <div className="flex gap-2">
-          {teams.length < 8 && (
-            <button type="button" onClick={() => setTeams((p) => [...p, { name: '', task: '', members: [], done: false }])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
+        <div className="flex flex-wrap gap-2">
+          {teams.length < MISSION_TEAM_CAP && (
+            <button type="button" onClick={() => setTeams((p) => [...p, { name: '', task: 'Menjalankan seluruh misi bersama.', members: [], done: false, pair: [], roles: MISSION_INTERNAL_ROLES }])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
               <Plus className="w-3.5 h-3.5" /> Tim
             </button>
           )}
+          <button type="button" onClick={loadDefault} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
+            Pasangan default
+          </button>
           <button type="button" disabled={busy} onClick={() => void save()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan tim
           </button>
@@ -609,10 +652,10 @@ const labDefaultActivity = (): LabActivity => ({
   presentIndex: 0,
   presentSlide: 0,
   presentStartedAt: null,
-  presentSeconds: 120,
+  presentSeconds: 150,
   presentOrder: [],
   presentDrawnAt: null,
-  durations: { A1: 900, A2: 1500, PRESENT: 120 },
+  durations: { A1: 900, A2: 1500, PRESENT: 150 },
 });
 
 function useLabTick(active: boolean): number {
@@ -647,6 +690,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const [uploadSlot, setUploadSlot] = useState<Record<number, 'POT' | 'BAG' | 'GROUP'>>({});
   const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
   const [savedTeamNames, setSavedTeamNames] = useState('');
+  const [participantsReady, setParticipantsReady] = useState(false);
+  const [stations, setStations] = useState({ a: 'Pot', b: 'Tas' });
   const [loading, setLoading] = useState(true);
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
 
@@ -670,16 +715,21 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         presentIndex: Math.min(LAB_INDEX_MAX, Math.max(0, Number(a.presentIndex) || 0)),
         presentSlide: Math.min(2, Math.max(0, Math.floor(Number(a.presentSlide) || 0))),
         presentStartedAt: a.presentStartedAt || null,
-        presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 120,
+        presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 150,
         presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
         presentDrawnAt: a.presentDrawnAt || null,
         durations: {
           A1: Number(dur.A1) || 900,
           A2: Number(dur.A2) || 1500,
-          PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 120,
+          PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 150,
         },
       });
       setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
+      const a2 = cfg.draft?.['activity-2'] && typeof cfg.draft['activity-2'] === 'object' ? cfg.draft['activity-2'] : {};
+      setStations({
+        a: String(a2['a2-a-media'] || '').trim() || 'Pot',
+        b: String(a2['a2-b-media'] || '').trim() || 'Tas',
+      });
       const jar = cfg.draft?.jar && typeof cfg.draft.jar === 'object' ? cfg.draft.jar : {};
       setCards(
         LAB_JAR_TITLES.map((title, i) => ({
@@ -700,6 +750,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat peserta.');
       setGroupOptions(Array.isArray(d.groups) ? d.groups : []);
+      setParticipantsReady(true);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat peserta.');
     }
@@ -811,11 +862,12 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     try {
       const nextNames = named.map((t) => t.name.trim()).join('|');
       const namesChanged = nextNames !== savedTeamNames;
-      const nextActivity = namesChanged
-        ? { ...activity, presentOrder: [], presentDrawnAt: null, presentIndex: 0 }
-        : activity;
-      await saveStage(sessionId, { teams: { teams: named }, activity: nextActivity });
-      if (namesChanged) setActivity(nextActivity);
+      await saveStage(sessionId, namesChanged
+        ? { teams: { teams: named }, resetPresentOrder: true }
+        : { teams: { teams: named } });
+      if (namesChanged) {
+        setActivity((a) => ({ ...a, presentOrder: [], presentDrawnAt: null, presentIndex: 0, presentSlide: 0 }));
+      }
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
@@ -848,7 +900,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     const seconds = phase === 'A1' ? activity.durations.A1 : activity.durations.A2;
     void pushActivity(
       { phase, startedAt, durationSec: seconds, presentStartedAt: null },
-      phase === 'A1' ? 'Activity 1 berjalan — jar + input kartu.' : 'Activity 2 berjalan — Tim Pot dan Tim Tas paralel.',
+      phase === 'A1' ? 'Sesi 1 berjalan — jar + input kartu (web 2 dari 6, paralel).' : `Sesi 2 berjalan — Stasiun A (${stations.a}) dan Stasiun B (${stations.b}) paralel.`,
     );
   };
 
@@ -856,7 +908,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     const startedAt = new Date().toISOString();
     void pushActivity(
       { phase: 'PRESENT', startedAt, presentStartedAt: startedAt, durationSec: activity.presentSeconds, presentIndex: Math.min(activity.presentIndex, Math.max(0, presentationOrder.length - 1)), presentSlide: 0 },
-      'Presentasi dimulai. Slide 1: Pot.',
+      'Presentasi Kelompok dimulai. Slide Stasiun A.',
     );
   };
 
@@ -982,9 +1034,9 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     return activity.durationSec * 1000;
   })();
   const phaseLabel =
-    activity.phase === 'A1' ? 'Activity 1 · Roots Reminder Jar'
-      : activity.phase === 'A2' ? 'Activity 2 · Pot ∥ Tas'
-        : activity.phase === 'PRESENT' ? 'Presentasi kelompok'
+    activity.phase === 'A1' ? 'Sesi 1 · Reminder Jar'
+      : activity.phase === 'A2' ? `Sesi 2 · Art Stations (${stations.a} ∥ ${stations.b})`
+        : activity.phase === 'PRESENT' ? 'Presentasi Kelompok'
           : activity.phase === 'DONE' ? 'Selesai — refleksi' : 'Belum mulai';
 
   return (
@@ -1006,8 +1058,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-end">
-              <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">A1</button>
-              <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">A2</button>
+              <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
+              <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
               <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
               <button type="button" disabled={busy} onClick={stopTimer} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Stop</button>
               <button type="button" disabled={busy} onClick={resetStage} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Reset</button>
@@ -1072,8 +1124,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                   <tr className="text-[#8C8880]">
                     <th className="py-1 pr-2">Kelompok</th>
                     <th className="py-1 pr-2">Perwakilan</th>
-                    <th className="py-1 pr-2">Pot</th>
-                    <th className="py-1 pr-2">Tas</th>
+                    <th className="py-1 pr-2">Stasiun A</th>
+                    <th className="py-1 pr-2">Stasiun B</th>
                     <th className="py-1 pr-2">Foto</th>
                     <th className="py-1 pr-2">Status</th>
                   </tr>
@@ -1098,8 +1150,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
             <div className="mt-3 space-y-2">
               {(lab?.teams || []).map((t) => {
                 const shots = [
-                  ...t.pot.photos.map((p) => ({ ...p, label: `Pot · ${t.name}` })),
-                  ...t.bag.photos.map((p) => ({ ...p, label: `Tas · ${t.name}` })),
+                  ...t.pot.photos.map((p) => ({ ...p, label: `Stasiun A · ${stations.a} · ${t.name}` })),
+                  ...t.bag.photos.map((p) => ({ ...p, label: `Stasiun B · ${stations.b} · ${t.name}` })),
                   ...(t.groupPhoto ? [{ ...t.groupPhoto, label: `Bersama · ${t.name}` }] : []),
                 ];
                 return (
@@ -1111,9 +1163,9 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                         value={uploadSlot[t.index] || 'POT'}
                         onChange={(e) => setUploadSlot((s) => ({ ...s, [t.index]: e.target.value as 'POT' | 'BAG' | 'GROUP' }))}
                       >
-                        <option value="POT">Pot (maks 2)</option>
-                        <option value="BAG">Tas (maks 2)</option>
-                        <option value="GROUP">Bersama (maks 1)</option>
+                        <option value="POT">Stasiun A · {stations.a} (maks 2)</option>
+                        <option value="BAG">Stasiun B · {stations.b} (maks 2)</option>
+                        <option value="GROUP">Foto Bersama (maks 1)</option>
                       </select>
                       <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold cursor-pointer">
                         <ImagePlus className="w-3 h-3" /> Upload atas nama kelompok
@@ -1173,7 +1225,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             <label className="text-[10px] font-bold text-[#8C8880]">
-              A1 (menit)
+              Sesi 1 (menit)
               <input
                 type="number" min={1} max={120}
                 value={Math.round(activity.durations.A1 / 60)}
@@ -1182,7 +1234,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               />
             </label>
             <label className="text-[10px] font-bold text-[#8C8880]">
-              A2 (menit)
+              Sesi 2 (menit)
               <input
                 type="number" min={1} max={120}
                 value={Math.round(activity.durations.A2 / 60)}
@@ -1195,7 +1247,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <input
                 type="number" min={30} max={600}
                 value={activity.presentSeconds}
-                onChange={(e) => setActivity((a) => ({ ...a, presentSeconds: Math.max(30, Math.min(600, Number(e.target.value) || 120)), durations: { ...a.durations, PRESENT: Math.max(30, Math.min(600, Number(e.target.value) || 120)) } }))}
+                onChange={(e) => setActivity((a) => ({ ...a, presentSeconds: Math.max(30, Math.min(600, Number(e.target.value) || 150)), durations: { ...a.durations, PRESENT: Math.max(30, Math.min(600, Number(e.target.value) || 150)) } }))}
                 className={`${INPUT} mt-1`}
               />
             </label>
@@ -1236,7 +1288,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim() && !t.missing).length}/{LAB_TEAM_CAP})</p>
               <button type="button" disabled={busy} onClick={() => void loadTenGroups()} className="text-[10px] font-bold text-brand underline disabled:opacity-60">Muat 10 kelompok</button>
             </div>
-            <p className="mt-1 text-[10px] text-[#8C8880]">Nama dan anggota datang dari 10 kelompok Beyonders. Sesi yang sudah terisi tidak berubah sampai tombol ini ditekan. Perwakilan, Tim Pot, dan Tim Tas dipilih dari anggota kelompok itu.</p>
+            <p className="mt-1 text-[10px] text-[#8C8880]">Nama dan anggota datang dari 10 kelompok Beyonders. Sesi yang sudah terisi tidak berubah sampai tombol ini ditekan. Perwakilan, Stasiun A ({stations.a}), dan Stasiun B ({stations.b}) dipilih dari anggota kelompok itu.</p>
             <div className="mt-2 space-y-2">
               {teams.map((t, i) => {
                 const options = membersOf(t);
@@ -1293,8 +1345,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                       {t.memberUserIds.length > t.members.length ? ` · ${t.memberUserIds.length} akun bisa melihat feed` : ''}
                     </p>
                     <div className="grid sm:grid-cols-2 gap-2">
-                      {rolePick('pot', 'Tim Pot — melukis')}
-                      {rolePick('bag', 'Tim Tas — melukis')}
+                      {rolePick('pot', `Stasiun A · ${stations.a}`)}
+                      {rolePick('bag', `Stasiun B · ${stations.b}`)}
                     </div>
                     <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
                       <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
@@ -1310,7 +1362,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                   <Plus className="w-3.5 h-3.5" /> Kelompok
                 </button>
               )}
-              <button type="button" disabled={busy} onClick={() => void saveTeams()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
+              <button type="button" disabled={busy || !participantsReady} onClick={() => void saveTeams()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60">
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan kelompok
               </button>
             </div>

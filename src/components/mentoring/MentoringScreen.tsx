@@ -3,6 +3,7 @@ import { KeyRound, Loader2, Timer } from 'lucide-react';
 import {
   STATUS_LABELS,
   codeFromMentoringHash,
+  labStationCopy,
   mentoringCodeKey,
   parseMentoringHash,
   type MentoringLivePayload,
@@ -246,10 +247,10 @@ const MentoringScreen: React.FC = () => {
     ? Date.now() >= new Date(data.phase.startedAt).getTime() + Number(data.phase.durationSec) * 1000
     : false;
   const PHASE_LABEL: Record<string, string> = {
-    F1: 'Bedah Lagu & Monolog',
-    F2: 'Diskusi kelompok',
-    F3: 'Kesaksian',
-    CLOSING: 'Closing & Transisi',
+    F1: 'Sesi 1 · Bedah Lagu',
+    F2: 'Sesi 2 · Deep Sharing',
+    F3: 'Sesi 3 · Kesaksian',
+    CLOSING: 'Konklusi',
   };
   /** Timer fase tampil di layar? Mati = hitung diam-diam (HP peserta tetap melihat). */
   const phaseVisible = data.phase?.showOnScreen !== false;
@@ -543,24 +544,32 @@ const MentoringScreen: React.FC = () => {
               const presentSlide = Math.min(2, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
               const presenting = teams[presentTeamIndex];
               const presentingLab = labTeams.find((t) => t.index === presentTeamIndex) || null;
-              const slideTitles = ['Pot — Grow What You Believe', 'Tas — Carry The Gospel', 'Foto bersama & komitmen'];
+              const stations = labStationCopy(brief);
+              const a1Title = brief?.a1.title || 'Reminder Jar';
+              const a1Sub = brief?.a1.subtitle ? ` · ${brief.a1.subtitle}` : '';
+              const a2Title = brief?.a2.title || 'Art Stations';
+              const slideTitles = [
+                `Slide Stasiun A · ${stations.mediaA}`,
+                `Slide Stasiun B · ${stations.mediaB}`,
+                'Slide Bersama',
+              ];
               const totalSec = phase === 'PRESENT' ? act.presentSeconds : act.durationSec;
               const startedAt = phase === 'PRESENT' ? act.presentStartedAt : act.startedAt;
               const remainMs = startedAt
                 ? Math.max(0, new Date(startedAt).getTime() + totalSec * 1000 - tick)
                 : totalSec * 1000;
               const phaseTitle =
-                phase === 'A1' ? 'Activity 1 — The Roots Reminder Jar'
-                  : phase === 'A2' ? 'Activity 2 — Roots & DNA Creative Lab'
-                    : phase === 'PRESENT' ? 'Presentasi hasil'
-                      : phase === 'DONE' ? 'Refleksi & Satu Kata'
-                        : 'Briefing Creative Lab';
+                phase === 'A1' ? `Sesi 1 · ${a1Title}${a1Sub}`
+                  : phase === 'A2' ? `Sesi 2 · ${a2Title}`
+                    : phase === 'PRESENT' ? 'Presentasi Kelompok'
+                      : phase === 'DONE' ? 'Konklusi'
+                        : 'Firman & Briefing';
               const phaseSub =
-                phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web · ${brief?.a1.minutes || 15} menit`
-                  : phase === 'A2' ? `Tim Pot ∥ Tim Tas paralel · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
-                    : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · slide ${presentSlide + 1}/3`
+                phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web (paralel) · ${brief?.a1.minutes || 15} menit`
+                  : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
+                    : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                        : 'Duduk per kelompok · semua menulis 6 kartu · pilih 2 untuk web · presentasi 2 menit.';
+                        : 'Duduk per kelompok · semua menulis 6 kartu · pilih 2 untuk web (paralel).';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -591,16 +600,16 @@ const MentoringScreen: React.FC = () => {
                         <div className="mt-4">
                           {presentSlide === 0 && (
                             <LabSlideArt
-                              label="Pot"
-                              meaning={presentingLab.pot.meaning || 'Makna Pot belum diisi.'}
+                              label={`Stasiun A · ${stations.mediaA}`}
+                              meaning={presentingLab.pot.meaning || `Makna ${stations.mediaA} belum diisi.`}
                               photos={presentingLab.pot.photos}
                               tone="emerald"
                             />
                           )}
                           {presentSlide === 1 && (
                             <LabSlideArt
-                              label="Tas"
-                              meaning={presentingLab.bag.meaning || 'Makna Tas belum diisi.'}
+                              label={`Stasiun B · ${stations.mediaB}`}
+                              meaning={presentingLab.bag.meaning || `Makna ${stations.mediaB} belum diisi.`}
                               photos={presentingLab.bag.photos}
                               tone="brand"
                             />
@@ -631,7 +640,7 @@ const MentoringScreen: React.FC = () => {
                     <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
                       <div className="flex items-center justify-between mb-4">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                          {phase === 'A1' ? 'The Roots Reminder Jar — 6 pertanyaan' : 'Kartu jar kelompok'}
+                          {phase === 'A1' ? `${a1Title}${a1Sub} — 6 pertanyaan` : 'Kartu jar kelompok'}
                         </p>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-brand">Semua menulis 6 · pilih 2 di web</span>
                       </div>
@@ -652,16 +661,16 @@ const MentoringScreen: React.FC = () => {
                       <section className="rounded-[28px] bg-[#111] border border-brand/40 p-6 sm:p-8 text-center">
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Instruksi melapor</p>
                         <p className="font-display text-2xl sm:text-3xl font-black mt-2">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
-                        <p className="text-sm text-white/60 mt-2">Bawa hasil karya Pot & Tas, lalu unggah foto bersama seluruh anggota + karya di HP perwakilan.</p>
+                        <p className="text-sm text-white/60 mt-2">Bawa hasil karya kedua stasiun, lalu unggah foto bersama seluruh anggota + karya di HP perwakilan.</p>
                       </section>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <section className="rounded-[28px] bg-emerald-400/10 border border-emerald-300/20 p-7 sm:p-8">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Pot — Grow What You Believe</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Stasiun A · {stations.mediaA} — {stations.themeA}</p>
                           <p className="text-base sm:text-lg text-white/80 mt-2 leading-relaxed">{brief.a2.potMeaning}</p>
                           <p className="text-sm text-emerald-200/80 mt-3"><b>Refleksi:</b> {brief.a2.pot}</p>
                         </section>
                         <section className="rounded-[28px] bg-brand/10 border border-brand/30 p-7 sm:p-8">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tas — Carry The Gospel</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Stasiun B · {stations.mediaB} — {stations.themeB}</p>
                           <p className="text-base sm:text-lg text-white/80 mt-2 leading-relaxed">{brief.a2.bagMeaning}</p>
                           <p className="text-sm text-brand/80 mt-3"><b>Refleksi:</b> {brief.a2.bag}</p>
                         </section>
@@ -717,10 +726,10 @@ const MentoringScreen: React.FC = () => {
                               <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
                               {lt && (
                                 <div className="mt-2 space-y-1">
-                                  <p className="text-[11px] text-emerald-300/80">Pot {lt.pot.progress ?? 0}% · Tas {lt.bag.progress ?? 0}%</p>
+                                  <p className="text-[11px] text-emerald-300/80">{stations.mediaA} {lt.pot.progress ?? 0}% · {stations.mediaB} {lt.bag.progress ?? 0}%</p>
                                   <div className="flex gap-1.5">
-                                    {lt.pot.photos[0] && <img src={lt.pot.photos[0].thumbUrl || lt.pot.photos[0].photoUrl || ''} alt="Pot" className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
-                                    {lt.bag.photos[0] && <img src={lt.bag.photos[0].thumbUrl || lt.bag.photos[0].photoUrl || ''} alt="Tas" className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
+                                    {lt.pot.photos[0] && <img src={lt.pot.photos[0].thumbUrl || lt.pot.photos[0].photoUrl || ''} alt={stations.mediaA} className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
+                                    {lt.bag.photos[0] && <img src={lt.bag.photos[0].thumbUrl || lt.bag.photos[0].photoUrl || ''} alt={stations.mediaB} className="h-12 w-12 rounded-lg object-cover border border-white/10" />}
                                     {lt.groupPhoto && <img src={lt.groupPhoto.thumbUrl || lt.groupPhoto.photoUrl || ''} alt="Bersama" className="h-12 w-12 rounded-lg object-cover border border-emerald-300/40" />}
                                   </div>
                                 </div>
@@ -742,7 +751,9 @@ const MentoringScreen: React.FC = () => {
                     {teams.map((t, i) => (
                       <div key={i} className="rounded-2xl bg-white/5 p-5">
                         <p className="font-display text-xl font-black">{t.name} {t.done && '✓'}</p>
+                        {t.pair?.length ? <p className="text-[11px] text-white/40 mt-1">{t.pair.join(' & ')}</p> : null}
                         {t.task && <p className="text-xs text-white/50 mt-1">{t.task}</p>}
+                        {t.roles && <p className="text-[11px] text-white/40 mt-1">{t.roles}</p>}
                         <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
                       </div>
                     ))}

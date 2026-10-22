@@ -14,7 +14,7 @@ import { resolveHostContext } from '../lib/host-context.mjs';
 import { tenantForWrite } from '../lib/tenant-scope.mjs';
 import { YOUTH_TENANT_ID } from '../lib/tenant-defaults.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, buildCreativeLabTeams, LAB_MAX_TEAMS, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, buildCreativeLabTeams, LAB_MAX_TEAMS, SEQUENCE_MAX_TEAMS, DEFAULT_MAX_TEAMS, matchJointTeam, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, getFolderMeta, uploadFile as driveUploadFile, deleteFile as driveDeleteFile, getFileStream as driveGetFileStream, getDriveMode } from '../gdrive.mjs';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
@@ -199,8 +199,9 @@ export function deepGuide(config) {
 }
 
 /**
- * Enam kartu The Roots Reminder Jar (CREATIVE_LAB). Teks arahan diambil dari
+ * Enam kartu Reminder Jar (CREATIVE_LAB). Teks arahan diambil dari
  * draft sesi (`jar`), fallback generik bila belum diisi.
+ * Tema pekan ada di subjudul, bukan di nama aktivitas.
  */
 export const CREATIVE_LAB_JAR = [
   { key: 'root', code: 'JAR-ROOT', title: 'A Root I Carry', field: 'jar-root', fallback: 'Nilai iman atau tradisi baik dari keluarga/GMIM yang ingin kamu bawa ke mana pun pergi.' },
@@ -238,6 +239,21 @@ export function creativeLabBrief(config) {
   const a2 = sec('activity-2');
   const present = sec('present');
   const closing = sec('closing');
+  const legacyA1 = new Set(['the roots reminder jar', 'roots reminder jar']);
+  const legacyA2 = new Set(['roots & dna creative lab', 'roots and dna creative lab']);
+  const genericTitle = (raw, fallback, legacy) => {
+    const v = String(raw || '').trim();
+    if (!v || legacy.has(v.toLowerCase())) return fallback;
+    return v;
+  };
+  const stationA = {
+    media: pick(a2, ['a2-a-media', 'a2-station-a-media'], 'Pot'),
+    theme: pick(a2, ['a2-a-theme', 'a2-station-a-theme'], 'Grow What You Believe'),
+  };
+  const stationB = {
+    media: pick(a2, ['a2-b-media', 'a2-station-b-media'], 'Tas'),
+    theme: pick(a2, ['a2-b-theme', 'a2-station-b-theme'], 'Carry the Gospel'),
+  };
   return {
     briefing: {
       core: pick(briefing, ['brief-core']),
@@ -245,7 +261,8 @@ export function creativeLabBrief(config) {
       jarIntro: pick(briefing, ['jar-intro']),
     },
     a1: {
-      title: pick(a1, ['a1-title'], 'The Roots Reminder Jar'),
+      title: genericTitle(pick(a1, ['a1-title'], ''), 'Reminder Jar', legacyA1),
+      subtitle: pick(a1, ['a1-subtitle', 'a1-theme'], 'Roots'),
       goal: pick(a1, ['a1-goal']),
       tools: pick(a1, ['a1-tools']),
       steps: pick(a1, ['a1-steps']),
@@ -253,9 +270,11 @@ export function creativeLabBrief(config) {
       minutes: Math.max(1, Number(pick(a1, ['a1-minutes'], '15')) || 15),
     },
     a2: {
-      title: pick(a2, ['a2-title'], 'Roots & DNA Creative Lab'),
+      title: genericTitle(pick(a2, ['a2-title'], ''), 'Art Stations', legacyA2),
       goal: pick(a2, ['a2-goal']),
       tools: pick(a2, ['a2-tools']),
+      stationA,
+      stationB,
       pot: pick(a2, ['a2-pot'], 'Gambarkan apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh (akar, tunas, atau buah).'),
       bag: pick(a2, ['a2-bag'], 'Gambarkan nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
       potMeaning: pick(a2, ['a2-pot-meaning'], 'Apa yang kita percayai seharusnya bertumbuh dan terlihat dalam hidup kita. Pot melambangkan tempat benih iman bertumbuh. Peserta dapat melukis simbol akar, tunas, atau buah sebagai gambaran iman yang dirawat melalui tindakan nyata.'),
@@ -267,7 +286,7 @@ export function creativeLabBrief(config) {
     present: {
       order: pick(present, ['present-order']),
       questions: pick(present, ['present-questions']),
-      seconds: Math.min(600, Math.max(30, Number(pick(present, ['present-seconds'], '120')) || 120)),
+      seconds: Math.min(600, Math.max(30, Number(pick(present, ['present-seconds'], '150')) || 150)),
     },
     closing: {
       script: pick(closing, ['closing-script']),
@@ -284,7 +303,7 @@ export const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
 const LAB_PHASE_WRITABLE = 'A2';
 
 /** Kuota foto per slot. Dipakai unggah perwakilan dan unggah admin. */
-export function labPhotoQuota(rows, kind) {
+export function labPhotoQuota(rows, kind, labels = {}) {
   const key = String(kind || '').toUpperCase();
   if (!Object.prototype.hasOwnProperty.call(LAB_PHOTO_LIMIT, key)) {
     return { ok: false, status: 400, error: 'Slot foto harus POT, BAG, atau GROUP.' };
@@ -292,7 +311,13 @@ export function labPhotoQuota(rows, kind) {
   const used = labPhotoCount(Array.isArray(rows) ? rows : [], key);
   const limit = LAB_PHOTO_LIMIT[key];
   if (used >= limit) {
-    const label = key === 'GROUP' ? 'foto bersama' : `foto ${key === 'POT' ? 'Pot' : 'Tas'}`;
+    const mediaA = String(labels.mediaA || '').trim();
+    const mediaB = String(labels.mediaB || '').trim();
+    const label = key === 'GROUP'
+      ? 'Foto Bersama'
+      : key === 'POT'
+        ? `Foto Stasiun A${mediaA ? ` (${mediaA})` : ''}`
+        : `Foto Stasiun B${mediaB ? ` (${mediaB})` : ''}`;
     return { ok: false, status: 400, error: `Kuota ${label} sudah penuh (maks ${limit}). Hapus salah satu dulu untuk mengganti.` };
   }
   return { ok: true, kind: key, limit, used };
@@ -315,7 +340,7 @@ export function adminLabPhotoAllowed({ roles, status, phase }) {
     return { ok: false, status: 409, error: 'Sesi belum berjalan atau sudah ditutup.' };
   }
   if (ph === 'A2' || ph === 'PRESENT' || ph === 'DONE' || st === 'WRAPUP') return { ok: true };
-  return { ok: false, status: 409, error: 'Upload admin hanya saat Activity 2, presentasi, atau penutupan.' };
+  return { ok: false, status: 409, error: 'Upload admin hanya saat Sesi 2, presentasi, atau penutupan.' };
 }
 
 function labDriveWriteEnabled() {
@@ -330,18 +355,50 @@ function labTeamRows(rows, teamIndex) {
   return rows.filter((r) => Number(r.teamIndex) === Number(teamIndex));
 }
 
-/** Tim yang memuat user (perwakilan atau anggota). Null bila belum di-assign. */
-export function findLabTeam(config, userId) {
+function isWorshipWriter(req) {
+  return (req?.authUser?.roles || []).some((r) => WRITE_ROLES.includes(typeof r === 'string' ? r : r?.role));
+}
+
+/**
+ * Tim yang memuat user (perwakilan atau anggota).
+ * Admin (`opts.asAdmin` + `teamIndex`) boleh mengerjakan kelompok mana pun
+ * tanpa harus masuk sebagai anggota. Kunci simpan tetap indeks tim.
+ */
+export function findLabTeam(config, userId, opts = {}) {
   const teams = Array.isArray(config?.teams?.teams) ? config.teams.teams : [];
   const uid = String(userId || '');
-  if (!uid) return null;
-  for (let index = 0; index < teams.length; index += 1) {
-    const team = teams[index];
-    const isRep = String(team?.repUserId || '') === uid;
-    const isMember = (Array.isArray(team?.memberUserIds) ? team.memberUserIds : []).some((id) => String(id) === uid);
-    if (isRep || isMember) return { index, team, isRep };
+  let memberHit = null;
+  if (uid) {
+    for (let index = 0; index < teams.length; index += 1) {
+      const team = teams[index];
+      const isRep = String(team?.repUserId || '') === uid;
+      const isMember = (Array.isArray(team?.memberUserIds) ? team.memberUserIds : []).some((id) => String(id) === uid);
+      if (isRep || isMember) {
+        memberHit = { index, team, isRep };
+        break;
+      }
+    }
   }
-  return null;
+  if (opts.asAdmin && opts.teamIndex != null && opts.teamIndex !== '') {
+    const index = Math.floor(Number(opts.teamIndex));
+    if (Number.isInteger(index) && index >= 0 && index < teams.length && teams[index]) {
+      return { index, team: teams[index], isRep: true, asAdmin: true };
+    }
+  }
+  return memberHit;
+}
+
+function labActor(config, req, teamIndex) {
+  return findLabTeam(config, req.authUser?.id, {
+    asAdmin: isWorshipWriter(req),
+    teamIndex,
+  });
+}
+
+function labDenied(req) {
+  return isWorshipWriter(req)
+    ? 'Pilih kelompok yang akan dikerjakan. Admin tidak perlu masuk sebagai anggota.'
+    : 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.';
 }
 
 /** Urutan presentasi: hasil undian + tim baru yang belum masuk, tanpa duplikat. */
@@ -992,7 +1049,10 @@ export function registerWorshipRoutes(app, { wrap }) {
 
       res.setHeader('Cache-Control', 'no-store');
       const pcode = String(live.pattern?.code || session.pattern?.code || '').toUpperCase();
-      const myLabTeam = pcode === 'CREATIVE_LAB' ? findLabTeam(config, req.authUser.id) : null;
+      const writer = isWorshipWriter(req);
+      const myLabTeam = pcode === 'CREATIVE_LAB'
+        ? findLabTeam(config, req.authUser.id, { asAdmin: writer, teamIndex: req.query?.teamIndex })
+        : null;
       const myLabRows = myLabTeam ? await labRows(prisma, live.id, myLabTeam.index) : [];
       const myLabUpdates = myLabTeam ? await labRowsWithNames(prisma, myLabRows) : [];
       res.json({
@@ -1046,6 +1106,13 @@ export function registerWorshipRoutes(app, { wrap }) {
           teamIndex: myLabTeam?.index ?? null,
           teamName: myLabTeam?.team?.name || null,
           isRep: Boolean(myLabTeam?.isRep),
+          asAdmin: writer,
+          teamChoices: writer
+            ? (Array.isArray(config.teams?.teams) ? config.teams.teams : []).map((t, index) => ({
+              index,
+              name: t?.name || `Kelompok ${index + 1}`,
+            }))
+            : [],
           repName: myLabTeam?.team?.repName || '',
           members: Array.isArray(myLabTeam?.team?.members) ? myLabTeam.team.members : [],
           done: Boolean(myLabTeam?.team?.done),
@@ -1390,8 +1457,8 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (String(config.activity?.phase || '').toUpperCase() !== LAB_PHASE_WRITABLE) {
         return res.status(409).json({ error: 'Update karya hanya dibuka saat Activity 2.' });
       }
-      const mine = findLabTeam(config, req.authUser.id);
-      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.' });
+      const mine = labActor(config, req, req.body?.teamIndex);
+      if (!mine) return res.status(403).json({ error: labDenied(req) });
 
       const kind = String(req.body?.kind || '').toUpperCase();
       if (!['POT', 'BAG', 'COMMIT', 'NOTE'].includes(kind)) {
@@ -1454,12 +1521,16 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (String(config.activity?.phase || '').toUpperCase() !== LAB_PHASE_WRITABLE) {
         return res.status(409).json({ error: 'Upload foto hanya dibuka saat Activity 2.' });
       }
-      const mine = findLabTeam(config, req.authUser.id);
-      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.' });
+      const mine = labActor(config, req, req.body?.teamIndex);
+      if (!mine) return res.status(403).json({ error: labDenied(req) });
       if (!mine.isRep) return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengunggah foto karya.' });
 
       const rows = await labRows(prisma, live.id, mine.index);
-      const quota = labPhotoQuota(rows, req.body?.kind);
+      const brief = creativeLabBrief(config);
+      const quota = labPhotoQuota(rows, req.body?.kind, {
+        mediaA: brief.a2.stationA.media,
+        mediaB: brief.a2.stationB.media,
+      });
       if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
       const kind = quota.kind;
 
@@ -1549,7 +1620,11 @@ export function registerWorshipRoutes(app, { wrap }) {
         return res.status(400).json({ error: 'Pilih kelompok yang sudah ada di papan.' });
       }
       const rows = await labRows(prisma, live.id, teamIndex);
-      const quota = labPhotoQuota(rows, req.body?.kind);
+      const brief = creativeLabBrief(config);
+      const quota = labPhotoQuota(rows, req.body?.kind, {
+        mediaA: brief.a2.stationA.media,
+        mediaB: brief.a2.stationB.media,
+      });
       if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
       const kind = quota.kind;
       const filename = String(req.body?.filename || '');
@@ -1702,8 +1777,8 @@ export function registerWorshipRoutes(app, { wrap }) {
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const config = normalizeConfig(session.config, session.pattern?.code);
-      const mine = findLabTeam(config, req.authUser.id);
-      if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab.' });
+      const mine = labActor(config, req, req.body?.teamIndex);
+      if (!mine) return res.status(403).json({ error: labDenied(req) });
       if (!mine.isRep) return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa menandai laporan selesai.' });
       const rows = await labRows(prisma, session.id, mine.index);
       if (!rows.some((r) => r.kind === 'GROUP' && r.photoUrl)) {
@@ -2253,6 +2328,13 @@ export function registerWorshipRoutes(app, { wrap }) {
           cfg.phase = null;
           cfg.fgd = null;
           cfg.likertRounds = null;
+          cfg.activity = null;
+          if (cfg.teams && Array.isArray(cfg.teams.teams)) {
+            cfg.teams = {
+              ...cfg.teams,
+              teams: cfg.teams.teams.map((t) => ({ ...t, done: false })),
+            };
+          }
           data.config = cfg;
         } catch {
           /* abaikan — status tetap di-reset */
@@ -2262,6 +2344,7 @@ export function registerWorshipRoutes(app, { wrap }) {
             prisma.worshipLikertResponse.deleteMany({ where: { sessionId: session.id } }),
             prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } }),
             prisma.worshipNote.deleteMany({ where: { sessionId: session.id } }),
+            prisma.worshipLabUpdate.deleteMany({ where: { sessionId: session.id } }),
           ]);
         } catch {
           /* abaikan — status tetap di-reset */
@@ -2895,7 +2978,12 @@ export function registerWorshipRoutes(app, { wrap }) {
       });
       const b = req.body || {};
       const cfg = normalizeConfig(session.config, session.pattern?.code);
-      const teamCap = String(session.pattern?.code || '').toUpperCase() === 'CREATIVE_LAB' ? LAB_MAX_TEAMS : 8;
+      const patternCode = String(session.pattern?.code || '').toUpperCase();
+      const teamCap = patternCode === 'CREATIVE_LAB'
+        ? LAB_MAX_TEAMS
+        : patternCode === 'THREE_SEQUENCES'
+          ? SEQUENCE_MAX_TEAMS
+          : DEFAULT_MAX_TEAMS;
       const out = {};
       if (b.rounds !== undefined) {
         const cleaned = cleanRounds(b.rounds);
@@ -2919,8 +3007,21 @@ export function registerWorshipRoutes(app, { wrap }) {
         if (!cleaned) return res.status(400).json({ error: 'Minimal satu tim bernama.' });
         cfg.teams = cleaned;
         out.teams = cleaned;
+        if (b.resetPresentOrder && cfg.activity) {
+          const reset = cleanActivity({
+            ...cfg.activity,
+            presentOrder: [],
+            presentDrawnAt: null,
+            presentIndex: 0,
+            presentSlide: 0,
+          });
+          if (reset) {
+            cfg.activity = reset;
+            out.activity = reset;
+          }
+        }
       }
-      if (b.activity !== undefined) {
+      if (b.activity !== undefined && b.teams === undefined) {
         if (b.activity === null) {
           cfg.activity = null;
           out.activity = null;
@@ -3009,10 +3110,13 @@ export function registerWorshipRoutes(app, { wrap }) {
       const rows = await labRows(prisma, session.id);
       const teams = Array.isArray(config.teams?.teams) ? config.teams.teams : [];
       const summary = labSummary(rows, teams, config.activity);
+      const brief = creativeLabBrief(config);
+      const mediaA = brief.a2.stationA.media || 'Pot';
+      const mediaB = brief.a2.stationB.media || 'Tas';
       const headers = [
         'Kelompok', 'Perwakilan', 'JumlahAnggota', 'Status',
-        'MaknaPot', 'ProgressPot', 'FotoPot1', 'FotoPot2',
-        'MaknaTas', 'ProgressTas', 'FotoTas1', 'FotoTas2',
+        `MaknaStasiunA (${mediaA})`, 'ProgressStasiunA', 'FotoStasiunA1', 'FotoStasiunA2',
+        `MaknaStasiunB (${mediaB})`, 'ProgressStasiunB', 'FotoStasiunB1', 'FotoStasiunB2',
         'Komitmen', 'FotoBersama', 'FotoLengkap', 'UpdateTerakhir',
       ];
       const lines = [headers.map(csvEscape).join(',')];
@@ -3068,8 +3172,63 @@ export function registerWorshipRoutes(app, { wrap }) {
         notesByUser.get(n.userId)[n.topicCode] = n.content;
       }
 
+      const patternCode = String(session.pattern?.code || '').toUpperCase();
+      // Mission Sequence: satu baris per tim gabungan (bukan per peserta).
+      if (patternCode === 'THREE_SEQUENCES') {
+        const teams = Array.isArray(agg.config.teams?.teams) ? agg.config.teams.teams : [];
+        const src = await loadCreativeLabGroupSource(prisma, session.eventId).catch(() => ({ groups: [] }));
+        const groupOf = new Map();
+        for (const g of src.groups || []) {
+          for (const m of g.members || []) {
+            if (m?.id) groupOf.set(String(m.id), g.name || '');
+          }
+        }
+        const buckets = teams.map(() => ({ laporan: [], komitmen: [] }));
+        const missingIds = [...new Set(noteRows.map((n) => n.userId))].filter((id) => id && !userById.has(id));
+        if (missingIds.length) {
+          const extra = await prisma.user.findMany({
+            where: { id: { in: missingIds } },
+            select: { id: true, name: true, email: true, bipra: true },
+          }).catch(() => []);
+          for (const u of extra) userById.set(u.id, u);
+        }
+        const reporterIds = new Set([...agg.perUser.keys(), ...noteRows.map((n) => n.userId)]);
+        for (const userId of reporterIds) {
+          const u = userById.get(userId);
+          const idx = matchJointTeam(teams, {
+            userId,
+            name: u?.name || '',
+            groupName: groupOf.get(String(userId)) || '',
+          });
+          if (idx < 0 || !buckets[idx]) continue;
+          const myNotes = notesByUser.get(userId) || {};
+          const who = u?.name || userId;
+          if (myNotes.LAPORAN) buckets[idx].laporan.push(`${who}: ${myNotes.LAPORAN}`);
+          const komitmen = myNotes.KOMITMEN || myNotes.KESIMPULAN || '';
+          if (komitmen) buckets[idx].komitmen.push(`${who}: ${komitmen}`);
+        }
+        const seqHeaders = ['Tim', 'Pasangan', 'PeranDiDalamTim', 'Tugas', 'Selesai', 'Laporan', 'Komitmen'];
+        const seqLines = [seqHeaders.map(csvEscape).join(',')];
+        teams.forEach((t, i) => {
+          const pair = Array.isArray(t.pair) ? t.pair.filter(Boolean).join(' & ') : '';
+          seqLines.push([
+            t.name || `Tim ${i + 1}`,
+            pair,
+            t.roles || '',
+            t.task || '',
+            t.done ? 'SELESAI' : 'PROSES',
+            buckets[i]?.laporan.join(' | ') || '',
+            buckets[i]?.komitmen.join(' | ') || '',
+          ].map(csvEscape).join(','));
+        });
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="worship-${session.slug}.csv"`);
+        res.send(`\uFEFF${seqLines.join('\r\n')}`);
+        return;
+      }
+
       // BEDAH_FILM: kolom PRE/POST per pernyataan + delta (tanpa rank ruang).
-      if (String(session.pattern?.code || '').toUpperCase() === 'BEDAH_FILM') {
+      if (patternCode === 'BEDAH_FILM') {
         const items = [...(session.likertItems || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
         const preItems = items.filter((i) => String(i.topicCode || '').toUpperCase() === 'FILM_PRE');
         const postItems = items.filter((i) => String(i.topicCode || '').toUpperCase() === 'FILM_POST');

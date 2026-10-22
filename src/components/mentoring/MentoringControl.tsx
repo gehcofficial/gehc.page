@@ -260,7 +260,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     if (!detail) return;
     if (action === 'reset') {
       const ok = window.confirm(
-        'Reset ke Draft akan MENGHAPUS SEMUA isi audiens (jawaban Likert, vote, catatan, hasil undian) sesi ini. Soal + Lesson Learned master tetap. Lanjut?',
+        'Reset ke Draft menghapus jawaban audiens (Likert, vote, catatan, kesaksian, screening, fase, trigger, chip) plus karya Creative Lab, status aktivitas, dan tanda selesai tim. Roster tim tetap. Soal + Lesson Learned master tetap. Lanjut?',
       );
       if (!ok) return;
     }
@@ -371,7 +371,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           : { phase: { name: 'CLOSING', startedAt: new Date().toISOString(), durationSec: prefSec('CLOSING'), showOnScreen: prefShow('CLOSING') } };
       await saveStage(detail.session.id, patch);
       const mins = Math.round(prefSec(name) / 60);
-      setMsg({ kind: 'ok', text: name === 'F2' ? `Fase F2 Deep Sharing + Q4-Q5 dibuka (${mins} menit).` : `Fase Closing & Transisi dibuka (${mins} menit).` });
+      setMsg({ kind: 'ok', text: name === 'F2' ? `Sesi 2 · Deep Sharing dibuka, Q4–Q5 ikut terbuka (${mins} menit).` : `Konklusi dibuka (${mins} menit).` });
       await loadDetail();
       await loadLive();
     } catch (e) {
@@ -852,10 +852,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 <>
                   {(
                     [
-                      { key: 'F1', label: `Mulai Bedah Lagu & Monolog · ${Math.round(prefSec('F1') / 60)}’`, run: () => void startWithPrefs('start', 'F1'), on: detail.session.status === 'DRAFT' },
-                      { key: 'F2', label: `Deep Sharing Q4-Q5 · ${Math.round(prefSec('F2') / 60)}’`, run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
-                      { key: 'F3', label: `Kesaksian · ${Math.round(prefSec('F3') / 60)}’`, run: () => void startWithPrefs('wrapup', 'F3'), on: detail.session.status === 'RUNNING' },
-                      { key: 'CLOSING', label: `Closing & Transisi · ${Math.round(prefSec('CLOSING') / 60)}’`, run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
+                      { key: 'F1', label: `Sesi 1 · Bedah Lagu · ${Math.round(prefSec('F1') / 60)}’`, run: () => void startWithPrefs('start', 'F1'), on: detail.session.status === 'DRAFT' },
+                      { key: 'F2', label: `Sesi 2 · Deep Sharing · ${Math.round(prefSec('F2') / 60)}’`, run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
+                      { key: 'F3', label: `Sesi 3 · Kesaksian · ${Math.round(prefSec('F3') / 60)}’`, run: () => void startWithPrefs('wrapup', 'F3'), on: detail.session.status === 'RUNNING' },
+                      { key: 'CLOSING', label: `Konklusi · ${Math.round(prefSec('CLOSING') / 60)}’`, run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
                     ] as const
                   ).map((b) => {
                     const active = live?.phase?.name === b.key;
@@ -1070,12 +1070,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
             {isCreativeLab && (
               <div className="mt-4 space-y-2">
                 <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
-                  <b>Alur hari-H:</b> Mulai Sesi → <b>A1</b> (Jar 15′) → <b>A2</b> (Pot ∥ Tas 25′) → <b>Presentasi</b> →{' '}
-                  <b>Kelompok berikutnya</b> sampai <b>DONE</b> → <b>Buka Satu Kata</b>. Timer aktivitas display-only; transisi manual.
+                  <b>Alur hari-H:</b> Mulai Sesi → <b>Sesi 1</b> (Reminder Jar 15′) → <b>Sesi 2</b> (Art Stations 25′) → <b>Presentasi Kelompok</b> →{' '}
+                  <b>Kelompok berikutnya</b> sampai selesai → <b>Buka Satu Kata</b>. Timer aktivitas display-only; transisi manual. Kunci fase tetap A1/A2.
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
                   <span>
-                    Timer sesi pola ini <b className="text-[#1B1B1B]">115 menit = 6900 detik</b> (PRA 20′ terpisah; presentasi 10 × 2′).
+                    Timer sesi pola ini <b className="text-[#1B1B1B]">115 menit = 6900 detik</b> (PRA 20′ terpisah; Presentasi Kelompok blok 30′, sekitar 2,5′ per kelompok termasuk transisi).
                   </span>
                   {Number(configDraft.timerSeconds) !== 6900 && (
                     <button
