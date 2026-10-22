@@ -17,6 +17,7 @@ import {
   type DidaskaliaStudio,
 } from './didaskalia';
 import { stripMd } from './md-lite';
+import { formatKhutbahOutlineMd, joinHardWrappedLines } from './didaskalia-prose.mjs';
 
 export type MaterialDoc = 'pembekalan' | 'khutbah' | 'rhb';
 
@@ -129,7 +130,7 @@ export function imageAssetUrl(fileId?: string): string | undefined {
 }
 
 function toParagraphs(text?: string): string[] {
-  return String(text || '')
+  return joinHardWrappedLines(String(text || ''))
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
@@ -852,7 +853,11 @@ export function literalKhutbahSlides(
   let first = true;
   (Object.keys(KHUTBAH_OUTLINE_SECTIONS) as KhutbahOutlineKey[]).forEach((key) => {
     const meta = KHUTBAH_OUTLINE_SECTIONS[key];
-    const chunks = chunkSermonSection(outline[key], opts?.maxLines ?? KHUTBAH_CHUNK_MAX_LINES, opts?.maxBullets ?? KHUTBAH_CHUNK_MAX_BULLETS);
+    const chunks = chunkSermonSection(
+      formatKhutbahOutlineMd(outline[key]),
+      opts?.maxLines ?? KHUTBAH_CHUNK_MAX_LINES,
+      opts?.maxBullets ?? KHUTBAH_CHUNK_MAX_BULLETS,
+    );
     const imgId = literal[key] || images.cover;
     chunks.forEach((paragraphs, ci) => {
       const numbered = chunks.length > 1;
@@ -998,7 +1003,7 @@ export function sermonWithLiteralOutline<T extends { outline?: Partial<Record<st
   if (!src) return base;
   const prev = base.outline || {};
   const outline = { ...prev };
-  for (const key of OUTLINE_KEYS) outline[key] = preferLiteralSection(prev[key], src[key]);
+  for (const key of OUTLINE_KEYS) outline[key] = joinHardWrappedLines(preferLiteralSection(prev[key], src[key]));
   const tu = base.teksUtama || {};
   return {
     ...base,

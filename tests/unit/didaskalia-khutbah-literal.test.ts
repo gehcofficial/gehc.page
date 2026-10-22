@@ -199,7 +199,7 @@ describe('outline khotbah memakai naskah sumber bila field hanya ringkasan', () 
       key,
       deep.filter((s) => s.id.startsWith(`outline-${key}`)).length,
     ]));
-    expect(perSection).toEqual({ pengantar: 10, bedahTeologis: 16, jembatan: 12, kesimpulan: 6 });
-    expect(deep).toHaveLength(45);
+    expect(perSection).toEqual({ pengantar: 9, bedahTeologis: 14, jembatan: 10, kesimpulan: 5 });
+    expect(deep).toHaveLength(39);
   });
 });
