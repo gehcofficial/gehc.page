@@ -280,8 +280,43 @@ export function creativeLabBrief(config) {
 /* ---------------- Creative Lab — update karya kelompok ---------------- */
 
 const LAB_KINDS = ['POT', 'BAG', 'COMMIT', 'GROUP', 'NOTE'];
-const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
+export const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
 const LAB_PHASE_WRITABLE = 'A2';
+
+/** Kuota foto per slot. Dipakai unggah perwakilan dan unggah admin. */
+export function labPhotoQuota(rows, kind) {
+  const key = String(kind || '').toUpperCase();
+  if (!Object.prototype.hasOwnProperty.call(LAB_PHOTO_LIMIT, key)) {
+    return { ok: false, status: 400, error: 'Slot foto harus POT, BAG, atau GROUP.' };
+  }
+  const used = labPhotoCount(Array.isArray(rows) ? rows : [], key);
+  const limit = LAB_PHOTO_LIMIT[key];
+  if (used >= limit) {
+    const label = key === 'GROUP' ? 'foto bersama' : `foto ${key === 'POT' ? 'Pot' : 'Tas'}`;
+    return { ok: false, status: 400, error: `Kuota ${label} sudah penuh (maks ${limit}). Hapus salah satu dulu untuk mengganti.` };
+  }
+  return { ok: true, kind: key, limit, used };
+}
+
+/**
+ * Pengurus sesi (peran yang boleh mengendalikan kontrol) boleh unggah
+ * atas nama kelompok saat A2, presentasi, atau penutupan (WRAPUP/DONE).
+ */
+export function adminLabPhotoAllowed({ roles, status, phase }) {
+  const list = (Array.isArray(roles) ? roles : [])
+    .map((r) => (typeof r === 'string' ? r : r?.role))
+    .filter(Boolean);
+  if (!list.some((role) => WRITE_ROLES.includes(role))) {
+    return { ok: false, status: 403, error: 'Hanya pengurus sesi yang bisa mengunggah atas nama kelompok.' };
+  }
+  const st = String(status || '').toUpperCase();
+  const ph = String(phase || '').toUpperCase();
+  if (!['RUNNING', 'WRAPUP'].includes(st)) {
+    return { ok: false, status: 409, error: 'Sesi belum berjalan atau sudah ditutup.' };
+  }
+  if (ph === 'A2' || ph === 'PRESENT' || ph === 'DONE' || st === 'WRAPUP') return { ok: true };
+  return { ok: false, status: 409, error: 'Upload admin hanya saat Activity 2, presentasi, atau penutupan.' };
+}
 
 function labDriveWriteEnabled() {
   return process.env.GDRIVE_WRITE === '1' || hasUserDriveToken();
@@ -399,6 +434,21 @@ export function labSummary(rows, teams, activity) {
   });
   const order = labPresentationOrder(activity, list.length);
   return { teams: list, presentOrder: order };
+}
+
+/** Nama pengunggah (userId baris) menempel di foto kontrol. */
+function stampLabUploaders(summary, namedRows) {
+  const names = new Map((Array.isArray(namedRows) ? namedRows : []).map((r) => [r.id, r.userName || '']));
+  const tag = (photo) => (photo?.id ? { ...photo, userName: names.get(photo.id) || photo.userName || '' } : photo);
+  return {
+    ...summary,
+    teams: (summary?.teams || []).map((team) => ({
+      ...team,
+      pot: { ...team.pot, photos: (team.pot?.photos || []).map(tag) },
+      bag: { ...team.bag, photos: (team.bag?.photos || []).map(tag) },
+      groupPhoto: tag(team.groupPhoto),
+    })),
+  };
 }
 
 const labFolderChain = new Map();
@@ -1301,7 +1351,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!cleaned) return res.status(400).json({ error: 'Tidak ada kelompok yang bisa dimuat.' });
       const activity = cleanActivity({
         ...(config.activity || {}),
-        ...(lockOrder ? {} : { presentOrder: [], presentDrawnAt: null, presentIndex: 0 }),
+        ...(lockOrder ? {} : { presentOrder: [], presentDrawnAt: null, presentIndex: 0, presentSlide: 0 }),
       });
       await prisma.worshipSession.update({
         where: { id: session.id },
@@ -1408,15 +1458,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!mine) return res.status(403).json({ error: 'Kamu belum terdaftar di kelompok Creative Lab. Hubungi Admin.' });
       if (!mine.isRep) return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengunggah foto karya.' });
 
-      const kind = String(req.body?.kind || '').toUpperCase();
-      if (!Object.prototype.hasOwnProperty.call(LAB_PHOTO_LIMIT, kind)) {
-        return res.status(400).json({ error: 'Slot foto harus POT, BAG, atau GROUP.' });
-      }
       const rows = await labRows(prisma, live.id, mine.index);
-      if (labPhotoCount(rows, kind) >= LAB_PHOTO_LIMIT[kind]) {
-        const label = kind === 'GROUP' ? 'foto bersama' : `foto ${kind === 'POT' ? 'Pot' : 'Tas'}`;
-        return res.status(400).json({ error: `Kuota ${label} sudah penuh (maks ${LAB_PHOTO_LIMIT[kind]}). Hapus salah satu dulu untuk mengganti.` });
-      }
+      const quota = labPhotoQuota(rows, req.body?.kind);
+      if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
+      const kind = quota.kind;
 
       const filename = String(req.body?.filename || '');
       const mimetype = String(req.body?.mimetype || '');
@@ -1466,6 +1511,124 @@ export function registerWorshipRoutes(app, { wrap }) {
         },
       });
       res.status(201).json({ ok: true, update: labRowPublic(row, req.authUser.name || '') });
+    }),
+  );
+
+  app.post(
+    '/api/worship/sessions/:id/lab/photos',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!getDriveMode()) return res.status(503).json({ error: 'Google Drive belum dikonfigurasi.' });
+      if (!labDriveWriteEnabled()) return res.status(403).json({ error: 'Upload Drive belum diaktifkan.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { id: found.id },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      if (String(session.pattern?.code || '').toUpperCase() !== 'CREATIVE_LAB') {
+        return res.status(400).json({ error: 'Fitur ini hanya untuk Creative Lab.' });
+      }
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
+      const config = normalizeConfig(live.config, session.pattern?.code);
+      const gate = adminLabPhotoAllowed({
+        roles: req.authUser?.roles,
+        status: live.status,
+        phase: config.activity?.phase,
+      });
+      if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+      const teams = Array.isArray(config.teams?.teams) ? config.teams.teams : [];
+      const teamIndex = Math.floor(Number(req.body?.teamIndex));
+      const team = teams[teamIndex];
+      if (!Number.isInteger(teamIndex) || teamIndex < 0 || !team?.name) {
+        return res.status(400).json({ error: 'Pilih kelompok yang sudah ada di papan.' });
+      }
+      const rows = await labRows(prisma, live.id, teamIndex);
+      const quota = labPhotoQuota(rows, req.body?.kind);
+      if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
+      const kind = quota.kind;
+      const filename = String(req.body?.filename || '');
+      const mimetype = String(req.body?.mimetype || '');
+      const rawData = String(req.body?.data || '').replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+      if (!filename || !rawData) return res.status(400).json({ error: 'filename dan data wajib.' });
+      if (rawData.length > 20_000_000) {
+        return res.status(400).json({ error: 'File terlalu besar (maks ~15MB sebelum dikompres).' });
+      }
+      const nameLower = filename.toLowerCase();
+      if (!mimetype.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/.test(nameLower)) {
+        return res.status(400).json({ error: 'Hanya file gambar (JPG, PNG, WebP, HEIC).' });
+      }
+      let jpeg;
+      try {
+        const { decodeImageUpload, toJpegBuffer } = await import('../lib/drive-jpeg.mjs');
+        const decoded = decodeImageUpload({ mimetype, data: rawData, filename }, { maxBytes: 20_000_000 });
+        jpeg = await toJpegBuffer(decoded.buffer, { maxWidth: 1600 });
+      } catch (e) {
+        const msg = String(e?.message || '');
+        if (/Format foto|Ukuran foto|Data foto/i.test(msg)) return res.status(400).json({ error: msg });
+        console.error('[creative-lab] kompres admin gagal:', e);
+        return res.status(422).json({ error: 'Foto tidak terbaca (termasuk HEIC lama). Simpan ulang sebagai JPG lalu coba lagi.' });
+      }
+      const folderId = await ensureLabFolder(prisma, live, { kind, groupName: team.name });
+      if (!folderId) return res.status(400).json({ error: 'Folder event Didaskalia belum siap. Pastikan event punya folder [EV:…:DIDASKALIA].' });
+      const safeBase = String(filename).replace(/\.[a-z0-9]+$/i, '').slice(0, 80) || 'karya';
+      const label = kind === 'GROUP' ? 'foto-bersama' : kind.toLowerCase();
+      const file = await driveUploadFile(folderId, {
+        originalname: `${label}-${safeBase}.jpg`,
+        mimetype: 'image/jpeg',
+        buffer: jpeg,
+      });
+      const row = await prisma.worshipLabUpdate.create({
+        data: {
+          id: uid('wlu'),
+          sessionId: live.id,
+          teamIndex,
+          teamName: String(team.name || '').slice(0, 80),
+          userId: req.authUser.id,
+          kind,
+          body: str(req.body?.caption, 300),
+          photoFileId: String(file.id || '').slice(0, 128),
+          photoUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w1600`,
+          thumbUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500`,
+        },
+      });
+      res.status(201).json({ ok: true, update: labRowPublic(row, req.authUser.name || '') });
+    }),
+  );
+
+  app.delete(
+    '/api/worship/sessions/:id/lab/updates/:updateId',
+    requireDivision('DIDASKALIA'),
+    requireRole(...WRITE_ROLES),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      const found = await findSession(prisma, req.params.id);
+      if (!found) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { id: found.id },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
+      const config = normalizeConfig(live.config, session.pattern?.code);
+      const gate = adminLabPhotoAllowed({
+        roles: req.authUser?.roles,
+        status: live.status,
+        phase: config.activity?.phase,
+      });
+      if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+      const row = await prisma.worshipLabUpdate.findUnique({ where: { id: String(req.params.updateId || '') } }).catch(() => null);
+      if (!row || row.sessionId !== live.id) return res.status(404).json({ error: 'Update tidak ditemukan.' });
+      await prisma.worshipLabUpdate.delete({ where: { id: row.id } });
+      if (row.photoFileId) void driveDeleteFile(row.photoFileId).catch(() => {});
+      res.json({ ok: true, deletedBy: req.authUser.id });
     }),
   );
 
@@ -1884,10 +2047,11 @@ export function registerWorshipRoutes(app, { wrap }) {
       const canWrite = isWriterRole && (await canAccessDivision(req.authUser, 'DIDASKALIA'));
       const controlPcode = String(liveSession.pattern?.code || '').toUpperCase();
       const controlLabRows = controlPcode === 'CREATIVE_LAB' ? await labRows(prisma, liveSession.id) : [];
+      const controlNamed = controlPcode === 'CREATIVE_LAB' ? await labRowsWithNames(prisma, controlLabRows) : [];
       const controlLab = controlPcode === 'CREATIVE_LAB'
         ? {
-            ...labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity),
-            updates: await labRowsWithNames(prisma, controlLabRows),
+            ...stampLabUploaders(labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity), controlNamed),
+            updates: controlNamed,
           }
         : null;
       res.json({
