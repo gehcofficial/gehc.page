@@ -35,6 +35,7 @@ import { weekIndexForDate } from '../lib/penatalayan-access.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
 import { loadCyclePairs, pairFromList } from '../lib/serving-cycle.mjs';
 import { congregationUserWhere } from '../lib/system-users.mjs';
+import { tenantForWrite } from '../lib/tenant-scope.mjs';
 import { replaceVisualStem, backupToOpsFolder, scheduleVisualsPublish } from '../lib/visual-slot-write.mjs';
 import {
   requireUserDrive,
@@ -1279,7 +1280,7 @@ export function registerDriveOwnershipRoutes(app, { wrap }) {
       const item = await prisma.testimonial.create({
         data: {
           id: newEntityId('tst'),
-          tenantId: 'tenant-youth',
+          tenantId: tenantForWrite(req),
           authorName: req.authUser.name || 'Jemaat',
           groupName: req.body?.groupName || null,
           quote,

@@ -1,5 +1,38 @@
 # GEHC Portal — Handoff
 
+## Current — Keamanan direktori publik + tenant host (22 Okt 2026)
+
+**Minta:** tutup kebocoran PII pada endpoint baca publik, ketatkan peran pastoral,
+dan hentikan hardcode `tenant-youth` pada join serta penulisan data baru.
+
+**Done:**
+- Direktori publik (`GET /api/db/groups`, `.../members`, `GET /api/db/struktur`)
+  hanya field non-sensitif dan ter-scope `withTenant`. PII penuh lewat
+  `/api/db/groups/full` untuk staf pastoral + mentor rumah (akun ACTIVE).
+- Absensi, batch, transisi mentor, rapat event, ICS, dan penatalayan memakai
+  peran yang sesuai + cek tenant/grup. ICS tidak lagi anonim.
+- `requireRole` menolak akun non-ACTIVE (403). Baris `UserRole` undangan tetap
+  ditulis saat join agar persetujuan Komisi (flip `accountStatus`) langsung berlaku.
+- `POST /api/join`, `/api/join/local`, dan registrasi Google memakai tenant host
+  (`tenantForWrite`) dan `Tenant.registrationOpen` (plus env `REGISTRATION_OPEN`).
+- Penulisan event/konten/peran baru mengikuti tenant host atau tenant grup.
+  Creative Lab / rumah Beyonders tetap unit Pemuda (sengaja, lihat
+  `server/lib/tenant-defaults.mjs`).
+- Guard `tests/unit/no-hardcoded-tenant.test.ts` menolak literal `tenant-youth`
+  baru di `server/` di luar peta host/BIPRA dan file seed/`_migrate`.
+- `src/context/AppContext.tsx`: `ensureStruktur` mengirim cookie agar pengurus
+  yang login tetap mendapat email/telepon.
+
+**Verifikasi:** `tsc --noEmit` (heap 4GB) bersih; `npm run test` **162 files /
+1279 tests passed**; `npm run build` OK. Tidak ada migrasi skema. Belum diuji
+browser/HTTP hidup (tidak ada `DATABASE_URL` di environment agen).
+
+**Next:** QA staging — pengunjung anonim di youth/teen tidak melihat email,
+telepon, `alumniNote`, atau `userId`; mentor hanya melihat kontak rumahnya;
+undangan akun baru di unit tertutup (`registrationOpen: false`) ditolak;
+akun yang sudah ada tetap bisa menukar undangan Google. Jangan deploy/migrasi
+prod dari episode ini sebelum review.
+
 ## Current — Creative Lab lengkap: laporan kelompok + undian presentasi (21 Okt 2026)
 
 **Minta:** lengkapi pola `CREATIVE_LAB` sesuai alur Serving Day: Reminder Jar

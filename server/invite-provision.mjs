@@ -14,6 +14,7 @@ import {
   ensureUniqueUsername,
 } from './lib/username.mjs';
 import { applyPersonNameFields, hasStructuredName, parseDisplayName } from './lib/person-name.mjs';
+import { resolveRoleTenant } from './lib/role-tenant.mjs';
 
 export const DEFAULT_UNIFORM_PASSWORD = 'GEHCikarang';
 
@@ -69,6 +70,7 @@ export async function createInviteProvisionUser(
     familyRole,
     orgNodeId,
     assignedBy,
+    tenantId: explicitTenantId = null,
   },
 ) {
   let trimmedName = String(name || '').trim();
@@ -167,6 +169,7 @@ export async function createInviteProvisionUser(
       assignedBy: assigner,
       note: 'Invite provision Beyonders',
       updateOnboarding: false,
+      tenantId: explicitTenantId,
     });
   } else if (orgNodeId) {
     await assignOrgSlot(prisma, {
@@ -177,10 +180,16 @@ export async function createInviteProvisionUser(
       assignedBy: assigner,
       note: 'Invite provision org slot',
       updateOnboarding: false,
+      tenantId: explicitTenantId,
     });
   } else {
+    const tenantId = await resolveRoleTenant(prisma, {
+      role: assignedRole,
+      groupId,
+      fallbackTenant: explicitTenantId,
+    });
     await prisma.userRole.create({
-      data: { userId, tenantId: 'tenant-youth', role: assignedRole },
+      data: { userId, tenantId, role: assignedRole },
     });
     if (assignedRole === 'MENTEE' && type === 'individual') {
       await prisma.user.update({ where: { id: userId }, data: { isBeyonders: false } });

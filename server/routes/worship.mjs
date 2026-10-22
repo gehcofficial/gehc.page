@@ -11,6 +11,8 @@ import { requireRole } from '../auth.mjs';
 import { canAccessDivision, requireDivision } from '../lib/division-access.mjs';
 import { csvEscape } from '../lib/event-question-showif.mjs';
 import { resolveHostContext } from '../lib/host-context.mjs';
+import { tenantForWrite } from '../lib/tenant-scope.mjs';
+import { YOUTH_TENANT_ID } from '../lib/tenant-defaults.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
 import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
 import { createFolder as driveCreateFolder, listFolders as driveListFolders, uploadFile as driveUploadFile, deleteFile as driveDeleteFile, getFileStream as driveGetFileStream, getDriveMode } from '../gdrive.mjs';
@@ -58,7 +60,8 @@ async function filmRoundMeans(prisma, sessionId) {
 }
 
 const WRITE_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
-const YOUTH_TENANT = 'tenant-youth';
+// Creative Lab dan 10 rumah Beyonders hidup di unit Pemuda.
+const YOUTH_TENANT = YOUTH_TENANT_ID;
 const STATUSES = ['DRAFT', 'LIKERT_OPEN', 'RUNNING', 'WRAPUP', 'CLOSED'];
 const uid = (p) => `${p}-${crypto.randomUUID()}`;
 
@@ -1827,7 +1830,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           slug,
           title,
           eventId: str(req.body?.eventId, 64),
-          tenantId: YOUTH_TENANT,
+          tenantId: tenantForWrite(req),
           sessionDate: dateRaw ? new Date(`${dateRaw.slice(0, 10)}T00:00:00Z`) : null,
           status: 'DRAFT',
           accessCode: crypto.randomBytes(3).toString('hex').toUpperCase(),

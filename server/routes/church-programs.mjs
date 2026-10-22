@@ -6,7 +6,6 @@ import { canAccessTenant, tenantForWrite, tenantWhere } from '../lib/tenant-scop
 
 const SCOPES = ['BPMJ', 'KOMISI', 'KOLOM'];
 const SEASONS = ['NATAL', 'PASKAH', 'HUT', 'REGULAR'];
-const TENANT_DEFAULT = 'tenant-youth';
 const idOf = () => `cprog-${crypto.randomUUID()}`;
 
 

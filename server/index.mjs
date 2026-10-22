@@ -39,8 +39,22 @@ import {
 } from './auth.mjs';
 import { requireDivision } from './lib/division-access.mjs';
 import { roleToNamespace } from './portal-namespace.mjs';
-import { resolveHostContext, hostFromReq, isStagingProtectedHost } from './lib/host-context.mjs';
+import { resolveHostContext, hostFromReq, isStagingProtectedHost, defaultHostContext } from './lib/host-context.mjs';
 import { withTenant, tenantWhere, tenantForWrite, activeTenantId, canAccessTenant, isJemaatScope } from './lib/tenant-scope.mjs';
+import { YOUTH_TENANT_ID } from './lib/tenant-defaults.mjs';
+import { isActiveAccount } from './lib/account-status.mjs';
+import { tenantRegistrationOpen, REGISTRATION_CLOSED_MESSAGE } from './lib/registration-gate.mjs';
+import { resolveRoleTenant, grantRoleOnTenant } from './lib/role-tenant.mjs';
+import { toPublicGroup, toPublicMember, toPublicStrukturMember } from './lib/public-directory.mjs';
+import {
+  canReadGroupPastoral,
+  canReadStrukturPii,
+  isPastoralStaff,
+  loadScopedGroup,
+  GROUP_DIRECTORY_ROLES,
+  EVENT_PASTORAL_ROLES,
+  redactUserContact,
+} from './lib/pastoral-access.mjs';
 import { hasPortalRole, sameDivision } from './lib/event-visibility.mjs';
 import { isUnitMember } from './lib/tenant-map.mjs';
 import { isBendahara, isBpmjUser, isSuperadminUser } from './lib/church-access.mjs';
@@ -1975,7 +1989,7 @@ app.get('/api/db/status', wrap(async (req, res) => {
 function dedupeGroups(allGroups) {
   const seen = new Map();
   for (const g of allGroups) {
-    const key = String(g.name || '').toUpperCase();
+    const key = `${g.tenantId || ''}|${String(g.name || '').toUpperCase()}`;
     const prev = seen.get(key);
     if (!prev) { seen.set(key, g); continue; }
     const curCanon = /^grp-\d+$/.test(String(g.id));
@@ -2001,18 +2015,15 @@ async function attachBatchAvatars(prisma, groups) {
 }
 
 // Kolom anggota yang aman untuk publik � TANPA email/telepon/catatan (PII).
-const PUBLIC_MEMBER_SELECT = {  id: true,
+const PUBLIC_MEMBER_SELECT = {
+  id: true,
   groupId: true,
   batchPeriod: true,
-  userId: true,
   name: true,
   familyRole: true,
   status: true,
-  joinedDate: true,
   alumniDate: true,
-  alumniNote: true,
-  attendanceRate: true,
-  user: { select: { id: true, avatar: true, name: true } },
+  user: { select: { avatar: true, name: true } },
 };
 
 // Family tree semua grup + batch regenerasi (PUBLIK � minimisasi PII).
@@ -2020,20 +2031,23 @@ app.get('/api/db/groups', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const allGroups = await prisma.group.findMany({
+    where: withTenant(req),
     orderBy: { name: 'asc' },
     include: {
       batches: { orderBy: { period: 'desc' } },
       members: { orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }], select: PUBLIC_MEMBER_SELECT },
     },
   });
-  res.json({ groups: await attachBatchAvatars(prisma, dedupeGroups(allGroups)) });
+  const groups = await attachBatchAvatars(prisma, dedupeGroups(allGroups));
+  res.json({ groups: groups.map(toPublicGroup) });
 }));
 
 // Versi lengkap (termasuk email/telepon/catatan anggota) � hanya pengguna login.
-app.get('/api/db/groups/full', requireRole(), wrap(async (req, res) => {
+app.get('/api/db/groups/full', requireRole(...GROUP_DIRECTORY_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const allGroups = await prisma.group.findMany({
+    where: withTenant(req),
     orderBy: { name: 'asc' },
     include: {
       batches: { orderBy: { period: 'desc' } },
@@ -2043,15 +2057,24 @@ app.get('/api/db/groups/full', requireRole(), wrap(async (req, res) => {
       },
     },
   });
-  res.json({ groups: await attachBatchAvatars(prisma, dedupeGroups(allGroups)) });
+  const groups = await attachBatchAvatars(prisma, dedupeGroups(allGroups));
+  const staff = isPastoralStaff(req.authUser);
+  res.json({
+    groups: groups.map((g) => (staff || canReadGroupPastoral(req.authUser, g.id) ? g : toPublicGroup(g))),
+  });
 }));
 
 // History family tree per grup
-app.get('/api/db/groups/:id/batches', requireRole(), wrap(async (req, res) => {
+app.get('/api/db/groups/:id/batches', requireRole(...GROUP_DIRECTORY_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const group = await loadScopedGroup(prisma, req, req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+  if (!canReadGroupPastoral(req.authUser, group.id)) {
+    return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi/BPMJ/Tim Kerja.' });
+  }
   const batches = await prisma.groupBatch.findMany({
-    where: { groupId: req.params.id },
+    where: { groupId: group.id },
     orderBy: { period: 'desc' },
   });
   res.json({ batches });
@@ -2061,21 +2084,14 @@ app.get('/api/db/groups/:id/batches', requireRole(), wrap(async (req, res) => {
 app.get('/api/db/groups/:id/members', wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const group = await loadScopedGroup(prisma, req, req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
   const members = await prisma.groupMember.findMany({
-    where: { groupId: req.params.id, ...(req.query.period ? { batchPeriod: req.query.period } : {}) },
+    where: { groupId: group.id, ...(req.query.period ? { batchPeriod: req.query.period } : {}) },
     orderBy: [{ batchPeriod: 'desc' }, { name: 'asc' }],
-    select: {
-      id: true,
-      groupId: true,
-      batchPeriod: true,
-      name: true,
-      familyRole: true,
-      status: true,
-      alumniDate: true,
-      alumniNote: true,
-    },
+    select: PUBLIC_MEMBER_SELECT,
   });
-  res.json({ members });
+  res.json({ members: members.map(toPublicMember) });
 }));
 
 /** GET /api/portal/groups/:id/roster � roster ber-nomor untuk Portal Mentor (auth).
@@ -2084,6 +2100,8 @@ app.get('/api/portal/groups/:id/roster', requireRole(), wrap(async (req, res) =>
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const groupId = String(req.params.id || '').trim();
+  const scoped = await loadScopedGroup(prisma, req, groupId);
+  if (!scoped) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
   const privileged = isKomisiOrSuperadmin(req.authUser);
   const mentor = privileged || await isMentorOfGroup(req.authUser, groupId);
   if (!mentor) return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi.' });
@@ -2107,10 +2125,15 @@ app.get('/api/portal/groups/:id/roster', requireRole(), wrap(async (req, res) =>
 }));
 
 // Riwayat absensi grup (opsional filter ?date= atau ?since=)
-app.get('/api/db/groups/:id/attendance', requireRole(), wrap(async (req, res) => {
+app.get('/api/db/groups/:id/attendance', requireRole(...GROUP_DIRECTORY_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-  const where = { groupId: req.params.id };
+  const group = await loadScopedGroup(prisma, req, req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+  if (!canReadGroupPastoral(req.authUser, group.id)) {
+    return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi/BPMJ/Tim Kerja.' });
+  }
+  const where = { groupId: group.id };
   if (req.query.date) {
     const d = new Date(String(req.query.date));
     if (!Number.isNaN(d.getTime())) where.date = d;
@@ -2157,11 +2180,17 @@ app.post('/api/db/sync-batches', requireRole('SUPERADMIN'), wrap(async (req, res
 
 // ---------- Mentor Transition (Phase 6) ----------
 // GET: List mentor transitions for a group
-app.get('/api/groups/:id/mentor-transitions', requireRole(), wrap(async (req, res) => {
+app.get('/api/groups/:id/mentor-transitions', requireRole(...GROUP_DIRECTORY_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const group = await loadScopedGroup(prisma, req, req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+  if (!canReadGroupPastoral(req.authUser, group.id)) {
+    return res.status(403).json({ error: 'Hanya mentor kelompok ini atau Komisi/BPMJ/Tim Kerja.' });
+  }
+  const keepContact = isPastoralStaff(req.authUser);
   const transitions = await prisma.mentorTransition.findMany({
-    where: { groupId: req.params.id },
+    where: { groupId: group.id },
     orderBy: { effectiveDate: 'desc' },
     include: {
       outgoingUser: { select: { id: true, name: true, email: true, avatar: true } },
@@ -2169,7 +2198,13 @@ app.get('/api/groups/:id/mentor-transitions', requireRole(), wrap(async (req, re
       createdBy: { select: { id: true, name: true } },
     },
   });
-  res.json({ transitions });
+  res.json({
+    transitions: transitions.map((t) => ({
+      ...t,
+      outgoingUser: redactUserContact(t.outgoingUser, keepContact),
+      incomingUser: redactUserContact(t.incomingUser, keepContact),
+    })),
+  });
 }));
 
 // POST: Create mentor transition (resignation, batch change, etc.)
@@ -2904,7 +2939,7 @@ app.post('/api/seed/events', requireRole('SUPERADMIN'), wrap(async (req, res) =>
     await prisma.$executeRawUnsafe(
       `INSERT INTO EventProgram (id, tenant_id, slug, name, description, status, start_date, end_date, created_by_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
-      'evt-baku-tau-4-0', 'tenant-youth', 'baku-tau-4-0', 'BAKU TAU 4.0',
+      'evt-baku-tau-4-0', YOUTH_TENANT_ID, 'baku-tau-4-0', 'BAKU TAU 4.0',
       'Program Kerja & Event Tahunan GEHC 2026 � 6 divisi, kick-off & diskusi aktif.',
       'ACTIVE', '2026-01-01', '2026-12-31', 'usr-tech'
     );
@@ -3708,11 +3743,18 @@ app.patch('/api/events/meetings/:mid', requireRole('SUPERADMIN', 'KOMISI', 'COMM
 }));
 
 // GET /api/events/:id/meetings � daftar rapat
-app.get('/api/events/:id/meetings', requireRole(), wrap(async (req, res) => {
+app.get('/api/events/:id/meetings', requireRole(...EVENT_PASTORAL_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const event = await prisma.eventProgram.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, tenantId: true },
+  });
+  if (!event || !canAccessTenant(req, event.tenantId)) {
+    return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  }
 
-  const meetings = await prisma.eventMeeting.findMany({ where: { eventId: req.params.id }, orderBy: { scheduledAt: 'desc' } });
+  const meetings = await prisma.eventMeeting.findMany({ where: { eventId: event.id }, orderBy: { scheduledAt: 'desc' } });
   res.json({ meetings });
 }));
 
@@ -3727,12 +3769,15 @@ app.get('/api/events/:id/checkin-access', requireRole(), wrap(async (req, res) =
 }));
 
 // GET /api/events/meetings/:mid/ics — generate .ics file
-app.get('/api/events/meetings/:mid/ics', wrap(async (req, res) => {
+app.get('/api/events/meetings/:mid/ics', requireRole(...EVENT_PASTORAL_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
 
-  const m = await prisma.eventMeeting.findUnique({ where: { id: req.params.mid } });
-  if (!m) return res.status(404).json({ error: 'Meeting tidak ditemukan.' });
+  const m = await prisma.eventMeeting.findUnique({
+    where: { id: req.params.mid },
+    include: { event: { select: { tenantId: true } } },
+  });
+  if (!m || !canAccessTenant(req, m.event?.tenantId)) return res.status(404).json({ error: 'Meeting tidak ditemukan.' });
 
   const dtStart = new Date(m.scheduledAt).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const dtEnd   = new Date(new Date(m.scheduledAt).getTime() + 60 * 60 * 1000).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -4030,6 +4075,9 @@ app.delete('/api/events/:eventId/divisions/:div/members/:userId', requireDivisio
 // Mentor/Co-Mentor hanya boleh untuk grup binaannya; L1/L3/L4 bebas.
 app.post('/api/db/attendance', wrap(async (req, res) => {
   if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+  if (!isActiveAccount(req.authUser) && !isSuperadminEmail(req.authUser.email)) {
+    return res.status(403).json({ error: 'Akun masih menunggu persetujuan Komisi.' });
+  }
   const roles = req.authUser.roles || [];
   const roleNames = roles.map((r) => r.role);
   const groupId = req.body?.groupId;
@@ -4042,6 +4090,8 @@ app.post('/api/db/attendance', wrap(async (req, res) => {
 
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  const scopedGroup = await loadScopedGroup(prisma, req, groupId);
+  if (!scopedGroup) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
   const date = new Date(req.body?.date);
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date tidak valid.' });
   const entries = Array.isArray(req.body?.entries) ? req.body.entries : [];
@@ -4086,14 +4136,16 @@ app.get('/api/db/struktur', wrap(async (req, res) => {
     : [];
   const byId = new Map(users.map((u) => [u.id, u]));
   const byEmail = new Map(users.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
+  const fullPii = canReadStrukturPii(req.authUser);
   res.json({
     members: members.map((m) => {
       const linked = (m.userId && byId.get(m.userId)) || (m.email && byEmail.get(String(m.email).toLowerCase())) || null;
-      return {
+      const row = {
         ...m,
         userId: m.userId || linked?.id || null,
         photoUrl: linked?.avatar || m.photoUrl,
       };
+      return fullPii ? row : toPublicStrukturMember(row);
     }),
   });
 }));
@@ -4320,7 +4372,11 @@ app.patch('/api/jethro/placement/batch/:id/bulk-approve', requireRole(...KOMISIO
 
 /** Commit batch ? create RoleAssignments */
 app.post('/api/jethro/placement/batch/:id/commit', requireRole(...KOMISION), wrap(async (req, res) => {
-  const result = await commitPlacementBatch({ batchId: req.params.id, committedBy: req.authUser.id });
+  const result = await commitPlacementBatch({
+    batchId: req.params.id,
+    committedBy: req.authUser.id,
+    tenantId: tenantForWrite(req),
+  });
   res.json(result);
 }));
 
@@ -4573,20 +4629,27 @@ app.post('/api/join', wrap(async (req, res) => {
       giftsTop5: Array.isArray(req.body?.giftsTop5) ? req.body.giftsTop5 : undefined,
     };
 
-    let user = (await prisma.user.findUnique({ where: { id: p.sub } }))
-      || (await prisma.user.findUnique({ where: { email: p.email } }));
+    let user = (await prisma.user.findUnique({ where: { id: p.sub }, include: { roles: true } }))
+      || (await prisma.user.findUnique({ where: { email: p.email }, include: { roles: true } }));
 
     if (!user) {
+      if (!(await tenantRegistrationOpen(prisma, req))) {
+        return res.status(403).json({ error: REGISTRATION_CLOSED_MESSAGE });
+      }
+      const ctx = resolveHostContext(req);
+      const trusted = isSuperadminEmail(p.email);
       user = await prisma.user.create({
         data: {
           id: p.sub,
           email: p.email,
           name: p.name || p.email.split('@')[0],
           ...googleAvatarCreate(p.picture),
-          accountStatus: 'PENDING',
+          accountStatus: trusted ? 'ACTIVE' : 'PENDING',
           googleSub: p.sub,
           linkStatus: 'LINKED',
           authProvider: 'GOOGLE',
+          bipra: ctx.bipra,
+          registrationOrigin: ctx.unit,
           ...profile,
         },
         include: { roles: true },
@@ -4610,14 +4673,10 @@ app.post('/api/join', wrap(async (req, res) => {
       });
     }
 
-    // Multi-role: tambahkan role dasar dari invite bila belum dimiliki
-    const has = (user.roles || []).some((r) => r.role === invite.defaultRole);
-    if (!has) {
-      await prisma.userRole.create({
-        data: { userId: user.id, tenantId: 'tenant-youth', role: invite.defaultRole },
-      });
-      user.roles.push({ role: invite.defaultRole, tenantId: 'tenant-youth' });
-    }
+    await grantRoleOnTenant(prisma, user, {
+      role: invite.defaultRole,
+      tenantId: tenantForWrite(req),
+    });
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
@@ -4662,7 +4721,12 @@ app.post('/api/join/local', wrap(async (req, res) => {
         existingAccount: true,
       });
     }
+    if (!(await tenantRegistrationOpen(prisma, req))) {
+      return res.status(403).json({ error: REGISTRATION_CLOSED_MESSAGE });
+    }
 
+    const ctx = resolveHostContext(req);
+    const trusted = isSuperadminEmail(email);
     const user = await prisma.user.create({
       data: {
         id: `usr-${crypto.randomUUID()}`,
@@ -4680,15 +4744,17 @@ app.post('/api/join/local', wrap(async (req, res) => {
         giftsTop5: Array.isArray(b.giftsTop5) ? b.giftsTop5 : undefined,
         authProvider: 'LOCAL',
         passwordHash: hashPassword(password),
-        accountStatus: 'PENDING',
+        accountStatus: trusted ? 'ACTIVE' : 'PENDING',
+        bipra: ctx.bipra,
+        registrationOrigin: ctx.unit,
       },
       include: { roles: true },
     });
 
-    await prisma.userRole.create({
-      data: { userId: user.id, tenantId: 'tenant-youth', role: invite.defaultRole },
+    await grantRoleOnTenant(prisma, user, {
+      role: invite.defaultRole,
+      tenantId: tenantForWrite(req),
     });
-    user.roles.push({ role: invite.defaultRole, tenantId: 'tenant-youth' });
 
     await prisma.inviteCode.update({ where: { code }, data: { uses: { increment: 1 } } });
 
@@ -4697,7 +4763,17 @@ app.post('/api/join/local', wrap(async (req, res) => {
     }
 
     setSessionCookie(res, { uid: user.id, email: user.email });
-    res.json({ status: user.accountStatus, role: invite.defaultRole, user });
+    res.json({
+      status: user.accountStatus,
+      role: invite.defaultRole,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        accountStatus: user.accountStatus,
+        roles: user.roles,
+      },
+    });
   } catch (err) {
     console.error('[join-local] gagal:', err.message);
     res.status(400).json({ error: err.message });
@@ -4723,15 +4799,13 @@ app.patch('/api/me', wrap(async (req, res) => {
   res.json({ ok: true, name: u.name });
 }));
 
-// ---------- Registrasi mandiri via Google (publik, PENDING ? approval Komisi) ----------
-const registrationOpen = () => process.env.REGISTRATION_OPEN !== 'false';
-
+// ---------- Registrasi mandiri via Google (publik, PENDING sampai approval Komisi) ----------
 app.post('/api/register/google', wrap(async (req, res) => {
-  if (!registrationOpen()) {
-    return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup. Ikuti waitlist event terdekat ya!' });
-  }
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  if (!(await tenantRegistrationOpen(prisma, req))) {
+    return res.status(403).json({ error: REGISTRATION_CLOSED_MESSAGE });
+  }
   const ctx = resolveHostContext(req);
 
   try {
@@ -4852,11 +4926,11 @@ app.post('/api/register/google', wrap(async (req, res) => {
 }));
 
 app.post('/api/register/local', wrap(async (req, res) => {
-  if (!registrationOpen()) {
-    return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup. Ikuti waitlist event terdekat ya!' });
-  }
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+  if (!(await tenantRegistrationOpen(prisma, req))) {
+    return res.status(403).json({ error: REGISTRATION_CLOSED_MESSAGE });
+  }
   const ctx = resolveHostContext(req);
 
   try {
@@ -5100,7 +5174,7 @@ app.get('/api/drive-auth/start', wrap(async (req, res) => {
 /** Buat/perbarui user dari identitas Google terverifikasi. */
 async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTIVE', initialRole, ctx = null }) {
   const email = p.email.toLowerCase();
-  const host = ctx || { unit: 'youth', tenantId: 'tenant-youth', bipra: 'PEMUDA' };
+  const host = ctx || defaultHostContext();
   let user = await prisma.user.findFirst({
     where: { OR: [{ googleSub: p.sub }, { id: p.sub }, { email }] },
     include: { roles: true },
@@ -5138,7 +5212,7 @@ async function upsertGoogleUser(prisma, p, { profile = {}, accountStatus = 'ACTI
   }
 
   if (initialRole && host.tenantId) {
-    const has = (user.roles || []).some((r) => r.role === initialRole);
+    const has = (user.roles || []).some((r) => r.role === initialRole && r.tenantId === host.tenantId);
     if (!has) {
       await prisma.userRole.create({
         data: { userId: user.id, tenantId: host.tenantId, role: initialRole },
@@ -5201,7 +5275,7 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
     let user; let status; let roleInfo;
 
     if (intent.mode === 'register') {
-      if (!registrationOpen()) throw new Error('Pendaftaran akun baru sedang ditutup.');
+      if (!(await tenantRegistrationOpen(prisma, req))) throw new Error(REGISTRATION_CLOSED_MESSAGE);
       const dup = await prisma.user.findFirst({ where: { OR: [{ id: idp.sub }, { email }] }, include: { roles: true } });
       if (dup && (dup.roles || []).length > 0) throw new Error('Email sudah terdaftar � silakan Masuk dengan Google.');
 
@@ -5242,9 +5316,17 @@ app.get('/api/auth/google/callback', wrap(async (req, res) => {
       if (Number(inv.uses) >= Number(inv.maxUses)) throw new Error('Link undangan sudah habis dipakai.');
       if (inv.expiresAt && inv.expiresAt < new Date()) throw new Error('Link undangan kedaluwarsa.');
 
+      const existingJoin = await prisma.user.findFirst({
+        where: { OR: [{ googleSub: idp.sub }, { id: idp.sub }, { email }] },
+        select: { id: true },
+      });
+      if (!existingJoin && !(await tenantRegistrationOpen(prisma, req))) {
+        throw new Error(REGISTRATION_CLOSED_MESSAGE);
+      }
+      const trustedJoin = isSuperadminEmail(email);
       user = await upsertGoogleUser(prisma, idp, {
         profile: {},
-        accountStatus: 'PENDING',
+        accountStatus: trustedJoin ? 'ACTIVE' : 'PENDING',
         initialRole: inv.defaultRole,
         ctx: resolveHostContext(req),
       });
@@ -5331,12 +5413,18 @@ app.patch('/api/people/:id', requireRole(...KOMISION_CORE), wrap(async (req, res
     if (role === 'SUPERADMIN') {
       return res.status(403).json({ error: 'Role SUPERADMIN deprecated � gunakan Platform Operator / Admin Grant.' });
     }
+    const groupId = req.body?.groupId ?? null;
+    const tenantId = await resolveRoleTenant(prisma, {
+      role,
+      groupId,
+      fallbackTenant: tenantForWrite(req),
+    });
     const dup = await prisma.userRole.findFirst({
-      where: { userId: req.params.id, role, groupId: req.body?.groupId ?? null },
+      where: { userId: req.params.id, role, groupId, tenantId },
     });
     if (!dup) {
       await prisma.userRole.create({
-        data: { userId: req.params.id, tenantId: 'tenant-youth', role, groupId: req.body?.groupId ?? null },
+        data: { userId: req.params.id, tenantId, role, groupId },
       });
     }
     return res.json({ ok: true });
@@ -6124,6 +6212,7 @@ app.post('/api/admin/users/invite-provision', requirePlatformAdmin(), wrap(async
       familyRole: req.body?.familyRole,
       orgNodeId: req.body?.orgNodeId,
       assignedBy: assignerId,
+      tenantId: tenantForWrite(req),
     });
     res.status(201).json(created);
   } catch (err) {
@@ -6180,6 +6269,7 @@ app.post('/api/admin/users/invite-provision-bulk', requirePlatformAdmin(), wrap(
         familyRole: row.familyRole,
         orgNodeId: row.orgNodeId,
         assignedBy: assignerId,
+        tenantId: tenantForWrite(req),
       });
       created.push(result);
     } catch (err) {
@@ -6209,7 +6299,7 @@ app.get('/api/admin/groups-lite', requirePlatformAdmin(), wrap(async (req, res) 
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const groups = await prisma.group.findMany({
-    where: { tenantId: 'tenant-youth', status: 'ACTIVE' },
+    where: withTenant(req, { status: 'ACTIVE' }),
     select: { id: true, name: true, color: true },
     orderBy: { name: 'asc' },
   });
@@ -6384,7 +6474,7 @@ app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'CO
   }
 
   const group = await prisma.group.findUnique({ where: { id: groupId } });
-  if (!group) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
+  if (!group || !canAccessTenant(req, group.tenantId)) return res.status(404).json({ error: 'Grup tidak ditemukan.' });
 
   const results = [];
   const errors = [];
@@ -6398,6 +6488,7 @@ app.post('/api/groups/:id/members/bulk', requireRole('SUPERADMIN', 'KOMISI', 'CO
         familyRole: role,
         assignedBy: assignerId,
         note: 'Bulk assign Beyonders',
+        tenantId: tenantForWrite(req),
       });
       results.push({ userId, ok: true });
     } catch (err) {
@@ -6678,6 +6769,7 @@ app.post('/api/role-assignments', requireRole(...KOMISION_CORE), wrap(async (req
     familyRole: familyRole || null,
     assignedBy: assignerId,
     note: note || null,
+    tenantId: tenantForWrite(req),
   });
 
   res.json({ ok: true, assignment, userRole });
@@ -6752,7 +6844,10 @@ app.post('/api/role-assignments/bulk-individu', requireRole(...KOMISION_CORE), w
         await prisma.userRole.create({
           data: {
             userId,
-            tenantId: 'tenant-youth',
+            tenantId: await resolveRoleTenant(prisma, {
+              role: 'MENTEE',
+              fallbackTenant: tenantForWrite(req),
+            }),
             role: 'MENTEE',
             groupId: null,
             assignmentId: assignment.id,
@@ -9171,14 +9266,14 @@ async function previousPenatalayanEvent(prisma, eventId, eventDate) {
 }
 
 // GET /api/events/:id/penatalayan � komponen + penugasan event ini + referensi sebelumnya
-app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
+app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wrap(async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
   const event = await prisma.eventProgram.findUnique({
     where: { id: req.params.id },
-    select: { id: true, name: true, eventDate: true, kind: true, serviceType: true, status: true, slug: true, metadata: true },
+    select: { id: true, tenantId: true, name: true, eventDate: true, kind: true, serviceType: true, status: true, slug: true, metadata: true },
   });
-  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
+  if (!event || !canAccessTenant(req, event.tenantId)) return res.status(404).json({ error: 'Event tidak ditemukan.' });
 
   const [roles, assignments, previous] = await Promise.all([
     prisma.serviceRole.findMany({
@@ -9205,7 +9300,16 @@ app.get('/api/events/:id/penatalayan', requireRole(), wrap(async (req, res) => {
     previousPenatalayanEvent(prisma, event.id, event.eventDate),
   ]);
 
-  res.json({ event, roles, assignments, previous });
+  const keepContact = isPastoralStaff(req.authUser);
+  res.json({
+    event,
+    roles,
+    assignments: assignments.map((row) => ({
+      ...row,
+      user: redactUserContact(row.user, keepContact),
+    })),
+    previous,
+  });
 }));
 
 // POST /api/events/:id/penatalayan-routing — kirim routing ke mentor/co-mentor
@@ -9583,10 +9687,10 @@ app.patch('/api/warta/:id', requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'), wr
   // Send push notification when warta is published
   if (status === 'PUBLISHED' && oldStatus !== 'PUBLISHED') {
     notifyNewWarta(prisma, warta).catch(console.error);
-    syncWartaToContentItem(prisma, warta).catch(console.error);
+    syncWartaToContentItem(prisma, warta, { tenantId: tenantForWrite(req) }).catch(console.error);
   } else if (contentJson !== undefined && warta.status === 'PUBLISHED') {
     // Warta sudah terbit tapi isinya disunting ? teks di landing ikut diperbarui.
-    syncWartaToContentItem(prisma, warta).catch(console.error);
+    syncWartaToContentItem(prisma, warta, { tenantId: tenantForWrite(req) }).catch(console.error);
   }
   
   res.json({ warta });

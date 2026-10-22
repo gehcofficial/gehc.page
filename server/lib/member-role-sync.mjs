@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { GEN0_PERIOD } from './beyonders-generation.mjs';
+import { resolveRoleTenant } from './role-tenant.mjs';
 
 const BEYONDER_ROLES = ['MENTOR', 'CO_MENTOR', 'MENTEE'];
 
@@ -32,12 +33,15 @@ export async function refreshGroupCounts(prisma, groupIds) {
 }
 
 async function upsertUserRole(prisma, userId, role, groupId, assignmentId) {
-  const existing = await prisma.userRole.findFirst({ where: { userId, role, groupId: groupId || null } });
+  const tenantId = await resolveRoleTenant(prisma, { role, groupId });
+  const existing = await prisma.userRole.findFirst({
+    where: { userId, role, groupId: groupId || null, tenantId },
+  });
   if (existing) {
     await prisma.userRole.update({ where: { id: existing.id }, data: { assignmentId } });
   } else {
     await prisma.userRole.create({
-      data: { userId, tenantId: 'tenant-youth', role, groupId: groupId || null, assignmentId },
+      data: { userId, tenantId, role, groupId: groupId || null, assignmentId },
     });
   }
 }

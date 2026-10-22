@@ -13,8 +13,10 @@ import { shouldAutoGrantSuperadminEmail } from './platform-operators.mjs';
 import { roleToNamespace, namespaceToRole } from './portal-namespace.mjs';
 import { googleAvatarCreate, googleAvatarPatch } from './lib/user-avatar.mjs';
 import { resolveDisplayName } from './lib/person-name.mjs';
-import { resolveHostContext } from './lib/host-context.mjs';
+import { resolveHostContext, defaultHostContext } from './lib/host-context.mjs';
 import { applyTenantScope } from './lib/tenant-roles.mjs';
+import { JEMAAT_TENANT_ID } from './lib/tenant-map.mjs';
+import { isActiveAccount } from './lib/account-status.mjs';
 
 const COOKIE_NAME = 'gehc_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
@@ -94,7 +96,7 @@ function dedupeRoles(roles) {
 export function applySuperadminSession(user) {
   if (!user) return user;
   if (shouldAutoGrantSuperadminEmail() && isSuperadminEmail(user.email) && !(user.roles || []).some((r) => r.role === 'SUPERADMIN')) {
-    const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
+    const tenantId = user.roles?.[0]?.tenantId || JEMAAT_TENANT_ID;
     user.roles = [...(user.roles || []), { userId: user.id, tenantId, role: 'SUPERADMIN' }];
   }
   user.roles = dedupeRoles(user.roles);
@@ -104,7 +106,7 @@ export function applySuperadminSession(user) {
 export async function persistSuperadminRole(user) {
   if (!user || !shouldAutoGrantSuperadminEmail() || !isSuperadminEmail(user.email)) return applySuperadminSession(user);
   if ((user.roles || []).some((r) => r.role === 'SUPERADMIN')) return applySuperadminSession(user);
-  const tenantId = user.roles?.[0]?.tenantId || 'tenant-youth';
+  const tenantId = user.roles?.[0]?.tenantId || JEMAAT_TENANT_ID;
   const prisma = getPrisma();
   if (prisma) {
     try {
@@ -231,6 +233,9 @@ export async function attachUser(req, _res, next) {
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.authUser) return res.status(401).json({ error: 'Belum login.' });
+    if (!isActiveAccount(req.authUser) && !isSuperadminEmail(req.authUser.email)) {
+      return res.status(403).json({ error: 'Akun masih menunggu persetujuan Komisi.' });
+    }
     if (roles.length === 0) return next();
     if (isSuperadminEmail(req.authUser.email)) return next();
     const userRoles = (req.authUser.roles || []).map((r) => r.role);
@@ -321,7 +326,7 @@ export async function loginWithGoogleCredential(credential, ctx = null) {
   const p = await verifyGoogleCredential(credential);
   const email = p.email;
   const prisma = getPrisma();
-  const host = ctx || { unit: 'youth', tenantId: 'tenant-youth', bipra: 'PEMUDA' };
+  const host = ctx || defaultHostContext();
 
   let user = await prisma.user.findFirst({
     where: { googleSub: p.sub },
