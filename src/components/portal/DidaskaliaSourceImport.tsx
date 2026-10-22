@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { FileText, Loader2, ShieldCheck, Sparkles, Upload } from 'lucide-react';
+import { FileText, Loader2, Sparkles, Upload } from 'lucide-react';
+import { BibleRefPicker } from './BibleRefPicker';
 import {
   RHB_SECTIONS,
   defaultSermon,
   defaultStudio,
   ensurePaths,
   ensureRhbSections,
+  sourceChecklist,
+  type DidaskaliaSourceSnapshot,
   type DidaskaliaStudio,
 } from '../../lib/didaskalia';
 import { blobToBase64 } from '../../lib/didaskaliaPdf';
@@ -29,7 +32,7 @@ type RhbPath = {
 type ServiceInfo = { teksUtama?: string; kitabFokus?: string; chapterNo?: string; tema?: string };
 
 const inputCls = 'w-full px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]';
-const STEPS = ['Impor', 'Rapikan & cek', 'Parse', 'Perkaya (opsional)', 'Setujui HOD', 'Terbitkan'];
+const STEPS = ['Empat sumber', 'Rapikan & cek', 'Parse'];
 
 async function readJson(r: Response): Promise<Record<string, unknown>> {
   try {
@@ -41,23 +44,24 @@ async function readJson(r: Response): Promise<Record<string, unknown>> {
 
 export const DidaskaliaSourceImport: React.FC<{
   canWrite: boolean;
-  canApprove: boolean;
   ym: string;
   weekIndex: number;
   studio: DidaskaliaStudio;
   busy: string | null;
   setBusy: (b: string | null) => void;
-  save: (patch?: Partial<DidaskaliaStudio>, opts?: { silent?: boolean }) => Promise<DidaskaliaStudio | null>;
+  onScripture: (patch: { teksUtama?: string; kitabFokus?: string }) => void;
+  commitSumber: (sumber: Record<string, unknown>) => Promise<boolean>;
   onStudio: (studio: DidaskaliaStudio) => void;
   downloadPembekalan: (studio: DidaskaliaStudio) => Promise<void>;
   addToast: (t: Toast) => void;
-}> = ({ canWrite, canApprove, ym, weekIndex, studio, busy, setBusy, save, onStudio, downloadPembekalan, addToast }) => {
+}> = ({ canWrite, ym, weekIndex, studio, busy, setBusy, onScripture, commitSumber, onStudio, downloadPembekalan, addToast }) => {
   const [rhbText, setRhbText] = useState('');
   const [serviceText, setServiceText] = useState('');
   const [review, setReview] = useState<{ kind: 'rhb' | 'service'; normalized: string; changes: ChangeRow[]; missing: string[]; warnings: string[] } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const signoff = studio.sourceSignoff?.status;
+  const locked = busy === 'extract' || busy === 'norm-rhb' || busy === 'norm-service' || busy === 'parse-apply';
 
   const loadFile = async (file: File | undefined, kind: 'rhb' | 'service') => {
     if (!file || !canWrite) return;
@@ -75,7 +79,10 @@ export const DidaskaliaSourceImport: React.FC<{
       if (!r.ok) throw new Error(String(d.error || 'Gagal membaca berkas.'));
       const text = String(d.text || '');
       if (kind === 'rhb') setRhbText(text);
-      else setServiceText(text);
+      else {
+        setServiceText(text);
+        void peekScripture(text);
+      }
       addToast({ type: 'success', title: `${file.name} terbaca — rapikan atau langsung parse` });
     } catch (e) {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal membaca berkas.' });
@@ -112,6 +119,26 @@ export const DidaskaliaSourceImport: React.FC<{
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal merapikan.' });
     } finally {
       setBusy(null);
+    }
+  };
+
+  const peekScripture = async (service: string) => {
+    if (!service.trim()) return;
+    try {
+      const r = await fetch('/api/didaskalia/parse-md', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'service', content: service }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) return;
+      const info = (d.info || {}) as { teksUtama?: string; kitabFokus?: string };
+      const teksUtama = String(info.teksUtama || '').trim();
+      const kitabFokus = String(info.kitabFokus || '').trim();
+      if (teksUtama || kitabFokus) onScripture({ teksUtama: teksUtama || undefined, kitabFokus: kitabFokus || undefined });
+    } catch {
+      /* ayat tetap diisi manual */
     }
   };
 
@@ -198,6 +225,22 @@ export const DidaskaliaSourceImport: React.FC<{
       const chapterMatch = String(svc?.info?.chapterNo || '').match(/(\d+)/);
       if (chapterMatch && (!chapterNo || chapterNo === '0')) chapterNo = chapterMatch[1];
 
+      const snapshot: DidaskaliaSourceSnapshot = {
+        kitabFundamental: teksRef || studio.sermon?.teksUtama?.ref || '',
+        kitabFokus: kitab || studio.kitabFokus || '',
+        paths: paths.map((p) => ({
+          pathIndex: p.pathIndex,
+          title: p.title,
+          scriptureRef: p.scriptureRef,
+          summary: p.summary,
+          bridge: p.bridge,
+          sections: Object.fromEntries(ensureRhbSections(p.rhbSections).map((s) => [s.key, s.body])),
+        })),
+        sermon: {
+          teksUtamaRef: sermon.teksUtama?.ref || '',
+          outline: { ...sermon.outline },
+        },
+      };
       const prevMd = studio.sourceMd || { service: null, rhb: null };
       const sourceMd = {
         ...prevMd,
@@ -217,14 +260,26 @@ export const DidaskaliaSourceImport: React.FC<{
           : {}),
       };
 
-      const saved = await save({
+      const ok = await commitSumber({
         paths,
         sermon,
         sourceMd,
+        sourceSnapshot: snapshot,
         ...(kitab ? { kitabFokus: kitab } : {}),
+        ...(teksRef ? { teksUtama: { ref: teksRef }, fundamentalFirman: { ref: teksRef, text: studio.fundamentalFirman?.text || '' } } : {}),
         ...(chapterNo && chapterNo !== studio.chapterNo ? { chapterNo } : {}),
-      }, { silent: true });
-      if (!saved) return;
+      });
+      if (!ok) return;
+      const saved: DidaskaliaStudio = {
+        ...defaultStudio(),
+        ...studio,
+        paths,
+        sermon,
+        sourceMd,
+        kitabFokus: kitab || studio.kitabFokus,
+        chapterNo,
+        sourceSnapshot: snapshot,
+      };
 
       const sign = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/source-signoff`, {
         method: 'POST',
@@ -236,8 +291,8 @@ export const DidaskaliaSourceImport: React.FC<{
       const published = sd.week && typeof sd.week === 'object'
         ? { ...defaultStudio(), ...((sd.week as { studio?: DidaskaliaStudio }).studio || {}) }
         : saved;
-      if (sign.ok) onStudio(published);
-      else addToast({ type: 'warning', title: String(sd.error || 'Naskah tersimpan, pengajuan HOD gagal.') });
+      onStudio(sign.ok ? published : saved);
+      if (!sign.ok) addToast({ type: 'warning', title: String(sd.error || 'Naskah tersimpan, pengajuan HOD gagal.') });
 
       setNotice(warnings.length
         ? `Yang terbaca diterapkan. Periksa: ${warnings.slice(0, 8).join(' · ')}${warnings.length > 8 ? ' …' : ''}`
@@ -255,27 +310,8 @@ export const DidaskaliaSourceImport: React.FC<{
     }
   };
 
-  const approveSource = async () => {
-    if (!canApprove) return;
-    setBusy('source-approve');
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/source-signoff`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve' }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(String(d.error || 'Gagal menyetujui.'));
-      const week = d.week as { studio?: DidaskaliaStudio } | undefined;
-      if (week?.studio) onStudio({ ...defaultStudio(), ...week.studio });
-      addToast({ type: 'success', title: 'Naskah sumber disetujui — siap terbit tanpa Perkaya' });
-    } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menyetujui.' });
-    } finally {
-      setBusy(null);
-    }
-  };
+  const checks = sourceChecklist(studio);
+  const missing = checks.filter((c) => !c.ok);
 
   return (
     <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-3 space-y-3">
@@ -287,12 +323,31 @@ export const DidaskaliaSourceImport: React.FC<{
         </span>
       </div>
       <p className="text-[11px] text-sky-950">
-        Impor → Rapikan &amp; cek → Parse sudah cukup untuk PDF dan terbit. <b>Perkaya dengan diskusi</b> opsional dan bisa dijalankan kapan saja, bukan syarat setujui atau terbit.
+        Empat masukan ini saja. Ayat yang tertulis di MD Serving Day mengisi Kitab Fundamental dan Kitab Bagian Fokus. Rapikan lalu Parse. Perkaya tetap opsional di tab Diskusi.
       </p>
       <div className="flex flex-wrap gap-1">
         {STEPS.map((s) => (
           <span key={s} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-sky-100 text-sky-900">{s}</span>
         ))}
+      </div>
+      <div className="grid md:grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1">Kitab Fundamental</p>
+          <BibleRefPicker
+            value={studio.sermon?.teksUtama?.ref || ''}
+            disabled={!canWrite}
+            onChange={(ref) => onScripture({ teksUtama: ref })}
+          />
+          <p className="text-[10px] text-[#8C8880] mt-1">Teks utama khotbah. Terisi otomatis bila MD Serving Day memuatnya.</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1">Kitab Bagian Fokus</p>
+          <BibleRefPicker
+            value={studio.kitabFokus || ''}
+            disabled={!canWrite}
+            onChange={(ref) => onScripture({ kitabFokus: ref })}
+          />
+        </div>
       </div>
       <div className="grid md:grid-cols-2 gap-3">
         <div className="space-y-1.5">
@@ -301,22 +356,22 @@ export const DidaskaliaSourceImport: React.FC<{
           <div className="flex flex-wrap gap-1.5">
             <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white text-[11px] font-bold cursor-pointer">
               {busy === 'extract' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Unggah PDF/MD
-              <input type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain" className="hidden" disabled={!canWrite || !!busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void loadFile(f, 'rhb'); }} />
+              <input type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain" className="hidden" disabled={!canWrite || locked} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void loadFile(f, 'rhb'); }} />
             </label>
-            <button type="button" disabled={!canWrite || !!busy} onClick={() => void rapikan('rhb')} className="px-3 py-1.5 rounded-xl bg-white border border-sky-300 text-sky-800 text-[11px] font-bold disabled:opacity-50">
+            <button type="button" disabled={!canWrite || locked} onClick={() => void rapikan('rhb')} className="px-3 py-1.5 rounded-xl bg-white border border-sky-300 text-sky-800 text-[11px] font-bold disabled:opacity-50">
               {busy === 'norm-rhb' ? 'Merapikan…' : 'Rapikan & cek'}
             </button>
           </div>
         </div>
         <div className="space-y-1.5">
           <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Serving Day</p>
-          <textarea value={serviceText} onChange={(e) => setServiceText(e.target.value)} rows={6} disabled={!canWrite} placeholder="Tempel teks PDF/MD. Kitab Fundamental = Teks Utama. Kitab Bagian Fokus = kitab fokus. Fondasi Teologis = Pengantar." className={`${inputCls} font-mono disabled:opacity-60`} />
+          <textarea value={serviceText} onChange={(e) => setServiceText(e.target.value)} onBlur={() => void peekScripture(serviceText)} rows={6} disabled={!canWrite} placeholder="Tempel teks PDF/MD. Kitab Fundamental = Teks Utama. Kitab Bagian Fokus = kitab fokus. Fondasi Teologis = Pengantar." className={`${inputCls} font-mono disabled:opacity-60`} />
           <div className="flex flex-wrap gap-1.5">
             <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white text-[11px] font-bold cursor-pointer">
               <Upload className="w-3.5 h-3.5" /> Unggah PDF/MD
-              <input type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain" className="hidden" disabled={!canWrite || !!busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void loadFile(f, 'service'); }} />
+              <input type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain" className="hidden" disabled={!canWrite || locked} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void loadFile(f, 'service'); }} />
             </label>
-            <button type="button" disabled={!canWrite || !!busy} onClick={() => void rapikan('service')} className="px-3 py-1.5 rounded-xl bg-white border border-sky-300 text-sky-800 text-[11px] font-bold disabled:opacity-50">
+            <button type="button" disabled={!canWrite || locked} onClick={() => void rapikan('service')} className="px-3 py-1.5 rounded-xl bg-white border border-sky-300 text-sky-800 text-[11px] font-bold disabled:opacity-50">
               {busy === 'norm-service' ? 'Merapikan…' : 'Rapikan & cek'}
             </button>
           </div>
@@ -347,20 +402,26 @@ export const DidaskaliaSourceImport: React.FC<{
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={!canWrite || !!busy} onClick={() => void parseAndApply()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
+        <button type="button" disabled={!canWrite || locked} onClick={() => void parseAndApply()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
           {busy === 'parse-apply' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Parse &amp; terapkan
         </button>
-        {canApprove && signoff !== 'APPROVED' && (
-          <button type="button" disabled={!!busy} onClick={() => void approveSource()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">
-            {busy === 'source-approve' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />} Setujui HOD
-          </button>
-        )}
         {signoff === 'APPROVED' && studio.sourceSignoff?.decidedByName && (
           <span className="text-[10px] text-emerald-800">Disetujui {studio.sourceSignoff.decidedByName}</span>
         )}
       </div>
       <p className="text-[10px] text-[#5C5850]">Yang kurang tetap masuk sebagai peringatan. Bagian yang terbaca ditulis ke 7 Path dan outline. PDF Pembekalan diunduh dari salinan yang sudah disimpan. Section RHB yang dikenali: {RHB_SECTIONS.map((s) => s.title).join(', ')}.</p>
       {notice && <p className="text-[11px] text-sky-950 bg-white border border-sky-100 rounded-xl px-3 py-2">{notice}</p>}
+      <div className="rounded-xl bg-white border border-sky-100 p-2">
+        <p className="text-[11px] font-black text-[#1B1B1B]">Terbaca {checks.length - missing.length}/{checks.length}</p>
+        {missing.length === 0 ? (
+          <p className="text-[10px] text-emerald-700">Semua bagian yang dicek sudah terisi.</p>
+        ) : (
+          <ul className="mt-1 max-h-28 overflow-y-auto text-[10px] text-amber-800 space-y-0.5">
+            {missing.slice(0, 12).map((c) => <li key={c.id}>Kurang: {c.label}</li>)}
+            {missing.length > 12 && <li>dan {missing.length - 12} bagian lain</li>}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };
