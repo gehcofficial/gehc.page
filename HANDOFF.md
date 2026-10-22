@@ -1,5 +1,29 @@
 # GEHC Portal — Handoff
 
+## Current — QA keamanan direktori (22 Okt 2026)
+
+**Minta:** verifikasi staging (4 poin) + buka draft PR bila bisa.
+
+**Done:**
+- Skrip `npm run qa:security:directory` (`scripts/qa-security-directory.mjs` +
+  `scripts/lib/qa-security-scan.mjs`) — anon PII, scope teen/youth, mentor vs mentee,
+  anon meetings/ICS/penatalayan, register/local unit tertutup (hanya host staging).
+- Vitest `tests/unit/qa-security-scan.test.ts` (4 tes).
+- Preview Vercel commit `7e5a593`: `https://gehcpage-2k0hs7rvz-gehc.vercel.app`
+  (butuh `STAGING_BASIC_AUTH` + opsional `EXPECT_COMMIT=7e5a593`).
+- PR GitHub: masih **gagal** (`must be a collaborator`) — buka manual dari branch
+  `cursor/security-tenant-pii-9ff5`.
+
+**Baseline prod (main `3f6a6e5`, belum merge fix):** anon masih bocor
+`mentorUserId` / `alumniNote`; `teen.gehc.page` masih melihat grup `tenant-youth`
+(karena `/api/db/groups` belum `withTenant` di prod). Login demo `@gehc.demo` hanya
+di staging, bukan prod.
+
+**Belum (butuh operator):** isi `STAGING_BASIC_AUTH` di environment agen atau lokal,
+lalu:
+`QA_HOSTS=staging-youth.gehc.page,staging-teen.gehc.page,staging-men.gehc.page EXPECT_COMMIT=7e5a593 npm run qa:security:directory`
+Jangan `staging:sync`/deploy prod dari episode ini.
+
 ## Current — Keamanan direktori publik + tenant host (22 Okt 2026)
 
 **Minta:** tutup kebocoran PII pada endpoint baca publik, ketatkan peran pastoral,
