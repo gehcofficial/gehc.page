@@ -90,10 +90,15 @@ Modul: `screening, timer, notes, testimony, likert, chips, wordcloud`. Kontrol:
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|
-| 1. Praise & Worship | 10 | pembuka×1 | **auto** |
-| 2–5. Sesi 1–3 + Presentasi Kelompok | 75 | — | — |
-| 6. Persembahan & Doa (khotbah di catatan) | 15 | persembahan×1 | **auto** |
-| 7. Konklusi (pengutusan di catatan) | 15 | — | — |
+| 1. Praise & Worship | 10 | pembuka×1 | **auto** (pembuka) |
+| 2. Sesi 1 · Snack & Merge | 10 | — | — |
+| 3. Sesi 2 · Kode Alkitab | 15 | — | — |
+| 4. Sesi 3 · Mission Room (5 tim gabungan) | 30 | — | — |
+| 5. Presentasi Kelompok | 20 | — | — |
+| 6. Konklusi (firman penutup) | 10 | — | **auto** |
+| 7. Penutup Sesi · Commissioning & Deklarasi | 10 | — | — |
+| 8. Persembahan & Doa | 10 | persembahan×1 | — |
+| 9. Lagu & Doa Penutup | 5 | — | — |
 
 Sesi 3 memakai 5 tim gabungan (2 kelompok mentoring per tim, seluruh misi).
 Peran Soal / Lapangan / Narasi / Presentasi / Editor hanya teks di dalam tim.

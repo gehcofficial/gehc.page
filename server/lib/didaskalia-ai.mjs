@@ -418,8 +418,8 @@ export function patternBlock(pattern) {
         ? 'Pembuka: 1 lagu buka + praise/worship (tanpa doa buka panjang; kurangi 1 praise bila perlu).'
         : 'Pembuka: doa buka 2 menit + 1 lagu buka + praise/worship dalam 15 menit (kurangi 1 praise bila perlu).';
     const offer = f === 'PENUH'
-      ? 'Persembahan mode PENUH: kantong jalan + lagu 1 → doa syafaat → lagu selingan → doa tutup + berkat (syafaat & tutup pisah, tiap doa eksplisit).'
-      : 'Persembahan mode HEMAT: kantong jalan; doa persembahan + syafaat + tutup sekaligus.';
+      ? 'Persembahan mode PENUH: kantong jalan + lagu 1 → doa syafaat → lagu selingan. Doa tutup dan berkat tetap di Lagu & Doa Penutup.'
+      : 'Persembahan mode HEMAT: kantong jalan; doa persembahan dan syafaat sekaligus. Doa tutup dan berkat ada di Lagu & Doa Penutup.';
     lines.push(`- Varian pekan: ${open} ${offer}`);
   }
   if (code === 'MONOLOG') {
@@ -437,7 +437,7 @@ export function patternBlock(pattern) {
   } else if (code === 'BEDAH_FILM') {
     lines.push('- Bentuk: Likert AWAL 5 item (baseline) + screening + deep sharing 3Q + Likert AKHIR (5 item yang sama, ukur delta) + komitmen/chip + undi 2 kesaksian; discussionFlow = urutan L0→L4; deliveryPlan tekankan setup pemutaran, gate likert 2 ronde, & fasilitasi delta.');
   } else if (code === 'THREE_SEQUENCES') {
-    lines.push('- Bentuk: gamifikasi 3 sesi tanpa jeda (Sesi 1 · Snack & Merge → Sesi 2 · Kode Alkitab → Sesi 3 · Mission Room) + Presentasi Kelompok + Konklusi; discussionFlow = brief tiap sesi + aturan presentasi; deliveryPlan tekankan komando countdown, 5 tim gabungan (2 kelompok mentoring per tim, masing-masing menjalankan seluruh misi; peran Soal/Lapangan/Narasi/Presentasi/Editor hanya di dalam tim), dan deklarasi pengutusan.');
+    lines.push('- Bentuk: gamifikasi 3 sesi tanpa jeda (Sesi 1 · Snack & Merge → Sesi 2 · Kode Alkitab → Sesi 3 · Mission Room) + Presentasi Kelompok + Konklusi 10\' (firman penutup) + Penutup Sesi · Commissioning & Deklarasi 10\' + Persembahan & Doa 10\' + Lagu & Doa Penutup 5\'; discussionFlow = brief tiap sesi + aturan presentasi; deliveryPlan tekankan komando countdown, 5 tim gabungan (2 kelompok mentoring per tim, masing-masing menjalankan seluruh misi; peran Soal/Lapangan/Narasi/Presentasi/Editor hanya di dalam tim), dan deklarasi Coram Deo di Penutup Sesi, bukan di Konklusi.');
   } else if (code === 'CREATIVE_LAB') {
     lines.push('- Bentuk: Serving Day berbasis karya — Praise & Worship 10\' → Firman & Briefing 10\' → Sesi 1 · Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; kertas semua, web pilih 2 dari 6 (paralel)) → Sesi 2 · Art Stations 25\' (20 menit melukis Stasiun A "Grow What You Believe" ∥ Stasiun B "Carry the Gospel" (paralel) + 5 menit unggah) → Presentasi Kelompok ~2,5\'/kelompok × 10 kelompok, blok 30\' termasuk transisi → Konklusi 10\' → Persembahan & Doa 10\' → Lagu & Doa Penutup 5\'.');
     lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Stasiun A 2-4, Stasiun B 2-4. Nama media default Pot dan Tas; judul tema boleh diubah. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');

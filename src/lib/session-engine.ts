@@ -45,7 +45,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   THREE_SEQUENCES: [
     { id: 'misi', label: 'Sesi 3 · Mission Room', hint: 'Kerjakan seluruh misi bersama tim gabunganmu. Peran di dalam tim hanya pembagian tugas.' },
     { id: 'laporan', label: 'Laporan & Catat', hint: 'Tulis hasil tim gabungan + pelajaran misimu.' },
-    { id: 'komitmen', label: 'Konklusi', hint: 'Deklarasi pengutusan + unduh rekap.' },
+    { id: 'komitmen', label: 'Penutup Sesi', hint: 'Deklarasi Coram Deo + unduh rekap. Id segmen tetap komitmen.' },
   ],
   CREATIVE_LAB: [
     { id: 'pembuka', label: 'Praise & Worship', hint: 'Siapkan hati, duduk per kelompok.' },
