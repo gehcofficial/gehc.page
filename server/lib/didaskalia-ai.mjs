@@ -437,12 +437,12 @@ export function patternBlock(pattern) {
   } else if (code === 'BEDAH_FILM') {
     lines.push('- Bentuk: Likert AWAL 5 item (baseline) + screening + deep sharing 3Q + Likert AKHIR (5 item yang sama, ukur delta) + komitmen/chip + undi 2 kesaksian; discussionFlow = urutan L0→L4; deliveryPlan tekankan setup pemutaran, gate likert 2 ronde, & fasilitasi delta.');
   } else if (code === 'THREE_SEQUENCES') {
-    lines.push('- Bentuk: gamifikasi 3 sequence tanpa jeda (Melayani → Bersekutu → Bersaksi) + commissioning; discussionFlow = brief tiap sequence + aturan presentasi 4 menit; deliveryPlan tekankan komando countdown, pembagian 5 tim Mission Room, dan deklarasi Coram Deo.');
+    lines.push('- Bentuk: gamifikasi 3 sesi tanpa jeda (Sesi 1 · Snack & Merge → Sesi 2 · Kode Alkitab → Sesi 3 · Mission Room) + Presentasi Kelompok + Konklusi; discussionFlow = brief tiap sesi + aturan presentasi; deliveryPlan tekankan komando countdown, 5 tim gabungan (2 kelompok mentoring per tim, masing-masing menjalankan seluruh misi; peran Soal/Lapangan/Narasi/Presentasi/Editor hanya di dalam tim), dan deklarasi pengutusan.');
   } else if (code === 'CREATIVE_LAB') {
-    lines.push('- Bentuk: Serving Day berbasis karya — firman & briefing 15\' → Activity 1 The Roots Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; kertas semua, web pilih 2 dari 6) → Activity 2 Roots & DNA Creative Lab 25\' (melukis Tim Pot "Grow What You Believe" ∥ Tim Tas "Carry The Gospel") → presentasi 2\'/kelompok × 10 kelompok = 20\' → konklusi 10\' → persembahan 10\' → lagu + doa tutup 5\'.');
-    lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Tim Pot 2-4, Tim Tas 2-4. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');
-    lines.push('- discussionFlow = alur briefing → A1 → A2 → presentasi → refleksi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer A1/A2/presentasi 20 menit, peran perwakilan, dan pembersihan 3 menit terakhir.');
-    lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan pot/tas & 6 kartu harus lahir dari tema/firman, bukan generik.');
+    lines.push('- Bentuk: Serving Day berbasis karya — Praise & Worship 10\' → Firman & Briefing 10\' → Sesi 1 · Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; kertas semua, web pilih 2 dari 6 (paralel)) → Sesi 2 · Art Stations 25\' (20 menit melukis Stasiun A "Grow What You Believe" ∥ Stasiun B "Carry the Gospel" (paralel) + 5 menit unggah) → Presentasi Kelompok ~2,5\'/kelompok × 10 kelompok, blok 30\' termasuk transisi → Konklusi 10\' → Persembahan & Doa 10\' → Lagu & Doa Penutup 5\'.');
+    lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Stasiun A 2-4, Stasiun B 2-4. Nama media default Pot dan Tas; judul tema boleh diubah. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');
+    lines.push('- discussionFlow = alur Firman & Briefing → Sesi 1 → Sesi 2 → Presentasi Kelompok → Konklusi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer Sesi 1/Sesi 2/presentasi 150 detik, peran perwakilan, dan unggah foto di 5 menit terakhir.');
+    lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan stasiun & 6 kartu harus lahir dari tema/firman, bukan generik. Kunci fase internal tetap A1/A2/PRESENT.');
   } else {
     lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
   }
@@ -1180,10 +1180,11 @@ export async function generateSessionDraft(input) {
   const CREATIVE_LAB_RULES = hasCreativeLab ? [
     'ATURAN CREATIVE LAB (WAJIB):',
     '- Kelompok BAKU hanya sepuluh ini: Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Jangan mengarang kelompok ke-11 atau nama orang.',
-    '- Anggota, perwakilan, Tim Pot, dan Tim Tas diisi server dari database. Jangan mengisi nama orang.',
+    '- Anggota, perwakilan, Stasiun A, dan Stasiun B diisi server dari database. Jangan mengisi nama orang.',
     '- jar-root..jar-step: tulis arahan Indonesia yang konkret + 1 contoh kalimat Beyonders (KRS, skripsi, magang, shift, lembur, kos, keuangan awal, relasi) yang menyebut eksplisit tema/firman pekan.',
-    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan melukis "Grow What You Believe" (merawat iman), a2-bag = arahan melukis "Carry The Gospel" (nilai Injil di kuliah/kerja/kos/pergaulan); a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
-    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=120 (2 menit per kelompok, 10 kelompok = 20 menit).',
+    '- a1-title tetap "Reminder Jar"; tema pekan di a1-subtitle. a2-title tetap "Art Stations". a2-a-media/a2-a-theme dan a2-b-media/a2-b-theme boleh diisi contoh pekan (default Pot / Grow What You Believe dan Tas / Carry the Gospel).',
+    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan Stasiun A, a2-bag = arahan Stasiun B; a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
+    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=150 (sekitar 2,5 menit per kelompok; blok Presentasi Kelompok 30 menit sudah termasuk transisi).',
     '- brief-core (inti khotbah 8-10 menit) & closing-script wajib merujuk eksplisit Fundamental Firman (sebutkan ref-nya) + aplikasi konkret bagi Beyonders.',
     '- present-order/present-questions: 2 pertanyaan apresiasi singkat. Urutan tampil diundi di kontrol, jangan mengarang urutan nama.',
   ] : [];

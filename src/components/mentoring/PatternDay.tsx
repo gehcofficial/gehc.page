@@ -20,6 +20,7 @@ import {
 import {
   SCALE_LABELS,
   STATUS_LABELS,
+  labStationCopy,
   type MentoringSessionPayload,
 } from '../../lib/mentoring';
 import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
@@ -226,7 +227,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const [chipNote, setChipNote] = useState<string | null>(null);
   /** Pin mundur ke tahap yang sudah terbuka (ala post-to-post); null = ikut alur server. */
   const [pinned, setPinned] = useState<string | null>(null);
-  useEffect(() => { setPinned(null); }, [slug]);
+  const [adminTeam, setAdminTeam] = useState<number | ''>('');
+  useEffect(() => { setPinned(null); setAdminTeam(''); }, [slug]);
 
   const load = useCallback(async () => {
     if (!slug) {
@@ -234,7 +236,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       return;
     }
     try {
-      const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}`, {
+      const q = adminTeam === '' ? '' : `?teamIndex=${adminTeam}`;
+      const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}${q}`, {
         credentials: 'include',
         cache: 'no-store',
       });
@@ -253,7 +256,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     } catch (e) {
       setState({ status: 'error', message: e instanceof Error ? e.message : 'Gagal memuat.' });
     }
-  }, [slug]);
+  }, [slug, adminTeam]);
 
   useEffect(() => {
     void load();
@@ -299,8 +302,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const activityExpired = Boolean(activityStartedAt) && activityRemainMs <= 0;
   const LAB_PHASE_LABEL: Record<string, string> = {
     IDLE: 'Briefing',
-    A1: 'Activity 1 · Roots Reminder Jar',
-    A2: 'Activity 2 · Pot ∥ Tas',
+    A1: 'Sesi 1 · Reminder Jar',
+    A2: 'Sesi 2 · Art Stations',
     PRESENT: 'Presentasi kelompok',
     DONE: 'Refleksi & Satu Kata',
   };
@@ -554,11 +557,11 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
               lines: [
                 { label: 'Kelompok', body: String(data.lab.teamName || '') },
                 { label: 'Perwakilan', body: String(data.lab.repName || '') },
-                { label: 'Makna Pot', body: `${latestLab('POT')?.body || ''}${latestLab('POT')?.progress != null ? ` (progress ${latestLab('POT')?.progress}%)` : ''}` },
-                { label: 'Makna Tas', body: `${latestLab('BAG')?.body || ''}${latestLab('BAG')?.progress != null ? ` (progress ${latestLab('BAG')?.progress}%)` : ''}` },
+                { label: `Makna Stasiun A (${labStationCopy(data.activityBrief).mediaA})`, body: `${latestLab('POT')?.body || ''}${latestLab('POT')?.progress != null ? ` (progress ${latestLab('POT')?.progress}%)` : ''}` },
+                { label: `Makna Stasiun B (${labStationCopy(data.activityBrief).mediaB})`, body: `${latestLab('BAG')?.body || ''}${latestLab('BAG')?.progress != null ? ` (progress ${latestLab('BAG')?.progress}%)` : ''}` },
                 { label: 'Komitmen kelompok', body: latestLab('COMMIT')?.body || '' },
                 ...labPhotoRows.map((u, i) => ({
-                  label: `${u.kind === 'GROUP' ? 'Foto bersama' : u.kind === 'POT' ? 'Foto Pot' : 'Foto Tas'} ${i + 1}`,
+                  label: `${u.kind === 'GROUP' ? 'Foto Bersama' : u.kind === 'POT' ? `Foto Stasiun A (${labStationCopy(data.activityBrief).mediaA})` : `Foto Stasiun B (${labStationCopy(data.activityBrief).mediaB})`} ${i + 1}`,
                   body: '',
                   photoData: photoData.get(u.id),
                 })),
@@ -720,7 +723,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           <p className="text-lg font-black tracking-tight mt-1">Shalom, {data.me?.name || 'Peserta'}!</p>
           <p className="text-xs leading-relaxed mt-1.5">
             {c === 'CREATIVE_LAB'
-              ? `Selamat datang di ${data.session.title}. Hari ini firman menjadi karya: kita mengisi The Roots Reminder Jar, lalu membuat pot dan tas yang membawa nilai Injil ke kuliah, kerja, dan pergaulan. Duduklah bersama kelompokmu.`
+              ? `Selamat datang di ${data.session.title}. Hari ini firman menjadi karya: Sesi 1 · Reminder Jar, lalu Sesi 2 · Art Stations. Tema pekan ada di subjudul dan nama media. Duduklah bersama kelompokmu.`
               : `Selamat datang di ${data.session.title}. Hari ini tentang Rescue Plan — Tuhan punya rencana penyelamatan untukmu, dan kamu tidak berjalan sendirian.`}
           </p>
           <p className="text-[11px] text-[#8C8880] mt-1.5">
@@ -818,16 +821,19 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
 
       {has('activity') && labAct && (() => {
         const brief = data.activityBrief;
+        const stations = labStationCopy(brief);
         const card = (data.jarCards || [])[labAct.cardIndex];
+        const a1Name = brief?.a1.title || 'Reminder Jar';
+        const a1Sub = brief?.a1.subtitle ? ` · ${brief.a1.subtitle}` : '';
         return (
           <div className={CARD}>
             <h4 className="text-sm font-black text-[#1B1B1B] mb-2 inline-flex items-center gap-1.5">
               <Timer className="w-4 h-4 text-brand" />
-              {labAct.phase === 'A2' ? 'Activity 2 — Roots & DNA Creative Lab' : 'Activity 1 — The Roots Reminder Jar'}
+              {labAct.phase === 'A2' ? `Sesi 2 · ${brief?.a2.title || 'Art Stations'}` : `Sesi 1 · ${a1Name}${a1Sub}`}
             </h4>
             <div className="rounded-xl bg-[#111] text-white px-4 py-3 flex items-center justify-between gap-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
-                {labAct.phase === 'A2' ? 'Tim Pot ∥ Tim Tas · 25 menit' : `Tulis 6 kartu · ${brief?.a1.minutes || 15} menit`}
+                {labAct.phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · 25 menit` : `Tulis 6 kartu · ${brief?.a1.minutes || 15} menit`}
                 {activityExpired ? ' · waktu habis' : ''}
               </p>
               <p className="font-display text-2xl font-black tabular-nums">
@@ -849,12 +855,12 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             {labAct.phase === 'A2' && brief && (
               <div className="mt-2 grid gap-2">
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Pot — Grow What You Believe</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Stasiun A · {stations.mediaA} — {stations.themeA}</p>
                   <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.potMeaning}</p>
                   <p className="text-[10px] text-emerald-800/80 mt-1"><b>Refleksi:</b> {brief.a2.pot}</p>
                 </div>
                 <div className="rounded-xl bg-brand/5 border border-brand/20 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tas — Carry The Gospel</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-brand">Stasiun B · {stations.mediaB} — {stations.themeB}</p>
                   <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.bagMeaning}</p>
                   <p className="text-[10px] text-brand/80 mt-1"><b>Refleksi:</b> {brief.a2.bag}</p>
                 </div>
@@ -887,6 +893,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           brief={data.activityBrief || null}
           phase={String(data.activity?.phase || 'IDLE')}
           onReload={() => void load()}
+          onPickTeam={(index) => setAdminTeam(index)}
         />
       )}
 
@@ -904,13 +911,15 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                     <span className="ml-1.5 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-brand text-white align-middle">tampil</span>
                   )}
                 </p>
+                {t.pair?.length ? <p className="text-[11px] text-[#8C8880]">{t.pair.join(' & ')}</p> : null}
                 {t.task && <p className="text-[11px] text-[#8C8880]">{t.task}</p>}
+                {t.roles ? <p className="text-[10px] text-[#8C8880]">{t.roles}</p> : null}
                 {t.members.length > 0 && <p className="text-[11px] mt-0.5">{t.members.join(' · ')}</p>}
                 {c === 'CREATIVE_LAB' && (
                   <div className="mt-1 space-y-0.5">
                     {t.station && <p className="text-[10px] text-[#8C8880]">Meja: {t.station}{t.repName ? ` · Perwakilan: ${t.repName}` : ''}</p>}
-                    {t.pot?.length ? <p className="text-[10px] text-emerald-700">Tim Pot: {t.pot.join(', ')}</p> : null}
-                    {t.bag?.length ? <p className="text-[10px] text-brand">Tim Tas: {t.bag.join(', ')}</p> : null}
+                    {t.pot?.length ? <p className="text-[10px] text-emerald-700">Stasiun A: {t.pot.join(', ')}</p> : null}
+                    {t.bag?.length ? <p className="text-[10px] text-brand">Stasiun B: {t.bag.join(', ')}</p> : null}
                   </div>
                 )}
               </div>

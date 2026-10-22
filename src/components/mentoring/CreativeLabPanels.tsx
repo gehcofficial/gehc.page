@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, Check, ImagePlus, Loader2, Save, Send, Trash2, Users } from 'lucide-react';
-import type {
-  SessionActivityBrief,
-  SessionLabMine,
-  SessionLabUpdate,
-  SessionJarCard,
+import {
+  labStationCopy,
+  type SessionActivityBrief,
+  type SessionLabMine,
+  type SessionLabUpdate,
+  type SessionJarCard,
 } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
@@ -20,11 +21,12 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function kindLabel(kind: string) {
-  if (kind === 'POT') return 'Pot';
-  if (kind === 'BAG') return 'Tas';
+function kindLabel(kind: string, brief?: SessionActivityBrief) {
+  const stations = labStationCopy(brief);
+  if (kind === 'POT') return stations.mediaA;
+  if (kind === 'BAG') return stations.mediaB;
   if (kind === 'COMMIT') return 'Komitmen';
-  if (kind === 'GROUP') return 'Foto bersama';
+  if (kind === 'GROUP') return 'Foto Bersama';
   return 'Catatan';
 }
 
@@ -196,7 +198,8 @@ export const LabGroupPanel: React.FC<{
   brief: SessionActivityBrief;
   phase: string;
   onReload: () => void;
-}> = ({ slug, lab, brief, phase, onReload }) => {
+  onPickTeam?: (index: number) => void;
+}> = ({ slug, lab, brief, phase, onReload, onPickTeam }) => {
   const updates = lab?.updates || [];
   const canEdit = Boolean(lab?.isRep) && String(phase || '').toUpperCase() === 'A2';
   const latest = useCallback((kind: string) => updates.find((u) => u.kind === kind && (String(u.body || '').trim() || u.progress != null)) || null, [updates]);
@@ -246,7 +249,7 @@ export const LabGroupPanel: React.FC<{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ kind, body, progress }),
+      body: JSON.stringify({ kind, body, progress, teamIndex: lab?.teamIndex }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan update.');
@@ -292,11 +295,11 @@ export const LabGroupPanel: React.FC<{
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ kind, filename: file.name, mimetype: file.type, data }),
+        body: JSON.stringify({ kind, filename: file.name, mimetype: file.type, data, teamIndex: lab?.teamIndex }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal mengunggah foto.');
-      setMsg(kind === 'GROUP' ? 'Foto bersama tersimpan.' : `Foto ${kindLabel(kind)} tersimpan.`);
+      setMsg(kind === 'GROUP' ? 'Foto Bersama tersimpan.' : `Foto ${kindLabel(kind, brief)} tersimpan.`);
       onReload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Gagal mengunggah foto.');
@@ -333,7 +336,9 @@ export const LabGroupPanel: React.FC<{
     try {
       const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}/lab/done`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ teamIndex: lab?.teamIndex }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal menandai selesai.');
@@ -346,7 +351,29 @@ export const LabGroupPanel: React.FC<{
     }
   };
 
-  if (!lab?.teamIndex && lab?.teamIndex !== 0) {
+  if (lab?.teamIndex == null) {
+    if (lab?.asAdmin && (lab.teamChoices?.length || 0) > 0) {
+      return (
+        <div className={CARD}>
+          <h4 className="text-sm font-black text-[#1B1B1B]">Pilih kelompok</h4>
+          <p className="text-[11px] text-[#8C8880] mt-1 leading-relaxed">
+            Kamu mengerjakan sebagai pengurus sesi. Pilih kelompok — tidak perlu masuk sebagai anggota.
+          </p>
+          <div className="mt-3 grid gap-2">
+            {lab.teamChoices?.map((choice) => (
+              <button
+                key={choice.index}
+                type="button"
+                onClick={() => onPickTeam?.(choice.index)}
+                className="rounded-xl border border-[#D9D7D0] px-3 py-2 text-left text-xs font-bold"
+              >
+                {choice.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={CARD}>
         <h4 className="text-sm font-black text-[#1B1B1B]">Karya kelompok</h4>
@@ -356,6 +383,8 @@ export const LabGroupPanel: React.FC<{
       </div>
     );
   }
+
+  const stations = labStationCopy(brief);
 
   const photoSlot = (kind: 'POT' | 'BAG' | 'GROUP', rows: SessionLabUpdate[], limit: number, label: string) => (
     <div className="rounded-xl border border-[#EFEDE8] p-3">
@@ -410,7 +439,7 @@ export const LabGroupPanel: React.FC<{
         <div className="min-w-0">
           <h4 className="text-sm font-black text-[#1B1B1B]">Karya kelompok — {lab.teamName}</h4>
           <p className="text-[11px] text-[#8C8880] mt-0.5">
-            {lab.isRep ? 'Kamu perwakilan kelompok. Update makna, progress, komitmen, dan foto karya di sini.' : 'Kamu anggota kelompok. Update dari rekan group hanya terlihat di kelompokmu.'}
+            {lab.asAdmin ? 'Kamu mengerjakan kelompok ini sebagai pengurus sesi.' : lab.isRep ? 'Kamu perwakilan kelompok. Update makna, progress, komitmen, dan foto karya di sini.' : 'Kamu anggota kelompok. Update dari rekan group hanya terlihat di kelompokmu.'}
           </p>
         </div>
         <span className={`ml-auto shrink-0 text-[10px] font-black px-2 py-1 rounded-full ${lab.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -421,12 +450,12 @@ export const LabGroupPanel: React.FC<{
       {brief && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Pot — Grow What You Believe</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Stasiun A · {stations.mediaA} — {stations.themeA}</p>
             <p className="text-[11px] leading-relaxed mt-1">{brief.a2.potMeaning}</p>
             <p className="text-[10px] text-emerald-800/70 mt-1.5"><b>Refleksi:</b> {brief.a2.pot}</p>
           </div>
           <div className="rounded-xl bg-brand/5 border border-brand/20 px-3 py-2.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tas — Carry The Gospel</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-brand">Stasiun B · {stations.mediaB} — {stations.themeB}</p>
             <p className="text-[11px] leading-relaxed mt-1">{brief.a2.bagMeaning}</p>
             <p className="text-[10px] text-brand/80 mt-1.5"><b>Refleksi:</b> {brief.a2.bag}</p>
           </div>
@@ -437,7 +466,7 @@ export const LabGroupPanel: React.FC<{
         <div className="mt-3 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-              <p className="text-[11px] font-black text-emerald-700">Pot</p>
+              <p className="text-[11px] font-black text-emerald-700">Stasiun A · {stations.mediaA}</p>
               <textarea
                 value={form.potBody}
                 onChange={(e) => patchForm({ potBody: e.target.value })}
@@ -452,7 +481,7 @@ export const LabGroupPanel: React.FC<{
               </label>
             </div>
             <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-              <p className="text-[11px] font-black text-brand">Tas</p>
+              <p className="text-[11px] font-black text-brand">Stasiun B · {stations.mediaB}</p>
               <textarea
                 value={form.bagBody}
                 onChange={(e) => patchForm({ bagBody: e.target.value })}
@@ -482,12 +511,12 @@ export const LabGroupPanel: React.FC<{
           </button>
 
           <div className="grid gap-2 sm:grid-cols-3">
-            {photoSlot('POT', potPhotos, 2, 'Foto Pot')}
-            {photoSlot('BAG', bagPhotos, 2, 'Foto Tas')}
-            {photoSlot('GROUP', groupPhoto ? [groupPhoto] : [], 1, 'Foto bersama (wajib)')}
+            {photoSlot('POT', potPhotos, 2, `Foto Stasiun A (${stations.mediaA})`)}
+            {photoSlot('BAG', bagPhotos, 2, `Foto Stasiun B (${stations.mediaB})`)}
+            {photoSlot('GROUP', groupPhoto ? [groupPhoto] : [], 1, 'Foto Bersama (wajib)')}
           </div>
           <p className="text-[10px] text-[#8C8880] leading-relaxed">
-            <b>Wajib:</b> 1 foto bersama seluruh anggota kelompok + hasil karya Pot/Tas. Maksimal 2 foto Pot, 2 foto Tas, dan 1 foto bersama.
+            <b>Wajib:</b> 1 Foto Bersama seluruh anggota kelompok + hasil karya. Maksimal 2 foto Stasiun A ({stations.mediaA}), 2 foto Stasiun B ({stations.mediaB}), dan 1 Foto Bersama.
             {' '}Disarankan foto landscape.
           </p>
           <button
@@ -504,11 +533,11 @@ export const LabGroupPanel: React.FC<{
         <div className="mt-3 space-y-2">
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Pot · progress {latestPot?.progress ?? 0}%</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Stasiun A · {stations.mediaA} · progress {latestPot?.progress ?? 0}%</p>
               <p className="text-[11px] mt-1">{latestPot?.body || 'Belum ada update makna.'}</p>
             </div>
             <div className="rounded-xl bg-brand/5 border border-brand/20 p-3">
-              <p className="text-[10px] font-black uppercase tracking-wider text-brand">Tas · progress {latestBag?.progress ?? 0}%</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-brand">Stasiun B · {stations.mediaB} · progress {latestBag?.progress ?? 0}%</p>
               <p className="text-[11px] mt-1">{latestBag?.body || 'Belum ada update makna.'}</p>
             </div>
           </div>
@@ -521,8 +550,8 @@ export const LabGroupPanel: React.FC<{
 
       {(potPhotos.length > 0 || bagPhotos.length > 0 || groupPhoto) && (
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {potPhotos.map((p) => <img key={p.id} src={p.thumbUrl || p.photoUrl || ''} alt="Pot" className="rounded-xl border border-[#EFEDE8] h-28 w-full object-cover" />)}
-          {bagPhotos.map((p) => <img key={p.id} src={p.thumbUrl || p.photoUrl || ''} alt="Tas" className="rounded-xl border border-[#EFEDE8] h-28 w-full object-cover" />)}
+          {potPhotos.map((p) => <img key={p.id} src={p.thumbUrl || p.photoUrl || ''} alt={stations.mediaA} className="rounded-xl border border-[#EFEDE8] h-28 w-full object-cover" />)}
+          {bagPhotos.map((p) => <img key={p.id} src={p.thumbUrl || p.photoUrl || ''} alt={stations.mediaB} className="rounded-xl border border-[#EFEDE8] h-28 w-full object-cover" />)}
           {groupPhoto && <img src={groupPhoto.thumbUrl || groupPhoto.photoUrl || ''} alt="Foto bersama" className="rounded-xl border border-emerald-200 h-28 w-full object-cover" />}
         </div>
       )}

@@ -74,6 +74,9 @@ describe('session-draft: template kosongan 6 pola', () => {
     expect(keys).toContain('a2-pot-meaning');
     expect(keys).toContain('a2-bag-meaning');
     expect(keys).toContain('a2-report');
+    expect(keys).toContain('a1-subtitle');
+    expect(keys).toContain('a2-a-media');
+    expect(keys).toContain('a2-b-theme');
     expect(keys).toContain('present-seconds');
     expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(10);
   });

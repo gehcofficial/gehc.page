@@ -572,19 +572,19 @@ export function patternTechnicalBullets(patternCode?: string, patternName?: stri
       ];
     case 'THREE_SEQUENCES':
       return [
-        'Bagi 5 tim Mission Room sebelum sequence 1 mulai.',
-        'Komando countdown tiap sequence tanpa jeda (Melayani → Bersekutu → Bersaksi).',
-        'Atur presentasi 4 menit per tim + deklarasi penutup.',
+        'Bagi 5 tim gabungan (2 kelompok mentoring per tim) sebelum Sesi 1 · Snack & Merge. Tiap tim menjalankan seluruh misi; peran internal hanya pembagian tugas.',
+        'Komando countdown tiap sesi tanpa jeda (Snack & Merge → Kode Alkitab → Mission Room).',
+        'Atur Presentasi Kelompok lalu Konklusi (pengutusan).',
         close,
       ];
     case 'CREATIVE_LAB':
       return [
-        `Siapkan meja per kelompok (5-8 orang) + alat seni sebelum T0 — jar, 6 set kertas/orang, pot, tas kanvas, cat, kuas (${name}).`,
-        'Briefing 15 menit: khotbah singkat + 6 kartu jar + aturan perwakilan + presentasi 2 menit × 10 kelompok.',
-        'A1 15 menit: tiap orang menulis 6 kartu di kertas, lipat ke jar, lalu memilih 2 dari 6 untuk diisi di web.',
-        'A2 25 menit: Tim Pot melukis (Grow What You Believe) ∥ Tim Tas melukis (Carry The Gospel) di meja yang sama; 3 menit terakhir bersih-bersih.',
-        'Presentasi 10 kelompok × 2 menit = 20 menit (pot, tas, komitmen). Urutan dari undian kontrol.',
-        'Konklusi 10 menit merujuk firman pekan + Satu Kata + komitmen; tutup dengan persembahan, lagu, dan doa.',
+        `Siapkan meja per kelompok (5-8 orang) + alat seni sebelum T0 — jar, 6 set kertas/orang, media Stasiun A dan B, cat, kuas (${name}).`,
+        'Firman & Briefing 10 menit: khotbah singkat + 6 kartu jar + aturan perwakilan + Presentasi Kelompok.',
+        'Sesi 1 · Reminder Jar 15 menit: tiap orang menulis 6 kartu di kertas, lipat ke jar, lalu memilih 2 dari 6 untuk diisi di web (paralel).',
+        'Sesi 2 · Art Stations 25 menit: 20 menit melukis Stasiun A ∥ Stasiun B (paralel), lalu 5 menit unggah foto dan makna.',
+        'Presentasi Kelompok: 10 kelompok × sekitar 2,5 menit, blok 30 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Urutan dari undian kontrol.',
+        'Konklusi 10 menit merujuk firman pekan + Satu Kata + komitmen; tutup dengan Persembahan & Doa lalu Lagu & Doa Penutup.',
       ];
     default:
       return [

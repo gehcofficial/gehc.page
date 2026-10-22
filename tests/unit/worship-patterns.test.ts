@@ -181,21 +181,24 @@ describe('worship-patterns: patternBlock semua pola', () => {
     expect(lines).toContain('undi 2 kesaksian');
   });
 
-  it('THREE_SEQUENCES memakai 3 sequence + commissioning', () => {
-    const lines = patternBlock({ code: 'THREE_SEQUENCES', name: '3 Sequences', phases: [], playbook: 'x' }).join('\n');
-    expect(lines).toContain('3 sequence');
+  it('THREE_SEQUENCES memakai 3 sesi + tim gabungan', () => {
+    const lines = patternBlock({ code: 'THREE_SEQUENCES', name: 'Mission Sequence', phases: [], playbook: 'x' }).join('\n');
+    expect(lines).toContain('tim gabungan');
+    expect(lines).toContain('Sesi 3 · Mission Room');
   });
 
-  it('CREATIVE_LAB memakai 6 kartu jar + pot/tas paralel', () => {
+  it('CREATIVE_LAB memakai 6 kartu jar + stasiun paralel', () => {
     const lines = patternBlock({ code: 'CREATIVE_LAB', name: 'Creative Lab', phases: [], playbook: 'x' }).join('\n');
-    expect(lines).toContain('The Roots Reminder Jar');
+    expect(lines).toContain('Reminder Jar');
+    expect(lines).toContain('Art Stations');
     expect(lines).toContain('A Root I Carry');
     expect(lines).toContain('My Next Faith Step');
     expect(lines).toContain('Grow What You Believe');
-    expect(lines).toContain('Carry The Gospel');
+    expect(lines).toContain('Carry the Gospel');
     expect(lines).toContain('perwakilan');
     expect(lines).toContain('Agape');
     expect(lines).toContain('20');
+    expect(lines).toContain('150');
   });
 
   it('phase notes + division ikut ke prompt AI', () => {

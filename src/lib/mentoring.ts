@@ -112,6 +112,10 @@ export type SessionTeam = {
   /** Id kelompok Beyonders. Kosong bila baris peringatan (belum ada di database). */
   groupId?: string;
   missing?: boolean;
+  /** Mission Sequence: dua kelompok yang digabung jadi satu tim. */
+  pair?: string[];
+  /** Peran di dalam tim gabungan (bukan tim terpisah). */
+  roles?: string;
 };
 
 /** Satu update karya/foto Creative Lab (hanya group sendiri untuk peserta). */
@@ -163,6 +167,9 @@ export type SessionLabMine = {
   done: boolean;
   phase: string;
   updates: SessionLabUpdate[];
+  /** Pengurus sesi boleh mengerjakan kelompok mana pun tanpa jadi anggota. */
+  asAdmin?: boolean;
+  teamChoices?: { index: number; name: string }[];
 } | null;
 
 export type SessionTeams = { teams: SessionTeam[] } | null;
@@ -206,9 +213,11 @@ export type SessionActivity = {
 /** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
 export type SessionActivityBrief = {
   briefing: { core: string; rules: string; jarIntro: string };
-  a1: { title: string; goal: string; tools: string; steps: string; output: string; minutes: number };
+  a1: { title: string; subtitle: string; goal: string; tools: string; steps: string; output: string; minutes: number };
   a2: {
     title: string; goal: string; tools: string;
+    stationA: { media: string; theme: string };
+    stationB: { media: string; theme: string };
     pot: string; bag: string;
     potMeaning: string; bagMeaning: string;
     report: string; commit: string; minutes: number;
@@ -216,6 +225,42 @@ export type SessionActivityBrief = {
   present: { order: string; questions: string; seconds: number };
   closing: { script: string; commit: string; prayer: string };
 } | null;
+
+/** Sepuluh kelompok Beyonders. Duplikat daftar server agar UI tidak mengimpor `.mjs`. */
+export const BEYONDERS_GROUPS = [
+  'Agape', 'Avodah', 'Dunamis', 'Echad', 'Hesed', 'Kairos', 'Logos', 'Metanoia', 'Ruach', 'Shalom',
+] as const;
+
+export const MISSION_TEAM_CAP = 5;
+export const MISSION_INTERNAL_ROLES = 'Soal · Lapangan · Narasi · Presentasi · Editor (peran di dalam tim, bukan tim terpisah)';
+
+/** Lima tim gabungan default: kelompok 1+2, 3+4, … Nama memakai '&'. */
+export function defaultJointTeams(groupNames: readonly string[] = BEYONDERS_GROUPS) {
+  const names = groupNames.map((n) => String(n || '').trim()).filter(Boolean);
+  return Array.from({ length: MISSION_TEAM_CAP }, (_, i) => {
+    const a = names[i * 2] || `Kelompok ${i * 2 + 1}`;
+    const b = names[i * 2 + 1] || `Kelompok ${i * 2 + 2}`;
+    return {
+      name: `${a} & ${b}`,
+      task: 'Menjalankan seluruh misi bersama.',
+      members: [] as string[],
+      done: false,
+      pair: [a, b],
+      roles: MISSION_INTERNAL_ROLES,
+    };
+  });
+}
+
+export function labStationCopy(brief?: SessionActivityBrief) {
+  const a = brief?.a2?.stationA;
+  const b = brief?.a2?.stationB;
+  return {
+    mediaA: a?.media || 'Pot',
+    themeA: a?.theme || 'Grow What You Believe',
+    mediaB: b?.media || 'Tas',
+    themeB: b?.theme || 'Carry the Gospel',
+  };
+}
 
 export type SessionJarCard = { key: string; code: string; title: string; direction: string };
 
@@ -338,7 +383,7 @@ export function codeFromMentoringHash(hash: string): string {
   return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-export const LAB_PRESENT_SLIDES = ['Pot', 'Tas', 'Foto bersama'] as const;
+export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama'] as const;
 
 /**
  * Berikutnya/Sebelumnya di kontrol presentasi.

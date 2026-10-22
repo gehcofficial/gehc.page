@@ -229,8 +229,12 @@ export function cleanSong(raw) {
   return { title, about: str(raw.about, 2000), singer: str(raw.singer, 120) };
 }
 
-/** Batas tim Three Sequences (default cleanTeams). Creative Lab memakai LAB_MAX_TEAMS. */
+/** Batas generik cleanTeams bila pemanggil tidak mengirim maxTeams. */
 export const DEFAULT_MAX_TEAMS = 8;
+/** Mission Sequence: 5 tim gabungan, masing-masing 2 kelompok mentoring. */
+export const SEQUENCE_MAX_TEAMS = 5;
+/** Peran lama Mission Room — sekarang teks peran di dalam tiap tim gabungan. */
+export const MISSION_INTERNAL_ROLES = 'Soal · Lapangan · Narasi · Presentasi · Editor (peran di dalam tim, bukan tim terpisah)';
 
 /** Sepuluh kelompok Beyonders yang dipakai Creative Lab, urut nama. */
 export const CREATIVE_LAB_GROUP_NAMES = [
@@ -243,10 +247,70 @@ export const LAB_ROSTER_MAX = 8;
 export const LAB_PRESENT_INDEX_MAX = LAB_MAX_TEAMS - 1;
 
 /**
- * Normalisasi papan tim. Default maks 8 (Three Sequences). Creative Lab
- * memanggil dengan `{ maxTeams: 10 }`.
- * Sub-tim `pot` & `bag`, `station`, `repUserId`, `repName`, `memberUserIds`,
- * dan `groupId` opsional — pola lain tetap kompatibel (default kosong).
+ * Lima tim gabungan Mission Sequence. Default pasangan urut 1+2, 3+4, …
+ * dari sepuluh kelompok Beyonders. `roles` hanya saran peran di dalam tim.
+ */
+export function buildJointMissionTeams(groupNames) {
+  const names = (Array.isArray(groupNames) && groupNames.length ? groupNames : CREATIVE_LAB_GROUP_NAMES)
+    .map((n) => String(n || '').trim())
+    .filter(Boolean);
+  const teams = [];
+  for (let i = 0; i < SEQUENCE_MAX_TEAMS; i += 1) {
+    const a = names[i * 2] || `Kelompok ${i * 2 + 1}`;
+    const b = names[i * 2 + 1] || `Kelompok ${i * 2 + 2}`;
+    teams.push({
+      name: `${a} & ${b}`,
+      task: 'Menjalankan seluruh misi bersama.',
+      members: [],
+      done: false,
+      scribe: '',
+      station: '',
+      pot: [],
+      bag: [],
+      repUserId: '',
+      repName: '',
+      memberUserIds: [],
+      groupId: '',
+      missing: false,
+      pair: [a, b],
+      roles: MISSION_INTERNAL_ROLES,
+    });
+  }
+  return { teams };
+}
+
+/** Indeks tim gabungan untuk seorang peserta: akun, nama, lalu nama kelompok. */
+export function matchJointTeam(teams, who = {}) {
+  const list = Array.isArray(teams) ? teams : [];
+  const uid = String(who.userId || '');
+  const name = String(who.name || '').trim().toLowerCase();
+  const group = String(who.groupName || '').trim().toLowerCase();
+  if (uid) {
+    for (let i = 0; i < list.length; i += 1) {
+      const ids = Array.isArray(list[i]?.memberUserIds) ? list[i].memberUserIds : [];
+      if (ids.some((id) => String(id) === uid)) return i;
+    }
+  }
+  if (name) {
+    for (let i = 0; i < list.length; i += 1) {
+      const members = Array.isArray(list[i]?.members) ? list[i].members : [];
+      if (members.some((m) => String(m).trim().toLowerCase() === name)) return i;
+    }
+  }
+  if (group) {
+    for (let i = 0; i < list.length; i += 1) {
+      const pair = Array.isArray(list[i]?.pair) ? list[i].pair : [];
+      if (pair.some((p) => String(p).trim().toLowerCase() === group)) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Normalisasi papan tim. Default maks 8. Mission Sequence memanggil dengan
+ * `{ maxTeams: 5 }`, Creative Lab dengan `{ maxTeams: 10 }`.
+ * `pair` (dua kelompok) dan `roles` (peran di dalam tim) untuk Mission Sequence.
+ * Sub-tim `pot` & `bag` tetap kunci simpan Creative Lab (Stasiun A / B).
  */
 export function cleanTeams(raw, opts = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -268,6 +332,8 @@ export function cleanTeams(raw, opts = {}) {
       .slice(0, 20),
     groupId: str(t?.groupId, 64),
     missing: Boolean(t?.missing),
+    pair: (Array.isArray(t?.pair) ? t.pair : []).slice(0, 2).map((m) => str(m, 80)).filter(Boolean),
+    roles: str(t?.roles, 400),
   })).filter((t) => t.name);
   if (!teams.length) return null;
   return { teams };
@@ -276,8 +342,8 @@ export function cleanTeams(raw, opts = {}) {
 /** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
 export const ACTIVITY_PHASES = ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
 
-/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi 2'/kelompok. */
-export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 120, DONE: 0 };
+/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi ~2,5'/kelompok. */
+export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 150, DONE: 0 };
 
 /**
  * Normalisasi state panggung Creative Lab:
@@ -294,7 +360,7 @@ export function cleanActivity(raw) {
   const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null
     ? true
     : !(raw.showOnScreen === false || raw.showOnScreen === 0 || String(raw.showOnScreen).toLowerCase() === 'false');
-  const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || 120));
+  const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || ACTIVITY_PHASE_SECONDS.PRESENT));
   const rawDur = raw.durations && typeof raw.durations === 'object' && !Array.isArray(raw.durations) ? raw.durations : {};
   const durationFor = (key, fallback) => Math.min(7200, Math.max(60, Number(rawDur[key]) || fallback));
   // Urutan presentasi hasil undian: index tim unik 0-9. Kosong = urutan papan.
@@ -367,7 +433,7 @@ export function creativeLabFromDraft(storedDraft) {
     const n = Number(String(v ?? '').replace(/[^\d.]/g, ''));
     return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
   };
-  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], 120)));
+  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], ACTIVITY_PHASE_SECONDS.PRESENT)));
   return {
     teams: teams.length ? { teams } : null,
     activity: cleanActivity({

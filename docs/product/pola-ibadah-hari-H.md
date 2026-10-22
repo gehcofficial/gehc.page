@@ -135,26 +135,26 @@ HP dikarantina (AI hanya saat Brainstorming). Juri menilai 4 kriteria berbobot
 | Segmen | Menit | Status |
 |---|---|---|
 | Registrasi Ulang | 5 | tetap |
-| Persiapan Ibadah (paralel: proyektor/sound + matras/konsumsi) | 5 | tetap (T-minus) |
-| Opening (Lagu buka, Doa Buka, Praise & Worship) | 5 | tetap |
-| Persembahan + Doa (persembahan & syafaat) | 10 | tetap |
-| Transisi — jabarkan Alkitab + Likert Awal (infokan isi catatan saat film) | 5 | tetap |
-| Movie Breakdown (ikuti durasi film) + konsumsi paralel (tuan rumah) | 90 | tetap + paralel |
-| Transisi — konklusi + Likert Akhir + Lesson Learned Chip + 2 kesaksian | 15 | tetap |
+| Doa Petugas (Persiapan Ruang & Perlengkapan dan Cek Slide & Sound (paralel)) | 5 | tetap (T-minus) |
+| Praise & Worship | 5 | tetap |
+| Persembahan & Doa | 10 | tetap |
+| Firman & Briefing (Likert Awal di catatan) | 5 | tetap |
+| Sesi 1 · Movie Breakdown (durasi film di catatan) + konsumsi (paralel) | 90 | tetap |
+| Konklusi (Likert Akhir, chip, 2 kesaksian di catatan) | 15 | tetap |
 | Lagu & Doa Penutup | 5 | tetap |
-| Terima kasih + Pengumuman | 5 | tetap |
-| HUT + Doa | 5 | tetap |
+| Terima Kasih & Pengumuman | 5 | tetap |
+| HUT & Doa | 5 | tetap |
 | Foto Bersama | 5 | tetap |
 
 ### 3 Sequences (±165')
 
 | Segmen | Menit | Status |
 |---|---|---|
-| Pra + pembuka | 15 | tetap |
-| Sequence 1–3 (catatan misi di HP) | 55 | tetap |
-| Presentasi + Lesson Learned | 20 | tetap |
-| Khotbah penutup + persembahan | 15 | tetap |
-| Commissioning + deklarasi | 15 | tetap |
+| Praise & Worship | 10 | tetap |
+| Sesi 1 · Snack & Merge, Sesi 2 · Kode Alkitab, Sesi 3 · Mission Room | 55 | tetap |
+| Presentasi Kelompok | 20 | tetap |
+| Persembahan & Doa (khotbah di catatan) | 15 | tetap |
+| Konklusi (pengutusan di catatan) | 15 | tetap |
 | Syafaat + berkat + terima kasih tuan rumah | 10 | gabung→commissioning |
 | Foto + pasca | 10 | tetap |
 

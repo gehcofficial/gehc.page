@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
+import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, buildJointMissionTeams, matchJointTeam, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS, SEQUENCE_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
 import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../../server/lib/lab-drive.mjs';
 import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
@@ -13,10 +13,10 @@ describe('creative-lab: cleanActivity', () => {
       showOnScreen: true,
       cardIndex: 0,
       presentIndex: 0,
-      presentSeconds: 120,
+      presentSeconds: 150,
       presentOrder: [],
       presentDrawnAt: null,
-      durations: { A1: 900, A2: 1500, PRESENT: 120 },
+      durations: { A1: 900, A2: 1500, PRESENT: 150 },
     });
   });
 
@@ -135,10 +135,15 @@ describe('creative-lab: materialisasi draft', () => {
     expect(out.activity.durations).toEqual({ A1: 1200, A2: 1800, PRESENT: 90 });
   });
 
-  it('kosong → tanpa tim, default 15/25/120', () => {
+  it('kosong → tanpa tim, default 15/25/150', () => {
     const out = creativeLabFromDraft({});
     expect(out.teams).toBeNull();
-    expect(out.activity.durations).toEqual({ A1: 900, A2: 1500, PRESENT: 120 });
+    expect(out.activity.durations).toEqual({ A1: 900, A2: 1500, PRESENT: 150 });
+  });
+
+  it('present-seconds tersimpan tetap dipakai', () => {
+    const out = creativeLabFromDraft({ present: { 'present-seconds': '120' } });
+    expect(out.activity.presentSeconds).toBe(120);
   });
 });
 
@@ -170,9 +175,22 @@ describe('creative-lab: payload peserta & layar', () => {
     expect(brief.present.seconds).toBe(150);
     expect(brief.closing.script).toBe('Konklusi firman');
     const empty = creativeLabBrief({});
-    expect(empty.a1.title).toBe('The Roots Reminder Jar');
-    expect(empty.a2.title).toBe('Roots & DNA Creative Lab');
-    expect(empty.present.seconds).toBe(120);
+    expect(empty.a1.title).toBe('Reminder Jar');
+    expect(empty.a1.subtitle).toBe('Roots');
+    expect(empty.a2.title).toBe('Art Stations');
+    expect(empty.a2.stationA).toEqual({ media: 'Pot', theme: 'Grow What You Believe' });
+    expect(empty.a2.stationB).toEqual({ media: 'Tas', theme: 'Carry the Gospel' });
+    expect(empty.present.seconds).toBe(150);
+    const legacy = creativeLabBrief({
+      draft: {
+        'activity-1': { 'a1-title': 'The Roots Reminder Jar' },
+        'activity-2': { 'a2-title': 'Roots & DNA Creative Lab' },
+        present: { 'present-seconds': '120' },
+      },
+    });
+    expect(legacy.a1.title).toBe('Reminder Jar');
+    expect(legacy.a2.title).toBe('Art Stations');
+    expect(legacy.present.seconds).toBe(120);
   });
 
   it('allowedNoteCodes menerima 6 kartu jar dari draft', () => {
@@ -202,6 +220,9 @@ describe('creative-lab: payload peserta & layar', () => {
     expect(findLabTeam(cfg, 'u-rep')).toMatchObject({ index: 0, isRep: true });
     expect(findLabTeam(cfg, 'u-2')).toMatchObject({ index: 0, isRep: false });
     expect(findLabTeam(cfg, 'u-x')).toBeNull();
+    expect(findLabTeam(cfg, 'u-x', { asAdmin: true, teamIndex: 1 })).toMatchObject({ index: 1, asAdmin: true, isRep: true });
+    expect(findLabTeam(cfg, 'u-rep', { asAdmin: true, teamIndex: '' })).toMatchObject({ index: 0, isRep: true });
+    expect(findLabTeam(cfg, 'u-x', { asAdmin: true, teamIndex: 9 })).toBeNull();
     expect(labPresentationOrder(cfg.activity, 3)).toEqual([1, 0, 2]);
   });
 
@@ -364,6 +385,21 @@ describe('creative-lab: unggah admin dan kuota', () => {
     expect(labPhotoQuota([photo('BAG'), photo('BAG')], 'BAG')).toMatchObject({ ok: false, status: 400 });
     expect(labPhotoQuota([photo('GROUP')], 'GROUP')).toMatchObject({ ok: false, status: 400 });
     expect(labPhotoQuota([], 'NOTE')).toMatchObject({ ok: false, status: 400 });
+  });
+});
+
+describe('mission-sequence: tim gabungan', () => {
+  it('default 5 pasangan dari 10 kelompok, peran hanya teks di dalam tim', () => {
+    const board = buildJointMissionTeams();
+    expect(board.teams).toHaveLength(SEQUENCE_MAX_TEAMS);
+    expect(board.teams[0]).toMatchObject({ name: 'Agape & Avodah', pair: ['Agape', 'Avodah'] });
+    expect(board.teams[4].name).toBe('Ruach & Shalom');
+    expect(String(board.teams[0].roles)).toContain('bukan tim terpisah');
+    const cleaned = cleanTeams(board, { maxTeams: SEQUENCE_MAX_TEAMS });
+    expect(cleaned.teams).toHaveLength(5);
+    expect(cleaned.teams[1].pair).toEqual(['Dunamis', 'Echad']);
+    expect(matchJointTeam(cleaned.teams, { groupName: 'Kairos' })).toBe(2);
+    expect(matchJointTeam(cleaned.teams, { userId: 'x' })).toBe(-1);
   });
 });
 

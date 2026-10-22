@@ -1,5 +1,22 @@
 # GEHC Portal — Handoff
 
+## Current — Template generik + rundown baku (22 Okt 2026)
+
+**Minta:** aktivitas Creative Lab jadi template generik; rundown 135' dengan Presentasi Kelompok 30'; Mission Sequence = 5 tim gabungan; tiga bug kontrol; judul rundown semua pola memakai kosakata yang sama. Branch `cursor/creative-lab-templates-926a` ke `staging`. Jangan sentuh `main`.
+
+**Done:**
+- Nama tampilan: Sesi 1 · Reminder Jar (subjudul tema, default Roots) dan Sesi 2 · Art Stations (media + judul tema, default Pot / Grow What You Believe dan Tas / Carry the Gospel). Kunci simpan tetap `POT`/`BAG`/`GROUP` dan fase `A1`/`A2`/`PRESENT`. Judul lama dinormalisasi saat dibaca.
+- Creative Lab: Praise & Worship 10, Firman & Briefing 10, Sesi 1 15, Sesi 2 25 (20' melukis paralel + 5' unggah di catatan), Presentasi Kelompok 30 (timer default 150 detik; nilai tersimpan, termasuk 120, tidak ditimpa), Konklusi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5. Jemaat 115' + PRA 20'.
+- Mission Sequence: 5 tim gabungan (`pair` + `roles`), tombol **Pasangan default** tidak menimpa papan sampai disimpan, cap simpan 5, CSV satu baris per tim.
+- Reset ke Draft mengosongkan aktivitas, tanda selesai tim, dan karya lab; roster tetap. Simpan kelompok hanya mengirim tim (server mengabaikan `activity` bila `teams` ikut). Tombol terkunci sampai peserta termuat. Admin memilih kelompok tanpa harus jadi anggota.
+- Panduan judul: `docs/product/rundown-writing.md`.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog staging harus mengikuti judul baru. Sesi yang sudah tersimpan tidak perlu migrasi.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm run test` **163 file / 1299 tes** lulus. `npm run build` lulus. Layar hari-H tidak dijalankan di browser pada lingkungan ini (tidak ada database).
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/creative-lab-templates-926a`.
+
 ## Current — Creative Lab: 3 slide presentasi + unggah admin (22 Okt 2026)
 
 **Minta:** layar presentasi tiap kelompok jadi 3 slide (Pot, Tas, foto bersama),
