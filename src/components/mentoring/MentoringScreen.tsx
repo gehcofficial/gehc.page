@@ -14,7 +14,7 @@ import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
 import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
-import { briefingFirmanOnly, presentSlidePlan } from '../../lib/creative-lab-draft';
+import { briefingFirmanOnly, labPresentationOrder, presentSlidePlan } from '../../lib/creative-lab-draft';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
@@ -533,15 +533,10 @@ const MentoringScreen: React.FC = () => {
               const phase = act.phase;
               const card = jar[act.cardIndex];
               const labTeams = data.lab?.teams || [];
-              const order = (() => {
-                const out: number[] = [];
-                for (const n of act.presentOrder || []) {
-                  const i = Number(n);
-                  if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
-                }
-                for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
-                return out;
-              })();
+              const order = labPresentationOrder(act, teams.length);
+              const keyDirections = data.lab?.keyDirections || brief?.briefing?.projectorDirective || brief?.briefing?.audienceDirective || '';
+              const slideTitles = presentSlidePlan(brief).map((s) => s.label);
+              const slideMax = Math.max(0, slideTitles.length - 1);
               const presentTeamIndex = order[act.presentIndex] ?? act.presentIndex;
               const presentSlide = Math.min(slideMax, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
               const presenting = teams[presentTeamIndex];
@@ -550,8 +545,6 @@ const MentoringScreen: React.FC = () => {
               const a1Title = brief?.a1.title || 'Sesi 1';
               const a1Sub = brief?.a1.subtitle ? ` · ${brief.a1.subtitle}` : '';
               const a2Title = brief?.a2.title || 'Sesi 2';
-              const slideTitles = presentSlidePlan(brief).map((s) => s.label);
-              const slideMax = Math.max(0, slideTitles.length - 1);
               const firmanOnly = briefingFirmanOnly(phase, act.startedAt, tick);
               const totalSec = phase === 'PRESENT' ? act.presentSeconds : act.durationSec;
               const startedAt = phase === 'PRESENT' ? act.presentStartedAt : act.startedAt;
@@ -712,6 +705,24 @@ const MentoringScreen: React.FC = () => {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
                         <p className="text-sm text-white/70 mt-1">{brief.a2.commit}</p>
                       </section>
+                      {labTeams.length > 0 && (
+                        <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Progres Sesi 2 · per kelompok</p>
+                            {keyDirections && <p className="text-[10px] text-brand font-bold max-w-md text-right">{keyDirections}</p>}
+                          </div>
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {labTeams.map((lt) => (
+                              <div key={lt.index} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                                <p className="font-bold truncate">{lt.name}</p>
+                                <p className="text-[10px] text-white/50 mt-0.5 tabular-nums">
+                                  Progress {lt.progressPct ?? '–'}% · vote-back {lt.voteBackStatus || 'belum'} · rekap {lt.recapStatus || 'belum'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                     </div>
                   )}
 

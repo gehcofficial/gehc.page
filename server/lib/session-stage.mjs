@@ -373,6 +373,12 @@ export function cleanActivity(raw) {
     .map((n) => Math.floor(Number(n)))
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
     .slice(0, LAB_MAX_TEAMS);
+  const idxFilter = (arr) => [...new Set((Array.isArray(arr) ? arr : [])
+    .map((n) => Math.floor(Number(n)))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
+    .slice(0, LAB_MAX_TEAMS);
+  const presentSkipped = idxFilter(raw.presentSkipped);
+  const presentPostponed = idxFilter(raw.presentPostponed);
   return {
     phase,
     startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
@@ -385,6 +391,8 @@ export function cleanActivity(raw) {
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
     presentOrder,
+    presentSkipped,
+    presentPostponed,
     presentDrawnAt: raw.presentDrawnAt ? String(raw.presentDrawnAt).slice(0, 30) : null,
     durations: {
       A1: durationFor('A1', ACTIVITY_PHASE_SECONDS.A1),

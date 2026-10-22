@@ -27,7 +27,8 @@ import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import SessionTimer from './SessionTimer';
 import { SessionNotes } from './SessionNotes';
-import { JarWebSlots, LabGroupPanel } from './CreativeLabPanels';
+import { JarWebSlots, LabGroupPanel, LabPresentationReactions } from './CreativeLabPanels';
+import { labPresentationOrder } from '../../lib/creative-lab-draft';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 
@@ -277,15 +278,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const labAct = data?.activity || null;
   const presentOrder = useMemo(() => {
     const teams = data?.teams?.teams || [];
-    const raw = Array.isArray(labAct?.presentOrder) ? labAct.presentOrder : [];
-    const out: number[] = [];
-    for (const n of raw) {
-      const i = Number(n);
-      if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
-    }
-    for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
-    return out;
-  }, [data?.teams?.teams, labAct?.presentOrder]);
+    return labPresentationOrder(labAct, teams.length);
+  }, [data?.teams?.teams, labAct]);
   const presentTeamIndex = presentOrder[labAct?.presentIndex || 0] ?? labAct?.presentIndex ?? 0;
   const activityTick = useNowTick(Boolean(labAct?.startedAt || labAct?.presentStartedAt));
   const activityTotalSec = labAct
@@ -892,6 +886,14 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
           phase={String(data.activity?.phase || 'IDLE')}
           onReload={() => void load()}
           onPickTeam={(index) => setAdminTeam(index)}
+        />
+      )}
+
+      {c === 'CREATIVE_LAB' && labAct?.phase === 'PRESENT' && data.lab?.reactions && (
+        <LabPresentationReactions
+          slug={slug}
+          reactions={data.lab.reactions}
+          onReload={() => void load()}
         />
       )}
 

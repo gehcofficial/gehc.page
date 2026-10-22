@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, buildJointMissionTeams, matchJointTeam, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS, LAB_STATION_CAP, SEQUENCE_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
 import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, LAB_PHOTO_LIMIT, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
+import {
+  aggregateLabReactionCloud,
+  listAiReviewPending,
+  validateCreativeLabMinutesForPublish,
+} from '../../server/lib/creative-lab-draft.mjs';
 import { LAB_STATION_CAP as CLIENT_STATION_CAP } from '../../src/lib/mentoring';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../../server/lib/lab-drive.mjs';
 import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
@@ -245,6 +250,43 @@ describe('creative-lab: payload peserta & layar', () => {
       photoComplete: true,
     });
     expect(summary.teams[0].pot.photos).toHaveLength(1);
+  });
+
+  it('labPresentationOrder menghormati skip dan menunda ke belakang', () => {
+    const activity = {
+      presentOrder: [2, 0, 1],
+      presentSkipped: [1],
+      presentPostponed: [0],
+    };
+    expect(labPresentationOrder(activity, 4)).toEqual([2, 0, 3]);
+  });
+
+  it('validateCreativeLabMinutesForPublish memblokir lewat slot jemaat/pola', () => {
+    const heavy = {
+      'activity-1': { 'a1-minutes': '50' },
+      'activity-2': { 'a2-minutes': '50' },
+      'activity-3': { 'a3-minutes': '50' },
+      'activity-4': { 'a4-minutes': '20' },
+    };
+    const block = validateCreativeLabMinutesForPublish(heavy);
+    expect(block.ok).toBe(false);
+    expect(block.severity).toBe('block');
+  });
+
+  it('listAiReviewPending menemukan field diisi AI yang belum direview', () => {
+    const draft = {
+      firman: { 'firman-title': 'Judul', 'firman-title-ai': '1' },
+    };
+    const pending = listAiReviewPending(draft, []);
+    expect(pending).toHaveLength(1);
+    expect(pending[0].fieldKey).toBe('firman-title');
+  });
+
+  it('aggregateLabReactionCloud hanya saat dirilis', () => {
+    const votes = { '0:u1': 'SUKA', '0:u2': 'BIASA' };
+    expect(aggregateLabReactionCloud(votes, false)).toEqual([]);
+    const out = aggregateLabReactionCloud(votes, true);
+    expect(out.find((x) => x.code === 'SUKA')?.count).toBe(1);
   });
 });
 

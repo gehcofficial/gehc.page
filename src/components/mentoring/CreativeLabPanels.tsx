@@ -4,9 +4,11 @@ import {
   labStationCopy,
   type SessionActivityBrief,
   type SessionLabMine,
+  type SessionLabReactions,
   type SessionLabUpdate,
   type SessionJarCard,
 } from '../../lib/mentoring';
+import { labArtStationSlots } from '../../lib/creative-lab-draft';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -22,9 +24,8 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 function kindLabel(kind: string, brief?: SessionActivityBrief) {
-  const stations = labStationCopy(brief);
-  if (kind === 'POT') return stations.mediaA;
-  if (kind === 'BAG') return stations.mediaB;
+  const slot = labArtStationSlots(brief).find((s) => s.kind === kind);
+  if (slot) return slot.label;
   if (kind === 'COMMIT') return 'Komitmen';
   if (kind === 'GROUP') return 'Foto Bersama';
   return 'Catatan';
@@ -186,6 +187,63 @@ export const JarWebSlots: React.FC<{
   );
 };
 
+export const LabPresentationReactions: React.FC<{
+  slug: string;
+  reactions: SessionLabReactions;
+  onReload: () => void;
+}> = ({ slug, reactions, onReload }) => {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const vote = async (choice: 'SUKA' | 'BIASA' | 'KURANG') => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}/lab/reaction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ choice, teamIndex: reactions.presentingTeamIndex }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan reaksi.');
+      onReload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Gagal menyimpan reaksi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!reactions.open || reactions.released) return null;
+  if (reactions.myVote) {
+    return (
+      <div className={CARD}>
+        <p className="text-xs font-black text-[#1B1B1B]">Reaksi presentasi tercatat</p>
+        <p className="text-[11px] text-[#8C8880] mt-1">Pilihanmu: <b>{reactions.myVote}</b> — hasil dirilis admin di akhir sesi.</p>
+      </div>
+    );
+  }
+  return (
+    <div className={CARD}>
+      <p className="text-xs font-black text-[#1B1B1B]">Reaksi presentasi (satu kali)</p>
+      <p className="text-[11px] text-[#8C8880] mt-1">Bagaimana presentasi kelompok yang sedang tampil?</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {(['SUKA', 'BIASA', 'KURANG'] as const).map((c) => (
+          <button
+            key={c}
+            type="button"
+            disabled={busy}
+            onClick={() => void vote(c)}
+            className={`${BTN} border border-[#D9D7D0] bg-white text-[#1B1B1B]`}
+          >
+            {c === 'SUKA' ? 'Suka' : c === 'BIASA' ? 'Biasa' : 'Kurang'}
+          </button>
+        ))}
+      </div>
+      {err && <p className="mt-2 text-[11px] text-red-600">{err}</p>}
+    </div>
+  );
+};
+
 /* ------------------------------ Karya kelompok ------------------------------ */
 
 /**
@@ -222,10 +280,10 @@ export const LabGroupPanel: React.FC<{
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const fileRefs = {
-    POT: useRef<HTMLInputElement>(null),
-    BAG: useRef<HTMLInputElement>(null),
-    GROUP: useRef<HTMLInputElement>(null),
+  const artSlots = useMemo(() => labArtStationSlots(brief), [brief]);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const setFileRef = (kind: string) => (el: HTMLInputElement | null) => {
+    fileRefs.current[kind] = el;
   };
 
   useEffect(() => {
@@ -244,7 +302,7 @@ export const LabGroupPanel: React.FC<{
     setForm((prev) => ({ ...prev, ...patch }));
   };
 
-  const postUpdate = async (kind: 'POT' | 'BAG' | 'COMMIT' | 'NOTE', body: string, progress?: number) => {
+  const postUpdate = async (kind: string, body: string, progress?: number) => {
     const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}/lab/updates`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -280,7 +338,7 @@ export const LabGroupPanel: React.FC<{
     }
   };
 
-  const uploadPhoto = async (kind: 'POT' | 'BAG' | 'GROUP', file: File | undefined) => {
+  const uploadPhoto = async (kind: string, file: File | undefined) => {
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) {
       setErr('Foto terlalu besar (maks 15MB).');
@@ -305,7 +363,7 @@ export const LabGroupPanel: React.FC<{
       setErr(e instanceof Error ? e.message : 'Gagal mengunggah foto.');
     } finally {
       setBusy(false);
-      const ref = fileRefs[kind].current;
+      const ref = fileRefs.current[kind];
       if (ref) ref.value = '';
     }
   };
@@ -386,7 +444,7 @@ export const LabGroupPanel: React.FC<{
 
   const stations = labStationCopy(brief);
 
-  const photoSlot = (kind: 'POT' | 'BAG' | 'GROUP', rows: SessionLabUpdate[], limit: number, label: string) => (
+  const photoSlot = (kind: string, rows: SessionLabUpdate[], limit: number, label: string) => (
     <div className="rounded-xl border border-[#EFEDE8] p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-black text-[#1B1B1B]">{label}</p>
@@ -396,22 +454,24 @@ export const LabGroupPanel: React.FC<{
         {rows.map((row) => (
           <div key={row.id} className="relative rounded-lg overflow-hidden border border-[#EFEDE8] bg-[#FAF9F5]">
             <img src={row.thumbUrl || row.photoUrl || ''} alt={label} className="w-full h-24 object-cover" />
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void removeUpdate(row)}
-              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center"
-              title="Hapus foto"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void removeUpdate(row)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center"
+                title="Hapus foto"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
           </div>
         ))}
         {rows.length < limit && (
           <button
             type="button"
             disabled={busy || !canEdit}
-            onClick={() => fileRefs[kind].current?.click()}
+            onClick={() => fileRefs.current[kind]?.click()}
             className="h-24 rounded-lg border-2 border-dashed border-[#D9D7D0] text-[#8C8880] grid place-items-center text-[10px] font-bold disabled:opacity-50"
           >
             <span className="inline-flex flex-col items-center gap-1"><ImagePlus className="w-4 h-4" /> Upload</span>
@@ -419,7 +479,7 @@ export const LabGroupPanel: React.FC<{
         )}
       </div>
       <input
-        ref={fileRefs[kind]}
+        ref={setFileRef(kind)}
         type="file"
         accept="image/*"
         className="hidden"
@@ -510,14 +570,13 @@ export const LabGroupPanel: React.FC<{
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan makna & progress
           </button>
 
-          <div className="grid gap-2 sm:grid-cols-3">
-            {photoSlot('POT', potPhotos, 2, `Foto Stasiun A (${stations.mediaA})`)}
-            {photoSlot('BAG', bagPhotos, 2, `Foto Stasiun B (${stations.mediaB})`)}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {artSlots.map((slot) => photoSlot(slot.kind, photos(slot.kind), slot.photoLimit, `Foto ${slot.label}`))}
             {photoSlot('GROUP', groupPhoto ? [groupPhoto] : [], 1, 'Foto Bersama (wajib)')}
           </div>
           <p className="text-[10px] text-[#8C8880] leading-relaxed">
-            <b>Wajib:</b> 1 Foto Bersama seluruh anggota kelompok + hasil karya. Maksimal 2 foto Stasiun A ({stations.mediaA}), 2 foto Stasiun B ({stations.mediaB}), dan 1 Foto Bersama.
-            {' '}Disarankan foto landscape.
+            <b>Wajib:</b> 1 foto bersama tim + maks. 2 foto per aktivitas seni ({artSlots.map((s) => s.label).join(', ')}).
+            {' '}Hanya perwakilan yang bisa unggah. Disarankan foto landscape.
           </p>
           <button
             type="button"

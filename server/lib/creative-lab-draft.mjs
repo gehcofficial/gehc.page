@@ -271,18 +271,147 @@ export function validateActivityMinutes(draft, slotMinutes = 140) {
   };
 }
 
+/** Kunci foto per aktivitas seni (indeks ≥2): POT/BAG/ACTn + GROUP. */
+export function labPhotoKindForArtIndex(i) {
+  if (i === 0) return 'POT';
+  if (i === 1) return 'BAG';
+  return `ACT${i + 1}`;
+}
+
 export function labPhotoLimitsForBrief(brief) {
-  const acts = Array.isArray(brief?.activities) ? brief.activities : [];
-  const artCount = acts.filter((a) => a.index >= 2).length;
+  const acts = (Array.isArray(brief?.activities) ? brief.activities : []).filter((a) => a.index >= 2);
   const limits = { GROUP: 1 };
-  if (artCount <= 1) {
-    limits.POT = 2;
-    limits.BAG = artCount === 0 ? 0 : 2;
-  } else {
-    for (let i = 0; i < artCount; i += 1) {
-      const key = i === 0 ? 'POT' : i === 1 ? 'BAG' : `ACT${i + 1}`;
-      limits[key] = 2;
-    }
+  acts.forEach((a, i) => {
+    limits[labPhotoKindForArtIndex(i)] = 2;
+  });
+  if (!acts.length) {
+    limits.POT = 0;
+    limits.BAG = 0;
   }
   return limits;
+}
+
+export function labPhotoKindLabels(brief) {
+  const acts = (Array.isArray(brief?.activities) ? brief.activities : []).filter((a) => a.index >= 2);
+  const labels = { GROUP: 'Foto Bersama' };
+  acts.forEach((a, i) => {
+    const key = labPhotoKindForArtIndex(i);
+    const media = a.stationMedia || a.title || `Aktivitas ${a.index}`;
+    labels[key] = `Foto ${media}`;
+  });
+  return labels;
+}
+
+function isAiFlag(v) {
+  const s = String(v ?? '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
+/** Field bertanda diisi AI yang belum direview sebelum terbit. */
+export function listAiReviewPending(draft, reviewedKeys = []) {
+  const reviewed = new Set((reviewedKeys || []).map((k) => String(k)));
+  const pending = [];
+  const d = draft && typeof draft === 'object' ? draft : {};
+  for (const [sectionKey, sec] of Object.entries(d)) {
+    if (!sec || typeof sec !== 'object' || Array.isArray(sec)) continue;
+    for (const [fk, fv] of Object.entries(sec)) {
+      if (!String(fk).endsWith('-ai') || !isAiFlag(fv)) continue;
+      const stem = String(fk).slice(0, -3);
+      for (const [ck, cv] of Object.entries(sec)) {
+        if (ck.endsWith('-ai')) continue;
+        if (!(ck === stem || ck.startsWith(`${stem}-`))) continue;
+        if (!String(cv || '').trim()) continue;
+        const id = `${sectionKey}/${ck}`;
+        if (reviewed.has(id)) continue;
+        pending.push({
+          id,
+          sectionKey,
+          fieldKey: ck,
+          preview: String(cv).slice(0, 160),
+        });
+      }
+    }
+  }
+  return pending;
+}
+
+export function parseAiReviewedKeys(draft) {
+  const meta = sec(draft, 'meta');
+  const raw = String(meta['ai-reviewed-keys'] || '');
+  return raw.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+}
+
+export const CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES = 140;
+export const CREATIVE_LAB_PATTERN_MINUTES = 160;
+
+/** Validasi menit aktivitas untuk terbit: blok jika lewat slot, peringatan jika jauh dari 140′ jemaat. */
+export function validateCreativeLabMinutesForPublish(draft) {
+  const total = totalActivityMinutes(draft);
+  if (total > CREATIVE_LAB_PATTERN_MINUTES) {
+    return {
+      ok: false,
+      severity: 'block',
+      total,
+      jemaatSlot: CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES,
+      patternSlot: CREATIVE_LAB_PATTERN_MINUTES,
+      message: `Total menit aktivitas (${total}) melebihi pola ${CREATIVE_LAB_PATTERN_MINUTES} menit.`,
+    };
+  }
+  if (total > CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES + 2) {
+    return {
+      ok: false,
+      severity: 'block',
+      total,
+      jemaatSlot: CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES,
+      patternSlot: CREATIVE_LAB_PATTERN_MINUTES,
+      message: `Total menit aktivitas (${total}) melebihi slot jemaat ${CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES} menit (tanpa PRA/liturgi).`,
+    };
+  }
+  if (Math.abs(total - CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES) > 5) {
+    return {
+      ok: false,
+      severity: 'warn',
+      total,
+      jemaatSlot: CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES,
+      patternSlot: CREATIVE_LAB_PATTERN_MINUTES,
+      message: `Total menit aktivitas (${total}) belum selaras dengan target ${CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES} menit jemaat.`,
+    };
+  }
+  return {
+    ok: true,
+    severity: 'ok',
+    total,
+    jemaatSlot: CREATIVE_LAB_JEMAAT_ACTIVITY_MINUTES,
+    patternSlot: CREATIVE_LAB_PATTERN_MINUTES,
+  };
+}
+
+const REACTION_LABELS = { SUKA: '#Suka', BIASA: '#Biasa', KURANG: '#Kurang' };
+
+export function aggregateLabReactionCloud(votes, released) {
+  if (!released || !votes || typeof votes !== 'object') return [];
+  const counts = { SUKA: 0, BIASA: 0, KURANG: 0 };
+  for (const v of Object.values(votes)) {
+    const k = String(v || '').toUpperCase();
+    if (counts[k] != null) counts[k] += 1;
+  }
+  return Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .map(([k, count]) => ({
+      code: k,
+      label: REACTION_LABELS[k] || k,
+      count,
+    }));
+}
+
+export function cleanLabReactions(raw) {
+  if (!raw || typeof raw !== 'object') return { released: false, votes: {} };
+  const votes = {};
+  const src = raw.votes && typeof raw.votes === 'object' ? raw.votes : {};
+  for (const [k, v] of Object.entries(src).slice(0, 800)) {
+    const key = String(k).slice(0, 80);
+    const choice = String(v || '').toUpperCase();
+    if (key && ['SUKA', 'BIASA', 'KURANG'].includes(choice)) votes[key] = choice;
+  }
+  return { released: Boolean(raw.released), votes };
 }

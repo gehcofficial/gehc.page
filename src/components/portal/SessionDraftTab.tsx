@@ -483,30 +483,74 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
     }
   };
 
+  const [applyGate, setApplyGate] = useState<{
+    minutesWarn?: string;
+    aiPending?: { id: string; preview: string; fieldKey: string }[];
+  } | null>(null);
+
+  const postApplyDraft = async (extra: Record<string, unknown> = {}) => {
+    if (!detail) return;
+    const body =
+      detailCode === 'POST_TO_POST'
+        ? { kind: detailCode, draft: sectionsToPostToPost(sections, proposalChips.current), storedDraft: draftToStored(sections), ...extra }
+        : { kind: detailCode, storedDraft: draftToStored(sections), ...extra };
+    const r = await fetch(`/api/worship/sessions/${detail.session.id}/apply-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 422 && d?.code === 'MINUTES_WARN') {
+      setApplyGate({ minutesWarn: String(d.error || d.minutes?.message || 'Menit aktivitas perlu dikonfirmasi.') });
+      return;
+    }
+    if (r.status === 422 && d?.code === 'AI_REVIEW' && Array.isArray(d.pending)) {
+      setApplyGate({
+        aiPending: d.pending.map((p: { id: string; preview?: string; fieldKey?: string }) => ({
+          id: String(p.id),
+          preview: String(p.preview || ''),
+          fieldKey: String(p.fieldKey || p.id),
+        })),
+      });
+      return;
+    }
+    if (!r.ok) throw new Error(d?.error || 'Gagal menerapkan draft.');
+    setApplyGate(null);
+    const screeningMsg = d.screening?.title ? ` Pemutaran film: "${String(d.screening.title).slice(0, 60)}" (${d.screening.durationMin || 90}').` : '';
+    setMsg({
+      kind: 'ok',
+      text: detailCode === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : `Draft diterapkan ke sesi.${screeningMsg}`,
+    });
+    await loadDetail();
+  };
+
   const applyDraft = async () => {
     if (!canWrite || !detail || guard.locked) return;
     if (!window.confirm('Terapkan draft ke sesi ini? Hanya bisa untuk sesi DRAFT yang masih kosong.')) return;
     setApplyBusy(true);
     setMsg(null);
     try {
-      const body =
-        detailCode === 'POST_TO_POST'
-          ? { kind: detailCode, draft: sectionsToPostToPost(sections, proposalChips.current), storedDraft: draftToStored(sections) }
-          : { kind: detailCode, storedDraft: draftToStored(sections) };
-      const r = await fetch(`/api/worship/sessions/${detail.session.id}/apply-draft`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d?.error || 'Gagal menerapkan draft.');
-      const screeningMsg = d.screening?.title ? ` Pemutaran film: "${String(d.screening.title).slice(0, 60)}" (${d.screening.durationMin || 90}').` : '';
-      setMsg({
-        kind: 'ok',
-        text: detailCode === 'POST_TO_POST' ? `Diterapkan: ${d.items} soal + ${d.chips} chip.` : `Draft diterapkan ke sesi.${screeningMsg}`,
-      });
-      await loadDetail();
+      await postApplyDraft();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menerapkan.' });
+    } finally {
+      setApplyBusy(false);
+    }
+  };
+
+  const confirmApplyGate = async () => {
+    if (!applyGate) return;
+    setApplyBusy(true);
+    setMsg(null);
+    try {
+      const extra: Record<string, unknown> = {};
+      if (applyGate.minutesWarn) extra.acknowledgeMinutesWarn = true;
+      if (applyGate.aiPending?.length) {
+        extra.confirmAiReview = true;
+        extra.aiReviewedKeys = applyGate.aiPending.map((p) => p.id);
+      }
+      await postApplyDraft(extra);
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menerapkan.' });
     } finally {
@@ -728,6 +772,35 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
           <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 inline-flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5" /> {guard.reason}
           </p>
+        )}
+        {applyGate && (
+          <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-black text-amber-950">Konfirmasi sebelum Terapkan</p>
+            {applyGate.minutesWarn && (
+              <p className="text-[11px] text-amber-900 leading-relaxed">{applyGate.minutesWarn} Lanjutkan dengan total menit ini?</p>
+            )}
+            {applyGate.aiPending && applyGate.aiPending.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-amber-900">Field bertanda diisi AI — pastikan sudah direview:</p>
+                <ul className="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
+                  {applyGate.aiPending.map((p) => (
+                    <li key={p.id} className="text-[11px] rounded-lg bg-white border border-amber-200 px-2 py-1.5">
+                      <span className="font-bold">{p.fieldKey}</span>
+                      {p.preview && <span className="text-[#8C8880]"> — {p.preview}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={applyBusy} onClick={() => void confirmApplyGate()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">
+                {applyBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Ya, terapkan
+              </button>
+              <button type="button" disabled={applyBusy} onClick={() => setApplyGate(null)} className="px-3 py-2 rounded-xl border border-amber-400 text-xs font-bold text-amber-950">
+                Batal
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

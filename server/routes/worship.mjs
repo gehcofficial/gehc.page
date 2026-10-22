@@ -24,6 +24,13 @@ import {
   creativeLabBriefFromDraft,
   jarNoteCodes,
   presentSlideCount,
+  labPhotoLimitsForBrief,
+  labPhotoKindLabels,
+  listAiReviewPending,
+  parseAiReviewedKeys,
+  validateCreativeLabMinutesForPublish,
+  aggregateLabReactionCloud,
+  cleanLabReactions,
 } from '../lib/creative-lab-draft.mjs';
 import { finishIfMatch, weakEtag } from '../lib/http-cache.mjs';
 
@@ -307,22 +314,32 @@ const LAB_KINDS = ['POT', 'BAG', 'COMMIT', 'GROUP', 'NOTE'];
 export const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
 const LAB_PHASE_WRITABLE = 'A2';
 
-/** Kuota foto per slot. Dipakai unggah perwakilan dan unggah admin. */
-export function labPhotoQuota(rows, kind, labels = {}) {
+/** Kuota foto per slot (dinamis dari brief). Dipakai unggah perwakilan dan unggah admin. */
+export function labPhotoQuota(rows, kind, briefOrLabels = {}) {
   const key = String(kind || '').toUpperCase();
-  if (!Object.prototype.hasOwnProperty.call(LAB_PHOTO_LIMIT, key)) {
-    return { ok: false, status: 400, error: 'Slot foto harus POT, BAG, atau GROUP.' };
+  const limits = briefOrLabels?.activities
+    ? labPhotoLimitsForBrief(briefOrLabels)
+    : labPhotoLimitsForBrief({
+      activities: [
+        { index: 2, stationMedia: briefOrLabels.mediaA || 'Stasiun A' },
+        { index: 3, stationMedia: briefOrLabels.mediaB || 'Stasiun B' },
+      ],
+    });
+  const labelMap = briefOrLabels?.activities ? labPhotoKindLabels(briefOrLabels) : {
+    ...labPhotoKindLabels({
+      activities: [
+        { index: 2, stationMedia: briefOrLabels.mediaA || 'Stasiun A' },
+        { index: 3, stationMedia: briefOrLabels.mediaB || 'Stasiun B' },
+      ],
+    }),
+  };
+  if (!Object.prototype.hasOwnProperty.call(limits, key) || limits[key] === 0) {
+    return { ok: false, status: 400, error: 'Slot foto tidak dikenal atau tidak dipakai pola ini.' };
   }
   const used = labPhotoCount(Array.isArray(rows) ? rows : [], key);
-  const limit = LAB_PHOTO_LIMIT[key];
+  const limit = limits[key];
   if (used >= limit) {
-    const mediaA = String(labels.mediaA || '').trim();
-    const mediaB = String(labels.mediaB || '').trim();
-    const label = key === 'GROUP'
-      ? 'Foto Bersama'
-      : key === 'POT'
-        ? `Foto Stasiun A${mediaA ? ` (${mediaA})` : ''}`
-        : `Foto Stasiun B${mediaB ? ` (${mediaB})` : ''}`;
+    const label = labelMap[key] || key;
     return { ok: false, status: 400, error: `Kuota ${label} sudah penuh (maks ${limit}). Hapus salah satu dulu untuk mengganti.` };
   }
   return { ok: true, kind: key, limit, used };
@@ -409,12 +426,21 @@ function labDenied(req) {
 /** Urutan presentasi: hasil undian + tim baru yang belum masuk, tanpa duplikat. */
 export function labPresentationOrder(activity, teamCount) {
   const count = Math.max(0, Number(teamCount) || 0);
+  const skipped = new Set((Array.isArray(activity?.presentSkipped) ? activity.presentSkipped : [])
+    .map((n) => Math.floor(Number(n)))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n < count));
+  const postponed = (Array.isArray(activity?.presentPostponed) ? activity.presentPostponed : [])
+    .map((n) => Math.floor(Number(n)))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n < count && !skipped.has(n));
   const out = [];
   for (const n of Array.isArray(activity?.presentOrder) ? activity.presentOrder : []) {
     const i = Math.floor(Number(n));
-    if (Number.isInteger(i) && i >= 0 && i < count && !out.includes(i)) out.push(i);
+    if (Number.isInteger(i) && i >= 0 && i < count && !skipped.has(i) && !out.includes(i)) out.push(i);
   }
-  for (let i = 0; i < count; i += 1) if (!out.includes(i)) out.push(i);
+  for (const i of postponed) if (!out.includes(i)) out.push(i);
+  for (let i = 0; i < count; i += 1) {
+    if (!skipped.has(i) && !out.includes(i)) out.push(i);
+  }
   return out;
 }
 
@@ -457,7 +483,9 @@ async function labRowsWithNames(prisma, rows) {
 }
 
 /** Ringkasan per tim untuk kontrol/layar: makna, progress, foto, komitmen. */
-export function labSummary(rows, teams, activity) {
+export function labSummary(rows, teams, activity, brief = null) {
+  const limits = labPhotoLimitsForBrief(brief || {});
+  const artKinds = Object.keys(limits).filter((k) => k !== 'GROUP' && limits[k] > 0);
   const list = (Array.isArray(teams) ? teams : []).map((team, index) => {
     const mine = labTeamRows(rows, index);
     const latestWith = (kind) => mine.find((r) => r.kind === kind && (String(r.body || '').trim() || r.progress != null)) || null;
@@ -465,10 +493,30 @@ export function labSummary(rows, teams, activity) {
     const pot = latestWith('POT');
     const bag = latestWith('BAG');
     const commit = latestWith('COMMIT');
-    const potPhotos = mine.filter((r) => r.kind === 'POT' && r.photoUrl).slice(0, 2);
-    const bagPhotos = mine.filter((r) => r.kind === 'BAG' && r.photoUrl).slice(0, 2);
+    const potPhotos = mine.filter((r) => r.kind === 'POT' && r.photoUrl).slice(0, limits.POT || 2);
+    const bagPhotos = mine.filter((r) => r.kind === 'BAG' && r.photoUrl).slice(0, limits.BAG || 2);
     const groupPhoto = latestPhoto('GROUP');
+    const stations = artKinds.map((kind) => {
+      const cap = limits[kind] || 2;
+      const meaning = latestWith(kind);
+      return {
+        kind,
+        meaning: meaning?.body || '',
+        progress: meaning?.progress == null ? null : Number(meaning.progress),
+        photos: mine.filter((r) => r.kind === kind && r.photoUrl).slice(0, cap).map((r) => labRowPublic(r)),
+      };
+    });
+    const photoCount = stations.reduce((n, s) => n + s.photos.length, 0) + (groupPhoto ? 1 : 0);
+    const photoCap = artKinds.reduce((n, k) => n + (limits[k] || 0), 0) + (limits.GROUP || 0);
+    const hasContent = mine.some((r) => String(r.body || '').trim() || r.photoUrl);
+    const voteBackStatus = mine.some((r) => r.acknowledgedAt) ? 'selesai' : (hasContent ? 'menunggu' : 'belum');
+    const recapStatus = team.done ? 'selesai' : (hasContent ? 'proses' : 'belum');
     const lastUpdateAt = mine[0]?.createdAt ? new Date(mine[0].createdAt).toISOString() : null;
+    const progressPct = (() => {
+      const vals = stations.map((s) => s.progress).filter((p) => p != null);
+      if (!vals.length) return null;
+      return Math.round(vals.reduce((a, b) => a + Number(b), 0) / vals.length);
+    })();
     return {
       index,
       name: team.name,
@@ -486,16 +534,21 @@ export function labSummary(rows, teams, activity) {
         progress: bag?.progress == null ? null : Number(bag.progress),
         photos: bagPhotos.map((r) => labRowPublic(r)),
       },
+      stations,
       commitment: commit?.body || '',
       groupPhoto: groupPhoto ? labRowPublic(groupPhoto) : null,
-      photoCount: potPhotos.length + bagPhotos.length + (groupPhoto ? 1 : 0),
-      photoComplete: Boolean(groupPhoto) && potPhotos.length <= 2 && bagPhotos.length <= 2,
+      photoCount,
+      photoComplete: photoCount >= photoCap && photoCap > 0,
+      progressPct,
+      voteBackStatus,
+      recapStatus,
       lastUpdateAt,
       updateCount: mine.length,
     };
   });
   const order = labPresentationOrder(activity, list.length);
-  return { teams: list, presentOrder: order };
+  const keyDirections = brief?.briefing?.projectorDirective || brief?.briefing?.audienceDirective || '';
+  return { teams: list, presentOrder: order, keyDirections };
 }
 
 /** Nama pengunggah (userId baris) menempel di foto kontrol. */
@@ -820,10 +873,24 @@ async function loadAggregates(prisma, session) {
 
   const voteCounts = {};
   for (const v of votes) voteCounts[v.chipCode] = (voteCounts[v.chipCode] || 0) + 1;
-  const wordcloud = chips
+  let wordcloud = chips
     .map((c) => ({ code: c.code, label: c.label, count: voteCounts[c.code] || 0 }))
     .filter((c) => c.count > 0)
     .sort((a, b) => b.count - a.count);
+
+  const pcode = String(session.pattern?.code || '').toUpperCase();
+  if (pcode === 'CREATIVE_LAB') {
+    const reactions = cleanLabReactions(config.labReactions);
+    const reactionCloud = aggregateLabReactionCloud(reactions.votes, reactions.released);
+    if (reactionCloud.length) {
+      const merged = new Map(wordcloud.map((w) => [w.code, w]));
+      for (const r of reactionCloud) {
+        const prev = merged.get(r.code);
+        merged.set(r.code, prev ? { ...prev, count: prev.count + r.count } : r);
+      }
+      wordcloud = [...merged.values()].filter((c) => c.count > 0).sort((a, b) => b.count - a.count);
+    }
+  }
 
   return {
     config,
@@ -1132,6 +1199,19 @@ export function registerWorshipRoutes(app, { wrap }) {
           done: Boolean(myLabTeam?.team?.done),
           phase: config.activity?.phase || 'IDLE',
           updates: myLabUpdates,
+          reactions: (() => {
+            const reactions = cleanLabReactions(config.labReactions);
+            const order = labPresentationOrder(config.activity, (config.teams?.teams || []).length);
+            const presenting = order[Number(config.activity?.presentIndex) || 0];
+            const voteKey = myLabTeam ? `${myLabTeam.index}:${req.authUser.id}` : '';
+            return {
+              open: String(config.activity?.phase || '').toUpperCase() === 'PRESENT',
+              presentingTeamIndex: presenting ?? null,
+              myVote: voteKey ? reactions.votes[voteKey] || null : null,
+              released: reactions.released,
+              counts: reactions.released ? aggregateLabReactionCloud(reactions.votes, true) : null,
+            };
+          })(),
         } : null,
         phasePrefs: config.phasePrefs || null,
         testimony: Array.isArray(config.testimony?.picks) ? config.testimony.picks : [],
@@ -1474,12 +1554,14 @@ export function registerWorshipRoutes(app, { wrap }) {
       const mine = labActor(config, req, req.body?.teamIndex);
       if (!mine) return res.status(403).json({ error: labDenied(req) });
 
+      const brief = creativeLabBrief(config);
+      const meaningKinds = Object.keys(labPhotoLimitsForBrief(brief)).filter((k) => k !== 'GROUP');
       const kind = String(req.body?.kind || '').toUpperCase();
-      if (!['POT', 'BAG', 'COMMIT', 'NOTE'].includes(kind)) {
+      if (!['COMMIT', 'NOTE', ...meaningKinds].includes(kind)) {
         return res.status(400).json({ error: 'Jenis update tidak dikenal.' });
       }
-      if (kind !== 'NOTE' && !mine.isRep) {
-        return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengubah makna, progress, dan komitmen.' });
+      if (!mine.isRep) {
+        return res.status(403).json({ error: 'Hanya perwakilan kelompok yang bisa mengisi Sesi 2 (makna, foto, komitmen).' });
       }
       const body = str(req.body?.body, 2000);
       const progressRaw = req.body?.progress;
@@ -1488,7 +1570,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         : Math.min(100, Math.max(0, Math.round(Number(progressRaw) || 0)));
       if (kind === 'COMMIT' && !body) return res.status(400).json({ error: 'Komitmen kelompok wajib diisi.' });
       if (kind === 'NOTE' && !body) return res.status(400).json({ error: 'Catatan tidak boleh kosong.' });
-      if ((kind === 'POT' || kind === 'BAG') && !body && progress == null) {
+      if (meaningKinds.includes(kind) && !body && progress == null) {
         return res.status(400).json({ error: 'Isi makna/progress karya dulu.' });
       }
 
@@ -1501,7 +1583,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           userId: req.authUser.id,
           kind,
           body: body || null,
-          progress: kind === 'POT' || kind === 'BAG' ? progress : null,
+          progress: meaningKinds.includes(kind) ? progress : null,
         },
       });
       res.status(201).json({ ok: true, update: labRowPublic(row, req.authUser.name || '') });
@@ -1541,10 +1623,7 @@ export function registerWorshipRoutes(app, { wrap }) {
 
       const rows = await labRows(prisma, live.id, mine.index);
       const brief = creativeLabBrief(config);
-      const quota = labPhotoQuota(rows, req.body?.kind, {
-        mediaA: brief.a2.stationA.media,
-        mediaB: brief.a2.stationB.media,
-      });
+      const quota = labPhotoQuota(rows, req.body?.kind, brief);
       if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
       const kind = quota.kind;
 
@@ -1635,10 +1714,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
       const rows = await labRows(prisma, live.id, teamIndex);
       const brief = creativeLabBrief(config);
-      const quota = labPhotoQuota(rows, req.body?.kind, {
-        mediaA: brief.a2.stationA.media,
-        mediaB: brief.a2.stationB.media,
-      });
+      const quota = labPhotoQuota(rows, req.body?.kind, brief);
       if (!quota.ok) return res.status(quota.status).json({ error: quota.error });
       const kind = quota.kind;
       const filename = String(req.body?.filename || '');
@@ -1807,6 +1883,59 @@ export function registerWorshipRoutes(app, { wrap }) {
     }),
   );
 
+  app.post(
+    '/api/worship/session/:slug/lab/reaction',
+    requireRole(),
+    wrap(async (req, res) => {
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
+      if (!canParticipate(req)) return res.status(403).json({ error: 'Sesi mentoring hanya untuk portal Pemuda.' });
+      const session = await prisma.worshipSession.findUnique({
+        where: { slug: String(req.params.slug || '') },
+        include: { pattern: { select: { code: true } } },
+      });
+      if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+      const timed = await ensureAutoState(prisma, session);
+      const live = await ensureAutoClosed(prisma, timed);
+      if (!['RUNNING', 'WRAPUP'].includes(live.status)) {
+        return res.status(409).json({ error: 'Reaksi hanya saat sesi berjalan.' });
+      }
+      if (String(session.pattern?.code || '').toUpperCase() !== 'CREATIVE_LAB') {
+        return res.status(400).json({ error: 'Fitur ini hanya untuk Creative Lab.' });
+      }
+      const config = normalizeConfig(live.config, session.pattern?.code);
+      const reactions = cleanLabReactions(config.labReactions);
+      if (reactions.released) {
+        return res.status(409).json({ error: 'Reaksi sudah dirilis — tidak bisa diubah.' });
+      }
+      if (String(config.activity?.phase || '').toUpperCase() !== 'PRESENT') {
+        return res.status(409).json({ error: 'Reaksi hanya saat presentasi kelompok.' });
+      }
+      const choice = String(req.body?.choice || '').toUpperCase();
+      if (!['SUKA', 'BIASA', 'KURANG'].includes(choice)) {
+        return res.status(400).json({ error: 'Pilih Suka, Biasa, atau Kurang.' });
+      }
+      const teams = Array.isArray(config.teams?.teams) ? config.teams.teams : [];
+      const order = labPresentationOrder(config.activity, teams.length);
+      const presenting = order[Number(config.activity?.presentIndex) || 0];
+      const teamIndex = Math.floor(Number(req.body?.teamIndex ?? presenting));
+      if (!Number.isInteger(teamIndex) || teamIndex < 0 || teamIndex >= teams.length) {
+        return res.status(400).json({ error: 'Kelompok presentasi tidak valid.' });
+      }
+      if (teamIndex !== presenting) {
+        return res.status(409).json({ error: 'Reaksi hanya untuk kelompok yang sedang presentasi.' });
+      }
+      const voteKey = `${teamIndex}:${req.authUser.id}`;
+      if (reactions.votes[voteKey]) {
+        return res.status(409).json({ error: 'Kamu sudah memberi reaksi untuk kelompok ini.' });
+      }
+      const nextVotes = { ...reactions.votes, [voteKey]: choice };
+      const nextConfig = { ...config, labReactions: { released: false, votes: nextVotes } };
+      await prisma.worshipSession.update({ where: { id: live.id }, data: { config: nextConfig } });
+      res.json({ ok: true, choice, teamIndex });
+    }),
+  );
+
   app.put(
     '/api/worship/sessions/:id/lab/ack',
     requireDivision('DIDASKALIA'),
@@ -1857,8 +1986,12 @@ export function registerWorshipRoutes(app, { wrap }) {
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
       const pcode = String(liveState.pattern?.code || session.pattern?.code || '').toUpperCase();
       const liveLabRows = pcode === 'CREATIVE_LAB' ? await labRows(prisma, liveState.id) : [];
+      const liveBrief = pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null;
       const liveLab = pcode === 'CREATIVE_LAB'
-        ? { ...labSummary(liveLabRows, agg.config.teams?.teams || [], agg.config.activity), updates: await labRowsWithNames(prisma, liveLabRows.slice(0, 80)) }
+        ? {
+          ...labSummary(liveLabRows, agg.config.teams?.teams || [], agg.config.activity, liveBrief),
+          updates: await labRowsWithNames(prisma, liveLabRows.slice(0, 80)),
+        }
         : null;
       res.json({
         session: {
@@ -2146,9 +2279,10 @@ export function registerWorshipRoutes(app, { wrap }) {
       const controlPcode = String(liveSession.pattern?.code || '').toUpperCase();
       const controlLabRows = controlPcode === 'CREATIVE_LAB' ? await labRows(prisma, liveSession.id) : [];
       const controlNamed = controlPcode === 'CREATIVE_LAB' ? await labRowsWithNames(prisma, controlLabRows) : [];
+      const controlBrief = controlPcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null;
       const controlLab = controlPcode === 'CREATIVE_LAB'
         ? {
-            ...stampLabUploaders(labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity), controlNamed),
+            ...stampLabUploaders(labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity, controlBrief), controlNamed),
             updates: controlNamed,
           }
         : null;
@@ -2554,13 +2688,16 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
       const b = req.body || {};
       const kind = String(b.kind || '').toUpperCase();
-      const cleanDraft = (raw) => {
+      const cleanDraft = (raw, patternCode = '') => {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        const isLab = String(patternCode || '').toUpperCase() === 'CREATIVE_LAB';
+        const secCap = isLab ? 30 : 20;
+        const fieldCap = isLab ? 160 : 30;
         const out = {};
-        for (const [sk, fv] of Object.entries(raw).slice(0, 20)) {
+        for (const [sk, fv] of Object.entries(raw).slice(0, secCap)) {
           if (!fv || typeof fv !== 'object' || Array.isArray(fv)) continue;
           out[String(sk).slice(0, 60)] = {};
-          for (const [fk, vv] of Object.entries(fv).slice(0, 30)) {
+          for (const [fk, vv] of Object.entries(fv).slice(0, fieldCap)) {
             out[String(sk).slice(0, 60)][String(fk).slice(0, 80)] = String(vv ?? '').slice(0, 2000);
           }
         }
@@ -2620,8 +2757,47 @@ export function registerWorshipRoutes(app, { wrap }) {
         include: { pattern: { select: { code: true } } },
       });
       const sessionPattern = String(full?.pattern?.code || kind || '').toUpperCase();
+      let storedDraft = cleanDraft(b.storedDraft, sessionPattern);
+      if (sessionPattern === 'CREATIVE_LAB' && storedDraft) {
+        const minutesCheck = validateCreativeLabMinutesForPublish(storedDraft);
+        if (!minutesCheck.ok && minutesCheck.severity === 'block') {
+          return res.status(422).json({
+            error: minutesCheck.message,
+            code: 'MINUTES_BLOCK',
+            minutes: minutesCheck,
+          });
+        }
+        if (!minutesCheck.ok && minutesCheck.severity === 'warn' && !b.acknowledgeMinutesWarn) {
+          return res.status(422).json({
+            error: minutesCheck.message,
+            code: 'MINUTES_WARN',
+            minutes: minutesCheck,
+          });
+        }
+        const reviewed = Array.isArray(b.aiReviewedKeys)
+          ? b.aiReviewedKeys.map((k) => String(k)).filter(Boolean)
+          : parseAiReviewedKeys(storedDraft);
+        const pending = listAiReviewPending(storedDraft, reviewed);
+        if (pending.length && !b.confirmAiReview) {
+          return res.status(422).json({
+            error: `${pending.length} field bertanda diisi AI belum direview — konfirmasi sebelum terbit.`,
+            code: 'AI_REVIEW',
+            pending,
+          });
+        }
+        if (pending.length && b.confirmAiReview) {
+          const merged = [...new Set([...reviewed, ...pending.map((p) => p.id)])];
+          storedDraft = {
+            ...storedDraft,
+            meta: {
+              ...(storedDraft.meta && typeof storedDraft.meta === 'object' ? storedDraft.meta : {}),
+              'ai-reviewed-keys': merged.join(','),
+            },
+          };
+        }
+      }
       const cfg = normalizeConfig(
-        { ...(session.config || {}), topics: [], affirmations: {}, draft: cleanDraft(b.storedDraft) },
+        { ...(session.config || {}), topics: [], affirmations: {}, draft: storedDraft },
         sessionPattern,
       );
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
@@ -2701,7 +2877,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       // bukan dari teks bebas group-n-*.
       let creativeLab = null;
       if (sessionPattern === 'CREATIVE_LAB') {
-        creativeLab = creativeLabFromDraft(b.storedDraft);
+        creativeLab = creativeLabFromDraft(storedDraft || b.storedDraft);
         try {
           const src = await loadCreativeLabGroupSource(prisma, session.eventId);
           const built = buildCreativeLabTeams(src.groups, { checkedInIds: src.checkedInIds });
@@ -3109,6 +3285,22 @@ export function registerWorshipRoutes(app, { wrap }) {
           out.song = cleaned;
         }
       }
+      if (b.labReactions !== undefined) {
+        const prev = cleanLabReactions(cfg.labReactions);
+        const incoming = b.labReactions && typeof b.labReactions === 'object' ? b.labReactions : {};
+        const released = incoming.released === true || incoming.released === 'true';
+        const votes = incoming.votes && typeof incoming.votes === 'object'
+          ? incoming.votes
+          : prev.votes;
+        const cleaned = cleanLabReactions({ released, votes });
+        cfg.labReactions = cleaned;
+        out.labReactions = cleaned;
+        if (released) cfg.labChipsOpen = true;
+      }
+      if (b.labChipsOpen !== undefined) {
+        cfg.labChipsOpen = Boolean(b.labChipsOpen);
+        out.labChipsOpen = cfg.labChipsOpen;
+      }
       if (!Object.keys(out).length) return res.status(400).json({ error: 'Tidak ada yang disimpan.' });
       await prisma.worshipSession.update({ where: { id: session.id }, data: { config: cfg } });
       res.json({ ok: true, ...out });
@@ -3132,8 +3324,8 @@ export function registerWorshipRoutes(app, { wrap }) {
       const config = normalizeConfig(session.config, session.pattern?.code);
       const rows = await labRows(prisma, session.id);
       const teams = Array.isArray(config.teams?.teams) ? config.teams.teams : [];
-      const summary = labSummary(rows, teams, config.activity);
       const brief = creativeLabBrief(config);
+      const summary = labSummary(rows, teams, config.activity, brief);
       const mediaA = brief.a2.stationA.media || 'Pot';
       const mediaB = brief.a2.stationB.media || 'Tas';
       const headers = [

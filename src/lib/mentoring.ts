@@ -147,6 +147,9 @@ export type SessionLabTeamSummary = {
   groupPhoto: SessionLabUpdate | null;
   photoCount: number;
   photoComplete: boolean;
+  progressPct?: number | null;
+  voteBackStatus?: string;
+  recapStatus?: string;
   lastUpdateAt: string | null;
   updateCount: number;
 };
@@ -154,8 +157,17 @@ export type SessionLabTeamSummary = {
 export type SessionLabSummary = {
   teams: SessionLabTeamSummary[];
   presentOrder: number[];
+  keyDirections?: string;
   updates?: SessionLabUpdate[];
 } | null;
+
+export type SessionLabReactions = {
+  open: boolean;
+  presentingTeamIndex: number | null;
+  myVote: string | null;
+  released: boolean;
+  counts: { code: string; label: string; count: number }[] | null;
+};
 
 /** POV peserta: hanya group sendiri. */
 export type SessionLabMine = {
@@ -167,6 +179,7 @@ export type SessionLabMine = {
   done: boolean;
   phase: string;
   updates: SessionLabUpdate[];
+  reactions?: SessionLabReactions;
   /** Pengurus sesi boleh mengerjakan kelompok mana pun tanpa jadi anggota. */
   asAdmin?: boolean;
   teamChoices?: { index: number; name: string }[];
@@ -206,6 +219,8 @@ export type SessionActivity = {
   presentSeconds: number;
   /** Urutan presentasi hasil undian (index tim). */
   presentOrder?: number[];
+  presentSkipped?: number[];
+  presentPostponed?: number[];
   presentDrawnAt?: string | null;
   durations?: { A1: number; A2: number; PRESENT: number };
 } | null;
