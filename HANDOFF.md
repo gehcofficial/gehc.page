@@ -1,20 +1,26 @@
 # GEHC Portal — Handoff
 
-## Current — Penutup Creative Lab + nama perwakilan (22 Okt 2026)
+## Current — Kedalaman Ringkasan Khotbah pekan 4 (22 Okt 2026)
 
-**Minta:** sesudah Lagu & Doa Penutup, salin pasca Monolog (Terima Kasih & Pengumuman sampai Acara Bebas & Pulang). Timer ikut. Nama perwakilan/pencatat tidak tampil di layar Firman & Briefing, hanya di Sesi 2. Cabang `cursor/lab-closing-names-d5fe` dari `main` (sudah rebased ke `18c97c7` + PR #22 CPU diet). Data sesi `sesi-2026-10-25-creative-lab` boleh di staging dan produksi.
+**Minta:** deck Ringkasan Khotbah Oktober 2026 pekan 4 terlalu pendek dibanding naskah sumber dan dibanding pekan 2–3. Parser harus memetakan detail MD ke outline yang dirender, tanpa AI mengarang isi inti. Re-parse aman di staging. Produksi: langkah Studio untuk owner, jangan republish. Cabang `cursor/khutbah-depth-d5fe` (rebase ke `main` `b396db5` setelah PR #23 lab).
 
 **Done:**
-- Pola CREATIVE_LAB: empat segmen pasca, menit/owner/catatan mengikuti Monolog. Total baku 160 menit (PRA 20 + jemaat 140). Timer sesi 8400 detik.
-- Staging dan produksi: pola + timer sesi itu sudah ditulis. Staging status WRAPUP, produksi DRAFT. Tidak ada sesi CREATIVE_LAB lain.
-- Layar proyektor: pengundian tetap di briefing. Nama pencatat dan perwakilan kelompok hanya saat fase A2.
-- Merge `main`: poll layar `visible-poll` + ETag tetap di `MentoringScreen` bersama `labDisplayShowsRepNames`.
+- Penyebab: `sermon.outline` produksi pekan 4 adalah parafrase satu kalimat (76 / 101 / 114 / 107 karakter). `sourceMd.service.outline` tetap naskah utuh (2646 / 4272 / 3010 / 1472). Parser PDF fixture tidak memotong. Snapshot rilis menyalin parafrase itu. Pekan 2 dan 3 tidak berubah karena outline khotbah sudah sama dengan sumber.
+- Deck, ringkasan publik, dan snapshot saat rilis memakai naskah sumber bila bagian tersimpan di bawah 400 karakter dan sumber sekurang-kurangnya dua kali lebih panjang. Suntingan yang sudah panjang tetap dipakai. Rapikan AI yang menyusutkan bagian menjadi satu kalimat dikembalikan ke sumber.
+- Tombol Konten **Pulihkan dari naskah sumber** menulis empat bagian itu dan tersimpan otomatis.
+- Deck produksi dari teks tersimpan: sebelum 5 slide (sampul + 1 per bagian), sesudah 40 slide (sampul + pengantar 9, bedah 15, jembatan 10, kesimpulan 5). Pekan 2 tetap 18 slide, pekan 3 tetap 43.
+- Staging `2026-10` pekan 4 (DRAFT, tanggal 2026-10-25): `sourceMd.service` dan `sermon.outline` diisi dari naskah sumber produksi, teks utama `1 Korintus 1:13`, kitab fokus `2 Timotius 1:3--18`. Status tidak diubah, snapshot rilis tidak ditulis. Produksi tidak ditulis.
+- Merge `main`: cache ringkasan/presentasi per host tetap; `saveStudioWeek` masih `bustPublicCache('ringkasan:')` dan `pres:` — outline literal ikut diisi sebelum cache diset.
 
-**Next:** merge PR setelah CI hijau. Jangan `staging:sync`.
+**Next:** setelah cabang ini di `main`, owner buka Studio Oktober 2026 pekan 4 → Konten → **Pulihkan dari naskah sumber** → Terbitkan → **Rilis ulang Ringkasan Khotbah**. Jangan `staging:sync`. Jangan republish dari agen.
 
-**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` · `npm run build` setelah merge.
+**Verifikasi:** `tsc --noEmit` (heap 4096) · `npm test` · `npm run build` setelah merge.
 
-**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/lab-closing-names-d5fe`
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/khutbah-depth-d5fe`
+
+## Prior — Penutup Creative Lab + nama perwakilan (22 Okt 2026, sudah di `main` PR #23 `b396db5`)
+
+**Done:** pola CREATIVE_LAB empat segmen pasca Monolog, total 160 menit, timer 8400 dtk; data sesi `sesi-2026-10-25-creative-lab` staging+produksi; pengundian di briefing, nama pencatat/perwakilan hanya fase A2; `MentoringScreen` memakai `visible-poll` + `labDisplayShowsRepNames`.
 
 ## Prior — Diet CPU Vercel Fluid (22 Okt 2026, sudah di `main` PR #22 `18c97c7`)
 
