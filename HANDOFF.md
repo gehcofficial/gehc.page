@@ -13,7 +13,7 @@
 
 **Next:** setelah cabang ini di `main`, owner buka Studio Oktober 2026 pekan 4 → Konten → **Pulihkan dari naskah sumber** → Terbitkan → **Rilis ulang Ringkasan Khotbah**. Sampai rilis ulang, halaman yang sudah memuat kode ini tetap menampilkan naskah sumber dan menandai rilis basi. Jangan `staging:sync`. Jangan republish dari agen.
 
-**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **168 file / 1340 tes** lulus. `npm run build` lulus. Layar presentasi tidak dibuka di browser.
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **168 file / 1340 tes** lulus. `npm run build` lulus. Layar staging `#/materi/khutbah/2026-10/4` menampilkan 1/40, draf belum rilis, dan slide 2 memuat subpoin “a. Masalahnya…” serta nama Riedel.
 
 **Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · `npm run build` · branch `cursor/khutbah-depth-d5fe`
 
