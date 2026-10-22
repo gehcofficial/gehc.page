@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
 import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
+import { labPresentationOrder } from '../../lib/creative-lab-draft';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -572,7 +573,7 @@ type LabTeamRow = {
 };
 
 type LabActivity = {
-  phase: 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  phase: 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
   startedAt: string | null;
   durationSec: number;
   showOnScreen: boolean;
@@ -582,6 +583,8 @@ type LabActivity = {
   presentStartedAt: string | null;
   presentSeconds: number;
   presentOrder: number[];
+  presentSkipped: number[];
+  presentPostponed: number[];
   presentDrawnAt: string | null;
   durations: { A1: number; A2: number; PRESENT: number };
 };
@@ -653,6 +656,8 @@ const labDefaultActivity = (): LabActivity => ({
   presentStartedAt: null,
   presentSeconds: 150,
   presentOrder: [],
+  presentSkipped: [],
+  presentPostponed: [],
   presentDrawnAt: null,
   durations: { A1: 900, A2: 1500, PRESENT: 150 },
 });
@@ -704,7 +709,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const a = cfg.activity && typeof cfg.activity === 'object' ? cfg.activity : {};
       const dur = a.durations && typeof a.durations === 'object' ? a.durations : {};
       setActivity({
-        phase: ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'].includes(String(a.phase || '').toUpperCase())
+        phase: ['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'].includes(String(a.phase || '').toUpperCase())
           ? String(a.phase).toUpperCase() as LabActivity['phase']
           : 'IDLE',
         startedAt: a.startedAt || null,
@@ -716,6 +721,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         presentStartedAt: a.presentStartedAt || null,
         presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 150,
         presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
+        presentSkipped: Array.isArray(a.presentSkipped) ? a.presentSkipped.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
+        presentPostponed: Array.isArray(a.presentPostponed) ? a.presentPostponed.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
         presentDrawnAt: a.presentDrawnAt || null,
         durations: {
           A1: Number(dur.A1) || 900,
@@ -775,14 +782,10 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const namedTeamCount = presentableIndexes.length;
   const presentationOrder = useMemo(() => {
     const allowed = new Set(presentableIndexes);
-    const out: number[] = [];
-    for (const n of activity.presentOrder) {
-      const i = Number(n);
-      if (allowed.has(i) && !out.includes(i)) out.push(i);
-    }
-    for (const i of presentableIndexes) if (!out.includes(i)) out.push(i);
-    return out;
-  }, [activity.presentOrder, presentableIndexes]);
+    return labPresentationOrder(activity, teams.length).filter((i) => allowed.has(i));
+  }, [activity, presentableIndexes, teams.length]);
+  const skippedSet = useMemo(() => new Set(activity.presentSkipped), [activity.presentSkipped]);
+  const postponedSet = useMemo(() => new Set(activity.presentPostponed), [activity.presentPostponed]);
   const currentTeamIndex = presentationOrder[activity.presentIndex] ?? activity.presentIndex;
 
   const selectRep = (teamIndex: number, userId: string) => {
@@ -848,6 +851,43 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
     void pushActivity({ presentOrder: next, presentDrawnAt: new Date().toISOString() }, 'Urutan presentasi disesuaikan manual.');
+  };
+
+  const skipAtPos = (pos: number) => {
+    const teamIndex = presentationOrder[pos];
+    if (teamIndex == null) return;
+    const presentSkipped = [...new Set([...activity.presentSkipped, teamIndex])];
+    const presentPostponed = activity.presentPostponed.filter((i) => i !== teamIndex);
+    void pushActivity({ presentSkipped, presentPostponed }, 'Kelompok dilewati (tidak presentasi).');
+  };
+
+  const postponeAtPos = (pos: number) => {
+    const teamIndex = presentationOrder[pos];
+    if (teamIndex == null) return;
+    const presentPostponed = [...new Set([...activity.presentPostponed, teamIndex])];
+    const presentOrder = activity.presentOrder.filter((i) => i !== teamIndex);
+    void pushActivity({ presentPostponed, presentOrder }, 'Kelompok ditunda — masuk antrian belakang.');
+  };
+
+  const reenterPostponed = (teamIndex: number) => {
+    const presentPostponed = activity.presentPostponed.filter((i) => i !== teamIndex);
+    const presentOrder = [...activity.presentOrder.filter((i) => i !== teamIndex), teamIndex];
+    void pushActivity({ presentPostponed, presentOrder }, 'Kelompok ditunda kembali masuk antrian.');
+  };
+
+  const releaseLabReactions = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const cfg = await fetchStage(sessionId);
+      const votes = cfg.labReactions?.votes && typeof cfg.labReactions.votes === 'object' ? cfg.labReactions.votes : {};
+      await saveStage(sessionId, { labReactions: { released: true, votes }, labChipsOpen: true });
+      setMsg('Reaksi presentasi dirilis — word cloud & chip Satu Kata terbuka.');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal merilis reaksi.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveTeams = async () => {
@@ -957,9 +997,23 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     void pushActivity({ startedAt: null, presentStartedAt: null }, 'Timer dihentikan (transisi manual).');
   };
 
+  const startDraw = () => {
+    void pushActivity(
+      { phase: 'DRAW', startedAt: new Date().toISOString(), durationSec: 300, presentStartedAt: null },
+      'Undian — tampilkan nomor grup di layar.',
+    );
+  };
+
+  const startBriefing = () => {
+    void pushActivity(
+      { phase: 'IDLE', startedAt: new Date().toISOString(), durationSec: 900, presentStartedAt: null },
+      'Firman & Briefing 15 menit — 10 menit judul firman, 5 menit panggil perwakilan.',
+    );
+  };
+
   const resetStage = () => {
     void pushActivity(
-      { phase: 'IDLE', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
+      { phase: 'DRAW', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
       'Timer & panggung direset.',
     );
   };
@@ -1057,6 +1111,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-end">
+              <button type="button" disabled={busy} onClick={startDraw} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Undian</button>
+              <button type="button" disabled={busy} onClick={startBriefing} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Briefing</button>
               <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
               <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
               <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
@@ -1096,18 +1152,36 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
             </div>
             <div className="mt-2 space-y-1">
               {presentationOrder.map((teamIndex, pos) => (
-                <div key={`${teamIndex}-${pos}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${pos === activity.presentIndex && activity.phase === 'PRESENT' ? 'bg-brand/10 border border-brand/30' : 'bg-[#FAF9F5]'}`}>
+                <div key={`${teamIndex}-${pos}`} className={`flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 ${pos === activity.presentIndex && activity.phase === 'PRESENT' ? 'bg-brand/10 border border-brand/30' : 'bg-[#FAF9F5]'}`}>
                   <span className="w-5 h-5 rounded-full bg-white border border-[#D9D7D0] text-[10px] font-black grid place-items-center">{pos + 1}</span>
                   <span className="text-xs font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
                   {teams[teamIndex]?.repName && <span className="text-[10px] text-[#8C8880] truncate">· {teams[teamIndex].repName}</span>}
-                  <span className="ml-auto flex gap-1">
+                  {postponedSet.has(teamIndex) && <span className="text-[9px] font-black uppercase text-amber-700">ditunda</span>}
+                  {skippedSet.has(teamIndex) && <span className="text-[9px] font-black uppercase text-red-600">skip</span>}
+                  <span className="ml-auto flex gap-0.5">
                     <button type="button" disabled={busy || pos === 0} onClick={() => moveOrder(pos, -1)} className="p-1 disabled:opacity-30" title="Naik"><ChevronLeft className="w-3.5 h-3.5 rotate-90" /></button>
                     <button type="button" disabled={busy || pos === presentationOrder.length - 1} onClick={() => moveOrder(pos, 1)} className="p-1 disabled:opacity-30" title="Turun"><ChevronRight className="w-3.5 h-3.5 rotate-90" /></button>
+                    <button type="button" disabled={busy} onClick={() => postponeAtPos(pos)} className="px-1.5 py-0.5 text-[9px] font-bold rounded border border-amber-300 text-amber-800 disabled:opacity-30" title="Tunda ke belakang">Tunda</button>
+                    <button type="button" disabled={busy} onClick={() => skipAtPos(pos)} className="px-1.5 py-0.5 text-[9px] font-bold rounded border border-red-200 text-red-700 disabled:opacity-30" title="Lewati presentasi">Skip</button>
                   </span>
                 </div>
               ))}
+              {activity.presentPostponed.filter((i) => !presentationOrder.includes(i)).map((teamIndex) => (
+                <div key={`post-${teamIndex}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-amber-50 border border-amber-200">
+                  <span className="text-xs font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
+                  <span className="text-[9px] font-black uppercase text-amber-800">ditunda (luar antrian)</span>
+                  <button type="button" disabled={busy} onClick={() => reenterPostponed(teamIndex)} className="ml-auto px-2 py-0.5 text-[9px] font-bold rounded bg-amber-600 text-white disabled:opacity-30">
+                    Masuk lagi
+                  </button>
+                </div>
+              ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-[#8C8880]">Undian dilakukan di kontrol; peserta & layar mengikuti urutan ini. Jika kelompok berubah, undi ulang.</p>
+            <p className="mt-1.5 text-[10px] text-[#8C8880]">Undian dilakukan di kontrol; peserta & layar mengikuti urutan ini. Tunda = ke belakang antrian; Skip = tidak presentasi.</p>
+            {(activity.phase === 'DONE' || activity.phase === 'PRESENT') && (
+              <button type="button" disabled={busy} onClick={() => void releaseLabReactions()} className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60">
+                Rilis reaksi presentasi → word cloud
+              </button>
+            )}
           </div>
 
           <div className="mt-3 rounded-xl border border-[#EFEDE8] p-3">

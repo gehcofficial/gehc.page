@@ -1,3 +1,5 @@
+import { parseCreativeLabDraft } from './creative-lab-draft.mjs';
+
 /**
  * Status panggung sesi (modul rounds / screening / teams / fgd / song) — validasi murni.
  * Disimpan di config sesi — tanpa migrasi skema.
@@ -342,7 +344,8 @@ export function cleanTeams(raw, opts = {}) {
 }
 
 /** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
-export const ACTIVITY_PHASES = ['IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
+export const ACTIVITY_PHASES = ['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
+export const LAB_PRESENT_SLIDE_MAX = 7;
 
 /** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi ~2,5'/kelompok. */
 export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 150, DONE: 0 };
@@ -370,6 +373,12 @@ export function cleanActivity(raw) {
     .map((n) => Math.floor(Number(n)))
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
     .slice(0, LAB_MAX_TEAMS);
+  const idxFilter = (arr) => [...new Set((Array.isArray(arr) ? arr : [])
+    .map((n) => Math.floor(Number(n)))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
+    .slice(0, LAB_MAX_TEAMS);
+  const presentSkipped = idxFilter(raw.presentSkipped);
+  const presentPostponed = idxFilter(raw.presentPostponed);
   return {
     phase,
     startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
@@ -378,10 +387,12 @@ export function cleanActivity(raw) {
     cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
     presentIndex: Math.min(LAB_PRESENT_INDEX_MAX, Math.max(0, Number(raw.presentIndex) || 0)),
     // 0 Pot, 1 Tas, 2 foto bersama. Sesi lama tanpa field ini mulai di slide Pot.
-    presentSlide: Math.min(2, Math.max(0, Math.floor(Number(raw.presentSlide) || 0))),
+    presentSlide: Math.min(LAB_PRESENT_SLIDE_MAX, Math.max(0, Math.floor(Number(raw.presentSlide) || 0))),
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
     presentOrder,
+    presentSkipped,
+    presentPostponed,
     presentDrawnAt: raw.presentDrawnAt ? String(raw.presentDrawnAt).slice(0, 30) : null,
     durations: {
       A1: durationFor('A1', ACTIVITY_PHASE_SECONDS.A1),
@@ -428,14 +439,15 @@ export function creativeLabFromDraft(storedDraft) {
       memberUserIds: [],
     });
   }
-  const a1 = d['activity-1'] && typeof d['activity-1'] === 'object' ? d['activity-1'] : {};
-  const a2 = d['activity-2'] && typeof d['activity-2'] === 'object' ? d['activity-2'] : {};
+  const parsed = parseCreativeLabDraft(d);
+  const a1m = parsed.activities[0]?.minutes || 15;
+  const a2m = parsed.activities[1]?.minutes || 25;
   const present = d.present && typeof d.present === 'object' ? d.present : {};
   const minutes = (v, fallback) => {
     const n = Number(String(v ?? '').replace(/[^\d.]/g, ''));
     return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
   };
-  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], ACTIVITY_PHASE_SECONDS.PRESENT)));
+  const presentSeconds = Math.min(600, Math.max(30, minutes(present['present-seconds'], parsed.present?.seconds || ACTIVITY_PHASE_SECONDS.PRESENT)));
   return {
     teams: teams.length ? { teams } : null,
     activity: cleanActivity({
@@ -449,8 +461,8 @@ export function creativeLabFromDraft(storedDraft) {
       presentSeconds,
       // Slot durasi hasil draf (dipakai kontrol saat memulai tiap fase).
       durations: {
-        A1: Math.min(7200, Math.max(60, minutes(a1['a1-minutes'], 15) * 60)),
-        A2: Math.min(7200, Math.max(60, minutes(a2['a2-minutes'], 25) * 60)),
+        A1: Math.min(7200, Math.max(60, a1m * 60)),
+        A2: Math.min(7200, Math.max(60, a2m * 60)),
         PRESENT: presentSeconds,
       },
     }),

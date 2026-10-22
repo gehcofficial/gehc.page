@@ -69,9 +69,9 @@ describe('session-engine: registry segmen', () => {
 
   it('CREATIVE_LAB: segmen mengikuti fase A1 → A2 → PRESENT → DONE', () => {
     expect(PATTERN_SEGMENTS.CREATIVE_LAB.map((s) => s.id)).toEqual([
-      'pembuka', 'briefing', 'aktivitas-1', 'aktivitas-2', 'presentasi', 'refleksi', 'penutup',
+      'briefing', 'aktivitas-1', 'aktivitas-2', 'presentasi', 'refleksi', 'penutup',
     ]);
-    expect(segmentForPattern('CREATIVE_LAB', 'DRAFT', false)).toBe('pembuka');
+    expect(segmentForPattern('CREATIVE_LAB', 'DRAFT', false)).toBe('briefing');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'IDLE' })).toBe('briefing');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A1' })).toBe('aktivitas-1');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A2' })).toBe('aktivitas-2');

@@ -63,22 +63,18 @@ describe('session-draft: template kosongan 6 pola', () => {
     expect(keys.filter((k) => k.startsWith('likert-film-'))).toHaveLength(5);
   });
 
-  it('CREATIVE_LAB: 6 kartu jar + durasi fase, tanpa field kelompok bebas', () => {
+  it('CREATIVE_LAB: template bebas aktivitas + firman, tanpa chip grup', () => {
     const keys = templateFieldKeys('CREATIVE_LAB').map((f) => f.key);
-    for (const k of ['jar-root', 'jar-truth', 'jar-lost', 'jar-community', 'jar-verse', 'jar-step']) {
-      expect(keys).toContain(k);
-    }
-    expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(0);
+    expect(keys).toContain('firman-judul');
+    expect(keys).toContain('activity-count');
+    expect(keys).toContain('a1-title');
     expect(keys).toContain('a1-minutes');
-    expect(keys).toContain('a2-minutes');
-    expect(keys).toContain('a2-pot-meaning');
-    expect(keys).toContain('a2-bag-meaning');
-    expect(keys).toContain('a2-report');
-    expect(keys).toContain('a1-subtitle');
-    expect(keys).toContain('a2-a-media');
-    expect(keys).toContain('a2-b-theme');
+    expect(keys).toContain('a1-item-1-judul');
+    expect(keys).toContain('a2-title');
     expect(keys).toContain('present-seconds');
-    expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(10);
+    expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(0);
+    expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(0);
+    expect(keys.filter((k) => k.startsWith('jar-'))).toHaveLength(0);
   });
 
   it('kosongan penuh → filled 0', () => {
@@ -485,9 +481,9 @@ describe('session-draft: AI proposal', () => {
     });
     const prompt = capturedPrompts.list.join('\n');
     expect(prompt).toContain('ATURAN CREATIVE LAB');
-    expect(prompt).toContain('jar-root');
-    expect(prompt).toContain('a2-pot');
-    expect(prompt).toContain('a2-bag');
+    expect(prompt).toContain('firman-judul');
+    expect(prompt).toContain('a1-item-1-judul');
+    expect(prompt).toContain('a2-title');
     expect(prompt).toContain('Agape');
     expect(prompt).toContain('Shalom');
     expect(prompt).toContain('Jangan mengarang kelompok ke-11');

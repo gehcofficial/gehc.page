@@ -189,18 +189,15 @@ describe('worship-patterns: patternBlock semua pola', () => {
     expect(lines).toContain('bukan di Konklusi');
   });
 
-  it('CREATIVE_LAB memakai 6 kartu jar + stasiun paralel', () => {
+  it('CREATIVE_LAB playbook generik (tanpa narasi RUACH)', () => {
     const lines = patternBlock({ code: 'CREATIVE_LAB', name: 'Creative Lab', phases: [], playbook: 'x' }).join('\n');
-    expect(lines).toContain('Reminder Jar');
-    expect(lines).toContain('Art Stations');
-    expect(lines).toContain('A Root I Carry');
-    expect(lines).toContain('My Next Faith Step');
-    expect(lines).toContain('Grow What You Believe');
-    expect(lines).toContain('Carry the Gospel');
+    expect(lines).toContain('template bebas aktivitas');
+    expect(lines).toContain('10 rumah Beyonders');
+    expect(lines).toContain('Suka/Biasa/Kurang');
+    expect(lines).not.toContain('Reminder Jar');
+    expect(lines).not.toContain('Ruach');
+    expect(lines).not.toContain('Grow What You Believe');
     expect(lines).toContain('perwakilan');
-    expect(lines).toContain('Agape');
-    expect(lines).toContain('20');
-    expect(lines).toContain('150');
   });
 
   it('phase notes + division ikut ke prompt AI', () => {

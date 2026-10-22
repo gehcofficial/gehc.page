@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, buildJointMissionTeams, matchJointTeam, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS, LAB_STATION_CAP, SEQUENCE_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
 import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, LAB_PHOTO_LIMIT, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
+import {
+  aggregateLabReactionCloud,
+  listAiReviewPending,
+  validateCreativeLabMinutesForPublish,
+} from '../../server/lib/creative-lab-draft.mjs';
 import { LAB_STATION_CAP as CLIENT_STATION_CAP } from '../../src/lib/mentoring';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../../server/lib/lab-drive.mjs';
 import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
@@ -45,7 +50,7 @@ describe('creative-lab: cleanActivity', () => {
     expect(cleanActivity({ presentIndex: 12 }).presentIndex).toBe(9);
     expect(cleanActivity({}).presentSlide).toBe(0);
     expect(cleanActivity({ presentSlide: 1 }).presentSlide).toBe(1);
-    expect(cleanActivity({ presentSlide: 9 }).presentSlide).toBe(2);
+    expect(cleanActivity({ presentSlide: 9 }).presentSlide).toBe(7);
   });
 
   it('cleanTeams default tetap 8; Creative Lab boleh 10', () => {
@@ -160,67 +165,55 @@ describe('creative-lab: materialisasi draft', () => {
 });
 
 describe('creative-lab: payload peserta & layar', () => {
-  it('jarCards memakai draft lalu fallback generik', () => {
-    const custom = jarCards({ draft: { jar: { 'jar-root': 'Akar keluarga GMIM' } } });
-    expect(custom).toHaveLength(6);
-    expect(custom[0]).toMatchObject({ key: 'root', code: 'JAR-ROOT', title: 'A Root I Carry', direction: 'Akar keluarga GMIM' });
-    expect(custom[1].direction).toContain('Kebenaran tentang Kristus');
-    expect(jarCards({})[0].direction.length).toBeGreaterThan(10);
+  it('jarCards dari item aktivitas 1 atau legacy jar', () => {
+    const custom = jarCards({
+      draft: {
+        'activity-1': {
+          'a1-item-1-judul': 'A Root I Carry',
+          'a1-item-1-konteks': 'Akar keluarga GMIM',
+          'a1-item-1-pertanyaan': 'Apa akar imanmu?',
+        },
+      },
+    });
+    expect(custom).toHaveLength(1);
+    expect(custom[0]).toMatchObject({ code: 'JAR-1', title: 'A Root I Carry' });
+    expect(custom[0].direction).toContain('Akar keluarga GMIM');
+    const legacy = jarCards({ draft: { jar: { 'jar-root': 'Akar lama' } } });
+    expect(legacy[0]).toMatchObject({ code: 'JAR-ROOT', direction: 'Akar lama' });
+    expect(jarCards({})[0].code).toBe('JAR-1');
   });
 
-  it('creativeLabBrief membawa isi draft + fallback', () => {
+  it('creativeLabBrief membawa isi draft tanpa fallback RUACH', () => {
     const brief = creativeLabBrief({
       draft: {
+        firman: { 'firman-judul': 'Our Roots' },
         briefing: { 'brief-core': 'Inti firman' },
         'activity-1': { 'a1-title': 'Jar', 'a1-minutes': '18' },
-        'activity-2': { 'a2-pot': 'Arah pot', 'a2-bag': 'Arah tas', 'a2-minutes': '28' },
+        'activity-2': { 'a2-title': 'Art', 'a2-pot': 'Arah pot', 'a2-bag': 'Arah tas', 'a2-minutes': '28' },
         present: { 'present-seconds': '150' },
         closing: { 'closing-script': 'Konklusi firman' },
       },
     });
+    expect(brief.firmanTitle).toBe('Our Roots');
     expect(brief.briefing.core).toBe('Inti firman');
-    expect(brief.briefing.scribe).toContain('pencatat');
-    expect(brief.briefing.draw).toContain('pengundian');
+    expect(brief.briefing.scribe).toMatch(/perwakilan/i);
     expect(brief.a1).toMatchObject({ title: 'Jar', minutes: 18 });
     expect(brief.a2).toMatchObject({ pot: 'Arah pot', bag: 'Arah tas', minutes: 28 });
-    expect(brief.a2.potMeaning).toContain('Pot melambangkan tempat benih iman bertumbuh');
-    expect(brief.a2.bagMeaning).toContain('Tas kanvas menjadi simbol kehidupan pemuda perantauan');
-    expect(brief.a2.report).toBe('Perwakilan setiap kelompok maju melapor kepada Admin.');
     expect(brief.present.seconds).toBe(150);
     expect(brief.closing.script).toBe('Konklusi firman');
     const empty = creativeLabBrief({});
-    expect(empty.a1.title).toBe('Reminder Jar');
-    expect(empty.a1.subtitle).toBe('Roots');
-    expect(empty.a2.title).toBe('Art Stations');
-    expect(empty.a2.stationA).toEqual({ media: 'Pot', theme: 'Grow What You Believe' });
-    expect(empty.a2.stationB).toEqual({ media: 'Tas', theme: 'Carry the Gospel' });
+    expect(empty.a1.title).toBe('Sesi 1');
+    expect(empty.a2.title).toBe('Sesi 2');
+    expect(empty.a2.stationA.media).toBe('Stasiun A');
     expect(empty.present.seconds).toBe(150);
-    const legacy = creativeLabBrief({
-      draft: {
-        'activity-1': { 'a1-title': 'The Roots Reminder Jar' },
-        'activity-2': { 'a2-title': 'Roots & DNA Creative Lab' },
-        present: { 'present-seconds': '120' },
-      },
-    });
-    expect(legacy.a1.title).toBe('Reminder Jar');
-    expect(legacy.a2.title).toBe('Art Stations');
-    expect(legacy.present.seconds).toBe(120);
   });
 
-  it('allowedNoteCodes menerima 6 kartu jar dari draft', () => {
+  it('allowedNoteCodes tetap membuka KOMITMEN', () => {
     const allowed = allowedNoteCodes({
       topics: [],
-      draft: {
-        jar: {
-          'jar-root': 'Akar', 'jar-truth': 'Kebenaran', 'jar-lost': 'Saat hilang',
-          'jar-community': 'Komunitas', 'jar-verse': 'Ayat', 'jar-step': 'Langkah',
-        },
-        groups: DRAFT.groups,
-      },
+      draft: { 'activity-1': { 'a1-item-1-judul': 'Q1' } },
     });
-    for (const k of ['JAR-ROOT', 'JAR-TRUTH', 'JAR-LOST', 'JAR-COMMUNITY', 'JAR-VERSE', 'JAR-STEP', 'KOMITMEN', 'GROUP-1-NAME']) {
-      expect(allowed.has(k)).toBe(true);
-    }
+    expect(allowed.has('KOMITMEN')).toBe(true);
   });
 
   it('findLabTeam mengenali perwakilan & anggota; urutan presentasi melengkapi tim baru', () => {
@@ -257,6 +250,43 @@ describe('creative-lab: payload peserta & layar', () => {
       photoComplete: true,
     });
     expect(summary.teams[0].pot.photos).toHaveLength(1);
+  });
+
+  it('labPresentationOrder menghormati skip dan menunda ke belakang', () => {
+    const activity = {
+      presentOrder: [2, 0, 1],
+      presentSkipped: [1],
+      presentPostponed: [0],
+    };
+    expect(labPresentationOrder(activity, 4)).toEqual([2, 0, 3]);
+  });
+
+  it('validateCreativeLabMinutesForPublish memblokir lewat slot jemaat/pola', () => {
+    const heavy = {
+      'activity-1': { 'a1-minutes': '50' },
+      'activity-2': { 'a2-minutes': '50' },
+      'activity-3': { 'a3-minutes': '50' },
+      'activity-4': { 'a4-minutes': '20' },
+    };
+    const block = validateCreativeLabMinutesForPublish(heavy);
+    expect(block.ok).toBe(false);
+    expect(block.severity).toBe('block');
+  });
+
+  it('listAiReviewPending menemukan field diisi AI yang belum direview', () => {
+    const draft = {
+      firman: { 'firman-title': 'Judul', 'firman-title-ai': '1' },
+    };
+    const pending = listAiReviewPending(draft, []);
+    expect(pending).toHaveLength(1);
+    expect(pending[0].fieldKey).toBe('firman-title');
+  });
+
+  it('aggregateLabReactionCloud hanya saat dirilis', () => {
+    const votes = { '0:u1': 'SUKA', '0:u2': 'BIASA' };
+    expect(aggregateLabReactionCloud(votes, false)).toEqual([]);
+    const out = aggregateLabReactionCloud(votes, true);
+    expect(out.find((x) => x.code === 'SUKA')?.count).toBe(1);
   });
 });
 

@@ -242,101 +242,104 @@ const THREE_SEQUENCES_TEMPLATE: DraftSection[] = [
   },
 ];
 
-/**
- * Creative Lab (Serving Day): 120' jemaat — Firman & Briefing 15', Sesi 1
- * Reminder Jar 15', Sesi 2 Art Stations 25', Presentasi Kelompok 30'
- * (~2,5'/kelompok + transisi), Konklusi 10', Persembahan & Doa 10',
- * Lagu & Doa Penutup 5'. PRA 20' terpisah. Total 140'.
- * Nama aktivitas generik; tema pekan di subjudul / nama media stasiun.
- */
-const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
-  {
-    key: 'briefing',
-    title: 'Firman & Briefing',
-    hint: 'Firman 15 menit. Briefing mengumumkan pengundian di layar. Nama pencatat tampil hanya di Sesi 2 dan bisa diubah dari panel kontrol.',
+const CREATIVE_LAB_ACTIVITY_SLOTS = 4;
+
+function creativeLabActivitySection(n: number): DraftSection {
+  const p = `a${n}`;
+  const itemFields: DraftField[] = [];
+  for (let i = 1; i <= 6; i += 1) {
+    itemFields.push(
+      t(`${p}-item-${i}-judul`, `Item ${i} — judul`, 'text', n === 1 ? 'Judul kartu (English boleh)' : 'Judul stasiun / karya'),
+      t(`${p}-item-${i}-konteks`, `Item ${i} — konteks`, 'textarea', 'Arahan singkat untuk peserta …'),
+      t(`${p}-item-${i}-pertanyaan`, `Item ${i} — pertanyaan`, 'textarea', 'Pertanyaan refleksi …'),
+      t(`${p}-item-${i}-contoh`, `Item ${i} — contoh (opsional)`, 'textarea', 'Contoh jawaban …'),
+      t(`${p}-item-${i}-ai`, `Item ${i} — diisi AI (1/true)`, 'text', ''),
+    );
+  }
+  const stationFields: DraftField[] = n >= 2
+    ? [
+      t(`${p}-station-media`, 'Nama media / stasiun A', 'text', ''),
+      t(`${p}-station-theme`, 'Judul tema stasiun A', 'text', ''),
+      ...(n === 2
+        ? [
+          t('a2-b-media', 'Nama media stasiun B', 'text', ''),
+          t('a2-b-theme', 'Judul tema stasiun B', 'text', ''),
+        ]
+        : []),
+    ]
+    : [];
+  return {
+    key: `activity-${n}`,
+    title: `Aktivitas ${n}`,
+    hint: n === 1
+      ? 'Sesi kertas + web: 6 pertanyaan di layar; tiap orang tulis di kertas, pilih 2 untuk diisi digital. Wajib judul aktivitas + menit.'
+      : 'Sesi karya: perwakilan mengunggah makna & foto (kuota mengikuti jumlah aktivitas seni). Field bertanda diisi AI harus direview sebelum terbit.',
     fields: [
-      t('brief-core', 'Inti khotbah', 'textarea', 'Firman pekan ... → tema ... → panggilan ...'),
-      t('brief-scribe', 'Pengumuman pencatat', 'textarea', 'Umumkan perwakilan pencatat tiap kelompok.'),
-      t('brief-draw', 'Pengumuman pengundian', 'textarea', 'Umumkan pengundian urutan presentasi kelompok.'),
-      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '10 kelompok Beyonders, 5-8 orang; bahan sudah ada sejak kedatangan; semua menulis 6 kartu, pilih 2 untuk web (paralel); perwakilan melapor ke Admin; dua stasiun seni paralel; presentasi ~2,5 menit × 10 kelompok (blok 30 menit termasuk transisi).'),
-      t('jar-intro', 'Pengantar Reminder Jar', 'textarea', 'Jar berisi pesan semua anggota; dibawa pulang dan dibuka saat butuh penguatan.'),
+      t(`${p}-title`, 'Judul aktivitas *', 'text', n === 1 ? 'Aktivitas 1' : `Aktivitas ${n}`),
+      t(`${p}-minutes`, 'Durasi (menit) *', 'number', n === 1 ? '15' : '25'),
+      t(`${p}-konteks`, 'Konteks / tujuan', 'textarea', ''),
+      t(`${p}-pertanyaan`, 'Pertanyaan / langkah', 'textarea', ''),
+      t(`${p}-contoh`, 'Contoh (opsional)', 'textarea', ''),
+      ...stationFields,
+      ...itemFields,
     ],
-  },
-  {
-    key: 'jar',
-    title: 'Enam kartu jar (judul English, arahan Indonesia)',
-    hint: 'Tiap orang menulis 6 kartu. Arahan & contoh wajib menyebut tema/firman pekan ini, bukan generik.',
-    fields: [
-      t('jar-root', '1. A Root I Carry', 'textarea', 'Nilai iman/tradisi baik dari keluarga atau GMIM yang ingin terus dibawa.'),
-      t('jar-truth', '2. A Truth I Need to Remember', 'textarea', 'Kebenaran tentang Kristus/Injil yang ingin diingat saat masa sulit.'),
-      t('jar-lost', '3. When I Feel Lost', 'textarea', 'Pesan penguatan untuk diri sendiri saat jauh dari Tuhan/kesepian.'),
-      t('jar-community', '4. A Word for My Community', 'textarea', 'Pesan positif untuk anggota kelompok sebagai saudara seiman.'),
-      t('jar-verse', '5. A Verse to Hold Onto', 'textarea', 'Satu ayat + referensi yang ingin dipegang sepanjang perjalanan iman.'),
-      t('jar-step', '6. My Next Faith Step', 'textarea', 'Satu tindakan nyata menghidupi Injil dalam minggu-minggu mendatang.'),
-    ],
-  },
-  {
-    key: 'activity-1',
-    title: 'Sesi 1 · Reminder Jar (15 menit)',
-    hint: 'Setiap peserta menulis 6 kartu di kertas, lalu memilih 2 pertanyaan untuk diisi lewat web (2 slot, paralel). Subjudul boleh diganti per pekan.',
-    fields: [
-      t('a1-title', 'Nama aktivitas', 'text', 'Reminder Jar'),
-      t('a1-subtitle', 'Subjudul tema (boleh diubah)', 'text', 'Roots'),
-      t('a1-goal', 'Tujuan', 'textarea', 'Setiap kelompok membuat satu jar berisi pesan semua anggotanya ...'),
-      t('a1-tools', 'Alat & bahan', 'textarea', 'Jar/toples 1 liter (muat 30-48 kertas), 6 set kertas kecil, pulpen/spidol.'),
-      t('a1-steps', 'Langkah (1-2-3)', 'textarea', 'Bahan sudah dibagikan ke mentor/co-mentor saat kedatangan. 1) Tulis semua 6 kartu di kertas. 2) Lipat dan masukkan jar. 3) Pilih 2 pertanyaan di web dan isi jawabannya.'),
-      t('a1-output', 'Output kelompok', 'text', 'Satu jar berisi 30-48 kartu + 2 jawaban web per peserta.'),
-      t('a1-minutes', 'Durasi (menit)', 'number', '15'),
-    ],
-  },
-  {
-    key: 'activity-2',
-    title: 'Sesi 2 · Art Stations (25 menit, dua stasiun paralel)',
-    hint: 'Satu blok 25 menit: 20 menit melukis Stasiun A ∥ Stasiun B, lalu 5 menit unggah foto dan makna (paralel, bukan baris rundown terpisah). Nama media dan judul tema boleh diganti per pekan.',
-    fields: [
-      t('a2-title', 'Nama aktivitas', 'text', 'Art Stations'),
-      t('a2-a-media', 'Stasiun A — nama media', 'text', 'Pot'),
-      t('a2-a-theme', 'Stasiun A — judul tema', 'text', 'Grow What You Believe'),
-      t('a2-b-media', 'Stasiun B — nama media', 'text', 'Tas'),
-      t('a2-b-theme', 'Stasiun B — judul tema', 'text', 'Carry the Gospel'),
-      t('a2-goal', 'Tujuan', 'textarea', 'Menerjemahkan nilai Injil menjadi karya yang bisa dilihat dan disentuh ...'),
-      t('a2-tools', 'Alat & bahan', 'textarea', 'Media stasiun A dan B, cat akrilik, kuas, palet, koran/celemek, tempat jemur.'),
-      t('a2-pot', 'Arahan Stasiun A', 'textarea', 'Lukis apa yang perlu dirawat agar iman dan nilai Injil terus bertumbuh.'),
-      t('a2-bag', 'Arahan Stasiun B', 'textarea', 'Lukis nilai Injil yang ingin kalian bawa ke dalam kehidupan sehari-hari.'),
-      t('a2-pot-meaning', 'Makna Stasiun A', 'textarea', 'Apa yang kita percayai seharusnya bertumbuh dan terlihat dalam hidup kita. Media ini melambangkan tempat benih iman bertumbuh. Peserta dapat melukis simbol akar, tunas, atau buah sebagai gambaran iman yang dirawat melalui tindakan nyata.'),
-      t('a2-bag-meaning', 'Makna Stasiun B', 'textarea', 'Membawa Injil ke mana pun kita pergi. Media ini menjadi simbol kehidupan pemuda perantauan. Di mana pun mereka tinggal, bekerja, belajar, dan bergaul, mereka tetap dapat membawa nilai kasih, kerendahan hati, pelayanan, dan persatuan dalam Kristus.'),
-      t('a2-report', 'Arahan melapor ke Admin', 'text', 'Perwakilan setiap kelompok maju melapor kepada Admin.'),
-      t('a2-commit', 'Komitmen kelompok (1 kata/simbol/kalimat)', 'textarea', 'Sertakan satu kata, simbol, atau kalimat pendek yang mewakili komitmen kelompok.'),
-      t('a2-minutes', 'Durasi (menit)', 'number', '25'),
-    ],
-  },
-  {
-    key: 'present',
-    title: 'Presentasi Kelompok (blok 30 menit)',
-    hint: '10 kelompok × sekitar 2,5 menit, termasuk transisi. Default timer 150 detik per kelompok. Urutan diundi di kontrol. Tiga slide: Stasiun A, Stasiun B, Bersama.',
-    fields: [
-      t('present-order', 'Urutan presentasi & aturan', 'textarea', '10 kelompok; urutan diundi di kontrol; Slide Stasiun A, Slide Stasiun B, Slide Bersama. Blok 30 menit sudah termasuk transisi.'),
-      t('present-questions', 'Pertanyaan apresiasi', 'textarea', 'Apa yang paling menggambarkan iman kelompokmu? Langkah nyata apa minggu ini?'),
-      t('present-seconds', 'Detik per kelompok', 'number', '150'),
-    ],
-  },
-  {
-    key: 'closing',
-    title: 'Konklusi & komitmen (10 menit)',
-    hint: 'Konklusi firman + Satu Kata + komitmen kelompok. Wajib merujuk Fundamental Firman pekan ini.',
-    fields: [
-      t('closing-script', 'Naskah konklusi', 'textarea', 'Akar yang sehat menghasilkan buah ... (firman pekan)'),
-      t('closing-commit', 'Komitmen kelompok', 'textarea', 'Kami akan ... mulai minggu ini ...'),
-      t('closing-prayer', 'Doa penutup', 'textarea', 'Doa syafaat & pengutusan ...'),
-    ],
-  },
-  {
-    key: 'lesson',
-    title: 'Chip Satu Kata (maks 10)',
-    hint: 'Kata pelajaran 1-2 kata dari firman pekan (format #Kata, maks 3 dipilih per peserta) — tampil sebagai word cloud di layar saat refleksi.',
-    fields: Array.from({ length: 10 }, (_, i) => t(`lesson-chip-${i + 1}`, `Chip ${i + 1}`, 'text', '#KataKunci')),
-  },
-];
+  };
+}
+
+/** Template bebas Creative Lab — liturgi tetap di rundown; blok aktivitas fleksibel. */
+function creativeLabTemplate(): DraftSection[] {
+  return [
+    {
+      key: 'meta',
+      title: 'Meta draft',
+      hint: 'Jumlah aktivitas yang dipakai (1–4). Validasi total menit vs slot jemaat 140 menit dilakukan saat terbit.',
+      fields: [t('activity-count', 'Jumlah aktivitas', 'number', '2')],
+    },
+    {
+      key: 'firman',
+      title: 'Firman',
+      hint: 'Wajib diisi: judul firman. Poin tema opsional (layar 10 menit pertama briefing).',
+      fields: [
+        t('firman-judul', 'Judul firman *', 'text', 'Fundamental Firman pekan ini …'),
+        t('firman-poin', 'Poin tema (opsional, layar)', 'textarea', '3 poin singkat …'),
+      ],
+    },
+    {
+      key: 'briefing',
+      title: 'Firman & Briefing (15 menit)',
+      hint: 'Menit 1–10: layar hanya judul firman (+ poin). Menit 11–15: panggil perwakilan. Undian urutan dilakukan sebelum briefing (kontrol).',
+      fields: [
+        t('brief-core', 'Inti khotbah (opsional)', 'textarea', 'Catatan pembicara …'),
+        t('brief-rules', 'Aturan main', 'textarea', ''),
+        t('brief-scribe', 'Panggilan perwakilan (menit 11–15)', 'textarea', 'Kirim satu perwakilan tiap kelompok ke depan.'),
+        t('brief-draw', 'Pengumuman undian', 'textarea', 'Urutan presentasi mengikuti nomor grup di layar.'),
+        t('brief-audience-directive', 'Kalimat arahan · HP peserta', 'text', 'Ikuti layar; tulis di kertas saat diminta.'),
+        t('brief-projector-directive', 'Kalimat arahan · proyektor', 'text', 'Tampilkan timer, nomor grup, dan progres kelompok.'),
+      ],
+    },
+    ...Array.from({ length: CREATIVE_LAB_ACTIVITY_SLOTS }, (_, i) => creativeLabActivitySection(i + 1)),
+    {
+      key: 'present',
+      title: 'Presentasi Kelompok',
+      hint: 'Satu slide per aktivitas seni + slide Commitment. Reaksi penonton: Suka / Biasa / Kurang (dirilis di akhir).',
+      fields: [
+        t('present-order', 'Urutan & aturan presentasi', 'textarea', ''),
+        t('present-questions', 'Pertanyaan apresiasi', 'textarea', ''),
+        t('present-seconds', 'Detik per kelompok', 'number', '150'),
+      ],
+    },
+    {
+      key: 'closing',
+      title: 'Konklusi & komitmen',
+      hint: 'Konklusi firman + komitmen kelompok (liturgi penutup mengikuti rundown baku).',
+      fields: [
+        t('closing-script', 'Naskah konklusi', 'textarea', ''),
+        t('closing-commit', 'Komitmen kelompok', 'textarea', ''),
+        t('closing-prayer', 'Doa penutup', 'textarea', ''),
+      ],
+    },
+  ];
+}
 
 export const SESSION_DRAFT_CODES = ['MONOLOG', 'POST_TO_POST', 'DEBAT', 'BEDAH_FILM', 'THREE_SEQUENCES', 'CREATIVE_LAB'] as const;
 
@@ -355,7 +358,7 @@ export function emptySessionDraft(patternCode?: string | null): DraftSection[] {
     case 'THREE_SEQUENCES':
       return structuredClone(THREE_SEQUENCES_TEMPLATE);
     case 'CREATIVE_LAB':
-      return structuredClone(CREATIVE_LAB_TEMPLATE);
+      return structuredClone(creativeLabTemplate());
     default:
       return structuredClone(MONOLOG_TEMPLATE);
   }
@@ -378,10 +381,10 @@ export function draftToStored(sections: DraftSection[]): StoredDraft {
 }
 
 const LEGACY_ACTIVITY_TITLES: Record<string, Set<string>> = {
-  'a1-title': new Set(['the roots reminder jar', 'roots reminder jar']),
-  'a2-title': new Set(['roots & dna creative lab', 'roots and dna creative lab']),
+  'a1-title': new Set(['the roots reminder jar', 'roots reminder jar', 'reminder jar']),
+  'a2-title': new Set(['roots & dna creative lab', 'roots and dna creative lab', 'art stations']),
 };
-const DRAFT_DEFAULT_WHEN_ABSENT = new Set(['a1-subtitle', 'a2-a-media', 'a2-a-theme', 'a2-b-media', 'a2-b-theme']);
+const DRAFT_DEFAULT_WHEN_ABSENT = new Set<string>();
 
 export function storedToSections(patternCode: string | null | undefined, stored?: StoredDraft | null): DraftSection[] {
   const tpl = emptySessionDraft(patternCode);

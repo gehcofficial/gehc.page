@@ -14,6 +14,7 @@ import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
 import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
+import { briefingFirmanOnly, labPresentationOrder, presentSlidePlan } from '../../lib/creative-lab-draft';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
@@ -532,28 +533,19 @@ const MentoringScreen: React.FC = () => {
               const phase = act.phase;
               const card = jar[act.cardIndex];
               const labTeams = data.lab?.teams || [];
-              const order = (() => {
-                const out: number[] = [];
-                for (const n of act.presentOrder || []) {
-                  const i = Number(n);
-                  if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
-                }
-                for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
-                return out;
-              })();
+              const order = labPresentationOrder(act, teams.length);
+              const keyDirections = data.lab?.keyDirections || brief?.briefing?.projectorDirective || brief?.briefing?.audienceDirective || '';
+              const slideTitles = presentSlidePlan(brief).map((s) => s.label);
+              const slideMax = Math.max(0, slideTitles.length - 1);
               const presentTeamIndex = order[act.presentIndex] ?? act.presentIndex;
-              const presentSlide = Math.min(2, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
+              const presentSlide = Math.min(slideMax, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
               const presenting = teams[presentTeamIndex];
               const presentingLab = labTeams.find((t) => t.index === presentTeamIndex) || null;
               const stations = labStationCopy(brief);
-              const a1Title = brief?.a1.title || 'Reminder Jar';
+              const a1Title = brief?.a1.title || 'Sesi 1';
               const a1Sub = brief?.a1.subtitle ? ` · ${brief.a1.subtitle}` : '';
-              const a2Title = brief?.a2.title || 'Art Stations';
-              const slideTitles = [
-                `Slide Stasiun A · ${stations.mediaA}`,
-                `Slide Stasiun B · ${stations.mediaB}`,
-                'Slide Bersama',
-              ];
+              const a2Title = brief?.a2.title || 'Sesi 2';
+              const firmanOnly = briefingFirmanOnly(phase, act.startedAt, tick);
               const totalSec = phase === 'PRESENT' ? act.presentSeconds : act.durationSec;
               const startedAt = phase === 'PRESENT' ? act.presentStartedAt : act.startedAt;
               const remainMs = startedAt
@@ -570,7 +562,7 @@ const MentoringScreen: React.FC = () => {
                   : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
                     : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                        : 'Duduk per kelompok. Briefing: pengundian urutan.';
+                        : brief?.briefing.audienceDirective || 'Ikuti layar; undian urutan sudah ditampilkan.';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -585,10 +577,35 @@ const MentoringScreen: React.FC = () => {
                     )}
                   </section>
 
-                  {phase !== 'A1' && phase !== 'A2' && phase !== 'PRESENT' && phase !== 'DONE' && brief && (
+                  {phase === 'DRAW' && order.length > 0 && (
                     <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pengundian</p>
-                      <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.draw || 'Umumkan pengundian urutan presentasi kelompok.'}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Undian urutan presentasi</p>
+                      <p className="text-sm text-white/60 mt-1">Nomor grup — nama kelompok tampil di Sesi 2.</p>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                        {order.map((teamIndex, pos) => (
+                          <div key={`draw-${teamIndex}-${pos}`} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Urutan {pos + 1}</p>
+                            <p className="font-display text-3xl font-black mt-1">Grup {teamIndex + 1}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {phase === 'IDLE' && brief && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                      {firmanOnly ? (
+                        <>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Firman</p>
+                          <p className="font-display text-3xl sm:text-4xl font-black mt-2 leading-tight">{brief.firmanTitle || data.session.title}</p>
+                          {brief.firmanPoints && <p className="text-sm text-white/70 mt-3 whitespace-pre-line">{brief.firmanPoints}</p>}
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Perwakilan kelompok</p>
+                          <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.scribe}</p>
+                        </>
+                      )}
                     </section>
                   )}
 
@@ -647,7 +664,7 @@ const MentoringScreen: React.FC = () => {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
                           {phase === 'A1' ? `${a1Title}${a1Sub} — 6 pertanyaan` : 'Kartu jar kelompok'}
                         </p>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-brand">Semua menulis 6 · pilih 2 di web</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-brand">Tulis 6 di kertas · pilih 2 di web</span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {jar.map((c, i) => (
@@ -688,6 +705,24 @@ const MentoringScreen: React.FC = () => {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Komitmen kelompok</p>
                         <p className="text-sm text-white/70 mt-1">{brief.a2.commit}</p>
                       </section>
+                      {labTeams.length > 0 && (
+                        <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Progres Sesi 2 · per kelompok</p>
+                            {keyDirections && <p className="text-[10px] text-brand font-bold max-w-md text-right">{keyDirections}</p>}
+                          </div>
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {labTeams.map((lt) => (
+                              <div key={lt.index} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                                <p className="font-bold truncate">{lt.name}</p>
+                                <p className="text-[10px] text-white/50 mt-0.5 tabular-nums">
+                                  Progress {lt.progressPct ?? '–'}% · vote-back {lt.voteBackStatus || 'belum'} · rekap {lt.recapStatus || 'belum'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                     </div>
                   )}
 
@@ -701,7 +736,7 @@ const MentoringScreen: React.FC = () => {
                         {order.map((teamIndex, pos) => (
                           <div key={`${teamIndex}-${pos}`} className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${phase === 'PRESENT' && pos === act.presentIndex ? 'bg-brand/20 border-brand/40' : 'bg-white/5 border-white/10'}`}>
                             <span className="w-8 h-8 rounded-full bg-white/10 grid place-items-center font-display text-lg font-black shrink-0">{pos + 1}</span>
-                            <span className="font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
+                            <span className="font-bold truncate">{phase === 'DRAW' || phase === 'IDLE' ? `Grup ${teamIndex + 1}` : (teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`)}</span>
                             {phase === 'PRESENT' && pos === act.presentIndex && <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-brand">tampil</span>}
                           </div>
                         ))}

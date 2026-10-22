@@ -27,7 +27,8 @@ import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import SessionTimer from './SessionTimer';
 import { SessionNotes } from './SessionNotes';
-import { JarWebSlots, LabGroupPanel } from './CreativeLabPanels';
+import { JarWebSlots, LabGroupPanel, LabPresentationReactions } from './CreativeLabPanels';
+import { labPresentationOrder } from '../../lib/creative-lab-draft';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 
@@ -277,15 +278,8 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const labAct = data?.activity || null;
   const presentOrder = useMemo(() => {
     const teams = data?.teams?.teams || [];
-    const raw = Array.isArray(labAct?.presentOrder) ? labAct.presentOrder : [];
-    const out: number[] = [];
-    for (const n of raw) {
-      const i = Number(n);
-      if (Number.isInteger(i) && i >= 0 && i < teams.length && !out.includes(i)) out.push(i);
-    }
-    for (let i = 0; i < teams.length; i += 1) if (!out.includes(i)) out.push(i);
-    return out;
-  }, [data?.teams?.teams, labAct?.presentOrder]);
+    return labPresentationOrder(labAct, teams.length);
+  }, [data?.teams?.teams, labAct]);
   const presentTeamIndex = presentOrder[labAct?.presentIndex || 0] ?? labAct?.presentIndex ?? 0;
   const activityTick = useNowTick(Boolean(labAct?.startedAt || labAct?.presentStartedAt));
   const activityTotalSec = labAct
@@ -895,6 +889,14 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         />
       )}
 
+      {c === 'CREATIVE_LAB' && labAct?.phase === 'PRESENT' && data.lab?.reactions && (
+        <LabPresentationReactions
+          slug={slug}
+          reactions={data.lab.reactions}
+          onReload={() => void load()}
+        />
+      )}
+
       {has('teams') && teams.length > 0 && (
         <div className={CARD}>
           <h4 className="text-sm font-black text-[#1B1B1B] mb-2 inline-flex items-center gap-1.5">
@@ -943,7 +945,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
-      {has('chips') && (
+      {has('chips') && (c !== 'CREATIVE_LAB' || data.chips?.open || (data.chips?.list || []).length > 0) && (
         <div className={CARD}>
           {chipDone ? (
             <div className="text-center py-4 space-y-2">

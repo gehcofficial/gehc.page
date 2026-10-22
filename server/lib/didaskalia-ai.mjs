@@ -439,10 +439,10 @@ export function patternBlock(pattern) {
   } else if (code === 'THREE_SEQUENCES') {
     lines.push('- Bentuk: gamifikasi 3 sesi tanpa jeda (Sesi 1 · Snack & Merge → Sesi 2 · Kode Alkitab → Sesi 3 · Mission Room) + Presentasi Kelompok + Konklusi 10\' (firman penutup) + Penutup Sesi · Commissioning & Deklarasi 10\' + Persembahan & Doa 10\' + Lagu & Doa Penutup 5\'; discussionFlow = brief tiap sesi + aturan presentasi; deliveryPlan tekankan komando countdown, 5 tim gabungan (2 kelompok mentoring per tim, masing-masing menjalankan seluruh misi; peran Soal/Lapangan/Narasi/Presentasi/Editor hanya di dalam tim), dan deklarasi Coram Deo di Penutup Sesi, bukan di Konklusi.');
   } else if (code === 'CREATIVE_LAB') {
-    lines.push('- Bentuk: Serving Day berbasis karya — Praise & Worship 10\' → Firman & Briefing 15\' (umumkan pencatat dan pengundian) → Sesi 1 · Reminder Jar 15\' (bahan sudah dibagikan saat kedatangan; 6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; web pilih 2 dari 6 (paralel)) → Sesi 2 · Art Stations 25\' (20 menit melukis Stasiun A "Grow What You Believe" ∥ Stasiun B "Carry the Gospel" (paralel) + 5 menit unggah) → Presentasi Kelompok ~2,5\'/kelompok × 10 kelompok, blok 30\' termasuk transisi → Konklusi 10\' → Persembahan & Doa 10\' → Lagu & Doa Penutup 5\'.');
-    lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Stasiun A 2-4, Stasiun B 2-4. Nama media default Pot dan Tas; judul tema boleh diubah. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');
-    lines.push('- discussionFlow = alur Firman & Briefing → Sesi 1 → Sesi 2 → Presentasi Kelompok → Konklusi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer Sesi 1/Sesi 2/presentasi 150 detik, peran perwakilan, dan unggah foto di 5 menit terakhir.');
-    lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan stasiun & 6 kartu harus lahir dari tema/firman, bukan generik. Kunci fase internal tetap A1/A2/PRESENT.');
+    lines.push('- Bentuk: template bebas aktivitas — isi section firman, briefing, aktivitas 1–4 (menit per aktivitas), presentasi kelompok, dan penutup sesuai draft. Tanpa P&W di POV peserta; undian kelompok sebelum briefing bila draft menyebutkan.');
+    lines.push('- Kelompok: muat dari 10 rumah Beyonders aktif (bukan teks bebas di draft). Tiap kelompok: koordinator, satu perwakilan (lapor + unggah), anggota paralel di aktivitas seni. Nama media/stasiun ikuti field draft (activity-2..n), bukan contoh merek khusus.');
+    lines.push('- discussionFlow = urutan aktivitas di draft + aturan presentasi; deliveryPlan tekankan timer per fase, peran perwakilan, kuota foto (2 per aktivitas seni + 1 foto tim), reaksi penonton Suka/Biasa/Kurang saat presentasi (dirilis admin di akhir).');
+    lines.push('- Konklusi wajib merujuk Fundamental Firman pekan; kartu refleksi & arahan stasiun harus lahir dari tema/firman. Kunci fase internal: DRAW/IDLE/A1/A2/PRESENT.');
   } else {
     lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
   }
@@ -1200,17 +1200,21 @@ export async function generateSessionDraft(input) {
     '- pro-name/pro-mentor/pro-members/kontra-*: NAMA orang nyata tim; bila belum pasti, KOSONGKAN (jangan mengarang nama).',
     '- juri-1..juri-3: nama juri bila diketahui; bila belum, kosongkan.',
   ] : [];
-  const hasCreativeLab = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('jar-'));
+  const hasCreativeLab = fieldKeys.some((f) => {
+    const k = String(f.key || '').toLowerCase();
+    return k === 'firman-judul' || k.startsWith('a1-') || k.startsWith('a2-');
+  });
   const CREATIVE_LAB_RULES = hasCreativeLab ? [
     'ATURAN CREATIVE LAB (WAJIB):',
     '- Kelompok BAKU hanya sepuluh ini: Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Jangan mengarang kelompok ke-11 atau nama orang.',
-    '- Anggota, perwakilan, Stasiun A, dan Stasiun B diisi server dari database. Jangan mengisi nama orang.',
-    '- jar-root..jar-step: tulis arahan Indonesia yang konkret + 1 contoh kalimat Beyonders (KRS, skripsi, magang, shift, lembur, kos, keuangan awal, relasi) yang menyebut eksplisit tema/firman pekan.',
-    '- a1-title tetap "Reminder Jar"; tema pekan di a1-subtitle. a2-title tetap "Art Stations". a2-a-media/a2-a-theme dan a2-b-media/a2-b-theme boleh diisi contoh pekan (default Pot / Grow What You Believe dan Tas / Carry the Gospel).',
-    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan Stasiun A, a2-bag = arahan Stasiun B; a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
-    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=150 (sekitar 2,5 menit per kelompok; blok Presentasi Kelompok 30 menit sudah termasuk transisi).',
-    '- brief-core (inti khotbah 8-10 menit) & closing-script wajib merujuk eksplisit Fundamental Firman (sebutkan ref-nya) + aplikasi konkret bagi Beyonders.',
-    '- present-order/present-questions: 2 pertanyaan apresiasi singkat. Urutan tampil diundi di kontrol, jangan mengarang urutan nama.',
+    '- Anggota, perwakilan, dan penugasan stasiun diisi server dari database + absensi. Jangan mengisi nama orang.',
+    '- firman-judul WAJIB diisi; firman-poin opsional (3 poin singkat untuk layar). Field lain boleh dikosongkan lalu ditandai diisi AI (a*-item-*-ai = 1) — tim harus review sebelum terbit.',
+    '- Aktivitas 1: isi a1-item-1..6 (judul, konteks, pertanyaan, contoh) — 6 kartu jar pekan ini; tanpa contoh generik RUACH/Pot/Tas kecuali tim memang memilih tema itu.',
+    '- Aktivitas 2+: a2-title, menit, stasiun media/tema; tanpa hardcode tema minggu lalu.',
+    '- a1-minutes + a2-minutes (+ aktivitas lain bila ada) harus selaras total ~140 menit jemaat; present-seconds=150 default.',
+    '- brief-scribe = panggilan perwakilan menit 11–15; brief-draw = undian (sudah di depan briefing).',
+    '- closing-script wajib merujuk eksplisit Fundamental Firman (sebutkan ref-nya).',
+    '- Jangan isi lesson-chip (chip grup mati default untuk Creative Lab).',
   ] : [];
   const templateKeyCap = hasCreativeLab ? 80 : 40;
   const prompt = [...head,
