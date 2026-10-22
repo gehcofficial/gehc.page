@@ -1,12 +1,12 @@
 /**
- * Rundown Creative Lab baku (PRA 20' + jemaat 120').
+ * Rundown Creative Lab baku (PRA 20' + jemaat 140').
  * Katalog staging bisa masih menyimpan judul lama sampai seed dijalankan.
  * Pembacaan menormalisasi judul itu; penyimpanan pola menuliskan versi baku
  * hanya saat admin menyimpan pola yang masih legacy.
  */
 
 export const CREATIVE_LAB_SUMMARY =
-  'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.';
+  'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′, lalu pasca Monolog: Terima Kasih & Pengumuman 5′, HUT & Doa 5′, Foto Bersama 5′, Acara Bebas & Pulang 5′.';
 
 const STRONG_MARKERS = [
   'preaching & briefing',
@@ -64,7 +64,7 @@ export function canonicalCreativeLabPhases() {
     {
       no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: 'Firman 15 menit. Briefing mengumumkan perwakilan pencatat dan pengundian urutan. Teks pengumuman diubah dari panel kontrol dan tampil di layar. T+10–T+25.',
+      notes: 'Firman 15 menit. Briefing mengumumkan pengundian urutan. Nama pencatat dan perwakilan tidak tampil di layar pada segmen ini; layar menampilkannya hanya di Sesi 2. T+10–T+25.',
       segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
     },
     {
@@ -97,6 +97,26 @@ export function canonicalCreativeLabPhases() {
       no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
       anchor: 'ACARA',
       notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+115–T+120.',
+    },
+    {
+      no: 9, title: 'Terima Kasih & Pengumuman', minutes: 5, owner: 'Tuan Rumah, MC, Komisi/Tim Kerja', division: 'KOINONIA',
+      anchor: 'ACARA',
+      notes: 'Apresiasi tuan rumah + info komisi; konsumsi dan ramah-tamah jalan paralel. T+120–T+125.',
+    },
+    {
+      no: 10, title: 'HUT & Doa', minutes: 5, owner: 'MC, yang HUT', division: 'KOINONIA',
+      anchor: 'ACARA',
+      notes: 'Rayakan dan doakan yang berulang tahun. T+125–T+130.',
+    },
+    {
+      no: 11, title: 'Foto Bersama', minutes: 5, owner: 'Fotografer, Videografer', division: 'MARTURIA',
+      anchor: 'ACARA',
+      notes: 'Foto session + dokumentasi. T+130–T+135.',
+    },
+    {
+      no: 12, title: 'Acara Bebas & Pulang', minutes: 5, owner: 'Tuan Rumah', division: 'KOINONIA',
+      anchor: 'PASCA',
+      notes: 'Ramah-tamah paralel mengikuti blok terima kasih, tidak dihitung ganda. T+135–T+140.',
     },
   ];
 }
@@ -135,7 +155,7 @@ export function presentWorshipPattern(pattern) {
   return {
     ...pattern,
     summary: CREATIVE_LAB_SUMMARY,
-    defaultDurationMin: 140,
+    defaultDurationMin: 160,
     phases,
   };
 }

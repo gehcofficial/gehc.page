@@ -1,6 +1,21 @@
 # GEHC Portal — Handoff
 
-## Current — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
+## Current — Penutup Creative Lab + nama perwakilan (22 Okt 2026)
+
+**Minta:** sesudah Lagu & Doa Penutup, salin pasca Monolog (Terima Kasih & Pengumuman sampai Acara Bebas & Pulang). Timer ikut. Nama perwakilan/pencatat tidak tampil di layar Firman & Briefing, hanya di Sesi 2. Cabang `cursor/lab-closing-names-d5fe` dari `main`. Data sesi `sesi-2026-10-25-creative-lab` boleh di staging dan produksi.
+
+**Done:**
+- Pola CREATIVE_LAB: empat segmen pasca, menit/owner/catatan mengikuti Monolog. Total baku 160 menit (PRA 20 + jemaat 140). Timer sesi 8400 detik.
+- Staging dan produksi: pola + timer sesi itu sudah ditulis. Staging status WRAPUP, produksi DRAFT. Tidak ada sesi CREATIVE_LAB lain.
+- Layar proyektor: pengundian tetap di briefing. Nama pencatat dan perwakilan kelompok hanya saat fase A2.
+
+**Next:** episode kedalaman Ringkasan Khotbah pekan 4 (cabang terpisah). Jangan `staging:sync`.
+
+**Verifikasi:** `tsc --noEmit` bersih. `npm test` **168 file / 1338 tes** lulus.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/lab-closing-names-d5fe`
+
+## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 
 **Minta:** sisa item 1 (kolom kosong, Terbaca 55/55, varian refleksi), 2 rundown, 3 bahan saat kedatangan, 5 peran pelayanan + Liturgos, 6 daftar kelompok dari absensi. Cabang `cursor/didaskalia-feedback-1025-d5fe`. Jangan republish khotbah produksi.
 

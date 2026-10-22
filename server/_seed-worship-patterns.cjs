@@ -283,7 +283,7 @@ Modul: timer, notes, fgd, testimony, chips, wordcloud. Judul rundown: Sesi 1 · 
 const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Creative Lab (Serving Day). **Durasi baku:** 140 menit (120 menit jemaat T0→T+120 + 20 menit kru PRA T-minus).
+**Nama:** Creative Lab (Serving Day). **Durasi baku:** 160 menit (140 menit jemaat T0→T+140 + 20 menit kru PRA T-minus).
 **Tujuan:** Firman {{tema}} dari {{firman_ref}} tidak berhenti di telinga, tetapi menjadi karya yang terlihat dan komitmen yang dibawa pulang. Lewat Sesi 1 · Reminder Jar setiap orang menyimpan penguatan iman (subjudul tema di draft, contoh Roots); lewat Sesi 2 · Art Stations kelompok menerjemahkan nilai Injil menjadi dua karya (nama media dan judul tema di draft, contoh Pot / Grow What You Believe dan Tas / Carry the Gospel).
 **Ayat jangkar default:** Yakobus 1:22-25. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
 
@@ -301,13 +301,17 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 |---|---|---|---|---|
 | — | Persiapan Ruang & Perlengkapan (PRA, T-20→T0) | 20 | Diakonia | Layout per kelompok, alat seni, area jemur. Doa Petugas, Registrasi Ulang, dan Cek Slide & Sound (paralel) |
 | 1 | Praise & Worship (T0→T+10) | 10 | Liturgia | 1 lagu buka + doa + praise/worship; peserta duduk per kelompok |
-| 2 | Firman & Briefing (T+10→T+25) | 15 | Didaskalia | Firman + umumkan pencatat dan pengundian |
+| 2 | Firman & Briefing (T+10→T+25) | 15 | Didaskalia | Firman + umumkan pengundian. Nama pencatat tampil di layar hanya pada Sesi 2 |
 | 3 | Sesi 1 · Reminder Jar (T+25→T+40) | 15 | Didaskalia + Mentor | Bahan sudah ada sejak kedatangan; 6 kartu di kertas; web pilih 2 dari 6 (paralel) |
 | 4 | Sesi 2 · Art Stations (T+40→T+65) | 25 | Didaskalia + Mentor | 20 menit melukis Stasiun A ∥ Stasiun B (paralel) + 5 menit unggah foto dan makna |
 | 5 | Presentasi Kelompok (T+65→T+95) | 30 | MC/Didaskalia | 10 kelompok × sekitar 2,5 menit termasuk transisi; Slide Stasiun A, Slide Stasiun B, Slide Bersama |
 | 6 | Konklusi (T+95→T+105) | 10 | Didaskalia | Konklusi firman + Satu Kata + komitmen kelompok |
 | 7 | Persembahan & Doa (T+105→T+115) | 10 | Liturgia | Kantong jalan + doa persembahan dan syafaat |
 | 8 | Lagu & Doa Penutup (T+115→T+120) | 5 | Liturgia | 1 lagu + doa tutup + berkat |
+| 9 | Terima Kasih & Pengumuman (T+120→T+125) | 5 | Tuan Rumah, MC, Komisi/Tim Kerja | Apresiasi tuan rumah + info komisi; konsumsi (paralel) |
+| 10 | HUT & Doa (T+125→T+130) | 5 | MC, yang HUT | Rayakan dan doakan yang berulang tahun |
+| 11 | Foto Bersama (T+130→T+135) | 5 | Fotografer, Videografer | Foto session + dokumentasi |
+| 12 | Acara Bebas & Pulang (T+135→T+140) | 5 | Tuan Rumah | Ramah-tamah (paralel), tidak dihitung ganda |
 
 ## 4. Naskah siap baca
 **Pembuka:** "Selamat datang, Beyonders. Hari ini kita tidak hanya mendengar firman — kita akan membuat sesuatu dari firman itu. Duduklah bersama kelompokmu."
@@ -608,8 +612,8 @@ const PATTERNS = [
     code: 'CREATIVE_LAB',
     name: 'Creative Lab',
     summary:
-      'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.',
-    defaultDurationMin: 140,
+      'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′, lalu pasca Monolog: Terima Kasih & Pengumuman 5′, HUT & Doa 5′, Foto Bersama 5′, Acara Bebas & Pulang 5′.',
+    defaultDurationMin: 160,
     modules: ['teams', 'timer', 'notes', 'chips', 'wordcloud', 'activity', 'lab'],
     phases: [
       {
@@ -641,7 +645,7 @@ const PATTERNS = [
       {
         no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: 'Firman 15 menit. Briefing mengumumkan perwakilan pencatat dan pengundian urutan. Teks pengumuman diubah dari panel kontrol dan tampil di layar. T+10–T+25.',
+        notes: 'Firman 15 menit. Briefing mengumumkan pengundian urutan. Nama pencatat dan perwakilan tidak tampil di layar pada segmen ini; layar menampilkannya hanya di Sesi 2. T+10–T+25.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
       },
       {
@@ -674,6 +678,26 @@ const PATTERNS = [
         no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+115–T+120.',
+      },
+      {
+        no: 9, title: 'Terima Kasih & Pengumuman', minutes: 5, owner: 'Tuan Rumah, MC, Komisi/Tim Kerja', division: 'KOINONIA',
+        anchor: 'ACARA',
+        notes: 'Apresiasi tuan rumah + info komisi; konsumsi dan ramah-tamah jalan paralel. T+120–T+125.',
+      },
+      {
+        no: 10, title: 'HUT & Doa', minutes: 5, owner: 'MC, yang HUT', division: 'KOINONIA',
+        anchor: 'ACARA',
+        notes: 'Rayakan dan doakan yang berulang tahun. T+125–T+130.',
+      },
+      {
+        no: 11, title: 'Foto Bersama', minutes: 5, owner: 'Fotografer, Videografer', division: 'MARTURIA',
+        anchor: 'ACARA',
+        notes: 'Foto session + dokumentasi. T+130–T+135.',
+      },
+      {
+        no: 12, title: 'Acara Bebas & Pulang', minutes: 5, owner: 'Tuan Rumah', division: 'KOINONIA',
+        anchor: 'PASCA',
+        notes: 'Ramah-tamah paralel mengikuti blok terima kasih, tidak dihitung ganda. T+135–T+140.',
       },
     ],
     playbook: CREATIVE_LAB_PLAYBOOK,

@@ -13,6 +13,7 @@ import FilmPreRoll from './FilmPreRoll';
 import { TestimonyWheel } from './TestimonyWheel';
 import WordCloud from './WordCloud';
 import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
+import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
 
 /**
  * Nada bioskop bawaan (WebAudio, tanpa file): sapuan lembut naik
@@ -569,7 +570,7 @@ const MentoringScreen: React.FC = () => {
                   : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
                     : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                        : 'Duduk per kelompok. Briefing: pencatat dan pengundian.';
+                        : 'Duduk per kelompok. Briefing: pengundian urutan.';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -585,15 +586,9 @@ const MentoringScreen: React.FC = () => {
                   </section>
 
                   {phase !== 'A1' && phase !== 'A2' && phase !== 'PRESENT' && phase !== 'DONE' && brief && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pencatat</p>
-                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.scribe || 'Umumkan perwakilan pencatat tiap kelompok.'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pengundian</p>
-                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.draw || 'Umumkan pengundian urutan presentasi kelompok.'}</p>
-                      </div>
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pengundian</p>
+                      <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.draw || 'Umumkan pengundian urutan presentasi kelompok.'}</p>
                     </section>
                   )}
 
@@ -602,9 +597,6 @@ const MentoringScreen: React.FC = () => {
                       <div className="text-center">
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Sedang presentasi</p>
                         <p className="font-display text-4xl sm:text-5xl font-black mt-2">{presenting.name}</p>
-                        <p className="text-sm text-white/60 mt-2">
-                          {presentingLab?.repName || presenting.repName ? `Perwakilan: ${presentingLab?.repName || presenting.repName}` : 'Perwakilan kelompok'}
-                        </p>
                       </div>
                       <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mt-4">
                         {presentSlide + 1}/3 · {slideTitles[presentSlide]}
@@ -671,6 +663,10 @@ const MentoringScreen: React.FC = () => {
 
                   {phase === 'A2' && brief && (
                     <div className="space-y-4">
+                      <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pencatat</p>
+                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.scribe || 'Umumkan perwakilan pencatat tiap kelompok.'}</p>
+                      </section>
                       <section className="rounded-[28px] bg-[#111] border border-brand/40 p-6 sm:p-8 text-center">
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Instruksi melapor</p>
                         <p className="font-display text-2xl sm:text-3xl font-black mt-2">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
@@ -734,7 +730,7 @@ const MentoringScreen: React.FC = () => {
                                 <p className="font-display text-lg font-black">{t.name} {t.done && '✓'}</p>
                                 <span className={`ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${lt?.done ? 'bg-emerald-400/20 text-emerald-300' : 'bg-white/10 text-white/50'}`}>{lt?.done ? 'selesai' : 'proses'}</span>
                               </div>
-                              {t.repName && <p className="text-[11px] text-white/50 mt-0.5">Perwakilan: {t.repName}</p>}
+                              {labDisplayShowsRepNames(phase) && t.repName && <p className="text-[11px] text-white/50 mt-0.5">Perwakilan: {t.repName}</p>}
                               {t.station && <p className="text-[11px] text-white/40 mt-0.5">{t.station}</p>}
                               <p className="text-xs text-white/50 mt-2 tabular-nums">{t.members.length} orang</p>
                               {lt && (
