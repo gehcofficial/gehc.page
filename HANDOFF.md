@@ -2,7 +2,7 @@
 
 ## Current — Kedalaman Ringkasan Khotbah pekan 4 (22 Okt 2026)
 
-**Minta:** deck Ringkasan Khotbah Oktober 2026 pekan 4 terlalu pendek dibanding naskah sumber dan dibanding pekan 2–3. Parser harus memetakan detail MD ke outline yang dirender, tanpa AI mengarang isi inti. Re-parse aman di staging. Produksi: langkah Studio untuk owner, jangan republish. Cabang `cursor/khutbah-depth-d5fe` sudah digabung ke `main` `18c97c7` (PR #22 CPU diet).
+**Minta:** deck Ringkasan Khotbah Oktober 2026 pekan 4 terlalu pendek dibanding naskah sumber dan dibanding pekan 2–3. Parser harus memetakan detail MD ke outline yang dirender, tanpa AI mengarang isi inti. Re-parse aman di staging. Produksi: langkah Studio untuk owner, jangan republish. Cabang `cursor/khutbah-depth-d5fe` (rebase ke `main` `b396db5` setelah PR #23 lab).
 
 **Done:**
 - Penyebab: `sermon.outline` produksi pekan 4 adalah parafrase satu kalimat (76 / 101 / 114 / 107 karakter). `sourceMd.service.outline` tetap naskah utuh (2646 / 4272 / 3010 / 1472). Parser PDF fixture tidak memotong. Snapshot rilis menyalin parafrase itu. Pekan 2 dan 3 tidak berubah karena outline khotbah sudah sama dengan sumber.
@@ -18,7 +18,13 @@
 
 **Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/khutbah-depth-d5fe`
 
+## Prior — Penutup Creative Lab + nama perwakilan (22 Okt 2026, sudah di `main` PR #23 `b396db5`)
+
+**Done:** pola CREATIVE_LAB empat segmen pasca Monolog, total 160 menit, timer 8400 dtk; data sesi `sesi-2026-10-25-creative-lab` staging+produksi; pengundian di briefing, nama pencatat/perwakilan hanya fase A2; `MentoringScreen` memakai `visible-poll` + `labDisplayShowsRepNames`.
+
 ## Prior — Diet CPU Vercel Fluid (22 Okt 2026, sudah di `main` PR #22 `18c97c7`)
+
+**Done:** poll layar + 304/ETag, cache ringkasan/presentasi per host, Prisma pool diet, health/config murah. Cabang `cursor/vercel-cpu-diet-d5fe` sudah digabung ke `main`.
 
 ## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 
