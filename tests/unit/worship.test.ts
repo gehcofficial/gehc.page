@@ -151,6 +151,10 @@ describe('mentoring: routing & format', () => {
     });
     expect(parseMentoringHash('#/mentoring/mentoring-2026-10-04/layar')?.view).toBe('layar');
     expect(parseMentoringHash('#/mentoring/mentoring-2026-10-04/kontrol')?.view).toBe('kontrol');
+    expect(parseMentoringHash('#/mentoring/sesi-2026-10-25-creative-lab/kontrol')).toEqual({
+      slug: 'sesi-2026-10-25-creative-lab',
+      view: 'kontrol',
+    });
     expect(parseMentoringHash('#/voting')).toBeNull();
   });
 

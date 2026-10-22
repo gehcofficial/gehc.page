@@ -51,6 +51,7 @@ type SessionDetail = {
     status: MentoringStatus;
     sessionDate?: string | null;
     accessCode?: string | null;
+    eventId?: string | null;
     config: {
       timerSeconds: number;
       topics: { code: string; label: string }[];
@@ -95,6 +96,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const [selectedId, setSelectedId] = useState<string>('');
   const [onlyEvent, setOnlyEvent] = useState(true);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
+  const [slugMiss, setSlugMiss] = useState(false);
   const [live, setLive] = useState<MentoringLivePayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -155,9 +157,36 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+  const applyDetail = useCallback((d: SessionDetail) => {
+    setDetail(d);
+    setSlugMiss(false);
+    setConfigDraft({
+      timerSeconds: d.session?.config?.timerSeconds ?? 1200,
+      expectedCount: d.session?.config?.expectedCount ?? '',
+    });
+    const pp = d.session?.config?.phasePrefs;
+    if (pp && typeof pp === 'object') {
+      setPhasePrefsDraft((prev) => {
+        const next = { ...prev };
+        for (const k of Object.keys(next)) {
+          const row = (pp as Record<string, { durationSec?: number; showOnScreen?: boolean }>)[k];
+          if (row && typeof row === 'object') {
+            if (Number(row.durationSec) > 0) next[k] = { ...next[k], min: String(Math.round(Number(row.durationSec) / 60)) };
+            if (row.showOnScreen !== undefined) next[k] = { ...next[k], show: row.showOnScreen !== false };
+          }
+        }
+        return next;
+      });
+    }
+  }, []);
+
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
+    setSlugMiss(false);
     try {
+      const slugPromise = initialSlug
+        ? fetch(`/api/worship/sessions/${encodeURIComponent(initialSlug)}`, { credentials: 'include' })
+        : null;
       const r = await fetch('/api/worship/sessions', { credentials: 'include' });
       if (r.status === 401) {
         const next = window.location.hash || `#/mentoring/${initialSlug || ''}/kontrol`;
@@ -167,29 +196,44 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat sesi.');
       let list: SessionRow[] = d.sessions || [];
-      if (initialSlug && !list.some((s) => s.slug === initialSlug)) {
-        const one = await fetch(`/api/worship/sessions/${encodeURIComponent(initialSlug)}`, { credentials: 'include' });
+      const rowFrom = (s: SessionDetail['session']): SessionRow => ({
+        id: s.id,
+        slug: s.slug,
+        title: s.title,
+        status: s.status,
+        sessionDate: s.sessionDate,
+        accessCode: s.accessCode,
+        eventId: s.eventId,
+        pattern: s.pattern ? { code: s.pattern.code, name: s.pattern.name } : null,
+      });
+      if (initialSlug && slugPromise) {
+        const one = await slugPromise;
         if (one.status === 401) {
           const next = window.location.hash || `#/mentoring/${initialSlug}/kontrol`;
           window.location.hash = `#/login?next=${encodeURIComponent(next)}`;
           return;
         }
         if (one.ok) {
-          const detailBody = await one.json();
-          const s = detailBody?.session;
+          const body = await one.json() as SessionDetail;
+          const s = body?.session;
           if (s?.id) {
-            list = [{
-              id: s.id,
-              slug: s.slug,
-              title: s.title,
-              status: s.status,
-              sessionDate: s.sessionDate,
-              accessCode: s.accessCode,
-              eventId: s.eventId,
-              pattern: s.pattern ? { code: s.pattern.code, name: s.pattern.name } : null,
-            }, ...list];
+            if (!list.some((row) => row.id === s.id)) list = [rowFrom(s), ...list];
+            setSessions(list);
+            setSelectedId(s.id);
+            applyDetail(body);
+            return;
           }
         }
+        const known = list.find((row) => String(row.slug || '').toLowerCase() === initialSlug.toLowerCase());
+        setSessions(list);
+        if (known) {
+          setSelectedId(known.id);
+          return;
+        }
+        setSelectedId('');
+        setDetail(null);
+        setSlugMiss(true);
+        return;
       }
       setSessions(list);
       setSelectedId((prev) => preferSession(list, { prevId: prev, slug: initialSlug, eventId, preferPattern }));
@@ -198,7 +242,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     } finally {
       setSessionsLoading(false);
     }
-  }, [initialSlug, eventId, preferPattern]);
+  }, [initialSlug, eventId, preferPattern, applyDetail]);
 
   const loadDetail = useCallback(async () => {
     if (!selectedId) return;
@@ -206,29 +250,11 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       const r = await fetch(`/api/worship/sessions/${encodeURIComponent(selectedId)}`, { credentials: 'include' });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat detail sesi.');
-      setDetail(d);
-      setConfigDraft({
-        timerSeconds: d.session?.config?.timerSeconds ?? 1200,
-        expectedCount: d.session?.config?.expectedCount ?? '',
-      });
-      const pp = d.session?.config?.phasePrefs;
-      if (pp && typeof pp === 'object') {
-        setPhasePrefsDraft((prev) => {
-          const next = { ...prev };
-          for (const k of Object.keys(next)) {
-            const r = (pp as Record<string, { durationSec?: number; showOnScreen?: boolean }>)[k];
-            if (r && typeof r === 'object') {
-              if (Number(r.durationSec) > 0) next[k] = { ...next[k], min: String(Math.round(Number(r.durationSec) / 60)) };
-              if (r.showOnScreen !== undefined) next[k] = { ...next[k], show: r.showOnScreen !== false };
-            }
-          }
-          return next;
-        });
-      }
+      applyDetail(d);
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat detail.' });
     }
-  }, [selectedId]);
+  }, [selectedId, applyDetail]);
 
   const loadLive = useCallback(async () => {
     if (!detail?.session?.slug) return;
@@ -723,16 +749,23 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       const forEvent = sessions.filter((s) => s.eventId === eventId);
       if (forEvent.length) rows = forEvent;
     }
-    if (showArchive) return rows;
-    const cutoff = Date.now() - 28 * 24 * 3600 * 1000;
-    const filtered = rows.filter((s) => {
-      if (String(s.status || '').toUpperCase() !== 'CLOSED') return true;
-      const t = s.sessionDate ? new Date(String(s.sessionDate)).getTime() : NaN;
-      if (Number.isNaN(t)) return true;
-      return t >= cutoff;
-    });
-    return filtered.length ? filtered : rows;
-  }, [sessions, onlyEvent, eventId, showArchive]);
+    if (!showArchive) {
+      const cutoff = Date.now() - 28 * 24 * 3600 * 1000;
+      const filtered = rows.filter((s) => {
+        if (String(s.status || '').toUpperCase() !== 'CLOSED') return true;
+        const t = s.sessionDate ? new Date(String(s.sessionDate)).getTime() : NaN;
+        if (Number.isNaN(t)) return true;
+        return t >= cutoff;
+      });
+      if (filtered.length) rows = filtered;
+    }
+    const pin = (row: SessionRow | undefined) => {
+      if (row && !rows.some((s) => s.id === row.id)) rows = [row, ...rows];
+    };
+    if (initialSlug) pin(sessions.find((s) => String(s.slug || '').toLowerCase() === initialSlug.toLowerCase()));
+    if (selectedId) pin(sessions.find((s) => s.id === selectedId));
+    return rows;
+  }, [sessions, onlyEvent, eventId, showArchive, initialSlug, selectedId]);
   const archivedCount = sessions.length - visibleSessions.length;
   const visibleActions = useMemo(
     () => (isPostToPost ? ACTIONS : ACTIONS.filter((a) => a.action !== 'open-likert')),
@@ -783,7 +816,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </button>
               )}
             </span>
-            <select className={INPUT} value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <select className={INPUT} value={selectedId} onChange={(e) => { setSlugMiss(false); setSelectedId(e.target.value); }}>
               {visibleSessions.length === 0 && <option value="">(belum ada sesi)</option>}
               {visibleSessions.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -809,23 +842,28 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         )}
       </div>
 
-      {sessionsLoading && !detail && (
+      {(sessionsLoading || selectedId) && !detail && (
         <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4">
           <p className="text-xs text-[#8C8880] inline-flex items-center gap-1.5">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat kontrol sesi…
+            <Loader2 className={`w-3.5 h-3.5 ${sessionsLoading || !msg ? 'animate-spin' : ''}`} />
+            {msg?.kind === 'err' ? msg.text : 'Memuat kontrol sesi…'}
           </p>
         </div>
       )}
 
-      {!sessionsLoading && !detail && (
+      {!sessionsLoading && !detail && !selectedId && (
         <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-white p-4">
-          <p className="text-xs font-black text-[#1B1B1B]">Belum ada sesi untuk pekan ini.</p>
+          <p className="text-xs font-black text-[#1B1B1B]">
+            {slugMiss ? 'Sesi pada tautan ini tidak ditemukan.' : 'Belum ada sesi untuk pekan ini.'}
+          </p>
           <p className="mt-0.5 text-[11px] text-[#8C8880]">
             {msg?.kind === 'err'
               ? msg.text
-              : eventId
-                ? 'Pilih pola di tab Katalog lalu terapkan ke pekan ini — draft kosong akan dibuatkan, isi dulu baru kontrol mengikuti.'
-                : 'Pilih event dulu, atau buat sesi manual dari tab Draft.'}
+              : slugMiss
+                ? `Tidak ada sesi dengan slug ${initialSlug}. Pilih sesi lain di daftar, atau buka kontrol dari tab Pola & Sesi.`
+                : eventId
+                  ? 'Pilih pola di tab Katalog lalu terapkan ke pekan ini — draft kosong akan dibuatkan, isi dulu baru kontrol mengikuti.'
+                  : 'Pilih event dulu, atau buat sesi manual dari tab Draft.'}
           </p>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, buildJointMissionTeams, matchJointTeam, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS, SEQUENCE_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
-import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
+import { cleanActivity, cleanTeams, creativeLabFromDraft, buildCreativeLabTeams, buildJointMissionTeams, matchJointTeam, CREATIVE_LAB_GROUP_NAMES, LAB_MAX_TEAMS, LAB_STATION_CAP, SEQUENCE_MAX_TEAMS } from '../../server/lib/session-stage.mjs';
+import { adminLabPhotoAllowed, allowedNoteCodes, creativeLabBrief, findLabTeam, jarCards, LAB_PHOTO_LIMIT, labPhotoQuota, labPresentationOrder, labSummary } from '../../server/routes/worship.mjs';
+import { LAB_STATION_CAP as CLIENT_STATION_CAP } from '../../src/lib/mentoring';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../../server/lib/lab-drive.mjs';
 import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
 
@@ -82,6 +83,17 @@ describe('creative-lab: cleanTeams aditif', () => {
       bag: ['D'],
     });
     expect(out.teams[1]).toMatchObject({ name: 'Tim lama', scribe: '', station: '', pot: [], bag: [] });
+  });
+
+  it('pelukis stasiun mengikuti kuota foto (maks 2)', () => {
+    expect(LAB_STATION_CAP).toBe(LAB_PHOTO_LIMIT.POT);
+    expect(LAB_STATION_CAP).toBe(LAB_PHOTO_LIMIT.BAG);
+    expect(CLIENT_STATION_CAP).toBe(LAB_STATION_CAP);
+    const out = cleanTeams({
+      teams: [{ name: 'Agape', pot: ['A', 'B', 'C', 'D'], bag: ['E', 'F', 'G'] }],
+    });
+    expect(out.teams[0].pot).toEqual(['A', 'B']);
+    expect(out.teams[0].bag).toEqual(['E', 'F']);
   });
 
   it('menyimpan perwakilan & anggota akun (dedupe, maks 20)', () => {

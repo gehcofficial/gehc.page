@@ -245,7 +245,7 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 2. Sesi baru: **Terapkan ke sesi** mengisi 10 kelompok dari database
    (bukan teks bebas). Sesi yang sudah ada: buka kontrol lalu tekan
    **Muat 10 kelompok** (tidak menimpa otomatis).
-3. Perwakilan hanya anggota kelompok itu. Pot/Tas maks 4 centang.
+3. Perwakilan hanya anggota kelompok itu. Pot/Tas maks 2 centang (sama dengan kuota foto stasiun). Katalog yang belum di-seed tetap menampilkan rundown baku saat dibaca.
    Kelompok `missing` tidak masuk undian.
 4. Layar dengan `?code=` di dalam hash tidak menanyakan kode lagi.
 5. Foto Pot/Tas masuk `Hasil Karya/<kelompok>`; foto bersama masuk

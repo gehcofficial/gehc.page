@@ -1,0 +1,133 @@
+/**
+ * Salinan klien dari server/lib/creative-lab-rundown.mjs.
+ * Dipakai bila respons API masih membawa fase katalog lama.
+ */
+
+export const CREATIVE_LAB_SUMMARY =
+  'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 10′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.';
+
+export type LabPhase = {
+  no?: number | null;
+  title?: string | null;
+  minutes?: number | null;
+  owner?: string | null;
+  division?: string | null;
+  notes?: string | null;
+  anchor?: string | null;
+  parallelGroup?: string | null;
+  track?: string | null;
+  segments?: Array<{ key?: string; label?: string; kind?: string; songs?: number; auto?: boolean }> | null;
+};
+
+const STRONG_MARKERS = [
+  'preaching & briefing',
+  'preaching and briefing',
+  'the roots reminder jar',
+  'roots reminder jar',
+  'pot painting',
+  'bag painting',
+  'presentasi hasil',
+  'activity 1',
+  'activity 2',
+  'pilih 2 pertanyaan',
+  'persiapan ruang & stasiun',
+  'persiapan ruang dan stasiun',
+  'lagu + doa tutup',
+  'persembahan + doa',
+];
+
+function normTitle(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[—–]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function canonicalCreativeLabPhases(): LabPhase[] {
+  return [
+    {
+      no: 1, title: 'Persiapan Ruang & Perlengkapan', minutes: 20, owner: 'Diakonia', division: 'DIAKONIA',
+      anchor: 'PRA', parallelGroup: 'pra',
+      notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Jam jemaat (T0) mulai setelah blok PRA selesai.',
+    },
+    {
+      no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Didaskalia', division: 'DIDASKALIA',
+      anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
+      notes: 'Doa, pembagian stasiun, briefing perwakilan kelompok dan MC (paralel). Tak tambah total.',
+    },
+    {
+      no: null, title: 'Registrasi Ulang', minutes: 10, owner: 'Tuan Rumah, Penerima Tamu, Absensi', division: 'KOINONIA',
+      anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
+      notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Tak tambah total.',
+    },
+    {
+      no: null, title: 'Cek Slide & Sound', minutes: 10, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
+      anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
+      notes: 'Slide contoh karya, timer layar, sound, kode sesi proyektor (paralel). Tak tambah total.',
+    },
+    {
+      no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+      anchor: 'ACARA',
+      notes: '1 lagu buka + doa + praise/worship. Peserta sudah duduk per kelompok sejak awal. T0–T+10.',
+      segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
+    },
+    {
+      no: 2, title: 'Firman & Briefing', minutes: 10, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+      anchor: 'ACARA',
+      notes: 'Khotbah singkat dan briefing dalam 10 menit: 6 kartu jar, 2 slot web (paralel), perwakilan kelompok, dua stasiun, Presentasi Kelompok. T+10–T+20.',
+      segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
+    },
+    {
+      no: 3, title: 'Sesi 1 · Reminder Jar', minutes: 15, owner: 'Didaskalia, Mentor, Co-mentor', division: 'DIDASKALIA',
+      anchor: 'ACARA',
+      notes: 'Tiap orang menulis 6 kartu; lipat dan masukkan jar kelompok. Web: pilih 2 dari 6 (paralel). Subjudul tema di draft. Pemicu kontrol: A1 15 menit. T+20–T+35.',
+    },
+    {
+      no: 4, title: 'Sesi 2 · Art Stations', minutes: 25, owner: 'Didaskalia, Mentor, Diakonia', division: 'DIDASKALIA',
+      anchor: 'ACARA',
+      notes: '20 menit melukis Stasiun A ∥ Stasiun B (paralel), lalu 5 menit unggah foto dan makna. Nama media dan judul tema di draft. Pemicu kontrol: A2 25 menit. T+35–T+60.',
+    },
+    {
+      no: 5, title: 'Presentasi Kelompok', minutes: 30, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
+      anchor: 'ACARA',
+      notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Timer default 150 detik. T+60–T+90.',
+    },
+    {
+      no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
+      anchor: 'ACARA',
+      notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+90–T+100.',
+    },
+    {
+      no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+      anchor: 'ACARA',
+      notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+100–T+110.',
+      segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
+    },
+    {
+      no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+      anchor: 'ACARA',
+      notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+110–T+115.',
+    },
+  ];
+}
+
+export function legacyCreativeLabHits(phases: LabPhase[] | null | undefined): number {
+  const list = Array.isArray(phases) ? phases : [];
+  let hits = 0;
+  for (const phase of list) {
+    const title = normTitle(phase?.title);
+    if (title && STRONG_MARKERS.some((marker) => title.includes(marker))) hits += 1;
+  }
+  return hits;
+}
+
+export function normalizeCreativeLabPhases<T extends LabPhase>(phases: T[] | null | undefined, patternCode?: string | null): T[] {
+  const list = Array.isArray(phases) ? phases : [];
+  const code = String(patternCode || '').toUpperCase();
+  if (code && code !== 'CREATIVE_LAB') return list;
+  const hits = legacyCreativeLabHits(list);
+  const legacy = code === 'CREATIVE_LAB' ? hits >= 1 : hits >= 2;
+  if (!legacy) return list;
+  return canonicalCreativeLabPhases() as T[];
+}

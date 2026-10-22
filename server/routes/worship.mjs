@@ -18,6 +18,7 @@ import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, 
 import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, getFolderMeta, uploadFile as driveUploadFile, deleteFile as driveDeleteFile, getFileStream as driveGetFileStream, getDriveMode } from '../gdrive.mjs';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
+import { canonicalCreativeLabPhases, legacyCreativeLabHits, presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -849,13 +850,14 @@ function timerPayload(session, config) {
 
 function publicPattern(pattern) {
   if (!pattern) return null;
+  const shown = presentWorshipPattern(pattern);
   return {
-    code: pattern.code,
-    name: pattern.name,
-    summary: pattern.summary,
-    defaultDurationMin: pattern.defaultDurationMin,
-    phases: pattern.phases || [],
-    modules: pattern.modules || [],
+    code: shown.code,
+    name: shown.name,
+    summary: shown.summary,
+    defaultDurationMin: shown.defaultDurationMin,
+    phases: shown.phases || [],
+    modules: shown.modules || [],
   };
 }
 
@@ -1890,7 +1892,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       const patterns = await prisma.worshipPattern.findMany({
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       });
-      res.json({ patterns });
+      res.json({ patterns: patterns.map((p) => presentWorshipPattern(p)) });
     }),
   );
 
@@ -1942,6 +1944,13 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (b.summary !== undefined) data.summary = str(b.summary, 2000);
       if (b.defaultDurationMin !== undefined) data.defaultDurationMin = intOrNull(b.defaultDurationMin);
       if (b.phases !== undefined) data.phases = Array.isArray(b.phases) ? b.phases : [];
+      if (String(pattern.code || '').toUpperCase() === 'CREATIVE_LAB') {
+        const incoming = b.phases !== undefined ? data.phases : pattern.phases;
+        if (legacyCreativeLabHits(incoming) >= 1) {
+          data.phases = canonicalCreativeLabPhases();
+          if (b.summary === undefined) data.summary = presentWorshipPattern({ ...pattern, phases: incoming }).summary;
+        }
+      }
       if (b.modules !== undefined) data.modules = Array.isArray(b.modules) ? b.modules : [];
       if (b.playbook !== undefined) data.playbook = str(b.playbook, 200000);
       if (b.status !== undefined) data.status = STATUSES.includes(String(b.status).toUpperCase()) ? String(b.status).toUpperCase() : pattern.status;
@@ -2140,7 +2149,7 @@ export function registerWorshipRoutes(app, { wrap }) {
           accessCode: liveSession.accessCode,
           eventId: liveSession.eventId || null,
           config: agg.config,
-          pattern: liveSession.pattern,
+          pattern: presentWorshipPattern(liveSession.pattern),
         },
         likertItems: liveSession.likertItems,
         chips: liveSession.chips,

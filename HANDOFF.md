@@ -1,5 +1,20 @@
 # GEHC Portal — Handoff
 
+## Current — Rundown lama, kuota stasiun, kontrol mandiri (22 Okt 2026)
+
+**Minta:** sesi `sesi-2026-10-25-creative-lab` masih menampilkan rundown katalog lama (seed staging belum dijalankan); kartu kelompok menulis `(0/4)` sementara label foto `(maks 2)`; URL kontrol mandiri kosong (“Belum ada sesi untuk pekan ini”) sementara kontrol di portal tampil. Branch baru dari `staging` `b373d71`. Jangan sentuh `main` atau database.
+
+**Done:**
+- Judul dan menit Creative Lab yang masih legacy dinormalisasi saat dibaca (API katalog, detail sesi, event worship, studio) dan di daftar rundown. Hasilnya PRA 20' + jemaat 115' (Praise 10, Firman & Briefing 10, Sesi 1 · Reminder Jar 15, Sesi 2 · Art Stations 25, Presentasi Kelompok 30). Baris Bag Painting dan “Pilih 2 pertanyaan” tidak ikut tampil. Simpan pola yang masih legacy menuliskan rundown baku; membuka halaman tidak menulis database.
+- Centang pelukis di kartu kelompok memakai cap 2, sama dengan `LAB_PHOTO_LIMIT` Pot/Tas. Simpan tim memotong daftar ke 2.
+- `#/mentoring/<slug>/kontrol` memuat sesi dari slug itu (termasuk di luar 50 sesi terbaru) dan tidak menampilkan empty-state pekan selama sesi tersebut ketemu.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog tersimpan harus ikut judul baru. QA browser hari-H butuh database.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **164 file / 1305 tes** lulus. `npm run build` lulus. Layar browser tidak dijalankan di sini (tidak ada `DATABASE_URL`).
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/lab-rundown-kontrol-926a` · compare `staging...cursor/lab-rundown-kontrol-926a`.
+
 ## Current — Template generik + rundown baku (22 Okt 2026)
 
 **Minta:** aktivitas Creative Lab jadi template generik; rundown 135' dengan Presentasi Kelompok 30'; Mission Sequence = 5 tim gabungan; tiga bug kontrol; judul rundown semua pola memakai kosakata yang sama. Branch `cursor/creative-lab-templates-926a` ke `staging`. Jangan sentuh `main`.

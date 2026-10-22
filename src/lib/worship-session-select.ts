@@ -20,6 +20,14 @@ export function preferSession(
 ): string {
   const o = opts || {};
   const want = String(o.preferPattern || '').toUpperCase();
+  // Tautan langsung (#/mentoring/<slug>/kontrol) menang atas sesi yang
+  // sedang terbuka dan atas filter pekan. Kalau tidak, URL sesi lama
+  // jatuh ke empty-state "pekan ini" atau ke sesi lain.
+  if (o.slug) {
+    const wantSlug = String(o.slug).toLowerCase();
+    const bySlug = list.find((s) => String(s.slug || '').toLowerCase() === wantSlug);
+    if (bySlug) return bySlug.id;
+  }
   if (o.prevId) {
     const prev = list.find((s) => s.id === o.prevId);
     if (prev) {
@@ -42,10 +50,6 @@ export function preferSession(
       }
       // Beda event (mis. pindah W2 → W3): abaikan prev, lanjut ke logika bawah.
     }
-  }
-  if (o.slug) {
-    const bySlug = list.find((s) => s.slug === o.slug);
-    if (bySlug) return bySlug.id;
   }
   if (o.eventId) {
     const forEvent = list.filter((s) => s.eventId === o.eventId);

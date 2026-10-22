@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
-import { BEYONDERS_GROUPS, LAB_PRESENT_SLIDES, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
+import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -554,7 +554,6 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
 const LAB_TEAM_CAP = 10;
 const LAB_INDEX_MAX = LAB_TEAM_CAP - 1;
-const LAB_ROLE_CAP = 4;
 
 type LabTeamRow = {
   name: string;
@@ -801,7 +800,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       if (i !== teamIndex) return t;
       const cur = t[key] || [];
       if (cur.includes(name)) return { ...t, [key]: cur.filter((n) => n !== name) };
-      if (cur.length >= LAB_ROLE_CAP) return t;
+      if (cur.length >= LAB_STATION_CAP) return t;
       return { ...t, [key]: [...cur, name] };
     }));
   };
@@ -1163,9 +1162,9 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                         value={uploadSlot[t.index] || 'POT'}
                         onChange={(e) => setUploadSlot((s) => ({ ...s, [t.index]: e.target.value as 'POT' | 'BAG' | 'GROUP' }))}
                       >
-                        <option value="POT">Stasiun A · {stations.a} (maks 2)</option>
-                        <option value="BAG">Stasiun B · {stations.b} (maks 2)</option>
-                        <option value="GROUP">Foto Bersama (maks 1)</option>
+                        <option value="POT">Stasiun A · {stations.a} (maks {LAB_PHOTO_CAP.POT})</option>
+                        <option value="BAG">Stasiun B · {stations.b} (maks {LAB_PHOTO_CAP.BAG})</option>
+                        <option value="GROUP">Foto Bersama (maks {LAB_PHOTO_CAP.GROUP})</option>
                       </select>
                       <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#D9D7D0] text-[10px] font-bold cursor-pointer">
                         <ImagePlus className="w-3 h-3" /> Upload atas nama kelompok
@@ -1294,7 +1293,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
                 const options = membersOf(t);
                 const rolePick = (key: 'pot' | 'bag', label: string) => (
                   <div className="rounded-lg border border-[#EFEDE8] p-2">
-                    <p className="text-[10px] font-bold text-[#8C8880]">{label} ({(t[key] || []).length}/{LAB_ROLE_CAP})</p>
+                    <p className="text-[10px] font-bold text-[#8C8880]">{label} ({(t[key] || []).length}/{LAB_STATION_CAP})</p>
                     <div className="mt-1 max-h-28 overflow-auto space-y-0.5">
                       {options.map((p) => (
                         <label key={`${key}-${p.id}`} className="flex items-center gap-2 text-[11px]">

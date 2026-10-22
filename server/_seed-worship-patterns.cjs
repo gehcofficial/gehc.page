@@ -283,7 +283,7 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 ## 2. Pra-acara (H-7 s/d H-1)
 1. Didaskalia menetapkan tema, 6 kartu jar, dan arahan pot/tas dari {{firman_ref}}; siapkan 1 contoh karya utuh untuk ditunjukkan.
 2. Diakonia menyiapkan per kelompok: 1 jar/toples ±1 liter (muat 30-48 kertas), 6 set kertas kecil per orang, pulpen/spidol, pot, tas kanvas, cat akrilik, kuas, palet, koran/celemek, dan area jemur.
-3. Koinonia memakai sepuluh kelompok baku (Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom), masing-masing 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 perwakilan kelompok, Tim Pot 2-4 orang, Tim Tas 2-4 orang.
+3. Koinonia memakai sepuluh kelompok baku (Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom), masing-masing 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 perwakilan kelompok, Tim Pot maks 2 orang, Tim Tas maks 2 orang.
 4. Marturia menyiapkan slide contoh karya, timer layar, sound, dan dokumentasi; Liturgia menyiapkan praise/worship + lagu tutup.
 5. Briefing perwakilan: setiap peserta menulis 6 kartu di kertas, lalu memilih 2 pertanyaan untuk diisi di web (2 slot, tidak boleh sama). Perwakilan melapor ke Admin dan mengunggah foto karya.
 6. Layout ruang: peserta langsung duduk per kelompok sejak T0; meja Pot dan Tas disiapkan di meja kelompok yang sama agar tidak ada perpindahan saat aktivitas.
