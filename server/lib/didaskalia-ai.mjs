@@ -439,7 +439,7 @@ export function patternBlock(pattern) {
   } else if (code === 'THREE_SEQUENCES') {
     lines.push('- Bentuk: gamifikasi 3 sesi tanpa jeda (Sesi 1 · Snack & Merge → Sesi 2 · Kode Alkitab → Sesi 3 · Mission Room) + Presentasi Kelompok + Konklusi 10\' (firman penutup) + Penutup Sesi · Commissioning & Deklarasi 10\' + Persembahan & Doa 10\' + Lagu & Doa Penutup 5\'; discussionFlow = brief tiap sesi + aturan presentasi; deliveryPlan tekankan komando countdown, 5 tim gabungan (2 kelompok mentoring per tim, masing-masing menjalankan seluruh misi; peran Soal/Lapangan/Narasi/Presentasi/Editor hanya di dalam tim), dan deklarasi Coram Deo di Penutup Sesi, bukan di Konklusi.');
   } else if (code === 'CREATIVE_LAB') {
-    lines.push('- Bentuk: Serving Day berbasis karya — Praise & Worship 10\' → Firman & Briefing 10\' → Sesi 1 · Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; kertas semua, web pilih 2 dari 6 (paralel)) → Sesi 2 · Art Stations 25\' (20 menit melukis Stasiun A "Grow What You Believe" ∥ Stasiun B "Carry the Gospel" (paralel) + 5 menit unggah) → Presentasi Kelompok ~2,5\'/kelompok × 10 kelompok, blok 30\' termasuk transisi → Konklusi 10\' → Persembahan & Doa 10\' → Lagu & Doa Penutup 5\'.');
+    lines.push('- Bentuk: Serving Day berbasis karya — Praise & Worship 10\' → Firman & Briefing 15\' (umumkan pencatat dan pengundian) → Sesi 1 · Reminder Jar 15\' (bahan sudah dibagikan saat kedatangan; 6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; web pilih 2 dari 6 (paralel)) → Sesi 2 · Art Stations 25\' (20 menit melukis Stasiun A "Grow What You Believe" ∥ Stasiun B "Carry the Gospel" (paralel) + 5 menit unggah) → Presentasi Kelompok ~2,5\'/kelompok × 10 kelompok, blok 30\' termasuk transisi → Konklusi 10\' → Persembahan & Doa 10\' → Lagu & Doa Penutup 5\'.');
     lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Stasiun A 2-4, Stasiun B 2-4. Nama media default Pot dan Tas; judul tema boleh diubah. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');
     lines.push('- discussionFlow = alur Firman & Briefing → Sesi 1 → Sesi 2 → Presentasi Kelompok → Konklusi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer Sesi 1/Sesi 2/presentasi 150 detik, peran perwakilan, dan unggah foto di 5 menit terakhir.');
     lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan stasiun & 6 kartu harus lahir dari tema/firman, bukan generik. Kunci fase internal tetap A1/A2/PRESENT.');
@@ -852,6 +852,7 @@ export async function generateWeekExtras(input) {
     '- deliveryPlan: 2-4 baris, tiap metode yang dipakai (lihat methodMix) dengan cara praktis menyampaikannya — selaraskan dengan POLA IBADAH minggu ini.',
     '- prepChecklist: 4-6 langkah konkret persiapan khotbah.',
     '- discussionFlow: 4-6 langkah alur diskusi hari Minggu MENGIKUTI POLA IBADAH (FGD hanya untuk MONOLOG; Post-to-Post = rute kunjungan; pola lain = alurnya masing-masing), spesifik tema ini (bukan generik).',
+    `- Sebut ayat HANYA dari pekan ini: Teks Utama ${asStr(input.teksUtama?.ref || input.teksUtamaRef)} dan Kitab Bagian Fokus ${asStr(input.kitabFokus)}. Minggu lalu hanya untuk kesinambungan tema. Jangan menyalin ayat jangkar minggu lain.`,
     '- JANGAN membuat ringkasan/para frase khotbah baru: garis besar 4 komponen di modul pembekalan DIHASILKAN OTOMATIS dari outline (ekstrak verbatim 1 kalimat kunci per bagian) — detail penuh tetap di Ringkasan Khotbah (doc 02).',
     '- Kontekstual untuk mahasiswa & pekerja muda.',
     '',
@@ -919,13 +920,36 @@ export async function generateSermon(input) {
   ].filter(Boolean).join('\n');
 
   const { data } = await generateJson({ prompt, maxOutputTokens: 9000, timeoutMs: 60000 });
-  const out = clampSermon(data);
+  const out = restoreLiteralSermon(clampSermon(data), sm);
   if (!locked.length && out.methods.length) {
     // AI memilih sendiri — pakai pilihannya.
   } else if (locked.length) {
     out.methods = locked;
   }
   return out;
+}
+
+/** Outline dan teks utama dari MD sumber menang atas ringkasan AI. */
+export function restoreLiteralSermon(sermon, serviceMd) {
+  const sm = serviceMd && typeof serviceMd === 'object' ? serviceMd : null;
+  const lo = sm?.outline && typeof sm.outline === 'object' ? sm.outline : null;
+  const base = sermon && typeof sermon === 'object' ? sermon : {};
+  if (!lo) return base;
+  const outline = { ...(base.outline || {}) };
+  for (const key of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
+    const v = typeof lo[key] === 'string' ? lo[key].trim() : '';
+    if (v) outline[key] = v;
+  }
+  const infoRef = sm.info && typeof sm.info.teksUtama === 'string' ? sm.info.teksUtama.trim() : '';
+  const cur = base.teksUtama && typeof base.teksUtama === 'object' ? base.teksUtama : {};
+  return {
+    ...base,
+    outline,
+    teksUtama: {
+      ref: infoRef || (typeof cur.ref === 'string' ? cur.ref : ''),
+      text: typeof cur.text === 'string' ? cur.text : '',
+    },
+  };
 }
 
 /**

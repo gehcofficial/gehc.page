@@ -569,7 +569,7 @@ const MentoringScreen: React.FC = () => {
                   : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
                     : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`
                       : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                        : 'Duduk per kelompok · semua menulis 6 kartu · pilih 2 untuk web (paralel).';
+                        : 'Duduk per kelompok. Briefing: pencatat dan pengundian.';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -583,6 +583,19 @@ const MentoringScreen: React.FC = () => {
                       <p className="text-sm text-white/50 italic shrink-0">{phase === 'DONE' ? 'selesai' : 'mengalir…'}</p>
                     )}
                   </section>
+
+                  {phase !== 'A1' && phase !== 'A2' && phase !== 'PRESENT' && phase !== 'DONE' && brief && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pencatat</p>
+                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.scribe || 'Umumkan perwakilan pencatat tiap kelompok.'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pengundian</p>
+                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.draw || 'Umumkan pengundian urutan presentasi kelompok.'}</p>
+                      </div>
+                    </section>
+                  )}
 
                   {phase === 'PRESENT' && presenting && (
                     <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 sm:p-10">

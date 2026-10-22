@@ -463,8 +463,8 @@ function normLabName(value) {
 
 /**
  * Papan Creative Lab dari kelompok aktif di database.
- * `memberUserIds` = semua anggota aktif yang punya akun (akses feed).
- * `members` = roster tampilan, check-in didahulukan, maks 8.
+ * `memberUserIds` = semua anggota aktif yang punya akun, termasuk yang absen (akses feed).
+ * `members` = yang hadir di event. Sebelum ada absensi, roster perencanaan maks 8.
  * `lockOrder` mempertahankan indeks tim yang sudah punya update karya.
  */
 export function buildCreativeLabTeams(dbGroups, opts = {}) {
@@ -493,7 +493,10 @@ export function buildCreativeLabTeams(dbGroups, opts = {}) {
       if (ac !== bc) return ac - bc;
       return a.name.localeCompare(b.name, 'id');
     });
-    const roster = people.filter((p) => p.name).slice(0, LAB_ROSTER_MAX);
+    const attended = checked.size ? people.filter((p) => checked.has(p.id)) : [];
+    const rosterSource = attended.length ? attended : people;
+    const rosterCap = attended.length ? 20 : LAB_ROSTER_MAX;
+    const roster = rosterSource.filter((p) => p.name).slice(0, rosterCap);
     return {
       groupId: g?.id ? String(g.id) : '',
       name: g?.name ? String(g.name).trim() : canonical,

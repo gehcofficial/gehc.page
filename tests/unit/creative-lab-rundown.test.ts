@@ -31,7 +31,7 @@ describe('creative lab rundown: baca katalog lama', () => {
     );
   });
 
-  it('judul legacy menjadi rundown baku 20 + 115', () => {
+  it('judul legacy menjadi rundown baku 20 + 120', () => {
     const phases = serverNorm(LEGACY, 'CREATIVE_LAB');
     expect(phases.map((p) => p.title)).toEqual([
       'Persiapan Ruang & Perlengkapan',
@@ -48,11 +48,13 @@ describe('creative lab rundown: baca katalog lama', () => {
       'Lagu & Doa Penutup',
     ]);
     expect(phases.find((p) => p.title === 'Presentasi Kelompok')?.minutes).toBe(30);
-    expect(phases.find((p) => p.title === 'Firman & Briefing')?.minutes).toBe(10);
+    expect(phases.find((p) => p.title === 'Firman & Briefing')?.minutes).toBe(15);
+    expect(phases.find((p) => p.title === 'Firman & Briefing')?.notes || '').toMatch(/pencatat/);
+    expect(phases.find((p) => p.title === 'Persiapan Ruang & Perlengkapan')?.notes || '').toMatch(/kedatangan/);
     expect(phases.some((p) => /bag painting|pilih 2 pertanyaan|preaching/i.test(String(p.title)))).toBe(false);
     expect(patternPreMinutes(phases)).toBe(20);
-    expect(patternCongregationMinutes(phases)).toBe(115);
-    expect(patternTotalMinutes(phases)).toBe(135);
+    expect(patternCongregationMinutes(phases)).toBe(120);
+    expect(patternTotalMinutes(phases)).toBe(140);
     expect(clientNorm(LEGACY).map((p) => p.title)).toEqual(phases.map((p) => p.title));
   });
 
@@ -69,7 +71,7 @@ describe('creative lab rundown: baca katalog lama', () => {
       code: 'CREATIVE_LAB',
       name: 'Creative Lab',
       summary: 'The Roots Reminder Jar 15',
-      defaultDurationMin: 135,
+      defaultDurationMin: 140,
       phases: LEGACY,
     });
     expect(shown.summary).toContain('Sesi 1 · Reminder Jar');

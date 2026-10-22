@@ -260,6 +260,8 @@ export function creativeLabBrief(config) {
       core: pick(briefing, ['brief-core']),
       rules: pick(briefing, ['brief-rules']),
       jarIntro: pick(briefing, ['jar-intro']),
+      scribe: pick(briefing, ['brief-scribe'], 'Umumkan perwakilan pencatat tiap kelompok.'),
+      draw: pick(briefing, ['brief-draw'], 'Umumkan pengundian urutan presentasi kelompok.'),
     },
     a1: {
       title: genericTitle(pick(a1, ['a1-title'], ''), 'Reminder Jar', legacyA1),

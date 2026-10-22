@@ -5,6 +5,7 @@ import { SectionHeader } from './ui/SectionHeader';
 import { DutyCardsSkeleton } from './ui/Skeleton';
 import { LoadingOverlay } from './ui/LoadingOverlay';
 import { ServiceDutySections, type DutyPerson } from './DutyPersonChip';
+import { displayServiceRoleName } from '../../lib/serving-roles';
 
 type Duty = {
   date: string;
@@ -37,7 +38,7 @@ export const mergeDutiesByName = (duties: Duty[]) => {
   const byName = new Map<string, { name: string; roles: string[] }>();
   for (const d of duties) {
     const name = String(d.name || '').trim() || '—';
-    const role = String(d.role || '').trim();
+    const role = displayServiceRoleName(String(d.role || '').trim());
     const entry = byName.get(name) || { name, roles: [] };
     if (role && !entry.roles.includes(role)) entry.roles.push(role);
     byName.set(name, entry);

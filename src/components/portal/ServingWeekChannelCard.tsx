@@ -10,6 +10,7 @@ import {
   waShareHref,
   type WeekInvite,
 } from '../../lib/serving-week-caption';
+import { buildResponsibleGroupCaption } from '../../lib/serving-roles';
 
 /**
  * Kartu grup WA temporer per Minggu serving (BOD Tim Kerja).
@@ -46,7 +47,7 @@ export const ServingWeekChannelCard: React.FC<{ date: string; canManage: boolean
   const [loading, setLoading] = useState(true);
   const [waUrl, setWaUrl] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showCaption, setShowCaption] = useState<'invite' | 'close' | 'roster' | 'howto' | null>(null);
+  const [showCaption, setShowCaption] = useState<'invite' | 'close' | 'roster' | 'howto' | 'roles' | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,7 +103,20 @@ export const ServingWeekChannelCard: React.FC<{ date: string; canManage: boolean
     : '';
   const closeCaption = buildServingCloseCaption({ date, invite });
   const roster = buildServingRosterText(invite);
-  const captionText = showCaption === 'invite' ? inviteCaption : showCaption === 'close' ? closeCaption : showCaption === 'howto' ? buildToolHowtoCaption({}) : roster;
+  const roleCaption = buildResponsibleGroupCaption({
+    dateLabel: fmtDateID(date),
+    responsibleGroup: invite.serving?.responsibleGroup?.name,
+    hostGroup: invite.serving?.hostGroup?.name,
+  });
+  const captionText = showCaption === 'invite'
+    ? inviteCaption
+    : showCaption === 'close'
+      ? closeCaption
+      : showCaption === 'howto'
+        ? buildToolHowtoCaption({})
+        : showCaption === 'roles'
+          ? roleCaption
+          : roster;
 
   return (
     <div className="rounded-xl border border-[#EFEDE8] bg-[#FAF9F5] p-2.5 space-y-2">
@@ -172,6 +186,9 @@ export const ServingWeekChannelCard: React.FC<{ date: string; canManage: boolean
         </button>
         <button type="button" onClick={() => setShowCaption(showCaption === 'howto' ? null : 'howto')} className="text-[11px] px-2 py-1 rounded-lg bg-white border border-[#D9D7D0] font-bold text-[#8C8880]">
           🛠️ Cara kerja alat
+        </button>
+        <button type="button" onClick={() => setShowCaption(showCaption === 'roles' ? null : 'roles')} className="text-[11px] px-2 py-1 rounded-lg bg-white border border-[#D9D7D0] font-bold text-[#8C8880]">
+          📋 Caption peran penanggung
         </button>
       </div>
 

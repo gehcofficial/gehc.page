@@ -89,6 +89,6 @@ describe('rundown liturgi baku', () => {
     expect(byCode.DEBAT.defaultDurationMin).toBe(145);
     expect(byCode.BEDAH_FILM.defaultDurationMin).toBe(155);
     expect(byCode.MONOLOG.defaultDurationMin).toBe(125);
-    expect(byCode.CREATIVE_LAB.defaultDurationMin).toBe(135);
+    expect(byCode.CREATIVE_LAB.defaultDurationMin).toBe(140);
   });
 });

@@ -49,7 +49,7 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
   ],
   CREATIVE_LAB: [
     { id: 'pembuka', label: 'Praise & Worship', hint: 'Siapkan hati, duduk per kelompok.' },
-    { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman, lalu pahami 6 kartu jar + aturan aktivitas.' },
+    { id: 'briefing', label: 'Firman & Briefing', hint: 'Dengar firman 15 menit, lalu umumkan pencatat dan pengundian.' },
     { id: 'aktivitas-1', label: 'Sesi 1 · Reminder Jar', hint: 'Tulis 6 kartu di kertas; pilih 2 pertanyaan untuk diisi di web (paralel).' },
     { id: 'aktivitas-2', label: 'Sesi 2 · Art Stations', hint: 'Dua stasiun paralel; perwakilan kelompok melapor ke Admin.' },
     { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Sekitar 2,5 menit per kelompok: Stasiun A, Stasiun B, dan Slide Bersama.' },

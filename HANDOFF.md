@@ -1,5 +1,21 @@
 # GEHC Portal — Handoff
 
+## Current — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
+
+**Minta:** sisa item 1 (kolom kosong, Terbaca 55/55, varian refleksi), 2 rundown, 3 bahan saat kedatangan, 5 peran pelayanan + Liturgos, 6 daftar kelompok dari absensi. Cabang `cursor/didaskalia-feedback-1025-d5fe`. Jangan republish khotbah produksi.
+
+**Done:**
+- Pipeline rilis khotbah sudah di `437a62e`: halaman memakai naskah live bila snapshot outline kosong; rilis menyimpan snapshot sebelum Drive. Snapshot produksi tetap KHUTBAH v1 (18 Okt 2026 10.36 WIB). Tidak di-republish.
+- Terbaca menjelaskan batas hitungan. Chapter, kerangka, persentase metode, dan kolom path lama ditandai opsional. Parse tidak menyalin teks utama ke kerangka fundamental. Rapikan mempertahankan pertanyaan asli lalu menambah 🎒 Pelajar, 🎓 Mahasiswa, 💼 Pekerja. Segarkan metode mengembalikan outline sumber.
+- Creative Lab: Firman 15′, jemaat 120′, total 140′, timer 7200 dtk. Briefing pencatat + pengundian di kontrol dan layar. Bahan aktivitas dicatat sebagai tugas kedatangan.
+- Peran mengikuti urutan ibadah; musik opsional; caption siap kirim untuk mentor penanggung. `Liturgist - Shyllo` tampil sebagai Liturgos. Staging: baris peran diganti nama. Produksi: nama baris tetap, tampilan yang memetakan.
+- Daftar anggota papan aktivitas = yang hadir (maks 20). Sebelum absensi, roster perencanaan maks 8. `memberUserIds` tetap memuat yang absen agar feed bisa dibuka.
+- Data (hanya sesi `sesi-2026-10-25-creative-lab`, pola CREATIVE_LAB yang hanya dipakai sesi itu): staging dulu, lalu produksi. Pola 135′/Firman 10 → 140′/Firman 15. Timer staging 1200 dan produksi 6900 → 7200. `brief-scribe` / `brief-draw` kosong diisi default. Langkah A1 yang membagikan kartu diganti catatan kedatangan. Khotbah tidak disentuh.
+
+**Next:** setelah cabang ini di `main`, owner buka Studio Oktober 2026 pekan 4 → Terbitkan → **Rilis ulang Ringkasan Khotbah**. Sampai itu produksi tetap satu slide. Jangan `staging:sync`.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/didaskalia-feedback-1025-d5fe`
+
 ## Current — Didaskalia lima tab Studio (22 Okt 2026)
 
 **Minta:** susunan ulang Studio yang sudah disetujui, di cabang terpisah dari impor sumber. Lima tab: Sumber (empat masukan), Konten, Diskusi, Gambar, Terbitkan. Pengetahuan pindah ke menu roda gigi. Simpan per bagian, pekerjaan AI tidak mengunci layar. Tanpa deploy dan tanpa migrasi.

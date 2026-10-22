@@ -105,10 +105,10 @@ Peran Soal / Lapangan / Narasi / Presentasi / Editor hanya teks di dalam tim.
 
 Modul: `teams, timer, notes`. Kontrol: `TeamsPanel` + countdown misi.
 
-### 2.6 CREATIVE_LAB — Creative Lab (135')
+### 2.6 CREATIVE_LAB — Creative Lab (140')
 
-Program *Serving Day*: firman menjadi karya (Reminder Jar, dua stasiun). Total 135' =
-PRA 20' (kru) + jemaat 115' (Presentasi Kelompok 30', sekitar 2,5' per kelompok termasuk transisi).
+Program *Serving Day*: firman menjadi karya (Reminder Jar, dua stasiun). Total 140' =
+PRA 20' (kru) + jemaat 120' (Firman & Briefing 15', Presentasi Kelompok 30', sekitar 2,5' per kelompok termasuk transisi).
 
 | Fase | Menit | Segmen lagu | Firman |
 |---|---|---|---|

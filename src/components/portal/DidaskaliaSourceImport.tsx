@@ -7,6 +7,7 @@ import {
   defaultStudio,
   ensurePaths,
   ensureRhbSections,
+  SOURCE_CHECKLIST_NOTE,
   sourceChecklist,
   type DidaskaliaSourceSnapshot,
   type DidaskaliaStudio,
@@ -226,7 +227,7 @@ export const DidaskaliaSourceImport: React.FC<{
       if (chapterMatch && (!chapterNo || chapterNo === '0')) chapterNo = chapterMatch[1];
 
       const snapshot: DidaskaliaSourceSnapshot = {
-        kitabFundamental: teksRef || studio.sermon?.teksUtama?.ref || '',
+        kitabFundamental: String(studio.fundamentalFirman?.ref || '').trim(),
         kitabFokus: kitab || studio.kitabFokus || '',
         paths: paths.map((p) => ({
           pathIndex: p.pathIndex,
@@ -266,7 +267,7 @@ export const DidaskaliaSourceImport: React.FC<{
         sourceMd,
         sourceSnapshot: snapshot,
         ...(kitab ? { kitabFokus: kitab } : {}),
-        ...(teksRef ? { teksUtama: { ref: teksRef }, fundamentalFirman: { ref: teksRef, text: studio.fundamentalFirman?.text || '' } } : {}),
+        ...(teksRef ? { teksUtama: { ref: teksRef } } : {}),
         ...(chapterNo && chapterNo !== studio.chapterNo ? { chapterNo } : {}),
       });
       if (!ok) return;
@@ -323,7 +324,7 @@ export const DidaskaliaSourceImport: React.FC<{
         </span>
       </div>
       <p className="text-[11px] text-sky-950">
-        Empat masukan ini saja. Ayat yang tertulis di MD Serving Day mengisi Kitab Fundamental dan Kitab Bagian Fokus. Rapikan lalu Parse. Perkaya tetap opsional di tab Diskusi.
+        Empat masukan ini saja. Teks Utama di MD mengisi teks utama khotbah. Kitab Bagian Fokus terisi sendiri dan tidak disalin ke kerangka fundamental. Rapikan lalu Parse. Perkaya tetap opsional di tab Diskusi.
       </p>
       <div className="flex flex-wrap gap-1">
         {STEPS.map((s) => (
@@ -332,7 +333,7 @@ export const DidaskaliaSourceImport: React.FC<{
       </div>
       <div className="grid md:grid-cols-2 gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1">Kitab Fundamental</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880] mb-1">Teks Utama</p>
           <BibleRefPicker
             value={studio.sermon?.teksUtama?.ref || ''}
             disabled={!canWrite}
@@ -365,7 +366,7 @@ export const DidaskaliaSourceImport: React.FC<{
         </div>
         <div className="space-y-1.5">
           <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Serving Day</p>
-          <textarea value={serviceText} onChange={(e) => setServiceText(e.target.value)} onBlur={() => void peekScripture(serviceText)} rows={6} disabled={!canWrite} placeholder="Tempel teks PDF/MD. Kitab Fundamental = Teks Utama. Kitab Bagian Fokus = kitab fokus. Fondasi Teologis = Pengantar." className={`${inputCls} font-mono disabled:opacity-60`} />
+          <textarea value={serviceText} onChange={(e) => setServiceText(e.target.value)} onBlur={() => void peekScripture(serviceText)} rows={6} disabled={!canWrite} placeholder="Tempel teks PDF/MD. Teks Utama mengisi kolom teks utama. Kitab Bagian Fokus terisi sendiri. Fondasi Teologis = Pengantar." className={`${inputCls} font-mono disabled:opacity-60`} />
           <div className="flex flex-wrap gap-1.5">
             <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white text-[11px] font-bold cursor-pointer">
               <Upload className="w-3.5 h-3.5" /> Unggah PDF/MD
@@ -412,9 +413,10 @@ export const DidaskaliaSourceImport: React.FC<{
       <p className="text-[10px] text-[#5C5850]">Yang kurang tetap masuk sebagai peringatan. Bagian yang terbaca ditulis ke 7 Path dan outline. PDF Pembekalan diunduh dari salinan yang sudah disimpan. Section RHB yang dikenali: {RHB_SECTIONS.map((s) => s.title).join(', ')}.</p>
       {notice && <p className="text-[11px] text-sky-950 bg-white border border-sky-100 rounded-xl px-3 py-2">{notice}</p>}
       <div className="rounded-xl bg-white border border-sky-100 p-2">
-        <p className="text-[11px] font-black text-[#1B1B1B]">Terbaca {checks.length - missing.length}/{checks.length}</p>
+        <p className="text-[11px] font-black text-[#1B1B1B]">Terbaca {checks.length - missing.length}/{checks.length} bagian naskah</p>
+        <p className="text-[10px] text-[#5C5850]">{SOURCE_CHECKLIST_NOTE}</p>
         {missing.length === 0 ? (
-          <p className="text-[10px] text-emerald-700">Semua bagian yang dicek sudah terisi.</p>
+          <p className="text-[10px] text-emerald-700">Bagian naskah yang dicek sudah terisi. Kolom di luar hitungan ini boleh kosong.</p>
         ) : (
           <ul className="mt-1 max-h-28 overflow-y-auto text-[10px] text-amber-800 space-y-0.5">
             {missing.slice(0, 12).map((c) => <li key={c.id}>Kurang: {c.label}</li>)}

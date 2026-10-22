@@ -243,20 +243,22 @@ const THREE_SEQUENCES_TEMPLATE: DraftSection[] = [
 ];
 
 /**
- * Creative Lab (Serving Day): 115' jemaat — Firman & Briefing 10', Sesi 1
+ * Creative Lab (Serving Day): 120' jemaat — Firman & Briefing 15', Sesi 1
  * Reminder Jar 15', Sesi 2 Art Stations 25', Presentasi Kelompok 30'
  * (~2,5'/kelompok + transisi), Konklusi 10', Persembahan & Doa 10',
- * Lagu & Doa Penutup 5'. PRA 20' terpisah. Total 135'.
+ * Lagu & Doa Penutup 5'. PRA 20' terpisah. Total 140'.
  * Nama aktivitas generik; tema pekan di subjudul / nama media stasiun.
  */
 const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
   {
     key: 'briefing',
     title: 'Firman & Briefing',
-    hint: 'Inti khotbah + aturan main dalam 10 menit. Peserta sudah duduk per kelompok sejak awal.',
+    hint: 'Firman 15 menit. Briefing mengumumkan pencatat dan pengundian. Teks itu tampil di layar dan bisa diubah dari panel kontrol.',
     fields: [
       t('brief-core', 'Inti khotbah', 'textarea', 'Firman pekan ... → tema ... → panggilan ...'),
-      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '10 kelompok Beyonders, 5-8 orang; semua menulis 6 kartu, pilih 2 untuk web (paralel); perwakilan melapor ke Admin; dua stasiun seni paralel; presentasi ~2,5 menit × 10 kelompok (blok 30 menit termasuk transisi).'),
+      t('brief-scribe', 'Pengumuman pencatat', 'textarea', 'Umumkan perwakilan pencatat tiap kelompok.'),
+      t('brief-draw', 'Pengumuman pengundian', 'textarea', 'Umumkan pengundian urutan presentasi kelompok.'),
+      t('brief-rules', 'Aturan main & alur aktivitas', 'textarea', '10 kelompok Beyonders, 5-8 orang; bahan sudah ada sejak kedatangan; semua menulis 6 kartu, pilih 2 untuk web (paralel); perwakilan melapor ke Admin; dua stasiun seni paralel; presentasi ~2,5 menit × 10 kelompok (blok 30 menit termasuk transisi).'),
       t('jar-intro', 'Pengantar Reminder Jar', 'textarea', 'Jar berisi pesan semua anggota; dibawa pulang dan dibuka saat butuh penguatan.'),
     ],
   },
@@ -282,7 +284,7 @@ const CREATIVE_LAB_TEMPLATE: DraftSection[] = [
       t('a1-subtitle', 'Subjudul tema (boleh diubah)', 'text', 'Roots'),
       t('a1-goal', 'Tujuan', 'textarea', 'Setiap kelompok membuat satu jar berisi pesan semua anggotanya ...'),
       t('a1-tools', 'Alat & bahan', 'textarea', 'Jar/toples 1 liter (muat 30-48 kertas), 6 set kertas kecil, pulpen/spidol.'),
-      t('a1-steps', 'Langkah (1-2-3)', 'textarea', '1) Bagikan 6 kertas/orang. 2) Tulis semua 6 kartu di kertas. 3) Lipat & masukkan jar. 4) Pilih 2 pertanyaan di web dan isi jawabannya.'),
+      t('a1-steps', 'Langkah (1-2-3)', 'textarea', 'Bahan sudah dibagikan ke mentor/co-mentor saat kedatangan. 1) Tulis semua 6 kartu di kertas. 2) Lipat dan masukkan jar. 3) Pilih 2 pertanyaan di web dan isi jawabannya.'),
       t('a1-output', 'Output kelompok', 'text', 'Satu jar berisi 30-48 kartu + 2 jawaban web per peserta.'),
       t('a1-minutes', 'Durasi (menit)', 'number', '15'),
     ],

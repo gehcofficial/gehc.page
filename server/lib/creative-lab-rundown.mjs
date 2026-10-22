@@ -1,12 +1,12 @@
 /**
- * Rundown Creative Lab baku (PRA 20' + jemaat 115').
+ * Rundown Creative Lab baku (PRA 20' + jemaat 120').
  * Katalog staging bisa masih menyimpan judul lama sampai seed dijalankan.
  * Pembacaan menormalisasi judul itu; penyimpanan pola menuliskan versi baku
  * hanya saat admin menyimpan pola yang masih legacy.
  */
 
 export const CREATIVE_LAB_SUMMARY =
-  'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 10′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.';
+  'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.';
 
 const STRONG_MARKERS = [
   'preaching & briefing',
@@ -38,7 +38,7 @@ export function canonicalCreativeLabPhases() {
     {
       no: 1, title: 'Persiapan Ruang & Perlengkapan', minutes: 20, owner: 'Diakonia', division: 'DIAKONIA',
       anchor: 'PRA', parallelGroup: 'pra',
-      notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Jam jemaat (T0) mulai setelah blok PRA selesai.',
+      notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Bahan aktivitas dibagikan ke mentor dan co-mentor saat kedatangan, bukan di tengah sesi. Jam jemaat (T0) mulai setelah blok PRA selesai.',
     },
     {
       no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Didaskalia', division: 'DIDASKALIA',
@@ -48,7 +48,7 @@ export function canonicalCreativeLabPhases() {
     {
       no: null, title: 'Registrasi Ulang', minutes: 10, owner: 'Tuan Rumah, Penerima Tamu, Absensi', division: 'KOINONIA',
       anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
-      notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Tak tambah total.',
+      notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Bahan aktivitas sudah diterima mentor/co-mentor saat kedatangan. Tak tambah total.',
     },
     {
       no: null, title: 'Cek Slide & Sound', minutes: 10, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
@@ -62,41 +62,41 @@ export function canonicalCreativeLabPhases() {
       segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
     },
     {
-      no: 2, title: 'Firman & Briefing', minutes: 10, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+      no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: 'Khotbah singkat dan briefing dalam 10 menit: 6 kartu jar, 2 slot web (paralel), perwakilan kelompok, dua stasiun, Presentasi Kelompok. T+10–T+20.',
+      notes: 'Firman 15 menit. Briefing mengumumkan perwakilan pencatat dan pengundian urutan. Teks pengumuman diubah dari panel kontrol dan tampil di layar. T+10–T+25.',
       segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
     },
     {
       no: 3, title: 'Sesi 1 · Reminder Jar', minutes: 15, owner: 'Didaskalia, Mentor, Co-mentor', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: 'Tiap orang menulis 6 kartu; lipat dan masukkan jar kelompok. Web: pilih 2 dari 6 (paralel). Subjudul tema di draft. Pemicu kontrol: A1 15 menit. T+20–T+35.',
+      notes: 'Bahan sudah ada di meja sejak kedatangan. Tiap orang menulis 6 kartu; lipat dan masukkan jar kelompok. Web: pilih 2 dari 6 (paralel). Subjudul tema di draft. Pemicu kontrol: A1 15 menit. T+25–T+40.',
     },
     {
       no: 4, title: 'Sesi 2 · Art Stations', minutes: 25, owner: 'Didaskalia, Mentor, Diakonia', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: '20 menit melukis Stasiun A ∥ Stasiun B (paralel), lalu 5 menit unggah foto dan makna. Nama media dan judul tema di draft. Pemicu kontrol: A2 25 menit. T+35–T+60.',
+      notes: '20 menit melukis Stasiun A ∥ Stasiun B (paralel), lalu 5 menit unggah foto dan makna. Bahan tidak dibagikan di tengah sesi. Nama media dan judul tema di draft. Pemicu kontrol: A2 25 menit. T+40–T+65.',
     },
     {
       no: 5, title: 'Presentasi Kelompok', minutes: 30, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Timer default 150 detik. T+60–T+90.',
+      notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Timer default 150 detik. T+65–T+95.',
     },
     {
       no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+90–T+100.',
+      notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+95–T+105.',
     },
     {
       no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
       anchor: 'ACARA',
-      notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+100–T+110.',
+      notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+105–T+115.',
       segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
     },
     {
       no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
       anchor: 'ACARA',
-      notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+110–T+115.',
+      notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+115–T+120.',
     },
   ];
 }
@@ -135,7 +135,7 @@ export function presentWorshipPattern(pattern) {
   return {
     ...pattern,
     summary: CREATIVE_LAB_SUMMARY,
-    defaultDurationMin: 135,
+    defaultDurationMin: 140,
     phases,
   };
 }

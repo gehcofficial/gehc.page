@@ -34,4 +34,4 @@ Post-to-Post tidak punya blok persembahan; doa singkat tetap di catatan `Wrap-up
 
 `Konklusi` menggantikan Conclusion dan judul panjang `Transisi — konklusi…`.
 
-Menit, owner, dan divisi tidak diubah saat hanya merapikan judul, kecuali dua hal yang sudah ditetapkan. Creative Lab: Praise & Worship 10, Firman & Briefing 10, Sesi 1 · Reminder Jar 15, Sesi 2 · Art Stations 25, Presentasi Kelompok 30, Konklusi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5. PRA tetap 20. Jemaat tetap 115 menit. Mission Sequence: Konklusi 10 (firman penutup), Penutup Sesi · Commissioning & Deklarasi 10, lalu liturgi baku 10 + 5. Total baku 120 menit.
+Menit, owner, dan divisi tidak diubah saat hanya merapikan judul, kecuali dua hal yang sudah ditetapkan. Creative Lab: Praise & Worship 10, Firman & Briefing 15, Sesi 1 · Reminder Jar 15, Sesi 2 · Art Stations 25, Presentasi Kelompok 30, Konklusi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5. PRA tetap 20. Jemaat 120 menit. Mission Sequence: Konklusi 10 (firman penutup), Penutup Sesi · Commissioning & Deklarasi 10, lalu liturgi baku 10 + 5. Total baku 120 menit.

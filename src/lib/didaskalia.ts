@@ -401,10 +401,13 @@ export function fieldOrigin(current: string, snapshot?: string | null): 'md' | '
   return String(current || '').trim() === snap ? 'md' : 'edited';
 }
 
+/** Terbaca n/n hanya menghitung butir ini, bukan chapter, kerangka, metode, atau kolom path lama. */
+export const SOURCE_CHECKLIST_NOTE = 'Hitungan ini hanya teks utama, kitab bagian fokus, judul path, nats, 5 bagian RHB, dan 4 outline khotbah. Chapter, kerangka fundamental, persentase metode, dan kolom path lama (ringkasan hari, bacaan, pertanyaan) tidak masuk hitungan dan boleh kosong.';
+
 export function sourceChecklist(studio: DidaskaliaStudio): Array<{ id: string; label: string; ok: boolean }> {
   const paths = ensurePaths(studio);
   const items: Array<{ id: string; label: string; ok: boolean }> = [
-    { id: 'fund', label: 'Kitab Fundamental', ok: Boolean(String(studio.sermon?.teksUtama?.ref || studio.fundamentalFirman?.ref || '').trim()) },
+    { id: 'fund', label: 'Teks utama khotbah', ok: Boolean(String(studio.sermon?.teksUtama?.ref || studio.fundamentalFirman?.ref || '').trim()) },
     { id: 'fokus', label: 'Kitab Bagian Fokus', ok: Boolean(String(studio.kitabFokus || '').trim()) },
   ];
   for (const p of paths) {
@@ -473,6 +476,33 @@ export function refBookName(ref: string): string {
   return (m ? m[1] : '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+const SCRIPTURE_CITE_RE = /(?:^|[^A-Za-zÀ-ÿ])((?:[1-3]\s+)?[A-ZÀ-Ý][A-Za-zÀ-ÿ.'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ.'-]+){0,3}\s+\d+\s*:\s*\d+(?:\s*(?:--+|[–—-])\s*\d+)?)/g;
+
+function booksMatch(a: string, b: string) {
+  return a === b || a.startsWith(b) || b.startsWith(a);
+}
+
+/** Kutipan kitab:ayat di dalam kalimat. */
+export function scriptureCitations(text: string): string[] {
+  const found: string[] = [];
+  const re = new RegExp(SCRIPTURE_CITE_RE.source, 'g');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(String(text || '')))) found.push(m[1].replace(/\s+/g, ' ').trim());
+  return found;
+}
+
+/** Kutipan yang kitabnya bukan teks utama, kitab fokus, atau kerangka fundamental pekan ini. */
+export function citationsOutsideWeek(text: string, allowedRefs: string[]): string[] {
+  const allowed = allowedRefs.map((r) => refBookName(r)).filter(Boolean);
+  const bad: string[] = [];
+  for (const cite of scriptureCitations(text)) {
+    const book = refBookName(cite);
+    if (!book || allowed.some((a) => booksMatch(book, a))) continue;
+    bad.push(cite);
+  }
+  return [...new Set(bad)];
+}
+
 /** True bila Bacaan harian tampak sebagai porsi dari Kitab Fokus statis (nama kitab sama; kosong = tidak dinilai). */
 export function bacaanMatchesKitab(bacaanRef: string, kitabFokus: string): boolean {
   const b = String(bacaanRef || '').trim();
@@ -507,6 +537,52 @@ export function needsRepublish(studio: DidaskaliaStudio, doc: 'pembekalan' | 'kh
       ? { fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, sermon: studio.sermon }
       : { chapterNo: studio.chapterNo, fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, paths: studio.paths };
   return hashContent(payload) !== meta.contentHash;
+}
+
+/** Belum pernah dirilis, draf berbeda dari snapshot, atau sama dengan rilis. */
+export function releaseState(studio: DidaskaliaStudio, doc: 'pembekalan' | 'khutbah' | 'rhb'): 'unreleased' | 'stale' | 'current' {
+  const meta = studio.render?.[doc];
+  if (!meta?.renderedAt && !meta?.snapshot) return 'unreleased';
+  return needsRepublish(studio, doc) ? 'stale' : 'current';
+}
+
+/** Tanggal rilis dalam WIB. `toLocaleDateString` tanpa zona bisa menampilkan 17 Okt untuk 18 Okt 10:36 WIB. */
+export function formatJakarta(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const body = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+  return `${body} WIB`;
+}
+
+export function publishFeedback(input: { saved: boolean; driveError?: string; version?: number | null }): { tone: 'ok' | 'warn' | 'error'; title: string; detail: string } {
+  if (!input.saved) {
+    return {
+      tone: 'error',
+      title: 'Rilis gagal',
+      detail: input.driveError || 'Snapshot tidak tersimpan. Halaman materi tidak berubah.',
+    };
+  }
+  const version = input.version ? `v${input.version}` : 'versi baru';
+  if (input.driveError) {
+    return {
+      tone: 'warn',
+      title: `Halaman materi diperbarui ke ${version}`,
+      detail: `PDF Drive belum terganti: ${input.driveError}`,
+    };
+  }
+  return {
+    tone: 'ok',
+    title: `Rilis ${version} tersimpan`,
+    detail: 'Halaman materi memakai snapshot ini.',
+  };
 }
 
 /** Label manusia untuk sebuah scope catatan. */

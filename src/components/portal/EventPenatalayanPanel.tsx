@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Users, Plus, X, Check, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
+import { buildResponsibleGroupCaption, displayServiceRoleName } from '../../lib/serving-roles';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
@@ -382,6 +383,23 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
             {Boolean(respId) !== Boolean(hostId) && (
               <span className="text-[10px] text-amber-700">Isi keduanya (atau kosongkan keduanya untuk menghapus).</span>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                const text = buildResponsibleGroupCaption({
+                  dateLabel: dateStr
+                    ? new Date(`${dateStr}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                    : 'pekan ini',
+                  responsibleGroup: groups.find((g) => g.id === respId)?.name,
+                  hostGroup: groups.find((g) => g.id === hostId)?.name,
+                });
+                void navigator.clipboard?.writeText(text);
+                setGroupMsg({ ok: true, text: 'Caption peran untuk mentor penanggung disalin. Tuan rumah mengisi nama per peran.' });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850]"
+            >
+              <Copy className="w-3.5 h-3.5" /> Salin caption peran
+            </button>
           </div>
           {groupMsg && (
             <p className={`text-[11px] font-bold ${groupMsg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{groupMsg.text}</p>
@@ -436,7 +454,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
                       return (
                         <div key={role.id} className="px-4 py-3 space-y-2">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-bold text-[#1B1B1B]">{role.name}</p>
+                            <p className="text-xs font-bold text-[#1B1B1B]">{displayServiceRoleName(role.name)}</p>
                             <span className="text-[10px] font-bold text-[#8C8880]">{people.length} orang</span>
                           </div>
 

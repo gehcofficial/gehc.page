@@ -3,6 +3,7 @@ import { CalendarPlus, Info, Loader2, Send } from 'lucide-react';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
 import type { ServiceRole } from '../../types/penatalayan';
+import { displayServiceRoleName, WORSHIP_ORDER_ROLES } from '../../lib/serving-roles';
 import { parseHashSearch } from '../../lib/portal-routes';
 
 const ALL_DIVISIONS = ['LITURGIA', 'DIDASKALIA', 'KOINONIA', 'DIAKONIA', 'MARTURIA'] as const;
@@ -271,6 +272,15 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
         <p className="text-[11px] text-[#8C8880]">
           Pilih nama dari kelompok binaanmu (list otomatis tersaring). Sekali kirim bisa multi-role x multi-people ({divParam || 'semua divisi'}). Yang terkirim berstatus <strong>Menunggu divisi</strong> — jadwal baru terbit setelah divisi approve.
         </p>
+        <div className="rounded-xl border border-[#EFEDE8] bg-white p-2.5 space-y-1">
+          <p className="text-[11px] font-black text-[#1B1B1B]">Peran menurut urutan ibadah</p>
+          <p className="text-[11px] text-[#8C8880]">Musik tidak wajib. Koordinasi jadwal dengan Liturgia, termasuk anggota di luar kelompok yang bertugas. Tuan rumah mengisi nama.</p>
+          <ul className="text-[11px] text-[#5C5850] space-y-0.5">
+            {WORSHIP_ORDER_ROLES.map((role) => (
+              <li key={role.order}>{role.order}. {role.segment} · {role.name}{role.optional ? ' (opsional)' : ''}</li>
+            ))}
+          </ul>
+        </div>
         {msg && <p className={`text-[11px] font-bold ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
 
         {loading ? (
@@ -292,7 +302,7 @@ export const MentorPenatalayanUsulanPanel: React.FC = () => {
                     return (
                       <div key={role.id} className="rounded-xl border border-[#EFEDE8] bg-[#FAF9F5] p-2.5">
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-black text-[#1B1B1B]">{role.name}</p>
+                          <p className="text-xs font-black text-[#1B1B1B]">{displayServiceRoleName(role.name)}</p>
                           {optional
                             ? <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 border border-[#D9D7D0] text-[#8C8880] font-bold">opsional</span>
                             : <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold">wajib</span>}
