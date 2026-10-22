@@ -487,7 +487,7 @@ describe('session-draft: AI proposal', () => {
     expect(prompt).toContain('a2-bag');
     expect(prompt).toContain('Agape');
     expect(prompt).toContain('Shalom');
-    expect(prompt).toContain('jangan mengarang kelompok ke-11');
+    expect(prompt).toContain('Jangan mengarang kelompok ke-11');
     expect(prompt).not.toContain('group-*');
   });
 
