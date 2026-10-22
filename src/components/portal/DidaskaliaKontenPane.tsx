@@ -164,12 +164,7 @@ export const DidaskaliaKontenPane: React.FC<{
               )}
               {(p.titleEn || p.summaryEn) && !enDraft[`path:${p.pathIndex}`] && <p className="text-[10px] text-[#8C8880] mt-1">English: {p.titleEn || '—'}{p.summaryEn ? ` · ${p.summaryEn}` : ''}</p>}
             </div>
-            <div>
-              <label className={labelCls}>Ringkasan Hari <OriginBadge snap={pSnap?.summary} value={p.summary || ''} /></label>
-              <input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} />
-            </div>
             <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
-            <div><label className={labelCls}>Bacaan Alkitab</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} placeholder={studio.kitabFokus ? `Porsi hari ini dari ${studio.kitabFokus}` : 'Porsi hari ini dari Kitab Fokus'} className={inputCls} /></div>
             <div>
               <label className={labelCls}>Nats Pembimbing <OriginBadge snap={pSnap?.scriptureRef} value={p.scriptureRef} /></label>
               <input value={p.scriptureRef} onChange={(e) => setPath(i, { scriptureRef: e.target.value })} className={inputCls} />
@@ -178,25 +173,38 @@ export const DidaskaliaKontenPane: React.FC<{
           {!bacaanMatchesKitab(p.bacaanRef || '', studio.kitabFokus || '') && (
             <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">Bacaan ini tampak di luar Kitab Fokus ({studio.kitabFokus || '—'}).</p>
           )}
-          <div><label className={labelCls}>Teks Nats Pembimbing</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
-          <div className="grid sm:grid-cols-2 gap-2">
-            <div><label className={labelCls}>Pertanyaan Pembuka</label><textarea value={p.hookQuestion} onChange={(e) => setPath(i, { hookQuestion: e.target.value })} rows={2} className={inputCls} /></div>
-            <div><label className={labelCls}>Ilustrasi</label><textarea value={p.illustration} onChange={(e) => setPath(i, { illustration: e.target.value })} rows={2} className={inputCls} /></div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className={labelCls}>Perenungan</label>
-              <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
-            </div>
-            <textarea value={p.reflection} onChange={(e) => setPath(i, { reflection: e.target.value })} rows={4} className={inputCls} />
-            {suggestionBox(`path:${i}:reflection`, (t) => setPath(i, { reflection: t }))}
-          </div>
-          <div className="grid sm:grid-cols-3 gap-2">
-            <div><label className={labelCls}>Amati</label><input value={p.observeQ} onChange={(e) => setPath(i, { observeQ: e.target.value })} className={inputCls} /></div>
-            <div><label className={labelCls}>Pahami</label><input value={p.interpretQ} onChange={(e) => setPath(i, { interpretQ: e.target.value })} className={inputCls} /></div>
-            <div><label className={labelCls}>Terapkan</label><input value={p.applyQ} onChange={(e) => setPath(i, { applyQ: e.target.value })} className={inputCls} /></div>
-          </div>
-          <div><label className={labelCls}>Pertanyaan FGD</label><textarea value={(p.fgdQuestions || []).join('\n')} onChange={(e) => setPath(i, { fgdQuestions: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} rows={3} className={inputCls} /></div>
+          {(() => {
+            const legacyEmpty = ![p.summary, p.bacaanRef, p.scriptureText, p.hookQuestion, p.illustration, p.reflection, p.observeQ, p.interpretQ, p.applyQ].some((v) => String(v || '').trim()) && !(p.fgdQuestions || []).length;
+            const sectionsFilled = ensureRhbSections(p.rhbSections).some((s) => String(s.body || '').trim());
+            return (
+              <details open={!(legacyEmpty && sectionsFilled)} className="rounded-xl border border-[#E7E5DE] px-3 py-2">
+                <summary className="cursor-pointer text-[11px] font-bold text-[#5C5850]">Kolom path lama (opsional, tidak masuk hitungan Terbaca)</summary>
+                <div className="mt-2 space-y-2">
+                  <div><label className={labelCls}>Ringkasan Hari <OriginBadge snap={pSnap?.summary} value={p.summary || ''} /></label><input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} /></div>
+                  <div><label className={labelCls}>Bacaan Alkitab</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} placeholder={studio.kitabFokus ? `Porsi hari ini dari ${studio.kitabFokus}` : 'Porsi hari ini dari Kitab Fokus'} className={inputCls} /></div>
+                  <div><label className={labelCls}>Teks Nats Pembimbing</label><textarea value={p.scriptureText} onChange={(e) => setPath(i, { scriptureText: e.target.value })} rows={2} className={inputCls} /></div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <div><label className={labelCls}>Pertanyaan Pembuka</label><textarea value={p.hookQuestion} onChange={(e) => setPath(i, { hookQuestion: e.target.value })} rows={2} className={inputCls} /></div>
+                    <div><label className={labelCls}>Ilustrasi</label><textarea value={p.illustration} onChange={(e) => setPath(i, { illustration: e.target.value })} rows={2} className={inputCls} /></div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelCls}>Perenungan</label>
+                      <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
+                    </div>
+                    <textarea value={p.reflection} onChange={(e) => setPath(i, { reflection: e.target.value })} rows={4} className={inputCls} />
+                    {suggestionBox(`path:${i}:reflection`, (t) => setPath(i, { reflection: t }))}
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-2">
+                    <div><label className={labelCls}>Amati</label><input value={p.observeQ} onChange={(e) => setPath(i, { observeQ: e.target.value })} className={inputCls} /></div>
+                    <div><label className={labelCls}>Pahami</label><input value={p.interpretQ} onChange={(e) => setPath(i, { interpretQ: e.target.value })} className={inputCls} /></div>
+                    <div><label className={labelCls}>Terapkan</label><input value={p.applyQ} onChange={(e) => setPath(i, { applyQ: e.target.value })} className={inputCls} /></div>
+                  </div>
+                  <div><label className={labelCls}>Pertanyaan FGD</label><textarea value={(p.fgdQuestions || []).join('\n')} onChange={(e) => setPath(i, { fgdQuestions: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} rows={3} className={inputCls} /></div>
+                </div>
+              </details>
+            );
+          })()}
           <div>
             <label className={labelCls}>Jembatan <OriginBadge snap={pSnap?.bridge} value={p.bridge} /></label>
             <textarea value={p.bridge} onChange={(e) => setPath(i, { bridge: e.target.value })} rows={2} className={inputCls} />
@@ -229,13 +237,13 @@ export const DidaskaliaKontenPane: React.FC<{
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Chapter</label>
+              <label className={labelCls}>Chapter <span className="font-bold normal-case tracking-normal text-[#8C8880]">opsional, tidak masuk Terbaca</span></label>
               <select value={studio.chapterNo || '0'} onChange={(e) => patchMeta({ chapterNo: e.target.value })} className={inputCls}>
                 {Array.from({ length: 53 }, (_, n) => <option key={n} value={String(n)}>Chapter {n}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Kerangka Fundamental Firman</label>
+              <label className={labelCls}>Kerangka Fundamental Firman <span className="font-bold normal-case tracking-normal text-[#8C8880]">opsional, tidak masuk Terbaca</span></label>
               <textarea value={studio.fundamentalFirman?.text || ''} onChange={(e) => patchMeta({ fundamentalFirman: { text: e.target.value } })} rows={2} className={inputCls} />
             </div>
           </div>
@@ -256,7 +264,7 @@ export const DidaskaliaKontenPane: React.FC<{
             </div>
           </div>
           <div>
-            <label className={labelCls}>Analisa metode (%)</label>
+            <label className={labelCls}>Analisa metode (%) <span className="font-bold normal-case tracking-normal text-[#8C8880]">opsional, tidak masuk Terbaca</span></label>
             <div className="space-y-1.5">
               {(studio.methodMix || []).map((row, mi) => (
                 <div key={mi} className="flex flex-wrap items-center gap-1.5">

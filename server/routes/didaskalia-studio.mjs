@@ -1103,6 +1103,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           theme: week.mentoringTheme || week.servingTheme || week.theme || st.chapterNo || '',
           fundamentalFirman: st.fundamentalFirman,
           kitabFokus: st.kitabFokus,
+          teksUtama: st.sermon?.teksUtama || null,
           methods: st.homileticMethods,
           notes: req.body?.notes,
           pathsOutline,

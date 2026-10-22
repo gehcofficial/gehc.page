@@ -441,14 +441,10 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
           ...(patch.teksUtama !== undefined ? { ref: patch.teksUtama } : {}),
         },
       };
-      const fundamental = patch.teksUtama && !String(s.fundamentalFirman?.ref || '').trim()
-        ? { ...s.fundamentalFirman, ref: patch.teksUtama }
-        : s.fundamentalFirman;
       const next = {
         ...s,
         sermon,
         kitabFokus: patch.kitabFokus ?? s.kitabFokus,
-        fundamentalFirman: fundamental,
       };
       sermonSnap.current = JSON.stringify(sermon);
       studioRef.current = next;

@@ -212,7 +212,7 @@ export type SessionActivity = {
 
 /** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
 export type SessionActivityBrief = {
-  briefing: { core: string; rules: string; jarIntro: string };
+  briefing: { core: string; rules: string; jarIntro: string; scribe: string; draw: string };
   a1: { title: string; subtitle: string; goal: string; tools: string; steps: string; output: string; minutes: number };
   a2: {
     title: string; goal: string; tools: string;

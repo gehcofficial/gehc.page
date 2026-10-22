@@ -23,13 +23,14 @@ const SYSTEM = [
   'Kamu menyunting naskah kurikulum pemuda gereja supaya rapi dan mudah dibaca.',
   'Tiga tugas saja: (1) susun ke format markdown yang diminta, (2) perbaiki ejaan dan tanda baca, (3) usulkan perbaikan bahasa yang bias atau tidak inklusif (gender, suku, kemampuan, kelas, merendahkan) tanpa mengubah makna teologis.',
   'Jangan menambah ayat, ilustrasi, doktrin, atau contoh yang tidak ada di sumber.',
+  'Pengecualian hanya pada Pertanyaan untuk Refleksi Pribadi: pertahankan setiap pertanyaan asli apa adanya, lalu tambahkan varian pelajar, mahasiswa, dan pekerja. Jangan mengubah pertanyaan asli menjadi varian itu.',
   'Referensi kitab + pasal:ayat HARUS sama persis dengan sumber: jangan menerjemahkan nama kitab, jangan mengubah nomor.',
   'Setiap perubahan ejaan atau inklusi dicatat di changes (before = cuplikan sumber, after = cuplikan hasil, note singkat).',
   'Perubahan format boleh diringkas menjadi satu butir kind "format".',
   'normalized berisi naskah utuh hasil suntingan, bukan ringkasan.',
 ].join(' ');
 
-const RHB_FORMAT = [
+export const RHB_FORMAT = [
   'Format wajib satu Path:',
   '# PATH N — Hari',
   '## Judul (boleh tetap bahasa Indonesia)',
@@ -38,6 +39,12 @@ const RHB_FORMAT = [
   '### Pembahasan Tematis',
   '### Makna dan Implikasi bagi Beyonders',
   '### Pertanyaan untuk Refleksi Pribadi',
+  'Di bagian ini, tiap pertanyaan asli tetap utuh. Di bawahnya tambahkan tiga varian dengan pola pekan sebelumnya:',
+  '1. <pertanyaan asli, jangan diubah maknanya>',
+  '   🎒 Pelajar — <situasi sekolah>',
+  '   🎓 Mahasiswa — <situasi kuliah>',
+  '   💼 Pekerja — <situasi kerja>',
+  'Varian hanya memindahkan pertanyaan yang sama ke situasi pelajar, mahasiswa, atau pekerja. Jangan menambah pertanyaan baru.',
   '### Pertanyaan untuk Diskusi Kelompok',
   '### Jembatan',
 ].join('\n');

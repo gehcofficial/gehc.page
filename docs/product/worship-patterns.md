@@ -159,8 +159,8 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 ## 12. CREATIVE_LAB — Creative Lab (21 Okt 2026)
 
 Pola ibadah karya-kreatif untuk *Serving Day*: firman menjadi karya nyata
-(Reminder Jar, dua stasiun seni). Total baku **135'** = **PRA 20'** (kru) +
-**jemaat 115'** (Presentasi Kelompok 30' untuk 10 kelompok, sekitar 2,5' termasuk transisi).
+(Reminder Jar, dua stasiun seni). Total baku **140'** = **PRA 20'** (kru) +
+**jemaat 120'** (Firman & Briefing 15', Presentasi Kelompok 30' untuk 10 kelompok, sekitar 2,5' termasuk transisi).
 Tanpa migrasi Prisma — pola cukup baris `worship_patterns` via seed,
 state hari-H di `config` (`groupId` / anggota / perwakilan di JSON).
 
@@ -178,7 +178,7 @@ state hari-H di `config` (`groupId` / anggota / perwakilan di JSON).
 | 7. Persembahan & Doa | 10 | `ACARA` | — |
 | 8. Lagu & Doa Penutup | 5 | `ACARA` | — |
 
-`patternTotalMinutes` = 135 (trek main termasuk PRA),
+`patternTotalMinutes` = 140 (trek main termasuk PRA),
 `patternCongregationMinutes` = 115, `patternPreMinutes` = 20.
 
 ### 12.2 Enam kartu jar
@@ -241,7 +241,7 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 ### 12.5 QA
 
 1. `npm run db:seed:worship:staging` → katalog Pola Ibadah, kartu
-   **Creative Lab** (135', Presentasi Kelompok 30').
+   **Creative Lab** (140', Firman & Briefing 15', Presentasi Kelompok 30').
 2. Sesi baru: **Terapkan ke sesi** mengisi 10 kelompok dari database
    (bukan teks bebas). Sesi yang sudah ada: buka kontrol lalu tekan
    **Muat 10 kelompok** (tidak menimpa otomatis).

@@ -8,7 +8,7 @@ Empat masukan di tab Sumber mengisi studio. Yang lain (7 Path, outline khotbah, 
 
 | Tab | Isi |
 |---|---|
-| Sumber | Kitab Fundamental (teks utama khotbah), Kitab Bagian Fokus, MD RHB 7 Path, MD Serving Day. Unggah atau tempel. Ayat yang ada di MD mengisi dua kolom kitab. Lalu Rapikan & cek, lalu Parse. Checklist menunjukkan bagian yang terbaca dan yang kurang. |
+| Sumber | Teks Utama, Kitab Bagian Fokus, MD RHB 7 Path, MD Serving Day. Unggah atau tempel. Teks Utama dan Kitab Bagian Fokus terisi terpisah; teks utama tidak disalin ke kerangka fundamental. Lalu Rapikan & cek, lalu Parse. Terbaca n/n hanya judul, nats, lima bagian RHB, dan empat outline. Chapter, kerangka, metode, dan kolom path lama tidak masuk hitungan. |
 | Konten | Kiri: tujuh hari dan Khotbah. Kanan: editor bagian itu. Lencana **dari MD** bila teks masih sama dengan hasil parse, **diubah** bila sudah disunting. |
 | Diskusi | Catatan rekan tim dan tombol **Perkaya** (opsional, kapan saja). |
 | Gambar | Satu tindakan **Buat semua gambar**: 1 cover + 4 bagian khotbah + 7 hari RHB. Galeri, sisa kuota, dan buat ulang per gambar. |

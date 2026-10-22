@@ -179,6 +179,8 @@ describe('creative-lab: payload peserta & layar', () => {
       },
     });
     expect(brief.briefing.core).toBe('Inti firman');
+    expect(brief.briefing.scribe).toContain('pencatat');
+    expect(brief.briefing.draw).toContain('pengundian');
     expect(brief.a1).toMatchObject({ title: 'Jar', minutes: 18 });
     expect(brief.a2).toMatchObject({ pot: 'Arah pot', bag: 'Arah tas', minutes: 28 });
     expect(brief.a2.potMeaning).toContain('Pot melambangkan tempat benih iman bertumbuh');
@@ -279,7 +281,7 @@ describe('creative-lab: buildCreativeLabTeams', () => {
     expect(out.teams[0]).toMatchObject({
       groupId: 'g-agape',
       missing: false,
-      members: ['Zara', 'Cici'],
+      members: ['Zara'],
       memberUserIds: ['a1', 'a2'],
     });
     expect(out.missing).toContain('Avodah');
@@ -323,16 +325,22 @@ describe('creative-lab: buildCreativeLabTeams', () => {
     expect(out.teams.map((t) => t.name)).not.toContain('Ruach');
   });
 
-  it('roster tampilan maks 8, akun feed maks 20, check-in di depan', () => {
+  it('roster tampilan = yang hadir; yang absen tetap di akses feed', () => {
     const members = Array.from({ length: 22 }, (_, i) => member(`id${String(i).padStart(2, '0')}`, `Nama ${String(i).padStart(2, '0')}`));
     const out = buildCreativeLabTeams(
       [{ id: 'g', name: 'Agape', members }],
-      { checkedInIds: ['id21'] },
+      { checkedInIds: ['id21', 'id01'] },
     );
-    expect(out.teams[0].members).toHaveLength(8);
-    expect(out.teams[0].members[0]).toBe('Nama 21');
+    expect(out.teams[0].members).toEqual(['Nama 01', 'Nama 21']);
     expect(out.teams[0].memberUserIds).toHaveLength(20);
-    expect(out.teams[0].memberUserIds[0]).toBe('id21');
+    expect(out.teams[0].memberUserIds).toEqual(expect.arrayContaining(['id21', 'id01', 'id00']));
+  });
+
+  it('sebelum ada absensi, roster perencanaan tetap maks 8', () => {
+    const members = Array.from({ length: 12 }, (_, i) => member(`id${i}`, `Nama ${i}`));
+    const out = buildCreativeLabTeams([{ id: 'g', name: 'Agape', members }]);
+    expect(out.teams[0].members).toHaveLength(8);
+    expect(out.teams[0].memberUserIds).toHaveLength(12);
   });
 });
 

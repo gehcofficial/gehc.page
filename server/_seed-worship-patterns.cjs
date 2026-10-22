@@ -283,13 +283,13 @@ Modul: timer, notes, fgd, testimony, chips, wordcloud. Judul rundown: Sesi 1 · 
 const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 
 ## 1. Identitas & Tujuan Teologis
-**Nama:** Creative Lab (Serving Day). **Durasi baku:** 135 menit (115 menit jemaat T0→T+115 + 20 menit kru PRA T-minus).
+**Nama:** Creative Lab (Serving Day). **Durasi baku:** 140 menit (120 menit jemaat T0→T+120 + 20 menit kru PRA T-minus).
 **Tujuan:** Firman {{tema}} dari {{firman_ref}} tidak berhenti di telinga, tetapi menjadi karya yang terlihat dan komitmen yang dibawa pulang. Lewat Sesi 1 · Reminder Jar setiap orang menyimpan penguatan iman (subjudul tema di draft, contoh Roots); lewat Sesi 2 · Art Stations kelompok menerjemahkan nilai Injil menjadi dua karya (nama media dan judul tema di draft, contoh Pot / Grow What You Believe dan Tas / Carry the Gospel).
 **Ayat jangkar default:** Yakobus 1:22-25. Pekan berjalan pakai {{firman_ref}} — {{firman_text}} (tema: {{tema}}, kitab fokus: {{kitab_fokus}}).
 
 ## 2. Pra-acara (H-7 s/d H-1)
 1. Didaskalia menetapkan tema, 6 kartu jar, dan arahan pot/tas dari {{firman_ref}}; siapkan 1 contoh karya utuh untuk ditunjukkan.
-2. Diakonia menyiapkan per kelompok: 1 jar/toples ±1 liter (muat 30-48 kertas), 6 set kertas kecil per orang, pulpen/spidol, pot, tas kanvas, cat akrilik, kuas, palet, koran/celemek, dan area jemur.
+2. Diakonia menyiapkan per kelompok: 1 jar/toples ±1 liter (muat 30-48 kertas), 6 set kertas kecil per orang, pulpen/spidol, pot, tas kanvas, cat akrilik, kuas, palet, koran/celemek, dan area jemur. Bahan itu dibagikan ke mentor dan co-mentor saat kedatangan, bukan di tengah sesi.
 3. Koinonia memakai sepuluh kelompok baku (Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom), masing-masing 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 perwakilan kelompok, Tim Pot maks 2 orang, Tim Tas maks 2 orang.
 4. Marturia menyiapkan slide contoh karya, timer layar, sound, dan dokumentasi; Liturgia menyiapkan praise/worship + lagu tutup.
 5. Briefing perwakilan: setiap peserta menulis 6 kartu di kertas, lalu memilih 2 pertanyaan untuk diisi di web (2 slot, tidak boleh sama). Perwakilan melapor ke Admin dan mengunggah foto karya.
@@ -301,17 +301,18 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 |---|---|---|---|---|
 | — | Persiapan Ruang & Perlengkapan (PRA, T-20→T0) | 20 | Diakonia | Layout per kelompok, alat seni, area jemur. Doa Petugas, Registrasi Ulang, dan Cek Slide & Sound (paralel) |
 | 1 | Praise & Worship (T0→T+10) | 10 | Liturgia | 1 lagu buka + doa + praise/worship; peserta duduk per kelompok |
-| 2 | Firman & Briefing (T+10→T+20) | 10 | Didaskalia | Khotbah singkat + briefing 6 kartu, aturan, perwakilan, presentasi |
-| 3 | Sesi 1 · Reminder Jar (T+20→T+35) | 15 | Didaskalia + Mentor | 6 kartu di kertas; web pilih 2 dari 6 (paralel); subjudul tema di draft |
-| 4 | Sesi 2 · Art Stations (T+35→T+60) | 25 | Didaskalia + Mentor | 20 menit melukis Stasiun A ∥ Stasiun B (paralel) + 5 menit unggah foto dan makna |
-| 5 | Presentasi Kelompok (T+60→T+90) | 30 | MC/Didaskalia | 10 kelompok × sekitar 2,5 menit termasuk transisi; Slide Stasiun A, Slide Stasiun B, Slide Bersama |
-| 6 | Konklusi (T+90→T+100) | 10 | Didaskalia | Konklusi firman + Satu Kata + komitmen kelompok |
-| 7 | Persembahan & Doa (T+100→T+110) | 10 | Liturgia | Kantong jalan + doa persembahan dan syafaat |
-| 8 | Lagu & Doa Penutup (T+110→T+115) | 5 | Liturgia | 1 lagu + doa tutup + berkat |
+| 2 | Firman & Briefing (T+10→T+25) | 15 | Didaskalia | Firman + umumkan pencatat dan pengundian |
+| 3 | Sesi 1 · Reminder Jar (T+25→T+40) | 15 | Didaskalia + Mentor | Bahan sudah ada sejak kedatangan; 6 kartu di kertas; web pilih 2 dari 6 (paralel) |
+| 4 | Sesi 2 · Art Stations (T+40→T+65) | 25 | Didaskalia + Mentor | 20 menit melukis Stasiun A ∥ Stasiun B (paralel) + 5 menit unggah foto dan makna |
+| 5 | Presentasi Kelompok (T+65→T+95) | 30 | MC/Didaskalia | 10 kelompok × sekitar 2,5 menit termasuk transisi; Slide Stasiun A, Slide Stasiun B, Slide Bersama |
+| 6 | Konklusi (T+95→T+105) | 10 | Didaskalia | Konklusi firman + Satu Kata + komitmen kelompok |
+| 7 | Persembahan & Doa (T+105→T+115) | 10 | Liturgia | Kantong jalan + doa persembahan dan syafaat |
+| 8 | Lagu & Doa Penutup (T+115→T+120) | 5 | Liturgia | 1 lagu + doa tutup + berkat |
 
 ## 4. Naskah siap baca
 **Pembuka:** "Selamat datang, Beyonders. Hari ini kita tidak hanya mendengar firman — kita akan membuat sesuatu dari firman itu. Duduklah bersama kelompokmu."
-**Briefing 6 kartu:** "Setiap orang menerima 6 kertas. (1) A Root I Carry — nilai iman atau tradisi baik dari keluarga/GMIM yang ingin kamu bawa. (2) A Truth I Need to Remember — kebenaran tentang Kristus yang ingin kamu ingat saat sulit. (3) When I Feel Lost — pesan penguatan untuk dirimu saat merasa jauh dari Tuhan. (4) A Word for My Community — pesan untuk anggota kelompokmu. (5) A Verse to Hold Onto — satu ayat dan referensinya. (6) My Next Faith Step — satu tindakan nyata minggu ini. Tulis semua 6 di kertas; di web, pilih 2 pertanyaan dan isi jawabanmu di 2 slot."
+**Briefing:** "Perwakilan pencatat tiap kelompok sudah ditunjuk. Urutan presentasi mengikuti pengundian. Kertas dan bahan sudah ada di meja sejak kedatangan — tidak dibagikan lagi di tengah sesi."
+**Enam kartu:** "(1) A Root I Carry — nilai iman atau tradisi baik dari keluarga/GMIM yang ingin kamu bawa. (2) A Truth I Need to Remember — kebenaran tentang Kristus yang ingin kamu ingat saat sulit. (3) When I Feel Lost — pesan penguatan untuk dirimu saat merasa jauh dari Tuhan. (4) A Word for My Community — pesan untuk anggota kelompokmu. (5) A Verse to Hold Onto — satu ayat dan referensinya. (6) My Next Faith Step — satu tindakan nyata minggu ini. Tulis semua 6 di kertas; di web, pilih 2 pertanyaan dan isi jawabanmu di 2 slot."
 **Sesi 1 · Reminder Jar:** "Tulis dengan jujur, bukan dengan jawaban yang terdengar rohani. Setelah selesai, lipat kartumu dan masukkan ke jar kelompok. Lalu pilih 2 pertanyaan yang paling ingin kamu simpan di web (paralel, bukan baris rundown sendiri). Jar ini dibawa pulang dan dibuka kembali saat kalian membutuhkan penguatan. Subjudul tema pekan ini bisa diganti di draft."
 **Sesi 2 · Art Stations:** "Dua stasiun berjalan bersamaan (paralel) selama 20 menit, lalu 5 menit untuk unggah foto dan makna. Stasiun A, contoh media Pot dengan judul 'Grow What You Believe' — apa yang kita percayai seharusnya bertumbuh dan terlihat. Stasiun B, contoh media Tas dengan judul 'Carry the Gospel' — membawa Injil ke mana pun kita pergi. Nama media dan judul tema diedit per pekan. Sertakan satu kata, simbol, atau kalimat pendek komitmen kelompok di kedua karya. Perwakilan mengunggah maksimal 2 foto Stasiun A, 2 foto Stasiun B, dan 1 Foto Bersama."
 **Presentasi Kelompok:** "Urutan tampil mengikuti hasil undian di kontrol. Sekitar dua setengah menit per kelompok, blok 30 menit sudah termasuk transisi. Perwakilan menunjukkan Slide Stasiun A, Slide Stasiun B, lalu Slide Bersama, menjelaskan maknanya, dan membacakan komitmen kelompok."
@@ -323,12 +324,12 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 Modul: teams, timer, notes, chips, wordcloud, lab updates. Panel kontrol hari-H: papan 10 kelompok baku lewat tombol "Muat 10 kelompok", timer Sesi 1 15' (kunci A1), Sesi 2 25' (kunci A2), Presentasi Kelompok default 150 detik/kelompok (blok 30' termasuk transisi), navigator 6 kartu jar, undian urutan, status laporan/foto, dan unduh CSV (header Stasiun A/B memakai nama media). Timer display-only; transisi manual. Peserta menulis 6 kartu dan memilih 2 untuk web (paralel). Kunci foto tetap POT (Stasiun A), BAG (Stasiun B), GROUP (Foto Bersama). Sesi yang sudah menyimpan presentSeconds 120 tidak diubah. Foto masuk ke folder event "<event> [EV:<slug>:DIDASKALIA]". Folder bertag tidak pernah di-rename atau dipindah. Contoh config: activity {phase:A1|A2|PRESENT|DONE, durations:{A1:900,A2:1500,PRESENT:150}}. Tabel worship_lab_updates (tanpa migrasi baru).
 
 ## 6. Peran & personil
-- Main Speaker (1, Didaskalia): khotbah singkat, briefing, konklusi.
+- Main Speaker (1, Didaskalia): khotbah 15 menit, umumkan pencatat dan pengundian, konklusi.
 - MC (1): transisi, Presentasi Kelompok, menjaga sekitar 2,5 menit per kelompok di dalam blok 30 menit.
 - Mentor/Co-mentor (1 per kelompok 5-8 orang): koordinator kelompok, fasilitasi jar dan diskusi karya.
 - Perwakilan kelompok (1 per kelompok): melapor ke Admin, mengisi makna/progress/komitmen, dan mengunggah 5 foto karya.
 - Anggota kelompok: menulis 6 kartu di kertas, memilih 2 pertanyaan di web, dan melihat feed group sendiri.
-- Diakonia (2-3): alat seni, meja, area jemur, kebersihan.
+- Diakonia (2-3): bahan aktivitas diserahkan ke mentor/co-mentor saat kedatangan, meja, area jemur, kebersihan.
 - Liturgia (2-3): praise/worship, persembahan, lagu + doa tutup.
 - Multimedia (1-2): slide, timer layar, sound, kode sesi proyektor.
 - Fotografer (1-2): dokumentasi karya dan presentasi.
@@ -607,14 +608,14 @@ const PATTERNS = [
     code: 'CREATIVE_LAB',
     name: 'Creative Lab',
     summary:
-      'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 10′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.',
-    defaultDurationMin: 135,
+      'Serving Day berbasis karya: Praise & Worship 10′, Firman & Briefing 15′, Sesi 1 · Reminder Jar 15′, Sesi 2 · Art Stations 25′ (20′ melukis paralel + 5′ unggah), Presentasi Kelompok 30′, Konklusi 10′, Persembahan & Doa 10′, Lagu & Doa Penutup 5′.',
+    defaultDurationMin: 140,
     modules: ['teams', 'timer', 'notes', 'chips', 'wordcloud', 'activity', 'lab'],
     phases: [
       {
         no: 1, title: 'Persiapan Ruang & Perlengkapan', minutes: 20, owner: 'Diakonia', division: 'DIAKONIA',
         anchor: 'PRA', parallelGroup: 'pra',
-        notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Jam jemaat (T0) mulai setelah blok PRA selesai.',
+        notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Bahan aktivitas dibagikan ke mentor dan co-mentor saat kedatangan, bukan di tengah sesi. Jam jemaat (T0) mulai setelah blok PRA selesai.',
       },
       {
         no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Didaskalia', division: 'DIDASKALIA',
@@ -624,7 +625,7 @@ const PATTERNS = [
       {
         no: null, title: 'Registrasi Ulang', minutes: 10, owner: 'Tuan Rumah, Penerima Tamu, Absensi', division: 'KOINONIA',
         anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
-        notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Tak tambah total.',
+        notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Bahan aktivitas sudah diterima mentor/co-mentor saat kedatangan. Tak tambah total.',
       },
       {
         no: null, title: 'Cek Slide & Sound', minutes: 10, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
@@ -638,41 +639,41 @@ const PATTERNS = [
         segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
       },
       {
-        no: 2, title: 'Firman & Briefing', minutes: 10, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+        no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: 'Khotbah singkat dan briefing dalam 10 menit: 6 kartu jar, 2 slot web (paralel), perwakilan kelompok, dua stasiun, Presentasi Kelompok. T+10–T+20.',
+        notes: 'Firman 15 menit. Briefing mengumumkan perwakilan pencatat dan pengundian urutan. Teks pengumuman diubah dari panel kontrol dan tampil di layar. T+10–T+25.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
       },
       {
         no: 3, title: 'Sesi 1 · Reminder Jar', minutes: 15, owner: 'Didaskalia, Mentor, Co-mentor', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: 'Tiap orang menulis 6 kartu (A Root I Carry s/d My Next Faith Step); lipat dan masukkan jar kelompok; jar dibawa pulang. Web: pilih 2 dari 6 (paralel). Subjudul tema di draft. Pemicu kontrol: A1 15 menit. T+20–T+35.',
+        notes: 'Bahan sudah ada di meja sejak kedatangan. Tiap orang menulis 6 kartu (A Root I Carry s/d My Next Faith Step); lipat dan masukkan jar kelompok; jar dibawa pulang. Web: pilih 2 dari 6 (paralel). Subjudul tema di draft. Pemicu kontrol: A1 15 menit. T+25–T+40.',
       },
       {
         no: 4, title: 'Sesi 2 · Art Stations', minutes: 25, owner: 'Didaskalia, Mentor, Diakonia', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: '20 menit melukis Stasiun A ∥ Stasiun B (paralel) di meja yang sama, lalu 5 menit unggah foto dan makna. Nama media dan judul tema di draft (contoh Pot / Grow What You Believe dan Tas / Carry the Gospel). Pemicu kontrol: A2 25 menit. T+35–T+60.',
+        notes: '20 menit melukis Stasiun A ∥ Stasiun B (paralel) di meja yang sama, lalu 5 menit unggah foto dan makna. Bahan tidak dibagikan di tengah sesi. Nama media dan judul tema di draft (contoh Pot / Grow What You Believe dan Tas / Carry the Gospel). Pemicu kontrol: A2 25 menit. T+40–T+65.',
       },
       {
         no: 5, title: 'Presentasi Kelompok', minutes: 30, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Urutan undian di kontrol. Timer default 150 detik. Kelompok yang belum termuat tidak ikut undian. T+60–T+90.',
+        notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Urutan undian di kontrol. Timer default 150 detik. Kelompok yang belum termuat tidak ikut undian. T+65–T+95.',
       },
       {
         no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
         anchor: 'ACARA',
-        notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+90–T+100.',
+        notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+95–T+105.',
       },
       {
         no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
         anchor: 'ACARA',
-        notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+100–T+110.',
+        notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+105–T+115.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
       },
       {
         no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
         anchor: 'ACARA',
-        notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+110–T+115.',
+        notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+115–T+120.',
       },
     ],
     playbook: CREATIVE_LAB_PLAYBOOK,

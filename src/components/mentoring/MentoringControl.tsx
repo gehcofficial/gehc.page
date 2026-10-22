@@ -60,6 +60,7 @@ type SessionDetail = {
       expectedCount: number | null;
       chipLimit: number;
       phasePrefs?: Record<string, { durationSec: number; showOnScreen: boolean }> | null;
+      draft?: Record<string, unknown> | null;
     };
     pattern?: { code: string; name: string; phases?: { no?: number; title?: string; minutes?: number; owner?: string; division?: string | null }[] } | null;
   };
@@ -103,6 +104,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const [newItem, setNewItem] = useState({ topicCode: '', text: '', gospelNote: '' });
   const [newChip, setNewChip] = useState({ label: '', topicCode: '' });
   const [configDraft, setConfigDraft] = useState({ timerSeconds: 1200, expectedCount: '' });
+  const [briefingDraft, setBriefingDraft] = useState({ scribe: '', draw: '' });
   /** Chip tambah waktu fleksibel (+5/+60/+300 dtk + custom 5–1800). */
   const renderExtendChips = (run: (sec: number) => void, canRun: boolean) => (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -163,6 +165,14 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     setConfigDraft({
       timerSeconds: d.session?.config?.timerSeconds ?? 1200,
       expectedCount: d.session?.config?.expectedCount ?? '',
+    });
+    const rawDraft = d.session?.config?.draft;
+    const briefing = rawDraft && typeof rawDraft.briefing === 'object' && rawDraft.briefing
+      ? rawDraft.briefing as Record<string, unknown>
+      : {};
+    setBriefingDraft({
+      scribe: String(briefing['brief-scribe'] || ''),
+      draw: String(briefing['brief-draw'] || ''),
     });
     const pp = d.session?.config?.phasePrefs;
     if (pp && typeof pp === 'object') {
@@ -466,6 +476,44 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       await loadSessions();
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal merotasi kode.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveBriefing = async () => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const cfg = detail.session.config;
+      const draft = cfg.draft && typeof cfg.draft === 'object' ? { ...cfg.draft } : {};
+      const briefing = draft.briefing && typeof draft.briefing === 'object'
+        ? { ...(draft.briefing as Record<string, unknown>) }
+        : {};
+      const r = await fetch(`/api/worship/sessions/${detail.session.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          config: {
+            ...cfg,
+            draft: {
+              ...draft,
+              briefing: {
+                ...briefing,
+                'brief-scribe': briefingDraft.scribe,
+                'brief-draw': briefingDraft.draw,
+              },
+            },
+          },
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || 'Gagal menyimpan briefing.');
+      setMsg({ kind: 'ok', text: 'Pengumuman pencatat dan pengundian tersimpan. Layar menampilkannya.' });
+      await loadDetail();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal menyimpan briefing.' });
     } finally {
       setBusy(false);
     }
@@ -1113,18 +1161,49 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
                   <span>
-                    Timer sesi pola ini <b className="text-[#1B1B1B]">115 menit = 6900 detik</b> (PRA 20′ terpisah; Presentasi Kelompok blok 30′, sekitar 2,5′ per kelompok termasuk transisi).
+                    Timer sesi pola ini <b className="text-[#1B1B1B]">120 menit = 7200 detik</b> (PRA 20′ terpisah; Firman & Briefing 15′; Presentasi Kelompok blok 30′).
                   </span>
-                  {Number(configDraft.timerSeconds) !== 6900 && (
+                  {Number(configDraft.timerSeconds) !== 7200 && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 6900 }))}
+                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 7200 }))}
                       className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
                     >
-                      Pakai 6900 dtk
+                      Pakai 7200 dtk
                     </button>
                   )}
+                </div>
+                <div className="rounded-xl border border-[#EFEDE8] bg-white p-3 space-y-2">
+                  <p className="text-[11px] font-black text-[#1B1B1B]">Briefing di layar · pencatat & pengundian</p>
+                  <label className="block text-[11px] text-[#8C8880] space-y-1">
+                    <span className="font-bold">Umumkan pencatat</span>
+                    <textarea
+                      value={briefingDraft.scribe}
+                      onChange={(e) => setBriefingDraft((b) => ({ ...b, scribe: e.target.value }))}
+                      rows={2}
+                      placeholder="Umumkan perwakilan pencatat tiap kelompok."
+                      className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                    />
+                  </label>
+                  <label className="block text-[11px] text-[#8C8880] space-y-1">
+                    <span className="font-bold">Umumkan pengundian</span>
+                    <textarea
+                      value={briefingDraft.draw}
+                      onChange={(e) => setBriefingDraft((b) => ({ ...b, draw: e.target.value }))}
+                      rows={2}
+                      placeholder="Umumkan pengundian urutan presentasi kelompok."
+                      className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveBriefing()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Simpan pengumuman layar
+                  </button>
                 </div>
                 <ActivityPanel sessionId={detail.session.id} />
               </div>

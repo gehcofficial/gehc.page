@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyPublishedSnapshot, buildKhutbahDeck, contentFromStudio, releaseDrift, sermonOutlineFilled } from '../../src/lib/didaskalia-presentation';
 import { citationsOutsideWeek, defaultStudio, formatJakarta, publishFeedback } from '../../src/lib/didaskalia';
 import { RHB_FORMAT } from '../../server/lib/didaskalia-normalize.mjs';
+import { restoreLiteralSermon } from '../../server/lib/didaskalia-ai.mjs';
 import { buildResponsibleGroupCaption, displayServiceRoleName, WORSHIP_ORDER_ROLES } from '../../src/lib/serving-roles';
 
 describe('halaman khotbah memakai hasil parse', () => {
@@ -77,6 +78,24 @@ describe('rilis dan kutipan pekan', () => {
     );
     expect(bad.join(' ')).toMatch(/Kolose 1:13/);
     expect(citationsOutsideWeek('Bedah 1 Korintus 1:13 dan 2 Timotius 1:3-18.', ['1 Korintus 1:13', '2 Timotius 1:3-18'])).toEqual([]);
+  });
+});
+
+describe('segarkan khotbah menjaga outline sumber', () => {
+  it('menyalin empat bagian MD dan tidak memendekkannya', () => {
+    const long = 'Pengantar utuh dari naskah. '.repeat(40);
+    const out = restoreLiteralSermon({
+      outline: { pengantar: 'satu kalimat', bedahTeologis: '', jembatan: '', kesimpulan: '' },
+      teksUtama: { ref: 'salah', text: 'kutipan' },
+    }, {
+      info: { teksUtama: '1 Korintus 1:13' },
+      outline: { pengantar: long, bedahTeologis: 'Bedah utuh.', jembatan: '', kesimpulan: 'Tutup.' },
+    });
+    expect(out.outline.pengantar).toBe(long.trim());
+    expect(out.outline.bedahTeologis).toBe('Bedah utuh.');
+    expect(out.outline.kesimpulan).toBe('Tutup.');
+    expect(out.teksUtama.ref).toBe('1 Korintus 1:13');
+    expect(out.teksUtama.text).toBe('kutipan');
   });
 });
 
