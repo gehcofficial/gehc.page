@@ -27,6 +27,9 @@ seed worship staging, sesi lama tekan **Muat 10 kelompok**, cek dropdown
 perwakilan, layar dengan `?code=`, unggah foto ke folder event, Three Sequences
 masih 8. Lalu baru pertimbangkan `main`.
 
+**Verifikasi:** `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` bersih.
+`npm run test` 159 file / 1276 tes lulus (setelah perbaikan huruf besar pada assert prompt).
+
 **Commands:** `npm run lint` · `npm run test` · PR menarget `staging`.
 
 ## Current — Creative Lab lengkap: laporan kelompok + undian presentasi (21 Okt 2026)
