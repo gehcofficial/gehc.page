@@ -34,7 +34,7 @@ function isPoolEntryEligible(p) {
 }
 
 /** Assign Individu (no mentoring group) — mirrors bulk-individu API. */
-async function assignIndividuRole(prisma, userId, assignedBy) {
+async function assignIndividuRole(prisma, userId, assignedBy, tenantId = null) {
   const individuNode = await prisma.orgNode.findFirst({
     where: { domain: 'YOUTH', slug: 'INDIVIDU', isActive: true },
   });
@@ -55,6 +55,7 @@ async function assignIndividuRole(prisma, userId, assignedBy) {
     familyRole: 'MENTEE',
     assignedBy,
     note: 'Individu (tanpa kelompok mentoring)',
+    tenantId,
   });
   await prisma.user.update({
     where: { id: userId },
@@ -223,7 +224,7 @@ export async function bulkApprovePlacementBatch({ batchId, reviewedBy }) {
 }
 
 /** Commit batch → create RoleAssignments + update WaitingPool. */
-export async function commitPlacementBatch({ batchId, committedBy }) {
+export async function commitPlacementBatch({ batchId, committedBy, tenantId = null }) {
   assertDb();
   const prisma = getPrisma();
 
@@ -247,7 +248,7 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
   for (const item of batch.items) {
     try {
       if (item.finalIsIndividu || item.status === 'INDIVIDU') {
-        await assignIndividuRole(prisma, item.newcomerId, committedBy);
+        await assignIndividuRole(prisma, item.newcomerId, committedBy, tenantId);
         results.individu++;
       } else if (item.finalGroupId && item.finalRole) {
         const prismaRole = mapPlacementRoleToPrisma(item.finalRole);
@@ -258,6 +259,7 @@ export async function commitPlacementBatch({ batchId, committedBy }) {
           position: ['MENTOR', 'CO_MENTOR'].includes(prismaRole) ? prismaRole : null,
           assignedBy: committedBy,
           note: `Jethro placement: ${item.recommendedGroupName || item.finalGroupId} → ${item.finalRole}`,
+          tenantId,
         });
         results.created++;
       } else {

@@ -9,7 +9,6 @@ import {
   toISODate,
   weekIndexForDate,
   yearMonthOf,
-  TENANT_DEFAULT,
 } from '../lib/church-year.mjs';
 import { runbookTasks } from '../lib/runbook-template.mjs';
 import { canAccessTenant, tenantForWrite, tenantWhere } from '../lib/tenant-scope.mjs';

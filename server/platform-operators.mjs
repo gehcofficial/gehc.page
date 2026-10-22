@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
 import { assignRoleToUser, revokeRoleAssignment } from './role-assign.mjs';
 import { congregationUserWhere, isSystemAccount } from './lib/system-users.mjs';
+import { JEMAAT_TENANT_ID } from './lib/tenant-map.mjs';
 
 export const PLATFORM_ADMIN_PORTAL_NOTE = 'platform_admin_grant';
 export const PLATFORM_ADMIN_PORTAL_ROLE = 'SUPERADMIN';
@@ -46,7 +47,7 @@ export function applyPlatformAdminPortalRole(user, hasGrant) {
   if (!user || !hasGrant) return user;
   const roles = user.roles || [];
   if (roles.some((r) => r.role === PLATFORM_ADMIN_PORTAL_ROLE)) return user;
-  const tenantId = roles[0]?.tenantId || 'tenant-youth';
+  const tenantId = roles[0]?.tenantId || JEMAAT_TENANT_ID;
   user.roles = [...roles, { userId: user.id, tenantId, role: PLATFORM_ADMIN_PORTAL_ROLE }];
   return user;
 }

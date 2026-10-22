@@ -9,7 +9,7 @@
  * Tanggal dipakai sebagai hari kalender (tanpa zona waktu) — disimpan ke kolom DATE.
  */
 
-export const TENANT_DEFAULT = 'tenant-youth';
+export { YOUTH_TENANT_ID as TENANT_DEFAULT } from './tenant-defaults.mjs';
 
 /** 30 September 1934 — GMIM dinyatakan gereja mandiri. */
 const GMIM_SYNOD_BASE_YEAR = 1934;
