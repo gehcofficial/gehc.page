@@ -6,6 +6,9 @@
  * "Kitab Fundamental", "Kitab Bagian Fokus".
  * Keluaran parsial tetap dikembalikan; `missing` hanya peringatan.
  */
+import { formatKhutbahOutlineMd, joinHardWrappedLines } from '../../src/lib/didaskalia-prose.mjs';
+
+export { formatKhutbahOutlineMd, joinHardWrappedLines } from '../../src/lib/didaskalia-prose.mjs';
 
 function asStr(v, max = 8000) {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
@@ -66,6 +69,10 @@ function cleanBody(s, max = 20000) {
   return asStr(s, max).replace(/\n{3,}/g, '\n\n');
 }
 
+function cleanOutlineBody(s, max = 20000) {
+  return asStr(joinHardWrappedLines(s), max).replace(/\n{3,}/g, '\n\n');
+}
+
 function pickField(text, re) {
   const m = String(text || '').match(re);
   if (!m) return '';
@@ -112,7 +119,7 @@ export function parseServiceMd(raw) {
     }
     if (cur) buckets[cur].push(line);
   }
-  const body = (k) => cleanBody(buckets[k].join('\n'));
+  const body = (k) => (k === 'INFO' ? cleanBody(buckets[k].join('\n')) : cleanOutlineBody(buckets[k].join('\n')));
   const infoBody = body('INFO') || md.slice(0, 2500);
   const kitabFokus = pickField(infoBody, KITAB_FOKUS_RE);
   const info = {
@@ -203,7 +210,7 @@ export function parseRhbFullMd(raw) {
     const buf = [];
     const orphan = [];
     const flush = () => {
-      const t = buf.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      const t = cleanOutlineBody(buf.join('\n'));
       buf.length = 0;
       if (!t) {
         curKey = '';
@@ -297,7 +304,7 @@ export function parseRhbMd(raw) {
     const bacaanRef = asStr(bacaanM ? bacaanM[1] : '', 160);
     const bridgeM = s.body.match(/^>\s*(.+)$/m);
     const bridge = asStr(bridgeM ? bridgeM[1].replace(/^\*+|\*+$/g, '') : '', 500);
-    const summary = cleanBody(
+    const summary = cleanOutlineBody(
       s.body
         .replace(natsRe, '')
         .replace(/\*\*bacaan:\*\*\s*[^\n]+\n?/i, '')
@@ -365,7 +372,7 @@ export function sermonWithLiteralOutline(sermon, sourceMd) {
   if (!src) return base;
   const prev = base.outline && typeof base.outline === 'object' ? base.outline : {};
   const outline = { ...prev };
-  for (const key of OUTLINE_KEYS) outline[key] = preferLiteralSection(prev[key], src[key]);
+  for (const key of OUTLINE_KEYS) outline[key] = joinHardWrappedLines(preferLiteralSection(prev[key], src[key]));
   const infoRef = service.info && typeof service.info.teksUtama === 'string' ? service.info.teksUtama.trim() : '';
   const tu = base.teksUtama && typeof base.teksUtama === 'object' ? base.teksUtama : {};
   return {
