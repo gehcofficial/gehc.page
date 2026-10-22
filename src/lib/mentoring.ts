@@ -109,6 +109,9 @@ export type SessionTeam = {
   repUserId?: string;
   repName?: string;
   memberUserIds?: string[];
+  /** Id kelompok Beyonders. Kosong bila baris peringatan (belum ada di database). */
+  groupId?: string;
+  missing?: boolean;
 };
 
 /** Satu update karya/foto Creative Lab (hanya group sendiri untuk peserta). */
@@ -324,6 +327,13 @@ export function parseMentoringHash(hash: string): MentoringRoute | null {
 
 export function mentoringCodeKey(slug: string): string {
   return `gehc_mentoring_code_${slug}`;
+}
+
+/** Kode proyektor dari query di dalam hash (`#/mentoring/<slug>/layar?code=`). */
+export function codeFromMentoringHash(hash: string): string {
+  const q = String(hash || '').split('?')[1] || '';
+  const code = new URLSearchParams(q).get('code') || '';
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
 export function fmtClock(totalSeconds: number): string {

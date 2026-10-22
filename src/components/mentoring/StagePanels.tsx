@@ -508,6 +508,10 @@ export const TeamsPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
 /* ---------------------------------- Creative Lab ---------------------------------- */
 
+const LAB_TEAM_CAP = 10;
+const LAB_INDEX_MAX = LAB_TEAM_CAP - 1;
+const LAB_ROLE_CAP = 4;
+
 type LabTeamRow = {
   name: string;
   task: string;
@@ -520,6 +524,8 @@ type LabTeamRow = {
   repUserId: string;
   repName: string;
   memberUserIds: string[];
+  groupId: string;
+  missing: boolean;
 };
 
 type LabActivity = {
@@ -587,6 +593,8 @@ const labEmptyTeam = (): LabTeamRow => ({
   repUserId: '',
   repName: '',
   memberUserIds: [],
+  groupId: '',
+  missing: false,
 });
 
 const labDefaultActivity = (): LabActivity => ({
@@ -630,10 +638,8 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const [cards, setCards] = useState<Array<{ title: string; direction: string }>>(
     LAB_JAR_TITLES.map((title) => ({ title, direction: '' })),
   );
-  const [participants, setParticipants] = useState<LabParticipant[]>([]);
   const [groupOptions, setGroupOptions] = useState<LabGroupOption[]>([]);
   const [lab, setLab] = useState<LabSummary | null>(null);
-  const [rosterSearch, setRosterSearch] = useState<Record<number, string>>({});
   const [savedTeamNames, setSavedTeamNames] = useState('');
   const [loading, setLoading] = useState(true);
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
@@ -655,10 +661,10 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
         durationSec: Number(a.durationSec) || Number(dur.A1) || 900,
         showOnScreen: a.showOnScreen !== false,
         cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
-        presentIndex: Math.min(7, Math.max(0, Number(a.presentIndex) || 0)),
+        presentIndex: Math.min(LAB_INDEX_MAX, Math.max(0, Number(a.presentIndex) || 0)),
         presentStartedAt: a.presentStartedAt || null,
         presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 120,
-        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= 7) : [],
+        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
         presentDrawnAt: a.presentDrawnAt || null,
         durations: {
           A1: Number(dur.A1) || 900,
@@ -686,7 +692,6 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/participants`, { credentials: 'include' });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat peserta.');
-      setParticipants(Array.isArray(d.participants) ? d.participants : []);
       setGroupOptions(Array.isArray(d.groups) ? d.groups : []);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat peserta.');
@@ -701,66 +706,78 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   const setTeam = (i: number, patch: Partial<LabTeamRow>) =>
     setTeams((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
-  const namedTeamCount = teams.filter((t) => t.name.trim()).length;
+  const membersOf = (team: LabTeamRow) => {
+    if (!team.groupId) return [];
+    const group = groupOptions.find((g) => g.id === team.groupId);
+    return (group?.members || []).filter((m) => m.id && m.name);
+  };
+  const presentableIndexes = useMemo(
+    () => teams.map((t, i) => (t.name.trim() && !t.missing ? i : -1)).filter((i) => i >= 0),
+    [teams],
+  );
+  const namedTeamCount = presentableIndexes.length;
   const presentationOrder = useMemo(() => {
+    const allowed = new Set(presentableIndexes);
     const out: number[] = [];
     for (const n of activity.presentOrder) {
       const i = Number(n);
-      if (Number.isInteger(i) && i >= 0 && i < namedTeamCount && !out.includes(i)) out.push(i);
+      if (allowed.has(i) && !out.includes(i)) out.push(i);
     }
-    for (let i = 0; i < namedTeamCount; i += 1) if (!out.includes(i)) out.push(i);
+    for (const i of presentableIndexes) if (!out.includes(i)) out.push(i);
     return out;
-  }, [activity.presentOrder, namedTeamCount]);
+  }, [activity.presentOrder, presentableIndexes]);
   const currentTeamIndex = presentationOrder[activity.presentIndex] ?? activity.presentIndex;
 
-  const selectMember = (teamIndex: number, userId: string, checked: boolean) => {
-    setTeams((prev) => prev.map((t, i) => {
-      if (i !== teamIndex) return t;
-      const ids = new Set(t.memberUserIds || []);
-      if (checked) ids.add(userId); else ids.delete(userId);
-      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
-      const repStillMember = ids.has(t.repUserId);
-      return {
-        ...t,
-        memberUserIds: [...ids],
-        members: names,
-        repUserId: repStillMember ? t.repUserId : '',
-        repName: repStillMember ? t.repName : '',
-      };
-    }));
-  };
-
   const selectRep = (teamIndex: number, userId: string) => {
-    const person = participants.find((p) => p.id === userId);
     setTeams((prev) => prev.map((t, i) => {
       if (i !== teamIndex) return t;
+      const person = membersOf(t).find((m) => m.id === userId);
       const ids = new Set(t.memberUserIds || []);
       if (userId) ids.add(userId);
-      const names = participants.filter((p) => ids.has(p.id)).map((p) => p.name).filter(Boolean);
-      return { ...t, repUserId: userId, repName: person?.name || '', memberUserIds: [...ids], members: names };
+      return { ...t, repUserId: userId, repName: person?.name || '', memberUserIds: [...ids] };
     }));
   };
 
-  const syncMembersFromGroups = () => {
-    setTeams((prev) => prev.map((t) => {
-      if (!t.name.trim()) return t;
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const target = norm(t.name);
-      const group = groupOptions.find((g) => norm(g.name) === target || norm(g.name).includes(target) || target.includes(norm(g.name)));
-      if (!group) return t;
-      const ids = group.members.map((m) => m.id);
-      return { ...t, members: group.members.map((m) => m.name), memberUserIds: ids };
+  const toggleRole = (teamIndex: number, key: 'pot' | 'bag', name: string) => {
+    setTeams((prev) => prev.map((t, i) => {
+      if (i !== teamIndex) return t;
+      const cur = t[key] || [];
+      if (cur.includes(name)) return { ...t, [key]: cur.filter((n) => n !== name) };
+      if (cur.length >= LAB_ROLE_CAP) return t;
+      return { ...t, [key]: [...cur, name] };
     }));
-    setMsg('Anggota kelompok diselaraskan dari kelompok mentoring. Pilih perwakilan lalu simpan.');
+  };
+
+  const loadTenGroups = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/lab/load-groups`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || 'Gagal memuat kelompok.');
+      await load();
+      const missing = Array.isArray(d.missing) ? d.missing.filter(Boolean) : [];
+      const locked = d.orderLocked ? ' Urutan yang sudah punya laporan karya tidak diacak.' : '';
+      setMsg(missing.length
+        ? `10 kelompok dimuat. Belum ada di database: ${missing.join(', ')}.${locked}`
+        : `10 kelompok Beyonders dimuat.${locked}`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Gagal memuat kelompok.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const drawOrder = () => {
     if (!namedTeamCount) {
-      setMsg('Isi nama kelompok dulu sebelum mengundi.');
+      setMsg('Muat 10 kelompok dulu sebelum mengundi.');
       return;
     }
     if (activity.presentOrder.length && !window.confirm('Urutan presentasi sudah ada. Undi ulang dan ganti urutan?')) return;
-    const arr = Array.from({ length: namedTeamCount }, (_, i) => i);
+    const arr = [...presentableIndexes];
     for (let i = arr.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -1051,87 +1068,80 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
           </div>
 
           <div className="mt-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim()).length})</p>
-              <button type="button" onClick={syncMembersFromGroups} className="text-[10px] font-bold text-brand underline">Sinkron anggota dari kelompok mentoring</button>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim() && !t.missing).length}/{LAB_TEAM_CAP})</p>
+              <button type="button" disabled={busy} onClick={() => void loadTenGroups()} className="text-[10px] font-bold text-brand underline disabled:opacity-60">Muat 10 kelompok</button>
             </div>
+            <p className="mt-1 text-[10px] text-[#8C8880]">Nama dan anggota datang dari 10 kelompok Beyonders. Sesi yang sudah terisi tidak berubah sampai tombol ini ditekan. Perwakilan, Tim Pot, dan Tim Tas dipilih dari anggota kelompok itu.</p>
             <div className="mt-2 space-y-2">
-              {teams.map((t, i) => (
-                <div key={i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-                  <div className="flex gap-2">
-                    <input value={t.name} onChange={(e) => setTeam(i, { name: e.target.value })} placeholder={`Nama kelompok ${i + 1}`} className={INPUT} />
-                    <button type="button" onClick={() => setTeams((p) => p.filter((_, j) => j !== i))} className="shrink-0 px-2 text-red-500" title="Hapus kelompok">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <input value={t.station} onChange={(e) => setTeam(i, { station: e.target.value })} placeholder="Meja / stasiun" className={INPUT} />
-                    <select value={t.repUserId || ''} onChange={(e) => selectRep(i, e.target.value)} className={INPUT}>
-                      <option value="">Perwakilan kelompok…</option>
-                      {participants.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+              {teams.map((t, i) => {
+                const options = membersOf(t);
+                const rolePick = (key: 'pot' | 'bag', label: string) => (
+                  <div className="rounded-lg border border-[#EFEDE8] p-2">
+                    <p className="text-[10px] font-bold text-[#8C8880]">{label} ({(t[key] || []).length}/{LAB_ROLE_CAP})</p>
+                    <div className="mt-1 max-h-28 overflow-auto space-y-0.5">
+                      {options.map((p) => (
+                        <label key={`${key}-${p.id}`} className="flex items-center gap-2 text-[11px]">
+                          <input
+                            type="checkbox"
+                            checked={(t[key] || []).includes(p.name)}
+                            onChange={() => toggleRole(i, key, p.name)}
+                            className="w-3.5 h-3.5"
+                          />
+                          <span className="truncate">{p.name}</span>
+                        </label>
                       ))}
-                      {t.repUserId && !participants.some((p) => p.id === t.repUserId) && (
-                        <option value={t.repUserId}>{t.repName || t.repUserId}</option>
-                      )}
-                    </select>
-                  </div>
-                  <input
-                    value={t.members.join(', ')}
-                    onChange={(e) => setTeam(i, { members: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                    placeholder="Anggota (pisah koma)"
-                    className={INPUT}
-                  />
-                  <details className="rounded-lg border border-[#EFEDE8] bg-[#FAF9F5] p-2">
-                    <summary className="text-[10px] font-bold text-[#8C8880] cursor-pointer">
-                      Pilih anggota akun ({t.memberUserIds.length} dipilih){t.repName ? ` · perwakilan: ${t.repName}` : ''}
-                    </summary>
-                    <input
-                      value={rosterSearch[i] || ''}
-                      onChange={(e) => setRosterSearch((prev) => ({ ...prev, [i]: e.target.value }))}
-                      placeholder="Cari nama…"
-                      className={`${INPUT} mt-2`}
-                    />
-                    <div className="mt-2 max-h-40 overflow-auto space-y-1">
-                      {participants
-                        .filter((p) => !(rosterSearch[i] || '').trim() || p.name.toLowerCase().includes((rosterSearch[i] || '').toLowerCase()))
-                        .map((p) => (
-                          <label key={p.id} className="flex items-center gap-2 text-[11px] px-1 py-0.5">
-                            <input
-                              type="checkbox"
-                              checked={t.memberUserIds.includes(p.id)}
-                              onChange={(e) => selectMember(i, p.id, e.target.checked)}
-                              className="w-3.5 h-3.5"
-                            />
-                            <span className="truncate">{p.name}</span>
-                          </label>
-                        ))}
+                      {!options.length && <p className="text-[10px] text-[#8C8880]">Muat kelompok untuk memilih anggota.</p>}
                     </div>
-                    <p className="mt-1 text-[9px] text-[#8C8880]">Anggota akun dipakai untuk feed group & update peserta. Nama manual tetap bisa diisi.</p>
-                  </details>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <input
-                      value={t.pot.join(', ')}
-                      onChange={(e) => setTeam(i, { pot: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                      placeholder="Tim Pot — Grow What You Believe"
-                      className={INPUT}
-                    />
-                    <input
-                      value={t.bag.join(', ')}
-                      onChange={(e) => setTeam(i, { bag: e.target.value.split(',').map((m) => m.trim()).filter(Boolean) })}
-                      placeholder="Tim Tas — Carry The Gospel"
-                      className={INPUT}
-                    />
                   </div>
-                  <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
-                    <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
-                    Selesai (override Admin)
-                  </label>
-                </div>
-              ))}
+                );
+                return (
+                  <div key={t.groupId || i} className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        value={t.name}
+                        onChange={(e) => setTeam(i, { name: e.target.value })}
+                        readOnly={Boolean(t.groupId)}
+                        placeholder={`Nama kelompok ${i + 1}`}
+                        className={INPUT}
+                      />
+                      {!t.groupId && (
+                        <button type="button" onClick={() => setTeams((p) => p.filter((_, j) => j !== i))} className="shrink-0 px-2 text-red-500" title="Hapus kelompok">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {t.missing && <p className="text-[10px] font-bold text-amber-800">Belum ada di database — baris peringatan, tidak ikut undian presentasi.</p>}
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <input value={t.station} onChange={(e) => setTeam(i, { station: e.target.value })} placeholder="Meja / stasiun" className={INPUT} />
+                      <select value={t.repUserId || ''} onChange={(e) => selectRep(i, e.target.value)} className={INPUT}>
+                        <option value="">Perwakilan kelompok…</option>
+                        {options.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                        {t.repUserId && !options.some((p) => p.id === t.repUserId) && (
+                          <option value={t.repUserId}>{t.repName || t.repUserId}</option>
+                        )}
+                      </select>
+                    </div>
+                    <p className="text-[11px] text-[#8C8880]">
+                      {t.members.length ? t.members.join(', ') : 'Belum ada roster. Tekan Muat 10 kelompok.'}
+                      {t.memberUserIds.length > t.members.length ? ` · ${t.memberUserIds.length} akun bisa melihat feed` : ''}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {rolePick('pot', 'Tim Pot — melukis')}
+                      {rolePick('bag', 'Tim Tas — melukis')}
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C8880]">
+                      <input type="checkbox" checked={t.done} onChange={(e) => setTeam(i, { done: e.target.checked })} className="w-4 h-4" />
+                      Selesai (override Admin)
+                    </label>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {teams.length < 8 && (
+              {teams.length < LAB_TEAM_CAP && (
                 <button type="button" onClick={() => setTeams((p) => [...p, labEmptyTeam()])} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold">
                   <Plus className="w-3.5 h-3.5" /> Kelompok
                 </button>

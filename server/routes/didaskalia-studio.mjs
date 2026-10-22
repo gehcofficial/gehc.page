@@ -980,7 +980,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const st = sanitizeStudio(week.studio);
       const pathsOutline = (st.paths || []).map((p) => `Path ${p.pathIndex}: ${p.title}${p.summary ? ` — ${p.summary}` : ''}`).join('\n');
       const fieldKeys = Array.isArray(req.body?.fieldKeys)
-        ? req.body.fieldKeys.slice(0, 40).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
+        ? req.body.fieldKeys.slice(0, 80).map((f) => ({ key: String(f?.key || ''), label: String(f?.label || '') })).filter((f) => f.key)
         : [];
       // Isi draft yang sudah diketik tim = masukan AI (jangan ditimpa). Khusus
       // Bedah Film: film-title yang sudah ada = kunci utama.

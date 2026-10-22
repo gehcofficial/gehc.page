@@ -17,6 +17,7 @@ import {
   type MentoringLivePayload,
   type MentoringStatus,
 } from '../../lib/mentoring';
+import { lastPortalPlace } from '../../lib/portal-place';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
 import { PatternRundownList } from './PatternRundownList';
@@ -88,8 +89,9 @@ const ACTIONS: { action: string; label: string; tone: string }[] = [
   { action: 'reset', label: 'Reset ke Draft', tone: 'bg-white !text-[#8C8880] border border-[#D9D7D0]' },
 ];
 
-export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string | null; preferPattern?: string | null }> = ({ initialSlug, eventId, preferPattern }) => {
+export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string | null; preferPattern?: string | null; standalone?: boolean }> = ({ initialSlug, eventId, preferPattern, standalone = false }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string>('');
   const [onlyEvent, setOnlyEvent] = useState(true);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
@@ -154,15 +156,47 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
     try {
       const r = await fetch('/api/worship/sessions', { credentials: 'include' });
+      if (r.status === 401) {
+        const next = window.location.hash || `#/mentoring/${initialSlug || ''}/kontrol`;
+        window.location.hash = `#/login?next=${encodeURIComponent(next)}`;
+        return;
+      }
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal memuat sesi.');
-      const list: SessionRow[] = d.sessions || [];
+      let list: SessionRow[] = d.sessions || [];
+      if (initialSlug && !list.some((s) => s.slug === initialSlug)) {
+        const one = await fetch(`/api/worship/sessions/${encodeURIComponent(initialSlug)}`, { credentials: 'include' });
+        if (one.status === 401) {
+          const next = window.location.hash || `#/mentoring/${initialSlug}/kontrol`;
+          window.location.hash = `#/login?next=${encodeURIComponent(next)}`;
+          return;
+        }
+        if (one.ok) {
+          const detailBody = await one.json();
+          const s = detailBody?.session;
+          if (s?.id) {
+            list = [{
+              id: s.id,
+              slug: s.slug,
+              title: s.title,
+              status: s.status,
+              sessionDate: s.sessionDate,
+              accessCode: s.accessCode,
+              eventId: s.eventId,
+              pattern: s.pattern ? { code: s.pattern.code, name: s.pattern.name } : null,
+            }, ...list];
+          }
+        }
+      }
       setSessions(list);
       setSelectedId((prev) => preferSession(list, { prevId: prev, slug: initialSlug, eventId, preferPattern }));
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Gagal memuat sesi.' });
+    } finally {
+      setSessionsLoading(false);
     }
   }, [initialSlug, eventId, preferPattern]);
 
@@ -658,10 +692,10 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     const slug = detail?.session.slug || '';
     return {
       peserta: `${origin}/#/mentoring/${slug}`,
-      layar: `${origin}/#/mentoring/${slug}/layar`,
+      layar: `${origin}/#/mentoring/${slug}/layar${detail?.session.accessCode ? `?code=${encodeURIComponent(detail.session.accessCode)}` : ''}`,
       kontrol: `${origin}/#/mentoring/${slug}/kontrol`,
     };
-  }, [detail?.session.slug, origin]);
+  }, [detail?.session.slug, detail?.session.accessCode, origin]);
 
   const patternCode = String(detail?.session?.pattern?.code || '').toUpperCase();
   const isPostToPost = patternCode === 'POST_TO_POST';
@@ -705,8 +739,15 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     [isPostToPost],
   );
 
+  const backHref = standalone ? lastPortalPlace('#/portal') : '';
   return (
-    <div className="space-y-4">
+    <div className={standalone ? 'min-h-screen bg-[#FAF9F5] text-[#1B1B1B]' : ''}>
+    <div className={standalone ? 'max-w-5xl mx-auto p-4 md:p-6 space-y-4' : 'space-y-4'}>
+      {standalone && (
+        <a href={backHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] hover:text-[#1B1B1B]">
+          ← Kembali ke portal
+        </a>
+      )}
       <div className={CARD}>
         <div className="flex flex-wrap items-center gap-2">
           <MonitorPlay className="w-4 h-4 text-brand" />
@@ -768,13 +809,23 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
         )}
       </div>
 
-      {!detail && (
+      {sessionsLoading && !detail && (
+        <div className="rounded-2xl border border-[#D9D7D0] bg-white p-4">
+          <p className="text-xs text-[#8C8880] inline-flex items-center gap-1.5">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat kontrol sesi…
+          </p>
+        </div>
+      )}
+
+      {!sessionsLoading && !detail && (
         <div className="rounded-2xl border border-dashed border-[#D9D7D0] bg-white p-4">
           <p className="text-xs font-black text-[#1B1B1B]">Belum ada sesi untuk pekan ini.</p>
           <p className="mt-0.5 text-[11px] text-[#8C8880]">
-            {eventId
-              ? 'Pilih pola di tab Katalog lalu terapkan ke pekan ini — draft kosong akan dibuatkan, isi dulu baru kontrol mengikuti.'
-              : 'Pilih event dulu, atau buat sesi manual dari tab Draft.'}
+            {msg?.kind === 'err'
+              ? msg.text
+              : eventId
+                ? 'Pilih pola di tab Katalog lalu terapkan ke pekan ini — draft kosong akan dibuatkan, isi dulu baru kontrol mengikuti.'
+                : 'Pilih event dulu, atau buat sesi manual dari tab Draft.'}
           </p>
         </div>
       )}
@@ -794,7 +845,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
             </div>
           )}
           <PatternRundownList patternName={detail.session.pattern?.name} phases={detail.session.pattern?.phases} />
-          <fieldset disabled={!hasDraft || !canWrite} className={(!hasDraft || !canWrite) ? 'opacity-70 contents' : 'contents'}>
+          <fieldset disabled={!hasDraft || !canWrite} className={`min-w-0 border-0 p-0 m-0 space-y-4 ${(!hasDraft || !canWrite) ? 'opacity-70' : ''}`}>
           <div className={CARD}>
             <div className="flex flex-wrap items-center gap-2">
               {isMonolog ? (
@@ -1024,16 +1075,16 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
                   <span>
-                    Timer sesi pola ini <b className="text-[#1B1B1B]">105 menit = 6300 detik</b> (PRA 20′ terpisah).
+                    Timer sesi pola ini <b className="text-[#1B1B1B]">115 menit = 6900 detik</b> (PRA 20′ terpisah; presentasi 10 × 2′).
                   </span>
-                  {Number(configDraft.timerSeconds) !== 6300 && (
+                  {Number(configDraft.timerSeconds) !== 6900 && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 6300 }))}
+                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 6900 }))}
                       className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
                     >
-                      Pakai 6300 dtk
+                      Pakai 6900 dtk
                     </button>
                   )}
                 </div>
@@ -1495,6 +1546,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memproses…
         </p>
       )}
+    </div>
     </div>
   );
 };

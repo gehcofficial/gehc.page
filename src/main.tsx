@@ -157,7 +157,7 @@ const AppRoot: React.FC = () => {
         {mentoring.view === 'layar' ? (
           <MentoringScreen />
         ) : mentoring.view === 'kontrol' ? (
-          <MentoringControl initialSlug={mentoring.slug} />
+          <MentoringControl initialSlug={mentoring.slug} standalone />
         ) : (
           <MentoringDay />
         )}

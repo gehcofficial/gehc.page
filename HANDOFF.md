@@ -1,5 +1,34 @@
 # GEHC Portal — Handoff
 
+## Current — Creative Lab: 10 kelompok dari database (22 Okt 2026)
+
+**Minta:** isi papan Creative Lab dari 10 kelompok Beyonders (Agape … Shalom),
+perwakilan dari anggota kelompok, layar membaca kode di hash, kontrol mandiri
+tidak kosong, foto di folder event `[EV:…]`, presentasi 10 × 2 menit.
+Tanpa migrasi Prisma. Three Sequences tetap 8 tim. Folder Drive bertag tidak
+di-rename atau dipindah.
+
+**Done:**
+- `buildCreativeLabTeams` + `cleanTeams({ maxTeams })` (default 8, Creative Lab 10).
+  `POST /api/worship/sessions/:id/lab/load-groups` (tombol **Muat 10 kelompok**).
+  Apply-draft sesi baru mengisi kelompok dari DB. Sesi lama tidak ditimpa
+  saat kontrol dibuka. Bila sudah ada `worship_lab_updates`, urutan indeks dikunci.
+- UI: nama terkunci bila `groupId` ada; dropdown perwakilan/Pot/Tas dari anggota
+  kelompok; layar `#/…/layar?code=` menang atas localStorage; kontrol mandiri
+  punya shell, status memuat, dan redirect 401.
+- Foto: `Didaskalia [MENTOR]/Kurikulum/<event> [EV:slug:DIDASKALIA]/Foto Kelompok|Hasil Karya/<nama>`.
+  Pencarian folder berpaginasi. Tidak memanggil rename/move.
+- Rundown: jemaat 115' + PRA 20' = 135' (presentasi 20'). Jar tetap 6 pilih 2.
+  Activity 2 tetap melukis.
+- Branch `cursor/creative-lab-groups-69e4`, PR ke `staging`. Belum merge, belum deploy, env tidak disentuh.
+
+**Next:** QA manual di staging setelah merge (jangan dari branch ini):
+seed worship staging, sesi lama tekan **Muat 10 kelompok**, cek dropdown
+perwakilan, layar dengan `?code=`, unggah foto ke folder event, Three Sequences
+masih 8. Lalu baru pertimbangkan `main`.
+
+**Commands:** `npm run lint` · `npm run test` · PR menarget `staging`.
+
 ## Current — Creative Lab lengkap: laporan kelompok + undian presentasi (21 Okt 2026)
 
 **Minta:** lengkapi pola `CREATIVE_LAB` sesuai alur Serving Day: Reminder Jar

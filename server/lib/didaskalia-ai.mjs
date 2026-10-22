@@ -439,9 +439,9 @@ export function patternBlock(pattern) {
   } else if (code === 'THREE_SEQUENCES') {
     lines.push('- Bentuk: gamifikasi 3 sequence tanpa jeda (Melayani → Bersekutu → Bersaksi) + commissioning; discussionFlow = brief tiap sequence + aturan presentasi 4 menit; deliveryPlan tekankan komando countdown, pembagian 5 tim Mission Room, dan deklarasi Coram Deo.');
   } else if (code === 'CREATIVE_LAB') {
-    lines.push('- Bentuk: Serving Day berbasis karya — firman & briefing 15\' → Activity 1 The Roots Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step) → Activity 2 Roots & DNA Creative Lab 25\' (Tim Pot "Grow What You Believe" ∥ Tim Tas "Carry The Gospel") → presentasi 2\'/kelompok 10\' → konklusi 10\' → persembahan 10\' → lagu + doa tutup 5\'.');
-    lines.push('- Kelompok 5-8 orang: 1 koordinator (Mentor/Co-mentor), 1 juru digital (input 6 kartu ke web), Tim Pot 2-4 orang, Tim Tas 2-4 orang. Peserta sudah duduk per kelompok sejak T0.');
-    lines.push('- discussionFlow = alur briefing → A1 → A2 → presentasi → refleksi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer A1/A2/presentasi, peran juru digital, dan pembersihan 3 menit terakhir.');
+    lines.push('- Bentuk: Serving Day berbasis karya — firman & briefing 15\' → Activity 1 The Roots Reminder Jar 15\' (6 kartu/orang: A Root I Carry, A Truth I Need to Remember, When I Feel Lost, A Word for My Community, A Verse to Hold Onto, My Next Faith Step; kertas semua, web pilih 2 dari 6) → Activity 2 Roots & DNA Creative Lab 25\' (melukis Tim Pot "Grow What You Believe" ∥ Tim Tas "Carry The Gospel") → presentasi 2\'/kelompok × 10 kelompok = 20\' → konklusi 10\' → persembahan 10\' → lagu + doa tutup 5\'.');
+    lines.push('- Sepuluh kelompok baku (5-8 orang): Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Tiap kelompok: 1 koordinator (Mentor/Co-mentor), 1 perwakilan (teks + foto), Tim Pot 2-4, Tim Tas 2-4. Jangan mengarang kelompok ke-11 atau nama orang. Peserta sudah duduk per kelompok sejak T0.');
+    lines.push('- discussionFlow = alur briefing → A1 → A2 → presentasi → refleksi (Satu Kata + komitmen); deliveryPlan tekankan penataan meja per kelompok, timer A1/A2/presentasi 20 menit, peran perwakilan, dan pembersihan 3 menit terakhir.');
     lines.push('- Konklusi wajib merujuk eksplisit Fundamental Firman pekan ini; arahan pot/tas & 6 kartu harus lahir dari tema/firman, bukan generik.');
   } else {
     lines.push('- Bentuk: ikuti skenario pola di atas; discussionFlow = alur partisipatif sesuai pola (bukan FGD generik).');
@@ -948,7 +948,7 @@ const SessionPostToPostSchema = z.object({
 });
 const SessionValuesSchema = z.object({
   exegesis: SessionExegesisSchema,
-  values: z.array(z.object({ key: z.string(), value: z.string() })).max(40),
+  values: z.array(z.object({ key: z.string(), value: z.string() })).max(80),
 });
 
 /** Clamp eksegesis (poin inti + implikasi) agar selalu berbentuk aman. */
@@ -1179,13 +1179,15 @@ export async function generateSessionDraft(input) {
   const hasCreativeLab = fieldKeys.some((f) => String(f.key || '').toLowerCase().startsWith('jar-'));
   const CREATIVE_LAB_RULES = hasCreativeLab ? [
     'ATURAN CREATIVE LAB (WAJIB):',
+    '- Kelompok BAKU hanya sepuluh ini: Agape, Avodah, Dunamis, Echad, Hesed, Kairos, Logos, Metanoia, Ruach, Shalom. Jangan mengarang kelompok ke-11 atau nama orang.',
+    '- Anggota, perwakilan, Tim Pot, dan Tim Tas diisi server dari database. Jangan mengisi nama orang.',
     '- jar-root..jar-step: tulis arahan Indonesia yang konkret + 1 contoh kalimat Beyonders (KRS, skripsi, magang, shift, lembur, kos, keuangan awal, relasi) yang menyebut eksplisit tema/firman pekan.',
-    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan "Grow What You Believe" (merawat iman), a2-bag = arahan "Carry The Gospel" (nilai Injil di kuliah/kerja/kos/pergaulan); a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
-    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=120.',
+    '- a1-*/a2-*: langkah teknis & alat yang bisa dijalankan 5-8 orang/kelompok; a2-pot = arahan melukis "Grow What You Believe" (merawat iman), a2-bag = arahan melukis "Carry The Gospel" (nilai Injil di kuliah/kerja/kos/pergaulan); a2-commit = satu kata/simbol/kalimat komitmen kelompok.',
+    '- a1-minutes=15 dan a2-minutes=25 (menit, angka saja) kecuali tim memberi alasan lain; present-seconds=120 (2 menit per kelompok, 10 kelompok = 20 menit).',
     '- brief-core (inti khotbah 8-10 menit) & closing-script wajib merujuk eksplisit Fundamental Firman (sebutkan ref-nya) + aplikasi konkret bagi Beyonders.',
-    '- group-*: NAMA kelompok/anggota/juru digital/Tim Pot/Tas = orang nyata; bila belum pasti, KOSONGKAN (jangan mengarang nama). Boleh isi nama kelompok tematik dari tema, tetapi anggota tetap kosong.',
-    '- present-order/present-questions: urutan & 2 pertanyaan apresiasi singkat (2 menit/kelompok).',
+    '- present-order/present-questions: 2 pertanyaan apresiasi singkat. Urutan tampil diundi di kontrol, jangan mengarang urutan nama.',
   ] : [];
+  const templateKeyCap = hasCreativeLab ? 80 : 40;
   const prompt = [...head,
     'ATURAN (WAJIB):',
     ...EXEGESIS_RULES,
@@ -1201,7 +1203,7 @@ export async function generateSessionDraft(input) {
     '- Jangan pernah mengeluarkan teks {{...}} apa pun (mis. {{firman_ref}}); selalu tulis ref, tema, dan kitab yang sebenarnya.',
     '- Kunci yang tidak relevan boleh dilewatkan (jangan diada-ada).',
     'KUNCI TEMPLATE:',
-    ...fieldKeys.slice(0, 40).map((f) => `- ${f.key}: ${f.label || ''}`),
+    ...fieldKeys.slice(0, templateKeyCap).map((f) => `- ${f.key}: ${f.label || ''}`),
     '',
     'Balas HANYA JSON valid: {"values":[{"key":"...","value":"..."}]}',
   ].join('\n');
@@ -1209,7 +1211,7 @@ export async function generateSessionDraft(input) {
   const known = new Set(fieldKeys.map((f) => f.key));
   const values = (Array.isArray(object?.values) ? object.values : [])
     .filter((v) => known.has(asStr(v?.key)) && asStr(v?.value))
-    .slice(0, 40)
+    .slice(0, templateKeyCap)
     .map((v) => ({ key: asStr(v.key), value: asStr(v.value).slice(0, 2000) }));
   return { kind: 'GENERIC', exegesis: clampExegesis(object?.exegesis), values };
 }

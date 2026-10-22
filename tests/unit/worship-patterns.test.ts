@@ -193,7 +193,9 @@ describe('worship-patterns: patternBlock semua pola', () => {
     expect(lines).toContain('My Next Faith Step');
     expect(lines).toContain('Grow What You Believe');
     expect(lines).toContain('Carry The Gospel');
-    expect(lines).toContain('juru digital');
+    expect(lines).toContain('perwakilan');
+    expect(lines).toContain('Agape');
+    expect(lines).toContain('20');
   });
 
   it('phase notes + division ikut ke prompt AI', () => {

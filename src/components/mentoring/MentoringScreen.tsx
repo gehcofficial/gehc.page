@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Loader2, Timer } from 'lucide-react';
 import {
   STATUS_LABELS,
+  codeFromMentoringHash,
   mentoringCodeKey,
   parseMentoringHash,
   type MentoringLivePayload,
@@ -61,6 +62,15 @@ const MentoringScreen: React.FC = () => {
 
   const [code, setCode] = useState(() => {
     if (typeof window === 'undefined' || !slug) return '';
+    const fromHash = codeFromMentoringHash(window.location.hash);
+    if (fromHash) {
+      try {
+        window.localStorage.setItem(mentoringCodeKey(slug), fromHash);
+      } catch {
+        /* storage diblokir */
+      }
+      return fromHash;
+    }
     try {
       return window.localStorage.getItem(mentoringCodeKey(slug)) || '';
     } catch {

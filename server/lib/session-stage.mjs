@@ -229,16 +229,29 @@ export function cleanSong(raw) {
   return { title, about: str(raw.about, 2000), singer: str(raw.singer, 120) };
 }
 
+/** Batas tim Three Sequences (default cleanTeams). Creative Lab memakai LAB_MAX_TEAMS. */
+export const DEFAULT_MAX_TEAMS = 8;
+
+/** Sepuluh kelompok Beyonders yang dipakai Creative Lab, urut nama. */
+export const CREATIVE_LAB_GROUP_NAMES = [
+  'Agape', 'Avodah', 'Dunamis', 'Echad', 'Hesed', 'Kairos', 'Logos', 'Metanoia', 'Ruach', 'Shalom',
+];
+
+export const LAB_MAX_TEAMS = CREATIVE_LAB_GROUP_NAMES.length;
+export const LAB_ROSTER_MAX = 8;
+/** Indeks presentasi terakhir (0 … 9). */
+export const LAB_PRESENT_INDEX_MAX = LAB_MAX_TEAMS - 1;
+
 /**
- * Normalisasi papan tim (maks 8 tim, 20 anggota per tim).
- * CREATIVE_LAB menambah sub-tim paralel: `pot` & `bag` (masing-masing 2-6
- * anggota), `station` (meja/stasiun), serta identitas akun untuk update karya:
- * `repUserId` (perwakilan), `repName`, `memberUserIds[]`. Field baru opsional —
- * THREE_SEQUENCES/DEBAT tetap kompatibel (default kosong).
+ * Normalisasi papan tim. Default maks 8 (Three Sequences). Creative Lab
+ * memanggil dengan `{ maxTeams: 10 }`.
+ * Sub-tim `pot` & `bag`, `station`, `repUserId`, `repName`, `memberUserIds`,
+ * dan `groupId` opsional — pola lain tetap kompatibel (default kosong).
  */
-export function cleanTeams(raw) {
+export function cleanTeams(raw, opts = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const teams = (Array.isArray(raw.teams) ? raw.teams : []).slice(0, 8).map((t) => ({
+  const cap = Math.min(LAB_MAX_TEAMS, Math.max(1, Number(opts.maxTeams) || DEFAULT_MAX_TEAMS));
+  const teams = (Array.isArray(raw.teams) ? raw.teams : []).slice(0, cap).map((t) => ({
     name: str(t?.name, 80),
     task: str(t?.task, 200),
     members: (Array.isArray(t?.members) ? t.members : []).slice(0, 20).map((m) => str(m, 80)).filter(Boolean),
@@ -253,6 +266,8 @@ export function cleanTeams(raw) {
       .map((m) => str(m, 64))
       .filter(Boolean))]
       .slice(0, 20),
+    groupId: str(t?.groupId, 64),
+    missing: Boolean(t?.missing),
   })).filter((t) => t.name);
   if (!teams.length) return null;
   return { teams };
@@ -282,18 +297,18 @@ export function cleanActivity(raw) {
   const presentSeconds = Math.min(600, Math.max(30, Number(raw.presentSeconds) || 120));
   const rawDur = raw.durations && typeof raw.durations === 'object' && !Array.isArray(raw.durations) ? raw.durations : {};
   const durationFor = (key, fallback) => Math.min(7200, Math.max(60, Number(rawDur[key]) || fallback));
-  // Urutan presentasi hasil undian: index tim unik 0-7. Kosong = urutan papan.
+  // Urutan presentasi hasil undian: index tim unik 0-9. Kosong = urutan papan.
   const presentOrder = [...new Set((Array.isArray(raw.presentOrder) ? raw.presentOrder : [])
     .map((n) => Math.floor(Number(n)))
-    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 7))]
-    .slice(0, 8);
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= LAB_PRESENT_INDEX_MAX))]
+    .slice(0, LAB_MAX_TEAMS);
   return {
     phase,
     startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
     durationSec,
     showOnScreen,
     cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
-    presentIndex: Math.min(7, Math.max(0, Number(raw.presentIndex) || 0)),
+    presentIndex: Math.min(LAB_PRESENT_INDEX_MAX, Math.max(0, Number(raw.presentIndex) || 0)),
     presentStartedAt: raw.presentStartedAt ? String(raw.presentStartedAt).slice(0, 30) : null,
     presentSeconds,
     presentOrder,
@@ -369,5 +384,146 @@ export function creativeLabFromDraft(storedDraft) {
         PRESENT: presentSeconds,
       },
     }),
+  };
+}
+
+function normLabName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Papan Creative Lab dari kelompok aktif di database.
+ * `memberUserIds` = semua anggota aktif yang punya akun (akses feed).
+ * `members` = roster tampilan, check-in didahulukan, maks 8.
+ * `lockOrder` mempertahankan indeks tim yang sudah punya update karya.
+ */
+export function buildCreativeLabTeams(dbGroups, opts = {}) {
+  const checked = new Set((opts.checkedInIds || []).map((id) => String(id)));
+  const existing = Array.isArray(opts.existingTeams) ? opts.existingTeams : [];
+  const lockOrder = Boolean(opts.lockOrder);
+  const byName = new Map();
+  for (const g of Array.isArray(dbGroups) ? dbGroups : []) {
+    const key = normLabName(g?.name);
+    if (key && !byName.has(key)) byName.set(key, g);
+  }
+
+  const makeFresh = (canonical, index) => {
+    const g = byName.get(normLabName(canonical));
+    const people = [];
+    const seen = new Set();
+    for (const m of g?.members || []) {
+      const id = String(m?.userId || m?.id || '').trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      people.push({ id, name: String(m?.name || m?.user?.name || '').trim() });
+    }
+    people.sort((a, b) => {
+      const ac = checked.has(a.id) ? 0 : 1;
+      const bc = checked.has(b.id) ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return a.name.localeCompare(b.name, 'id');
+    });
+    const roster = people.filter((p) => p.name).slice(0, LAB_ROSTER_MAX);
+    return {
+      groupId: g?.id ? String(g.id) : '',
+      name: g?.name ? String(g.name).trim() : canonical,
+      missing: !g,
+      task: '',
+      members: roster.map((p) => p.name),
+      done: false,
+      scribe: '',
+      station: `Meja ${index + 1}`,
+      pot: [],
+      bag: [],
+      repUserId: '',
+      repName: '',
+      memberUserIds: people.map((p) => p.id).slice(0, 20),
+      _people: people,
+    };
+  };
+
+  const fresh = CREATIVE_LAB_GROUP_NAMES.map((name, i) => makeFresh(name, i));
+
+  const applyExisting = (base, ex) => {
+    if (!ex) {
+      const { _people, ...rest } = base;
+      return rest;
+    }
+    const ids = new Set(base.memberUserIds);
+    const names = new Set(base._people.map((p) => p.name.toLowerCase()).filter(Boolean));
+    const keepList = (list) => (Array.isArray(list) ? list : [])
+      .map((n) => String(n || '').trim())
+      .filter((n) => n && names.has(n.toLowerCase()))
+      .slice(0, 4);
+    const repId = String(ex.repUserId || '');
+    const repOk = Boolean(repId) && ids.has(repId);
+    const person = repOk ? base._people.find((p) => p.id === repId) : null;
+    const { _people, ...rest } = base;
+    return {
+      ...rest,
+      task: str(ex.task, 200),
+      station: str(ex.station, 80) || rest.station,
+      done: Boolean(ex.done),
+      pot: keepList(ex.pot),
+      bag: keepList(ex.bag),
+      repUserId: repOk ? repId : '',
+      repName: repOk ? (person?.name || str(ex.repName, 80)) : '',
+      scribe: str(ex.scribe, 80),
+    };
+  };
+
+  const matchFresh = (ex, consumed) => fresh.find((f) => {
+    if (consumed.has(f)) return false;
+    const idMatch = f.groupId && String(ex?.groupId || '') === f.groupId;
+    const nameMatch = normLabName(ex?.name) === normLabName(f.name);
+    return idMatch || nameMatch;
+  });
+
+  let teams;
+  if (!lockOrder) {
+    const consumed = new Set();
+    teams = fresh.map((base) => {
+      const ex = existing.find((t) => matchFresh(t, consumed) === base);
+      if (ex) consumed.add(base);
+      return applyExisting(base, ex);
+    });
+  } else {
+    const consumed = new Set();
+    teams = [];
+    for (const ex of existing) {
+      const base = matchFresh(ex, consumed);
+      if (!base) {
+        if (!str(ex?.name, 80)) continue;
+        teams.push({
+          groupId: str(ex.groupId, 64),
+          name: str(ex.name, 80),
+          missing: false,
+          task: str(ex.task, 200),
+          members: (Array.isArray(ex.members) ? ex.members : []).slice(0, 20).map((m) => str(m, 80)).filter(Boolean),
+          done: Boolean(ex.done),
+          scribe: str(ex.scribe, 80),
+          station: str(ex.station, 80),
+          pot: (Array.isArray(ex.pot) ? ex.pot : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+          bag: (Array.isArray(ex.bag) ? ex.bag : []).slice(0, 6).map((m) => str(m, 80)).filter(Boolean),
+          repUserId: str(ex.repUserId, 64),
+          repName: str(ex.repName, 80),
+          memberUserIds: [...new Set((Array.isArray(ex.memberUserIds) ? ex.memberUserIds : []).map((m) => str(m, 64)).filter(Boolean))].slice(0, 20),
+        });
+        continue;
+      }
+      consumed.add(base);
+      teams.push(applyExisting(base, ex));
+    }
+    for (const base of fresh) {
+      if (consumed.has(base)) continue;
+      teams.push(applyExisting(base, null));
+    }
+    teams = teams.slice(0, LAB_MAX_TEAMS);
+  }
+
+  return {
+    teams,
+    missing: fresh.filter((f) => f.missing).map((f) => f.name),
+    orderLocked: lockOrder,
   };
 }
