@@ -648,6 +648,25 @@ export function registerEventCheckInRoutes(app, { wrap }) {
 
     const limit = Math.min(Math.max(Number(req.query.limit) || SCAN_PAGE_DEFAULT, 1), SCAN_PAGE_MAX);
     const cursor = String(req.query.cursor || '').trim();
+    if (!cursor) {
+      const [groupedStamp, checkedIn] = await Promise.all([
+        prisma.eventCheckIn.groupBy({
+          by: ['result'],
+          where: { eventId: resolved.id },
+          _count: { _all: true },
+        }).catch(() => []),
+        prisma.eventAttendee.count({
+          where: { eventId: resolved.id, checkedInAt: { not: null } },
+        }).catch(() => 0),
+      ]);
+      const { finishIfMatch, weakEtag } = await import('../lib/http-cache.mjs');
+      const etag = weakEtag([
+        'checkin', resolved.id,
+        ...groupedStamp.map((g) => `${g.result}:${g._count._all}`).sort(),
+        checkedIn,
+      ]);
+      if (finishIfMatch(req, res, etag)) return;
+    }
 
     const scans = await prisma.eventCheckIn.findMany({
       where: { eventId: resolved.id },

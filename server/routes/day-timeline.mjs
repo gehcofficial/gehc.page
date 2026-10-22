@@ -71,6 +71,14 @@ export function registerDayTimelineRoutes(app, { wrap }) {
       try {
         const day = normalizeDay(req.query.day);
         if (!day) return res.status(400).json({ error: 'Query ?day=YYYY-MM-DD wajib.' });
+        const stamp = await prisma.dayTimelineItem.aggregate({
+          where: { day: new Date(`${day}T00:00:00.000Z`) },
+          _count: { _all: true },
+          _max: { updatedAt: true },
+        }).catch(() => null);
+        const { finishIfMatch, weakEtag } = await import('../lib/http-cache.mjs');
+        const etag = weakEtag(['day', day, stamp?._count?._all, stamp?._max?.updatedAt]);
+        if (finishIfMatch(req, res, etag)) return;
         res.json({ day, items: await loadDay(prisma, day) });
       } catch (e) {
         if (missingTable(e)) return res.json({ day: String(req.query.day || ''), items: [] });

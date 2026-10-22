@@ -292,6 +292,17 @@ export function registerLiturgiaLiveRoutes(app, { wrap }) {
         if (!req.authUser && !codeOk) {
           return res.status(401).json({ error: 'Butuh login atau kode proyektor.', needCode: true });
         }
+        const itemStamp = await prisma.serviceOrderItem.aggregate({
+          where: { eventId: String(ev.id) },
+          _count: { _all: true },
+          _max: { updatedAt: true },
+        }).catch(() => null);
+        const { finishIfMatch, weakEtag } = await import('../lib/http-cache.mjs');
+        const etag = weakEtag([
+          'liturgy', ev.id, state?.updatedAt, state?.status, state?.currentItemId, state?.sectionIndex,
+          itemStamp?._count?._all, itemStamp?._max?.updatedAt,
+        ]);
+        if (finishIfMatch(req, res, etag)) return;
         const items = await loadOrder(prisma, ev.id, await loadPericope(prisma, ev));
         res.setHeader('Cache-Control', 'no-store');
         res.json({

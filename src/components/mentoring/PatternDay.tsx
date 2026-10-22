@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Clapperboard, Download, Flag, Loader2, Lock, Send, Sparkles, Swords, Timer, Users } from 'lucide-react';
 import {
   COMMITMENT_KEY,
@@ -24,6 +24,7 @@ import {
   type MentoringSessionPayload,
 } from '../../lib/mentoring';
 import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import SessionTimer from './SessionTimer';
 import { SessionNotes } from './SessionNotes';
 import { JarWebSlots, LabGroupPanel } from './CreativeLabPanels';
@@ -230,42 +231,39 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const [adminTeam, setAdminTeam] = useState<number | ''>('');
   useEffect(() => { setPinned(null); setAdminTeam(''); }, [slug]);
 
+  const sessionEtag = useRef({ etag: null as string | null, url: '' });
   const load = useCallback(async () => {
     if (!slug) {
       setState({ status: 'error', message: 'Slug sesi tidak ada di tautan.' });
-      return;
+      return false;
     }
     try {
       const q = adminTeam === '' ? '' : `?teamIndex=${adminTeam}`;
-      const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}${q}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const url = `/api/worship/session/${encodeURIComponent(slug)}${q}`;
+      if (sessionEtag.current.url !== url) sessionEtag.current = { etag: null, url };
+      const polled = await fetchWithEtag(url, sessionEtag.current, { credentials: 'include' });
+      if (polled.unchanged) return false;
+      const r = polled.response;
       if (r.status === 401) {
         window.location.hash = `#/login?next=${encodeURIComponent(`#/mentoring/${slug}`)}`;
         setState({ status: 'auth' });
-        return;
+        return true;
       }
-      const d: MentoringSessionPayload = await r.json();
+      const d = polled.data as MentoringSessionPayload & { error?: string };
       if (!r.ok) {
-        setState({ status: 'error', message: (d as unknown as { error?: string })?.error || 'Gagal memuat.' });
-        return;
+        setState({ status: 'error', message: d?.error || 'Gagal memuat.' });
+        return true;
       }
       setData(d);
       setState({ status: 'ok' });
+      return true;
     } catch (e) {
       setState({ status: 'error', message: e instanceof Error ? e.message : 'Gagal memuat.' });
+      return true;
     }
   }, [slug, adminTeam]);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => {
-      if (document.hidden) return;
-      void load();
-    }, 20000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useEffect(() => startVisiblePoll(() => load(), 15000, 30000), [load]);
 
   const status = data?.session.status || 'DRAFT';
   const notes = data?.notes || {};

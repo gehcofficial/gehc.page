@@ -28,9 +28,10 @@ function withPrismaParams(url) {
   try {
     const u = new URL(url);
     if (!u.searchParams.has('sslaccept')) u.searchParams.set('sslaccept', 'strict');
-    if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', '10');
-    if (!u.searchParams.has('pool_timeout')) u.searchParams.set('pool_timeout', '60');
-    if (!u.searchParams.has('connect_timeout')) u.searchParams.set('connect_timeout', '60');
+    const serverless = Boolean(process.env.VERCEL);
+    if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', serverless ? '1' : '5');
+    if (!u.searchParams.has('pool_timeout')) u.searchParams.set('pool_timeout', serverless ? '8' : '20');
+    if (!u.searchParams.has('connect_timeout')) u.searchParams.set('connect_timeout', serverless ? '8' : '20');
     return u.toString();
   } catch {
     return url;
@@ -80,9 +81,11 @@ export function isTransientDbError(err) {
 }
 
 export async function resetPrisma() {
-  if (!_prisma) return;
-  const prev = _prisma;
+  const slot = globalThis;
+  const prev = _prisma || slot.__gehcPrisma;
   _prisma = null;
+  slot.__gehcPrisma = null;
+  if (!prev) return;
   try {
     await prev.$disconnect();
   } catch {
@@ -93,11 +96,17 @@ export async function resetPrisma() {
 export function getPrisma() {
   const url = applyDatabaseUrl();
   if (!url) return null;
+  const slot = globalThis;
+  if (slot.__gehcPrisma) {
+    _prisma = slot.__gehcPrisma;
+    return _prisma;
+  }
   if (!_prisma) {
     _prisma = new PrismaClient({
       datasources: { db: { url } },
       log: ['error'],
     });
+    slot.__gehcPrisma = _prisma;
   }
   return _prisma;
 }

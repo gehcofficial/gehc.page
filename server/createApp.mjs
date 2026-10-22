@@ -31,7 +31,8 @@ export function createApp() {
       res.header('Vary', 'Origin');
     }
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, If-None-Match');
+    res.header('Access-Control-Expose-Headers', 'ETag');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
