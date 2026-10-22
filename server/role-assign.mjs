@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { GEN0_LABEL, GEN0_PERIOD, namesMatch, newBatchId } from './lib/beyonders-generation.mjs';
 import { pushToUsers } from './lib/notify.mjs';
+import { resolveRoleTenant } from './lib/role-tenant.mjs';
 
 export function genId64() {
   return crypto.randomBytes(32).toString('hex');
@@ -113,6 +114,7 @@ export async function assignRoleToUser(prisma, {
   assignedBy,
   note = null,
   updateOnboarding = true,
+  tenantId: explicitTenantId = null,
 }) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User tidak ditemukan.');
@@ -157,8 +159,13 @@ export async function assignRoleToUser(prisma, {
     },
   });
 
+  const tenantId = await resolveRoleTenant(prisma, {
+    role,
+    groupId,
+    fallbackTenant: explicitTenantId,
+  });
   const existingUserRole = await prisma.userRole.findFirst({
-    where: { userId, role, groupId: groupId || null },
+    where: { userId, role, groupId: groupId || null, tenantId },
   });
 
   let userRole;
@@ -171,7 +178,7 @@ export async function assignRoleToUser(prisma, {
     userRole = await prisma.userRole.create({
       data: {
         userId,
-        tenantId: 'tenant-youth',
+        tenantId,
         role,
         groupId: groupId || null,
         assignmentId: assignment.id,

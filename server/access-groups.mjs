@@ -3,9 +3,10 @@
  */
 import crypto from 'node:crypto';
 import { getPrisma, isDbConfigured } from './db.mjs';
+import { resolveRoleTenant } from './lib/role-tenant.mjs';
+import { YOUTH_TENANT_ID } from './lib/tenant-defaults.mjs';
 
 const ROLE_ORDER = ['SUPERADMIN', 'BPMJ', 'KOMISI', 'COMMITTEE', 'MENTOR', 'CO_MENTOR', 'MENTEE', 'ALUMNI'];
-const TENANT_ID = 'tenant-youth';
 
 function slugify(name) {
   return String(name || 'group')
@@ -66,7 +67,13 @@ export async function applyGroupEntitlements(emailRaw, userId) {
     for (const role of roles) {
       const key = `${role}::${groupId || ''}`;
       if (!have.has(key)) {
-        toCreate.push({ userId, tenantId: TENANT_ID, role, groupId });
+        // access_groups belum punya kolom tenant: ikut grup mentoring, selain itu bundel historis Pemuda.
+        const tenantId = await resolveRoleTenant(prisma, {
+          role,
+          groupId,
+          fallbackTenant: YOUTH_TENANT_ID,
+        });
+        toCreate.push({ userId, tenantId, role, groupId });
         have.add(key);
       }
     }
