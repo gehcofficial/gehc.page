@@ -13,6 +13,7 @@ import { sundaysInMonth, toISODate, addDays } from '../lib/church-year.mjs';
 import { wibDateOnly } from '../lib/event-venue.mjs';
 import { deleteEmptySession } from './worship.mjs';
 import { presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
+import { getPublicCache, setPublicCache, setPublicCacheHeaders, bustPublicCache } from '../lib/public-cache.mjs';
 import {
   generateWeekDraft,
   generateEnrichedDraft,
@@ -339,6 +340,8 @@ async function saveStudioWeek(prisma, yearMonth, weekIndex, mutator, userId) {
   const next = mutator(current) || current;
   weeks[idx] = next;
   const updated = await prisma.ministryMonthPlan.update({ where: { id: plan.id }, data: { weeks } });
+  bustPublicCache('ringkasan:');
+  bustPublicCache(`pres:${yearMonth}:`);
   return weekOrDefault(readWeeks(updated), yearMonth, weekIndex);
 }
 
@@ -1331,6 +1334,15 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const doc = String(req.query?.doc || 'pembekalan');
       if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
       if (!DOCS.includes(doc)) return res.status(400).json({ error: 'Jenis materi tidak valid.' });
+      const presKey = `pres:${yearMonth}:${weekIndex}:${doc}:${req.headers.host || ''}`;
+      if (canViewDoc(req, doc)) {
+        const hit = getPublicCache(presKey);
+        if (hit) {
+          res.setHeader('Cache-Control', 'private, max-age=15');
+          res.setHeader('Vary', 'Host, Cookie');
+          return res.json(hit);
+        }
+      }
 
       const plan = await prisma.ministryMonthPlan.findUnique({ where: { yearMonth } });
       const weeks = plan ? readWeeks(plan) : [];
@@ -1355,7 +1367,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           });
         }
       }
-      res.json({
+      const payload = {
         doc,
         meta: {
           weekIndex: week.index,
@@ -1369,7 +1381,11 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         published: studio.status === 'PUBLISHED' && Boolean(render),
         version: Number(render?.version) || 1,
         snapshot: render?.snapshot || null,
-      });
+      };
+      if (canViewDoc(req, doc)) setPublicCache(presKey, payload, 30_000);
+      res.setHeader('Cache-Control', 'private, max-age=15');
+      res.setHeader('Vary', 'Host, Cookie');
+      res.json(payload);
     })
   );
 
@@ -1405,18 +1421,23 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
   app.get(
     '/api/ibadah/ringkasan/:yearMonth/:weekIndex',
     wrap(async (req, res) => {
-      const prisma = getPrisma();
-      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const yearMonth = String(req.params.yearMonth || '');
       const weekIndex = getWeekIndex(req);
+      const cacheKey = `ringkasan:${req.headers.host || ''}:${yearMonth}:${weekIndex}`;
+      const hit = getPublicCache(cacheKey);
+      if (hit) {
+        setPublicCacheHeaders(res, 60, 600);
+        return res.json(hit);
+      }
+      const prisma = getPrisma();
+      if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const loaded = await loadPublishedWeek(prisma, yearMonth, weekIndex);
       if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
       const { week, studio, published } = loaded;
       const sermon = sermonWithLiteralOutline(studio.sermon || {}, studio.sourceMd);
       const tu = sermon.teksUtama || {};
       const ol = sermon.outline || {};
-      res.setHeader('Cache-Control', 'public, max-age=300');
-      res.json({
+      const body = {
         yearMonth,
         weekIndex: week.index,
         date: week.date || '',
@@ -1431,7 +1452,10 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
           kesimpulan: String(ol.kesimpulan || ''),
         },
         coverUrl: studio.presentation?.cover ? `/api/ibadah/ringkasan/${yearMonth}/${week.index}/gambar` : null,
-      });
+      };
+      setPublicCache(cacheKey, body, 60_000);
+      setPublicCacheHeaders(res, 60, 600);
+      res.json(body);
     })
   );
 

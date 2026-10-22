@@ -2,7 +2,7 @@
 
 ## Current — Kedalaman Ringkasan Khotbah pekan 4 (22 Okt 2026)
 
-**Minta:** deck Ringkasan Khotbah Oktober 2026 pekan 4 terlalu pendek dibanding naskah sumber dan dibanding pekan 2–3. Parser harus memetakan detail MD ke outline yang dirender, tanpa AI mengarang isi inti. Re-parse aman di staging. Produksi: langkah Studio untuk owner, jangan republish.
+**Minta:** deck Ringkasan Khotbah Oktober 2026 pekan 4 terlalu pendek dibanding naskah sumber dan dibanding pekan 2–3. Parser harus memetakan detail MD ke outline yang dirender, tanpa AI mengarang isi inti. Re-parse aman di staging. Produksi: langkah Studio untuk owner, jangan republish. Cabang `cursor/khutbah-depth-d5fe` sudah digabung ke `main` `18c97c7` (PR #22 CPU diet).
 
 **Done:**
 - Penyebab: `sermon.outline` produksi pekan 4 adalah parafrase satu kalimat (76 / 101 / 114 / 107 karakter). `sourceMd.service.outline` tetap naskah utuh (2646 / 4272 / 3010 / 1472). Parser PDF fixture tidak memotong. Snapshot rilis menyalin parafrase itu. Pekan 2 dan 3 tidak berubah karena outline khotbah sudah sama dengan sumber.
@@ -10,12 +10,15 @@
 - Tombol Konten **Pulihkan dari naskah sumber** menulis empat bagian itu dan tersimpan otomatis.
 - Deck produksi dari teks tersimpan: sebelum 5 slide (sampul + 1 per bagian), sesudah 40 slide (sampul + pengantar 9, bedah 15, jembatan 10, kesimpulan 5). Pekan 2 tetap 18 slide, pekan 3 tetap 43.
 - Staging `2026-10` pekan 4 (DRAFT, tanggal 2026-10-25): `sourceMd.service` dan `sermon.outline` diisi dari naskah sumber produksi, teks utama `1 Korintus 1:13`, kitab fokus `2 Timotius 1:3--18`. Status tidak diubah, snapshot rilis tidak ditulis. Produksi tidak ditulis.
+- Merge `main`: cache ringkasan/presentasi per host tetap; `saveStudioWeek` masih `bustPublicCache('ringkasan:')` dan `pres:` — outline literal ikut diisi sebelum cache diset.
 
-**Next:** setelah cabang ini di `main`, owner buka Studio Oktober 2026 pekan 4 → Konten → **Pulihkan dari naskah sumber** → Terbitkan → **Rilis ulang Ringkasan Khotbah**. Sampai rilis ulang, halaman yang sudah memuat kode ini tetap menampilkan naskah sumber dan menandai rilis basi. Jangan `staging:sync`. Jangan republish dari agen.
+**Next:** setelah cabang ini di `main`, owner buka Studio Oktober 2026 pekan 4 → Konten → **Pulihkan dari naskah sumber** → Terbitkan → **Rilis ulang Ringkasan Khotbah**. Jangan `staging:sync`. Jangan republish dari agen.
 
-**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **168 file / 1340 tes** lulus. `npm run build` lulus. Layar staging `#/materi/khutbah/2026-10/4` menampilkan 1/40, draf belum rilis, dan slide 2 memuat subpoin “a. Masalahnya…” serta nama Riedel.
+**Verifikasi:** `tsc --noEmit` (heap 4096) · `npm test` · `npm run build` setelah merge.
 
-**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · `npm run build` · branch `cursor/khutbah-depth-d5fe`
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · branch `cursor/khutbah-depth-d5fe`
+
+## Prior — Diet CPU Vercel Fluid (22 Okt 2026, sudah di `main` PR #22 `18c97c7`)
 
 ## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 

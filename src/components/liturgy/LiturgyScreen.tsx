@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, Loader2, Maximize } from 'lucide-react';
 import {
   KIND_LABEL,
@@ -9,6 +9,7 @@ import {
   saveLiturgyCode,
 } from '../../lib/liturgy-live';
 import { PortalBackButton } from './PortalBackButton';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
  * Layar tata ibadah — proyektor + HP jemaat (read-only, ikut momen aktif).
@@ -24,15 +25,17 @@ export const LiturgyScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
+  const liveEtag = useRef({ etag: null as string | null, url: '' });
   const load = useCallback(async () => {
-    if (!eventKey) return;
+    if (!eventKey) return false;
     try {
       const q = code ? `?code=${encodeURIComponent(code)}` : '';
-      const r = await fetch(`/api/events/${encodeURIComponent(eventKey)}/liturgy-live${q}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const d = (await r.json().catch(() => ({}))) as LivePayload & { error?: string; needCode?: boolean };
+      const url = `/api/events/${encodeURIComponent(eventKey)}/liturgy-live${q}`;
+      if (liveEtag.current.url !== url) liveEtag.current = { etag: null, url };
+      const polled = await fetchWithEtag(url, liveEtag.current, { credentials: 'include' });
+      if (polled.unchanged) return false;
+      const r = polled.response;
+      const d = (polled.data || {}) as LivePayload & { error?: string; needCode?: boolean };
       if (r.status === 401) {
         setErr(d.error || 'Butuh login atau kode proyektor.');
         setData(null);
@@ -42,8 +45,10 @@ export const LiturgyScreen: React.FC = () => {
         setErr('');
         setData(d);
       }
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Gagal memuat.');
+      return true;
     } finally {
       setLoading(false);
     }
@@ -51,11 +56,7 @@ export const LiturgyScreen: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    void load();
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 15000);
-    return () => clearInterval(t);
+    return startVisiblePoll(() => load(), 15000, 30000);
   }, [load]);
 
   const submitCode = () => {

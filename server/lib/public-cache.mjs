@@ -39,6 +39,9 @@ export function bustPublicCache(prefix) {
  * maxAge detik, swr detik (stale-while-revalidate).
  */
 export function setPublicCacheHeaders(res, maxAge = 60, swr = 300) {
-  res.setHeader('Cache-Control', `public, max-age=${maxAge}, stale-while-revalidate=${swr}`);
-  res.setHeader('Vary', 'Accept-Encoding');
+  res.setHeader(
+    'Cache-Control',
+    `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=${swr}`,
+  );
+  res.setHeader('Vary', 'Accept-Encoding, Host');
 }

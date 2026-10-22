@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Loader2, MonitorPlay, Music, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import {
@@ -9,6 +9,7 @@ import {
   pushToFreeShow,
 } from '../../lib/control-room';
 import { PatternRundownList, type PatternPhase } from '../mentoring/PatternRundownList';
+import { fetchWithEtag, startVisiblePoll, type EtagSlot } from '../../lib/visible-poll';
 
 type DayBlock = {
   id: string; kind: string; eventId?: string | null; title?: string | null;
@@ -54,56 +55,85 @@ export const ControlRoomPanel: React.FC<{ eventId: string; eventDate?: string | 
   const [pushing, setPushing] = useState(false);
   const [pushMsg, setPushMsg] = useState('');
 
+  const slots = useRef(new Map<string, EtagSlot>());
+  const last = useRef<{ rows: DayBlock[]; lives: LiveMini[]; sessions: WorshipMini[] }>({ rows: [], lives: [], sessions: [] });
+  const slotFor = (url: string) => {
+    let slot = slots.current.get(url);
+    if (!slot) {
+      slot = { etag: null };
+      slots.current.set(url, slot);
+    }
+    return slot;
+  };
+
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!last.current.rows.length) setLoading(true);
     try {
-      const t = await api<{ items: DayBlock[] }>(`/api/day-timeline?day=${encodeURIComponent(day)}`);
-      const rows = t.items || [];
+      const timelineUrl = `/api/day-timeline?day=${encodeURIComponent(day)}`;
+      const timeline = await fetchWithEtag(timelineUrl, slotFor(timelineUrl), { credentials: 'include' });
+      if (!timeline.response.ok && !timeline.unchanged) {
+        const errBody = timeline.data as { error?: string } | null;
+        throw new Error(errBody?.error || `HTTP ${timeline.response.status}`);
+      }
+      const rows = timeline.unchanged
+        ? last.current.rows
+        : ((timeline.data as { items?: DayBlock[] } | null)?.items || []);
       const evIds = [...new Set(rows.map((b) => b.eventId).filter(Boolean))] as string[];
+      let changed = !timeline.unchanged;
       const lives: LiveMini[] = [];
       const sessions: WorshipMini[] = [];
       await Promise.all(evIds.map(async (id) => {
         try {
-          const l = await api<{ state?: { status?: string; currentItemId?: string | null } | null; items?: Array<{ id: string; serviceSong?: { song?: { title?: string | null } | null } | null; title?: string | null }> }>(
-            `/api/events/${id}/liturgy-live`,
-          );
-          const cur = (l.items || []).find((i) => i.id === l.state?.currentItemId);
-          lives.push({
-            eventId: id,
-            status: l.state?.status || null,
-            currentTitle: cur?.serviceSong?.song?.title || cur?.title || null,
-            totalMoments: (l.items || []).length,
-          });
+          const url = `/api/events/${id}/liturgy-live`;
+          const polled = await fetchWithEtag(url, slotFor(url), { credentials: 'include' });
+          if (polled.unchanged || !polled.response.ok) {
+            const prev = last.current.lives.find((row) => row.eventId === id);
+            if (prev) lives.push(prev);
+          } else {
+            changed = true;
+            const l = (polled.data || {}) as { state?: { status?: string; currentItemId?: string | null } | null; items?: Array<{ id: string; serviceSong?: { song?: { title?: string | null } | null } | null; title?: string | null }> };
+            const cur = (l.items || []).find((i) => i.id === l.state?.currentItemId);
+            lives.push({
+              eventId: id,
+              status: l.state?.status || null,
+              currentTitle: cur?.serviceSong?.song?.title || cur?.title || null,
+              totalMoments: (l.items || []).length,
+            });
+          }
         } catch { /* event tanpa live — abaikan */ }
         try {
-          const w = await api<{ session?: { slug?: string; title?: string; status?: string; patternCode?: string; patternName?: string; phases?: PatternPhase[] } | null }>(
-            `/api/events/${id}/worship`,
-          );
-          if (w.session) {
-            sessions.push({
-              eventId: id,
-              slug: w.session.slug, title: w.session.title, status: w.session.status,
-              patternCode: w.session.patternCode, patternName: w.session.patternName,
-              phases: w.session.phases,
-            });
+          const url = `/api/events/${id}/worship`;
+          const polled = await fetchWithEtag(url, slotFor(url), { credentials: 'include' });
+          if (polled.unchanged || !polled.response.ok) {
+            const prev = last.current.sessions.find((row) => row.eventId === id);
+            if (prev) sessions.push(prev);
+          } else {
+            changed = true;
+            const w = (polled.data || {}) as { session?: { slug?: string; title?: string; status?: string; patternCode?: string; patternName?: string; phases?: PatternPhase[] } | null };
+            if (w.session) {
+              sessions.push({
+                eventId: id,
+                slug: w.session.slug, title: w.session.title, status: w.session.status,
+                patternCode: w.session.patternCode, patternName: w.session.patternName,
+                phases: w.session.phases,
+              });
+            }
           }
         } catch { /* tanpa sesi mentoring — abaikan */ }
       }));
+      if (!changed) return false;
+      last.current = { rows, lives, sessions };
       setBlocks(mergeDayStatus(rows, lives, sessions));
+      return true;
     } catch (e) {
       addToast({ type: 'error', title: 'Gagal muat ruang kontrol', description: e instanceof Error ? e.message : '' });
+      return true;
     } finally {
       setLoading(false);
     }
-  }, [day, eventId, addToast]);
+  }, [day, addToast]);
 
-  useEffect(() => {
-    void load();
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 20000);
-    return () => clearInterval(t);
-  }, [load]);
+  useEffect(() => startVisiblePoll(() => load(), 20000, 40000), [load]);
 
   const pushEventSongs = async (evId: string) => {
     setPushing(true);
